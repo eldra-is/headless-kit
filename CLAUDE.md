@@ -37,7 +37,10 @@ pnpm pack-smoke         # pack, install into a fresh project, import at runtime 
 
 ## Releasing
 
-Release-please in manifest mode, one component per package, tags `sdk-v1.2.3`. **It reads commit
+Release-please in manifest mode, one component per package, tags `sdk-v1.2.3`, one release PR for
+all packages. The `node-workspace` plugin bumps `vue` when `rich-text` releases and rewrites the
+`workspace:^` range on publish; do not add `linked-versions` — it opens its own group PR and that
+candidate is dropped under `separate-pull-requests: false`, so only `sdk` gets released. **It reads commit
 types.** The pull request title is the squash-merge commit: `feat` or `fix` makes a release, `chore`
 does not, and the manual workflow cannot force one. A refreshed contract snapshot is a `feat`.
 Publishing happens on the GitHub release event, one package per release, by packing that package and
