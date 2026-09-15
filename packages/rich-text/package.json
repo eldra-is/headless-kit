@@ -1,0 +1,47 @@
+{
+  "name": "@eldra-is/rich-text",
+  "version": "0.0.0",
+  "description": "Framework-free rendering for Eldra CMS rich text: the document types, plain-text extraction, an escaping HTML serialiser, and embed normalisation.",
+  "keywords": [
+    "eldra",
+    "html",
+    "prosemirror",
+    "renderer",
+    "rich-text",
+    "tiptap"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/rich-text#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/rich-text"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "headless-kit",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' build",
+    "typecheck": "pnpm -r --filter './packages/*' --filter './examples/*' typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "vitest",
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "contract": "pnpm --filter @eldra-is/sdk contract",
+    "contract:check": "pnpm --filter @eldra-is/sdk contract:check",
+    "publint": "pnpm -r --filter './packages/*' exec publint --strict",
+    "attw": "pnpm -r --filter './packages/*' exec attw --pack . --profile esm-only",
+    "size": "size-limit",
+    "pack-smoke": "node scripts/pack-smoke.mjs",
+    "check": "pnpm lint:check && pnpm format:check && pnpm typecheck && pnpm contract:check && pnpm test && pnpm build && pnpm publint && pnpm attw && pnpm size && pnpm pack-smoke"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@nokkvireyr/vue-config": "^2.2.0",
+    "@size-limit/preset-small-lib": "^13.1.1",
+    "@types/node": "^24.0.0",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "publint": "^0.3.24",
+    "size-limit": "^13.1.1",
+    "tsdown": "^0.23.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  },
+  "engines": {
+    "node": ">=22.22.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@11.5.0"
+}

@@ -1,0 +1,63 @@
+{
+  "name": "@eldra-is/vue",
+  "version": "0.0.0",
+  "description": "Vue 3 components for Eldra storefronts: the RichText renderer for CMS content, with per-node and per-mark overrides.",
+  "keywords": [
+    "eldra",
+    "headless",
+    "nuxt",
+    "rich-text",
+    "storefront",
+    "vue"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/vue#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/vue"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "vite build && node scripts/fix-dts.mjs",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@eldra-is/rich-text": "workspace:^"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.8.9",
+    "vite": "^8.0.8",
+    "vite-plugin-dts": "^5.1.0",
+    "vitest-axe": "^0.1.0",
+    "vue": "^3.5.30",
+    "vue-tsc": "^3.2.6"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

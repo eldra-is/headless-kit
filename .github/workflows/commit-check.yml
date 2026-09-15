@@ -1,0 +1,40 @@
+name: Conventional commit
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate the pull request title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The title becomes the squash-merge commit, which is what release-please reads.
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?: .+'
+
+          if echo "$PR_TITLE" | grep -qP "$PATTERN"; then
+            echo "PR title is a conventional commit: $PR_TITLE"
+            exit 0
+          fi
+
+          echo "PR title does not follow conventional commits: $PR_TITLE"
+          echo ""
+          echo "  <type>[scope]: <description>"
+          echo "  feat(sdk): variant selection helper"
+          echo "  fix(rich-text): escape attribute values in toHtml"
+          echo "  feat(sdk)!: drop the default apiBaseUrl   (! = breaking)"
+          echo ""
+          echo "A refreshed contract snapshot is a feat, never a chore; chore makes no release."
+          exit 1
