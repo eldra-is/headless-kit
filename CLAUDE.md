@@ -13,7 +13,10 @@ registry. Read this before changing anything.
   use `pull_request`, never `pull_request_target`, and carry no secrets. Secrets exist only in
   `release.yml` (push to main) and `publish.yml` (release published), which fork code cannot
   trigger.
-- **No `NPM_TOKEN` anywhere.** Publishing is npm trusted publishing over OIDC with provenance.
+- **No `NPM_TOKEN` anywhere.** Publishing is npm trusted publishing over OIDC with provenance, to
+  npmjs only. The kit is not published to GitHub Packages: Eldra's private repositories map the
+  `@eldra-is` scope there for the private UI library, and a scope resolves against one registry, so
+  a private repo cannot depend on both — by design none does; storefronts depend on the kit alone.
 - Actions are pinned by commit SHA with the version in a trailing comment. Dependabot bumps them.
 - **Public packages never import a private one.** `@eldra-is/sdk` and `@eldra-is/rich-text` import
   nothing at all outside their own folder. Framework wrappers import only their framework and the
