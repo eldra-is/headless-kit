@@ -83,8 +83,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          name=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).name")
-          version=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+          name=$(tar -xzOf ./out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).name")
+          version=$(tar -xzOf ./out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
           if npm view "${name}@${version}" version  >/dev/null 2>&1; then
             echo "${name}@${version} is already published here; nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -94,7 +94,7 @@ jobs:
         if: steps.existing.outputs.skip != 'true'
         run: |
           npm install -g npm@^11.5
-          npm publish out/*.tgz --provenance --access public
+          npm publish ./out/*.tgz --provenance --access public
 
   github-packages:
     # The same tarball on GitHub Packages, so Eldra's private repositories — whose npm config maps
@@ -124,8 +124,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          name=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).name")
-          version=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+          name=$(tar -xzOf ./out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).name")
+          version=$(tar -xzOf ./out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
           if npm view "${name}@${version}" version --registry https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "${name}@${version} is already published here; nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -135,4 +135,4 @@ jobs:
         if: steps.existing.outputs.skip != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish out/*.tgz --registry https://npm.pkg.github.com --provenance=false
+        run: npm publish ./out/*.tgz --registry https://npm.pkg.github.com --provenance=false
