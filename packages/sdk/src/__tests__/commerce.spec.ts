@@ -86,7 +86,7 @@ describe('eldra sdk cart', () => {
     expect(await bodyOf(accepted.requests[0])).toEqual({ code: 'summer10' });
     expect(yes.applied).toBe(true);
     expect(no.applied).toBe(false);
-    expect(no.cart.id).toBe('cart-1');
+    expect(no.cart).toEqual({ id: 'cart-1' });
   });
 
   it('removes a discount code', async () => {

@@ -1,4 +1,10 @@
-import type { EldraContractBody, EldraContractQuery, EldraContractResponse } from './contract';
+import type {
+  EldraContractBody,
+  EldraContractItem as Item,
+  EldraContractProp as Prop,
+  EldraContractQuery,
+  EldraContractResponse,
+} from './contract';
 
 export type RuntimeValue<T> = T | (() => T | undefined) | undefined;
 
@@ -189,13 +195,13 @@ export interface EldraCmsClient {
 }
 
 export type EldraProductList = EldraContractResponse<'/catalog/v1/products/list', 'get'>;
-export type EldraProductListItem = NonNullable<EldraProductList['data']>[number];
+export type EldraProductListItem = Item<Prop<EldraProductList, 'data'>>;
 export type EldraProductDetails = EldraContractResponse<'/catalog/v1/products/{productId}', 'get'>;
-export type EldraProductVariant = NonNullable<EldraProductDetails['variants']>[number];
-export type EldraProductOption = NonNullable<EldraProductDetails['options']>[number];
-export type EldraProductOptionValue = NonNullable<EldraProductOption['values']>[number];
-export type EldraProductMediaLink = NonNullable<EldraProductDetails['mediaLinks']>[number];
-export type EldraProductThumbnail = NonNullable<EldraProductListItem['thumbnail']>;
+export type EldraProductVariant = Item<Prop<EldraProductDetails, 'variants'>>;
+export type EldraProductOption = Item<Prop<EldraProductDetails, 'options'>>;
+export type EldraProductOptionValue = Item<Prop<EldraProductOption, 'values'>>;
+export type EldraProductMediaLink = Item<Prop<EldraProductDetails, 'mediaLinks'>>;
+export type EldraProductThumbnail = Prop<EldraProductListItem, 'thumbnail'>;
 
 export interface EldraCatalogClient {
   listProducts<Response = EldraProductList>(
@@ -267,9 +273,7 @@ export interface EldraLocaleOptions {
   locale?: string;
 }
 
-export type EldraCategory = NonNullable<
-  EldraContractResponse<'/catalog/v1/categories', 'get'>
->[number];
+export type EldraCategory = Item<EldraContractResponse<'/catalog/v1/categories', 'get'>>;
 export type EldraCollectionList = EldraContractResponse<'/catalog/v1/collections', 'get'>;
 export type EldraCollection = EldraContractResponse<'/catalog/v1/collections/{slug}', 'get'>;
 export type EldraCollectionListOptions = EldraContractQuery<'/catalog/v1/collections', 'get'>;
@@ -281,8 +285,8 @@ export type EldraSearchOptions = Omit<EldraContractQuery<'/search/v1', 'get'>, '
 export type EldraSearchResponse = EldraContractResponse<'/search/v1', 'get'>;
 
 export type EldraCart = EldraContractResponse<'/shopping-cart/v1/cart/{cartID}', 'get'>;
-export type EldraCartItem = NonNullable<EldraCart['items']>[number];
-export type EldraCartTotals = NonNullable<EldraCart['totals']>;
+export type EldraCartItem = Item<Prop<EldraCart, 'items'>>;
+export type EldraCartTotals = Prop<EldraCart, 'totals'>;
 export type EldraAddCartItemInput = EldraContractBody<'/shopping-cart/v1/cart/items', 'post'>;
 
 export interface EldraDiscountResult {
@@ -292,23 +296,23 @@ export interface EldraDiscountResult {
 }
 
 export type EldraOrder = EldraContractResponse<'/order/v1/{orderId}', 'get'>;
-export type EldraOrderLine = NonNullable<EldraOrder['orderLines']>[number];
+export type EldraOrderLine = Item<Prop<EldraOrder, 'orderLines'>>;
 export type EldraRecoveredBasket = EldraContractResponse<'/order/v1/recover', 'post'>;
-export type EldraRecoveredBasketItem = NonNullable<EldraRecoveredBasket['items']>[number];
+export type EldraRecoveredBasketItem = Item<Prop<EldraRecoveredBasket, 'items'>>;
 
 export interface EldraOrderReadOptions {
   /** The one-time token returned when the order was created. Required unless the caller owns the order. */
   accessToken?: string;
 }
 
-export type EldraStockAvailabilityInput = NonNullable<
-  EldraContractBody<'/inventory/v1/stock/availability', 'post'>['items']
->[number];
+export type EldraStockAvailabilityInput = Item<
+  Prop<EldraContractBody<'/inventory/v1/stock/availability', 'post'>, 'items'>
+>;
 export type EldraStockAvailability = EldraContractResponse<
   '/inventory/v1/stock/availability',
   'post'
 >;
-export type EldraStockAvailabilityItem = NonNullable<EldraStockAvailability['items']>[number];
+export type EldraStockAvailabilityItem = Item<Prop<EldraStockAvailability, 'items'>>;
 
 export interface EldraCheckoutHandoffOptions {
   cartId: string;

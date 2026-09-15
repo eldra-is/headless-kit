@@ -7,6 +7,15 @@ change, naming the contract version when the contract moved. Release-please writ
 from commit messages and does not describe the SDK. The contract's own history is `CONTRACT.md` in the
 platform repository.
 
+## Unreleased
+
+- **Breaking.** The SDK no longer ships response types. The Vite plugin — now `eldra()`, was
+  `eldraCms()` — generates `contract.ts` from your gateway's `/api/public/openapi.json` next to the
+  CMS types, and it augments the SDK's `EldraContract` so every method is typed against the gateway
+  you build against. Without it, responses are `unknown` and request bodies and queries are plain
+  objects; name the type at the call site. `ELDRA_CONTRACT_VERSION` moved into the generated file.
+  `openapi-typescript` is a dependency of the `./vite` entry.
+
 ## 0.1.0 — 2026-09-15
 
 - Contract snapshot 2.4.0. `inventory.availability` items no longer need a `locationId`: `EldraStockAvailabilityInput.locationId` is optional, and an omitted one is answered by the organisation's default inventory location, the same resolution the cart's reservation uses; the response still names the location that answered. A storefront needs no location id in its configuration any more.

@@ -3,11 +3,11 @@
 Packages for building a storefront on the [Eldra Web Studio](https://eldra.is) public API, in any
 framework.
 
-| Package                                    | What it is                                                                                                                                 |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`@eldrajs/sdk`](packages/sdk)             | Client for CMS, catalog, cart, checkout handoff, orders and inventory. Framework-free; types generated from the versioned public contract. |
-| [`@eldrajs/rich-text`](packages/rich-text) | Framework-free rendering of CMS rich text: the document types, plain-text extraction, an escaping `toHtml`, embed normalisation.           |
-| [`@eldrajs/vue`](packages/vue)             | Vue 3 components: the `RichText` renderer with per-node and per-mark overrides.                                                            |
+| Package                                    | What it is                                                                                                                              |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@eldrajs/sdk`](packages/sdk)             | Client for CMS, catalog, cart, checkout handoff, orders and inventory. Framework-free; types generated from your gateway at build time. |
+| [`@eldrajs/rich-text`](packages/rich-text) | Framework-free rendering of CMS rich text: the document types, plain-text extraction, an escaping `toHtml`, embed normalisation.        |
+| [`@eldrajs/vue`](packages/vue)             | Vue 3 components: the `RichText` renderer with per-node and per-mark overrides.                                                         |
 
 ```bash
 pnpm add @eldrajs/sdk

@@ -318,9 +318,10 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           query: localeOptions,
           body: { code: trimmed },
         });
+        const discountCode = (cart as { discountCode?: unknown }).discountCode;
         const applied =
-          typeof cart.discountCode === 'string' &&
-          cart.discountCode.trim().toUpperCase() === trimmed.toUpperCase();
+          typeof discountCode === 'string' &&
+          discountCode.trim().toUpperCase() === trimmed.toUpperCase();
         return { cart, applied };
       },
       removeDiscount: (

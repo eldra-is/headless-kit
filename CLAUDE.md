@@ -22,11 +22,12 @@ registry. Read this before changing anything.
 - **Public packages never import a private one.** `@eldrajs/sdk` and `@eldrajs/rich-text` import
   nothing at all outside their own folder. Framework wrappers import only their framework and the
   core packages.
-- `packages/sdk/src/contract/` is generated. `web-gateway.v1.json` is a snapshot of the platform's
-  public OpenAPI document (`/api/public/openapi.json`), versioned by semver: a minor bump adds, a
-  major bump changes or removes. `pnpm contract --from <path|url>` refreshes it and regenerates
-  `v1.ts` and `version.ts`. Never hand-edit any of the three; `pnpm contract:check` fails when they
-  drift.
+- **The SDK ships no response types.** `src/contract.ts` declares an empty `EldraContract`
+  interface; the Vite plugin generates the gateway's OpenAPI document into the consumer's project
+  as `contract.ts`, which augments that interface, and every contract-derived type then resolves.
+  Without the augmentation they resolve to `unknown` (responses) or `Record<string, unknown>`
+  (bodies, queries) — never to a guess. Do not add a snapshot of the document back into the
+  package; `src/__tests__/fixtures/web-gateway.json` is a test input only.
 
 ## Commands
 
@@ -34,7 +35,7 @@ registry. Read this before changing anything.
 pnpm check              # everything CI runs, in CI's order
 pnpm test:watch         # unit tests, live
 pnpm build              # every package, via tsdown / vite
-pnpm contract --from https://web.eldra.app/api/public/openapi.json   # or a local path
+pnpm --filter @eldrajs/sdk fixture   # regenerate the test fixture's contract.ts after a build
 pnpm size               # size budgets against dist; build first
 pnpm pack-smoke         # pack, install into a fresh project, import at runtime and under tsc
 ```
@@ -46,7 +47,7 @@ all packages. The `node-workspace` plugin bumps `vue` when `rich-text` releases 
 `workspace:^` range on publish; do not add `linked-versions` — it opens its own group PR and that
 candidate is dropped under `separate-pull-requests: false`, so only `sdk` gets released. **It reads commit
 types.** The pull request title is the squash-merge commit: `feat` or `fix` makes a release, `chore`
-does not, and the manual workflow cannot force one. A refreshed contract snapshot is a `feat`.
+does not, and the manual workflow cannot force one.
 Publishing happens on the GitHub release event, one package per release, by packing that package and
 `npm publish --provenance`.
 
@@ -58,8 +59,10 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 ## Layout
 
 - `packages/sdk` — `@eldrajs/sdk`. Framework-free: no Vue, no DOM assumptions beyond `globalThis`
-  lookups that tolerate absence. `src/vite-plugin.ts` is the `./vite` entry and may import Vite and
-  Node; nothing else may. Built by tsdown.
+  lookups that tolerate absence. `src/vite-plugin.ts` is the `./vite` entry (`eldra()`), may import
+  Vite, Node and `openapi-typescript`; nothing else may. Type checking runs twice: `tsconfig.json`
+  proves the un-generated state (`unknown`), `tsconfig.generated.json` proves the generated state
+  against the fixture. Built by tsdown.
 - `packages/rich-text` — `@eldrajs/rich-text`. Framework-free, imports nothing. The document types
   are declared here, not imported from TipTap. `src/html.ts` is the kit's XSS surface: it
   serialises merchant-authored content to HTML, so every text and attribute value goes through
