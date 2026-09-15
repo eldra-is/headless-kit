@@ -1,14 +1,14 @@
-# @eldra-is/vue
+# @eldrajs/vue
 
 Vue 3 components for an Eldra storefront. Today: the `RichText` renderer for CMS rich text.
 
 ```bash
-pnpm add @eldra-is/vue @eldra-is/rich-text
+pnpm add @eldrajs/vue @eldrajs/rich-text
 ```
 
 ```vue
 <script setup lang="ts">
-import { RichText } from '@eldra-is/vue';
+import { RichText } from '@eldrajs/vue';
 </script>
 
 <template>
@@ -44,4 +44,4 @@ one it does nothing.
 Link hrefs outside `http`, `https`, `mailto`, `tel` and relative paths render without an href;
 images outside `http`, `https`, `data:image/` and relative paths do not render; an embed renders
 only from a host the editor's own normaliser emits. The same rules as `toHtml` in
-`@eldra-is/rich-text`.
+`@eldrajs/rich-text`.

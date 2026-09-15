@@ -1,7 +1,7 @@
 // A storefront-less use of the kit: list the catalog and render one CMS entry's body to HTML.
 //   ELDRA_ORG_ID=<organisation id> node --experimental-strip-types index.ts
-import { createEldraClient, EldraHttpError, type EldraPaginated } from '@eldra-is/sdk';
-import { toHtml, type RichTextDocument } from '@eldra-is/rich-text';
+import { createEldraClient, EldraHttpError, type EldraPaginated } from '@eldrajs/sdk';
+import { toHtml, type RichTextDocument } from '@eldrajs/rich-text';
 
 const orgId = process.env.ELDRA_ORG_ID;
 if (!orgId) throw new Error('Set ELDRA_ORG_ID to your organisation id.');

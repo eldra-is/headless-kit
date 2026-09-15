@@ -14,11 +14,12 @@ registry. Read this before changing anything.
   `release.yml` (push to main) and `publish.yml` (release published), which fork code cannot
   trigger.
 - **No `NPM_TOKEN` anywhere.** Publishing is npm trusted publishing over OIDC with provenance, to
-  npmjs only. The kit is not published to GitHub Packages: Eldra's private repositories map the
-  `@eldra-is` scope there for the private UI library, and a scope resolves against one registry, so
-  a private repo cannot depend on both — by design none does; storefronts depend on the kit alone.
+  npmjs only. The scope is the audience: `@eldrajs/*` is public, on npmjs, needs no token;
+  `@eldra-is/*` is Eldra's private UI library on GitHub Packages. They are different scopes on
+  purpose — an npm scope resolves against one registry, so one scope for both would mean no
+  repository could depend on both. Never publish this kit under `@eldra-is`.
 - Actions are pinned by commit SHA with the version in a trailing comment. Dependabot bumps them.
-- **Public packages never import a private one.** `@eldra-is/sdk` and `@eldra-is/rich-text` import
+- **Public packages never import a private one.** `@eldrajs/sdk` and `@eldrajs/rich-text` import
   nothing at all outside their own folder. Framework wrappers import only their framework and the
   core packages.
 - `packages/sdk/src/contract/` is generated. `web-gateway.v1.json` is a snapshot of the platform's
@@ -56,16 +57,16 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 
 ## Layout
 
-- `packages/sdk` — `@eldra-is/sdk`. Framework-free: no Vue, no DOM assumptions beyond `globalThis`
+- `packages/sdk` — `@eldrajs/sdk`. Framework-free: no Vue, no DOM assumptions beyond `globalThis`
   lookups that tolerate absence. `src/vite-plugin.ts` is the `./vite` entry and may import Vite and
   Node; nothing else may. Built by tsdown.
-- `packages/rich-text` — `@eldra-is/rich-text`. Framework-free, imports nothing. The document types
+- `packages/rich-text` — `@eldrajs/rich-text`. Framework-free, imports nothing. The document types
   are declared here, not imported from TipTap. `src/html.ts` is the kit's XSS surface: it
   serialises merchant-authored content to HTML, so every text and attribute value goes through
   `escapeHtml`, URLs through `safeHref` / `safeImageSrc`, colours through `safeCssColor`, and an
   embed renders only when `isTrustedEmbedSource` accepts its `src`. A change there needs a test
   that tries to break out, proven by mutation. Built by tsdown.
-- `packages/vue` — `@eldra-is/vue`. The `RichText` renderer; depends on `@eldra-is/rich-text` and
+- `packages/vue` — `@eldrajs/vue`. The `RichText` renderer; depends on `@eldrajs/rich-text` and
   peers on `vue`. Uses the same safety helpers in `Link.vue`, `Image.vue` and `Embed.vue`. Built by
   Vite in library mode with `vite-plugin-dts` bundling the declarations into one `index.d.ts` —
   per-file `.vue.d.ts` output fails Node16 resolution, which `attw` catches.

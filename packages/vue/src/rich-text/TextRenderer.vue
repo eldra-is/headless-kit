@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { renderTipTapText } from '@eldra-is/rich-text';
+import { renderTipTapText } from '@eldrajs/rich-text';
 import type { RichTextDocument } from './types';
 
 defineOptions({

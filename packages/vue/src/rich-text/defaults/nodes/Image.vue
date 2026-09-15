@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useAttrs } from 'vue';
-import { safeImageSrc } from '@eldra-is/rich-text';
+import { safeImageSrc } from '@eldrajs/rich-text';
 import type { NodeComponentProps } from '../../types';
 
 defineOptions({ inheritAttrs: false });

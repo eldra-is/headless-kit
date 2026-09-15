@@ -5,11 +5,11 @@ settings page in Studio. Everything a storefront reads is public data for that o
 there is no API key.
 
 ```bash
-pnpm add @eldra-is/sdk
+pnpm add @eldrajs/sdk
 ```
 
 ```ts
-import { createEldraClient } from '@eldra-is/sdk';
+import { createEldraClient } from '@eldrajs/sdk';
 
 const eldra = createEldraClient({ orgId: process.env.ELDRA_ORG_ID! });
 
@@ -62,7 +62,7 @@ Every response is typed from the public contract, a versioned OpenAPI document s
 the package. `ELDRA_CONTRACT_VERSION` tells you which. For any path not wrapped by a method:
 
 ```ts
-import type { EldraContractResponse } from '@eldra-is/sdk';
+import type { EldraContractResponse } from '@eldrajs/sdk';
 type Categories = EldraContractResponse<'/catalog/v1/categories', 'get'>;
 ```
 
@@ -76,7 +76,7 @@ build time from the organisation's schemas:
 
 ```ts
 // vite.config.ts or nuxt.config.ts
-import { eldraCms } from '@eldra-is/sdk/vite';
+import { eldraCms } from '@eldrajs/sdk/vite';
 
 export default defineConfig({
   plugins: [eldraCms({ orgId: process.env.ELDRA_ORG_ID })],
@@ -89,8 +89,8 @@ changes.
 
 ## Rich text
 
-CMS rich text fields hold a TipTap document. Render it with `RichText` from `@eldra-is/vue`, or
-to an HTML string with `toHtml` from `@eldra-is/rich-text` in any framework. See
+CMS rich text fields hold a TipTap document. Render it with `RichText` from `@eldrajs/vue`, or
+to an HTML string with `toHtml` from `@eldrajs/rich-text` in any framework. See
 [rich-text.md](./rich-text.md).
 
 ## Persisting the cart

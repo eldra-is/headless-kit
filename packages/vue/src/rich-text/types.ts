@@ -3,14 +3,14 @@ import type {
   RichTextMark,
   RichTextNode,
   RichTextOverride as CoreOverride,
-} from '@eldra-is/rich-text';
+} from '@eldrajs/rich-text';
 
 export type {
   RichTextDocument,
   RichTextMark,
   RichTextNode,
   StyledTagOverride,
-} from '@eldra-is/rich-text';
+} from '@eldrajs/rich-text';
 
 export interface NodeComponentProps {
   node: RichTextNode;

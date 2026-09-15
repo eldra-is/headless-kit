@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
 import type { Component } from 'vue';
-import { resolveOverride } from '@eldra-is/rich-text';
+import { resolveOverride } from '@eldrajs/rich-text';
 import { defaultMarkComponents } from './defaults';
 import { richTextMarkComponentsKey } from './keys';
 import type { RichTextMark, RichTextMarkOverrides } from './types';

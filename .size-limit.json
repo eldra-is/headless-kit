@@ -1,28 +1,28 @@
 [
   {
-    "name": "@eldra-is/sdk — createEldraClient",
+    "name": "@eldrajs/sdk — createEldraClient",
     "path": "packages/sdk/dist/index.js",
     "import": "{ createEldraClient }",
     "limit": "2.5 kB"
   },
   {
-    "name": "@eldra-is/sdk — everything",
+    "name": "@eldrajs/sdk — everything",
     "path": "packages/sdk/dist/index.js",
     "limit": "3 kB"
   },
   {
-    "name": "@eldra-is/rich-text — toHtml",
+    "name": "@eldrajs/rich-text — toHtml",
     "path": "packages/rich-text/dist/index.js",
     "import": "{ toHtml }",
     "limit": "3 kB"
   },
   {
-    "name": "@eldra-is/rich-text — everything",
+    "name": "@eldrajs/rich-text — everything",
     "path": "packages/rich-text/dist/index.js",
     "limit": "6 kB"
   },
   {
-    "name": "@eldra-is/vue — RichText, without vue",
+    "name": "@eldrajs/vue — RichText, without vue",
     "path": "packages/vue/dist/index.js",
     "import": "{ RichText }",
     "ignore": ["vue"],

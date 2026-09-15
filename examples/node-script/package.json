@@ -6,7 +6,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@eldra-is/rich-text": "workspace:*",
-    "@eldra-is/sdk": "workspace:*"
+    "@eldrajs/rich-text": "workspace:*",
+    "@eldrajs/sdk": "workspace:*"
   }
 }

@@ -13,10 +13,10 @@ const packagesDir = join(root, 'packages');
 const tsc = join(root, 'node_modules', '.bin', 'tsc');
 
 const consumers = {
-  '@eldra-is/sdk': {
+  '@eldrajs/sdk': {
     runtime: `
-      import { createEldraClient, EldraHttpError, ELDRA_CONTRACT_VERSION } from '@eldra-is/sdk';
-      import { eldraCms } from '@eldra-is/sdk/vite';
+      import { createEldraClient, EldraHttpError, ELDRA_CONTRACT_VERSION } from '@eldrajs/sdk';
+      import { eldraCms } from '@eldrajs/sdk/vite';
       assert(typeof createEldraClient === 'function', 'createEldraClient');
       assert(typeof EldraHttpError === 'function', 'EldraHttpError');
       assert(/^\\d+\\.\\d+\\.\\d+$/.test(ELDRA_CONTRACT_VERSION), 'ELDRA_CONTRACT_VERSION');
@@ -26,38 +26,38 @@ const consumers = {
       assert(typeof client.cart.addItem === 'function', 'client.cart');
     `,
     types: `
-      import { createEldraClient, type EldraClient, type EldraContractResponse } from '@eldra-is/sdk';
-      import { eldraCms } from '@eldra-is/sdk/vite';
+      import { createEldraClient, type EldraClient, type EldraContractResponse } from '@eldrajs/sdk';
+      import { eldraCms } from '@eldrajs/sdk/vite';
       const client: EldraClient = createEldraClient({ orgId: 'org' });
       type Products = EldraContractResponse<'/catalog/v1/products/list', 'get'>;
       export const products: Promise<Products> = client.catalog.listProducts();
       export const plugin = eldraCms({ orgId: 'org' });
     `,
   },
-  '@eldra-is/rich-text': {
+  '@eldrajs/rich-text': {
     runtime: `
-      import { toHtml, renderTipTapText, normalizeEmbedInput } from '@eldra-is/rich-text';
+      import { toHtml, renderTipTapText, normalizeEmbedInput } from '@eldrajs/rich-text';
       const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '<b>' }] }] };
       assert.equal(toHtml(doc), '<p>&lt;b&gt;</p>');
       assert.equal(renderTipTapText(doc).text, '<b>');
       assert.equal(normalizeEmbedInput('https://youtu.be/abc')?.provider, 'youtube');
     `,
     types: `
-      import { toHtml, type RichTextDocument, type ToHtmlOptions } from '@eldra-is/rich-text';
+      import { toHtml, type RichTextDocument, type ToHtmlOptions } from '@eldrajs/rich-text';
       const doc: RichTextDocument = { type: 'doc', content: [] };
       const options: ToHtmlOptions = { nodes: { paragraph: 'div' } };
       export const html: string = toHtml(doc, options);
     `,
   },
-  '@eldra-is/vue': {
+  '@eldrajs/vue': {
     runtime: `
-      import { RichText, TextRenderer, defaultNodeComponents } from '@eldra-is/vue';
+      import { RichText, TextRenderer, defaultNodeComponents } from '@eldrajs/vue';
       assert(RichText && typeof RichText === 'object', 'RichText');
       assert(TextRenderer && typeof TextRenderer === 'object', 'TextRenderer');
       assert(typeof defaultNodeComponents.paragraph === 'object', 'defaultNodeComponents');
     `,
     types: `
-      import { RichText, type RichTextNodeOverrides } from '@eldra-is/vue';
+      import { RichText, type RichTextNodeOverrides } from '@eldrajs/vue';
       export const nodes: RichTextNodeOverrides = { paragraph: { class: 'lead' } };
       export const component = RichText;
     `,
