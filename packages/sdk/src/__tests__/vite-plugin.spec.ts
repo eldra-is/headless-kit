@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ELDRA_API_BASE_URL } from '../client';
-import { createContractSource, generateEldraFiles } from '../vite-plugin';
+import { createContractSource, eldra, generateEldraFiles } from '../vite-plugin';
 
 let tmpRoot: string | undefined;
 
@@ -100,7 +100,62 @@ describe('eldra vite plugin generator', () => {
 
     await expect(
       generateEldraFiles(tmpRoot, { skipOnMissingConfig: true }, 'test')
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({
+      written: [],
+      skipped: [{ what: 'Eldra types', reason: expect.stringContaining('no organisation id') }],
+    });
+  });
+
+  it('reports what it wrote and what it skipped, with the reason', async () => {
+    tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-'));
+    const { fetch } = gateway({
+      contract: new Response('Gateway unavailable', { status: 503, statusText: 'Unavailable' }),
+    });
+
+    const result = await generateEldraFiles(tmpRoot, { orgId: 'org-123', fetch });
+
+    const out = join(tmpRoot, '.eldra/web-studio');
+    expect(result.written).toEqual([
+      join(out, 'cms-types.ts'),
+      join(out, 'client.ts'),
+      join(out, 'index.ts'),
+    ]);
+    expect(result.skipped).toEqual([
+      { what: 'Gateway contract', reason: expect.stringContaining('503 Unavailable') },
+    ]);
+  });
+
+  it("writes beside the nearest package.json when Vite's root is a subfolder, as in Nuxt", async () => {
+    tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-'));
+    await writeFile(join(tmpRoot, 'package.json'), '{}\n', 'utf8');
+    await mkdir(join(tmpRoot, 'app'), { recursive: true });
+    const { fetch } = gateway();
+
+    const result = await generateEldraFiles(join(tmpRoot, 'app'), { orgId: 'org-123', fetch });
+
+    expect(result.written[0]).toBe(join(tmpRoot, '.eldra/web-studio/cms-types.ts'));
+    await expect(
+      readFile(join(tmpRoot, 'app/.eldra/web-studio/index.ts'), 'utf8')
+    ).rejects.toThrow();
+  });
+
+  it('warns from the build for everything it skipped', async () => {
+    tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-'));
+    const { fetch } = gateway({ contract: new Error('Network is unreachable') });
+    const plugin = eldra({ orgId: 'org-123', fetch });
+    const warn = vi.fn();
+
+    (plugin.configResolved as (config: { root: string; mode: string }) => void)({
+      root: tmpRoot,
+      mode: 'test',
+    });
+    const buildStart = plugin.buildStart as unknown as (this: {
+      warn: typeof warn;
+    }) => Promise<void>;
+    await buildStart.call({ warn });
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith('Gateway contract not generated: Network is unreachable');
   });
 
   it('uses the production web gateway by default when only org id is configured', async () => {
@@ -120,8 +175,10 @@ describe('eldra vite plugin generator', () => {
     const offline = new Error('Network is unreachable');
     const { fetch } = gateway({ cms: offline, contract: offline });
 
-    await expect(generateEldraFiles(tmpRoot, { orgId: 'org-123', fetch })).resolves.toBeUndefined();
+    const result = await generateEldraFiles(tmpRoot, { orgId: 'org-123', fetch });
 
+    expect(result.written).toEqual([]);
+    expect(result.skipped.map((skip) => skip.what)).toEqual(['CMS types', 'Gateway contract']);
     await expect(readFile(join(tmpRoot, '.eldra/web-studio/index.ts'), 'utf8')).rejects.toThrow();
   });
 

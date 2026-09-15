@@ -9,6 +9,15 @@ platform repository.
 
 ## Unreleased
 
+- The Vite plugin writes `.eldra/web-studio/` beside the nearest `package.json` instead of Vite's
+  root; on Nuxt 4 the root is `app/`, and the folder landed there. A relative `outDir` is resolved
+  the same way.
+- A fetch the plugin skips — gateway down, unknown organisation id, wrong URL — is now a build
+  warning naming what was skipped and why; it was silent. `generateEldraFiles` returns what it
+  wrote and what it skipped.
+
+## 0.2.0 — 2026-09-16
+
 - **Breaking.** The SDK no longer ships response types. The Vite plugin — now `eldra()`, was
   `eldraCms()` — generates `contract.ts` from your gateway's `/api/public/openapi.json` next to the
   CMS types, and it augments the SDK's `EldraContract` so every method is typed against the gateway
