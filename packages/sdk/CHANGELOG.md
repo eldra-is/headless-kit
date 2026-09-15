@@ -1,8 +1,13 @@
 # Web Studio SDK changelog
 
-The SDK ships inside `@eldra-is/vue-ui-components` as the `./sdk` and `./sdk/vite` entry points, so its versions are the library's. This file is hand-maintained: every change a consumer of the SDK can see gets a line under Unreleased in the same change, naming the contract version when the contract moved. The root `CHANGELOG.md` is written by release-please from commit messages and does not describe the SDK. The contract's own history is `openapi/web/CONTRACT.md` in web-studio-core.
+`@eldra-is/sdk` is its own package from 0.1.0; entries before that are the versions of
+`@eldra-is/vue-ui-components`, where it shipped as the `./sdk` and `./sdk/vite` entry points. This file is
+hand-maintained: every change a consumer of the SDK can see gets a line under Unreleased in the same
+change, naming the contract version when the contract moved. Release-please writes `RELEASE-NOTES.md`
+from commit messages and does not describe the SDK. The contract's own history is `CONTRACT.md` in the
+platform repository.
 
-## Unreleased
+## 0.1.0 — 2026-09-15
 
 - Contract snapshot 2.4.0. `inventory.availability` items no longer need a `locationId`: `EldraStockAvailabilityInput.locationId` is optional, and an omitted one is answered by the organisation's default inventory location, the same resolution the cart's reservation uses; the response still names the location that answered. A storefront needs no location id in its configuration any more.
 - Contract snapshot 2.3.0. `PUT /shopping-cart/v1/cart/{cartID}/discount` refuses a code whose redemption limit is reached with 409 `CART_DISCOUNT_EXHAUSTED`, distinguishable from the 404 every other refusal keeps; a code that runs out while on a cart stops reducing it on the next read. No path or field changed, so no type changed; `ELDRA_CONTRACT_VERSION` is the only visible difference.

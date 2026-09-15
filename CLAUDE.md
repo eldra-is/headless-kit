@@ -46,8 +46,10 @@ does not, and the manual workflow cannot force one. A refreshed contract snapsho
 Publishing happens on the GitHub release event, one package per release, by packing that package and
 `npm publish --provenance`.
 
-Each package keeps a hand-maintained `CHANGELOG.md` for what a consumer can see. Release-please's
-generated notes describe commits; they do not replace it. Add the line in the same change.
+Each package keeps a hand-maintained `CHANGELOG.md` for what a consumer can see; add the line in the
+same change, under Unreleased, and rename that heading to the version in the release PR's wake.
+Release-please writes its generated notes to `RELEASE-NOTES.md` in each package (`changelog-path`),
+which is not shipped in the tarball; the GitHub release carries the same text.
 
 ## Layout
 
