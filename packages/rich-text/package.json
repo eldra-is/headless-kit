@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/rich-text",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-free rendering for Eldra CMS rich text: the document types, plain-text extraction, an escaping HTML serialiser, and embed normalisation.",
   "keywords": [
     "eldra",
