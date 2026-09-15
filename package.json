@@ -18,7 +18,7 @@
     "attw": "pnpm -r --filter './packages/*' exec attw --pack . --profile esm-only",
     "size": "size-limit",
     "pack-smoke": "node scripts/pack-smoke.mjs",
-    "check": "pnpm lint:check && pnpm format:check && pnpm typecheck && pnpm contract:check && pnpm test && pnpm build && pnpm publint && pnpm attw && pnpm size && pnpm pack-smoke"
+    "check": "pnpm lint:check && pnpm format:check && pnpm build && pnpm typecheck && pnpm contract:check && pnpm test && pnpm publint && pnpm attw && pnpm size && pnpm pack-smoke"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
