@@ -19,6 +19,9 @@ registry. Read this before changing anything.
   purpose — an npm scope resolves against one registry, so one scope for both would mean no
   repository could depend on both. Never publish this kit under `@eldra-is`.
 - Actions are pinned by commit SHA with the version in a trailing comment. Dependabot bumps them.
+- The `main — checks` ruleset requires the CI job by its **name** (`Lint, types, tests, build,
+  package checks`) and the commit check by its job id (`check`). Rename either and every pull
+  request waits forever for a status that never comes; update the ruleset in the same change.
 - **Public packages never import a private one.** `@eldrajs/sdk` and `@eldrajs/rich-text` import
   nothing at all outside their own folder. Framework wrappers import only their framework and the
   core packages.
