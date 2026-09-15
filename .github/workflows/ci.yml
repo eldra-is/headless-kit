@@ -37,6 +37,9 @@ jobs:
       - name: Format
         run: pnpm format:check
 
+      - name: Build, so the workspace packages' types exist for the steps below
+        run: pnpm build
+
       - name: Types, including the specs
         run: pnpm typecheck
 
@@ -45,9 +48,6 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
 
       - name: publint
         run: pnpm publint
