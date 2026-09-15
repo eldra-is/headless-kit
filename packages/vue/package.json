@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/vue",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Vue 3 components for Eldra storefronts: the RichText renderer for CMS content, with per-node and per-mark overrides.",
   "keywords": [
     "eldra",
