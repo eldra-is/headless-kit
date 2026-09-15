@@ -8,6 +8,13 @@ The SDK ships inside `@eldra-is/vue-ui-components` as the `./sdk` and `./sdk/vit
 - Contract snapshot 2.3.0. `PUT /shopping-cart/v1/cart/{cartID}/discount` refuses a code whose redemption limit is reached with 409 `CART_DISCOUNT_EXHAUSTED`, distinguishable from the 404 every other refusal keeps; a code that runs out while on a cart stops reducing it on the next read. No path or field changed, so no type changed; `ELDRA_CONTRACT_VERSION` is the only visible difference.
 - Contract snapshot 2.2.0. The gateway renamed the thirty schemas whose names began with `._`: `._WebCart` is now `shoppingcartweb_WebCart`, `._CreateOrderResponse` is `orderweb_CreateOrderResponse`, `._OrderResponse` is `orderweb_OrderResponse`, `._PayOrderInBody` is `PayOrderInBody`, and the duplicated `._CollectionItem` and `._WebGuestBooking` folded into `dto_CollectionItem` and `handler_WebGuestBooking`. Nothing on the wire changed. The SDK's exported types (`EldraCart`, `EldraOrder`, `EldraContractPaths`, …) are derived from paths and resolve to the same shapes; only code that imports `contract/v1.ts` directly and names a schema sees the new names.
 
+## 0.1.0 (2026-09-15)
+
+
+### Features
+
+* the headless kit — sdk, rich-text and vue ([b7e2447](https://github.com/eldra-is/headless-kit/commit/b7e2447f7e91ba930c6f08910a71db0d7b9723b0))
+
 ## 1.67.0 — 2026-09-10
 
 - Contract snapshot 2.1.0 (6bae4dc). `orders.recover` now also answers `cartId`, absent when nothing could be added, and `unavailable`, the lines the shop no longer sells; orders carry `recoveredFromOrderId`; the organisation's settings carry `checkoutRecoveryUrl`.
