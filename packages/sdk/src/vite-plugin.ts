@@ -9,7 +9,7 @@ const defaultTypesFileName = 'cms-types.ts';
 const defaultClientFileName = 'client.ts';
 const defaultIndexFileName = 'index.ts';
 const defaultModuleName = 'EldraCMS';
-const defaultSdkImport = '@eldra-is/sdk';
+const defaultSdkImport = '@eldrajs/sdk';
 
 const apiBaseUrlEnvKeys = [
   'ELDRA_API_BASE_URL',

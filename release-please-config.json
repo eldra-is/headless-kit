@@ -9,17 +9,17 @@
   "packages": {
     "packages/sdk": {
       "component": "sdk",
-      "package-name": "@eldra-is/sdk",
+      "package-name": "@eldrajs/sdk",
       "changelog-path": "RELEASE-NOTES.md"
     },
     "packages/rich-text": {
       "component": "rich-text",
-      "package-name": "@eldra-is/rich-text",
+      "package-name": "@eldrajs/rich-text",
       "changelog-path": "RELEASE-NOTES.md"
     },
     "packages/vue": {
       "component": "vue",
-      "package-name": "@eldra-is/vue",
+      "package-name": "@eldrajs/vue",
       "changelog-path": "RELEASE-NOTES.md"
     }
   },

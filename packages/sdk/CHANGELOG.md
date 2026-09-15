@@ -1,6 +1,6 @@
 # Web Studio SDK changelog
 
-`@eldra-is/sdk` is its own package from 0.1.0; entries before that are the versions of
+`@eldrajs/sdk` is its own package from 0.1.0; entries before that are the versions of
 `@eldra-is/vue-ui-components`, where it shipped as the `./sdk` and `./sdk/vite` entry points. This file is
 hand-maintained: every change a consumer of the SDK can see gets a line under Unreleased in the same
 change, naming the contract version when the contract moved. Release-please writes `RELEASE-NOTES.md`

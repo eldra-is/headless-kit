@@ -1,8 +1,8 @@
 # Rendering rich text in another framework
 
-`@eldra-is/vue` is one wrapper over `@eldra-is/rich-text`. A React, Svelte or Solid wrapper is
+`@eldrajs/vue` is one wrapper over `@eldrajs/rich-text`. A React, Svelte or Solid wrapper is
 welcome, and this is the contract it has to satisfy so that a document renders the same wherever
-it lands. If you write one, open a pull request — it lands as `@eldra-is/<framework>` in this
+it lands. If you write one, open a pull request — it lands as `@eldrajs/<framework>` in this
 repository.
 
 ## What the core gives you
@@ -42,7 +42,7 @@ repository.
 
 ## What a wrapper must not do
 
-- Import anything from `@eldra-is/vue` or from the private UI library.
+- Import anything from `@eldrajs/vue` or from the private UI library.
 - Emit consumer-supplied HTML verbatim, anywhere.
 - Add a dependency for animation, styling or icons. The Vue wrapper has none; a `reveal` directive
   is looked up from the host app if it registered one.

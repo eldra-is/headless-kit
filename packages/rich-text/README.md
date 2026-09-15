@@ -1,17 +1,17 @@
-# @eldra-is/rich-text
+# @eldrajs/rich-text
 
 Framework-free handling of the rich text the Eldra CMS delivers: a TipTap (ProseMirror) JSON
 document. Render it to an HTML string, extract its plain text, or build a renderer for your own
 framework on top of the types and helpers.
 
 ```bash
-pnpm add @eldra-is/rich-text
+pnpm add @eldrajs/rich-text
 ```
 
 ## Render to HTML
 
 ```ts
-import { toHtml } from '@eldra-is/rich-text';
+import { toHtml } from '@eldrajs/rich-text';
 
 const html = toHtml(entry.data.body);
 ```
@@ -43,14 +43,14 @@ An override is a tag name, `{ tag?, class?, style? }`, `null` for children only,
 ## Plain text
 
 ```ts
-import { renderTipTapText } from '@eldra-is/rich-text';
+import { renderTipTapText } from '@eldrajs/rich-text';
 
 const { text, truncated } = renderTipTapText(doc, { wordCount: 30 });
 ```
 
 ## Building a framework renderer
 
-The Vue renderer in `@eldra-is/vue` is built on this package: `RichTextDocument` and friends for
+The Vue renderer in `@eldrajs/vue` is built on this package: `RichTextDocument` and friends for
 the shape, `resolveOverride` for the override semantics, `safeHref` / `safeImageSrc` /
 `isTrustedEmbedSource` for the same safety rules, and `normalizeEmbedInput` for embeds. A React or
 Svelte renderer would use exactly the same pieces. The contract a wrapper has to satisfy is written

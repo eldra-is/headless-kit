@@ -44,10 +44,10 @@ importers:
 
   examples/node-script:
     dependencies:
-      '@eldra-is/rich-text':
+      '@eldrajs/rich-text':
         specifier: workspace:*
         version: link:../../packages/rich-text
-      '@eldra-is/sdk':
+      '@eldrajs/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
 
@@ -64,7 +64,7 @@ importers:
 
   packages/vue:
     dependencies:
-      '@eldra-is/rich-text':
+      '@eldrajs/rich-text':
         specifier: workspace:^
         version: link:../rich-text
     devDependencies:

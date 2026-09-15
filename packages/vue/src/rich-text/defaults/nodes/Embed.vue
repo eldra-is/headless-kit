@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
-import { isTrustedEmbedSource } from '@eldra-is/rich-text';
+import { isTrustedEmbedSource } from '@eldrajs/rich-text';
 import type { NodeComponentProps } from '../../types';
 
 defineOptions({ inheritAttrs: false });

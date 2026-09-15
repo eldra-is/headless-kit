@@ -1,14 +1,14 @@
 # Rich text
 
 A CMS rich text field is a TipTap (ProseMirror) JSON document: a tree of nodes, where text nodes
-carry marks. `@eldra-is/rich-text` knows the shape and renders it; `@eldra-is/vue` wraps that as a
+carry marks. `@eldrajs/rich-text` knows the shape and renders it; `@eldrajs/vue` wraps that as a
 component.
 
 ## In Vue
 
 ```vue
 <script setup lang="ts">
-import { RichText } from '@eldra-is/vue';
+import { RichText } from '@eldrajs/vue';
 </script>
 
 <template>
@@ -19,7 +19,7 @@ import { RichText } from '@eldra-is/vue';
 ## Anywhere else
 
 ```ts
-import { toHtml } from '@eldra-is/rich-text';
+import { toHtml } from '@eldrajs/rich-text';
 const html = toHtml(entry.data.body);
 ```
 
@@ -64,7 +64,7 @@ overrides — that is deliberate; the renderer has no opinion about your typogra
 ## Embeds
 
 The editor normalises a pasted URL or iframe snippet into `{ provider, render, src, width, height,
-title, allow, variant }` — `normalizeEmbedInput` in `@eldra-is/rich-text` is that function. Iframe
+title, allow, variant }` — `normalizeEmbedInput` in `@eldrajs/rich-text` is that function. Iframe
 providers (YouTube, Vimeo, Spotify, …) render as an iframe. Script providers (X, Instagram,
 Pinterest) need the provider's own script: the Vue component loads it once and hands the element
 to it; `toHtml` renders a link to the original instead, since static HTML cannot hydrate a widget.

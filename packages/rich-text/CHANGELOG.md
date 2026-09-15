@@ -1,4 +1,4 @@
-# @eldra-is/rich-text changelog
+# @eldrajs/rich-text changelog
 
 Hand-maintained: every change a consumer can see gets a line under Unreleased in the same change.
 Release-please writes the generated notes from commit messages and does not replace this.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { safeHref } from '@eldra-is/rich-text';
+import { safeHref } from '@eldrajs/rich-text';
 import type { MarkComponentProps } from '../../types';
 
 const props = defineProps<MarkComponentProps>();
