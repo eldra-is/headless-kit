@@ -3,22 +3,26 @@ name: Publish
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to (re)publish, for example sdk-v0.1.0'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  publish:
-    # Trusted publishing: npm exchanges this job's OIDC token for publish rights, so no NPM_TOKEN
-    # exists anywhere. Provenance requires a GitHub-hosted runner and a public repository.
+  pack:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
-      id-token: write
+    outputs:
+      dir: ${{ steps.target.outputs.dir }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -27,12 +31,11 @@ jobs:
         with:
           node-version: '24'
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - name: Package directory from the release tag
         id: target
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
         run: |
           set -euo pipefail
           component="${TAG%-v*}"
@@ -47,7 +50,89 @@ jobs:
       - name: Pack
         run: pnpm --filter "./${{ steps.target.outputs.dir }}" pack --pack-destination "${{ runner.temp }}/out"
 
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/out/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  npm:
+    # Trusted publishing: npm exchanges this job's OIDC token for publish rights, so no NPM_TOKEN
+    # exists anywhere. Provenance requires a GitHub-hosted runner and a public repository.
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: tarball
+          path: out
+
+      - name: Skip when this version is already on the registry
+        id: existing
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          name=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).name")
+          version=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+          if npm view "${name}@${version}" version  >/dev/null 2>&1; then
+            echo "${name}@${version} is already published here; nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish with provenance
+        if: steps.existing.outputs.skip != 'true'
         run: |
           npm install -g npm@^11.5
-          npm publish "${{ runner.temp }}"/out/*.tgz --provenance --access public
+          npm publish out/*.tgz --provenance --access public
+
+  github-packages:
+    # The same tarball on GitHub Packages, so Eldra's private repositories — whose npm config maps
+    # the whole @eldra-is scope there for the private UI library — can resolve the kit too. A
+    # scope points at one registry; this is what lets one repo depend on both.
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          registry-url: https://npm.pkg.github.com
+          scope: '@eldra-is'
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: tarball
+          path: out
+
+      - name: Skip when this version is already on the registry
+        id: existing
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          name=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).name")
+          version=$(tar -xzOf out/*.tgz package/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+          if npm view "${name}@${version}" version --registry https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "${name}@${version} is already published here; nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to GitHub Packages
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish out/*.tgz --registry https://npm.pkg.github.com --provenance=false
