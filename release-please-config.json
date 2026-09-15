@@ -20,12 +20,5 @@
       "package-name": "@eldra-is/vue"
     }
   },
-  "plugins": [
-    {
-      "type": "linked-versions",
-      "groupName": "rich-text",
-      "components": ["rich-text", "vue"]
-    },
-    "node-workspace"
-  ]
+  "plugins": ["node-workspace"]
 }
