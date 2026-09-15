@@ -1,11 +1,13 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import openapiTS, { astToString } from 'openapi-typescript';
 import { loadEnv, type Plugin, type ResolvedConfig } from 'vite';
 import { DEFAULT_ELDRA_API_BASE_URL } from './client';
 import type { RuntimeEnv, RuntimeValue } from './types';
 
 const defaultOutDir = '.eldra/web-studio';
 const defaultTypesFileName = 'cms-types.ts';
+const defaultContractFileName = 'contract.ts';
 const defaultClientFileName = 'client.ts';
 const defaultIndexFileName = 'index.ts';
 const defaultModuleName = 'EldraCMS';
@@ -27,7 +29,7 @@ const orgIdEnvKeys = [
   'PUBLIC_ELDRA_ORG_ID',
 ] as const;
 
-export interface EldraCmsVitePluginOptions {
+export interface EldraVitePluginOptions {
   apiBaseUrl?: RuntimeValue<string>;
   orgId?: RuntimeValue<string>;
   env?: RuntimeValue<RuntimeEnv>;
@@ -37,6 +39,9 @@ export interface EldraCmsVitePluginOptions {
   moduleName?: string;
   outDir?: string;
   typesFileName?: string;
+  /** Set to `false` to skip the gateway contract; CMS types are still generated. */
+  contract?: boolean;
+  contractFileName?: string;
   clientFileName?: string;
   indexFileName?: string;
   sdkImport?: string;
@@ -44,12 +49,15 @@ export interface EldraCmsVitePluginOptions {
   skipOnMissingConfig?: boolean;
 }
 
-export function eldraCms(options: EldraCmsVitePluginOptions = {}): Plugin {
+// Generates, on every dev start and build, the types a storefront works against: the
+// organisation's CMS schemas and the gateway's own contract, both fetched from the configured
+// gateway. A fetch that fails leaves the previously generated file in place.
+export function eldra(options: EldraVitePluginOptions = {}): Plugin {
   let config: ResolvedConfig | undefined;
   let generated = false;
 
   return {
-    name: 'eldra-cms',
+    name: 'eldra',
     enforce: 'pre',
     configResolved(resolvedConfig) {
       config = resolvedConfig;
@@ -59,14 +67,14 @@ export function eldraCms(options: EldraCmsVitePluginOptions = {}): Plugin {
         return;
       }
       generated = true;
-      await generateEldraCmsFiles(config?.root ?? process.cwd(), options, config?.mode);
+      await generateEldraFiles(config?.root ?? process.cwd(), options, config?.mode);
     },
   };
 }
 
-export async function generateEldraCmsFiles(
+export async function generateEldraFiles(
   root: string,
-  options: EldraCmsVitePluginOptions,
+  options: EldraVitePluginOptions,
   mode = process.env.NODE_ENV ?? 'development'
 ): Promise<void> {
   const env = resolvePluginEnv(root, mode, options);
@@ -81,40 +89,66 @@ export async function generateEldraCmsFiles(
       return;
     }
     throw new Error(
-      'Missing Eldra CMS generation config. Set orgId or ELDRA_ORG_ID. Set apiBaseUrl only for staging, local, or test gateways.'
+      'Missing Eldra generation config. Set orgId or ELDRA_ORG_ID. Set apiBaseUrl only for staging, local, or test gateways.'
     );
   }
 
   const moduleName = options.moduleName ?? defaultModuleName;
+  const sdkImport = options.sdkImport ?? defaultSdkImport;
   const outDir = resolve(root, options.outDir ?? defaultOutDir);
   const typesFileName = options.typesFileName ?? defaultTypesFileName;
+  const contractFileName = options.contractFileName ?? defaultContractFileName;
   const clientFileName = options.clientFileName ?? defaultClientFileName;
   const indexFileName = options.indexFileName ?? defaultIndexFileName;
-  const typesSource = await fetchCmsTypesOrSkip(apiBaseUrl, orgId, {
+  const fetchOptions = {
     fetch: options.fetch,
     headers: resolveRuntimeValue(options.headers),
-    maxDepth: options.maxDepth,
-    moduleName,
-    schemas: options.schemas,
-  });
+  };
 
-  if (!typesSource) {
+  const typesSource = await orSkip(() =>
+    fetchCmsTypes(apiBaseUrl, orgId, {
+      ...fetchOptions,
+      maxDepth: options.maxDepth,
+      moduleName,
+      schemas: options.schemas,
+    })
+  );
+  const contractSource =
+    options.contract === false
+      ? undefined
+      : await orSkip(() => fetchContract(apiBaseUrl, orgId, { ...fetchOptions, sdkImport }));
+
+  if (!typesSource && !contractSource) {
     return;
   }
 
   await mkdir(outDir, { recursive: true });
-  await writeGeneratedFile(resolve(outDir, typesFileName), typesSource);
-  await writeGeneratedFile(
-    resolve(outDir, clientFileName),
-    createGeneratedClientSource({
-      moduleName,
-      sdkImport: options.sdkImport ?? defaultSdkImport,
-      typesImport: `./${stripTSExtension(typesFileName)}`,
-    })
-  );
+  if (typesSource) {
+    await writeGeneratedFile(resolve(outDir, typesFileName), typesSource);
+    await writeGeneratedFile(
+      resolve(outDir, clientFileName),
+      createGeneratedClientSource({
+        moduleName,
+        sdkImport,
+        typesImport: `./${stripTSExtension(typesFileName)}`,
+      })
+    );
+  }
+  if (contractSource) {
+    await writeGeneratedFile(resolve(outDir, contractFileName), contractSource);
+  }
+
+  const hasClient = typesSource !== undefined || (await exists(resolve(outDir, clientFileName)));
+  const hasContract =
+    contractSource !== undefined || (await exists(resolve(outDir, contractFileName)));
   await writeGeneratedFile(
     resolve(outDir, indexFileName),
-    `export * from './${stripTSExtension(clientFileName)}';\n`
+    [
+      hasClient ? `export * from './${stripTSExtension(clientFileName)}';` : undefined,
+      hasContract ? `export * from './${stripTSExtension(contractFileName)}';` : undefined,
+    ]
+      .filter(Boolean)
+      .join('\n') + '\n'
   );
 }
 
@@ -129,7 +163,7 @@ async function fetchCmsTypes(
     schemas: string[] | undefined;
   }
 ): Promise<string> {
-  const url = new URL(`${apiBaseUrl.replace(/\/$/, '')}/cms/v1/typescript-definitions`);
+  const url = new URL(`${trimSlash(apiBaseUrl)}/cms/v1/typescript-definitions`);
   url.searchParams.set('moduleName', options.moduleName);
   if (options.maxDepth !== undefined) {
     url.searchParams.set('maxDepth', String(options.maxDepth));
@@ -138,38 +172,75 @@ async function fetchCmsTypes(
     url.searchParams.set('schemas', options.schemas.join(','));
   }
 
+  const body = await fetchText(url, orgId, { ...options, accept: 'text/plain' });
+  return body.endsWith('\n') ? body : `${body}\n`;
+}
+
+async function fetchContract(
+  apiBaseUrl: string,
+  orgId: string,
+  options: { fetch: typeof fetch | undefined; headers: HeadersInit | undefined; sdkImport: string }
+): Promise<string> {
+  const url = new URL(`${trimSlash(apiBaseUrl)}/public/openapi.json`);
+  const body = await fetchText(url, orgId, { ...options, accept: 'application/json' });
+  return createContractSource(JSON.parse(body), { sdkImport: options.sdkImport, source: url });
+}
+
+// The generated contract module: the OpenAPI document as TypeScript, plus the augmentation that
+// makes every SDK method typed against it.
+export async function createContractSource(
+  document: unknown,
+  options: { sdkImport?: string; source?: URL | string } = {}
+): Promise<string> {
+  const version = readVersion(document);
+  const sdkImport = options.sdkImport ?? defaultSdkImport;
+  const ast = await openapiTS(document as Parameters<typeof openapiTS>[0], {
+    alphabetize: true,
+    exportType: true,
+  });
+  const origin = options.source ? ` from ${options.source.toString()}` : '';
+  return (
+    `// Generated by ${sdkImport}${origin} (contract ${version}). Do not edit; it is rewritten on every\n` +
+    `// dev start and build. Commit it so the types exist without a running gateway.\n` +
+    `export const ELDRA_CONTRACT_VERSION = '${version}';\n\n` +
+    astToString(ast) +
+    `\ndeclare module '${sdkImport}' {\n  interface EldraContract {\n    paths: paths;\n  }\n}\n`
+  );
+}
+
+function readVersion(document: unknown): string {
+  const version = (document as { info?: { version?: unknown } } | null)?.info?.version;
+  if (typeof version !== 'string' || !version) {
+    throw new Error('The OpenAPI document has no info.version.');
+  }
+  return version;
+}
+
+async function fetchText(
+  url: URL,
+  orgId: string,
+  options: { fetch: typeof fetch | undefined; headers: HeadersInit | undefined; accept: string }
+): Promise<string> {
   const headers = new Headers(options.headers);
-  headers.set('Accept', 'text/plain');
+  headers.set('Accept', options.accept);
   headers.set('X-Org-Id', orgId);
 
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (!fetchImpl) {
-    throw new Error('No fetch implementation is available for Eldra CMS generation.');
+    throw new Error('No fetch implementation is available for Eldra generation.');
   }
 
   const response = await fetchImpl(url, { headers });
   const body = await response.text();
   if (!response.ok) {
-    throw new Error(
-      `Failed to generate Eldra CMS types: ${response.status} ${response.statusText}\n${body}`
-    );
+    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}\n${body}`);
   }
-  return body.endsWith('\n') ? body : `${body}\n`;
+  return body;
 }
 
-async function fetchCmsTypesOrSkip(
-  apiBaseUrl: string,
-  orgId: string,
-  options: {
-    fetch: typeof fetch | undefined;
-    headers: HeadersInit | undefined;
-    maxDepth: number | undefined;
-    moduleName: string;
-    schemas: string[] | undefined;
-  }
-): Promise<string | undefined> {
+async function orSkip<T>(run: () => Promise<T>): Promise<T | undefined> {
   try {
-    return await fetchCmsTypes(apiBaseUrl, orgId, options);
+    return await run();
   } catch {
     return undefined;
   }
@@ -212,11 +283,7 @@ export function getWebStudioClient(): WebStudioClient {
 `;
 }
 
-function resolvePluginEnv(
-  root: string,
-  mode: string,
-  options: EldraCmsVitePluginOptions
-): RuntimeEnv {
+function resolvePluginEnv(root: string, mode: string, options: EldraVitePluginOptions): RuntimeEnv {
   return {
     ...loadEnv(mode, root, ''),
     ...process.env,
@@ -241,6 +308,19 @@ function resolveRuntimeValue<T>(value: RuntimeValue<T>): T | undefined {
 async function writeGeneratedFile(path: string, source: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, source, 'utf8');
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function trimSlash(value: string): string {
+  return value.replace(/\/$/, '');
 }
 
 function stripTSExtension(path: string): string {

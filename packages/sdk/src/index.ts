@@ -5,12 +5,14 @@ export {
   getEldraClient,
   initEldraClient,
 } from './client';
-export { ELDRA_CONTRACT_VERSION } from './contract';
 export type {
+  EldraContract,
   EldraContractBody,
+  EldraContractItem,
   EldraContractMethod,
   EldraContractPath,
   EldraContractPaths,
+  EldraContractProp,
   EldraContractQuery,
   EldraContractResponse,
 } from './contract';

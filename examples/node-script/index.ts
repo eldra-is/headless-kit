@@ -8,12 +8,12 @@ if (!orgId) throw new Error('Set ELDRA_ORG_ID to your organisation id.');
 
 const eldra = createEldraClient({ orgId, apiBaseUrl: process.env.ELDRA_API_BASE_URL });
 
-// Entry shapes are the organisation's own schemas; the Vite plugin generates these types for an
-// app, a script names the fields it reads.
+// A script has no Vite plugin generating types, so it names the fields it reads.
+type ProductListItem = { title: string; slug: string };
 type PageEntry = { id: string; data: { body?: RichTextDocument } };
 
 try {
-  const products = await eldra.catalog.listProducts();
+  const products = await eldra.catalog.listProducts<{ data: ProductListItem[] | null }>();
   for (const product of products.data ?? []) {
     console.log(`${product.title}  ${product.slug}`);
   }

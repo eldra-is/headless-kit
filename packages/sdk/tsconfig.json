@@ -3,5 +3,6 @@
   "compilerOptions": {
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*.ts", "tsdown.config.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "tsdown.config.ts", "vitest.config.ts"],
+  "exclude": ["src/__tests__/generated/**", "src/__tests__/fixtures/**"]
 }

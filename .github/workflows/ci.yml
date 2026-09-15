@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check:
-    name: Lint, types, contract, tests, build, package checks
+    name: Lint, types, tests, build, package checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -42,9 +42,6 @@ jobs:
 
       - name: Types, including the specs
         run: pnpm typecheck
-
-      - name: Contract files are generated from the committed snapshot
-        run: pnpm contract:check
 
       - name: Unit tests
         run: pnpm test

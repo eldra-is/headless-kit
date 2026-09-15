@@ -10,7 +10,7 @@ pnpm check        # everything CI runs, in CI's order
 pnpm test:watch   # the unit tests, live
 ```
 
-`pnpm check` is lint, format, types (including the specs), the contract check, tests, build, and the
+`pnpm check` is lint, format, build, types (including the specs), tests, and the
 package checks (publint, are-the-types-wrong, size budgets, a tarball smoke test). A pull request
 needs all of it green.
 

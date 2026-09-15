@@ -56,36 +56,50 @@ not subject to this.
 
 Totals come from the server. The cart's `totals` are the truth; never sum lines in the storefront.
 
-## Types
+## Generated types
 
-Every response is typed from the public contract, a versioned OpenAPI document snapshotted into
-the package. `ELDRA_CONTRACT_VERSION` tells you which. For any path not wrapped by a method:
+The SDK ships with no response types. They come from **your gateway**, generated into your project
+by the Vite plugin on every dev start and build:
+
+```ts
+// vite.config.ts or nuxt.config.ts
+import { eldra } from '@eldrajs/sdk/vite';
+
+export default defineConfig({
+  plugins: [eldra({ orgId: process.env.ELDRA_ORG_ID })],
+});
+```
+
+It writes `.eldra/web-studio/`:
+
+- `cms-types.ts` — your organisation's CMS schemas, so `eldra.cms.list('page')` knows the fields
+  of `page`.
+- `contract.ts` — the gateway's own API (cart, orders, catalog, checkout, inventory), from
+  `/api/public/openapi.json`. It fills the SDK's `EldraContract` in, so every method — `cart.get`,
+  `catalog.listProducts`, `orders.recover` — is typed against exactly the gateway you point at.
+  Staging gives you staging's contract; production, production's.
+- `client.ts` and `index.ts` — a `WebStudioClient` wrapper with the CMS types applied.
+
+**Commit the folder.** It then exists without a running gateway: CI type-checks against what was
+last generated and reviewed, and when the backend changes the diff shows in the pull request. A
+fetch that fails at dev start leaves the previous files in place.
+
+Without the plugin — a Node script, a framework the plugin does not cover yet — responses are
+`unknown` and you name the type at the call site:
+
+```ts
+const products = await eldra.catalog.listProducts<{ data: { title: string }[] | null }>();
+```
+
+For any path the client does not wrap by name, once generated:
 
 ```ts
 import type { EldraContractResponse } from '@eldrajs/sdk';
 type Categories = EldraContractResponse<'/catalog/v1/categories', 'get'>;
 ```
 
-The contract follows semver: a minor bump adds, a major bump changes or removes. The SDK's
-`CHANGELOG.md` names the snapshot each release carries.
-
-## Generated CMS types
-
-Schemas are yours, so their types cannot ship in the package. The Vite plugin generates them at
-build time from the organisation's schemas:
-
-```ts
-// vite.config.ts or nuxt.config.ts
-import { eldraCms } from '@eldrajs/sdk/vite';
-
-export default defineConfig({
-  plugins: [eldraCms({ orgId: process.env.ELDRA_ORG_ID })],
-});
-```
-
-It writes `.eldra/web-studio/` with a typed `client.ts` wrapper, so `eldra.cms.get('page', id)`
-knows the fields of `page`. Commit or ignore that folder as you prefer; regenerate when a schema
-changes.
+The gateway's contract is versioned by semver — a minor bump adds, a major bump changes or removes —
+and the generated `ELDRA_CONTRACT_VERSION` says which one you built against.
 
 ## Rich text
 

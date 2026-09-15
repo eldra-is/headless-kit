@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/__tests__/generated/**/*.ts",
+    "src/__tests__/fixtures/contract.ts"
+  ],
+  "exclude": ["src/__tests__/contract.spec.ts"]
+}

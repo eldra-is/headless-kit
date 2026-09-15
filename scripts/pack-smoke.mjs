@@ -15,23 +15,33 @@ const tsc = join(root, 'node_modules', '.bin', 'tsc');
 const consumers = {
   '@eldrajs/sdk': {
     runtime: `
-      import { createEldraClient, EldraHttpError, ELDRA_CONTRACT_VERSION } from '@eldrajs/sdk';
-      import { eldraCms } from '@eldrajs/sdk/vite';
+      import { createEldraClient, EldraHttpError } from '@eldrajs/sdk';
+      import { eldra } from '@eldrajs/sdk/vite';
       assert(typeof createEldraClient === 'function', 'createEldraClient');
       assert(typeof EldraHttpError === 'function', 'EldraHttpError');
-      assert(/^\\d+\\.\\d+\\.\\d+$/.test(ELDRA_CONTRACT_VERSION), 'ELDRA_CONTRACT_VERSION');
-      assert(typeof eldraCms === 'function', 'eldraCms');
+      assert(typeof eldra === 'function', 'eldra');
       const client = createEldraClient({ orgId: 'org', apiBaseUrl: 'https://example.invalid/api' });
       assert(typeof client.catalog.listProducts === 'function', 'client.catalog');
       assert(typeof client.cart.addItem === 'function', 'client.cart');
     `,
     types: `
       import { createEldraClient, type EldraClient, type EldraContractResponse } from '@eldrajs/sdk';
-      import { eldraCms } from '@eldrajs/sdk/vite';
+      import { eldra } from '@eldrajs/sdk/vite';
+      // What the generated .eldra/web-studio/contract.ts does in a real project.
+      declare module '@eldrajs/sdk' {
+        interface EldraContract {
+          paths: {
+            '/catalog/v1/products/list': {
+              get: { responses: { 200: { content: { 'application/json': { data: { title: string }[] | null } } } } };
+            };
+          };
+        }
+      }
       const client: EldraClient = createEldraClient({ orgId: 'org' });
       type Products = EldraContractResponse<'/catalog/v1/products/list', 'get'>;
-      export const products: Promise<Products> = client.catalog.listProducts();
-      export const plugin = eldraCms({ orgId: 'org' });
+      const products: Promise<Products> = client.catalog.listProducts();
+      export const firstTitle = products.then((p) => p.data?.[0]?.title satisfies string | undefined);
+      export const plugin = eldra({ orgId: 'org' });
     `,
   },
   '@eldrajs/rich-text': {
