@@ -9,15 +9,18 @@
   "packages": {
     "packages/sdk": {
       "component": "sdk",
-      "package-name": "@eldra-is/sdk"
+      "package-name": "@eldra-is/sdk",
+      "changelog-path": "RELEASE-NOTES.md"
     },
     "packages/rich-text": {
       "component": "rich-text",
-      "package-name": "@eldra-is/rich-text"
+      "package-name": "@eldra-is/rich-text",
+      "changelog-path": "RELEASE-NOTES.md"
     },
     "packages/vue": {
       "component": "vue",
-      "package-name": "@eldra-is/vue"
+      "package-name": "@eldra-is/vue",
+      "changelog-path": "RELEASE-NOTES.md"
     }
   },
   "plugins": ["node-workspace"]

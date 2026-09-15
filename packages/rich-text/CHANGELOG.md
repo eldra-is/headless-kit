@@ -3,7 +3,7 @@
 Hand-maintained: every change a consumer can see gets a line under Unreleased in the same change.
 Release-please writes the generated notes from commit messages and does not replace this.
 
-## Unreleased
+## 0.1.0 — 2026-09-15
 
 - First release, moved out of `@eldra-is/vue-ui-components`. The document types are declared here
   (`RichTextDocument`, `RichTextNode`, `RichTextMark`), so nothing needs TipTap or Vue to typecheck.
