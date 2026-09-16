@@ -49,9 +49,17 @@ export interface EldraVitePluginOptions {
   skipOnMissingConfig?: boolean;
 }
 
+export interface EldraGenerationResult {
+  /** Absolute paths of the files written. */
+  written: string[];
+  /** What was not generated, and why; the previously generated file, if any, is left in place. */
+  skipped: Array<{ what: string; reason: string }>;
+}
+
 // Generates, on every dev start and build, the types a storefront works against: the
 // organisation's CMS schemas and the gateway's own contract, both fetched from the configured
-// gateway. A fetch that fails leaves the previously generated file in place.
+// gateway. A fetch that fails leaves the previously generated file in place and is reported as a
+// build warning, never as an error.
 export function eldra(options: EldraVitePluginOptions = {}): Plugin {
   let config: ResolvedConfig | undefined;
   let generated = false;
@@ -67,17 +75,23 @@ export function eldra(options: EldraVitePluginOptions = {}): Plugin {
         return;
       }
       generated = true;
-      await generateEldraFiles(config?.root ?? process.cwd(), options, config?.mode);
+      const result = await generateEldraFiles(config?.root ?? process.cwd(), options, config?.mode);
+      for (const skip of result.skipped) {
+        this.warn(`${skip.what} not generated: ${skip.reason}`);
+      }
     },
   };
 }
 
+// `root` may be Vite's root, which in Nuxt is `app/`; everything is resolved against the project
+// root, the nearest directory at or above it holding a package.json.
 export async function generateEldraFiles(
   root: string,
   options: EldraVitePluginOptions,
   mode = process.env.NODE_ENV ?? 'development'
-): Promise<void> {
-  const env = resolvePluginEnv(root, mode, options);
+): Promise<EldraGenerationResult> {
+  const projectRoot = await findProjectRoot(root);
+  const env = resolvePluginEnv(projectRoot, mode, options);
   const apiBaseUrl =
     resolveRuntimeValue(options.apiBaseUrl) ??
     readFirstEnvValue(env, apiBaseUrlEnvKeys) ??
@@ -85,17 +99,17 @@ export async function generateEldraFiles(
   const orgId = resolveRuntimeValue(options.orgId) ?? readFirstEnvValue(env, orgIdEnvKeys);
 
   if (!orgId) {
+    const reason =
+      'no organisation id. Set orgId or ELDRA_ORG_ID; set apiBaseUrl only for staging, local, or test gateways.';
     if (options.skipOnMissingConfig) {
-      return;
+      return { written: [], skipped: [{ what: 'Eldra types', reason }] };
     }
-    throw new Error(
-      'Missing Eldra generation config. Set orgId or ELDRA_ORG_ID. Set apiBaseUrl only for staging, local, or test gateways.'
-    );
+    throw new Error(`Missing Eldra generation config: ${reason}`);
   }
 
   const moduleName = options.moduleName ?? defaultModuleName;
   const sdkImport = options.sdkImport ?? defaultSdkImport;
-  const outDir = resolve(root, options.outDir ?? defaultOutDir);
+  const outDir = resolve(projectRoot, options.outDir ?? defaultOutDir);
   const typesFileName = options.typesFileName ?? defaultTypesFileName;
   const contractFileName = options.contractFileName ?? defaultContractFileName;
   const clientFileName = options.clientFileName ?? defaultClientFileName;
@@ -105,7 +119,8 @@ export async function generateEldraFiles(
     headers: resolveRuntimeValue(options.headers),
   };
 
-  const typesSource = await orSkip(() =>
+  const result: EldraGenerationResult = { written: [], skipped: [] };
+  const typesSource = await attempt('CMS types', result, () =>
     fetchCmsTypes(apiBaseUrl, orgId, {
       ...fetchOptions,
       maxDepth: options.maxDepth,
@@ -116,17 +131,24 @@ export async function generateEldraFiles(
   const contractSource =
     options.contract === false
       ? undefined
-      : await orSkip(() => fetchContract(apiBaseUrl, orgId, { ...fetchOptions, sdkImport }));
+      : await attempt('Gateway contract', result, () =>
+          fetchContract(apiBaseUrl, orgId, { ...fetchOptions, sdkImport })
+        );
 
   if (!typesSource && !contractSource) {
-    return;
+    return result;
   }
 
   await mkdir(outDir, { recursive: true });
+  const write = async (fileName: string, source: string) => {
+    const path = resolve(outDir, fileName);
+    await writeGeneratedFile(path, source);
+    result.written.push(path);
+  };
   if (typesSource) {
-    await writeGeneratedFile(resolve(outDir, typesFileName), typesSource);
-    await writeGeneratedFile(
-      resolve(outDir, clientFileName),
+    await write(typesFileName, typesSource);
+    await write(
+      clientFileName,
       createGeneratedClientSource({
         moduleName,
         sdkImport,
@@ -135,14 +157,14 @@ export async function generateEldraFiles(
     );
   }
   if (contractSource) {
-    await writeGeneratedFile(resolve(outDir, contractFileName), contractSource);
+    await write(contractFileName, contractSource);
   }
 
   const hasClient = typesSource !== undefined || (await exists(resolve(outDir, clientFileName)));
   const hasContract =
     contractSource !== undefined || (await exists(resolve(outDir, contractFileName)));
-  await writeGeneratedFile(
-    resolve(outDir, indexFileName),
+  await write(
+    indexFileName,
     [
       hasClient ? `export * from './${stripTSExtension(clientFileName)}';` : undefined,
       hasContract ? `export * from './${stripTSExtension(contractFileName)}';` : undefined,
@@ -150,6 +172,7 @@ export async function generateEldraFiles(
       .filter(Boolean)
       .join('\n') + '\n'
   );
+  return result;
 }
 
 async function fetchCmsTypes(
@@ -238,11 +261,30 @@ async function fetchText(
   return body;
 }
 
-async function orSkip<T>(run: () => Promise<T>): Promise<T | undefined> {
+async function attempt<T>(
+  what: string,
+  result: EldraGenerationResult,
+  run: () => Promise<T>
+): Promise<T | undefined> {
   try {
     return await run();
-  } catch {
+  } catch (error) {
+    result.skipped.push({ what, reason: error instanceof Error ? error.message : String(error) });
     return undefined;
+  }
+}
+
+async function findProjectRoot(start: string): Promise<string> {
+  let dir = resolve(start);
+  while (true) {
+    if (await exists(resolve(dir, 'package.json'))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return resolve(start);
+    }
+    dir = parent;
   }
 }
 

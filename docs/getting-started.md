@@ -80,9 +80,32 @@ It writes `.eldra/web-studio/`:
   Staging gives you staging's contract; production, production's.
 - `client.ts` and `index.ts` — a `WebStudioClient` wrapper with the CMS types applied.
 
+The folder is written beside the nearest `package.json` — the project root, even where the Vite
+root is a subfolder, as it is in Nuxt (`app/`). A relative `outDir` is resolved against the same
+place.
+
 **Commit the folder.** It then exists without a running gateway: CI type-checks against what was
 last generated and reviewed, and when the backend changes the diff shows in the pull request. A
-fetch that fails at dev start leaves the previous files in place.
+fetch that fails at dev start leaves the previous file in place and shows as a build warning saying
+what was skipped and why — a wrong URL or an unknown organisation id is a warning, never an error.
+Keep the folder whole: `index.ts` re-exports the other files, so delete all of it or none.
+
+### Nuxt
+
+Nuxt copies `typescript.tsConfig.include` entries verbatim into `.nuxt/tsconfig*.json`, so the
+path is relative to `.nuxt/`, not to the project:
+
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  vite: { plugins: [eldra({ orgId: process.env.ELDRA_ORG_ID })] },
+  typescript: { tsConfig: { include: ['../.eldra/**/*.ts'] } },
+});
+```
+
+Without that include the generated `contract.ts` is not in the type-check program, nothing
+augments `EldraContract`, and every response is `unknown` — the same as having no plugin at all,
+which is what makes it easy to miss. Importing anything from `.eldra/web-studio` also pulls it in.
 
 Without the plugin — a Node script, a framework the plugin does not cover yet — responses are
 `unknown` and you name the type at the call site:

@@ -63,7 +63,9 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 
 - `packages/sdk` — `@eldrajs/sdk`. Framework-free: no Vue, no DOM assumptions beyond `globalThis`
   lookups that tolerate absence. `src/vite-plugin.ts` is the `./vite` entry (`eldra()`), may import
-  Vite, Node and `openapi-typescript`; nothing else may. Type checking runs twice: `tsconfig.json`
+  Vite, Node and `openapi-typescript`; nothing else may. It resolves paths against the nearest
+  `package.json` above Vite's root, because Nuxt's root is `app/`; and a Nuxt consumer's tsconfig
+  include must be `../.eldra/**/*.ts` (Nuxt copies the entry into `.nuxt/` verbatim). Type checking runs twice: `tsconfig.json`
   proves the un-generated state (`unknown`), `tsconfig.generated.json` proves the generated state
   against the fixture. Built by tsdown.
 - `packages/rich-text` — `@eldrajs/rich-text`. Framework-free, imports nothing. The document types
