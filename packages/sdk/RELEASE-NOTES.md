@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.0...sdk-v0.2.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **sdk:** generate into the project root and warn about what was skipped ([#21](https://github.com/eldra-is/headless-kit/issues/21)) ([7fd72ce](https://github.com/eldra-is/headless-kit/commit/7fd72ce4f792ea9b21593143ccc7a5fb7981770c))
+
 ## [0.2.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.1.0...sdk-v0.2.0) (2026-09-15)
 
 
