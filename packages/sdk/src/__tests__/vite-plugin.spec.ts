@@ -73,6 +73,7 @@ describe('eldra vite plugin generator', () => {
     expect(calls[0].headers.get('X-Org-Id')).toBe('org-123');
     expect(calls[0].headers.get('Accept')).toBe('text/plain');
     expect(calls[1].headers.get('Accept')).toBe('application/json');
+    for (const call of calls) expect(call.headers.has('X-Preview-Token')).toBe(false);
 
     const out = join(tmpRoot, '.eldra/web-studio');
     expect(await readFile(join(out, 'cms-types.ts'), 'utf8')).toBe(cmsTypes);
@@ -93,6 +94,83 @@ describe('eldra vite plugin generator', () => {
     expect(await readFile(join(out, 'index.ts'), 'utf8')).toBe(
       "export * from './client';\nexport * from './contract';\n"
     );
+  });
+
+  it.each(['preview-token', () => 'preview-token'])(
+    'sends previewToken %s on both generation requests without embedding it in generated files',
+    async (previewToken) => {
+      tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-preview-'));
+      const { calls, fetch } = gateway();
+      const customHeaders = new Headers({
+        'X-Preview-Token': 'custom-token',
+        'X-Custom': 'preserved',
+      });
+
+      const result = await generateEldraFiles(tmpRoot, {
+        orgId: 'org-123',
+        previewToken,
+        headers: () => customHeaders,
+        fetch,
+      });
+
+      expect(result.skipped).toEqual([]);
+      expect(calls).toHaveLength(2);
+      for (const call of calls) {
+        expect(call.headers.get('X-Preview-Token')).toBe('preview-token');
+        expect(call.headers.get('X-Custom')).toBe('preserved');
+        expect(call.headers.get('X-Org-Id')).toBe('org-123');
+        expect(call.url).not.toContain('preview-token');
+      }
+      expect(calls[0].headers.get('Accept')).toBe('text/plain');
+      expect(calls[1].headers.get('Accept')).toBe('application/json');
+      expect(customHeaders.get('X-Preview-Token')).toBe('custom-token');
+      expect(result.written).toHaveLength(4);
+      for (const file of result.written) {
+        expect(await readFile(file, 'utf8')).not.toContain('preview-token');
+      }
+    }
+  );
+
+  it.each([undefined, '', () => undefined, () => ''])(
+    'preserves custom preview headers when previewToken is %s',
+    async (previewToken) => {
+      tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-preview-'));
+      const { calls, fetch } = gateway();
+
+      await generateEldraFiles(tmpRoot, {
+        orgId: 'org-123',
+        previewToken,
+        headers: { 'X-Preview-Token': 'custom-token' },
+        fetch,
+      });
+
+      expect(calls).toHaveLength(2);
+      for (const call of calls) {
+        expect(call.headers.get('X-Preview-Token')).toBe('custom-token');
+      }
+    }
+  );
+
+  it('resolves the preview token again on each generation and can return to published reads', async () => {
+    tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-preview-'));
+    let previewToken: string | undefined = 'first-token';
+    const { calls, fetch } = gateway();
+    const options = { orgId: 'org-123', previewToken: () => previewToken, fetch };
+
+    await generateEldraFiles(tmpRoot, options);
+    previewToken = 'second-token';
+    await generateEldraFiles(tmpRoot, options);
+    previewToken = undefined;
+    await generateEldraFiles(tmpRoot, options);
+
+    expect(calls.map((call) => call.headers.get('X-Preview-Token'))).toEqual([
+      'first-token',
+      'first-token',
+      'second-token',
+      'second-token',
+      null,
+      null,
+    ]);
   });
 
   it('can skip generation when config is missing', async () => {

@@ -50,6 +50,79 @@ describe('eldra sdk client', () => {
     );
   });
 
+  it('sends the configured preview token on all CMS read methods', async () => {
+    const requests: EldraHttpRequest[] = [];
+    const client = createEldraClient({
+      orgId: 'org-123',
+      previewToken: 'preview-token',
+      headers: { 'X-Preview-Token': 'header-token' },
+      httpClient: stubHttpClient(async (request) => {
+        requests.push(request);
+        return {};
+      }),
+    });
+
+    await client.cms.list('blog-post', undefined, {
+      headers: { 'X-Preview-Token': 'context-token' },
+    });
+    await client.cms.get('blog-post', 'entry-1');
+    await client.cms.getEntryByUniqueField('blog-post', 'slug', 'hello-world');
+    await client.cms.resolveEntryList({ schemas: ['blog-post'] });
+
+    expect(requests).toHaveLength(4);
+    for (const request of requests) {
+      expect(request.headers.get('X-Preview-Token')).toBe('preview-token');
+      expect(request.headers.get('X-Org-Id')).toBe('org-123');
+      expect(request.url).not.toContain('preview-token');
+    }
+  });
+
+  it('resolves the preview token for each request and allows returning to published reads', async () => {
+    const requests: EldraHttpRequest[] = [];
+    let previewToken: string | undefined = 'first-token';
+    const client = createEldraClient({
+      previewToken: () => previewToken,
+      httpClient: stubHttpClient(async (request) => {
+        requests.push(request);
+        return {};
+      }),
+    });
+
+    await client.cms.list('blog-post');
+    previewToken = 'second-token';
+    await client.cms.list('blog-post');
+    previewToken = undefined;
+    await client.cms.list('blog-post');
+
+    expect(requests.map((request) => request.headers.get('X-Preview-Token'))).toEqual([
+      'first-token',
+      'second-token',
+      null,
+    ]);
+  });
+
+  it.each([undefined, ''])(
+    'preserves custom headers when previewToken is %s',
+    async (previewToken) => {
+      const requests: EldraHttpRequest[] = [];
+      const client = createEldraClient({
+        previewToken,
+        httpClient: stubHttpClient(async (request) => {
+          requests.push(request);
+          return {};
+        }),
+      });
+
+      await client.cms.list('blog-post');
+      await client.cms.list('blog-post', undefined, {
+        headers: { 'X-Preview-Token': 'custom-token' },
+      });
+
+      expect(requests[0]?.headers.has('X-Preview-Token')).toBe(false);
+      expect(requests[1]?.headers.get('X-Preview-Token')).toBe('custom-token');
+    }
+  );
+
   it('supports one-time init from runtime env values', async () => {
     const requests: EldraHttpRequest[] = [];
     initEldraClient({

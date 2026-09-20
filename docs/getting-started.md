@@ -35,6 +35,39 @@ Every option can also be a function, so a server-rendered app can read environme
 createEldraClient({ orgId: () => useRuntimeConfig().public.eldraOrgId });
 ```
 
+## Preview mode
+
+Pass `previewToken` to read CMS content using a preview token. It accepts a string or a callback
+resolved for each request. For a server-side client:
+
+```ts
+const eldra = createEldraClient({
+  orgId: process.env.ELDRA_ORG_ID,
+  previewToken: () => process.env.ELDRA_PREVIEW_TOKEN,
+});
+```
+
+A non-empty token sets `X-Preview-Token` on SDK requests, overriding that header in client or
+request-context headers. Returning `undefined` or an empty string stops setting the header;
+without a custom preview header, requests use the normal published-content behavior. Explicit
+custom headers are preserved when `previewToken` is unset. The SDK does not discover a preview
+token from environment variables automatically.
+
+The Vite plugin accepts the same option separately:
+
+```ts
+eldra({
+  orgId: process.env.ELDRA_ORG_ID,
+  previewToken: () => process.env.ELDRA_PREVIEW_TOKEN,
+});
+```
+
+It sends the header when fetching both CMS types and the gateway contract. It does not put the
+token in request URLs or generated files, and configuring it on the plugin does not configure
+runtime clients. Keep preview tokens in the preview session or server configuration, rather than
+public environment variables or committed generated code. See the type-checked
+[preview example](../examples/node-script/preview.ts).
+
 ## Browsers and origins
 
 The API answers a browser only from an origin the organisation has registered — Studio, General
