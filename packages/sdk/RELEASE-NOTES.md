@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.1...sdk-v0.2.2) (2026-09-20)
+
+
+### Features
+
+* add preview mode support with previewToken for SDK client and Vite plugin ([#26](https://github.com/eldra-is/headless-kit/issues/26)) ([29cff32](https://github.com/eldra-is/headless-kit/commit/29cff32062060a9efc3f86e54f6b08134504a013))
+
 ## [0.2.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.0...sdk-v0.2.1) (2026-09-16)
 
 
