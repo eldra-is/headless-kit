@@ -36,6 +36,8 @@ export type EldraHttpClient = <T = unknown>(request: EldraHttpRequest) => Promis
 export interface EldraClientOptions {
   apiBaseUrl?: RuntimeValue<string>;
   orgId?: RuntimeValue<string>;
+  /** Sends X-Preview-Token on requests, overriding the same header in headers/context. */
+  previewToken?: RuntimeValue<string>;
   env?: RuntimeValue<RuntimeEnv>;
   headers?: RuntimeValue<HeadersInit>;
   httpClient?: EldraHttpClient;

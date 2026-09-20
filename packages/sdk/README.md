@@ -35,6 +35,13 @@ call site.
 
 The full walkthrough is [docs/getting-started.md](../../docs/getting-started.md).
 
+## Preview mode
+
+Both `createEldraClient` and the Vite plugin accept `previewToken` as a string or callback and send
+it as `X-Preview-Token`. Configure each separately; the generator never embeds the token in its
+output. See [preview mode](../../docs/getting-started.md#preview-mode) for examples and header
+precedence.
+
 ## What is in the client
 
 | Group       | Methods                                                                                                                |

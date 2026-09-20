@@ -440,6 +440,10 @@ function createHttpRequest(
   if (orgId) {
     headers.set('X-Org-Id', orgId);
   }
+  const previewToken = resolveRuntimeValue(clientOptions.previewToken);
+  if (previewToken) {
+    headers.set('X-Preview-Token', previewToken);
+  }
 
   let body: BodyInit | undefined;
   if (requestOptions.body !== undefined) {

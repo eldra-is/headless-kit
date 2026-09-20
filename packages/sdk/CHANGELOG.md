@@ -9,6 +9,10 @@ platform repository.
 
 ## Unreleased
 
+- Restore `previewToken` on the SDK client and Vite generator after the move from
+  `vue-ui-components`. Accepts a string or callback and sends `X-Preview-Token`; the generator
+  forwards it to both type endpoints without embedding it in generated files.
+
 - The Vite plugin writes `.eldra/web-studio/` beside the nearest `package.json` instead of Vite's
   root; on Nuxt 4 the root is `app/`, and the folder landed there. A relative `outDir` is resolved
   the same way.

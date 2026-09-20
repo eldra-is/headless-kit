@@ -32,6 +32,8 @@ const orgIdEnvKeys = [
 export interface EldraVitePluginOptions {
   apiBaseUrl?: RuntimeValue<string>;
   orgId?: RuntimeValue<string>;
+  /** Sends X-Preview-Token when fetching types/contracts; never embedded in generated files. */
+  previewToken?: RuntimeValue<string>;
   env?: RuntimeValue<RuntimeEnv>;
   headers?: RuntimeValue<HeadersInit>;
   schemas?: string[];
@@ -114,9 +116,14 @@ export async function generateEldraFiles(
   const contractFileName = options.contractFileName ?? defaultContractFileName;
   const clientFileName = options.clientFileName ?? defaultClientFileName;
   const indexFileName = options.indexFileName ?? defaultIndexFileName;
+  const headers = new Headers(resolveRuntimeValue(options.headers));
+  const previewToken = resolveRuntimeValue(options.previewToken);
+  if (previewToken) {
+    headers.set('X-Preview-Token', previewToken);
+  }
   const fetchOptions = {
     fetch: options.fetch,
-    headers: resolveRuntimeValue(options.headers),
+    headers,
   };
 
   const result: EldraGenerationResult = { written: [], skipped: [] };
