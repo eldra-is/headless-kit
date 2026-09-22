@@ -7,8 +7,9 @@ import {
   normalizeThemeDesignTokens,
 } from '@eldrajs/theme-core/design-tokens';
 import { DEFAULT_LAYOUT_BREAKPOINTS } from '@eldrajs/theme-core/layout';
+import { generateBlockTypes } from './blockTypes';
 import { readPreviousManifest, scanTheme } from './scan';
-import type { EldraThemeOptions, ScanResult, ThemeManifest } from './types';
+import type { BlockDefinition, EldraThemeOptions, ScanResult, ThemeManifest } from './types';
 
 const MANIFEST_ID = 'virtual:eldra/manifest';
 const BLOCKS_ID = 'virtual:eldra/blocks';
@@ -53,6 +54,7 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
       return;
     }
     writeManifest(join(themeDir, '.eldra', 'manifest.json'), scan.manifest);
+    writeBlockTypes(join(themeDir, '.eldra', 'block-types.d.ts'), scan.manifest.blocks);
   }
 
   return {
@@ -194,6 +196,20 @@ function assertTailwindV4(themeDir: string): void {
 function writeManifest(path: string, manifest: ThemeManifest): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, serializeManifest(manifest));
+}
+
+/**
+ * Writes `.eldra/block-types.d.ts` from the manifest's blocks (which already
+ * carry every `BlockDefinition` field plus `mock`/`previewImage` — the
+ * generator only reads `apiId`/`fields`, so the extra keys are harmless).
+ * Tracked like `manifest.json`, but only rewritten when content actually
+ * changed, so an unrelated rescan does not touch its mtime.
+ */
+function writeBlockTypes(path: string, blocks: ThemeManifest['blocks']): void {
+  const content = generateBlockTypes(blocks as unknown as BlockDefinition[]);
+  if (existsSync(path) && readFileSync(path, 'utf8') === content) return;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, content);
 }
 
 function serializeManifest(manifest: ThemeManifest): string {

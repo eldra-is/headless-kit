@@ -1,4 +1,5 @@
 export { default } from './plugin';
+export { generateBlockTypes } from './blockTypes';
 export type {
   BlockDefinition,
   BlockField,
