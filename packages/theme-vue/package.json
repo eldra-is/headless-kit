@@ -1,0 +1,57 @@
+{
+  "name": "@eldrajs/theme-vue",
+  "version": "0.0.0",
+  "description": "Vue 3 bindings for the Eldra theme SDK: block zones, layouts, rich text and the Studio preview composables over @eldrajs/theme-core.",
+  "keywords": [
+    "cms",
+    "eldra",
+    "headless",
+    "theme",
+    "vue"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/theme-vue#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/theme-vue"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@eldrajs/theme-core": "workspace:^"
+  },
+  "devDependencies": {
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^30.1.0",
+    "vue": "^3.5.30"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
