@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EldraBlockZone, EldraLayout } from '@eldra/theme-vue';
+import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
 
 const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
   useEldraPage();

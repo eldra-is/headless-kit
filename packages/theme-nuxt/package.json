@@ -1,0 +1,61 @@
+{
+  "name": "@eldrajs/theme-nuxt",
+  "version": "0.0.0",
+  "description": "Nuxt module for Eldra themes: wires @eldrajs/vite-plugin-theme, the gateway client, draft overlays and the Studio preview bridge into a Nuxt 4 site.",
+  "keywords": [
+    "cms",
+    "eldra",
+    "headless",
+    "nuxt",
+    "nuxt-module",
+    "theme"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/theme-nuxt#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/theme-nuxt"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@eldrajs/theme-core": "workspace:^",
+    "@eldrajs/theme-vue": "workspace:^",
+    "@eldrajs/vite-plugin-theme": "workspace:^",
+    "@nuxt/kit": "^4.0.0",
+    "defu": "^6.1.4"
+  },
+  "devDependencies": {
+    "@nuxt/module-builder": "^0.8.4",
+    "@nuxt/schema": "^4.0.0",
+    "@playwright/test": "1.62.1",
+    "execa": "^9.5.2",
+    "nuxt": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

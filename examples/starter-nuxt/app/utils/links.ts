@@ -1,4 +1,4 @@
-import { stripStega } from '@eldra/theme-core/stega';
+import { stripStega } from '@eldrajs/theme-core/stega';
 
 /** Allow ordinary site links while rejecting executable and opaque URL schemes. */
 export function safeHref(value: unknown): string | null {

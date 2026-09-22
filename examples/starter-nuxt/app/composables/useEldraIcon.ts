@@ -1,5 +1,5 @@
 import { computed, unref, type MaybeRef } from 'vue';
-import { stripStega } from '@eldra/theme-core/stega';
+import { stripStega } from '@eldrajs/theme-core/stega';
 
 // Resolves a Tabler outline icon's inlined SVG markup for the given icon
 // name via the `/api/eldra-icon` Nitro route. `useFetch` runs this request

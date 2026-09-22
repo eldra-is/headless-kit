@@ -21,6 +21,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@nokkvireyr/vue-config": "^2.2.0",
+    "@playwright/test": "1.62.1",
     "@size-limit/preset-small-lib": "^13.1.1",
     "@types/node": "^24.0.0",
     "oxfmt": "^0.67.0",

@@ -1,0 +1,131 @@
+{
+  "manifestVersion": 1,
+  "theme": {
+    "name": "eldra-theme-nuxt-fixture",
+    "version": "1.2.3",
+    "framework": "nuxt",
+    "sdk": {
+      "core": "0.0.0",
+      "vitePlugin": "0.0.0"
+    }
+  },
+  "blocks": [
+    {
+      "apiId": "cta",
+      "name": "CTA",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "label",
+          "name": "Label",
+          "type": "string",
+          "isTitle": true,
+          "localized": true
+        }
+      ],
+      "mock": {
+        "label": "Mock CTA"
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "hero",
+      "name": "Hero",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true
+        },
+        {
+          "fieldId": "subheading",
+          "name": "Subheading",
+          "type": "text",
+          "localized": true
+        }
+      ],
+      "slots": [
+        {
+          "id": "actions",
+          "label": "Actions",
+          "maxItems": 2,
+          "allowedBlockApiIds": ["cta"]
+        }
+      ],
+      "mock": {
+        "heading": "Mock heading",
+        "subheading": "Mock subheading"
+      },
+      "previewImage": null
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "/:path(.*)*",
+      "kind": "page"
+    }
+  ],
+  "customPages": [
+    {
+      "path": "/articles/code-owned",
+      "title": "Code-owned article",
+      "description": "A native Nuxt route that wins over the CMS template."
+    }
+  ],
+  "tokens": {
+    "colors": {
+      "primary": {
+        "label": "Primary",
+        "value": "#4f46e5",
+        "allowSiteOverride": true
+      }
+    },
+    "containers": {
+      "content": {
+        "label": "Content",
+        "maxWidth": "64rem",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      },
+      "full": {
+        "label": "Full",
+        "maxWidth": "none",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      },
+      "narrow": {
+        "label": "Narrow",
+        "maxWidth": "40rem",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      },
+      "wide": {
+        "label": "Wide",
+        "maxWidth": "80rem",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      }
+    }
+  }
+}

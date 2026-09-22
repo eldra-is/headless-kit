@@ -32,7 +32,7 @@ function rewriteWorkspaceVersions(packagePath: string): void {
   for (const group of [packageJson.dependencies, packageJson.devDependencies]) {
     if (group === undefined) continue;
     for (const [name, version] of Object.entries(group)) {
-      if (name.startsWith('@eldra/') && version.startsWith('workspace:')) group[name] = '^0.1.0';
+      if (name.startsWith('@eldrajs/') && version.startsWith('workspace:')) group[name] = '^0.1.0';
     }
   }
   writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);

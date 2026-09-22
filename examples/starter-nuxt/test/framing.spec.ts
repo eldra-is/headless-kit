@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 //
 // `blocks/hero/Block.vue` and `blocks/image/Block.vue` import
-// `imageFramingAttrs` from `@eldra/theme-vue`, whose single index entry also
+// `imageFramingAttrs` from `@eldrajs/theme-vue`, whose single index entry also
 // re-exports `EldraBlockZone`, which pulls in a `virtual:eldra/blocks`
 // module supplied only by the Nuxt build's vite plugin (see
 // test/slugPage.test.ts for the same underlying issue). Mounting a block
 // directly outside that build needs the package mocked; re-export the real
-// helper from `@eldra/theme-core` (which has no virtual import) so the
+// helper from `@eldrajs/theme-core` (which has no virtual import) so the
 // assertions below still exercise the genuine framing math.
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@eldra/theme-vue', async () => {
-  const core = await import('@eldra/theme-core');
+vi.mock('@eldrajs/theme-vue', async () => {
+  const core = await import('@eldrajs/theme-core');
   return { imageFramingAttrs: core.imageFramingAttrs };
 });
 

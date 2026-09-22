@@ -16,12 +16,12 @@ import { mount } from '@vue/test-utils';
 import { computed, ref } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// EldraLayout/EldraBlockZone (via @eldra/theme-vue) pull in a
+// EldraLayout/EldraBlockZone (via @eldrajs/theme-vue) pull in a
 // `virtual:eldra/blocks` module supplied only by the Nuxt build's vite
 // plugin. Neither branch under test reaches these components (both fixtures
 // below resolve to the not-found or error branch), so stub the module to
 // avoid that unrelated build-time resolution.
-vi.mock('@eldra/theme-vue', () => ({
+vi.mock('@eldrajs/theme-vue', () => ({
   EldraLayout: { template: '<div />' },
   EldraBlockZone: { template: '<div />' },
 }));

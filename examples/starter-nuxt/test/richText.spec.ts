@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// `blocks/article/Block.vue` imports `EldraRichText` from `@eldra/theme-vue`,
+// `blocks/article/Block.vue` imports `EldraRichText` from `@eldrajs/theme-vue`,
 // whose single index entry also re-exports `EldraBlockZone`, which pulls in
 // a `virtual:eldra/blocks` module supplied only by the Nuxt build's vite
 // plugin (see test/framing.test.ts and test/slugPage.test.ts for the same
@@ -13,10 +13,10 @@ import { mount } from '@vue/test-utils';
 import { reactive } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '../../../packages/theme-vue/src/context';
-import { registerBlockFields } from '@eldra/theme-core';
+import { registerBlockFields } from '@eldrajs/theme-core';
 import blockManifest from '../blocks/article/block.json';
 
-vi.mock('@eldra/theme-vue', async () => {
+vi.mock('@eldrajs/theme-vue', async () => {
   const { EldraRichText } = await import('../../../packages/theme-vue/src/EldraRichText');
   return { EldraRichText };
 });

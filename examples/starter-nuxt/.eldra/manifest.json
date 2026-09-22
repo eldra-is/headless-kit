@@ -1,0 +1,786 @@
+{
+  "manifestVersion": 1,
+  "theme": {
+    "name": "starter-nuxt",
+    "version": "0.1.0",
+    "framework": "nuxt",
+    "sdk": {
+      "core": "0.0.0",
+      "vitePlugin": "0.0.0"
+    }
+  },
+  "blocks": [
+    {
+      "apiId": "article",
+      "name": "Article",
+      "description": "Long-form rich text with title, author and cover image.",
+      "icon": "article",
+      "category": "content",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "title",
+          "name": "Title",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "author",
+          "name": "Author",
+          "type": "string"
+        },
+        {
+          "fieldId": "coverImage",
+          "name": "Cover image",
+          "type": "media",
+          "metadata": {
+            "multiple": false
+          }
+        },
+        {
+          "fieldId": "body",
+          "name": "Body",
+          "type": "rich-text",
+          "localized": true,
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "toolbar": [
+              "heading",
+              "bold",
+              "italic",
+              "link",
+              "bulletList",
+              "orderedList",
+              "blockquote"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "title": "Announcing our new platform",
+        "author": "Jane Doe",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Body copy rendered from rich text."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "cta",
+      "name": "Call to action",
+      "description": "Banner with heading, supporting copy and a button.",
+      "icon": "hand-click",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "body",
+          "name": "Body",
+          "type": "text",
+          "localized": true
+        },
+        {
+          "fieldId": "buttonLabel",
+          "name": "Button label",
+          "type": "string",
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "buttonHref",
+          "name": "Button link",
+          "type": "string",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "metadata": {
+            "options": ["primary", "subtle"]
+          }
+        }
+      ],
+      "mock": {
+        "heading": "Ready to launch?",
+        "body": "Connect your repo and publish in minutes.",
+        "buttonLabel": "Start now",
+        "buttonHref": "/contact",
+        "variant": "primary"
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "faq",
+      "name": "FAQ",
+      "description": "Frequently asked questions as disclosure widgets.",
+      "icon": "help-circle",
+      "category": "content",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true
+        },
+        {
+          "fieldId": "items",
+          "name": "Questions",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Question",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "question",
+                    "name": "Question",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "answer",
+                    "name": "Answer",
+                    "type": "text",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "heading": "FAQ",
+        "items": [
+          {
+            "question": "Can I use my own domain?",
+            "answer": "Custom domains are on the roadmap; pages.dev works today."
+          }
+        ]
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "feature-grid",
+      "name": "Feature grid",
+      "description": "Grid of features with icon, title and description.",
+      "icon": "grid-dots",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true
+        },
+        {
+          "fieldId": "features",
+          "name": "Features",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "feature",
+              "name": "Feature",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "icon",
+                    "name": "Icon",
+                    "type": "tabler-icon"
+                  },
+                  {
+                    "fieldId": "title",
+                    "name": "Title",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "description",
+                    "name": "Description",
+                    "type": "text",
+                    "localized": true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "heading": "Why Eldra",
+        "features": [
+          {
+            "icon": "bolt",
+            "title": "Fast",
+            "description": "Static builds on a global edge."
+          },
+          {
+            "icon": "lock",
+            "title": "Secure",
+            "description": "Sandboxed previews, no secrets in builds."
+          }
+        ]
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "footer",
+      "name": "Footer",
+      "description": "Site footer with link columns and copyright.",
+      "icon": "layout-bottombar",
+      "category": "structure",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "copyright",
+          "name": "Copyright",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "columns",
+          "name": "Columns",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "column",
+              "name": "Column",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "heading",
+                    "name": "Heading",
+                    "type": "string",
+                    "localized": true
+                  },
+                  {
+                    "fieldId": "links",
+                    "name": "Links",
+                    "type": "list",
+                    "metadata": {
+                      "item": {
+                        "fieldId": "link",
+                        "name": "Link",
+                        "type": "composite",
+                        "metadata": {
+                          "fields": [
+                            {
+                              "fieldId": "label",
+                              "name": "Label",
+                              "type": "string",
+                              "localized": true
+                            },
+                            {
+                              "fieldId": "href",
+                              "name": "URL",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "copyright": "© 2026 Acme",
+        "columns": [
+          {
+            "heading": "Company",
+            "links": [
+              {
+                "label": "About",
+                "href": "/about"
+              }
+            ]
+          }
+        ]
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "gallery",
+      "name": "Gallery",
+      "description": "Responsive image grid with captions.",
+      "icon": "layout-grid",
+      "category": "content",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "title",
+          "name": "Title",
+          "type": "string",
+          "isTitle": true,
+          "localized": true
+        },
+        {
+          "fieldId": "images",
+          "name": "Images",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Image",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "image",
+                    "name": "Image",
+                    "type": "media",
+                    "metadata": {
+                      "multiple": false
+                    }
+                  },
+                  {
+                    "fieldId": "caption",
+                    "name": "Caption",
+                    "type": "string",
+                    "localized": true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "title": "Gallery",
+        "images": [
+          {
+            "caption": "First"
+          },
+          {
+            "caption": "Second"
+          }
+        ]
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "hero",
+      "name": "Hero",
+      "description": "Top-of-page banner with heading, supporting text, image and call to action.",
+      "icon": "layout-dashboard",
+      "category": "marketing",
+      "version": 1,
+      "groups": [
+        {
+          "groupId": "content",
+          "name": "Content",
+          "defaultOpen": true
+        },
+        {
+          "groupId": "action",
+          "name": "Call to action"
+        }
+      ],
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "groupId": "content",
+          "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true,
+            "maxLength": 120
+          }
+        },
+        {
+          "fieldId": "subheading",
+          "name": "Subheading",
+          "type": "text",
+          "groupId": "content",
+          "localized": true,
+          "validators": {
+            "maxLength": 300
+          }
+        },
+        {
+          "fieldId": "image",
+          "name": "Background image",
+          "type": "media",
+          "groupId": "content",
+          "metadata": {
+            "multiple": false,
+            "framing": true
+          }
+        },
+        {
+          "fieldId": "ctaLabel",
+          "name": "Button label",
+          "type": "string",
+          "groupId": "action",
+          "localized": true
+        },
+        {
+          "fieldId": "ctaHref",
+          "name": "Button link",
+          "type": "string",
+          "groupId": "action"
+        },
+        {
+          "fieldId": "align",
+          "name": "Alignment",
+          "type": "select",
+          "groupId": "content",
+          "metadata": {
+            "options": ["left", "center"]
+          }
+        }
+      ],
+      "slots": [
+        {
+          "id": "actions",
+          "label": "Action buttons",
+          "description": "Buttons rendered under the hero copy. Falls back to the built-in CTA.",
+          "maxItems": 2,
+          "allowedBlockApiIds": ["cta"]
+        }
+      ],
+      "mock": {
+        "heading": "Build your site with Eldra",
+        "subheading": "Content-managed blocks, deployed globally.",
+        "ctaLabel": "Get started",
+        "ctaHref": "/contact",
+        "align": "center"
+      },
+      "previewImage": ".eldra/previews/hero.png"
+    },
+    {
+      "apiId": "image",
+      "name": "Image",
+      "description": "Single image with optional caption.",
+      "icon": "photo",
+      "category": "content",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "image",
+          "name": "Image",
+          "type": "media",
+          "metadata": {
+            "multiple": false,
+            "framing": true,
+            "framingAspectRatio": "16/9"
+          }
+        },
+        {
+          "fieldId": "caption",
+          "name": "Caption",
+          "type": "string",
+          "isTitle": true,
+          "localized": true
+        },
+        {
+          "fieldId": "fullWidth",
+          "name": "Full width",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "mock": {
+        "caption": "A caption for the image",
+        "fullWidth": false
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "navigation",
+      "name": "Navigation",
+      "description": "Site header with logo text and links. Reused across pages via Add existing.",
+      "icon": "menu-2",
+      "category": "structure",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "brand",
+          "name": "Brand",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "links",
+          "name": "Links",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "link",
+              "name": "Link",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "URL",
+                    "type": "string",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "brand": "Acme",
+        "links": [
+          {
+            "label": "Home",
+            "href": "/"
+          },
+          {
+            "label": "About",
+            "href": "/about"
+          }
+        ]
+      },
+      "previewImage": null
+    },
+    {
+      "apiId": "testimonials",
+      "name": "Testimonials",
+      "description": "Customer quotes with name, role and avatar.",
+      "icon": "quote",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true
+        },
+        {
+          "fieldId": "items",
+          "name": "Testimonials",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Testimonial",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "quote",
+                    "name": "Quote",
+                    "type": "text",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "name",
+                    "name": "Name",
+                    "type": "string",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "role",
+                    "name": "Role",
+                    "type": "string",
+                    "localized": true
+                  },
+                  {
+                    "fieldId": "avatar",
+                    "name": "Avatar",
+                    "type": "media",
+                    "metadata": {
+                      "multiple": false
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "heading": "Loved by teams",
+        "items": [
+          {
+            "quote": "We shipped our site in a week.",
+            "name": "Anna K.",
+            "role": "CTO"
+          }
+        ]
+      },
+      "previewImage": null
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "/:path(.*)*",
+      "kind": "page"
+    }
+  ],
+  "customPages": [],
+  "tokens": {
+    "colors": {
+      "background": {
+        "label": "Background",
+        "value": "#ffffff",
+        "group": "Surface",
+        "allowSiteOverride": true
+      },
+      "border": {
+        "label": "Border",
+        "value": "#e2e8f0",
+        "group": "Surface",
+        "allowSiteOverride": true
+      },
+      "muted": {
+        "label": "Muted",
+        "value": "#64748b",
+        "group": "Content",
+        "allowSiteOverride": true
+      },
+      "primary": {
+        "label": "Primary",
+        "value": "#4f46e5",
+        "group": "Brand",
+        "allowSiteOverride": true
+      },
+      "primary-contrast": {
+        "label": "Primary contrast",
+        "value": "#ffffff",
+        "group": "Brand",
+        "allowSiteOverride": true
+      },
+      "surface": {
+        "label": "Surface",
+        "value": "#f8fafc",
+        "group": "Surface",
+        "allowSiteOverride": true
+      },
+      "text": {
+        "label": "Text",
+        "value": "#0f172a",
+        "group": "Content",
+        "allowSiteOverride": true
+      }
+    },
+    "containers": {
+      "content": {
+        "label": "Content",
+        "maxWidth": "64rem",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      },
+      "full": {
+        "label": "Full",
+        "maxWidth": "none",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      },
+      "narrow": {
+        "label": "Narrow",
+        "maxWidth": "40rem",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      },
+      "wide": {
+        "label": "Wide",
+        "maxWidth": "80rem",
+        "gutter": {
+          "normal": "2rem",
+          "tablet": "1.5rem",
+          "mobile": "1rem"
+        },
+        "allowSiteOverride": true
+      }
+    },
+    "allowCustomColors": true
+  }
+}

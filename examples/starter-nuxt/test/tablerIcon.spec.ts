@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeStega } from '@eldra/theme-core';
+import { encodeStega } from '@eldrajs/theme-core';
 import { tablerIconSvg } from '../server/utils/tablerIcon';
 
 describe('tablerIconSvg', () => {

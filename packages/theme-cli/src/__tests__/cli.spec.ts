@@ -51,9 +51,9 @@ describe('eldra-theme CLI', () => {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
     };
-    expect(packageJson.dependencies['@eldra/theme-nuxt']).toBe('^0.1.0');
-    expect(packageJson.dependencies['@eldra/theme-vue']).toBe('^0.1.0');
-    expect(packageJson.devDependencies['@eldra/theme-cli']).toBe('^0.1.0');
+    expect(packageJson.dependencies['@eldrajs/theme-nuxt']).toBe('^0.1.0');
+    expect(packageJson.dependencies['@eldrajs/theme-vue']).toBe('^0.1.0');
+    expect(packageJson.devDependencies['@eldrajs/theme-cli']).toBe('^0.1.0');
 
     const repeated = await run(['init', target], dir);
     expect(repeated.exitCode).toBe(1);

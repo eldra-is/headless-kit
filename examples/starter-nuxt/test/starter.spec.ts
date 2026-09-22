@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { execa } from 'execa';
 import { scanTheme } from '../../../packages/vite-plugin-theme/src/scan';
-import { encodeStega } from '@eldra/theme-core/stega';
+import { encodeStega } from '@eldrajs/theme-core/stega';
 import { safeHref } from '../app/utils/links';
 
 const templateDir = fileURLToPath(new URL('..', import.meta.url));
@@ -185,7 +185,7 @@ describe('starter theme', () => {
       const packageJson = JSON.parse(readFileSync(join(themeDir, 'package.json'), 'utf8')) as {
         dependencies: Record<string, string>;
       };
-      expect(packageJson.dependencies['@eldra/theme-nuxt']).toBe('^0.1.0');
+      expect(packageJson.dependencies['@eldrajs/theme-nuxt']).toBe('^0.1.0');
 
       // Equivalent to the dependency-install boundary, but deterministic and offline in this monorepo test.
       symlinkSync(join(templateDir, 'node_modules'), join(themeDir, 'node_modules'), 'dir');

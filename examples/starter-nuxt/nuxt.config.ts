@@ -5,11 +5,15 @@ import { fileURLToPath } from 'node:url';
 const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineNuxtConfig({
-  modules: ['@eldra/theme-nuxt'],
+  modules: ['@eldrajs/theme-nuxt'],
   ssr: true,
   css: ['~/assets/base.css'],
   nitro: {
-    prerender: { crawlLinks: false, failOnError: false, fallback: '200.html', routes: ['/404'] },
+    // `200.html` itself is Nitro's own built-in SPA-fallback output for the
+    // static preset; it needs no config key here (nitro's PrerenderOptions
+    // type has no `fallback` property — a prior `fallback: '200.html'` here
+    // was inert and only surfaced once `nuxi typecheck` started running).
+    prerender: { crawlLinks: false, failOnError: false, routes: ['/404'] },
     hooks: {
       // Nitro always emits `404.html` itself as a blank SPA-fallback shell
       // for static hosts (identical to `200.html`, no server-fetched data —

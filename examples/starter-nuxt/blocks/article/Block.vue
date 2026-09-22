@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EldraRichText } from '@eldra/theme-vue';
+import { EldraRichText } from '@eldrajs/theme-vue';
 
 const props = defineProps<{ entry: { id: string; data: Record<string, unknown> } }>();
 const d = computed(

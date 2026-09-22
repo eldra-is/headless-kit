@@ -1,12 +1,6 @@
 packages:
   - packages/*
   - examples/*
-  # starter-nuxt still depends on the private `@eldra/*` scope and on
-  # theme-vue/theme-nuxt, which do not exist in this workspace yet (Task 4
-  # creates them and finishes converting the starter to `@eldrajs/*`).
-  # Excluded from workspace resolution until then; the raw files stay on
-  # disk for theme-cli's init/scaffold tests to copy from directly.
-  - '!examples/starter-nuxt'
 
 allowBuilds:
   esbuild: true

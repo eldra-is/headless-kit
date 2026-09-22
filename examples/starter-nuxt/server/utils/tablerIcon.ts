@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { stripStega } from '@eldra/theme-core/stega';
+import { stripStega } from '@eldrajs/theme-core/stega';
 
 const require = createRequire(import.meta.url);
 const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

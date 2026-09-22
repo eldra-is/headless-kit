@@ -8,7 +8,7 @@
 // specifier, since the composable never imports `useFetch` from anywhere.
 import { ref, unref, type Ref } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { encodeStega } from '@eldra/theme-core';
+import { encodeStega } from '@eldrajs/theme-core';
 import { useEldraIcon } from '../app/composables/useEldraIcon';
 
 describe('useEldraIcon', () => {
