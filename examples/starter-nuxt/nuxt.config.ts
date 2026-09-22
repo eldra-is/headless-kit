@@ -56,6 +56,13 @@ export default defineNuxtConfig({
   },
   typescript: {
     tsConfig: {
+      // Nuxt's generated tsconfig has no generic "every .d.ts under rootDir"
+      // include (its `../*.d.ts` only reaches files directly at the theme
+      // root, not `.eldra/block-types.d.ts` nested one level down) — add it
+      // explicitly so the block-types generator's global ambient
+      // `EldraBlockData`/`EldraBlockEntry`/`EldraMedia` (see
+      // packages/vite-plugin-theme/src/blockTypes.ts) reach `nuxi typecheck`.
+      include: ['../.eldra/**/*.d.ts'],
       // Storybook config/stories run outside the Nuxt build (no auto-imports,
       // a different Vite plugin set — see .storybook/main.ts) and import
       // `virtual:eldra/*` ids `nuxi typecheck` has no ambient types for.

@@ -38,7 +38,7 @@ const config: StorybookConfig = {
       // Storybook has no Nuxt build step, so mirror just that slice of it —
       // blocks render as-is, unmodified.
       AutoImport({ imports: ['vue'], dts: false }),
-      eldraTheme({ themeDir, framework: 'vue', tailwind: false }),
+      eldraTheme({ themeDir, framework: 'nuxt', tailwind: false }),
     ];
     config.resolve = {
       ...config.resolve,
