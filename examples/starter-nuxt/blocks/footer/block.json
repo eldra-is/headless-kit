@@ -1,0 +1,58 @@
+{
+  "apiId": "footer",
+  "name": "Footer",
+  "description": "Site footer with link columns and copyright.",
+  "icon": "layout-bottombar",
+  "category": "structure",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "copyright",
+      "name": "Copyright",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "columns",
+      "name": "Columns",
+      "type": "list",
+      "metadata": {
+        "item": {
+          "fieldId": "column",
+          "name": "Column",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              { "fieldId": "heading", "name": "Heading", "type": "string", "localized": true },
+              {
+                "fieldId": "links",
+                "name": "Links",
+                "type": "list",
+                "metadata": {
+                  "item": {
+                    "fieldId": "link",
+                    "name": "Link",
+                    "type": "composite",
+                    "metadata": {
+                      "fields": [
+                        {
+                          "fieldId": "label",
+                          "name": "Label",
+                          "type": "string",
+                          "localized": true
+                        },
+                        { "fieldId": "href", "name": "URL", "type": "string" }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

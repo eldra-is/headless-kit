@@ -8,3 +8,4 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 .eldra
+packages/theme-cli/template/

@@ -1,0 +1,38 @@
+{
+  "apiId": "cta",
+  "name": "Call to action",
+  "description": "Banner with heading, supporting copy and a button.",
+  "icon": "hand-click",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true }
+    },
+    { "fieldId": "body", "name": "Body", "type": "text", "localized": true },
+    {
+      "fieldId": "buttonLabel",
+      "name": "Button label",
+      "type": "string",
+      "localized": true,
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "buttonHref",
+      "name": "Button link",
+      "type": "string",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "metadata": { "options": ["primary", "subtle"] }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "apiId": "navigation",
+  "name": "Navigation",
+  "description": "Site header with logo text and links. Reused across pages via Add existing.",
+  "icon": "menu-2",
+  "category": "structure",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "brand",
+      "name": "Brand",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "links",
+      "name": "Links",
+      "type": "list",
+      "metadata": {
+        "item": {
+          "fieldId": "link",
+          "name": "Link",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "href",
+                "name": "URL",
+                "type": "string",
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

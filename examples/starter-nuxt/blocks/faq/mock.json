@@ -1,0 +1,9 @@
+{
+  "heading": "FAQ",
+  "items": [
+    {
+      "question": "Can I use my own domain?",
+      "answer": "Custom domains are on the roadmap; pages.dev works today."
+    }
+  ]
+}

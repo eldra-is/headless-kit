@@ -9,7 +9,7 @@ export default oxlintConfig({
   ],
   overrides: [
     {
-      files: ['scripts/**', 'packages/*/scripts/**', 'examples/**'],
+      files: ['scripts/**', 'packages/*/scripts/**', 'examples/**', 'packages/theme-cli/src/**'],
       rules: { 'no-console': 'off' },
     },
   ],

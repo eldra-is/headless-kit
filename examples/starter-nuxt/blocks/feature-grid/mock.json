@@ -1,0 +1,11 @@
+{
+  "heading": "Why Eldra",
+  "features": [
+    { "icon": "bolt", "title": "Fast", "description": "Static builds on a global edge." },
+    {
+      "icon": "lock",
+      "title": "Secure",
+      "description": "Sandboxed previews, no secrets in builds."
+    }
+  ]
+}

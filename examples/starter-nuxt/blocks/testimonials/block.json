@@ -1,0 +1,53 @@
+{
+  "apiId": "testimonials",
+  "name": "Testimonials",
+  "description": "Customer quotes with name, role and avatar.",
+  "icon": "quote",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true
+    },
+    {
+      "fieldId": "items",
+      "name": "Testimonials",
+      "type": "list",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Testimonial",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "quote",
+                "name": "Quote",
+                "type": "text",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "name",
+                "name": "Name",
+                "type": "string",
+                "validators": { "required": true }
+              },
+              { "fieldId": "role", "name": "Role", "type": "string", "localized": true },
+              {
+                "fieldId": "avatar",
+                "name": "Avatar",
+                "type": "media",
+                "metadata": { "multiple": false }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

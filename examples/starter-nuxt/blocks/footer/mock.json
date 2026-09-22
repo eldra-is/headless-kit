@@ -1,0 +1,4 @@
+{
+  "copyright": "© 2026 Acme",
+  "columns": [{ "heading": "Company", "links": [{ "label": "About", "href": "/about" }] }]
+}

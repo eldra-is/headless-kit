@@ -1,0 +1,62 @@
+{
+  "apiId": "hero",
+  "name": "Hero",
+  "description": "Top-of-page banner with heading, supporting text, image and call to action.",
+  "icon": "layout-dashboard",
+  "category": "marketing",
+  "version": 1,
+  "groups": [
+    { "groupId": "content", "name": "Content", "defaultOpen": true },
+    { "groupId": "action", "name": "Call to action" }
+  ],
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "groupId": "content",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true, "maxLength": 120 }
+    },
+    {
+      "fieldId": "subheading",
+      "name": "Subheading",
+      "type": "text",
+      "groupId": "content",
+      "localized": true,
+      "validators": { "maxLength": 300 }
+    },
+    {
+      "fieldId": "image",
+      "name": "Background image",
+      "type": "media",
+      "groupId": "content",
+      "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "ctaLabel",
+      "name": "Button label",
+      "type": "string",
+      "groupId": "action",
+      "localized": true
+    },
+    { "fieldId": "ctaHref", "name": "Button link", "type": "string", "groupId": "action" },
+    {
+      "fieldId": "align",
+      "name": "Alignment",
+      "type": "select",
+      "groupId": "content",
+      "metadata": { "options": ["left", "center"] }
+    }
+  ],
+  "slots": [
+    {
+      "id": "actions",
+      "label": "Action buttons",
+      "description": "Buttons rendered under the hero copy. Falls back to the built-in CTA.",
+      "maxItems": 2,
+      "allowedBlockApiIds": ["cta"]
+    }
+  ]
+}

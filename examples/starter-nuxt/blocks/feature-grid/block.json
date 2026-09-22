@@ -1,0 +1,42 @@
+{
+  "apiId": "feature-grid",
+  "name": "Feature grid",
+  "description": "Grid of features with icon, title and description.",
+  "icon": "grid-dots",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true
+    },
+    {
+      "fieldId": "features",
+      "name": "Features",
+      "type": "list",
+      "metadata": {
+        "item": {
+          "fieldId": "feature",
+          "name": "Feature",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              { "fieldId": "icon", "name": "Icon", "type": "tabler-icon" },
+              {
+                "fieldId": "title",
+                "name": "Title",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              { "fieldId": "description", "name": "Description", "type": "text", "localized": true }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

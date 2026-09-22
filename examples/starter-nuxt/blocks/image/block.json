@@ -1,0 +1,24 @@
+{
+  "apiId": "image",
+  "name": "Image",
+  "description": "Single image with optional caption.",
+  "icon": "photo",
+  "category": "content",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "image",
+      "name": "Image",
+      "type": "media",
+      "metadata": { "multiple": false, "framing": true, "framingAspectRatio": "16/9" }
+    },
+    {
+      "fieldId": "caption",
+      "name": "Caption",
+      "type": "string",
+      "isTitle": true,
+      "localized": true
+    },
+    { "fieldId": "fullWidth", "name": "Full width", "type": "bool", "default": false }
+  ]
+}

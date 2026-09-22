@@ -1,0 +1,7 @@
+{
+  "brand": "Acme",
+  "links": [
+    { "label": "Home", "href": "/" },
+    { "label": "About", "href": "/about" }
+  ]
+}

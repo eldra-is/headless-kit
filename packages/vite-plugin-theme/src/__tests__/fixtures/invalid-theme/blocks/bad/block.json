@@ -1,0 +1,15 @@
+{
+  "apiId": "Bad Id!",
+  "name": "",
+  "version": 0,
+  "fields": [
+    { "fieldId": "a", "name": "A", "type": "string", "isTitle": true },
+    {
+      "fieldId": "a",
+      "name": "Dup",
+      "type": "string",
+      "isTitle": true,
+      "relation": { "allowedSchemaIds": ["x"] }
+    }
+  ]
+}

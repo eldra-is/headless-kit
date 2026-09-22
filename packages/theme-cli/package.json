@@ -1,0 +1,60 @@
+{
+  "name": "@eldrajs/theme-cli",
+  "version": "0.0.0",
+  "description": "CLI for Eldra themes: init from the starter, scaffold blocks, validate, generate types, deploy a static build to Eldra.",
+  "keywords": [
+    "cli",
+    "cms",
+    "deploy",
+    "eldra",
+    "theme"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/theme-cli#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/theme-cli"
+  },
+  "bin": {
+    "eldra-theme": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "template",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepack": "node scripts/copy-template.mjs"
+  },
+  "dependencies": {
+    "@eldrajs/theme-core": "workspace:^",
+    "@eldrajs/vite-plugin-theme": "workspace:^",
+    "citty": "^0.1.6",
+    "tar": "^7.4.3"
+  },
+  "devDependencies": {
+    "execa": "^9.5.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

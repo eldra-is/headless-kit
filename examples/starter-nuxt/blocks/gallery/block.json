@@ -1,0 +1,34 @@
+{
+  "apiId": "gallery",
+  "name": "Gallery",
+  "description": "Responsive image grid with captions.",
+  "icon": "layout-grid",
+  "category": "content",
+  "version": 1,
+  "fields": [
+    { "fieldId": "title", "name": "Title", "type": "string", "isTitle": true, "localized": true },
+    {
+      "fieldId": "images",
+      "name": "Images",
+      "type": "list",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Image",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "image",
+                "name": "Image",
+                "type": "media",
+                "metadata": { "multiple": false }
+              },
+              { "fieldId": "caption", "name": "Caption", "type": "string", "localized": true }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

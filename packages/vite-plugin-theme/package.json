@@ -1,0 +1,63 @@
+{
+  "name": "@eldrajs/vite-plugin-theme",
+  "version": "0.0.0",
+  "description": "Vite plugin for Eldra themes: scans blocks/*/block.json, validates them, emits the theme manifest and the virtual modules the runtime reads (blocks, manifest, block fields, breakpoints, tokens CSS).",
+  "keywords": [
+    "cms",
+    "eldra",
+    "theme",
+    "vite",
+    "vite-plugin"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/vite-plugin-theme#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/vite-plugin-theme"
+  },
+  "files": [
+    "dist",
+    "src/virtual.d.ts",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./scan": {
+      "types": "./dist/scan.d.ts",
+      "import": "./dist/scan.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@eldrajs/theme-core": "workspace:^",
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "tailwindcss": "^4.1.14",
+    "vite": "^8.0.8"
+  },
+  "peerDependencies": {
+    "vite": ">=5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

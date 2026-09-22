@@ -1,0 +1,47 @@
+{
+  "apiId": "faq",
+  "name": "FAQ",
+  "description": "Frequently asked questions as disclosure widgets.",
+  "icon": "help-circle",
+  "category": "content",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true
+    },
+    {
+      "fieldId": "items",
+      "name": "Questions",
+      "type": "list",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Question",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "question",
+                "name": "Question",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "answer",
+                "name": "Answer",
+                "type": "text",
+                "localized": true,
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

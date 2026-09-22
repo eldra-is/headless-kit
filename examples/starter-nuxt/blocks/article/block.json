@@ -1,0 +1,35 @@
+{
+  "apiId": "article",
+  "name": "Article",
+  "description": "Long-form rich text with title, author and cover image.",
+  "icon": "article",
+  "category": "content",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "title",
+      "name": "Title",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true }
+    },
+    { "fieldId": "author", "name": "Author", "type": "string" },
+    {
+      "fieldId": "coverImage",
+      "name": "Cover image",
+      "type": "media",
+      "metadata": { "multiple": false }
+    },
+    {
+      "fieldId": "body",
+      "name": "Body",
+      "type": "rich-text",
+      "localized": true,
+      "validators": { "required": true },
+      "metadata": {
+        "toolbar": ["heading", "bold", "italic", "link", "bulletList", "orderedList", "blockquote"]
+      }
+    }
+  ]
+}
