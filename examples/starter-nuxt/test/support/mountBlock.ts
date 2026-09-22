@@ -4,19 +4,19 @@ import {
   normalizeThemeDesignTokens,
   type EldraClient,
 } from '@eldrajs/theme-core';
-// Import straight from theme-vue's source, not the `@eldrajs/theme-vue`
-// package entry: that single bundled entry also re-exports `EldraBlockZone`,
-// which pulls in a `virtual:eldra/blocks` module supplied only by the Nuxt
-// build's vite plugin (see test/framing.spec.ts and test/richText.spec.ts
-// for the same underlying issue). `context.ts`'s own dependency chain never
-// touches the virtual module, so every block spec that imports this support
-// module gets the real `createEldraPreviewState`/`ELDRA_KEY` for free,
-// without each spec having to `vi.mock('@eldrajs/theme-vue', …)` itself.
-import {
-  createEldraPreviewState,
-  ELDRA_KEY,
-  type EldraContext,
-} from '../../../../packages/theme-vue/src/context';
+// `@eldrajs/theme-vue`'s single bundled entry also re-exports `EldraBlockZone`
+// / `EldraLayout`, which import `virtual:eldra/blocks` /
+// `virtual:eldra/manifest` / `virtual:eldra/breakpoints` at the top level —
+// normally supplied only by `@eldrajs/vite-plugin-theme`'s Vite plugin
+// during a real theme build. `vitest.config.ts` aliases all three to mocks
+// under `test/mocks/`, so importing the package by name here works the same
+// as it does in real app code (`app/composables/useT.ts`,
+// `app/composables/useBlockData.ts`) — no relative reach into the theme-vue
+// package's own source and no per-spec `vi.mock('@eldrajs/theme-vue', …)`
+// needed. This matters beyond tidiness: `eldra-theme init` copies this
+// starter (including `test/`) into a customer's project verbatim, where no
+// monorepo sibling exists to reach into at all.
+import { createEldraPreviewState, ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 
 /**
  * The single place a block's test environment mimics the site — mirrors

@@ -1,34 +1,20 @@
 // @vitest-environment jsdom
 //
-// `useT.ts` imports `useEldra` from `@eldrajs/theme-vue`, whose single index
-// entry also re-exports `EldraBlockZone`, which pulls in a
-// `virtual:eldra/blocks` module supplied only by the Nuxt build's vite
-// plugin (see test/framing.spec.ts and test/richText.spec.ts for the same
-// underlying issue). Re-export the real `useEldra` straight from its source
-// file instead (its own dependency chain never touches the virtual module),
-// so the assertions below still exercise the genuine composable, not a
-// stub — and import `ELDRA_KEY`/`createEldraPreviewState` the same way for
-// building the provided context below.
+// `useT.ts` imports `useEldra` from `@eldrajs/theme-vue`; its single index
+// entry also re-exports `EldraBlockZone`/`EldraLayout`, which import
+// `virtual:eldra/blocks`/`virtual:eldra/manifest`/`virtual:eldra/breakpoints`
+// at the top level, normally supplied only by the Nuxt build's vite plugin.
+// `vitest.config.ts` aliases all three to mocks under `test/mocks/`, so the
+// package resolves for real here — no mocking needed.
 import { defineComponent, h, reactive } from 'vue';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createEldraClient, normalizeThemeDesignTokens } from '@eldrajs/theme-core';
-import {
-  createEldraPreviewState,
-  ELDRA_KEY,
-  type EldraContext,
-} from '../../../packages/theme-vue/src/context';
+import { createEldraPreviewState, ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
+import { useT, type Translate } from '../app/composables/useT';
 import { enUS } from '../app/i18n/en-US';
 import { isIS } from '../app/i18n/is-IS';
 import type { MessageKey } from '../app/i18n/messages';
-
-vi.mock('@eldrajs/theme-vue', async () => {
-  const { useEldra } = await import('../../../packages/theme-vue/src/context');
-  return { useEldra };
-});
-
-const { useT } = await import('../app/composables/useT');
-type Translate = ReturnType<typeof useT>;
 
 function flattenKeys(value: Record<string, unknown>, prefix = ''): string[] {
   return Object.entries(value).flatMap(([key, child]) => {

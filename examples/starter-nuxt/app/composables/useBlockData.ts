@@ -4,8 +4,8 @@ import { useEldraBlockField } from '@eldrajs/theme-vue';
 /**
  * Typed access to a block's CMS data. `EldraBlockData`/`EldraBlockEntry` are
  * global ambient types declared by the generated `.eldra/block-types.d.ts`
- * (`packages/vite-plugin-theme/src/blockTypes.ts`) — no import needed, the
- * same way `.nuxt/nuxt.d.ts`'s ambient types work.
+ * (written by `@eldrajs/vite-plugin-theme`'s block-types generator) — no
+ * import needed, the same way `.nuxt/nuxt.d.ts`'s ambient types work.
  *
  * `EldraBlockEntry<K>` carries only `id` and `data`; a block's own `apiId`
  * is not part of the entry at runtime (it is a type parameter, erased by

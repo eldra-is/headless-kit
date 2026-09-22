@@ -1,15 +1,25 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { execa } from 'execa';
-import { scanTheme } from '../../../packages/vite-plugin-theme/src/scan';
+import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
 import { encodeStega } from '@eldrajs/theme-core/stega';
 import { safeHref } from '../app/utils/links';
 
 const templateDir = fileURLToPath(new URL('..', import.meta.url));
-const cli = fileURLToPath(new URL('../../../packages/theme-cli/dist/cli.js', import.meta.url));
+// Resolved by package name (a real devDependency of this starter, like a
+// customer's `eldra-theme init` copy has too), not a relative reach into the
+// monorepo's theme-cli source directory — that sibling does not exist
+// outside this monorepo. Requires @eldrajs/theme-cli to already be built
+// (`dist/cli.js`), same precondition the root gates already enforce.
+const cli = join(
+  dirname(createRequire(import.meta.url).resolve('@eldrajs/theme-cli/package.json')),
+  'dist',
+  'cli.js'
+);
 const nuxi = join(templateDir, 'node_modules', '.bin', 'nuxi');
 const expectedBlocks = [
   'article',

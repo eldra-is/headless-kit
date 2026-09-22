@@ -1,20 +1,13 @@
-// `useBlockData.ts` imports `useEldraBlockField` from `@eldrajs/theme-vue`,
-// whose single index entry also re-exports `EldraBlockZone`, which pulls in
-// a `virtual:eldra/blocks` module supplied only by the Nuxt build's vite
-// plugin (see test/framing.spec.ts and test/richText.spec.ts for the same
-// underlying issue). Re-export the real `useEldraBlockField` straight from
-// its source file instead (its own dependency chain never touches the
-// virtual module), so the assertions below still exercise the genuine
-// composable, not a stub.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// `useBlockData.ts` imports `useEldraBlockField` from `@eldrajs/theme-vue`;
+// its single index entry also re-exports `EldraBlockZone`/`EldraLayout`,
+// which import `virtual:eldra/blocks`/`virtual:eldra/manifest`/
+// `virtual:eldra/breakpoints` at the top level, normally supplied only by
+// the Nuxt build's vite plugin. `vitest.config.ts` aliases all three to
+// mocks under `test/mocks/`, so the package resolves for real here — no
+// mocking needed.
+import { beforeEach, describe, expect, it } from 'vitest';
 import { registerBlockFields } from '@eldrajs/theme-core';
-
-vi.mock('@eldrajs/theme-vue', async () => {
-  const { useEldraBlockField } = await import('../../../packages/theme-vue/src/useEldraBlockField');
-  return { useEldraBlockField };
-});
-
-const { useBlockData } = await import('../app/composables/useBlockData');
+import { useBlockData } from '../app/composables/useBlockData';
 
 const entry: EldraBlockEntry<'hero'> = {
   id: 'hero-1',

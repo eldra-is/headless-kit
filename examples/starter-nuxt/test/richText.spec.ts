@@ -1,27 +1,19 @@
 // @vitest-environment jsdom
 //
-// `blocks/article/Block.vue` imports `EldraRichText` from `@eldrajs/theme-vue`,
-// whose single index entry also re-exports `EldraBlockZone`, which pulls in
-// a `virtual:eldra/blocks` module supplied only by the Nuxt build's vite
-// plugin (see test/framing.test.ts and test/slugPage.test.ts for the same
-// underlying issue). Mounting the block directly outside that build needs
-// the package mocked; re-export the real `EldraRichText` component straight
-// from its source file (its own dependency chain never touches the virtual
-// module) so the assertions below still exercise the genuine read-mode
-// renderer, not a stub.
+// `blocks/article/Block.vue` imports `EldraRichText` from `@eldrajs/theme-vue`;
+// its single index entry also re-exports `EldraBlockZone`/`EldraLayout`,
+// which import `virtual:eldra/blocks`/`virtual:eldra/manifest`/
+// `virtual:eldra/breakpoints` at the top level, normally supplied only by
+// the Nuxt build's vite plugin. `vitest.config.ts` aliases all three to
+// mocks under `test/mocks/`, so the package — and therefore this block —
+// resolves for real here.
 import { mount } from '@vue/test-utils';
 import { reactive } from 'vue';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ELDRA_KEY, createEldraPreviewState } from '../../../packages/theme-vue/src/context';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { registerBlockFields } from '@eldrajs/theme-core';
 import blockManifest from '../blocks/article/block.json';
-
-vi.mock('@eldrajs/theme-vue', async () => {
-  const { EldraRichText } = await import('../../../packages/theme-vue/src/EldraRichText');
-  return { EldraRichText };
-});
-
-const { default: Article } = await import('../blocks/article/Block.vue');
+import Article from '../blocks/article/Block.vue';
 
 const body = {
   type: 'doc',
