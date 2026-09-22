@@ -2,7 +2,12 @@
 /**
  * Header/primary navigation. `variant`:
  *  - `default`: brand + inline desktop links + CTA, hamburger only below `md`.
- *  - `centered`: brand centered on a three-column row (links | brand | actions) at `md`+.
+ *  - `centered`: brand centered on a three-column row (links | brand | actions) at `md`+. The DOM
+ *    order stays brand-first (sensible for screen readers), so each of the three children pins an
+ *    explicit `md:col-start-*` **and** `md:row-start-1` — CSS Grid's sparse auto-placement cursor
+ *    only ever advances forward through DOM order, so a `grid-column` alone (no `grid-row`) on
+ *    out-of-order children pushes the later ones to a second row once the cursor can't go back for
+ *    a lower column; pinning the row explicitly keeps all three on row 1 regardless of DOM order.
  *  - `minimal`: brand + hamburger only, at every width — links and CTA live only in the drawer.
  * The mobile drawer always lists the same links (+ CTA) regardless of variant.
  */
@@ -49,8 +54,11 @@ const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text ho
       >
         <UiLink
           href="/"
-          :class="[focusRing, 'rounded-theme-sm flex items-center gap-2']"
-          :style="variant === 'centered' ? { gridColumn: '2', justifySelf: 'center' } : undefined"
+          :class="[
+            focusRing,
+            'rounded-theme-sm flex items-center gap-2',
+            variant === 'centered' ? 'md:col-start-2 md:row-start-1 md:justify-self-center' : '',
+          ]"
         >
           <UiImage v-if="data.logo" :src="data.logo.url" :alt="data.brand" class="h-8 w-auto" />
           <span v-else class="font-heading text-text text-lg font-semibold">{{ data.brand }}</span>
@@ -59,7 +67,9 @@ const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text ho
         <ul
           v-if="variant !== 'minimal' && links.length > 0"
           class="hidden items-center gap-6 md:flex"
-          :style="variant === 'centered' ? { gridColumn: '1', justifySelf: 'start' } : undefined"
+          :class="
+            variant === 'centered' ? 'md:col-start-1 md:row-start-1 md:justify-self-start' : ''
+          "
         >
           <li v-for="(link, index) in links" :key="index">
             <UiLink v-if="safeHref(link.href)" :href="link.href" :class="linkClass">{{
@@ -70,7 +80,7 @@ const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text ho
 
         <div
           class="flex items-center gap-3"
-          :style="variant === 'centered' ? { gridColumn: '3', justifySelf: 'end' } : undefined"
+          :class="variant === 'centered' ? 'md:col-start-3 md:row-start-1 md:justify-self-end' : ''"
         >
           <UiButton
             v-if="variant !== 'minimal' && data.ctaLabel && ctaHref"

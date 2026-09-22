@@ -70,6 +70,39 @@ describe('navigation block', () => {
     }
   });
 
+  it('centered variant pins brand, links and actions to row 1 at md+', () => {
+    // Regression for a CSS Grid auto-placement bug: the DOM order is
+    // brand -> links -> actions, but the visual column order is links(1) ->
+    // brand(2) -> actions(3). A `grid-column` alone (no `grid-row`) lets the
+    // sparse auto-placement cursor — which only ever advances forward
+    // through DOM order — strand the out-of-order children on a second row.
+    // jsdom does not lay out grid, so this asserts the class set that pins
+    // every child to `md:row-start-1` instead of a rendered bounding box;
+    // the actual single-row rendering is confirmed with a Storybook/Chromium
+    // screenshot (see task-6-report.md's Fix round 1 section).
+    const wrapper = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'centered' } } })
+    );
+    const headerNav = wrapper.findAll('nav')[0]!; // the header's own <nav>, not the drawer's
+
+    const brandLink = headerNav.find('a');
+    expect(brandLink.classes()).toEqual(
+      expect.arrayContaining(['md:col-start-2', 'md:row-start-1', 'md:justify-self-center'])
+    );
+
+    const desktopList = headerNav.find('ul');
+    expect(desktopList.classes()).toEqual(
+      expect.arrayContaining(['md:col-start-1', 'md:row-start-1', 'md:justify-self-start'])
+    );
+
+    const toggle = wrapper.get('button[aria-controls]');
+    const actions = toggle.element.parentElement!;
+    expect(Array.from(actions.classList)).toEqual(
+      expect.arrayContaining(['md:col-start-3', 'md:row-start-1', 'md:justify-self-end'])
+    );
+  });
+
   it('minimal variant hides the desktop links list, keeping only the drawer list and the toggle', () => {
     const withLinks = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
     expect(withLinks.findAll('ul')).toHaveLength(2); // desktop nav + drawer
