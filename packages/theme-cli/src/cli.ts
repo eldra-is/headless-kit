@@ -28,7 +28,7 @@ function reportError(error: unknown): void {
 }
 
 const main = defineCommand({
-  meta: { name: 'eldra-theme', description: 'Eldra theme-kit CLI' },
+  meta: { name: 'eldra-theme', description: 'Eldra theme CLI' },
   subCommands: {
     init: defineCommand({
       meta: { description: 'Scaffold a new theme from the starter template' },

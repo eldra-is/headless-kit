@@ -117,8 +117,11 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 ## Testing
 
 Vitest, `environment: node` for the framework-free packages. A test that guards a specific defect is
-proven by mutation before it is called a guard. `pnpm typecheck` includes the specs, so
-`expectTypeOf` assertions are only real there; `pnpm test` does not check types.
+proven by mutation before it is called a guard. `pnpm typecheck` includes the specs for every
+package except `theme-nuxt` (its `tsconfig.json` covers only `src/module.ts`/`src/index.ts`; the
+runtime and tests are type-checked by the Nuxt build and the generate tests instead) and
+`examples/starter-nuxt` (`nuxi typecheck` covers app code, not the specs) — elsewhere, `expectTypeOf`
+assertions are only real under `pnpm typecheck`; `pnpm test` does not check types.
 
 `theme-core` and `theme-vue` run on `environment: jsdom` — their overlay/rich-text-position code
 needs real `Range`/`Selection` behaviour, which `node` does not provide. `theme-nuxt`'s tests need

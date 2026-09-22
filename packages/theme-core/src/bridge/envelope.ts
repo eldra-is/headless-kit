@@ -26,16 +26,19 @@ export function parseEnvelope(data: unknown): BridgeEnvelope | null {
   const e = data as Record<string, unknown>;
   if (e.protocol !== BRIDGE_PROTOCOL) return null; // not ours: fully silent
   if (typeof e.version !== 'number' || typeof e.id !== 'string' || typeof e.type !== 'string') {
+    // oxlint-disable-next-line no-console -- bridge diagnostics for theme authors
     console.debug('[eldra-bridge] ignoring malformed envelope');
     return null;
   }
   if (e.version > BRIDGE_VERSION) {
+    // oxlint-disable-next-line no-console -- bridge diagnostics for theme authors
     console.debug(
       `[eldra-bridge] ignoring newer-version envelope (v${e.version} > v${BRIDGE_VERSION})`
     );
     return null;
   }
   if (!KNOWN_MESSAGE_TYPES.has(e.type)) {
+    // oxlint-disable-next-line no-console -- bridge diagnostics for theme authors
     console.debug(`[eldra-bridge] ignoring unknown message type "${e.type}"`);
     return null;
   }

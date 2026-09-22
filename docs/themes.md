@@ -75,5 +75,6 @@ build/deploy and CI wiring examples.
 - [Block field migrations](theme-field-migrations.md) — renaming fields across block versions.
 - [Reusable page components](theme-reusable-components.md) — the reusable-component projection and
   how `EldraLayout` resolves placements.
-- [Local theme deployment runbook](theme-local-deployment.md) — testing a real theme end to end
-  against a local Eldra stack.
+
+Deploying: `eldra-theme deploy` pushes a static build to Eldra with a site deploy token
+(`ELDRA_DEPLOY_TOKEN`); see `packages/theme-cli/README.md`.

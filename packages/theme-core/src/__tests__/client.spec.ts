@@ -3,7 +3,7 @@ import { createEldraClient } from '../client';
 import { EldraClientError } from '../clientTypes';
 import { decodeStega } from '../stega';
 
-const GATEWAY = 'https://web-gateway.staging.eu.eldra.app';
+const GATEWAY = 'https://gateway.example.test';
 const ORG = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
 function jsonResponse(body: unknown): Response {

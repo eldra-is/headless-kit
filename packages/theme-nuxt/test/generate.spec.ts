@@ -8,6 +8,11 @@ import { startMockGateway } from './mockGateway';
 
 const fixtureDir = fileURLToPath(new URL('./fixtures/basic', import.meta.url));
 const nuxi = fileURLToPath(new URL('../node_modules/.bin/nuxi', import.meta.url));
+const moduleVersion = (
+  JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+    version: string;
+  }
+).version;
 let gateway: Awaited<ReturnType<typeof startMockGateway>>;
 
 describe('theme-nuxt nuxi generate', () => {
@@ -182,11 +187,11 @@ describe('theme-nuxt nuxi generate', () => {
     expect(headers).not.toContain('https://*.eldracms.com');
     const html = readFileSync(output('index.html'), 'utf8');
     expect(html).toContain('name="eldra-theme-version" content="1.2.3"');
-    expect(html).toContain('name="eldra-sdk-version" content="0.0.0"');
+    expect(html).toContain(`name="eldra-sdk-version" content="${moduleVersion}"`);
     expect(html).toContain('--eldra-color-primary:#4f46e5;');
     expect(html).toContain('--eldra-container-content-max-width:64rem;');
     expect(html).toContain(
-      'studioOrigins:["https://acme.eldracms.com","https://*.local.eldra.app:3000"]'
+      'studioOrigins:["https://acme.eldracms.com","https://*.studio.example.test:3000"]'
     );
     expect(existsSync(output('.eldra/manifest.json'))).toBe(true);
     const manifest = JSON.parse(readFileSync(output('.eldra/manifest.json'), 'utf8')) as {

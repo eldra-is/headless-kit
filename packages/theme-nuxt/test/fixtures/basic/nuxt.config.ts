@@ -13,7 +13,7 @@ export default defineNuxtConfig({
   },
   eldra: {
     locale: 'is',
-    studioOrigins: ['https://acme.eldracms.com', 'https://*.local.eldra.app:3000'],
+    studioOrigins: ['https://acme.eldracms.com', 'https://*.studio.example.test:3000'],
     customPages: [
       {
         path: '/articles/code-owned',

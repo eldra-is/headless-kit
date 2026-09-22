@@ -19,7 +19,6 @@
   },
   "files": [
     "dist",
-    "src/virtual.d.ts",
     "CHANGELOG.md",
     "LICENSE"
   ],

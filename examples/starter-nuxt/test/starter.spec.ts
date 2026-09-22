@@ -165,14 +165,14 @@ describe('starter theme', () => {
       env: {
         ELDRA_GATEWAY_URL: '',
         ELDRA_ORG_ID: '',
-        ELDRA_STUDIO_ORIGIN: 'https://default-org.local.eldra.app:3000',
+        ELDRA_STUDIO_ORIGIN: 'https://studio.example.test:3000',
       },
       reject: false,
       timeout: 300_000,
     });
     expect(result.exitCode, result.stderr).toBe(0);
     expect(readFileSync(join(templateDir, '.output', 'public', '_headers'), 'utf8')).toContain(
-      "frame-ancestors 'self' https://default-org.local.eldra.app:3000"
+      "frame-ancestors 'self' https://studio.example.test:3000"
     );
   }, 360_000);
 

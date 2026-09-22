@@ -1,6 +1,6 @@
 # Reusable page components
 
-Theme Kit consumes the exact reusable projection attached to a Core Page read:
+The theme packages consume the exact reusable projection attached to a Core Page read:
 
 ```ts
 type ReusableComponentProjection = {
@@ -20,7 +20,7 @@ type ReusableComponentProjection = {
 ```
 
 Pass `layout`, `blocks`, and `reusableComponentProjection` to `EldraLayout`.
-Theme Kit derives and validates exactly one Site id from the bindings and
+The theme packages derive and validate exactly one Site id from the bindings and
 revision records; the Page itself does not need a synthetic `siteId` field.
 Version-1 detached layouts continue through the same renderer.
 Version-2 Pages may contain `{ id, type: 'reusable', componentId }` placements.

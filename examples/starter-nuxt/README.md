@@ -49,10 +49,6 @@ The deploy command uploads the generated static site and exact `.eldra/manifest.
 
 `/404` is a reserved path in this starter: it always renders the not-found shell (prerendered to the static `404.html` hosts serve for unmatched routes), so a CMS page authored with the slug `404` will be shadowed.
 
-For a real local-stack deployment through the Cloudflare dev Worker and Pages,
-including tunnel callbacks, artifact checks, browser verification, and
-troubleshooting, see [the local theme deployment runbook](../../docs/theme-local-deployment.md).
-
 ## Wiring rebuilds
 
 The starter includes GitHub Actions, GitLab CI, and Bitbucket Pipelines examples. All build locally with Node 20 and pnpm, run `nuxi generate`, then push the static output with `eldra-theme deploy`.
