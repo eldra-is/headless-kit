@@ -8,7 +8,10 @@
     "generate": "nuxi generate",
     "validate": "eldra-theme validate",
     "typecheck": "nuxi typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "demo-images": "node scripts/demo-images.mjs",
+    "sync-theme-colors": "node scripts/sync-theme-colors.mjs",
+    "check:theme-colors": "node scripts/sync-theme-colors.mjs --check"
   },
   "dependencies": {
     "@eldrajs/theme-core": "workspace:*",
@@ -20,10 +23,12 @@
   "devDependencies": {
     "@eldrajs/theme-cli": "workspace:*",
     "@eldrajs/vite-plugin-theme": "workspace:*",
+    "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.6",
     "execa": "^9.5.2",
     "jsdom": "^30.1.0",
+    "tailwindcss": "^4.1.14",
     "vitest": "^5.0.0",
     "vue": "^3.5.30",
     "vue-tsc": "^3.3.11"

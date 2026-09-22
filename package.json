@@ -9,7 +9,7 @@
     "test:watch": "vitest",
     "dev": "vitest",
     "lint": "oxlint --fix && node scripts/check-framework-free.mjs",
-    "lint:check": "oxlint && node scripts/check-framework-free.mjs",
+    "lint:check": "oxlint && node scripts/check-framework-free.mjs && pnpm --filter starter-nuxt check:theme-colors",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "publint": "pnpm -r --filter './packages/*' exec publint --strict",

@@ -704,6 +704,18 @@
   "customPages": [],
   "tokens": {
     "colors": {
+      "accent": {
+        "label": "Accent",
+        "value": "#0f766e",
+        "group": "Brand",
+        "allowSiteOverride": true
+      },
+      "accent-contrast": {
+        "label": "Accent contrast",
+        "value": "#ffffff",
+        "group": "Brand",
+        "allowSiteOverride": true
+      },
       "background": {
         "label": "Background",
         "value": "#ffffff",
@@ -712,19 +724,25 @@
       },
       "border": {
         "label": "Border",
-        "value": "#e2e8f0",
+        "value": "#d9dee6",
         "group": "Surface",
+        "allowSiteOverride": true
+      },
+      "danger": {
+        "label": "Danger",
+        "value": "#b91c1c",
+        "group": "State",
         "allowSiteOverride": true
       },
       "muted": {
         "label": "Muted",
-        "value": "#64748b",
+        "value": "#5b6472",
         "group": "Content",
         "allowSiteOverride": true
       },
       "primary": {
         "label": "Primary",
-        "value": "#4f46e5",
+        "value": "#1d4ed8",
         "group": "Brand",
         "allowSiteOverride": true
       },
@@ -734,16 +752,34 @@
         "group": "Brand",
         "allowSiteOverride": true
       },
+      "success": {
+        "label": "Success",
+        "value": "#15803d",
+        "group": "State",
+        "allowSiteOverride": true
+      },
       "surface": {
         "label": "Surface",
-        "value": "#f8fafc",
+        "value": "#f6f7f9",
+        "group": "Surface",
+        "allowSiteOverride": true
+      },
+      "surface-strong": {
+        "label": "Surface strong",
+        "value": "#e9ecf1",
         "group": "Surface",
         "allowSiteOverride": true
       },
       "text": {
         "label": "Text",
-        "value": "#0f172a",
+        "value": "#14181f",
         "group": "Content",
+        "allowSiteOverride": true
+      },
+      "warning": {
+        "label": "Warning",
+        "value": "#b45309",
+        "group": "State",
         "allowSiteOverride": true
       }
     },

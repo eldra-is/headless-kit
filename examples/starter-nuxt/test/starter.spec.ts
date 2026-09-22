@@ -52,7 +52,7 @@ describe('starter theme', () => {
     const result = scanTheme({ themeDir: templateDir, framework: 'nuxt' });
     expect(result.errors).toEqual([]);
     expect(result.manifest?.blocks.map((block) => block.apiId).sort()).toEqual(expectedBlocks);
-    expect(result.manifest?.tokens.colors.primary.value).toBe('#4f46e5');
+    expect(result.manifest?.tokens.colors.primary.value).toBe('#1d4ed8');
     const fields = Object.fromEntries(
       result.manifest!.blocks.map((block) => [
         block.apiId,
