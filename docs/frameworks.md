@@ -3,7 +3,9 @@
 `@eldrajs/vue` is one wrapper over `@eldrajs/rich-text`. A React, Svelte or Solid wrapper is
 welcome, and this is the contract it has to satisfy so that a document renders the same wherever
 it lands. If you write one, open a pull request — it lands as `@eldrajs/<framework>` in this
-repository.
+repository. Theme bindings follow the same core-first rule: see
+[docs/themes.md](themes.md) for how `@eldrajs/theme-vue` wraps the framework-free
+`@eldrajs/theme-core`, and what a React theme binding would need to satisfy the same way.
 
 ## What the core gives you
 

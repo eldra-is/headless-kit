@@ -1,5 +1,10 @@
 {
   "packages/sdk": "0.2.2",
   "packages/rich-text": "0.1.0",
-  "packages/vue": "0.1.0"
+  "packages/vue": "0.1.0",
+  "packages/theme-core": "0.0.0",
+  "packages/theme-vue": "0.0.0",
+  "packages/vite-plugin-theme": "0.0.0",
+  "packages/theme-cli": "0.0.0",
+  "packages/theme-nuxt": "0.0.0"
 }

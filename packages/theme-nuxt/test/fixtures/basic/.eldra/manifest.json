@@ -54,7 +54,9 @@
           "id": "actions",
           "label": "Actions",
           "maxItems": 2,
-          "allowedBlockApiIds": ["cta"]
+          "allowedBlockApiIds": [
+            "cta"
+          ]
         }
       ],
       "mock": {

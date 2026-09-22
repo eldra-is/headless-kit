@@ -16,7 +16,7 @@ jobs:
   check:
     name: Lint, types, tests, build, package checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,6 +30,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Chromium, for the theme-nuxt browser tests
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Lint
         run: pnpm lint:check

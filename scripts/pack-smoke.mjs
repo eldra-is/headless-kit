@@ -72,6 +72,80 @@ const consumers = {
       export const component = RichText;
     `,
   },
+  '@eldrajs/theme-core': {
+    runtime: `
+      import { createEldraClient, stripStega, encodeStega, decodeStega } from '@eldrajs/theme-core';
+      import { BRIDGE_VERSION, makeEnvelope, parseEnvelope } from '@eldrajs/theme-core/bridge';
+      import { createOverlayRuntime } from '@eldrajs/theme-core/overlay';
+      assert(typeof createEldraClient === 'function', 'createEldraClient');
+      assert(typeof encodeStega === 'function' && typeof decodeStega === 'function', 'stega');
+      assert.equal(stripStega('plain'), 'plain');
+      assert(typeof makeEnvelope === 'function' && typeof parseEnvelope === 'function', 'envelope');
+      assert.equal(typeof BRIDGE_VERSION, 'number');
+      assert(typeof createOverlayRuntime === 'function', 'createOverlayRuntime');
+    `,
+    types: `
+      import type { RichTextNode } from '@eldrajs/theme-core';
+      import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
+      import { BRIDGE_VERSION } from '@eldrajs/theme-core/bridge';
+      export const node: RichTextNode = { type: 'paragraph', content: [] };
+      export const bp: LayoutBreakpoints = { tablet: 768, normal: 1024 };
+      export const v: number = BRIDGE_VERSION;
+    `,
+  },
+  '@eldrajs/theme-vue': {
+    // No runtime probe: the index imports virtual:eldra/* modules the Vite plugin provides.
+    types: `
+      import { EldraRichText, EldraLayout, useEldra } from '@eldrajs/theme-vue';
+      export const components = { EldraRichText, EldraLayout };
+      export const hook = useEldra;
+    `,
+  },
+  '@eldrajs/vite-plugin-theme': {
+    runtime: `
+      import eldraTheme from '@eldrajs/vite-plugin-theme';
+      import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
+      assert(typeof eldraTheme === 'function', 'eldraTheme');
+      assert(typeof scanTheme === 'function', 'scanTheme');
+    `,
+    types: `
+      import eldraTheme, { type ThemeManifest } from '@eldrajs/vite-plugin-theme';
+      export const plugin = eldraTheme({ themeDir: '.' });
+      export const manifest: ThemeManifest = {
+        manifestVersion: 1,
+        theme: { name: 'demo', version: '0.0.0', framework: 'vue', sdk: { core: '0.0.0', vitePlugin: '0.0.0' } },
+        blocks: [],
+        routes: [],
+        customPages: [],
+        tokens: { colors: {}, fonts: {}, spacing: {} },
+      };
+    `,
+  },
+  '@eldrajs/theme-cli': {
+    runtime: `
+      import { validateTheme, deployTheme, scanTheme } from '@eldrajs/theme-cli';
+      import { execFileSync } from 'node:child_process';
+      assert(typeof validateTheme === 'function', 'validateTheme');
+      assert(typeof deployTheme === 'function', 'deployTheme');
+      assert(typeof scanTheme === 'function', 'scanTheme');
+      const help = execFileSync('node', ['node_modules/@eldrajs/theme-cli/dist/cli.js', '--help'], { encoding: 'utf8' });
+      assert(help.includes('validate'), 'cli --help lists validate');
+    `,
+    types: `
+      import { validateTheme, type ValidateResult } from '@eldrajs/theme-cli';
+      export const run: Promise<ValidateResult> = validateTheme({ themeDir: '.', remote: false });
+    `,
+  },
+  '@eldrajs/theme-nuxt': {
+    runtime: `
+      import eldra from '@eldrajs/theme-nuxt';
+      assert(typeof eldra === 'function', 'nuxt module');
+    `,
+    types: `
+      import type { ModuleOptions } from '@eldrajs/theme-nuxt';
+      export const options: ModuleOptions = { gatewayUrl: 'https://example.invalid/api', orgId: 'org', studioOrigins: [], pageSchema: 'page', routeTemplateSchema: 'route-template' };
+    `,
+  },
 };
 
 function run(command, args, cwd) {
@@ -117,6 +191,7 @@ async function main() {
         '--silent',
         'vite@^8',
         'vue@^3',
+        '@nuxt/kit@^4',
         ...Object.values(tarballs),
       ],
       project
@@ -126,11 +201,13 @@ async function main() {
       if (!tarballs[name]) throw new Error(`${name} was not packed`);
       const slug = name.replace('@', '').replace('/', '-');
 
-      await writeFile(
-        join(project, `${slug}.runtime.mjs`),
-        `import assert from 'node:assert/strict';\n${consumer.runtime}\nconsole.log('${name}: runtime ok');\n`
-      );
-      process.stdout.write(run('node', [`${slug}.runtime.mjs`], project));
+      if (consumer.runtime) {
+        await writeFile(
+          join(project, `${slug}.runtime.mjs`),
+          `import assert from 'node:assert/strict';\n${consumer.runtime}\nconsole.log('${name}: runtime ok');\n`
+        );
+        process.stdout.write(run('node', [`${slug}.runtime.mjs`], project));
+      }
 
       for (const moduleResolution of ['bundler', 'node16']) {
         const module = moduleResolution === 'bundler' ? 'ESNext' : 'Node16';

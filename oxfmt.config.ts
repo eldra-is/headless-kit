@@ -6,5 +6,6 @@ export default oxfmtConfig({
     '**/RELEASE-NOTES.md',
     'packages/sdk/src/__tests__/fixtures/contract.ts',
     'packages/sdk/src/__tests__/fixtures/web-gateway.json',
+    '**/.eldra/manifest.json',
   ],
 }) as OxfmtConfig;

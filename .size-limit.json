@@ -27,5 +27,32 @@
     "import": "{ RichText }",
     "ignore": ["vue"],
     "limit": "6 kB"
+  },
+  {
+    "name": "@eldrajs/theme-core — everything",
+    "path": "packages/theme-core/dist/index.js",
+    "limit": "29 kB"
+  },
+  {
+    "name": "@eldrajs/theme-core — overlay runtime",
+    "path": "packages/theme-core/dist/overlay.js",
+    "import": "{ createOverlayRuntime }",
+    "limit": "12 kB"
+  },
+  {
+    "name": "@eldrajs/theme-core — bridge",
+    "path": "packages/theme-core/dist/bridge.js",
+    "limit": "2 kB"
+  },
+  {
+    "name": "@eldrajs/theme-vue — everything, without vue",
+    "path": "packages/theme-vue/dist/index.js",
+    "ignore": [
+      "vue",
+      "virtual:eldra/blocks",
+      "virtual:eldra/manifest",
+      "virtual:eldra/breakpoints"
+    ],
+    "limit": "32.5 kB"
   }
 ]

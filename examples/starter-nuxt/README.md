@@ -51,7 +51,7 @@ The deploy command uploads the generated static site and exact `.eldra/manifest.
 
 For a real local-stack deployment through the Cloudflare dev Worker and Pages,
 including tunnel callbacks, artifact checks, browser verification, and
-troubleshooting, see [the local theme deployment runbook](../../docs/local-theme-deployment.md).
+troubleshooting, see [the local theme deployment runbook](../../docs/theme-local-deployment.md).
 
 ## Wiring rebuilds
 

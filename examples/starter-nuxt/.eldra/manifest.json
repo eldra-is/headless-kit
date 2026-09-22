@@ -128,7 +128,10 @@
           "name": "Variant",
           "type": "select",
           "metadata": {
-            "options": ["primary", "subtle"]
+            "options": [
+              "primary",
+              "subtle"
+            ]
           }
         }
       ],
@@ -484,7 +487,10 @@
           "type": "select",
           "groupId": "content",
           "metadata": {
-            "options": ["left", "center"]
+            "options": [
+              "left",
+              "center"
+            ]
           }
         }
       ],
@@ -494,7 +500,9 @@
           "label": "Action buttons",
           "description": "Buttons rendered under the hero copy. Falls back to the built-in CTA.",
           "maxItems": 2,
-          "allowedBlockApiIds": ["cta"]
+          "allowedBlockApiIds": [
+            "cta"
+          ]
         }
       ],
       "mock": {
