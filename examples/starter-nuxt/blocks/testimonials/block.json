@@ -1,7 +1,7 @@
 {
   "apiId": "testimonials",
   "name": "Testimonials",
-  "description": "Customer quotes with name, role and avatar.",
+  "description": "Customer quotes with name, role, avatar and an optional rating.",
   "icon": "quote",
   "category": "marketing",
   "version": 1,
@@ -11,7 +11,14 @@
       "name": "Heading",
       "type": "string",
       "isTitle": true,
-      "localized": true
+      "localized": true,
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "metadata": { "options": ["grid", "carousel"] }
     },
     {
       "fieldId": "items",
@@ -32,8 +39,8 @@
                 "validators": { "required": true }
               },
               {
-                "fieldId": "name",
-                "name": "Name",
+                "fieldId": "author",
+                "name": "Author",
                 "type": "string",
                 "validators": { "required": true }
               },
@@ -43,7 +50,8 @@
                 "name": "Avatar",
                 "type": "media",
                 "metadata": { "multiple": false }
-              }
+              },
+              { "fieldId": "rating", "name": "Rating", "type": "int" }
             ]
           }
         }

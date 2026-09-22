@@ -17,3 +17,15 @@ type Story = StoryObj<typeof Block>;
 export const Default: Story = {
   args: { entry: { id: "article", data: mock } },
 };
+
+export const WidthNarrow: Story = {
+  args: {
+    entry: { id: "article", data: { ...mock, "width": "narrow" } },
+  },
+};
+
+export const WidthContent: Story = {
+  args: {
+    entry: { id: "article", data: { ...mock, "width": "content" } },
+  },
+};

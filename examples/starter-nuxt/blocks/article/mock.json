@@ -1,12 +1,88 @@
 {
-  "title": "Announcing our new platform",
-  "author": "Jane Doe",
+  "heading": "How we choose our wool",
+  "meta": "By the Northwind Goods team — March 2024",
+  "lead": "Every throw starts as a conversation with a mill, not a spreadsheet. Here's what we actually look for.",
+  "width": "narrow",
   "body": {
     "type": "doc",
     "content": [
       {
         "type": "paragraph",
-        "content": [{ "type": "text", "text": "Body copy rendered from rich text." }]
+        "content": [
+          {
+            "type": "text",
+            "text": "We work with three small mills, each chosen for the same reason: they can tell us exactly which farm a fleece came from. "
+          },
+          { "type": "text", "text": "Traceability", "marks": [{ "type": "bold" }] },
+          {
+            "type": "text",
+            "text": " isn't a marketing word for us — it's the difference between a throw you keep for a decade and one you don't."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": { "level": 2 },
+        "content": [{ "type": "text", "text": "What we look for" }]
+      },
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [{ "type": "text", "text": "Fibre length and crimp, checked by hand" }]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  { "type": "text", "text": "A mill that pays shearers a fair, published rate" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  { "type": "text", "text": "Undyed lots we can dye small-batch ourselves" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "If we can't tell you which valley it came from, we don't buy it."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "That standard costs more up front. It also means a Northwind throw looks the same in year five as it did on day one."
+          }
+        ]
       }
     ]
   }

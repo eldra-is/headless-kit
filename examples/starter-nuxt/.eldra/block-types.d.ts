@@ -14,10 +14,11 @@ declare global {
 
   interface EldraBlockData {
     article: {
-      title: string;
-      author?: string;
-      coverImage?: EldraMedia;
+      heading: string;
+      meta?: string;
+      lead?: string;
       body: RichTextNode;
+      width?: 'narrow' | 'content';
     };
     cta: {
       heading: string;
@@ -29,12 +30,17 @@ declare global {
       variant?: 'primary' | 'subtle' | 'split';
     };
     faq: {
-      heading?: string;
-      items?: Array<{ question: string; answer: string }>;
+      heading: string;
+      intro?: string;
+      single?: boolean;
+      items?: Array<{ question: string; answer: RichTextNode }>;
     };
     'feature-grid': {
-      heading?: string;
-      features?: Array<{ icon?: string; title: string; description?: string }>;
+      heading: string;
+      intro?: string;
+      columns?: '2' | '3' | '4';
+      variant?: 'cards' | 'plain';
+      items?: Array<{ icon?: string; image?: EldraMedia; title: string; body?: string; href?: string }>;
     };
     footer: {
       brand: string;
@@ -44,8 +50,10 @@ declare global {
       variant?: 'default' | 'minimal';
     };
     gallery: {
-      title?: string;
-      images?: Array<{ image?: EldraMedia; caption?: string }>;
+      heading?: string;
+      variant?: 'grid' | 'masonry' | 'carousel';
+      images?: EldraMedia[];
+      lightbox?: boolean;
     };
     hero: {
       eyebrow?: string;
@@ -74,8 +82,9 @@ declare global {
       variant?: 'default' | 'centered' | 'minimal';
     };
     testimonials: {
-      heading?: string;
-      items?: Array<{ quote: string; name: string; role?: string; avatar?: EldraMedia }>;
+      heading: string;
+      variant?: 'grid' | 'carousel';
+      items?: Array<{ quote: string; author: string; role?: string; avatar?: EldraMedia; rating?: number }>;
     };
   }
 

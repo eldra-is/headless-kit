@@ -129,3 +129,72 @@
     }
   }
 }
+
+/* Rich-text typography for a block's `EldraRichText` output (the `article`
+   block passes `class="prose-eldra"`; `faq` uses it read-only for each
+   item's answer — see blocks/faq/Block.vue). Plain selectors over the
+   nodes `renderRichTextDoc` (@eldrajs/theme-vue's richTextRender.ts /
+   theme-core's richTextTree.ts) actually emits — `h1`-`h6`, `p`, `ul`/`ol`/
+   `li`, `blockquote`, `pre`/`code`, `table`/`th`/`td`, `img`, `hr`, `a` —
+   plus `figure`/`figcaption` for forward compatibility with a future
+   captioned-image node. Every rule reads a design token (colour, radius,
+   spacing) so a customer's own token values carry through unchanged. */
+@layer components {
+  .prose-eldra {
+    @apply text-text max-w-none;
+  }
+  .prose-eldra :where(h2) {
+    @apply font-heading mt-10 mb-4 text-2xl font-semibold tracking-tight;
+  }
+  .prose-eldra :where(h3) {
+    @apply font-heading mt-8 mb-3 text-xl font-semibold tracking-tight;
+  }
+  .prose-eldra :where(h4, h5, h6) {
+    @apply font-heading mt-6 mb-2 text-lg font-semibold tracking-tight;
+  }
+  .prose-eldra :where(p) {
+    @apply my-4 leading-relaxed;
+  }
+  .prose-eldra :where(ul) {
+    @apply my-4 list-disc space-y-2 pl-6;
+  }
+  .prose-eldra :where(ol) {
+    @apply my-4 list-decimal space-y-2 pl-6;
+  }
+  .prose-eldra :where(blockquote) {
+    @apply border-primary text-muted my-6 border-l-4 pl-4 italic;
+  }
+  .prose-eldra :where(pre) {
+    @apply bg-surface-strong rounded-theme-md my-6 overflow-x-auto p-4 text-sm;
+  }
+  .prose-eldra :where(code) {
+    @apply bg-surface-strong rounded-theme-sm px-1.5 py-0.5 text-sm;
+  }
+  .prose-eldra :where(pre code) {
+    @apply bg-transparent p-0;
+  }
+  .prose-eldra :where(table) {
+    @apply my-6 w-full border-collapse text-sm;
+  }
+  .prose-eldra :where(th, td) {
+    @apply border-border border px-3 py-2 text-left;
+  }
+  .prose-eldra :where(th) {
+    @apply font-heading font-semibold;
+  }
+  .prose-eldra :where(img) {
+    @apply rounded-theme-lg my-6;
+  }
+  .prose-eldra :where(figure) {
+    @apply my-6;
+  }
+  .prose-eldra :where(figcaption) {
+    @apply text-muted mt-2 text-sm;
+  }
+  .prose-eldra :where(hr) {
+    @apply border-border my-10 border-t;
+  }
+  .prose-eldra :where(a) {
+    @apply text-primary focus-visible:ring-primary focus-visible:ring-offset-background rounded-theme-sm underline underline-offset-4 hover:no-underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none;
+  }
+}

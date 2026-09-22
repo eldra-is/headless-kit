@@ -83,9 +83,9 @@ describe('starter theme', () => {
       ],
       navigation: ['brand', 'logo', 'links', 'ctaLabel', 'ctaHref', 'sticky', 'variant'],
       footer: ['brand', 'description', 'groups', 'legal', 'variant'],
-      article: ['title', 'author', 'coverImage', 'body'],
+      article: ['heading', 'meta', 'lead', 'body', 'width'],
       image: ['image', 'caption', 'aspect', 'width'],
-      gallery: ['title', 'images'],
+      gallery: ['heading', 'variant', 'images', 'lightbox'],
       cta: [
         'heading',
         'body',
@@ -95,9 +95,9 @@ describe('starter theme', () => {
         'secondaryButtonHref',
         'variant',
       ],
-      'feature-grid': ['heading', 'features'],
-      testimonials: ['heading', 'items'],
-      faq: ['heading', 'items'],
+      'feature-grid': ['heading', 'intro', 'columns', 'variant', 'items'],
+      testimonials: ['heading', 'variant', 'items'],
+      faq: ['heading', 'intro', 'single', 'items'],
     });
 
     // Starter mocks cannot carry organization-specific asset IDs. Keep media
@@ -107,17 +107,10 @@ describe('starter theme', () => {
     const imageField = imageBlock.fields.find((field) => field.fieldId === 'image');
     expect(imageField?.validators?.required).not.toBe(true);
     expect(imageField?.metadata?.multiple).toBe(false);
-    const articleBlock = result.manifest!.blocks.find((block) => block.apiId === 'article')!;
-    expect(
-      articleBlock.fields.find((field) => field.fieldId === 'coverImage')?.metadata?.multiple
-    ).toBe(false);
     const galleryBlock = result.manifest!.blocks.find((block) => block.apiId === 'gallery')!;
-    const galleryItems = galleryBlock.fields.find((field) => field.fieldId === 'images');
-    const galleryImage = galleryItems?.metadata?.item?.metadata?.fields?.find(
-      (field) => field.fieldId === 'image'
-    );
-    expect(galleryImage?.validators?.required).not.toBe(true);
-    expect(galleryImage?.metadata?.multiple).toBe(false);
+    const galleryImages = galleryBlock.fields.find((field) => field.fieldId === 'images');
+    expect(galleryImages?.validators?.required).not.toBe(true);
+    expect(galleryImages?.metadata?.multiple).toBe(true);
 
     const heroBlock = result.manifest!.blocks.find((block) => block.apiId === 'hero')!;
     expect(heroBlock.fields.find((field) => field.fieldId === 'image')?.metadata?.multiple).toBe(

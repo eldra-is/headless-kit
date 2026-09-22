@@ -11,8 +11,11 @@
       "name": "Heading",
       "type": "string",
       "isTitle": true,
-      "localized": true
+      "localized": true,
+      "validators": { "required": true }
     },
+    { "fieldId": "intro", "name": "Intro", "type": "text", "localized": true },
+    { "fieldId": "single", "name": "Only one open at a time", "type": "bool" },
     {
       "fieldId": "items",
       "name": "Questions",
@@ -34,7 +37,7 @@
               {
                 "fieldId": "answer",
                 "name": "Answer",
-                "type": "text",
+                "type": "rich-text",
                 "localized": true,
                 "validators": { "required": true }
               }

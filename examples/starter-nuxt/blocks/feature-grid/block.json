@@ -1,7 +1,7 @@
 {
   "apiId": "feature-grid",
   "name": "Feature grid",
-  "description": "Grid of features with icon, title and description.",
+  "description": "Grid of icon or image features with a title and supporting copy.",
   "icon": "grid-dots",
   "category": "marketing",
   "version": 1,
@@ -11,20 +11,40 @@
       "name": "Heading",
       "type": "string",
       "isTitle": true,
-      "localized": true
+      "localized": true,
+      "validators": { "required": true }
+    },
+    { "fieldId": "intro", "name": "Intro", "type": "text", "localized": true },
+    {
+      "fieldId": "columns",
+      "name": "Columns",
+      "type": "select",
+      "metadata": { "options": ["2", "3", "4"] }
     },
     {
-      "fieldId": "features",
-      "name": "Features",
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "metadata": { "options": ["cards", "plain"] }
+    },
+    {
+      "fieldId": "items",
+      "name": "Items",
       "type": "list",
       "metadata": {
         "item": {
-          "fieldId": "feature",
-          "name": "Feature",
+          "fieldId": "item",
+          "name": "Item",
           "type": "composite",
           "metadata": {
             "fields": [
               { "fieldId": "icon", "name": "Icon", "type": "tabler-icon" },
+              {
+                "fieldId": "image",
+                "name": "Image",
+                "type": "media",
+                "metadata": { "multiple": false }
+              },
               {
                 "fieldId": "title",
                 "name": "Title",
@@ -32,7 +52,8 @@
                 "localized": true,
                 "validators": { "required": true }
               },
-              { "fieldId": "description", "name": "Description", "type": "text", "localized": true }
+              { "fieldId": "body", "name": "Body", "type": "text", "localized": true },
+              { "fieldId": "href", "name": "Link", "type": "string" }
             ]
           }
         }

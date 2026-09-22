@@ -1,34 +1,25 @@
 {
   "apiId": "gallery",
   "name": "Gallery",
-  "description": "Responsive image grid with captions.",
+  "description": "Responsive image gallery with an optional lightbox.",
   "icon": "layout-grid",
   "category": "content",
   "version": 1,
   "fields": [
-    { "fieldId": "title", "name": "Title", "type": "string", "isTitle": true, "localized": true },
     {
-      "fieldId": "images",
-      "name": "Images",
-      "type": "list",
-      "metadata": {
-        "item": {
-          "fieldId": "item",
-          "name": "Image",
-          "type": "composite",
-          "metadata": {
-            "fields": [
-              {
-                "fieldId": "image",
-                "name": "Image",
-                "type": "media",
-                "metadata": { "multiple": false }
-              },
-              { "fieldId": "caption", "name": "Caption", "type": "string", "localized": true }
-            ]
-          }
-        }
-      }
-    }
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "metadata": { "options": ["grid", "masonry", "carousel"] }
+    },
+    { "fieldId": "images", "name": "Images", "type": "media", "metadata": { "multiple": true } },
+    { "fieldId": "lightbox", "name": "Open images in a lightbox", "type": "bool" }
   ]
 }

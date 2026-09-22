@@ -1,40 +1,44 @@
 <script setup lang="ts">
+/**
+ * Long-form rich text: heading, an optional meta line (byline/date) and
+ * lead paragraph, then the rich-text body. `width` picks the container
+ * (`narrow` 40rem, the default, or `content` 64rem) — narrow reads best for
+ * continuous prose, `content` for a piece that embeds wider tables/images.
+ *
+ * `EldraRichText` gets `class="prose-eldra"`: Vue's automatic attrs
+ * fallthrough merges it onto the component's single root `<div>` (see
+ * `EldraRichText.ts` — it never sets `inheritAttrs: false`), so no wrapper
+ * element is needed. `.prose-eldra` (app/assets/main.css, `@layer
+ * components`) is the rich-text typography layer: headings, lists,
+ * blockquote, code, table, image and link styles driven by the same design
+ * tokens as the rest of the starter.
+ */
 import { computed } from 'vue';
 import { EldraRichText } from '@eldrajs/theme-vue';
+import { useBlockData } from '../../app/composables/useBlockData';
+import UiSection from '../../app/components/ui/UiSection.vue';
 
-const props = defineProps<{ entry: { id: string; data: Record<string, unknown> } }>();
-const d = computed(
-  () =>
-    props.entry.data as {
-      title?: string;
-      author?: string;
-      body?: unknown;
-      coverImage?: { url?: string; altText?: string | null } | null;
-    }
-);
+const props = defineProps<{ entry: EldraBlockEntry<'article'> }>();
+const { data, entryId } = useBlockData(props, 'article');
+
+const width = computed(() => data.value.width ?? 'narrow');
 </script>
 
 <template>
-  <article class="article container">
-    <h1>{{ d.title }}</h1>
-    <address v-if="d.author">By {{ d.author }}</address>
-    <img v-if="d.coverImage?.url" :src="d.coverImage.url" :alt="d.coverImage.altText ?? ''" />
-    <EldraRichText :entry-id="entry.id" field="body" :doc="d.body" api-id="article" />
-  </article>
+  <UiSection spacing="md" :container-size="width">
+    <article>
+      <header>
+        <h1 class="text-4xl font-semibold md:text-5xl">{{ data.heading }}</h1>
+        <p v-if="data.meta" class="text-muted mt-3 text-sm">{{ data.meta }}</p>
+        <p v-if="data.lead" class="text-text mt-6 text-xl leading-relaxed">{{ data.lead }}</p>
+      </header>
+      <EldraRichText
+        class="prose-eldra mt-10"
+        :entry-id="entryId"
+        field="body"
+        :doc="data.body"
+        api-id="article"
+      />
+    </article>
+  </UiSection>
 </template>
-
-<style scoped>
-.article {
-  max-width: 48rem;
-  padding-block: var(--theme-section);
-}
-address {
-  color: var(--eldra-color-muted);
-  margin-block: 0.5rem 2rem;
-  font-style: normal;
-}
-img {
-  width: 100%;
-  margin-block-end: 2rem;
-}
-</style>

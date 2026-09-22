@@ -59,7 +59,7 @@ function mountArticle(context?: unknown) {
     props: {
       entry: {
         id: 'article-1',
-        data: { title: 'Announcing our new platform', author: 'Jane Doe', body },
+        data: { heading: 'Announcing our new platform', body },
       },
     },
     ...(context === undefined ? {} : { global: { provide: { [ELDRA_KEY as symbol]: context } } }),

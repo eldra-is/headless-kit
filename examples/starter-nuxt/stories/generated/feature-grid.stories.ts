@@ -17,3 +17,33 @@ type Story = StoryObj<typeof Block>;
 export const Default: Story = {
   args: { entry: { id: "feature-grid", data: mock } },
 };
+
+export const Columns2: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...mock, "columns": "2" } },
+  },
+};
+
+export const Columns3: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...mock, "columns": "3" } },
+  },
+};
+
+export const Columns4: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...mock, "columns": "4" } },
+  },
+};
+
+export const VariantCards: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...mock, "variant": "cards" } },
+  },
+};
+
+export const VariantPlain: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...mock, "variant": "plain" } },
+  },
+};

@@ -13,14 +13,14 @@
     {
       "apiId": "article",
       "name": "Article",
-      "description": "Long-form rich text with title, author and cover image.",
+      "description": "Long-form rich text with a heading, meta line and lead paragraph.",
       "icon": "article",
       "category": "content",
       "version": 1,
       "fields": [
         {
-          "fieldId": "title",
-          "name": "Title",
+          "fieldId": "heading",
+          "name": "Heading",
           "type": "string",
           "isTitle": true,
           "localized": true,
@@ -29,17 +29,16 @@
           }
         },
         {
-          "fieldId": "author",
-          "name": "Author",
-          "type": "string"
+          "fieldId": "meta",
+          "name": "Meta line",
+          "type": "string",
+          "localized": true
         },
         {
-          "fieldId": "coverImage",
-          "name": "Cover image",
-          "type": "media",
-          "metadata": {
-            "multiple": false
-          }
+          "fieldId": "lead",
+          "name": "Lead paragraph",
+          "type": "text",
+          "localized": true
         },
         {
           "fieldId": "body",
@@ -57,14 +56,29 @@
               "link",
               "bulletList",
               "orderedList",
-              "blockquote"
+              "blockquote",
+              "codeBlock",
+              "image"
+            ]
+          }
+        },
+        {
+          "fieldId": "width",
+          "name": "Width",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "narrow",
+              "content"
             ]
           }
         }
       ],
       "mock": {
-        "title": "Announcing our new platform",
-        "author": "Jane Doe",
+        "heading": "How we choose our wool",
+        "meta": "By the Northwind Goods team — March 2024",
+        "lead": "Every throw starts as a conversation with a mill, not a spreadsheet. Here's what we actually look for.",
+        "width": "narrow",
         "body": {
           "type": "doc",
           "content": [
@@ -73,7 +87,102 @@
               "content": [
                 {
                   "type": "text",
-                  "text": "Body copy rendered from rich text."
+                  "text": "We work with three small mills, each chosen for the same reason: they can tell us exactly which farm a fleece came from. "
+                },
+                {
+                  "type": "text",
+                  "text": "Traceability",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " isn't a marketing word for us — it's the difference between a throw you keep for a decade and one you don't."
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "level": 2
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "What we look for"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "content": [
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Fibre length and crimp, checked by hand"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "A mill that pays shearers a fair, published rate"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Undyed lots we can dye small-batch ourselves"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "blockquote",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "If we can't tell you which valley it came from, we don't buy it."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "That standard costs more up front. It also means a Northwind throw looks the same in year five as it did on day one."
                 }
               ]
             }
@@ -171,7 +280,21 @@
           "name": "Heading",
           "type": "string",
           "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "intro",
+          "name": "Intro",
+          "type": "text",
           "localized": true
+        },
+        {
+          "fieldId": "single",
+          "name": "Only one open at a time",
+          "type": "bool"
         },
         {
           "fieldId": "items",
@@ -196,7 +319,7 @@
                   {
                     "fieldId": "answer",
                     "name": "Answer",
-                    "type": "text",
+                    "type": "rich-text",
                     "localized": true,
                     "validators": {
                       "required": true
@@ -209,11 +332,60 @@
         }
       ],
       "mock": {
-        "heading": "FAQ",
+        "heading": "Frequently asked questions",
+        "intro": "Can't find what you're looking for? Reach out and a real person will get back to you within a day.",
+        "single": true,
         "items": [
           {
-            "question": "Can I use my own domain?",
-            "answer": "Custom domains are on the roadmap; pages.dev works today."
+            "question": "How long does shipping take?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Orders ship within two business days and arrive in 3–5 days for most of the country. You'll get a tracking link by email the moment it leaves our workshop."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "What's your returns policy?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "We accept returns within 30 days of delivery, no questions asked. Items should be unused and in their original packaging."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "Do you ship internationally?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Yes — we currently ship to Canada, the UK and the EU. Rates and delivery times are calculated at checkout."
+                    }
+                  ]
+                }
+              ]
+            }
           }
         ]
       },
@@ -222,7 +394,7 @@
     {
       "apiId": "feature-grid",
       "name": "Feature grid",
-      "description": "Grid of features with icon, title and description.",
+      "description": "Grid of icon or image features with a title and supporting copy.",
       "icon": "grid-dots",
       "category": "marketing",
       "version": 1,
@@ -232,16 +404,48 @@
           "name": "Heading",
           "type": "string",
           "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "intro",
+          "name": "Intro",
+          "type": "text",
           "localized": true
         },
         {
-          "fieldId": "features",
-          "name": "Features",
+          "fieldId": "columns",
+          "name": "Columns",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "2",
+              "3",
+              "4"
+            ]
+          }
+        },
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "cards",
+              "plain"
+            ]
+          }
+        },
+        {
+          "fieldId": "items",
+          "name": "Items",
           "type": "list",
           "metadata": {
             "item": {
-              "fieldId": "feature",
-              "name": "Feature",
+              "fieldId": "item",
+              "name": "Item",
               "type": "composite",
               "metadata": {
                 "fields": [
@@ -249,6 +453,14 @@
                     "fieldId": "icon",
                     "name": "Icon",
                     "type": "tabler-icon"
+                  },
+                  {
+                    "fieldId": "image",
+                    "name": "Image",
+                    "type": "media",
+                    "metadata": {
+                      "multiple": false
+                    }
                   },
                   {
                     "fieldId": "title",
@@ -260,10 +472,15 @@
                     }
                   },
                   {
-                    "fieldId": "description",
-                    "name": "Description",
+                    "fieldId": "body",
+                    "name": "Body",
                     "type": "text",
                     "localized": true
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Link",
+                    "type": "string"
                   }
                 ]
               }
@@ -272,17 +489,50 @@
         }
       ],
       "mock": {
-        "heading": "Why Eldra",
-        "features": [
+        "heading": "Why shop with Northwind Goods",
+        "intro": "Everything we make is built to be used, mended and passed on — not replaced every season.",
+        "columns": "4",
+        "variant": "cards",
+        "items": [
           {
-            "icon": "bolt",
-            "title": "Fast",
-            "description": "Static builds on a global edge."
+            "image": {
+              "assetId": "demo-feature-1",
+              "url": "/demo/feature-1.svg",
+              "altText": "Illustration of a delivery van"
+            },
+            "title": "Free shipping over $75",
+            "body": "Every order over $75 ships free, no code needed.",
+            "href": "/shipping-returns"
           },
           {
-            "icon": "lock",
-            "title": "Secure",
-            "description": "Sandboxed previews, no secrets in builds."
+            "image": {
+              "assetId": "demo-feature-2",
+              "url": "/demo/feature-2.svg",
+              "altText": "Illustration of a recycling loop"
+            },
+            "title": "Responsibly sourced",
+            "body": "Natural fibres and reclaimed materials, traced back to the mill.",
+            "href": "/about"
+          },
+          {
+            "image": {
+              "assetId": "demo-feature-3",
+              "url": "/demo/feature-3.svg",
+              "altText": "Illustration of a hand-stitching needle"
+            },
+            "title": "Made to last",
+            "body": "Hand-finished details and a lifetime repair promise.",
+            "href": "/craft"
+          },
+          {
+            "image": {
+              "assetId": "demo-feature-4",
+              "url": "/demo/feature-4.svg",
+              "altText": "Illustration of a return box"
+            },
+            "title": "Easy 30-day returns",
+            "body": "Free returns on anything that isn't quite right.",
+            "href": "/shipping-returns"
           }
         ]
       },
@@ -485,57 +735,78 @@
     {
       "apiId": "gallery",
       "name": "Gallery",
-      "description": "Responsive image grid with captions.",
+      "description": "Responsive image gallery with an optional lightbox.",
       "icon": "layout-grid",
       "category": "content",
       "version": 1,
       "fields": [
         {
-          "fieldId": "title",
-          "name": "Title",
+          "fieldId": "heading",
+          "name": "Heading",
           "type": "string",
           "isTitle": true,
           "localized": true
         },
         {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "grid",
+              "masonry",
+              "carousel"
+            ]
+          }
+        },
+        {
           "fieldId": "images",
           "name": "Images",
-          "type": "list",
+          "type": "media",
           "metadata": {
-            "item": {
-              "fieldId": "item",
-              "name": "Image",
-              "type": "composite",
-              "metadata": {
-                "fields": [
-                  {
-                    "fieldId": "image",
-                    "name": "Image",
-                    "type": "media",
-                    "metadata": {
-                      "multiple": false
-                    }
-                  },
-                  {
-                    "fieldId": "caption",
-                    "name": "Caption",
-                    "type": "string",
-                    "localized": true
-                  }
-                ]
-              }
-            }
+            "multiple": true
           }
+        },
+        {
+          "fieldId": "lightbox",
+          "name": "Open images in a lightbox",
+          "type": "bool"
         }
       ],
       "mock": {
-        "title": "Gallery",
+        "heading": "In the workshop",
+        "variant": "grid",
+        "lightbox": true,
         "images": [
           {
-            "caption": "First"
+            "assetId": "demo-gallery-1",
+            "url": "/demo/gallery-1.svg",
+            "altText": "Skeins of undyed wool"
           },
           {
-            "caption": "Second"
+            "assetId": "demo-gallery-2",
+            "url": "/demo/gallery-2.svg",
+            "altText": "A loom mid-weave"
+          },
+          {
+            "assetId": "demo-gallery-3",
+            "url": "/demo/gallery-3.svg",
+            "altText": "Finished throws folded on a shelf"
+          },
+          {
+            "assetId": "demo-gallery-4",
+            "url": "/demo/gallery-4.svg",
+            "altText": "Hand-stitching a wool hem"
+          },
+          {
+            "assetId": "demo-gallery-5",
+            "url": "/demo/gallery-5.svg",
+            "altText": "Natural dye pots on a stove"
+          },
+          {
+            "assetId": "demo-gallery-6",
+            "url": "/demo/gallery-6.svg",
+            "altText": "The workshop at first light"
           }
         ]
       },
@@ -863,7 +1134,7 @@
     {
       "apiId": "testimonials",
       "name": "Testimonials",
-      "description": "Customer quotes with name, role and avatar.",
+      "description": "Customer quotes with name, role, avatar and an optional rating.",
       "icon": "quote",
       "category": "marketing",
       "version": 1,
@@ -873,7 +1144,21 @@
           "name": "Heading",
           "type": "string",
           "isTitle": true,
-          "localized": true
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "grid",
+              "carousel"
+            ]
+          }
         },
         {
           "fieldId": "items",
@@ -896,8 +1181,8 @@
                     }
                   },
                   {
-                    "fieldId": "name",
-                    "name": "Name",
+                    "fieldId": "author",
+                    "name": "Author",
                     "type": "string",
                     "validators": {
                       "required": true
@@ -916,6 +1201,11 @@
                     "metadata": {
                       "multiple": false
                     }
+                  },
+                  {
+                    "fieldId": "rating",
+                    "name": "Rating",
+                    "type": "int"
                   }
                 ]
               }
@@ -924,12 +1214,41 @@
         }
       ],
       "mock": {
-        "heading": "Loved by teams",
+        "heading": "Loved by slow-morning people",
+        "variant": "grid",
         "items": [
           {
-            "quote": "We shipped our site in a week.",
-            "name": "Anna K.",
-            "role": "CTO"
+            "quote": "The wool throw is even better in person. It's the first thing I reach for on cold mornings.",
+            "author": "Freyja B.",
+            "role": "Reykjavík",
+            "avatar": {
+              "assetId": "demo-avatar-1",
+              "url": "/demo/avatar-1.svg",
+              "altText": "Portrait of Freyja"
+            },
+            "rating": 5
+          },
+          {
+            "quote": "Shipping was fast and the packaging alone made it feel like a gift.",
+            "author": "Marcus T.",
+            "role": "Portland, OR",
+            "avatar": {
+              "assetId": "demo-avatar-2",
+              "url": "/demo/avatar-2.svg",
+              "altText": "Portrait of Marcus"
+            },
+            "rating": 5
+          },
+          {
+            "quote": "Three years on, our ceramics still look brand new. Worth every penny.",
+            "author": "Ingrid H.",
+            "role": "Akureyri",
+            "avatar": {
+              "assetId": "demo-avatar-3",
+              "url": "/demo/avatar-3.svg",
+              "altText": "Portrait of Ingrid"
+            },
+            "rating": 4
           }
         ]
       },
