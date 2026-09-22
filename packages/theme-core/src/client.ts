@@ -1,0 +1,159 @@
+import { encodeEntryDataStega } from './stegaWalk';
+import type {
+  EldraClient,
+  EldraClientOptions,
+  EntryDoc,
+  EntryList,
+  EntryQuery,
+  ResolveEntryListBody,
+} from './clientTypes';
+import { EldraClientError } from './clientTypes';
+
+export * from './clientTypes'; // the interface block from **Interfaces** lives in clientTypes.ts
+
+export function createEldraClient(opts: EldraClientOptions): EldraClient {
+  const gatewayUrl = opts.gatewayUrl.replace(/\/+$/, '');
+  const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  const stegaEnabled = opts.stega === true;
+  let previewToken: string | null = null;
+
+  function buildUrl(path: string, query?: EntryQuery, extra?: Record<string, string>): URL {
+    const url = new URL(gatewayUrl + path);
+    if (query?.locale !== undefined) url.searchParams.set('locale', query.locale);
+    if (query?.depth !== undefined) url.searchParams.set('depth', String(query.depth));
+    if (query?.page !== undefined) url.searchParams.set('page', String(query.page));
+    if (query?.pageSize !== undefined) url.searchParams.set('pageSize', String(query.pageSize));
+    if (query?.sort?.length) url.searchParams.set('sort', query.sort.join(','));
+    if (query?.fields?.length) url.searchParams.set('fields', query.fields.join(','));
+    for (const f of query?.filter ?? []) url.searchParams.append('filter', f);
+    for (const [k, v] of Object.entries(extra ?? {})) url.searchParams.set(k, v);
+    return url;
+  }
+
+  async function request(url: URL, init?: RequestInit): Promise<Response> {
+    const headers = new Headers(init?.headers);
+    headers.set('X-Org-Id', opts.orgId);
+    if (previewToken !== null) headers.set('X-Preview-Token', previewToken);
+    const merged: RequestInit = { ...init, headers };
+    if (previewToken !== null) merged.cache = 'no-store'; // draft responses must never be cached
+    const res = await doFetch(url.toString(), merged);
+    if (!res.ok) {
+      throw new EldraClientError(res.status, res.statusText, url.pathname);
+    }
+    return res;
+  }
+
+  function maybeStega(entry: EntryDoc, locale: string | null): EntryDoc {
+    const projected = { ...entry, data: projectLocalizedLeaves(entry.data, locale) };
+    if (!stegaEnabled || previewToken === null) return projected;
+    return { ...projected, data: encodeEntryDataStega(entry.id, projected.data, locale) };
+  }
+
+  return {
+    async getEntries(schemaIdentifier, query) {
+      const res = await request(
+        buildUrl(`/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry`, query)
+      );
+      const list = (await res.json()) as Omit<EntryList, 'data'> & { data?: EntryDoc[] | null };
+      if (list.data !== undefined && list.data !== null && !Array.isArray(list.data)) {
+        throw new TypeError('[eldra] gateway entry list data must be an array');
+      }
+      return {
+        ...list,
+        data: (list.data ?? []).map((e) => maybeStega(e, query?.locale ?? null)),
+      };
+    },
+    async getEntry(schemaIdentifier, entryId, query) {
+      const res = await request(
+        buildUrl(
+          `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/${encodeURIComponent(entryId)}`,
+          query
+        )
+      );
+      return maybeStega((await res.json()) as EntryDoc, query?.locale ?? null);
+    },
+    async getEntryByUniqueField(schemaIdentifier, fieldId, value, query) {
+      const res = await request(
+        buildUrl(
+          `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/unique/${encodeURIComponent(fieldId)}/${encodeURIComponent(value)}`,
+          query
+        )
+      );
+      return maybeStega((await res.json()) as EntryDoc, query?.locale ?? null);
+    },
+    async resolveEntryListField(entryId, fieldId, query) {
+      const res = await request(
+        buildUrl(
+          `/cms/v1/entry/${encodeURIComponent(entryId)}/list/${encodeURIComponent(fieldId)}`,
+          query
+        )
+      );
+      return (await res.json()) as Record<string, unknown>;
+    },
+    async resolveEntryList(body, query) {
+      const res = await request(buildUrl('/cms/v1/entry-list/resolve', query), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body satisfies ResolveEntryListBody),
+      });
+      return (await res.json()) as Record<string, unknown>;
+    },
+    async getTypeScriptDefinitions(tsOpts) {
+      const url = new URL(`${gatewayUrl}/cms/v1/typescript-definitions`);
+      if (tsOpts?.schemas?.length) url.searchParams.set('schemas', tsOpts.schemas.join(','));
+      if (tsOpts?.maxDepth !== undefined) url.searchParams.set('maxDepth', String(tsOpts.maxDepth));
+      if (tsOpts?.moduleName !== undefined) url.searchParams.set('moduleName', tsOpts.moduleName);
+      const res = await request(url);
+      return await res.text();
+    },
+    enablePreview(token) {
+      previewToken = token;
+    },
+    disablePreview() {
+      previewToken = null;
+    },
+    get previewEnabled() {
+      return previewToken !== null;
+    },
+    encodeEntryDataStega,
+  };
+}
+
+const localeKey = /^[a-z]{2}(?:-[A-Za-z0-9]{2,8})*$/;
+
+/**
+ * Public CMS reads normally resolve localized fields server-side. Older content
+ * can still contain locale maps below list/composite fields because those
+ * leaves were persisted before recursive localization extraction existed.
+ * Project only objects whose every key is a locale tag, leaving ordinary
+ * records (including media and references) untouched.
+ */
+function projectLocalizedValue(value: unknown, locale: string | null): unknown {
+  if (Array.isArray(value)) return value.map((item) => projectLocalizedValue(item, locale));
+  if (value === null || typeof value !== 'object') return value;
+
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length > 0 && keys.every((key) => localeKey.test(key))) {
+    const exact = locale ? record[locale] : undefined;
+    const language = locale?.split('-')[0]?.toLowerCase();
+    const languageKey = language
+      ? keys.find((key) => key.split('-')[0]?.toLowerCase() === language)
+      : undefined;
+    return projectLocalizedValue(
+      exact !== undefined ? exact : record[languageKey ?? keys[0]!],
+      locale
+    );
+  }
+
+  return Object.fromEntries(
+    Object.entries(record).map(([key, item]) => [key, projectLocalizedValue(item, locale)])
+  );
+}
+
+function projectLocalizedLeaves(
+  data: Record<string, unknown>,
+  locale: string | null
+): Record<string, unknown> {
+  return projectLocalizedValue(data, locale) as Record<string, unknown>;
+}
