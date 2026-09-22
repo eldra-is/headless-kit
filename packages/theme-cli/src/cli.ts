@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { DeployError, deployTheme } from './commands/deploy';
 import { initTheme } from './commands/init';
 import { scaffoldBlock } from './commands/scaffold';
-import { generateTypes } from './commands/types';
+import { generateBlockTypesFile, generateTypes } from './commands/types';
 import { validateTheme } from './commands/validate';
 
 const gatewayArgs = {
@@ -95,9 +95,23 @@ const main = defineCommand({
       args: {
         out: { type: 'string', default: 'eldra-types.d.ts' },
         schemas: { type: 'string', description: 'comma-separated schema apiIds' },
+        blocks: {
+          type: 'boolean',
+          default: false,
+          description: 'Write only .eldra/block-types.d.ts from blocks/*/block.json (no gateway)',
+        },
         ...gatewayArgs,
       },
       async run({ args }) {
+        if (args.blocks === true) {
+          try {
+            const target = generateBlockTypesFile({ themeDir: process.cwd() });
+            console.log(`wrote ${target}`);
+          } catch (error) {
+            reportError(error);
+          }
+          return;
+        }
         const { gatewayUrl, orgId } = gatewayOptions(args);
         if (gatewayUrl === undefined || orgId === undefined) {
           reportError(new Error('types: ELDRA_GATEWAY_URL and ELDRA_ORG_ID are required'));

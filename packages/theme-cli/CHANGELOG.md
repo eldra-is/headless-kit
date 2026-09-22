@@ -6,3 +6,6 @@ Release-please writes the generated notes from commit messages and does not repl
 ## Unreleased
 
 - First release under the `@eldrajs` scope, moved from the private `@eldra/theme-cli` package.
+- Adds `eldra-theme types --blocks`: scans `blocks/*/block.json` and writes `.eldra/block-types.d.ts`
+  without contacting the gateway — the existing `types` behaviour (fetching CMS schema types by
+  `--schemas`/`--out`) is unchanged when the flag is omitted.
