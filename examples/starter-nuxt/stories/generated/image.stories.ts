@@ -17,3 +17,57 @@ type Story = StoryObj<typeof Block>;
 export const Default: Story = {
   args: { entry: { id: "image", data: mock } },
 };
+
+export const AspectAuto: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "aspect": "auto" } },
+  },
+};
+
+export const Aspect169: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "aspect": "16/9" } },
+  },
+};
+
+export const Aspect43: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "aspect": "4/3" } },
+  },
+};
+
+export const Aspect11: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "aspect": "1/1" } },
+  },
+};
+
+export const Aspect34: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "aspect": "3/4" } },
+  },
+};
+
+export const WidthNarrow: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "width": "narrow" } },
+  },
+};
+
+export const WidthContent: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "width": "content" } },
+  },
+};
+
+export const WidthWide: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "width": "wide" } },
+  },
+};
+
+export const WidthFull: Story = {
+  args: {
+    entry: { id: "image", data: { ...mock, "width": "full" } },
+  },
+};

@@ -24,7 +24,9 @@ declare global {
       body?: string;
       buttonLabel: string;
       buttonHref: string;
-      variant?: 'primary' | 'subtle';
+      secondaryButtonLabel?: string;
+      secondaryButtonHref?: string;
+      variant?: 'primary' | 'subtle' | 'split';
     };
     faq: {
       heading?: string;
@@ -35,29 +37,41 @@ declare global {
       features?: Array<{ icon?: string; title: string; description?: string }>;
     };
     footer: {
-      copyright: string;
-      columns?: Array<{ heading?: string; links?: Array<{ label?: string; href?: string }> }>;
+      brand: string;
+      description?: string;
+      groups?: Array<{ title: string; links?: Array<{ label: string; href: string }> }>;
+      legal?: string;
+      variant?: 'default' | 'minimal';
     };
     gallery: {
       title?: string;
       images?: Array<{ image?: EldraMedia; caption?: string }>;
     };
     hero: {
+      eyebrow?: string;
       heading: string;
       subheading?: string;
       image?: EldraMedia;
+      variant?: 'image-right' | 'image-background' | 'centered';
       ctaLabel?: string;
       ctaHref?: string;
-      align?: 'left' | 'center';
+      secondaryCtaLabel?: string;
+      secondaryCtaHref?: string;
     };
     image: {
       image?: EldraMedia;
       caption?: string;
-      fullWidth?: boolean;
+      aspect?: 'auto' | '16/9' | '4/3' | '1/1' | '3/4';
+      width?: 'narrow' | 'content' | 'wide' | 'full';
     };
     navigation: {
       brand: string;
+      logo?: EldraMedia;
       links?: Array<{ label: string; href: string }>;
+      ctaLabel?: string;
+      ctaHref?: string;
+      sticky?: boolean;
+      variant?: 'default' | 'centered' | 'minimal';
     };
     testimonials: {
       heading?: string;

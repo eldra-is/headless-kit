@@ -1,7 +1,7 @@
 {
   "apiId": "cta",
   "name": "Call to action",
-  "description": "Banner with heading, supporting copy and a button.",
+  "description": "Banner with heading, supporting copy and one or two buttons.",
   "icon": "hand-click",
   "category": "marketing",
   "version": 1,
@@ -29,10 +29,17 @@
       "validators": { "required": true }
     },
     {
+      "fieldId": "secondaryButtonLabel",
+      "name": "Secondary button label",
+      "type": "string",
+      "localized": true
+    },
+    { "fieldId": "secondaryButtonHref", "name": "Secondary button link", "type": "string" },
+    {
       "fieldId": "variant",
       "name": "Variant",
       "type": "select",
-      "metadata": { "options": ["primary", "subtle"] }
+      "metadata": { "options": ["primary", "subtle", "split"] }
     }
   ]
 }

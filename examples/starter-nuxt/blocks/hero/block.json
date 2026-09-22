@@ -1,15 +1,23 @@
 {
   "apiId": "hero",
   "name": "Hero",
-  "description": "Top-of-page banner with heading, supporting text, image and call to action.",
+  "description": "Top-of-page banner with heading, supporting text, image and calls to action.",
   "icon": "layout-dashboard",
   "category": "marketing",
   "version": 1,
   "groups": [
     { "groupId": "content", "name": "Content", "defaultOpen": true },
-    { "groupId": "action", "name": "Call to action" }
+    { "groupId": "action", "name": "Calls to action" }
   ],
   "fields": [
+    {
+      "fieldId": "eyebrow",
+      "name": "Eyebrow",
+      "type": "string",
+      "groupId": "content",
+      "localized": true,
+      "validators": { "maxLength": 60 }
+    },
     {
       "fieldId": "heading",
       "name": "Heading",
@@ -29,10 +37,17 @@
     },
     {
       "fieldId": "image",
-      "name": "Background image",
+      "name": "Image",
       "type": "media",
       "groupId": "content",
       "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "groupId": "content",
+      "metadata": { "options": ["image-right", "image-background", "centered"] }
     },
     {
       "fieldId": "ctaLabel",
@@ -43,18 +58,24 @@
     },
     { "fieldId": "ctaHref", "name": "Button link", "type": "string", "groupId": "action" },
     {
-      "fieldId": "align",
-      "name": "Alignment",
-      "type": "select",
-      "groupId": "content",
-      "metadata": { "options": ["left", "center"] }
+      "fieldId": "secondaryCtaLabel",
+      "name": "Secondary button label",
+      "type": "string",
+      "groupId": "action",
+      "localized": true
+    },
+    {
+      "fieldId": "secondaryCtaHref",
+      "name": "Secondary button link",
+      "type": "string",
+      "groupId": "action"
     }
   ],
   "slots": [
     {
       "id": "actions",
       "label": "Action buttons",
-      "description": "Buttons rendered under the hero copy. Falls back to the built-in CTA.",
+      "description": "Buttons rendered under the hero copy. Falls back to the built-in calls to action.",
       "maxItems": 2,
       "allowedBlockApiIds": ["cta"]
     }

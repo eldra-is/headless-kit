@@ -1,7 +1,7 @@
 {
   "apiId": "navigation",
   "name": "Navigation",
-  "description": "Site header with logo text and links. Reused across pages via Add existing.",
+  "description": "Site header with brand, primary links and an optional call to action. Reused across pages via Add existing.",
   "icon": "menu-2",
   "category": "structure",
   "version": 1,
@@ -13,6 +13,12 @@
       "isTitle": true,
       "localized": true,
       "validators": { "required": true }
+    },
+    {
+      "fieldId": "logo",
+      "name": "Logo",
+      "type": "media",
+      "metadata": { "multiple": false }
     },
     {
       "fieldId": "links",
@@ -42,6 +48,20 @@
           }
         }
       }
+    },
+    {
+      "fieldId": "ctaLabel",
+      "name": "Button label",
+      "type": "string",
+      "localized": true
+    },
+    { "fieldId": "ctaHref", "name": "Button link", "type": "string" },
+    { "fieldId": "sticky", "name": "Stick to top on scroll", "type": "bool", "default": false },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "metadata": { "options": ["default", "centered", "minimal"] }
     }
   ]
 }

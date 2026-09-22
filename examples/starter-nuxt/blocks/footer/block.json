@@ -1,31 +1,38 @@
 {
   "apiId": "footer",
   "name": "Footer",
-  "description": "Site footer with link columns and copyright.",
+  "description": "Site footer with brand, link groups, a newsletter zone and a legal line.",
   "icon": "layout-bottombar",
   "category": "structure",
   "version": 1,
   "fields": [
     {
-      "fieldId": "copyright",
-      "name": "Copyright",
+      "fieldId": "brand",
+      "name": "Brand",
       "type": "string",
       "isTitle": true,
       "localized": true,
       "validators": { "required": true }
     },
+    { "fieldId": "description", "name": "Description", "type": "text", "localized": true },
     {
-      "fieldId": "columns",
-      "name": "Columns",
+      "fieldId": "groups",
+      "name": "Link groups",
       "type": "list",
       "metadata": {
         "item": {
-          "fieldId": "column",
-          "name": "Column",
+          "fieldId": "group",
+          "name": "Group",
           "type": "composite",
           "metadata": {
             "fields": [
-              { "fieldId": "heading", "name": "Heading", "type": "string", "localized": true },
+              {
+                "fieldId": "title",
+                "name": "Title",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
               {
                 "fieldId": "links",
                 "name": "Links",
@@ -41,9 +48,15 @@
                           "fieldId": "label",
                           "name": "Label",
                           "type": "string",
-                          "localized": true
+                          "localized": true,
+                          "validators": { "required": true }
                         },
-                        { "fieldId": "href", "name": "URL", "type": "string" }
+                        {
+                          "fieldId": "href",
+                          "name": "URL",
+                          "type": "string",
+                          "validators": { "required": true }
+                        }
                       ]
                     }
                   }
@@ -53,6 +66,21 @@
           }
         }
       }
+    },
+    { "fieldId": "legal", "name": "Legal line", "type": "string", "localized": true },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "metadata": { "options": ["default", "minimal"] }
+    }
+  ],
+  "slots": [
+    {
+      "id": "newsletter",
+      "label": "Newsletter signup",
+      "description": "Optional signup form rendered above the legal line.",
+      "maxItems": 1
     }
   ]
 }

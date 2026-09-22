@@ -1,7 +1,15 @@
 {
-  "heading": "Build your site with Eldra",
-  "subheading": "Content-managed blocks, deployed globally.",
-  "ctaLabel": "Get started",
-  "ctaHref": "/contact",
-  "align": "center"
+  "eyebrow": "New season",
+  "heading": "Warm layers for cold mornings",
+  "subheading": "Hand-finished knitwear and everyday essentials, designed for slow mornings at home.",
+  "image": {
+    "assetId": "demo-hero",
+    "url": "/demo/hero.svg",
+    "altText": "A cup of coffee beside a folded wool throw"
+  },
+  "variant": "image-right",
+  "ctaLabel": "Shop the collection",
+  "ctaHref": "/shop/new",
+  "secondaryCtaLabel": "Our story",
+  "secondaryCtaHref": "/about"
 }

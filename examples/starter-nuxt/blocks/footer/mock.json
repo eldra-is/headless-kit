@@ -1,4 +1,42 @@
 {
-  "copyright": "© 2026 Acme",
-  "columns": [{ "heading": "Company", "links": [{ "label": "About", "href": "/about" }] }]
+  "brand": "Northwind Goods",
+  "description": "Thoughtfully made home and lifestyle goods, built to last and easy to love.",
+  "groups": [
+    {
+      "title": "Shop",
+      "links": [
+        { "label": "New arrivals", "href": "/shop/new" },
+        { "label": "Kitchen", "href": "/shop/kitchen" },
+        { "label": "Living room", "href": "/shop/living-room" },
+        { "label": "Gift cards", "href": "/shop/gift-cards" }
+      ]
+    },
+    {
+      "title": "Company",
+      "links": [
+        { "label": "Our story", "href": "/about" },
+        { "label": "Journal", "href": "/journal" },
+        { "label": "Sustainability", "href": "/sustainability" },
+        { "label": "Careers", "href": "/careers" }
+      ]
+    },
+    {
+      "title": "Support",
+      "links": [
+        { "label": "Contact us", "href": "/contact" },
+        { "label": "Shipping & returns", "href": "/shipping-returns" },
+        { "label": "FAQ", "href": "/faq" },
+        { "label": "Track an order", "href": "/orders/track" }
+      ]
+    },
+    {
+      "title": "Follow",
+      "links": [
+        { "label": "Instagram", "href": "https://instagram.com/northwindgoods" },
+        { "label": "Pinterest", "href": "https://pinterest.com/northwindgoods" }
+      ]
+    }
+  ],
+  "legal": "© 2026 Northwind Goods. All rights reserved.",
+  "variant": "default"
 }

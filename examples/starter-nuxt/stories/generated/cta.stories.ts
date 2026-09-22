@@ -29,3 +29,9 @@ export const VariantSubtle: Story = {
     entry: { id: "cta", data: { ...mock, "variant": "subtle" } },
   },
 };
+
+export const VariantSplit: Story = {
+  args: {
+    entry: { id: "cta", data: { ...mock, "variant": "split" } },
+  },
+};

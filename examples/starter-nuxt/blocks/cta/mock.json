@@ -1,7 +1,9 @@
 {
-  "heading": "Ready to launch?",
-  "body": "Connect your repo and publish in minutes.",
-  "buttonLabel": "Start now",
-  "buttonHref": "/contact",
+  "heading": "Free shipping over $75",
+  "body": "Every order ships carbon-neutral, with easy 30-day returns.",
+  "buttonLabel": "Start shopping",
+  "buttonHref": "/shop",
+  "secondaryButtonLabel": "Shipping & returns",
+  "secondaryButtonHref": "/shipping-returns",
   "variant": "primary"
 }

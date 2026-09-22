@@ -18,14 +18,20 @@ export const Default: Story = {
   args: { entry: { id: "hero", data: mock } },
 };
 
-export const AlignLeft: Story = {
+export const VariantImageRight: Story = {
   args: {
-    entry: { id: "hero", data: { ...mock, "align": "left" } },
+    entry: { id: "hero", data: { ...mock, "variant": "image-right" } },
   },
 };
 
-export const AlignCenter: Story = {
+export const VariantImageBackground: Story = {
   args: {
-    entry: { id: "hero", data: { ...mock, "align": "center" } },
+    entry: { id: "hero", data: { ...mock, "variant": "image-background" } },
+  },
+};
+
+export const VariantCentered: Story = {
+  args: {
+    entry: { id: "hero", data: { ...mock, "variant": "centered" } },
   },
 };

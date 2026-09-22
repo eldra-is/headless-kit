@@ -1,55 +1,68 @@
 <script setup lang="ts">
-import { safeHref } from '../../app/utils/links';
+/**
+ * Site footer. `variant`: `default` (brand + description, link groups, an
+ * optional `newsletter` slot, legal line) or `minimal` (brand + legal line
+ * only — no groups, no newsletter zone). The `newsletter` slot is declared
+ * in `block.json` for a future newsletter-signup block (project 2); this
+ * block only renders the zone when a child is actually placed in it.
+ */
+import { computed, useSlots } from 'vue';
+import { useBlockData } from '../../app/composables/useBlockData';
+import { focusRing } from '../../app/utils/classes';
+import UiContainer from '../../app/components/ui/UiContainer.vue';
+import UiLink from '../../app/components/ui/UiLink.vue';
 
-const props = defineProps<{ entry: { id: string; data: Record<string, unknown> } }>();
-const d = computed(
-  () =>
-    props.entry.data as {
-      copyright?: string;
-      columns?: Array<{ heading?: string; links?: Array<{ label?: string; href?: string }> }>;
-    }
-);
+const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
+const { data } = useBlockData(props, 'footer');
+
+const slots = useSlots();
+const variant = computed(() => data.value.variant ?? 'default');
+const groups = computed(() => data.value.groups ?? []);
+const linkClass = [focusRing, 'rounded-theme-sm text-sm text-muted hover:text-text'];
 </script>
 
 <template>
-  <footer class="footer">
-    <div class="columns container">
-      <section v-for="(column, i) in d.columns ?? []" :key="i" class="column">
-        <h2 v-if="column.heading">{{ column.heading }}</h2>
-        <ul>
-          <li v-for="(link, j) in column.links ?? []" :key="j">
-            <a v-if="safeHref(link.href)" :href="safeHref(link.href)!">{{ link.label }}</a>
-          </li>
-        </ul>
-      </section>
-      <p class="copyright">{{ d.copyright }}</p>
-    </div>
+  <footer class="border-border bg-surface border-t">
+    <UiContainer size="wide" class="py-section">
+      <div
+        v-if="variant === 'default'"
+        class="grid gap-10 md:grid-cols-[2fr_repeat(4,minmax(0,1fr))]"
+      >
+        <div>
+          <p class="font-heading text-text text-lg font-semibold">{{ data.brand }}</p>
+          <p v-if="data.description" class="text-muted mt-2 max-w-sm text-sm">
+            {{ data.description }}
+          </p>
+        </div>
+        <div v-for="(group, index) in groups" :key="index">
+          <h2 class="text-text text-sm font-semibold">{{ group.title }}</h2>
+          <ul class="mt-3 space-y-2">
+            <li v-for="(link, linkIndex) in group.links ?? []" :key="linkIndex">
+              <UiLink v-if="link.href" :href="link.href" :class="linkClass">{{
+                link.label
+              }}</UiLink>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div v-else class="text-center">
+        <p class="font-heading text-text text-lg font-semibold">{{ data.brand }}</p>
+      </div>
+
+      <div v-if="slots.newsletter" class="border-border mt-10 border-t pt-8">
+        <slot name="newsletter" />
+      </div>
+
+      <div
+        class="border-border text-muted mt-10 flex flex-col gap-4 border-t pt-6 text-sm"
+        :class="
+          variant === 'default'
+            ? 'md:flex-row md:items-center md:justify-between'
+            : 'items-center text-center'
+        "
+      >
+        <p>{{ data.legal }}</p>
+      </div>
+    </UiContainer>
   </footer>
 </template>
-
-<style scoped>
-.footer {
-  padding-block: var(--theme-section);
-  background: var(--eldra-color-surface);
-}
-.columns {
-  display: grid;
-  gap: var(--theme-gutter);
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-}
-.column {
-  padding: 0;
-}
-h2 {
-  font-size: 1rem;
-}
-ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.copyright {
-  grid-column: 1 / -1;
-  color: var(--eldra-color-muted);
-}
-</style>

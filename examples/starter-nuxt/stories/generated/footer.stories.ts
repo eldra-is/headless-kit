@@ -17,3 +17,15 @@ type Story = StoryObj<typeof Block>;
 export const Default: Story = {
   args: { entry: { id: "footer", data: mock } },
 };
+
+export const VariantDefault: Story = {
+  args: {
+    entry: { id: "footer", data: { ...mock, "variant": "default" } },
+  },
+};
+
+export const VariantMinimal: Story = {
+  args: {
+    entry: { id: "footer", data: { ...mock, "variant": "minimal" } },
+  },
+};
