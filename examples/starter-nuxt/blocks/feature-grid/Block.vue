@@ -14,7 +14,7 @@ const d = computed(
     <h2 v-if="d.heading">{{ d.heading }}</h2>
     <ul class="grid">
       <li v-for="(feature, i) in d.features ?? []" :key="i" class="feature">
-        <EldraIcon :name="feature.icon" />
+        <UiIcon :name="feature.icon" />
         <h3>{{ feature.title }}</h3>
         <p v-if="feature.description">{{ feature.description }}</p>
       </li>

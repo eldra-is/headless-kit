@@ -68,3 +68,64 @@
     @apply ring-primary ring-offset-background ring-2 ring-offset-2 outline-none;
   }
 }
+
+/* `UiContainer` (app/components/ui/UiContainer.vue) sets `data-size` to one
+   of the four container token ids (`narrow`/`content`/`wide`/`full`, see
+   tokens.json's `containers`); these rules read the matching
+   `--eldra-container-<id>-max-width` / `-gutter-<breakpoint>` custom
+   properties the theme's token CSS emits (see
+   @eldrajs/theme-core's generateDesignTokenCss). Breakpoints mirror
+   DEFAULT_LAYOUT_BREAKPOINTS (tablet 768px, normal 1024px; mobile is the
+   unqualified base rule) — written once here rather than per component
+   instance, since Tailwind's arbitrary-value utilities cannot interpolate a
+   dynamic custom-property name from a prop at runtime. */
+@layer components {
+  .eldra-container[data-size] {
+    width: 100%;
+    margin-inline: auto;
+  }
+  .eldra-container[data-size='narrow'] {
+    max-width: var(--eldra-container-narrow-max-width);
+    padding-inline: var(--eldra-container-narrow-gutter-mobile);
+  }
+  .eldra-container[data-size='content'] {
+    max-width: var(--eldra-container-content-max-width);
+    padding-inline: var(--eldra-container-content-gutter-mobile);
+  }
+  .eldra-container[data-size='wide'] {
+    max-width: var(--eldra-container-wide-max-width);
+    padding-inline: var(--eldra-container-wide-gutter-mobile);
+  }
+  .eldra-container[data-size='full'] {
+    max-width: var(--eldra-container-full-max-width);
+    padding-inline: var(--eldra-container-full-gutter-mobile);
+  }
+  @media (min-width: 768px) {
+    .eldra-container[data-size='narrow'] {
+      padding-inline: var(--eldra-container-narrow-gutter-tablet);
+    }
+    .eldra-container[data-size='content'] {
+      padding-inline: var(--eldra-container-content-gutter-tablet);
+    }
+    .eldra-container[data-size='wide'] {
+      padding-inline: var(--eldra-container-wide-gutter-tablet);
+    }
+    .eldra-container[data-size='full'] {
+      padding-inline: var(--eldra-container-full-gutter-tablet);
+    }
+  }
+  @media (min-width: 1024px) {
+    .eldra-container[data-size='narrow'] {
+      padding-inline: var(--eldra-container-narrow-gutter-normal);
+    }
+    .eldra-container[data-size='content'] {
+      padding-inline: var(--eldra-container-content-gutter-normal);
+    }
+    .eldra-container[data-size='wide'] {
+      padding-inline: var(--eldra-container-wide-gutter-normal);
+    }
+    .eldra-container[data-size='full'] {
+      padding-inline: var(--eldra-container-full-gutter-normal);
+    }
+  }
+}

@@ -32,7 +32,8 @@ export default defineConfig({
   test: {
     name: 'starter-nuxt',
     environment: 'node',
-    include: ['test/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts', 'app/components/ui/__tests__/*.spec.ts'],
+    setupFiles: ['./test/setup.ts'],
     testTimeout: 120_000,
     hookTimeout: 120_000,
   },

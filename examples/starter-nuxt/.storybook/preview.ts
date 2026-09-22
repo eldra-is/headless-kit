@@ -8,6 +8,8 @@ import 'virtual:eldra/tokens.css';
 import '../app/assets/main.css';
 import { withEldraContext } from './eldra';
 import { NuxtLinkStub } from './nuxt-link-stub';
+import { createStorybookIconFetcher } from './iconFetcher';
+import { ICON_FETCHER_KEY } from '../app/composables/iconFetcher';
 
 // Mirrors the runtime plugin: register block field metadata once so
 // `useEldraBlockField` / `EldraRichText` (the `article` block's rich-text
@@ -19,6 +21,11 @@ setup((app) => {
   // blocks/navigation/Block.vue) — Storybook has no Nuxt runtime to resolve
   // it, so render a plain `<a>` in its place.
   app.component('NuxtLink', NuxtLinkStub);
+  // `UiIcon` -> `useEldraIcon` normally calls Nuxt's `/api/eldra-icon`
+  // route, which does not exist under Storybook's plain Vite build. Provide
+  // the glob-based fetcher app-wide so every story resolves icons the same
+  // way a real page does, just from a different transport.
+  app.provide(ICON_FETCHER_KEY, createStorybookIconFetcher());
 });
 
 const preview: Preview = {

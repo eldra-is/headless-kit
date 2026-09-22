@@ -25,3 +25,13 @@ declare module 'virtual:eldra/tokens.css' {}
 // a direct devDependency just for its types. `preview.ts`'s side-effect
 // `import '../app/assets/main.css'` only needs the module to exist.
 declare module '*.css';
+
+// Same reasoning for `import.meta.glob` (used by `iconFetcher.ts`): only the
+// narrow shape this config actually calls it with (`{ query, import }`
+// producing lazy string loaders), not `vite/client`'s full overload set.
+interface ImportMeta {
+  glob(
+    pattern: string,
+    options: { query?: string; import?: string }
+  ): Record<string, () => Promise<string>>;
+}
