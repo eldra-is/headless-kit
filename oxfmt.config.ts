@@ -7,5 +7,7 @@ export default oxfmtConfig({
     'packages/sdk/src/__tests__/fixtures/contract.ts',
     'packages/sdk/src/__tests__/fixtures/web-gateway.json',
     '**/.eldra/manifest.json',
+    '**/.eldra/previews.json',
+    'examples/starter-nuxt/stories/generated/**',
   ],
 }) as OxfmtConfig;

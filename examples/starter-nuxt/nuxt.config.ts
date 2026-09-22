@@ -54,4 +54,14 @@ export default defineNuxtConfig({
     // `@theme static` block instead.
     tailwind: false,
   },
+  typescript: {
+    tsConfig: {
+      // Storybook config/stories run outside the Nuxt build (no auto-imports,
+      // a different Vite plugin set — see .storybook/main.ts) and import
+      // `virtual:eldra/*` ids `nuxi typecheck` has no ambient types for.
+      // Type-checked separately by tsconfig.storybook.json (`pnpm
+      // typecheck:storybook`, chained from `pnpm typecheck`).
+      exclude: ['../.storybook/**', '../stories/**'],
+    },
+  },
 });

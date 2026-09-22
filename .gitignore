@@ -11,3 +11,4 @@ coverage
 .nuxt
 .output
 packages/theme-cli/template/
+storybook-static

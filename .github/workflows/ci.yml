@@ -49,6 +49,9 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Storybook build (starter)
+        run: pnpm --filter starter-nuxt build-storybook
+
       - name: publint
         run: pnpm publint
 

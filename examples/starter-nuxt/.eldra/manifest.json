@@ -80,7 +80,7 @@
           ]
         }
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/article.png"
     },
     {
       "apiId": "cta",
@@ -142,7 +142,7 @@
         "buttonHref": "/contact",
         "variant": "primary"
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/cta.png"
     },
     {
       "apiId": "faq",
@@ -203,7 +203,7 @@
           }
         ]
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/faq.png"
     },
     {
       "apiId": "feature-grid",
@@ -272,7 +272,7 @@
           }
         ]
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/feature-grid.png"
     },
     {
       "apiId": "footer",
@@ -356,7 +356,7 @@
           }
         ]
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/footer.png"
     },
     {
       "apiId": "gallery",
@@ -415,7 +415,7 @@
           }
         ]
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/gallery.png"
     },
     {
       "apiId": "hero",
@@ -550,7 +550,7 @@
         "caption": "A caption for the image",
         "fullWidth": false
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/image.png"
     },
     {
       "apiId": "navigation",
@@ -617,7 +617,7 @@
           }
         ]
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/navigation.png"
     },
     {
       "apiId": "testimonials",
@@ -692,7 +692,7 @@
           }
         ]
       },
-      "previewImage": null
+      "previewImage": ".eldra/previews/testimonials.png"
     }
   ],
   "routes": [
