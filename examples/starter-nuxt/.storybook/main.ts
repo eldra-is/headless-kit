@@ -33,8 +33,7 @@ const config: StorybookConfig = {
       // Every block under `blocks/**` now imports `vue`/`@eldrajs/*`
       // explicitly (Tasks 6-7 rebuilt all ten; see the block contract rule
       // in the design spec §3), so Storybook — which has no Nuxt build step
-      // to auto-import from — needs no `unplugin-auto-import` shim any
-      // more. Removed in Task 7; see task-7-report.md.
+      // to auto-import from — needs no auto-import shim any more.
       eldraTheme({ themeDir, framework: 'nuxt', tailwind: false }),
     ];
     config.resolve = {
