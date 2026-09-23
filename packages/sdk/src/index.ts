@@ -1,6 +1,7 @@
 export {
   createEldraClient,
   DEFAULT_ELDRA_API_BASE_URL,
+  DEFAULT_ELDRA_CHECKOUT_URL,
   EldraHttpError,
   getEldraClient,
   initEldraClient,

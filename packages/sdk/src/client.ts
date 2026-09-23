@@ -51,6 +51,16 @@ const apiBaseUrlEnvKeys = [
 
 export const DEFAULT_ELDRA_API_BASE_URL = 'https://web.eldra.app/api';
 
+const checkoutUrlEnvKeys = [
+  'ELDRA_CHECKOUT_URL',
+  'VITE_ELDRA_CHECKOUT_URL',
+  'NEXT_PUBLIC_ELDRA_CHECKOUT_URL',
+  'NUXT_PUBLIC_ELDRA_CHECKOUT_URL',
+  'PUBLIC_ELDRA_CHECKOUT_URL',
+] as const;
+
+export const DEFAULT_ELDRA_CHECKOUT_URL = 'https://checkout.eldra.app';
+
 const orgIdEnvKeys = [
   'ELDRA_ORG_ID',
   'VITE_ELDRA_ORG_ID',
@@ -359,10 +369,10 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
     },
     checkout: {
       handoffUrl: (handoff: EldraCheckoutHandoffOptions) => {
-        const checkoutUrl = handoff.checkoutUrl ?? resolveRuntimeValue(options.checkoutUrl);
+        const checkoutUrl = handoff.checkoutUrl ?? resolveCheckoutUrl(options);
         if (!checkoutUrl) {
           throw new Error(
-            'Missing checkout URL. Pass checkoutUrl to createEldraClient() or to handoffUrl().'
+            `Missing checkout URL. Pass checkoutUrl to createEldraClient() or to handoffUrl(); ${DEFAULT_ELDRA_CHECKOUT_URL} is only the default for the default API base URL.`
           );
         }
         const orgId = handoff.orgId ?? resolveOrgId(options);
@@ -507,6 +517,17 @@ function resolveApiBaseUrl(options: EldraClientOptions): string {
     resolveRuntimeValue(options.apiBaseUrl) ??
     readFirstEnvValue(resolveRuntimeValue(options.env), apiBaseUrlEnvKeys) ??
     DEFAULT_ELDRA_API_BASE_URL
+  );
+}
+
+// The production checkout only knows production carts, so another gateway must name its own.
+function resolveCheckoutUrl(options: EldraClientOptions): string | undefined {
+  return (
+    resolveRuntimeValue(options.checkoutUrl) ??
+    readFirstEnvValue(resolveRuntimeValue(options.env), checkoutUrlEnvKeys) ??
+    (resolveApiBaseUrl(options).replace(/\/$/, '') === DEFAULT_ELDRA_API_BASE_URL
+      ? DEFAULT_ELDRA_CHECKOUT_URL
+      : undefined)
   );
 }
 
