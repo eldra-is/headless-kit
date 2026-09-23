@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.3...sdk-v0.2.4) (2026-09-23)
+
+
+### Features
+
+* **sdk:** default the checkout handoff to the Eldra hosted checkout ([#32](https://github.com/eldra-is/headless-kit/issues/32)) ([b38a1e4](https://github.com/eldra-is/headless-kit/commit/b38a1e498ffd4b6cc6b97a082df6e79779cac410))
+
 ## [0.2.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.2...sdk-v0.2.3) (2026-09-23)
 
 
