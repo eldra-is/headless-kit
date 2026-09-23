@@ -66,12 +66,18 @@ pnpm --filter starter-nuxt dev
 
 with `ELDRA_GATEWAY_URL` (the org's public CMS gateway) and `ELDRA_ORG_ID` set in the environment.
 See [examples/starter-nuxt](../examples/starter-nuxt) for the full README, including blocks, slots,
-build/deploy and CI wiring examples.
+build/deploy and CI wiring examples, and [Starter kit conventions](starter-kit.md) for the
+primitive layer, the block contract, Storybook, and the accessibility/testing harness a customer
+inherits from `eldra-theme init`.
 
 ## More
 
+- [Starter kit conventions](starter-kit.md) — the primitive layer (`app/components/ui/`), the block
+  contract, strings, Storybook and generated previews, testing and accessibility gates.
 - [Design tokens](theme-design-tokens.md) — `tokens.json`, the generated CSS variables, the
-  optional Tailwind v4 layer.
+  optional Tailwind v4 layer (and why a CSS-level `@import` of
+  `virtual:eldra/tailwind-theme.css` doesn't work — the starter's fallback route is documented
+  there).
 - [Block field migrations](theme-field-migrations.md) — renaming fields across block versions.
 - [Reusable page components](theme-reusable-components.md) — the reusable-component projection and
   how `EldraLayout` resolves placements.

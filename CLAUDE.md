@@ -109,10 +109,32 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   silently.
 - `examples/starter-nuxt` — the theme starter: what `eldra-theme init` copies. `theme-cli`'s
   `prepack` script copies this directory into `packages/theme-cli/template/` (git-ignored, rebuilt
-  on every pack/publish) rather than the CLI depending on it at runtime.
+  on every pack/publish) rather than the CLI depending on it at runtime. Copied source, not a
+  runtime UI library: `app/components/ui/` is the primitive layer (Tailwind classes, no scoped CSS,
+  no `@apply`), `blocks/<apiId>/{block.json,Block.vue,mock.json,preview.png,__tests__/}` is the
+  block contract, and neither `blocks/**` nor `app/components/ui/**` may call Nuxt globals
+  (`useRoute`, `useHead`, `NuxtLink`, `$fetch`, `useAsyncData`) or rely on Nuxt auto-imports — every
+  `vue`/`@eldrajs/*` import is explicit, which is what lets a block render in Storybook with no
+  Nuxt build step. Tailwind v4 is wired through the fallback route, not the plugin's
+  `virtual:eldra/tailwind-theme.css` CSS-level `@import` (that import only resolves at the JS level
+  — see `docs/theme-design-tokens.md`): `eldra.tailwind: false`, `app/assets/main.css` starts with
+  `@import 'tailwindcss'` and carries a generated `@theme static` color block kept in sync with
+  `tokens.json` by `scripts/sync-theme-colors.mjs` (`pnpm check:theme-colors` fails the build on
+  drift). **Storybook** (`examples/starter-nuxt/.storybook/`) generates its block stories from
+  `virtual:eldra/manifest`/`virtual:eldra/blocks` rather than hand-written CSF — one `Default` story
+  per block from `mock.json`, one per declared `variant` option; `pnpm --filter starter-nuxt
+build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/previews/*.png`,
+  `.eldra/previews.json`) are Playwright screenshots of those generated stories
+  (`scripts/previews.mjs`) keyed by a content hash of that block's `Block.vue` + `mock.json` **plus
+  `main.css`** (a shared style change invalidates every block's hash) — `test/previewsFresh.spec.ts`
+  fails "run pnpm previews" when a hash is stale, so run `pnpm --filter starter-nuxt previews` after
+  any block or `main.css` change and commit the regenerated files. See `docs/starter-kit.md` for
+  the full set of conventions (styling foundation, primitive table, strings, testing gates) in
+  consumer terms.
 - `docs/` — plain markdown: `getting-started.md`, `rich-text.md`, `frameworks.md` (the contract a
   wrapper for another framework must satisfy), `themes.md` (theme package map, the framework-free
-  rule, the Studio bridge, running the starter) plus the four `theme-*.md` docs it links to.
+  rule, the Studio bridge, running the starter), `starter-kit.md` (the starter's own conventions —
+  see the `examples/starter-nuxt` entry above) plus the four `theme-*.md` docs `themes.md` links to.
 
 ## Testing
 
@@ -130,3 +152,11 @@ for its two browser specs (`designTokenParity.browser.spec.ts`, `slots.browser.s
 `@playwright/test` 1.62.1 — `pnpm exec playwright install --with-deps chromium` once locally; CI
 installs it every run. `theme-cli`'s tests run `dist/cli.js` as a subprocess, so build that package
 first too.
+
+**The accessibility gate (`examples/starter-nuxt`).** Every primitive and block spec asserts
+`expect(await axe(wrapper.element)).toHaveNoViolations()` (`vitest-axe`, jsdom) — a passing axe
+check is a required part of the spec, not an optional add-on, and a block with a `variant` field
+asserts it for every declared variant, not just the default. Anything interactive (menu, dialog,
+drawer, accordion, tabs, carousel, lightbox) additionally needs a keyboard test — the operable path
+a screen-reader or keyboard-only visitor actually has, not just a mouse-click assertion. This is
+enforced by review, not a separate CI check: a new primitive/block PR without both is incomplete.

@@ -5,15 +5,68 @@ Theme `tokens.json` is the framework-neutral source of color tokens and layout c
 `@eldrajs/vite-plugin-theme` exposes two CSS entries:
 
 - `virtual:eldra/tokens.css` emits the generic `--eldra-color-*` and `--eldra-container-*` variables. `@eldrajs/theme-nuxt` imports this entry automatically.
-- `virtual:eldra/tailwind-theme.css` is opt-in. Configure `eldraTheme({ tailwind: true })`, then import the virtual CSS from the application entry. The module imports Tailwind v4 and emits top-level `@theme static` `--color-*` variables backed by the generic Eldra variables.
+- `virtual:eldra/tailwind-theme.css` is opt-in. Configure `eldraTheme({ tailwind: true })`. The module imports Tailwind v4 and emits top-level `@theme static` `--color-*` variables backed by the generic Eldra variables.
+
+**A JS-level side-effect import of that virtual id works:**
 
 ```ts
 import 'virtual:eldra/tailwind-theme.css';
 ```
 
-Nuxt themes can instead set `eldra.tailwind: true`; the module adds the virtual CSS entry automatically.
+`packages/vite-plugin-theme/src/__tests__/plugin.spec.ts`'s Tailwind test does exactly this, from a
+`.ts` entry, and passes — `vite-plugin-theme`'s `resolveId` hook resolves the bare id normally
+through Vite's plugin chain.
 
-Literal theme-source classes such as `bg-brand-primary`, `text-brand-primary`, and `border-brand-primary` then compile normally. Do not build class names from CMS values and do not add CMS content as a Tailwind source. Set `tailwind: false` (the default) for non-Tailwind themes. Enabling the adapter without `tailwindcss` major 4 fails the build with an actionable error.
+**A CSS-level `@import` of the same id does not work, and this is not theme-specific.** Verified
+with a real `nuxi generate` against `examples/starter-nuxt` (see the starter-kit foundations
+project's Task 1 report): `@tailwindcss/vite` resolves every `@import` inside a CSS file with its
+own filesystem resolver (`enhanced-resolve`), not through Vite's `resolveId` plugin chain, so it
+never reaches `vite-plugin-theme`'s hook that maps the bare id to the resolved virtual module. A
+theme whose CSS entry starts with
+
+```css
+@import 'virtual:eldra/tailwind-theme.css';
+```
+
+fails the build with `Error: Can't resolve 'virtual:eldra/tailwind-theme.css'`. This matters in
+practice because a real theme almost always wants to combine the adapter's color variables with its
+own hand-authored `@theme` extension (fonts, radii, shadows) and `@layer base` rules in **one** CSS
+file — and Nuxt's `css: [...]` array only accepts CSS files, so the JS-level import above is not an
+option there either. A second CSS entry carrying only the `@theme` extension does not work as a
+workaround: Tailwind v4 treats each file containing `@import "tailwindcss"` as its own independent
+build root, so a sibling file's `@theme` block is never merged into it.
+
+**The fallback every theme should use instead:** keep `eldra.tailwind: false` (the default) and
+author the CSS entry as a single self-contained Tailwind root —
+
+```css
+@import 'tailwindcss';
+
+@theme static {
+  --color-primary: var(--eldra-color-primary);
+  /* … one line per color token in tokens.json … */
+}
+
+@theme {
+  /* the theme's own font/radius/shadow/spacing extension */
+}
+```
+
+register `@tailwindcss/vite` directly in the theme's own Vite config (the adapter asserts
+`tailwindcss@4.x` is installed when `tailwind: true`, but never registers the actual transform
+plugin itself — every consumer must add `vite: { plugins: [tailwindcss()] }`), and keep the
+generated `@theme static` color block in sync with `tokens.json` with a small script checked in CI
+(`examples/starter-nuxt/scripts/sync-theme-colors.mjs` is the reference implementation —
+`pnpm sync-theme-colors` writes it, `pnpm check:theme-colors` fails the build if it has drifted).
+`--eldra-color-*` custom properties are available regardless of the `tailwind` option (`theme-nuxt`
+always imports `virtual:eldra/tokens.css`), so the generated block's `var(--eldra-color-<id>)`
+references resolve either way. See [`docs/starter-kit.md`](starter-kit.md) and
+`examples/starter-nuxt/app/assets/main.css` for the starter's exact version of this.
+
+Literal theme-source classes such as `bg-primary`, `text-muted`, and `border-border` then compile
+normally. Do not build class names from CMS values and do not add CMS content as a Tailwind source.
+Enabling the adapter (`tailwind: true`) without `tailwindcss` major 4 installed fails the build with
+an actionable error.
 
 Vue's `EldraLayout` accepts the resolved catalog through its `designTokens` prop or the provided Eldra context. It emits nonce-compatible generic token CSS and validates every referenced container id before rendering. Explicit responsive width, maximum width, margin, and padding values override the corresponding preset declarations at each breakpoint.
 

@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
+import UiButton from '../components/ui/UiButton.vue';
+import UiSection from '../components/ui/UiSection.vue';
+import { useT } from '../composables/useT';
 
 const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
   useEldraPage();
+const t = useT();
 
 // `/404` is prerendered (see nitro.prerender.routes) so a styled not-found
 // shell exists for static hosts. Without gateway credentials the page-lookup
@@ -28,28 +32,42 @@ const isNotFound = computed(
 
 useHead(() => ({
   title: isNotFound.value
-    ? 'Page not found'
+    ? t('notFound.title')
     : (((template.value ?? page.value)?.data.title as string | undefined) ?? 'Site'),
 }));
 </script>
 
 <template>
-  <main v-if="pending" class="container" aria-busy="true"><p>Loading…</p></main>
-  <main v-else-if="error && !isNotFoundRoute" class="container">
-    <p role="alert">{{ error }}</p>
+  <main id="main">
+    <UiSection v-if="pending" spacing="lg" container-size="content">
+      <p aria-busy="true">{{ t('loading') }}</p>
+    </UiSection>
+    <UiSection v-else-if="error && !isNotFoundRoute" spacing="lg" container-size="content">
+      <p role="alert">{{ error }}</p>
+    </UiSection>
+    <UiSection
+      v-else-if="isNotFound"
+      spacing="lg"
+      container-size="narrow"
+      data-eldra-not-found
+      class="text-center"
+    >
+      <p class="text-muted text-sm font-semibold tracking-widest uppercase">
+        {{ t('notFound.eyebrow') }}
+      </p>
+      <h1 class="font-heading mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+        {{ t('notFound.title') }}
+      </h1>
+      <p class="text-muted mt-4 text-lg">{{ t('notFound.body') }}</p>
+      <UiButton class="mt-8" href="/">{{ t('notFound.back') }}</UiButton>
+    </UiSection>
+    <EldraLayout
+      v-else-if="layout !== null"
+      :layout="layout"
+      :blocks="blocks"
+      :reusable-component-projection="reusableComponentProjection"
+      :template-entry="entry ?? undefined"
+    />
+    <EldraBlockZone v-else :blocks="blocks" />
   </main>
-  <main v-else-if="isNotFound" class="not-found container" data-eldra-not-found>
-    <p class="muted">404</p>
-    <h1>Page not found</h1>
-    <p>The page you were looking for does not exist or has been moved.</p>
-    <NuxtLink to="/" class="button">Back to home</NuxtLink>
-  </main>
-  <EldraLayout
-    v-else-if="layout !== null"
-    :layout="layout"
-    :blocks="blocks"
-    :reusable-component-projection="reusableComponentProjection"
-    :template-entry="entry ?? undefined"
-  />
-  <EldraBlockZone v-else :blocks="blocks" />
 </template>
