@@ -116,7 +116,10 @@ function onLightboxKeydown(event: KeyboardEvent): void {
       <div
         ref="trackRef"
         tabindex="0"
-        :class="[focusRing, 'flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2']"
+        :class="[
+          focusRing,
+          'scrollbar-hidden flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2',
+        ]"
         @keydown="onTrackKeydown"
       >
         <component

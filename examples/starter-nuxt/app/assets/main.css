@@ -22,6 +22,19 @@
 }
 /* eldra:colors:end */
 
+/* Hides the native scrollbar on a scroll-snap carousel track while keeping
+   it scrollable by wheel, trackpad, touch and keyboard (the track keeps
+   `tabindex="0"` and its own ArrowLeft/ArrowRight handling — see
+   `useCarousel`); previous/next `UiButton`s remain the other operable
+   path. Applied in `blocks/testimonials/Block.vue` and
+   `blocks/gallery/Block.vue`. */
+@utility scrollbar-hidden {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @theme {
   --font-heading: var(--theme-font-heading);
   --font-body: var(--theme-font-body);

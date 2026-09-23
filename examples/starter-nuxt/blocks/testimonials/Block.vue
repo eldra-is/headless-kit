@@ -62,7 +62,10 @@ function initialsOf(name: string): string {
       <div
         ref="trackRef"
         tabindex="0"
-        :class="[focusRing, 'flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-2']"
+        :class="[
+          focusRing,
+          'scrollbar-hidden flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-2',
+        ]"
         @keydown="onTrackKeydown"
       >
         <div
