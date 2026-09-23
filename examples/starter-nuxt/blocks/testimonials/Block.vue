@@ -30,6 +30,20 @@ const headingId = `testimonials-heading-${useUiId()}`;
 
 const total = computed(() => items.value.length);
 const { index, trackRef, next, previous, onTrackKeydown } = useCarousel(total);
+
+/**
+ * Fallback avatar for an item with no `avatar` media: the first letters of
+ * the author's first two words (e.g. "Freyja B." → "FB"), uppercased.
+ */
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join('')
+    .toUpperCase();
+}
 </script>
 
 <template>
@@ -65,6 +79,12 @@ const { index, trackRef, next, previous, onTrackKeydown } = useCarousel(total);
               aspect="1/1"
               class="h-10 w-10 rounded-full object-cover"
             />
+            <span
+              v-else
+              aria-hidden="true"
+              class="bg-primary text-primary-contrast flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+              >{{ initialsOf(item.author) }}</span
+            >
             <div>
               <cite class="text-text block text-sm font-semibold not-italic">{{
                 item.author
@@ -102,6 +122,12 @@ const { index, trackRef, next, previous, onTrackKeydown } = useCarousel(total);
             aspect="1/1"
             class="h-10 w-10 rounded-full object-cover"
           />
+          <span
+            v-else
+            aria-hidden="true"
+            class="bg-primary text-primary-contrast flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+            >{{ initialsOf(item.author) }}</span
+          >
           <div>
             <cite class="text-text block text-sm font-semibold not-italic">{{ item.author }}</cite>
             <span v-if="item.role" class="text-muted block text-sm">{{ item.role }}</span>

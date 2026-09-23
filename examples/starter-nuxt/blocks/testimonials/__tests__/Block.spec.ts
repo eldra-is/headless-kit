@@ -26,6 +26,24 @@ describe('testimonials block', () => {
     }
   );
 
+  it('renders initials derived from the author name when no avatar is set, and is axe clean', async () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
+    for (const item of mock.items) {
+      const [first, second] = item.author.split(' ');
+      const expected = `${first!.charAt(0)}${second!.charAt(0)}`.toUpperCase();
+      expect(wrapper.text()).toContain(expected);
+    }
+    expect(wrapper.find('img').exists()).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('prefers the avatar image over initials when avatar media is set', () => {
+    const data = { ...mock, items: [{ ...mock.items[0], avatar: { url: '/demo/avatar-1.svg' } }] };
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data } }));
+    expect(wrapper.find('img').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('FB');
+  });
+
   it('renders a rating only for items that declare one', () => {
     const data = {
       ...mock,

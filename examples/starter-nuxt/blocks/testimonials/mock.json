@@ -6,33 +6,18 @@
       "quote": "The wool throw is even better in person. It's the first thing I reach for on cold mornings.",
       "author": "Freyja B.",
       "role": "Reykjavík",
-      "avatar": {
-        "assetId": "demo-avatar-1",
-        "url": "/demo/avatar-1.svg",
-        "altText": "Portrait of Freyja"
-      },
       "rating": 5
     },
     {
       "quote": "Shipping was fast and the packaging alone made it feel like a gift.",
       "author": "Marcus T.",
       "role": "Portland, OR",
-      "avatar": {
-        "assetId": "demo-avatar-2",
-        "url": "/demo/avatar-2.svg",
-        "altText": "Portrait of Marcus"
-      },
       "rating": 5
     },
     {
       "quote": "Three years on, our ceramics still look brand new. Worth every penny.",
       "author": "Ingrid H.",
       "role": "Akureyri",
-      "avatar": {
-        "assetId": "demo-avatar-3",
-        "url": "/demo/avatar-3.svg",
-        "altText": "Portrait of Ingrid"
-      },
       "rating": 4
     }
   ]
