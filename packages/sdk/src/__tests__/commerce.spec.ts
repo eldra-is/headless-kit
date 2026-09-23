@@ -178,14 +178,23 @@ describe('eldra sdk inventory and catalog extras', () => {
 });
 
 describe('eldra sdk errors', () => {
-  it('exposes the gateway problem code', () => {
-    const response = { status: 409, statusText: 'Conflict' } as Response;
+  it('exposes the problem category as code and the specific reason as errorId', () => {
+    const response = { status: 404, statusText: 'Not Found' } as Response;
 
-    const error = new EldraHttpError(response, { code: 'INSUFFICIENT_STOCK' });
+    const error = new EldraHttpError(response, {
+      type: '/not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: 'shopping cart not found',
+      code: 'NOT_FOUND',
+      errorId: 'CART_NOT_FOUND',
+    });
     const plain = new EldraHttpError(response, 'nope');
 
-    expect(error.status).toBe(409);
-    expect(error.code).toBe('INSUFFICIENT_STOCK');
+    expect(error.status).toBe(404);
+    expect(error.code).toBe('NOT_FOUND');
+    expect(error.errorId).toBe('CART_NOT_FOUND');
     expect(plain.code).toBeUndefined();
+    expect(plain.errorId).toBeUndefined();
   });
 });

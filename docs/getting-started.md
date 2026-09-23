@@ -167,10 +167,13 @@ to an HTML string with `toHtml` from `@eldrajs/rich-text` in any framework. See
 
 `createCartSession()` keeps the cart id in `localStorage`, `createOrderAccessTokens()` keeps order
 tokens in `sessionStorage`; both take an injectable storage and never throw where storage is
-unavailable. The server may forget a cart; on `CART_NOT_FOUND`, drop the stored id and start a new
-cart.
+unavailable. The server may forget a cart; when a request fails with `errorId` `CART_NOT_FOUND`,
+drop the stored id and start a new cart.
 
 ## Errors
 
-Every failed request throws `EldraHttpError` with `status` and `code` — the gateway's problem code
-such as `INSUFFICIENT_STOCK` or `CART_DISCOUNT_EXHAUSTED`. Branch on `code`, not on the message.
+Every failed request throws `EldraHttpError` with `status`, `code` and `errorId` from the gateway's
+problem body. `code` is the category, such as `NOT_FOUND` or `CONFLICT`; `errorId` is the specific
+reason, such as `CART_NOT_FOUND`, `CART_INSUFFICIENT_STOCK` or `CART_DISCOUNT_EXHAUSTED`, and
+equals `code` when the gateway has nothing more specific to say. Branch on `errorId`, not on the
+message; the [node script example](../examples/node-script/index.ts) prints both.
