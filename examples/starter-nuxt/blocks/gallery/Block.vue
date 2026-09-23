@@ -56,6 +56,17 @@ function previousImage(): void {
   lightboxIndex.value =
     total.value === 0 ? 0 : (lightboxIndex.value - 1 + total.value) % total.value;
 }
+
+/** ArrowLeft/ArrowRight step the lightbox while it's open, wrapping at the ends. */
+function onLightboxKeydown(event: KeyboardEvent): void {
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    nextImage();
+  } else if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    previousImage();
+  }
+}
 </script>
 
 <template>
@@ -142,6 +153,7 @@ function previousImage(): void {
       :title="t('gallery.open')"
       panel-class="m-auto w-[calc(100%-2rem)] max-w-4xl rounded-theme-lg border shadow-theme-md"
       @update:open="lightboxOpen = $event"
+      @keydown="onLightboxKeydown"
     >
       <div v-if="lightboxOpen && currentImage" class="flex flex-col items-center gap-4">
         <UiImage

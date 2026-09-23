@@ -65,6 +65,21 @@ describe('gallery block', () => {
     expect(wrapper.text()).toContain('1 of');
   });
 
+  it('steps forward and back inside the lightbox with ArrowRight/ArrowLeft', async () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
+    await wrapper.findAll('button')[0]!.trigger('click');
+    await nextTick();
+
+    const dialog = wrapper.get('dialog');
+    await dialog.trigger('keydown', { key: 'ArrowRight' });
+    expect(wrapper.text()).toContain('2 of');
+    await dialog.trigger('keydown', { key: 'ArrowLeft' });
+    expect(wrapper.text()).toContain('1 of');
+
+    await dialog.trigger('keydown', { key: 'ArrowLeft' });
+    expect(wrapper.text()).toContain(`${mock.images.length} of`);
+  });
+
   it('closes the lightbox via the dialog close button', async () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
     await wrapper.findAll('button')[0]!.trigger('click');
