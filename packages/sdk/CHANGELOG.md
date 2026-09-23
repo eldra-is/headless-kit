@@ -9,6 +9,10 @@ platform repository.
 
 ## Unreleased
 
+- `EldraHttpError.errorId` carries the problem's specific reason, such as `CART_NOT_FOUND` or
+  `CART_INSUFFICIENT_STOCK`. The docs told you to branch on `code` for these, but the gateway puts
+  them in `errorId`; `code` is only the category (`NOT_FOUND`, `CONFLICT`) and is unchanged.
+
 - Restore `previewToken` on the SDK client and Vite generator after the move from
   `vue-ui-components`. Accepts a string or callback and sends `X-Preview-Token`; the generator
   forwards it to both type endpoints without embedding it in generated files.

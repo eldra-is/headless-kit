@@ -54,6 +54,7 @@ precedence.
 | `inventory` | `availability`                                                                                                         |
 | `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`                                                              |
 
-Every failed request throws `EldraHttpError` with `status` and the gateway's problem `code`.
+Every failed request throws `EldraHttpError` with `status`, the problem's category `code` (such as
+`NOT_FOUND`) and its specific `errorId` (such as `CART_NOT_FOUND`); branch on `errorId`.
 `createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without
 throwing where storage is unavailable.

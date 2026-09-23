@@ -65,8 +65,10 @@ export class EldraHttpError extends Error {
   readonly status: number;
   readonly statusText: string;
   readonly body: unknown;
-  /** The gateway's problem `code`, such as `INSUFFICIENT_STOCK`, when the body carried one. */
+  /** The problem's category, such as `NOT_FOUND` or `CONFLICT`, when the body carried one. */
   readonly code: string | undefined;
+  /** The problem's specific reason, such as `CART_NOT_FOUND`, when the body carried one. */
+  readonly errorId: string | undefined;
 
   constructor(response: Response, body: unknown) {
     super(`Web Studio request failed with ${response.status} ${response.statusText}`);
@@ -74,14 +76,15 @@ export class EldraHttpError extends Error {
     this.status = response.status;
     this.statusText = response.statusText;
     this.body = body;
-    this.code = problemCode(body);
+    this.code = problemField(body, 'code');
+    this.errorId = problemField(body, 'errorId');
   }
 }
 
-function problemCode(body: unknown): string | undefined {
-  if (body && typeof body === 'object' && 'code' in body) {
-    const code = (body as { code?: unknown }).code;
-    return typeof code === 'string' ? code : undefined;
+function problemField(body: unknown, field: 'code' | 'errorId'): string | undefined {
+  if (body && typeof body === 'object' && field in body) {
+    const value = (body as Record<string, unknown>)[field];
+    return typeof value === 'string' ? value : undefined;
   }
   return undefined;
 }
