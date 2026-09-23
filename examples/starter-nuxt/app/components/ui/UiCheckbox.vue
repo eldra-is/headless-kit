@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useAttrs } from 'vue';
-import { useId } from '../../composables/useId';
+import { useUiId } from '../../composables/useUiId';
 import { focusRing } from '../../utils/classes';
 
 defineOptions({ inheritAttrs: false });
@@ -30,7 +30,7 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();
 
 const attrs = useAttrs();
-const generatedId = useId();
+const generatedId = useUiId();
 const inputId = computed(() => props.id ?? `ui-checkbox-${generatedId}`);
 const descriptionId = computed(() =>
   props.description ? `${inputId.value}-description` : undefined

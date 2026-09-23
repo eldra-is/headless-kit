@@ -7,7 +7,7 @@
  * `<UiSelect v-model="x" label="Country"><option value="is">Iceland</option>…</UiSelect>`.
  */
 import { computed, useAttrs } from 'vue';
-import { useId } from '../../composables/useId';
+import { useUiId } from '../../composables/useUiId';
 import { inputBase } from '../../utils/classes';
 
 defineOptions({ inheritAttrs: false });
@@ -39,7 +39,7 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
 const attrs = useAttrs();
-const generatedId = useId();
+const generatedId = useUiId();
 const inputId = computed(() => props.id ?? `ui-select-${generatedId}`);
 const descriptionId = computed(() =>
   props.description ? `${inputId.value}-description` : undefined

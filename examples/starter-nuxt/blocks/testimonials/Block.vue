@@ -13,7 +13,7 @@ import { computed } from 'vue';
 import { focusRing } from '../../app/utils/classes';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useCarousel } from '../../app/composables/useCarousel';
-import { useId } from '../../app/composables/useId';
+import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import UiButton from '../../app/components/ui/UiButton.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
@@ -26,7 +26,7 @@ const t = useT();
 
 const items = computed(() => data.value.items ?? []);
 const isCarousel = computed(() => data.value.variant === 'carousel');
-const headingId = `testimonials-heading-${useId()}`;
+const headingId = `testimonials-heading-${useUiId()}`;
 
 const total = computed(() => items.value.length);
 const { index, trackRef, next, previous, onTrackKeydown } = useCarousel(total);

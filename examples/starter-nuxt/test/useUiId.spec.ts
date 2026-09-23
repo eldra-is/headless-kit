@@ -2,13 +2,13 @@
 import { defineComponent, h } from 'vue';
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { useId } from '../app/composables/useId';
+import { useUiId } from '../app/composables/useUiId';
 
 function mountId(): string {
   let id!: string;
   const Host = defineComponent({
     setup() {
-      id = useId();
+      id = useUiId();
       return () => h('div');
     },
   });
@@ -16,13 +16,13 @@ function mountId(): string {
   return id;
 }
 
-describe('useId', () => {
+describe('useUiId', () => {
   it('returns a non-empty string', () => {
     expect(mountId()).toBeTruthy();
   });
 
   it('returns a different id for each call within the same app', () => {
-    // Vue's `useId()` counter is scoped per Vue app instance and resets for
+    // Vue's underlying `useId()` counter is scoped per Vue app instance and resets for
     // a new one (each `mount()` below creates its own app), so two
     // *separate* `mount()` calls would both legitimately return the first
     // id — uniqueness only holds within one running app, which is what
@@ -30,7 +30,7 @@ describe('useId', () => {
     const ids: string[] = [];
     const Host = defineComponent({
       setup() {
-        ids.push(useId(), useId());
+        ids.push(useUiId(), useUiId());
         return () => h('div');
       },
     });

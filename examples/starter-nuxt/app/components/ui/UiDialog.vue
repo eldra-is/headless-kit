@@ -15,7 +15,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useFocusTrap } from '../../composables/useFocusTrap';
-import { useId } from '../../composables/useId';
+import { useUiId } from '../../composables/useUiId';
 import { useScrollLock } from '../../composables/useScrollLock';
 import { useT } from '../../composables/useT';
 import { focusRing } from '../../utils/classes';
@@ -49,7 +49,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>();
 
 const t = useT();
 const dialogRef = ref<HTMLDialogElement | null>(null);
-const generatedId = useId();
+const generatedId = useUiId();
 const titleId = computed(() => `ui-dialog-title-${generatedId}`);
 
 const { activate, deactivate } = useFocusTrap(dialogRef);

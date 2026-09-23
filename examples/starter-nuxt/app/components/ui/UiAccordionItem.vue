@@ -25,7 +25,7 @@
  * subsequent toggle, ours or the user's.
  */
 import { computed, inject, ref, watch } from 'vue';
-import { useId } from '../../composables/useId';
+import { useUiId } from '../../composables/useUiId';
 import { ACCORDION_KEY } from '../../composables/useAccordion';
 
 const props = withDefaults(defineProps<{ title: string; defaultOpen?: boolean }>(), {
@@ -33,7 +33,7 @@ const props = withDefaults(defineProps<{ title: string; defaultOpen?: boolean }>
 });
 
 const context = inject(ACCORDION_KEY, undefined);
-const generatedId = useId();
+const generatedId = useUiId();
 const itemId = `ui-accordion-item-${generatedId}`;
 const panelId = computed(() => `${itemId}-panel`);
 const detailsRef = ref<HTMLDetailsElement | null>(null);

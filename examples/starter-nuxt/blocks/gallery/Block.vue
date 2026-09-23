@@ -13,7 +13,7 @@ import { computed, ref } from 'vue';
 import { focusRing } from '../../app/utils/classes';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useCarousel } from '../../app/composables/useCarousel';
-import { useId } from '../../app/composables/useId';
+import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import UiButton from '../../app/components/ui/UiButton.vue';
 import UiDialog from '../../app/components/ui/UiDialog.vue';
@@ -27,7 +27,7 @@ const t = useT();
 const images = computed(() => data.value.images ?? []);
 const variant = computed(() => data.value.variant ?? 'grid');
 const lightboxEnabled = computed(() => data.value.lightbox !== false);
-const headingId = `gallery-heading-${useId()}`;
+const headingId = `gallery-heading-${useUiId()}`;
 
 const total = computed(() => images.value.length);
 const {

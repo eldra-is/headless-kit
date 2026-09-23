@@ -13,7 +13,7 @@
  */
 import { computed, ref } from 'vue';
 import { useBlockData } from '../../app/composables/useBlockData';
-import { useId } from '../../app/composables/useId';
+import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import { safeHref } from '../../app/utils/links';
 import { focusRing } from '../../app/utils/classes';
@@ -27,7 +27,7 @@ const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
 
 const t = useT();
-const drawerId = `nav-drawer-${useId()}`;
+const drawerId = `nav-drawer-${useUiId()}`;
 const drawerOpen = ref(false);
 
 const variant = computed(() => data.value.variant ?? 'default');
