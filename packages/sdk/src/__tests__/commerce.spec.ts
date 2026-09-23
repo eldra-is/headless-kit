@@ -144,8 +144,39 @@ describe('eldra sdk checkout', () => {
     );
   });
 
-  it('refuses to build a handoff without a checkout url', () => {
-    const client = createEldraClient({ orgId: 'org-123', httpClient: stubHttpClient(() => ({})) });
+  it('defaults to the Eldra hosted checkout for the default gateway', () => {
+    const http = stubHttpClient(() => ({}));
+
+    for (const apiBaseUrl of [
+      undefined,
+      'https://web.eldra.app/api',
+      'https://web.eldra.app/api/',
+    ]) {
+      const client = createEldraClient({ apiBaseUrl, orgId: 'org-123', httpClient: http });
+      expect(client.checkout.handoffUrl({ cartId: 'c' })).toBe(
+        'https://checkout.eldra.app/checkout/org-123/c'
+      );
+    }
+  });
+
+  it('reads the checkout url from the environment before the default', () => {
+    const client = createEldraClient({
+      orgId: 'org-123',
+      env: { NUXT_PUBLIC_ELDRA_CHECKOUT_URL: 'http://localhost:3002' },
+      httpClient: stubHttpClient(() => ({})),
+    });
+
+    expect(client.checkout.handoffUrl({ cartId: 'c' })).toBe(
+      'http://localhost:3002/checkout/org-123/c'
+    );
+  });
+
+  it('refuses to build a handoff for another gateway without a checkout url', () => {
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(() => ({})),
+    });
 
     expect(() => client.checkout.handoffUrl({ cartId: 'c' })).toThrow(/checkout URL/);
   });

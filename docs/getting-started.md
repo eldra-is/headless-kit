@@ -23,10 +23,17 @@ its options.
 
 ## Where it points
 
-By default at `https://web.eldra.app/api`. For staging or local development pass `apiBaseUrl`:
+By default at `https://web.eldra.app/api`, and `checkout.handoffUrl` at the hosted checkout
+`https://checkout.eldra.app`. For staging or local development pass both, since a cart only exists
+on the gateway that made it; without `checkoutUrl`, a client on any other gateway refuses to build
+a handoff rather than send the customer to the production checkout:
 
 ```ts
-createEldraClient({ orgId, apiBaseUrl: 'https://web.staging.eldra.app/api' });
+createEldraClient({
+  orgId,
+  apiBaseUrl: 'https://web.staging.eu.eldra.app/api',
+  checkoutUrl: 'https://checkout.staging.eu.eldra.app',
+});
 ```
 
 Every option can also be a function, so a server-rendered app can read environment at request time:

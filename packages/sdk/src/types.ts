@@ -42,7 +42,10 @@ export interface EldraClientOptions {
   headers?: RuntimeValue<HeadersInit>;
   httpClient?: EldraHttpClient;
   fetch?: typeof fetch;
-  /** Origin of the hosted checkout app, used by `checkout.handoffUrl`. */
+  /**
+   * Origin of the hosted checkout app, used by `checkout.handoffUrl`. Defaults to
+   * `https://checkout.eldra.app` when the API base URL is the default.
+   */
   checkoutUrl?: RuntimeValue<string>;
 }
 

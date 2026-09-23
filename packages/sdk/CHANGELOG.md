@@ -9,6 +9,11 @@ platform repository.
 
 ## Unreleased
 
+- `checkout.handoffUrl` defaults to the hosted checkout at `https://checkout.eldra.app` (exported
+  as `DEFAULT_ELDRA_CHECKOUT_URL`) when the client uses the default API base URL, so a production
+  storefront no longer needs a checkout URL setting. `checkoutUrl` and the `ELDRA_CHECKOUT_URL` env
+  keys still override it; a client on any other gateway must still name its checkout.
+
 - `EldraHttpError.errorId` carries the problem's specific reason, such as `CART_NOT_FOUND` or
   `CART_INSUFFICIENT_STOCK`. The docs told you to branch on `code` for these, but the gateway puts
   them in `errorId`; `code` is only the category (`NOT_FOUND`, `CONFLICT`) and is unchanged.
