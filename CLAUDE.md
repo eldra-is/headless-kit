@@ -38,7 +38,7 @@ package checks`) and the commit check by its job id (`check`). Rename either and
 ## Commands
 
 ```bash
-pnpm check              # everything CI runs, in CI's order
+pnpm check              # everything CI runs, including the starter's Storybook build
 pnpm test:watch         # unit tests, live
 pnpm build              # every package, via tsdown / vite
 pnpm --filter @eldrajs/sdk fixture   # regenerate the test fixture's contract.ts after a build

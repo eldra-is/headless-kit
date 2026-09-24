@@ -27,6 +27,7 @@
 import { computed, inject, ref, watch } from 'vue';
 import { useUiId } from '../../composables/useUiId';
 import { ACCORDION_KEY } from '../../composables/useAccordion';
+import { focusRing } from '../../utils/classes';
 
 const props = withDefaults(defineProps<{ title: string; defaultOpen?: boolean }>(), {
   defaultOpen: false,
@@ -61,7 +62,10 @@ function onToggle(event: Event): void {
     <summary
       :id="itemId"
       :aria-controls="panelId"
-      class="focus-visible:ring-primary focus-visible:ring-offset-background flex cursor-pointer list-none items-center justify-between gap-2 p-4 font-medium marker:content-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+      :class="[
+        'flex cursor-pointer list-none items-center justify-between gap-2 p-4 font-medium marker:content-none',
+        focusRing,
+      ]"
     >
       {{ title }}
       <svg

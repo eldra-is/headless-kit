@@ -16,7 +16,7 @@ describe('footer block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('minimal variant renders only the brand and legal line, no groups', () => {
+  it('minimal variant renders only the brand and legal line, no groups', async () => {
     const wrapper = mount(
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'minimal' } } })
@@ -24,6 +24,7 @@ describe('footer block', () => {
     expect(wrapper.text()).toContain(mock.brand);
     expect(wrapper.text()).toContain(mock.legal);
     expect(wrapper.text()).not.toContain(mock.groups[0]!.title);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
   it('renders a placed newsletter slot child', () => {
