@@ -263,9 +263,21 @@ describe('block field migrations', () => {
     const previous = f.scan().manifest!;
     f.write([composite([field('image', 'string')])], 1);
     expect(f.scan(previous).errors.join('\n')).toContain(
-      'field group changed type (composite → composite); bump "version" to 2 so Core retires the previous content'
+      'field group changed storage shape (media multiplicity / nested field); bump "version" to 2 so Core retires the previous content'
     );
     f.write([composite([field('image', 'string')])], 2);
+    expect(f.scan(previous).errors).toEqual([]);
+  });
+
+  it('requires a version bump for a same-id cardinality-only change', () => {
+    const f = fixture();
+    f.write([field('gallery', 'media', { metadata: { multiple: true } })], 1);
+    const previous = f.scan().manifest!;
+    f.write([field('gallery', 'media', { metadata: { multiple: false } })], 1);
+    expect(f.scan(previous).errors.join('\n')).toContain(
+      'field gallery changed storage shape (media multiplicity / nested field); bump "version" to 2 so Core retires the previous content'
+    );
+    f.write([field('gallery', 'media', { metadata: { multiple: false } })], 2);
     expect(f.scan(previous).errors).toEqual([]);
   });
 

@@ -139,14 +139,17 @@ function requireVersionBumpForRetirement(
       continue;
     }
     if (!storageCompatible(prior, current)) {
-      // Two advisory reasons only, matching Core's retirement reasons: a pure
-      // localization flip (type unchanged) reads as "changed localization";
-      // everything else — a type change, or a cardinality/nested-child
-      // change Core still buckets as a type change — reads as "changed type".
+      // Three advisory reasons: the type itself changed; a pure localization
+      // flip (type unchanged); or the type and localized flag both held but
+      // storageCompatible still refused — cardinality (media/select/reference
+      // multiplicity) or a nested composite/list child changed underneath an
+      // unchanged top-level type/localized pair.
       const reason =
-        prior.type === current.type && (prior.localized === true) !== (current.localized === true)
-          ? 'changed localization'
-          : `changed type (${prior.type} → ${current.type})`;
+        prior.type !== current.type
+          ? `changed type (${prior.type} → ${current.type})`
+          : (prior.localized === true) !== (current.localized === true)
+            ? 'changed localization'
+            : 'changed storage shape (media multiplicity / nested field)';
       errors.push(
         `${file}: field ${fieldId} ${reason}; bump "version" to ${previous.version + 1} so Core retires the previous content`
       );

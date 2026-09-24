@@ -31,8 +31,11 @@ Changing a field's type or `localized` flag under the _same_ `fieldId`, or dropp
 ```
 blocks/hero/block.json: field subtitle changed type (string → media); bump "version" to 2 so Core retires the previous content
 blocks/hero/block.json: field subtitle changed localization; bump "version" to 2 so Core retires the previous content
+blocks/hero/block.json: field subtitle changed storage shape (media multiplicity / nested field); bump "version" to 2 so Core retires the previous content
 blocks/hero/block.json: field subtitle was removed; bump "version" to 2 so Core retires the previous content
 ```
+
+The third wording covers a `storageCompatible` refusal where the top-level `type` and `localized` didn't change — a media/select/reference multiplicity flip, or an incompatible nested composite/list child.
 
 A field that is the source of a declared rename (`migrations[].renames[].from`) is exempt from the "was removed" diagnostic — its compatibility is governed by the rename check above instead. This check runs wherever local history is available: during `pnpm dev`/`build` (the Vite plugin always passes `previousManifest` when `.eldra/manifest.json` exists) and from `eldra-theme validate`, which now reads that same file when present.
 
