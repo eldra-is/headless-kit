@@ -234,6 +234,54 @@ describe('deployTheme', () => {
     expect(lines.some((line) => line.startsWith('retired '))).toBe(false);
   });
 
+  it('prints one deduped reason line per field on a version-bump refusal (THEME_FIELD_INCOMPATIBLE)', async () => {
+    makeBuild(root);
+    api = await startMockDeployApi({
+      postStatus: 409,
+      errorBody: {
+        type: '/conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: 'theme content compatibility requires confirmation',
+        code: 'CONFLICT',
+        errorId: 'THEME_FIELD_INCOMPATIBLE',
+        errors: {
+          activationRefusal: {
+            code: 'THEME_FIELD_INCOMPATIBLE',
+            locations: [
+              {
+                blockApiId: 'retiretest',
+                fieldId: 'images',
+                variant: 'draft',
+                reason: 'field type changed (list → media); bump the block version to retire the previous content',
+              },
+              {
+                blockApiId: 'retiretest',
+                fieldId: 'images',
+                variant: 'published',
+                reason: 'field type changed (list → media); bump the block version to retire the previous content',
+              },
+              {
+                blockApiId: 'retiretest',
+                fieldId: 'note',
+                variant: 'draft',
+                reason: 'field removed while it holds content; bump the block version to retire it',
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    await expect(deployTheme(options())).rejects.toThrow(
+      [
+        'deploy: theme content compatibility requires confirmation',
+        '  retiretest.images: field type changed (list → media); bump the block version to retire the previous content',
+        '  retiretest.note: field removed while it holds content; bump the block version to retire it',
+      ].join('\n')
+    );
+  });
+
   it('reports terminal failure with the sanitized deployment log excerpt', async () => {
     makeBuild(root);
     api = await startMockDeployApi({

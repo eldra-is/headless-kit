@@ -217,11 +217,44 @@ function preflight(dir: string, cwd: string): void {
   };
   walk(dir);
 }
+interface ActivationLocation {
+  blockApiId?: string;
+  fieldId?: string;
+  reason?: string;
+}
+interface DeployErrorBody {
+  detail?: string;
+  errorId?: string;
+  errors?: { activationRefusal?: { code?: string; locations?: ActivationLocation[] } };
+}
+
 async function toDeployError(res: Response): Promise<DeployError> {
-  let detail: string | null = null;
+  let body: DeployErrorBody | null = null;
   try {
-    detail = ((await res.json()) as { detail?: string }).detail ?? null;
+    body = (await res.json()) as DeployErrorBody;
   } catch {}
+  const detail = body?.detail ?? null;
+  // A version-bump refusal (spec: manifest-field-retire) carries the human
+  // `detail` plus a structured `errors.activationRefusal.locations` array —
+  // one entry per populated draft/published location. Print one deduped
+  // line per (block, field, reason) so an author sees exactly what to bump,
+  // without a line per content variant.
+  if (body?.errorId === 'THEME_FIELD_INCOMPATIBLE' && body.errors?.activationRefusal?.locations) {
+    const seen = new Set<string>();
+    const lines: string[] = [];
+    for (const location of body.errors.activationRefusal.locations) {
+      const key = `${location.blockApiId}.${location.fieldId}: ${location.reason}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      lines.push(`  ${key}`);
+    }
+    return new DeployError(
+      [`deploy: ${detail ?? 'theme content compatibility requires confirmation'}`, ...lines].join(
+        '\n'
+      ),
+      body.errorId
+    );
+  }
   const messages: Record<string, string> = {
     SITE_DEPLOY_TOKEN_INVALID:
       'token invalid or revoked — generate a new token in Studio (Settings → Site → Deploy token)',

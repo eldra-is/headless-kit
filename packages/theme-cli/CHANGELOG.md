@@ -9,6 +9,12 @@ Release-please writes the generated notes from commit messages and does not repl
   advisory local-history check against it, so a storage-incompatible field change or a field removed
   without a declared rename fails validation the same way `pnpm dev`/`build` does, before a deploy
   ever refuses it.
+- `eldra-theme deploy` now prints one deduped `<blockApiId>.<fieldId>: <reason>` line per field
+  when Core refuses a deploy with `THEME_FIELD_INCOMPATIBLE` (a storage-incompatible field change
+  or field removal without a version bump). Previously the CLI only echoed the response's generic
+  `detail` sentence and silently dropped the structured `errors.activationRefusal.locations` the
+  gateway sends alongside it, so an author saw "theme content compatibility requires confirmation"
+  with no indication of which field or fix.
 - `eldra-theme deploy` prints one line per field Core retired during the deploy:
   `retired <blockApiId>.<fieldId> → <retiredAs> (<reason>, <migratedCount> entries) — previous
   content is read-only in Studio`, reading the new `syncResult.fieldMigrations.retired` array

@@ -3,6 +3,8 @@ import { createServer, type Server } from 'node:http';
 export interface MockDeployApiOptions {
   postStatus?: number;
   errorDetail?: string;
+  /** Full POST error response body, overriding the default `{status, detail}` shape. */
+  errorBody?: unknown;
   statuses?: string[];
   previewUrl?: string;
   logExcerpt?: string;
@@ -39,7 +41,9 @@ export function startMockDeployApi(opts: MockDeployApiOptions = {}): Promise<Moc
           const status = opts.postStatus ?? 202;
           res.statusCode = status;
           if (status !== 202) {
-            res.end(JSON.stringify({ status, detail: opts.errorDetail ?? 'SITE_DEPLOY_FAILED' }));
+            res.end(
+              JSON.stringify(opts.errorBody ?? { status, detail: opts.errorDetail ?? 'SITE_DEPLOY_FAILED' })
+            );
             return;
           }
           res.end(
