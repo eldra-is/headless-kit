@@ -26,8 +26,8 @@ const FIELDS = {
       },
     },
     // Two string sub-fields literally named "value"/"label" — the same
-    // shape web-studio-core's resolveSelectLabels produces for a real
-    // select, but declared here as an ordinary composite, not a select.
+    // shape the CMS gateway's resolved select produces for a real select,
+    // but declared here as an ordinary composite, not a select.
     {
       fieldId: 'metric',
       type: 'composite',

@@ -4,9 +4,9 @@ import { isBlockFieldSelect } from './blockFields';
 const LOCALE_KEY = /^[A-Za-z0-9]{1,8}(?:-[A-Za-z0-9]{1,8})*$/;
 
 /**
- * A resolved `select` field's public-read shape: the CMS gateway's
- * `resolveSelectLabels` (web-studio-core) replaces the stored plain string
- * with `{ value, label }` so a schema-blind consumer can show a human label.
+ * A resolved `select` field's public-read shape: the CMS gateway replaces
+ * the stored plain string with `{ value, label }` so a schema-blind consumer
+ * can show a human label.
  * Themes only ever declare `select` fields as their plain value union
  * (generated from `block.json`), so `Block.vue` compares the field directly
  * against those literals — never against this wrapper. Left unprojected in

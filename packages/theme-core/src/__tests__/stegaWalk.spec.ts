@@ -77,8 +77,8 @@ describe('localized preview draft projection', () => {
 
   it('unwraps a resolved select field ({value,label}) into its plain value, top-level and nested in a list item', () => {
     // Same public-read shape as client.ts's projectLocalizedValue guards
-    // against: web-studio-core's resolveSelectLabels wraps a select field's
-    // stored string as {value,label}. The live-editing draft this function
+    // against: the CMS gateway wraps a select field's stored string as
+    // {value,label}. The live-editing draft this function
     // projects must not leave that wrapper in place, or a variant switch
     // never matches a Block.vue's plain-string comparison while editing.
     // Gated on the registered field type, not the shape alone — see the

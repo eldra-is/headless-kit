@@ -533,9 +533,9 @@ const MEDIA_VALUE_KEYS = new Set(['assetId', 'framing']);
 
 /**
  * Studio seeds a freshly-inserted block's CMS entry from `mock.json`
- * verbatim (`insertBlock`), and Core's write-side media validator
- * (`ParseMediaValue`) only accepts `{ assetId: <uuid>, framing? }` — the
- * starter's old convention of embedding a Storybook fixture
+ * verbatim, and the CMS's write-side media validator only accepts
+ * `{ assetId: <uuid>, framing? }` — the starter's old convention of
+ * embedding a Storybook fixture
  * (`{ assetId: "demo-<name>", url, altText }`) in a media field 400s every
  * such insert (task-9b-live-report.md, Finding 2). `mock.json` must
  * therefore either omit a media field entirely or carry a write-valid

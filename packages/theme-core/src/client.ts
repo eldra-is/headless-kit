@@ -124,9 +124,9 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
 const localeKey = /^[a-z]{2}(?:-[A-Za-z0-9]{2,8})*$/;
 
 /**
- * A resolved `select` field's public-read shape: the CMS gateway's
- * `resolveSelectLabels` (web-studio-core) replaces the stored plain string
- * with `{ value, label }` so a schema-blind consumer can show a human label.
+ * A resolved `select` field's public-read shape: the CMS gateway replaces
+ * the stored plain string with `{ value, label }` so a schema-blind consumer
+ * can show a human label.
  * Themes only ever declare `select` fields as their plain value union
  * (`variant?: 'primary' | 'subtle' | 'split'`, generated from `block.json`),
  * so every `Block.vue` compares `data.variant` against those literals

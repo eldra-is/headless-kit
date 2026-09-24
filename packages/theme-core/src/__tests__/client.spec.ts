@@ -200,8 +200,8 @@ describe('createEldraClient', () => {
   });
 
   it('unwraps a resolved select field ({value,label}) into its plain value, top-level and nested in a list item', async () => {
-    // web-studio-core's resolveSelectLabels replaces a select field's stored
-    // string with {value,label} on public reads; themes only ever declare
+    // The CMS gateway replaces a select field's stored string with
+    // {value,label} on public reads; themes only ever declare
     // (and compare against) the plain value, so this must round-trip to a
     // bare string or every variant-switch silently renders as the default.
     // Gated on the registered field type, not the shape alone — see the
