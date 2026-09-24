@@ -495,41 +495,21 @@
         "variant": "cards",
         "items": [
           {
-            "image": {
-              "assetId": "demo-feature-1",
-              "url": "/demo/feature-1.svg",
-              "altText": "Illustration of a delivery van"
-            },
             "title": "Free shipping over $75",
             "body": "Every order over $75 ships free, no code needed.",
             "href": "/shipping-returns"
           },
           {
-            "image": {
-              "assetId": "demo-feature-2",
-              "url": "/demo/feature-2.svg",
-              "altText": "Illustration of a recycling loop"
-            },
             "title": "Responsibly sourced",
             "body": "Natural fibres and reclaimed materials, traced back to the mill.",
             "href": "/about"
           },
           {
-            "image": {
-              "assetId": "demo-feature-3",
-              "url": "/demo/feature-3.svg",
-              "altText": "Illustration of a hand-stitching needle"
-            },
             "title": "Made to last",
             "body": "Hand-finished details and a lifetime repair promise.",
             "href": "/craft"
           },
           {
-            "image": {
-              "assetId": "demo-feature-4",
-              "url": "/demo/feature-4.svg",
-              "altText": "Illustration of a return box"
-            },
             "title": "Easy 30-day returns",
             "body": "Free returns on anything that isn't quite right.",
             "href": "/shipping-returns"
@@ -776,39 +756,7 @@
       "mock": {
         "heading": "In the workshop",
         "variant": "grid",
-        "lightbox": true,
-        "images": [
-          {
-            "assetId": "demo-gallery-1",
-            "url": "/demo/gallery-1.svg",
-            "altText": "Skeins of undyed wool"
-          },
-          {
-            "assetId": "demo-gallery-2",
-            "url": "/demo/gallery-2.svg",
-            "altText": "A loom mid-weave"
-          },
-          {
-            "assetId": "demo-gallery-3",
-            "url": "/demo/gallery-3.svg",
-            "altText": "Finished throws folded on a shelf"
-          },
-          {
-            "assetId": "demo-gallery-4",
-            "url": "/demo/gallery-4.svg",
-            "altText": "Hand-stitching a wool hem"
-          },
-          {
-            "assetId": "demo-gallery-5",
-            "url": "/demo/gallery-5.svg",
-            "altText": "Natural dye pots on a stove"
-          },
-          {
-            "assetId": "demo-gallery-6",
-            "url": "/demo/gallery-6.svg",
-            "altText": "The workshop at first light"
-          }
-        ]
+        "lightbox": true
       },
       "previewImage": ".eldra/previews/gallery.png"
     },
@@ -928,11 +876,6 @@
         "eyebrow": "New season",
         "heading": "Warm layers for cold mornings",
         "subheading": "Hand-finished knitwear and everyday essentials, designed for slow mornings at home.",
-        "image": {
-          "assetId": "demo-hero",
-          "url": "/demo/hero.svg",
-          "altText": "A cup of coffee beside a folded wool throw"
-        },
         "variant": "image-right",
         "ctaLabel": "Shop the collection",
         "ctaHref": "/shop/new",
@@ -995,11 +938,6 @@
         }
       ],
       "mock": {
-        "image": {
-          "assetId": "demo-gallery-1",
-          "url": "/demo/gallery-1.svg",
-          "altText": "Linen napkins folded on an oak table"
-        },
         "caption": "Linen table settings, woven in small batches.",
         "aspect": "16/9",
         "width": "content"
@@ -1097,11 +1035,6 @@
       ],
       "mock": {
         "brand": "Northwind Goods",
-        "logo": {
-          "assetId": "demo-logo",
-          "url": "/demo/logo.svg",
-          "altText": "Northwind Goods"
-        },
         "links": [
           {
             "label": "Home",

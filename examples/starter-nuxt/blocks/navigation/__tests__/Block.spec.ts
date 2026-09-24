@@ -4,24 +4,30 @@ import { axe } from '../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 
+// `mock.json` is the seed Studio writes when an author inserts the block —
+// it never carries a logo (Core's write-side media validator rejects the
+// old Storybook-fixture shape; see task-9b-live-report.md, Finding 2).
+// `preview.json` is the story/preview-only demo-imagery overlay, merged the
+// same way `scripts/generate-stories.mjs`'s `Default` story merges it.
+const withLogo = { ...mock, ...preview };
+
 describe('navigation block', () => {
-  it('renders the mock content (brand via logo image, since mock.json sets one)', async () => {
+  it('renders the bare mock.json content — the freshly-inserted state, brand as text since there is no logo yet', async () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    expect(wrapper.find('img').attributes('alt')).toBe(mock.brand);
+    expect(wrapper.find('img').exists()).toBe(false);
+    expect(wrapper.text()).toContain(mock.brand);
     for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
     expect(wrapper.text()).toContain(mock.ctaLabel);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('renders the brand as text when no logo is set', () => {
-    const wrapper = mount(
-      Block,
-      mountOptions({ entry: { id: 'e1', data: { ...mock, logo: undefined } } })
-    );
-    expect(wrapper.find('img').exists()).toBe(false);
-    expect(wrapper.text()).toContain(mock.brand);
+  it('renders the brand via the logo image once preview.json overlays one', async () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withLogo } }));
+    expect(wrapper.find('img').attributes('alt')).toBe(withLogo.brand);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
   it('opens the mobile drawer from the toggle button and sets aria-expanded', async () => {
@@ -59,13 +65,24 @@ describe('navigation block', () => {
     wrapper.unmount();
   });
 
-  it('renders each declared variant', async () => {
+  it('renders each declared variant with a logo', async () => {
+    for (const variant of ['default', 'centered', 'minimal']) {
+      const wrapper = mount(
+        Block,
+        mountOptions({ entry: { id: 'e1', data: { ...withLogo, variant } } })
+      );
+      expect(wrapper.find('img').attributes('alt')).toBe(withLogo.brand);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    }
+  });
+
+  it('renders each declared variant from the bare mock.json, no crash and axe-clean (regression net for a freshly-inserted block)', async () => {
     for (const variant of ['default', 'centered', 'minimal']) {
       const wrapper = mount(
         Block,
         mountOptions({ entry: { id: 'e1', data: { ...mock, variant } } })
       );
-      expect(wrapper.find('img').attributes('alt')).toBe(mock.brand);
+      expect(wrapper.find('img').exists()).toBe(false);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   });

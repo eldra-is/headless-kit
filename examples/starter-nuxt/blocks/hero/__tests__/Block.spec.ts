@@ -5,7 +5,13 @@ import { axe } from '../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+
+// `mock.json` is the seed Studio writes on insert (no image — see
+// task-9b-live-report.md, Finding 2); `preview.json` is the demo-imagery
+// overlay `scripts/generate-stories.mjs`'s `Default` story merges onto it.
+const withImage = { ...mock, ...preview };
 
 describe('hero block', () => {
   it('renders the mock content', async () => {
@@ -14,15 +20,37 @@ describe('hero block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it.each(['image-right', 'image-background', 'centered'] as const)(
-    'renders the heading exactly once for the %s variant',
-    async (variant) => {
+  it('renders the bare mock.json axe-clean for every variant, including image-background with no image (regression net for a freshly-inserted block)', async () => {
+    for (const variant of ['image-right', 'image-background', 'centered'] as const) {
       const wrapper = mount(
         Block,
         mountOptions({ entry: { id: 'e1', data: { ...mock, variant } } })
       );
+      expect(wrapper.find('img').exists()).toBe(false);
       expect(wrapper.findAll('h1')).toHaveLength(1);
-      expect(wrapper.get('h1').text()).toBe(mock.heading);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    }
+  });
+
+  it('image-background falls back to a plain surface (not primary-contrast-on-nothing) when there is no image yet', () => {
+    const wrapper = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'image-background' } } })
+    );
+    const section = wrapper.get('section');
+    expect(section.classes()).toContain('bg-surface-strong');
+    expect(section.classes()).not.toContain('text-primary-contrast');
+  });
+
+  it.each(['image-right', 'image-background', 'centered'] as const)(
+    'renders the heading exactly once for the %s variant, with the preview image',
+    async (variant) => {
+      const wrapper = mount(
+        Block,
+        mountOptions({ entry: { id: 'e1', data: { ...withImage, variant } } })
+      );
+      expect(wrapper.findAll('h1')).toHaveLength(1);
+      expect(wrapper.get('h1').text()).toBe(withImage.heading);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   );
@@ -30,7 +58,7 @@ describe('hero block', () => {
   it('carries the framing marker attributes on the rendered image (image-right)', () => {
     const wrapper = mount(
       Block,
-      mountOptions({ entry: { id: 'hero-1', data: { ...mock, variant: 'image-right' } } })
+      mountOptions({ entry: { id: 'hero-1', data: { ...withImage, variant: 'image-right' } } })
     );
     const img = wrapper.get('img');
     expect(img.attributes('data-eldra-framing')).toBe('image');
@@ -40,7 +68,9 @@ describe('hero block', () => {
   it('carries the framing marker attributes on the background image (image-background)', () => {
     const wrapper = mount(
       Block,
-      mountOptions({ entry: { id: 'hero-1', data: { ...mock, variant: 'image-background' } } })
+      mountOptions({
+        entry: { id: 'hero-1', data: { ...withImage, variant: 'image-background' } },
+      })
     );
     const img = wrapper.get('img');
     expect(img.attributes('data-eldra-framing')).toBe('image');

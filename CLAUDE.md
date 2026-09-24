@@ -111,8 +111,12 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `prepack` script copies this directory into `packages/theme-cli/template/` (git-ignored, rebuilt
   on every pack/publish) rather than the CLI depending on it at runtime. Copied source, not a
   runtime UI library: `app/components/ui/` is the primitive layer (Tailwind classes, no scoped CSS,
-  no `@apply`), `blocks/<apiId>/{block.json,Block.vue,mock.json,preview.png,__tests__/}` is the
-  block contract, and neither `blocks/**` nor `app/components/ui/**` may call Nuxt globals
+  no `@apply`), `blocks/<apiId>/{block.json,Block.vue,mock.json,preview.json?,preview.png,__tests__/}`
+  is the block contract — `mock.json` is exactly the seed Studio writes when an author inserts the
+  block, so a media field is absent there (never a fixture object; `eldra-theme validate` enforces
+  `{assetId: uuid}` or absent), and the optional sibling `preview.json` carries demo imagery as a
+  story/preview-only overlay merged onto `mock.json` — and neither `blocks/**` nor
+  `app/components/ui/**` may call Nuxt globals
   (`useRoute`, `useHead`, `NuxtLink`, `$fetch`, `useAsyncData`) or rely on Nuxt auto-imports — every
   `vue`/`@eldrajs/*` import is explicit, which is what lets a block render in Storybook with no
   Nuxt build step. Tailwind v4 is wired through the fallback route, not the plugin's
@@ -125,8 +129,9 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   per block from `mock.json`, one per declared `variant` option; `pnpm --filter starter-nuxt
 build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/previews/*.png`,
   `.eldra/previews.json`) are Playwright screenshots of those generated stories
-  (`scripts/previews.mjs`) keyed by a content hash of that block's `Block.vue` + `mock.json` **plus
-  `main.css`** (a shared style change invalidates every block's hash) — `test/previewsFresh.spec.ts`
+  (`scripts/previews.mjs`) keyed by a content hash of that block's `Block.vue` + `mock.json` +
+  `preview.json` (when present) **plus `main.css`** (a shared style change invalidates every block's
+  hash) — `test/previewsFresh.spec.ts`
   fails "run pnpm previews" when a hash is stale, so run `pnpm --filter starter-nuxt previews` after
   any block or `main.css` change and commit the regenerated files. See `docs/starter-kit.md` for
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in

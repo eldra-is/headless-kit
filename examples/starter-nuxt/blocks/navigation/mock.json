@@ -1,6 +1,5 @@
 {
   "brand": "Northwind Goods",
-  "logo": { "assetId": "demo-logo", "url": "/demo/logo.svg", "altText": "Northwind Goods" },
   "links": [
     { "label": "Home", "href": "/" },
     { "label": "Shop", "href": "/shop" },

@@ -7,7 +7,10 @@
  *    readable — `text`/`primary-contrast` are both design tokens chosen for
  *    WCAG AA contrast against their pair (spec §1), so this combination
  *    stays readable across a customer's own token values, not just the
- *    starter's defaults.
+ *    starter's defaults. Without an image (the freshly-inserted state —
+ *    `mock.json` never seeds media, see `docs/starter-kit.md`), there is no
+ *    scrim to sit on, so the section falls back to `bg-surface-strong` with
+ *    ordinary `text-text` copy instead of `text-primary-contrast`.
  *  - `centered`: single centered copy column, image (if any) below as a
  *    wide banner.
  *
@@ -36,6 +39,10 @@ const { data, entryId } = useBlockData(props, 'hero');
 
 const variant = computed(() => data.value.variant ?? 'image-right');
 const isBackground = computed(() => variant.value === 'image-background');
+// `image-background` only gets the scrim + light-on-dark copy once there is
+// an actual image to scrim over; a freshly-inserted block (mock.json never
+// seeds media) falls back to a plain surface with ordinary body text.
+const hasBackgroundImage = computed(() => isBackground.value && Boolean(data.value.image));
 const framing = computed(() => data.value.image?.framing ?? DEFAULT_IMAGE_FRAMING);
 const ctaHref = computed(() => safeHref(data.value.ctaHref));
 const secondaryCtaHref = computed(() => safeHref(data.value.secondaryCtaHref));
@@ -43,13 +50,16 @@ const secondaryCtaHref = computed(() => safeHref(data.value.secondaryCtaHref));
 const secondaryLinkClass = computed(() => [
   focusRing,
   'rounded-theme-sm text-base font-semibold underline underline-offset-4',
-  isBackground.value ? 'text-primary-contrast' : 'text-text',
+  hasBackgroundImage.value ? 'text-primary-contrast' : 'text-text',
 ]);
 </script>
 
 <template>
-  <section class="relative overflow-hidden" :class="isBackground ? 'text-primary-contrast' : ''">
-    <template v-if="isBackground && data.image">
+  <section
+    class="relative overflow-hidden"
+    :class="hasBackgroundImage ? 'text-primary-contrast' : isBackground ? 'bg-surface-strong' : ''"
+  >
+    <template v-if="hasBackgroundImage">
       <UiImage
         :src="data.image.url"
         :alt="data.image.altText ?? ''"
@@ -76,7 +86,7 @@ const secondaryLinkClass = computed(() => [
         <p
           v-if="data.eyebrow"
           class="text-primary text-sm font-semibold tracking-wide uppercase"
-          :class="isBackground ? 'text-primary-contrast/80' : ''"
+          :class="hasBackgroundImage ? 'text-primary-contrast/80' : ''"
         >
           {{ data.eyebrow }}
         </p>
@@ -84,7 +94,7 @@ const secondaryLinkClass = computed(() => [
         <p
           v-if="data.subheading"
           class="mt-4 text-lg"
-          :class="isBackground ? 'text-primary-contrast/90' : 'text-muted'"
+          :class="hasBackgroundImage ? 'text-primary-contrast/90' : 'text-muted'"
         >
           {{ data.subheading }}
         </p>

@@ -1,9 +1,4 @@
 {
-  "image": {
-    "assetId": "demo-gallery-1",
-    "url": "/demo/gallery-1.svg",
-    "altText": "Linen napkins folded on an oak table"
-  },
   "caption": "Linen table settings, woven in small batches.",
   "aspect": "16/9",
   "width": "content"

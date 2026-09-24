@@ -14,12 +14,19 @@ export function listBlockIds(rootDir) {
     .sort();
 }
 
-/** sha256 of Block.vue + mock.json + app/assets/main.css, per the previews.json contract. */
+/**
+ * sha256 of Block.vue + mock.json + preview.json (when the block has one —
+ * it's the story/preview-only demo-imagery overlay merged onto mock.json
+ * for the screenshotted `Default` story) + app/assets/main.css, per the
+ * previews.json contract.
+ */
 export function hashBlock(rootDir, id) {
   const blockDir = join(rootDir, 'blocks', id);
   const hash = createHash('sha256');
   hash.update(readFileSync(join(blockDir, 'Block.vue')));
   hash.update(readFileSync(join(blockDir, 'mock.json')));
+  const previewFile = join(blockDir, 'preview.json');
+  if (existsSync(previewFile)) hash.update(readFileSync(previewFile));
   hash.update(readFileSync(join(rootDir, 'app', 'assets', 'main.css')));
   return hash.digest('hex');
 }

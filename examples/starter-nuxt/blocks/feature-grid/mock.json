@@ -5,41 +5,21 @@
   "variant": "cards",
   "items": [
     {
-      "image": {
-        "assetId": "demo-feature-1",
-        "url": "/demo/feature-1.svg",
-        "altText": "Illustration of a delivery van"
-      },
       "title": "Free shipping over $75",
       "body": "Every order over $75 ships free, no code needed.",
       "href": "/shipping-returns"
     },
     {
-      "image": {
-        "assetId": "demo-feature-2",
-        "url": "/demo/feature-2.svg",
-        "altText": "Illustration of a recycling loop"
-      },
       "title": "Responsibly sourced",
       "body": "Natural fibres and reclaimed materials, traced back to the mill.",
       "href": "/about"
     },
     {
-      "image": {
-        "assetId": "demo-feature-3",
-        "url": "/demo/feature-3.svg",
-        "altText": "Illustration of a hand-stitching needle"
-      },
       "title": "Made to last",
       "body": "Hand-finished details and a lifetime repair promise.",
       "href": "/craft"
     },
     {
-      "image": {
-        "assetId": "demo-feature-4",
-        "url": "/demo/feature-4.svg",
-        "altText": "Illustration of a return box"
-      },
       "title": "Easy 30-day returns",
       "body": "Free returns on anything that isn't quite right.",
       "href": "/shipping-returns"

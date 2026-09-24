@@ -629,3 +629,115 @@ describe('scanTheme rich-text toolbar metadata', () => {
     ]);
   });
 });
+
+describe("scanTheme mock.json media contract (Studio seeds an inserted block's entry from it)", () => {
+  const VALID_UUID = '2e4f6d0a-2f8a-4a3e-9f7d-9c6a0f5b6a11';
+
+  function makeMediaTheme(
+    fields: Array<Record<string, unknown>>,
+    mock: Record<string, unknown>
+  ): string {
+    const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-mock-media-'));
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'mock-media-theme', version: '1.0.0' })
+    );
+    const blockDir = join(dir, 'blocks', 'widget');
+    mkdirSync(blockDir, { recursive: true });
+    writeFileSync(
+      join(blockDir, 'block.json'),
+      JSON.stringify({ apiId: 'widget', name: 'Widget', version: 1, fields })
+    );
+    writeFileSync(join(blockDir, 'mock.json'), JSON.stringify(mock));
+    writeFileSync(join(blockDir, 'Block.vue'), '<template><div /></template>');
+    return dir;
+  }
+
+  const mediaField = { fieldId: 'image', name: 'Image', type: 'media' };
+
+  it('accepts a media field that is absent entirely (the seed Studio writes)', () => {
+    const dir = makeMediaTheme([mediaField], { heading: 'Hi' });
+    const { manifest, errors } = scanTheme({ themeDir: dir });
+    expect(errors).toEqual([]);
+    expect(manifest?.blocks[0]?.mock).toEqual({ heading: 'Hi' });
+  });
+
+  it('accepts a media field shaped {assetId: uuid}', () => {
+    const dir = makeMediaTheme([mediaField], { image: { assetId: VALID_UUID } });
+    expect(scanTheme({ themeDir: dir }).errors).toEqual([]);
+  });
+
+  it('accepts a media field shaped {assetId: uuid, framing}', () => {
+    const dir = makeMediaTheme([mediaField], {
+      image: { assetId: VALID_UUID, framing: { x: 0, y: 0, zoom: 1 } },
+    });
+    expect(scanTheme({ themeDir: dir }).errors).toEqual([]);
+  });
+
+  it('rejects the Storybook fixture shape ({assetId: "demo-<name>", url, altText}) — the task-9b Finding 2 regression', () => {
+    const dir = makeMediaTheme([mediaField], {
+      image: { assetId: 'demo-hero', url: '/demo/hero.svg', altText: 'A cup of coffee' },
+    });
+    expect(scanTheme({ themeDir: dir }).errors).toEqual([
+      'blocks/widget/mock.json: image: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+
+  it('rejects a non-uuid assetId', () => {
+    const dir = makeMediaTheme([mediaField], { image: { assetId: 'demo-hero' } });
+    expect(scanTheme({ themeDir: dir }).errors).toEqual([
+      'blocks/widget/mock.json: image: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+
+  it('rejects null (must be absent, not null)', () => {
+    const dir = makeMediaTheme([mediaField], { image: null });
+    expect(scanTheme({ themeDir: dir }).errors).toEqual([
+      'blocks/widget/mock.json: image: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+
+  it('checks every value of a multiple:true media field (gallery-style)', () => {
+    const dir = makeMediaTheme(
+      [{ fieldId: 'images', name: 'Images', type: 'media', metadata: { multiple: true } }],
+      { images: [{ assetId: VALID_UUID }, { assetId: 'demo-gallery-2', url: '/demo/g2.svg' }] }
+    );
+    expect(scanTheme({ themeDir: dir }).errors).toEqual([
+      'blocks/widget/mock.json: images[1]: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+
+  it('checks a media field nested inside a list of composites (feature-grid items-style)', () => {
+    const dir = makeMediaTheme(
+      [
+        {
+          fieldId: 'items',
+          name: 'Items',
+          type: 'list',
+          metadata: {
+            item: {
+              fieldId: 'item',
+              name: 'Item',
+              type: 'composite',
+              metadata: {
+                fields: [
+                  { fieldId: 'title', name: 'Title', type: 'string' },
+                  { fieldId: 'image', name: 'Image', type: 'media' },
+                ],
+              },
+            },
+          },
+        },
+      ],
+      {
+        items: [
+          { title: 'One', image: { assetId: VALID_UUID } },
+          { title: 'Two', image: { assetId: 'demo-feature-2', url: '/demo/feature-2.svg' } },
+        ],
+      }
+    );
+    expect(scanTheme({ themeDir: dir }).errors).toEqual([
+      'blocks/widget/mock.json: items[1].image: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+});

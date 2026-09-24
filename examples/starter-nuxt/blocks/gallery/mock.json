@@ -1,33 +1,5 @@
 {
   "heading": "In the workshop",
   "variant": "grid",
-  "lightbox": true,
-  "images": [
-    {
-      "assetId": "demo-gallery-1",
-      "url": "/demo/gallery-1.svg",
-      "altText": "Skeins of undyed wool"
-    },
-    { "assetId": "demo-gallery-2", "url": "/demo/gallery-2.svg", "altText": "A loom mid-weave" },
-    {
-      "assetId": "demo-gallery-3",
-      "url": "/demo/gallery-3.svg",
-      "altText": "Finished throws folded on a shelf"
-    },
-    {
-      "assetId": "demo-gallery-4",
-      "url": "/demo/gallery-4.svg",
-      "altText": "Hand-stitching a wool hem"
-    },
-    {
-      "assetId": "demo-gallery-5",
-      "url": "/demo/gallery-5.svg",
-      "altText": "Natural dye pots on a stove"
-    },
-    {
-      "assetId": "demo-gallery-6",
-      "url": "/demo/gallery-6.svg",
-      "altText": "The workshop at first light"
-    }
-  ]
+  "lightbox": true
 }
