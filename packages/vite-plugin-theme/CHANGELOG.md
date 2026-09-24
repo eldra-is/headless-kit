@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The advisory local-history check now requires a block `version` bump for a storage-incompatible
+  field change (type or `localized` flip, or a nested composite/list child change) under the same
+  `fieldId`, and for a field removed without a declared rename — mirroring Core's field retirement,
+  which archives the previous content into a read-only `<fieldId>__v<n>` field on a bump instead of
+  refusing the deploy. Without the bump, `migrationChecks` fails with `blocks/<id>/block.json: field
+  <fieldId> changed type (<old> → <new>); bump "version" to <n+1> so Core retires the previous
+  content` (or `changed localization` / `was removed`). See `docs/theme-field-migrations.md` → "Type
+  changes and removed fields".
 - First release under the `@eldrajs` scope, moved from the private `@eldra/vite-plugin-theme` package.
 - Adds `generateBlockTypes(blocks)`, a framework-free generator that turns every scanned block's
   `block.json` into a global ambient `.eldra/block-types.d.ts` (`interface EldraBlockData`,

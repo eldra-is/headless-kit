@@ -1,4 +1,4 @@
-import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
+import { readPreviousManifest, scanTheme } from '@eldrajs/vite-plugin-theme/scan';
 import type { DeclaredThemeCodePage } from '@eldrajs/vite-plugin-theme';
 import { KNOWN_FIELD_TYPES } from '../knownFieldTypes';
 
@@ -33,8 +33,14 @@ export interface ValidateResult {
 }
 
 export async function validateTheme(opts: ValidateOptions): Promise<ValidateResult> {
-  const scan = scanTheme({ themeDir: opts.themeDir, customPages: opts.customPages });
-  const errors = [...scan.errors];
+  const historyErrors: string[] = [];
+  const previousManifest = readPreviousManifest(opts.themeDir, historyErrors);
+  const scan = scanTheme({
+    themeDir: opts.themeDir,
+    customPages: opts.customPages,
+    previousManifest,
+  });
+  const errors = [...historyErrors, ...scan.errors];
   const warnings: string[] = [];
   if (scan.manifest === null) return { errors, warnings, blockCount: 0 };
 

@@ -231,6 +231,69 @@ describe('block field migrations', () => {
     expect(f.scan(corrupted).errors.join('\n')).toContain('previous manifest');
   });
 
+  it('requires a version bump for a same-id type change', () => {
+    const f = fixture();
+    f.write([field('title')], 1);
+    const previous = f.scan().manifest!;
+    f.write([field('title', 'media')], 1);
+    expect(f.scan(previous).errors.join('\n')).toContain(
+      'field title changed type (string → media); bump "version" to 2 so Core retires the previous content'
+    );
+    f.write([field('title', 'media')], 2);
+    expect(f.scan(previous).errors).toEqual([]);
+  });
+
+  it('requires a version bump for a same-id localization change', () => {
+    const f = fixture();
+    f.write([field('title')], 1);
+    const previous = f.scan().manifest!;
+    f.write([field('title', 'string', { localized: true })], 1);
+    expect(f.scan(previous).errors.join('\n')).toContain(
+      'field title changed localization; bump "version" to 2 so Core retires the previous content'
+    );
+    f.write([field('title', 'string', { localized: true })], 2);
+    expect(f.scan(previous).errors).toEqual([]);
+  });
+
+  it('requires a version bump for a same-id nested child change', () => {
+    const composite = (children: BlockField[]) =>
+      field('group', 'composite', { metadata: { fields: children } });
+    const f = fixture();
+    f.write([composite([field('image', 'media')])], 1);
+    const previous = f.scan().manifest!;
+    f.write([composite([field('image', 'string')])], 1);
+    expect(f.scan(previous).errors.join('\n')).toContain(
+      'field group changed type (composite → composite); bump "version" to 2 so Core retires the previous content'
+    );
+    f.write([composite([field('image', 'string')])], 2);
+    expect(f.scan(previous).errors).toEqual([]);
+  });
+
+  it('requires a version bump for a field removed without a declared rename', () => {
+    const f = fixture();
+    f.write([field('title'), field('subtitle')], 1);
+    const previous = f.scan().manifest!;
+    f.write([field('title')], 1);
+    expect(f.scan(previous).errors.join('\n')).toContain(
+      'field subtitle was removed; bump "version" to 2 so Core retires the previous content'
+    );
+    f.write([field('title')], 2);
+    expect(f.scan(previous).errors).toEqual([]);
+  });
+
+  it('does not double-report a field removed via a declared rename', () => {
+    // A rename declared at the previous local version, without a bump, is
+    // already refused by the existing "destructive rename" check — this must
+    // not *also* report the source field as an unrelated "was removed".
+    const f = fixture();
+    f.write([field('titl')], 2);
+    const previous = f.scan().manifest!;
+    f.write([field('title')], 2, [step()]);
+    const result = f.scan(previous);
+    expect(result.errors.join('\n')).toContain('destructive rename requires a new version bump');
+    expect(result.errors.join('\n')).not.toContain('was removed');
+  });
+
   it('rejects duplicate migration JSON keys using the existing file parser', () => {
     const f = fixture();
     writeFileSync(

@@ -6,6 +6,7 @@ export interface MockDeployApiOptions {
   statuses?: string[];
   previewUrl?: string;
   logExcerpt?: string;
+  syncResult?: unknown;
 }
 
 export interface MockDeployApi {
@@ -44,7 +45,12 @@ export function startMockDeployApi(opts: MockDeployApiOptions = {}): Promise<Moc
           res.end(
             JSON.stringify({
               deploymentId: 'dep-1',
-              syncResult: { created: ['hero'], updated: [], removed: [], warnings: [] },
+              syncResult: opts.syncResult ?? {
+                created: ['hero'],
+                updated: [],
+                removed: [],
+                warnings: [],
+              },
             })
           );
         });

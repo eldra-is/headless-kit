@@ -193,6 +193,47 @@ describe('deployTheme', () => {
     await expect(rejection).rejects.toMatchObject({ code: detail });
   });
 
+  it('prints one line per retired field migration', async () => {
+    makeBuild(root);
+    api = await startMockDeployApi({
+      syncResult: {
+        created: [],
+        updated: ['hero'],
+        removed: [],
+        warnings: [],
+        fieldMigrations: {
+          retired: [
+            {
+              blockApiId: 'hero',
+              fieldId: 'subtitle',
+              retiredAs: 'subtitle__v1',
+              fromVersion: 1,
+              reason: 'type-changed',
+              migratedCount: 12,
+            },
+          ],
+        },
+      },
+    });
+    const lines: string[] = [];
+
+    await deployTheme(options({ log: (line) => lines.push(line) }));
+
+    expect(lines).toContain(
+      'retired hero.subtitle → subtitle__v1 (type-changed, 12 entries) — previous content is read-only in Studio'
+    );
+  });
+
+  it('prints nothing extra when the deploy has no retired field migrations', async () => {
+    makeBuild(root);
+    api = await startMockDeployApi();
+    const lines: string[] = [];
+
+    await deployTheme(options({ log: (line) => lines.push(line) }));
+
+    expect(lines.some((line) => line.startsWith('retired '))).toBe(false);
+  });
+
   it('reports terminal failure with the sanitized deployment log excerpt', async () => {
     makeBuild(root);
     api = await startMockDeployApi({

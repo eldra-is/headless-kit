@@ -104,6 +104,54 @@ export function migrationChecks(
       targets.add(rename.to);
     }
   }
+  requireVersionBumpForRetirement(file, block, previous, old, next, errors);
+}
+
+// Fields whose id is unchanged across a redeploy (no declared rename) never go
+// through the renamed-field compatibility check above, and a field dropped
+// from `fields` entirely never appears in `next` at all. Core retires either
+// case into a `<fieldId>__vN` legacy field, but only when the incoming block
+// bumped its version — otherwise a deploy without local history to compare
+// against would silently discard content. This is advisory only: the plugin
+// cannot see installed entries, so it requires a bump whenever the shape
+// could have changed, whether or not any entry actually held a value.
+function requireVersionBumpForRetirement(
+  file: string,
+  block: BlockDefinition,
+  previous: BlockDefinition,
+  old: Map<string, BlockField>,
+  next: Map<string, BlockField>,
+  errors: string[]
+): void {
+  const bumped = block.version > previous.version;
+  const renamedFrom = new Set<string>();
+  for (const step of block.migrations ?? []) {
+    for (const rename of step.renames) renamedFrom.add(rename.from);
+  }
+  for (const [fieldId, prior] of old) {
+    if (renamedFrom.has(fieldId)) continue;
+    const current = next.get(fieldId);
+    if (bumped) continue;
+    if (current === undefined) {
+      errors.push(
+        `${file}: field ${fieldId} was removed; bump "version" to ${previous.version + 1} so Core retires the previous content`
+      );
+      continue;
+    }
+    if (!storageCompatible(prior, current)) {
+      // Two advisory reasons only, matching Core's retirement reasons: a pure
+      // localization flip (type unchanged) reads as "changed localization";
+      // everything else — a type change, or a cardinality/nested-child
+      // change Core still buckets as a type change — reads as "changed type".
+      const reason =
+        prior.type === current.type && (prior.localized === true) !== (current.localized === true)
+          ? 'changed localization'
+          : `changed type (${prior.type} → ${current.type})`;
+      errors.push(
+        `${file}: field ${fieldId} ${reason}; bump "version" to ${previous.version + 1} so Core retires the previous content`
+      );
+    }
+  }
 }
 
 function storageCompatible(oldValue: BlockField, nextValue: BlockField): boolean {

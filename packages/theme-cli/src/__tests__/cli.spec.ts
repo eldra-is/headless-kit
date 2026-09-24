@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
 import { execa } from 'execa';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { scaffoldBlock } from '../index';
@@ -119,6 +120,61 @@ describe('eldra-theme CLI', () => {
     const result = await run(['validate'], dir);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('fields[0].default — type "select" does not support defaults');
+  });
+
+  it('validate requires a version bump for a storage-incompatible field change against local history', async () => {
+    writeThemePackage(dir);
+    scaffoldBlock({ themeDir: dir, apiId: 'promo' });
+    const previous = scanTheme({ themeDir: dir }).manifest!;
+    mkdirSync(join(dir, '.eldra'), { recursive: true });
+    writeFileSync(join(dir, '.eldra', 'manifest.json'), JSON.stringify(previous));
+
+    const path = join(dir, 'blocks', 'promo', 'block.json');
+    const block = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    block.fields = [
+      {
+        fieldId: 'title',
+        name: 'Title',
+        type: 'text',
+        isTitle: true,
+        localized: true,
+        validators: { required: true },
+      },
+    ];
+    writeFileSync(path, `${JSON.stringify(block)}\n`);
+
+    const withoutBump = await run(['validate'], dir);
+    expect(withoutBump.exitCode).toBe(1);
+    expect(withoutBump.stderr).toContain(
+      'blocks/promo/block.json: field title changed type (string → text); bump "version" to 2 so Core retires the previous content'
+    );
+
+    block.version = 2;
+    writeFileSync(path, `${JSON.stringify(block)}\n`);
+    const withBump = await run(['validate'], dir);
+    expect(withBump.exitCode).toBe(0);
+    expect(withBump.stdout).toContain('1 block valid');
+  });
+
+  it('validate skips the local-history check when .eldra/manifest.json is absent', async () => {
+    writeThemePackage(dir);
+    scaffoldBlock({ themeDir: dir, apiId: 'promo' });
+    const path = join(dir, 'blocks', 'promo', 'block.json');
+    const block = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    block.fields = [
+      {
+        fieldId: 'title',
+        name: 'Title',
+        type: 'text',
+        isTitle: true,
+        localized: true,
+        validators: { required: true },
+      },
+    ];
+    writeFileSync(path, `${JSON.stringify(block)}\n`);
+
+    const result = await run(['validate'], dir);
+    expect(result.exitCode).toBe(0);
   });
 
   it('validate --remote warns and uses the bundled list when the endpoint is unavailable', async () => {

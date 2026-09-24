@@ -34,11 +34,20 @@ export interface DeployOptions {
   fetch?: typeof globalThis.fetch;
   log?: (line: string) => void;
 }
+export interface RetiredFieldMigration {
+  blockApiId: string;
+  fieldId: string;
+  retiredAs: string;
+  fromVersion: number;
+  reason: 'type-changed' | 'localization-changed' | 'removed';
+  migratedCount: number;
+}
 export interface DeploySyncResult {
   created: string[];
   updated: string[];
   removed: string[];
   warnings: string[];
+  fieldMigrations?: { retired: RetiredFieldMigration[] };
 }
 export interface DeployResult {
   deploymentId: string;
@@ -122,6 +131,11 @@ export async function deployTheme(opts: DeployOptions): Promise<DeployResult> {
       `deployment ${accepted.deploymentId} accepted — blocks +${syncResult.created.length} ~${syncResult.updated.length} -${syncResult.removed.length}`
     );
     for (const w of syncResult.warnings) log(`warning: ${w}`);
+    for (const retired of syncResult.fieldMigrations?.retired ?? []) {
+      log(
+        `retired ${retired.blockApiId}.${retired.fieldId} → ${retired.retiredAs} (${retired.reason}, ${retired.migratedCount} entries) — previous content is read-only in Studio`
+      );
+    }
     const deadline = Date.now() + (opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     let lastStatus = '';
     for (;;) {
