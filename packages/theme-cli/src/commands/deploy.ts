@@ -39,7 +39,7 @@ export interface RetiredFieldMigration {
   fieldId: string;
   retiredAs: string;
   fromVersion: number;
-  reason: 'type-changed' | 'localization-changed' | 'removed';
+  reason: 'type-changed' | 'localization-changed' | 'shape-changed' | 'removed';
   migratedCount: number;
 }
 export interface DeploySyncResult {

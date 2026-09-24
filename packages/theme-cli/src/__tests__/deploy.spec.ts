@@ -253,13 +253,15 @@ describe('deployTheme', () => {
                 blockApiId: 'retiretest',
                 fieldId: 'images',
                 variant: 'draft',
-                reason: 'field type changed (list → media); bump the block version to retire the previous content',
+                reason:
+                  'field type changed (list → media); bump the block version to retire the previous content',
               },
               {
                 blockApiId: 'retiretest',
                 fieldId: 'images',
                 variant: 'published',
-                reason: 'field type changed (list → media); bump the block version to retire the previous content',
+                reason:
+                  'field type changed (list → media); bump the block version to retire the previous content',
               },
               {
                 blockApiId: 'retiretest',

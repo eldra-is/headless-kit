@@ -42,7 +42,9 @@ export function startMockDeployApi(opts: MockDeployApiOptions = {}): Promise<Moc
           res.statusCode = status;
           if (status !== 202) {
             res.end(
-              JSON.stringify(opts.errorBody ?? { status, detail: opts.errorDetail ?? 'SITE_DEPLOY_FAILED' })
+              JSON.stringify(
+                opts.errorBody ?? { status, detail: opts.errorDetail ?? 'SITE_DEPLOY_FAILED' }
+              )
             );
             return;
           }
