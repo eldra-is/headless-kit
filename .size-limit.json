@@ -45,6 +45,24 @@
     "limit": "2 kB"
   },
   {
+    "name": "@eldrajs/ui — Button, without vue",
+    "path": "packages/ui/dist/index.js",
+    "import": "{ Button }",
+    "ignore": ["vue"],
+    "limit": "6 kB"
+  },
+  {
+    "name": "@eldrajs/ui — everything, without vue",
+    "path": "packages/ui/dist/index.js",
+    "ignore": ["vue"],
+    "limit": "60 kB"
+  },
+  {
+    "name": "@eldrajs/ui — style.css",
+    "path": "packages/ui/dist/style.css",
+    "limit": "40 kB"
+  },
+  {
     "name": "@eldrajs/theme-vue — everything, without vue",
     "path": "packages/theme-vue/dist/index.js",
     "ignore": [

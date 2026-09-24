@@ -1,0 +1,212 @@
+/* Tailwind v4 theme for @eldrajs/ui. Every value is a --eldra-* variable from tokens.css, so a
+   consumer restyles by setting variables; nothing here is a literal. Consumers with Tailwind
+   import this file after `@import 'tailwindcss'`; consumers without Tailwind use style.css. */
+@import './tokens.css';
+@source './';
+
+@theme {
+  --color-*: initial;
+  --color-background: var(--eldra-color-background);
+  --color-surface: var(--eldra-color-surface);
+  --color-surface-strong: var(--eldra-color-surface-strong);
+  --color-border: var(--eldra-color-border);
+  --color-border-strong: var(--eldra-color-border-strong);
+  --color-text: var(--eldra-color-text);
+  --color-muted: var(--eldra-color-muted);
+  --color-primary: var(--eldra-color-primary);
+  --color-primary-contrast: var(--eldra-color-primary-contrast);
+  --color-accent: var(--eldra-color-accent);
+  --color-accent-contrast: var(--eldra-color-accent-contrast);
+  --color-success: var(--eldra-color-success);
+  --color-warning: var(--eldra-color-warning);
+  --color-danger: var(--eldra-color-danger);
+  --color-focus: var(--eldra-color-focus);
+  --color-focus-inner: var(--eldra-color-focus-inner);
+  --color-overlay: var(--eldra-color-overlay);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-heading: var(--eldra-font-heading);
+  --font-body: var(--eldra-font-body);
+  --font-mono: var(--eldra-font-mono);
+
+  --spacing-*: initial;
+  --spacing: 0.25rem;
+  --spacing-1: var(--eldra-space-1);
+  --spacing-2: var(--eldra-space-2);
+  --spacing-3: var(--eldra-space-3);
+  --spacing-4: var(--eldra-space-4);
+  --spacing-5: var(--eldra-space-5);
+  --spacing-6: var(--eldra-space-6);
+  --spacing-8: var(--eldra-space-8);
+  --spacing-12: var(--eldra-space-12);
+  --spacing-16: var(--eldra-space-16);
+
+  --radius-*: initial;
+  --radius-sm: var(--eldra-radius-sm);
+  --radius-md: var(--eldra-radius-md);
+  --radius-lg: var(--eldra-radius-lg);
+  --radius-xl: var(--eldra-radius-xl);
+  --radius-full: var(--eldra-radius-full);
+
+  --shadow-*: initial;
+  --shadow-sm: var(--eldra-shadow-sm);
+  --shadow-md: var(--eldra-shadow-md);
+
+  --ease-out: var(--eldra-ease-out);
+  --ease-in: var(--eldra-ease-in);
+
+  --container-narrow: var(--eldra-container-narrow);
+  --container-content: var(--eldra-container-content);
+  --container-wide: var(--eldra-container-wide);
+}
+
+/* Type styles: one utility per spec style, e.g. `text-body-sm`. */
+@utility text-display {
+  font: var(--eldra-text-display-weight) var(--eldra-text-display-size) /
+    var(--eldra-text-display-line) var(--eldra-text-display-family);
+  letter-spacing: var(--eldra-text-display-tracking);
+}
+@utility text-h1 {
+  font: var(--eldra-text-h1-weight) var(--eldra-text-h1-size) / var(--eldra-text-h1-line)
+    var(--eldra-text-h1-family);
+  letter-spacing: var(--eldra-text-h1-tracking);
+}
+@utility text-h2 {
+  font: var(--eldra-text-h2-weight) var(--eldra-text-h2-size) / var(--eldra-text-h2-line)
+    var(--eldra-text-h2-family);
+  letter-spacing: var(--eldra-text-h2-tracking);
+}
+@utility text-h3 {
+  font: var(--eldra-text-h3-weight) var(--eldra-text-h3-size) / var(--eldra-text-h3-line)
+    var(--eldra-text-h3-family);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+@utility text-h4 {
+  font: var(--eldra-text-h4-weight) var(--eldra-text-h4-size) / var(--eldra-text-h4-line)
+    var(--eldra-text-h4-family);
+  letter-spacing: var(--eldra-text-h4-tracking);
+}
+@utility text-body-lg {
+  font: var(--eldra-text-body-lg-weight) var(--eldra-text-body-lg-size) /
+    var(--eldra-text-body-lg-line) var(--eldra-text-body-lg-family);
+  letter-spacing: var(--eldra-text-body-lg-tracking);
+}
+@utility text-body {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) / var(--eldra-text-body-line)
+    var(--eldra-text-body-family);
+  letter-spacing: var(--eldra-text-body-tracking);
+}
+@utility text-body-sm {
+  font: var(--eldra-text-body-sm-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-text-body-sm-line) var(--eldra-text-body-sm-family);
+  letter-spacing: var(--eldra-text-body-sm-tracking);
+}
+@utility text-caption {
+  font: var(--eldra-text-caption-weight) var(--eldra-text-caption-size) /
+    var(--eldra-text-caption-line) var(--eldra-text-caption-family);
+  letter-spacing: var(--eldra-text-caption-tracking);
+}
+@utility text-overline {
+  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
+    var(--eldra-text-overline-line) var(--eldra-text-overline-family);
+  letter-spacing: var(--eldra-text-overline-tracking);
+  text-transform: uppercase;
+}
+@utility text-label {
+  font: var(--eldra-text-label-weight) var(--eldra-text-label-size) / var(--eldra-text-label-line)
+    var(--eldra-text-label-family);
+  letter-spacing: var(--eldra-text-label-tracking);
+}
+@utility text-code {
+  font: var(--eldra-text-code-weight) var(--eldra-text-code-size) / var(--eldra-text-code-line)
+    var(--eldra-text-code-family);
+  letter-spacing: var(--eldra-text-code-tracking);
+}
+
+/* Control heights and targets. */
+@utility control-h {
+  height: var(--eldra-control-height);
+}
+@utility control-h-sm {
+  height: var(--eldra-control-height-sm);
+}
+@utility control-h-lg {
+  height: var(--eldra-control-height-lg);
+}
+@utility target-min {
+  min-height: var(--eldra-target-min);
+  min-width: var(--eldra-target-min);
+}
+@utility target-touch {
+  min-height: var(--eldra-target-touch);
+}
+
+/* Motion. */
+@utility duration-fast {
+  transition-duration: var(--eldra-duration-fast);
+}
+@utility duration-base {
+  transition-duration: var(--eldra-duration-base);
+}
+@utility duration-slow {
+  transition-duration: var(--eldra-duration-slow);
+}
+
+/* Layers. */
+@utility z-sticky {
+  z-index: var(--eldra-z-sticky);
+}
+@utility z-drawer {
+  z-index: var(--eldra-z-drawer);
+}
+@utility z-dialog {
+  z-index: var(--eldra-z-dialog);
+}
+@utility z-toast {
+  z-index: var(--eldra-z-toast);
+}
+
+/* The one focus ring (spec 1 "Focus ring"): 2px focus-inner infill hugging the element, 2px focus
+   ring outside it, grown in over duration-base. `eldra-focus` shows on :focus-visible; text fields
+   add `eldra-focus-always` so it shows on any focus. `eldra-focus-inset` draws both inside. */
+@utility eldra-focus {
+  outline: 0 solid var(--eldra-color-focus);
+  outline-offset: var(--eldra-focus-offset);
+  box-shadow: 0 0 0 0 var(--eldra-color-focus-inner);
+  transition:
+    outline-width var(--eldra-duration-base) var(--eldra-ease-out),
+    box-shadow var(--eldra-duration-base) var(--eldra-ease-out);
+  &:focus-visible {
+    outline-width: var(--eldra-focus-width);
+    box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+  }
+  @media (forced-colors: active) {
+    &:focus-visible {
+      outline-color: Highlight;
+    }
+  }
+}
+@utility eldra-focus-always {
+  &:focus {
+    outline-width: var(--eldra-focus-width);
+    box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+  }
+}
+@utility eldra-focus-inset {
+  outline: 0 solid var(--eldra-color-focus);
+  outline-offset: calc(-1 * (var(--eldra-focus-width) + var(--eldra-focus-offset)));
+  box-shadow: inset 0 0 0 0 var(--eldra-color-focus-inner);
+  transition:
+    outline-width var(--eldra-duration-base) var(--eldra-ease-out),
+    box-shadow var(--eldra-duration-base) var(--eldra-ease-out);
+  &:focus-visible {
+    outline-width: var(--eldra-focus-width);
+    box-shadow: inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+  }
+  @media (forced-colors: active) {
+    &:focus-visible {
+      outline-color: Highlight;
+    }
+  }
+}

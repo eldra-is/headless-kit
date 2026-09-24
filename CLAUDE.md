@@ -85,6 +85,23 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   peers on `vue`. Uses the same safety helpers in `Link.vue`, `Image.vue` and `Embed.vue`. Built by
   Vite in library mode with `vite-plugin-dts` bundling the declarations into one `index.d.ts` —
   per-file `.vue.d.ts` output fails Node16 resolution, which `attw` catches.
+- `packages/ui` — `@eldrajs/ui`. The public Vue 3 core component library, built to
+  `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue`, optionally on
+  `vee-validate` (the `./vee-validate` entry only); runtime deps are `@floating-ui/vue`,
+  `@vueuse/core` and `tailwind-merge`. Built by Vite in library mode with `vite-plugin-dts`, the
+  same shape as `packages/vue`. **No value is written literally**: every colour, radius, height,
+  spacing step, font, duration, easing and z-index resolves to a `--eldra-*` variable, so a
+  consumer restyles by setting variables. `scripts/build-tokens.mjs` generates
+  `src/styles/tokens.css` from `eldra-starter-spec/tokens.json` (checked in; `pnpm --filter
+@eldrajs/ui check:tokens` runs in the root `lint:check` and fails on drift — regenerate with
+  `build-tokens`, never hand-edit). Three CSS entries ship: `./tokens.css` (the variables),
+  `./tailwind.css` (the `@theme` block and the `@utility` rules — type styles, control heights,
+  the `eldra-focus` ring, motion and layer utilities — copied to `dist/` verbatim so a consumer's
+  own Tailwind build reads them, with `@source './'` resolving against `dist/`), and `./style.css`
+  (the package's compiled stylesheet for consumers without Tailwind, emitted by the `style` lib
+  entry). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
+  apply — this is a framework package. Never a `Ui` prefix: the resolver entry defaults to
+  `Eldra`.
 - `packages/theme-core` — `@eldrajs/theme-core`. Framework-free core of the theme SDK: the Studio
   preview bridge (`./bridge`), stega, the overlay runtime, layout CSS, rich-text position mapping,
   design tokens, image framing. Built by tsdown, one entry per subpath. Must never import a

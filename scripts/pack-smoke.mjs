@@ -72,6 +72,24 @@ const consumers = {
       export const component = RichText;
     `,
   },
+  '@eldrajs/ui': {
+    // The scaffold ships no components yet: this proves the package resolves and that the three
+    // CSS entries are in the tarball. Later plans add the component and resolver probes.
+    runtime: `
+      import { existsSync } from 'node:fs';
+      import { createRequire } from 'node:module';
+      import * as ui from '@eldrajs/ui';
+      assert(ui && typeof ui === 'object', '@eldrajs/ui namespace');
+      const resolve = createRequire(import.meta.url).resolve;
+      for (const css of ['tokens.css', 'tailwind.css', 'style.css']) {
+        assert(existsSync(resolve('@eldrajs/ui/' + css)), css);
+      }
+    `,
+    types: `
+      import * as ui from '@eldrajs/ui';
+      export const namespace: typeof ui = ui;
+    `,
+  },
   '@eldrajs/theme-core': {
     runtime: `
       import { createEldraClient, stripStega, encodeStega, decodeStega } from '@eldrajs/theme-core';

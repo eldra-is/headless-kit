@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "./dist",
+    "rootDir": "./src",
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/index.ts",
+    "src/resolver.ts",
+    "src/vee-validate/index.ts",
+    "src/messages/is-IS.ts",
+    "src/**/*.ts",
+    "src/**/*.vue"
+  ],
+  "exclude": ["src/**/__tests__/**", "src/test/**", "src/**/*.stories.ts", "src/styles/**"]
+}

@@ -46,6 +46,11 @@
       "component": "theme-nuxt",
       "package-name": "@eldrajs/theme-nuxt",
       "changelog-path": "RELEASE-NOTES.md"
+    },
+    "packages/ui": {
+      "component": "ui",
+      "package-name": "@eldrajs/ui",
+      "changelog-path": "RELEASE-NOTES.md"
     }
   },
   "plugins": ["node-workspace"]
