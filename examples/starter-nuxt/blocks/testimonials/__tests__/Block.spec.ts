@@ -44,6 +44,13 @@ describe('testimonials block', () => {
     expect(wrapper.text()).not.toContain('FB');
   });
 
+  it('renders without an author instead of crashing (a freshly-placed block seeds a blank item)', async () => {
+    const data = { ...mock, items: [{ quote: undefined, author: undefined, role: undefined }] };
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data } }));
+    expect(wrapper.text()).toContain(mock.heading);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
   it('renders a rating only for items that declare one', () => {
     const data = {
       ...mock,

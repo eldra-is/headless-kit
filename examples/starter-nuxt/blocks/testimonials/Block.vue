@@ -33,9 +33,13 @@ const { index, trackRef, next, previous, onTrackKeydown } = useCarousel(total);
 
 /**
  * Fallback avatar for an item with no `avatar` media: the first letters of
- * the author's first two words (e.g. "Freyja B." → "FB"), uppercased.
+ * the author's first two words (e.g. "Freyja B." → "FB"), uppercased. A
+ * freshly-placed block's item can reach here with no `author` yet (Studio
+ * seeds one blank repeater item so the block renders something before the
+ * author fills it in) — fall back to an empty string instead of crashing.
  */
-function initialsOf(name: string): string {
+function initialsOf(name: string | undefined): string {
+  if (!name) return '';
   return name
     .split(/\s+/)
     .filter(Boolean)
