@@ -228,11 +228,14 @@ interface ProjectedBlockField {
 /**
  * Builds `virtual:eldra/block-fields`: per block, only `fieldId`, `type`,
  * `localized` (omitted when false) and `metadata` (nested composite
- * `metadata.fields` passed through as-is) — the slice theme-core's
- * `isBlockFieldLocalized` needs to resolve a field's locale default at
- * runtime without pulling in the rest of the manifest. `metadata` is carried
- * because a theme may read its own keys; the SDK itself no longer reads
- * `metadata.toolbar` (§18 v2 moved the toolbar to Studio).
+ * `metadata.fields` passed through as-is) — the slice theme-core needs at
+ * runtime without pulling in the rest of the manifest. `isBlockFieldLocalized`
+ * uses `fieldId`/`localized` to resolve a field's locale default;
+ * `isBlockFieldSelect` uses `type` plus `metadata.item`/`metadata.fields`
+ * (carried verbatim here) to resolve a field's type through `list`/`composite`
+ * nesting. `metadata` is also carried because a theme may read its own keys;
+ * the SDK itself no longer reads `metadata.toolbar` (§18 v2 moved the toolbar
+ * to Studio).
  */
 function blockFieldsModuleSource(manifest: ThemeManifest): string {
   const entries = manifest.blocks

@@ -61,11 +61,21 @@ export function sanitizeSlotGeometry(slots: unknown): SlotGeometry[] {
   return out;
 }
 
-function projectDrafts(context: EldraContext): void {
+/**
+ * Exported for `previewDrafts.spec.ts`: proving a draft's own top-level
+ * select field unwraps the same way a select nested in an embedded block
+ * does (SF-2) needs to call this directly, without standing up the whole
+ * `startEldraPreview` bridge/overlay runtime that owns every other call site.
+ */
+export function projectDrafts(context: EldraContext): void {
   for (const [entryId, draftDoc] of Object.entries(context.preview.sourceDrafts)) {
     context.preview.drafts[entryId] = context.client.encodeEntryDataStega(
       entryId,
-      projectEntryDataLocale(draftDoc, context.preview.locale),
+      projectEntryDataLocale(
+        draftDoc,
+        context.preview.locale,
+        context.preview.draftSchemaApiIds[entryId]
+      ),
       context.preview.locale,
       context.preview.draftSchemaApiIds[entryId]
     );
