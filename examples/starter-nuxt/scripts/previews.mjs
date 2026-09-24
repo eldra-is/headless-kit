@@ -12,8 +12,9 @@ import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
-// A root devDependency (see repo CLAUDE.md's Chromium browser-test note);
-// resolved by walking up from this file — not a dependency of this package.
+// A devDependency of this package (also a root devDependency — see repo
+// CLAUDE.md's Chromium browser-test note); run `pnpm exec playwright install
+// chromium` once locally before the first `pnpm previews`.
 import { chromium } from '@playwright/test';
 import { hashBlock, listBlockIds } from './previewHash.mjs';
 

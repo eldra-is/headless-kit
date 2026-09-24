@@ -164,6 +164,14 @@ seeds. A block with no media fields simply has no `preview.json`. Every block sp
 merged data and the bare `mock.json`, both asserted axe-clean — the bare-mock mount is the regression
 net for a block that renders badly (or crashes) the moment it is freshly inserted.
 
+**The merge is shallow** (`{ ...mock, ...preview }`, one level deep): a `list`-valued field present
+in both files is not merged item-by-item — `preview.json` replaces the whole array. A block whose
+list items carry non-media content (`title`/`body`/`href`, say, alongside the image) therefore
+duplicates that content into `preview.json`'s copy of the list (`feature-grid` is the example in
+this starter). Editing only `mock.json`'s copy silently has no effect on the generated story or the
+regenerated `preview.png` — keep both copies in sync by hand, or move the field out of the list
+shape if that drift becomes a real problem for a block you add.
+
 ## 4. Storybook and generated previews
 
 Storybook 10 (`@storybook/vue3-vite`) lives in `examples/starter-nuxt/.storybook/`, with
@@ -195,7 +203,9 @@ shared style change can change every block's rendered pixels. `test/previewsFres
 "run pnpm previews" if any hash is
 out of date, so **run `pnpm --filter starter-nuxt previews` after any block or `main.css` change and
 commit the result** — `preview.png`, `.eldra/previews/*.png`, and `.eldra/previews.json` are all
-tracked.
+tracked. The starter declares its own `@playwright/test` devDependency for this, so `pnpm previews`
+works in a standalone copy too; run `pnpm exec playwright install chromium` once locally before the
+first use.
 
 ## 5. Strings
 

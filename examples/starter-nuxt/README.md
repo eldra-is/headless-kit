@@ -29,6 +29,7 @@ pnpm test                 # vitest — every primitive/block spec, axe included
 pnpm storybook             # dev server on :6007
 pnpm build-storybook        # static Storybook build (also runs in CI)
 pnpm previews               # regenerate blocks/<id>/preview.png + freshness hashes
+                             #   (one-time setup: pnpm exec playwright install chromium)
 pnpm demo-images             # regenerate the deterministic SVG demo images
 pnpm sync-theme-colors        # regenerate main.css's color @theme block from tokens.json
 pnpm check:theme-colors        # fail if that block has drifted from tokens.json (wired into lint:check)
