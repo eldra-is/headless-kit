@@ -12,6 +12,12 @@ const LOCALE_KEY = /^[A-Za-z0-9]{1,8}(?:-[A-Za-z0-9]{1,8})*$/;
  * against those literals — never against this wrapper. Left unprojected in
  * the live-editing draft, a `select`/`variant` field never matches and a
  * block silently keeps its default/no-variant markup while editing.
+ *
+ * This shape check alone is not enough to unwrap: a theme-authored composite
+ * field can legitimately declare two string sub-fields literally named
+ * `value`/`label`. `project` below additionally confirms, via
+ * `isBlockFieldSelect`, that the *registered* field at the current path
+ * really is `type: "select"` before unwrapping.
  */
 function looksLikeSelectValue(value: unknown): value is { value: string; label: string } {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -27,15 +33,29 @@ function looksLikeSelectValue(value: unknown): value is { value: string; label: 
  * Projects a complete localized CMS draft into the active-locale shape used
  * by theme renderers. The input is never mutated, so Studio can keep sending
  * and persisting the complete document.
+ *
+ * `apiId` (the entry's own `schemaApiId`, when known) gates the
+ * `{value,label}` select unwrap above on `isBlockFieldSelect`, tracking the
+ * dot-separated field path as the walk descends (the same convention
+ * `encodeEntryDataStega`'s `walk` uses), so it only fires for a field the
+ * theme's manifest actually registered as `type: "select"` — including one
+ * nested inside a `list`'s composite item, e.g. `"items.0.variant"`. When
+ * `apiId` is omitted, or the schema has no registered block fields at all
+ * (a non-block entry, such as a page, never appears in the block-fields
+ * registry), `isBlockFieldSelect` returns false for every path and nothing
+ * is unwrapped — safe by construction, never a guess.
  */
 export function projectEntryDataLocale(
   data: Record<string, unknown>,
-  locale: string | null
+  locale: string | null,
+  apiId?: string
 ): Record<string, unknown> {
-  const project = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(project);
+  const project = (value: unknown, path: string): unknown => {
+    if (Array.isArray(value)) {
+      return value.map((item, i) => project(item, path === '' ? String(i) : `${path}.${i}`));
+    }
     if (typeof value !== 'object' || value === null) return value;
-    if (looksLikeSelectValue(value)) return value.value;
+    if (looksLikeSelectValue(value) && isBlockFieldSelect(apiId, path)) return value.value;
 
     const entries = Object.entries(value);
     if (
@@ -44,13 +64,15 @@ export function projectEntryDataLocale(
       entries.every(([key]) => LOCALE_KEY.test(key)) &&
       Object.prototype.hasOwnProperty.call(value, locale)
     ) {
-      return project((value as Record<string, unknown>)[locale]);
+      return project((value as Record<string, unknown>)[locale], path);
     }
 
-    return Object.fromEntries(entries.map(([key, child]) => [key, project(child)]));
+    return Object.fromEntries(
+      entries.map(([key, child]) => [key, project(child, path === '' ? key : `${path}.${key}`)])
+    );
   };
 
-  return project(data) as Record<string, unknown>;
+  return project(data, '') as Record<string, unknown>;
 }
 
 /** A resolved reference embedded by the gateway looks like an entry doc: { id, data: {...} }. */
@@ -106,13 +128,15 @@ function looksLikeMediaAsset(v: unknown): v is { assetId: string; url: string } 
  *  Entering a nested resolved entry doc re-roots entryId and fieldPath.
  *
  *  `apiId` (the entry's own `schemaApiId`, when known) is used only to skip
- *  encoding a top-level `select` field's resolved value (e.g. `variant`):
- *  that string is never displayed as editable text, only compared with
- *  `===` inside a `Block.vue`, and stega's invisible tracking characters
- *  make that comparison silently fail forever. Entering a nested resolved
- *  entry doc (a page's embedded block) re-derives `apiId` from that doc's
- *  own `schemaApiId`, so a block's own select fields are protected the same
- *  way whether it is fetched directly or embedded inside a page. */
+ *  encoding a registered `select` field's resolved value (e.g. `variant`,
+ *  top-level or nested inside a `list`'s composite item — see
+ *  `isBlockFieldSelect`): that string is never displayed as editable text,
+ *  only compared with `===` inside a `Block.vue`, and stega's invisible
+ *  tracking characters make that comparison silently fail forever. Entering
+ *  a nested resolved entry doc (a page's embedded block) re-derives `apiId`
+ *  from that doc's own `schemaApiId`, so a block's own select fields are
+ *  protected the same way whether it is fetched directly or embedded inside
+ *  a page. */
 export function encodeEntryDataStega(
   entryId: string,
   data: Record<string, unknown>,
@@ -155,10 +179,10 @@ export function encodeEntryDataStega(
   };
   const walk = (value: unknown, ownerId: string, path: string): unknown => {
     if (typeof value === 'string') {
-      // A top-level select field's resolved value (registry only tracks
-      // top-level fields, so `path` must be bare — no dot) is comparison
+      // A select field's resolved value — top-level, or nested inside a
+      // `list`'s composite item (e.g. "items.0.variant") — is comparison
       // data, not editable text; see the doc comment above.
-      if (!path.includes('.') && isBlockFieldSelect(apiId, path)) return value;
+      if (isBlockFieldSelect(apiId, path)) return value;
       return encodeStega(value, { entryId: ownerId, fieldPath: path, locale });
     }
     if (Array.isArray(value)) {

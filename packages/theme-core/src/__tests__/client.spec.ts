@@ -1,10 +1,48 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerBlockFields } from '../blockFields';
 import { createEldraClient } from '../client';
 import { EldraClientError } from '../clientTypes';
 import { decodeStega } from '../stega';
 
 const GATEWAY = 'https://gateway.example.test';
 const ORG = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+
+// Registered fields for the 'cta' schema used by the select-unwrap tests
+// below: a top-level select ('variant'), a select nested inside a list's
+// composite item ('items.*.variant'), and a composite field whose
+// sub-fields are literally named 'value'/'label' ('metric') — the same
+// shape a real select produces, but not a select.
+const CTA_FIELDS = {
+  cta: [
+    { fieldId: 'variant', type: 'select' },
+    { fieldId: 'heading', type: 'string' },
+    {
+      fieldId: 'items',
+      type: 'list',
+      metadata: {
+        item: {
+          type: 'composite',
+          metadata: {
+            fields: [
+              { fieldId: 'title', type: 'string' },
+              { fieldId: 'variant', type: 'select' },
+            ],
+          },
+        },
+      },
+    },
+    {
+      fieldId: 'metric',
+      type: 'composite',
+      metadata: {
+        fields: [
+          { fieldId: 'value', type: 'string' },
+          { fieldId: 'label', type: 'string' },
+        ],
+      },
+    },
+  ],
+};
 
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -17,6 +55,9 @@ describe('createEldraClient', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     fetchMock = vi.fn();
+  });
+  afterEach(() => {
+    registerBlockFields({});
   });
 
   function client(stega = false) {
@@ -158,13 +199,17 @@ describe('createEldraClient', () => {
     expect(entry.data.media).toEqual(doc.data.media);
   });
 
-  it('unwraps a resolved select field ({value,label}) into its plain value', async () => {
+  it('unwraps a resolved select field ({value,label}) into its plain value, top-level and nested in a list item', async () => {
     // web-studio-core's resolveSelectLabels replaces a select field's stored
     // string with {value,label} on public reads; themes only ever declare
     // (and compare against) the plain value, so this must round-trip to a
     // bare string or every variant-switch silently renders as the default.
+    // Gated on the registered field type, not the shape alone — see the
+    // "does not unwrap" tests below.
+    registerBlockFields(CTA_FIELDS);
     const doc = {
       id: 'e1',
+      schemaApiId: 'cta',
       data: {
         heading: 'CTA',
         variant: { value: 'subtle', label: 'Subtle' },
@@ -178,8 +223,12 @@ describe('createEldraClient', () => {
   });
 
   it('unwraps a resolved multi-select field (array of {value,label}) into plain values', async () => {
+    registerBlockFields({
+      product: [{ fieldId: 'tags', type: 'select', metadata: { multiple: true } }],
+    });
     const doc = {
       id: 'e1',
+      schemaApiId: 'product',
       data: {
         tags: [
           { value: 'featured', label: 'Featured' },
@@ -193,11 +242,54 @@ describe('createEldraClient', () => {
   });
 
   it('leaves an ordinary two-string-field composite alone (not a select wrapper)', async () => {
-    const doc = { id: 'e1', data: { link: { href: 'https://x.test', label: 'Go' } } };
+    registerBlockFields(CTA_FIELDS);
+    const doc = {
+      id: 'e1',
+      schemaApiId: 'cta',
+      data: { link: { href: 'https://x.test', label: 'Go' } },
+    };
     fetchMock.mockResolvedValue(jsonResponse(doc));
     const entry = await client().getEntry('cta', 'e1', { locale: 'en-US' });
     // {href,label} does not have a "value" key, so it must not be unwrapped.
     expect(entry.data.link).toEqual(doc.data.link);
+  });
+
+  it('leaves a composite field whose sub-fields are literally "value"/"label" untouched, even though the registry has a real select elsewhere', async () => {
+    // Same two-string-key shape resolveSelectLabels produces for a real
+    // select, but 'metric' is registered as type "composite", not "select" —
+    // the unwrap must be gated on the registered type, not the key names.
+    registerBlockFields(CTA_FIELDS);
+    const doc = {
+      id: 'e1',
+      schemaApiId: 'cta',
+      data: { metric: { value: '42', label: 'Active users' } },
+    };
+    fetchMock.mockResolvedValue(jsonResponse(doc));
+    const entry = await client().getEntry('cta', 'e1', { locale: 'en-US' });
+    expect(entry.data.metric).toEqual(doc.data.metric);
+  });
+
+  it('does not unwrap a {value,label} shape when the schema has no registered block fields at all (e.g. a non-block entry such as a page)', async () => {
+    // registerBlockFields is deliberately not called for 'page' (pages, and
+    // any other non-block schema, are never registered), even though the
+    // response carries its schemaApiId like any other entry. Absence of a
+    // registration must never be read as permission to unwrap.
+    const doc = {
+      id: 'e1',
+      schemaApiId: 'page',
+      data: { variant: { value: 'subtle', label: 'Subtle' } },
+    };
+    fetchMock.mockResolvedValue(jsonResponse(doc));
+    const entry = await client().getEntry('page', 'e1', { locale: 'en-US' });
+    expect(entry.data.variant).toEqual(doc.data.variant);
+  });
+
+  it('does not unwrap a {value,label} shape when the entry doc carries no schemaApiId at all', async () => {
+    registerBlockFields(CTA_FIELDS);
+    const doc = { id: 'e1', data: { variant: { value: 'subtle', label: 'Subtle' } } };
+    fetchMock.mockResolvedValue(jsonResponse(doc));
+    const entry = await client().getEntry('cta', 'e1', { locale: 'en-US' });
+    expect(entry.data.variant).toEqual(doc.data.variant);
   });
 
   it('re-roots fieldPath/entryId when walking resolved reference entry docs', async () => {

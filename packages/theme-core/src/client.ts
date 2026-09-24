@@ -1,3 +1,4 @@
+import { isBlockFieldSelect } from './blockFields';
 import { encodeEntryDataStega } from './stegaWalk';
 import type {
   EldraClient,
@@ -44,9 +45,9 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
   }
 
   function maybeStega(entry: EntryDoc, locale: string | null): EntryDoc {
-    const projected = { ...entry, data: projectLocalizedLeaves(entry.data, locale) };
-    if (!stegaEnabled || previewToken === null) return projected;
     const apiId = typeof entry.schemaApiId === 'string' ? entry.schemaApiId : undefined;
+    const projected = { ...entry, data: projectLocalizedLeaves(entry.data, locale, apiId) };
+    if (!stegaEnabled || previewToken === null) return projected;
     return { ...projected, data: encodeEntryDataStega(entry.id, projected.data, locale, apiId) };
   }
 
@@ -133,6 +134,12 @@ const localeKey = /^[a-z]{2}(?:-[A-Za-z0-9]{2,8})*$/;
  * (and any other select-typed) field always fails that comparison and a
  * block silently renders its default/no-variant markup forever, in preview
  * and in production alike.
+ *
+ * This shape check alone is not enough to unwrap: a theme-authored composite
+ * field can legitimately declare two string sub-fields literally named
+ * `value`/`label` (a stat/metric field, a generic chip). Every call site
+ * must additionally confirm, via `isBlockFieldSelect`, that the *registered*
+ * field at this path really is `type: "select"` before unwrapping.
  */
 function looksLikeSelectValue(value: unknown): value is { value: string; label: string } {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -147,11 +154,31 @@ function looksLikeSelectValue(value: unknown): value is { value: string; label: 
  * leaves were persisted before recursive localization extraction existed.
  * Project only objects whose every key is a locale tag, leaving ordinary
  * records (including media and references) untouched.
+ *
+ * `apiId` (the entry's own `schemaApiId`, when known) and `path` (the
+ * dot-separated field path built as this walk descends, matching
+ * `stegaWalk.ts`'s path convention) gate the `{value,label}` select unwrap
+ * above on `isBlockFieldSelect`, so it only ever fires for a field the
+ * theme's manifest actually registered as `type: "select"` — including one
+ * nested inside a `list`'s composite item, e.g. `"items.0.variant"`. When
+ * `apiId` is undefined, or the schema has no registered block fields at all
+ * (a non-block entry, such as a page, never appears in the block-fields
+ * registry), `isBlockFieldSelect` returns false for every path and nothing
+ * is unwrapped — safe by construction, never a guess.
  */
-function projectLocalizedValue(value: unknown, locale: string | null): unknown {
-  if (Array.isArray(value)) return value.map((item) => projectLocalizedValue(item, locale));
+function projectLocalizedValue(
+  value: unknown,
+  locale: string | null,
+  apiId: string | undefined,
+  path: string
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item, i) =>
+      projectLocalizedValue(item, locale, apiId, path === '' ? String(i) : `${path}.${i}`)
+    );
+  }
   if (value === null || typeof value !== 'object') return value;
-  if (looksLikeSelectValue(value)) return value.value;
+  if (looksLikeSelectValue(value) && isBlockFieldSelect(apiId, path)) return value.value;
 
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record);
@@ -163,18 +190,24 @@ function projectLocalizedValue(value: unknown, locale: string | null): unknown {
       : undefined;
     return projectLocalizedValue(
       exact !== undefined ? exact : record[languageKey ?? keys[0]!],
-      locale
+      locale,
+      apiId,
+      path
     );
   }
 
   return Object.fromEntries(
-    Object.entries(record).map(([key, item]) => [key, projectLocalizedValue(item, locale)])
+    Object.entries(record).map(([key, item]) => [
+      key,
+      projectLocalizedValue(item, locale, apiId, path === '' ? key : `${path}.${key}`),
+    ])
   );
 }
 
 function projectLocalizedLeaves(
   data: Record<string, unknown>,
-  locale: string | null
+  locale: string | null,
+  apiId: string | undefined
 ): Record<string, unknown> {
-  return projectLocalizedValue(data, locale) as Record<string, unknown>;
+  return projectLocalizedValue(data, locale, apiId, '') as Record<string, unknown>;
 }

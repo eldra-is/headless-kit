@@ -10,6 +10,39 @@ const FIELDS = {
   cta: [
     { fieldId: 'variant', type: 'select' },
     { fieldId: 'heading', type: 'string' },
+    {
+      fieldId: 'items',
+      type: 'list',
+      metadata: {
+        item: {
+          type: 'composite',
+          metadata: {
+            fields: [
+              { fieldId: 'title', type: 'string' },
+              { fieldId: 'variant', type: 'select' },
+            ],
+          },
+        },
+      },
+    },
+    // Two string sub-fields literally named "value"/"label" — the same
+    // shape web-studio-core's resolveSelectLabels produces for a real
+    // select, but declared here as an ordinary composite, not a select.
+    {
+      fieldId: 'metric',
+      type: 'composite',
+      metadata: {
+        fields: [
+          { fieldId: 'value', type: 'string' },
+          { fieldId: 'label', type: 'string' },
+        ],
+      },
+    },
+    {
+      fieldId: 'tags',
+      type: 'list',
+      metadata: { item: { type: 'select' } },
+    },
   ],
 };
 
@@ -58,5 +91,29 @@ describe('isBlockFieldSelect', () => {
 
   it('is false outside a themed build, where registerBlockFields is never called', () => {
     expect(isBlockFieldSelect('cta', 'variant')).toBe(false);
+  });
+
+  it('resolves a select field nested inside a list item, skipping the array index segment', () => {
+    registerBlockFields(FIELDS);
+    expect(isBlockFieldSelect('cta', 'items.0.variant')).toBe(true);
+    expect(isBlockFieldSelect('cta', 'items.3.variant')).toBe(true);
+    expect(isBlockFieldSelect('cta', 'items.0.title')).toBe(false);
+  });
+
+  it('resolves a list whose item is itself a select (not composite-wrapped)', () => {
+    registerBlockFields(FIELDS);
+    expect(isBlockFieldSelect('cta', 'tags.0')).toBe(true);
+  });
+
+  it('is false for a composite whose sub-fields are literally "value"/"label" — that shape alone is not a select', () => {
+    registerBlockFields(FIELDS);
+    expect(isBlockFieldSelect('cta', 'metric')).toBe(false);
+    expect(isBlockFieldSelect('cta', 'metric.value')).toBe(false);
+  });
+
+  it('is false for a path that does not resolve (unknown nested field, or descending through a non-list/composite field)', () => {
+    registerBlockFields(FIELDS);
+    expect(isBlockFieldSelect('cta', 'items.0.missing')).toBe(false);
+    expect(isBlockFieldSelect('cta', 'variant.nested')).toBe(false);
   });
 });
