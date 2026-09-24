@@ -44,18 +44,38 @@ function looksLikeSelectValue(value: unknown): value is { value: string; label: 
  * (a non-block entry, such as a page, never appears in the block-fields
  * registry), `isBlockFieldSelect` returns false for every path and nothing
  * is unwrapped — safe by construction, never a guess.
+ *
+ * Entering a nested resolved entry doc (`{id, data, schemaApiId, ...}` —
+ * the shape a page's embedded `blocks[]` array carries, or any other
+ * resolved reference field) re-derives `apiId` from that doc's own
+ * `schemaApiId` and resets the path, mirroring `encodeEntryDataStega`'s
+ * `walkNode`: a page's own schema is never registered as a block, so
+ * threading the outer `apiId` straight through would make every nested
+ * block's own select fields silently fail to unwrap forever, exactly the
+ * "non-block entry" case above — but the nested doc has its own registered
+ * fields once its own `schemaApiId` is used.
  */
 export function projectEntryDataLocale(
   data: Record<string, unknown>,
   locale: string | null,
   apiId?: string
 ): Record<string, unknown> {
-  const project = (value: unknown, path: string): unknown => {
+  const project = (value: unknown, path: string, currentApiId: string | undefined): unknown => {
     if (Array.isArray(value)) {
-      return value.map((item, i) => project(item, path === '' ? String(i) : `${path}.${i}`));
+      return value.map((item, i) =>
+        project(item, path === '' ? String(i) : `${path}.${i}`, currentApiId)
+      );
     }
     if (typeof value !== 'object' || value === null) return value;
-    if (looksLikeSelectValue(value) && isBlockFieldSelect(apiId, path)) return value.value;
+    if (looksLikeSelectValue(value) && isBlockFieldSelect(currentApiId, path)) return value.value;
+
+    if (looksLikeEntryDoc(value)) {
+      const nestedApiId =
+        typeof (value as Record<string, unknown>).schemaApiId === 'string'
+          ? ((value as Record<string, unknown>).schemaApiId as string)
+          : undefined;
+      return { ...value, data: project(value.data, '', nestedApiId) };
+    }
 
     const entries = Object.entries(value);
     if (
@@ -64,15 +84,18 @@ export function projectEntryDataLocale(
       entries.every(([key]) => LOCALE_KEY.test(key)) &&
       Object.prototype.hasOwnProperty.call(value, locale)
     ) {
-      return project((value as Record<string, unknown>)[locale], path);
+      return project((value as Record<string, unknown>)[locale], path, currentApiId);
     }
 
     return Object.fromEntries(
-      entries.map(([key, child]) => [key, project(child, path === '' ? key : `${path}.${key}`)])
+      entries.map(([key, child]) => [
+        key,
+        project(child, path === '' ? key : `${path}.${key}`, currentApiId),
+      ])
     );
   };
 
-  return project(data, '') as Record<string, unknown>;
+  return project(data, '', apiId) as Record<string, unknown>;
 }
 
 /** A resolved reference embedded by the gateway looks like an entry doc: { id, data: {...} }. */

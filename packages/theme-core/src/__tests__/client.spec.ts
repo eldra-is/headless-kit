@@ -306,6 +306,37 @@ describe('createEldraClient', () => {
     expect(decoded.meta).toMatchObject({ entryId: 'block-1', fieldPath: 'heading', locale: null });
   });
 
+  it("unwraps a nested block's own select field inside a page fetch, even though the page schema itself has no registered block fields", async () => {
+    // Reproduces a real page render: getEntry('page', ...) embeds each
+    // placed block as an entry doc inside data.blocks[], each carrying its
+    // own schemaApiId ('cta' here). The outer entry's apiId is 'page' —
+    // never registered as a block — so without re-deriving apiId from the
+    // nested doc's own schemaApiId, isBlockFieldSelect('page', ...) is
+    // false for every nested path and the block's variant stays wrapped
+    // forever, exactly the case the previous test guards for the *page*
+    // itself but not for a block it embeds.
+    registerBlockFields(CTA_FIELDS);
+    const doc = {
+      id: 'page-1',
+      schemaApiId: 'page',
+      data: {
+        title: 'Home',
+        blocks: [
+          {
+            id: 'block-1',
+            schemaApiId: 'cta',
+            data: { heading: 'Sale', variant: { value: 'split', label: 'Split' } },
+          },
+        ],
+      },
+    };
+    fetchMock.mockResolvedValue(jsonResponse(doc));
+    const entry = await client().getEntry('page', 'page-1', { locale: 'en-US' });
+    const block = (entry.data.blocks as Array<{ data: { variant: string; heading: string } }>)[0]!;
+    expect(block.data.variant).toBe('split');
+    expect(block.data.heading).toBe('Sale');
+  });
+
   it('preserves unresolved reference identity while encoding editable string fields', async () => {
     const doc = {
       id: 'page-1',

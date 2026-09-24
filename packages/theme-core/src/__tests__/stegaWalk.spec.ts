@@ -100,6 +100,33 @@ describe('localized preview draft projection', () => {
     expect(projected.link).toEqual({ href: '/news', label: 'Go' });
   });
 
+  it("re-derives apiId from a nested resolved entry doc, unwrapping the block's own select field even though the outer entry (a page) has none registered", () => {
+    // Reproduces the shape a page fetch embeds its blocks[] in: the outer
+    // entry is a "page" (never registered as a block), but each item in
+    // `blocks` is itself an entry doc with its own schemaApiId. Without the
+    // apiId re-derivation, threading the page's apiId straight through
+    // leaves every nested block's variant permanently un-unwrapped — the
+    // "non-block entry" case above, but for every block a page renders.
+    registerBlockFields(CTA_FIELDS);
+    const page = {
+      title: 'Home',
+      blocks: [
+        {
+          id: 'block-1',
+          schemaApiId: 'cta',
+          data: { heading: 'Sale', variant: { value: 'split', label: 'Split' } },
+        },
+      ],
+    };
+
+    // No apiId passed for the page itself — only the nested block declares one.
+    const projected = projectEntryDataLocale(page, 'en-US');
+
+    const block = (projected.blocks as Array<{ data: { variant: string; heading: string } }>)[0]!;
+    expect(block.data.variant).toBe('split');
+    expect(block.data.heading).toBe('Sale');
+  });
+
   it('leaves a composite field whose sub-fields are literally "value"/"label" untouched, even though the registry has a real select elsewhere', () => {
     // Same two-string-key shape resolveSelectLabels produces for a real
     // select, but 'metric' is registered as type "composite", not "select" —

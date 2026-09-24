@@ -165,7 +165,30 @@ function looksLikeSelectValue(value: unknown): value is { value: string; label: 
  * (a non-block entry, such as a page, never appears in the block-fields
  * registry), `isBlockFieldSelect` returns false for every path and nothing
  * is unwrapped — safe by construction, never a guess.
+ *
+ * Entering a nested resolved entry doc (`{id, data, schemaApiId, ...}` — the
+ * shape a page's embedded `blocks[]` array carries, or any other resolved
+ * reference field) re-derives `apiId` from that doc's own `schemaApiId` and
+ * resets `path`, mirroring `stegaWalk.ts`'s `encodeEntryDataStega`. Without
+ * this, every `getEntry`/`getEntries` call that embeds referenced entries
+ * (a page fetched with `depth` > 0, most visibly) threads the *outer*
+ * entry's `apiId` — a page's own schema is never a registered block — into
+ * every nested block, so none of their `select` fields ever unwrap: exactly
+ * the "non-block entry" case above, but for every block a page renders.
  */
+function looksLikeEntryDoc(
+  v: unknown
+): v is { id: string; data: Record<string, unknown>; schemaApiId?: unknown } {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    typeof (v as Record<string, unknown>).id === 'string' &&
+    typeof (v as Record<string, unknown>).data === 'object' &&
+    (v as Record<string, unknown>).data !== null &&
+    !Array.isArray((v as Record<string, unknown>).data)
+  );
+}
+
 function projectLocalizedValue(
   value: unknown,
   locale: string | null,
@@ -179,6 +202,11 @@ function projectLocalizedValue(
   }
   if (value === null || typeof value !== 'object') return value;
   if (looksLikeSelectValue(value) && isBlockFieldSelect(apiId, path)) return value.value;
+
+  if (looksLikeEntryDoc(value)) {
+    const nestedApiId = typeof value.schemaApiId === 'string' ? value.schemaApiId : undefined;
+    return { ...value, data: projectLocalizedValue(value.data, locale, nestedApiId, '') };
+  }
 
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record);
