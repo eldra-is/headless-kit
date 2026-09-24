@@ -46,7 +46,8 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
   function maybeStega(entry: EntryDoc, locale: string | null): EntryDoc {
     const projected = { ...entry, data: projectLocalizedLeaves(entry.data, locale) };
     if (!stegaEnabled || previewToken === null) return projected;
-    return { ...projected, data: encodeEntryDataStega(entry.id, projected.data, locale) };
+    const apiId = typeof entry.schemaApiId === 'string' ? entry.schemaApiId : undefined;
+    return { ...projected, data: encodeEntryDataStega(entry.id, projected.data, locale, apiId) };
   }
 
   return {
@@ -122,6 +123,25 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
 const localeKey = /^[a-z]{2}(?:-[A-Za-z0-9]{2,8})*$/;
 
 /**
+ * A resolved `select` field's public-read shape: the CMS gateway's
+ * `resolveSelectLabels` (web-studio-core) replaces the stored plain string
+ * with `{ value, label }` so a schema-blind consumer can show a human label.
+ * Themes only ever declare `select` fields as their plain value union
+ * (`variant?: 'primary' | 'subtle' | 'split'`, generated from `block.json`),
+ * so every `Block.vue` compares `data.variant` against those literals
+ * directly — never against this wrapper. Left unprojected, every variant
+ * (and any other select-typed) field always fails that comparison and a
+ * block silently renders its default/no-variant markup forever, in preview
+ * and in production alike.
+ */
+function looksLikeSelectValue(value: unknown): value is { value: string; label: string } {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  return keys.length === 2 && typeof record.value === 'string' && typeof record.label === 'string';
+}
+
+/**
  * Public CMS reads normally resolve localized fields server-side. Older content
  * can still contain locale maps below list/composite fields because those
  * leaves were persisted before recursive localization extraction existed.
@@ -131,6 +151,7 @@ const localeKey = /^[a-z]{2}(?:-[A-Za-z0-9]{2,8})*$/;
 function projectLocalizedValue(value: unknown, locale: string | null): unknown {
   if (Array.isArray(value)) return value.map((item) => projectLocalizedValue(item, locale));
   if (value === null || typeof value !== 'object') return value;
+  if (looksLikeSelectValue(value)) return value.value;
 
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record);

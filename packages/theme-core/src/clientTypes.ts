@@ -82,10 +82,13 @@ export interface EldraClient {
   enablePreview(token: string): void; // switches to draft perspective (X-Preview-Token + no-store)
   disablePreview(): void;
   readonly previewEnabled: boolean;
-  /** stega-encode all string leaves of an entry-shaped data doc (exported for draft re-stega in B6) */
+  /** stega-encode all string leaves of an entry-shaped data doc (exported for draft re-stega in B6).
+   * `apiId` (the entry's own schemaApiId, when known) skips encoding a top-level
+   * `select` field's resolved value — see the doc comment on the implementation. */
   encodeEntryDataStega(
     entryId: string,
     data: Record<string, unknown>,
-    locale: string | null
+    locale: string | null,
+    apiId?: string
   ): Record<string, unknown>;
 }

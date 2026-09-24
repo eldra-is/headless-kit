@@ -48,3 +48,24 @@ export function isBlockFieldLocalized(apiId: string | undefined, fieldId: string
     registeredBlockFields[apiId]?.find((field) => field.fieldId === fieldId)?.localized === true
   );
 }
+
+/**
+ * Whether the manifest marks this **top-level** block field `type: "select"`
+ * (the registry only carries top-level fields — see `blockFieldsModuleSource`
+ * in the vite plugin — so a `select` nested inside a composite/list field is
+ * not covered here). `encodeEntryDataStega` uses this to leave a select
+ * field's resolved value (a plain string like `"primary"`/`"subtle"`) alone:
+ * a `Block.vue` compares that value with `===` against literal option
+ * strings, and stega's invisible tracking characters, appended to every
+ * other string leaf so the preview overlay can map rendered DOM text back to
+ * its CMS field, make that comparison silently and permanently fail — the
+ * block then renders its no-variant/default markup regardless of which
+ * option is actually selected. Returns false for an unknown block/field and
+ * outside a themed build.
+ */
+export function isBlockFieldSelect(apiId: string | undefined, fieldId: string): boolean {
+  if (apiId === undefined) return false;
+  return (
+    registeredBlockFields[apiId]?.find((field) => field.fieldId === fieldId)?.type === 'select'
+  );
+}

@@ -66,7 +66,8 @@ function projectDrafts(context: EldraContext): void {
     context.preview.drafts[entryId] = context.client.encodeEntryDataStega(
       entryId,
       projectEntryDataLocale(draftDoc, context.preview.locale),
-      context.preview.locale
+      context.preview.locale,
+      context.preview.draftSchemaApiIds[entryId]
     );
   }
 }

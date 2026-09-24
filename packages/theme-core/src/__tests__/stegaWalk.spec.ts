@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { registerBlockFields } from '../blockFields';
 import { decodeStega } from '../stega';
 import { encodeEntryDataStega, projectEntryDataLocale } from '../stegaWalk';
+
+afterEach(() => {
+  registerBlockFields({});
+});
 
 describe('localized preview draft projection', () => {
   const draft = {
@@ -31,6 +36,74 @@ describe('localized preview draft projection', () => {
       cta: { label: 'Lesa meira' },
       images: [{ caption: 'Eitt' }],
     });
+  });
+
+  it('unwraps a resolved select field ({value,label}) into its plain value', () => {
+    // Same public-read shape as client.ts's projectLocalizedValue guards
+    // against: web-studio-core's resolveSelectLabels wraps a select field's
+    // stored string as {value,label}. The live-editing draft this function
+    // projects must not leave that wrapper in place, or a variant switch
+    // never matches a Block.vue's plain-string comparison while editing.
+    const withVariant = {
+      heading: 'CTA',
+      variant: { value: 'subtle', label: 'Subtle' },
+      tags: [
+        { value: 'featured', label: 'Featured' },
+        { value: 'sale', label: 'On sale' },
+      ],
+      link: { href: '/news', label: 'Go' },
+    };
+
+    const projected = projectEntryDataLocale(withVariant, 'en-US');
+
+    expect(projected.variant).toBe('subtle');
+    expect(projected.tags).toEqual(['featured', 'sale']);
+    // {href,label} has no "value" key, so it is an ordinary composite, not a
+    // select wrapper, and must survive unchanged.
+    expect(projected.link).toEqual({ href: '/news', label: 'Go' });
+  });
+
+  it('leaves a top-level select field value byte-for-byte, not stega-encoded', () => {
+    // A Block.vue compares a select field's value (e.g. "variant") with
+    // === against literal option strings. Stega's invisible tracking
+    // characters, appended to every other string leaf so the preview
+    // overlay can map rendered DOM text back to its field, break that
+    // comparison silently and permanently if applied here too.
+    registerBlockFields({ cta: [{ fieldId: 'variant', type: 'select' }] });
+    const encoded = encodeEntryDataStega(
+      'block-1',
+      { heading: 'Sale', variant: 'split' },
+      'en-US',
+      'cta'
+    );
+    expect(encoded.variant).toBe('split'); // exact match: no stega suffix at all
+    expect(decodeStega(encoded.heading as string).meta?.fieldPath).toBe('heading');
+  });
+
+  it('re-derives apiId from a nested resolved entry doc to protect its own select fields', () => {
+    registerBlockFields({ cta: [{ fieldId: 'variant', type: 'select' }] });
+    const page = {
+      title: 'Home',
+      blocks: [
+        {
+          id: 'block-1',
+          schemaApiId: 'cta',
+          data: { heading: 'Sale', variant: 'split' },
+        },
+      ],
+    };
+    // No apiId passed for the page itself — only the nested block declares one.
+    const encoded = encodeEntryDataStega('page-1', page, 'en-US');
+    const block = (encoded.blocks as Array<{ data: { variant: string; heading: string } }>)[0]!;
+    expect(block.data.variant).toBe('split');
+    expect(decodeStega(block.data.heading).meta?.fieldPath).toBe('heading');
+  });
+
+  it('still stega-encodes a select-named field when the registry does not mark it select', () => {
+    // Without a registration (or a mismatched type), the old behavior holds:
+    // nothing is silently exempted just because a field is named "variant".
+    const encoded = encodeEntryDataStega('block-1', { variant: 'split' }, 'en-US', 'cta');
+    expect(decodeStega(encoded.variant as string).cleaned).toBe('split');
   });
 
   it('stega-encodes projected leaves with persistence-compatible paths and locale metadata', () => {

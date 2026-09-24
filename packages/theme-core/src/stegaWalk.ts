@@ -1,6 +1,27 @@
 import { encodeStega } from './stega';
+import { isBlockFieldSelect } from './blockFields';
 
 const LOCALE_KEY = /^[A-Za-z0-9]{1,8}(?:-[A-Za-z0-9]{1,8})*$/;
+
+/**
+ * A resolved `select` field's public-read shape: the CMS gateway's
+ * `resolveSelectLabels` (web-studio-core) replaces the stored plain string
+ * with `{ value, label }` so a schema-blind consumer can show a human label.
+ * Themes only ever declare `select` fields as their plain value union
+ * (generated from `block.json`), so `Block.vue` compares the field directly
+ * against those literals — never against this wrapper. Left unprojected in
+ * the live-editing draft, a `select`/`variant` field never matches and a
+ * block silently keeps its default/no-variant markup while editing.
+ */
+function looksLikeSelectValue(value: unknown): value is { value: string; label: string } {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    Object.keys(record).length === 2 &&
+    typeof record.value === 'string' &&
+    typeof record.label === 'string'
+  );
+}
 
 /**
  * Projects a complete localized CMS draft into the active-locale shape used
@@ -14,6 +35,7 @@ export function projectEntryDataLocale(
   const project = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(project);
     if (typeof value !== 'object' || value === null) return value;
+    if (looksLikeSelectValue(value)) return value.value;
 
     const entries = Object.entries(value);
     if (
@@ -81,11 +103,21 @@ function looksLikeMediaAsset(v: unknown): v is { assetId: string; url: string } 
 }
 
 /** Deep-copies `data`, stega-encoding every string leaf with its dot path.
- *  Entering a nested resolved entry doc re-roots entryId and fieldPath. */
+ *  Entering a nested resolved entry doc re-roots entryId and fieldPath.
+ *
+ *  `apiId` (the entry's own `schemaApiId`, when known) is used only to skip
+ *  encoding a top-level `select` field's resolved value (e.g. `variant`):
+ *  that string is never displayed as editable text, only compared with
+ *  `===` inside a `Block.vue`, and stega's invisible tracking characters
+ *  make that comparison silently fail forever. Entering a nested resolved
+ *  entry doc (a page's embedded block) re-derives `apiId` from that doc's
+ *  own `schemaApiId`, so a block's own select fields are protected the same
+ *  way whether it is fetched directly or embedded inside a page. */
 export function encodeEntryDataStega(
   entryId: string,
   data: Record<string, unknown>,
-  locale: string | null
+  locale: string | null,
+  apiId?: string
 ): Record<string, unknown> {
   const cloneStructural = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(cloneStructural);
@@ -123,6 +155,10 @@ export function encodeEntryDataStega(
   };
   const walk = (value: unknown, ownerId: string, path: string): unknown => {
     if (typeof value === 'string') {
+      // A top-level select field's resolved value (registry only tracks
+      // top-level fields, so `path` must be bare — no dot) is comparison
+      // data, not editable text; see the doc comment above.
+      if (!path.includes('.') && isBlockFieldSelect(apiId, path)) return value;
       return encodeStega(value, { entryId: ownerId, fieldPath: path, locale });
     }
     if (Array.isArray(value)) {
@@ -147,8 +183,14 @@ export function encodeEntryDataStega(
       return cloneStructural(value);
     }
     if (looksLikeEntryDoc(value)) {
-      // resolved reference: strings inside belong to the referenced entry
-      return { ...value, data: encodeEntryDataStega(value.id, value.data, locale) };
+      // resolved reference: strings inside belong to the referenced entry.
+      // Re-derive apiId from the nested doc's own schemaApiId so its select
+      // fields are protected too — it very likely differs from the owner's.
+      const nestedApiId =
+        typeof (value as Record<string, unknown>).schemaApiId === 'string'
+          ? ((value as Record<string, unknown>).schemaApiId as string)
+          : undefined;
+      return { ...value, data: encodeEntryDataStega(value.id, value.data, locale, nestedApiId) };
     }
     if (looksLikeEntryReference(value)) {
       // Reference identity is structural: encoding it breaks resolved-entry lookup.

@@ -158,6 +158,48 @@ describe('createEldraClient', () => {
     expect(entry.data.media).toEqual(doc.data.media);
   });
 
+  it('unwraps a resolved select field ({value,label}) into its plain value', async () => {
+    // web-studio-core's resolveSelectLabels replaces a select field's stored
+    // string with {value,label} on public reads; themes only ever declare
+    // (and compare against) the plain value, so this must round-trip to a
+    // bare string or every variant-switch silently renders as the default.
+    const doc = {
+      id: 'e1',
+      data: {
+        heading: 'CTA',
+        variant: { value: 'subtle', label: 'Subtle' },
+        items: [{ title: 'A', variant: { value: 'plain', label: 'Plain' } }],
+      },
+    };
+    fetchMock.mockResolvedValue(jsonResponse(doc));
+    const entry = await client().getEntry('cta', 'e1', { locale: 'en-US' });
+    expect(entry.data.variant).toBe('subtle');
+    expect((entry.data.items as Array<{ variant: string }>)[0]!.variant).toBe('plain');
+  });
+
+  it('unwraps a resolved multi-select field (array of {value,label}) into plain values', async () => {
+    const doc = {
+      id: 'e1',
+      data: {
+        tags: [
+          { value: 'featured', label: 'Featured' },
+          { value: 'sale', label: 'On sale' },
+        ],
+      },
+    };
+    fetchMock.mockResolvedValue(jsonResponse(doc));
+    const entry = await client().getEntry('product', 'e1', { locale: 'en-US' });
+    expect(entry.data.tags).toEqual(['featured', 'sale']);
+  });
+
+  it('leaves an ordinary two-string-field composite alone (not a select wrapper)', async () => {
+    const doc = { id: 'e1', data: { link: { href: 'https://x.test', label: 'Go' } } };
+    fetchMock.mockResolvedValue(jsonResponse(doc));
+    const entry = await client().getEntry('cta', 'e1', { locale: 'en-US' });
+    // {href,label} does not have a "value" key, so it must not be unwrapped.
+    expect(entry.data.link).toEqual(doc.data.link);
+  });
+
   it('re-roots fieldPath/entryId when walking resolved reference entry docs', async () => {
     const doc = {
       id: 'page-1',
