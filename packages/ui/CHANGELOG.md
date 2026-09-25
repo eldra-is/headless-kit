@@ -5,6 +5,21 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `Checkbox` inside a `FieldWrapper` — a plain wrapper already renders a `<label for>` naming the
+  box, so the box no longer renders a second `<label>` of its own (its root becomes a `<span>`);
+  one control, one label. The control is now positioned over the drawn box rather than `sr-only`
+  inside it, so the box stays clickable with no label of its own to click through. The spec's
+  single-consent shape — the sentence beside the box — is `<FieldWrapper group>`. `FieldContext`
+  gains `labelsControl`, which also stops `Checkbox`, `Input` and `Textarea` adopting the context
+  `id` inside a `group`, where that id belongs to the `<fieldset>` itself.
+- `Checkbox` — an invalid box that is checked or indeterminate keeps its `primary` fill and its
+  mark; the error is the 2px `danger` boundary alone. A `background` fill under a
+  `primary-contrast` mark drew the tick in the page's own colour.
+- `Checkbox` — the tick and the dash are drawn at the sizes the spec gives them (tick 0.625 ×
+  0.3125rem, dash 0.625rem wide, both 2px).
+- `CheckboxGroup` — `classes` gains an `errorIcon` key, and the error row is now the same
+  component a `FieldWrapper` draws.
+
 - `Checkbox` — a native `<input type="checkbox">`, visually hidden inside its own `<label>` so the
   whole row (box, label, hint) is the click target and is at least 1.5rem tall, drawn as a box with
   a tick or a dash. `modelValue` is two-way and `change` fires with the new boolean; `indeterminate`

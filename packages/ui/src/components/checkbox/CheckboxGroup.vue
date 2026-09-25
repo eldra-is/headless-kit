@@ -4,6 +4,7 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
+import FieldError from '../field-wrapper/FieldError.vue';
 import Checkbox from './Checkbox.vue';
 import type { CheckboxGroupProps } from './types';
 
@@ -87,15 +88,6 @@ const optionsClass = computed(() =>
     'options'
   )
 );
-
-/** Spec "Field wrapper" → Sizes, Error row, which this group's error follows exactly. */
-const errorClass = computed(() =>
-  partClass(
-    'text-field-note text-danger flex items-start gap-1.25 font-medium',
-    props.classes,
-    'error'
-  )
-);
 </script>
 
 <template>
@@ -121,25 +113,8 @@ const errorClass = computed(() =>
       >
     </div>
 
-    <!-- Linked by id, not a live region: the same reading as the `FieldWrapper`'s error. -->
-    <p v-if="error" :id="errorId" data-part="error" :class="errorClass">
-      <!-- Tabler's `alert-circle`, stroke 1.75, at 1rem. Decorative: the message is the text. -->
-      <svg
-        class="size-4 shrink-0 translate-y-[0.1em]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
-        <path d="M12 8v4" />
-        <path d="M12 16h.01" />
-      </svg>
-      <span>{{ error }}</span>
-    </p>
+    <!-- The same error row a `FieldWrapper` draws (`FieldError`): linked by id, never a live
+         region. The `error` and `errorIcon` parts, and their `classes` keys, are this group's. -->
+    <FieldError v-if="error" :id="errorId" :classes="classes">{{ error }}</FieldError>
   </fieldset>
 </template>

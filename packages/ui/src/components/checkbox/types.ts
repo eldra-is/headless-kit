@@ -43,7 +43,7 @@ export interface CheckboxProps {
 }
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type CheckboxGroupPart = 'root' | 'legend' | 'options' | 'error';
+export type CheckboxGroupPart = 'root' | 'legend' | 'options' | 'error' | 'errorIcon';
 
 /** Vertical is the default; a row is for short labels (sizes) and wraps. */
 export type CheckboxGroupLayout = 'vertical' | 'row';
@@ -61,7 +61,13 @@ export interface CheckboxGroupOption {
 }
 
 export interface CheckboxGroupProps {
-  /** The checked values (two-way). Defaults to an empty array. */
+  /**
+   * The checked values (two-way). Defaults to an empty array.
+   *
+   * The order is **check order**, not option order: a value is appended when its box is ticked and
+   * filtered out when it is cleared, so the array reads as the sequence the customer chose in. Sort
+   * it against `options` if a stable order matters to what you do with it.
+   */
   modelValue?: string[];
   /** The group question ("Material"), rendered as the fieldset's `<legend>`. */
   legend: string;

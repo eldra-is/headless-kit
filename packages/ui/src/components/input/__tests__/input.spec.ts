@@ -30,6 +30,7 @@ function fieldProvider(context: Partial<FieldContext> = {}) {
         describedBy: 'field-email-error field-email-help',
         invalid: true,
         required: true,
+        labelsControl: true,
         ...context,
       })),
     },
@@ -503,6 +504,7 @@ describe('Input — describedBy and the field context', () => {
             id: 'field-email',
             invalid: invalid.value,
             required: false,
+            labelsControl: true,
           })),
         },
       },
@@ -697,6 +699,27 @@ describe('Input — the mask and the caret', () => {
     await wrapper.find('[data-part="control"]').trigger('input');
     expect(el.value).toBe('(555) 912-3456');
     expect(el.selectionStart).toBe(el.value.length);
+    wrapper.unmount();
+  });
+});
+
+describe('Input — inside a group field wrapper', () => {
+  /**
+   * A `group` wrapper is a `<fieldset>` and carries the context id on itself, so a control that
+   * adopted it would put one id on two elements. `labelsControl` is what says which kind of
+   * wrapper is above: with no `<label for>` to point at this control, there is no id to inherit.
+   */
+  it('generates its own id rather than taking the fieldset own', () => {
+    const wrapper = mountWith(Input, {
+      attrs: NAME,
+      global: fieldProvider({ id: 'field-group', labelsControl: false }),
+    });
+    const el = control(wrapper);
+    expect(el.id).not.toBe('field-group');
+    expect(el.id).toMatch(/^eldra-input-/);
+    // Everything else still comes from the wrapper.
+    expect(el.getAttribute('aria-describedby')).toBe('field-email-error field-email-help');
+    expect(el.required).toBe(true);
     wrapper.unmount();
   });
 });

@@ -45,10 +45,28 @@ Additions and departures from the design spec, and why.
   boundary. The spec's own 2px `danger` box is written against the **required consent** case (a
   single `Checkbox` with `invalid`), and repeating "invalid" on every one of five options is noise
   rather than information. This matches `FieldWrapper`'s `group` variant, which reads the same way.
-- **A `CheckboxGroup` is not put inside a `FieldWrapper`.** It draws its own `<fieldset>` and
-  `<legend>` — the spec's group anatomy — so a `FieldWrapper` with `group` set around it would nest
-  a second fieldset and legend, and one without `group` would point a second `<label for>` at a
-  box that already has one. Use the group on its own; use `FieldWrapper` for a single consent box.
+- **A `Checkbox` inside a `FieldWrapper` drops its own `<label>`.** A `Checkbox` is normally a
+  `<label>` wrapping its box and text, which is what makes the whole row the click target. A plain
+  `FieldWrapper` renders a `<label for>` naming the same control, and one control with two labels
+  is `form-field-multiple-labels` and an accessible name assembled out of both — so the box reads
+  `FieldContext.labelsControl` and renders a `<span>` root instead, letting the wrapper's label
+  name it. The drawn box stays clickable because the control covers it rather than being `sr-only`
+  in a corner of it. A box with an `id` of its own keeps its label either way: the wrapper's `for`
+  can no longer reach it.
+- **The spec's "Single consent" variant is `<FieldWrapper group>`.** The consent sentence belongs
+  _beside_ the box, as its own label — so the wrapper must not be the thing labelling it. `group`
+  gives a `<fieldset>` named by a `<legend>`, which labels nothing in particular, and contributes
+  the error row and the `aria-describedby`/`aria-invalid` wiring. A control inside a group also
+  leaves the context `id` alone, because that id is the fieldset's own.
+- **A `CheckboxGroup` is not put inside a `FieldWrapper` at all.** It draws its own `<fieldset>`
+  and `<legend>` — the spec's group anatomy — so a `FieldWrapper` with `group` set around it nests
+  a second fieldset and legend around the first. Use the group on its own.
+- **An invalid box that is checked keeps its `primary` fill.** The spec's States table gives the
+  error row a `background` fill, but that row describes the _unchecked_ required-consent box. The
+  mark is `primary-contrast`, so keeping `background` under a tick would draw the tick in the
+  page's own colour and lose it — and "checked differs by fill and tick shape, not only colour"
+  has to stay true in every state. An invalid marked box is `primary` fill plus the 2px `danger`
+  boundary.
 - **`Button` touch growth is the primary action's.** "Only primary action buttons grow to
   `target-touch` (2.75rem)" below a 48rem container, so an `md` `primary` button grows and a
   secondary, outline, ghost or danger action beside it keeps the 2.5rem control height it shares

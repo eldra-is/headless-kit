@@ -6,6 +6,7 @@ import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { FORM_LAYOUT_KEY } from '../form-layout/context';
 import { FIELD_KEY, type FieldContext } from './context';
+import FieldError from './FieldError.vue';
 import type { FieldWrapperProps } from './types';
 
 const props = withDefaults(defineProps<FieldWrapperProps>(), {
@@ -78,6 +79,9 @@ const context = computed<FieldContext>(() => ({
   describedBy: describedBy.value,
   invalid: hasError.value,
   required: props.required,
+  // A `group` is a `<fieldset>` named by its `<legend>`: there is no `<label for>`, so a control
+  // that draws its own label keeps it, and nothing inside should claim the id the fieldset holds.
+  labelsControl: !props.group,
 }));
 provide(FIELD_KEY, context);
 
@@ -191,26 +195,6 @@ const optionalTextClass = computed(() =>
 /** The control's row. `min-w-0` because a grid item's default `auto` floor would let it overflow. */
 const controlClass = computed(() => partClass('min-w-0', props.classes, 'control'));
 
-/**
- * Spec "Field wrapper" → Sizes, Error row: 0.8125rem / 1.45, weight 500, `danger`, with the icon
- * top-aligned and 0.3125rem from the text. `gap-1.25` is that 0.3125rem on the 0.25rem step.
- */
-const errorClass = computed(() =>
-  partClass(
-    cx(
-      'text-field-note text-danger flex items-start gap-1.25 font-medium',
-      isInline.value && INLINE_ROW
-    ),
-    props.classes,
-    'error'
-  )
-);
-
-/** 1rem, nudged 0.1em down so it sits on the text rather than above it. */
-const errorIconClass = computed(() =>
-  partClass('size-4 shrink-0 translate-y-[0.1em]', props.classes, 'errorIcon')
-);
-
 /** Spec "Field wrapper" → Sizes, Foot row: "help and counter on one line, 0.75rem gap". */
 const footClass = computed(() =>
   partClass(
@@ -271,32 +255,15 @@ const counterClass = computed(() =>
       <div data-part="control" :class="controlClass"><slot /></div>
     </LabelAndControl>
 
-    <!-- Linked by id, not a live region: the spec's Accessibility notes put the error in
-         `aria-describedby` so it is announced on focus, and leave announcing a failed submit to
-         the form's own error summary. A `role="alert"` here would read every error again the
-         moment it rendered. -->
-    <p v-if="hasError" :id="errorId" data-part="error" :class="errorClass">
-      <!-- Tabler's `alert-circle`, stroke 1.75, at 1rem. Decorative: the message is the text. -->
-      <svg
-        data-part="errorIcon"
-        :class="errorIconClass"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
-        <path d="M12 8v4" />
-        <path d="M12 16h.01" />
-      </svg>
-      <span
-        ><slot name="error">{{ error }}</slot></span
-      >
-    </p>
+    <!-- The error row is `FieldError`, shared with `CheckboxGroup`: the `error` and `errorIcon`
+         parts, and their `classes` keys, are still this wrapper's. -->
+    <FieldError
+      v-if="hasError"
+      :id="errorId"
+      :row-class="isInline ? INLINE_ROW : undefined"
+      :classes="classes"
+      ><slot name="error">{{ error }}</slot></FieldError
+    >
 
     <div v-if="hasFoot" data-part="foot" :class="footClass">
       <span v-if="hasHelp" :id="helpId" data-part="help" :class="helpClass">

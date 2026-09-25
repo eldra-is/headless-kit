@@ -55,7 +55,15 @@ const m = useMessages();
  */
 const field = inject(FIELD_KEY, null);
 
-const controlId = useUiId('input', () => props.id ?? field?.value.id);
+/**
+ * The id. Taken from the field context only when that context comes from a wrapper that labels its
+ * control with a `<label for>`: a `group` wrapper puts that same id on its own `<fieldset>`, so a
+ * control inside one that adopted it would put a single id on two elements.
+ */
+const controlId = useUiId(
+  'input',
+  () => props.id ?? (field?.value.labelsControl === true ? field.value.id : undefined)
+);
 const describedBy = computed(() => props.describedBy ?? field?.value.describedBy);
 const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);

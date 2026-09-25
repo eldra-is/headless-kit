@@ -3,6 +3,7 @@ import { computed, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
+import FieldWrapper from '../../field-wrapper/FieldWrapper.vue';
 import Checkbox from '../Checkbox.vue';
 import CheckboxGroup from '../CheckboxGroup.vue';
 import type { CheckboxGroupOption, CheckboxSize } from '../types';
@@ -45,6 +46,7 @@ function fieldProvider(context: Partial<FieldContext> = {}) {
         describedBy: 'field-consent-error',
         invalid: true,
         required: true,
+        labelsControl: true,
         ...context,
       })),
     },
@@ -85,10 +87,22 @@ describe('Checkbox — element and parts', () => {
     wrapper.unmount();
   });
 
-  it('hides the visually hidden input without taking it out of the tab order', () => {
+  /**
+   * The control is invisible but **not** `sr-only`: it covers the drawn box, so the box is a
+   * pointer target in its own right rather than only through the `<label>` around it — which a
+   * box named by a `FieldWrapper` does not have.
+   */
+  it('hides the control over the box without taking it out of the tab order', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
     const el = input(wrapper);
-    expect(el.className.split(/\s+/)).toContain('sr-only');
+    const classes = el.className.split(/\s+/);
+    expect(classes).toContain('opacity-0');
+    expect(classes).toContain('absolute');
+    expect(classes).toContain('inset-0');
+    expect(classes).toContain('size-full');
+    expect(classes).not.toContain('sr-only');
+    expect(box(wrapper).contains(el)).toBe(true);
+    expect(box(wrapper).className.split(/\s+/)).toContain('relative');
     expect(el.getAttribute('tabindex')).toBeNull();
     el.focus();
     expect(document.activeElement).toBe(el);
@@ -844,6 +858,270 @@ describe('CheckboxGroup — accessibility', () => {
     const wrapper = mountWith(CheckboxGroup, { props });
     await nextTick();
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Checkbox — the invalid box that is also marked', () => {
+  it('keeps the primary fill and the mark when a checked box is invalid', () => {
+    const wrapper = mountWith(Checkbox, {
+      props: { invalid: true, modelValue: true },
+      slots: { default: 'I agree to the terms of sale' },
+    });
+    const classes = box(wrapper).className.split(/\s+/);
+    // A `background` fill would put the `primary-contrast` mark on the page ground: invisible.
+    expect(classes).toContain('bg-primary');
+    expect(classes).not.toContain('bg-background');
+    // ...and the error is still told by the 2px danger boundary.
+    expect(classes).toContain('border-danger');
+    expect(classes).toContain('eldra-checkbox-border-invalid');
+    expect(wrapper.find('[data-part="check"]').classes()).toContain('scale-100');
+    wrapper.unmount();
+  });
+
+  it('keeps the primary fill and the dash when an indeterminate box is invalid', async () => {
+    const wrapper = mountWith(Checkbox, {
+      props: { invalid: true, indeterminate: true },
+      slots: { default: 'All updates' },
+    });
+    await nextTick();
+    const classes = box(wrapper).className.split(/\s+/);
+    expect(classes).toContain('bg-primary');
+    expect(classes).not.toContain('bg-background');
+    expect(classes).toContain('border-danger');
+    expect(wrapper.find('[data-part="check"] [data-mark="dash"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('still draws an unchecked invalid box on the page ground', () => {
+    const wrapper = mountWith(Checkbox, {
+      props: { invalid: true },
+      slots: { default: 'I agree to the terms of sale' },
+    });
+    const classes = box(wrapper).className.split(/\s+/);
+    expect(classes).toContain('bg-background');
+    expect(classes).not.toContain('bg-primary');
+    wrapper.unmount();
+  });
+});
+
+describe('Checkbox — inside a real FieldWrapper', () => {
+  /** Mounts the two components together, which is the only way this wiring can be checked. */
+  function inWrapper(wrapperProps: Record<string, unknown>, checkbox: string) {
+    return mountWith({
+      components: { FieldWrapper, Checkbox },
+      setup: () => ({ wrapperProps }),
+      template: `<FieldWrapper v-bind="wrapperProps">${checkbox}</FieldWrapper>`,
+    });
+  }
+
+  /**
+   * The defect: `FieldWrapper` renders a `<label for>` and `Checkbox` renders a `<label>` around
+   * its own input, so one control had two labels — `form-field-multiple-labels`, and a name
+   * assembled out of both. A checkbox that is already labelled from outside drops its own label
+   * element and keeps everything else.
+   */
+  it('renders no label of its own when the wrapper already labels it', async () => {
+    const wrapper = inWrapper(
+      { label: 'Email me about new arrivals', help: 'One email a month at most.' },
+      '<Checkbox />'
+    );
+    const root = wrapper.findComponent(Checkbox).element as HTMLElement;
+    expect(root.tagName).toBe('SPAN');
+    expect(root.dataset.part).toBe('root');
+    expect(wrapper.findAll('label')).toHaveLength(1);
+    const label = wrapper.find('label').element as HTMLLabelElement;
+    const input = wrapper.find('input[type="checkbox"]').element as HTMLInputElement;
+    expect(label.getAttribute('for')).toBe(input.id);
+    expect(input.getAttribute('aria-describedby')).toBeTruthy();
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('keeps the drawn box clickable with no label of its own to click through', async () => {
+    const wrapper = inWrapper({ label: 'Email me about new arrivals' }, '<Checkbox />');
+    const el = wrapper.find('input[type="checkbox"]').element as HTMLInputElement;
+    const boxEl = wrapper.find('[data-part="box"]').element as HTMLElement;
+    // No `<label>` around the box here, so the only thing that can make the box a target is the
+    // control covering it.
+    expect(boxEl.closest('label')).toBeNull();
+    expect(boxEl.contains(el)).toBe(true);
+    expect(el.className.split(/\s+/)).toContain('inset-0');
+    el.click();
+    await nextTick();
+    expect(el.checked).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('keeps its own label when its id is its own, because the wrapper cannot reach it', () => {
+    const wrapper = inWrapper(
+      { label: 'Consent' },
+      '<Checkbox id="own-consent">I agree</Checkbox>'
+    );
+    expect((wrapper.findComponent(Checkbox).element as HTMLElement).tagName).toBe('LABEL');
+    wrapper.unmount();
+  });
+
+  /**
+   * The single-consent shape: the sentence stays beside the box as its own label, and the wrapper
+   * contributes the legend, the error and the wiring. A `<legend>` is not a `<label>`, so there is
+   * only ever one.
+   */
+  it('keeps its own label inside a group wrapper, and takes no id from it', async () => {
+    const wrapper = inWrapper(
+      { group: true, label: 'Terms of sale', required: true, error: 'Tick the box to agree.' },
+      '<Checkbox>I agree to the terms of sale</Checkbox>'
+    );
+    const root = wrapper.findComponent(Checkbox).element as HTMLElement;
+    expect(root.tagName).toBe('LABEL');
+    expect(wrapper.findAll('label')).toHaveLength(1);
+    const fieldset = wrapper.element as HTMLFieldSetElement;
+    const input = wrapper.find('input[type="checkbox"]').element as HTMLInputElement;
+    // A group's id is the fieldset's own; a control inside it that took the same one would put
+    // the same id on two elements.
+    expect(input.id).not.toBe(fieldset.id);
+    expect(input.required).toBe(true);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('is a label on its own, with no wrapper anywhere', () => {
+    const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
+    expect(wrapper.element.tagName).toBe('LABEL');
+    wrapper.unmount();
+  });
+
+  it('puts a CheckboxGroup inside a group wrapper without taking its id', async () => {
+    const wrapper = mountWith({
+      components: { FieldWrapper, CheckboxGroup },
+      setup: () => ({ options: MATERIALS }),
+      template: `
+        <FieldWrapper group label="Filters" help="Narrow the list.">
+          <CheckboxGroup legend="Material" :options="options" />
+        </FieldWrapper>
+      `,
+    });
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Checkbox — the mark geometry', () => {
+  /**
+   * Spec "Checkbox" → Sizes: "tick 0.3125 × 0.625rem, 2px stroke; dash 0.625rem wide, 2px". The
+   * svg is 0.625rem across a 10-unit viewBox, so one unit is one pixel of the drawn mark and the
+   * ink — the centreline plus a 1-unit round cap at each end — has to measure 10 × 5 for the tick
+   * and 10 × 2 for the dash. Asserted as numbers rather than as a path string, so the shape can be
+   * redrawn and the measurements still hold.
+   */
+  const CAP = 1;
+
+  function points(d: string): Array<[number, number]> {
+    // `M x y l dx dy l dx dy` / `M x y h dx`: absolute move, then relative segments.
+    const numbers = [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map((m) => Number(m[0]));
+    const command = d.replace(/[\d.\s-]/g, '');
+    const result: Array<[number, number]> = [[numbers[0], numbers[1]]];
+    let [x, y] = result[0];
+    if (command === 'Mll') {
+      for (const i of [2, 4]) {
+        x += numbers[i];
+        y += numbers[i + 1];
+        result.push([x, y]);
+      }
+    } else if (command === 'Mh') {
+      result.push([x + numbers[2], y]);
+    }
+    return result;
+  }
+
+  function inkBox(d: string): { width: number; height: number } {
+    const p = points(d);
+    const xs = p.map(([x]) => x);
+    const ys = p.map(([, y]) => y);
+    return {
+      width: Math.max(...xs) - Math.min(...xs) + 2 * CAP,
+      height: Math.max(...ys) - Math.min(...ys) + 2 * CAP,
+    };
+  }
+
+  function markPath(props: Record<string, unknown>): { d: string; strokeWidth: string } {
+    const wrapper = mountWith(Checkbox, { props, slots: { default: 'Merino wool' } });
+    const svg = wrapper.find('[data-part="check"]');
+    const path = svg.find('path').element as SVGPathElement;
+    const result = {
+      d: path.getAttribute('d') ?? '',
+      strokeWidth: svg.attributes('stroke-width') ?? '',
+    };
+    wrapper.unmount();
+    return result;
+  }
+
+  it('draws the svg at the mark size, so a viewBox unit is a drawn pixel', () => {
+    const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
+    const svg = wrapper.find('[data-part="check"]');
+    // 0.625rem on the 0.25rem spacing step.
+    expect(svg.classes()).toContain('size-2.5');
+    expect(svg.attributes('viewBox')).toBe('0 0 10 10');
+    wrapper.unmount();
+  });
+
+  it('draws the tick 0.625rem wide and 0.3125rem tall, 2px thick', () => {
+    const { d, strokeWidth } = markPath({ modelValue: true });
+    expect(strokeWidth).toBe('2');
+    expect(inkBox(d)).toEqual({ width: 10, height: 5 });
+  });
+
+  it('draws the dash 0.625rem wide and 2px thick', () => {
+    const { d, strokeWidth } = markPath({ indeterminate: true });
+    expect(strokeWidth).toBe('2');
+    expect(inkBox(d)).toEqual({ width: 10, height: 2 });
+  });
+
+  it('keeps the whole mark inside its viewBox, so no cap is clipped', () => {
+    for (const props of [{ modelValue: true }, { indeterminate: true }]) {
+      const p = points(markPath(props).d);
+      for (const [x, y] of p) {
+        expect(x - CAP).toBeGreaterThanOrEqual(0);
+        expect(x + CAP).toBeLessThanOrEqual(10);
+        expect(y - CAP).toBeGreaterThanOrEqual(0);
+        expect(y + CAP).toBeLessThanOrEqual(10);
+      }
+    }
+  });
+});
+
+describe('CheckboxGroup — the shared error row', () => {
+  it('accepts a class override for the error icon as well as the row', () => {
+    const wrapper = mountWith(CheckboxGroup, {
+      props: {
+        legend: 'Material',
+        options: MATERIALS,
+        error: 'Choose at least one material.',
+        classes: { error: 'uppercase', errorIcon: 'size-6' },
+      },
+    });
+    expect(wrapper.find('[data-part="error"]').classes()).toContain('uppercase');
+    expect(wrapper.find('[data-part="errorIcon"]').classes()).toContain('size-6');
+    wrapper.unmount();
+  });
+
+  it('draws the same row a FieldWrapper does', () => {
+    const group = mountWith(CheckboxGroup, {
+      props: { legend: 'Material', options: MATERIALS, error: 'Choose one.' },
+    });
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Material', error: 'Choose one.' },
+      slots: { default: '<input />' },
+    });
+    const normalise = (html: string) => html.replace(/ id="[^"]*"/, '');
+    expect(normalise(group.find('[data-part="error"]').html())).toBe(
+      normalise(wrapper.find('[data-part="error"]').html())
+    );
+    group.unmount();
     wrapper.unmount();
   });
 });

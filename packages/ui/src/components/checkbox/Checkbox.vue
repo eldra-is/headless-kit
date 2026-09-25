@@ -37,7 +37,30 @@ const slots = useSlots();
 /** See Input.vue for the field-context rationale: any explicit prop wins over the wrapper. */
 const field = inject(FIELD_KEY, null);
 
-const controlId = useUiId('checkbox', () => props.id ?? field?.value.id);
+/**
+ * Whether a `FieldWrapper` around this box already names it with a `<label for>` (see
+ * `FieldContext.labelsControl`). Only when the box has no `id` of its own: with one, the wrapper's
+ * `for` points somewhere else and cannot reach this control, so the box keeps its own label.
+ *
+ * It decides the root element. A `Checkbox` is normally a `<label>`, which is what makes the whole
+ * row — box, text and hint — the click target. When it is already labelled from outside, a second
+ * `<label>` would give one control two of them (`form-field-multiple-labels`) and an accessible
+ * name assembled out of both, so the root is a plain `<span>` instead. The drawn box stays
+ * clickable either way, because the control itself covers it (see `CONTROL` below).
+ */
+const isNamedByField = computed(
+  () => props.id === undefined && field?.value.labelsControl === true
+);
+
+/**
+ * The id. Taken from the field context only when that context comes from a wrapper that labels its
+ * control: a `group` wrapper puts that same id on its own `<fieldset>`, so a control inside it that
+ * adopted it would put one id on two elements.
+ */
+const controlId = useUiId(
+  'checkbox',
+  () => props.id ?? (field?.value.labelsControl === true ? field.value.id : undefined)
+);
 const describedBy = computed(() => props.describedBy ?? field?.value.describedBy);
 const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);
@@ -100,7 +123,7 @@ const BOX_SIZE: Record<CheckboxSize, string> = { md: 'size-4.5 mt-0.75', lg: 'si
 
 /**
  * The drawn box (spec "Checkbox" → Anatomy: "a native `<input type="checkbox">` with custom
- * appearance"). The input itself is `sr-only` *inside* this element, which is what makes
+ * appearance"). The input itself is invisible *inside* this element, which is what makes
  * `eldra-focus-proxy` — `:has(:focus-visible)` — draw the one focus ring around the shape a
  * keyboard user can actually see. That is the focus-ring foundation's "Proxy focus" rule.
  *
@@ -125,6 +148,16 @@ const CHECKED = 'bg-primary border-primary eldra-checkbox-border';
 /** Spec "Checkbox" → States, Error: `background` fill and a **2px** `danger` border. */
 const INVALID =
   'bg-background border-danger group-hover:border-danger eldra-checkbox-border-invalid';
+/**
+ * The error row of the spec's States table describes an *unchecked* box — that is the required
+ * consent it is written for. A box that is checked or indeterminate keeps its `primary` fill and
+ * tells the error by the 2px `danger` boundary alone: the mark is `primary-contrast`, so a
+ * `background` fill would draw it in the page's own colour and the tick would simply disappear.
+ * "Checked differs by fill and tick shape, not only colour" (Accessibility) has to stay true in
+ * every state, error included.
+ */
+const INVALID_MARKED =
+  'bg-primary border-danger group-hover:border-danger eldra-checkbox-border-invalid';
 const DISABLED = 'bg-surface-strong border-border border-dashed eldra-checkbox-border';
 const DISABLED_CHECKED = 'bg-muted border-muted eldra-checkbox-border';
 
@@ -135,8 +168,8 @@ const DISABLED_CHECKED = 'bg-muted border-muted eldra-checkbox-border';
  */
 const boxState = computed(() => {
   if (props.disabled) return isMarked.value ? DISABLED_CHECKED : DISABLED;
-  if (isInvalid.value) return INVALID;
-  return isMarked.value ? CHECKED : UNCHECKED;
+  if (isMarked.value) return isInvalid.value ? INVALID_MARKED : CHECKED;
+  return isInvalid.value ? INVALID : UNCHECKED;
 });
 
 const rootClass = computed(() =>
@@ -146,6 +179,21 @@ const rootClass = computed(() =>
     'root'
   )
 );
+
+/**
+ * The control itself, stretched over the drawn box rather than `sr-only` in a corner of it.
+ *
+ * It is still a real `<input type="checkbox">`, and `opacity: 0` hides it from sight exactly as
+ * `sr-only` did; being inside the box is what lets `eldra-focus-proxy` (`:has(:focus-visible)`)
+ * draw the ring on the shape a keyboard user can see. The difference is that it stays
+ * **hit-testable**. A 1px clipped input is not, so the drawn box used to be clickable only through
+ * the `<label>` around it — and a box named by a `FieldWrapper` has no label of its own to click
+ * through. Covering the box with the control makes the box the target in both arrangements, and a
+ * click on it is a click on the control rather than a label forwarding one.
+ */
+const CONTROL =
+  'absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0 ' +
+  'disabled:cursor-not-allowed';
 
 const boxClass = computed(() =>
   partClass(cx(BOX, BOX_SIZE[props.size], boxState.value), props.classes, 'box')
@@ -199,14 +247,14 @@ function onChange(event: Event): void {
 </script>
 
 <template>
-  <label data-part="root" :class="rootClass">
+  <component :is="isNamedByField ? 'span' : 'label'" data-part="root" :class="rootClass">
     <span data-part="box" :class="boxClass">
-      <!-- The native control, visually hidden but focusable and in the tab order: the label around
-           it makes the whole row the click target, and the drawn box above is its appearance. -->
+      <!-- The native control, invisible but focusable, in the tab order and over the drawn box,
+           which is its appearance. -->
       <input
         ref="controlRef"
         v-bind="$attrs"
-        class="sr-only"
+        :class="CONTROL"
         type="checkbox"
         :id="controlId"
         :name="name"
@@ -220,8 +268,13 @@ function onChange(event: Event): void {
         :aria-checked="indeterminate ? 'mixed' : undefined"
         @change="onChange"
       />
-      <!-- The mark, at 0.625rem: a tick 2 units thick on a 10-unit box is the spec's 2px stroke.
-           Decorative — the checked state is the input's, which assistive technology reads. -->
+      <!-- The mark (spec "Checkbox" → Sizes): "tick 0.3125 × 0.625rem, 2px stroke; dash 0.625rem
+           wide, 2px". The box is 0.625rem across and the viewBox 10 units, so one unit is one
+           pixel of the mark at its drawn size: `stroke-width="2"` is the spec's 2px, and the ink —
+           the centreline plus a 1-unit round cap each side — measures 10 × 5 units for the tick
+           (0.625 × 0.3125rem) and 10 × 2 for the dash. The tick is therefore twice as wide as it
+           is tall, which is the spec's own ratio, not a steeper one. Decorative: the checked state
+           is the input's, which assistive technology reads. -->
       <svg
         data-part="check"
         :class="checkClass"
@@ -234,8 +287,8 @@ function onChange(event: Event): void {
         aria-hidden="true"
         focusable="false"
       >
-        <path v-if="indeterminate" data-mark="dash" d="M0.75 5h8.5" />
-        <path v-else data-mark="tick" d="M1 5.25l2.75 2.75l5.25 -5.25" />
+        <path v-if="indeterminate" data-mark="dash" d="M1 5h8" />
+        <path v-else data-mark="tick" d="M1 4.75l2 1.75l6 -3" />
       </svg>
     </span>
 
@@ -244,5 +297,5 @@ function onChange(event: Event): void {
     <span v-if="hasHint" data-part="hint" :class="hintClass">
       <slot name="hint">{{ hint }}</slot>
     </span>
-  </label>
+  </component>
 </template>

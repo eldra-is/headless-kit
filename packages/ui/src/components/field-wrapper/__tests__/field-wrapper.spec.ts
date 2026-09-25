@@ -753,6 +753,7 @@ describe('FieldWrapper — content, accessibility and narrow containers', () => 
       id: probe(wrapper)['data-id'] as string,
       invalid: false,
       required: true,
+      labelsControl: true,
     };
     expect(context.required).toBe(true);
     wrapper.unmount();

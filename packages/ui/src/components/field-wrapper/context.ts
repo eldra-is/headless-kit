@@ -21,6 +21,16 @@ export interface FieldContext {
   invalid: boolean;
   /** Whether the field must be filled in, which the control mirrors as native `required`. */
   required: boolean;
+  /**
+   * Whether the wrapper renders a `<label for>` that already names the control with this `id`.
+   *
+   * True for an ordinary field, false for a `group` (a `<fieldset>` is named by its `<legend>`,
+   * which labels nothing in particular). A control that draws a `<label>` of **its own** — a
+   * `Checkbox` wraps its box and text in one — reads this and drops that label rather than giving
+   * one control two, and a control that would otherwise take `id` from here leaves it alone when
+   * this is false, because a group's `id` is the fieldset's own.
+   */
+  labelsControl: boolean;
 }
 
 /** The key a `FieldWrapper` provides its `FieldContext` on. */

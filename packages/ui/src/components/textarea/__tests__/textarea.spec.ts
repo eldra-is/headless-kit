@@ -28,6 +28,7 @@ function fieldProvider(context: Partial<FieldContext> = {}) {
         describedBy: 'field-message-error field-message-help',
         invalid: true,
         required: true,
+        labelsControl: true,
         ...context,
       })),
     },
@@ -605,6 +606,7 @@ describe('Textarea — describedBy and the field context', () => {
             id: 'field-message',
             invalid: invalid.value,
             required: false,
+            labelsControl: true,
           })),
         },
       },
@@ -706,6 +708,21 @@ describe('Textarea — the invalid boundary against the other states', () => {
   it('still reports aria-invalid on a disabled field', () => {
     const wrapper = mountWith(Textarea, { props: { invalid: true, disabled: true }, attrs: NAME });
     expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — inside a group field wrapper', () => {
+  /** See Input's own spec: a `group` wrapper carries the context id on its `<fieldset>`. */
+  it('generates its own id rather than taking the fieldset own', () => {
+    const wrapper = mountWith(Textarea, {
+      attrs: NAME,
+      global: fieldProvider({ id: 'field-group', labelsControl: false }),
+    });
+    const el = control(wrapper);
+    expect(el.id).not.toBe('field-group');
+    expect(el.id).toMatch(/^eldra-textarea-/);
+    expect(el.required).toBe(true);
     wrapper.unmount();
   });
 });

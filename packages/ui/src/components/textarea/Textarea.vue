@@ -40,7 +40,15 @@ const m = useMessages();
 /** See Input.vue for the field-context rationale: any explicit prop wins over the wrapper. */
 const field = inject(FIELD_KEY, null);
 
-const controlId = useUiId('textarea', () => props.id ?? field?.value.id);
+/**
+ * The id. Taken from the field context only when that context comes from a wrapper that labels its
+ * control with a `<label for>`: a `group` wrapper puts that same id on its own `<fieldset>`, so a
+ * control inside one that adopted it would put a single id on two elements.
+ */
+const controlId = useUiId(
+  'textarea',
+  () => props.id ?? (field?.value.labelsControl === true ? field.value.id : undefined)
+);
 const baseDescribedBy = computed(() => props.describedBy ?? field?.value.describedBy);
 const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);

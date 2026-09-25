@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { computed, ref } from 'vue';
+import FieldWrapper from '../field-wrapper/FieldWrapper.vue';
 import Checkbox from './Checkbox.vue';
 import CheckboxGroup from './CheckboxGroup.vue';
 
@@ -30,6 +31,11 @@ const meta = {
           '',
           '**Slots**: `default` (the label text) and `hint`.',
           '',
+          '**Attributes**: `inheritAttrs` is off, so anything you put on the component —',
+          '`data-testid`, `aria-*`, `autofocus`, a native `form` — lands on the **hidden input**,',
+          'which is the control. Nothing falls through to the row: style the row with',
+          '`classes.root` (and the box with `classes.box`).',
+          '',
           '**The whole row is the target.** The `<label>` wraps the input, so clicking the box,',
           'the label or the hint toggles, and the row is at least 1.5rem tall (`target-min`) even',
           'for a one-word option — WCAG 2.5.8. `Space` toggles because the control is a real',
@@ -54,13 +60,24 @@ const meta = {
           'keeps `aria-invalid` — the same reading as `Input` and `Textarea`: still invalid, just',
           'not correctable here.',
           '',
+          '**Inside a `FieldWrapper`.** A plain `FieldWrapper` renders a `<label for>` that already',
+          'names the box, so the box drops its own `<label>` and its root becomes a `<span>` —',
+          'one control, one label. The drawn box stays clickable because the control covers it.',
+          'For the spec\u2019s **single consent** shape, where the sentence belongs *beside* the box,',
+          'use `<FieldWrapper group>`: the wrapper contributes the legend, the error and the',
+          'wiring, and the box keeps its own label (a `<legend>` is not a `<label>`). Give the box',
+          'an `id` of its own and it keeps its label either way, because the wrapper\u2019s `for` can',
+          'no longer reach it.',
+          '',
           '**Groups** are a `CheckboxGroup`: a real `<fieldset>` with a `<legend>`, so the question',
           'is read with each option. Its `error` is linked to the **fieldset** with',
           '`aria-describedby` and marks the fieldset `aria-invalid="true"`; the individual options',
           'stay valid, because repeating "invalid" on every one of five boxes is noise rather than',
           'information. A `CheckboxGroup` therefore needs **no** `FieldWrapper` around it — and',
           'must not be put inside one with `group` set, which would nest a second `<fieldset>` and',
-          'a second legend around the first.',
+          'a second legend around the first. Its `modelValue` is in **check order** — a value is',
+          'appended when its box is ticked and filtered out when it is cleared — so the array reads',
+          'as the sequence the customer chose in, not as the order of `options`.',
           '',
           '**Motion**: the mark scales in from 0 over `duration-fast` with `ease-out`, and the fill',
           'and border fade over the same duration (both owned by `eldra-focus`’s transition',
@@ -166,26 +183,45 @@ export const Large: Story = {
   }),
 };
 
-/** Required consent in error: a 2px `danger` boundary, and an icon + message linked by id. */
+/**
+ * Required consent in error, in a real `FieldWrapper`: a 2px `danger` boundary on the box, and the
+ * wrapper's own error row linked by id. `group` is what keeps the sentence beside the box — the
+ * wrapper's `<legend>` names the field, and the box keeps its own label.
+ */
 export const Invalid: Story = {
   render: () => ({
-    components: { Checkbox },
+    components: { Checkbox, FieldWrapper },
     setup: () => ({ value: ref(false) }),
     template: `
-      <div class="flex max-w-96 flex-col gap-1">
-        <Checkbox v-model="value" required invalid described-by="story-consent-error">
-          I agree to the <a class="underline" href="#terms">terms of sale</a>
-        </Checkbox>
-        <p id="story-consent-error" class="text-field-note text-danger flex items-start gap-1.25 font-medium">
-          <svg class="size-4 shrink-0 translate-y-[0.1em]" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
-            aria-hidden="true" focusable="false">
-            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
-            <path d="M12 8v4" />
-            <path d="M12 16h.01" />
-          </svg>
-          <span>Tick the box to agree to the terms before you pay.</span>
-        </p>
+      <div class="max-w-96">
+        <FieldWrapper
+          group
+          label="Terms of sale"
+          required
+          error="Tick the box to agree to the terms before you pay."
+        >
+          <Checkbox v-model="value">
+            I agree to the <a class="underline" href="#terms">terms of sale</a>
+          </Checkbox>
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * An invalid box that is also ticked keeps its `primary` fill: the mark is `primary-contrast`, so
+ * a `background` fill would draw the tick in the page's own colour and lose it. The error is the
+ * 2px `danger` boundary.
+ */
+export const InvalidChecked: Story = {
+  render: () => ({
+    components: { Checkbox },
+    template: `
+      <div class="flex flex-col gap-2">
+        <Checkbox invalid :model-value="true">I agree to the terms of sale</Checkbox>
+        <Checkbox invalid :indeterminate="true">All updates</Checkbox>
+        <Checkbox invalid>I agree to the terms of sale</Checkbox>
       </div>
     `,
   }),
