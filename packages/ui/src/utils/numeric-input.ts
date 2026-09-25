@@ -45,10 +45,18 @@ const INSERTING = new Set([
  * produce them is rejected and the value can never be reached at all. Committing is
  * `parseLocaleNumber`'s job, on blur, and it is the one that refuses `"-"`.
  *
- * The group separator is accepted **whether or not** decimals are: the text in the field is the
- * formatted value, so a quantity field showing `1,000` under `en-US` already contains one, and a
- * filter that refused it would refuse every keystroke made after it. It costs nothing — the parse
- * strips group separators before reading the number.
+ * The group separator is accepted **only on a field that takes decimals**, and this asymmetry is
+ * deliberate (operator ruling). On a decimal field the separator is useful: someone pasting
+ * `"1,234.50"` means 1234.5, and stripping the comma out of the paste would give 123450. On a
+ * **whole-number** field it is a trap, because the same character means different things in
+ * different locales — `1,5` typed into a quantity under `en-US` reads as "one thousand five" to
+ * the parser and as "one point five" to an Icelandic customer, and the field committed 15 while
+ * showing them something that looked like 1.5. Refused, the character never reaches the field, so
+ * the text can never say one thing while the value says another.
+ *
+ * That is safe only because both controls show an **ungrouped** editing string while the field has
+ * focus (`formatEditing`): the formatted `1,000` a quantity displays at rest becomes `1000` the
+ * moment it can be typed into, so no keystroke is ever made after a separator the filter refuses.
  */
 function isPartialNumber(
   text: string,
@@ -65,8 +73,10 @@ function isPartialNumber(
   // More than one decimal separator: `1.2.3` is not a number in any locale.
   if (extra.length > 0) return false;
   if (fraction !== undefined && !/^\d*$/.test(fraction)) return false;
-  const digitsAndGroups =
-    group === '' ? /^\d*$/ : new RegExp(`^[\\d${escapeForCharacterClass(group)}]*$`);
+  const groupsAllowed = options.allowDecimal && group !== '';
+  const digitsAndGroups = groupsAllowed
+    ? new RegExp(`^[\\d${escapeForCharacterClass(group)}]*$`)
+    : /^\d*$/;
   return digitsAndGroups.test(whole ?? '');
 }
 

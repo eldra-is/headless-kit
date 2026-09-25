@@ -214,14 +214,28 @@ function commit(): void {
   editingText.value = next === null ? '' : formatEditing(next);
 }
 
+/**
+ * Whether this field may be edited at all. A read-only field is focusable and selectable — that is
+ * the whole point of read-only rather than disabled — but it must keep showing the **formatted**
+ * value, never the editable text, and nothing it does may commit.
+ *
+ * `disabled` is here for completeness only: a disabled `<input>` never fires `focus` in a browser.
+ */
+const isEditable = computed(() => !props.readonly && !props.disabled);
+
 function onFocus(event: FocusEvent): void {
-  isEditing.value = true;
-  editingText.value = model.value === null ? '' : formatEditing(model.value);
+  if (isEditable.value) {
+    isEditing.value = true;
+    editingText.value = model.value === null ? '' : formatEditing(model.value);
+  }
   emit('focus', event);
 }
 
 function onBlur(event: FocusEvent): void {
-  commit();
+  // Never commit from a field that cannot be edited. Without this a read-only field committed on
+  // every focus-and-leave, which for a value outside `min`/`max` silently clamped it — a control
+  // whose whole contract is "the value is readable but fixed" quietly changing that value.
+  if (isEditable.value) commit();
   isEditing.value = false;
   emit('blur', event);
 }
@@ -240,14 +254,21 @@ function onBeforeInput(event: Event): void {
 }
 
 /**
- * `ArrowUp`/`ArrowDown` step by `step`, ten times that with `Shift`, clamped. From an empty field
- * the first press lands on `min` when there is one and on the step itself otherwise, so a shopper
- * who presses Up on a blank quantity gets the smallest allowed value rather than nothing.
+ * `ArrowUp`/`ArrowDown` step by `step`, ten times that with `Shift`, clamped.
+ *
+ * From an **empty** field the first press lands on `min` itself when there is one — not on
+ * `min + step`: the lowest value the field accepts is the answer a person pressing Up on a blank
+ * amount is asking for, and starting a step above it makes the first allowed value unreachable by
+ * the keyboard without pressing Down again. With no `min`, the first press lands on the step
+ * itself (one step away from nothing).
  */
 function stepBy(direction: 1 | -1, multiplier: number): void {
-  if (props.disabled || props.readonly) return;
-  const base = model.value ?? props.min ?? 0;
-  const next = clamp(round(base + direction * step.value * multiplier));
+  if (!isEditable.value) return;
+  const current = model.value;
+  const next =
+    current === null
+      ? clamp(props.min ?? round(direction * step.value * multiplier))
+      : clamp(round(current + direction * step.value * multiplier));
   commitValue(next);
   if (isEditing.value) editingText.value = formatEditing(next);
 }
@@ -259,9 +280,12 @@ function onKeydown(event: KeyboardEvent): void {
     return;
   }
   if (event.key === 'Enter') {
-    // Committing here must not also submit a form the field happens to sit in.
+    // `Enter` commits **and does not submit**: the field is inside a form more often than not, and
+    // a keystroke that both corrected the value and sent the form would give nobody a chance to
+    // see the correction. The `preventDefault` is what stops the implicit submission; a second
+    // `Enter`, on a field that now shows its committed value, submits as usual.
     event.preventDefault();
-    commit();
+    if (isEditable.value) commit();
   }
   // Home/End are the caret's, as the spec's own text-field keyboard says: nothing is done here.
 }

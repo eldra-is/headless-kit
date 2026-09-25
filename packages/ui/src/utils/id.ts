@@ -31,11 +31,23 @@ export function useUiId(
  * Duplicates are dropped (the same id listed twice is announced twice), and an
  * empty result is `undefined` rather than `""`, so the attribute is omitted
  * instead of rendered empty.
+ *
+ * **Deduplication is per id, not per argument.** Every argument here is itself an
+ * `aria-describedby` value, so it may already hold several space-separated ids —
+ * a `FieldWrapper`'s context contributes its error, help and counter ids as one
+ * string, and a consumer's `describedBy` prop may do the same. Comparing whole
+ * arguments would only have caught the case where two of them were byte-identical,
+ * and `joinIds('a b', 'b c')` would have announced `b` twice. Each argument is
+ * split on whitespace and the ids are deduplicated individually, first occurrence
+ * winning, so the order the rule promises is preserved.
  */
 export function joinIds(...ids: Array<string | false | null | undefined>): string | undefined {
   const seen = new Set<string>();
-  for (const id of ids) {
-    if (typeof id === 'string' && id.length > 0) seen.add(id);
+  for (const value of ids) {
+    if (typeof value !== 'string') continue;
+    for (const id of value.split(/\s+/)) {
+      if (id.length > 0) seen.add(id);
+    }
   }
   return seen.size > 0 ? [...seen].join(' ') : undefined;
 }

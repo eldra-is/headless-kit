@@ -173,17 +173,44 @@ const isLink = computed(() => props.href !== undefined);
  * link with no destination is not a thing the spec has.
  */
 const isComponentAs = computed(() => props.as !== undefined && typeof props.as !== 'string');
-const rootTag = computed(() => (isLink.value ? (props.as ?? 'a') : 'button'));
-const linkAttrs = computed<Record<string, unknown>>(() => {
-  if (!isLink.value) return {};
-  return isComponentAs.value ? { to: props.href } : { href: props.href };
-});
 
 const isSubmit = computed(() => !isLink.value && props.type === 'submit');
 const submitting = computed(() => formSubmitting?.value === true);
 
 const isLoading = computed(() => props.loading || (submitting.value && isSubmit.value));
 const isDisabled = computed(() => props.disabled || (submitting.value && !isSubmit.value));
+
+/**
+ * **A disabled routed link is never rendered as the router component.**
+ *
+ * `onClick` below calls `preventDefault()` on a disabled button, which is enough for a native
+ * `<a>`: the default action is the navigation, and preventing it stops it. A router link does not
+ * navigate by a default action — `RouterLink`/`NuxtLink` install their *own* click listener and
+ * call `router.push()` from it. That listener is on the component's own root, so it runs before
+ * the handler `Button` passes down through fall-through attributes, and the route change had
+ * already happened by the time `preventDefault()` was reached. A "disabled" call to action
+ * navigated on click, which is the one thing disabled has to mean.
+ *
+ * So a disabled link falls back to the plain element for the same destination — an `<a href>`,
+ * which `preventDefault()` does stop (or a `<span>` if there is somehow no destination, which
+ * `isLink` makes unreachable today and is kept so the fallback cannot produce a routed tag).
+ * Everything else about the disabled link is unchanged: the `href` stays so the element keeps
+ * `role="link"` and a screen reader still names what it is, with `aria-disabled="true"` and
+ * `tabindex="-1"` making it inert. Re-enabling the button routes again, with no change from the
+ * caller.
+ */
+const routesThroughComponent = computed(
+  () => isLink.value && isComponentAs.value && !isDisabled.value
+);
+const rootTag = computed(() => {
+  if (!isLink.value) return 'button';
+  if (isComponentAs.value && isDisabled.value) return props.href === undefined ? 'span' : 'a';
+  return props.as ?? 'a';
+});
+const linkAttrs = computed<Record<string, unknown>>(() => {
+  if (!isLink.value) return {};
+  return routesThroughComponent.value ? { to: props.href } : { href: props.href };
+});
 
 const sizeClass = computed(() => {
   if (props.variant === 'link') return LINK_SIZE[props.size];
@@ -193,11 +220,16 @@ const sizeClass = computed(() => {
 
 /**
  * The press (operator ruling, 2026-09-25; recorded under Deviations in the README). The design
- * spec's States table says a pressed button "moves down 1px", and that is what this shipped:
- * `active:translate-y-px`. A 1px move is below the threshold at which a press reads as tactile —
- * it looks like a rendering artefact rather than a button being pushed — so the press is a scale
- * instead: the whole control shrinks to 98%, which is roughly half the 4% the private Eldra
- * library's button uses and is felt rather than seen.
+ * spec's States table says a pressed button "moves down 1px", and a 1px downward translate is what
+ * this shipped. A 1px move is below the threshold at which a press reads as tactile — it looks
+ * like a rendering artefact rather than a button being pushed — so the press is a scale instead:
+ * the whole control shrinks to 98%, which is roughly half the 4% the private Eldra library's
+ * button uses and is felt rather than seen.
+ *
+ * The class it replaced is deliberately not written out anywhere under `src/`, comments included:
+ * Tailwind's source scan reads this directory to build `dist/style.css`, so naming it in prose
+ * emitted a real CSS rule for a class nothing uses. `src/__tests__/source-scan.spec.ts` fails if
+ * one comes back.
  *
  * `transform-origin` is left at its initial `center`, which is what makes the button shrink toward
  * its own middle rather than toward a corner; nothing has to declare it.

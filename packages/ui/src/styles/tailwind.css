@@ -431,6 +431,39 @@
     }
   }
 }
+/* The ring while a popup is open (operator request, 2026-09-25). A `Select` or `MultiSelect`
+   trigger opened with the *pointer* is focused but not `:focus-visible`, so the ring did not show —
+   and the control then had an open popover attached to a trigger with no visible indication that it
+   was the thing the keyboard was about to act on. The `SearchBar` has never had this problem: its
+   trigger is a text field, which carries `eldra-focus-always` and shows the ring on any focus.
+
+   A *modifier* of the same shape as `eldra-focus-always` and `eldra-focus-proxy` — it carries no
+   ring of its own, it only turns on the one `eldra-focus` already put on the element, keyed to the
+   state the element itself publishes in `aria-expanded`. So it never needs a second class to be
+   kept in sync, and closing the popup fades the ring back out over the transition `eldra-focus`
+   already owns rather than snapping it off. It carries no base, so it must never share a merge
+   group with `eldra-focus` (see `src/utils/cx.ts`): a modifier never shares a group with the thing
+   it modifies.
+
+   The forced-colours rule is repeated here for the same reason `eldra-focus-proxy` repeats it: the
+   one in `eldra-focus` is keyed to that element's own `:focus-visible`, which an open pointer-
+   opened trigger is not. */
+@utility eldra-focus-open {
+  &[aria-expanded='true'] {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &[aria-expanded='true'] {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
+  }
+}
 /* Proxy focus (spec 1 "Focus ring" → Proxy focus): "When the focusable element is visually hidden
    (the radio inside a size pill, the stretched link of a card), draw the ring on the visible shape
    (the pill, the whole card), not on the hidden element."

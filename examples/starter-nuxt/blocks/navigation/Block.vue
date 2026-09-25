@@ -37,6 +37,15 @@ const drawerOpen = ref(false);
 
 const variant = computed(() => data.value.variant ?? 'default');
 const ctaHref = computed(() => safeHref(data.value.ctaHref));
+/**
+ * Only a same-site destination routes through the router — see `EldraRouterLink`. `Button` takes
+ * the same `as` as `Link` does, so the header's call to action and the drawer's copy of it route
+ * instead of reloading the document, exactly as the nav links beside them already do (`links`
+ * above) and as the hero and cta blocks do.
+ */
+const ctaLinkAs = computed(() =>
+  ctaHref.value !== null && isInternalHref(ctaHref.value) ? EldraRouterLink : undefined
+);
 const links = computed(() =>
   (data.value.links ?? []).flatMap((link) => {
     const href = safeHref(link.href);
@@ -101,6 +110,7 @@ const links = computed(() =>
           <Button
             v-if="variant !== 'minimal' && data.ctaLabel && ctaHref"
             :href="ctaHref"
+            :as="ctaLinkAs"
             size="sm"
             variant="primary"
             :classes="{ container: 'hidden md:inline-flex' }"
@@ -159,6 +169,7 @@ const links = computed(() =>
         <Button
           v-if="data.ctaLabel && ctaHref"
           :href="ctaHref"
+          :as="ctaLinkAs"
           variant="primary"
           :classes="{ container: 'mt-4' }"
           @click="drawerOpen = false"

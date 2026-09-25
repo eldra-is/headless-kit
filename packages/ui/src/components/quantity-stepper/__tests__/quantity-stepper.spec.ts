@@ -706,3 +706,62 @@ describe('QuantityStepper — numeric-only typing', () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * The group separator is refused on this control, and the editing text is ungrouped so that never
+ * costs anything (operator ruling). `1,5` typed into a quantity used to leave the field showing
+ * something an Icelandic customer reads as "one point five" while the value committed was fifteen.
+ */
+describe('QuantityStepper — the group separator', () => {
+  function beforeInput(element: HTMLInputElement, data: string, inputType = 'insertText'): boolean {
+    const event = new InputEvent('beforeinput', {
+      inputType,
+      data,
+      cancelable: true,
+      bubbles: true,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  it('refuses the locale group separator, in either locale', () => {
+    const enUS = mountWith(QuantityStepper, { props: { modelValue: 1, max: 9999 } });
+    const enElement = input(enUS);
+    enElement.setSelectionRange(1, 1);
+    expect(beforeInput(enElement, ',')).toBe(true);
+    enUS.unmount();
+
+    const isIS = mountWith(QuantityStepper, {
+      props: { modelValue: 1, max: 9999, locale: 'is-IS' },
+    });
+    const isElement = input(isIS);
+    isElement.setSelectionRange(1, 1);
+    expect(beforeInput(isElement, '.')).toBe(true);
+    isIS.unmount();
+  });
+
+  it('shows an ungrouped number while the field has focus, so typing after it still works', async () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 1000, max: 9999 } });
+    const field = wrapper.find('[data-part="input"]');
+    // At rest the value is grouped, which is how a quantity should read.
+    expect(input(wrapper).value).toBe('1,000');
+    await field.trigger('focus');
+    // In edit it is not — otherwise the refused separator above would sit in the middle of the
+    // field and every keystroke made after it would be refused with it.
+    expect(input(wrapper).value).toBe('1000');
+
+    const element = field.element as HTMLInputElement;
+    element.setSelectionRange(4, 4);
+    expect(beforeInput(element, '5')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('reformats to the grouped value once the field is left', async () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 1000, max: 9999 } });
+    const field = wrapper.find('[data-part="input"]');
+    await field.trigger('focus');
+    await field.trigger('blur');
+    expect(input(wrapper).value).toBe('1,000');
+    wrapper.unmount();
+  });
+});

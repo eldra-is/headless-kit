@@ -371,10 +371,16 @@ const rootClass = computed(() =>
  * foundation's pointer-focus exception is for *text fields*, "because a caret alone is easy to
  * miss". No `transition-*` utility here — `eldra-focus` owns this element's transition list,
  * including the `duration-fast` border-colour change (see `src/styles/tailwind.css`).
+ *
+ * `eldra-focus-open` is the exception the operator asked for on top of that: a trigger opened with
+ * the pointer is focused but not `:focus-visible`, so the ring stayed hidden while an open popover
+ * hung off it — the control gave no sign that it was the thing the keyboard was about to act on.
+ * The utility keys the ring to this element's own `aria-expanded`, so it needs nothing kept in
+ * sync and closing fades it back out over `eldra-focus`'s own transition.
  */
 const TRIGGER_BASE =
   'flex w-full min-w-0 items-center gap-2 text-start eldra-field-border ' +
-  'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus';
+  'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-open';
 
 const SIZE: Record<SelectSize, string> = {
   sm: 'control-h-sm ps-2.25 pe-2.5 text-control-sm',

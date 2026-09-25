@@ -141,3 +141,36 @@ describe('parseLocaleNumber', () => {
     expect(parseLocaleNumber(formatted, 'en-US')).toBe(1234.56);
   });
 });
+
+/**
+ * A number whose fraction has not been typed yet. `NumberInput` parses on blur, so a customer who
+ * deleted the digits after the decimal point and tabbed away handed this function `"12."` — which
+ * returned `null`, and the field committed an empty value. The number is 12; only the fraction is
+ * missing.
+ */
+describe('parseLocaleNumber — a trailing separator', () => {
+  it('reads a trailing decimal point as the whole number, in either locale', () => {
+    expect(parseLocaleNumber('12.', 'en-US')).toBe(12);
+    expect(parseLocaleNumber('12,', 'is-IS')).toBe(12);
+    expect(parseLocaleNumber('-12.', 'en-US')).toBe(-12);
+    expect(parseLocaleNumber('-12,', 'is-IS')).toBe(-12);
+    expect(parseLocaleNumber('1,234.', 'en-US')).toBe(1234);
+    expect(parseLocaleNumber('1.234,', 'is-IS')).toBe(1234);
+  });
+
+  it('still refuses a separator with no number in front of it', () => {
+    for (const locale of ['en-US', 'is-IS']) {
+      expect(parseLocaleNumber('-', locale)).toBeNull();
+      expect(parseLocaleNumber('.', locale)).toBeNull();
+      expect(parseLocaleNumber(',', locale)).toBeNull();
+      expect(parseLocaleNumber('-.', locale)).toBeNull();
+      expect(parseLocaleNumber('-,', locale)).toBeNull();
+      expect(parseLocaleNumber('', locale)).toBeNull();
+    }
+  });
+
+  it('leaves a leading separator alone, which was already a number', () => {
+    expect(parseLocaleNumber('.5', 'en-US')).toBe(0.5);
+    expect(parseLocaleNumber(',5', 'is-IS')).toBe(0.5);
+  });
+});

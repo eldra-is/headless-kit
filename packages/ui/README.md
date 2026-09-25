@@ -78,23 +78,32 @@ Every component supports all five of these; none hard-codes anything a store mig
    token, a component-specific corner radius. Each one is documented on the component's own
    Storybook docs page; the variables currently declared:
 
-   | Component         | CSS variables                                                                                                                                                                                                                                                                                                                                                                                              |
-   | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   | `Button`          | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                           |
-   | `Checkbox`        | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                   |
-   | `FieldWrapper`    | `--eldra-field-note-line-height` (default `1.45`) — the line the help and error text share                                                                                                                                                                                                                                                                                                                 |
-   | `Input`           | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                          |
-   | `Link`            | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                    |
-   | `MultiSelect`     | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                            |
-   | `NumberInput`     | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width`                                                                                                                                                                                                    |
-   | `QuantityStepper` | `--eldra-stepper-radius` (default `var(--eldra-radius-md)`)                                                                                                                                                                                                                                                                                                                                                |
-   | `RadioGroup`      | `--eldra-radio-card-border-width` (default `1px`) and `--eldra-radio-card-radius` (default `radius-md`) for the card boundary; `--eldra-checkbox-border-width`/`-invalid` for the radio circle itself, shared with `Checkbox`                                                                                                                                                                              |
-   | `SearchBar`       | `--eldra-search-panel-max-height` (default `32rem`, clamped to `70vh`), `--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-search-kbd-line`, `--eldra-input-radius`, `--eldra-field-border-width`, `--eldra-z-popover`, and `--eldra-popover-origin`/`--eldra-popover-slide` (set by the panel itself from the placement it resolved to)                                                    |
-   | `Select`          | `--eldra-select-panel-max-height` (default `20rem`), `--eldra-select-panel-max-width` (default `22rem`, clamped to `90vw`), `--eldra-z-popover` (default `30`), `--eldra-field-radius`, `--eldra-field-border-width`, `--eldra-select-group-tracking`, `--eldra-select-option-line`, `--eldra-select-swatch-edge`, the `--eldra-select-match-*` trio, and `--eldra-popover-origin`/`--eldra-popover-slide` |
-   | `Switch`          | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                               |
-   | `Textarea`        | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                 |
+   | Component         | CSS variables                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+   | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `Button`          | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                    |
+   | `Checkbox`        | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                                                                            |
+   | `FieldWrapper`    | `--eldra-field-note-line-height` (default `1.45`) — the line the help and error text share                                                                                                                                                                                                                                                                                                                                                                          |
+   | `Input`           | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                                                                                   |
+   | `Link`            | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                             |
+   | `MultiSelect`     | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                     |
+   | `NumberInput`     | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width`                                                                                                                                                                                                                                                             |
+   | `QuantityStepper` | `--eldra-stepper-radius` (default `var(--eldra-radius-md)`)                                                                                                                                                                                                                                                                                                                                                                                                         |
+   | `RadioGroup`      | `--eldra-radio-card-border-width` (default `1px`) and `--eldra-radio-card-radius` (default `radius-md`) for the card boundary; `--eldra-checkbox-border-width`/`-invalid` for the radio circle itself, shared with `Checkbox`                                                                                                                                                                                                                                       |
+   | `SearchBar`       | `--eldra-search-panel-max-height` (default `32rem`, clamped to `70vh`), `--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-search-kbd-line`, `--eldra-input-radius`, `--eldra-field-border-width`, `--eldra-z-popover`, and `--eldra-popover-origin` (set by the panel itself from the placement it resolved to: `top left` below the field, `bottom left` above it)                                                                                 |
+   | `Select`          | `--eldra-select-panel-max-height` (default `20rem`), `--eldra-select-panel-max-width` (default `22rem`, clamped to `90vw`), `--eldra-z-popover` (default `30`), `--eldra-field-radius`, `--eldra-field-border-width`, `--eldra-select-group-tracking`, `--eldra-select-option-line`, `--eldra-select-swatch-edge`, the `--eldra-select-match-*` trio, and `--eldra-popover-origin` (`top left` / `bottom left`, set by the panel from the placement it resolved to) |
+   | `Switch`          | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                                                                                        |
+   | `Textarea`        | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                          |
 
    A component not listed here reads only the shared tokens from layer 1.
+
+   One variable in that list is **derived, not a knob**: `--eldra-field-invalid-radius` is declared
+   by the `eldra-field-invalid` utility on the field root that carries it (every control with the
+   2px error boundary — `Input`, `NumberInput`, `Select`, `MultiSelect`, `Textarea`, `SearchBar`) as
+   `var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md)))`, so the inset
+   error line can round to the field's own corner minus the border width. It exists because a
+   two-deep `var()` fallback written inline inside a `calc()` makes every consumer's PostCSS print a
+   parse warning — see the Deviations entry. Setting it from outside does nothing, because the
+   utility declares it on the same element: change the radius it reads instead.
 
 3. **A `classes` prop**, typed `Partial<Record<Part, string>>` where `Part` is the union of that
    component's `data-part` names from the design spec's anatomy (`container`, `label`,
@@ -135,12 +144,21 @@ composed.** One rule for every control here: **its own ids come first, then the 
 <!-- aria-describedby="newsletter-note <error-id>" — the error is still described -->
 ```
 
-— and so does a control's own part: `Textarea`'s counter id, `Switch`'s description id, and the
-group controls' (`RadioGroup`, `CheckboxGroup`, `QuantityStepper`) own error id all lead, with the
-context's ids after them. `aria-describedby` is announced in the order its ids are listed, so the
-control's own message is heard first. Ids are deduplicated and the attribute is omitted rather than
-rendered empty; `joinIds` (exported from the root) is the helper the components use, for a consumer
-composing a control of their own.
+— and so does a control's own part: `Switch`'s description id and the group controls'
+(`RadioGroup`, `CheckboxGroup`, `QuantityStepper`) own error id both lead, with the context's ids
+after them. `aria-describedby` is announced in the order its ids are listed, so the control's own
+message is heard first.
+
+**`Textarea` is the one exception, and it is deliberate:** its order is `describedBy` prop, then the
+context's ids, then its **own counter** last — `joinIds(joinIds(prop, context), counterId)`. The
+counter is a running "18 of 200 characters", not something that has to be heard before the error
+that says what to fix, so it is the one own-part that trails rather than leads.
+
+Ids are deduplicated **per id, not per argument** — every value here may itself be several
+space-separated ids, so `joinIds('a b', 'b c')` is `'a b c'` and not `'a b b c'` — first occurrence
+wins, so the order above survives. The attribute is omitted rather than rendered empty; `joinIds`
+(exported from the root) is the helper the components use, for a consumer composing a control of
+their own.
 
 The three group controls take no `describedBy` prop of their own — they are `<fieldset>`s named by
 a `<legend>`, and their `error` prop is what they describe themselves with.
@@ -267,9 +285,10 @@ a consumer whose control needs the same five things rather than reassembling the
   per-instance handle) and closes whatever held it;
 - **`useOverlay`** — the outside-press/focus-leaves/`Escape` closing rules, non-modal, so nothing
   traps focus and `Tab` always moves on;
-- **`useFloating`** — positioning, plus the `--eldra-popover-origin`/`--eldra-popover-slide` pair
-  the entrance keyframes read, so a panel that flips after floating-ui measures changes a custom
-  property rather than its `animation-name` (which would replay the entrance);
+- **`useFloating`** — positioning, plus the `--eldra-popover-origin` the entrance keyframes read
+  (`top left` below the control, `bottom left` above it), so a panel that flips after floating-ui
+  measures changes a custom property rather than its `animation-name` (which would replay the
+  entrance);
 - **the open sequence** — `open(activate?)` opens, runs `activate` (make a row active), then —
   only when the call actually changed the state — runs `afterOpen` a tick later, which is where
   focus moves into the panel; `close(returnFocus?)` closes and returns focus to the trigger unless
@@ -524,10 +543,10 @@ comparing the package against the spec can tell an addition from a drift.
 Additions and departures from the design spec, and why.
 
 - **Active buttons scale to 98% instead of moving down 1px** (operator decision, 2026-09-25). The
-  spec's Button States table gives the pressed row "moves down 1px", and that is what shipped:
-  `active:translate-y-px`. A 1px translate is below the threshold at which a press reads as
-  tactile — at the sizes the spec gives, it looks like a rendering artefact rather than a button
-  being pushed. The whole control now shrinks to 98% from its own centre over `duration-fast`
+  spec's Button States table gives the pressed row "moves down 1px", and that is what shipped: an
+  `active:` one-pixel downward translate utility. A 1px translate is below the threshold at which a
+  press reads as tactile — at the sizes the spec gives, it looks like a rendering artefact rather
+  than a button being pushed. The whole control now shrinks to 98% from its own centre over `duration-fast`
   (roughly half the ~4% the private Eldra library's button uses), on every variant but `link`,
   which the spec's own link row gives no press movement either, and never on a disabled or loading
   button. Mechanically it is the independent `scale` property, which is in `eldra-focus`'s
@@ -560,9 +579,29 @@ Additions and departures from the design spec, and why.
   `filterNumericBeforeInput` cancels an insertion that would put something non-numeric in the
   field, letting deletions, undo and redo through untouched. **A paste is sanitised rather than
   refused**: pasting `12ab3` inserts `123`, because someone who copied a number with a stray label
-  attached meant the number, and refusing the whole paste is a dead end with no message. The
-  locale's group separator is always accepted, whether or not the field takes decimals, because
-  the formatted text the field shows already contains one.
+  attached meant the number, and refusing the whole paste is a dead end with no message.
+
+  **The locale's group separator is accepted on a decimal field and refused on a whole-number one.**
+  On a decimal field it is useful — someone pasting `1,234.50` means 1234.5, and stripping the comma
+  would give 123450. On a quantity it is a trap, because the same character means different things
+  in different locales: `1,5` reads as "one thousand five" to the parser and as "one point five" to
+  an Icelandic customer, and the field committed 15 while showing something that looked like 1.5.
+  Refused, that character never reaches the field, so the text can never say one thing while the
+  value says another. Both controls show an **ungrouped** editing string while focused
+  (`1,000` becomes `1000`), which is what makes refusing it free: there is never a separator in the
+  field to type after.
+
+- **`Enter` in a `NumberInput` commits and does not submit.** The field is inside a `<form>` more
+  often than not, and a keystroke that both corrected the value and sent the form would give nobody
+  a chance to see the correction — so the implicit submission is prevented, the value is parsed,
+  clamped and reformatted under the caret, and focus stays where it is. A second `Enter`, on a
+  field that now shows what it holds, submits as usual. `QuantityStepper` behaves the same way, for
+  the same reason.
+- **A read-only `NumberInput` never enters edit mode and never commits.** Read-only means "the
+  value is readable but fixed", so focusing one keeps the _formatted_ text (a price goes on looking
+  like a price when it is clicked) and leaving it writes nothing — which matters most for a value
+  outside `min`/`max`, where committing would have silently clamped a number the control had
+  promised not to change. `disabled` is inert natively; this is the case that is not.
 - **`NumberInput` commits `null` for text that is not a number.** Not the previous value: a field
   that silently restored a number the customer had just deleted would be lying about what it
   holds, and `null` is the same thing an empty field means. Whether that is an _error_ is the
@@ -581,6 +620,15 @@ Additions and departures from the design spec, and why.
   is measured — the same rough edge `Input`'s `suffix` row has — so a prefix wider than its
   reservation needs `classes.control` to say so. The currency symbol and the unit are not affected:
   they are part of the formatted text `Intl` produces, not a part this component draws.
+- **A `Select` or `MultiSelect` trigger shows the focus ring while its popover is open** (operator
+  request). A trigger opened with the pointer is focused but not `:focus-visible`, so the ring did
+  not show, and an open popover hung off a control with nothing saying it was the one the keyboard
+  was about to act on. `eldra-focus-open` is a modifier of `eldra-focus` in the same shape as
+  `eldra-focus-always` and `eldra-focus-proxy` — it carries no ring of its own, it only turns on the
+  one already there — keyed to the element's own `aria-expanded="true"`, so nothing has to be kept
+  in sync and closing fades the ring back out over the transition `eldra-focus` already owns. The
+  `SearchBar` never needed it: its trigger is a text field, and text fields carry
+  `eldra-focus-always`.
 - **The focus ring fades in at full size rather than growing.** The design spec's Focus ring
   section says the ring and its infill "grow from 0 to 2px over `duration-base`", and that is what
   this package shipped first: an animated `outline-width` and `box-shadow` spread. A browser paints
@@ -625,6 +673,16 @@ Additions and departures from the design spec, and why.
   from `href` alone, per the spec's own Accessibility note. Everything else is unchanged: icon-only
   and loading naming, `aria-pressed`'s link rule, and the disabled-link semantics below all behave
   exactly as they do on a native `<a>`.
+- **A disabled `Button` with a component `as` renders a plain `<a href>`, not the router link.**
+  `Button` stops a disabled click with `preventDefault()`, which is enough for a native `<a>`,
+  whose navigation _is_ the default action. A `RouterLink`/`NuxtLink` does not navigate by a default
+  action: it installs its own click listener on its own root, which runs before the handler passed
+  down through fall-through attributes — so the route change had already happened by the time
+  `preventDefault()` ran, and a disabled call to action navigated. While disabled, the element is
+  therefore the plain anchor for the same destination (a `<span>` if there is somehow no `href`,
+  which `href`-implies-link makes unreachable today). Everything else is unchanged — the `href`
+  stays so it keeps `role="link"`, with `aria-disabled="true"` and `tabindex="-1"` — and it routes
+  again the moment it is enabled, with no change from the caller.
 - **`Button` disabled link button keeps its `href`.** A disabled `<a>` that also drops `href`
   becomes a generic element and stops exposing `role="link"` — a screen reader stops naming what it
   is at the exact moment it needs to say "unavailable". `href` stays, and `aria-disabled="true"`,

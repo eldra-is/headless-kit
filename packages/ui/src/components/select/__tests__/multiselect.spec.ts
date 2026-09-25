@@ -930,3 +930,15 @@ describe('MultiSelect — the panel entrance', () => {
     expect(panel(wrapper).attributes('style')).not.toContain('--eldra-popover-slide');
   });
 });
+
+/** The same open-state ring as `Select`'s — see that spec for the defect it closes. */
+describe('MultiSelect — the ring while the popover is open', () => {
+  it('carries the open-state ring modifier beside the ring itself', async () => {
+    const wrapper = mount();
+    expect(triggerOf(wrapper).classes()).toContain('eldra-focus');
+    expect(triggerOf(wrapper).classes()).toContain('eldra-focus-open');
+    await press(triggerOf(wrapper));
+    expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('true');
+    expect(triggerOf(wrapper).classes()).toContain('eldra-focus-open');
+  });
+});

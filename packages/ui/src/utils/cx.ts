@@ -30,6 +30,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-focus'
   | 'eldra-focus-always'
   | 'eldra-focus-inset-always'
+  | 'eldra-focus-open'
   | 'eldra-focus-proxy'
   | 'eldra-field-invalid'
   | 'eldra-radio-card-selected'
@@ -152,6 +153,12 @@ const twMerge = extendTailwindMerge<
       // It carries no base, so sharing a group with what it modifies would let `cx` drop the ring
       // and keep only the trigger. A modifier never shares a group with the thing it modifies.
       'eldra-focus-proxy': ['eldra-focus-proxy'],
+      // `eldra-focus-open` is the fourth of that family and gets its own group for the same reason
+      // again: it is a *modifier* of `eldra-focus` that turns the ring on while the element's own
+      // `aria-expanded` is `"true"` (a Select trigger with its popover open, which a pointer press
+      // leaves focused but not `:focus-visible`). It carries no base, so sharing a group with what
+      // it modifies would let `cx` drop the ring and keep only the trigger.
+      'eldra-focus-open': ['eldra-focus-open'],
       // Link's focus-ring corner radius (tailwind.css "eldra-link-radius"): the same "rounded"
       // group as `rounded-*`, so a consumer's `classes.root: 'rounded-full'` replaces it.
       rounded: ['eldra-link-radius', 'eldra-select-check-radius'],

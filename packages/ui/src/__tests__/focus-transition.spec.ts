@@ -136,6 +136,22 @@ describe('the focus ring owns its element transitions', () => {
       expect(rule).toContain('prefers-reduced-motion: reduce');
     }
 
+    // The ring stays on while a popover is open (a Select/MultiSelect trigger, which a pointer
+    // press leaves focused but not `:focus-visible`). Another *modifier*: it may only turn the
+    // alpha on, keyed to the element's own `aria-expanded`, and must carry no transition and no
+    // ring of its own, or `eldra-focus` beside it stops owning them.
+    const openCss = compiler.build(['eldra-focus-open']);
+    const openStart = openCss.indexOf('.eldra-focus-open');
+    expect(openStart, 'eldra-focus-open is not in the compiled stylesheet').toBeGreaterThan(-1);
+    const open = openCss.slice(openStart, openCss.indexOf('\n  }', openStart));
+    expect(open.startsWith(".eldra-focus-open[aria-expanded='true'] {")).toBe(true);
+    expect(open).toContain('--eldra-focus-alpha: 1');
+    expect(open).not.toContain('transition');
+    // ...and the forced-colours half, which `eldra-focus`'s own rule cannot cover for the same
+    // reason it cannot cover the proxy's: that rule is keyed to `:focus-visible`.
+    expect(openCss).toContain('@media (forced-colors: active)');
+    expect(openCss).toContain('outline-color: Highlight');
+
     // Proxy focus (a Checkbox's hidden input inside its drawn box) is a *modifier*: it must add a
     // `:has(:focus-visible)` rule and nothing else, so `eldra-focus` beside it keeps owning the
     // ring, the transition and the reduced-motion rule. A `@utility` whose nested selector failed

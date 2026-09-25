@@ -248,6 +248,33 @@ describe('NumberInput — editing', () => {
     wrapper.unmount();
   });
 
+  it('commits the whole number when the fraction has not been typed yet', async () => {
+    // Deleting the digits after the decimal point and tabbing away used to commit `null`: the
+    // value vanished because the caret had stopped one character short of a number.
+    const enUS = mountModel();
+    await typeAndBlur(enUS.host, '12.');
+    expect(enUS.value.value).toBe(12);
+    expect(control(enUS.host).value).toBe('12');
+    enUS.host.unmount();
+
+    const isIS = mountModel({ locale: IS });
+    await typeAndBlur(isIS.host, '12,');
+    expect(isIS.value.value).toBe(12);
+    isIS.host.unmount();
+  });
+
+  it('still commits null for a separator with no number in front of it', async () => {
+    const enUS = mountModel(undefined, 5);
+    await typeAndBlur(enUS.host, '.');
+    expect(enUS.value.value).toBeNull();
+    enUS.host.unmount();
+
+    const isIS = mountModel({ locale: IS }, 5);
+    await typeAndBlur(isIS.host, ',');
+    expect(isIS.value.value).toBeNull();
+    isIS.host.unmount();
+  });
+
   it('commits null for an emptied field', async () => {
     const wrapper = mount({ modelValue: 12 });
     await typeAndBlur(wrapper, '');
@@ -315,11 +342,26 @@ describe('NumberInput — the arrows', () => {
     model.host.unmount();
   });
 
-  it('starts from min when the field is empty', async () => {
+  it('lands on min itself from an empty field, not a step above it', async () => {
+    // The lowest value the field accepts is the answer someone pressing Up on a blank amount is
+    // asking for; starting at `min + step` makes the first allowed value unreachable by the
+    // keyboard without pressing Down again.
     const model = mountModel({ min: 5 }, null);
     await arrow(model, 'ArrowUp');
-    expect(model.value.value).toBe(6);
+    expect(model.value.value).toBe(5);
     model.host.unmount();
+  });
+
+  it('lands on the step itself from an empty field with no min', async () => {
+    const up = mountModel({ step: 5 }, null);
+    await arrow(up, 'ArrowUp');
+    expect(up.value.value).toBe(5);
+    up.host.unmount();
+
+    const down = mountModel({ step: 5 }, null);
+    await arrow(down, 'ArrowDown');
+    expect(down.value.value).toBe(-5);
+    down.host.unmount();
   });
 
   it('does nothing on a read-only or disabled field', async () => {
@@ -545,6 +587,71 @@ describe('NumberInput — accessibility', () => {
     });
     expect(wrapper.find('[data-part="control"]').classes()).toContain('min-w-0');
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+/**
+ * Read-only is "the value is readable but fixed" — focusable and selectable, which is the whole
+ * reason it is not `disabled`. The defect: focusing one swapped the formatted text for the
+ * editable string (so a price stopped looking like a price the moment a customer clicked it), and
+ * leaving it committed — which, for a value outside `min`/`max`, silently clamped a value the
+ * control had promised not to change.
+ */
+describe('NumberInput — read-only', () => {
+  it('keeps the formatted value on focus instead of entering edit mode', async () => {
+    const wrapper = mount({
+      modelValue: 1234.5,
+      readonly: true,
+      format: 'currency',
+      currency: 'USD',
+    });
+    const field = wrapper.find('[data-part="control"]');
+    expect(control(wrapper).value).toBe('$1,234.50');
+    await field.trigger('focus');
+    expect(control(wrapper).value).toBe('$1,234.50');
+    expect(wrapper.emitted('focus')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('commits nothing on blur', async () => {
+    const wrapper = mount({ modelValue: 1234.5, readonly: true });
+    const field = wrapper.find('[data-part="control"]');
+    await field.trigger('focus');
+    await field.trigger('blur');
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    expect(wrapper.emitted('change')).toBeUndefined();
+    expect(wrapper.emitted('blur')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('commits nothing on Enter', async () => {
+    const wrapper = mount({ modelValue: 1234.5, readonly: true });
+    const field = wrapper.find('[data-part="control"]');
+    await field.trigger('focus');
+    await field.trigger('keydown', { key: 'Enter' });
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    expect(wrapper.emitted('change')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('never clamps a value that is outside min and max', async () => {
+    // The sharp end of it: a read-only field showing an out-of-range value (a historical price, a
+    // figure from another system) must keep showing it, not quietly correct it on the first click.
+    const model = mountModel({ readonly: true, min: 0, max: 100 }, 250);
+    await model.field().trigger('focus');
+    expect(control(model.host).value).toBe('250');
+    await model.field().trigger('blur');
+    expect(model.value.value).toBe(250);
+    model.host.unmount();
+  });
+
+  it('still shows the formatted value after focus and blur', async () => {
+    const wrapper = mount({ modelValue: 2.5, readonly: true, format: 'unit', unit: 'kilogram' });
+    const field = wrapper.find('[data-part="control"]');
+    await field.trigger('focus');
+    await field.trigger('blur');
+    expect(control(wrapper).value).toBe('2.5 kg');
     wrapper.unmount();
   });
 });

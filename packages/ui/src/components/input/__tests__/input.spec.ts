@@ -728,3 +728,75 @@ describe('Input — inside a group field wrapper', () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * `Input` is the field box the spec describes, and `SearchBar` and `NumberInput` draw the same box
+ * by importing its recipes from `../classes`. `search-bar.spec.ts` and `number-input.spec.ts` each
+ * assert they carry every token of it — but nothing asserted that **`Input` itself** renders what
+ * that module says, so a recipe could have been edited to match a copy rather than the other way
+ * round and all three would have agreed on the wrong thing.
+ */
+describe('Input — the shared field recipe is what Input renders', () => {
+  it('renders every token of the base recipe on its control', async () => {
+    const { FIELD_BASE } = await import('../classes');
+    const wrapper = mountWith(Input, { attrs: NAME });
+    const classes = wrapper.find('[data-part="control"]').classes();
+    const tokens = FIELD_BASE.split(/\s+/).filter(Boolean);
+    expect(tokens.length).toBeGreaterThan(5);
+    for (const token of tokens) {
+      expect(classes, `Input's control is missing its own ${token}`).toContain(token);
+    }
+    wrapper.unmount();
+  });
+
+  it.each(SIZES)('renders the %s size recipe, type style included', async (size) => {
+    const { FIELD_SIZE, FIELD_TEXT } = await import('../classes');
+    const wrapper = mountWith(Input, { props: { size }, attrs: NAME });
+    const classes = wrapper.find('[data-part="control"]').classes();
+    for (const token of `${FIELD_SIZE[size]} ${FIELD_TEXT[size]}`.split(/\s+/).filter(Boolean)) {
+      expect(classes, `Input's ${size} control is missing ${token}`).toContain(token);
+    }
+    wrapper.unmount();
+  });
+
+  it('renders the state recipes it is in, and only those', async () => {
+    const { FIELD_LIVE, FIELD_INVALID, FIELD_DISABLED, FIELD_READONLY } =
+      await import('../classes');
+    const tokensOf = (recipe: string): string[] => recipe.split(/\s+/).filter(Boolean);
+    const control = (props: Record<string, unknown>): string[] => {
+      const wrapper = mountWith(Input, { props, attrs: NAME });
+      const classes = wrapper.find('[data-part="control"]').classes();
+      wrapper.unmount();
+      return classes;
+    };
+
+    const live = control({});
+    for (const token of tokensOf(FIELD_LIVE)) expect(live).toContain(token);
+
+    const invalid = control({ invalid: true });
+    for (const token of tokensOf(FIELD_INVALID)) expect(invalid).toContain(token);
+
+    // Disabled and read-only *replace* the live colours rather than layering over them, so a
+    // `:hover` rule can never win a live boundary back on a dead field.
+    const disabled = control({ disabled: true });
+    for (const token of tokensOf(FIELD_DISABLED)) expect(disabled).toContain(token);
+    expect(disabled).not.toContain('border-border-strong');
+
+    const readonly = control({ readonly: true });
+    for (const token of tokensOf(FIELD_READONLY)) expect(readonly).toContain(token);
+    expect(readonly).not.toContain('border-border-strong');
+  });
+
+  it('renders the decoration paddings from the recipe, not numbers of its own', async () => {
+    const { FIELD_LEADING_PAD, FIELD_TRAILING_PAD, FIELD_CLEAR_SIZE } = await import('../classes');
+    const wrapper = mountWith(Input, {
+      props: { modelValue: 'x', type: 'search', leadingIcon: IconSearch },
+      attrs: NAME,
+    });
+    const classes = wrapper.find('[data-part="control"]').classes();
+    expect(classes).toContain(FIELD_LEADING_PAD);
+    expect(classes).toContain(FIELD_TRAILING_PAD.md);
+    expect(wrapper.find('[data-part="clearButton"]').classes()).toContain(FIELD_CLEAR_SIZE.md);
+    wrapper.unmount();
+  });
+});

@@ -26,7 +26,7 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
-import { formatNumber, parseLocaleNumber } from '../../utils/number-format';
+import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -126,6 +126,22 @@ function formatDisplay(value: number): string {
 }
 
 /**
+ * The text shown while the field *is* being edited: the same whole number with the locale's group
+ * separator taken out, so a four-figure quantity reads `1000` rather than `1,000`.
+ *
+ * Two reasons, and the second is the load-bearing one. A caret and a group separator fight over the
+ * same keystroke (the same reason `NumberInput` does this). And the `beforeinput` filter **refuses**
+ * the group separator on a whole-number field — `1,5` must not be able to look like one point five
+ * and commit fifteen — which would refuse every keystroke made after a separator the field itself
+ * had put there. Ungrouped while editing, there is never one to make a keystroke after.
+ */
+function formatEditing(value: number): string {
+  const { group } = localeSeparators(props.locale);
+  const plain = formatDisplay(value);
+  return group === '' ? plain : plain.split(group).join('');
+}
+
+/**
  * True while the field has focus and the user may be mid-edit: the DOM shows exactly what they
  * typed (`editingText`) instead of the reformatted value, so a caret and a locale group separator
  * never fight over the same keystroke. Not focused, it always shows the committed value freshly
@@ -200,12 +216,12 @@ function commit(): void {
     emit('change', next);
     announce(next);
   }
-  editingText.value = formatDisplay(next);
+  editingText.value = formatEditing(next);
 }
 
 function onFocus(event: FocusEvent): void {
   isEditing.value = true;
-  editingText.value = formatDisplay(model.value);
+  editingText.value = formatEditing(model.value);
   emit('focus', event);
 }
 
@@ -257,7 +273,7 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
     event.preventDefault();
     const changed = step(event.key === 'ArrowUp' ? 1 : -1);
-    if (changed) editingText.value = formatDisplay(model.value);
+    if (changed) editingText.value = formatEditing(model.value);
   }
 }
 

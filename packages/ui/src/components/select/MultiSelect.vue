@@ -441,10 +441,14 @@ const rootClass = computed(() =>
   part(cx('relative block w-full', showsInvalid.value && 'eldra-field-invalid'), 'root')
 );
 
-/** The trigger box: the same box as `Select`'s, which is the same box as `Input`'s. */
+/**
+ * The trigger box: the same box as `Select`'s, which is the same box as `Input`'s — including
+ * `eldra-focus-open`, which keeps the ring on while the popover is open (see `Select.vue`'s own
+ * comment for why a pointer-opened trigger needs it).
+ */
 const TRIGGER_BASE =
   'flex w-full min-w-0 items-center gap-2 text-start eldra-field-border ' +
-  'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus';
+  'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-open';
 
 const SIZE: Record<SelectSize, string> = {
   sm: 'control-h-sm ps-2.25 pe-2.5 text-control-sm',

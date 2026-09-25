@@ -30,6 +30,36 @@ describe('navigation block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  it('routes the header call to action through the router, not a document navigation', () => {
+    // Every same-site destination in this block goes through `EldraRouterLink` -> `NuxtLink`; the
+    // CTA is a `Button`, which reaches it through the same `as` prop `Link` uses and hands it the
+    // destination as `to`. Asserting the component's prop rather than the rendered `href` is what
+    // tells a routed action from an unrouted one — the stub renders an `<a href>` either way.
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
+    const destinations = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    // In order: the brand link, the five header nav links, the header CTA, then the drawer's own
+    // copy of the five links and of the CTA. Both CTAs are the ones this closes — they were plain
+    // document navigations while every link around them routed.
+    const brand = '/';
+    const navLinks = ['/', '/shop', '/journal', '/about', '/contact'];
+    const cta = '/shop';
+    expect(destinations).toEqual([brand, ...navLinks, cta, ...navLinks, cta]);
+  });
+
+  it('leaves an off-site call to action a plain document navigation', () => {
+    const wrapper = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...mock, ctaHref: 'https://example.com/shop' } } })
+    );
+    const destinations = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    expect(destinations).not.toContain('https://example.com/shop');
+    expect(wrapper.findAll('a[href="https://example.com/shop"]').length).toBeGreaterThan(0);
+  });
+
   it('opens the mobile drawer from the toggle button and sets aria-expanded', async () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
     const toggle = wrapper.get('button[aria-controls]');

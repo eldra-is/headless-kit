@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IconArrowRight, IconHeart, IconShoppingBag } from '@tabler/icons-vue';
-import { defineComponent, h, ref } from 'vue';
+import { computed, defineComponent, h, ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FORM_SUBMITTING_KEY } from '../../form-layout/context';
@@ -9,6 +9,14 @@ import ButtonGroup from '../ButtonGroup.vue';
 import type { ButtonProps, ButtonSize, ButtonVariant } from '../types';
 
 const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'outline', 'ghost', 'link', 'danger'];
+
+/**
+ * The press movement the scale replaced, matched as a pattern rather than written out as a class
+ * name. Tailwind's source scan reads `src/` — specs included — to build `dist/style.css`, so
+ * spelling that class out anywhere in this directory, prose included, emits a real CSS rule for a
+ * class nothing uses. `source-scan.spec.ts` fails if one comes back.
+ */
+const PRESS_TRANSLATE = /active:-?(translate|top|mt)/;
 const SIZES: ButtonSize[] = ['sm', 'md', 'lg'];
 
 /** Twice the length of the spec's own example label ("Add to cart"). */
@@ -82,13 +90,29 @@ describe('Button — element and type', () => {
 });
 
 describe('Button — as prop', () => {
-  /** A stand-in for NuxtLink / RouterLink: it takes the destination as `to`, never as `href`. */
+  /** Where the fake router "navigated", newest last. Reset before every case that reads it. */
+  const routed: string[] = [];
+
+  /**
+   * A stand-in for NuxtLink / RouterLink: it takes the destination as `to`, never as `href`, **and
+   * it navigates the way those components actually do** — from its own click listener, installed
+   * on its own root, which therefore runs before any handler a parent passes down through
+   * fall-through attributes.
+   *
+   * That ordering is the whole point. A stub that only rendered an `<a>` could not tell a disabled
+   * routed button from a working one: `Button`'s `preventDefault()` stops a *default action*, and a
+   * router link's navigation is not one. The `defaultPrevented` check here is the real components'
+   * own guard, so a `Button` that manages to stop the navigation stops it here too.
+   */
   const FakeRouterLink = defineComponent({
     props: { to: { type: String, required: true } },
-    setup:
-      (props, { slots }) =>
-      () =>
-        h('a', { 'data-fake-router-link': props.to }, slots.default?.()),
+    setup(props, { slots }) {
+      const onClick = (event: MouseEvent): void => {
+        if (event.defaultPrevented) return;
+        routed.push(props.to);
+      };
+      return () => h('a', { 'data-fake-router-link': props.to, onClick }, slots.default?.());
+    },
   });
 
   it('uses a string as the tag and still passes href as href', () => {
@@ -135,7 +159,20 @@ describe('Button — as prop', () => {
     wrapper.unmount();
   });
 
+  it('routes on click while it is enabled', async () => {
+    routed.length = 0;
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/collections/knitwear', as: FakeRouterLink },
+      slots: { default: 'Shop all knitwear' },
+    });
+    await wrapper.trigger('click');
+    expect(routed).toEqual(['/collections/knitwear']);
+    expect(wrapper.emitted('click')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
   it('keeps the disabled-link semantics when routed through a component', async () => {
+    routed.length = 0;
     const wrapper = mountWith(Button, {
       props: { variant: 'primary', href: '/checkout', as: FakeRouterLink, disabled: true },
       slots: { default: 'Checkout' },
@@ -145,6 +182,57 @@ describe('Button — as prop', () => {
     expect(wrapper.attributes('disabled')).toBeUndefined();
     await wrapper.trigger('click');
     expect(wrapper.emitted('click')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  /**
+   * The defect: a router link navigates from its **own** click listener, not from the default
+   * action, and that listener runs before the one `Button` passes down — so `preventDefault()`
+   * arrived after `router.push()` had already run and a disabled call to action navigated.
+   */
+  it('does not navigate when it is disabled', async () => {
+    routed.length = 0;
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/checkout', as: FakeRouterLink, disabled: true },
+      slots: { default: 'Checkout' },
+    });
+    await wrapper.trigger('click');
+    expect(routed).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('falls back to a plain anchor while disabled, and routes again once it is not', async () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/checkout', as: FakeRouterLink, disabled: true },
+      slots: { default: 'Checkout' },
+    });
+    // Not the router component: a plain `<a href>`, whose navigation IS a default action and can
+    // therefore be prevented. The `href` stays so the element keeps `role="link"`.
+    expect(wrapper.element.tagName).toBe('A');
+    expect(wrapper.attributes('data-fake-router-link')).toBeUndefined();
+    expect(wrapper.attributes('href')).toBe('/checkout');
+
+    routed.length = 0;
+    await wrapper.setProps({ disabled: false });
+    expect(wrapper.attributes('data-fake-router-link')).toBe('/checkout');
+    expect(wrapper.attributes('href')).toBeUndefined();
+    await wrapper.trigger('click');
+    expect(routed).toEqual(['/checkout']);
+    wrapper.unmount();
+  });
+
+  it('does not navigate while a form it submits into is submitting', async () => {
+    // The other way a Button becomes disabled: a `FormLayout` in flight disables every action that
+    // is not the submit. That path must stop a routed link too.
+    routed.length = 0;
+    const wrapper = mountWith(Button, {
+      props: { variant: 'outline', href: '/cart', as: FakeRouterLink },
+      slots: { default: 'Back to cart' },
+      global: { provide: { [FORM_SUBMITTING_KEY as symbol]: computed(() => true) } },
+    });
+    expect(wrapper.element.tagName).toBe('A');
+    await wrapper.trigger('click');
+    expect(routed).toEqual([]);
     wrapper.unmount();
   });
 
@@ -596,7 +684,7 @@ describe('Button — states', () => {
       expect(wrapper.classes()).toContain('active:scale-[0.98]');
       // The class it replaced must be gone, on every variant: both present would make the button
       // shrink *and* drop, which is neither state.
-      expect(wrapper.classes()).not.toContain('active:translate-y-px');
+      expect(wrapper.classes().join(' ')).not.toMatch(PRESS_TRANSLATE);
       wrapper.unmount();
     }
   );
@@ -607,7 +695,7 @@ describe('Button — states', () => {
       slots: { default: 'Size guide' },
     });
     expect(wrapper.classes()).not.toContain('active:scale-[0.98]');
-    expect(wrapper.classes()).not.toContain('active:translate-y-px');
+    expect(wrapper.classes().join(' ')).not.toMatch(PRESS_TRANSLATE);
     wrapper.unmount();
   });
 
@@ -617,7 +705,7 @@ describe('Button — states', () => {
       slots: { default: 'Sold out' },
     });
     expect(dead.classes()).not.toContain('active:scale-[0.98]');
-    expect(dead.classes()).not.toContain('active:translate-y-px');
+    expect(dead.classes().join(' ')).not.toMatch(PRESS_TRANSLATE);
     dead.unmount();
   });
 
@@ -658,10 +746,11 @@ describe('Button — states', () => {
       fileURLToPath(new NodeURL('../Button.vue', import.meta.url)),
       'utf8'
     );
-    // Comments are prose *about* the class that was removed, and the component's own doc comment
-    // names it to explain the ruling — so they are stripped before the source is searched.
+    // Comments are stripped anyway: the component must not name the class even in prose (see
+    // `source-scan.spec.ts`), but a future comment that described the movement in passing should
+    // not fail *this* case, which is about the rendered classes.
     const code = source.replaceAll(/\/\*[\s\S]*?\*\//g, ' ').replaceAll(/<!--[\s\S]*?-->/g, ' ');
-    expect(code).not.toMatch(/active:(-?translate|-?top|-?mt)/);
+    expect(code).not.toMatch(PRESS_TRANSLATE);
   });
 
   it('leaves the transition list to the focus ring utility', () => {

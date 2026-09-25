@@ -100,11 +100,34 @@ describe('filterNumericBeforeInput — typing', () => {
     expect(beforeInput(field('5'), character).prevented).toBe(true);
   });
 
-  it('accepts the locale group separator, because the field already shows one', () => {
-    // A quantity of 1,000 under en-US is what the field *displays*; a filter that refused `,`
-    // would refuse every keystroke made after it.
-    expect(beforeInput(field('1,00'), '0', { locale: 'en-US' }).prevented).toBe(false);
-    expect(beforeInput(field('1.00'), '0', { locale: 'is-IS' }).prevented).toBe(false);
+  /**
+   * The group separator is a decimal field's, never a whole-number field's (operator ruling). The
+   * character means different things in different locales — `1,5` reads as "one thousand five" to
+   * the parser and as "one point five" to an Icelandic customer — so a quantity field committed 15
+   * while showing something that looked like 1.5.
+   */
+  it('accepts the locale group separator on a decimal field', () => {
+    // Pasting "1,234.50" into a price means 1234.5; stripping the comma out would give 123450.
+    expect(beforeInput(field('1'), ',', { allowDecimal: true, locale: 'en-US' }).prevented).toBe(
+      false
+    );
+    expect(beforeInput(field('1'), '.', { allowDecimal: true, locale: 'is-IS' }).prevented).toBe(
+      false
+    );
+  });
+
+  it('refuses the locale group separator on a whole-number field', () => {
+    expect(beforeInput(field('1'), ',', { locale: 'en-US' }).prevented).toBe(true);
+    expect(beforeInput(field('1'), '.', { locale: 'is-IS' }).prevented).toBe(true);
+  });
+
+  it('sanitises a grouped paste into a whole-number field to its digits', () => {
+    // Refusing the character does not refuse the paste: "1,000" is a thousand, and the digits are
+    // what survives — the field then shows 1000, which is what it holds.
+    const element = field('');
+    const result = beforeInput(element, '1,000', { locale: 'en-US' }, 'insertFromPaste');
+    expect(result.prevented).toBe(true);
+    expect(element.value).toBe('1000');
   });
 });
 

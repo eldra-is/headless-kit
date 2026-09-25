@@ -1084,3 +1084,32 @@ describe('Select — long content and narrow containers', () => {
     expect(wrapper.find('[data-part="optionMeta"]').exists()).toBe(true);
   });
 });
+
+/**
+ * The ring stays on while the popover is open (operator request, 2026-09-25). A trigger opened with
+ * the *pointer* is focused but not `:focus-visible`, so the ring did not show — an open popover
+ * hung off a control with nothing saying it was the one the keyboard was about to act on. The
+ * `SearchBar` never had this: its trigger is a text field, and text fields carry
+ * `eldra-focus-always`.
+ */
+describe('Select — the ring while the popover is open', () => {
+  it('carries the open-state ring modifier beside the ring itself', () => {
+    const wrapper = mount();
+    const classes = triggerOf(wrapper).classes();
+    // Both: the modifier only turns the alpha on, and the ring, the transition and the
+    // reduced-motion rule all live in `eldra-focus`.
+    expect(classes).toContain('eldra-focus');
+    expect(classes).toContain('eldra-focus-open');
+  });
+
+  it('keys it to the trigger’s own aria-expanded, so nothing has to be kept in sync', async () => {
+    const wrapper = mount();
+    expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('false');
+    await press(triggerOf(wrapper));
+    expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('true');
+    // The class does not change — the state does, and the CSS reads it.
+    expect(triggerOf(wrapper).classes()).toContain('eldra-focus-open');
+    await press(triggerOf(wrapper));
+    expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('false');
+  });
+});

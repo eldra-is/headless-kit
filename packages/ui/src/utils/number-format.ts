@@ -110,7 +110,9 @@ function escapeForRegExp(text: string): string {
  * locale itself (`localeSeparators`, above) rather than assuming either arrangement.
  *
  * Returns `null` for anything that is not a valid number once separators are stripped — empty
- * text, a bare `-` or `.`, stray letters — so a caller never has to check for `NaN` itself.
+ * text, a bare `-` or `.`, stray letters — so a caller never has to check for `NaN` itself. A
+ * **trailing** separator is not one of those: `"12."` is `12`, and so is `"12,"` under `is-IS`,
+ * because a fraction that has not been typed yet is not a reason to throw the number away.
  */
 export function parseLocaleNumber(text: string, locale: string): number | null {
   const trimmed = text.trim();
@@ -128,6 +130,13 @@ export function parseLocaleNumber(text: string, locale: string): number | null {
   // Some locales group with a non-breaking or narrow no-break space that can slip in around the
   // text as well as between digits (pasted text, a trailing space); strip whatever is left.
   normalized = normalized.replace(/\s/g, '');
+
+  // A **trailing** decimal separator is a number whose fraction is simply not there yet: "12." is
+  // 12, and "12," is 12 under `is-IS`. Refusing it made a field commit `null` the moment someone
+  // deleted the fraction digits they had typed and left — the value vanished because the caret had
+  // stopped one character short. A separator with nothing before it is still not a number, so a
+  // lone "-", "." or "," falls through to the test below and returns `null`.
+  if (normalized.endsWith('.')) normalized = normalized.slice(0, -1);
 
   if (!/^-?\d+(\.\d+)?$|^-?\.\d+$/.test(normalized)) return null;
 

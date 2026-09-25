@@ -5,6 +5,34 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A read-only `NumberInput` no longer enters edit mode or commits.** Focusing one kept the
+  formatted value's place but swapped it for the editable string, and leaving it committed — which
+  for a value outside `min`/`max` silently clamped a number the control had promised not to change.
+- **`parseLocaleNumber` reads a trailing decimal separator as the whole number.** `"12."` is `12`,
+  and so is `"12,"` under `is-IS`; a lone `-`, `.` or `,` is still `null`. A `NumberInput` whose
+  fraction digits were deleted before the field was left used to commit an empty value.
+- **The numeric typing filter refuses the locale group separator on whole-number fields.** `1,5`
+  typed into a `QuantityStepper` under `en-US` used to leave the field showing what an Icelandic
+  customer reads as "one point five" while committing fifteen. Both numeric controls now show an
+  **ungrouped** editing string while focused (`1,000` becomes `1000` and back on blur), which is
+  what makes refusing the character cost nothing. Decimal fields still accept it, so pasting
+  `1,234.50` still means 1234.5.
+- **`NumberInput`'s first arrow press on an empty field lands on `min`**, not `min + step`.
+- **A disabled `Button` with a component `as` no longer navigates.** A router link navigates from
+  its own click listener rather than from the default action, so `preventDefault()` arrived after
+  the route had already changed. While disabled the element falls back to the plain `<a href>` for
+  the same destination — same `aria-disabled`, same `tabindex="-1"`, same `href` — and routes again
+  as soon as it is enabled.
+- **`Select` and `MultiSelect` triggers show the focus ring while their popover is open.** A
+  trigger opened with the pointer is focused but not `:focus-visible`, so the ring stayed hidden
+  under an open panel. New `eldra-focus-open` utility, keyed to the trigger's own `aria-expanded`;
+  it is a modifier of `eldra-focus` and registered in `cx`'s merge config with a group of its own.
+- **`joinIds` deduplicates per id rather than per argument**, so composing `'a b'` with `'b c'`
+  gives `'a b c'` instead of announcing `b` twice.
+- `dist/style.css` no longer ships a rule for the press class the scale replaced. Tailwind's source
+  scan reads this package's `README.md` and `CHANGELOG.md` as well as `src/`, and all three named
+  that class while explaining the change — which emitted real CSS for a class on no element.
+
 - **New component: `NumberInput`** — an editable number, money and unit field, and the first thing
   in this package the design spec has no equivalent of (its `Price` is a display component). It
   draws `Input`'s box, sizes, focus ring and error boundary, and adds the part a text field cannot
@@ -22,11 +50,12 @@ Release-please writes the generated notes from commit messages and does not repl
   `beforeinput` filter now cancels a non-numeric insertion, lets deletions/undo/redo through, and
   **sanitises a paste instead of refusing it** — pasting `12ab3` inserts `123`. The helper is
   exported as `filterNumericBeforeInput` for a consumer building a numeric control of their own.
-- **A pressed `Button` scales to 98% instead of moving down 1px.** `active:translate-y-px` is gone
-  from every variant; `link` keeps no press movement, and a disabled or loading button has none
-  either. Under `prefers-reduced-motion: reduce` the button does not scale at all. `eldra-focus`'s
-  transition list gained `scale` at `--eldra-duration-fast`, beside `translate`. A consumer who
-  targeted `active:translate-y-px` in their own CSS should target `active:scale-[0.98]`.
+- **A pressed `Button` scales to 98% instead of moving down 1px.** The `active:` one-pixel
+  downward translate utility is gone from every variant, replaced by `active:scale-[0.98]`; `link`
+  keeps no press movement, and a disabled or loading button has none either. Under
+  `prefers-reduced-motion: reduce` the button does not scale at all. `eldra-focus`'s transition
+  list gained `scale` at `--eldra-duration-fast`, beside `translate`. A consumer whose own CSS
+  targeted the old press class should target `active:scale-[0.98]`.
 - **One popover entrance for `Select`, `MultiSelect` and `SearchBar`:** a fade plus a uniform scale
   from 98% over `--eldra-duration-base`, growing from the corner the panel is anchored by. The
   slide is gone, and with it `--eldra-popover-slide` — `usePopover`'s `panelStyle` no longer writes
