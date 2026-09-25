@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, useSlots } from 'vue';
+import { useSlotPresence } from '../../composables/useSlotPresence';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
@@ -51,8 +52,14 @@ provide(
 const labelledBy = computed(() => (props.heading === undefined ? undefined : headingId.value));
 const ariaLabelAttr = computed(() => (props.heading === undefined ? props.ariaLabel : undefined));
 
-const hasActions = computed(() => slots.actions !== undefined);
-const hasErrorSummary = computed(() => slots.errorSummary !== undefined);
+/**
+ * Slots are not reactive, so these two cannot be a plain `computed` over `slots` — a form that
+ * grows an error summary after a failed submit, or an actions row behind a `v-if`, would render
+ * the state it had at setup for the rest of its life. `useSlotPresence` is the shared fix.
+ */
+const present = useSlotPresence(slots, ['actions', 'errorSummary'] as const);
+const hasActions = computed(() => present.value.actions);
+const hasErrorSummary = computed(() => present.value.errorSummary);
 
 /**
  * The form is a `@container` (spec "Form layout" → Sizes: the two-column breakpoint is "measured
@@ -213,7 +220,11 @@ function onSubmit(event: Event): void {
     return;
   }
 
-  emit('submit', { event: event as SubmitEvent, data: new FormData(form) });
+  // The submitter is passed to `FormData` so a named submit button contributes its own
+  // name/value pair — which is how a form with "Save draft" and "Publish" tells them apart, and
+  // what a plain `new FormData(form)` silently drops.
+  const submitEvent = event as SubmitEvent;
+  emit('submit', { event: submitEvent, data: new FormData(form, submitEvent.submitter) });
 }
 </script>
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { defineComponent, h, inject } from 'vue';
+import { defineComponent, h, inject, nextTick, ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Button from '../../button/Button.vue';
@@ -130,6 +130,71 @@ describe('FormLayout — native form attributes', () => {
   });
 });
 
+describe('FormLayout — slots that come and go', () => {
+  /**
+   * The same defect `FieldWrapper`'s slot toggling guards: a `computed` over `slots` caches its
+   * first answer, so a form that grows an error summary after a failed submit, or an actions row
+   * behind a `v-if`, would render the state it had at setup for good.
+   */
+  function toggleHost(show: { value: { summary: boolean; actions: boolean } }) {
+    return defineComponent({
+      setup() {
+        return () =>
+          h(
+            FormLayout,
+            { ariaLabel: 'Shipping address' },
+            {
+              default: () => field('Postcode'),
+              ...(show.value.summary
+                ? { errorSummary: () => h('a', { href: '#postcode' }, 'Enter a full postcode.') }
+                : {}),
+              ...(show.value.actions
+                ? {
+                    actions: () =>
+                      h(Button, { variant: 'primary', type: 'submit' }, () => 'Continue'),
+                  }
+                : {}),
+            }
+          );
+      },
+    });
+  }
+
+  it('follows an #errorSummary slot that appears and disappears', async () => {
+    const show = ref({ summary: false, actions: true });
+    const wrapper = mountWith(toggleHost(show));
+    expect(wrapper.find('[data-part="errorSummary"]').exists()).toBe(false);
+
+    show.value = { summary: true, actions: true };
+    await nextTick();
+    const summary = wrapper.find('[data-part="errorSummary"]');
+    expect(summary.exists()).toBe(true);
+    expect(summary.attributes('role')).toBe('alert');
+    expect(summary.text()).toContain('Enter a full postcode.');
+
+    show.value = { summary: false, actions: true };
+    await nextTick();
+    expect(wrapper.find('[data-part="errorSummary"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('follows an #actions slot that appears and disappears', async () => {
+    const show = ref({ summary: false, actions: false });
+    const wrapper = mountWith(toggleHost(show));
+    expect(wrapper.find('[data-part="actions"]').exists()).toBe(false);
+
+    show.value = { summary: false, actions: true };
+    await nextTick();
+    expect(wrapper.find('[data-part="actions"]').exists()).toBe(true);
+    expect(wrapper.find('button[type="submit"]').exists()).toBe(true);
+
+    show.value = { summary: false, actions: false };
+    await nextTick();
+    expect(wrapper.find('[data-part="actions"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
 describe('FormLayout — an invalid submit', () => {
   /** Two fields, the second of which is in error — so "the first invalid one" is a real choice. */
   function invalidForm(props: Record<string, unknown> = {}) {
@@ -199,6 +264,28 @@ describe('FormLayout — an invalid submit', () => {
     wrapper.unmount();
   });
 
+  it('names an invalid group by its fieldset id', async () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { ariaLabel: 'Preferences' },
+      slots: {
+        default: () =>
+          h(
+            FieldWrapper,
+            { label: 'What are you shopping for?', group: true, error: 'Choose at least one.' },
+            {
+              default: () =>
+                h('label', [h('input', { type: 'checkbox', name: 'knitwear' }), ' Knitwear']),
+            }
+          ),
+      },
+    });
+    const fieldsetId = wrapper.find('fieldset').attributes('id');
+    expect(fieldsetId).toBeTruthy();
+    await wrapper.trigger('submit');
+    expect(wrapper.emitted('invalid')?.[0]?.[0]).toEqual([fieldsetId]);
+    wrapper.unmount();
+  });
+
   it('focuses into a group whose fieldset is invalid, since a fieldset cannot take focus', async () => {
     const wrapper = mountWith(FormLayout, {
       props: { ariaLabel: 'Preferences' },
@@ -217,6 +304,76 @@ describe('FormLayout — an invalid submit', () => {
     await wrapper.trigger('submit');
     expect(wrapper.emitted('submit')).toBeUndefined();
     expect(document.activeElement).toBe(wrapper.find('input').element);
+    wrapper.unmount();
+  });
+});
+
+describe('FormLayout — the submitter', () => {
+  it('carries the clicked submit button name and value into the form data', () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { ariaLabel: 'Draft' },
+      slots: {
+        default: () =>
+          h(
+            FieldWrapper,
+            { label: 'Title' },
+            {
+              default: () => h(Input, { name: 'title', modelValue: 'Autumn restock' }),
+            }
+          ),
+        actions: () => [
+          h(
+            Button,
+            { variant: 'outline', type: 'submit', name: 'action', value: 'draft' },
+            () => 'Save draft'
+          ),
+          h(
+            Button,
+            { variant: 'primary', type: 'submit', name: 'action', value: 'publish' },
+            () => 'Publish'
+          ),
+        ],
+      },
+    });
+    const [draft, publish] = wrapper.findAll('button[type="submit"]').map((b) => b.element);
+
+    for (const [submitter, expected] of [
+      [publish, 'publish'],
+      [draft, 'draft'],
+    ] as const) {
+      wrapper.element.dispatchEvent(
+        new SubmitEvent('submit', {
+          submitter: submitter as HTMLElement,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      const emitted = wrapper.emitted('submit');
+      const payload = emitted?.at(-1)?.[0] as { data: FormData };
+      expect(payload.data.get('action')).toBe(expected);
+      expect(payload.data.get('title')).toBe('Autumn restock');
+    }
+    wrapper.unmount();
+  });
+
+  it('submits without a submitter, so a keyboard Enter still carries the fields', () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { ariaLabel: 'Draft' },
+      slots: {
+        default: () =>
+          h(
+            FieldWrapper,
+            { label: 'Title' },
+            {
+              default: () => h(Input, { name: 'title', modelValue: 'Autumn restock' }),
+            }
+          ),
+      },
+    });
+    wrapper.element.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    const payload = wrapper.emitted('submit')?.[0]?.[0] as { data: FormData };
+    expect(payload.data.get('title')).toBe('Autumn restock');
+    expect(payload.data.get('action')).toBeNull();
     wrapper.unmount();
   });
 });

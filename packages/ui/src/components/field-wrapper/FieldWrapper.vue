@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUpdate, provide, shallowRef, useSlots } from 'vue';
+import { computed, h, inject, provide, useSlots, type FunctionalComponent } from 'vue';
 import { useMessages } from '../../composables/useMessages';
+import { useSlotPresence } from '../../composables/useSlotPresence';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { FORM_LAYOUT_KEY } from '../form-layout/context';
@@ -38,26 +39,8 @@ const helpId = computed(() => `${controlId.value}-help`);
 const errorId = computed(() => `${controlId.value}-error`);
 const counterId = computed(() => `${controlId.value}-counter`);
 
-/**
- * Slots are **not reactive** in Vue: `instance.slots` is a plain object the parent mutates in
- * place, so `computed(() => slots.error !== undefined)` caches whatever was true at setup. A
- * `<template #error v-if="failed">` toggled later left `invalid` and `aria-describedby` describing
- * a state the markup no longer had — the field stayed valid while the error was on screen.
- *
- * So the presence of the two content slots is re-read from the live slots object at the start of
- * every update, which runs *after* Vue has swapped the new slots in and *before* this component
- * renders: both the template and the provided context see the slots this render actually has. The
- * write is guarded on a real change, so a re-render for any other reason costs nothing.
- */
-function readSlots(): { error: boolean; help: boolean } {
-  return { error: slots.error !== undefined, help: slots.help !== undefined };
-}
-const slotContent = shallowRef(readSlots());
-onBeforeUpdate(() => {
-  const next = readSlots();
-  const previous = slotContent.value;
-  if (next.error !== previous.error || next.help !== previous.help) slotContent.value = next;
-});
+/** Slots are not reactive; see `useSlotPresence` for the defect this avoids. */
+const slotContent = useSlotPresence(slots, ['error', 'help'] as const);
 
 /**
  * A slot counts as content: `<template #error>` is a richer way of writing the `error` prop (a
@@ -162,13 +145,23 @@ const rootClass = computed(() =>
 );
 
 /**
- * The label-and-control group. It has no `data-part` of its own because it is not a part: in every
- * layout but `inline` it is `display: contents` and the browser lays the label and the control out
- * as the rows of `root` that the spec's anatomy draws.
+ * The label-and-control group: one box holding the two of them, and **only** where that box has a
+ * job to do.
+ *
+ * In an inline row it is the growing flex item (see `isInline` above). Everywhere else the label
+ * and the control are simply the first two rows of the wrapper's own grid — and in the `group`
+ * fieldset a box around them is not merely redundant but wrong: HTML names a `<fieldset>` by its
+ * first `<legend>` **child**, so a `<div>` in between leaves the fieldset with no accessible name
+ * at all, whatever the CSS says (`display: contents` does not change whose child an element is).
+ * That is a defect no screenshot shows and axe's own descendant lookup hides.
+ *
+ * So the box renders only in an inline row, and the label and the control stay written once — a
+ * duplicated `v-if`/`v-else` pair of the same two elements is exactly the kind of thing that drifts
+ * apart later. It carries no `data-part`, because it is not one of the spec's parts.
  */
-const groupClass = computed(() =>
-  isInline.value ? 'grid min-w-0 flex-[1_1_14rem] content-start gap-1' : 'contents'
-);
+const GROUP_INLINE = 'grid min-w-0 flex-[1_1_14rem] content-start gap-1';
+const LabelAndControl: FunctionalComponent = (_props, { slots: own }) =>
+  isInline.value ? h('div', { class: GROUP_INLINE }, own.default?.()) : (own.default?.() ?? []);
 
 /** In an inline row the error and the foot take a full-width row of their own, below the button. */
 const INLINE_ROW = 'order-1 w-full basis-full';
@@ -251,12 +244,13 @@ const counterClass = computed(() =>
 <template>
   <component
     :is="group ? 'fieldset' : 'div'"
+    :id="group ? controlId : undefined"
     data-part="root"
     :class="rootClass"
     :aria-describedby="group ? describedBy : undefined"
     :aria-invalid="group && hasError ? 'true' : undefined"
   >
-    <div :class="groupClass">
+    <LabelAndControl>
       <component
         :is="group ? 'legend' : 'label'"
         :id="labelId"
@@ -275,7 +269,7 @@ const counterClass = computed(() =>
       </component>
 
       <div data-part="control" :class="controlClass"><slot /></div>
-    </div>
+    </LabelAndControl>
 
     <!-- Linked by id, not a live region: the spec's Accessibility notes put the error in
          `aria-describedby` so it is announced on focus, and leave announcing a failed submit to

@@ -47,7 +47,9 @@ Release-please writes the generated notes from commit messages and does not repl
   id, never a live region: announcing a failed submit belongs to the form. `full` spans both columns
   of a two-column `FormLayout`, and `group` renders the whole wrapper as a `<fieldset>` with the
   label as its `<legend>` — the spec's shape for a set of checkboxes or radios that answer one
-  question, with the help and error linked to the fieldset itself. Slots: `default` (the control),
+  question, with the help and error linked to the fieldset itself — the `<legend>` is the
+  fieldset's first child, which is what names it, and the fieldset carries the field's id so a
+  failed submit can name the group. Slots: `default` (the control),
   `label`, `help`, `error` — a slot is content, so a `#error` slot makes the field invalid exactly
   as the prop does, and one toggled on or off is followed. Per-part `classes` for `root`, `label`,
   `legend`, `requiredMark`, `optionalText`, `control`, `error`, `errorIcon`, `foot`, `help` and
@@ -60,7 +62,8 @@ Release-please writes the generated notes from commit messages and does not repl
   (`[aria-invalid="true"]`, which every control in this package sets from its field's `error`): if
   any are, the submit is stopped, focus moves to the first one and **`invalid`** fires with their
   ids; otherwise **`submit`** fires with `{ event, data }` — the native event, undefaulted so the
-  form still posts, and the form's own `FormData`. The `errorSummary` slot draws the spec's alert
+  form still posts, and the form's own `FormData`, read with the event's `submitter` so a named
+  submit button contributes its own name/value pair (how a form tells "Save draft" from "Publish"). The `errorSummary` slot draws the spec's alert
   box above the fields (`surface` fill, 1px `danger` border, `danger` icon) around your list of
   links to the failed fields, and `statusMessage` feeds a permanent, visually hidden polite
   `role="status"` region so a success is announced without moving focus. The two-column pairs appear

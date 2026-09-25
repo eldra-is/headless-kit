@@ -351,6 +351,55 @@ describe('FieldWrapper — the fieldset group variant', () => {
     wrapper.unmount();
   });
 
+  /**
+   * HTML names a `<fieldset>` by "the first `<legend>` element that is a child of the fieldset".
+   * A wrapper `<div>` in between — even a `display: contents` one, since that changes boxes and
+   * not whose child an element is — leaves the fieldset with **no accessible name**. Nothing in a
+   * screenshot shows it, and axe does not catch it either: its own descendant lookup finds the
+   * legend wherever it sits. So the DOM shape is asserted directly, and the name is computed the
+   * way a browser computes it.
+   */
+  it('makes the legend the fieldset first element child, which is what names it', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: {
+        label: 'What are you shopping for?',
+        group: true,
+        help: 'Pick as many as you like.',
+      },
+      slots: { default: OPTIONS },
+    });
+    const fieldset = wrapper.element as HTMLFieldSetElement;
+    expect(fieldset.firstElementChild?.tagName).toBe('LEGEND');
+    expect(fieldset.querySelector(':scope > legend')).toBe(fieldset.firstElementChild);
+    wrapper.unmount();
+  });
+
+  it('has the legend text as its accessible name, computed the way a browser computes it', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'What are you shopping for?', group: true, required: true },
+      slots: { default: OPTIONS },
+    });
+    const fieldset = wrapper.element as HTMLFieldSetElement;
+    // HTML-AAM: a fieldset with no aria-label/aria-labelledby is named by its first child legend.
+    expect(fieldset.getAttribute('aria-label')).toBeNull();
+    expect(fieldset.getAttribute('aria-labelledby')).toBeNull();
+    const legend = [...fieldset.children].find((child) => child.tagName === 'LEGEND');
+    expect(legend).toBe(fieldset.firstElementChild);
+    // The `*` is aria-hidden, so it is not part of the name.
+    expect(legend?.textContent?.replace('*', '').trim()).toBe('What are you shopping for?');
+    wrapper.unmount();
+  });
+
+  it('carries the generated id, so a failed submit can name the group', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Sizes', group: true },
+      slots: { default: ContextProbe },
+    });
+    expect(wrapper.attributes('id')).toBe(probe(wrapper)['data-id']);
+    expect(wrapper.attributes('id')).toMatch(/^eldra-field-/);
+    wrapper.unmount();
+  });
+
   it('describes the fieldset itself, since no one control owns the help and error', async () => {
     const wrapper = mountWith(FieldWrapper, {
       props: {
@@ -483,9 +532,13 @@ describe('FieldWrapper — inside an inline form', () => {
       });
       expect(wrapper.classes(), layout).toContain('grid');
       expect(wrapper.classes(), layout).not.toContain('contents');
-      // The label-and-control group is display: contents, so the spec's rows are the root's own.
-      const group = wrapper.find('[data-part="label"]').element.parentElement as HTMLElement;
-      expect(group.className, layout).toBe('contents');
+      // No grouping box at all: the label and the control are the root grid's own first two rows.
+      expect(wrapper.find('[data-part="label"]').element.parentElement, layout).toBe(
+        wrapper.element
+      );
+      expect(wrapper.find('[data-part="control"]').element.parentElement, layout).toBe(
+        wrapper.element
+      );
       expect(wrapper.find('[data-part="foot"]').classes(), layout).not.toContain('order-1');
       wrapper.unmount();
     }
