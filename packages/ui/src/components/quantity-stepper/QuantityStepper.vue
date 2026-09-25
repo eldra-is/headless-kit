@@ -135,7 +135,9 @@ function formatDisplay(value: number): string {
  * separator taken out, so a four-figure quantity reads `1000` rather than `1,000`.
  *
  * Two reasons, and the second is the load-bearing one. A caret and a group separator fight over the
- * same keystroke (the same reason `NumberInput` does this). And the `beforeinput` filter **refuses**
+ * same keystroke (`UnitInput` answers that fight the other way, by mapping the caret through each
+ * reformat — this field does not need to, because a quantity is a whole number nobody types a
+ * separator into). And the `beforeinput` filter **refuses**
  * the group separator on a whole-number field — `1,5` must not be able to look like one point five
  * and commit fifteen — which would refuse every keystroke made after a separator the field itself
  * had put there. Ungrouped while editing, there is never one to make a keystroke after.
@@ -248,7 +250,8 @@ function onInput(event: Event): void {
 }
 
 /**
- * The typing filter (`src/utils/numeric-input.ts`, shared with `NumberInput`). Operator report:
+ * The typing filter (`src/utils/numeric-input.ts`; this is its only caller in the package —
+ * `UnitInput` strips instead of blocking). Operator report:
  * "I can type anything into it" — and they could. A `type="text"` field comes with none of the
  * browser's own numeric filtering (which is the price of not using `type="number"`, for the
  * reasons at the top of this file), and `commit()` only corrects the value on blur, so until then

@@ -618,7 +618,11 @@ comparing the package against the spec can tell an addition from a drift.
   building a numeric control of their own.
 - **`createNumberFormat` / `formatNumber` / `parseLocaleNumber` / `localeSeparators` /
   `currencyFractionDigits`** (`src/utils/number-format.ts`) — locale-aware number formatting and
-  its inverse, behind both numeric controls and exported for use outside them.
+  its inverse, behind the numeric controls and exported for use outside them.
+  `currencyFractionDigits` is the one no component here calls: `UnitInput` and `CurrencyInput`
+  keep the private library's rule that `maxFraction` is `2` whatever the currency, so it is
+  exported for a consumer who wants the currency's own minor unit instead (`0` for ISK, `3` for
+  KWD, read from ICU).
 - **`FormLayout`'s `statusMessage` and `focusOnInvalid`, `Form`'s `successMessage`, and
   `FieldBinding`'s `path`** — each named in the deviations below, where the reason is.
 

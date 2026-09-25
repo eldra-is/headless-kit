@@ -3,12 +3,16 @@ import { localeSeparators } from './number-format';
 /**
  * The `beforeinput` filter that makes a numeric text field actually numeric.
  *
- * `QuantityStepper` and `NumberInput` both draw a `type="text"` field rather than
- * `type="number"` — see `QuantityStepper.vue`'s own doc comment for why (a native number input's
- * DOM value cannot hold a locale-grouped string, which is the whole point of parsing with
- * `parseLocaleNumber`). The cost of that decision, reported by the operator as "I can type
- * anything into it", is that the browser's own numeric input filtering goes with it: both fields
- * accepted letters happily and only corrected themselves on blur.
+ * `QuantityStepper` draws a `type="text"` field rather than `type="number"` — see its own doc
+ * comment for why (a native number input's DOM value cannot hold a locale-grouped string, which is
+ * the whole point of parsing with `parseLocaleNumber`). The cost of that decision, reported by the
+ * operator as "I can type anything into it", is that the browser's own numeric input filtering
+ * goes with it: the field accepted letters happily and only corrected itself on blur.
+ *
+ * `UnitInput` and `CurrencyInput` deliberately do **not** use this filter. Their text is full of
+ * characters that are not digits (a symbol, group separators, a literal), so a keystroke lands
+ * there and the reformat strips it — the private library's own behaviour, which this package
+ * ported.
  *
  * `beforeinput` is where a control gets that back. It is cancelable, it fires for every way text
  * can arrive (typing, pasting, dropping, an IME composition), and it names *what kind* of edit is
@@ -23,7 +27,7 @@ import { localeSeparators } from './number-format';
  */
 
 export interface NumericInputFilterOptions {
-  /** Allow a leading `-`. A quantity passes `min < 0`; a `NumberInput` passes the same test. */
+  /** Allow a leading `-`. `QuantityStepper` passes `min < 0`; a consumer's own field decides. */
   allowNegative?: boolean;
   /** Allow one decimal separator. `false` for a whole-number field like a quantity. */
   allowDecimal?: boolean;

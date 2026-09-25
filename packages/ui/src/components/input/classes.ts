@@ -4,8 +4,9 @@ import type { InputSize } from './types';
  * The field recipes of the design spec's **Input**, in one place.
  *
  * `Input` is the spec's field box, and two other controls draw the same box: `SearchBar`'s search
- * field ("Search bar" → Sizes says it *is* an input) and `NumberInput`. Both used to carry a
- * hand-copied duplicate of these strings, and the copies drifted — the operator's report was that
+ * field ("Search bar" → Sizes says it *is* an input) and `UnitInput` (so `CurrencyInput` too).
+ * `SearchBar` used to carry a
+ * hand-copied duplicate of these strings, and the copy drifted — the operator's report was that
  * the search field "does not behave like the regular input fields", which was exactly that: the
  * copy had lost the radius variable and the mobile type-size rule, so the field rounded and
  * resized differently from every `Input` beside it.

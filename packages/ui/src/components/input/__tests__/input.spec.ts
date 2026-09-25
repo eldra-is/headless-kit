@@ -730,8 +730,8 @@ describe('Input — inside a group field wrapper', () => {
 });
 
 /**
- * `Input` is the field box the spec describes, and `SearchBar` and `NumberInput` draw the same box
- * by importing its recipes from `../classes`. `search-bar.spec.ts` and `number-input.spec.ts` each
+ * `Input` is the field box the spec describes, and `SearchBar` and `UnitInput` draw the same box
+ * by importing its recipes from `../classes`. `search-bar.spec.ts` and `unit-input.spec.ts` each
  * assert they carry every token of it — but nothing asserted that **`Input` itself** renders what
  * that module says, so a recipe could have been edited to match a copy rather than the other way
  * round and all three would have agreed on the wrong thing.

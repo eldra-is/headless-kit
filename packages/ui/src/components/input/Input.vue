@@ -132,7 +132,7 @@ const resolvedInputmode = computed<NativeInputMode | undefined>(
 
 /**
  * The field's box, sizes and states are `Input`'s own recipes, shared with `SearchBar` and
- * `NumberInput` through `./classes.ts` — one field, one box. Read that file for what each one is
+ * `UnitInput` through `./classes.ts` — one field, one box. Read that file for what each one is
  * and why (including the rule that `eldra-focus` owns this element's transition list).
  */
 

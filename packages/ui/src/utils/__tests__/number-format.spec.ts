@@ -143,10 +143,10 @@ describe('parseLocaleNumber', () => {
 });
 
 /**
- * A number whose fraction has not been typed yet. `NumberInput` parses on blur, so a customer who
- * deleted the digits after the decimal point and tabbed away handed this function `"12."` — which
- * returned `null`, and the field committed an empty value. The number is 12; only the fraction is
- * missing.
+ * A number whose fraction has not been typed yet. `QuantityStepper` parses on blur, so a customer
+ * who deleted the digits after the decimal point and tabbed away handed this function `"12."` —
+ * which returned `null`, and the field committed an empty value. The number is 12; only the
+ * fraction is missing.
  */
 describe('parseLocaleNumber — a trailing separator', () => {
   it('reads a trailing decimal point as the whole number, in either locale', () => {

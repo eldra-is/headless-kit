@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { defineComponent, nextTick, ref, type Ref } from 'vue';
+import { computed, defineComponent, nextTick, ref, type Ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountWith } from '../../../test/mount';
 import CurrencyInput from '../CurrencyInput.vue';
@@ -132,6 +132,38 @@ describe('CurrencyInput — the money field', () => {
 
     expect(value.value).toBe(1234.5);
     expect((host.find('[data-part="control"]').element as HTMLInputElement).value).toBe('$1,234.5');
+    host.unmount();
+  });
+
+  it('stays controlled when v-model starts undefined, and reconciles what the parent refuses', async () => {
+    // `undefined` is both "nobody bound it" and "bound to a ref nobody has set", and those are
+    // opposite contracts — so the binding is read off the vnode, not off the value. Here the parent
+    // binds a value that starts `undefined` and clamps anything above 100: the field has to end up
+    // showing the parent's 100, not the 150 that was typed.
+    const raw = ref<number | undefined>(undefined);
+    const host = mountWith(
+      defineComponent({
+        components: { CurrencyInput },
+        setup() {
+          const value = computed({
+            get: () => raw.value,
+            set: (next: number | null) => {
+              raw.value = Math.min(next ?? 0, 100);
+            },
+          });
+          return { value };
+        },
+        template: `<CurrencyInput v-model="value" currency="USD" aria-label="Price" />`,
+      })
+    );
+
+    // Nothing bound yet: the field is empty, and the placeholder is all there is to see.
+    expect((host.find('[data-part="control"]').element as HTMLInputElement).value).toBe('');
+
+    await type(host.find('[data-part="control"]'), '150');
+
+    expect(raw.value).toBe(100);
+    expect((host.find('[data-part="control"]').element as HTMLInputElement).value).toBe('$100');
     host.unmount();
   });
 

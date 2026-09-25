@@ -74,3 +74,46 @@ describe('public-repo hygiene: no private scope or internal hostname in shipped 
     }
   });
 });
+
+/**
+ * A component this package has **removed** must stop being named in the files npm ships.
+ *
+ * `NumberInput` was replaced by `UnitInput`/`CurrencyInput` before any release, and ten doc
+ * comments across seven files went on describing it — one of them pointing a reader at
+ * `number-input.spec.ts`, a file that no longer exists. Nothing failed: prose is not compiled, and
+ * a name in a comment resolves to nothing at all. This is what fails next time.
+ *
+ * Deliberately a list of names rather than something clever. "Every backticked PascalCase word in
+ * the package must name something that exists" was measured first: 106 such words, 70 of them
+ * legitimately not components (`ArrowDown`, `Intl`, `ISK`, `ComputedRef`, `Price` and the rest of
+ * the spec's not-yet-built components), so the allowlist would be the maintenance burden the check
+ * was meant to remove. The second `it` below is what keeps this list honest in the other
+ * direction: a name that comes back has to be taken out of it.
+ *
+ * `CHANGELOG.md` is exempt, and only it: telling a reader that a component they may have taken
+ * from a pre-release build is gone, and what replaces it, is exactly that file's job.
+ */
+const removedComponents = ['NumberInput', 'FieldNumberInput'];
+
+describe('public-repo hygiene: no shipped file names a removed component', () => {
+  const changelog = join(packageRoot, 'CHANGELOG.md');
+  const shipped = files.filter((file) => file !== changelog);
+
+  it('lists only components this package really does not ship', async () => {
+    const { componentNames } = await import('../componentNames');
+    const veeValidateEntry = readFileSync(join(packageRoot, 'src/vee-validate/index.ts'), 'utf8');
+    for (const name of removedComponents) {
+      expect(componentNames as readonly string[]).not.toContain(name);
+      expect(veeValidateEntry).not.toContain(`export { default as ${name} }`);
+    }
+  });
+
+  it.each(shipped)('%s names none of them', (file) => {
+    const contents = readFileSync(file, 'utf8');
+    for (const name of removedComponents) {
+      expect(contents, `${file} still mentions the removed ${name}`).not.toMatch(
+        new RegExp(`\\b${name}\\b`)
+      );
+    }
+  });
+});
