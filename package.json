@@ -16,7 +16,7 @@
     "attw": "pnpm -r --filter './packages/*' exec attw --pack . --profile esm-only",
     "size": "size-limit",
     "pack-smoke": "node scripts/pack-smoke.mjs",
-    "check": "pnpm lint:check && pnpm format:check && pnpm build && pnpm typecheck && pnpm test && pnpm publint && pnpm attw && pnpm size && pnpm pack-smoke && pnpm --filter starter-nuxt build-storybook"
+    "check": "pnpm lint:check && pnpm format:check && pnpm build && pnpm typecheck && pnpm test && pnpm publint && pnpm attw && pnpm size && pnpm pack-smoke && pnpm --filter @eldrajs/ui build-storybook && pnpm --filter starter-nuxt build-storybook"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

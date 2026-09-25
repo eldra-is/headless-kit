@@ -45,10 +45,10 @@
     "limit": "2 kB"
   },
   {
-    "name": "@eldrajs/ui — Button, without vue",
+    "name": "@eldrajs/ui — Icon, without vue or tailwind-merge",
     "path": "packages/ui/dist/index.js",
-    "import": "{ Button }",
-    "ignore": ["vue"],
+    "import": "{ Icon }",
+    "ignore": ["vue", "tailwind-merge"],
     "limit": "6 kB"
   },
   {

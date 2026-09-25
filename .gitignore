@@ -12,3 +12,4 @@ coverage
 .output
 packages/theme-cli/template/
 storybook-static
+__screenshots__/__diff__
