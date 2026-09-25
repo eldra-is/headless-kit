@@ -54,6 +54,24 @@ describe('useControllableModel', () => {
     wrapper.unmount();
   });
 
+  it('keeps the last controlled value when the prop stops being defined', async () => {
+    const wrapper = mountWith(Probe, { props: { modelValue: 'outer' } });
+    await wrapper.setProps({ modelValue: 'changed' });
+    await wrapper.setProps({ modelValue: undefined });
+    expect(wrapper.vm.model).toBe('changed');
+    expect(wrapper.text()).toBe('changed');
+    wrapper.unmount();
+  });
+
+  it('goes on managing itself after the prop stops being defined', async () => {
+    const wrapper = mountWith(Probe, { props: { modelValue: 'outer' } });
+    await wrapper.setProps({ modelValue: undefined });
+    wrapper.vm.set('inner');
+    await nextTick();
+    expect(wrapper.vm.model).toBe('inner');
+    wrapper.unmount();
+  });
+
   it('becomes controlled when the prop stops being undefined', async () => {
     const wrapper = mountWith(Probe);
     wrapper.vm.set('inner');

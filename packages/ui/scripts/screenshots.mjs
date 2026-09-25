@@ -33,8 +33,10 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
-const staticDir = join(rootDir, 'storybook-static');
-const baselineDir = join(rootDir, '__screenshots__');
+// Both are overridable so `scripts/__tests__/screenshots.spec.ts` can drive the
+// script against a throwaway story index on a free port; nothing else sets them.
+const staticDir = process.env.ELDRA_SCREENSHOTS_STATIC_DIR ?? join(rootDir, 'storybook-static');
+const baselineDir = process.env.ELDRA_SCREENSHOTS_BASELINE_DIR ?? join(rootDir, '__screenshots__');
 const diffDir = join(baselineDir, '__diff__');
 
 /** The two widths every story is captured at: desktop and the narrowest phone. */
@@ -43,7 +45,8 @@ const WIDTHS = [1280, 360];
 const PIXEL_THRESHOLD = 0.1;
 /** Share of the image that may differ before the story fails. */
 const MAX_DIFF_RATIO = 0.001;
-const PORT = 6018;
+/** 0 asks the OS for a free port; the run uses whatever it was actually given. */
+const PORT = Number(process.env.ELDRA_SCREENSHOTS_PORT ?? 6018);
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -71,6 +74,16 @@ function buildStorybook() {
     stdio: 'inherit',
   });
   if (result.status !== 0) throw new Error('[eldra] storybook build failed');
+}
+
+/**
+ * Stops the static server and drops any socket still open on it. `close()`
+ * alone only stops new connections — a keep-alive socket would hold the
+ * process open long after the run is over.
+ */
+function closeServer(server) {
+  server.closeAllConnections?.();
+  return new Promise((resolve) => server.close(() => resolve()));
 }
 
 function serveStatic(dir, port) {
@@ -177,39 +190,46 @@ async function main() {
   mkdirSync(baselineDir, { recursive: true });
 
   const server = await serveStatic(staticDir, PORT);
-  const baseUrl = `http://127.0.0.1:${PORT}`;
-  const browser = await chromium.launch();
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const failures = [];
 
+  // The server holds a listening handle, so anything that throws between here
+  // and `closeServer` would keep the event loop alive and the process would
+  // hang instead of exiting non-zero. `chromium.launch()` is the realistic
+  // case (no browser downloaded), so it goes inside the guarded region too.
   try {
-    for (const id of ids) {
-      for (const width of WIDTHS) {
-        const name = `${id}--${width}.png`;
-        const baselinePath = join(baselineDir, name);
-        const actual = await capture(browser, baseUrl, id, width);
+    const browser = await chromium.launch();
+    try {
+      for (const id of ids) {
+        for (const width of WIDTHS) {
+          const name = `${id}--${width}.png`;
+          const baselinePath = join(baselineDir, name);
+          const actual = await capture(browser, baseUrl, id, width);
 
-        if (update || !existsSync(baselinePath)) {
-          if (!update) {
-            failures.push(`${name}: no baseline (run with --update)`);
+          if (update || !existsSync(baselinePath)) {
+            if (!update) {
+              failures.push(`${name}: no baseline (run with --update)`);
+              continue;
+            }
+            writeFileSync(baselinePath, actual);
+            console.log(`[eldra] wrote __screenshots__/${name}`);
             continue;
           }
-          writeFileSync(baselinePath, actual);
-          console.log(`[eldra] wrote __screenshots__/${name}`);
-          continue;
-        }
 
-        const result = compare(actual, baselinePath, join(diffDir, name));
-        if (result.ok) {
-          console.log(`[eldra] ok   ${name}`);
-        } else {
-          failures.push(`${name}: ${result.reason}`);
-          console.error(`[eldra] FAIL ${name}: ${result.reason}`);
+          const result = compare(actual, baselinePath, join(diffDir, name));
+          if (result.ok) {
+            console.log(`[eldra] ok   ${name}`);
+          } else {
+            failures.push(`${name}: ${result.reason}`);
+            console.error(`[eldra] FAIL ${name}: ${result.reason}`);
+          }
         }
       }
+    } finally {
+      await browser.close();
     }
   } finally {
-    await browser.close();
-    server.close();
+    await closeServer(server);
   }
 
   if (failures.length > 0) {
@@ -224,6 +244,10 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+  if (/executable doesn't exist|playwright install/i.test(message)) {
+    console.error('[eldra] run `pnpm exec playwright install chromium` once, then try again.');
+  }
   process.exitCode = 1;
 });

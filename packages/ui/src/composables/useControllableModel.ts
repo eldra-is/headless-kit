@@ -1,4 +1,4 @@
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 
 /**
  * A model that works both ways round: controlled when the parent passes
@@ -18,6 +18,17 @@ export function useControllableModel<T>(
   fallback: () => T
 ): Ref<T> {
   const internal = ref(props.modelValue === undefined ? fallback() : props.modelValue) as Ref<T>;
+
+  // Mirror every value the parent supplies while it is in control, so that a
+  // component handed back its own state (`v-model` behind a `v-if`, a form that
+  // stops binding after it resets) continues from the value that was on screen
+  // rather than snapping back to whatever was there at mount.
+  watch(
+    () => props.modelValue,
+    (value) => {
+      if (value !== undefined) internal.value = value;
+    }
+  );
 
   return computed<T>({
     get: () => (props.modelValue === undefined ? internal.value : props.modelValue),

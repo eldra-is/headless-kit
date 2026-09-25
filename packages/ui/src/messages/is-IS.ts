@@ -30,12 +30,15 @@ export const isIS: UiMessages = {
   quantity: 'Magn',
   opensInNewTab: 'Opnast í nýjum flipa',
   counter: (n: number, max: number) => `${n} af ${max}`,
-  charactersLeft: (n: number) => `${n} stafir eftir`,
+  // Icelandic takes the singular for any count ending in 1 except 11
+  // ("1 stafur", "21 stafur", but "11 stafir").
+  charactersLeft: (n: number) =>
+    `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'stafur' : 'stafir'} eftir`,
   soldOut: 'Uppselt',
   searchTheShop: 'Leitaðu í búðinni',
   recentSearches: 'Nýlegar leitir',
   popularSearches: 'Vinsælar leitir',
-  clearRecent: 'Hreinsa nýlegt',
+  clearRecent: 'Hreinsa nýlegar leitir',
   resultsCount: (n: number) => `${n} niðurstöður`,
   viewAllResults: (n: number) => `Sjá allar ${n} niðurstöður`,
   shortcutHint: 'Ýttu á / til að leita',
