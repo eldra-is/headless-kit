@@ -101,6 +101,19 @@ const consumers = {
       for (const css of ['tokens.css', 'tailwind.css', 'style.css']) {
         assert(existsSync(resolve('@eldrajs/ui/' + css)), css);
       }
+      // The optional entry: it resolves, its components really are components, and — the point of
+      // it being optional — the root entry above loaded without vee-validate being touched.
+      const vee = await import('@eldrajs/ui/vee-validate');
+      for (const name of ['Form', 'FieldInput', 'FieldSelect', 'FieldCheckboxGroup']) {
+        const component = vee[name];
+        assert(component && typeof component === 'object', name + ' is an object');
+        assert(
+          typeof component.render === 'function' || typeof component.setup === 'function',
+          name + ' has a render or setup function'
+        );
+      }
+      assert(typeof vee.API_ERRORS_KEY === 'symbol', 'API_ERRORS_KEY');
+      assert(typeof vee.useFieldControl === 'function', 'useFieldControl');
     `,
     types: `
       import * as ui from '@eldrajs/ui';
@@ -114,6 +127,17 @@ const consumers = {
       export const resolverOptions: EldraUiResolverOptions = { prefix: 'Eldra' };
       export const resolver = EldraUiResolver(resolverOptions);
       export const messages = isIS;
+      import {
+        Form as VeeForm,
+        FieldInput,
+        API_ERRORS_KEY,
+        type FieldInputProps,
+        type FormProps,
+      } from '@eldrajs/ui/vee-validate';
+      export const veeComponents = { VeeForm, FieldInput };
+      export const apiErrorsKey = API_ERRORS_KEY;
+      export const fieldProps: FieldInputProps = { name: 'email', type: 'email', size: 'lg' };
+      export const formProps: FormProps = { layout: 'two', apiErrors: { email: 'Taken.' } };
     `,
   },
   '@eldrajs/theme-core': {
@@ -235,6 +259,8 @@ async function main() {
         '--silent',
         'vite@^8',
         'vue@^3',
+        // `@eldrajs/ui`'s optional peer: the `./vee-validate` entry is only reachable with it.
+        'vee-validate@^4',
         '@nuxt/kit@^4',
         ...Object.values(tarballs),
       ],

@@ -5,6 +5,7 @@ import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './context';
+import { focusInvalid } from './focusInvalid';
 import type { FormLayoutProps, FormLayoutSubmitPayload, FormLayoutVariant } from './types';
 
 const props = withDefaults(defineProps<FormLayoutProps>(), {
@@ -168,29 +169,6 @@ const actionsClass = computed(() =>
 
 /** Never visible; `classes.status` is here so a consumer can unhide it while debugging. */
 const statusClass = computed(() => partClass('', props.classes, 'status'));
-
-/**
- * What can actually take focus. Used to decide *what* to focus rather than to ask whether a
- * `focus()` call landed: the answer to that is not the same in every runtime (happy-dom will
- * happily make a `<fieldset>` the active element, a browser will not), and a focus move on a
- * failed submit is not something to leave to a runtime's opinion.
- */
-const FOCUSABLE =
-  'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), ' +
-  'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
-
-/**
- * Focus the first invalid field (spec "Field wrapper" → Behaviour: "On submit, focus moves to the
- * first invalid field"). A `FieldWrapper` group marks its `<fieldset>` invalid as well as the
- * controls inside it, and a fieldset cannot take focus — so an invalid element that is not itself
- * focusable hands focus to the first focusable thing inside it.
- */
-function focusInvalid(element: HTMLElement): void {
-  const target = element.matches(FOCUSABLE)
-    ? element
-    : (element.querySelector<HTMLElement>(FOCUSABLE) ?? element);
-  target.focus();
-}
 
 /**
  * Spec "Form layout" → Events and States, Invalid on submit.

@@ -8,6 +8,12 @@
  * missing the resolver.
  *
  * `src/resolver.ts` is the reader: `EldraUiResolver` resolves `<prefix><Name>` for every name here.
+ *
+ * The `./vee-validate` entry's `Form` and `Field*` components are deliberately **not** here, and
+ * `FieldWrapper` — which is a root-entry layout component, not one of them — is the only name
+ * beginning with "Field" that belongs in this list. Resolving `<EldraFieldInput>` would auto-import
+ * it from `@eldrajs/ui`, where it does not exist, and would pull an optional peer into a project
+ * that never installed it. `src/__tests__/veeValidateIsolation.spec.ts` asserts both halves.
  */
 export const componentNames = [
   'Button',

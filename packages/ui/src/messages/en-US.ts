@@ -125,6 +125,14 @@ export const enUS = {
   shortcutHint: 'Press / to search',
   /** The label of an error region. */
   error: 'Error',
+  /**
+   * The error summary's own line in the `./vee-validate` entry's `Form` (spec "Form layout" ->
+   * States, Invalid on submit: "Long forms add an error summary alert at the top ... that lists a
+   * link to each error"). The links below it are the messages themselves, so this one only has to
+   * say how many there are.
+   */
+  formErrors: (n: number) =>
+    n === 1 ? 'There is 1 problem with this form' : `There are ${n} problems with this form`,
 };
 
 /**

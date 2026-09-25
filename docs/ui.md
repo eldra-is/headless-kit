@@ -35,6 +35,27 @@ Pick one of three CSS entries, depending on how the consuming project builds CSS
   @import '@eldrajs/ui/style.css';
   ```
 
+## Forms
+
+The form components are validation-agnostic: `FieldWrapper` takes an `error` string, `Input` takes
+`invalid`, and where those come from is the consuming project's business. For projects that use
+[vee-validate](https://vee-validate.logaretm.com/v4/), the optional `@eldrajs/ui/vee-validate` entry
+ships `Form` (over `useForm` and `FormLayout`) and eleven `Field*` components (over `useField`).
+`vee-validate ^4.12` is an optional peer; nothing else in the package imports it.
+
+```vue
+<Form :validation-schema="schema" @submit="send">
+  <template #default="{ errors }">
+    <FieldWrapper label="Email address" required :error="errors.email">
+      <FieldInput name="email" type="email" autocomplete="email" />
+    </FieldWrapper>
+  </template>
+  <template #actions>
+    <Button variant="primary" type="submit">Subscribe</Button>
+  </template>
+</Form>
+```
+
 ## More
 
 - [`packages/ui/README.md`](../packages/ui/README.md) — the full reference: install, fonts,

@@ -68,6 +68,8 @@ export const isIS: UiMessages = {
   },
   shortcutHint: 'Ýttu á / til að leita',
   error: 'Villa',
+  formErrors: (n: number) =>
+    singular(n) ? `Það er ${n} villa í þessu eyðublaði` : `Það eru ${n} villur í þessu eyðublaði`,
 };
 
 export default isIS;

@@ -5,6 +5,43 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `@eldrajs/ui/vee-validate` — the optional adapter entry: `Form`, eleven `Field*` components
+  (`FieldInput`, `FieldTextarea`, `FieldCheckbox`, `FieldCheckboxGroup`, `FieldRadioGroup`,
+  `FieldSwitch`, `FieldSelect`, `FieldMultiSelect`, `FieldQuantityStepper`, `FieldVariantPicker`,
+  `FieldSearchBar`), `API_ERRORS_KEY` and the `useFieldControl` composable they are built on.
+  `vee-validate ^4.12` stays an **optional** peer: `src/vee-validate/**` is the only place in the
+  package that imports it, and `src/__tests__/veeValidateIsolation.spec.ts` proves the root entry
+  loads with it mocked to throw *and* that neither `dist/index.js` nor any chunk it imports carries
+  a `vee-validate` specifier.
+
+  Each `Field*` calls `useField(name, rules, { label })` and binds the value to the agnostic
+  component's `modelValue`, `handleBlur` to its blur (`focusout` for the three fieldset controls,
+  because native `blur` does not bubble), and the message to `invalid` / `error` — but only once the
+  field has been touched or the form submitted, which is the design spec's "validate on submit, then
+  on blur" rule applied to the *display* rather than to when validation runs. Every other prop, slot
+  and attribute is forwarded; `modelValue`, `invalid` and `error` are `Omit`ted from each
+  `Field*Props` type, so passing one is a compile error rather than a prop that does nothing.
+
+  `Form` wraps `useForm` and renders `FormLayout` with all of its props passed through. It emits
+  `submit(values, ctx)` through `handleSubmit` (never with values that failed validation) and
+  `invalid(errors)` otherwise, takes `submitting` from `isSubmitting`, moves focus to the first
+  invalid field once validation comes back, and draws the spec's error-summary alert after a failed
+  submit — a link per error, pointing at the control's own id, replaceable through the
+  `errorSummary` slot. `apiErrors` attaches a server's field errors with `setErrors` and each one is
+  dropped the moment its own field changes. `successMessage` fills `FormLayout`'s polite status
+  region after a submit passes validation.
+
+  Because `FieldWrapper` is validation-agnostic and cannot read a vee-validate field, the wrapper
+  gets its message from `Form`'s default slot instead: `<template #default="{ errors }">` with
+  `:error="errors.<name>"`. `errors` carries only what should currently show, on the same gate the
+  controls use. Documented in `README.md` and demonstrated in the `Forms/Form` stories
+  (`Newsletter`, `Contact`, `ApiErrors`).
+- New message `formErrors(n)` in both catalogues ("There are 2 problems with this form" /
+  "Það eru 2 villur í þessu eyðublaði"), the error summary's own line.
+- `FormLayout`'s focus-the-first-invalid-field logic moved to
+  `src/components/form-layout/focusInvalid.ts` so the `./vee-validate` `Form` reuses it rather than
+  keeping a second copy that could drift. No behaviour change.
+
 - `@eldrajs/ui/resolver` — `EldraUiResolver({ prefix = 'Eldra' })`, a plain
   `unplugin-vue-components` resolver (`{ type: 'component', resolve(name) }`) resolving
   `<prefix><Name>` for every component the root entry exports (default prefix `Eldra`; never `Ui`).

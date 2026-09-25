@@ -275,14 +275,113 @@ that name — the package itself never implies it.
 
 ## `./vee-validate`
 
-`@eldrajs/ui/vee-validate` — `Form` and ten `Field*` components (`FieldInput`, `FieldTextarea`,
-`FieldCheckbox`, `FieldRadioGroup`, `FieldSwitch`, `FieldSelect`, `FieldMultiSelect`,
-`FieldQuantityStepper`, `FieldVariantPicker`, `FieldSearchBar`) wiring each agnostic component's
-`modelValue`/`error`/`invalid`/`@blur` onto vee-validate's `useField`, plus a `Form` wrapping
-`useForm` and providing an `apiErrors` map for server-side field errors. Optional peer:
-`vee-validate ^4.12`; nothing else in this package imports it. Lands with the `./vee-validate`
-entry — the export map slot exists today (`packages/ui/src/vee-validate/index.ts`), the components
-themselves are the next task in this plan.
+Everything above is validation-agnostic: `FieldWrapper` takes an `error` string, `Input` takes
+`invalid`, and where those come from is the consumer's business. `@eldrajs/ui/vee-validate` is the
+optional adapter for the one library the spec names — nothing else in the package imports it, and
+the root entry loads fine without it (a test proves both, in the source graph and in `dist/`).
+
+```bash
+pnpm add vee-validate   # optional peer, ^4.12
+```
+
+It exports `Form`, eleven `Field*` components, `API_ERRORS_KEY` and the `useFieldControl`
+composable they are all built on.
+
+### The `FieldWrapper` pattern
+
+A `Field*` renders **only** the control. The label, the help text, the required mark and the error
+row stay the `FieldWrapper`'s, exactly as they are without validation — so the message reaches the
+wrapper through the form's default slot:
+
+```vue
+<script setup lang="ts">
+import { Button, FieldWrapper } from '@eldrajs/ui';
+import { FieldInput, Form } from '@eldrajs/ui/vee-validate';
+
+const schema = { email: 'required|email' };
+function send(values) {
+  /* … */
+}
+</script>
+
+<template>
+  <Form heading="Ask the studio" :validation-schema="schema" @submit="send">
+    <template #default="{ errors }">
+      <FieldWrapper label="Email address" required :error="errors.email">
+        <FieldInput name="email" type="email" autocomplete="email" />
+      </FieldWrapper>
+    </template>
+    <template #actions>
+      <Button variant="primary" type="submit" label="Sending">Send message</Button>
+    </template>
+  </Form>
+</template>
+```
+
+Vue refuses a `v-slot` on a component that also has named slot templates as children, so the fields
+go in an explicit `<template #default="{ errors }">` whenever there is an actions row — which there
+almost always is.
+
+`errors` is keyed by each field's `name`, and holds only the messages that should currently
+**show**: a field appears there once it has been touched or the form has been submitted. That is
+the same gate each `Field*` puts on its own `aria-invalid`, so the wrapper and the control cannot
+disagree about whether the field is in error. The other default-slot props are `values`, `meta`,
+`isSubmitting` and `submitCount`.
+
+Three of the controls own an `error` prop of their own — `FieldRadioGroup`, `FieldCheckboxGroup`
+and `FieldQuantityStepper` — and those draw their message themselves **only outside** a
+`FieldWrapper`. Inside one the wrapper says it, once.
+
+### The components
+
+| Component              | Wraps             | Field value                                |
+| ---------------------- | ----------------- | ------------------------------------------ |
+| `FieldInput`           | `Input`           | `string`                                   |
+| `FieldTextarea`        | `Textarea`        | `string`                                   |
+| `FieldCheckbox`        | `Checkbox`        | `boolean` (one consent box)                |
+| `FieldCheckboxGroup`   | `CheckboxGroup`   | `string[]` (one question, several answers) |
+| `FieldRadioGroup`      | `RadioGroup`      | `string`                                   |
+| `FieldSwitch`          | `Switch`          | `boolean`                                  |
+| `FieldSelect`          | `Select`          | `string`                                   |
+| `FieldMultiSelect`     | `MultiSelect`     | `string[]`                                 |
+| `FieldQuantityStepper` | `QuantityStepper` | `number`                                   |
+| `FieldVariantPicker`   | `VariantPicker`   | `string`                                   |
+| `FieldSearchBar`       | `SearchBar`       | `string`                                   |
+
+Each takes `name` (the field's path **and** the control's native `name`), optional `rules`
+(vee-validate's own `RuleExpression`: a rule string, an object, a function, or a typed schema) and
+optional `label` — the name a rule message uses for the field, not a visible label. Everything else
+its component takes is forwarded untouched, slots and attributes included; the props it keeps back
+are `modelValue`, `invalid` and `error`, which are `Omit`ted from the type so passing one is a
+compile error rather than a prop that silently does nothing.
+
+`FieldSearchBar` is the odd one: a `SearchBar` renders a `<form>` of its own, so it belongs on a
+Search page rather than inside a `Form`'s `<form>`, and its `label` is both the control's accessible
+name and the name rule messages use.
+
+### `Form`
+
+`Form` renders a `FormLayout` and passes every one of its props through, so the layout, heading,
+actions row, two-column container query and polite status region are the ones documented above. It
+adds:
+
+- **`initialValues`** and **`validationSchema`** — handed to `useForm`.
+- **`submit(values, ctx)`** — fires only with valid values; `ctx` is vee-validate's submission
+  context (`resetForm`, `setErrors`, …). **`invalid(errors)`** fires instead when validation fails,
+  after focus has already moved to the first invalid field.
+- **`submitting`** — `isSubmitting`, or the prop, whichever is true. `submit` is an event rather
+  than an awaited handler, so bind `submitting` yourself for a request you own.
+- **The error summary** — after a failed submit the spec's alert box appears above the fields with
+  a link to each error (the link text is the message; the target is the control's own id, which is
+  the one the `FieldWrapper` generated). Fill the `errorSummary` slot to replace the list; the box,
+  its border and its icon are still drawn for you.
+- **`apiErrors`** — a `{ [name]: message }` map from the server, applied with `setErrors`. Each
+  entry disappears the moment its own field changes, because a server error is a statement about
+  the value that was sent. It is provided on `API_ERRORS_KEY`, so a `Field*` reads the same map
+  outside a `Form` too.
+- **`successMessage`** — announced in the polite live region once a submit passes validation. It is
+  never visible: replacing the form with a confirmation, or navigating, stays the page's job (spec
+  "Form layout" → States, Success). An explicit `statusMessage` wins over it.
 
 ## Accessibility and testing
 
@@ -703,3 +802,28 @@ Additions and departures from the design spec, and why.
   not only another search bar's. The spec discusses this only within the Select family; extending
   the one registry to `SearchBar` was a judgement call for a page that can show both at once,
   rather than a second, uncoordinated registry.
+- **`FieldCheckboxGroup` — an eleventh `Field*`, beyond the design spec's list of ten.** The spec
+  names `FieldCheckbox` and `FieldRadioGroup` but no group checkbox, which would have left
+  `CheckboxGroup` as the only form control the root entry exports with no way to validate it
+  through this entry — while its exact peer, `RadioGroup`, has one. `FieldCheckbox` is therefore
+  the spec's single **boolean** consent box (no `type: 'checkbox'` array mode), and
+  `FieldCheckboxGroup` is the array question beside it. Additive: no name in the spec changed.
+- **A `Field*` never reads the error back to its `FieldWrapper`; the `Form` hands it down.** The
+  wrapper is in the root entry and cannot know about vee-validate, and a control cannot write to
+  the wrapper that provides its context — so `Form`'s default slot carries `errors`, keyed by field
+  `name`, and the wrapper is bound to it (`:error="errors.email"`). It carries only the messages
+  that should currently show, on the same "touched, or the form has been submitted" gate each
+  `Field*` puts on its own `aria-invalid`, so the two cannot disagree.
+- **`Form` adds `successMessage`, which is not in the spec's Form layout property table.** The
+  spec's Success state asks for the confirmation to be "announced in a polite live region", and
+  `FormLayout` already has that region (`statusMessage`) — `successMessage` is simply the half a
+  form component can own: it fills the region once a submit passes validation. The visible half —
+  replacing the form or navigating — stays the page's. An explicit `statusMessage` wins over it.
+- **A server error shows immediately, without waiting for a blur or a submit.** The display gate
+  above exists so a rule message does not appear under a half-typed value; an `apiErrors` entry is
+  the answer to a submit that has already happened, so there is nothing left to wait for — and a
+  form rendered with errors from an earlier round trip would otherwise show none of them.
+- **`FieldSearchBar` takes neither an `id` nor a `name` from the field.** A `SearchBar` sets its
+  own id after its attribute fall-through and its native field is always `q`, because its form
+  posts to the Search page. So the field's `name` is its validation path only, and an error summary
+  lists it as text rather than linking to an id that would not exist.
