@@ -5,6 +5,26 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `VariantPicker` — a native radio group in a `<fieldset>` for a product option (size, colour):
+  pills (default) or swatches. `modelValue` is two-way, defaulting to the first available option;
+  `name` is used unmodified as the shared native radio `name` and in the legend ("Size: M"). Every
+  radio shares one `name`, so arrow keys move and select natively — no key handling of any kind
+  lives in the component. `options[].available: false` marks a sold-out option or combination: it
+  stays selectable (never `disabled`), draws a struck-through pill or swatch, and adds ", sold out"
+  to its accessible name (`messages.soldOut`) and to the legend when it is the selected value.
+  Swatches carry the one per-item colour the spec allows (`options[].swatch`) as an inline style;
+  the disc's edge is a real `border-strong` boundary (not a shadow), so pale colours stay visible
+  at a 3:1 boundary in forced-colours mode, and the colour name is `sr-only` text inside the label,
+  never colour alone. The sold-out diagonal line — on both pills and swatches — is an inline SVG
+  `<line stroke="currentColor">` rather than a `background`/`box-shadow` trick: the pill's own line
+  needs `vector-effect="non-scaling-stroke"` to stay a constant 1px regardless of the pill's
+  label-dependent width, and forced-colours mode drops `background-color`/`box-shadow` outright, so
+  only a real stroke survives there for either shape. New type utilities `text-variant-legend`/
+  `text-variant-pill` (size and line only, so the two weights each needs are the stock
+  `font-normal`/`-medium`/`-semibold` utilities, not baked into the shorthand); new border-width
+  utilities `eldra-variant-pill-border`/`eldra-variant-swatch-ring`/`eldra-variant-swatch-edge`;
+  new inset-line utility `eldra-variant-pill-selected-line` for the sold-out-and-selected pill's
+  2px boundary, the same technique `eldra-radio-card-selected` uses.
 - `QuantityStepper` — a decrease/input/increase group for a basket quantity, never reaching 0.
   `modelValue` is two-way (default `min`); `min`/`max` default `1`/`99`; `size` is `"md"` or
   `"sm"`; `itemName` is appended to both button names ("Increase, Stoneware mug") for use in a

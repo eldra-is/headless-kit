@@ -38,6 +38,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-select-swatch'
   | 'eldra-select-option-active'
   | 'eldra-select-option-selected'
+  | 'eldra-variant-pill-selected-line'
 >({
   extend: {
     classGroups: {
@@ -94,6 +95,9 @@ const twMerge = extendTailwindMerge<
         'eldra-checkbox-border-invalid',
         'eldra-radio-card-border',
         'eldra-switch-track-border',
+        'eldra-variant-pill-border',
+        'eldra-variant-swatch-ring',
+        'eldra-variant-swatch-edge',
       ],
       // The field error boundary (tailwind.css "The error boundary of a field"): a pseudo-element
       // inset line with no stock Tailwind equivalent, so it gets its own group.
@@ -120,6 +124,10 @@ const twMerge = extendTailwindMerge<
       // a row can be both at once, and folding them together would let `cx` drop one of them.
       'eldra-select-option-active': ['eldra-select-option-active'],
       'eldra-select-option-selected': ['eldra-select-option-selected'],
+      // The sold-out-and-selected pill's inset line (tailwind.css "Variant picker"): no stock
+      // group covers it, so it gets its own. Both a pill's and a swatch's own sold-out *line* are
+      // inline SVGs in `VariantPicker.vue`, not classes — see that component's own comment.
+      'eldra-variant-pill-selected-line': ['eldra-variant-pill-selected-line'],
       // The one focus ring (tailwind.css "The one focus ring"). `eldra-focus` and
       // `eldra-focus-inset` are mutually exclusive — one draws the ring outside the element, the
       // other inside — so they share a group with no stock Tailwind equivalent.

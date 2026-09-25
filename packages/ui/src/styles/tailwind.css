@@ -696,3 +696,119 @@
   animation: eldra-popover-in var(--eldra-duration-base) var(--eldra-ease-out);
   transform-origin: var(--eldra-popover-origin, top);
 }
+
+/* --- Variant picker --------------------------------------------------------------------------- */
+
+/* The legend's own text (spec "Variant picker" → Sizes, Legend row): "0.875rem; name 600, value
+   400 muted". Deliberately no weight in the shorthand, for the same reason `text-counter` and
+   `text-field-note` have none: the name run and the value run need two different weights of the
+   *same* size, and layering a `font-weight` utility after a shorthand `font` property that already
+   bakes one in is order-dependent (see `text-counter`'s own comment above this component's
+   utilities in the earlier "Sizes" section). So the component pairs this with the stock
+   `font-semibold`/`font-normal` utilities instead, exactly as those two already do. The size reuses
+   the body-sm token; the line ratio has no token of its own, so it is a per-component variable with
+   a literal default, the same shape as `text-card-title`'s 1.4. */
+@utility text-variant-legend {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-variant-legend-line, 1.4);
+}
+
+/* A pill option's own text (spec "Variant picker" → Sizes, Pill row): "0.9375rem, 500 (600
+   selected)". Same reasoning as `text-variant-legend` above — one size, two weights depending on
+   selection — so no weight in the shorthand; the component pairs this with `font-medium`/
+   `font-semibold`. The size and line reuse the same control-font variables `text-control` already
+   reads, so a pill's text sits at the same size as an Input's. */
+@utility text-variant-pill {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-control-font-size, 0.9375rem);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+}
+
+/* A pill's own boundary (spec "Variant picker" → States): "1px" in every row but one. The width is
+   a variable rather than Tailwind's `border`, the same shape as `eldra-field-border` and
+   `eldra-checkbox-border` above: the "sold out + selected" row's own 2px line (below) is inset by
+   exactly this much. */
+@utility eldra-variant-pill-border {
+  border-width: var(--eldra-variant-pill-border-width, 1px);
+}
+
+/* The sold-out-and-selected pill's boundary (spec "Variant picker" → States, "Sold out + selected"
+   row): "**2px** solid `text`" — the only pill row whose border is thicker than the other four.
+   The same technique as `eldra-radio-card-selected` and `eldra-field-invalid`: the real border
+   stays `eldra-variant-pill-border`'s 1px in every state, so a pill never resizes (and its row
+   neighbours never reflow) the moment it becomes both sold out and selected, and a second 1px
+   inset line does the rest. */
+@utility eldra-variant-pill-selected-line {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--eldra-variant-pill-border-width, 1px);
+    border: var(--eldra-variant-pill-border-width, 1px) solid
+      var(--eldra-variant-pill-selected-color, var(--eldra-color-text));
+    border-radius: calc(
+      var(--eldra-variant-pill-radius, var(--eldra-radius-md)) -
+        var(--eldra-variant-pill-border-width, 1px)
+    );
+    pointer-events: none;
+  }
+}
+
+/* A sold-out pill's diagonal line (spec "Variant picker" → Anatomy: "sold out: dashed border +
+   diagonal line"; → States, Sold out row: "a 1px diagonal `border-strong` line (bottom-left to
+   top-right)"). Drawn in `VariantPicker.vue` as an inline `<svg viewBox="0 0 100 100"
+   preserveAspectRatio="none">` stretched over the pill, with `vector-effect="non-scaling-stroke"`
+   on its `<line>` — the SVG spec's own way to keep a stroke a constant screen-pixel width no
+   matter how non-uniformly its coordinate system is scaled. A `background: linear-gradient`
+   diagonal was tried first and rejected: its stripe is measured along the gradient line, whose
+   length shrinks as a box gets wider relative to its height, so the same "1px" stop distance
+   inflates into a visibly thick band on a long pill (`LongLabels` story) while staying correct on
+   a short one — exactly what a pill's variable, label-dependent width guarantees will happen.
+   Nothing in `tailwind.css` needs to know the pill's own colour class here: the `<svg>` reads
+   `currentColor` (`text-border-strong`, set alongside it in the component), so it never needs a
+   custom utility of its own; only the `<line>`'s literal `stroke-width="1"` (the spec's own
+   number) lives outside a class, the same way `Checkbox`'s tick mark carries its own literal
+   `stroke-width` and path. Real borders stay real borders in forced-colours mode (spec "Actions
+   and forms" → Forced colours): the line sits *beside* the pill's own real
+   `eldra-variant-pill-border`, which is what stays visible there; the two together are how the
+   spec tells "sold out" from "selected" without colour alone (1.4.1). */
+
+/* The swatch's own ring (spec "Variant picker" → Sizes, Swatch row): "a 2px ring (transparent at
+   rest), then a 3px gap, then the colour disc". The ring is drawn as a real `border` on the
+   outer 2.75rem shape — the same element the proxy focus ring sits on — kept at this one constant
+   width in every state (spec: "transparent at rest"; hover and selected only ever recolour it, in
+   `VariantPicker.vue`), so the swatch never resizes when it gains a ring. The 3px gap between the
+   ring and the disc is the shape's own padding (`p-0.75`, `--spacing` × 0.75 = 0.1875rem = 3px —
+   the same dynamic-spacing technique `RadioGroup`'s `mt-0.75` and `gap-x-2.5` already use), which
+   is also what lets the inner disc fill the remaining space with a plain `size-full` rather than a
+   second literal measurement. */
+@utility eldra-variant-swatch-ring {
+  border-width: var(--eldra-variant-swatch-ring-width, 2px);
+}
+
+/* The colour disc's own edge (spec "Variant picker" → Sizes, Swatch row: "the colour disc with a
+   1px inner `border-strong` edge"; → Accessibility: "The disc edge uses `border-strong`, so pale
+   swatches (Ecru, Chalk) keep a 3:1 boundary (1.4.11)"). A real `border`, not `eldra-select-
+   swatch`'s inset `box-shadow` (that one is this package's *other* swatch, the 1rem one inside a
+   `Select` option row) — forced-colours mode can drop a decorative shadow, and the spec's own
+   "Forced colours: borders stay as real borders" rule is written for exactly this boundary, the
+   one WCAG 1.4.11 is about. Box-sizing keeps the disc's outer size unchanged by its own border, so
+   it still fills the ring's padded interior exactly via `size-full`. */
+@utility eldra-variant-swatch-edge {
+  border-width: var(--eldra-variant-swatch-edge-width, 1px);
+}
+
+/* A sold-out swatch's diagonal line (spec "Variant picker" → States, Sold out row: "2px diagonal
+   line in `text` with a 1.5px `background` halo, from 4px inside the top to 4px inside the bottom,
+   rotated 45°") is drawn in `VariantPicker.vue` as an inline `<svg>`, not a class-only utility —
+   the same reasoning as the pill's line above, and for an even sharper reason here: a first
+   version drew it with `background-color` (the line) plus a `box-shadow` (the halo), and *both*
+   properties are exactly the ones forced-colours mode empties out — the line vanished completely
+   under `forced-colors: active`, the one mode this indicator exists to survive (spec "Actions and
+   forms" → Forced colours; WCAG 1.4.1). An SVG `<line stroke="currentColor">` does not have that
+   problem: forced-colours remaps a stroke the same way it remaps a real border. Two stacked
+   `<line>`s (a wider one in `background`, first, then the spec's own 2px in `text`) draw the halo
+   and the line together, at the endpoints the spec's "4px inside the top … rotated 45°" geometry
+   actually produces — worked out once in that component's own comment rather than re-derived by a
+   consumer reading a CSS transform. */

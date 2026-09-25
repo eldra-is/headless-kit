@@ -18,6 +18,7 @@ export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
+export { default as VariantPicker } from './components/variant-picker/VariantPicker.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
 // Component types
@@ -76,6 +77,12 @@ export type {
 } from './components/quantity-stepper/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
+export type {
+  VariantPickerOption,
+  VariantPickerPart,
+  VariantPickerProps,
+  VariantPickerType,
+} from './components/variant-picker/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
 
 // Messages
