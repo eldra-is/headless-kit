@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 // tokens.json (W3C design tokens) → src/styles/tokens.css. `--check` fails when the checked-in
 // file is stale; the root lint:check runs it.
+//
+// Every value is validated on the way out. A malformed token used to serialise the string
+// `undefined` into the stylesheet — `--eldra-color-primary: undefined;` is valid CSS syntax, so
+// nothing downstream complained and the variable silently fell back to nothing everywhere it was
+// used. Each check below throws instead, naming the token's path in tokens.json.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,36 +14,82 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SOURCE = resolve(here, '../../../eldra-starter-spec/tokens.json');
 const TARGET = resolve(here, '../src/styles/tokens.css');
 
-const ref = (value) => {
-  const m = /^\{font\.family\.([\w-]+)\}$/.exec(String(value));
-  return m ? `var(--eldra-font-${m[1]})` : value;
+// The four a `font.style` token must carry; `letterSpacing` is optional and defaults to `0`.
+const TYPOGRAPHY_FIELDS = ['fontFamily', 'fontSize', 'lineHeight', 'fontWeight'];
+
+const fail = (path, problem) => {
+  throw new Error(`tokens.json: ${path} ${problem}`);
+};
+
+const valueOf = (token, path) => {
+  const value = token?.$value;
+  if (value === undefined || value === null) fail(path, 'is missing $value');
+  return value;
+};
+
+// A typography token's `fontFamily` is either a literal stack or an alias to a family token.
+// An alias that resolves to nothing would emit `var(--eldra-font-typo)` — a dangling variable
+// rather than a visible error — so an unknown one fails here.
+const fontFamily = (value, path, families) => {
+  const alias = /^\{([\w.-]+)\}$/.exec(String(value));
+  if (!alias) return value;
+  const family = /^font\.family\.([\w-]+)$/.exec(alias[1]);
+  if (!family || !families.has(family[1])) fail(path, `references the unknown token {${alias[1]}}`);
+  return `var(--eldra-font-${family[1]})`;
+};
+
+const cubicBezier = (value, path) => {
+  const fourNumbers =
+    Array.isArray(value) &&
+    value.length === 4 &&
+    value.every((n) => typeof n === 'number' && Number.isFinite(n));
+  if (!fourNumbers) fail(path, 'must be four numbers for a cubic-bezier');
+  return `cubic-bezier(${value.join(', ')})`;
 };
 
 export function renderTokensCss(tokens) {
   const lines = [];
   const durations = [];
   const push = (name, value) => lines.push(`  --eldra-${name}: ${value};`);
-  for (const [role, t] of Object.entries(tokens.color ?? {})) push(`color-${role}`, t.$value);
-  for (const [name, t] of Object.entries(tokens.font?.family ?? {})) push(`font-${name}`, t.$value);
-  for (const [name, t] of Object.entries(tokens.font?.style ?? {})) {
-    const v = t.$value;
-    push(`text-${name}-family`, ref(v.fontFamily));
-    push(`text-${name}-size`, v.fontSize);
-    push(`text-${name}-line`, v.lineHeight);
-    push(`text-${name}-weight`, v.fontWeight);
-    push(`text-${name}-tracking`, v.letterSpacing ?? '0');
+  // `space.space-5`, `radius.radius-md`, `duration.duration-base` and the rest already carry their
+  // group in the key, so those push the key unprefixed; only colours take a prefix.
+  const plain = (group, prefix = '') => {
+    for (const [name, token] of Object.entries(tokens[group] ?? {})) {
+      push(`${prefix}${name}`, valueOf(token, `${group}.${name}`));
+    }
+  };
+
+  plain('color', 'color-');
+  for (const [name, token] of Object.entries(tokens.font?.family ?? {})) {
+    push(`font-${name}`, valueOf(token, `font.family.${name}`));
   }
-  for (const [name, t] of Object.entries(tokens.space ?? {})) push(name, t.$value);
-  for (const [name, t] of Object.entries(tokens.radius ?? {})) push(name, t.$value);
-  for (const [name, t] of Object.entries(tokens.shadow ?? {})) push(name, t.$value);
-  for (const [name, t] of Object.entries(tokens.layout ?? {})) push(name, t.$value);
-  for (const [name, t] of Object.entries(tokens.duration ?? {})) {
-    push(name, t.$value);
+  const families = new Set(Object.keys(tokens.font?.family ?? {}));
+  for (const [name, token] of Object.entries(tokens.font?.style ?? {})) {
+    const path = `font.style.${name}`;
+    const style = valueOf(token, path);
+    for (const field of TYPOGRAPHY_FIELDS) {
+      if (style[field] === undefined || style[field] === null) fail(path, `is missing ${field}`);
+    }
+    push(`text-${name}-family`, fontFamily(style.fontFamily, path, families));
+    push(`text-${name}-size`, style.fontSize);
+    push(`text-${name}-line`, style.lineHeight);
+    push(`text-${name}-weight`, style.fontWeight);
+    push(`text-${name}-tracking`, style.letterSpacing ?? '0');
+  }
+  plain('space');
+  plain('radius');
+  plain('shadow');
+  plain('layout');
+  for (const [name, token] of Object.entries(tokens.duration ?? {})) {
+    push(name, valueOf(token, `duration.${name}`));
     durations.push(name);
   }
-  for (const [name, t] of Object.entries(tokens.easing ?? {}))
-    push(name, `cubic-bezier(${t.$value.join(', ')})`);
-  for (const [name, t] of Object.entries(tokens.zIndex ?? {})) push(name, t.$value);
+  for (const [name, token] of Object.entries(tokens.easing ?? {})) {
+    const path = `easing.${name}`;
+    push(name, cubicBezier(valueOf(token, path), path));
+  }
+  plain('zIndex');
+
   const reduced = durations.map((d) => `    --eldra-${d}: 0ms;`).join('\n');
   return [
     '/* Generated by scripts/build-tokens.mjs from eldra-starter-spec/tokens.json — do not edit. */',

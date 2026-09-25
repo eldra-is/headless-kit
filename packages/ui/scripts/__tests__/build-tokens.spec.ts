@@ -61,4 +61,68 @@ describe('renderTokensCss', () => {
     expect(renderTokensCss(tokens)).toBe(css);
     expect(css.endsWith('\n')).toBe(true);
   });
+  it('renders a token set that omits a whole group', () => {
+    const partial = structuredClone(tokens);
+    delete (partial as { zIndex?: unknown }).zIndex;
+    delete (partial as { easing?: unknown }).easing;
+    const rendered = renderTokensCss(partial);
+    expect(rendered).toContain('--eldra-color-primary: #24201c;');
+    expect(rendered).not.toContain('--eldra-z-');
+    expect(rendered).not.toContain('cubic-bezier');
+  });
+});
+
+/**
+ * A malformed token used to serialise the string `undefined` into the stylesheet.
+ * `--eldra-color-primary: undefined;` is valid CSS syntax, so neither the Tailwind build nor the
+ * browser complained — the variable simply resolved to nothing everywhere it was used. Each case
+ * below must fail the build instead, naming the path in tokens.json.
+ */
+describe('renderTokensCss refuses a malformed token', () => {
+  it('names the token that has no $value', () => {
+    const broken = structuredClone(tokens);
+    delete (broken.color.primary as { $value?: string }).$value;
+    expect(() => renderTokensCss(broken)).toThrow('tokens.json: color.primary is missing $value');
+  });
+  it('names a group whose key carries its own prefix', () => {
+    const broken = structuredClone(tokens);
+    delete (broken.space['space-5'] as { $value?: string }).$value;
+    expect(() => renderTokensCss(broken)).toThrow('tokens.json: space.space-5 is missing $value');
+  });
+  it.each(['fontFamily', 'fontSize', 'lineHeight', 'fontWeight'])(
+    'names a typography token missing %s',
+    (field) => {
+      const broken = structuredClone(tokens);
+      delete (broken.font.style['body-sm'].$value as Record<string, unknown>)[field];
+      expect(() => renderTokensCss(broken)).toThrow(
+        `tokens.json: font.style.body-sm is missing ${field}`
+      );
+    }
+  );
+  it('names a typography token whose $value is missing entirely', () => {
+    const broken = structuredClone(tokens);
+    delete (broken.font.style['body-sm'] as { $value?: unknown }).$value;
+    expect(() => renderTokensCss(broken)).toThrow(
+      'tokens.json: font.style.body-sm is missing $value'
+    );
+  });
+  it('names a typography token whose fontFamily alias resolves to nothing', () => {
+    const broken = structuredClone(tokens);
+    broken.font.style['body-sm'].$value.fontFamily = '{font.family.heading}';
+    expect(() => renderTokensCss(broken)).toThrow(
+      'tokens.json: font.style.body-sm references the unknown token {font.family.heading}'
+    );
+  });
+  it.each([
+    ['too few numbers', [0.2, 0]],
+    ['too many numbers', [0.2, 0, 0, 1, 1]],
+    ['a non-number', [0.2, 0, 0, '1']],
+    ['not an array', '0.2, 0, 0, 1'],
+  ])('names an easing token with %s', (_case, value) => {
+    const broken = structuredClone(tokens);
+    (broken.easing['ease-out'] as { $value: unknown }).$value = value;
+    expect(() => renderTokensCss(broken)).toThrow(
+      'tokens.json: easing.ease-out must be four numbers for a cubic-bezier'
+    );
+  });
 });
