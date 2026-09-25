@@ -498,3 +498,36 @@
     pointer-events: none;
   }
 }
+
+/* The Switch track's own boundary (spec "Switch" → Sizes: "1.5px border", both sizes). A
+   per-component variable with a literal default, the same shape as `eldra-checkbox-border`. */
+@utility eldra-switch-track-border {
+  border-width: var(--eldra-switch-track-border-width, 1.5px);
+}
+
+/* The Switch thumb's rest position (spec "Switch" → Sizes: "1rem, 0.1875rem from the track's
+   start edge"). 0.1875rem is not a `--spacing` multiple (0.75 of a step), so it is a
+   per-component variable rather than a spacing utility; logical so it reads correctly in an RTL
+   document. The "on" position is the thumb's own `translate-x-*`, a `--spacing` multiple, added on
+   top of this rest position. */
+@utility eldra-switch-thumb-offset {
+  inset-inline-start: var(--eldra-switch-thumb-offset, 0.1875rem);
+}
+
+/* The Switch label (spec "Switch" → Sizes: "Label | 1rem" at md; the sm row's "0.875rem / 1.5"
+   reuses `text-body-sm` unchanged since the two numbers match a token exactly). 1rem already reads
+   the body token's size; only the line-height has no token of its own (the spec gives it once, in
+   the "with description" paragraph: "line-height 1.4"), so — like `text-card-title`'s 1.4 before
+   it — it is a per-component variable with that literal default. */
+@utility text-switch-label {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) /
+    var(--eldra-switch-label-line, 1.4) var(--eldra-font-body);
+}
+
+/* The Switch description (spec "Switch" → Sizes: "the description is 0.875rem `muted`", and the
+   same paragraph's "line-height 1.4"). 0.875rem already reads the body-sm token's size; the line
+   ratio is this component's own, exactly like `text-switch-label` above. */
+@utility text-switch-description {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-switch-description-line, 1.4) var(--eldra-font-body);
+}

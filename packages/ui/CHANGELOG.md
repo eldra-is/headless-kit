@@ -5,6 +5,26 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `Switch` — an on/off control for a setting that takes effect immediately, `<button type="button"
+  role="switch" aria-checked>` with the visible label as its own content (so the accessible name
+  matches the screen) and no key handling of its own: `Space`/`Enter` toggle for free from a real,
+  native button. `modelValue` is two-way and `change` fires with the new boolean; `size` is `md`
+  (2.75 × 1.5rem track) or `sm` (2.25 × 1.25rem, filter bars); `description` adds a second `muted`
+  line, linked by `aria-describedby` and kept `aria-hidden` so it never joins the accessible name;
+  a hidden `<input type="checkbox">` mirrors `modelValue` and carries `name` for a plain form
+  submit, disabled exactly when the switch is. On/off is shown by the thumb's position and a check
+  icon as well as colour, never colour alone; the thumb slides and the track fills over
+  `duration-fast`, both owning their own transition since neither carries the focus ring (the
+  button does, at the spec's `radius-sm` corner). Per-part `classes` for `root`, `track`, `thumb`,
+  `label` and `description`. Inside a plain (non-group) `FieldWrapper`, a `Switch` drops its own
+  `label` part and takes the wrapper's id, the same shape `Checkbox`'s `labelsControl` uses — not
+  part of the design spec, which never discusses a Switch inside a field wrapper, but named
+  explicitly by the task. CSS variables: `--eldra-switch-radius` (default `radius-full`),
+  `--eldra-switch-track-border-width` (default `1.5px`) and `--eldra-switch-thumb-offset` (default
+  `0.1875rem`, the thumb's rest inset from the track's start edge).
+- `@eldrajs/ui/tailwind.css` gains `eldra-switch-track-border`, `eldra-switch-thumb-offset`,
+  `text-switch-label` and `text-switch-description` (the Switch's own border-width, thumb-inset and
+  type-style utilities, none of them a spacing-scale multiple or an existing type token).
 - `RadioGroup` — a native radio group in a `<fieldset>` with a `<legend>`, one shared `name`
   (generated when you give none) and no key handling of its own: arrow keys, wrapping, skipping
   disabled options, and the group's single tab stop are all native `<input type="radio">`

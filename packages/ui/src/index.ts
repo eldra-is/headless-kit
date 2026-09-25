@@ -13,6 +13,7 @@ export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
+export { default as Switch } from './components/switch/Switch.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
@@ -56,6 +57,7 @@ export type {
   RadioGroupProps,
   RadioGroupSize,
 } from './components/radio/types';
+export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
 

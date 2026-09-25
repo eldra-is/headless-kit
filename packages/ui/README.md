@@ -93,3 +93,28 @@ Additions and departures from the design spec, and why.
 - **`RadioGroup`'s `label`, `hint` and `meta` are scoped slots as well as `option` fields**
   (`#label="{ option }"`, and so on), since the group is built from a data array rather than
   written-out children — richer content than plain text needs somewhere to go.
+- **`Switch` inside a `FieldWrapper`.** The spec never discusses a Switch inside a field wrapper at
+  all (a Switch commits immediately; it is not submitted with a form), but the task named this
+  wiring explicitly. It mirrors `Checkbox`'s `labelsControl`: a plain wrapper's `<label for>` names
+  the button, so the switch drops its own `label` part and takes the wrapper's id. Unlike
+  `Checkbox`, the root element never changes tag — it is always the `<button>` — only the inner
+  label `<span>` is skipped, so the wrapper's visible text is not rendered twice.
+- **`Switch`'s description is `aria-hidden` inside the button, not a sibling.** The spec's anatomy
+  diagram draws the description on its own line below the track, with an arrow to
+  "`← description (aria-describedby)`", and its numbered list says the button holds "the track and
+  the label" — label only. So the description renders inside the button's own content (which is
+  what lets a two-column CSS grid, the same shape `Checkbox` uses, put it directly under the label
+  for free) but is marked `aria-hidden="true"`, keeping it out of the button's accessible _name_
+  while `aria-describedby` still exposes it as the _description_ — browsers read an
+  `aria-describedby` target regardless of `aria-hidden` on that target, the standard technique for
+  a description that must not double as the name.
+- **`Switch`'s hidden mirror `<input type="checkbox">` cannot live inside the button.** `<button>`'s
+  content model forbids interactive descendants, and an `<input>` is interactive content
+  regardless of the `hidden` attribute (that attribute doesn't change what category an element
+  belongs to). So the component's template has two top-level nodes — the button and the hidden
+  input as its sibling — a plain Vue 3 fragment, not a new wrapping element.
+- **`Switch`'s track and thumb each carry their own transition.** The spec's Behaviour & motion
+  section asks for both: "The thumb slides _and the track fills_ over `duration-fast` with
+  `ease-out`." Neither element carries `eldra-focus` (that sits on the button), so — exactly like
+  Link's arrow — each may carry its own `transition-*`/`duration-fast` utility with a
+  `motion-reduce:transition-none` fallback.

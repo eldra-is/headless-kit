@@ -32,6 +32,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-focus-proxy'
   | 'eldra-field-invalid'
   | 'eldra-radio-card-selected'
+  | 'eldra-switch-thumb-offset'
 >({
   extend: {
     classGroups: {
@@ -62,6 +63,8 @@ const twMerge = extendTailwindMerge<
             'counter',
             'field-note',
             'card-title',
+            'switch-label',
+            'switch-description',
           ],
         },
       ],
@@ -80,6 +83,7 @@ const twMerge = extendTailwindMerge<
         'eldra-checkbox-border',
         'eldra-checkbox-border-invalid',
         'eldra-radio-card-border',
+        'eldra-switch-track-border',
       ],
       // The field error boundary (tailwind.css "The error boundary of a field"): a pseudo-element
       // inset line with no stock Tailwind equivalent, so it gets its own group.
@@ -88,6 +92,9 @@ const twMerge = extendTailwindMerge<
       // shape as `eldra-field-invalid` — a pseudo-element inset line with no stock equivalent — so
       // it gets its own group too.
       'eldra-radio-card-selected': ['eldra-radio-card-selected'],
+      // The Switch thumb's rest inset (tailwind.css "The Switch thumb's rest position"): a logical
+      // `inset-inline-start` with no stock Tailwind equivalent, so it gets its own group too.
+      'eldra-switch-thumb-offset': ['eldra-switch-thumb-offset'],
       // The one focus ring (tailwind.css "The one focus ring"). `eldra-focus` and
       // `eldra-focus-inset` are mutually exclusive — one draws the ring outside the element, the
       // other inside — so they share a group with no stock Tailwind equivalent.
