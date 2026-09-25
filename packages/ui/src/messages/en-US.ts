@@ -105,6 +105,13 @@ export const enUS = {
   /** `Image`'s live placeholder's accessible name (spec "Image" → Accessibility: 'otherwise it
    * gets `role="img"` and `aria-label="No image available"`'), omitted when `decorative` is on. */
   noImageAvailable: 'No image available',
+  /**
+   * `LogoItem`'s default `linkContext` (spec "Logo item" → Properties, `linkContext` row: `"
+   * (stockist site)"` when `href` is external), appended to a linked logo's accessible name —
+   * "Kiln Street (stockist site)". Only used when `href` looks external and no `linkContext` was
+   * given; an on-site stockist page link gets no extra context.
+   */
+  stockistSite: ' (stockist site)',
   /** A `StockBadge`'s default copy for `level="in"` (spec "Badge" → Stock status line). */
   stockIn: 'In stock, ships in 1–2 days',
   /**

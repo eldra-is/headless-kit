@@ -171,6 +171,19 @@
     var(--eldra-stock-status-line, 1.4) var(--eldra-font-body);
 }
 
+/* The Logo item wordmark fallback (spec "Logo item" → Sizes, "Wordmark" row): "heading family,
+   1.25rem, weight 700, line-height 1.15, letter-spacing −0.01em." No shared type-scale token gives
+   that exact combination, but three of its four dimensions individually match ones that do:
+   `h1`/`h2`'s weight (700), `h2`'s line-height (1.15), `h3`'s tracking (−0.01em) — reused directly
+   rather than duplicated. Only the 1.25rem size has no token of its own, so — the same shape as
+   `Button`'s `--eldra-button-font-size-lg` — it is a per-component variable with that literal
+   default. */
+@utility text-logo-wordmark {
+  font: var(--eldra-text-h2-weight) var(--eldra-logo-wordmark-size, 1.25rem) /
+    var(--eldra-text-h2-line) var(--eldra-text-h2-family);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
 /* --- Price -------------------------------------------------------------------------------- */
 
 /* Price's root size (spec "Price" → Sizes): only `sm` and `lg` set an explicit font-size, on the

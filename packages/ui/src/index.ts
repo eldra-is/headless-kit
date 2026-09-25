@@ -18,6 +18,7 @@ export { default as Icon } from './components/icon/Icon.vue';
 export { default as Image } from './components/image/Image.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
+export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as Price } from './components/price/Price.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
@@ -83,6 +84,7 @@ export type { IconComponent, IconPart, IconProps, IconSize } from './components/
 export type { ImageMedia, ImagePart, ImageProps, ImageRatio } from './components/image/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
+export type { LogoItemPart, LogoItemProps } from './components/logo-item/types';
 export type {
   RadioGroupLayout,
   RadioGroupOption,

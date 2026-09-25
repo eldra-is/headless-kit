@@ -91,6 +91,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Image`           | `--eldra-image-hatch-gap` (default `0.75rem`) — the live "No image" placeholder's diagonal-line repeat distance                                                                                                                                                                                                                                                                                                                                                     |
    | `Input`           | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                                                                                   |
    | `Link`            | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                             |
+   | `LogoItem`        | `--eldra-logo-image-max-height` (default `2.5rem`), `--eldra-logo-image-max-width` (default `9rem`) — the logo image's contain box; `--eldra-logo-wordmark-size` (default `1.25rem`) — the wordmark fallback's font size (its weight, line-height and letter-spacing reuse `h2`/`h3` tokens directly, see `text-logo-wordmark` in `tailwind.css`)                                                                                                                   |
    | `MultiSelect`     | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                     |
    | `Price`           | `--eldra-price-current-sm-size` (default `0.9375rem`), `--eldra-price-current-lg-size` (default `1.5rem`) — only `sm`/`lg` need one: `md`'s current price inherits the surrounding text, and `compareAt`/`from`/`unit` scale off whichever size the root sets (`0.9em`, a literal ratio the spec itself gives, and a fixed `0.8125rem`), so neither needs a variable of its own                                                                                     |
    | `UnitInput`       | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width` (`CurrencyInput` is a `UnitInput`, so the same)                                                                                                                                                                                                             |
@@ -1392,3 +1393,31 @@ more"` — has no comma before "and". Icelandic's own pattern already has no suc
   `Intl.ListFormat`'s locale-correct word, order and pluralisation and removes only that one
   separator (via `formatToParts`, not a regex over the whole rendered string), with a hand-written
   `", "`/`" and "`/`" og "` join as the fallback for a runtime with no `Intl.ListFormat` at all.
+- **`LogoItem` always renders a real `<li>`, and `root` moves to whichever element is the actual
+  cell.** The spec's own anatomy already says this ("Cell: a centred grid cell (`<li>`, or an `<a>`
+  inside the `<li>` when linked)"), but it is worth spelling out because every other component's
+  `root` is a single element that never moves: `<ul role="list">` only reads as a list to
+  assistive tech when its children are real `<li>`s (a bare `<a>` gets no implicit `listitem` role,
+  and `<a>` is not valid content of `<ul>` at all), so unlike `Link`'s span/`a` swap, `LogoItem`
+  cannot collapse the wrapper away. Unlinked, the `<li>` itself carries `data-part="root"` and the
+  cell's own box. Linked, the box (and the `eldra-focus` ring — 2.5.8 needs the _target_ itself at
+  least 4rem tall, not just a gutter around it) moves to the `<a>`/`as` cell, and the outer `<li>`
+  is bare — no class list, no `data-part`, nothing `classes` can reach, because it carries nothing
+  visual to restyle. `classes.root` always reaches the one element that is actually the cell,
+  whichever tag that turns out to be.
+- **No `external` prop; whether the hidden link context appears is judged from `href` itself.**
+  `LogoItemProps` (task brief) has no `external` boolean the way `LinkProps` does, but the spec's
+  own default for `linkContext` is conditional on the href — `" (stockist site)"` "when `href` is
+  external" — so the component has to decide this on its own. `isExternalHref` in `LogoItem.vue`
+  treats an absolute URL (a scheme like `https:`, or a protocol-relative `//`) as external and
+  everything else (a root-relative path, a hash, a query) as on-site; a caller who knows better
+  still overrides the judgement entirely with an explicit `linkContext` (including `''`, to
+  deliberately suppress it on an otherwise-external href).
+- **`LogoItem`'s wordmark reuses three type tokens across two different styles rather than
+  introducing a fourth.** The spec's wordmark is "heading family, 1.25rem, weight 700,
+  line-height 1.15, letter-spacing −0.01em" — no single shared type style matches, but `h1`/`h2`'s
+  weight (700), `h2`'s line-height (1.15) and `h3`'s tracking (−0.01em) each individually do, so
+  `text-logo-wordmark` (`tailwind.css`) reads those three tokens directly and only the 1.25rem size
+  is a new component variable (`--eldra-logo-wordmark-size`) with a literal default — the same
+  "reuse what matches, one new variable for what doesn't" shape `text-card-title`/`text-stepper-value`
+  already use, just spread across two donor styles instead of one.

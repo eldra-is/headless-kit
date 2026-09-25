@@ -29,6 +29,22 @@ Release-please writes the generated notes from commit messages and does not repl
   with no `Intl.ListFormat` at all). See `README.md`'s Deviations section for the `max` clamp, the
   fixed `sm` group size (the brief's own `AvatarGroupProps` type has no `size` prop) and the
   Oxford-comma ruling.
+- **`LogoItem`** — the sixth component of the "display, commerce and layout" sub-project (design
+  spec's Logo item section). One logo in a stockist/press logo cloud: `name` (used as the logo
+  image's `alt`, never "logo", and as the wordmark text), an optional `logo` (`ImageMedia | null`;
+  no logo renders the wordmark fallback, never an empty cell), and an optional `href` that renders
+  the cell as a link (`as` follows `Link`'s own contract — a string tag still takes `href`, a
+  component takes it as `to`). The rendered element is always a real `<li>`, since `<ul role="list">`
+  only reads as a list once its children are real `<li>`s; unlinked, the `<li>` is the cell itself,
+  linked, the `<a>`/`as` becomes the cell (padding, 4rem min-height, the `eldra-focus` ring at
+  `radius-md`) and the outer `<li>` is bare — see the README's Deviations entry for why `root`
+  moves rather than staying on one fixed tag. The logo image is greyscale + 110% contrast at 75%
+  opacity, contained within 2.5rem × 9rem (new `--eldra-logo-image-max-height`/`-max-width`
+  variables), rising to 100% opacity on hover only when linked; the wordmark is `muted` turning
+  `text` on hover, in a new `text-logo-wordmark` type style. A linked item's accessible name gets
+  the new `stockistSite` message (" (stockist site)") appended automatically when `href` looks
+  external (an absolute URL) — `LogoItem` has no `external` prop like `Link`'s, so this is judged
+  from the href itself — and `linkContext` overrides the judgement either way, rendered verbatim.
 - **`Image`** — the fifth component of the "display, commerce and layout" sub-project (design
   spec's Image section). The responsive media frame every card and block builds on: a fixed aspect
   preset (`auto`, `1x1`, `4x3`, `3x2`, `16x9`, `3x4`, `4x5`, default `4x3`) sets the frame's

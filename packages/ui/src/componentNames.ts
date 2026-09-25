@@ -30,6 +30,7 @@ export const componentNames = [
   'Image',
   'Input',
   'Link',
+  'LogoItem',
   'MultiSelect',
   'Price',
   'QuantityStepper',

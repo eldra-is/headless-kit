@@ -57,6 +57,7 @@ export const isIS: UiMessages = {
   soldOut: 'Uppselt',
   noImage: 'Engin mynd',
   noImageAvailable: 'Engin mynd í boði',
+  stockistSite: ' (síða söluaðila)',
   stockIn: 'Til á lager, sent út á 1–2 dögum',
   stockLow: (n: number | null) =>
     n === null ? 'Lítið til' : `Lítið til: aðeins ${n} ${singular(n) ? 'eintak' : 'eintök'} eftir`,
