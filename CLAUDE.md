@@ -111,12 +111,17 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   exists, the components land in the next task), `./messages/is-IS` (the Icelandic message set, its
   own entry so an English-only store never bundles it), and the three CSS entries above. Text a
   component renders itself goes through a `messages` prop / `provideEldraUiMessages`, English
-  defaults built in. Composables exported from the root for building controls this package does not
-  ship yet: `useFloating` (`@floating-ui/vue` placement), `useOverlay` (non-modal popup close/focus,
-  never a focus trap — modal surfaces use `useDialogStack` when they land), `useListbox` (the select
-  keyboard and active row, shared by `Select`/`MultiSelect`). Never a `Ui` prefix: the resolver
-  entry defaults to `Eldra`, which is `packages/ui/README.md`'s job to keep straight from
-  `@eldra-is/vue-ui-components`'s own `Ui*`/resolver.
+  defaults built in. Composables exported from the root are the same building blocks the package's
+  own components are built on, not a separate layer over private internals, so a consumer building
+  a control this package does not ship yet reuses exactly what those components use: `useFloating`
+  (`@floating-ui/vue` placement), `useOverlay` (non-modal popup close/focus, never a focus trap —
+  modal surfaces use `useDialogStack` when they land), `usePopover` (`src/components/select/usePopover.ts`;
+  `useOverlay` and `useFloating` wired into one non-modal popup life cycle — the "only one open at a
+  time" registry, the entrance-variable positioning, the open sequence, the label-forwarded-click
+  latch — that `Select`, `MultiSelect` and `SearchBar` all open their panel with), `useListbox` (the
+  select keyboard and active row, shared by `Select`/`MultiSelect`). Never a `Ui` prefix: the
+  resolver entry defaults to `Eldra`, which is `packages/ui/README.md`'s job to keep straight from
+  the private Eldra library's own `Ui*`/resolver.
 - `packages/theme-core` — `@eldrajs/theme-core`. Framework-free core of the theme SDK: the Studio
   preview bridge (`./bridge`), stega, the overlay runtime, layout CSS, rich-text position mapping,
   design tokens, image framing. Built by tsdown, one entry per subpath. Must never import a

@@ -33,9 +33,9 @@ const componentNameSet: ReadonlySet<string> = new Set(componentNames);
  * including the private library's own `Ui*` names, resolves to `undefined` and is left for another
  * resolver or a real component.
  *
- * The default prefix is `'Eldra'`, never `'Ui'` — that prefix belongs to `@eldra-is/vue-ui-components`'s
- * own resolver (see `headless-kit/CLAUDE.md`'s `packages/ui` entry). Pass `{ prefix: 'Ui' }`
- * yourself if a consumer really wants that name; the package never implies it.
+ * The default prefix is `'Eldra'`, never `'Ui'` — that prefix belongs to the private Eldra
+ * library's own resolver. Pass `{ prefix: 'Ui' }` yourself if a consumer really wants that name;
+ * the package never implies it.
  */
 export function EldraUiResolver(options: EldraUiResolverOptions = {}): {
   type: 'component';

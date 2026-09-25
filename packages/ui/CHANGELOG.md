@@ -13,8 +13,17 @@ Release-please writes the generated notes from commit messages and does not repl
 - `README.md` reorganised into the design spec's section list (Install, Styles, Fonts,
   Customisation, Messages, Composables, Resolver, the forthcoming `./vee-validate` entry,
   Accessibility and testing, Deviations) and its Deviations list completed with every recorded
-  departure from the spec for `Button`, `Link`, `Input`, `Textarea` and `VariantPicker` that had not
-  made it there yet. `docs/ui.md` added to the kit's docs.
+  departure from the spec for `Button`, `Link`, `Input`, `Textarea`, `VariantPicker` and `SearchBar`
+  that had not made it there yet (the `Textarea` live-region entry was written against a threshold
+  the component no longer uses and has been corrected, not merely added). Composables gained
+  `usePopover`, the composable `Select`, `MultiSelect` and `SearchBar` actually build their popup on
+  — previously undocumented even though it is exported from the root. `docs/ui.md` added to the
+  kit's docs.
+- Public-repo hygiene: the private Eldra library's package specifier, which had leaked into
+  `README.md` and `src/resolver.ts`'s own JSDoc, is gone from both; a new
+  `src/__tests__/publicRepoHygiene.spec.ts` scans every source file plus `README.md`/`CHANGELOG.md`
+  for the private npm scope and a couple of representative internal-only hostnames so it cannot
+  recur unnoticed.
 - `SearchBar` — the storefront search field with a live, grouped results panel: a real
   `<form role="search" method="get" :action>` with the field named `q`, so `Enter` with no active
   row reaches the Search page with or without scripting (`submit` fires with the query first and

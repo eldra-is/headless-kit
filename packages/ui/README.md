@@ -131,11 +131,14 @@ app.provide(MESSAGES_KEY, isIS);
 
 ## Composables
 
-Exported from the package root, for a consumer building a control this package does not ship yet.
-`useControllableModel` is the model every stateful component here uses; the other two are the parts
-of a **non-modal popup** — a select panel, a search results panel, a menu — that are easy to get
-wrong. Neither traps focus: the design spec's non-negotiables reserve `<dialog>` and focus traps for
-modal surfaces, and say these popups are not dialogs.
+Exported from the package root — the same building blocks `Select`, `MultiSelect`, `SearchBar` and
+every other stateful component here are built on, not a separate public API layered over private
+internals, so a consumer building a control this package does not ship yet (a menu, a combobox with
+its own shape) reuses exactly what those components use. `useControllableModel` is the model every
+stateful component here uses; `useFloating`, `useOverlay` and `usePopover` are the parts of a
+**non-modal popup** — a select panel, a search results panel, a menu — that are easy to get wrong.
+Neither `useOverlay` nor `usePopover` traps focus: the design spec's non-negotiables reserve
+`<dialog>` and focus traps for modal surfaces, and say these popups are not dialogs.
 
 ```ts
 import { useFloating, useOverlay } from '@eldrajs/ui';
@@ -163,7 +166,7 @@ const { styles, placement, update } = useFloating(trigger, panel, {
 });
 ```
 
-`useListbox` is the third: the keyboard and the active row of a listbox popup, which `Select` and
+`useListbox` is another: the keyboard and the active row of a listbox popup, which `Select` and
 `MultiSelect` share. It owns no DOM — `activeId` is what you bind to `aria-activedescendant` on
 whichever element holds focus (the trigger, or the search field when there is one) — and everything
 that differs between a single and a multiple select is a callback.
@@ -214,6 +217,33 @@ Two things `useOverlay` deliberately does not do:
   `document`, and nothing here knows about other overlays. Opening one select closing any other is
   a registry the consumer keeps (`src/components/select/openRegistry.ts` is this package's).
 
+`usePopover` is that registry, wired up: the one composable this package's own non-modal popups
+(`Select`, `MultiSelect`, `SearchBar`'s results panel) actually build on, exported from the root for
+a consumer whose control needs the same five things rather than reassembling them from
+`useFloating`/`useOverlay` by hand:
+
+- **the registry** — opening claims a module-level "only one open at a time" slot (via a stable
+  per-instance handle) and closes whatever held it;
+- **`useOverlay`** — the outside-press/focus-leaves/`Escape` closing rules, non-modal, so nothing
+  traps focus and `Tab` always moves on;
+- **`useFloating`** — positioning, plus the `--eldra-popover-origin`/`--eldra-popover-slide` pair
+  the entrance keyframes read, so a panel that flips after floating-ui measures changes a custom
+  property rather than its `animation-name` (which would replay the entrance);
+- **the open sequence** — `open(activate?)` opens, runs `activate` (make a row active), then —
+  only when the call actually changed the state — runs `afterOpen` a tick later, which is where
+  focus moves into the panel; `close(returnFocus?)` closes and returns focus to the trigger unless
+  told not to;
+- **the label-forwarded-click latch** — a `<label for>` naming the trigger forwards its click to
+  it, and the spec is explicit that clicking a field's label focuses the control **without**
+  opening it. A forwarded click is indistinguishable from a real one except that no pointer was
+  pressed and its `detail` is 0 (the same shape as a programmatic `element.click()`), so
+  `onTriggerPointerDown`/`onTriggerClick` (bound to the trigger) arm a latch on `pointerdown` and
+  release it on whichever `pointerup`/`pointercancel` follows, wherever it lands.
+
+What stays with each control is what actually differs: which rows there are, what choosing one
+does, and which element the popup is anchored to. See `src/components/select/usePopover.ts` for
+the full option/return shape (`UsePopoverOptions`, `UsePopoverReturn`, also exported).
+
 ## Resolver
 
 `@eldrajs/ui/resolver` is a plain
@@ -240,9 +270,8 @@ EldraUiResolver({ prefix: 'Acme' }); // <AcmeButton> instead
 `EldraUiResolver(...).resolve(name)` returns `{ name, from: '@eldrajs/ui' }` for every component
 `src/index.ts` exports under `<prefix><Name>`, and `undefined` for anything else — including a
 `Ui`-prefixed tag. `Ui` is never the resolver's default prefix: that prefix belongs to the private
-`@eldra-is/vue-ui-components` library and its own resolver (see `headless-kit/CLAUDE.md`'s
-`packages/ui` entry). Pass `{ prefix: 'Ui' }` yourself if a consumer genuinely wants that name —
-the package itself never implies it.
+Eldra library and its own resolver. Pass `{ prefix: 'Ui' }` yourself if a consumer genuinely wants
+that name — the package itself never implies it.
 
 ## `./vee-validate`
 
@@ -363,13 +392,6 @@ Additions and departures from the design spec, and why.
   `foot`/`counter` exist purely for standalone use, matching `Input`'s precedent of being fully
   functional without a wrapper. A consumer composing `FieldWrapper` + `Textarea` uses one counter or
   the other, never both.
-- **`Textarea`'s counter live region is threshold-_state_, not threshold-_event_, at 90%.** The
-  fuller spec prose (lines 664–774) describes a one-shot announcement at 80% and again past the
-  limit; the brief this component was built to is more specific and was followed literally instead:
-  `aria-live="polite"` whenever the count is at or over 90% of `maxLength`, `"off"` below it — a
-  continuous computed state rather than an event toggle. Trade-off: a screen reader may re-announce
-  the counter's text on every keystroke while the value sits at or above 90%, in exchange for a
-  simpler, deterministic, fully test-covered implementation.
 - **`Textarea`'s `hardLimit` sets native `maxlength` only when `hardLimit` is true**, never merely
   because `maxLength` is present — `counter` and `hardLimit` are independent props, and the spec's
   documented default lets typing continue past a soft `counter` limit.
@@ -669,3 +691,15 @@ Additions and departures from the design spec, and why.
 - **The `/` hint carries `messages.shortcutHint` as its `title`.** The visible chip is the spec's
   bare `/` and is `aria-hidden`, so the full sentence ("Press / to search") has nowhere to be
   announced; it is the chip's tooltip, and the field carries `aria-keyshortcuts="/"`.
+- **A row's active arrow is not animated.** The spec's Sizes table only says "visible only on the
+  active row"; the package's own Motion conventions give hover/colour changes `duration-fast`, and
+  other components carry their own `transition-*` for a similarly momentary reveal (Link's arrow,
+  Switch's thumb and track) — but here `itemArrow` is a plain `v-if="isActive(row)"`, so the arrow
+  appears and disappears with the row's active state, not a fade. Nothing in the spec's own text
+  for this component asks for a transition; additive if wanted.
+- **`SearchBar`'s results panel shares the select family's "only one open at a time" registry.**
+  It opens through `usePopover` (see [Composables](#composables)), the same composable `Select` and
+  `MultiSelect` use, so opening a search bar's panel closes an open select's panel and vice versa —
+  not only another search bar's. The spec discusses this only within the Select family; extending
+  the one registry to `SearchBar` was a judgement call for a page that can show both at once,
+  rather than a second, uncoordinated registry.
