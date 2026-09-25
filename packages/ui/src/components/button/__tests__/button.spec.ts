@@ -287,56 +287,42 @@ describe('Button — sizes', () => {
     wrapper.unmount();
   });
 
-  it('grows md primary to the touch target when its container is narrower than 48rem', () => {
-    const wrapper = mountWith(Button, {
-      props: { variant: 'primary' },
-      slots: { default: 'Add to cart' },
-    });
-    expect(wrapper.classes()).toContain('@max-tablet:target-touch');
-    wrapper.unmount();
-  });
-
-  it.each(['sm', 'lg'] as ButtonSize[])('never grows %s to the touch target', (size) => {
-    const wrapper = mountWith(Button, {
-      props: { variant: 'primary', size },
-      slots: { default: 'Add to cart' },
-    });
-    expect(wrapper.classes()).not.toContain('@max-tablet:target-touch');
-    wrapper.unmount();
-  });
-
   /**
-   * Spec "Actions and forms" → Compact controls: "Controls keep their height on mobile. Only
-   * primary action buttons grow to `target-touch` (2.75rem)." A secondary or outline action in the
-   * same row keeps the 2.5rem control height the inputs beside it use.
+   * Operator addition, 2026-09-25: "make all scales match so sm button = sm input, base button =
+   * base input, large input = large button". The design spec's "Actions and forms" → Compact
+   * controls grows an md primary button to `target-touch` (2.75rem) below a 48rem container; that
+   * growth is overridden here (README Deviations) so a Button never leaves the shared
+   * `control-h-sm`/`control-h`/`control-h-lg` scale the sized fields use, at any variant or size.
+   * `src/__tests__/control-heights.spec.ts` guards the same rule across every sized component.
    */
-  it.each(['secondary', 'outline', 'ghost', 'danger'] as ButtonVariant[])(
-    'never grows an md %s button to the touch target',
-    (variant) => {
+  it.each(
+    VARIANTS.filter((variant) => variant !== 'link').flatMap((variant) =>
+      SIZES.map((size) => [variant, size] as [ButtonVariant, ButtonSize])
+    )
+  )(
+    'gives the %s variant at size %s the shared control height, never target-touch',
+    (variant, size) => {
       const wrapper = mountWith(Button, {
-        props: { variant },
-        slots: { default: 'Save for later' },
+        props: { variant, size },
+        slots: { default: 'Add to cart' },
       });
-      expect(wrapper.classes()).toContain('control-h');
-      expect(wrapper.classes()).not.toContain('@max-tablet:target-touch');
+      const expected: Record<ButtonSize, string> = {
+        sm: 'control-h-sm',
+        md: 'control-h',
+        lg: 'control-h-lg',
+      };
+      expect(wrapper.classes()).toContain(expected[size]);
+      expect(wrapper.classes().join(' ')).not.toMatch(/target-touch/);
       wrapper.unmount();
     }
   );
-
-  it('never grows an icon-only md primary button, which is square at its size', () => {
-    const wrapper = mountWith(Button, {
-      props: { variant: 'primary', iconOnly: true, icon: IconHeart, label: 'Save for later' },
-    });
-    expect(wrapper.classes()).not.toContain('@max-tablet:target-touch');
-    wrapper.unmount();
-  });
 
   it('never grows the link variant to the touch target and keeps it above the target floor', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'link' },
       slots: { default: 'Size guide' },
     });
-    expect(wrapper.classes()).not.toContain('@max-tablet:target-touch');
+    expect(wrapper.classes().join(' ')).not.toMatch(/target-touch/);
     expect(wrapper.classes()).not.toContain('control-h');
     expect(wrapper.classes()).toContain('target-min');
     wrapper.unmount();
@@ -348,6 +334,7 @@ describe('Button — sizes', () => {
     });
     expect(wrapper.classes()).toContain('aspect-square');
     expect(wrapper.classes()).toContain('px-0');
+    expect(wrapper.classes().join(' ')).not.toMatch(/target-touch/);
     expect(wrapper.find('[data-part="label"]').exists()).toBe(false);
     wrapper.unmount();
   });

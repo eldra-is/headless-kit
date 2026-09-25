@@ -65,9 +65,11 @@ const hasErrorSummary = computed(() => present.value.errorSummary);
 
 /**
  * The form is a `@container` (spec "Form layout" → Sizes: the two-column breakpoint is "measured
- * on the containing block, so it works in narrow page-builder columns", and Accessibility:
- * "primary buttons 2.75rem below a 48rem container"). Every container query below — and the
- * `@max-tablet:target-touch` inside the primary Button of the actions row — measures this element.
+ * on the containing block, so it works in narrow page-builder columns"). Every container query
+ * below measures this element. The spec's Accessibility note also grows primary buttons to 2.75rem
+ * below a 48rem container; the operator override recorded under Deviations in the README keeps
+ * every Button on the shared control-height scale instead, so nothing inside this form measures
+ * this container for that purpose any more.
  */
 const ROOT_BASE = '@container w-full';
 

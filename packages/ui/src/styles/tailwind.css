@@ -69,9 +69,12 @@
      as the width scale, so the three layout widths above already name the spec's `desktop`
      (64rem, `--container-content`) and `wide` (80rem, `--container-wide`) breakpoints. The
      mobile/tablet edge at 48rem has no layout width of its own, so it is named here: `@max-tablet`
-     is the spec's "narrower than 48rem", which is what grows an md button to `target-touch`.
-     Declaring these keys does not disturb Tailwind's own `@sm`/`@md`/... container scale — the
-     theme never resets `--container-*`. */
+     is the spec's "narrower than 48rem", the breakpoint the spec's own "primary buttons grow to
+     `target-touch` below 48rem" rule would measure. `Button` no longer grows at any container
+     width (operator override, recorded under Deviations in the README), so nothing in this
+     package uses `@max-tablet` today — it stays declared for a future component that needs the
+     same edge. Declaring these keys does not disturb Tailwind's own `@sm`/`@md`/... container
+     scale — the theme never resets `--container-*`. */
   --container-tablet: 48rem;
 
   /* The two-column form layout's own edge (spec "Form layout" -> Sizes): "the form's container
@@ -251,8 +254,8 @@
    per-component variable with that default. `text-control-mobile` is the spec's viewport
    exception: "Below a 48rem viewport the text of inputs … is 1rem, so iOS never zooms into a
    focused field", applied as `max-md:text-control-mobile` (Tailwind's `md` *viewport* breakpoint
-   is 48rem, which is the edge the spec measures for this rule — unlike the button's touch-target
-   growth, which measures the block and uses the `@max-tablet` container query). */
+   is 48rem, which is the edge the spec measures for this rule — a viewport query, not the block
+   `@max-tablet` container query the spec's own button touch-target growth would have measured). */
 @utility text-control-sm {
   font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
     var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);

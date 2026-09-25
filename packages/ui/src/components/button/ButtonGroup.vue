@@ -12,9 +12,10 @@ const props = withDefaults(defineProps<ButtonGroupProps>(), {
  * The layout helper from spec "Button" → Button group: a flex row that wraps, `space-3` gap, items
  * centred.
  *
- * It is also a container-query context (`@container`), which is what lets an md Button inside it
- * grow to `target-touch` when the *block* is narrower than 48rem. That is why the root stays
- * block-level `flex` rather than `inline-flex`: `container-type: inline-size` applies inline-size
+ * It is also a container-query context (`@container`), kept for other components that key off a
+ * `@container` ancestor. `Button` itself no longer grows at any container width — see the
+ * operator ruling recorded under Deviations in the README — but the root stays block-level `flex`
+ * rather than `inline-flex` regardless: `container-type: inline-size` applies inline-size
  * containment, and a shrink-to-fit box would then measure itself as zero.
  */
 const BASE = '@container flex items-center';

@@ -66,7 +66,11 @@ describe('consumer Tailwind build', () => {
       expect(css).toContain('.bg-primary {');
       // ...and the parts that only exist because the scan found the whole component, not one string.
       expect(css).toContain('.control-h {');
-      expect(css).toContain('@container (width < 48rem)');
+      // `@container (width < 48rem)` (`@max-tablet`) is not asserted here: it was only ever
+      // reached through `Button`'s touch-target growth, which the operator override removed (see
+      // `Button.vue` and the README's Deviations) — nothing in the package emits it today, so
+      // there is nothing here for the scanner to find. `--container-tablet` itself is unchanged in
+      // `tailwind.css`, for a future component that needs the same 48rem edge.
       expect(css).toContain('.whitespace-nowrap {');
       // FormLayout's two-column breakpoint. A container-query variant whose `--container-*` key
       // is missing is dropped silently by Tailwind — the class ships, no rule is emitted, and the

@@ -823,10 +823,19 @@ Additions and departures from the design spec, and why.
   screen reader must hear the state) but the spec's states table gives the toggle _fill_ to
   `outline` alone — a pressed `primary`/`secondary`/`ghost`/`danger` button looks identical whether
   it is pressed or not, which is the trade-off worth knowing, not a bug.
-- **`Button` touch growth is the primary action's.** "Only primary action buttons grow to
-  `target-touch` (2.75rem)" below a 48rem container, so an `md` `primary` button grows and a
-  secondary, outline, ghost or danger action beside it keeps the 2.5rem control height it shares
-  with the inputs.
+- **`Button` never grows to the touch target; it always matches the input beside it** (operator
+  addition, 2026-09-25: "the height of the button is a bit taller than of the inputs… make all
+  scales match so sm button = sm input, base button = base input, large input = large button").
+  The spec's "Actions and forms" → Compact controls says "Controls keep their height on mobile.
+  Only primary action buttons grow to `target-touch` (2.75rem)" below a 48rem container. Every
+  sized control in this package already shared the `control-h-sm`/`control-h`/`control-h-lg`
+  tokens except `Button`, whose `md` `primary` variant grew to 2.75rem inside any `@container`
+  narrower than 48rem (`ButtonGroup`, `FormLayout`, the theme's `Section`) — so a primary button
+  next to an `md` input rendered taller than it, which is what the operator saw. That growth is
+  removed: a Button stays on the shared control-height scale at every variant and size, in every
+  container. The WCAG 2.5.8 24px minimum is still met at every size (`sm` is 2rem = 32px).
+  `--eldra-target-touch` and the `target-touch` utility are unchanged and still available for a
+  future component.
 - **`Link` has no `externalIcon` prop and no `@tabler/icons-vue` runtime dependency.** The arrow and
   external-link icons are both fixed by the spec's anatomy, not swappable the way `Button`'s
   `iconLeft`/`iconRight` are, so both are inline `<svg>`s using Tabler's own published path data —

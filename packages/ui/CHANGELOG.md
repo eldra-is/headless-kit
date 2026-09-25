@@ -30,6 +30,14 @@ Release-please writes the generated notes from commit messages and does not repl
   messages. The starter's `UiImage` (`examples/starter-nuxt/app/components/ui/UiImage.vue`) is now
   a thin wrapper over `Image` rather than its own hand-rolled `<img>` — see `README.md`'s
   Deviations section for the framing-contract ruling and why it is a wrapper, not a replacement.
+- **`Button` never grows past the shared control height** (operator addition, 2026-09-25: "make
+  all scales match so sm button = sm input, base button = base input, large input = large
+  button"). The design spec grows an `md` `primary` button to a 2.75rem touch target below a
+  48rem container; every other sized control already shared `control-h-sm`/`control-h`/
+  `control-h-lg` with `Input`, so that one growth was the reason a primary button next to an `md`
+  input rendered taller. `Button` now stays on the shared control-height scale at every variant
+  and size, in every container (README Deviations). `--eldra-target-touch` and the `target-touch`
+  utility are unchanged.
 - **Every enabled button shows `cursor: pointer`** (operator report, 2026-09-25), overriding
   Tailwind v4 preflight's `button { cursor: default }`: every live `Button` variant, the
   `Input`/`SearchBar`/`UnitInput`/`CurrencyInput` clear buttons, a live `QuantityStepper` +/-

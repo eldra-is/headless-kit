@@ -76,15 +76,13 @@ const meta = {
           '**Form layout**: a Button inside a `FormLayout` that is submitting turns into a loading',
           'button when its `type` is `submit`, and is disabled otherwise.',
           '',
-          '**Container queries**: an `md` **primary** button grows to the 2.75rem touch target when',
-          'an ancestor is a container (`@container`) narrower than 48rem — `ButtonGroup`,',
-          "`FormLayout` and the theme's `Section` all are. The spec grows the *primary action* only",
-          '("Controls keep their height on mobile. Only primary action buttons grow to',
-          '`target-touch`"), so a secondary, outline or ghost action in the same row keeps the',
-          '2.5rem control height it shares with the inputs beside it. A Button dropped straight into',
-          'a plain `<div>` has no container to measure, so it stays 2.5rem however narrow the page',
-          'gets. The spec measures the block, not the viewport, which is what makes a narrow',
-          'page-builder column behave like a phone.',
+          '**Control height**: a Button never leaves the shared `control-h-sm`/`control-h`/',
+          '`control-h-lg` scale the sized fields use — `sm` 2rem, `md` 2.5rem, `lg` 3rem, at every',
+          'variant and container width. The design spec grows an `md` **primary** button to a',
+          '2.75rem touch target below a 48rem container ("Controls keep their height on mobile.',
+          'Only primary action buttons grow to `target-touch`"); this package overrides that so an',
+          '`sm` button always matches an `sm` input, an `md` button an `md` input, and an `lg`',
+          "button an `lg` input (operator ruling, 2026-09-25; see the README's Deviations).",
           '',
           '**On coloured sections**: the variant inversions apply to the live states only. A',
           'disabled button keeps its `surface-strong` fill and `muted` text on a `primary` or',
@@ -133,7 +131,7 @@ export const Danger: Story = {
   render: single('Remove item'),
 };
 
-/** 2rem, 2.5rem and 3rem. An md *primary* button grows to 2.75rem when its container is under 48rem. */
+/** 2rem, 2.5rem and 3rem, at every variant and container width — the scale the sized inputs use. */
 export const Sizes: Story = {
   render: (args) => ({
     components: { Button },
@@ -307,9 +305,10 @@ export const LongContent: Story = {
 };
 
 /**
- * A 20rem container. The group wraps, and the md *primary* button grows to the 2.75rem touch target
- * because the container query measures the block, not the viewport; the outline action beside it
- * keeps the 2.5rem control height, which is the spec's "only primary action buttons grow".
+ * A 20rem container. The group wraps; both the primary and outline actions keep the 2.5rem
+ * control height they share with the inputs beside them, whatever the container width — the
+ * design spec's touch-target growth for a narrow md primary button is overridden here (README
+ * Deviations).
  */
 export const Narrow: Story = {
   render: () => ({
