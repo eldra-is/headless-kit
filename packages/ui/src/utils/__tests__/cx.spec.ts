@@ -106,6 +106,18 @@ describe('cx — custom @utility class groups', () => {
   it('lets a stock rounded utility replace eldra-link-radius', () => {
     expect(cx('eldra-link-radius', 'rounded-full')).toBe('rounded-full');
   });
+
+  // The defect: `text-variant-legend` and `text-variant-pill` shipped in `tailwind.css` (the
+  // `VariantPicker` legend and pill type styles) without a matching entry in this file's `text`
+  // array, so they fell into `tailwind-merge`'s own default text-*colour* group instead of the
+  // font-size one — `cx('text-variant-legend', 'text-lg')` kept both instead of the `text-lg`
+  // winning, and worse, `cx('text-variant-legend', 'text-red-500')` (a genuinely unrelated
+  // property) *dropped* the legend's type style, because tailwind-merge still read both as
+  // "text colour" and let the later one win.
+  it('lets a stock font-size utility replace the variant-picker type styles', () => {
+    expect(cx('text-variant-legend', 'text-lg')).toBe('text-lg');
+    expect(cx('text-variant-pill', 'text-lg')).toBe('text-lg');
+  });
 });
 
 describe('partClass', () => {

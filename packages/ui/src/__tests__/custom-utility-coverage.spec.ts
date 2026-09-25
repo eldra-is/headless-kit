@@ -34,3 +34,37 @@ describe('every custom @utility is covered by the cx() merge config', () => {
     expect(cx(name, name)).toBe(name);
   });
 });
+
+/**
+ * `cx(name, name)` above catches an utility with no class group at all, but not the sharper
+ * defect `text-variant-legend`/`text-variant-pill` actually shipped with: an `@utility text-*`
+ * (a type style — every one of these is a `font`/`font-size` shorthand, never a colour) that is
+ * missing from `src/utils/cx.ts`'s own `text` array falls through to `tailwind-merge`'s *default*
+ * built-in text-colour group instead of landing in no group at all — `cx(name, name)` still
+ * collapses to one token there (a colour utility conflicts with itself too), so that probe stayed
+ * green. The visible symptom is a stock font-size utility failing to replace it
+ * (`cx('text-variant-legend', 'text-lg')` kept both instead of `text-lg` winning) and, worse, an
+ * unrelated stock text-*colour* utility wrongly appearing to conflict with it
+ * (`cx('text-variant-legend', 'text-red-500')` dropped the legend's own type style, because
+ * tailwind-merge read both as "text colour"). Proven by mutation: temporarily removing
+ * `'variant-legend'` from the `text` array in `cx.ts` turns both assertions below red for
+ * `text-variant-legend` while every other type style stays green.
+ */
+describe('every custom text-* utility keeps stock font-size behaviour, not stock text-colour', () => {
+  const textUtilityNames = utilityNames.filter((name) => name.startsWith('text-'));
+
+  it('finds the type styles to check', () => {
+    expect(textUtilityNames.length).toBeGreaterThan(10);
+  });
+
+  it.each(textUtilityNames)('cx(%s, text-lg) lets the stock font size win', (name) => {
+    expect(cx(name, 'text-lg')).toBe('text-lg');
+  });
+
+  it.each(textUtilityNames)(
+    'cx(%s, text-red-500) keeps both — a text colour is not a font size',
+    (name) => {
+      expect(cx(name, 'text-red-500')).toBe(`${name} text-red-500`);
+    }
+  );
+});

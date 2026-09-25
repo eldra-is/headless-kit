@@ -44,6 +44,11 @@ const selectedOption = computed(() => props.options.find((option) => option.valu
  * sold out")'. The suffix reuses the shared `soldOut` message — lower-cased, since here it
  * continues a sentence ("Clay, sold out") rather than standing alone the way a badge's "Sold out"
  * does.
+ *
+ * `toLowerCase()` assumes `soldOut` has no interior capitals — true of `enUS`'s "Sold out" and
+ * `isIS`'s "Uppselt" today, but not guaranteed for every future locale (an initialism, say). A
+ * locale where mid-sentence lower-casing reads wrong needs a dedicated message key of its own
+ * (e.g. `soldOutSuffix`) rather than a transform of `soldOut`.
  */
 const soldOutSuffix = computed(() => m.value.soldOut.toLowerCase());
 

@@ -79,6 +79,8 @@ const twMerge = extendTailwindMerge<
             'search-meta',
             'search-title',
             'search-kbd',
+            'variant-legend',
+            'variant-pill',
           ],
         },
       ],
