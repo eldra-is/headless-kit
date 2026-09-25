@@ -16,6 +16,7 @@
  * that never installed it. `src/__tests__/veeValidateIsolation.spec.ts` asserts both halves.
  */
 export const componentNames = [
+  'Badge',
   'Button',
   'ButtonGroup',
   'Checkbox',
@@ -31,6 +32,7 @@ export const componentNames = [
   'RadioGroup',
   'SearchBar',
   'Select',
+  'StockBadge',
   'Switch',
   'Textarea',
   'UnitInput',

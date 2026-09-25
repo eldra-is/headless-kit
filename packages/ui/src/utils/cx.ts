@@ -82,6 +82,8 @@ const twMerge = extendTailwindMerge<
             'search-kbd',
             'variant-legend',
             'variant-pill',
+            'badge',
+            'stock-status',
           ],
         },
       ],

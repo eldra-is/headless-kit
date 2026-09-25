@@ -3,6 +3,8 @@
 // `<EldraButton>`.
 
 // Components
+export { default as Badge } from './components/badge/Badge.vue';
+export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
@@ -25,6 +27,15 @@ export { default as VariantPicker } from './components/variant-picker/VariantPic
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
 // Component types
+export type {
+  BadgePart,
+  BadgeProps,
+  BadgeTone,
+  BadgeVariant,
+  StockBadgePart,
+  StockBadgeProps,
+  StockLevel,
+} from './components/badge/types';
 export type {
   ButtonGroupPart,
   ButtonGroupProps,

@@ -49,6 +49,12 @@ export const isIS: UiMessages = {
   charactersLeft: (n: number) => `${n} ${singular(n) ? 'stafur' : 'stafir'} eftir`,
   overLimit: (n: number) => `Yfir hámarkinu um ${n}`,
   soldOut: 'Uppselt',
+  stockIn: 'Til á lager, sent út á 1–2 dögum',
+  stockLow: (n: number | null) =>
+    n === null ? 'Lítið til' : `Lítið til: aðeins ${n} ${singular(n) ? 'eintak' : 'eintök'} eftir`,
+  stockOut: 'Uppselt',
+  stockPreorder: (date?: string) =>
+    date === undefined || date === '' ? 'Forpöntun' : `Forpöntun, send út ${date}`,
   searchTheShop: 'Leitaðu í búðinni',
   searchSuggestions: 'Leitartillögur',
   searchProducts: 'Vörur',

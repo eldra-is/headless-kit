@@ -83,6 +83,7 @@ Every component supports all five of these; none hard-codes anything a store mig
 
    | Component         | CSS variables                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
    | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `Badge`           | `--eldra-badge-line-height` (default `1`) — the badge text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                        |
    | `Button`          | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                    |
    | `Checkbox`        | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                                                                            |
    | `FieldWrapper`    | `--eldra-field-note-line-height` (default `1.45`) — the line the help and error text share                                                                                                                                                                                                                                                                                                                                                                          |
@@ -94,6 +95,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `RadioGroup`      | `--eldra-radio-card-border-width` (default `1px`) and `--eldra-radio-card-radius` (default `radius-md`) for the card boundary; `--eldra-checkbox-border-width`/`-invalid` for the radio circle itself, shared with `Checkbox`                                                                                                                                                                                                                                       |
    | `SearchBar`       | `--eldra-search-panel-max-height` (default `32rem`, clamped to `70vh`), `--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-search-kbd-line`, `--eldra-input-radius`, `--eldra-field-border-width`, `--eldra-z-popover`, and `--eldra-popover-origin` (set by the panel itself from the placement it resolved to: `top left` below the field, `bottom left` above it)                                                                                 |
    | `Select`          | `--eldra-select-panel-max-height` (default `20rem`), `--eldra-select-panel-max-width` (default `22rem`, clamped to `90vw`), `--eldra-z-popover` (default `30`), `--eldra-field-radius`, `--eldra-field-border-width`, `--eldra-select-group-tracking`, `--eldra-select-option-line`, `--eldra-select-swatch-edge`, the `--eldra-select-match-*` trio, and `--eldra-popover-origin` (`top left` / `bottom left`, set by the panel from the placement it resolved to) |
+   | `StockBadge`      | `--eldra-stock-status-line` (default `1.4`) — the status line text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                |
    | `Switch`          | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                                                                                        |
    | `Textarea`        | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                          |
 
@@ -118,8 +120,9 @@ Every component supports all five of these; none hard-codes anything a store mig
 4. **A slot for every part that holds content** (`label`, `description`, `error`, `leading`,
    `trailing`, `empty`, `header`, `footer`, `item`, …), named after the part it replaces.
 5. **`as`**, on the components whose spec allows a different rendered element (`Button`, `Link`,
-   and the display/layout components landing in the next sub-project). `Button` and the future card
-   components render an `<a>` automatically when `href` is set, without needing `as` for that case.
+   `Badge`, and the rest of the display/layout components landing in this sub-project). `Button`
+   and the future card components render an `<a>` automatically when `href` is set, without
+   needing `as` for that case; `Badge` defaults to `<span>` and is never a link.
 
 ## Fields: the context a `FieldWrapper` provides
 
@@ -1229,3 +1232,21 @@ Additions and departures from the design spec, and why.
   `Form` in this entry validates asynchronously, so it has to own the focus move on a failed submit
   — on the first attempt nothing is marked `aria-invalid` yet for the layout to find. Without a way
   to turn the layout's own move off, a later refused submit would move focus twice.
+- **`StockBadge`'s four level icons are inline SVG path data, not an `icon` prop and not a runtime
+  `@tabler/icons-vue` dependency** (plan 2, task 1 decision). The spec fixes both the colour and
+  the icon per level ("`in` = `success` + circle-check", and so on), so there is nothing for a
+  consumer to choose; the `<path>` data for `circle-check`/`alert-triangle`/`circle-x`/`clock` is
+  copied from that package's outline set (MIT licensed) the same way `Button`'s spinner is a
+  hand-written SVG rather than a dependency on an icon package for one shape.
+- **`Badge`'s `outline` replaces the tone's fill entirely, rather than combining with it.** The
+  spec's States table (`Badge` → States) gives `outline` exactly one row — `background` fill,
+  1px inset `border-strong`, `text` text and icon — independent of `tone`/`variant`; there is no
+  "outline danger" or "outline sale" row. So `outline: true` always renders that one boundary
+  treatment, whatever `tone` or `variant` is also set, which is also why the icon-required dev
+  warning still checks the underlying `tone` rather than the rendered colour: an outlined
+  `danger` badge still needs its icon, even though outline hides the red fill.
+- **`Badge`'s `icon` prop takes an `IconComponent`, not the spec's `icon: string | null`.** Every
+  icon prop in this package takes a Vue component rather than a name string (see `IconComponent`'s
+  own doc comment) — `Button.iconLeft`/`iconRight`/`icon`, and now `Badge.icon` — so a consumer
+  never depends on this package shipping or naming an icon set. `StockBadge`'s four level icons
+  are the one exception, and are built in for the reason above.

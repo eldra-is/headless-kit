@@ -146,6 +146,28 @@
   letter-spacing: var(--eldra-text-code-tracking);
 }
 
+/* Badge type (spec "Badge" → Sizes): "0.8125rem, weight 600, line-height 1, letter-spacing
+   0.01em, no wrapping." The size and tracking already read the caption token exactly; the weight
+   reads the label token's 600 (the caption token's own weight is 400, which the badge does not
+   want); only the 1 line ratio has no token of its own, so — like `text-button-md`'s 1.2 — it is
+   a per-component variable with that literal default. */
+@utility text-badge {
+  font: var(--eldra-text-label-weight) var(--eldra-text-caption-size) /
+    var(--eldra-badge-line-height, 1) var(--eldra-font-body);
+  letter-spacing: var(--eldra-text-caption-tracking);
+}
+
+/* The stock status line's own text (spec "Badge" → Sizes, "Status line text" row): "0.875rem,
+   weight 600." Both numbers already read tokens (`text-label-weight` is 600, `text-body-sm-size`
+   is 0.875rem); the spec gives no line ratio for this row, so — the same shape as
+   `text-card-title`'s 1.4 — it is a per-component variable with a literal default. Unlike the
+   badge text above, the status line is a short sentence rather than a tag, so it is allowed to
+   wrap on a narrow card rather than forcing `whitespace-nowrap`. */
+@utility text-stock-status {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-stock-status-line, 1.4) var(--eldra-font-body);
+}
+
 /* Button type (spec "Button" → Sizes): weight 600 on a 1.2 line at every size, with the size's
    own font size. sm and md reuse the body-sm and body token sizes; lg's 1.0625rem sits between two
    type styles and has no token, so it is a per-component variable with that default. */

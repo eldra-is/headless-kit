@@ -85,6 +85,24 @@ export const enUS = {
   overLimit: (n: number) => `Over the limit by ${n}`,
   /** A product that cannot be bought. */
   soldOut: 'Sold out',
+  /** A `StockBadge`'s default copy for `level="in"` (spec "Badge" → Stock status line). */
+  stockIn: 'In stock, ships in 1–2 days',
+  /**
+   * A `StockBadge`'s default copy for `level="low"` (spec "Badge" → Stock status line): "Low
+   * stock: only 3 left" is the spec's own example with a quantity of 3. With no `quantity` there
+   * is nothing to count, so the copy drops the count rather than fabricate one.
+   */
+  stockLow: (n: number | null) => (n === null ? 'Low stock' : `Low stock: only ${n} left`),
+  /** A `StockBadge`'s default copy for `level="out"`. */
+  stockOut: 'Sold out',
+  /**
+   * A `StockBadge`'s default copy for `level="preorder"` (spec "Badge" → Stock status line): the
+   * spec's own example is "Pre-order, ships 14 Nov", but `StockBadge` has no `date` prop to fill
+   * that in — a store that knows the ship date passes it here or overrides the whole line with
+   * `message`. With no date this reads as plain "Pre-order".
+   */
+  stockPreorder: (date?: string) =>
+    date === undefined || date === '' ? 'Pre-order' : `Pre-order, ships ${date}`,
   /** The `SearchModal`'s field label. */
   searchTheShop: 'Search the shop',
   /** The `SearchBar`'s results-panel name, and the `SearchModal`'s. */

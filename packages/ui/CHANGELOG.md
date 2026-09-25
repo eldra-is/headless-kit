@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Badge` and `StockBadge`** — the first two components of the "display, commerce and layout"
+  sub-project (design spec's Badge section). `Badge` is a static, non-interactive `<span>` (or
+  `as`) for product flags, categories, materials and order states: six tones, `outline` and `pill`
+  shapes, a `variant` of `sale`/`new` that overrides `tone`, an optional decorative leading icon
+  (a dev warning when a `success`/`warning`/`danger` badge has none), and a visually hidden
+  `hiddenSuffix` that completes a symbol ("−20%" reads "−20% off"). `StockBadge` is the section's
+  inline stock status line — icon plus words, no fill — for the four `StockLevel`s (`in`, `low`,
+  `out`, `preorder`), each with a fixed colour, a built-in icon and a default message
+  (`messages.stockIn`/`stockLow(n)`/`stockOut`/`stockPreorder(date?)`), overridable per instance
+  with `message`.
 - **`Select`, `MultiSelect` and `SearchBar` panels are teleported and positioned against the
   viewport.** They were rendered inside the control, positioned `absolute`ly with `z-popover`, so
   any ancestor with `overflow: hidden` clipped them and any later stacking context (a sticky header
