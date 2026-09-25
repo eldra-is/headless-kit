@@ -26,7 +26,7 @@ export const isIS: UiMessages = {
   clear: 'Hreinsa',
   close: 'Loka',
   loading: 'Hleð',
-  optional: 'Valfrjálst',
+  optional: 'valfrjálst',
   required: 'Nauðsynlegt',
   search: 'Leita',
   selectPlaceholder: 'Veldu valkost',

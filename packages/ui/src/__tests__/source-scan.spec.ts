@@ -67,6 +67,11 @@ describe('consumer Tailwind build', () => {
       expect(css).toContain('.control-h {');
       expect(css).toContain('@container (width < 48rem)');
       expect(css).toContain('.whitespace-nowrap {');
+      // FormLayout's two-column breakpoint. A container-query variant whose `--container-*` key
+      // is missing is dropped silently by Tailwind — the class ships, no rule is emitted, and the
+      // form simply never pairs its fields — so the emitted condition is asserted, not the class.
+      expect(css).toContain('@container (width >= 36rem)');
+      expect(css).toContain('@container (width < 36rem)');
     }
   );
 

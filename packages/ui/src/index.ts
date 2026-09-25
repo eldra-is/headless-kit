@@ -5,6 +5,8 @@
 // Components
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
+export { default as FieldWrapper } from './components/field-wrapper/FieldWrapper.vue';
+export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
@@ -20,6 +22,16 @@ export type {
   ButtonSize,
   ButtonVariant,
 } from './components/button/types';
+export type {
+  FieldWrapperCounter,
+  FieldWrapperPart,
+  FieldWrapperProps,
+} from './components/field-wrapper/types';
+export type {
+  FormLayoutPart,
+  FormLayoutProps,
+  FormLayoutVariant,
+} from './components/form-layout/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
@@ -40,7 +52,7 @@ export { useControllableModel } from './composables/useControllableModel';
 
 // Form context. A `FormLayout` provides it; every Button below reads it, so a submitting form
 // shows its primary action loading and every other action disabled.
-export { FORM_SUBMITTING_KEY } from './components/form-layout/context';
+export { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './components/form-layout/context';
 
 // Field context. A `FieldWrapper` provides it; the controls inside it read their `id`,
 // `aria-describedby`, invalid and required state from it, so a bare `<Input />` needs no wiring.

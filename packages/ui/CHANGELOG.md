@@ -5,6 +5,36 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `FieldWrapper` — the wrapper every form control sits in: the visible `label` with its `required`
+  asterisk (`aria-hidden`, with the control's native `required` doing the announcing) or
+  `(optional)` mark, the control, the `error` with its `alert-circle` icon, and a foot row carrying
+  `help` at the start and a `counter` (`{ max, value }`, `danger` weight 600 once over the limit) at
+  the end. It provides `FIELD_KEY`, so a bare `<Input />` or `<Textarea />` inside it needs no `id`,
+  no `aria-describedby`, no `aria-invalid` and no `required` of its own — `describedBy` is the error
+  id **first**, then help, and only ids that actually render. The error is a plain `<p>` linked by
+  id, never a live region: announcing a failed submit belongs to the form. `full` spans both columns
+  of a two-column `FormLayout`. Slots: `default` (the control), `label`, `help`, `error`; per-part
+  `classes` for `root`, `label`, `requiredMark`, `optionalText`, `control`, `error`, `errorIcon`,
+  `foot`, `help` and `counter`.
+- `FormLayout` — a real `<form novalidate>` that arranges fields in a single column, a responsive
+  two-column grid or an inline row, and closes with an actions row. `heading` names it through
+  `aria-labelledby`, `ariaLabel` names one with no visible heading; `action` and `method` keep it
+  posting without scripting, and `submit` fires with the native `SubmitEvent` without preventing the
+  default. The two-column pairs appear from a **36rem container** (not a viewport width), so a form
+  in a narrow page-builder column behaves like a form on a phone; below it everything stacks and the
+  actions go full width with the primary first, without moving in the DOM. `submitting` provides
+  `FORM_SUBMITTING_KEY`, which makes the `type="submit"` Button loading and every other action
+  disabled while the fields stay editable. The form is a `@container`, which is what lets the md
+  Buttons inside it grow to the 2.75rem touch target on a narrow *form*. Slots: `default` (fields)
+  and `actions`; per-part `classes` for `root`, `heading`, `fields` and `actions`.
+- `FORM_LAYOUT_KEY` is exported alongside `FORM_SUBMITTING_KEY` and `FIELD_KEY`, so a consumer
+  composing its own field or form wrapper can join the same wiring.
+- The `optional` message is now `"optional"` (`"valfrjálst"`), lower case: the `FieldWrapper`
+  renders it in parentheses as the spec's `(optional)` mark.
+- `@eldrajs/ui/tailwind.css` gains `text-field-note` (the 0.8125rem / 1.45 line a field's help and
+  error text share, with no `font-weight` of its own) and the `--container-two-col` breakpoint
+  (36rem), which is the form layout's two-column edge — `@two-col:` and `@max-two-col:`.
+
 - `Textarea` — multi-line text entry that grows with its content from `minHeight` (`5rem` by
   default) up to 16rem, then scrolls: `field-sizing: content` where the runtime supports it, with a
   measured `rows` fallback (grown on `input` by comparing `scrollHeight` to `clientHeight`) where it

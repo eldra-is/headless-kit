@@ -73,6 +73,14 @@
      Declaring these keys does not disturb Tailwind's own `@sm`/`@md`/... container scale — the
      theme never resets `--container-*`. */
   --container-tablet: 48rem;
+
+  /* The two-column form layout's own edge (spec "Form layout" -> Sizes): "the form's container
+     >= 36rem", "measured on the containing block, so it works in narrow page-builder columns".
+     Like `--container-tablet` above it is a breakpoint with no layout width behind it, so it is
+     named here rather than borrowing whichever stock container key happens to be 36rem:
+     `@two-col:grid-cols-2` turns the pairs on, `@max-two-col:` is the spec's "narrow container
+     (< 36rem)" state, where the actions stack full width with the primary first. */
+  --container-two-col: 36rem;
 }
 
 /* Type styles: one utility per spec style, e.g. `text-body-sm`. */
@@ -193,6 +201,20 @@
   font-family: var(--eldra-font-body);
   font-size: var(--eldra-text-caption-size);
   line-height: var(--eldra-counter-line-height, 1.5);
+}
+
+/* A field's help and error text (spec "Field wrapper" -> Sizes): both are 0.8125rem on a 1.45
+   line, and they differ only in weight and colour (help 400 `muted`, error 500 `danger`) — so
+   they share one type utility. The size reuses the caption token; the 1.45 ratio has no token of
+   its own, so — exactly like `text-counter` above — it is a per-component variable with that
+   literal default. Deliberately no `font-weight` here for the same reason `text-counter` has
+   none: the component pairs it with the stock `font-normal`/`font-medium` utilities, which are
+   unambiguously ordered against each other, rather than layering a `font-weight` utility over a
+   shorthand `font` declaration. */
+@utility text-field-note {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-field-note-line-height, 1.45);
 }
 
 /* Control heights and targets. */

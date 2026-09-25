@@ -1,4 +1,4 @@
-import type { InjectionKey, Ref } from 'vue';
+import type { ComputedRef, InjectionKey, Ref } from 'vue';
 
 /**
  * Whether the form this subtree belongs to is currently submitting.
@@ -19,3 +19,18 @@ import type { InjectionKey, Ref } from 'vue';
  * ```
  */
 export const FORM_SUBMITTING_KEY: InjectionKey<Ref<boolean>> = Symbol('eldra-form-submitting');
+
+/**
+ * Which of the three arrangements the form around this subtree is using.
+ *
+ * `FormLayout` provides it; a `FieldWrapper` below injects it so its `full` prop can span both
+ * columns — and only in the layout where there *are* two columns. A `FieldWrapper` outside a form
+ * injects nothing and `full` does nothing, which is what a field in a page-builder column wants.
+ *
+ * ```ts
+ * import { FORM_LAYOUT_KEY } from '@eldrajs/ui';
+ * provide(FORM_LAYOUT_KEY, computed(() => 'two')); // ComputedRef<'single' | 'two' | 'inline'>
+ * ```
+ */
+export const FORM_LAYOUT_KEY: InjectionKey<ComputedRef<'single' | 'two' | 'inline'>> =
+  Symbol('eldra-form-layout');

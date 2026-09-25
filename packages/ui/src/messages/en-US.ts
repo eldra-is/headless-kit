@@ -17,8 +17,11 @@ export const enUS = {
   close: 'Close',
   /** Accompanies a spinner or a busy region. */
   loading: 'Loading',
-  /** Marks a field that may be left empty. */
-  optional: 'Optional',
+  /**
+   * Marks a field that may be left empty. The `FieldWrapper` renders it in parentheses, so the
+   * spec's optional mark reads "(optional)" — hence the lower case here, unlike the labels above.
+   */
+  optional: 'optional',
   /** Marks a field that must be filled in. */
   required: 'Required',
   /** The search control's own label. */
