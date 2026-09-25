@@ -110,9 +110,16 @@ export const Sizes: Story = {
   }),
 };
 
-/** A text skeleton at the current size instead of the price, while a page waits on the real
- * value. */
+/** A text skeleton at 35% width, at the current size, instead of the price, while a page waits on
+ * the real value. */
 export const Loading: Story = { args: { loading: true } };
+
+/** The loading skeleton's shimmer, disabled: shapes stay static under `prefers-reduced-motion:
+ * reduce` rather than sweeping (spec "Skeleton" → Behaviour & motion). */
+export const ReducedMotion: Story = {
+  parameters: { eldra: { reducedMotion: true } },
+  args: { loading: true },
+};
 
 /** A 20rem container. The combined kind (from, sale, unit) wraps across lines instead of
  * overflowing. */

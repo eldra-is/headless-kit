@@ -45,25 +45,71 @@ function toMajor(minorUnits: number): number {
 }
 
 /**
+ * `Intl.NumberFormat`'s constructor throws `RangeError` for a currency code it does not recognise
+ * — an unknown or malformed ISO 4217 code (`'XYZ1'`, `''`) — and this runs inside a `computed`,
+ * where a throw breaks the whole render, not just the price (task-2-fix-1.md item 2: "Never throw
+ * from a computed"). On failure, fall back to a plain decimal formatter and append the raw code
+ * after the number (`"1,234 XYZ1"`), and warn once per bad code in dev so the mistake is visible
+ * without taking the page down. `currencyFractionDigits` (used by `toMajor` above) already guards
+ * the same construction internally and defaults to 2, so it needs no change here.
+ *
+ * `lastWarnedInvalidCurrency` is a plain closure variable, not a `ref` — it exists only to
+ * de-duplicate the warning, never to drive a re-render — and it is scoped to this component
+ * instance (`<script setup>` re-runs per mount), so it neither leaks across unrelated `<Price>`s
+ * on the same page nor accumulates for the life of the app.
+ */
+let lastWarnedInvalidCurrency: string | null = null;
+function warnInvalidCurrency(code: string): void {
+  if (!import.meta.env?.DEV || lastWarnedInvalidCurrency === code) return;
+  lastWarnedInvalidCurrency = code;
+  console.warn(
+    `[@eldrajs/ui] <Price currency="${code}"> is not a valid ISO 4217 currency code; falling ` +
+      'back to plain number formatting.'
+  );
+}
+
+/**
  * `Intl.NumberFormat({ style: 'currency' })` already applies the currency's own fraction-digit
  * rule when formatting — no minor units for `ISK`/`JPY`, two for `USD` — so once `toMajor` has
  * converted the raw integer, the formatter needs nothing else to produce `"$48.00"` or `"6.990
- * kr."` exactly (spec "Price" → Variants, Locale row).
+ * kr."` exactly (spec "Price" → Variants, Locale row). `invalid` records whether construction fell
+ * back, so `formatAmount` below knows to append the raw code itself.
  */
-const formatter = computed(() =>
-  createNumberFormat({ locale: locale.value, style: 'currency', currency: currency.value })
-);
+const currencyFormat = computed<{ formatter: Intl.NumberFormat; invalid: boolean }>(() => {
+  try {
+    return {
+      formatter: createNumberFormat({
+        locale: locale.value,
+        style: 'currency',
+        currency: currency.value,
+      }),
+      invalid: false,
+    };
+  } catch {
+    warnInvalidCurrency(currency.value);
+    return {
+      formatter: createNumberFormat({ locale: locale.value, style: 'decimal' }),
+      invalid: true,
+    };
+  }
+});
 
-const formattedCurrent = computed(() => formatter.value.format(toMajor(props.amount)));
+function formatAmount(minorUnits: number): string {
+  const { formatter, invalid } = currencyFormat.value;
+  const formatted = formatter.format(toMajor(minorUnits));
+  return invalid ? `${formatted} ${currency.value}` : formatted;
+}
+
+const formattedCurrent = computed(() => formatAmount(props.amount));
 const formattedCompareAt = computed(() =>
-  props.compareAt != null ? formatter.value.format(toMajor(props.compareAt)) : ''
+  props.compareAt != null ? formatAmount(props.compareAt) : ''
 );
 
 /** Spec "Price" → Anatomy, part 4: "$5.10 / 100 g" — the formatted per-unit amount plus
  * `messages.perUnit`'s separator and the caller's own `per` text, rendered verbatim. */
 const formattedUnitLine = computed(() => {
   if (!props.unitPrice) return '';
-  const amount = formatter.value.format(toMajor(props.unitPrice.amount));
+  const amount = formatAmount(props.unitPrice.amount);
   return `${amount} ${messages.value.perUnit(props.unitPrice.per)}`;
 });
 
@@ -103,9 +149,22 @@ const SECTION =
   'group-data-[section=primary]/section:text-primary-contrast ' +
   'group-data-[section=accent]/section:text-accent-contrast';
 
+/**
+ * `w-full` applies only while `loading`. The skeleton below is `w-[35%]` (task-2-fix-1.md item
+ * 1), and a percentage width on a flex item cannot resolve against a flex container whose own
+ * width is `auto` — `inline-flex`'s ordinary shrink-to-fit sizing — so without this the skeleton
+ * silently collapses to 0 and renders invisible (confirmed empirically: both the `Loading` and
+ * `ReducedMotion` screenshots were blank before this was added). Giving the root a definite width
+ * exactly when there is a percentage child depending on one fixes it without affecting the
+ * ordinary (non-loading) inline-flex row, which has no such child.
+ */
 const rootClass = computed(() =>
   partClass(
-    cx('inline-flex flex-wrap items-baseline gap-x-2 gap-y-0', SIZE_CLASS[props.size]),
+    cx(
+      'inline-flex flex-wrap items-baseline gap-x-2 gap-y-0',
+      props.loading && 'w-full',
+      SIZE_CLASS[props.size]
+    ),
     props.classes,
     'root'
   )
@@ -143,12 +202,15 @@ const srLabelClass = computed(() => partClass('sr-only', props.classes, 'srLabel
 /**
  * Spec "Price" → States, Loading row: "text skeleton (`surface-strong`) at 35% width" — every
  * other column is blank, so loading replaces the whole price with one shape rather than a
- * skeleton per part. `eldra-skeleton` (`tailwind.css`) is the shimmer this component shares with
- * the `Skeleton` primitive a later task adds.
+ * skeleton per part. `w-[35%]` is the spec's own literal percentage, not a rem magnitude with a
+ * token to reach for (task-2-fix-1.md item 1), so it stays a percentage rather than a fixed
+ * width — the height still tracks the current type size via the relative `0.85em`.
+ * `eldra-skeleton` (`tailwind.css`) is the shimmer this component shares with the `Skeleton`
+ * primitive a later task adds.
  */
 const skeletonClass = computed(() =>
   partClass(
-    'eldra-skeleton inline-block align-middle rounded-sm h-[0.85em] w-14',
+    'eldra-skeleton inline-block align-middle rounded-sm h-[0.85em] w-[35%]',
     props.classes,
     'skeleton'
   )

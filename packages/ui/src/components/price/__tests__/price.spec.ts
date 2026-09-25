@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CURRENCY_KEY, LOCALE_KEY } from '../../../composables/useLocale';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
@@ -6,6 +6,7 @@ import Price from '../Price.vue';
 
 afterEach(() => {
   document.body.innerHTML = '';
+  vi.restoreAllMocks();
 });
 
 describe('Price — element and parts', () => {
@@ -73,6 +74,114 @@ describe('Price — formatting', () => {
     // 4800 minor units of USD is $48.00, not $4,800.00.
     const wrapper = mountWith(Price, { props: { amount: 4800, currency: 'USD', locale: 'en-US' } });
     expect(wrapper.get('[data-part="current"]').text()).not.toBe('$4,800.00');
+    wrapper.unmount();
+  });
+
+  it('renders three decimals for a 3-fraction-digit currency (BHD)', () => {
+    // BHD has 3 minor-unit digits, so 1_234_567 minor units is 1234.567 major units — asserted
+    // against Intl's own output (task-2-fix-1.md item 3), not a hard-coded string, so ICU data
+    // differences across platforms cannot break this test.
+    const expected = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BHD' }).format(
+      1234.567
+    );
+    const wrapper = mountWith(Price, {
+      props: { amount: 1_234_567, currency: 'BHD', locale: 'en-US' },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe(expected);
+    wrapper.unmount();
+  });
+});
+
+describe('Price — invalid currency', () => {
+  it('renders without throwing for an unrecognised ISO 4217 code', () => {
+    expect(() =>
+      mountWith(Price, { props: { amount: 123456, currency: 'XYZ1', locale: 'en-US' } })
+    ).not.toThrow();
+  });
+
+  it('falls back to a plain decimal number with the raw code appended', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 123456, currency: 'XYZ1', locale: 'en-US' },
+    });
+    const expectedNumber = new Intl.NumberFormat('en-US').format(1234.56);
+    expect(wrapper.get('[data-part="current"]').text()).toBe(`${expectedNumber} XYZ1`);
+    wrapper.unmount();
+  });
+
+  it('falls back the same way for an empty currency string', () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, currency: '', locale: 'en-US' } });
+    const expectedNumber = new Intl.NumberFormat('en-US').format(48);
+    // `.text()` trims trailing whitespace, so an empty code's trailing separator space is not
+    // visible here; the raw text content still carries it (the fallback shape is unconditional).
+    expect(wrapper.get('[data-part="current"]').text()).toBe(expectedNumber);
+    expect(wrapper.get('[data-part="current"]').element.textContent).toBe(`${expectedNumber} `);
+    wrapper.unmount();
+  });
+
+  it('warns in dev, naming the bad code', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Price, {
+      props: { amount: 100, currency: 'XYZ1', locale: 'en-US' },
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('XYZ1');
+    wrapper.unmount();
+  });
+
+  it('does not repeat the warning while the same instance keeps the same bad code', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Price, {
+      props: { amount: 100, currency: 'XYZ1', locale: 'en-US' },
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    // A prop change that leaves `currency` untouched must not re-run the currency formatter, so
+    // it cannot re-warn either — proving the guard is not merely "always warn once ever".
+    await wrapper.setProps({ amount: 999 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+
+  it('warns again for a different bad code on the same instance', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Price, {
+      props: { amount: 100, currency: 'XYZ1', locale: 'en-US' },
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    await wrapper.setProps({ currency: 'ABC2' });
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(String(warn.mock.calls[1]?.[0])).toContain('ABC2');
+    wrapper.unmount();
+  });
+
+  it('does not warn for a valid currency code', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Price, {
+      props: { amount: 4800, currency: 'USD', locale: 'en-US' },
+    });
+    expect(warn).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('leaves a valid currency formatted normally, with no code appended', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 4800, currency: 'USD', locale: 'en-US' },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+    wrapper.unmount();
+  });
+
+  it('applies the same fallback to compareAt and the unit-price line', () => {
+    const wrapper = mountWith(Price, {
+      props: {
+        amount: 123456,
+        compareAt: 150000,
+        currency: 'XYZ1',
+        locale: 'en-US',
+        unitPrice: { amount: 5000, per: '100 g' },
+      },
+    });
+    expect(wrapper.get('[data-part="compareAt"]').text()).toContain('XYZ1');
+    expect(wrapper.get('[data-part="unit"]').text()).toContain('XYZ1');
     wrapper.unmount();
   });
 });
@@ -284,6 +393,30 @@ describe('Price — loading', () => {
   it('shimmers with the shared eldra-skeleton utility on a surface-strong shape', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, loading: true } });
     expect(wrapper.get('[data-part="skeleton"]').classes()).toContain('eldra-skeleton');
+    wrapper.unmount();
+  });
+
+  it("is 35% wide, per the spec's Loading row, not a fixed width", () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, loading: true } });
+    const classes = wrapper.get('[data-part="skeleton"]').classes();
+    expect(classes).toContain('w-[35%]');
+    expect(classes).not.toContain('w-14');
+    wrapper.unmount();
+  });
+
+  it('gives the root a definite width while loading, so the 35% skeleton has something to resolve against', () => {
+    const loading = mountWith(Price, { props: { amount: 4800, loading: true } });
+    expect(loading.classes()).toContain('w-full');
+    loading.unmount();
+
+    const regular = mountWith(Price, { props: { amount: 4800 } });
+    expect(regular.classes()).not.toContain('w-full');
+    regular.unmount();
+  });
+
+  it("keeps the skeleton's height tied to the current type size", () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, loading: true } });
+    expect(wrapper.get('[data-part="skeleton"]').classes()).toContain('h-[0.85em]');
     wrapper.unmount();
   });
 

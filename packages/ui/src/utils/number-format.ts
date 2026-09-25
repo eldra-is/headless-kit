@@ -149,12 +149,13 @@ export function parseLocaleNumber(text: string, locale: string): number | null {
  * `JPY`, 3 for `KWD` — read from the runtime's own ICU data rather than a hand-maintained table,
  * the same way `localeSeparators` reads the separators.
  *
- * **A public helper, used by no component in this package.** `UnitInput` and `CurrencyInput` keep
- * the private library's own rule instead — `maxFraction` is `2` whatever the currency, so a field
- * shows what was typed rather than what the currency's minor unit allows. It is exported for a
- * consumer who wants the other rule: rounding an Icelandic price to two decimals and then
- * displaying it with none silently drops what the customer typed, and hard-coding 2 is exactly the
- * assumption that breaks in `is-IS`.
+ * A public helper, also used by `Price` (`toMajor`, converting a minor-unit integer to the major
+ * unit `Intl.NumberFormat` expects). `UnitInput` and `CurrencyInput` keep the private library's own
+ * rule instead — `maxFraction` is `2` whatever the currency, so a field shows what was typed rather
+ * than what the currency's minor unit allows. It is exported for a consumer who wants the other
+ * rule too: rounding an Icelandic price to two decimals and then displaying it with none silently
+ * drops what the customer typed, and hard-coding 2 is exactly the assumption that breaks in
+ * `is-IS`.
  *
  * The locale only picks which ICU data is consulted; the digit count is the currency's, so
  * `ISK` is 0 under `en-US` too.
