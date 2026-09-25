@@ -77,6 +77,45 @@ describe('hero block', () => {
     expect(img.attributes('data-eldra-framing-entry')).toBe('hero-1');
   });
 
+  it('applies the xl radius to the frame for the image-right variant', () => {
+    const wrapper = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...withImage, variant: 'image-right' } } })
+    );
+    expect(wrapper.get('[data-part="frame"]').classes()).toContain('rounded-xl');
+  });
+
+  /**
+   * `UiImage`'s `fill` prop (task-7-fix-1.md ruling 2): the background image must cover the
+   * section it sits behind, which needs `Image`'s root to fill the section (`absolute inset-0
+   * h-full w-full`) and its frame to fill the root (`h-full w-full`) rather than reserving its own
+   * aspect-ratio box — `Image`'s attribute-forwarding contract puts a caller's plain `class` on
+   * the root, but the old bare `class="absolute inset-0 h-full w-full object-cover"` landed on the
+   * `<img>` directly, so it silently stopped covering the section once routed through `Image`
+   * (review finding: "hero image-background no longer covers the section"). jsdom does not compute
+   * layout, so this asserts the classes/style that make that geometry hold, not the rendered
+   * pixels.
+   */
+  it('fills the section for the image-background variant (root/frame classes, no forced aspect-ratio)', () => {
+    const wrapper = mount(
+      Block,
+      mountOptions({
+        entry: { id: 'e1', data: { ...withImage, variant: 'image-background' } },
+      })
+    );
+    const root = wrapper.get('[data-part="root"]');
+    expect(root.classes()).toEqual(
+      expect.arrayContaining(['absolute', 'inset-0', 'h-full', 'w-full'])
+    );
+    const frame = wrapper.get('[data-part="frame"]');
+    expect(frame.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full']));
+    // `ratio="auto"` with no `media.width`/`height` (this wrapper never has them) resolves to the
+    // CSS keyword `auto` — no fixed aspect-ratio box fights the `h-full` above.
+    expect(frame.attributes('style')).toContain('aspect-ratio: auto');
+    const media = wrapper.get('[data-part="media"]');
+    expect(media.classes()).toEqual(expect.arrayContaining(['object-cover', 'h-full', 'w-full']));
+  });
+
   it('falls back to the built-in CTAs when the actions slot is empty', () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
     expect(wrapper.text()).toContain(mock.ctaLabel);

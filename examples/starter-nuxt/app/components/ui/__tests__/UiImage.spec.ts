@@ -110,4 +110,115 @@ describe('UiImage', () => {
     const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'A cozy living room' } });
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
+
+  describe('rounded (task-7-fix-1.md ruling 1)', () => {
+    it('applies no radius class by default', () => {
+      const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
+      const frame = wrapper.get('[data-part="frame"]');
+      expect(frame.classes()).not.toContain('rounded-lg');
+      expect(frame.classes()).not.toContain('rounded-xl');
+    });
+
+    it.each(['lg', 'xl'] as const)('forwards rounded="%s" to the frame', (rounded) => {
+      const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero', rounded } });
+      expect(wrapper.get('[data-part="frame"]').classes()).toContain(`rounded-${rounded}`);
+    });
+  });
+
+  describe('fill (task-7-fix-1.md ruling 2)', () => {
+    it('fills the nearest positioned ancestor: absolute inset-0 h-full w-full on root, h-full w-full on frame', () => {
+      const wrapper = mount(UiImage, {
+        props: { src: '/demo/hero.svg', alt: 'Hero', fill: true },
+      });
+      const root = wrapper.get('[data-part="root"]');
+      expect(root.classes()).toEqual(
+        expect.arrayContaining(['absolute', 'inset-0', 'h-full', 'w-full'])
+      );
+      const frame = wrapper.get('[data-part="frame"]');
+      expect(frame.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full']));
+      const media = wrapper.get('[data-part="media"]');
+      expect(media.classes()).toContain('object-cover');
+    });
+
+    it('resolves to ratio="auto" (no forced aspect-ratio) while filling', () => {
+      const wrapper = mount(UiImage, {
+        props: { src: '/demo/hero.svg', alt: 'Hero', fill: true, aspect: '16/9' },
+      });
+      // `fill` wins over `aspect` — the frame fills its ancestor, it does not reserve a box.
+      expect(wrapper.get('[data-part="frame"]').attributes('style')).toContain(
+        'aspect-ratio: auto'
+      );
+    });
+
+    it('does not apply the inline aspect-ratio fallback style while filling', () => {
+      const wrapper = mount(UiImage, {
+        props: { src: '/demo/hero.svg', alt: 'Hero', fill: true, aspect: '5/2' },
+      });
+      expect(wrapper.get('[data-part="root"]').attributes('style')).toBeUndefined();
+    });
+  });
+
+  describe('fit (task-7-fix-1.md ruling 3)', () => {
+    it('defaults to cover', () => {
+      const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
+      expect(wrapper.get('[data-part="media"]').classes()).toContain('object-cover');
+    });
+
+    it('maps fit="contain" to the media element, replacing cover', () => {
+      const wrapper = mount(UiImage, {
+        props: { src: '/demo/hero.svg', alt: 'Hero', fit: 'contain' },
+      });
+      const media = wrapper.get('[data-part="media"]');
+      expect(media.classes()).toContain('object-contain');
+      expect(media.classes()).not.toContain('object-cover');
+    });
+  });
+
+  describe('classes pass-through (task-7-fix-1.md ruling 3/4)', () => {
+    it('forwards an arbitrary classes.frame to the frame, merged with rounded', () => {
+      const wrapper = mount(UiImage, {
+        props: {
+          src: '/demo/hero.svg',
+          alt: 'Hero',
+          rounded: 'lg',
+          classes: { frame: 'max-h-[85vh]' },
+        },
+      });
+      const frame = wrapper.get('[data-part="frame"]');
+      expect(frame.classes()).toContain('max-h-[85vh]');
+      expect(frame.classes()).toContain('rounded-lg');
+    });
+
+    it("lets the caller's own classes.frame win over fill's forced h-full w-full", () => {
+      const wrapper = mount(UiImage, {
+        props: {
+          src: '/demo/hero.svg',
+          alt: 'Hero',
+          fill: true,
+          classes: { frame: 'h-1/2' },
+        },
+      });
+      // tailwind-merge collapses the "h-*" group, so the caller's own value wins outright.
+      expect(wrapper.get('[data-part="frame"]').classes()).toContain('h-1/2');
+    });
+
+    it("lets the caller's own classes.media win over fit's forced object-contain", () => {
+      const wrapper = mount(UiImage, {
+        props: {
+          src: '/demo/hero.svg',
+          alt: 'Hero',
+          fit: 'contain',
+          classes: { media: 'object-cover' },
+        },
+      });
+      expect(wrapper.get('[data-part="media"]').classes()).toContain('object-cover');
+    });
+
+    it('passes classes.root through untouched when fill is not set', () => {
+      const wrapper = mount(UiImage, {
+        props: { src: '/demo/hero.svg', alt: 'Hero', classes: { root: 'custom-root' } },
+      });
+      expect(wrapper.get('[data-part="root"]').classes()).toContain('custom-root');
+    });
+  });
 });

@@ -88,7 +88,8 @@ function onLightboxKeydown(event: KeyboardEvent): void {
           :src="image.url"
           :alt="image.altText ?? ''"
           aspect="1/1"
-          class="w-full rounded-md object-cover"
+          class="w-full"
+          :classes="{ frame: 'rounded-md' }"
         />
       </component>
     </div>
@@ -102,7 +103,12 @@ function onLightboxKeydown(event: KeyboardEvent): void {
         :class="[focusRing, 'mb-4 block w-full break-inside-avoid']"
         @click="openLightbox(imageIndex)"
       >
-        <UiImage :src="image.url" :alt="image.altText ?? ''" class="w-full rounded-md" />
+        <UiImage
+          :src="image.url"
+          :alt="image.altText ?? ''"
+          class="w-full"
+          :classes="{ frame: 'rounded-md' }"
+        />
       </component>
     </div>
 
@@ -134,7 +140,8 @@ function onLightboxKeydown(event: KeyboardEvent): void {
             :src="image.url"
             :alt="image.altText ?? ''"
             aspect="4/3"
-            class="w-full rounded-md object-cover"
+            class="w-full"
+            :classes="{ frame: 'rounded-md' }"
           />
         </component>
       </div>
@@ -162,7 +169,8 @@ function onLightboxKeydown(event: KeyboardEvent): void {
         <UiImage
           :src="currentImage.url"
           :alt="currentImage.altText ?? ''"
-          class="max-h-[85vh] w-auto object-contain"
+          fit="contain"
+          :classes="{ frame: 'max-h-[85vh]' }"
         />
         <div class="flex items-center gap-4">
           <Button variant="outline" size="sm" @click="previousImage">{{

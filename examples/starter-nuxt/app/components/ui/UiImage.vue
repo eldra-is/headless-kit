@@ -23,17 +23,38 @@
  *   an equivalent style from `focal`/`zoom` above.
  * - `priority`/`sizes` pass straight through.
  *
+ * **`rounded`/`fill`/`fit`/`classes` (fix round 1, see
+ * `.superpowers/sdd/2026-09-25-eldrajs-ui-plan-2/task-7-fix-1.md`).** `Image`'s attribute-
+ * forwarding contract puts a caller's plain `class`/`style` on the **root** — the figure/frame
+ * wrapper `Image` clips its content to — not on the `<img>` itself. A block that used to write
+ * `class="rounded-lg object-cover"` straight onto a bare `<img>` therefore needs a different way to
+ * reach the parts that actually own those concerns now: `frame` (which has `overflow-hidden`, so a
+ * radius on it visibly clips) and `media` (which owns `object-fit`). These four props are that way:
+ *
+ * - **`rounded`** forwards straight to `Image`'s own `rounded` prop (`'none' | 'lg' | 'xl'`,
+ *   default `'none'`) — the two presets the design spec's frame radius actually has.
+ * - **`fill`** is for a background image that has to cover its positioned ancestor (the hero
+ *   `image-background` variant): it sets `ratio="auto"` and adds `absolute inset-0 h-full w-full`
+ *   to `classes.root` and `h-full w-full` to `classes.frame`, so the frame's own height tracks its
+ *   *positioned ancestor* (via the `inset-0`/`h-full` chain) instead of trying to derive one from
+ *   `media`, which this wrapper never has `width`/`height` for. `media`'s own `object-cover`
+ *   (`Image`'s default) does the rest.
+ * - **`fit`** (`'cover' | 'contain'`, default `'cover'`) maps to `classes.media`, for a lightbox-
+ *   style full view that must never crop (the gallery lightbox's `contain`).
+ * - **`classes`** is `Image`'s own `classes` prop, passed straight through and merged with
+ *   whatever `rounded`/`fill`/`fit` above already set (the caller's own value for a part always
+ *   wins) — the general escape hatch for a radius `rounded` has no preset for (`rounded-full`,
+ *   `rounded-md`) or a frame-level size constraint neither `fill` nor `fit` covers (the gallery
+ *   lightbox's `max-h-[85vh]`).
+ *
  * `blocks/*` (`hero`, `image`, `gallery`, `feature-grid`, `testimonials`, `navigation`) keep
- * calling this with the same props they always have — see plan ruling in
- * `.superpowers/sdd/2026-09-25-eldrajs-ui-plan-2/task-7-report.md`. One difference a caller may
- * notice: `class`/`style` passed to `UiImage` now land on `Image`'s root (the figure/frame
- * wrapper), not the `<img>` itself — `object-cover`/`object-contain` classes some blocks still
- * pass are now redundant (`Image`'s `media` part always covers its frame) rather than load-
- * bearing, and sizing classes (`h-12 w-12`, `max-h-[85vh] w-auto`) now size the frame that wraps
- * the image rather than the image directly.
+ * calling this with the same core props they always have (`src`, `alt`, `framing`, `entryId`,
+ * `fieldPath`, `aspect`, `sizes`, `priority`); the ones that relied on a `rounded-*`/`object-*`
+ * class landing on the `<img>` now use `rounded`/`fill`/`fit`/`classes` instead — see each block's
+ * own diff and `docs/starter-kit.md`'s `UiImage` row.
  */
 import { computed } from 'vue';
-import { Image, type ImageRatio } from '@eldrajs/ui';
+import { Image, cx, type ImagePart, type ImageRatio } from '@eldrajs/ui';
 import { imageFramingAttrs, type ImageFraming } from '@eldrajs/theme-vue';
 
 const props = withDefaults(
@@ -48,11 +69,26 @@ const props = withDefaults(
     entryId?: string;
     fieldPath?: string;
     /** `aspect-ratio` value, e.g. `"16/9"`. One of the six presets `Image` supports maps to its
-     * `ratio` prop; anything else becomes an inline `aspect-ratio` style on the root. */
+     * `ratio` prop; anything else becomes an inline `aspect-ratio` style on the root. Ignored
+     * when `fill` is set. */
     aspect?: string;
     sizes?: string;
     /** Marks an above-the-fold image: `loading="eager"` + `fetchpriority="high"`. */
     priority?: boolean;
+    /** Frame corner radius — `Image`'s own `rounded` prop. For a radius it has no preset for
+     * (`rounded-full`, `rounded-md`), use `classes.frame` instead. */
+    rounded?: 'none' | 'lg' | 'xl';
+    /** Fills the nearest positioned ancestor (`absolute inset-0 h-full w-full` on the root,
+     * `h-full w-full` on the frame, `ratio="auto"`) instead of reserving its own aspect-ratio box
+     * — for a background image behind other content. The ancestor needs `position: relative` (or
+     * similar) and a real height of its own for `inset-0`/`h-full` to resolve against. */
+    fill?: boolean;
+    /** `Image`'s media covers its frame by default (`cover`); `contain` letterboxes instead, for a
+     * full, uncropped view (a lightbox). */
+    fit?: 'cover' | 'contain';
+    /** Passed straight through to `Image`'s own `classes` prop, merged with whatever `rounded`/
+     * `fill`/`fit` above already set — the caller's own value for a part always wins. */
+    classes?: Partial<Record<ImagePart, string>>;
   }>(),
   {
     framing: null,
@@ -61,6 +97,10 @@ const props = withDefaults(
     aspect: undefined,
     sizes: '100vw',
     priority: false,
+    rounded: 'none',
+    fill: false,
+    fit: 'cover',
+    classes: undefined,
   }
 );
 
@@ -76,17 +116,39 @@ const ASPECT_TO_RATIO: Record<string, ImageRatio> = {
 };
 
 const ratio = computed<ImageRatio>(() => {
+  if (props.fill) return 'auto';
   if (!props.aspect) return 'auto';
   return ASPECT_TO_RATIO[props.aspect] ?? 'auto';
 });
 
-/** Only for an `aspect` with no matching preset — none of the blocks currently pass one, but this
- * keeps the prop's old "any `w/h` string" contract intact rather than silently ignoring it. */
+/** Only for an `aspect` with no matching preset, and never while `fill` is set (which owns the
+ * root's sizing entirely) — none of the blocks currently pass one, but this keeps the prop's old
+ * "any `w/h` string" contract intact rather than silently ignoring it. */
 const rootStyle = computed(() => {
+  if (props.fill) return undefined;
   if (props.aspect && !(props.aspect in ASPECT_TO_RATIO)) {
     return { aspectRatio: props.aspect };
   }
   return undefined;
+});
+
+const FILL_ROOT_CLASS = 'absolute inset-0 h-full w-full';
+const FILL_FRAME_CLASS = 'h-full w-full';
+
+/** `fill`/`fit` set `root`/`frame`/`media` first; the caller's own `classes` prop is merged on top
+ * of each (via `cx`, so a real conflict resolves in the caller's favour) rather than replacing it
+ * outright, and every other part passes through untouched. */
+const mergedClasses = computed<Partial<Record<ImagePart, string>>>(() => {
+  const base = props.classes ?? {};
+  const result: Partial<Record<ImagePart, string>> = { ...base };
+  if (props.fill) {
+    result.root = cx(FILL_ROOT_CLASS, base.root);
+    result.frame = cx(FILL_FRAME_CLASS, base.frame);
+  }
+  if (props.fit === 'contain') {
+    result.media = cx('object-contain', base.media);
+  }
+  return result;
 });
 
 const media = computed(() => ({ src: props.src, alt: props.alt }));
@@ -122,8 +184,10 @@ const framingDataAttrs = computed(() => {
     :ratio="ratio"
     :focal="focal"
     :zoom="zoom"
+    :rounded="rounded"
     :sizes="sizes"
     :priority="priority"
+    :classes="mergedClasses"
     :style="rootStyle"
     v-bind="framingDataAttrs"
   />

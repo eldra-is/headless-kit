@@ -28,6 +28,11 @@ describe('image block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  it('applies the lg radius to the frame', () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
+    expect(wrapper.get('[data-part="frame"]').classes()).toContain('rounded-lg');
+  });
+
   it('renders nothing when no image is set (caption alone)', () => {
     const wrapper = mount(
       Block,

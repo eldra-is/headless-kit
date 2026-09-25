@@ -1335,7 +1335,38 @@ Additions and departures from the design spec, and why.
   `imageFramingAttrs`' `data-eldra-framing*` marker attributes forward from `UiImage` to `Image`,
   never that helper's own `style` — `Image`'s attribute-forwarding rule (below) puts a caller's
   `style` on the root, not the media element, and `Image` already derives an equivalent style from
-  `focal`/`zoom`. One visible difference a block author may notice: `class`/`style` passed to
-  `UiImage` now land on `Image`'s root (the figure/frame wrapper) rather than the `<img>` itself, so
-  an `object-cover`/`object-contain` class some blocks still pass is now redundant — `Image`'s media
-  part always covers its own frame — rather than load-bearing.
+  `focal`/`zoom`. `class`/`style` passed to `UiImage` land on `Image`'s root (the figure/frame
+  wrapper) rather than the `<img>` itself.
+- **Fix round 1 (task-7-fix-1.md, 2026-09-25): `UiImage` gained `rounded`/`fill`/`fit`/`classes`,
+  and every block that needs a radius, a background fill, or an uncropped view was updated to use
+  them.** The first round's own Deviations entry (above) claimed a block's leftover `rounded-*`/
+  `object-cover`/`object-contain` class was now merely "redundant" once `class`/`style` moved to
+  `Image`'s root — that was wrong. `Image`'s `frame` (not its root) is the part with
+  `overflow-hidden`, so a `rounded-*` class stuck on the root clipped nothing and every rounded
+  corner in the starter went square; the hero's `image-background` variant's
+  `class="absolute inset-0 h-full w-full object-cover"` landed on the root too, but with no
+  `aspect`/dimensions the frame it wraps had no definite height for that `h-full` to resolve
+  against, so the background image stopped covering the section. Caught in review, not by any
+  test — nothing exercised a legacy Tailwind radius/object-fit class against `Image`'s actual
+  clip/cover contract, and only the packaged Storybook stories were re-baselined, never the
+  starter's own rendered blocks. Fixed with four additions to `UiImage`, all optional and all
+  mapped onto `Image`'s own `classes` prop (never onto `class`/`style`, which stay `Image`'s root):
+  - **`rounded`** (`'none' | 'lg' | 'xl'`, default `'none'`) forwards straight to `Image`'s own
+    `rounded` prop.
+  - **`fill`** (`boolean`, default `false`) is for a background image that has to cover its
+    positioned ancestor: `ratio="auto"` plus `absolute inset-0 h-full w-full` on `classes.root` and
+    `h-full w-full` on `classes.frame`, so the frame's height comes from the ancestor via the
+    `inset-0`/`h-full` chain instead of needing `media.width`/`height` (which this wrapper never
+    has). Used by the hero block's `image-background` variant.
+  - **`fit`** (`'cover' | 'contain'`, default `'cover'`) maps to `classes.media`, for a lightbox-
+    style full view that must never crop. Used by the gallery block's lightbox, alongside
+    `classes.frame: 'max-h-[85vh]'` for the height cap that used to sit on the `<img>` directly.
+  - **`classes`** passes straight through to `Image`'s own `classes` prop (merged with whatever
+    `rounded`/`fill`/`fit` set, caller's value always wins) — the escape hatch for a radius `Image`
+    has no preset for (`rounded-full` on the testimonials avatars, `rounded-md` on
+    gallery/feature-grid thumbnails, neither of which is one of `Image`'s two presets).
+    Regression coverage: a `[data-part="frame"]` radius assertion per affected block (`hero`,
+    `gallery`, `feature-grid`, `testimonials`, `image`), a hero test asserting the `fill` classes and
+    the resulting `aspect-ratio: auto` on the background variant, a gallery test asserting the
+    lightbox's `object-contain`/`max-h-[85vh]`, and a `UiImage.spec.ts` contract test per prop with
+    mutation checks (break the mapping, watch the test fail, restore).

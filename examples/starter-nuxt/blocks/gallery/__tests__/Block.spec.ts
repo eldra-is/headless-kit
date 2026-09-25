@@ -52,6 +52,37 @@ describe('gallery block', () => {
     }
   );
 
+  it.each(['grid', 'masonry', 'carousel'] as const)(
+    'applies the md radius to every thumbnail frame in the %s variant',
+    (variant) => {
+      const wrapper = mount(
+        Block,
+        mountOptions({ entry: { id: 'e1', data: { ...withImages, variant } } })
+      );
+      const frames = wrapper.findAll('[data-part="frame"]');
+      expect(frames.length).toBeGreaterThan(0);
+      for (const frame of frames) expect(frame.classes()).toContain('rounded-md');
+    }
+  );
+
+  /**
+   * The lightbox's full-image view must never crop (task-7-fix-1.md ruling 3: "gallery lightbox
+   * constraint lost"). `fit="contain"` maps to `Image`'s `media` part; the height cap that used to
+   * sit on the `<img>` itself (`max-h-[85vh]`) now has to sit on the `frame` `Image` wraps it in,
+   * since a caller's `classes` land on named parts, not the media element directly.
+   */
+  it('lets the lightbox image show uncropped, capped at 85vh on the frame', async () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImages } }));
+    await wrapper.findAll('button')[0]!.trigger('click');
+    await nextTick();
+
+    const dialog = wrapper.get('dialog');
+    const media = dialog.get('[data-part="media"]');
+    expect(media.classes()).toContain('object-contain');
+    expect(media.classes()).not.toContain('object-cover');
+    expect(dialog.get('[data-part="frame"]').classes()).toContain('max-h-[85vh]');
+  });
+
   it('renders plain (non-interactive) thumbnails when lightbox is disabled', () => {
     const wrapper = mount(
       Block,

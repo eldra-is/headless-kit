@@ -91,7 +91,8 @@ function linkProps(href: string, as: Component | string | undefined): Record<str
           :src="item.image.url"
           :alt="item.image.altText ?? ''"
           aspect="1/1"
-          class="h-12 w-12 rounded-md object-cover"
+          class="h-12 w-12"
+          :classes="{ frame: 'rounded-md' }"
         />
         <h3 class="text-text mt-4 text-lg font-semibold">{{ item.title }}</h3>
         <p v-if="item.body" class="text-muted mt-2">{{ item.body }}</p>

@@ -78,6 +78,30 @@ describe('Image — ratio', () => {
     expect(wrapper.get('[data-part="frame"]').attributes('style')).toContain('aspect-ratio: auto');
     wrapper.unmount();
   });
+
+  /**
+   * task-7-fix-1.md ruling 2 (hero `image-background`'s "fill" mode, wired through the starter's
+   * `UiImage`): `ratio="auto"` must not fight a caller's own `classes.frame` sizing override —
+   * the frame's `aspect-ratio: auto` has no effect once the frame's height comes from somewhere
+   * else (a `classes.frame: 'h-full'` override filling a positioned ancestor), so nothing here
+   * needs to special-case it; this pins that down so a future change to the ratio/frame-sizing
+   * interaction cannot silently reintroduce a fight between them. jsdom does not compute layout, so
+   * this asserts the classes/style that make the geometry hold (the same limit every other class-
+   * based assertion in this file has), not rendered pixels.
+   */
+  it('a classes.frame size override composes with ratio="auto" instead of being overridden by it', () => {
+    const wrapper = mountWith(Image, {
+      props: { ratio: 'auto', media: MEDIA, classes: { frame: 'h-full' } },
+    });
+    const frame = wrapper.get('[data-part="frame"]');
+    expect(frame.attributes('style')).toContain('aspect-ratio: auto');
+    expect(frame.classes()).toContain('h-full');
+    // The media still covers whatever box the frame (now sized by its ancestor, not by an
+    // aspect-ratio) ends up with — `object-cover` plus `h-full`/`w-full` is unconditional.
+    const media = wrapper.get('[data-part="media"]');
+    expect(media.classes()).toEqual(expect.arrayContaining(['object-cover', 'h-full', 'w-full']));
+    wrapper.unmount();
+  });
 });
 
 describe('Image — focal point and zoom', () => {
@@ -365,6 +389,47 @@ describe('Image — narrow container', () => {
     const host = wrapper.element.closest('[data-eldra-narrow-host]') as HTMLElement;
     expect(host).not.toBeNull();
     expect(wrapper.find('[data-part="frame"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+});
+
+/**
+ * task-7-fix-1.md ruling 5 (kept light, as the ruling asks): spec "Image" → Behaviour & motion,
+ * "no autoplay with sound" and 2.2.2's keyboard-pause requirement both come from the browser's own
+ * native `<video controls>` here — there is no `autoplay` attribute at all, so pause is native
+ * controls the keyboard already operates, and captions are the caller's own `<track>` responsibility
+ * via the forwarded attrs this test also checks.
+ */
+describe('Image — video', () => {
+  const VIDEO_MEDIA: ImageMedia = {
+    src: '/demo/lookbook.mp4',
+    type: 'video',
+    alt: 'Lookbook reel',
+  };
+
+  it('renders a <video controls playsinline> with no autoplay', () => {
+    const wrapper = mountWith(Image, { props: { media: VIDEO_MEDIA } });
+    const video = wrapper.get('[data-part="media"]');
+    expect(video.element.tagName).toBe('VIDEO');
+    expect(video.attributes('src')).toBe(VIDEO_MEDIA.src);
+    expect(video.attributes('controls')).toBe('');
+    expect(video.attributes('playsinline')).toBe('');
+    expect(video.attributes('autoplay')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('forwards attrs (e.g. a caller-supplied <track>-bearing data attribute) to the video element', () => {
+    const wrapper = mountWith(Image, {
+      props: { media: VIDEO_MEDIA },
+      attrs: { 'data-testid': 'lookbook-video' },
+    });
+    expect(wrapper.get('[data-part="media"]').attributes('data-testid')).toBe('lookbook-video');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations', async () => {
+    const wrapper = mountWith(Image, { props: { media: VIDEO_MEDIA } });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });

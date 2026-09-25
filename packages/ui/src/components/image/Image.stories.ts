@@ -231,6 +231,15 @@ export const Priority: Story = {
  * on the real image. */
 export const Loading: Story = { args: { ratio: '4x3', loading: true } };
 
+/** `media.type: 'video'` renders a `<video controls playsinline>` instead of an `<img>` — no
+ * `autoplay`, so pause is the browser's own native keyboard-operable controls (spec "Image" →
+ * Behaviour & motion / Accessibility, 2.1.1 / 2.2.2). Kept light per the task brief: an empty `src`
+ * is enough to show the frame/controls structure, since this package ships no video asset of its
+ * own and the harness runs offline. */
+export const Video: Story = {
+  args: { media: { src: '', type: 'video', alt: 'A lookbook video, no sound' }, ratio: '16x9' },
+};
+
 /** A 20rem container. The frame scales with its column at any width (1.4.10) instead of
  * overflowing or clipping oddly. */
 export const Narrow: Story = {

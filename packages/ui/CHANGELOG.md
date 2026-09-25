@@ -30,6 +30,12 @@ Release-please writes the generated notes from commit messages and does not repl
   messages. The starter's `UiImage` (`examples/starter-nuxt/app/components/ui/UiImage.vue`) is now
   a thin wrapper over `Image` rather than its own hand-rolled `<img>` — see `README.md`'s
   Deviations section for the framing-contract ruling and why it is a wrapper, not a replacement.
+  Fix round 1 (`task-7-fix-1.md`): `UiImage` gained `rounded`/`fill`/`fit`/`classes`, mapped onto
+  `Image`'s `rounded` prop and `classes.frame`/`classes.media`, so every block that needs a
+  radius (`hero`, `gallery`, `feature-grid`, `testimonials`, `image`), a background fill
+  (`hero`'s `image-background` variant) or an uncropped view (the gallery lightbox) still gets
+  one now that a caller's plain `class`/`style` land on `Image`'s root rather than the `<img>`
+  itself — see `README.md`'s Deviations section.
 - **`Button` never grows past the shared control height** (operator addition, 2026-09-25: "make
   all scales match so sm button = sm input, base button = base input, large input = large
   button"). The design spec grows an `md` `primary` button to a 2.75rem touch target below a

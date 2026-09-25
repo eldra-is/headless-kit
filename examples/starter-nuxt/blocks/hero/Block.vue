@@ -82,7 +82,7 @@ const secondaryLinkAs = computed(() => routerLinkAs(secondaryCtaHref.value));
         :framing="framing"
         :entry-id="entryId"
         field-path="image"
-        class="absolute inset-0 h-full w-full object-cover"
+        fill
       />
       <div
         class="from-text/85 via-text/55 to-text/35 absolute inset-0 bg-gradient-to-t"
@@ -147,8 +147,9 @@ const secondaryLinkAs = computed(() => routerLinkAs(secondaryCtaHref.value));
         :entry-id="entryId"
         field-path="image"
         :aspect="variant === 'image-right' ? '4/3' : '16/9'"
+        rounded="xl"
         :class="[
-          'w-full rounded-xl object-cover shadow-md',
+          'w-full shadow-md',
           variant === 'image-right' ? 'md:order-2' : 'mx-auto mt-10 max-w-3xl',
         ]"
       />

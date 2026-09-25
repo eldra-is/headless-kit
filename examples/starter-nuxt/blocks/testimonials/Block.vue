@@ -84,7 +84,8 @@ function initialsOf(name: string | undefined): string {
               :src="item.avatar.url"
               :alt="''"
               aspect="1/1"
-              class="h-10 w-10 rounded-full object-cover"
+              class="h-10 w-10"
+              :classes="{ frame: 'rounded-full' }"
             />
             <span
               v-else
@@ -125,7 +126,8 @@ function initialsOf(name: string | undefined): string {
             :src="item.avatar.url"
             :alt="''"
             aspect="1/1"
-            class="h-10 w-10 rounded-full object-cover"
+            class="h-10 w-10"
+            :classes="{ frame: 'rounded-full' }"
           />
           <span
             v-else

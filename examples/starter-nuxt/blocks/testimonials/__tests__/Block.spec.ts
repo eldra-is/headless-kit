@@ -44,6 +44,17 @@ describe('testimonials block', () => {
     expect(wrapper.text()).not.toContain('FB');
   });
 
+  it('applies the full radius to the avatar frame, in both the grid and carousel layouts', () => {
+    const data = { ...mock, items: [{ ...mock.items[0], avatar: { url: '/demo/avatar-1.svg' } }] };
+    for (const variant of ['grid', 'carousel'] as const) {
+      const wrapper = mount(
+        Block,
+        mountOptions({ entry: { id: 'e1', data: { ...data, variant } } })
+      );
+      expect(wrapper.get('[data-part="frame"]').classes()).toContain('rounded-full');
+    }
+  });
+
   it('renders without an author instead of crashing (a freshly-placed block seeds a blank item)', async () => {
     const data = { ...mock, items: [{ quote: undefined, author: undefined, role: undefined }] };
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data } }));

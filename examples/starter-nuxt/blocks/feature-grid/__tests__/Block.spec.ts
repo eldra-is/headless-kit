@@ -48,6 +48,13 @@ describe('feature-grid block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  it('applies the md radius to every item image frame', () => {
+    const wrapper = mount(Block, mountWithIcons({ id: 'e1', data: withImages }));
+    const frames = wrapper.findAll('[data-part="frame"]');
+    expect(frames.length).toBe(withImages.items.length);
+    for (const frame of frames) expect(frame.classes()).toContain('rounded-md');
+  });
+
   it.each(['cards', 'plain'] as const)(
     'renders the %s variant with no axe violations, from the bare mock.json (regression net for a freshly-inserted block)',
     async (variant) => {
