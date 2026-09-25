@@ -512,7 +512,7 @@ function readResponseBody(response: Response): Promise<unknown> {
   return response.text();
 }
 
-function resolveApiBaseUrl(options: EldraClientOptions): string {
+export function resolveApiBaseUrl(options: EldraClientOptions): string {
   return (
     resolveRuntimeValue(options.apiBaseUrl) ??
     readFirstEnvValue(resolveRuntimeValue(options.env), apiBaseUrlEnvKeys) ??
@@ -531,7 +531,7 @@ function resolveCheckoutUrl(options: EldraClientOptions): string | undefined {
   );
 }
 
-function resolveOrgId(options: EldraClientOptions): string | undefined {
+export function resolveOrgId(options: EldraClientOptions): string | undefined {
   return (
     resolveRuntimeValue(options.orgId) ??
     readFirstEnvValue(resolveRuntimeValue(options.env), orgIdEnvKeys)
