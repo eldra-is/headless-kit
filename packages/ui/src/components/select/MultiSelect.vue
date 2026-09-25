@@ -199,6 +199,12 @@ const {
   canOpen: () => !props.disabled && !props.readonly,
   placement: props.placement,
   teleport: props.teleport,
+  // Spec → Keyboard: "Tab moves from the search field (or the trigger) to the footer's Clear, then
+  // Done, with the popover still open." A teleported panel is no longer after the trigger in the
+  // DOM, so that walk has to be restored — but only where the control does not already put focus
+  // in the panel itself: a searchable multi-select focuses its search field on open, and from
+  // there the footer is the browser's own next stop.
+  tabRedirect: () => !searchable.value,
   matchWidth: true,
   onOpen: () => {
     listbox.resetTypeahead();
@@ -635,9 +641,11 @@ const emptyText = computed(() =>
         </span>
       </button>
 
-      <!-- `data-eldra-overlay-owner` makes `useOverlay` count this button as part of the overlay:
-           it sits between the trigger and the panel in the tab order, and the spec's own Tab table
-           says the popover stays open all the way to the footer's buttons. -->
+      <!-- `data-eldra-overlay-owner` makes `useOverlay` count this button as part of the overlay,
+           so reaching it never closes the popover — the spec's own Tab table says the popover stays
+           open all the way to the footer's buttons. It is a *part of the overlay outside the panel*
+           in the sense `useOverlay` means: the panel itself is teleported away, and `usePopover`'s
+           `tabRedirect` walks from here into it rather than out of the control. -->
       <button
         v-if="showClear"
         :id="clearId"

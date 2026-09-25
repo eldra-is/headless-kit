@@ -18,9 +18,8 @@ Release-please writes the generated notes from commit messages and does not repl
   longer reaches the panel (`data-part` and the `classes` prop still do, and so does
   `#<control-id>-panel`); `--eldra-*` overrides must be set on `:root` rather than on a wrapper
   `<div>`, because the panel no longer inherits from one; and the panel is no longer in document
-  order after its trigger, so sequential `Tab` from a **non-searchable** `MultiSelect`'s trigger
-  now leaves the control instead of stepping into the footer's Clear and Done (both still reachable
-  by pointer, and both actions also on the keyboard). New `teleport` prop on all three controls —
+  order after its trigger, so the `Tab` walk into it is restored by `usePopover`'s new
+  `tabRedirect` rather than by the browser (see below). New `teleport` prop on all three controls —
   `true` (default), a CSS selector string, or `false` for the old in-place rendering.
 - **The `SearchBar`'s results panel is now exactly as wide as its field.** It always looked that
   way, but only because its containing block happened to stop it: it is a shrink-to-fit box with a
@@ -29,6 +28,24 @@ Release-please writes the generated notes from commit messages and does not repl
   is what the spec's "Matches the field's width" asks for. `Select`'s panel keeps the floor only,
   and can now really grow to its own `min(22rem, 90vw)` the way its spec describes; in place it
   could never exceed its trigger.
+- **`Tab` still walks into a teleported panel that has tab stops.** Sequential focus follows the
+  DOM, and the panel has left it — so `usePopover`'s new `tabRedirect` puts back exactly two
+  steps: `Tab` from the control moves focus to the panel's first focusable, and `Shift+Tab` on that
+  first focusable moves it back to the trigger. `Tab` on the panel's **last** focusable is left
+  alone, so focus leaves for the page and the popup closes behind it — an exit in both directions,
+  which is what keeps this a redirect and not a keyboard trap (WCAG 2.1.2). A non-searchable
+  `MultiSelect` therefore still walks trigger → footer Clear → Done exactly as the spec's Keyboard
+  table describes; searchable controls, which already move focus into the panel on open, are
+  untouched. One visible change: while the popover is open, the trigger's own clear button is not a
+  `Tab` stop (the footer's Clear does the same job), and it is back in the order once the popover
+  closes.
+- **A `<dialog>` teleport target is now chosen by `:modal`, not just by `open`.** Only a dialog
+  opened with `showModal()` is in the top layer, and a non-modal `<dialog open>` can sit inside a
+  modal one; the nearest ancestor that claims the top layer wins. Where no ancestor claims it — or
+  the engine does not implement `:modal` — the nearest open dialog is still used, which is the
+  cheaper mistake of the two.
+- **`useOverlay` returns `isInside(node)`**, the same question its closing rules ask: trigger,
+  content, or anything under a `data-eldra-overlay-owner` matching the content's id.
 - **`usePopover` gained `teleport`, and `useFloating` gained `strategy`.** `usePopover` returns
   `teleportTo` and `teleportDisabled` for a `<Teleport>` around your own panel, resolving the
   enclosing open `<dialog>` for you and staying disabled until mount so the pair is SSR-safe.

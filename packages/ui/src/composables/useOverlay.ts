@@ -36,6 +36,15 @@ export interface UseOverlayReturn {
   focusFirst(): void;
   /** Every focusable element inside the content, in document order. */
   focusables(): HTMLElement[];
+  /**
+   * Whether a node counts as part of this overlay: the trigger, the content, or anything under an
+   * element carrying `data-eldra-overlay-owner="<the content's id>"`.
+   *
+   * The same question the closing rules ask themselves, exposed because a consumer moving focus
+   * around a teleported overlay has to ask it too — `usePopover`'s `Tab` walk decides from it
+   * whether focus is still inside the control or has left it.
+   */
+  isInside(node: EventTarget | null): boolean;
 }
 
 /**
@@ -170,5 +179,5 @@ export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
   watch(open, (isOpen) => (isOpen ? attach() : detach()), { immediate: true });
   onScopeDispose(detach);
 
-  return { close, focusFirst, focusables };
+  return { close, focusFirst, focusables, isInside };
 }

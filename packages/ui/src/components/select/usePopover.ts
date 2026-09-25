@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, onMounted, ref, type ComputedRef, type Ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
 import { useOverlay } from '../../composables/useOverlay';
 import { registerOpen, unregisterOpen } from './openRegistry';
@@ -32,6 +32,36 @@ export interface UsePopoverOptions {
    * On `body` neither can happen, and `z-popover` is then measured against the page.
    */
   teleport?: boolean | string;
+  /**
+   * Keep the panel in the `Tab` walk while it is teleported. Read on every keystroke, so a control
+   * whose panel only sometimes holds focusables can answer per state.
+   *
+   * Sequential focus follows the **DOM**, and a teleported panel is no longer after its control in
+   * it — so `Tab` from the control would step past the panel to whatever comes next on the page,
+   * and the popup would close with its own controls never reached. Two of this package's panels
+   * have real tab stops in them (a multi-select's footer Clear and Done; whatever a consumer puts
+   * in the `SearchBar`'s row slot), and the design spec's Multi-select Keyboard table is explicit
+   * that `Tab` walks "from the search field (or the trigger) to the footer's Clear, then Done, with
+   * the popover still open".
+   *
+   * Turn this on and `usePopover` restores exactly that walk, and nothing more:
+   *
+   * - `Tab` while focus is in the control but not in the panel moves focus to the panel's **first**
+   *   focusable;
+   * - `Shift+Tab` on the panel's first focusable moves it back to the trigger;
+   * - `Tab` on the panel's **last** focusable is left alone — focus leaves for the next thing on
+   *   the page, and `useOverlay` closes the popup behind it.
+   *
+   * That last one is what keeps this a redirect rather than a focus trap: there is an exit forward
+   * (past the last row) and an exit backward (`Shift+Tab` to the trigger, then on), so WCAG 2.1.2
+   * is satisfied — a keyboard user is never held anywhere. It is also why nothing here is a
+   * `focusin` correction: only the two boundary keystrokes are touched, and every other `Tab`
+   * inside the panel is the browser's own.
+   *
+   * Off by default, and inert while the panel is not teleported (in place, the DOM order is
+   * already right) or holds no focusable at all.
+   */
+  tabRedirect?: boolean | (() => boolean);
   /** Ran while opening, after the registry slot is claimed: reset state, emit `open`. */
   onOpen?: () => void;
   /** Ran while closing, after the registry slot is released: reset state, emit `close`. */
@@ -93,9 +123,10 @@ export interface UsePopoverReturn {
  * - **Closing** (`useOverlay`): an outside pointer press, focus leaving, `Escape`. Non-modal, so
  *   nothing is trapped and `Tab` always moves on.
  * - **Getting out of the way of the page** (`teleport`): the panel is rendered through a
- *   `<Teleport>` to `body` — or to the open `<dialog>` the trigger is in, which is the one place
+ *   `<Teleport>` to `body` — or to the modal `<dialog>` the trigger is in, which is the one place
  *   `body` would be *behind* — and positioned with floating-ui's `fixed` strategy, so no ancestor's
- *   `overflow: hidden` clips it and no later stacking context paints over it.
+ *   `overflow: hidden` clips it and no later stacking context paints over it. `tabRedirect` puts a
+ *   panel that has real tab stops back into the `Tab` walk it left with its place in the DOM.
  * - **Positioning** (`useFloating`), plus the `--eldra-popover-origin` the entrance keyframes read,
  *   so a panel that flips after floating-ui measures changes a custom property rather than its
  *   `animation-name` (which would replay the entrance).
@@ -112,6 +143,60 @@ export interface UsePopoverReturn {
  * What stays with each control is what actually differs: which rows there are, what choosing one
  * does, and which element the popup is anchored to.
  */
+/**
+ * Whether an element is a dialog the browser has put in its **top layer**.
+ *
+ * `:modal` is the only way to ask: a `<dialog>` has the `open` attribute whether it was shown with
+ * `show()` (an ordinary in-flow element, which clips and stacks like any other) or with
+ * `showModal()` (top layer, above every z-index, with a backdrop), and nothing else in the DOM
+ * tells the two apart. Engines that do not implement `:modal` answer `false` here — happy-dom
+ * parses the selector and never matches it, jsdom does not implement `<dialog>` modality at all —
+ * which is what the caller's fallback is for.
+ *
+ * Wrapped in a `try`: a selector an engine cannot parse is a `SyntaxError`, not a `false`.
+ */
+function isTopLayer(element: Element): boolean {
+  try {
+    return element.matches(':modal');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The `<dialog>` a panel anchored to `anchor` has to be teleported *into* rather than escape, or
+ * `null` when there is none.
+ *
+ * A **modal** dialog is the one place `document.body` is the wrong target: the dialog is in the top
+ * layer, so a panel on the body would be painted behind it and no `z-index` could raise it. So the
+ * nearest open ancestor dialog that is actually in the top layer wins — which is not always the
+ * nearest one, since a non-modal `<dialog open>` may sit inside a modal one.
+ *
+ * When **no** ancestor dialog claims the top layer, the nearest open one is still the answer. That
+ * case is ambiguous — either they really are all non-modal, or the engine does not implement
+ * `:modal` and cannot say — and the two mistakes are not equally bad. Teleporting into a dialog
+ * that did not need it still escapes everything between the control and that dialog, and the
+ * dialog is a box the panel had no business overflowing anyway; teleporting to `body` out of a
+ * dialog that *was* modal puts the panel behind it, invisibly, which is the very bug this whole
+ * mechanism exists to fix. There is no engine-independent probe to break the tie —
+ * `CSS.supports('selector(:modal)')` answers `true` for nonsense in happy-dom — so the safe
+ * mistake is the one taken. A non-modal `<dialog open>` is in any case close to hypothetical here:
+ * the design spec's non-negotiable 2 opens every modal surface with `showModal()`, and says the
+ * non-modal popups are not dialogs at all.
+ */
+function topLayerDialog(anchor: HTMLElement): HTMLElement | null {
+  const nearest = anchor.closest<HTMLElement>('dialog[open]');
+  if (nearest === null) return null;
+  for (
+    let dialog: HTMLElement | null = nearest;
+    dialog !== null;
+    dialog = dialog.parentElement?.closest<HTMLElement>('dialog[open]') ?? null
+  ) {
+    if (isTopLayer(dialog)) return dialog;
+  }
+  return nearest;
+}
+
 export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   const { trigger, content } = options;
   const canOpen = (): boolean => options.canOpen?.() !== false;
@@ -135,7 +220,7 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     options.onClose?.();
   }
 
-  useOverlay({
+  const overlay = useOverlay({
     open: isOpen,
     trigger,
     content,
@@ -172,7 +257,8 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     if (!isMounted.value) return 'body';
     if (typeof teleport === 'string') return teleport;
     void isOpen.value;
-    return trigger.value?.closest('dialog[open]') ?? document.body;
+    const anchor = trigger.value;
+    return (anchor === null ? null : topLayerDialog(anchor)) ?? document.body;
   });
 
   const { styles: floatingStyles, placement } = useFloating(trigger, content, {
@@ -184,6 +270,67 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     // either way, so the panel follows a trigger that scrolls under it.
     strategy: teleport === false ? 'absolute' : 'fixed',
   });
+
+  // --- keeping the teleported panel in the Tab walk ------------------------------------------------
+
+  const wantsTabRedirect = (): boolean => {
+    const setting = options.tabRedirect ?? false;
+    return typeof setting === 'function' ? setting() : setting;
+  };
+
+  /**
+   * The two boundary keystrokes of the walk described on the `tabRedirect` option: into the panel
+   * from the control, and back out of its first row to the trigger. Everything else about `Tab` is
+   * left to the browser, which is what keeps this a redirect rather than a trap.
+   *
+   * It listens in the **capture** phase, before the control's own `keydown` reaches its handler:
+   * `useListbox`'s `Tab` case asks the caller to close (the `SearchBar` does), and a popup that has
+   * already closed has nothing left to walk into. Propagation is stopped only on the two keystrokes
+   * actually redirected, so every other `Tab` arrives at the control untouched.
+   */
+  function onTabKeyDown(event: KeyboardEvent): void {
+    if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!isOpen.value || teleportDisabled.value || !wantsTabRedirect()) return;
+
+    const panel = content.value;
+    const active = document.activeElement;
+    if (panel === null || active === null) return;
+
+    // A panel with no tab stop of its own is not in the walk at all: there is nothing to walk into,
+    // and stepping past it is the right answer.
+    const first = overlay.focusables()[0];
+    if (first === undefined) return;
+
+    if (event.shiftKey) {
+      // Backwards out of the panel's first row. Anywhere else in the panel, the browser's own
+      // reverse order is already correct.
+      if (active !== first) return;
+      event.preventDefault();
+      event.stopPropagation();
+      trigger.value?.focus();
+      return;
+    }
+
+    // Forwards, from the control into the panel. `isInside` rather than `trigger.contains`, so a
+    // part of the overlay that is not in the panel either — a multi-select's clear button, which
+    // claims the panel's id — walks into the panel instead of out of the control.
+    if (panel.contains(active) || !overlay.isInside(active)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    first.focus();
+  }
+
+  const attachTabRedirect = (): void => {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('keydown', onTabKeyDown, true);
+  };
+
+  const detachTabRedirect = (): void => {
+    if (typeof document === 'undefined') return;
+    document.removeEventListener('keydown', onTabKeyDown, true);
+  };
+
+  watch(isOpen, (open) => (open ? attachTabRedirect() : detachTabRedirect()), { immediate: true });
 
   function open(activate?: (wasOpen: boolean) => void): void {
     if (!canOpen()) return;
@@ -239,6 +386,7 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   onBeforeUnmount(() => {
     unregisterOpen(closeFromRegistry);
     detachTriggerRelease();
+    detachTabRedirect();
   });
 
   /**

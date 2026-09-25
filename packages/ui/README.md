@@ -288,7 +288,8 @@ a consumer whose control needs the same six things rather than reassembling them
   per-instance handle) and closes whatever held it;
 - **the teleport** — `teleport` (default `true`) returns `teleportTo` and `teleportDisabled` to
   put on a `<Teleport>` around the panel, and switches `useFloating` to the `fixed` strategy to
-  match. See [Layering](#layering) below for what it is for and how to turn it off;
+  match; `tabRedirect` keeps a panel that has tab stops inside the `Tab` walk it left with its
+  place in the DOM. See [Layering](#layering) below for both, and for how to turn the teleport off;
 - **`useOverlay`** — the outside-press/focus-leaves/`Escape` closing rules, non-modal, so nothing
   traps focus and `Tab` always moves on;
 - **`useFloating`** — positioning, plus the `--eldra-popover-origin` the entrance keyframes read
@@ -327,25 +328,46 @@ that scrolls under it. On `body` the panel is a child of the root stacking conte
 `z-popover` (`--eldra-z-popover`, default `30`) means what the spec's layer table says it means,
 above `z-sticky` (`20`) and below `z-drawer` (`40`).
 
-Three things follow from the move, and each is a real consequence rather than a detail:
+Four things follow from the move, and each is a real consequence rather than a detail:
 
-- **An open native `<dialog>` is the exception, and is handled.** A modal dialog renders in the
-  browser's _top layer_, above every `z-index` on the page, so a panel on `body` would be behind
-  the dialog that opened it and no `z-index` could help. When the control sits inside one
-  (`closest('dialog[open]')`), the panel is teleported into **that dialog** instead — same escape
-  from clipping and stacking, same top layer. The target is resolved on every open, so a control
-  that is sometimes in a dialog and sometimes not gets the right one each time.
+- **A modal native `<dialog>` is the exception, and is handled.** A dialog opened with
+  `showModal()` renders in the browser's _top layer_, above every `z-index` on the page, so a panel
+  on `body` would be behind the dialog that opened it and no `z-index` could help. When the control
+  sits inside one, the panel is teleported into **that dialog** instead — same escape from clipping
+  and stacking, same top layer. The nearest open ancestor `<dialog>` that matches `:modal` wins,
+  which is not always the nearest one (a non-modal `<dialog open>` can sit inside a modal one); if
+  none claims the top layer — either none is modal, or the engine does not implement `:modal` — the
+  nearest open dialog is used, because teleporting into a dialog that did not need it costs far
+  less than teleporting out of one that did. **The target is resolved on every open**, not once:
+  `closest()` answers about the DOM as it is, so a control that is sometimes inside an open dialog
+  and sometimes not gets the right answer each time.
+- **The target itself has to be a clean frame.** A teleport target you name yourself — and the
+  enclosing `<dialog>`, when there is one — becomes the panel's containing block if it has a
+  `transform`, `filter`, `perspective`, `backdrop-filter`, `contain: paint/layout/strict/content`
+  or `will-change` on any of those: `position: fixed` then resolves against **that element**, not
+  the viewport, and its `overflow` clips the panel exactly like any other ancestor. The starter's
+  `UiDrawer` is one such element (it slides on a `transform`). Point `teleport` at something plain,
+  or leave it at `body`.
 - **Custom properties are no longer inherited from around the control.** Set `--eldra-*` overrides
   on `:root` (which is what [Customisation](#customisation) asks for anyway), not on a wrapper
   `<div>`. A consumer with their own top-layer elements sets `--eldra-z-popover` there.
-- **The panel is no longer in document order after its control.** Nothing the components do with
-  the keyboard changed — `Tab` is still never consumed, `Escape` still closes, focus leaving still
-  closes — but sequential focus order is the browser's, and it follows the DOM. A searchable
-  `Select` or `MultiSelect` moves focus into the panel's search field on open, so `Tab` walks the
-  panel as before; in a **non-searchable** `MultiSelect`, focus stays on the trigger and `Tab` now
-  leaves the control (closing the popup) rather than stepping into the footer's Clear and Done,
-  which stay reachable by pointer, and whose actions are also on the keyboard (`Backspace`/`Delete`
-  clears, `Escape` closes). The same applies to the `SearchBar`'s "Clear recent searches" row.
+- **The panel is no longer in document order after its control, so the `Tab` walk is restored by
+  hand.** Sequential focus order is the browser's and it follows the DOM; left alone, `Tab` from
+  the trigger would step past the teleported panel to the next thing on the page and close the
+  popup with its own controls never reached — which the spec's Multi-select Keyboard table forbids
+  ("Tab moves from the search field (or the trigger) to the footer's Clear, then Done, with the
+  popover still open"). `usePopover`'s **`tabRedirect`** puts exactly those two boundary steps back:
+  `Tab` from the control moves focus to the panel's first focusable, and `Shift+Tab` on that first
+  focusable moves it back to the trigger. Everything between is the browser's own order.
+
+  **This is a redirect, not a trap.** `Tab` on the panel's _last_ focusable is left entirely alone:
+  focus leaves for the next thing on the page and `useOverlay` closes the popup behind it. So there
+  is an exit forwards (past the last row) and an exit backwards (`Shift+Tab` to the trigger, then
+  on), which is what WCAG 2.1.2 asks for — no keyboard user is ever held anywhere, and nothing
+  corrects focus after the fact. Controls that already move focus into the panel on open (any
+  searchable `Select` or `MultiSelect`) are untouched: their order was already right. Turn it on
+  with `tabRedirect` when your own panel holds tab stops; it is inert when the panel is rendered in
+  place or has none.
 
 `teleport` is a prop on all three controls and an option on `usePopover`: `true` (default), a CSS
 selector string for a target of your own, or `false` to keep the old in-place `absolute` rendering
@@ -987,12 +1009,13 @@ Additions and departures from the design spec, and why.
   root, on the strength of the spec's own "Don't place a select inside a container that clips
   overflow" — a rule a store owner cannot be asked to hold, since the container is usually a card
   or a sticky header they did not write. `Select`, `MultiSelect` and `SearchBar` now render their
-  panel through a `<Teleport>` to `body` (or to the open `<dialog>` the control sits in) with
+  panel through a `<Teleport>` to `body` (or to the modal `<dialog>` the control sits in) with
   floating-ui's `fixed` strategy. `data-part` and `classes` still reach it — both are on the
   element — but a descendant selector rooted above the control does not, custom properties set on
   a wrapper are no longer inherited, and the panel is no longer in document order after its
-  trigger. [Layering](#layering) has the whole list, including what that last one costs and what
-  it does not. `teleport: false` restores the old shape.
+  trigger, so the `Tab` walk into it is `usePopover`'s `tabRedirect` rather than the browser's.
+  [Layering](#layering) has the whole list, including why that redirect is not a focus trap and
+  what a teleport target of your own has to avoid. `teleport: false` restores the old shape.
 - **`MultiSelect`'s parts include the footer's.** The brief's part list stops at the tags; the
   spec's anatomy draws a footer ("live count · Clear (link button) · Done (primary sm)") and its
   acceptance criteria test it, so `footer`, `footerCount`, `footerClear` and `footerDone` are parts
@@ -1002,13 +1025,15 @@ Additions and departures from the design spec, and why.
 - **`MultiSelect`'s placeholder default is the spec's `"Any"`** (`is-IS`: `"Allt"`), not
   `"Select options"`. New messages with it: `selected` ("Selected", which names the tag list beside
   the field's own label), `selectedCount(n)` ("4 selected"), `noneSelected` and `done`.
-- **`MultiSelect`'s clear button belongs to the popover while it is open.** The spec's Tab table
-  walks "from the search field (or the trigger) to the footer's Clear, then Done, with the popover
-  still open", and the trigger's own clear button sits between the trigger and the panel in the tab
-  order. It therefore carries `data-eldra-overlay-owner="<the panel's id>"`, which is how
-  `useOverlay` already recognises a part of an overlay that is not inside its content element, so
-  tabbing through it does not close the popover. `Tab` itself is never consumed: focus landing
-  outside the control is what closes it, which is also what closes it past Done.
+- **`MultiSelect`'s clear button belongs to the popover while it is open.** It carries
+  `data-eldra-overlay-owner="<the panel's id>"`, which is how `useOverlay` recognises a part of an
+  overlay that is not inside its content element, so focus or a pointer press landing on it does
+  not close the popover. The spec's Tab table walks "from the search field (or the trigger) to the
+  footer's Clear, then Done, with the popover still open"; the panel is teleported, so that walk is
+  `usePopover`'s `tabRedirect` rather than DOM order (see [Layering](#layering)), and it steps from
+  the trigger — or from this button — into the panel. While the popover is open the trigger's own
+  clear button is therefore not a `Tab` stop; the footer's Clear does the same job, and the button
+  is back in the walk as soon as the popover closes.
 - **`Backspace` in a `MultiSelect`'s empty search field removes the last tag.** Not in the spec's
   keyboard table — it is the convention every chip input follows — and it is guarded on the query
   being empty, so it never eats a character the user meant to delete.

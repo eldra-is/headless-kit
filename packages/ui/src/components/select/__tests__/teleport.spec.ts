@@ -330,4 +330,228 @@ describe('inside an open native <dialog>', () => {
     const panel = panelOf(wrapper.find('[data-part="trigger"]').element);
     expect(panel.element.parentElement).toBe(document.body);
   });
+
+  /**
+   * `showModal()` and `show()` both set the `open` attribute, and nothing else in the DOM tells
+   * them apart — only `:modal` does, and only a modal dialog is in the top layer. happy-dom parses
+   * the selector and never matches it (jsdom does not implement modality at all), so this teaches
+   * the two dialogs the single fact a real engine knows, the same way `test/setup.ts` guards the
+   * `showModal()` implementation itself.
+   */
+  function declareModal(dialog: HTMLDialogElement, modal: boolean): void {
+    const native = dialog.matches.bind(dialog);
+    // The cast is the DOM lib's type-predicate overload of `matches`, which a plain
+    // `(selector) => boolean` cannot satisfy; the behaviour is the ordinary boolean one.
+    dialog.matches = ((selector: string): boolean =>
+      selector === ':modal' ? modal : native(selector)) as Element['matches'];
+  }
+
+  it('prefers the modal dialog when a non-modal one is nearer', async () => {
+    const modal = openDialog();
+    const inner = document.createElement('dialog');
+    modal.append(inner);
+    inner.show?.();
+    inner.setAttribute('open', '');
+    declareModal(modal, true);
+    declareModal(inner, false);
+
+    const wrapper = mountSelect({}, inner);
+    await press(triggerOf(wrapper));
+
+    // The nearest open dialog is `inner`, but it is an ordinary in-flow element: it clips and
+    // stacks like any other, and teleporting into it would escape nothing. The top layer is the
+    // outer one's.
+    const panel = panelOf(wrapper.find('[data-part="trigger"]').element);
+    expect(panel.element.parentElement).toBe(modal);
+    expect(panel.element.parentElement).not.toBe(inner);
+  });
+
+  it('keeps the nearest open dialog when nothing above it claims the top layer', async () => {
+    // Either they are all really non-modal or the engine cannot answer `:modal`, and nothing tells
+    // the two apart — so the nearest open dialog is kept, which is the safe mistake of the two
+    // (see `topLayerDialog`). This is also every run in happy-dom, where `:modal` never matches.
+    const plain = document.createElement('dialog');
+    document.body.append(plain);
+    hosts.push(plain);
+    plain.setAttribute('open', '');
+    declareModal(plain, false);
+
+    const wrapper = mountSelect({}, plain);
+    await press(triggerOf(wrapper));
+
+    const panel = panelOf(wrapper.find('[data-part="trigger"]').element);
+    expect(panel.element.parentElement).toBe(plain);
+  });
+
+  it('keeps a real modal dialog where the engine cannot answer :modal', async () => {
+    // Plain happy-dom: `matches(":modal")` is `false` for a dialog that really is modal. The
+    // fallback is what stops that from throwing every panel onto the body behind its own dialog.
+    const dialog = openDialog();
+    expect(dialog.matches(':modal')).toBe(false);
+
+    const wrapper = mountSelect({}, dialog);
+    await press(triggerOf(wrapper));
+    expect(panelOf(wrapper.find('[data-part="trigger"]').element).element.parentElement).toBe(
+      dialog
+    );
+  });
+});
+
+describe('the Tab walk into a teleported panel', () => {
+  /**
+   * Sequential focus follows the DOM, and a teleported panel is no longer after its control in it.
+   * Left alone, `Tab` from the trigger would step past the panel to the next thing on the page and
+   * the popup would close with its own controls never reached — which the design spec's
+   * Multi-select Keyboard table forbids: "Tab moves from the search field (or the trigger) to the
+   * footer's Clear, then Done, with the popover still open."
+   *
+   * `usePopover`'s `tabRedirect` restores exactly the two boundary steps and nothing else, so there
+   * is an exit in both directions (past the last row forwards, `Shift+Tab` to the trigger
+   * backwards) and WCAG 2.1.2's no-keyboard-trap rule holds.
+   */
+  const tab = (from: Element, shiftKey = false): KeyboardEvent => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    from.dispatchEvent(event);
+    return event;
+  };
+
+  async function openMulti(props: Record<string, unknown> = {}) {
+    const wrapper = mountWith(MultiSelect, {
+      props: { options: OPTIONS, searchable: false, ...props },
+      attrs: NAME,
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    const trigger = wrapper.find('[data-part="trigger"]').element as HTMLButtonElement;
+    trigger.focus();
+    await press(wrapper.find('[data-part="trigger"]'));
+    return { wrapper, trigger, panel: () => panelOf(trigger) };
+  }
+
+  it('walks from a non-searchable MultiSelect trigger into the panel, and back again', async () => {
+    const { trigger, panel } = await openMulti();
+    const clear = panel().find('[data-part="footerClear"]').element as HTMLElement;
+    const done = panel().find('[data-part="footerDone"]').element as HTMLElement;
+    expect(document.activeElement).toBe(trigger);
+
+    // Forwards: into the panel's first tab stop, which is the footer's Clear.
+    const forward = tab(trigger);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(clear);
+    expect(panel().exists()).toBe(true);
+
+    // Between the footer's own buttons nothing is touched: the browser's order is already right.
+    const inside = tab(clear);
+    expect(inside.defaultPrevented).toBe(false);
+
+    // Backwards out of the first row: onto the trigger, popover still open.
+    const back = tab(clear, true);
+    expect(back.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(trigger);
+    expect(panel().exists()).toBe(true);
+
+    // And `Shift+Tab` anywhere else in the panel is the browser's too.
+    const insideBack = tab(done, true);
+    expect(insideBack.defaultPrevented).toBe(false);
+  });
+
+  it('leaves Tab on the panel last row to the browser, which is the way out', async () => {
+    const { trigger, panel } = await openMulti();
+    const done = panel().find('[data-part="footerDone"]').element as HTMLElement;
+    done.focus();
+
+    const out = tab(done);
+    expect(out.defaultPrevented).toBe(false);
+    expect(panel().exists()).toBe(true);
+
+    // The browser moves focus on; `useOverlay` closes behind it, exactly as it always has.
+    done.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }));
+    await flush();
+    expect(panel().exists()).toBe(false);
+    expect(trigger).toBeTruthy();
+  });
+
+  it('leaves a searchable MultiSelect alone, because opening already put focus in the panel', async () => {
+    const { panel } = await openMulti({ options: MANY, searchable: true });
+    const search = panel().find('[data-part="search"]').element as HTMLElement;
+    expect(document.activeElement).toBe(search);
+
+    // The footer is the browser's own next stop from here, so nothing is redirected either way.
+    expect(tab(search).defaultPrevented).toBe(false);
+    expect(tab(search, true).defaultPrevented).toBe(false);
+  });
+
+  it('does not redirect when the panel is rendered in place', async () => {
+    const wrapper = mountWith(MultiSelect, {
+      props: { options: OPTIONS, searchable: false, teleport: false },
+      attrs: NAME,
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    const trigger = wrapper.find('[data-part="trigger"]').element as HTMLButtonElement;
+    trigger.focus();
+    await press(wrapper.find('[data-part="trigger"]'));
+
+    // In place the panel is already after the trigger in the DOM: the browser's order is the
+    // spec's order, and touching it would only move focus twice.
+    expect(tab(trigger).defaultPrevented).toBe(false);
+  });
+
+  it('walks into and out of a SearchBar panel that holds a focusable row control', async () => {
+    const bar = mountWith(SearchBar, {
+      props: {
+        modelValue: 'mer',
+        results: {
+          products: [{ id: 'p1', title: 'Merino', href: '/p' }],
+          collections: [],
+          articles: [],
+          pages: [],
+          total: 1,
+        },
+      },
+      slots: { item: '<button type="button" data-testid="row-action">Add</button>' },
+    });
+    mounted.push(bar as unknown as VueWrapper);
+    const field = bar.find('[data-part="field"]').element as HTMLInputElement;
+    field.focus();
+    await bar.find('[data-part="field"]').trigger('focus');
+    await flush();
+
+    const panel = () => panelOf(field);
+    const action = panel().find('[data-testid="row-action"]').element as HTMLElement;
+
+    const forward = tab(field);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(action);
+    // `useListbox`'s own `Tab` case closes this popup; the redirect runs in the capture phase, so
+    // that never gets the chance to throw away the panel we are walking into.
+    expect(panel().exists()).toBe(true);
+
+    const back = tab(action, true);
+    expect(back.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(field);
+    expect(panel().exists()).toBe(true);
+  });
+
+  it('leaves a SearchBar whose rows are all out of the tab order alone', async () => {
+    const bar = mountWith(SearchBar, { props: { recent: ['merino scarf'], popular: ['Linen'] } });
+    mounted.push(bar as unknown as VueWrapper);
+    const field = bar.find('[data-part="field"]').element as HTMLInputElement;
+    field.focus();
+    await bar.find('[data-part="field"]').trigger('focus');
+    await flush();
+
+    // Every row the panel draws is `tabindex="-1"` — reached through `aria-activedescendant`, never
+    // with `Tab` — so there is nothing to walk into and `Tab` keeps its old meaning: close and move
+    // on.
+    expect(panelOf(field).exists()).toBe(true);
+    expect(panelOf(field).findAll('[data-part="clearRecent"]').length).toBeGreaterThan(0);
+    const event = tab(field);
+    expect(event.defaultPrevented).toBe(false);
+    await flush();
+    expect(panelOf(field).exists()).toBe(false);
+  });
 });

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { IconArrowsSort, IconGift, IconTruck, IconWorld } from '@tabler/icons-vue';
-import { nextTick, onMounted, ref } from 'vue';
+import { getCurrentInstance, nextTick, onMounted, ref } from 'vue';
 import FieldWrapper from '../field-wrapper/FieldWrapper.vue';
 import Select from './Select.vue';
 import type { SelectOption } from './types';
@@ -507,11 +507,17 @@ export const ForcedColors: Story = {
  * then `click()` is exactly the pair `usePopover`'s latch reads as "a pointer opened this" — a bare
  * `click()` would carry `detail: 0`, which is the label-forwarded click that focuses without
  * opening.
+ *
+ * The trigger is looked up inside **this story's own root**, not in the document: an autodocs page
+ * renders every story on the page at once, and a document-wide query would open whichever select
+ * happened to come first in it rather than this one's.
  */
 function openOnMount(): void {
+  const instance = getCurrentInstance();
   onMounted(() => {
     void nextTick(() => {
-      const trigger = document.querySelector<HTMLElement>('[data-part="trigger"]');
+      const root = instance?.proxy?.$el as Element | null | undefined;
+      const trigger = root?.querySelector?.<HTMLElement>('[data-part="trigger"]');
       trigger?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
       trigger?.click();
     });

@@ -420,6 +420,12 @@ const {
   // A search bar lives in a header, and a header both clips its overflow and starts a stacking
   // context of its own. Read once, like the two options above it.
   teleport: props.teleport,
+  // Every row this panel draws is `tabindex="-1"` — they are reached through
+  // `aria-activedescendant`, never with `Tab` — so the panel usually has no tab stop at all and the
+  // redirect does nothing. It is on for the case where it does: a consumer whose `item` slot puts a
+  // real control in a row. Without it, `Tab` from the field would step straight past the teleported
+  // panel and that control would be unreachable from the keyboard.
+  tabRedirect: true,
   onClose: () => listbox.setActive(undefined),
 });
 
