@@ -21,11 +21,13 @@
    section steps as `--eldra-section-sm/-md/-lg`, but its `@theme` block does
    not name them in Tailwind's `--spacing-*` namespace (the package has no
    Section component yet — that lands in the next sub-project), so the theme
-   names them here and `py-section` keeps meaning what it always did. These
-   are the only design values this file still declares: every other radius,
-   shadow, font and colour now comes from the package's `@theme`. */
+   names the two it uses here and `py-section` keeps meaning what it always
+   did. (`--eldra-section-sm` is deliberately not named: `UiSection`'s `sm`
+   step is a flat `py-8`, and an unused `@theme` key is a value nothing can
+   check.) These are the only design values this file still declares: every
+   other radius, shadow, font and colour now comes from the package's
+   `@theme`. */
 @theme {
-  --spacing-section-sm: var(--eldra-section-sm);
   --spacing-section: var(--eldra-section-md);
   --spacing-section-lg: var(--eldra-section-lg);
 }

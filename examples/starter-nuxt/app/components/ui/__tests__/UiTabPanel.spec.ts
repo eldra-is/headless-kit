@@ -5,6 +5,7 @@ import { axe } from '../../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
 import UiTabs from '../UiTabs.vue';
 import UiTabPanel from '../UiTabPanel.vue';
+import { focusRing } from '../../../utils/classes';
 
 function mountPanel(modelValue: string) {
   return mount(UiTabs, {
@@ -30,6 +31,14 @@ describe('UiTabPanel', () => {
   it('is hidden when its id does not match the selected tab', () => {
     const wrapper = mountPanel('b');
     expect(wrapper.find('[role="tabpanel"]').attributes('hidden')).toBeDefined();
+  });
+
+  // The panel is focusable (`tabindex="0"`), and since there is no blanket
+  // `:focus-visible` base rule any more it has to carry the ring itself.
+  it('carries the shared focus ring, being focusable', () => {
+    const panel = mountPanel('a').find('[role="tabpanel"]');
+    expect(panel.attributes('tabindex')).toBe('0');
+    for (const cls of focusRing.split(' ')) expect(panel.classes()).toContain(cls);
   });
 
   it('throws when used outside UiTabs', () => {

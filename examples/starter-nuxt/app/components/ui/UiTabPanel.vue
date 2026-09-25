@@ -1,6 +1,13 @@
 <script setup lang="ts">
+/**
+ * `tabindex="0"` makes the panel itself focusable — the spec's way of reaching
+ * a panel whose content holds nothing focusable — so it carries the shared
+ * `focusRing` explicitly. There is no blanket `:focus-visible` base rule any
+ * more (see `app/assets/main.css`): every focusable element names its own ring.
+ */
 import { computed, inject } from 'vue';
 import { TABS_KEY } from '../../composables/useTabs';
+import { focusRing } from '../../utils/classes';
 
 const props = defineProps<{ id: string }>();
 
@@ -17,7 +24,7 @@ const isSelected = computed(() => context.selectedId.value === props.id);
     :aria-labelledby="`ui-tab-${id}`"
     :hidden="!isSelected"
     tabindex="0"
-    class="py-4"
+    :class="['py-4', focusRing]"
   >
     <slot />
   </div>

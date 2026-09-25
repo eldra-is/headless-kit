@@ -8,6 +8,12 @@
  * below is the one place that emits `update:open` and releases the focus
  * trap, instead of three call sites each doing it themselves.
  *
+ * The backdrop is `backdrop:bg-overlay` — the `overlay` design token, which
+ * carries its own alpha. Not `bg-black/50`: `@eldrajs/ui`'s Tailwind theme
+ * resets `--color-*`, so there is no `black` in this build and that class
+ * compiles to nothing at all, leaving a fully transparent scrim over the page
+ * (`test/mainCss.spec.ts` asserts both halves of that).
+ *
  * jsdom does not implement `showModal()`/`close()` at all (see
  * `test/support/dialog.ts`, registered in `vitest.config.ts`'s
  * `setupFiles`); Storybook and the real app run in a real browser, where the
@@ -105,7 +111,7 @@ onBeforeUnmount(() => deactivate());
   <dialog
     ref="dialogRef"
     :aria-labelledby="titleId"
-    :class="['text-text bg-background border-border p-0 backdrop:bg-black/50', panelClass]"
+    :class="['text-text bg-background border-border backdrop:bg-overlay p-0', panelClass]"
     @close="handleClose"
     @click="handleBackdropClick"
   >

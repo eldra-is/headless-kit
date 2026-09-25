@@ -19,6 +19,21 @@ describe('UiDialog', () => {
     expect(wrapper.find('dialog').attributes('open')).toBeUndefined();
   });
 
+  // `bg-black/50` used to draw this scrim and silently stopped compiling when
+  // the theme moved onto `@eldrajs/ui`'s Tailwind entry, which resets
+  // `--color-*` — the dialog then opened over a fully transparent page.
+  // `test/mainCss.spec.ts` proves the rule is emitted; this proves the class
+  // is on the element.
+  it('draws its backdrop from the overlay token', () => {
+    const wrapper = mount(UiDialog, {
+      props: { open: false, title: 'Confirm' },
+      global: eldraGlobal,
+    });
+    const classes = wrapper.find('dialog').classes();
+    expect(classes).toContain('backdrop:bg-overlay');
+    expect(classes.some((name) => name.includes('bg-black'))).toBe(false);
+  });
+
   it('shows the dialog via showModal when open is true', async () => {
     const wrapper = mount(UiDialog, {
       props: { open: true, title: 'Confirm' },
