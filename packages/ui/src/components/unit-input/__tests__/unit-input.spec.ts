@@ -151,7 +151,10 @@ describe('UnitInput — rendering (ported)', () => {
   it('renders a clear button when clearable and populated', async () => {
     const wrapper = mount({ modelValue: 5, clearable: true });
     await nextTick();
-    expect(wrapper.find('button[aria-label="Clear"]').exists()).toBe(true);
+    const clear = wrapper.find('button[aria-label="Clear"]');
+    expect(clear.exists()).toBe(true);
+    // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
+    expect(clear.classes()).toContain('cursor-pointer');
     wrapper.unmount();
   });
 });
@@ -730,6 +733,91 @@ describe('UnitInput — the field wrapper', () => {
     expect(wrapper.find('[data-part="field"]').classes()).not.toContain('eldra-field-invalid');
     // `aria-invalid` stays: the field is still invalid, it just cannot be fixed here.
     expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
+    wrapper.unmount();
+  });
+});
+
+describe('UnitInput — trailing action pairs (operator report, 2026-09-25)', () => {
+  it('gives the control the pair padding and both actions the pair size with clear + drag handle', async () => {
+    const { FIELD_ACTION_PAIR_SIZE, FIELD_TRAILING_PAD_PAIR } = await import('../../input/classes');
+    const wrapper = mount({ modelValue: 5, clearable: true, enableDragAdjust: true, size: 'md' });
+    await nextTick();
+
+    const controlClasses = control(wrapper).className.split(/\s+/);
+    for (const token of FIELD_TRAILING_PAD_PAIR.md.split(' ')) {
+      expect(controlClasses).toContain(token);
+    }
+    // The single-action padding must not also be present.
+    expect(controlClasses).not.toContain('pe-10');
+
+    const pairTokens = FIELD_ACTION_PAIR_SIZE.md.split(' ');
+    const clearClasses = wrapper.find('[data-part="clearButton"]').classes();
+    const handleClasses = wrapper.find('[data-part="dragHandle"]').classes();
+    for (const token of pairTokens) {
+      expect(clearClasses).toContain(token);
+      expect(handleClasses).toContain(token);
+    }
+    // The single-action size (size-8) must not also be present.
+    expect(clearClasses).not.toContain('size-8');
+    expect(handleClasses).not.toContain('size-8');
+    wrapper.unmount();
+  });
+
+  it('gives the row no gap when both actions show', async () => {
+    const wrapper = mount({ modelValue: 5, clearable: true, enableDragAdjust: true });
+    await nextTick();
+    expect(wrapper.find('[data-part="suffix"]').classes()).not.toContain('gap-1');
+    wrapper.unmount();
+  });
+
+  it.each([['sm' as const], ['lg' as const]])('applies the %s pair recipes too', async (size) => {
+    const { FIELD_ACTION_PAIR_SIZE, FIELD_TRAILING_PAD_PAIR } = await import('../../input/classes');
+    const wrapper = mount({ modelValue: 5, clearable: true, enableDragAdjust: true, size });
+    await nextTick();
+
+    const controlClasses = control(wrapper).className.split(/\s+/);
+    for (const token of FIELD_TRAILING_PAD_PAIR[size].split(' ')) {
+      expect(controlClasses).toContain(token);
+    }
+    const pairTokens = FIELD_ACTION_PAIR_SIZE[size].split(' ');
+    for (const token of pairTokens) {
+      expect(wrapper.find('[data-part="clearButton"]').classes()).toContain(token);
+      expect(wrapper.find('[data-part="dragHandle"]').classes()).toContain(token);
+    }
+    wrapper.unmount();
+  });
+
+  it('keeps the single-action recipes with only the clear button showing', async () => {
+    const { FIELD_CLEAR_SIZE, FIELD_TRAILING_PAD } = await import('../../input/classes');
+    const wrapper = mount({ modelValue: 5, clearable: true });
+    await nextTick();
+
+    expect(control(wrapper).className.split(/\s+/)).toContain(FIELD_TRAILING_PAD.md);
+    expect(wrapper.find('[data-part="clearButton"]').classes()).toContain(FIELD_CLEAR_SIZE.md);
+    wrapper.unmount();
+  });
+
+  it('keeps the single-action recipes with only the drag handle showing', async () => {
+    const { FIELD_CLEAR_SIZE, FIELD_TRAILING_PAD } = await import('../../input/classes');
+    const wrapper = mount({ modelValue: 5, enableDragAdjust: true });
+    await nextTick();
+
+    expect(control(wrapper).className.split(/\s+/)).toContain(FIELD_TRAILING_PAD.md);
+    expect(wrapper.find('[data-part="dragHandle"]').classes()).toContain(FIELD_CLEAR_SIZE.md);
+    wrapper.unmount();
+  });
+
+  it('does not count a custom suffix slot toward the action pair', async () => {
+    const { FIELD_CLEAR_SIZE, FIELD_TRAILING_PAD } = await import('../../input/classes');
+    const wrapper = mountWith(UnitInput, {
+      props: { unit: 'kilometer', modelValue: 5, clearable: true },
+      attrs: NAME,
+      slots: { suffix: '<span>kg</span>' },
+    });
+    await nextTick();
+
+    expect(control(wrapper).className.split(/\s+/)).toContain(FIELD_TRAILING_PAD.md);
+    expect(wrapper.find('[data-part="clearButton"]').classes()).toContain(FIELD_CLEAR_SIZE.md);
     wrapper.unmount();
   });
 });

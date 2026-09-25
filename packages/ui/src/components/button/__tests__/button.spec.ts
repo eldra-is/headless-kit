@@ -393,6 +393,15 @@ describe('Button — variants', () => {
     wrapper.unmount();
   });
 
+  it.each(VARIANTS)(
+    'shows cursor-pointer on the live %s variant (operator report, 2026-09-25)',
+    (v) => {
+      const wrapper = mountWith(Button, { props: { variant: v }, slots: { default: 'Label' } });
+      expect(wrapper.classes()).toContain('cursor-pointer');
+      wrapper.unmount();
+    }
+  );
+
   it('mixes the primary hover fill 14% toward background', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary' },

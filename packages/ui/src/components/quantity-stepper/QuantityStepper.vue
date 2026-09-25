@@ -319,10 +319,14 @@ const BUTTON_SIZE: Record<QuantityStepperSize, string> = {
   md: 'control-h aspect-square',
   sm: 'control-h-sm aspect-square',
 };
-/** Spec States, "Button hover" row: "fill `text` at 6%" — the same mix Button.vue's `ghost`
- * variant hover uses. */
+/**
+ * Spec States, "Button hover" row: "fill `text` at 6%" — the same mix Button.vue's `ghost`
+ * variant hover uses. `cursor-pointer` (operator report, 2026-09-25; recorded under Deviations in
+ * the README) replaces Tailwind v4 preflight's `button { cursor: default }`; `BUTTON_AT_LIMIT` and
+ * `BUTTON_DISABLED` below already carry `cursor-not-allowed` and replace this state outright.
+ */
 const BUTTON_HOVER =
-  'text-text hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+  'text-text cursor-pointer hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
 /** Spec States, "At min / at max" row: "icon `muted` at 55% opacity ... no hover fill." */
 const BUTTON_AT_LIMIT = 'text-muted opacity-55 cursor-not-allowed';
 /** Spec States, "Disabled (sold out)" row, Buttons column: "both disabled." */

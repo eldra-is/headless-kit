@@ -1286,3 +1286,23 @@ Additions and departures from the design spec, and why.
   reviews to jump to, and the no-reviews state has its own `emptyAction` slot for an interactive
   link — wrapping that slot's content in a rating-wide `<a>` the moment a consumer used it would
   nest an `<a>` inside an `<a>`, invalid HTML that silently strips the inner link's own semantics.
+- **Trailing action pairs are 1.5rem wide with no gap** (operator report, 2026-09-25). A
+  `UnitInput`/`CurrencyInput` with `clearable` and the drag handle both showing drew each action a
+  full 2rem square with a 1px gap between them, so the two icons ended up roughly 1.1rem apart — far
+  wider than any other icon pair in the library. With two of the field's own trailing actions
+  present, the row now carries no gap and each action shrinks to `w-6` (1.5rem, still the WCAG
+  2.5.8 24px minimum) at the row's own height, and the control's end padding grows to fit both. A
+  single action (`Input`, `SearchBar`, and `UnitInput`/`CurrencyInput` with only one of clear/drag
+  showing) is unchanged. The recipes are data in `src/components/input/classes.ts`
+  (`FIELD_TRAILING_PAD_PAIR`, `FIELD_ACTION_PAIR_SIZE`), and `UnitInput` picks them by counting how
+  many of its own actions are showing — never by the presence of a caller's `suffix` slot, whose
+  width this package does not control.
+- **Every enabled button is `cursor: pointer`, overriding Tailwind's preflight default** (operator
+  report, 2026-09-25: "all buttons should have cursor-pointer"). Tailwind v4's preflight sets
+  `button { cursor: default }`, so nothing in the library showed a pointer unless a component said
+  otherwise. Every live `Button` variant, the `Input`/`SearchBar`/`UnitInput` clear buttons, a live
+  `QuantityStepper` +/- button, a live `Select`/`MultiSelect` trigger and clear button, a
+  `MultiSelect` tag's remove button, and `Switch` now carry `cursor-pointer`; a disabled or
+  read-only control keeps whatever cursor it already had (`cursor-not-allowed`, `cursor-progress`,
+  or `Select`/`MultiSelect`'s read-only `cursor-default`), and the `UnitInput` drag handle keeps its
+  own `cursor-ns-resize`. `Link` needed nothing — an `<a>` is a pointer already.

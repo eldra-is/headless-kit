@@ -177,6 +177,8 @@ describe('SearchBar', () => {
       const clear = wrapper.find('[data-part="clearButton"]');
       expect(clear.exists()).toBe(true);
       expect(clear.attributes('aria-label')).toBe(enUS.clear);
+      // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
+      expect(clear.classes()).toContain('cursor-pointer');
       await clear.trigger('click');
       expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['']);
       await wrapper.setProps({ modelValue: '' });

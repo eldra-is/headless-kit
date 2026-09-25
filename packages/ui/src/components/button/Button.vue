@@ -87,10 +87,17 @@ const LINK_SIZE: Record<ButtonSize, string> = {
  * The `group-data-[section=…]/section:` rules are the inversions for coloured sections. The section
  * element carries `class="group/section" data-section="primary|accent"`; the focus ring never
  * changes, because its white infill carries the contrast on dark grounds.
+ *
+ * Every live variant carries `cursor-pointer` (operator report, 2026-09-25; recorded under
+ * Deviations in the README): Tailwind v4's preflight sets `button { cursor: default }`, so nothing
+ * here was a pointer until now. It lives in the live recipe only — `DISABLED` below keeps
+ * `cursor-not-allowed` and `containerClass` appends `cursor-progress` while loading, both later in
+ * the same `cx()` call, so both still win over this one with no merge-group change needed (`cursor-*`
+ * is already a stock `tailwind-merge` group).
  */
 const VARIANT: Record<ButtonVariant, string> = {
   primary: [
-    'bg-primary text-primary-contrast border-transparent',
+    'bg-primary text-primary-contrast border-transparent cursor-pointer',
     'hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]',
     'group-data-[section=primary]/section:bg-primary-contrast',
     'group-data-[section=primary]/section:text-primary',
@@ -100,7 +107,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'group-data-[section=accent]/section:hover:bg-[color-mix(in_oklab,var(--eldra-color-accent-contrast),var(--eldra-color-accent)_14%)]',
   ].join(' '),
   secondary: [
-    'bg-accent text-accent-contrast border-transparent',
+    'bg-accent text-accent-contrast border-transparent cursor-pointer',
     'hover:bg-[color-mix(in_oklab,var(--eldra-color-accent),var(--eldra-color-text)_15%)]',
     'group-data-[section=accent]/section:bg-transparent',
     'group-data-[section=accent]/section:border-current',
@@ -108,7 +115,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'group-data-[section=accent]/section:hover:bg-[color-mix(in_oklab,currentColor,transparent_88%)]',
   ].join(' '),
   outline: [
-    'bg-background border-border-strong text-text',
+    'bg-background border-border-strong text-text cursor-pointer',
     'hover:border-text hover:bg-surface',
     'group-data-[section=primary]/section:bg-transparent',
     'group-data-[section=primary]/section:border-current',
@@ -122,7 +129,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'group-data-[section=accent]/section:hover:bg-[color-mix(in_oklab,currentColor,transparent_88%)]',
   ].join(' '),
   ghost: [
-    'bg-transparent text-text border-transparent',
+    'bg-transparent text-text border-transparent cursor-pointer',
     'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
     'active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]',
     'group-data-[section=primary]/section:text-current',
@@ -131,13 +138,13 @@ const VARIANT: Record<ButtonVariant, string> = {
     'group-data-[section=accent]/section:hover:bg-[color-mix(in_oklab,currentColor,transparent_94%)]',
   ].join(' '),
   link: [
-    'bg-transparent text-text border-0',
+    'bg-transparent text-text border-0 cursor-pointer',
     'underline decoration-1 underline-offset-[0.2em] hover:decoration-2',
     'group-data-[section=primary]/section:text-current',
     'group-data-[section=accent]/section:text-current',
   ].join(' '),
   danger: [
-    'bg-danger text-background border-transparent',
+    'bg-danger text-background border-transparent cursor-pointer',
     'hover:bg-[color-mix(in_oklab,var(--eldra-color-danger),var(--eldra-color-text)_15%)]',
   ].join(' '),
 };

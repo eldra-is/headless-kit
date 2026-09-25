@@ -225,6 +225,16 @@ describe('Select — anatomy and parts', () => {
     expect(trigger(wrapper).getAttribute('data-testid')).toBe('topic');
     expect(trigger(wrapper).getAttribute('aria-label')).toBe('Topic');
   });
+
+  it('shows cursor-pointer on a live trigger, and cursor-default on a read-only one (operator report, 2026-09-25)', () => {
+    const wrapper = mount();
+    expect(trigger(wrapper).className).toContain('cursor-pointer');
+    expect(trigger(wrapper).className).not.toContain('cursor-default');
+
+    const readonly = mount({ readonly: true, modelValue: 'care' });
+    expect(trigger(readonly).className).toContain('cursor-default');
+    expect(trigger(readonly).className).not.toContain('cursor-pointer');
+  });
 });
 
 describe('Select — opening', () => {
@@ -730,6 +740,8 @@ describe('Select — clearing', () => {
     expect(
       trigger(wrapper).compareDocumentPosition(clear.element) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+    // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
+    expect(clear.classes()).toContain('cursor-pointer');
   });
 
   it('clears on click, emits clear and change, and returns focus to the trigger', async () => {

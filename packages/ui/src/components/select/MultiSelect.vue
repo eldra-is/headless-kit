@@ -466,7 +466,12 @@ const SIZE: Record<SelectSize, string> = {
   lg: 'control-h-lg ps-2.75 pe-2.5 text-control-lg',
 };
 
-const LIVE = 'bg-background border-border-strong hover:border-text text-text cursor-default';
+/**
+ * `cursor-pointer` (operator report, 2026-09-25; recorded under Deviations in the README) replaces
+ * Tailwind v4 preflight's `button { cursor: default }`; read-only keeps `cursor-default` (it opens
+ * no popover) and disabled keeps `cursor-not-allowed`.
+ */
+const LIVE = 'bg-background border-border-strong hover:border-text text-text cursor-pointer';
 const OPEN = 'border-text';
 const INVALID = 'border-danger hover:border-danger';
 const DISABLED = 'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
@@ -520,7 +525,7 @@ const chevronClass = computed(() =>
 const clearButtonClass = computed(() =>
   part(
     cx(
-      'absolute end-8 inset-y-0 my-auto inline-flex size-6 items-center justify-center',
+      'absolute end-8 inset-y-0 my-auto inline-flex size-6 cursor-pointer items-center justify-center',
       'rounded-sm text-muted hover:text-text',
       'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
       'eldra-focus'
@@ -568,7 +573,7 @@ const tagClass = computed(() =>
 /** "Remove button 1.5rem circle with a 0.875rem icon (hover `text` at 11%)." */
 const tagRemoveClass = computed(() =>
   part(
-    'inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted ' +
+    'inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted ' +
       'hover:text-text hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)] ' +
       'eldra-focus',
     'tagRemove'

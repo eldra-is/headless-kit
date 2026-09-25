@@ -80,6 +80,30 @@ export const FIELD_CLEAR_SIZE: Record<InputSize, string> = {
 };
 
 /**
+ * Two trailing actions (operator report, 2026-09-25; recorded under Deviations in the README): a
+ * `UnitInput`/`CurrencyInput` with `clearable` and a drag handle both on showed `$1,234,567.89   ×
+ * ↕` — each action a full 2rem square around a 1.125rem icon, `gap-1` between them, so the two
+ * icons ended up roughly 1.1rem apart, far wider than any other icon pair in the library (the
+ * private library's own handle sits `px-0` beside the clear button, no gap at all).
+ *
+ * A single action keeps `FIELD_TRAILING_PAD`/`FIELD_CLEAR_SIZE` unchanged (`Input`'s and
+ * `SearchBar`'s only ever have one, and their rendered classes must not change). With two, the row
+ * itself carries no gap (`FIELD_SUFFIX_ROW` below), each action shrinks to `w-6` (1.5rem — still
+ * the WCAG 2.5.8 24px minimum) at the row's own height, and the control's end padding grows to fit
+ * both of them plus the row's own 0.25rem inset from the edge.
+ */
+export const FIELD_TRAILING_PAD_PAIR: Record<InputSize, string> = {
+  sm: 'pe-14',
+  md: 'pe-14',
+  lg: 'pe-14',
+};
+export const FIELD_ACTION_PAIR_SIZE: Record<InputSize, string> = {
+  sm: 'w-6 h-6',
+  md: 'w-6 h-8',
+  lg: 'w-6 h-8',
+};
+
+/**
  * States (spec "Input" → States). Disabled and read-only replace the live colours outright rather
  * than layering over them, so a `:hover` rule can never win back a live boundary on a dead field.
  * The error row's second 1px line is drawn by the root's `eldra-field-invalid` pseudo-element,
@@ -96,10 +120,16 @@ export const FIELD_SEARCH_APPEARANCE =
   '[&::-webkit-search-cancel-button]:appearance-none ' +
   '[&::-webkit-search-decoration]:appearance-none';
 
-/** A ghost icon button at the field's end edge (spec "Input" → Anatomy): square, `muted`, the ring. */
+/**
+ * A ghost icon button at the field's end edge (spec "Input" → Anatomy): square, `muted`, the ring.
+ * `cursor-pointer` (operator report, 2026-09-25; recorded under Deviations in the README): Tailwind
+ * v4's preflight sets `button { cursor: default }`, so without it every clear button in the
+ * package — `Input`'s, `SearchBar`'s and `UnitInput`'s (`CurrencyInput` wraps the last) — showed
+ * the default arrow rather than a pointer.
+ */
 export const FIELD_CLEAR_BUTTON =
   'inline-flex shrink-0 items-center justify-center rounded-[var(--eldra-radius-sm)] ' +
-  'text-muted hover:text-text ' +
+  'text-muted hover:text-text cursor-pointer ' +
   'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] ' +
   'eldra-focus';
 
@@ -113,5 +143,8 @@ export const FIELD_LEADING_ICON =
  * button and the `suffix` slot share it, so a field that has both keeps them on one row in reading
  * order — which is also the tab order the Keyboard table asks for: the input first, the clear
  * button next.
+ *
+ * No `gap-*`: a single action needs none, and two (see `FIELD_TRAILING_PAD_PAIR` above) sit flush
+ * against each other on purpose.
  */
-export const FIELD_SUFFIX_ROW = 'absolute end-1 inset-y-0 my-auto flex items-center gap-1';
+export const FIELD_SUFFIX_ROW = 'absolute end-1 inset-y-0 my-auto flex items-center';

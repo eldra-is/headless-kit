@@ -45,6 +45,7 @@ import { createNumberFormat } from '../../utils/number-format';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
 import {
+  FIELD_ACTION_PAIR_SIZE,
   FIELD_BASE,
   FIELD_CLEAR_BUTTON,
   FIELD_CLEAR_SIZE,
@@ -57,6 +58,7 @@ import {
   FIELD_SIZE,
   FIELD_SUFFIX_ROW,
   FIELD_TRAILING_PAD,
+  FIELD_TRAILING_PAD_PAIR,
 } from '../input/classes';
 import type { UnitInputProps } from './types';
 import { useUndoRedo } from './undo-redo';
@@ -699,6 +701,15 @@ const showClear = computed(
 const showDragHandle = computed(() => props.enableDragAdjust && !props.disabled && !props.readonly);
 const hasSuffixSlot = computed(() => slots.suffix !== undefined);
 const hasTrailing = computed(() => showClear.value || showDragHandle.value || hasSuffixSlot.value);
+
+/**
+ * How many of the field's own trailing actions (the clear button, the drag handle) are showing at
+ * once — never the caller's own `suffix` slot, whose width this component does not control. Two of
+ * them (operator report, 2026-09-25; see `classes.ts`'s own comment on `FIELD_TRAILING_PAD_PAIR`)
+ * switch the field to the tighter pair geometry; one keeps today's, unchanged.
+ */
+const trailingActionCount = computed(() => Number(showClear.value) + Number(showDragHandle.value));
+const isActionPair = computed(() => trailingActionCount.value === 2);
 const hasLeading = computed(
   () => props.leadingIcon !== undefined || slots.leadingIcon !== undefined
 );
@@ -723,7 +734,8 @@ const controlClass = computed(() =>
       FIELD_BASE,
       FIELD_SIZE[props.size],
       hasLeading.value && FIELD_LEADING_PAD,
-      hasTrailing.value && FIELD_TRAILING_PAD[props.size],
+      hasTrailing.value &&
+        (isActionPair.value ? FIELD_TRAILING_PAD_PAIR[props.size] : FIELD_TRAILING_PAD[props.size]),
       'tabular-nums',
       props.disabled ? FIELD_DISABLED : props.readonly ? FIELD_READONLY : FIELD_LIVE,
       showsInvalid.value && FIELD_INVALID
@@ -736,15 +748,18 @@ const leadingIconClass = computed(() =>
   partClass(FIELD_LEADING_ICON, props.classes, 'leadingIcon')
 );
 const suffixClass = computed(() => partClass(FIELD_SUFFIX_ROW, props.classes, 'suffix'));
+const actionSize = computed(() =>
+  isActionPair.value ? FIELD_ACTION_PAIR_SIZE[props.size] : FIELD_CLEAR_SIZE[props.size]
+);
 const clearButtonClass = computed(() =>
-  partClass(cx(FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE[props.size]), props.classes, 'clearButton')
+  partClass(cx(FIELD_CLEAR_BUTTON, actionSize.value), props.classes, 'clearButton')
 );
 const dragHandleClass = computed(() =>
   partClass(
     cx(
       'inline-flex shrink-0 cursor-ns-resize touch-none items-center justify-center',
       'text-muted hover:text-text select-none',
-      FIELD_CLEAR_SIZE[props.size]
+      actionSize.value
     ),
     props.classes,
     'dragHandle'

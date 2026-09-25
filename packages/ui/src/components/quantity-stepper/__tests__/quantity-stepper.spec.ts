@@ -207,6 +207,18 @@ describe('QuantityStepper — at-limit and disabled states', () => {
     wrapper.unmount();
   });
 
+  it('shows cursor-pointer away from a limit, cursor-not-allowed at one (operator report, 2026-09-25)', () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 50 } });
+    expect(decreaseButton(wrapper).className).toContain('cursor-pointer');
+    expect(increaseButton(wrapper).className).toContain('cursor-pointer');
+    wrapper.unmount();
+
+    const atMin = mountWith(QuantityStepper, { props: { modelValue: 1, min: 1 } });
+    expect(decreaseButton(atMin).className).toContain('cursor-not-allowed');
+    expect(decreaseButton(atMin).className).not.toContain('cursor-pointer');
+    atMin.unmount();
+  });
+
   it('disabled (sold out): both buttons and the field are natively disabled, dashed group boundary', () => {
     const wrapper = mountWith(QuantityStepper, { props: { disabled: true } });
     expect(decreaseButton(wrapper).disabled).toBe(true);

@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 // happy-dom replaces the global `URL` with one that refuses the `file:` scheme, which is what
 // `import.meta.url` is here. Node's own `URL` under another name resolves it.
 import { fileURLToPath, URL as NodeURL } from 'node:url';
@@ -137,4 +137,86 @@ describe('consumer Tailwind build', () => {
 
   // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
   itFailsWithoutDist(built);
+});
+
+/**
+ * Every enabled `<button>` in the package shows `cursor-pointer` (operator report, 2026-09-25;
+ * recorded under Deviations in the README) rather than Tailwind v4 preflight's own
+ * `button { cursor: default }`.
+ *
+ * The check is textual, so it has to follow the same seam the live components actually use:
+ * `Input`, `SearchBar` and `UnitInput`'s clear buttons all draw `FIELD_CLEAR_BUTTON` from
+ * `input/classes.ts` rather than writing the token in their own file, so a component "carries"
+ * `cursor-pointer` when its own `<script>` has the token *or* a relative import it names does, one
+ * hop out — `UnitInput.vue`'s drag handle is `cursor-ns-resize` and nothing else in that file
+ * spells `cursor-pointer`, but the clear button beside it imports `FIELD_CLEAR_BUTTON`, so the file
+ * passes.
+ */
+const componentsRoot = fileURLToPath(new NodeURL('../components/', import.meta.url));
+
+function vueFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) {
+      return entry === '__tests__' ? [] : vueFiles(path);
+    }
+    return path.endsWith('.vue') ? [path] : [];
+  });
+}
+
+/** Comments are prose, not markup: a doc comment that merely *mentions* `<button>` (a `<label
+ *  for>` "cannot name a `<button>` trigger", say) must not count as the file rendering one. */
+function stripComments(source: string): string {
+  return source
+    .replaceAll(/\/\*[\s\S]*?\*\//g, ' ')
+    .replaceAll(/<!--[\s\S]*?-->/g, ' ')
+    .replaceAll(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+}
+
+/** Every relative `import … from '…'` specifier a `<script>` block names. */
+function localImportSpecifiers(source: string): string[] {
+  return [...source.matchAll(/\bfrom\s+['"](\.[^'"]+)['"]/g)].map((match) => match[1] as string);
+}
+
+/** Resolves a relative specifier to a readable file, trying the extensions this package's own
+ *  imports always use. `undefined` for anything that does not resolve to a real file. */
+function resolveLocalImport(fromFile: string, specifier: string): string | undefined {
+  const base = join(dirname(fromFile), specifier);
+  for (const candidate of [base, `${base}.ts`, `${base}.vue`, join(base, 'index.ts')]) {
+    try {
+      if (statSync(candidate).isFile()) return candidate;
+    } catch {
+      /* not this candidate — try the next extension */
+    }
+  }
+  return undefined;
+}
+
+describe('every enabled <button> is cursor-pointer', () => {
+  const files = vueFiles(componentsRoot);
+
+  it('finds the components to check', () => {
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  const withButton = files.filter((file) =>
+    stripComments(readFileSync(file, 'utf8')).includes('<button')
+  );
+
+  it('finds at least one component that renders a <button>', () => {
+    expect(withButton.length).toBeGreaterThan(0);
+  });
+
+  it.each(withButton.map((file) => [file.slice(componentsRoot.length), file]))(
+    '%s carries cursor-pointer, on the file itself or a local import it names',
+    (_name, file) => {
+      const own = readFileSync(file, 'utf8');
+      const carriesItself = own.includes('cursor-pointer');
+      const carriesThroughImport = localImportSpecifiers(own)
+        .map((specifier) => resolveLocalImport(file, specifier))
+        .filter((resolved): resolved is string => resolved !== undefined)
+        .some((resolved) => readFileSync(resolved, 'utf8').includes('cursor-pointer'));
+      expect(carriesItself || carriesThroughImport).toBe(true);
+    }
+  );
 });

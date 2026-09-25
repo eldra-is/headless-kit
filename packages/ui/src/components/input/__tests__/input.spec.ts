@@ -338,6 +338,8 @@ describe('Input — clear button', () => {
     expect(button.attributes('type')).toBe('button');
     expect(button.attributes('aria-label')).toBe('Clear');
     expect(button.find('svg').attributes('aria-hidden')).toBe('true');
+    // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
+    expect(button.classes()).toContain('cursor-pointer');
     wrapper.unmount();
   });
 

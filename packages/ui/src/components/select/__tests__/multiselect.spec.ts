@@ -175,6 +175,16 @@ describe('MultiSelect — anatomy and parts', () => {
     expect(panel(wrapper).find('[data-part="footer"]').classes()).toContain('p-4');
     expect(optionEls(wrapper)[0]?.classes()).toContain('px-6');
   });
+
+  it('shows cursor-pointer on a live trigger, and cursor-default on a read-only one (operator report, 2026-09-25)', () => {
+    const wrapper = mount();
+    expect(trigger(wrapper).className).toContain('cursor-pointer');
+    expect(trigger(wrapper).className).not.toContain('cursor-default');
+
+    const readonly = mount({ readonly: true, modelValue: ['sweaters'] });
+    expect(trigger(readonly).className).toContain('cursor-default');
+    expect(trigger(readonly).className).not.toContain('cursor-pointer');
+  });
 });
 
 describe('MultiSelect — the listbox and its checkboxes', () => {
@@ -396,6 +406,8 @@ describe('MultiSelect — clearing and tags', () => {
     const remove = wrapper.findAll('[data-part="tagRemove"]');
     expect(remove[0]?.attributes('aria-label')).toBe(enUS.removeTag('Sweaters'));
     expect(remove[0]?.attributes('type')).toBe('button');
+    // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
+    expect(remove[0]?.classes()).toContain('cursor-pointer');
 
     await remove[0]?.trigger('click');
     await flush();
@@ -420,7 +432,10 @@ describe('MultiSelect — clearing and tags', () => {
 
   it('clears everything from the trigger button and from Backspace on the closed trigger', async () => {
     const wrapper = mount({ modelValue: ['sweaters', 'mugs'] });
-    await wrapper.find('[data-part="clearButton"]').trigger('click');
+    const clearButton = wrapper.find('[data-part="clearButton"]');
+    // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
+    expect(clearButton.classes()).toContain('cursor-pointer');
+    await clearButton.trigger('click');
     await flush();
     expect(wrapper.emitted('change')).toEqual([[[]]]);
     expect(wrapper.emitted('clear')).toHaveLength(1);

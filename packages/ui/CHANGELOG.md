@@ -5,6 +5,19 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Every enabled button shows `cursor: pointer`** (operator report, 2026-09-25), overriding
+  Tailwind v4 preflight's `button { cursor: default }`: every live `Button` variant, the
+  `Input`/`SearchBar`/`UnitInput`/`CurrencyInput` clear buttons, a live `QuantityStepper` +/-
+  button, a live `Select`/`MultiSelect` trigger, clear button and `MultiSelect` tag remove button,
+  and `Switch`. A disabled or loading control keeps its own cursor (`cursor-not-allowed`,
+  `cursor-progress`); `Select`/`MultiSelect`'s read-only trigger keeps `cursor-default`; the
+  `UnitInput` drag handle keeps `cursor-ns-resize`. `Link` needed no change.
+- **`UnitInput`/`CurrencyInput` tighten trailing action pairs** (operator report, 2026-09-25). With
+  the clear button and the drag handle both showing, each action is now `1.5rem` wide with no gap
+  between them (still the WCAG 2.5.8 24px minimum) instead of two `2rem` squares a full `gap-1`
+  apart — the row previously read as `$1,234,567.89   ×   ↕`, far wider than any other icon pair in
+  the library. A single trailing action (`Input`, `SearchBar`, or `UnitInput`/`CurrencyInput` with
+  only the clear button or only the drag handle) is unchanged.
 - **`Rating`** — the fourth component of the "display, commerce and layout" sub-project (design
   spec's Rating section). A read-only five-star rating in half steps: `value` (0–5) rounds to the
   nearest 0.5, rendering full, half (a clipped filled star over an outline star) and empty stars —

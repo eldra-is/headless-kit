@@ -392,8 +392,13 @@ const SIZE: Record<SelectSize, string> = {
   lg: 'control-h-lg ps-2.75 pe-2.5 text-control-lg',
 };
 
-/** Spec "Select" → States. Open and hover share the `text` boundary; disabled/read-only replace it. */
-const LIVE = 'bg-background border-border-strong hover:border-text text-text cursor-default';
+/**
+ * Spec "Select" → States. Open and hover share the `text` boundary; disabled/read-only replace it.
+ * `cursor-pointer` (operator report, 2026-09-25; recorded under Deviations in the README) replaces
+ * Tailwind v4 preflight's `button { cursor: default }`; read-only keeps `cursor-default` (it opens
+ * no popover) and disabled keeps `cursor-not-allowed`.
+ */
+const LIVE = 'bg-background border-border-strong hover:border-text text-text cursor-pointer';
 const OPEN = 'border-text';
 const INVALID = 'border-danger hover:border-danger';
 const DISABLED = 'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
@@ -459,7 +464,7 @@ const chevronClass = computed(() =>
 const clearButtonClass = computed(() =>
   partClass(
     cx(
-      'absolute end-8 inset-y-0 my-auto inline-flex size-6 items-center justify-center',
+      'absolute end-8 inset-y-0 my-auto inline-flex size-6 cursor-pointer items-center justify-center',
       'rounded-sm text-muted hover:text-text',
       'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
       'eldra-focus'
