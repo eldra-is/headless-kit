@@ -62,8 +62,8 @@ describe('counted messages read naturally at one', () => {
     expect(enUS.resultsCount(1)).toBe('1 result');
     expect(enUS.resultsCount(0)).toBe('0 results');
     expect(enUS.resultsCount(12)).toBe('12 results');
-    expect(enUS.viewAllResults(1)).toBe('View 1 result');
-    expect(enUS.viewAllResults(12)).toBe('View all 12 results');
+    expect(enUS.viewAllResults(1)).toBe('See 1 result');
+    expect(enUS.viewAllResults(12)).toBe('See all 12 results');
   });
 
   it('uses the Icelandic singular for any count ending in 1 except 11', () => {

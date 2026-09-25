@@ -1,28 +1,17 @@
 <script setup lang="ts">
-import {
-  computed,
-  inject,
-  nextTick,
-  onBeforeUnmount,
-  ref,
-  useAttrs,
-  watch,
-  watchPostEffect,
-} from 'vue';
+import { computed, inject, nextTick, ref, useAttrs, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { useFloating } from '../../composables/useFloating';
 import { useMessages } from '../../composables/useMessages';
-import { useOverlay } from '../../composables/useOverlay';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
-import { registerOpen, unregisterOpen } from './openRegistry';
 import { optionIconClass, optionSwatchClass } from './panelParts';
 import SelectPanel from './SelectPanel.vue';
 import type { SelectOption, SelectProps, SelectSize } from './types';
 import { useListbox } from './useListbox';
 import { useOptionList } from './useOptionList';
+import { usePopover } from './usePopover';
 
 defineOptions({ inheritAttrs: false });
 
@@ -127,7 +116,6 @@ const showClear = computed(
   () => props.clearable && !props.disabled && !props.readonly && model.value !== ''
 );
 
-const isOpen = ref(false);
 const query = ref('');
 const triggerRef = ref<HTMLButtonElement | null>(null);
 const nativeRef = ref<HTMLSelectElement | null>(null);
@@ -154,6 +142,48 @@ const { sections, nativeSections, listOptions, hasOptions, highlights } = useOpt
   query: () => query.value,
   searchable: () => searchable.value,
   controlId: () => controlId.value,
+});
+
+// --- opening and closing -------------------------------------------------------------------------
+
+/**
+ * The open/closed life of the panel: the "only one open at a time" registry, `useOverlay`'s closing
+ * rules, `useFloating`'s position and the label-forwarded-click latch, all shared with `MultiSelect`
+ * and the `SearchBar`'s results panel (see `usePopover`). What stays here is what differs: which
+ * row is made active on open, and what closing has to reset.
+ */
+const {
+  isOpen,
+  panelStyle,
+  placement: resolvedPlacement,
+  open: openPopover,
+  close: closePopover,
+  onTriggerPointerDown,
+  onTriggerClick,
+} = usePopover({
+  trigger: triggerRef,
+  content: panelRef,
+  // Spec "Select" → Properties: `disabled` "doesn't open", `readonly` "doesn't open".
+  canOpen: () => !props.disabled && !props.readonly,
+  // Read once, like every `useFloating` option: a select that has to change its placement at
+  // runtime re-keys instead. `placement` is a layout decision ("the footer's selectors use
+  // `above`"), not state.
+  placement: props.placement,
+  matchWidth: true,
+  onOpen: () => {
+    listbox.resetTypeahead();
+    emit('open');
+  },
+  onClose: () => {
+    listbox.resetTypeahead();
+    // Spec "Select" → Behaviour, Search: "opening clears any old query and shows every option."
+    // Cleared on the way *out* rather than on the way in, so the reset never races the active
+    // option the next open picks.
+    if (query.value !== '') setQuery('');
+    emit('close');
+  },
+  afterOpen: () => afterOpen(),
+  openFromPointer: () => openPanel('start'),
 });
 
 // --- the keyboard ------------------------------------------------------------------------------
@@ -184,58 +214,13 @@ const listbox = useListbox({
  */
 const selectedValues = computed(() => [model.value]);
 
-// --- opening and closing -------------------------------------------------------------------------
-
-/** The registry's handle on this select. Stable, so the registry can tell ours from another's. */
-const closeFromRegistry = (): void => setOpen(false);
-
-function setOpen(next: boolean): void {
-  if (next === isOpen.value) return;
-  if (next) {
-    if (props.disabled || props.readonly) return;
-    isOpen.value = true;
-    listbox.resetTypeahead();
-    // Spec "Select" → Behaviour: "opening a select closes any other open select or multi-select".
-    registerOpen(closeFromRegistry);
-    emit('open');
-    return;
-  }
-  isOpen.value = false;
-  unregisterOpen(closeFromRegistry);
-  listbox.resetTypeahead();
-  // Spec "Select" → Behaviour, Search: "opening clears any old query and shows every option."
-  // Cleared on the way *out* rather than on the way in, so the reset never races the active option
-  // the next open picks.
-  if (query.value !== '') setQuery('');
-  emit('close');
-}
-
-useOverlay({
-  open: isOpen,
-  trigger: triggerRef,
-  content: panelRef,
-  setOpen: (next) => setOpen(next),
-});
-
-const { styles: floatingStyles, placement: resolvedPlacement } = useFloating(
-  triggerRef,
-  panelRef,
-  // Read once, like every `useFloating` option: a select that has to change its placement at
-  // runtime re-keys instead. `placement` is a layout decision ("the footer's selectors use
-  // `above`"), not state.
-  { placement: props.placement, matchWidth: true }
-);
-
 function openPanel(edge: 'start' | 'end'): void {
-  if (props.disabled || props.readonly) return;
-  const wasOpen = isOpen.value;
-  setOpen(true);
-  if (!isOpen.value) return;
-  // Spec "Select" → Behaviour: "the selected option, or else the first enabled one" — except for
-  // `ArrowUp` on a closed, non-searchable trigger, which the Keyboard table lands on the last.
-  if (edge === 'end' && !searchable.value) listbox.last();
-  else listbox.activateFrom(model.value);
-  if (!wasOpen) void afterOpen();
+  openPopover(() => {
+    // Spec "Select" → Behaviour: "the selected option, or else the first enabled one" — except for
+    // `ArrowUp` on a closed, non-searchable trigger, which the Keyboard table lands on the last.
+    if (edge === 'end' && !searchable.value) listbox.last();
+    else listbox.activateFrom(model.value);
+  });
 }
 
 async function afterOpen(): Promise<void> {
@@ -249,18 +234,14 @@ async function afterOpen(): Promise<void> {
   }
 }
 
-function closePanel(returnFocus = true): void {
-  if (!isOpen.value) return;
-  setOpen(false);
-  // Spec "Select" → Behaviour: selecting and `Escape` both "return focus to the trigger", and
-  // `Tab` needs focus on the trigger *before* the browser's own default action moves it on.
-  if (returnFocus) triggerRef.value?.focus();
+/**
+ * Spec "Select" → Behaviour: selecting and `Escape` both "return focus to the trigger", and `Tab`
+ * needs focus on the trigger *before* the browser's own default action moves it on — which is
+ * `usePopover`'s own default.
+ */
+function closePanel(): void {
+  closePopover();
 }
-
-onBeforeUnmount(() => {
-  unregisterOpen(closeFromRegistry);
-  detachTriggerRelease();
-});
 
 // --- choosing ------------------------------------------------------------------------------------
 
@@ -343,58 +324,6 @@ function onNativeChange(event: Event): void {
   if (element.value === model.value) return;
   model.value = element.value;
   emit('change', element.value);
-}
-
-// --- pointer ---------------------------------------------------------------------------------
-
-/**
- * Whether the click that is about to arrive came from a pointer press on the trigger itself.
- *
- * A `<label for>` naming the trigger forwards its own click to it, and the spec is explicit that
- * "clicking the Field wrapper's label focuses the trigger (**it doesn't open it**)". A forwarded
- * click is indistinguishable from a real one except that no pointer was pressed on the trigger and
- * its `detail` is 0 — the same shape as a programmatic `element.click()`, which therefore focuses
- * rather than opens. Keyboard activation never reaches here at all: `useListbox` `preventDefault()`s
- * `Enter` and `Space`, so the button's synthetic click is never dispatched.
- */
-let pressedTrigger = false;
-
-/**
- * Ends the press. A press that finishes *on* the trigger becomes a click, which clears the latch
- * itself; one that finishes anywhere else (a drag off the control, a cancelled touch) never will —
- * and a latch left standing would arm the *next* click, which, if it came from a `<label for>`,
- * would open the panel the spec says a label must not open.
- */
-function releaseTrigger(event: Event): void {
-  detachTriggerRelease();
-  const target = event.target;
-  if (target instanceof Node && triggerRef.value?.contains(target) === true) return;
-  pressedTrigger = false;
-}
-
-function detachTriggerRelease(): void {
-  if (typeof document === 'undefined') return;
-  document.removeEventListener('pointerup', releaseTrigger, true);
-  document.removeEventListener('pointercancel', releaseTrigger, true);
-}
-
-function onTriggerPointerDown(): void {
-  pressedTrigger = true;
-  if (typeof document === 'undefined') return;
-  document.addEventListener('pointerup', releaseTrigger, true);
-  document.addEventListener('pointercancel', releaseTrigger, true);
-}
-
-function onTriggerClick(event: MouseEvent): void {
-  const fromPointer = pressedTrigger || event.detail > 0;
-  pressedTrigger = false;
-  if (props.disabled || props.readonly) return;
-  if (!fromPointer) {
-    triggerRef.value?.focus();
-    return;
-  }
-  if (isOpen.value) closePanel();
-  else openPanel('start');
 }
 
 // --- searching ---------------------------------------------------------------------------------
@@ -523,23 +452,6 @@ const clearButtonClass = computed(() =>
     'clearButton'
   )
 );
-
-/**
- * Which edge the panel grows from (spec "Select" → Behaviour & motion: it slides 0.25rem and scales
- * "from its top edge (from its bottom edge when flipped)").
- *
- * Two CSS variables rather than two animation classes. `placement` resolves a frame *after* the
- * panel mounts — floating-ui measures asynchronously — so a panel that ends up flipped would swap
- * class, and a new `animation-name` restarts the animation from zero: the popover visibly faded in
- * twice. Changing a custom property the keyframes read leaves `animation-name` alone, so the
- * entrance plays exactly once whichever way it ends up pointing.
- */
-const isAbove = computed(() => resolvedPlacement.value.startsWith('top'));
-const panelStyle = computed<Record<string, string>>(() => ({
-  ...floatingStyles.value,
-  '--eldra-popover-origin': isAbove.value ? 'bottom' : 'top',
-  '--eldra-popover-slide': isAbove.value ? '0.25rem' : '-0.25rem',
-}));
 
 /** The chosen option's mark in the trigger: the same two parts an option row draws it with. */
 const triggerSwatchClass = computed(() => optionSwatchClass(props.classes));

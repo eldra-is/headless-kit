@@ -45,6 +45,8 @@ const WIDTHS = [1280, 360];
 const PIXEL_THRESHOLD = 0.1;
 /** Share of the image that may differ before the story fails. */
 const MAX_DIFF_RATIO = 0.001;
+/** How long to let a story settle before the shutter falls (see `capture`). */
+const SETTLE_MS = 400;
 /** 0 asks the OS for a free port; the run uses whatever it was actually given. */
 const PORT = Number(process.env.ELDRA_SCREENSHOTS_PORT ?? 6018);
 
@@ -147,6 +149,12 @@ async function capture(browser, baseUrl, id, width) {
     );
     await page.evaluate(() => document.fonts.ready);
     await page.waitForFunction(() => Array.from(document.images).every((img) => img.complete));
+    // Then let the story settle. Fonts and images being ready is not the same as a component
+    // being in its final state: the Search bar shows its loading view only after a request has
+    // been in flight for 300ms, and every popover entrance runs for `duration-base`. Without this
+    // wait the shutter could fall either side of those, which is a baseline that depends on how
+    // fast the machine happened to be rather than on what the component draws.
+    await page.waitForTimeout(SETTLE_MS);
     return await page.screenshot({ fullPage: true });
   } finally {
     await context.close();

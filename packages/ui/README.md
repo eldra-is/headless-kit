@@ -320,3 +320,43 @@ Additions and departures from the design spec, and why.
   task brief adds it (default `"en-US"`) for display formatting and for parsing a typed value.
   `src/utils/number-format.ts` (`createNumberFormat`, `formatNumber`, `parseLocaleNumber`) is the
   general-purpose utility behind it, exported from the package root for use outside this control.
+- **`SearchBar`'s panel holds a `listbox` rather than being one.** The spec's Accessibility notes
+  say "The panel is `role="listbox"` named 'Search suggestions'" — but the same section's `none`
+  view puts a title and a line of advice inside that panel, above chips that _are_ options, and a
+  `role="listbox"` may own only `option` and `group` children. So the popup box is
+  `data-part="panel"` and the element that owns the options is `data-part="listbox"` inside it,
+  which is what `aria-controls` points at (and what always renders while the panel shows: a
+  `role="combobox"` must point at something real). The no-results message and the loading rows are
+  its siblings. `Select` solved the same conflict the same way.
+- **Four parts beyond the brief's list, all in the spec's own anatomy**: `listbox` (above), `chip`
+  (anatomy item 9), `clearRecent` (the idle view's "Clear recent searches" row) and `liveRegion`
+  (anatomy item 11), plus `itemArrow` for the Sizes table's "Active arrow". A part the component
+  draws and a consumer cannot reach is not a part.
+- **`SearchBar`'s `select` event carries `(item, type)`**, where `type` is one of the four result
+  types or `"viewAll"`. The spec writes the payload as `{ type, url }` and the brief as `(item)`;
+  two arguments carry both without making a consumer destructure a synthetic object, and `item`
+  is the same object the `item` slot receives.
+- **Articles and pages share one group.** The spec's `results` view names three groups — Products
+  (max 4), Collections (max 3), Journal and help (max 3) — while `resultTypes` has four values, so
+  `articles` and `pages` are drawn under one "Journal and help" heading, articles first, with three
+  rows between them. `resultTypes` still filters each of the two independently.
+- **A row's sub line has nowhere to come from.** The spec's reference image shows a second line
+  under each title ("Knitwear · 4 colours", "Journal · 4 min read") and a `muted` meta on
+  collections ("48 products"), but the `SearchResults` shape this package ships (the brief's, kept
+  exactly) carries only `title`, `href` and a product's `price`. The `item` slot is how a store
+  draws more; nothing was invented in the type.
+- **An idle panel with nothing in it does not open.** The spec says the panel opens on focus, and
+  that neither the recent nor the popular list shows when it is empty — which together would leave
+  an empty box under the field. `aria-expanded` stays `false` until there is something to show.
+- **Recent-search wording and the `viewAll` row's text come from the message catalogue**, which is
+  shared with the Search modal, so three strings read slightly differently from the spec's prose:
+  the count announcement is `resultsCount(n)` ("4 results", not "4 results for mer"), the "See all"
+  row is `viewAllResults(n)` ("See all 12 results", without the spec's trailing `for “mer”`), and
+  the popular heading is `popularSearches` ("Popular searches", not "Popular right now"). A store
+  that wants the spec's exact sentences passes them through `messages`. New messages beside them:
+  `noResultsFor(query)`, `searchSuggestions`, `searchProducts`, `searchCollections`,
+  `searchJournal` and `searchAdvice`; `clearRecent` is now the spec's own "Clear recent searches"
+  and `viewAllResults` its "See all", which `is-IS` already said.
+- **The `/` hint carries `messages.shortcutHint` as its `title`.** The visible chip is the spec's
+  bare `/` and is `aria-hidden`, so the full sentence ("Press / to search") has nowhere to be
+  announced; it is the chip's tooltip, and the field carries `aria-keyshortcuts="/"`.

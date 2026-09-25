@@ -76,6 +76,9 @@ const twMerge = extendTailwindMerge<
             'select-pill',
             'stepper-value',
             'stepper-value-sm',
+            'search-meta',
+            'search-title',
+            'search-kbd',
           ],
         },
       ],
@@ -112,7 +115,7 @@ const twMerge = extendTailwindMerge<
       // The Select popover's own box (tailwind.css "Select"): whole class names rather than a
       // `max-h-*`/`max-w-*` suffix, but Tailwind's own groups, so a consumer's
       // `classes.panel: 'max-h-64'` replaces the height and leaves the width clamp alone.
-      'max-h': ['eldra-select-panel-height'],
+      'max-h': ['eldra-select-panel-height', 'eldra-search-panel-height'],
       'max-w': ['eldra-select-panel-width'],
       // A filtered option's matched run, and an option's swatch edge: a weight-plus-underline
       // bundle and an inset box-shadow, neither of which maps onto a stock group, so each gets its

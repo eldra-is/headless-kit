@@ -15,6 +15,7 @@ export { default as Link } from './components/link/Link.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
+export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
@@ -71,6 +72,17 @@ export type {
   SelectSize,
 } from './components/select/types';
 export type {
+  SearchBarPart,
+  SearchBarProps,
+  SearchBarSize,
+  SearchResultItem,
+  SearchResults,
+  SearchResultType,
+  SearchRow,
+  SearchSection,
+  SearchSelectType,
+} from './components/search-bar/types';
+export type {
   QuantityStepperPart,
   QuantityStepperProps,
   QuantityStepperSize,
@@ -117,6 +129,14 @@ export {
   type UseListboxOptions,
   type UseListboxReturn,
 } from './components/select/useListbox';
+// The open/closed life of a non-modal popup anchored to a control: the "only one open at a time"
+// registry, `useOverlay`'s closing rules, `useFloating`'s position and entrance variables, and the
+// label-forwarded-click latch. `Select`, `MultiSelect` and `SearchBar` all open their panel with it.
+export {
+  usePopover,
+  type UsePopoverOptions,
+  type UsePopoverReturn,
+} from './components/select/usePopover';
 
 // Form context. A `FormLayout` provides it; every Button below reads it, so a submitting form
 // shows its primary action loading and every other action disabled.

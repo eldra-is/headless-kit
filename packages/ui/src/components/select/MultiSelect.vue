@@ -1,28 +1,17 @@
 <script setup lang="ts">
-import {
-  computed,
-  inject,
-  nextTick,
-  onBeforeUnmount,
-  ref,
-  useAttrs,
-  watch,
-  watchPostEffect,
-} from 'vue';
+import { computed, inject, nextTick, ref, useAttrs, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { useFloating } from '../../composables/useFloating';
 import { useMessages } from '../../composables/useMessages';
-import { useOverlay } from '../../composables/useOverlay';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
-import { registerOpen, unregisterOpen } from './openRegistry';
 import SelectPanel from './SelectPanel.vue';
 import type { MultiSelectPart, MultiSelectProps, SelectOption, SelectSize } from './types';
 import { useListbox } from './useListbox';
 import { useOptionList } from './useOptionList';
+import { usePopover } from './usePopover';
 
 defineOptions({ inheritAttrs: false });
 
@@ -160,7 +149,6 @@ const countText = computed(() =>
   hasSelection.value ? m.value.selectedCount(selectedOptions.value.length) : m.value.noneSelected
 );
 
-const isOpen = ref(false);
 const query = ref('');
 const triggerRef = ref<HTMLButtonElement | null>(null);
 const nativeRef = ref<HTMLSelectElement | null>(null);
@@ -179,6 +167,40 @@ const { sections, nativeSections, listOptions, hasOptions, highlights } = useOpt
   query: () => query.value,
   searchable: () => searchable.value,
   controlId: () => controlId.value,
+});
+
+// --- opening and closing -------------------------------------------------------------------------
+
+/**
+ * The panel's open/closed life, shared with `Select` and the `SearchBar`'s results panel: the
+ * registry's "only one open at a time", `useOverlay`'s closing rules, `useFloating`'s position and
+ * the label-forwarded-click latch (see `usePopover`).
+ */
+const {
+  isOpen,
+  panelStyle,
+  placement: resolvedPlacement,
+  open: openPopover,
+  close: closePopover,
+  onTriggerPointerDown,
+  onTriggerClick,
+} = usePopover({
+  trigger: triggerRef,
+  content: panelRef,
+  canOpen: () => !props.disabled && !props.readonly,
+  placement: props.placement,
+  matchWidth: true,
+  onOpen: () => {
+    listbox.resetTypeahead();
+    emit('open');
+  },
+  onClose: () => {
+    listbox.resetTypeahead();
+    if (query.value !== '') setQuery('');
+    emit('close');
+  },
+  afterOpen: () => afterOpen(),
+  openFromPointer: () => openPanel('start'),
 });
 
 // --- the keyboard ------------------------------------------------------------------------------
@@ -239,53 +261,13 @@ function onKeydown(event: KeyboardEvent): void {
   if (wasOpen && event.altKey && event.key === 'ArrowUp') closePanel();
 }
 
-// --- opening and closing -------------------------------------------------------------------------
-
-/** The registry's handle on this control. Stable, so the registry can tell ours from another's. */
-const closeFromRegistry = (): void => setOpen(false);
-
-function setOpen(next: boolean): void {
-  if (next === isOpen.value) return;
-  if (next) {
-    if (props.disabled || props.readonly) return;
-    isOpen.value = true;
-    listbox.resetTypeahead();
-    // Spec "Select" → Behaviour: "opening a select closes any other open select or multi-select" —
-    // the same module-level slot `Select` registers with, which is what makes the rule hold
-    // *between* the two controls.
-    registerOpen(closeFromRegistry);
-    emit('open');
-    return;
-  }
-  isOpen.value = false;
-  unregisterOpen(closeFromRegistry);
-  listbox.resetTypeahead();
-  if (query.value !== '') setQuery('');
-  emit('close');
-}
-
-useOverlay({
-  open: isOpen,
-  trigger: triggerRef,
-  content: panelRef,
-  setOpen: (next) => setOpen(next),
-});
-
-const { styles: floatingStyles, placement: resolvedPlacement } = useFloating(triggerRef, panelRef, {
-  placement: props.placement,
-  matchWidth: true,
-});
-
 function openPanel(edge: 'start' | 'end'): void {
-  if (props.disabled || props.readonly) return;
-  const wasOpen = isOpen.value;
-  setOpen(true);
-  if (!isOpen.value) return;
-  // The first selected option, or else the first enabled one — the same rule as `Select`, read for
-  // a list of values.
-  if (edge === 'end' && !searchable.value) listbox.last();
-  else listbox.activateFrom(model.value[0]);
-  if (!wasOpen) void afterOpen();
+  openPopover(() => {
+    // The first selected option, or else the first enabled one — the same rule as `Select`, read
+    // for a list of values.
+    if (edge === 'end' && !searchable.value) listbox.last();
+    else listbox.activateFrom(model.value[0]);
+  });
 }
 
 async function afterOpen(): Promise<void> {
@@ -297,16 +279,10 @@ async function afterOpen(): Promise<void> {
   }
 }
 
-function closePanel(returnFocus = true): void {
-  if (!isOpen.value) return;
-  setOpen(false);
-  if (returnFocus) triggerRef.value?.focus();
+/** Closing returns focus to the trigger, which is `usePopover`'s own default. */
+function closePanel(): void {
+  closePopover();
 }
-
-onBeforeUnmount(() => {
-  unregisterOpen(closeFromRegistry);
-  detachTriggerRelease();
-});
 
 // --- choosing ------------------------------------------------------------------------------------
 
@@ -434,43 +410,6 @@ function onNativeChange(event: Event): void {
   }
   model.value = values;
   emit('change', values);
-}
-
-// --- pointer ---------------------------------------------------------------------------------
-
-/** The label-forwarded-click latch. See `Select` for the whole story. */
-let pressedTrigger = false;
-
-function releaseTrigger(event: Event): void {
-  detachTriggerRelease();
-  const target = event.target;
-  if (target instanceof Node && triggerRef.value?.contains(target) === true) return;
-  pressedTrigger = false;
-}
-
-function detachTriggerRelease(): void {
-  if (typeof document === 'undefined') return;
-  document.removeEventListener('pointerup', releaseTrigger, true);
-  document.removeEventListener('pointercancel', releaseTrigger, true);
-}
-
-function onTriggerPointerDown(): void {
-  pressedTrigger = true;
-  if (typeof document === 'undefined') return;
-  document.addEventListener('pointerup', releaseTrigger, true);
-  document.addEventListener('pointercancel', releaseTrigger, true);
-}
-
-function onTriggerClick(event: MouseEvent): void {
-  const fromPointer = pressedTrigger || event.detail > 0;
-  pressedTrigger = false;
-  if (props.disabled || props.readonly) return;
-  if (!fromPointer) {
-    triggerRef.value?.focus();
-    return;
-  }
-  if (isOpen.value) closePanel();
-  else openPanel('start');
 }
 
 // --- searching ---------------------------------------------------------------------------------
@@ -615,17 +554,6 @@ const tagRemoveClass = computed(() =>
     'tagRemove'
   )
 );
-
-/**
- * Which edge the panel grows from — two CSS variables rather than two animation classes, so a
- * panel that flips after floating-ui measures does not restart its entrance. See `Select`.
- */
-const isAbove = computed(() => resolvedPlacement.value.startsWith('top'));
-const panelStyle = computed<Record<string, string>>(() => ({
-  ...floatingStyles.value,
-  '--eldra-popover-origin': isAbove.value ? 'bottom' : 'top',
-  '--eldra-popover-slide': isAbove.value ? '0.25rem' : '-0.25rem',
-}));
 
 const emptyText = computed(() =>
   query.value.trim() === '' ? m.value.noResults : m.value.noMatchesFor(query.value.trim())

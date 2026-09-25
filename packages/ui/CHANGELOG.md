@@ -5,6 +5,43 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `SearchBar` — the storefront search field with a live, grouped results panel: a real
+  `<form role="search" method="get" :action>` with the field named `q`, so `Enter` with no active
+  row reaches the Search page with or without scripting (`submit` fires with the query first and
+  prevents nothing). The field is a `role="combobox"` (`aria-expanded`, `aria-controls`,
+  `aria-autocomplete="list"`, `aria-activedescendant`, `autocomplete="off"`) and the results panel
+  is a **non-modal popup**, never a dialog: it is positioned with `useFloating` against the field
+  (matching its width), closed by `useOverlay`, and focus never leaves the caret — rows are reached
+  through `aria-activedescendant` and a pointer press inside the panel does not blur the field.
+  Four views, exactly one at a time: `idle` (recent rows, a row that empties them, then popular
+  chips), `results` (Products max 4, Collections max 3, Journal and help max 3 — articles then
+  pages — then "See all N results"), `none` (the query by name, one line of advice and the popular
+  chips as suggestions) and `loading`, which appears only once a request has been in flight for
+  300ms so a fast response never flickers the panel. Matches are marked with weight and an
+  underline (a `<mark>` with no background), ignoring case and accents; the active row is marked by
+  a fill, an arrow and `aria-activedescendant`, never colour alone. `/` anywhere on the page focuses
+  the field (never while someone is typing elsewhere), `ArrowDown`/`ArrowUp` walk every row across
+  groups without wrapping, `Enter` follows the active row (or fills the field from a recent row or
+  chip, or submits), `Escape` clears the active row, then the query, then closes, and `Tab` closes
+  and moves on. A visually hidden polite live region announces the count, or "No results for …",
+  400ms after typing stops. Recent searches come from `localStorage["eldra-ui:recent-searches"]`
+  when `recent` is not given (read and written defensively, capped at 5), and "Clear recent
+  searches" empties them and emits `clearRecent`. `size` is `"md"` or `"lg"`, `pill` rounds the
+  field fully, `autofocus` is for the Search page, `resultTypes` picks the groups, `showRecent`
+  turns the history off, and `classes`/`messages`/the `item` and `empty` slots are the styling and
+  content hooks. New type utilities `text-search-meta`, `text-search-title` and `text-search-kbd`,
+  and a new `eldra-search-panel-height` (`min(32rem, 70vh)`, on Tailwind's `max-h` merge group).
+- New composable `usePopover` (exported from the package root): the open/closed life of a non-modal
+  popup anchored to a control — the "only one open at a time" registry, `useOverlay`'s closing
+  rules, `useFloating`'s position plus the two entrance variables the keyframes read, the open →
+  activate → `afterOpen` sequence, and the label-forwarded-click latch. `Select`, `MultiSelect` and
+  `SearchBar` all open their panel with it; it replaced ~160 lines that were line-identical between
+  the first two, and neither their tests nor their screenshot baselines moved.
+- New messages `noResultsFor(query)`, `searchSuggestions`, `searchProducts`, `searchCollections`,
+  `searchJournal` and `searchAdvice`. `clearRecent` is now the spec's own "Clear recent searches"
+  (it was "Clear recent") and `viewAllResults(n)` its "See all N results" (it was "View all N
+  results"); both were already worded that way in `is-IS`.
+
 - `VariantPicker` — a native radio group in a `<fieldset>` for a product option (size, colour):
   pills (default) or swatches. `modelValue` is two-way, defaulting to the first available option;
   `name` is used unmodified as the shared native radio `name` and in the legend ("Size: M"). Every

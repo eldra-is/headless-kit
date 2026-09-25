@@ -697,6 +697,46 @@
   transform-origin: var(--eldra-popover-origin, top);
 }
 
+/* --- Search bar ------------------------------------------------------------------------------- */
+
+/* A result row's meta (spec "Search bar" -> Sizes, "Title / sub / meta" row): "0.875rem 600
+   tabular" — a price. Both numbers already read tokens (`text-label-weight` is 600,
+   `text-body-sm-size` is 0.875rem); only the 1.35 line of the row's text stack is this component's
+   own, and it is shared with the row's title, which reuses `text-select-option` (the same
+   0.9375rem on the same 1.35 line the spec gives both components). `font-variant-numeric` comes
+   after the `font` shorthand, which resets it. */
+@utility text-search-meta {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-search-text-line, 1.35) var(--eldra-font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The no-results title (spec -> Sizes, "No-results message" row): "Title 1rem 600". The size and
+   the weight are tokens; the 1.4 line has none of its own, so it is a per-component variable with
+   that literal default, exactly like `text-card-title`'s. Its own utility rather than a stock
+   weight layered over `text-body`, because layering `font-semibold` after a shorthand `font`
+   property that already bakes in a weight is order-dependent (see `text-counter`'s comment). */
+@utility text-search-title {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
+    var(--eldra-search-empty-line, 1.4) var(--eldra-font-body);
+}
+
+/* The `/` keyboard-key chip (spec -> Sizes, "Keyboard hint" row): "monospace, 0.75rem". The size
+   is the overline token's, the family the mono token's, and the 1rem line box is the chip's own
+   height rather than a ratio. */
+@utility text-search-kbd {
+  font: var(--eldra-text-body-weight) var(--eldra-text-overline-size) /
+    var(--eldra-search-kbd-line, 1rem) var(--eldra-font-mono);
+}
+
+/* The results panel's own box (spec -> Sizes, Panel row): "Max height min(32rem, 70vh), scrolls
+   inside". Tailwind's `max-h` group, so a consumer's `classes.panel: 'max-h-64'` replaces it
+   outright. The panel's *width* is the field's (`useFloating`'s `matchWidth`), so there is no
+   width clamp to go with it, unlike the select popover's pair. */
+@utility eldra-search-panel-height {
+  max-height: min(var(--eldra-search-panel-max-height, 32rem), 70vh);
+}
+
 /* --- Variant picker --------------------------------------------------------------------------- */
 
 /* The legend's own text (spec "Variant picker" → Sizes, Legend row): "0.875rem; name 600, value

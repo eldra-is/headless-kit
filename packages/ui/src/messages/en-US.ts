@@ -41,6 +41,12 @@ export const enUS = {
   /** Shown when a filtered list has nothing to show. */
   noResults: 'No results',
   /**
+   * A `SearchBar`'s no-results title (spec "Search bar" -> Panel views, `none`: '"No results for
+   * “q”"'). Deliberately not `noMatchesFor`, which is a `Select`'s own empty state and whose
+   * "matches" is that section's own word.
+   */
+  noResultsFor: (query: string) => `No results for “${query}”`,
+  /**
    * A `Select`'s empty state while a search query is showing (spec "Select" -> Behaviour, Search:
    * 'With no matches, the empty state "No matches for “query”" shows as real text'). The
    * curly quotation marks are the spec's own.
@@ -81,16 +87,26 @@ export const enUS = {
   soldOut: 'Sold out',
   /** The `SearchModal`'s field label. */
   searchTheShop: 'Search the shop',
+  /** The `SearchBar`'s results-panel name, and the `SearchModal`'s. */
+  searchSuggestions: 'Search suggestions',
+  /** The heading of a search panel's product group. */
+  searchProducts: 'Products',
+  /** The heading of a search panel's collection group. */
+  searchCollections: 'Collections',
+  /** The heading of a search panel's articles-and-pages group. */
+  searchJournal: 'Journal and help',
+  /** The line under a search panel's "No results" title, above the suggestion chips. */
+  searchAdvice: 'Check the spelling, or try one of these.',
   /** The `SearchModal`'s history group heading. */
   recentSearches: 'Recent searches',
   /** The `SearchModal`'s suggestions group heading. */
   popularSearches: 'Popular searches',
-  /** Empties the `SearchModal`'s history. */
-  clearRecent: 'Clear recent',
+  /** Empties the search history (the spec's own row label). */
+  clearRecent: 'Clear recent searches',
   /** The live-region announcement after a search. */
   resultsCount: (n: number) => `${n} ${n === 1 ? 'result' : 'results'}`,
-  /** The `SearchModal`'s footer link to the full results page. */
-  viewAllResults: (n: number) => (n === 1 ? 'View 1 result' : `View all ${n} results`),
+  /** The last row of a search results panel, which opens the full results page. */
+  viewAllResults: (n: number) => (n === 1 ? 'See 1 result' : `See all ${n} results`),
   /** The keyboard hint beside a search control. */
   shortcutHint: 'Press / to search',
   /** The label of an error region. */
