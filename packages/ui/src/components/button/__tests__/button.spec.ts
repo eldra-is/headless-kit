@@ -338,6 +338,27 @@ describe('Button — states', () => {
     wrapper.unmount();
   });
 
+  it('warns in development when a loading button has no label', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', loading: true },
+      slots: { default: 'Add to cart' },
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('label');
+    wrapper.unmount();
+  });
+
+  it('does not warn when a loading button has a label', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', loading: true, label: 'Adding to cart' },
+      slots: { default: 'Add to cart' },
+    });
+    expect(warn).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('names an icon-only button with its label and hides the icon from assistive tech', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const wrapper = mountWith(Button, {

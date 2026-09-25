@@ -6,6 +6,7 @@
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Icon } from './components/icon/Icon.vue';
+export { default as Link } from './components/link/Link.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
 // Component types
@@ -18,6 +19,7 @@ export type {
   ButtonVariant,
 } from './components/button/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
+export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
 
 // Messages

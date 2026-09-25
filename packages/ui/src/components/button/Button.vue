@@ -234,6 +234,22 @@ if (import.meta.env?.DEV) {
       );
     }
   });
+
+  /**
+   * While `loading`, the visible label is hidden (`invisible`) and `label` becomes the button's
+   * only accessible name (see `ariaLabel` above). An empty `label` here is the icon-only warning's
+   * sibling case: the button loses its name the moment it starts loading, not at mount, so it is
+   * easy to miss in a quick manual check.
+   */
+  watchEffect(() => {
+    if (isLoading.value && !props.iconOnly && props.label === undefined) {
+      console.warn(
+        '[@eldrajs/ui] <Button loading> has no `label`, so it loses its accessible name while ' +
+          'loading (the visible label is hidden). Give it one that describes the action in ' +
+          'progress, e.g. label="Adding to cart".'
+      );
+    }
+  });
 }
 
 function onClick(event: MouseEvent): void {

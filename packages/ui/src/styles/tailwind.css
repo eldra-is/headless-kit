@@ -249,6 +249,16 @@
     box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
   }
 }
+/* The Link focus ring's corner radius (spec "Link" → Sizes): "2px for every variant." No radius
+   token is this small — radius-sm is 0.375rem, for badges and chips — so, like the button's
+   lg font size above, it is a per-component variable with a literal default and no token behind
+   it; a consumer restyles it with `--eldra-link-radius` on any ancestor. `box-shadow` and modern
+   `outline` both already follow an element's own `border-radius`, so this is enough to round both
+   rings the focus ring foundation draws. */
+@utility eldra-link-radius {
+  border-radius: var(--eldra-link-radius, 2px);
+}
+
 @utility eldra-focus-inset {
   outline: 0 solid var(--eldra-color-focus);
   outline-offset: calc(-1 * (var(--eldra-focus-width) + var(--eldra-focus-offset)));

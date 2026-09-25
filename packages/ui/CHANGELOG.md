@@ -47,7 +47,25 @@ Release-please writes the generated notes from commit messages and does not repl
 - Messages: `useMessages`, `provideEldraUiMessages` and `MESSAGES_KEY` resolve the strings the
   components emit themselves in the order English defaults → provided → the component's `messages`
   prop. `enUS` is the default set; `@eldrajs/ui/messages/is-IS` now ships the Icelandic one.
-- `cx` and `partClass` merge classes with `tailwind-merge`, which is how the `classes` prop on
-  every component replaces a utility instead of losing to source order. `mixToward` builds the
-  `color-mix(in oklab, …)` string that derived states use. `useUiId` produces SSR-safe ids and
-  `useControllableModel` the controlled/uncontrolled `v-model` behaviour.
+- `cx` and `partClass` merge classes with a `tailwind-merge` instance extended with this package's
+  own `@utility` classes (type styles, control heights, `target-min`/`target-touch`, the
+  `eldra-focus` family, motion durations, layers and the spinner animation) as their matching or
+  own class groups, so a consumer's `classes.container: 'text-lg'` now replaces `text-button-md`
+  instead of landing beside it. `mixToward` builds the `color-mix(in oklab, …)` string that derived
+  states use. `useUiId` produces SSR-safe ids and `useControllableModel` the controlled/
+  uncontrolled `v-model` behaviour.
+- `Link` — text navigation in three forms: `inline` (always underlined, 1px at 55% of the text
+  colour thickening to 2px on hover), `standalone` (weight 600, optional trailing `arrow-right`
+  that moves 2px right on hover, no underline at rest), and `external` (`target="_blank"`,
+  `rel="noopener noreferrer"`, the `external-link` icon and visually hidden "Opens in a new tab").
+  `tone="muted"` is for footer and meta-line links. With no `href` it renders a
+  `<span data-part="root">` with the same text and no link semantics, per the spec's "render plain
+  text instead of a link." `as` takes a tag or a router-link component (a component receives the
+  destination as `to`, matching Vue Router / NuxtLink). On a `primary` or `accent` section it
+  inherits the section's contrast colour. `--eldra-link-radius` restyles the focus ring's corner
+  radius.
+- `@eldrajs/ui/tailwind.css` gains `eldra-link-radius` (Link's 2px focus-ring corner radius, with
+  no radius token that small).
+- `Button` — a `loading` button with no `label` now also warns once in development that it loses
+  its accessible name while loading (the visible label is `visibility: hidden`), next to the
+  existing icon-only warning.

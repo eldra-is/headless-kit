@@ -34,6 +34,50 @@ describe('cx', () => {
   });
 });
 
+describe('cx — custom @utility class groups', () => {
+  it('lets a stock font-size utility replace a custom type-style utility', () => {
+    expect(cx('text-button-md', 'text-lg')).toBe('text-lg');
+  });
+
+  it('lets a stock height utility replace a custom control-height utility', () => {
+    expect(cx('control-h', 'h-8')).toBe('h-8');
+  });
+
+  it('lets one focus-ring variant replace another', () => {
+    expect(cx('eldra-focus', 'eldra-focus-inset')).toBe('eldra-focus-inset');
+  });
+
+  it('lets one control height replace another', () => {
+    expect(cx('control-h-sm', 'control-h-lg')).toBe('control-h-lg');
+  });
+
+  it('lets one target utility replace another of the same kind', () => {
+    expect(cx('target-min', 'target-min')).toBe('target-min');
+  });
+
+  it('lets one duration utility replace another', () => {
+    expect(cx('duration-fast', 'duration-slow')).toBe('duration-slow');
+  });
+
+  it('lets one z-layer utility replace another', () => {
+    expect(cx('z-sticky', 'z-toast')).toBe('z-toast');
+  });
+
+  it('lets one spin animation replace another', () => {
+    expect(cx('animate-eldra-spin', 'animate-eldra-pulse')).toBe('animate-eldra-pulse');
+  });
+
+  it('keeps unrelated custom utilities that do not conflict', () => {
+    expect(cx('control-h', 'text-button-md', 'eldra-focus')).toBe(
+      'control-h text-button-md eldra-focus'
+    );
+  });
+
+  it('keeps a custom utility beside an unrelated stock utility', () => {
+    expect(cx('target-min', 'bg-primary')).toBe('target-min bg-primary');
+  });
+});
+
 describe('partClass', () => {
   it('returns the base classes when no overrides are given', () => {
     expect(partClass('rounded-md px-4', undefined, 'container')).toBe('rounded-md px-4');
