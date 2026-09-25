@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `@eldrajs/ui/resolver` — `EldraUiResolver({ prefix = 'Eldra' })`, a plain
+  `unplugin-vue-components` resolver (`{ type: 'component', resolve(name) }`) resolving
+  `<prefix><Name>` for every component the root entry exports (default prefix `Eldra`; never `Ui`).
+  Backed by a hand-maintained `src/componentNames.ts`, guarded against drift from `src/index.ts` by
+  a test that imports the real entry and compares its component keys.
+- `README.md` reorganised into the design spec's section list (Install, Styles, Fonts,
+  Customisation, Messages, Composables, Resolver, the forthcoming `./vee-validate` entry,
+  Accessibility and testing, Deviations) and its Deviations list completed with every recorded
+  departure from the spec for `Button`, `Link`, `Input`, `Textarea` and `VariantPicker` that had not
+  made it there yet. `docs/ui.md` added to the kit's docs.
 - `SearchBar` — the storefront search field with a live, grouped results panel: a real
   `<form role="search" method="get" :action>` with the field named `q`, so `Enter` with no active
   row reaches the Search page with or without scripting (`submit` fires with the query first and

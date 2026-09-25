@@ -100,8 +100,23 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   own Tailwind build reads them, with `@source './'` resolving against `dist/`), and `./style.css`
   (the package's compiled stylesheet for consumers without Tailwind, emitted by the `style` lib
   entry). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
-  apply — this is a framework package. Never a `Ui` prefix: the resolver entry defaults to
-  `Eldra`.
+  apply — this is a framework package. Entries (`exports`): `.` (every component, composable and
+  type, unprefixed — `Button`, `Select`, no global registration), `./resolver`
+  (`EldraUiResolver({ prefix = 'Eldra' })` for `unplugin-vue-components`, resolving
+  `<prefix><Name>` against `src/componentNames.ts` — a hand-maintained list rather than one
+  generated from `src/index.ts`, guarded by `src/__tests__/componentNames.spec.ts` importing the
+  index and comparing its component keys; a generator was judged not worth a build step ahead of
+  `vite build` for 18 names that change once per component, ever), `./vee-validate` (`Form` and the
+  ten `Field*` components wrapping `vee-validate`'s `useField`/`useForm`; the export map slot
+  exists, the components land in the next task), `./messages/is-IS` (the Icelandic message set, its
+  own entry so an English-only store never bundles it), and the three CSS entries above. Text a
+  component renders itself goes through a `messages` prop / `provideEldraUiMessages`, English
+  defaults built in. Composables exported from the root for building controls this package does not
+  ship yet: `useFloating` (`@floating-ui/vue` placement), `useOverlay` (non-modal popup close/focus,
+  never a focus trap — modal surfaces use `useDialogStack` when they land), `useListbox` (the select
+  keyboard and active row, shared by `Select`/`MultiSelect`). Never a `Ui` prefix: the resolver
+  entry defaults to `Eldra`, which is `packages/ui/README.md`'s job to keep straight from
+  `@eldra-is/vue-ui-components`'s own `Ui*`/resolver.
 - `packages/theme-core` — `@eldrajs/theme-core`. Framework-free core of the theme SDK: the Studio
   preview bridge (`./bridge`), stega, the overlay runtime, layout CSS, rich-text position mapping,
   design tokens, image framing. Built by tsdown, one entry per subpath. Must never import a
@@ -154,9 +169,11 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in
   consumer terms.
 - `docs/` — plain markdown: `getting-started.md`, `rich-text.md`, `frameworks.md` (the contract a
-  wrapper for another framework must satisfy), `themes.md` (theme package map, the framework-free
-  rule, the Studio bridge, running the starter), `starter-kit.md` (the starter's own conventions —
-  see the `examples/starter-nuxt` entry above) plus the four `theme-*.md` docs `themes.md` links to.
+  wrapper for another framework must satisfy), `ui.md` (short: what `@eldrajs/ui` is, install, the
+  three CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
+  map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the
+  starter's own conventions — see the `examples/starter-nuxt` entry above) plus the four
+  `theme-*.md` docs `themes.md` links to.
 
 ## Testing
 

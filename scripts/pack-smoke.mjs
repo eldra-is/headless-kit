@@ -73,22 +73,30 @@ const consumers = {
     `,
   },
   '@eldrajs/ui': {
-    // Proves the package resolves, that the three CSS entries are in the tarball, and that a
+    // Proves the package resolves, that the three CSS entries are in the tarball, that a
     // component really is a component on the other side of the build (a Vue SFC that failed to
-    // compile still imports fine as a plain object, so the render function is what is asserted).
+    // compile still imports fine as a plain object, so the render function is what is asserted),
+    // that `./resolver` resolves the `Eldra` prefix, and that `./messages/is-IS` is reachable.
     runtime: `
       import { existsSync } from 'node:fs';
       import { createRequire } from 'node:module';
       import * as ui from '@eldrajs/ui';
-      import { Button, ButtonGroup } from '@eldrajs/ui';
+      import { Button, Select, FieldWrapper } from '@eldrajs/ui';
+      import { EldraUiResolver } from '@eldrajs/ui/resolver';
+      import { isIS } from '@eldrajs/ui/messages/is-IS';
       assert(ui && typeof ui === 'object', '@eldrajs/ui namespace');
-      for (const [name, component] of [['Button', Button], ['ButtonGroup', ButtonGroup]]) {
+      for (const [name, component] of [['Button', Button], ['Select', Select], ['FieldWrapper', FieldWrapper]]) {
         assert(component && typeof component === 'object', name + ' is an object');
         assert(
           typeof component.render === 'function' || typeof component.setup === 'function',
           name + ' has a render or setup function'
         );
       }
+      const resolved = EldraUiResolver().resolve('EldraButton');
+      assert.deepEqual(resolved, { name: 'Button', from: '@eldrajs/ui' }, 'EldraUiResolver resolves EldraButton');
+      assert.equal(EldraUiResolver().resolve('UiButton'), undefined, 'EldraUiResolver never implies Ui');
+      assert(isIS && typeof isIS === 'object', '@eldrajs/ui/messages/is-IS exports isIS');
+      assert.equal(typeof isIS.close, 'string', 'isIS carries the message catalogue');
       const resolve = createRequire(import.meta.url).resolve;
       for (const css of ['tokens.css', 'tailwind.css', 'style.css']) {
         assert(existsSync(resolve('@eldrajs/ui/' + css)), css);
@@ -96,11 +104,16 @@ const consumers = {
     `,
     types: `
       import * as ui from '@eldrajs/ui';
-      import { Button, ButtonGroup, FORM_SUBMITTING_KEY, type ButtonProps } from '@eldrajs/ui';
+      import { Button, Select, FieldWrapper, FORM_SUBMITTING_KEY, type ButtonProps } from '@eldrajs/ui';
+      import { EldraUiResolver, type EldraUiResolverOptions } from '@eldrajs/ui/resolver';
+      import { isIS } from '@eldrajs/ui/messages/is-IS';
       export const namespace: typeof ui = ui;
-      export const components = { Button, ButtonGroup };
+      export const components = { Button, Select, FieldWrapper };
       export const key = FORM_SUBMITTING_KEY;
       export const props: ButtonProps = { variant: 'primary', size: 'lg' };
+      export const resolverOptions: EldraUiResolverOptions = { prefix: 'Eldra' };
+      export const resolver = EldraUiResolver(resolverOptions);
+      export const messages = isIS;
     `,
   },
   '@eldrajs/theme-core': {
