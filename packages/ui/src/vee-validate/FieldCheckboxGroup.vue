@@ -8,7 +8,7 @@
  */
 import CheckboxGroup from '../components/checkbox/CheckboxGroup.vue';
 import type { FieldCheckboxGroupProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 /** Module-level, so an empty selection is the same array identity on every render. */
 const EMPTY: string[] = [];
@@ -20,7 +20,7 @@ const { model, ownError, onBlur } = useFieldControl<string[]>(props, {
   hasIdProp: false,
 });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>

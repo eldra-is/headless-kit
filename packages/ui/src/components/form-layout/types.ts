@@ -30,6 +30,15 @@ export interface FormLayoutProps {
   method?: string;
   /** Native `novalidate`. Defaults to `true`: the components' own messages, not browser bubbles. */
   novalidate?: boolean;
+  /**
+   * Whether a refused submit moves focus to the first invalid field. Defaults to `true`.
+   *
+   * Set it to `false` only when something above the form does the focus move itself, and would
+   * otherwise do it twice — which is exactly what `@eldrajs/ui/vee-validate`'s `Form` does: its own
+   * validation finishes asynchronously, after this one, so it has to own where focus lands. The
+   * `invalid` event still fires either way.
+   */
+  focusOnInvalid?: boolean;
   /** While true the submit button is loading and every other action in the form is disabled. */
   submitting?: boolean;
   /**

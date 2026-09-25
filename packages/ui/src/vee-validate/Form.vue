@@ -23,7 +23,7 @@ const props = defineProps<FormProps>();
 const emit = defineEmits<{
   /** The form validated. Carries the values and vee-validate's own submission context. */
   submit: [values: FormValues, ctx: SubmissionContext<FormValues>];
-  /** The form did not validate. Carries the messages, keyed by field `name`. Focus has moved. */
+  /** The form did not validate. Carries the messages, keyed by field path. Focus has moved. */
   invalid: [errors: Record<string, string | undefined>];
 }>();
 
@@ -146,11 +146,12 @@ const layout = ref<InstanceType<typeof FormLayout> | null>(null);
 /**
  * Focus the first invalid field after vee-validate has rejected a submit.
  *
- * `FormLayout` does this itself for a submit it refuses, but it can only refuse what the DOM
- * already says is invalid — and on the **first** attempt nothing is marked yet, because no field
- * has been touched. So the form does it again once validation has come back, over the same
- * `[aria-invalid="true"]` query and the same `focusInvalid`, falling back to the first summary
- * anchor for a control with no invalid state of its own (a `Switch`, a `VariantPicker`).
+ * `FormLayout` can do this itself, but it can only refuse what the DOM already says is invalid —
+ * and on the **first** attempt nothing is marked yet, because no field has been touched. So this
+ * form owns the move, over the same `[aria-invalid="true"]` query and the same `focusInvalid`,
+ * falling back to the first summary anchor for a control with no invalid state of its own (a
+ * `Switch`, a `VariantPicker`). The layout's own move is turned off (`:focus-on-invalid="false"`),
+ * so a refused submit moves focus once rather than to one element and then to another.
  */
 function focusFirstInvalid(): void {
   const root = layout.value?.$el;
@@ -248,6 +249,7 @@ const SUMMARY_LINK = 'underline';
     v-bind="layoutProps"
     :submitting="submitting"
     :status-message="statusMessage"
+    :focus-on-invalid="false"
     @submit="onLayoutSubmit"
     @invalid="onLayoutInvalid"
   >

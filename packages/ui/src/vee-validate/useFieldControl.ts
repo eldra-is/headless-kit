@@ -16,6 +16,9 @@ import type { FieldBinding } from './types';
 /** The props every `Field*` passes in: its `FieldBinding`, plus the control's own `id` if it has one. */
 type FieldControlProps<TValue> = FieldBinding<TValue> & { id?: string };
 
+/** The props a `Field*` keeps for itself and never forwards to the component it wraps. */
+export const FIELD_ONLY = ['path', 'rules', 'label', 'id'] as const;
+
 export interface UseFieldControlOptions<TValue> {
   /**
    * What the control is bound to while the field itself holds `undefined` — `''`, `false`, or a
@@ -69,8 +72,15 @@ export function useFieldControl<TValue>(
   props: FieldControlProps<TValue>,
   options: UseFieldControlOptions<TValue>
 ): UseFieldControlReturn<TValue> {
+  /**
+   * Where the value lives. `name` for every control whose `name` is the native form field name;
+   * `path` for the one whose is not — a `VariantPicker`'s `name` is the visible option name, so it
+   * would otherwise be both the legend and the key in `values`, and one of the two would be wrong.
+   */
+  const path = computed(() => props.path ?? props.name);
+
   const rules = computed(() => props.rules);
-  const { value, errorMessage, handleBlur, meta } = useField<TValue>(() => props.name, rules, {
+  const { value, errorMessage, handleBlur, meta } = useField<TValue>(path, rules, {
     label: () => props.label,
     initialValue: options.initialValue,
   });
@@ -91,7 +101,7 @@ export function useFieldControl<TValue>(
 
   const apiErrors = inject(API_ERRORS_KEY, null);
   const hasApiError = computed(
-    () => apiErrors !== null && apiErrors.value[props.name] !== undefined
+    () => apiErrors !== null && apiErrors.value[path.value] !== undefined
   );
 
   /**
@@ -124,15 +134,17 @@ export function useFieldControl<TValue>(
   const anchors = inject(FIELD_ANCHORS_KEY, null);
   if (anchors !== null) {
     watch(
-      [() => props.name, anchorId],
-      ([name, target], previous) => {
-        const previousName = previous?.[0];
-        if (previousName !== undefined && previousName !== name) anchors.unregister(previousName);
-        anchors.register(name, target);
+      [path, anchorId],
+      ([current, target], previous) => {
+        const previousPath = previous?.[0];
+        if (previousPath !== undefined && previousPath !== current) {
+          anchors.unregister(previousPath);
+        }
+        anchors.register(current, target);
       },
       { immediate: true }
     );
-    onScopeDispose(() => anchors.unregister(props.name));
+    onScopeDispose(() => anchors.unregister(path.value));
   }
 
   /**
@@ -143,9 +155,9 @@ export function useFieldControl<TValue>(
    */
   if (apiErrors !== null) {
     watch(value, () => {
-      if (!(props.name in apiErrors.value)) return;
+      if (!(path.value in apiErrors.value)) return;
       const next = { ...apiErrors.value };
-      delete next[props.name];
+      delete next[path.value];
       apiErrors.value = next;
     });
   }

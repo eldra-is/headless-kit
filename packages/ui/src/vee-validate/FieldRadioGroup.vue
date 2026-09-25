@@ -6,13 +6,13 @@
  */
 import RadioGroup from '../components/radio/RadioGroup.vue';
 import type { FieldRadioGroupProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 const props = defineProps<FieldRadioGroupProps>();
 
 const { model, ownError, onBlur } = useFieldControl<string>(props, { empty: '', hasIdProp: false });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>

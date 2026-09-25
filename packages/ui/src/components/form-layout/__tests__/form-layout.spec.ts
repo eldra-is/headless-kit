@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, inject, nextTick, ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
@@ -229,6 +229,24 @@ describe('FormLayout — an invalid submit', () => {
     expect(wrapper.emitted('invalid')).toHaveLength(1);
     expect(wrapper.emitted('invalid')?.[0]?.[0]).toEqual([postcode.id]);
     expect(document.activeElement).toBe(postcode);
+    wrapper.unmount();
+  });
+
+  it('leaves focus alone with focusOnInvalid false, and still refuses and reports the submit', async () => {
+    const wrapper = invalidForm({ focusOnInvalid: false });
+    const postcode = wrapper.findAll('input')[1]?.element as HTMLInputElement;
+    const focus = vi.spyOn(postcode, 'focus');
+
+    await wrapper.trigger('submit');
+
+    // Only the focus move is off: something above the form does it instead (the `./vee-validate`
+    // entry's `Form`, which validates asynchronously and so has to own where focus lands). The
+    // refusal and the `invalid` event — what an error summary is built from — are unchanged.
+    expect(focus).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(postcode);
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    expect(wrapper.emitted('invalid')?.[0]?.[0]).toEqual([postcode.id]);
+    focus.mockRestore();
     wrapper.unmount();
   });
 

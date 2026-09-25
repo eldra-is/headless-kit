@@ -9,13 +9,13 @@
  */
 import Checkbox from '../components/checkbox/Checkbox.vue';
 import type { FieldCheckboxProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 const props = defineProps<FieldCheckboxProps>();
 
 const { model, invalid, id, onBlur } = useFieldControl<boolean>(props, { empty: false });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>

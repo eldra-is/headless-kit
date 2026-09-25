@@ -134,6 +134,11 @@ const isOverLimit = computed(() => props.counter !== undefined && count.value > 
  *
  * The fieldset variant is the spec's own separate geometry: "no border, padding or min-width, grid
  * with a 0.75rem (`space-3`) gap, and the legend has a 0.5rem (`space-2`) bottom margin."
+ *
+ * A `group` fieldset also carries `tabindex="-1"`. It is the one part of a field that an error
+ * summary can link to — a group has no single control, so `#<id>` points at the fieldset itself —
+ * and a browser moves focus to a fragment's target only when that target can take focus. `-1`
+ * keeps it out of the tab order while making the link actually land on the question it names.
  */
 const rootClass = computed(() =>
   partClass(
@@ -231,6 +236,7 @@ const counterClass = computed(() =>
     :id="group ? controlId : undefined"
     data-part="root"
     :class="rootClass"
+    :tabindex="group ? -1 : undefined"
     :aria-describedby="group ? describedBy : undefined"
     :aria-invalid="group && hasError ? 'true' : undefined"
   >

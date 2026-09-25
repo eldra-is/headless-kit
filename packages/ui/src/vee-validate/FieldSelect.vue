@@ -5,13 +5,13 @@
  */
 import Select from '../components/select/Select.vue';
 import type { FieldSelectProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 const props = defineProps<FieldSelectProps>();
 
 const { model, invalid, id, onBlur } = useFieldControl<string>(props, { empty: '' });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>

@@ -1,14 +1,23 @@
 import type { InjectionKey, Ref } from 'vue';
 
 /**
- * The server's field errors, keyed by the same `name` a `Field*` validates under.
+ * The server's field errors, keyed by the path a `Field*` validates under (its `path`, or its
+ * `name` when there is none).
  *
  * `Form` provides it from its `apiErrors` prop and applies it to the form with vee-validate's own
  * `setErrors`, so a 422 from the shop's API lands on the field it belongs to rather than in a
- * banner above the form. Every `Field*` injects it and removes its own entry the moment its value
- * changes — a server error is a statement about the value that was sent, so it stops being true as
- * soon as the customer edits it, and nothing else would clear it (a rule that already passes has
- * no new message to overwrite it with).
+ * banner above the form. Every `Field*` injects it and removes **its own** entry the moment its
+ * value changes — a server error is a statement about the value that was sent, so it stops being
+ * true as soon as the customer edits it, and nothing else would reliably clear it (a rule that
+ * already passes has no new message to overwrite it with).
+ *
+ * How long an entry survives a change to a *different* field is vee-validate's, not this key's.
+ * Before the first submit — and with per-field `rules` at any time — only the changed field is
+ * revalidated, so another field's server error stays put. After a submit, with a form-level
+ * `validationSchema`, every already-validated field is revalidated on each change
+ * (`validated-only`), and a field that now passes has its manually set error replaced by that
+ * pass — so the server's message for it goes too. Send the current map with each response rather
+ * than treating one as sticky; `src/vee-validate/__tests__/vee-validate.spec.ts` pins both halves.
  *
  * It is a plain `Ref`, so a consumer can provide one itself and drive server errors from outside a
  * `Form`:

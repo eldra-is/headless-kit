@@ -126,6 +126,102 @@ describe('FieldInput inside a Form', () => {
   });
 });
 
+describe('what a Field forwards', () => {
+  it('reaches the inner component with a classes override and a slot', () => {
+    const wrapper = mountForm(() =>
+      h(
+        FieldInput,
+        { name: 'email', classes: { control: 'bg-surface', root: 'w-64' } },
+        { suffix: () => h('span', { 'data-testid': 'suffix' }, '.is') }
+      )
+    );
+    // `classes` is merged by the component itself, per part — not appended to the wrapper.
+    expect(wrapper.find('[data-part="control"]').classes()).toContain('bg-surface');
+    // Scoped: the form itself is also a `data-part="root"`, and it is the outer one.
+    expect(wrapper.find('[data-part="fields"] [data-part="root"]').classes()).toContain('w-64');
+    expect(wrapper.find('[data-testid="suffix"]').text()).toBe('.is');
+    wrapper.unmount();
+  });
+
+  it('reaches a second wrapper the same way, scoped slot props included', async () => {
+    const wrapper = mountForm(() =>
+      h(
+        FieldSelect,
+        { name: 'country', options: COUNTRIES, classes: { trigger: 'rounded-none' } },
+        {
+          option: ({ option, selected }: { option: { label: string }; selected: boolean }) =>
+            h('span', { 'data-testid': 'own-option' }, `${option.label}:${String(selected)}`),
+        }
+      )
+    );
+    expect(wrapper.find('[data-part="trigger"]').classes()).toContain('rounded-none');
+
+    const trigger = wrapper.find('[data-part="trigger"]');
+    await trigger.trigger('pointerdown');
+    await trigger.trigger('click');
+    await settle();
+
+    const own = wrapper.findAll('[data-testid="own-option"]');
+    expect(own).toHaveLength(2);
+    expect(own[0]?.text()).toBe('Iceland:false');
+    wrapper.unmount();
+  });
+
+  it('keeps `path` off the control and validates under it instead of `name`', async () => {
+    const wrapper = mountForm(
+      () =>
+        h(FieldVariantPicker, {
+          name: 'Size',
+          path: 'size',
+          options: [
+            { value: 'small', label: 'Small', available: true },
+            { value: 'large', label: 'Large', available: true },
+          ],
+        }),
+      { validationSchema: { size: filled('Choose a size.') } }
+    );
+    await settle();
+
+    // `name` is the *visible* legend and the radios' shared native name…
+    expect(wrapper.find('legend').text()).toContain('Size');
+    expect(wrapper.find('input[type="radio"]').attributes('name')).toBe('Size');
+    expect(wrapper.find('fieldset').attributes('path')).toBeUndefined();
+
+    // …and `path` is where the value lives, which is what the schema and `values` are keyed by.
+    await wrapper.find('form').trigger('submit');
+    await settle();
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toEqual({ size: 'small' });
+    wrapper.unmount();
+  });
+
+  it('attaches a server error to a field by its path, not its name', async () => {
+    // A `VariantPicker` has neither an `invalid` nor an `error` prop, so the wrapper is the only
+    // place its message can appear — which is also the pattern being asserted.
+    const wrapper = mountWith(Form, {
+      props: { ariaLabel: 'Test form', apiErrors: { size: 'That size is out of stock.' } },
+      slots: {
+        default: (slotProps: { errors: Record<string, string> }) =>
+          h(
+            FieldWrapper,
+            { group: true, label: 'Size', error: slotProps.errors.size },
+            {
+              default: () =>
+                h(FieldVariantPicker, {
+                  name: 'Size',
+                  path: 'size',
+                  options: [{ value: 'small', label: 'Small', available: true }],
+                }),
+            }
+          ),
+        actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Send'),
+      },
+    });
+    await settle();
+    expect(wrapper.find('[data-part="error"]').text()).toContain('That size is out of stock.');
+    wrapper.unmount();
+  });
+});
+
 describe('Form submit', () => {
   it('emits submit with the values only when every field is valid', async () => {
     const wrapper = mountForm(() => [
@@ -267,6 +363,30 @@ describe('Form error summary', () => {
     wrapper.unmount();
   });
 
+  it('moves focus once, not twice, on a submit the layout refuses', async () => {
+    const wrapper = mountForm(() => [
+      h(FieldInput, { name: 'name', rules: filled('Enter your name.') }),
+      h(FieldInput, { name: 'email', rules: looksLikeEmail('Enter an email.') }),
+    ]);
+    const inputs = wrapper.findAll('input');
+
+    // Make the first field invalid *and* touched, so `FormLayout` refuses the submit itself —
+    // the one path where both it and the `Form` would otherwise reach for focus.
+    await inputs[0]?.setValue(' ');
+    await inputs[0]?.trigger('blur');
+    await flushPromises();
+
+    const first = inputs[0]?.element as HTMLInputElement;
+    const focus = vi.spyOn(first, 'focus');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(first);
+    focus.mockRestore();
+    wrapper.unmount();
+  });
+
   it('lets the errorSummary slot replace the list while the form still draws the alert', async () => {
     const wrapper = mountWith(Form, {
       props: { ariaLabel: 'Test form' },
@@ -351,6 +471,40 @@ describe('FieldWrapper integration', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
     expect(wrapper.findAll('[data-part="error"]')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("points the summary at the group's fieldset, which can take focus for it", async () => {
+    const wrapper = mountWith(Form, {
+      props: { ariaLabel: 'Test form' },
+      slots: {
+        default: (slotProps: { errors: Record<string, string> }) =>
+          h(
+            FieldWrapper,
+            { label: 'Delivery', group: true, error: slotProps.errors.delivery },
+            {
+              default: () =>
+                h(FieldRadioGroup, {
+                  name: 'delivery',
+                  legend: 'Delivery',
+                  rules: filled('Choose a delivery option.'),
+                  options: [{ value: 'standard', label: 'Standard' }],
+                }),
+            }
+          ),
+        actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Send'),
+      },
+    });
+
+    await wrapper.find('form').trigger('submit');
+    await settle();
+
+    const link = wrapper.find('[data-part="errorSummary"] a');
+    const target = document.getElementById(link.attributes('href')?.slice(1) ?? '');
+    expect(target?.tagName).toBe('FIELDSET');
+    // A browser moves focus to a fragment's target only when that target can take focus, so the
+    // link would otherwise scroll and leave focus behind.
+    expect(target?.getAttribute('tabindex')).toBe('-1');
     wrapper.unmount();
   });
 
@@ -463,8 +617,10 @@ describe('every Field is bound, and the eleven agree', () => {
       h(FieldSelect, { name: 'select', options: COUNTRIES }),
       h(FieldMultiSelect, { name: 'multiSelect', options: COUNTRIES }),
       h(FieldQuantityStepper, { name: 'quantity', min: 2 }),
+      // `name` is the visible option name; `path` is the key in `values` (see `FieldBinding`).
       h(FieldVariantPicker, {
-        name: 'variant',
+        name: 'Size',
+        path: 'variant',
         options: [
           { value: 'small', label: 'Small', available: false },
           { value: 'large', label: 'Large', available: true },
@@ -552,6 +708,70 @@ describe('apiErrors', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
     expect(wrapper.emitted('submit')?.[0]?.[0]).toEqual({ email: 'other@example.com' });
+    wrapper.unmount();
+  });
+});
+
+describe('how long a server error survives a change elsewhere', () => {
+  /** Two fields, each with a server error; the second one's fate after the first is edited. */
+  function mountTwo(props: Record<string, unknown>) {
+    return mountWith(Form, {
+      props: { ariaLabel: 'Test form', ...props },
+      slots: {
+        default: (slotProps: { errors: Record<string, string> }) => [
+          h(
+            FieldWrapper,
+            { label: 'First name', error: slotProps.errors.first },
+            { default: () => h(FieldInput, { name: 'first' }) }
+          ),
+          h(
+            FieldWrapper,
+            { label: 'Postcode', error: slotProps.errors.postcode },
+            { default: () => h(FieldInput, { name: 'postcode' }) }
+          ),
+        ],
+        actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Send'),
+      },
+    });
+  }
+
+  const SERVER_ERRORS = { first: 'Unknown name.', postcode: 'We do not deliver there yet.' };
+
+  it('survives a change to another field when the rules are per-field (or absent)', async () => {
+    const wrapper = mountTwo({ apiErrors: SERVER_ERRORS });
+    await settle();
+    expect(wrapper.findAll('[data-part="error"]')).toHaveLength(2);
+
+    await wrapper.findAll('input')[0]?.setValue('Maren');
+    await settle();
+
+    // The edited field's message is gone, because the value it described has changed. The other
+    // one has not been revalidated, so the server still has the last word on it.
+    const errors = wrapper.findAll('[data-part="error"]');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.text()).toContain('We do not deliver there yet.');
+    wrapper.unmount();
+  });
+
+  it("is cleared by vee-validate's post-submit revalidation when the Form carries a schema", async () => {
+    const wrapper = mountTwo({ validationSchema: { first: () => true, postcode: () => true } });
+
+    await wrapper.find('form').trigger('submit');
+    await settle();
+    expect(wrapper.emitted('submit')).toHaveLength(1);
+
+    await wrapper.setProps({ apiErrors: SERVER_ERRORS });
+    await settle();
+    expect(wrapper.findAll('[data-part="error"]')).toHaveLength(2);
+
+    await wrapper.findAll('input')[0]?.setValue('Maren');
+    await settle();
+
+    // Deliberate, and vee-validate's own behaviour rather than a choice made here: after a submit
+    // every already-validated field is revalidated on each change (`validated-only`), and a field
+    // that now passes has its manually set error replaced by that pass. So re-send `apiErrors`
+    // with each response rather than treating one as sticky.
+    expect(wrapper.findAll('[data-part="error"]')).toHaveLength(0);
     wrapper.unmount();
   });
 });

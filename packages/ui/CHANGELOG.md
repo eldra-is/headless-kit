@@ -5,6 +5,30 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `@eldrajs/ui/vee-validate` follow-ups:
+  - `FieldBinding` gains **`path`**, defaulting to `name`. A `VariantPicker`'s `name` is its
+    *visible* option name as well as the radios' shared native name, so one prop was serving as both
+    the legend and the key in `values` — `<FieldVariantPicker name="Size" path="size" />` now keeps
+    the legend and puts the value where it belongs. Every other control is unaffected: a
+    `RadioGroup`'s and `CheckboxGroup`'s `name` is only the native group name (their question is
+    `legend`), and an `Input`'s is the native name outright. `path` is never forwarded to the
+    control, and `apiErrors`, `initialValues`, `validationSchema` and the `errors` slot prop are all
+    keyed by it.
+  - `FormLayout` gains **`focusOnInvalid`** (default `true`). The `./vee-validate` `Form` sets it to
+    `false`, because it validates asynchronously and so owns the focus move itself — otherwise a
+    submit the layout refuses moved focus twice. The `invalid` event and the refusal are unchanged.
+  - A **`group` `FieldWrapper`'s `<fieldset>` now carries `tabindex="-1"`**, so an error summary
+    link to a group (whose id is the fieldset's — a group has no single control) actually moves
+    focus rather than only scrolling. It stays out of the tab order, and programmatic focus still
+    prefers the first real control inside it.
+  - `FieldSearchBar` no longer forwards `name`: a `SearchBar` has no such prop and its native field
+    is always `q`.
+  - Documented precisely: how long an `apiErrors` entry survives a change to a *different* field
+    (before submit, or with per-field rules, it stays; after a submit with a form-level
+    `validationSchema`, vee-validate's `validated-only` revalidation replaces it), that a `Form`
+    never posts without scripting (`handleSubmit` prevents the default — use `FormLayout` directly
+    for that), and that fields are revalidated while submitting, unlike the spec's Submitting state.
+
 - `@eldrajs/ui/vee-validate` — the optional adapter entry: `Form`, eleven `Field*` components
   (`FieldInput`, `FieldTextarea`, `FieldCheckbox`, `FieldCheckboxGroup`, `FieldRadioGroup`,
   `FieldSwitch`, `FieldSelect`, `FieldMultiSelect`, `FieldQuantityStepper`, `FieldVariantPicker`,

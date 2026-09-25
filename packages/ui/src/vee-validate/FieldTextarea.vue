@@ -5,13 +5,13 @@
  */
 import Textarea from '../components/textarea/Textarea.vue';
 import type { FieldTextareaProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 const props = defineProps<FieldTextareaProps>();
 
 const { model, invalid, id, onBlur } = useFieldControl<string>(props, { empty: '' });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>

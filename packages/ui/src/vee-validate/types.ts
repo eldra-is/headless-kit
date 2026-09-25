@@ -19,8 +19,21 @@ import type { VariantPickerProps } from '../components/variant-picker/types';
  * the fields itself — so `rules` is for the per-field case.
  */
 export interface FieldBinding<TValue = unknown> {
-  /** The field's path in the form's values, and the control's native `name`. */
+  /**
+   * The control's own `name` — and, unless `path` overrides it, the field's path in the form's
+   * values.
+   *
+   * The two are the same thing for every control whose `name` is the native form field name. They
+   * are **not** for `VariantPicker`, whose `name` is the visible option name ("Size", "Colour") as
+   * well as the radios' shared native name: there, `name` stays the legend and `path` says where
+   * the value lives.
+   */
   name: string;
+  /**
+   * The field's path in the form's values, when it should not be `name` — the key `initialValues`,
+   * `validationSchema`, `apiErrors` and the `errors` slot prop all use.
+   */
+  path?: string;
   /** Per-field rules. Leave it out when the `Form` carries a `validationSchema`. */
   rules?: RuleExpression<TValue>;
   /** The name a rule message uses for this field ("Email address"), not a visible label. */
@@ -75,14 +88,19 @@ export type FormValues = Record<string, unknown>;
  */
 export type FormValidationSchema = FormOptions<FormValues>['validationSchema'];
 
-export interface FormProps extends FormLayoutProps {
-  /** The values the form starts with, keyed by field `name`. */
+/**
+ * Everything `FormLayout` takes except `focusOnInvalid`: a `Form` owns where focus lands on a
+ * failed submit (it has to, because on the first attempt nothing is marked invalid yet), so it
+ * turns the layout's own focus move off rather than letting a caller ask for two of them.
+ */
+export interface FormProps extends Omit<FormLayoutProps, 'focusOnInvalid'> {
+  /** The values the form starts with, keyed by each field's path (its `path`, else its `name`). */
   initialValues?: FormValues;
   /** A form-level schema. Fields then need no `rules` of their own. */
   validationSchema?: FormValidationSchema;
   /**
-   * Field errors from the server, keyed by field `name`. Applied with `setErrors`, and each one is
-   * dropped again the moment its own field changes.
+   * Field errors from the server, keyed by each field's path (its `path`, else its `name`). Applied
+   * with `setErrors`, and each one is dropped again the moment its own field changes.
    */
   apiErrors?: Record<string, string>;
   /**
@@ -96,9 +114,10 @@ export interface FormProps extends FormLayoutProps {
 /** What the default slot receives, so a `FieldWrapper` can show the message itself. */
 export interface FormSlotProps {
   /**
-   * The errors that should currently be **shown**, keyed by field `name`: a field's message
-   * appears here once that field has been touched or the form has been submitted, which is the
-   * same gate each `Field*` applies to its own `invalid` state.
+   * The errors that should currently be **shown**, keyed by each field's path (its `path`, else its
+   * `name`): a field's message appears here once that field has been touched, the form has been
+   * submitted, or the server sent one — the same gate each `Field*` applies to its own `invalid`
+   * state.
    */
   errors: Record<string, string>;
   /** The form's current values. */

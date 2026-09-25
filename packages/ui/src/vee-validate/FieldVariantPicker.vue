@@ -2,14 +2,20 @@
 /**
  * `VariantPicker` bound to a vee-validate field.
  *
+ * The one control here whose `name` is **visible**: it is the option name ("Size", "Colour"), drawn
+ * in the legend as well as used as the radios' shared native name. So `name` stays the legend and
+ * **`path`** says where the value lives — without it the field would be called "Size" in
+ * `initialValues`, `validationSchema`, `apiErrors` and the `errors` slot prop, and either the
+ * legend or the key would have to be wrong. `path` defaults to `name`, so a picker whose option
+ * name already reads as a key needs nothing extra.
+ *
  * The picker's documented default is the first available option, and a controlled picker cannot
  * choose it for itself — so the field starts there instead (`initialValue`), which a `Form`'s
- * `initialValues` still overrides. `name` is both the field's path and the radios' shared native
- * name, exactly as the component asks for.
+ * `initialValues` still overrides.
  */
 import VariantPicker from '../components/variant-picker/VariantPicker.vue';
 import type { FieldVariantPickerProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 const props = defineProps<FieldVariantPickerProps>();
 
@@ -27,7 +33,7 @@ const { model, onBlur } = useFieldControl<string>(props, {
   hasIdProp: false,
 });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>

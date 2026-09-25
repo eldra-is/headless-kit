@@ -334,36 +334,51 @@ and `FieldQuantityStepper` — and those draw their message themselves **only ou
 
 ### The components
 
-| Component              | Wraps             | Field value                                |
-| ---------------------- | ----------------- | ------------------------------------------ |
-| `FieldInput`           | `Input`           | `string`                                   |
-| `FieldTextarea`        | `Textarea`        | `string`                                   |
-| `FieldCheckbox`        | `Checkbox`        | `boolean` (one consent box)                |
-| `FieldCheckboxGroup`   | `CheckboxGroup`   | `string[]` (one question, several answers) |
-| `FieldRadioGroup`      | `RadioGroup`      | `string`                                   |
-| `FieldSwitch`          | `Switch`          | `boolean`                                  |
-| `FieldSelect`          | `Select`          | `string`                                   |
-| `FieldMultiSelect`     | `MultiSelect`     | `string[]`                                 |
-| `FieldQuantityStepper` | `QuantityStepper` | `number`                                   |
-| `FieldVariantPicker`   | `VariantPicker`   | `string`                                   |
-| `FieldSearchBar`       | `SearchBar`       | `string`                                   |
+| Component              | Wraps             | Field value                                          |
+| ---------------------- | ----------------- | ---------------------------------------------------- |
+| `FieldInput`           | `Input`           | `string`                                             |
+| `FieldTextarea`        | `Textarea`        | `string`                                             |
+| `FieldCheckbox`        | `Checkbox`        | `boolean` (one consent box)                          |
+| `FieldCheckboxGroup`   | `CheckboxGroup`   | `string[]` (one question, several answers)           |
+| `FieldRadioGroup`      | `RadioGroup`      | `string`                                             |
+| `FieldSwitch`          | `Switch`          | `boolean`                                            |
+| `FieldSelect`          | `Select`          | `string`                                             |
+| `FieldMultiSelect`     | `MultiSelect`     | `string[]`                                           |
+| `FieldQuantityStepper` | `QuantityStepper` | `number`                                             |
+| `FieldVariantPicker`   | `VariantPicker`   | `string` (`name` is the visible legend — see `path`) |
+| `FieldSearchBar`       | `SearchBar`       | `string`                                             |
 
-Each takes `name` (the field's path **and** the control's native `name`), optional `rules`
-(vee-validate's own `RuleExpression`: a rule string, an object, a function, or a typed schema) and
-optional `label` — the name a rule message uses for the field, not a visible label. Everything else
-its component takes is forwarded untouched, slots and attributes included; the props it keeps back
-are `modelValue`, `invalid` and `error`, which are `Omit`ted from the type so passing one is a
-compile error rather than a prop that silently does nothing.
+Each takes `name` (the control's native `name`, and by default the field's path too), optional
+`path`, optional `rules` (vee-validate's own `RuleExpression`: a rule string, an object, a function,
+or a typed schema) and optional `label` — the name a rule message uses for the field, not a visible
+label. Everything else its component takes is forwarded untouched, slots, `classes` and attributes
+included; the props it keeps back are `modelValue`, `invalid` and `error`, which are `Omit`ted from
+the type so passing one is a compile error rather than a prop that silently does nothing.
+
+**`path` is for the one control whose `name` is visible.** A `VariantPicker`'s `name` is the option
+name — "Size", "Colour" — drawn in the legend as well as used as the radios' shared native name, so
+without `path` the field would be called `Size` in `initialValues`, `validationSchema`, `apiErrors`
+and the `errors` slot prop, and either the legend or the key would have to be wrong:
+
+```vue
+<!-- the legend reads "Size"; values.size holds the choice -->
+<FieldVariantPicker name="Size" path="size" :options="sizes" />
+```
+
+`path` defaults to `name`, so every other control needs nothing extra: a `RadioGroup`'s or
+`CheckboxGroup`'s `name` is only the shared native field name, never the legend (that is `legend`),
+and an `Input`'s is the native name outright.
 
 `FieldSearchBar` is the odd one: a `SearchBar` renders a `<form>` of its own, so it belongs on a
-Search page rather than inside a `Form`'s `<form>`, and its `label` is both the control's accessible
-name and the name rule messages use.
+Search page rather than inside a `Form`'s `<form>`; its `label` is both the control's accessible
+name and the name rule messages use; and it takes neither `id` nor `name` from the field, because it
+sets its own id and its native field is always `q`.
 
 ### `Form`
 
-`Form` renders a `FormLayout` and passes every one of its props through, so the layout, heading,
-actions row, two-column container query and polite status region are the ones documented above. It
-adds:
+`Form` renders a `FormLayout` and passes every one of its props through — bar `focusOnInvalid`,
+which it sets itself — so the layout, heading, actions row, two-column container query and polite
+status region are the ones documented above. It adds:
 
 - **`initialValues`** and **`validationSchema`** — handed to `useForm`.
 - **`submit(values, ctx)`** — fires only with valid values; `ctx` is vee-validate's submission
@@ -375,10 +390,20 @@ adds:
   a link to each error (the link text is the message; the target is the control's own id, which is
   the one the `FieldWrapper` generated). Fill the `errorSummary` slot to replace the list; the box,
   its border and its icon are still drawn for you.
-- **`apiErrors`** — a `{ [name]: message }` map from the server, applied with `setErrors`. Each
-  entry disappears the moment its own field changes, because a server error is a statement about
-  the value that was sent. It is provided on `API_ERRORS_KEY`, so a `Field*` reads the same map
-  outside a `Form` too.
+- **`apiErrors`** — a `{ [path]: message }` map from the server, applied with `setErrors`. Each
+  entry disappears the moment **its own** field changes, because a server error is a statement about
+  the value that was sent, and every entry is dropped at the start of the next submit attempt for
+  the same reason. It is provided on `API_ERRORS_KEY`, so a `Field*` reads the same map outside a
+  `Form` too.
+
+  How long one survives a change to a **different** field is vee-validate's own behaviour rather
+  than a choice made here, and it is worth knowing: before the first submit — and with per-field
+  `rules` at any time — only the field that changed is revalidated, so another field's server error
+  stays put. After a submit, with a form-level `validationSchema`, vee-validate revalidates every
+  already-validated field on each change (`validated-only` mode), and a field that now passes has
+  its manually set error replaced by that pass, so the server's message for it goes too. Send the
+  current `apiErrors` with each response rather than treating one as sticky.
+
 - **`successMessage`** — announced in the polite live region once a submit passes validation. It is
   never visible: replacing the form with a confirmation, or navigating, stays the page's job (spec
   "Form layout" → States, Success). An explicit `statusMessage` wins over it.
@@ -847,3 +872,28 @@ Additions and departures from the design spec, and why.
   own id after its attribute fall-through and its native field is always `q`, because its form
   posts to the Search page. So the field's `name` is its validation path only, and an error summary
   lists it as text rather than linking to an id that would not exist.
+- **`path` on every `Field*`, for the one control that needs it.** The design spec's contract says
+  a `Field*` "takes `name` and `rules`". That holds wherever `name` is the native form field name,
+  but a `VariantPicker`'s `name` is also its **visible** legend, so one `name` would have had to be
+  both the option name a customer reads and the key in `values`. `path` separates them and defaults
+  to `name`, so nothing else in the entry changes shape.
+- **A `Form` never posts without scripting; `FormLayout` still does.** vee-validate's
+  `handleSubmit` calls `preventDefault()` on the event it is given, so the spec's "The form still
+  posts without scripting" acceptance criterion cannot hold for a form whose whole purpose is to
+  validate in the browser. `action` and `method` are still forwarded (they are `FormLayout`'s
+  props), and the hidden native `<select>` inside every `Select` still carries its value — so a
+  scripting-free post is one `FormLayout` away, without this entry.
+- **Fields are revalidated while submitting.** The spec's Submitting state says the fields "stay
+  editable but aren't re-validated". vee-validate revalidates on value update regardless of
+  `isSubmitting`, and suppressing that would mean a field edited mid-flight keeping a message that
+  no longer matches its value. The _display_ gate is unchanged, so nothing new appears while the
+  customer is mid-word.
+- **A `group` `FieldWrapper` renders `tabindex="-1"` on its `<fieldset>`.** Not in the spec's
+  anatomy; it is what makes an error summary's link land. A group has no single control, so the
+  summary points `#<id>` at the fieldset itself, and a browser moves focus to a fragment's target
+  only when that target can take focus. `-1` keeps it out of the tab order. Programmatic focus
+  (`FormLayout`'s own, and the `Form`'s) still prefers the first focusable control inside it.
+- **`FormLayout` gained `focusOnInvalid` (default `true`).** Not in the spec's property table. The
+  `Form` in this entry validates asynchronously, so it has to own the focus move on a failed submit
+  — on the first attempt nothing is marked `aria-invalid` yet for the layout to find. Without a way
+  to turn the layout's own move off, a later refused submit would move focus twice.

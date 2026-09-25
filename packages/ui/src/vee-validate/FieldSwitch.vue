@@ -7,13 +7,13 @@
  */
 import Switch from '../components/switch/Switch.vue';
 import type { FieldSwitchProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 const props = defineProps<FieldSwitchProps>();
 
 const { model, id, onBlur } = useFieldControl<boolean>(props, { empty: false });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>

@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<FormLayoutProps>(), {
   action: undefined,
   method: undefined,
   novalidate: true,
+  focusOnInvalid: true,
   submitting: false,
   statusMessage: undefined,
   classes: undefined,
@@ -190,7 +191,9 @@ function onSubmit(event: Event): void {
   if (invalid.length > 0) {
     event.preventDefault();
     const first = invalid[0];
-    if (first) focusInvalid(first);
+    // Skipped when something above the form owns the focus move (see `focusOnInvalid`); the
+    // `invalid` event still fires, because that is how an error summary learns what failed.
+    if (first && props.focusOnInvalid) focusInvalid(first);
     emit(
       'invalid',
       invalid.map((element) => element.id).filter((id) => id.length > 0)

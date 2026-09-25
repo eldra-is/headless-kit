@@ -400,6 +400,29 @@ describe('FieldWrapper — the fieldset group variant', () => {
     wrapper.unmount();
   });
 
+  it('can take focus itself, so an error summary link to the group actually lands', () => {
+    const group = mountWith(FieldWrapper, {
+      props: { label: 'Sizes', group: true },
+      slots: { default: ContextProbe },
+    });
+    // A browser moves focus to a fragment's target only when that target can take focus, and a
+    // group's id is the only thing a summary can link to — it has no single control.
+    expect(group.attributes('tabindex')).toBe('-1');
+    const fieldset = group.element as HTMLFieldSetElement;
+    fieldset.focus();
+    expect(document.activeElement).toBe(fieldset);
+    group.unmount();
+
+    // `-1` keeps it out of the tab order, and an ordinary field takes none of this: its `<label
+    // for>` already points at a real control.
+    const field = mountWith(FieldWrapper, {
+      props: { label: 'Postcode' },
+      slots: { default: ContextProbe },
+    });
+    expect(field.attributes('tabindex')).toBeUndefined();
+    field.unmount();
+  });
+
   it('describes the fieldset itself, since no one control owns the help and error', async () => {
     const wrapper = mountWith(FieldWrapper, {
       props: {

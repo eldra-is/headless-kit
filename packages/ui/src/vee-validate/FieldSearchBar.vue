@@ -21,7 +21,10 @@ const props = defineProps<FieldSearchBarProps>();
  */
 const { model, onBlur } = useFieldControl<string>(props, { empty: '', hasIdProp: false });
 
-const control = useControlProps(props, ['rules', 'id'] as const);
+// `name` is kept back too: a `SearchBar` has no `name` prop and its native field is always
+// `q`, because its form posts to the Search page. `label` is forwarded, because there it
+// means the same thing on both sides.
+const control = useControlProps(props, ['path', 'rules', 'id', 'name'] as const);
 </script>
 
 <template>

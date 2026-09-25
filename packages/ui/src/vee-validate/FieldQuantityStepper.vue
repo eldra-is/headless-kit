@@ -9,7 +9,7 @@
  */
 import QuantityStepper from '../components/quantity-stepper/QuantityStepper.vue';
 import type { FieldQuantityStepperProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
 
 const props = defineProps<FieldQuantityStepperProps>();
 
@@ -21,7 +21,7 @@ const { model, ownError, id, onBlur } = useFieldControl<number>(props, {
   initialValue: initial,
 });
 
-const control = useControlProps(props, ['rules', 'label', 'id'] as const);
+const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>
