@@ -82,6 +82,24 @@ settings, _Storefront origins_. Add `http://localhost:3000` (or whichever port) 
 a request from an unregistered origin fails with `ORIGIN_NOT_REGISTERED`. Server-side calls are
 not subject to this.
 
+## Analytics tracker
+
+The tracker is a script tag served by the same gateway the client reads from. Build it from the
+client's configuration so the two can never point at different environments:
+
+```ts
+// nuxt.config.ts or app.vue
+import { analyticsTrackerScript } from '@eldrajs/sdk';
+
+const tracker = analyticsTrackerScript({ orgId: process.env.ELDRA_ORG_ID, apiBaseUrl });
+useHead({ script: tracker ? [tracker] : [] });
+```
+
+It returns `undefined` when no organisation id is configured, so a preview or development build
+that should not report simply leaves the id unset. Events are only counted from a registered
+storefront origin (see above); an unregistered one is silently ignored. Pass `eventOrigin` when
+the script and the event endpoint are proxied through the storefront's own domain.
+
 ## What the client covers
 
 | Group       | Methods                                                                                                                |
