@@ -185,15 +185,25 @@ function onIncrease(): void {
  * Spec "Quantity stepper" → Behaviour & motion: "A typed value is rounded to a whole number and
  * clamped on change. A non-number becomes `min`. No error is shown for '0' or '99'. It is simply
  * corrected." Runs on blur and on `Enter` (spec's Keyboard table).
+ *
+ * Mirrors `step()`: `change`/the live-region announcement fire only when the committed value
+ * actually differs from `model.value` — focusing and blurring (or pressing `Enter`) with no edit
+ * must not fire a spurious `change` or announce a "settled update" that never happened. The
+ * reformatted text is written unconditionally either way, since "01" round-tripping to "1" is a
+ * display correction independent of whether the *number* changed.
+ *
+ * Does **not** reset `isEditing` — that is `onBlur`'s job (see its own comment) — so a caller who
+ * presses `Enter` and keeps typing without leaving the field is still shown what they type.
  */
 function commit(): void {
   const parsed = parseLocaleNumber(editingText.value, props.locale);
   const rounded = parsed === null ? props.min : Math.round(parsed);
   const next = clamp(rounded);
-  if (next !== model.value) model.value = next;
-  emit('change', next);
-  announce(next);
-  isEditing.value = false;
+  if (next !== model.value) {
+    model.value = next;
+    emit('change', next);
+    announce(next);
+  }
   editingText.value = formatDisplay(next);
 }
 
@@ -203,8 +213,16 @@ function onFocus(event: FocusEvent): void {
   emit('focus', event);
 }
 
+/**
+ * `isEditing` turns off here, not in `commit()`: an `Enter` commit leaves the field focused, and
+ * `displayValue` reads `editingText` only while `isEditing` is true. Resetting it inside `commit()`
+ * meant that the very next keystroke after `Enter` was overwritten by the reactive `:value`
+ * binding snapping back to the freshly committed, formatted number — the field looked like it
+ * ignored what was just typed. Blur is the one place editing genuinely ends.
+ */
 function onBlur(event: FocusEvent): void {
   commit();
+  isEditing.value = false;
   emit('blur', event);
 }
 

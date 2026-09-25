@@ -73,6 +73,46 @@ describe('QuantityStepper — element and parts', () => {
   });
 });
 
+describe('QuantityStepper — aria-value*', () => {
+  it('aria-valuenow/-valuemin/-valuemax/-valuetext reflect modelValue/min/max on mount', () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 4, min: 1, max: 10 } });
+    const el = input(wrapper);
+    expect(el.getAttribute('aria-valuenow')).toBe('4');
+    expect(el.getAttribute('aria-valuemin')).toBe('1');
+    expect(el.getAttribute('aria-valuemax')).toBe('10');
+    expect(el.getAttribute('aria-valuetext')).toBe('4');
+    wrapper.unmount();
+  });
+
+  it('aria-valuenow and aria-valuetext track a step', async () => {
+    const wrapper = mountWith(QuantityStepper, { props: { min: 1, max: 10 } });
+    await wrapper.find('[data-part="increase"]').trigger('click');
+    const el = input(wrapper);
+    expect(el.getAttribute('aria-valuenow')).toBe('2');
+    expect(el.getAttribute('aria-valuetext')).toBe('2');
+    wrapper.unmount();
+  });
+
+  it('aria-valuenow and aria-valuetext track a typed value clamped on blur', async () => {
+    const wrapper = mountWith(QuantityStepper, { props: { max: 10 } });
+    const el = input(wrapper);
+    el.value = '150';
+    await wrapper.find('[data-part="input"]').trigger('input');
+    await wrapper.find('[data-part="input"]').trigger('blur');
+    expect(el.getAttribute('aria-valuenow')).toBe('10');
+    expect(el.getAttribute('aria-valuetext')).toBe('10');
+    wrapper.unmount();
+  });
+
+  it('aria-valuemin/-valuemax reflect custom min/max props', () => {
+    const wrapper = mountWith(QuantityStepper, { props: { min: 5, max: 250 } });
+    const el = input(wrapper);
+    expect(el.getAttribute('aria-valuemin')).toBe('5');
+    expect(el.getAttribute('aria-valuemax')).toBe('250');
+    wrapper.unmount();
+  });
+});
+
 describe('QuantityStepper — value and v-model', () => {
   it('defaults to min (1) with no modelValue', () => {
     const wrapper = mountWith(QuantityStepper);
@@ -238,6 +278,68 @@ describe('QuantityStepper — keyboard', () => {
     await wrapper.find('[data-part="input"]').trigger('keydown', { key: 'Enter' });
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([7]);
     expect(el.value).toBe('7');
+    wrapper.unmount();
+  });
+
+  /**
+   * Fix round 1, item 3: after `Enter` commits, the field stays focused (no blur happens), and
+   * `isEditing` must stay true so `displayValue` keeps reading `editingText` rather than snapping
+   * back to the freshly committed, formatted number the instant a further keystroke arrives. Before
+   * the fix, the next character typed after `Enter` was silently overwritten by the reactive
+   * `:value` binding.
+   */
+  it('typing continues to show what was typed after an Enter-commit, while still focused', async () => {
+    const wrapper = mountWith(QuantityStepper);
+    const el = input(wrapper);
+    await wrapper.find('[data-part="input"]').trigger('focus');
+    el.value = '5';
+    await wrapper.find('[data-part="input"]').trigger('input');
+    await wrapper.find('[data-part="input"]').trigger('keydown', { key: 'Enter' });
+    expect(el.value).toBe('5');
+
+    // Still focused — no blur/refocus in between — and the user keeps typing.
+    el.value = '56';
+    await wrapper.find('[data-part="input"]').trigger('input');
+    expect(el.value).toBe('56');
+    wrapper.unmount();
+  });
+});
+
+describe('QuantityStepper — commits only a real change', () => {
+  /**
+   * Fix round 1, item 1: `commit()` used to emit `change` and announce unconditionally, so
+   * focusing and blurring (or pressing `Enter`) with no edit at all fired a spurious `change` and
+   * a "settled update" announcement for an update that never happened — mirrors the guard `step()`
+   * already had for a button press at a limit.
+   */
+  it('blur with no edit fires no change, no update:modelValue, and announces nothing', async () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 4 } });
+    await wrapper.find('[data-part="input"]').trigger('focus');
+    await wrapper.find('[data-part="input"]').trigger('blur');
+    expect(wrapper.emitted('change')).toBeUndefined();
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    expect(wrapper.find('[role="status"]').element.textContent).toBe('');
+    wrapper.unmount();
+  });
+
+  it('Enter with no edit fires no change and no update:modelValue', async () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 4 } });
+    await wrapper.find('[data-part="input"]').trigger('focus');
+    await wrapper.find('[data-part="input"]').trigger('keydown', { key: 'Enter' });
+    expect(wrapper.emitted('change')).toBeUndefined();
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('blur after only a formatting no-op (e.g. re-typing the same value) still fires nothing', async () => {
+    const wrapper = mountWith(QuantityStepper);
+    const el = input(wrapper);
+    await wrapper.find('[data-part="input"]').trigger('focus');
+    el.value = '1'; // same as the default min the field already shows
+    await wrapper.find('[data-part="input"]').trigger('input');
+    await wrapper.find('[data-part="input"]').trigger('blur');
+    expect(wrapper.emitted('change')).toBeUndefined();
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
     wrapper.unmount();
   });
 });
