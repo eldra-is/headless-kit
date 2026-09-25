@@ -31,6 +31,7 @@ export const componentNames = [
   'Price',
   'QuantityStepper',
   'RadioGroup',
+  'Rating',
   'SearchBar',
   'Select',
   'StockBadge',

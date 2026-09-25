@@ -1254,3 +1254,35 @@ Additions and departures from the design spec, and why.
   own doc comment) — `Button.iconLeft`/`iconRight`/`icon`, and now `Badge.icon` — so a consumer
   never depends on this package shipping or naming an icon set. `StockBadge`'s four level icons
   are the one exception, and are built in for the reason above.
+- **`Rating`'s linked accessible name reuses the static `messages.rating(value, count)` sentence**
+  (plan 2, task 3 decision), rather than the spec's separately worded linked hidden text ("the link
+  text is the visible value + '128 reviews' + visually hidden ', rated 4.5 out of 5'"). The task
+  brief scopes the new message vocabulary to exactly `rating` and `noReviews`; setting the same
+  tested sentence as the `<a>`'s own `aria-label` — with the visible value/count marked
+  `aria-hidden` in both forms — honours that budget and gives every screen reader one unambiguous
+  name instead of two overlapping fragments, at the cost of not reproducing the spec's exact
+  count-first wording for the linked form.
+- **`Rating`'s linked variant wraps its content in a second element, `<a data-part="link">`,
+  rather than `root` itself becoming the anchor** (the way `Badge`/`Link`'s `as` swaps their own
+  root tag). `root` stays a plain, always-present wrapper; the standard focus ring is drawn on it
+  via the proxy-focus pattern (`eldra-focus-proxy`, `:has(:focus-visible)` — `Checkbox`'s and
+  `VariantPicker`'s own technique) rather than on the `<a>` directly, which keeps the ring's box —
+  and the 2.5.8 1.5rem minimum — `root`'s own predictable layout box regardless of what tag `as`
+  renders, instead of depending on an inline `<a>`'s content-fitted focus box. Matches the design
+  spec's own reference image, whose "Focus-visible (linked)" panel draws the ring around the whole
+  rating, stars included, not just the link text.
+- **`Rating` adds one message beyond the task brief's named two (`rating`, `noReviews`):
+  `reviewCount(n)`.** The spec's Anatomy names the linked variant's visible count text verbatim —
+  "'(128)' on cards; '128 reviews' underlined when linked" — and the card form's `"(128)"` is a
+  literal parenthesised number with no word to translate, but the linked form's "128 reviews" is a
+  real, pluralised English/Icelandic sentence fragment. The Global Constraints require every piece
+  of text a component renders itself to come from `useMessages()`, so that fragment needed its own
+  key rather than a hand-written literal.
+- **`Rating`'s empty-star outline stroke is 1.75**, the same weight `Link`'s arrow/external icons
+  use — the spec's Sizes table gives no number for it, and 1.75 is the closest existing "outline
+  icon" precedent in this package (`StockBadge`'s icons, by contrast, are solid shapes with no
+  stroke weight to match).
+- **`Rating` ignores `href` while `count` is `0`.** The spec's Linked variant assumes there are
+  reviews to jump to, and the no-reviews state has its own `emptyAction` slot for an interactive
+  link — wrapping that slot's content in a rating-wide `<a>` the moment a consumer used it would
+  nest an `<a>` inside an `<a>`, invalid HTML that silently strips the inner link's own semantics.

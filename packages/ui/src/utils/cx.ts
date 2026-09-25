@@ -41,6 +41,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-select-option-selected'
   | 'eldra-variant-pill-selected-line'
   | 'eldra-skeleton'
+  | 'eldra-rating-half'
 >({
   extend: {
     classGroups: {
@@ -176,6 +177,9 @@ const twMerge = extendTailwindMerge<
       // moving highlight `::after`, no stock Tailwind equivalent, so it gets its own group. Shared
       // by `Price`'s loading state and, later, `Skeleton` itself.
       'eldra-skeleton': ['eldra-skeleton'],
+      // The Rating half star's clip overlay (tailwind.css "Rating"): a one-off `clip-path` with no
+      // stock Tailwind group, so it gets its own.
+      'eldra-rating-half': ['eldra-rating-half'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.
       z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"

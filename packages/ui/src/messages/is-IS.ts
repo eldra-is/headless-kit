@@ -9,6 +9,11 @@ function singular(n: number): boolean {
   return n % 10 === 1 && n % 100 !== 11;
 }
 
+/** `en-US.ts`'s `reviewsWord`, shared between `rating` and `reviewCount` for the same reason. */
+function reviewsWord(n: number): string {
+  return singular(n) ? 'umsögn' : 'umsagnir';
+}
+
 /**
  * The Icelandic message set, shipped as its own entry point
  * (`@eldrajs/ui/messages/is-IS`) so an English-only store never bundles it.
@@ -59,6 +64,12 @@ export const isIS: UiMessages = {
   regularPrice: 'Fullt verð',
   from: 'Frá',
   perUnit: (per: string) => `/ ${per}`,
+  // Icelandic decimals use a comma, not a period — `Rating` has no `locale` prop to format
+  // through `Intl`, so the swap happens here rather than pulling in a formatter for one digit.
+  rating: (value: number, count: number) =>
+    `Einkunn ${value.toFixed(1).replace('.', ',')} af 5, ${count} ${reviewsWord(count)}`,
+  noReviews: 'Engar umsagnir enn',
+  reviewCount: (n: number) => `${n} ${reviewsWord(n)}`,
   searchTheShop: 'Leitaðu í búðinni',
   searchSuggestions: 'Leitartillögur',
   searchProducts: 'Vörur',

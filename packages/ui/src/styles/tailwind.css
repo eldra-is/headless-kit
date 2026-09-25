@@ -214,6 +214,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* --- Rating --------------------------------------------------------------------------------- */
+
+/* A half star's filled overlay (spec "Rating" → Anatomy, part 1: "half-filled"; task brief: "half
+   star via a clipped overlay"). Stacked absolutely over the same star's full outline icon
+   (`RatingStars.vue`), clipped to its own left half so the outline shows through the unfilled
+   half rather than leaving blank space. `50%`/`0` are the shape's own geometry, not a design
+   token — there is no "half" scale to register this against — so, like `eldra-variant-pill-
+   selected-line`'s inset line, it is a named utility purely so the one-off `clip-path` value has a
+   single documented home instead of an arbitrary bracket value repeated at the call site. */
+@utility eldra-rating-half {
+  clip-path: inset(0 50% 0 0);
+}
+
 /* Button type (spec "Button" → Sizes): weight 600 on a 1.2 line at every size, with the size's
    own font size. sm and md reuse the body-sm and body token sizes; lg's 1.0625rem sits between two
    type styles and has no token, so it is a per-component variable with that default. */

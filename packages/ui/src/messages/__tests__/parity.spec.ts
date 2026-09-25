@@ -86,4 +86,19 @@ describe('counted messages read naturally at one', () => {
     expect(isIS.resultsCount(4, 'mer')).toBe('4 niðurstöður fyrir „mer“');
     expect(isIS.viewAllResults(12, 'mer')).toBe('Sjá allar 12 niðurstöður fyrir „mer“');
   });
+
+  it("reads Rating's review count naturally at one, in both locales", () => {
+    expect(enUS.reviewCount(1)).toBe('1 review');
+    expect(enUS.reviewCount(128)).toBe('128 reviews');
+    expect(isIS.reviewCount(1)).toBe('1 umsögn');
+    expect(isIS.reviewCount(11)).toBe('11 umsagnir');
+    expect(isIS.reviewCount(21)).toBe('21 umsögn');
+  });
+
+  it("formats Rating's accessible sentence, including the Icelandic comma decimal", () => {
+    expect(enUS.rating(4.5, 128)).toBe('Rated 4.5 out of 5, 128 reviews');
+    expect(enUS.rating(4, 1)).toBe('Rated 4.0 out of 5, 1 review');
+    expect(isIS.rating(4.5, 128)).toBe('Einkunn 4,5 af 5, 128 umsagnir');
+    expect(isIS.rating(4, 1)).toBe('Einkunn 4,0 af 5, 1 umsögn');
+  });
 });

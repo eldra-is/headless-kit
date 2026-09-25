@@ -10,6 +10,15 @@
  *
  * Sentence case throughout, per the design spec's voice and content rules.
  */
+/**
+ * Shared between `rating` and `reviewCount` below, so the two sentences that both name a review
+ * count (`Rating`'s accessible sentence and the linked variant's visible "128 reviews" text) never
+ * drift onto two different plural rules.
+ */
+function reviewsWord(n: number): string {
+  return n === 1 ? 'review' : 'reviews';
+}
+
 export const enUS = {
   /** Empties a field or a selection. */
   clear: 'Clear',
@@ -123,6 +132,26 @@ export const enUS = {
    * separator and unit half, appended after the formatted per-unit amount.
    */
   perUnit: (per: string) => `/ ${per}`,
+  /**
+   * `Rating`'s one accessible sentence (spec "Rating" → Accessibility: "the wrapper has `role="img"`
+   * and `aria-label="Rated 4.5 out of 5, 128 reviews"`"), reused verbatim as the linked variant's
+   * `aria-label` too — see `Rating.vue`'s own comment for why both forms share one sentence rather
+   * than the spec's separately worded linked hidden text. `value` is the already-rounded rating.
+   */
+  rating: (value: number, count: number) =>
+    `Rated ${value.toFixed(1)} out of 5, ${count} ${reviewsWord(count)}`,
+  /** `Rating`'s no-reviews state (spec "Rating" → Variants, "No reviews" row): "count = 0 renders
+   * the no-reviews state ... never '0.0'." Read as normal text, not an `aria-label`. */
+  noReviews: 'No reviews yet',
+  /**
+   * `Rating`'s linked-variant visible count text (spec "Rating" → Anatomy, part 3: "'(128)' on
+   * cards; '128 reviews' underlined when linked") — the one piece of `Rating`'s own text the task
+   * brief's two named keys (`rating`, `noReviews`) do not cover: the card form's `"(128)"` is a
+   * literal parenthesised number with no word to pluralise, but the linked form's visible text is a
+   * real English/Icelandic sentence fragment and so must come from `useMessages()` like every other
+   * word this package renders.
+   */
+  reviewCount: (n: number) => `${n} ${reviewsWord(n)}`,
   /** The `SearchModal`'s field label. */
   searchTheShop: 'Search the shop',
   /** The `SearchBar`'s results-panel name, and the `SearchModal`'s. */

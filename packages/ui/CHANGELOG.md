@@ -5,6 +5,25 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Rating`** — the fourth component of the "display, commerce and layout" sub-project (design
+  spec's Rating section). A read-only five-star rating in half steps: `value` (0–5) rounds to the
+  nearest 0.5, rendering full, half (a clipped filled star over an outline star) and empty stars —
+  always `text` colour, never yellow or brand colour, with a `border-strong` outline on the empty
+  ones so they still meet 1.4.11 on any ground. One accessible sentence
+  (`messages.rating(value, count)`, "Rated 4.5 out of 5, 128 reviews") carries the rating for
+  assistive technology on `role="img"`/`aria-label`; the stars, value and count underneath are all
+  `aria-hidden`, so `showValue`/`showCount` are purely visual — even the stars-only variant keeps
+  the full accessible name. `count = 0` renders "No reviews yet" (`messages.noReviews`) instead of
+  a value or count, with an optional `emptyAction` slot below it, never a fabricated "0.0". `href`
+  (ignored while `count` is `0`) turns the whole rating into one link to the reviews — a single tab
+  stop, never one per star — whose visible count switches to a pluralised "128 reviews"
+  (`messages.reviewCount`), underlined and thickening on hover; the focus ring is drawn on the root
+  via the same proxy-focus technique `Checkbox`/`VariantPicker` use, so it wraps the whole rating
+  rather than just the link text, and the root keeps a 1.5rem minimum height (2.5.8). Two sizes,
+  `md`/`lg`, changing only the star size — value/count text stays 0.875rem at both. New
+  `eldra-rating-half` `tailwind.css` utility (the half star's `clip-path` overlay) and
+  `src/utils/rating.ts` (`roundRatingToHalf`/`ratingStarStates`), exported nowhere but used by the
+  component and unit-tested on their own.
 - **`Price`** — the third component of the "display, commerce and layout" sub-project (design
   spec's Price section). Formats `amount` (minor units) with `Intl.NumberFormat`, so `4800` reads
   `$48.00` in `en-US`/`USD` and `6990` reads `6.990 kr.` in `is-IS`/`ISK` (no minor units, "."

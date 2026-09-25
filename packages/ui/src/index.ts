@@ -19,6 +19,7 @@ export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as Price } from './components/price/Price.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
+export { default as Rating } from './components/rating/Rating.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Switch } from './components/switch/Switch.vue';
@@ -77,6 +78,7 @@ export type {
   RadioGroupProps,
   RadioGroupSize,
 } from './components/radio/types';
+export type { RatingPart, RatingProps, RatingSize } from './components/rating/types';
 export type {
   MultiSelectPart,
   MultiSelectProps,
