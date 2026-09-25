@@ -71,3 +71,25 @@ Additions and departures from the design spec, and why.
   `target-touch` (2.75rem)" below a 48rem container, so an `md` `primary` button grows and a
   secondary, outline, ghost or danger action beside it keeps the 2.5rem control height it shares
   with the inputs.
+- **`RadioGroup`'s error reaches the radios, unlike `CheckboxGroup`'s.** The spec's Radio group
+  property table says `error` "sets `aria-invalid="true"` on the radios" (plural) — unlike
+  `CheckboxGroup`, whose own error stays on the `<fieldset>` alone (see the `CheckboxGroup`
+  deviation above). Both are followed as written: `RadioGroup`'s `aria-describedby` still links the
+  fieldset to the message, and `aria-invalid` is additionally set on every radio.
+- **`RadioGroup`'s `size` is plain-layout only.** The spec's own property table scopes it: "Radio
+  1.125rem or 1.5rem (**plain layouts**)". A card's radio is always the `md` circle, whichever size
+  the caller asked for.
+- **The radio circle reuses `Checkbox`'s border-width utilities.** The spec gives it the identical
+  numbers (1.5px, 2px in error) as the Checkbox box, so `eldra-checkbox-border`/`-invalid` are
+  shared rather than duplicated as `eldra-radio-*`. The **card** itself is a different element with
+  its own 1px number, so it gets `eldra-radio-card-border` of its own.
+- **A card's selected boundary is a real border plus an inset line**, the same technique
+  `eldra-field-invalid` uses for a field's error state: the spec spells it out ("2px `primary` (1px
+  border + 1px inset line)"), so growing the real border to 2px — which would shift the card's
+  neighbours — is not what it asks for. `eldra-radio-card-selected` reads
+  `--eldra-radio-card-selected-color` so the same utility draws the `danger` version too, for a
+  selected option that is also in the group's error (no dedicated spec row; read the same way an
+  invalid checked `Checkbox` is — see that deviation above).
+- **`RadioGroup`'s `label`, `hint` and `meta` are scoped slots as well as `option` fields**
+  (`#label="{ option }"`, and so on), since the group is built from a data array rather than
+  written-out children — richer content than plain text needs somewhere to go.

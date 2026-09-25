@@ -217,6 +217,19 @@
   line-height: var(--eldra-field-note-line-height, 1.45);
 }
 
+/* A radio Card's title and meta (spec "Radio group" → Sizes, "Card title / hint / meta" row):
+   "1rem 600 (line-height 1.4)" for the title, and the same run again for the meta ("1rem 600
+   tabular, no wrap"), which pairs this with the stock `tabular-nums`/`whitespace-nowrap`
+   utilities rather than a second near-identical type utility. The weight and size both already
+   read a token (`text-label-weight` is 600, `text-body-size` is 1rem); only the 1.4 ratio has
+   none of its own, so — like `text-counter`'s 1.5 above — it is a per-component variable with
+   that literal default. The card's hint reuses `text-body-sm` `muted`, exactly as `Checkbox`'s
+   hint does. */
+@utility text-card-title {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
+    var(--eldra-radio-card-title-line, 1.4) var(--eldra-font-body);
+}
+
 /* Control heights and targets. */
 @utility control-h {
   height: var(--eldra-control-height);
@@ -450,5 +463,38 @@
     &::after {
       border-color: CanvasText;
     }
+  }
+}
+
+/* The radio group Card's own boundary (spec "Radio group" → Sizes, Card row: "1px border"). The
+   radio circle inside a card reuses `eldra-checkbox-border`/`-invalid` unchanged — the spec gives
+   it the exact same numbers as the Checkbox box (1.5px / 2px) — but the card itself is a
+   different element with its own 1px number, so it gets its own variable rather than sharing one
+   that happens to have a different default. */
+@utility eldra-radio-card-border {
+  border-width: var(--eldra-radio-card-border-width, 1px);
+}
+
+/* The selected Card's boundary (spec "Radio group" → States, Selected row: "2px `primary` (1px
+   border + 1px inset line)"). The same technique as `eldra-field-invalid` above, and for the same
+   reason: keeping the real border at 1px in every state and adding a second 1px inset line only
+   when selected is what stops the card growing — and its neighbours shifting — the moment it is
+   chosen. The line's colour defaults to `primary`; the invalid-and-selected state (Decision: an
+   invalid `Checkbox` that is also checked keeps its fill and swaps only the border colour) sets
+   `--eldra-radio-card-selected-color` to `danger` instead, so one utility serves both cases rather
+   than two nearly-identical ones. */
+@utility eldra-radio-card-selected {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--eldra-radio-card-border-width, 1px);
+    border: var(--eldra-radio-card-border-width, 1px) solid
+      var(--eldra-radio-card-selected-color, var(--eldra-color-primary));
+    border-radius: calc(
+      var(--eldra-radio-card-radius, var(--eldra-radius-md)) -
+        var(--eldra-radio-card-border-width, 1px)
+    );
+    pointer-events: none;
   }
 }

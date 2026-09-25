@@ -12,6 +12,7 @@ export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
+export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
@@ -48,6 +49,13 @@ export type {
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
+export type {
+  RadioGroupLayout,
+  RadioGroupOption,
+  RadioGroupPart,
+  RadioGroupProps,
+  RadioGroupSize,
+} from './components/radio/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
 

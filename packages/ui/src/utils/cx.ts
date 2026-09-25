@@ -31,6 +31,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-focus-always'
   | 'eldra-focus-proxy'
   | 'eldra-field-invalid'
+  | 'eldra-radio-card-selected'
 >({
   extend: {
     classGroups: {
@@ -60,6 +61,7 @@ const twMerge = extendTailwindMerge<
             'control-mobile',
             'counter',
             'field-note',
+            'card-title',
           ],
         },
       ],
@@ -73,10 +75,19 @@ const twMerge = extendTailwindMerge<
       // names rather than a `border-*` suffix, but the same "border-w" group as Tailwind's own
       // `border`/`border-2`, so a consumer's `border-2` replaces them and — the reason the two
       // checkbox widths exist — the invalid width replaces the ordinary one.
-      'border-w': ['eldra-field-border', 'eldra-checkbox-border', 'eldra-checkbox-border-invalid'],
+      'border-w': [
+        'eldra-field-border',
+        'eldra-checkbox-border',
+        'eldra-checkbox-border-invalid',
+        'eldra-radio-card-border',
+      ],
       // The field error boundary (tailwind.css "The error boundary of a field"): a pseudo-element
       // inset line with no stock Tailwind equivalent, so it gets its own group.
       'eldra-field-invalid': ['eldra-field-invalid'],
+      // The radio Card's selected boundary (tailwind.css "The selected Card's boundary"): the same
+      // shape as `eldra-field-invalid` — a pseudo-element inset line with no stock equivalent — so
+      // it gets its own group too.
+      'eldra-radio-card-selected': ['eldra-radio-card-selected'],
       // The one focus ring (tailwind.css "The one focus ring"). `eldra-focus` and
       // `eldra-focus-inset` are mutually exclusive — one draws the ring outside the element, the
       // other inside — so they share a group with no stock Tailwind equivalent.

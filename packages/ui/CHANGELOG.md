@@ -5,6 +5,23 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `RadioGroup` — a native radio group in a `<fieldset>` with a `<legend>`, one shared `name`
+  (generated when you give none) and no key handling of its own: arrow keys, wrapping, skipping
+  disabled options, and the group's single tab stop are all native `<input type="radio">`
+  behaviour. `modelValue` is the two-way selected value and `change` fires with it; `options` is
+  `{ value, label, hint?, meta?, disabled? }[]`, and `label`/`hint`/`meta` are also scoped slots.
+  `layout` is `vertical` (default), `row` (wraps, for short labels) or `cards` — the whole option
+  becomes a bordered card with `meta` pushed to the end in tabular numerals, selection shown by a
+  filled radio, a `surface` fill and a 2px `primary` border (never colour alone). `size` (`md`/`lg`)
+  changes the radio in plain layouts only; a card's radio is always `md`. `required` is native, on
+  every radio. `error` sets `aria-invalid="true"` on **every radio** (unlike `CheckboxGroup`'s,
+  which stays on the fieldset) and links the message by `aria-describedby`, drawn by the same row
+  `FieldWrapper` and `CheckboxGroup` use. The focus ring is drawn on the radio in every layout,
+  including cards, through the same `eldra-focus-proxy` utility `Checkbox` uses. Per-part `classes`
+  for `root`, `legend`, `options`, `option`, `radio`, `label`, `hint`, `meta`, `error` and
+  `errorIcon`. CSS variables: `--eldra-radio-card-border-width` (default `1px`),
+  `--eldra-radio-card-radius` (default `radius-md`); the radio circle itself reuses
+  `--eldra-checkbox-border-width`/`-invalid`, since the spec gives it the same numbers.
 - `Checkbox` inside a `FieldWrapper` — a plain wrapper already renders a `<label for>` naming the
   box, so the box no longer renders a second `<label>` of its own (its root becomes a `<span>`);
   one control, one label. The control is now positioned over the drawn box rather than `sr-only`
