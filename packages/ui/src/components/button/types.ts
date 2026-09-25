@@ -1,3 +1,4 @@
+import type { Component } from 'vue';
 import type { IconComponent } from '../icon/types';
 
 /**
@@ -24,6 +25,15 @@ export interface ButtonProps {
   type?: 'button' | 'submit' | 'reset';
   /** When set, renders an `<a href>` styled as a button. Use it only for navigation. */
   href?: string;
+  /**
+   * Render the link form as a different tag or component instead of a native `<a>` — a router
+   * link component, for example `resolveComponent('NuxtLink')`, so an in-app destination routes
+   * instead of reloading the document. A string is used as the tag directly and still receives
+   * `href`; a component receives the destination as its `to` prop instead, matching Vue Router /
+   * NuxtLink's own contract. Ignored when there is no `href`: without a destination this is a
+   * `<button>`, and the same rule as `Link`'s `as`.
+   */
+  as?: string | Component;
   /** Leading icon component, for example `IconShoppingBag`. */
   iconLeft?: IconComponent;
   /** Trailing icon component, for example `IconArrowRight` on "Continue to checkout". */

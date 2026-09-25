@@ -721,7 +721,11 @@ describe('MultiSelect — slots, messages and the field wrapper', () => {
     const button = wrapper.find('[data-part="trigger"]').element;
     const id = button.getAttribute('id') as string;
     expect(wrapper.find('label').attributes('for')).toBe(id);
-    expect(button.getAttribute('aria-labelledby')).toBe(`${id}-label`);
+    // Read the label element's real `id`, never the `${id}-label` convention: comparing the
+    // reconstruction against itself would stay green while the trigger pointed at nothing.
+    const labelId = wrapper.find('label').attributes('id');
+    expect(labelId).toBeTruthy();
+    expect(button.getAttribute('aria-labelledby')).toBe(labelId);
     expect(button.getAttribute('aria-invalid')).toBe('true');
     expect(button.getAttribute('aria-required')).toBe('true');
     expect(button.getAttribute('aria-describedby')).toContain(`${id}-error`);
@@ -752,6 +756,7 @@ describe('MultiSelect — slots, messages and the field wrapper', () => {
         provide: {
           [FIELD_KEY as symbol]: computed<FieldContext>(() => ({
             id: 'field-categories',
+            labelId: 'field-categories-label',
             invalid: true,
             required: false,
             labelsControl: true,

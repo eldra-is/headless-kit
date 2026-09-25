@@ -60,7 +60,7 @@
   {
     "name": "@eldrajs/ui — style.css",
     "path": "packages/ui/dist/style.css",
-    "limit": "40 kB"
+    "limit": "13.5 kB"
   },
   {
     "name": "@eldrajs/theme-vue — everything, without vue",

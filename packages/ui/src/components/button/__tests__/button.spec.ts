@@ -81,6 +81,101 @@ describe('Button — element and type', () => {
   });
 });
 
+describe('Button — as prop', () => {
+  /** A stand-in for NuxtLink / RouterLink: it takes the destination as `to`, never as `href`. */
+  const FakeRouterLink = defineComponent({
+    props: { to: { type: String, required: true } },
+    setup:
+      (props, { slots }) =>
+      () =>
+        h('a', { 'data-fake-router-link': props.to }, slots.default?.()),
+  });
+
+  it('uses a string as the tag and still passes href as href', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/checkout', as: 'a' },
+      slots: { default: 'Checkout' },
+    });
+    expect(wrapper.element.tagName).toBe('A');
+    expect(wrapper.attributes('href')).toBe('/checkout');
+    expect(wrapper.attributes('data-part')).toBe('container');
+    wrapper.unmount();
+  });
+
+  it('passes href as `to` when as is a component, never as href', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/collections/knitwear', as: FakeRouterLink },
+      slots: { default: 'Shop all knitwear' },
+    });
+    expect(wrapper.attributes('data-fake-router-link')).toBe('/collections/knitwear');
+    expect(wrapper.attributes('href')).toBeUndefined();
+    expect(wrapper.text()).toBe('Shop all knitwear');
+    wrapper.unmount();
+  });
+
+  it('ignores as and renders a native button when there is no href', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', as: FakeRouterLink },
+      slots: { default: 'Add to cart' },
+    });
+    expect(wrapper.element.tagName).toBe('BUTTON');
+    expect(wrapper.attributes('type')).toBe('button');
+    expect(wrapper.attributes('data-fake-router-link')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('keeps the link form styled as a button', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/checkout', as: FakeRouterLink },
+      slots: { default: 'Checkout' },
+    });
+    expect(wrapper.classes()).toContain('bg-primary');
+    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.classes()).toContain('control-h');
+    wrapper.unmount();
+  });
+
+  it('keeps the disabled-link semantics when routed through a component', async () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/checkout', as: FakeRouterLink, disabled: true },
+      slots: { default: 'Checkout' },
+    });
+    expect(wrapper.attributes('aria-disabled')).toBe('true');
+    expect(wrapper.attributes('tabindex')).toBe('-1');
+    expect(wrapper.attributes('disabled')).toBeUndefined();
+    await wrapper.trigger('click');
+    expect(wrapper.emitted('click')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('keeps the icon-only and loading names when routed through a component', () => {
+    const wrapper = mountWith(Button, {
+      props: {
+        variant: 'primary',
+        href: '/wishlist',
+        as: FakeRouterLink,
+        iconOnly: true,
+        icon: IconHeart,
+        label: 'Open your wishlist',
+        loading: true,
+      },
+    });
+    expect(wrapper.attributes('aria-label')).toBe('Open your wishlist');
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('has no axe violations as a routed link', async () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', href: '/collections/knitwear', as: FakeRouterLink },
+      slots: { default: 'Shop all knitwear' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
 describe('Button — sizes', () => {
   it.each([
     ['sm', 'control-h-sm'],

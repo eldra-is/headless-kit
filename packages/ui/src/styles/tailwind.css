@@ -583,10 +583,20 @@
     position: absolute;
     inset: var(--eldra-field-border-width, 1px);
     border: var(--eldra-field-border-width, 1px) solid var(--eldra-color-danger);
-    border-radius: calc(
-      var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md))) -
-        var(--eldra-field-border-width, 1px)
+    /* The radius is lifted into a custom property of its own rather than written inline in the
+       `calc()`. It substitutes to exactly the same token chain — the computed value is unchanged,
+       and `source-scan.spec.ts` asserts both halves of it in the compiled stylesheet — but the
+       `calc()` a bundler's PostCSS pass then has to parse holds one level of `var()` fallback
+       instead of three. Two-deep nesting (`var(--a, var(--b, var(--c)))`) inside a `calc()` is
+       what postcss-calc's grammar chokes on, and it printed a "Parse error … got unexpected
+       RPAREN" warning on every consumer build (seen in the starter's). It is only a warning — the
+       declaration is passed through untouched — but a package cannot ship noise into every
+       consumer's build log, and a real parse error in that pass would look exactly the same. */
+    --eldra-field-invalid-radius: var(
+      --eldra-field-radius,
+      var(--eldra-input-radius, var(--eldra-radius-md))
     );
+    border-radius: calc(var(--eldra-field-invalid-radius) - var(--eldra-field-border-width, 1px));
     pointer-events: none;
   }
   @media (forced-colors: active) {

@@ -25,6 +25,7 @@ function fieldProvider(context: Partial<FieldContext> = {}) {
     provide: {
       [FIELD_KEY as symbol]: computed<FieldContext>(() => ({
         id: 'field-restock',
+        labelId: 'field-restock-label',
         describedBy: undefined,
         invalid: false,
         required: false,

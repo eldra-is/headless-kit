@@ -43,6 +43,7 @@ function fieldProvider(context: Partial<FieldContext> = {}) {
     provide: {
       [FIELD_KEY as symbol]: computed<FieldContext>(() => ({
         id: 'field-consent',
+        labelId: 'field-consent-label',
         describedBy: 'field-consent-error',
         invalid: true,
         required: true,
@@ -539,7 +540,7 @@ describe('Checkbox — describedBy and the field context', () => {
     wrapper.unmount();
   });
 
-  it('lets its own props win over the field context', () => {
+  it("lets its own id, invalid and required win, and adds describedBy to the context's", () => {
     const wrapper = mountWith(Checkbox, {
       props: { id: 'own-id', invalid: false, required: false, describedBy: 'own-help' },
       slots: { default: 'I agree to the terms of sale' },
@@ -549,7 +550,10 @@ describe('Checkbox — describedBy and the field context', () => {
     expect(el.id).toBe('own-id');
     expect(el.getAttribute('aria-invalid')).toBeNull();
     expect(el.required).toBe(false);
-    expect(el.getAttribute('aria-describedby')).toBe('own-help');
+    // `id`, `invalid` and `required` are *replaced* by the control's own props; `describedBy`
+    // is **composed** — own id first, then the wrapper's — so a field's error and help text keep
+    // describing the control. One rule for every control in the package; see `joinIds`.
+    expect(el.getAttribute('aria-describedby')).toBe('own-help field-consent-error');
     wrapper.unmount();
   });
 

@@ -51,8 +51,13 @@ export type {
  * control this package does not ship — or one of its own — binds it the same way: the value, the
  * message gated on "touched or submitted", the `id` the error summary links to, and the server
  * error that clears when the value changes.
+ *
+ * `FIELD_ONLY` comes with it: the prop names a `Field*` keeps for itself and must **not** forward
+ * to the control it wraps (`path`, `rules`, `label`, `id`). Without it a consumer writing their own
+ * wrapper has to rediscover the list by reading this package's source.
  */
 export {
+  FIELD_ONLY,
   useFieldControl,
   type UseFieldControlOptions,
   type UseFieldControlReturn,

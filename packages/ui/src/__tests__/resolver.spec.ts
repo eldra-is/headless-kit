@@ -13,6 +13,15 @@ describe('EldraUiResolver', () => {
     });
   });
 
+  it('re-exports componentNames from the resolver entry, so a consumer can reach the list', async () => {
+    const entry = await import('../resolver');
+    const { componentNames } = await import('../componentNames');
+    // The list is only useful to a consumer who can import it; `./resolver` is the entry that
+    // answers "which components does this package ship?", so it is where it belongs.
+    expect(entry.componentNames).toBe(componentNames);
+    expect(entry.componentNames).toContain('Button');
+  });
+
   it('resolves every name in componentNames under the default Eldra prefix', async () => {
     const { componentNames } = await import('../componentNames');
     const resolver = EldraUiResolver();

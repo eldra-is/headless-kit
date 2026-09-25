@@ -52,3 +52,11 @@ export function EldraUiResolver(options: EldraUiResolverOptions = {}): {
     },
   };
 }
+
+/**
+ * The list the resolver resolves against — every component the root entry exports, in one array —
+ * and the union of its names. Exported here, beside the resolver, because it is the same question:
+ * "which components does this package ship?". A consumer registering all of them globally, or
+ * typing their own `Record<ComponentName, …>` wrapper map, needs the list rather than a copy of it.
+ */
+export { componentNames, type ComponentName } from './componentNames';

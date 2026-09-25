@@ -7,6 +7,7 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-vue';
+import { defineComponent, h } from 'vue';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Button from './Button.vue';
 import ButtonGroup from './ButtonGroup.vue';
@@ -32,6 +33,7 @@ const meta = {
     iconLeft: { table: { disable: true } },
     iconRight: { table: { disable: true } },
     icon: { table: { disable: true } },
+    as: { table: { disable: true } },
     classes: { table: { disable: true } },
   },
   parameters: {
@@ -42,6 +44,12 @@ const meta = {
           'native `<button>`, or an `<a href>` when `href` is set. For navigation that should not',
           'look like a button use `Link`; for an action that should read like text use this',
           "component's `link` variant.",
+          '',
+          '**`as`** (link form only): render the `href` through a router link instead of a native',
+          '`<a>`, so an in-app destination routes instead of reloading the document. Same contract',
+          'as `Link`: a string is used as the tag and still receives `href`; a component receives',
+          'the destination as `to` (Vue Router / NuxtLink). With no `href` it is ignored and this',
+          'is a `<button>`.',
           '',
           '**Parts** (`data-part`, and the keys of the `classes` prop): `container`, `leadingIcon`,',
           '`label`, `trailingIcon`, `spinner`.',
@@ -305,6 +313,44 @@ export const Narrow: Story = {
           <Button variant="primary" block>Add to cart</Button>
           <Button variant="outline" block>Our story</Button>
         </ButtonGroup>
+      </div>
+    `,
+  }),
+};
+
+/** Stands in for `NuxtLink`/`RouterLink`: it takes the destination as `to`, never as `href`. */
+const FakeRouterLink = defineComponent({
+  name: 'FakeRouterLink',
+  props: { to: { type: String, required: true } },
+  setup:
+    (props, { slots }) =>
+    () =>
+      h('a', { href: props.to, 'data-fake-router-link': '' }, slots.default?.()),
+});
+
+/**
+ * `as` with a router link component, so an in-app destination routes instead of reloading the
+ * document. The component receives the destination as `to`, which is exactly what `as` hands a
+ * component (a string `as` would still get `href`). The rendered markup and every style are the
+ * anchor form's — this story exists so the routed form is reviewed and screenshotted like the rest.
+ */
+export const AsRouterLink: Story = {
+  render: () => ({
+    components: { Button },
+    setup: () => ({ FakeRouterLink, IconArrowRight }),
+    template: `
+      <div class="@container flex flex-wrap items-center gap-3">
+        <Button variant="primary" href="/collections/knitwear" :as="FakeRouterLink">
+          Shop all knitwear
+        </Button>
+        <Button
+          variant="outline"
+          href="/checkout"
+          :as="FakeRouterLink"
+          :icon-right="IconArrowRight"
+        >
+          Continue to checkout
+        </Button>
       </div>
     `,
   }),

@@ -3,7 +3,7 @@ import { computed, inject, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
-import { useUiId } from '../../utils/id';
+import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { supportsFieldSizing } from './supportsFieldSizing';
@@ -49,7 +49,13 @@ const controlId = useUiId(
   'textarea',
   () => props.id ?? (field?.value.labelsControl === true ? field.value.id : undefined)
 );
-const baseDescribedBy = computed(() => props.describedBy ?? field?.value.describedBy);
+/**
+ * `aria-describedby` (spec "Actions and forms" → the Field wrapper): **own ids first, then the
+ * field context's.** The prop adds to the wrapper's error/help ids, it never replaces them — a
+ * `<FieldWrapper error="…">` still describes its error when the control is given a `describedBy`
+ * of its own. `joinIds` dedupes and drops the attribute when there is nothing to say.
+ */
+const baseDescribedBy = computed(() => joinIds(props.describedBy, field?.value.describedBy));
 const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);
 const counterId = useUiId('textarea-counter');
@@ -175,12 +181,9 @@ const showCounter = computed(() => props.counter && props.maxLength !== undefine
  * `aria-describedby`." The counter is Textarea's own part (not the `FieldWrapper`'s), so it wires
  * itself in rather than waiting on a caller to remember to.
  */
-const describedBy = computed(() => {
-  const ids = [baseDescribedBy.value, showCounter.value ? counterId.value : undefined].filter(
-    (id): id is string => Boolean(id)
-  );
-  return ids.length > 0 ? ids.join(' ') : undefined;
-});
+const describedBy = computed(() =>
+  joinIds(baseDescribedBy.value, showCounter.value && counterId.value)
+);
 
 const length = computed(() => model.value.length);
 /** Spec "Textarea" → States, Error row: "counter `danger` weight 600" once past the limit. */

@@ -21,7 +21,7 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <component :is="as" :class="rootClass">
+  <component :is="as" data-part="root" :class="rootClass">
     <slot />
   </component>
 </template>

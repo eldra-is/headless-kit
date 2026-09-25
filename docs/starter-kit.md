@@ -81,7 +81,7 @@ motion, z-index), which a customer overrides in `main.css` — for example `--el
 `--eldra-font-body`, whose defaults name two faces the package deliberately does not load. They
 reach Tailwind through the package's own `@theme` as `rounded-md`, `shadow-md`, `font-heading`,
 `text-body` and the rest. The only design values `main.css` still declares itself are the section
-steps (`--spacing-section-sm/-section/-section-lg`, mapped from `--eldra-section-*` so `py-section`
+steps (`--spacing-section` and `--spacing-section-lg`, mapped from `--eldra-section-*` so `py-section`
 keeps working), because the package names no spacing utility for them until its own `Section`
 lands. Container gutters come from the token CSS's `--eldra-container-<id>-gutter-*` variables
 through `UiContainer`, not Tailwind's own `container` utility — see the

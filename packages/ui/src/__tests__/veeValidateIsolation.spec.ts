@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 // `URL` under another name resolves it (the same workaround `source-scan.spec.ts` documents).
 import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
+import { isBuilt, itFailsWithoutDist } from '../test/built';
 
 /**
  * `vee-validate` is an **optional** peer: only `@eldrajs/ui/vee-validate` needs it, and the root
@@ -49,7 +50,7 @@ describe('the root entry does not import vee-validate', () => {
 });
 
 const distDir = fileURLToPath(new NodeURL('../../dist/', import.meta.url));
-const built = existsSync(`${distDir}index.js`);
+const built = isBuilt(`${distDir}index.js`);
 
 /** Every emitted file the given entry reaches through relative imports, itself included. */
 function reachable(entry: string, seen = new Set<string>()): Set<string> {
@@ -79,7 +80,6 @@ describe('the built root entry does not reference vee-validate', () => {
     expect(BARE_SPECIFIER.test(readFileSync(`${distDir}vee-validate.js`, 'utf8'))).toBe(true);
   });
 
-  it.skipIf(built)('needs a build first: run `pnpm --filter @eldrajs/ui build`', () => {
-    expect(built).toBe(false);
-  });
+  // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
+  itFailsWithoutDist(built);
 });

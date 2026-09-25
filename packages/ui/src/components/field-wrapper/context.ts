@@ -15,6 +15,15 @@ import type { ComputedRef, InjectionKey } from 'vue';
 export interface FieldContext {
   /** The control's `id`, which the wrapper's `<label for>` points at. */
   id: string;
+  /**
+   * The id of the wrapper's own `<label>` (or a group's `<legend>`).
+   *
+   * A `<label for>` cannot name a `<button>`, so the custom `Select`/`MultiSelect` triggers are
+   * named with `aria-labelledby` pointing here instead. It lives on the context rather than being
+   * rebuilt from `id` by string convention in each control, so renaming it is one edit and cannot
+   * leave a control pointing at an element that no longer exists.
+   */
+  labelId: string;
   /** The `aria-describedby` value: the error id first, then help. */
   describedBy?: string;
   /** Whether the field is in error, which the control mirrors as `aria-invalid="true"`. */

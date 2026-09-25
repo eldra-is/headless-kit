@@ -3,7 +3,7 @@ import { computed, inject, nextTick, ref, useAttrs, watch, watchPostEffect } fro
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
-import { useUiId } from '../../utils/id';
+import { joinIds, useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
@@ -62,7 +62,7 @@ const controlId = useUiId(
   () => props.id ?? (field?.value.labelsControl === true ? field.value.id : undefined)
 );
 const labelledBy = computed(() =>
-  field?.value.labelsControl === true ? `${field.value.id}-label` : undefined
+  field?.value.labelsControl === true ? field.value.labelId : undefined
 );
 const attrs = useAttrs();
 const fallbackLabel = computed(() =>
@@ -71,7 +71,13 @@ const fallbackLabel = computed(() =>
     : undefined
 );
 
-const describedBy = computed(() => props.describedBy ?? field?.value.describedBy);
+/**
+ * `aria-describedby` (spec "Actions and forms" → the Field wrapper): **own ids first, then the
+ * field context's.** The prop adds to the wrapper's error/help ids, it never replaces them — a
+ * `<FieldWrapper error="…">` still describes its error when the control is given a `describedBy`
+ * of its own. `joinIds` dedupes and drops the attribute when there is nothing to say.
+ */
+const describedBy = computed(() => joinIds(props.describedBy, field?.value.describedBy));
 const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);
 

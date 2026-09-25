@@ -52,12 +52,15 @@ const hasBackgroundImage = computed(() => isBackground.value && Boolean(data.val
 const framing = computed(() => data.value.image?.framing ?? DEFAULT_IMAGE_FRAMING);
 const ctaHref = computed(() => safeHref(data.value.ctaHref));
 const secondaryCtaHref = computed(() => safeHref(data.value.secondaryCtaHref));
-/** Only a same-site destination routes through the router — see `EldraRouterLink`. */
-const secondaryLinkAs = computed(() =>
-  secondaryCtaHref.value !== null && isInternalHref(secondaryCtaHref.value)
-    ? EldraRouterLink
-    : undefined
-);
+/**
+ * Only a same-site destination routes through the router — see `EldraRouterLink`. `Button` takes
+ * the same `as` as `Link` does, so the primary CTA routes instead of reloading the document; both
+ * actions in this block are gated the same way.
+ */
+const routerLinkAs = (href: string | null) =>
+  href !== null && isInternalHref(href) ? EldraRouterLink : undefined;
+const ctaLinkAs = computed(() => routerLinkAs(ctaHref.value));
+const secondaryLinkAs = computed(() => routerLinkAs(secondaryCtaHref.value));
 </script>
 
 <template>
@@ -116,9 +119,14 @@ const secondaryLinkAs = computed(() =>
           :class="variant === 'centered' || isBackground ? 'justify-center' : ''"
         >
           <slot name="actions">
-            <Button v-if="data.ctaLabel && ctaHref" :href="ctaHref" size="lg" variant="primary">{{
-              data.ctaLabel
-            }}</Button>
+            <Button
+              v-if="data.ctaLabel && ctaHref"
+              :href="ctaHref"
+              :as="ctaLinkAs"
+              size="lg"
+              variant="primary"
+              >{{ data.ctaLabel }}</Button
+            >
             <Link
               v-if="data.secondaryCtaLabel && secondaryCtaHref"
               :href="secondaryCtaHref"

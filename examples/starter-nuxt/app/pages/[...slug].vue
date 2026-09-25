@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
 import { Button } from '@eldrajs/ui';
+import EldraRouterLink from '../components/EldraRouterLink.vue';
 import UiSection from '../components/ui/UiSection.vue';
 import { useT } from '../composables/useT';
 
@@ -59,7 +60,11 @@ useHead(() => ({
         {{ t('notFound.title') }}
       </h1>
       <p class="text-muted mt-4 text-lg">{{ t('notFound.body') }}</p>
-      <Button variant="primary" class="mt-8" href="/">{{ t('notFound.back') }}</Button>
+      <!-- `/` is always same-site, so it always routes: `Button`'s `as` hands the href to
+           `EldraRouterLink` as `to`, exactly as a `Link` does. -->
+      <Button variant="primary" class="mt-8" href="/" :as="EldraRouterLink">{{
+        t('notFound.back')
+      }}</Button>
     </UiSection>
     <EldraLayout
       v-else-if="layout !== null"

@@ -24,6 +24,7 @@ const ContextProbe = defineComponent({
       h('output', {
         'data-testid': 'probe',
         'data-id': field?.value.id,
+        'data-label-id': field?.value.labelId,
         'data-described-by': field?.value.describedBy ?? '',
         'data-invalid': String(field?.value.invalid),
         'data-required': String(field?.value.required),
@@ -774,11 +775,36 @@ describe('FieldWrapper — content, accessibility and narrow containers', () => 
     });
     const context: FieldContext = {
       id: probe(wrapper)['data-id'] as string,
+      labelId: probe(wrapper)['data-label-id'] as string,
       invalid: false,
       required: true,
       labelsControl: true,
     };
     expect(context.required).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("provides labelId as the rendered label element's own id", () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Phone' },
+      slots: { default: ContextProbe },
+    });
+    // Read from the DOM, not rebuilt from `id`: a control that points at `labelId` must point at
+    // an element that exists, which a `${id}-label` reconstruction cannot prove.
+    const labelId = wrapper.find('label').attributes('id');
+    expect(labelId).toBeTruthy();
+    expect(probe(wrapper)['data-label-id']).toBe(labelId);
+    wrapper.unmount();
+  });
+
+  it("provides the legend's id as labelId for a group", () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Shipping', group: true },
+      slots: { default: ContextProbe },
+    });
+    const legendId = wrapper.find('legend').attributes('id');
+    expect(legendId).toBeTruthy();
+    expect(probe(wrapper)['data-label-id']).toBe(legendId);
     wrapper.unmount();
   });
 });

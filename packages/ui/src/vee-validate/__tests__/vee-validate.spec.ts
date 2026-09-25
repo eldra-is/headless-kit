@@ -126,6 +126,19 @@ describe('FieldInput inside a Form', () => {
   });
 });
 
+describe('the ./vee-validate entry surface', () => {
+  it('re-exports FIELD_ONLY beside useFieldControl', async () => {
+    const entry = await import('../index');
+    const { FIELD_ONLY } = await import('../useFieldControl');
+    // A consumer wrapping their own control needs both halves: the composable, and the list of
+    // props their wrapper must keep rather than forward. Without it they rediscover it by reading
+    // this package's source.
+    expect(entry.FIELD_ONLY).toBe(FIELD_ONLY);
+    expect([...entry.FIELD_ONLY]).toEqual(['path', 'rules', 'label', 'id']);
+    expect(typeof entry.useFieldControl).toBe('function');
+  });
+});
+
 describe('what a Field forwards', () => {
   it('reaches the inner component with a classes override and a slot', () => {
     const wrapper = mountForm(() =>

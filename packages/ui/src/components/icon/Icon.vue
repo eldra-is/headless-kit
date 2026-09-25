@@ -38,6 +38,7 @@ const rootClass = computed(() =>
 <template>
   <component
     :is="icon"
+    data-part="root"
     :class="rootClass"
     :stroke-width="STROKE_WIDTH"
     :aria-hidden="label === undefined ? 'true' : undefined"

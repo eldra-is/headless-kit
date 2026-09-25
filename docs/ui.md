@@ -65,4 +65,6 @@ ships `Form` (over `useForm` and `FormLayout`) and eleven `Field*` components (o
   component ships, and every recorded deviation from the design spec.
 - Storybook — one story per component state, screenshot-tested against committed baselines. Run it
   locally with `pnpm --filter @eldrajs/ui storybook`, or build it with
-  `pnpm --filter @eldrajs/ui build-storybook`.
+  `pnpm --filter @eldrajs/ui build-storybook`. The baselines under `packages/ui/__screenshots__`
+  are **macOS/Chromium renderings** and have to be regenerated per platform, which is why
+  `pnpm --filter @eldrajs/ui screenshots` is outside `pnpm check` and outside CI.

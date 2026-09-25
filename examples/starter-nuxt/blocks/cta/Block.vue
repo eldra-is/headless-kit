@@ -30,12 +30,15 @@ const isPrimary = computed(() => variant.value === 'primary');
 const isSplit = computed(() => variant.value === 'split');
 const buttonHref = computed(() => safeHref(data.value.buttonHref));
 const secondaryButtonHref = computed(() => safeHref(data.value.secondaryButtonHref));
-/** Only a same-site destination routes through the router — see `EldraRouterLink`. */
-const secondaryLinkAs = computed(() =>
-  secondaryButtonHref.value !== null && isInternalHref(secondaryButtonHref.value)
-    ? EldraRouterLink
-    : undefined
-);
+/**
+ * Only a same-site destination routes through the router — see `EldraRouterLink`. `Button` takes
+ * the same `as` as `Link` does, so the primary action routes instead of reloading the document;
+ * both actions in this block are gated the same way.
+ */
+const routerLinkAs = (href: string | null) =>
+  href !== null && isInternalHref(href) ? EldraRouterLink : undefined;
+const buttonLinkAs = computed(() => routerLinkAs(buttonHref.value));
+const secondaryLinkAs = computed(() => routerLinkAs(secondaryButtonHref.value));
 </script>
 
 <template>
@@ -68,6 +71,7 @@ const secondaryLinkAs = computed(() =>
         <Button
           v-if="data.buttonLabel && buttonHref"
           :href="buttonHref"
+          :as="buttonLinkAs"
           size="lg"
           variant="primary"
         >

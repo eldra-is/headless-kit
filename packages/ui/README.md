@@ -18,8 +18,10 @@ under [Deviations](#deviations) rather than left for a reader to find.
 pnpm add @eldrajs/ui vue
 ```
 
-Peer: `vue ^3.4`. `vee-validate ^4.12` is an **optional** peer — only the `./vee-validate` entry
-needs it, and nothing else in the package imports it.
+Peer: **`vue ^3.5`**. The floor is 3.5, not 3.4: every control's ids come from `useId()`, which Vue
+added in 3.5, so on 3.4 the install succeeds and the first control to mount throws
+`useId is not a function`. `vee-validate ^4.12` is an **optional** peer — only the `./vee-validate`
+entry needs it, and nothing else in the package imports it.
 
 ## Styles
 
@@ -103,6 +105,42 @@ Every component supports all five of these; none hard-codes anything a store mig
 5. **`as`**, on the components whose spec allows a different rendered element (`Button`, `Link`,
    and the display/layout components landing in the next sub-project). `Button` and the future card
    components render an `<a>` automatically when `href` is set, without needing `as` for that case.
+
+## Fields: the context a `FieldWrapper` provides
+
+A `FieldWrapper` owns the visible label, the help text and the error message, and provides what it
+knows to the control inside it (`FIELD_KEY`, typed as `FieldContext`) — so a bare `<Input />`
+inside one needs no wiring at all:
+
+| Field           | What the control does with it                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`            | Takes it as its own `id`, so the wrapper's `<label for>` names it                                                                                      |
+| `labelId`       | The label element's own id, for a control a `<label for>` cannot name (`Select`'s `<button>` trigger uses it as `aria-labelledby`)                     |
+| `describedBy`   | The wrapper's error, help and counter ids, in that order                                                                                               |
+| `invalid`       | Mirrors it as `aria-invalid="true"`                                                                                                                    |
+| `required`      | Mirrors it as native `required`                                                                                                                        |
+| `labelsControl` | `false` for a `group` (a `<fieldset>` named by its `<legend>`): a control that draws a label of its own keeps it, and nothing claims the fieldset's id |
+
+**`id`, `invalid` and `required` are replaced by the control's own props; `describedBy` is
+composed.** One rule for every control here: **its own ids come first, then the context's.** So a
+`describedBy` prop _adds_ to the wrapper's error and help ids rather than replacing them —
+
+```vue
+<FieldWrapper label="Email" error="Enter a valid email">
+  <Input described-by="newsletter-note" />
+</FieldWrapper>
+<!-- aria-describedby="newsletter-note <error-id>" — the error is still described -->
+```
+
+— and so does a control's own part: `Textarea`'s counter id, `Switch`'s description id, and the
+group controls' (`RadioGroup`, `CheckboxGroup`, `QuantityStepper`) own error id all lead, with the
+context's ids after them. `aria-describedby` is announced in the order its ids are listed, so the
+control's own message is heard first. Ids are deduplicated and the attribute is omitted rather than
+rendered empty; `joinIds` (exported from the root) is the helper the components use, for a consumer
+composing a control of their own.
+
+The three group controls take no `describedBy` prop of their own — they are `<fieldset>`s named by
+a `<legend>`, and their `error` prop is what they describe themselves with.
 
 ## Messages
 
@@ -424,7 +462,11 @@ Every component in this package ships, as part of being done, not as an add-on:
 - **A screenshot regression harness**: `scripts/screenshots.mjs` captures every story at 1280 and
   360px with Playwright and compares against committed baselines in `packages/ui/__screenshots__`
   (pixelmatch, 0.1% threshold). `pnpm --filter @eldrajs/ui screenshots --update` refreshes them
-  after an intentional visual change.
+  after an intentional visual change. **The committed baselines are macOS/Chromium renderings**, and
+  font rasterisation differs enough between platforms that a run on Linux or Windows will fail on
+  nearly every story; regenerate them on your own platform (and do not commit that regeneration)
+  until per-platform baselines land. The harness is deliberately **outside `pnpm check`** and
+  outside CI for the same reason — it is run and reviewed by hand.
 
 The design spec's own five-step testing protocol is the definition of done per component:
 
@@ -437,10 +479,17 @@ The design spec's own five-step testing protocol is the definition of done per c
    colour table.
 5. 200% zoom and a 320px-wide viewport; reduced motion on; forced colours on.
 
-Steps 1, 2 and 4 (contrast, verified against the token colour table) are automated as above. Steps
-3 and 5 are manual — a screen reader and a real browser zoom/forced-colours pass cannot be
-scripted — and are performed and recorded per component during development, outside this
-repository's own history.
+**What is actually automated, precisely.** Step 1 (axe, per state), step 2 (the keyboard tests) and
+the visual half of step 5 (the reduced-motion and forced-colours stories, captured with Playwright's
+media emulation) — plus the screenshot baselines above. **Steps 3 and 4 are not automated in this
+package**, and step 5's zoom pass is not either: axe runs under happy-dom, where there is no layout
+and no computed paint, so its `color-contrast` rule cannot evaluate and reports nothing. Nothing
+under `src/` computes a relative luminance, and `scripts/build-tokens.mjs` only copies the token
+values across. The one automated ratio check on the whole branch is
+[`examples/starter-nuxt/test/tokens.spec.ts`](../../examples/starter-nuxt/test/tokens.spec.ts),
+which checks eleven pairs of the **starter's** `tokens.json`. Contrast, the screen-reader pass and
+the zoom/320px pass are therefore manual protocol steps, performed and recorded per component
+during development, outside this repository's own history.
 
 ## Deviations
 
@@ -481,11 +530,15 @@ Additions and departures from the design spec, and why.
   `outline`.** The spec says the secondary button there "becomes transparent with a `currentColor`
   border" and stops; since it then _is_ an outline button in every other respect, it takes the
   outline variant's hover fill rather than no hover feedback at all.
-- **No `as` prop on `Button`.** The design spec's "Customisation layers" §5 lists `as` on `Button`,
-  but `Button`'s own spec section (the property table this component is built to) has no `as`, and
-  the rule is "every property … it lists and nothing else". `Button` already chooses `<button>` or
-  `<a>` from `href`, per the spec's own Accessibility note. Additive if wanted later; does not
-  affect the frozen part names.
+- **`Button`'s `as` takes a router-link component, not only a tag name** — the same contract as
+  `Link`'s, and the spec's "Customisation layers" §5 lists `as` on `Button`. It applies to the link
+  form only: with `href` set and `as` a component (`NuxtLink`, `RouterLink`), the component receives
+  the destination as `to`, matching those components' own prop contract; with `as` a plain string it
+  stays a tag (or custom element) that still receives `href`. With no `href` there is no destination
+  to route, so `as` is ignored and this is a `<button>` — `Button` still chooses `<button>` or `<a>`
+  from `href` alone, per the spec's own Accessibility note. Everything else is unchanged: icon-only
+  and loading naming, `aria-pressed`'s link rule, and the disabled-link semantics below all behave
+  exactly as they do on a native `<a>`.
 - **`Button` disabled link button keeps its `href`.** A disabled `<a>` that also drops `href`
   becomes a generic element and stops exposing `role="link"` — a screen reader stops naming what it
   is at the exact moment it needs to say "unavailable". `href` stays, and `aria-disabled="true"`,
@@ -529,7 +582,8 @@ Additions and departures from the design spec, and why.
   long value run underneath — measuring the slot would need JavaScript and is not in the spec.
 - **`Input`'s `clearable`/`invalid`/`required`/`describedBy` default to `undefined`, not `false`.**
   They fall back to a `FieldWrapper`'s context when there is one, and `false` there would be an
-  answer rather than "no opinion". `readonly` and `disabled` have no context source and default to
+  answer rather than "no opinion". (`describedBy` **composes** with the context rather than
+  replacing it — see [Fields](#fields-the-context-a-fieldwrapper-provides).) `readonly` and `disabled` have no context source and default to
   `false` as usual. The clear button is additionally hidden on a disabled or read-only field.
 - **`Textarea` has no `help`/slot forwarding into a `FieldWrapper`'s foot row.** `FieldWrapper` owns
   its _own_, independent `foot`/`counter` parts (see its Deviation below); `Textarea`'s own
@@ -560,8 +614,9 @@ Additions and departures from the design spec, and why.
 - **`Checkbox` `describedBy`.** The spec's Checkbox property table has no way to point at an
   error, but its Accessibility notes require one ("Required consent: `required`,
   `aria-invalid="true"` and `aria-describedby` pointing to an error that says what to do"). So
-  `Checkbox` takes `describedBy?: string`, exactly as `Input` and `Textarea` do, and falls back to
-  a `FieldWrapper`'s context when there is one.
+  `Checkbox` takes `describedBy?: string`, exactly as `Input` and `Textarea` do, and composes it
+  with a `FieldWrapper`'s context when there is one (own id first — see
+  [Fields](#fields-the-context-a-fieldwrapper-provides)).
 - **`Checkbox`'s hint is part of the accessible name.** The spec's anatomy puts the hint "inside
   the label", and a `<label>`'s whole text is the control's name — so a box with a hint is
   announced as "Washed linen Pre-softened, will not shrink further". That is the spec's own

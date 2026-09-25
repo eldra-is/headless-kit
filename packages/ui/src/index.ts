@@ -150,7 +150,7 @@ export { FIELD_KEY, type FieldContext } from './components/field-wrapper/context
 // same way the components do.
 export { cx, partClass, type ClassValue } from './utils/cx';
 export { mixToward } from './utils/color';
-export { useUiId } from './utils/id';
+export { joinIds, useUiId } from './utils/id';
 export { applyMask, defaultCharacterMeaning, stripMask } from './utils/mask';
 export {
   createNumberFormat,

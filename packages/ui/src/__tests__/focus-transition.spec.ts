@@ -1,9 +1,10 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 // happy-dom's global `URL` refuses the `file:` scheme that `import.meta.url` is here; Node's own
 // `URL` under another name resolves it (the same workaround `source-scan.spec.ts` documents).
 import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { isBuilt, itFailsWithoutDist } from '../test/built';
 
 /**
  * `eldra-focus` and `eldra-focus-inset` own the transition list of the element they sit on.
@@ -18,7 +19,7 @@ import { describe, expect, it } from 'vitest';
  */
 const componentsDir = fileURLToPath(new NodeURL('../components/', import.meta.url));
 const distDir = fileURLToPath(new NodeURL('../../dist/', import.meta.url));
-const built = existsSync(`${distDir}tailwind.css`) && existsSync(`${distDir}index.js`);
+const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
 
 /**
  * Every file under `src/components` that can build a class list: the `.vue` components and the
@@ -151,7 +152,6 @@ describe('the focus ring owns its element transitions', () => {
     expect(css).toContain('outline-color: Highlight');
   });
 
-  it.skipIf(built)('needs a build first: run `pnpm --filter @eldrajs/ui build`', () => {
-    expect(built).toBe(false);
-  });
+  // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
+  itFailsWithoutDist(built);
 });

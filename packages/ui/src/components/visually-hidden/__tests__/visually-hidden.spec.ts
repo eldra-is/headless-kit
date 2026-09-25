@@ -18,6 +18,21 @@ describe('VisuallyHidden', () => {
     wrapper.unmount();
   });
 
+  it('marks its root part, so a consumer can select and locate it', () => {
+    const wrapper = mountWith(VisuallyHidden, { slots: { default: 'Loading' } });
+    expect(wrapper.attributes('data-part')).toBe('root');
+    wrapper.unmount();
+  });
+
+  it('keeps the root part when `as` changes the tag', () => {
+    const wrapper = mountWith(VisuallyHidden, {
+      props: { as: 'div' },
+      slots: { default: 'Legend' },
+    });
+    expect(wrapper.attributes('data-part')).toBe('root');
+    wrapper.unmount();
+  });
+
   it('renders the element given by `as`', () => {
     const wrapper = mountWith(VisuallyHidden, {
       props: { as: 'div' },

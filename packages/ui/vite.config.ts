@@ -27,7 +27,7 @@ export default defineConfig({
       fileName: (_format, name) => `${name}.js`,
     },
     rolldownOptions: {
-      external: ['vue', 'vee-validate', '@floating-ui/vue', '@vueuse/core', 'tailwind-merge'],
+      external: ['vue', 'vee-validate', '@floating-ui/vue', 'tailwind-merge'],
       output: {
         assetFileNames: (info) =>
           info.names?.[0]?.endsWith('.css') ? 'style.css' : '[name][extname]',

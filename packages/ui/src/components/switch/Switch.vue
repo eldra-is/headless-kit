@@ -2,7 +2,7 @@
 import { computed, inject, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { cx, partClass } from '../../utils/cx';
-import { useUiId } from '../../utils/id';
+import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import type { SwitchProps, SwitchSize } from './types';
 
@@ -61,13 +61,9 @@ const hasDescription = computed(
  * description — own id first, so it is what a screen reader hears first, then whatever the field
  * context adds.
  */
-const describedBy = computed(() => {
-  const ids = [
-    hasDescription.value ? descriptionId.value : undefined,
-    field?.value.describedBy,
-  ].filter((id): id is string => Boolean(id));
-  return ids.length > 0 ? ids.join(' ') : undefined;
-});
+const describedBy = computed(() =>
+  joinIds(hasDescription.value && descriptionId.value, field?.value.describedBy)
+);
 
 /** Controlled when the parent binds `modelValue`, self-managing when it does not. */
 const model = useControllableModel<boolean>(props, emit, () => false);

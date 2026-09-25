@@ -86,15 +86,21 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   Vite in library mode with `vite-plugin-dts` bundling the declarations into one `index.d.ts` —
   per-file `.vue.d.ts` output fails Node16 resolution, which `attw` catches.
 - `packages/ui` — `@eldrajs/ui`. The public Vue 3 core component library, built to
-  `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue`, optionally on
-  `vee-validate` (the `./vee-validate` entry only); runtime deps are `@floating-ui/vue`,
-  `@vueuse/core` and `tailwind-merge`. Built by Vite in library mode with `vite-plugin-dts`, the
+  `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue` **3.5 or newer**
+  (`src/utils/id.ts` calls Vue's `useId()`, added in 3.5, and nearly every component calls it),
+  optionally on `vee-validate` (the `./vee-validate` entry only); runtime deps are
+  `@floating-ui/vue` and `tailwind-merge`. Built by Vite in library mode with `vite-plugin-dts`, the
   same shape as `packages/vue`. **No value is written literally**: every colour, radius, height,
   spacing step, font, duration, easing and z-index resolves to a `--eldra-*` variable, so a
   consumer restyles by setting variables. `scripts/build-tokens.mjs` generates
   `src/styles/tokens.css` from `eldra-starter-spec/tokens.json` (checked in; `pnpm --filter
 @eldrajs/ui check:tokens` runs in the root `lint:check` and fails on drift — regenerate with
-  `build-tokens`, never hand-edit). Three CSS entries ship: `./tokens.css` (the variables),
+  `build-tokens`, never hand-edit). The Storybook screenshot harness
+  (`pnpm --filter @eldrajs/ui screenshots`, baselines in `packages/ui/__screenshots__`) is
+  **outside `pnpm check` and outside CI**: the committed PNGs are macOS/Chromium renderings, and
+  font rasterisation differs enough per platform that a Linux run fails nearly every story.
+  Regenerate per platform, and do not commit a regeneration made on another one.
+  Three CSS entries ship: `./tokens.css` (the variables),
   `./tailwind.css` (the `@theme` block and the `@utility` rules — type styles, control heights,
   the `eldra-focus` ring, motion and layer utilities — copied to `dist/` verbatim so a consumer's
   own Tailwind build reads them, with `@source './'` resolving against `dist/`), and `./style.css`

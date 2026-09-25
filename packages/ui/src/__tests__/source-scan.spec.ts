@@ -1,9 +1,9 @@
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 // happy-dom replaces the global `URL` with one that refuses the `file:` scheme, which is what
 // `import.meta.url` is here. Node's own `URL` under another name resolves it.
 import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { isBuilt, itFailsWithoutDist } from '../test/built';
 
 /**
  * `dist/tailwind.css` ends with `@source './'`, which is the whole reason a consumer who runs
@@ -21,7 +21,7 @@ import { describe, expect, it } from 'vitest';
  */
 const packageRoot = fileURLToPath(new NodeURL('../../', import.meta.url));
 const distDir = `${packageRoot}dist/`;
-const built = existsSync(`${distDir}tailwind.css`) && existsSync(`${distDir}index.js`);
+const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
 
 describe('consumer Tailwind build', () => {
   it.runIf(built)(
@@ -81,13 +81,35 @@ describe('consumer Tailwind build', () => {
       // `--eldra-input-radius` set does not round its border one way and its error line another.
       const fieldBorder = css.slice(css.indexOf('.eldra-field-border {'));
       expect(fieldBorder.slice(0, 120)).toContain('var(--eldra-field-border-width, 1px)');
-      const invalid = css.slice(css.indexOf('.eldra-field-invalid'));
-      expect(invalid.slice(0, 600)).toContain('var(--eldra-input-radius');
-      expect(invalid.slice(0, 600)).toContain('var(--eldra-field-border-width, 1px)');
+      const invalid = css.slice(
+        css.indexOf('.eldra-field-invalid'),
+        css.indexOf('.eldra-field-invalid') + 600
+      );
+      expect(invalid).toContain('var(--eldra-field-border-width, 1px)');
+
+      // The radius is declared as `--eldra-field-invalid-radius` and then read by the `calc()`,
+      // rather than written inline, so a consumer's PostCSS pass never sees a `calc()` with a
+      // two-deep `var()` fallback in it (postcss-calc's grammar cannot parse one and warns on
+      // every build). Substitution makes the two spellings identical, and this is the proof:
+      // inlining the declared value back into the `calc()` reproduces the original expression
+      // exactly, so the computed value is unchanged.
+      // The compiler keeps the source's own line breaks, so compare on collapsed whitespace.
+      const flat = (value: string | undefined) =>
+        value?.replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').trim();
+      const declared = flat(/--eldra-field-invalid-radius:\s*([^;]+);/.exec(invalid)?.[1]);
+      expect(declared).toBe(
+        'var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md)))'
+      );
+      const radius = flat(/border-radius:\s*(calc\([^;]+\));/.exec(invalid)?.[1]);
+      expect(radius).toBe(
+        'calc(var(--eldra-field-invalid-radius) - var(--eldra-field-border-width, 1px))'
+      );
+      expect(radius?.replace('var(--eldra-field-invalid-radius)', declared as string)).toBe(
+        'calc(var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md))) - var(--eldra-field-border-width, 1px))'
+      );
     }
   );
 
-  it.skipIf(built)('needs a build first: run `pnpm --filter @eldrajs/ui build`', () => {
-    expect(built).toBe(false);
-  });
+  // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
+  itFailsWithoutDist(built);
 });

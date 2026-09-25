@@ -2,7 +2,7 @@
 import { computed, inject } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { cx, partClass } from '../../utils/cx';
-import { useUiId } from '../../utils/id';
+import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
 import Checkbox from './Checkbox.vue';
@@ -40,12 +40,7 @@ const selected = computed(() => new Set(model.value));
  * Spec "Checkbox" → Accessibility: the error is linked to the fieldset, and — as everywhere else
  * in this package — the error id comes first, so it is what a screen reader hears first.
  */
-const describedBy = computed(() => {
-  const ids = [props.error ? errorId.value : undefined, field?.value.describedBy].filter(
-    (id): id is string => Boolean(id)
-  );
-  return ids.length > 0 ? ids.join(' ') : undefined;
-});
+const describedBy = computed(() => joinIds(props.error && errorId.value, field?.value.describedBy));
 
 /**
  * A value is added on check and filtered out on uncheck, and the array is always a new one: a

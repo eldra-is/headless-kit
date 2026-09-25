@@ -25,7 +25,7 @@ import { computed, inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
-import { useUiId } from '../../utils/id';
+import { joinIds, useUiId } from '../../utils/id';
 import { formatNumber, parseLocaleNumber } from '../../utils/number-format';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -106,12 +106,7 @@ const increaseLabel = computed(
 
 /** Spec precedent (Checkbox/CheckboxGroup/RadioGroup's Accessibility notes): the error id comes
  * first, so it is what a screen reader hears first. */
-const describedBy = computed(() => {
-  const ids = [props.error ? errorId.value : undefined, field?.value.describedBy].filter(
-    (id): id is string => Boolean(id)
-  );
-  return ids.length > 0 ? ids.join(' ') : undefined;
-});
+const describedBy = computed(() => joinIds(props.error && errorId.value, field?.value.describedBy));
 
 /**
  * Controlled when the parent binds `modelValue`, self-managing when it does not. Defaults to

@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   pressed: undefined,
   disabled: false,
   classes: undefined,
+  as: undefined,
 });
 
 const emit = defineEmits<{ click: [event: MouseEvent] }>();
@@ -163,6 +164,21 @@ const DISABLED: Record<ButtonVariant, string> = {
 const formSubmitting = inject(FORM_SUBMITTING_KEY, undefined);
 
 const isLink = computed(() => props.href !== undefined);
+
+/**
+ * `as` follows `Link`'s contract exactly (see `Link.vue`): a string is used as the tag directly
+ * and still receives `href`; a component receives the destination as its `to` prop instead,
+ * matching Vue Router / NuxtLink's own contract. It only applies to the link form — with no
+ * `href` this is a `<button>` and `as` is ignored, because a "button" that is really a router
+ * link with no destination is not a thing the spec has.
+ */
+const isComponentAs = computed(() => props.as !== undefined && typeof props.as !== 'string');
+const rootTag = computed(() => (isLink.value ? (props.as ?? 'a') : 'button'));
+const linkAttrs = computed<Record<string, unknown>>(() => {
+  if (!isLink.value) return {};
+  return isComponentAs.value ? { to: props.href } : { href: props.href };
+});
+
 const isSubmit = computed(() => !isLink.value && props.type === 'submit');
 const submitting = computed(() => formSubmitting?.value === true);
 
@@ -325,11 +341,11 @@ const linkTabindex = computed(() => (isLink.value && isDisabled.value ? '-1' : u
 
 <template>
   <component
-    :is="isLink ? 'a' : 'button'"
+    :is="rootTag"
     data-part="container"
     :class="containerClass"
     :type="isLink ? undefined : type"
-    :href="isLink ? href : undefined"
+    v-bind="linkAttrs"
     :tabindex="linkTabindex"
     :disabled="isLink ? undefined : isDisabled || undefined"
     :aria-disabled="isLink && isDisabled ? 'true' : undefined"

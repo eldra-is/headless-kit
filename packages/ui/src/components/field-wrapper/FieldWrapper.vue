@@ -76,6 +76,7 @@ const describedBy = computed(() => {
  */
 const context = computed<FieldContext>(() => ({
   id: controlId.value,
+  labelId: labelId.value,
   describedBy: describedBy.value,
   invalid: hasError.value,
   required: props.required,

@@ -83,6 +83,29 @@ describe('hero block', () => {
     expect(wrapper.text()).toContain(mock.secondaryCtaLabel);
   });
 
+  it('routes both same-site CTAs through the router, not a document navigation', () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
+    // Both destinations are same-site, so both must go through `EldraRouterLink` -> `NuxtLink`.
+    // `Button` reaches it through the same `as` prop `Link` uses, and hands it the destination as
+    // `to`: asserting the component's prop (not the rendered `href`) is what tells the two apart,
+    // since the stub renders an `<a href>` either way.
+    const destinations = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    expect(destinations).toEqual(['/shop/new', '/about']);
+  });
+
+  it('leaves an off-site CTA a plain document navigation', () => {
+    const wrapper = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...mock, ctaHref: 'https://example.com/shop' } } })
+    );
+    expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((l) => l.props('to'))).toEqual([
+      '/about',
+    ]);
+    expect(wrapper.get('a[href="https://example.com/shop"]').text()).toBe(mock.ctaLabel);
+  });
+
   it('renders a placed actions slot instead of the built-in CTAs', () => {
     const wrapper = mount(Block, {
       ...mountOptions({ entry: { id: 'e1', data: mock } }),

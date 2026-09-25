@@ -46,6 +46,12 @@ describe('Icon', () => {
     wrapper.unmount();
   });
 
+  it('marks its root part, so a consumer can select and locate it', () => {
+    const wrapper = mountWith(Icon, { props: { icon: PlainIcon } });
+    expect(wrapper.attributes('data-part')).toBe('root');
+    wrapper.unmount();
+  });
+
   it('never shrinks in a flex row', () => {
     const wrapper = mountWith(Icon, { props: { icon: PlainIcon } });
     expect(wrapper.classes()).toContain('shrink-0');

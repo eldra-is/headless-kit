@@ -27,6 +27,7 @@ function fieldProvider(context: Partial<FieldContext> = {}) {
     provide: {
       [FIELD_KEY as symbol]: computed<FieldContext>(() => ({
         id: 'field-email',
+        labelId: 'field-email-label',
         describedBy: 'field-email-error field-email-help',
         invalid: true,
         required: true,
@@ -475,7 +476,7 @@ describe('Input — describedBy and the field context', () => {
     wrapper.unmount();
   });
 
-  it('lets an explicit prop win over the field wrapper', () => {
+  it("lets its own id, invalid and required win, and adds describedBy to the wrapper's", () => {
     const wrapper = mountWith(Input, {
       props: {
         id: 'own-id',
@@ -488,7 +489,10 @@ describe('Input — describedBy and the field context', () => {
     });
     const el = control(wrapper);
     expect(el.id).toBe('own-id');
-    expect(el.getAttribute('aria-describedby')).toBe('own-help');
+    // `id`, `invalid` and `required` are *replaced* by the control's own props; `describedBy`
+    // is **composed** — own id first, then the wrapper's — so a field's error and help text keep
+    // describing the control. One rule for every control in the package; see `joinIds`.
+    expect(el.getAttribute('aria-describedby')).toBe('own-help field-email-error field-email-help');
     expect(el.getAttribute('aria-invalid')).toBeNull();
     expect(el.required).toBe(false);
     wrapper.unmount();
@@ -502,6 +506,7 @@ describe('Input — describedBy and the field context', () => {
         provide: {
           [FIELD_KEY as symbol]: computed<FieldContext>(() => ({
             id: 'field-email',
+            labelId: 'field-email-label',
             invalid: invalid.value,
             required: false,
             labelsControl: true,

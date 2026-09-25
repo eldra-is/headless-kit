@@ -5,6 +5,37 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`peerDependencies.vue` is now `^3.5.0`** (was `^3.4.0`). Every control's ids come from Vue's
+  `useId()`, added in 3.5 — on 3.4 the install succeeded and the first control to mount threw
+  `useId is not a function`. No code change; the declared range now matches what the package does.
+- **`@vueuse/core` is no longer a dependency.** It was never imported: floating positioning is
+  `@floating-ui/vue` directly and the overlay/model composables are this package's own. Runtime
+  dependencies are now `@floating-ui/vue` and `tailwind-merge`.
+- **`Button` gains `as`** (design spec "Customisation layers" §5), with `Link`'s contract exactly:
+  with `href` set, a component `as` receives the destination as `to` (`NuxtLink`, `RouterLink`) and
+  a string `as` is used as the tag and still receives `href`; with no `href` it is ignored and the
+  component is a `<button>`. So a same-site call to action routes instead of reloading the document.
+  Icon-only, loading, `aria-pressed` and the disabled-link semantics are unchanged.
+- **`Icon` and `VisuallyHidden` now render `data-part="root"`**, like every other component — a
+  consumer's `[data-part="root"]` selector or E2E locator no longer misses exactly these two.
+- **`describedBy` composes everywhere instead of replacing.** On `Input`, `Textarea`, `Checkbox`,
+  `Select` and `MultiSelect`, a `describedBy` prop used to *replace* the field wrapper's error and
+  help ids, so `<FieldWrapper error="…"><Input described-by="x"/></FieldWrapper>` silently stopped
+  describing the error. Every control now merges the same way — its own ids first, then the field
+  context's — deduplicated, and the attribute is omitted rather than empty. The helper the
+  components use, `joinIds`, is exported from the root for a consumer composing their own control.
+- **`FieldContext` gains `labelId`**, the id of the wrapper's `<label>` (or a group's `<legend>`).
+  `Select` and `MultiSelect` read it for `aria-labelledby` instead of rebuilding `` `${id}-label` ``
+  by string convention. A consumer typing against `FieldContext` must add the field.
+- **`@eldrajs/ui/resolver` also exports `componentNames` and the `ComponentName` type**, so a
+  consumer registering every component globally, or typing their own wrapper map, has the list.
+- **`@eldrajs/ui/vee-validate` also exports `FIELD_ONLY`**, the props a `Field*` keeps for itself
+  and must not forward — the other half of what `useFieldControl` is exported for.
+- A stylesheet fix with no visual change: `eldra-field-invalid`'s corner radius is lifted into an
+  `--eldra-field-invalid-radius` custom property instead of a three-deep `var()` fallback written
+  inline in its `calc()`. The computed value is identical; it stops PostCSS printing a
+  "Parse error … unexpected RPAREN" warning in every consumer's build log.
+
 - `@eldrajs/ui/vee-validate` follow-ups:
   - `FieldBinding` gains **`path`**, defaulting to `name`. A `VariantPicker`'s `name` is its
     *visible* option name as well as the radios' shared native name, so one prop was serving as both
