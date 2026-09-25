@@ -76,6 +76,15 @@ Release-please writes the generated notes from commit messages and does not repl
   (`hero`'s `image-background` variant) or an uncropped view (the gallery lightbox) still gets
   one now that a caller's plain `class`/`style` land on `Image`'s root rather than the `<img>`
   itself — see `README.md`'s Deviations section.
+  Fix round 2 (`task-7-fix-2.md`): the navigation block's logo (not a CMS-framed image — no
+  `framing`, no `entryId`/`fieldPath`) no longer goes through `UiImage` at all, since its bare
+  `class="h-8 w-auto"` had the same class-lands-on-the-root problem round 1 fixed everywhere else;
+  it is a plain `<img>` now. `fit="contain"` also shrink-wraps the frame (`classes.frame` gains
+  `w-auto max-w-full`) and constrains the media on both axes (`classes.media` becomes
+  `object-contain h-auto w-auto max-w-full max-h-[inherit]`) instead of only changing
+  `object-fit`, so a portrait image in the gallery lightbox scales down to fit a height cap like
+  `max-h-[85vh]` instead of being clipped by the frame's `overflow-hidden` — see `README.md`'s
+  Deviations section.
 - **`Button` never grows past the shared control height** (operator addition, 2026-09-25: "make
   all scales match so sm button = sm input, base button = base input, large input = large
   button"). The design spec grows an `md` `primary` button to a 2.75rem touch target below a

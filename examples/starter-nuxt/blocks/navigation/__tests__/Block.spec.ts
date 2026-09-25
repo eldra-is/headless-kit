@@ -30,6 +30,28 @@ describe('navigation block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  /**
+   * task-7-fix-2.md ruling 1: the logo is not a CMS-framed image (no `framing`, no `entryId`/
+   * `fieldPath`), so it renders as a plain `<img>` rather than through `UiImage` — routing it
+   * through `UiImage` put the `h-8 w-auto` height cap on `Image`'s root instead of the `<img>`
+   * itself, and with no `aspect`/`fill` the frame had no definite height for it to reach, so a
+   * real logo would render at its own scaled height instead of the fixed 2rem brand slot
+   * (review-t7-fix1-report.md, Concern (a)). Asserting the class lands directly on the `<img>`,
+   * with no `[data-part]` wrapper around it, is what would have caught that.
+   */
+  it('renders the logo as a plain <img> with the height cap directly on it, no [data-part] wrapper', () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withLogo } }));
+    const img = wrapper.get('img');
+    expect(img.classes()).toEqual(expect.arrayContaining(['h-8', 'w-auto']));
+    expect(img.attributes('loading')).toBe('eager');
+    expect(img.attributes('decoding')).toBe('async');
+    // Not `Image`'s own media element (which would carry `data-part="media"` and sit inside a
+    // `data-part="frame"` wrapper) — `[data-part]` elsewhere in the tree (`Link`'s own root/label)
+    // is unrelated and expected.
+    expect(img.attributes('data-part')).toBeUndefined();
+    expect(wrapper.find('[data-part="frame"]').exists()).toBe(false);
+  });
+
   it('routes the header call to action through the router, not a document navigation', () => {
     // Every same-site destination in this block goes through `EldraRouterLink` -> `NuxtLink`; the
     // CTA is a `Button`, which reaches it through the same `as` prop `Link` uses and hands it the

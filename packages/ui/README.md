@@ -1363,6 +1363,7 @@ Additions and departures from the design spec, and why.
   - **`fit`** (`'cover' | 'contain'`, default `'cover'`) maps to `classes.media`, for a lightbox-
     style full view that must never crop. Used by the gallery block's lightbox, alongside
     `classes.frame: 'max-h-[85vh]'` for the height cap that used to sit on the `<img>` directly.
+    (`fit="contain"`'s own class set was incomplete at first — see the fix round 2 entry below.)
   - **`classes`** passes straight through to `Image`'s own `classes` prop (merged with whatever
     `rounded`/`fill`/`fit` set, caller's value always wins) — the escape hatch for a radius `Image`
     has no preset for (`rounded-full` on the testimonials avatars, `rounded-md` on
@@ -1421,3 +1422,31 @@ more"` — has no comma before "and". Icelandic's own pattern already has no suc
   is a new component variable (`--eldra-logo-wordmark-size`) with a literal default — the same
   "reuse what matches, one new variable for what doesn't" shape `text-card-title`/`text-stepper-value`
   already use, just spread across two donor styles instead of one.
+- **Fix round 2 (task-7-fix-2.md, 2026-09-25): the navigation logo dropped `UiImage` entirely, and
+  `fit="contain"` now also shrink-wraps the frame.** Two open findings from the round 1 re-review:
+  - **The navigation block's logo was still routed through `UiImage`** with a bare
+    `class="h-8 w-auto"`, the exact class-lands-on-the-root problem round 1 fixed everywhere else —
+    missed because the fix brief's own scope named five blocks and not this one. The logo is not a
+    CMS-framed image at all (no `framing`, no `entryId`/`fieldPath`), so it no longer goes through
+    `UiImage`: `blocks/navigation/Block.vue` now renders a plain
+    `<img :src="data.logo.url" :alt="data.brand" class="h-8 w-auto" loading="eager"
+decoding="async">`, the same shape the rest of the starter's un-framed images already use.
+  - **`fit="contain"` only changed `object-fit`, and `Image`'s `frame` is unconditionally
+    `w-full overflow-hidden`.** A portrait image under `h-full w-full` still computes its box from
+    the frame's full _width_, scaled by its own intrinsic ratio; once that scaled height passes a
+    height cap on the frame (the lightbox's `max-h-[85vh]`), the frame's `overflow-hidden` **clips**
+    it — the opposite of "contain". `fit="contain"` now also shrink-wraps the frame itself
+    (`classes.frame` gains `w-auto max-w-full`, composed with any caller frame classes) and gives
+    the media both a width and a height constraint together, not just an unconstrained
+    `object-contain`: `classes.media` becomes `object-contain h-auto w-auto max-w-full
+max-h-[inherit]` — `max-h-[inherit]` reads the _frame's_ own `max-height` back onto the media,
+    so the browser scales the image down to fit inside both caps at once, the same thing the
+    original bare `<img class="max-h-[85vh] w-auto object-contain">` did by being the frame itself.
+    Confirmed `max-h-[inherit]` compiles as a valid Tailwind v4 arbitrary value (built CSS contains
+    `.max-h-\[inherit\]{max-height:inherit}`).
+    Regression coverage: a navigation test asserting the logo `<img>` carries `h-8 w-auto` directly
+    with no `[data-part]` wrapper; `UiImage.spec.ts` tests asserting the exact `contain` class set on
+    both `frame` and `media` (and that `cover` is unchanged); a gallery lightbox test asserting the
+    same on the actual rendered block. All four with mutation checks against the wiring itself (not
+    just `UiImage` in isolation): reverting the navigation block's `<img>` back to `UiImage`, and
+    disabling either half of `contain`'s class additions, each turns the corresponding new test red.

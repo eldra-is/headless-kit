@@ -26,7 +26,6 @@ import { useT } from '../../app/composables/useT';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import UiContainer from '../../app/components/ui/UiContainer.vue';
 import UiDrawer from '../../app/components/ui/UiDrawer.vue';
-import UiImage from '../../app/components/ui/UiImage.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
@@ -81,7 +80,14 @@ const links = computed(() =>
             ].join(' '),
           }"
         >
-          <UiImage v-if="data.logo" :src="data.logo.url" :alt="data.brand" class="h-8 w-auto" />
+          <img
+            v-if="data.logo"
+            :src="data.logo.url"
+            :alt="data.brand"
+            class="h-8 w-auto"
+            loading="eager"
+            decoding="async"
+          />
           <span v-else class="font-heading text-text text-lg font-semibold">{{ data.brand }}</span>
         </Link>
 

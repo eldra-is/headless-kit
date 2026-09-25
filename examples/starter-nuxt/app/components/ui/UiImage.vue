@@ -39,13 +39,26 @@
  *   *positioned ancestor* (via the `inset-0`/`h-full` chain) instead of trying to derive one from
  *   `media`, which this wrapper never has `width`/`height` for. `media`'s own `object-cover`
  *   (`Image`'s default) does the rest.
- * - **`fit`** (`'cover' | 'contain'`, default `'cover'`) maps to `classes.media`, for a lightbox-
- *   style full view that must never crop (the gallery lightbox's `contain`).
+ * - **`fit`** (`'cover' | 'contain'`, default `'cover'`) — `cover` changes nothing (`Image`'s own
+ *   default). `contain` (fix round 2, see `task-7-fix-2.md`) is for a lightbox-style full view that
+ *   must never crop: it is not just `object-contain` on the media, because `Image`'s `frame` is
+ *   unconditionally `w-full overflow-hidden` and a `contain`-fit `<img>` under `h-full w-full`
+ *   still computes its own box from the frame's full width scaled by its own intrinsic ratio — a
+ *   portrait image's scaled height can exceed a `max-h-[85vh]`-style cap on the frame, and the
+ *   frame's `overflow-hidden` then **clips** it instead of shrinking it, the opposite of "contain".
+ *   So `contain` also shrink-wraps the frame to its content (`classes.frame` gains `w-auto
+ *   max-w-full`, on top of any caller frame classes — a height cap like `max-h-[85vh]` composes
+ *   fine, different CSS property) and makes the media itself, not just the frame, respect both a
+ *   width and a height constraint together (`classes.media` becomes `object-contain h-auto w-auto
+ *   max-w-full max-h-[inherit]` — `max-h-[inherit]` reads the *frame's* own `max-height` back onto
+ *   the media, so the browser's replaced-element sizing algorithm scales the image down to fit
+ *   inside both caps at once, the same thing the original bare `<img class="max-h-[85vh] w-auto
+ *   object-contain">` did by being the frame itself).
  * - **`classes`** is `Image`'s own `classes` prop, passed straight through and merged with
  *   whatever `rounded`/`fill`/`fit` above already set (the caller's own value for a part always
  *   wins) — the general escape hatch for a radius `rounded` has no preset for (`rounded-full`,
- *   `rounded-md`) or a frame-level size constraint neither `fill` nor `fit` covers (the gallery
- *   lightbox's `max-h-[85vh]`).
+ *   `rounded-md`) or a frame-level size constraint neither `fill` nor `fit` covers on their own
+ *   (the gallery lightbox's `max-h-[85vh]`).
  *
  * `blocks/*` (`hero`, `image`, `gallery`, `feature-grid`, `testimonials`, `navigation`) keep
  * calling this with the same core props they always have (`src`, `alt`, `framing`, `entryId`,
@@ -135,6 +148,15 @@ const rootStyle = computed(() => {
 const FILL_ROOT_CLASS = 'absolute inset-0 h-full w-full';
 const FILL_FRAME_CLASS = 'h-full w-full';
 
+/** `contain`'s frame shrink-wraps to its content instead of the frame's own default `w-full` — see
+ * the module doc comment's `fit` entry for why width alone is not enough. */
+const CONTAIN_FRAME_CLASS = 'w-auto max-w-full';
+/** `max-h-[inherit]` reads the *frame's* own `max-height` (e.g. the lightbox's `max-h-[85vh]`) back
+ * onto the media, so a tall image is scaled down to fit both the frame's width and its height cap
+ * together, rather than being cropped by the frame's `overflow-hidden` once its width-driven scaled
+ * height exceeds that cap. */
+const CONTAIN_MEDIA_CLASS = 'object-contain h-auto w-auto max-w-full max-h-[inherit]';
+
 /** `fill`/`fit` set `root`/`frame`/`media` first; the caller's own `classes` prop is merged on top
  * of each (via `cx`, so a real conflict resolves in the caller's favour) rather than replacing it
  * outright, and every other part passes through untouched. */
@@ -146,7 +168,8 @@ const mergedClasses = computed<Partial<Record<ImagePart, string>>>(() => {
     result.frame = cx(FILL_FRAME_CLASS, base.frame);
   }
   if (props.fit === 'contain') {
-    result.media = cx('object-contain', base.media);
+    result.frame = cx(CONTAIN_FRAME_CLASS, result.frame ?? base.frame);
+    result.media = cx(CONTAIN_MEDIA_CLASS, base.media);
   }
   return result;
 });

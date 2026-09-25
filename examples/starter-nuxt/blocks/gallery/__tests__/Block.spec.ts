@@ -71,16 +71,30 @@ describe('gallery block', () => {
    * sit on the `<img>` itself (`max-h-[85vh]`) now has to sit on the `frame` `Image` wraps it in,
    * since a caller's `classes` land on named parts, not the media element directly.
    */
-  it('lets the lightbox image show uncropped, capped at 85vh on the frame', async () => {
+  /**
+   * task-7-fix-2.md ruling 2: a portrait image must be scaled down to fit inside the 85vh cap,
+   * never clipped by the frame's `overflow-hidden` — `fit="contain"` shrink-wraps the frame
+   * (`w-auto max-w-full`, on top of `max-h-[85vh]`) and gives the media a `max-h-[inherit]` that
+   * reads the frame's own height cap back onto it, alongside `h-auto w-auto` so the browser scales
+   * the image to fit both constraints together instead of a percentage height that ignores the cap.
+   */
+  it('lets the lightbox image show uncropped, capped at 85vh on the frame (and inherited onto the media)', async () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImages } }));
     await wrapper.findAll('button')[0]!.trigger('click');
     await nextTick();
 
     const dialog = wrapper.get('dialog');
     const media = dialog.get('[data-part="media"]');
-    expect(media.classes()).toContain('object-contain');
+    expect(media.classes()).toEqual(
+      expect.arrayContaining(['object-contain', 'h-auto', 'w-auto', 'max-h-[inherit]'])
+    );
     expect(media.classes()).not.toContain('object-cover');
-    expect(dialog.get('[data-part="frame"]').classes()).toContain('max-h-[85vh]');
+    expect(media.classes()).not.toContain('h-full');
+    const frame = dialog.get('[data-part="frame"]');
+    expect(frame.classes()).toEqual(
+      expect.arrayContaining(['max-h-[85vh]', 'w-auto', 'max-w-full'])
+    );
+    expect(frame.classes()).not.toContain('w-full');
   });
 
   it('renders plain (non-interactive) thumbnails when lightbox is disabled', () => {

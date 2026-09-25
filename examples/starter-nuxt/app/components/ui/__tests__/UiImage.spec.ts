@@ -158,19 +158,64 @@ describe('UiImage', () => {
     });
   });
 
-  describe('fit (task-7-fix-1.md ruling 3)', () => {
-    it('defaults to cover', () => {
+  describe('fit (task-7-fix-1.md ruling 3, contain fully implemented in task-7-fix-2.md ruling 2)', () => {
+    it('defaults to cover: the frame stays w-full, the media stays h-full w-full object-cover — unchanged', () => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
-      expect(wrapper.get('[data-part="media"]').classes()).toContain('object-cover');
+      const frame = wrapper.get('[data-part="frame"]');
+      expect(frame.classes()).toContain('w-full');
+      expect(frame.classes()).not.toContain('w-auto');
+      const media = wrapper.get('[data-part="media"]');
+      expect(media.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full', 'object-cover']));
+      expect(media.classes()).not.toContain('object-contain');
     });
 
-    it('maps fit="contain" to the media element, replacing cover', () => {
+    /**
+     * task-7-fix-2.md ruling 2: `contain` is not just `object-contain` on the media. `Image`'s
+     * `frame` is unconditionally `w-full overflow-hidden`, so a tall (portrait) image under
+     * `h-full w-full` still computes its box from the frame's full width scaled by its own
+     * intrinsic ratio — if that scaled height exceeds a height cap on the frame (the lightbox's
+     * `max-h-[85vh]`), the frame's `overflow-hidden` clips it instead of shrinking it, the
+     * opposite of "contain" (review-t7-fix1-report.md, Concern (b)). `contain` therefore also
+     * shrink-wraps the frame (`w-auto max-w-full`) and gives the media both a width and a height
+     * constraint together (`h-auto w-auto max-w-full max-h-[inherit]`, `max-h-[inherit]` reading
+     * the frame's own `max-height` back onto the media) rather than a percentage height that
+     * resolves independently of the frame's cap.
+     */
+    it('fit="contain" shrink-wraps the frame and gives the media both a width and a height constraint', () => {
       const wrapper = mount(UiImage, {
         props: { src: '/demo/hero.svg', alt: 'Hero', fit: 'contain' },
       });
+      const frame = wrapper.get('[data-part="frame"]');
+      expect(frame.classes()).toEqual(expect.arrayContaining(['w-auto', 'max-w-full']));
+      expect(frame.classes()).not.toContain('w-full');
       const media = wrapper.get('[data-part="media"]');
-      expect(media.classes()).toContain('object-contain');
+      expect(media.classes()).toEqual(
+        expect.arrayContaining([
+          'object-contain',
+          'h-auto',
+          'w-auto',
+          'max-w-full',
+          'max-h-[inherit]',
+        ])
+      );
       expect(media.classes()).not.toContain('object-cover');
+      expect(media.classes()).not.toContain('h-full');
+      expect(media.classes()).not.toContain('w-full');
+    });
+
+    it("composes with a caller-supplied classes.frame height cap (the lightbox's max-h-[85vh])", () => {
+      const wrapper = mount(UiImage, {
+        props: {
+          src: '/demo/hero.svg',
+          alt: 'Hero',
+          fit: 'contain',
+          classes: { frame: 'max-h-[85vh]' },
+        },
+      });
+      const frame = wrapper.get('[data-part="frame"]');
+      expect(frame.classes()).toEqual(
+        expect.arrayContaining(['w-auto', 'max-w-full', 'max-h-[85vh]'])
+      );
     });
   });
 
