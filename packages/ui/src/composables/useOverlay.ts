@@ -88,6 +88,10 @@ export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
     if (!root) return [];
     return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
       (element) =>
+        // The selector cannot express this on its own: `tabindex="-1"` on a natively focusable
+        // element (`<button tabindex="-1">`) is still matched by the `button` term, so the
+        // platform's own answer to "is this in the tab sequence" is what decides.
+        element.tabIndex >= 0 &&
         !element.hasAttribute('disabled') &&
         element.getAttribute('aria-hidden') !== 'true' &&
         element.closest('[hidden]') === null

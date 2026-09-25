@@ -25,14 +25,19 @@ export interface UseFloatingOptions {
   placement?: FloatingPlacement;
   /** Gap between the reference and the panel, in pixels. Default `4` (the spec's 0.25rem). */
   offset?: number;
-  /** Add a `width` equal to the reference's, so a select panel lines up with its trigger. */
+  /**
+   * Add a `minWidth` equal to the reference's, so a panel is never narrower than the control it
+   * belongs to. A *minimum* rather than a fixed width because that is what the spec asks for:
+   * "Min width = trigger, grows to fit its content up to min(22rem, 90vw)" — the upper clamp is
+   * the panel's own `max-width`, which this composable does not set.
+   */
   matchWidth?: boolean;
   /** Override the flipping that the placement implies: on for `auto`, off for `above`. */
   flip?: boolean;
 }
 
 export interface UseFloatingReturn {
-  /** Inline styles for the panel: `position`, `top`, `left`, and `width` when `matchWidth`. */
+  /** Inline styles for the panel: `position`, `top`, `left`, and `minWidth` when `matchWidth`. */
   styles: ComputedRef<Record<string, string>>;
   /** The placement actually used, after flipping. */
   placement: ComputedRef<string>;
@@ -57,7 +62,9 @@ const RESOLVED: Record<FloatingPlacement, { placement: Placement; flip: boolean 
  * It is a thin wrap of `@floating-ui/vue`: `autoUpdate` keeps the position current while both
  * elements are mounted (scrolling, resizing, an ancestor moving), `offset` sets the gap, `flip`
  * turns the panel above the trigger when there is no room below, `shift` keeps it inside the
- * viewport, and `size` measures the trigger for `matchWidth`. What the wrap adds is the design
+ * viewport, and `size` measures the trigger for `matchWidth` (a floor on the panel's width, not a
+ * fixed one — the spec lets a panel grow past its trigger up to its own `max-width`). What the wrap
+ * adds is the design
  * spec's vocabulary (`auto` / `above`) and a plain style object rather than a transform, so a
  * consumer writes `<div :style="styles">` and nothing else.
  *
@@ -111,7 +118,7 @@ export function useFloating(
       left: `${position.x.value}px`,
       top: `${position.y.value}px`,
     };
-    if (matchWidth) base.width = `${referenceWidth.value}px`;
+    if (matchWidth) base.minWidth = `${referenceWidth.value}px`;
     return base;
   });
 

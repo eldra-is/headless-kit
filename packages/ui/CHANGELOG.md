@@ -54,9 +54,11 @@ Release-please writes the generated notes from commit messages and does not repl
   `{ styles, placement, update }`. `placement` takes the design spec's own words — `auto` (below,
   flipping above when it does not fit) and `above` (always above, never flips) — as well as the
   four concrete `bottom`/`bottom-start`/`top`/`top-start` values, and `flip` overrides either
-  default. `styles` is a plain `:style` object (`position`, `top`, `left`, plus `width` under
+  default. `styles` is a plain `:style` object (`position`, `top`, `left`, plus `minWidth` under
   `matchWidth`) rather than a transform, leaving `transform` free for the popover's own open
-  animation.
+  animation. `matchWidth` is a floor, not a fixed width — the spec's popover is "min width =
+  trigger, grows to fit its content up to min(22rem, 90vw)", and that clamp is the panel's own
+  `max-width`.
 
 - `Switch` — an on/off control for a setting that takes effect immediately, `<button type="button"
   role="switch" aria-checked>` with the visible label as its own content (so the accessible name

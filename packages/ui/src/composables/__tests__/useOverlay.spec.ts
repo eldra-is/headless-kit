@@ -36,6 +36,8 @@ const Probe = defineComponent({
               h('button', { 'data-testid': 'first' }, 'First'),
               h('button', { 'data-testid': 'disabled', disabled: true }, 'Disabled'),
               h('span', { 'data-testid': 'untabbable', tabindex: '-1' }, 'Skipped'),
+              h('button', { 'data-testid': 'untabbable-button', tabindex: '-1' }, 'Roving'),
+              h('input', { 'data-testid': 'untabbable-input', tabindex: '-1' }),
               h('a', { 'data-testid': 'last', href: '#x' }, 'Last'),
             ])
           : null,
@@ -266,6 +268,16 @@ describe('useOverlay', () => {
     it('lists the focusable elements in the content, skipping disabled and untabbable ones', () => {
       const { at } = setup();
       expect(api.focusables()).toEqual([at('first'), at('last')]);
+    });
+
+    it('skips natively focusable elements that are out of the tab sequence', () => {
+      // A roving-tabindex row or a `tabindex="-1"` field is programmatically focusable, and the
+      // element selector matches it on its tag alone — but it is not where a keyboard user lands.
+      const { at } = setup();
+      expect(at('untabbable-button').tabIndex).toBe(-1);
+      expect(at('untabbable-input').tabIndex).toBe(-1);
+      expect(api.focusables()).not.toContain(at('untabbable-button'));
+      expect(api.focusables()).not.toContain(at('untabbable-input'));
     });
 
     it('focuses the first of them', () => {

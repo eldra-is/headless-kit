@@ -760,7 +760,7 @@ describe('Select — placement and width', () => {
     expect(panel(above).attributes('data-placement')).toBe('top-start');
   });
 
-  it('matches the trigger width in a narrow container', async () => {
+  it('is never narrower than its trigger in a narrow container', async () => {
     const wrapper = mountNarrow(Select, { props: { options: TOPIC }, attrs: NAME });
     mounted.push(wrapper as unknown as VueWrapper);
     const button = wrapper.find('[data-part="trigger"]').element as HTMLElement;
@@ -776,7 +776,9 @@ describe('Select — placement and width', () => {
       ({ x: 0, y: 0, left: 0, top: 0, right: 320, bottom: 40, width: 320, height: 40 }) as DOMRect;
 
     await press(wrapper.find('[data-part="trigger"]'));
-    expect(wrapper.find('[data-part="panel"]').attributes('style')).toContain('width: 320px');
+    // Spec "Select" → Sizes, Popover: "Min width = trigger, grows to fit its content up to
+    // min(22rem, 90vw)" — the floor is inline, the clamp is `eldra-select-panel-width`.
+    expect(wrapper.find('[data-part="panel"]').attributes('style')).toContain('min-width: 320px');
   });
 });
 

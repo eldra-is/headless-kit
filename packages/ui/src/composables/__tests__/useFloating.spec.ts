@@ -102,12 +102,16 @@ describe('useFloating', () => {
 
   it('adds no width unless matchWidth asks for one', async () => {
     await setup();
+    expect(api.styles.value).not.toHaveProperty('minWidth');
     expect(api.styles.value).not.toHaveProperty('width');
   });
 
-  it('matches the reference width when matchWidth is set', async () => {
+  it('floors the panel at the reference width when matchWidth is set', async () => {
     await setup({ matchWidth: true });
-    expect(api.styles.value.width).toBe('240px');
+    expect(api.styles.value.minWidth).toBe('240px');
+    // A minimum, never a fixed width: the spec lets the panel "grow to fit its content up to
+    // min(22rem, 90vw)", which is the panel's own max-width, not this composable's business.
+    expect(api.styles.value).not.toHaveProperty('width');
   });
 
   describe('placement', () => {

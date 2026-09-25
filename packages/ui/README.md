@@ -38,7 +38,7 @@ const { close, focusFirst, focusables } = useOverlay({
 const { styles, placement, update } = useFloating(trigger, panel, {
   placement: 'auto', // 'auto' = below, flipping above when it does not fit; 'above' never flips
   offset: 4, // the gap in pixels
-  matchWidth: true, // adds `width` equal to the trigger's
+  matchWidth: true, // adds `minWidth` equal to the trigger's
 });
 ```
 
@@ -70,11 +70,27 @@ disabled and filtered-out rows and stops at the ends, `PageUp`/`PageDown` by ten
 from moving on, and type-ahead with a 0.6s buffer that ignores case and diacritics (`normalizeText`
 is exported for the same folding in a search filter).
 
-`styles` is a plain object for `:style` — `position`, `top`, `left`, and `width` under `matchWidth`
-— not a transform, so the panel keeps `transform` for its own open animation. `placement` is the
-placement actually used, after flipping. A panel rendered through a `<Teleport>` still counts as
-part of the overlay if it carries `data-eldra-overlay-owner="<the content element's id>"`; without
-that, a press inside it reads as a press outside and closes the popup.
+`styles` is a plain object for `:style` — `position`, `top`, `left`, and `minWidth` under
+`matchWidth` — not a transform, so the panel keeps `transform` for its own open animation.
+`matchWidth` is a _floor_, never a fixed width: the spec's popover "min width = trigger, grows to
+fit its content up to min(22rem, 90vw)", and that upper clamp is the panel's own `max-width`
+(`eldra-select-panel-width`, over `--eldra-select-panel-max-width`), not this composable's.
+`placement` is the placement actually used, after flipping.
+
+`focusables()` is the tab sequence inside the content, so an element the platform keeps out of it —
+`tabindex="-1"`, `disabled`, `aria-hidden="true"`, anything under `[hidden]` — is not in the list
+even when it is programmatically focusable.
+
+Two things `useOverlay` deliberately does not do:
+
+- **A panel rendered through a `<Teleport>` is only recognised if it says so.** Give it
+  `data-eldra-overlay-owner="<the content element's id>"`; without that, a press inside it reads as
+  a press outside and closes the popup.
+- **"Only one open at a time" is the consumer's.** `Escape` is consumed with `preventDefault()` and
+  `stopPropagation()`, which is enough to keep an enclosing native `<dialog>` from closing behind
+  the popup — but `stopPropagation()` at `document` does not stop other listeners already on
+  `document`, and nothing here knows about other overlays. Opening one select closing any other is
+  a registry the consumer keeps (`src/components/select/openRegistry.ts` is this package's).
 
 ## Deviations
 
