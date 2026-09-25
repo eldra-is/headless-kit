@@ -83,7 +83,7 @@ describe('the focus ring owns its element transitions', () => {
     }
   );
 
-  it.runIf(built)('compiles a focus ring whose transition grows the outline in', async () => {
+  it.runIf(built)('compiles a focus ring that fades in at full size', async () => {
     const { compile } = await import('@tailwindcss/node');
     const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';`, {
       base: distDir,
@@ -91,13 +91,38 @@ describe('the focus ring owns its element transitions', () => {
     });
     const css = compiler.build(['eldra-focus', 'eldra-focus-inset', 'eldra-focus-proxy']);
 
+    // `--eldra-focus-alpha` has to be a *registered* custom property, or it is an uninterpolatable
+    // token string and the fade is a jump — which looks exactly like the geometry animation this
+    // replaced, so nothing else here would notice.
+    expect(css).toMatch(
+      /@property --eldra-focus-alpha \{[^}]*syntax:\s*'<number>'[^}]*initial-value:\s*0[^}]*\}/
+    );
+
     for (const utility of ['.eldra-focus', '.eldra-focus-inset']) {
       const start = css.indexOf(`${utility} {`);
       expect(start, `${utility} is not in the compiled stylesheet`).toBeGreaterThan(-1);
       const rule = css.slice(start, css.indexOf('\n  }', start));
-      // The ring itself, at duration-base.
-      expect(rule).toContain('outline-width var(--eldra-duration-base)');
-      expect(rule).toContain('box-shadow var(--eldra-duration-base)');
+
+      // The ring arrives by fading its alpha over duration-base...
+      expect(rule).toContain('--eldra-focus-alpha var(--eldra-duration-base)');
+      // ...never by animating its geometry. A browser paints `outline-width` and a `box-shadow`
+      // spread at whole device pixels, so a 2px growth has two or three frames however long the
+      // transition runs and reads as a stutter. This is the assertion that keeps it gone.
+      expect(rule).not.toContain('outline-width var(--eldra-duration');
+      expect(rule).not.toContain('box-shadow var(--eldra-duration');
+
+      // The ring is drawn at full size at all times, and only its colour changes.
+      expect(rule).toContain('--eldra-focus-alpha: 0');
+      expect(rule).toContain('calc(var(--eldra-focus-offset) + var(--eldra-focus-width))');
+      expect(rule).toContain('calc(var(--eldra-focus-alpha) * 100%)');
+      expect(rule).toContain('--eldra-focus-alpha: 1');
+
+      // Tailwind compiles a plain fallback for engines with no `color-mix`, using the mix's first
+      // colour. Written `transparent` first, that fallback is the *resting* state; the other way
+      // round it is a permanent ring painted around every control. This pins the ordering.
+      expect(rule).toMatch(/box-shadow:[^;]*transparent[^;]*;/);
+      expect(rule).toContain('@supports not (color: color-mix(in srgb, red, red))');
+
       // ...and the colour and press changes a control makes, at duration-fast, in the same
       // shorthand — which is the whole point: one declaration, so nothing can replace half of it.
       expect(rule).toContain('background-color var(--eldra-duration-fast)');
@@ -114,12 +139,16 @@ describe('the focus ring owns its element transitions', () => {
     expect(proxyStart, 'eldra-focus-proxy is not in the compiled stylesheet').toBeGreaterThan(-1);
     const proxy = css.slice(proxyStart, css.indexOf('\n  }', proxyStart));
     expect(proxy.startsWith('.eldra-focus-proxy:has(:focus-visible) {')).toBe(true);
-    expect(proxy).toContain('outline-width: var(--eldra-focus-width)');
-    expect(proxy).toContain('box-shadow: 0 0 0 var(--eldra-focus-offset)');
+    expect(proxy).toContain('--eldra-focus-alpha: 1');
     expect(proxy).not.toContain('transition');
     // ...and the forced-colours half, which `eldra-focus`'s own rule cannot cover: that one is
-    // keyed to this element's `:focus-visible`, which never happens on a box that is not focusable.
+    // keyed to this element's `:focus-visible`, which never happens on a box that is not
+    // focusable. Forced colours drop `box-shadow` entirely, so the ring there is the `outline`,
+    // switched on at full width with no animation — the system Highlight colour is not ours to
+    // fade.
     expect(css).toContain('@media (forced-colors: active)');
+    expect(css).toContain('outline-width: var(--eldra-focus-width)');
+    expect(css).toContain('outline-color: Highlight');
   });
 
   it.skipIf(built)('needs a build first: run `pnpm --filter @eldrajs/ui build`', () => {

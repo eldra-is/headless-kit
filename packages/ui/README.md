@@ -421,6 +421,26 @@ repository's own history.
 
 Additions and departures from the design spec, and why.
 
+- **The focus ring fades in at full size rather than growing.** The design spec's Focus ring
+  section says the ring and its infill "grow from 0 to 2px over `duration-base`", and that is what
+  this package shipped first: an animated `outline-width` and `box-shadow` spread. A browser paints
+  both at whole device pixels, so a 2px growth has only two or three distinct frames however long
+  the transition runs — it reads as a 1 fps stagger, not as motion, and an operator review caught
+  it on every control in Storybook. The ring is now drawn at its full 2px + 2px geometry at all
+  times and its **opacity** is what animates, over the same `duration-base` with the same
+  `ease-out`. Measured in Chromium: 13 distinct alpha values across the 200ms, against 2–3 before.
+  The end state — the thing every contrast requirement in the spec is about — is byte-identical,
+  and nothing else about the indicator changes.
+
+  Mechanically: `--eldra-focus-alpha` is registered with `@property` (`syntax: '<number>'`) so the
+  engine can interpolate it, and both ring colours are
+  `color-mix(in srgb, transparent, <role> calc(var(--eldra-focus-alpha) * 100%))`. Two fallbacks
+  keep it safe rather than clever — an engine without `color-mix` gets the whole ring at once
+  through an `@supports not` rule, an engine without `@property` switches the alpha 0 → 1 with no
+  fade, and forced-colours mode still gets a static `outline` in the system `Highlight` colour
+  (`box-shadow` is dropped there by the UA). In every one of those paths the ring is present at
+  full size; only the fade is lost, which is exactly what `prefers-reduced-motion` asks for anyway.
+
 - **`Button` `text-button-{sm,md,lg}` utilities, and the `lg` font size as a per-component
   variable.** The spec's Sizes table gives `lg` a 1.0625rem font, between `body` (1rem) and
   `body-lg` (1.125rem) with no token of its own in `tokens.json`. Writing `text-[1.0625rem]` in the

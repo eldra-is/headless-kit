@@ -323,23 +323,70 @@
 }
 
 /* The one focus ring (spec 1 "Focus ring"): 2px focus-inner infill hugging the element, 2px focus
-   ring outside it, grown in over duration-base. `eldra-focus` shows on :focus-visible; text fields
+   ring outside it, arriving over duration-base. `eldra-focus` shows on :focus-visible; text fields
    add `eldra-focus-always` so it shows on any focus. `eldra-focus-inset` draws both inside.
+
+   THE RING FADES IN AT FULL SIZE; IT DOES NOT GROW. The spec describes the ring "growing from 0 to
+   2px over duration-base", and that is what this first shipped — an `outline-width` and a
+   `box-shadow` spread animating 0 -> 2px. It looks broken. A browser paints both at whole device
+   pixels, so a 2px growth has two or three distinct frames however long the transition runs, and a
+   200ms stagger of three steps reads as a dropped-frame stutter rather than motion. Drawn at full
+   size and faded from alpha 0 to 1 the same 200ms is continuous, and the end state — the thing the
+   contrast requirements are about — is identical. Recorded under Deviations in the README.
+
+   The fade is driven by `--eldra-focus-alpha`, registered with `@property` above so it is a
+   `<number>` the engine can interpolate (an unregistered custom property is a token string and
+   jumps). Both ring colours are `color-mix(... calc(var(--eldra-focus-alpha) * 100%), transparent)`,
+   so one animated number fades both, and the frame-by-frame work is a colour change on a shadow
+   that never moves. Where `@property` is unsupported the alpha still switches 0 -> 1, so the ring
+   simply appears at full size — the same thing reduced motion asks for, never a missing ring.
+
+   The ring's geometry is one `box-shadow` pair rather than a shadow plus an `outline`: two spreads
+   off the same box stay locked together, and the shadow is what fades. `outline` stays at width 0
+   and is reinstated only under forced colours, where a UA drops `box-shadow` entirely — that rule
+   is static, because the system Highlight colour is not ours to fade.
+
+   Each mix reads `color-mix(in srgb, transparent, <colour> calc(...))` — transparent FIRST — on
+   purpose. Tailwind compiles every `color-mix()` with a plain fallback for engines that lack it,
+   and that fallback is the mix's first colour. Written the other way round the fallback is the
+   ring's colour at full strength, which paints a permanent black ring around every control in
+   those engines. This way the fallback is the resting state, and the `@supports not` block on each
+   focus selector draws the whole ring at once instead — the old behaviour minus the animation,
+   never a missing indicator.
 
    `eldra-focus` and `eldra-focus-inset` OWN the transition list of the element they sit on, and a
    component must not add a `transition-*`/`duration-*` utility beside them. `transition` is one
    shorthand property: a `transition-[background-color] duration-fast` utility on the same element
-   is a later rule in the same layer, so it replaced the ring's `outline-width`/`box-shadow`
-   entries outright and the ring snapped in instead of growing — silently, because the ring was
-   still drawn. So the ring declares every property a control in this package animates, each at the
-   spec's duration for it: `duration-fast` for the colour and press changes, `duration-base` for the
-   ring itself. Reduced motion is handled here too, so components do not carry
-   `motion-reduce:transition-none` either (it stays harmless where a consumer adds it).
-   `src/__tests__/focus-transition.spec.ts` fails a component that breaks the rule. */
+   is a later rule in the same layer, so it replaced the ring's entry outright and the ring arrived
+   instantly — silently, because the ring was still drawn. So the ring declares every property a
+   control in this package animates, each at the spec's duration for it: `duration-fast` for the
+   colour and press changes, `duration-base` for the ring's own alpha. Reduced motion is handled
+   here too, so components do not carry `motion-reduce:transition-none` either (it stays harmless
+   where a consumer adds it). `src/__tests__/focus-transition.spec.ts` fails a component that
+   breaks the rule. */
+@property --eldra-focus-alpha {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
 @utility eldra-focus {
-  outline: 0 solid var(--eldra-color-focus);
+  /* Width 0 in every colour mode but forced colours, where the ring below is dropped by the UA. */
+  outline: 0 solid transparent;
   outline-offset: var(--eldra-focus-offset);
-  box-shadow: 0 0 0 0 var(--eldra-color-focus-inner);
+  --eldra-focus-alpha: 0;
+  box-shadow:
+    0 0 0 var(--eldra-focus-offset)
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
+      ),
+    0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
+      );
   transition:
     color var(--eldra-duration-fast) var(--eldra-ease-out),
     background-color var(--eldra-duration-fast) var(--eldra-ease-out),
@@ -348,25 +395,39 @@
     text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
     translate var(--eldra-duration-fast) var(--eldra-ease-out),
     opacity var(--eldra-duration-fast) var(--eldra-ease-out),
-    outline-width var(--eldra-duration-base) var(--eldra-ease-out),
-    box-shadow var(--eldra-duration-base) var(--eldra-ease-out);
+    --eldra-focus-alpha var(--eldra-duration-base) var(--eldra-ease-out);
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
   &:focus-visible {
-    outline-width: var(--eldra-focus-width);
-    box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
   }
   @media (forced-colors: active) {
     &:focus-visible {
+      outline-width: var(--eldra-focus-width);
       outline-color: Highlight;
     }
   }
 }
 @utility eldra-focus-always {
   &:focus {
-    outline-width: var(--eldra-focus-width);
-    box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:focus {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
   }
 }
 /* Proxy focus (spec 1 "Focus ring" → Proxy focus): "When the focusable element is visually hidden
@@ -383,11 +444,16 @@
    element's own `:focus-visible`, which never happens on a box that is not focusable. */
 @utility eldra-focus-proxy {
   &:has(:focus-visible) {
-    outline-width: var(--eldra-focus-width);
-    box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
   }
   @media (forced-colors: active) {
     &:has(:focus-visible) {
+      outline-width: var(--eldra-focus-width);
       outline-color: Highlight;
     }
   }
@@ -410,15 +476,39 @@
    miss" — applies whether the ring is drawn outside the element or, as here, just inside it. */
 @utility eldra-focus-inset-always {
   &:focus {
-    outline-width: var(--eldra-focus-width);
-    box-shadow: inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+          var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:focus {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
   }
 }
 
 @utility eldra-focus-inset {
-  outline: 0 solid var(--eldra-color-focus);
+  outline: 0 solid transparent;
   outline-offset: calc(-1 * (var(--eldra-focus-width) + var(--eldra-focus-offset)));
-  box-shadow: inset 0 0 0 0 var(--eldra-color-focus-inner);
+  --eldra-focus-alpha: 0;
+  box-shadow:
+    inset 0 0 0 var(--eldra-focus-offset)
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
+      ),
+    inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
+      );
   transition:
     color var(--eldra-duration-fast) var(--eldra-ease-out),
     background-color var(--eldra-duration-fast) var(--eldra-ease-out),
@@ -427,17 +517,22 @@
     text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
     translate var(--eldra-duration-fast) var(--eldra-ease-out),
     opacity var(--eldra-duration-fast) var(--eldra-ease-out),
-    outline-width var(--eldra-duration-base) var(--eldra-ease-out),
-    box-shadow var(--eldra-duration-base) var(--eldra-ease-out);
+    --eldra-focus-alpha var(--eldra-duration-base) var(--eldra-ease-out);
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
   &:focus-visible {
-    outline-width: var(--eldra-focus-width);
-    box-shadow: inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+          var(--eldra-color-focus);
+    }
   }
   @media (forced-colors: active) {
     &:focus-visible {
+      outline-width: var(--eldra-focus-width);
       outline-color: Highlight;
     }
   }

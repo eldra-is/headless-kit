@@ -518,3 +518,15 @@ Release-please writes the generated notes from commit messages and does not repl
 - Messages — `charactersLeft`, `resultsCount` and `viewAllResults` now read naturally at one
   ("1 character left", "1 result", "View 1 result"), in English and in Icelandic (which takes the
   singular for any count ending in 1 except 11).
+- **The focus ring fades in instead of growing.** `eldra-focus`, `eldra-focus-always`,
+  `eldra-focus-inset`, `eldra-focus-inset-always` and `eldra-focus-proxy` now draw the two-tone ring
+  at its full 2px infill + 2px ring at all times and animate its opacity over `duration-base`,
+  through a new registered custom property `--eldra-focus-alpha` (`@property`, `syntax: '<number>'`)
+  feeding `color-mix()` into both shadow colours. Animating the geometry (an `outline-width` and a
+  `box-shadow` spread from 0 to 2px) could never be smooth: browsers paint both at whole device
+  pixels, so the growth had two or three frames and looked like a dropped-frame stutter. The
+  resting and focused appearances are unchanged; only the arrival is. No component class changes.
+  Engines without `color-mix` or without `@property` show the ring at full size with no fade, and
+  forced-colours mode is unchanged (a static `outline` in the system `Highlight` colour).
+  **If you restyle the ring**, note it is now one `box-shadow` pair rather than a `box-shadow` plus
+  an `outline`, and `--eldra-focus-alpha` is what the `transition` list carries.
