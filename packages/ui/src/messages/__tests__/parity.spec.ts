@@ -30,15 +30,22 @@ describe('message catalogues', () => {
 
   it('returns a non-empty string from every message in both locales', () => {
     const args = [1, 2] as const;
+    // `avatarGroup(label, names, more)` takes a string and an array, not the two numbers every
+    // other function key here happens to accept — so it gets its own sample call instead of a
+    // slice of `args`, which would spread `2` as `names` and throw (numbers are not iterable).
+    const sampleArgs: Partial<Record<keyof typeof enUS, unknown[]>> = {
+      avatarGroup: ['Makers', ['Ingrid', 'Tomas'], 2],
+    };
     for (const key of keys) {
       for (const [locale, catalogue] of [
         ['en-US', enUS],
         ['is-IS', isIS],
       ] as const) {
         const value = catalogue[key];
+        const callArgs = sampleArgs[key] ?? args.slice(0, value.length);
         const text =
           typeof value === 'function'
-            ? (value as (...rest: number[]) => string)(...args.slice(0, value.length))
+            ? (value as (...rest: unknown[]) => string)(...callArgs)
             : value;
         expect(typeof text, `${locale}.${key}`).toBe('string');
         expect(text.length, `${locale}.${key}`).toBeGreaterThan(0);
@@ -100,5 +107,23 @@ describe('counted messages read naturally at one', () => {
     expect(enUS.rating(4, 1)).toBe('Rated 4.0 out of 5, 1 review');
     expect(isIS.rating(4.5, 128)).toBe('Einkunn 4,5 af 5, 128 umsagnir');
     expect(isIS.rating(4, 1)).toBe('Einkunn 4,0 af 5, 1 umsögn');
+  });
+
+  it("formats AvatarGroup's accessible sentence exactly as the design spec gives it", () => {
+    // Spec "Avatar" → Accessibility: `aria-label="Makers: Ingrid, Tomas, Maya and 4 more"` — no
+    // Oxford comma before "and", which is what `formatConjunctionList` exists to strip back out
+    // of `Intl.ListFormat`'s own English output (see that module's own comment).
+    expect(enUS.avatarGroup('Makers', ['Ingrid', 'Tomas', 'Maya'], 4)).toBe(
+      'Makers: Ingrid, Tomas, Maya and 4 more'
+    );
+    expect(isIS.avatarGroup('Smiðir', ['Ingrid', 'Tomas', 'Maya'], 4)).toBe(
+      'Smiðir: Ingrid, Tomas, Maya og 4 til viðbótar'
+    );
+  });
+
+  it('reads naturally with no overflow at all, in both locales', () => {
+    expect(enUS.avatarGroup('Makers', ['Ingrid'], 0)).toBe('Makers: Ingrid');
+    expect(enUS.avatarGroup('Makers', ['Ingrid', 'Tomas'], 0)).toBe('Makers: Ingrid and Tomas');
+    expect(isIS.avatarGroup('Smiðir', ['Ingrid', 'Tomas'], 0)).toBe('Smiðir: Ingrid og Tomas');
   });
 });

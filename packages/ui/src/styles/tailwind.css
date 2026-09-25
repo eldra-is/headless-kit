@@ -1150,3 +1150,61 @@
    and the line together, at the endpoints the spec's "4px inside the top … rotated 45°" geometry
    actually produces — worked out once in that component's own comment rather than re-derived by a
    consumer reading a CSS transform. */
+
+/* --- Avatar ---------------------------------------------------------------------------------- */
+
+/* Avatar initials/"+N" type (spec "Avatar" → Sizes: the Initials column is "38% of diameter" —
+   0.76rem/0.95rem/1.33rem/2.28rem at sm/md/lg/xl, none of which matches a token in tokens.json —
+   plus "Initials weight 600, letter-spacing 0.02em" from the paragraph under the table). Weight
+   reuses `--eldra-text-label-weight` (600, the same token every other 600-weight utility in this
+   file reads); the size and the 0.02em tracking have no token of their own, so — like
+   `text-button-lg`'s 1.0625rem — each is a per-component CSS variable with the spec's own number
+   as its literal default. One line (`/ 1`): initials are a single short run, never a wrapped
+   paragraph, so there is no ratio to name. `AvatarGroup`'s "+N" counter reuses the same size at
+   `sm` (`Avatar.vue`'s own comment) rather than a fifth type style, since the spec's States table
+   gives it the identical treatment ("Initials / '+N' … `text`"). */
+@utility text-avatar-initials-sm {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-sm, 0.76rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+@utility text-avatar-initials-md {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-md, 0.95rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+@utility text-avatar-initials-lg {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-lg, 1.33rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+@utility text-avatar-initials-xl {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-xl, 2.28rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+
+/* The user-icon fallback's size (spec "Avatar" → Sizes, closing paragraph: "Icon: 1.5rem in lg
+   (scale proportionally)"). Only `lg` is given a literal number; the other three are that same
+   icon-to-diameter ratio (1.5 / 3.5, the `lg` diameter) applied to their own diameter (2rem,
+   2.5rem, 6rem) and rounded to three decimal places — precise enough for a stroke this thin, and
+   consistent with how every other one-off number in this file is a per-component variable with a
+   literal default rather than a class-level arbitrary value. Registered in the `size` class group
+   in `src/utils/cx.ts` (the same group `size-*` itself belongs to), so `classes.icon: 'size-6'`
+   replaces one of these instead of landing beside it. */
+@utility eldra-avatar-icon-sm {
+  width: var(--eldra-avatar-icon-size-sm, 0.857rem);
+  height: var(--eldra-avatar-icon-size-sm, 0.857rem);
+}
+@utility eldra-avatar-icon-md {
+  width: var(--eldra-avatar-icon-size-md, 1.071rem);
+  height: var(--eldra-avatar-icon-size-md, 1.071rem);
+}
+@utility eldra-avatar-icon-lg {
+  width: var(--eldra-avatar-icon-size-lg, 1.5rem);
+  height: var(--eldra-avatar-icon-size-lg, 1.5rem);
+}
+@utility eldra-avatar-icon-xl {
+  width: var(--eldra-avatar-icon-size-xl, 2.571rem);
+  height: var(--eldra-avatar-icon-size-xl, 2.571rem);
+}

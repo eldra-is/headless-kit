@@ -3,6 +3,8 @@
 // `<EldraButton>`.
 
 // Components
+export { default as Avatar } from './components/avatar/Avatar.vue';
+export { default as AvatarGroup } from './components/avatar/AvatarGroup.vue';
 export { default as Badge } from './components/badge/Badge.vue';
 export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Button } from './components/button/Button.vue';
@@ -30,6 +32,14 @@ export { default as VariantPicker } from './components/variant-picker/VariantPic
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
 // Component types
+export type {
+  AvatarGroupPart,
+  AvatarGroupPerson,
+  AvatarGroupProps,
+  AvatarPart,
+  AvatarProps,
+  AvatarSize,
+} from './components/avatar/types';
 export type {
   BadgePart,
   BadgeProps,

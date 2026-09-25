@@ -5,6 +5,30 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Avatar` and `AvatarGroup`** — the sixth component of the "display, commerce and layout"
+  sub-project (design spec's Avatar section). `Avatar` is the people/maker identity atom: a round
+  `sm`/`md`/`lg`/`xl` (2rem/2.5rem/3.5rem/6rem) circle that falls back image → initials → the
+  generic user icon. `src` accepts an `ImageMedia` (`Image`'s own type) or a bare URL string, and
+  falls back automatically on a failed `<img>` load, not only a missing `src`. Initials are the
+  first letter of the given and family name, uppercase (`src/utils/avatar.ts#initialsFromName`;
+  a single-word name takes its own first two letters instead of a lone one). `decorative`
+  (default `true`) hides the avatar from assistive technology, for the common case where the name
+  is printed right next to it (a review byline); `false` renders a standalone avatar instead,
+  `role="img"` with `aria-label` set to `name`, and a dev-only console warning fires if that name
+  is missing (WCAG 1.1.1/4.1.2). New `text-avatar-initials-{sm,md,lg,xl}` and
+  `eldra-avatar-icon-{sm,md,lg,xl}` `tailwind.css` utilities.
+
+  `AvatarGroup` stacks up to three avatars plus a "+N" counter (never more than four circles in
+  total — `max` is clamped to 0–3 regardless of what is passed), each avatar `decorative` and
+  overlapping the last by 25% of its diameter with a 2px `background` ring. The whole group is one
+  `role="group"` named by a single accessible sentence — `aria-labelledby` pointing at a visually
+  hidden `srText` part — built by the new `avatarGroup(label, names, more)` message:
+  `"Makers: Ingrid, Tomas, Maya and 4 more"`, joined by the new
+  `src/utils/listFormat.ts#formatConjunctionList` (`Intl.ListFormat` per locale, with its English
+  Oxford comma stripped to match the spec's own example, and a hand-written fallback for a runtime
+  with no `Intl.ListFormat` at all). See `README.md`'s Deviations section for the `max` clamp, the
+  fixed `sm` group size (the brief's own `AvatarGroupProps` type has no `size` prop) and the
+  Oxford-comma ruling.
 - **`Image`** — the fifth component of the "display, commerce and layout" sub-project (design
   spec's Image section). The responsive media frame every card and block builds on: a fixed aspect
   preset (`auto`, `1x1`, `4x3`, `3x2`, `16x9`, `3x4`, `4x5`, default `4x3`) sets the frame's

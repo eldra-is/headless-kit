@@ -1,3 +1,8 @@
+// `AvatarGroup`'s own list join is not `reviewsWord`'s kind of formatting problem — it needs
+// `Intl.ListFormat`, not a plural rule — so it lives in its own module rather than growing a
+// third helper here; see `src/utils/listFormat.ts#formatConjunctionList`.
+import { formatConjunctionList } from '../utils/listFormat';
+
 /**
  * The English strings the components emit on their own — the ones a consumer
  * never passes in: an icon-only button's accessible name, a listbox's empty
@@ -206,6 +211,17 @@ export const enUS = {
    */
   formErrors: (n: number) =>
     n === 1 ? 'There is 1 problem with this form' : `There are ${n} problems with this form`,
+  /**
+   * `AvatarGroup`'s one accessible sentence (spec "Avatar" → Accessibility: "A group gets one
+   * name: `role="group"`, `aria-label="Makers: Ingrid, Tomas, Maya and 4 more"`"). `names` is the
+   * visible avatars' own names, in order; `more` is however many more people the group holds
+   * beyond those — `0` when every person in the group already has a visible avatar, in which case
+   * the sentence is just `label` plus the plain conjunction list with nothing appended.
+   */
+  avatarGroup: (label: string, names: string[], more: number) => {
+    const items = more > 0 ? [...names, `${more} more`] : names;
+    return `${label}: ${formatConjunctionList(items, 'en-US')}`;
+  },
 };
 
 /**

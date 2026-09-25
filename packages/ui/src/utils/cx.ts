@@ -92,12 +92,25 @@ const twMerge = extendTailwindMerge<
             'price-current',
             'price-secondary',
             'price-unit',
+            'avatar-initials-sm',
+            'avatar-initials-md',
+            'avatar-initials-lg',
+            'avatar-initials-xl',
           ],
         },
       ],
       // Control heights (tailwind.css "Control heights and targets"): whole class names, not a
       // `h-*` suffix, but the same "h" group as Tailwind's own `h-*` scale.
       h: ['control-h', 'control-h-sm', 'control-h-lg'],
+      // The user-icon fallback's size (tailwind.css "Avatar"): whole class names, not a `size-*`
+      // suffix, but the same "size" group Tailwind's own `size-*` scale belongs to, so a
+      // consumer's `classes.icon: 'size-6'` replaces one of these instead of landing beside it.
+      size: [
+        'eldra-avatar-icon-sm',
+        'eldra-avatar-icon-md',
+        'eldra-avatar-icon-lg',
+        'eldra-avatar-icon-xl',
+      ],
       // No stock Tailwind group covers a minimum-target utility, so each gets its own group.
       'target-min': ['target-min'],
       'target-touch': ['target-touch'],

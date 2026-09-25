@@ -83,6 +83,7 @@ Every component supports all five of these; none hard-codes anything a store mig
 
    | Component         | CSS variables                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
    | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `Avatar`          | `--eldra-avatar-initials-size-{sm,md,lg,xl}` (defaults `0.76rem`/`0.95rem`/`1.33rem`/`2.28rem`, "38% of diameter" — no token of its own), `--eldra-avatar-initials-tracking` (default `0.02em`), `--eldra-avatar-icon-size-{sm,md,lg,xl}` (defaults `0.857rem`/`1.071rem`/`1.5rem`/`2.571rem`, the spec's own lg number scaled proportionally to the other three diameters)                                                                                         |
    | `Badge`           | `--eldra-badge-line-height` (default `1`) — the badge text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                        |
    | `Button`          | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                    |
    | `Checkbox`        | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                                                                            |
@@ -1370,3 +1371,24 @@ Additions and departures from the design spec, and why.
     the resulting `aspect-ratio: auto` on the background variant, a gallery test asserting the
     lightbox's `object-contain`/`max-h-[85vh]`, and a `UiImage.spec.ts` contract test per prop with
     mutation checks (break the mapping, watch the test fail, restore).
+- **`AvatarGroup` has no `size` prop; every avatar in a group renders `sm`** (2rem). The task
+  brief's own `AvatarGroupProps` type gives it none, and the spec's anatomy diagram shows a
+  compact stacked row rather than naming a size — `sm` is the smallest of the four, the fit for a
+  row of up to four overlapping circles plus a "+N" counter, distinct from the single `lg` avatars
+  the spec shows elsewhere (a testimonial byline, a journal author card). A consumer who wants a
+  different size restyles through `classes.item`/`classes.more` (both take the `size-*` group, so
+  a replacement diameter also has to update the initials text size alongside it).
+- **`AvatarGroup`'s `max` is clamped to 0–3, whatever is passed.** The spec's Avatar section gives
+  `max` a default of `3` and, separately, an unconditional acceptance criterion: "Groups never show
+  more than four circles in total." Those two only agree if `max` itself never exceeds `3` — three
+  avatars plus one "+N" counter — so the prop is clamped rather than trusted, and a caller who
+  passes `max="10"` still sees at most four circles.
+- **`AvatarGroup`'s accessible sentence strips `Intl.ListFormat`'s own Oxford comma** (task brief:
+  "Icelandic list joining: use `Intl.ListFormat` with the message locale where available"). Node's
+  (and every major browser's) English "long conjunction" CLDR pattern joins three or more items as
+  "a, b, and c", but the spec's own example — `aria-label="Makers: Ingrid, Tomas, Maya and 4
+more"` — has no comma before "and". Icelandic's own pattern already has no such comma, so its
+  output needed no change; `src/utils/listFormat.ts#formatConjunctionList` keeps
+  `Intl.ListFormat`'s locale-correct word, order and pluralisation and removes only that one
+  separator (via `formatToParts`, not a regex over the whole rendered string), with a hand-written
+  `", "`/`" and "`/`" og "` join as the fallback for a runtime with no `Intl.ListFormat` at all.

@@ -1,4 +1,5 @@
 import type { UiMessages } from './en-US';
+import { formatConjunctionList } from '../utils/listFormat';
 
 /**
  * Icelandic takes the singular for any count ending in 1 except 11: "1 stafur", "21 stafur", but
@@ -93,6 +94,12 @@ export const isIS: UiMessages = {
   error: 'Villa',
   formErrors: (n: number) =>
     singular(n) ? `Það er ${n} villa í þessu eyðublaði` : `Það eru ${n} villur í þessu eyðublaði`,
+  // "N til viðbótar" ("N in addition") reads naturally at any count, so — unlike `stockLow` or
+  // `charactersLeft` above — this needs no singular/plural branch of its own.
+  avatarGroup: (label: string, names: string[], more: number) => {
+    const items = more > 0 ? [...names, `${more} til viðbótar`] : names;
+    return `${label}: ${formatConjunctionList(items, 'is-IS')}`;
+  },
 };
 
 export default isIS;

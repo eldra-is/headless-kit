@@ -16,6 +16,8 @@
  * that never installed it. `src/__tests__/veeValidateIsolation.spec.ts` asserts both halves.
  */
 export const componentNames = [
+  'Avatar',
+  'AvatarGroup',
   'Badge',
   'Button',
   'ButtonGroup',
