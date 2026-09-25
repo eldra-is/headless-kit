@@ -374,10 +374,10 @@ describe('MultiSelect — the footer', () => {
     const clear = wrapper.find('[data-part="clearButton"]').element;
     expect(clear.getAttribute('data-eldra-overlay-owner')).toBe(panel(wrapper).attributes('id'));
 
-    // Focus landing on it — a pointer press, or a `Tab` from the trigger while the panel is
-    // closed — must not close the popover. (It is no longer *between* the trigger and the panel in
-    // the tab order: the panel is teleported, and `usePopover`'s `tabRedirect` walks from either of
-    // these two elements straight into it.)
+    // It is the step between the trigger and the panel in the tab order, so tabbing through it
+    // must not close the popover on the way to the footer. (The panel is teleported, so the step
+    // *out* of this button into the panel is `usePopover`'s `tabRedirect` rather than DOM order;
+    // the step from the trigger to here is still the browser's own.)
     focusOut(trigger(wrapper), clear);
     await flush();
     expect(panel(wrapper).exists()).toBe(true);

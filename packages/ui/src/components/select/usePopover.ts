@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
-import { useOverlay } from '../../composables/useOverlay';
+import { OVERLAY_OWNER_ATTRIBUTE, useOverlay } from '../../composables/useOverlay';
 import { registerOpen, unregisterOpen } from './openRegistry';
 
 export interface UsePopoverOptions {
@@ -46,9 +46,15 @@ export interface UsePopoverOptions {
    *
    * Turn this on and `usePopover` restores exactly that walk, and nothing more:
    *
-   * - `Tab` while focus is in the control but not in the panel moves focus to the panel's **first**
-   *   focusable;
-   * - `Shift+Tab` on the panel's first focusable moves it back to the trigger;
+   * - `Tab` on the **last** tab stop the control still holds — its trigger, or the clear button
+   *   beside it when one is rendered, or whatever else claims the panel's id with
+   *   `data-eldra-overlay-owner` — moves focus to the panel's **first** focusable. The steps
+   *   *within* the control are untouched: those elements are still siblings in the DOM, so the
+   *   browser walks trigger → clear button on its own, and only the step that would leave the
+   *   control is redirected;
+   * - `Shift+Tab` on the panel's first focusable moves it back to that same last stop — the clear
+   *   button when there is one, else the trigger — from which the browser's own reverse order
+   *   finishes the walk;
    * - `Tab` on the panel's **last** focusable is left alone — focus leaves for the next thing on
    *   the page, and `useOverlay` closes the popup behind it.
    *
@@ -279,9 +285,40 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   };
 
   /**
+   * Every tab stop of this overlay that is **not** in the panel, in document order — the trigger,
+   * plus anything claiming the panel's id with `data-eldra-overlay-owner` (a multi-select's clear
+   * button). These keep their natural place in the walk: the redirect happens at the **last** of
+   * them, so `Tab` still passes each one on the way to the panel.
+   *
+   * The owner elements are found with a plain attribute-presence selector and filtered by value in
+   * JavaScript, for the reason `useOverlay` walks the attribute by hand: an id is merchant-settable
+   * through the `id` prop, and one holding a character CSS would need escaped must not break this.
+   */
+  function stopsBeforePanel(panel: HTMLElement): HTMLElement[] {
+    const roots: HTMLElement[] = [];
+    if (trigger.value !== null) roots.push(trigger.value);
+    const id = panel.id;
+    if (id !== '') {
+      for (const owner of document.querySelectorAll<HTMLElement>(`[${OVERLAY_OWNER_ATTRIBUTE}]`)) {
+        if (owner.getAttribute(OVERLAY_OWNER_ATTRIBUTE) !== id) continue;
+        if (panel.contains(owner) || roots.includes(owner)) continue;
+        roots.push(owner);
+      }
+    }
+    const stops = roots.flatMap((root) => overlay.focusables(root));
+    // `querySelectorAll` is in document order within each root, but the roots themselves arrive in
+    // the order they were collected, which is not necessarily theirs.
+    return stops.sort((a, b) =>
+      (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) === 0 ? 1 : -1
+    );
+  }
+
+  /**
    * The two boundary keystrokes of the walk described on the `tabRedirect` option: into the panel
-   * from the control, and back out of its first row to the trigger. Everything else about `Tab` is
-   * left to the browser, which is what keeps this a redirect rather than a trap.
+   * from the last tab stop the control still holds, and back out of the panel's first row to that
+   * same stop. Everything else about `Tab` is left to the browser, which is what keeps this a
+   * redirect rather than a trap — including the steps *within* the control, so a multi-select's
+   * clear button is passed on the way in and returned to on the way back.
    *
    * It listens in the **capture** phase, before the control's own `keydown` reaches its handler:
    * `useListbox`'s `Tab` case asks the caller to close (the `SearchBar` does), and a popup that has
@@ -301,20 +338,25 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     const first = overlay.focusables()[0];
     if (first === undefined) return;
 
+    const before = stopsBeforePanel(panel);
+    const last = before.at(-1);
+
     if (event.shiftKey) {
-      // Backwards out of the panel's first row. Anywhere else in the panel, the browser's own
+      // Backwards out of the panel's first row, onto the control's last stop — its clear button
+      // when one is rendered, else the trigger. Anywhere else in the panel, the browser's own
       // reverse order is already correct.
       if (active !== first) return;
       event.preventDefault();
       event.stopPropagation();
-      trigger.value?.focus();
+      (last ?? trigger.value)?.focus();
       return;
     }
 
-    // Forwards, from the control into the panel. `isInside` rather than `trigger.contains`, so a
-    // part of the overlay that is not in the panel either — a multi-select's clear button, which
-    // claims the panel's id — walks into the panel instead of out of the control.
+    // Forwards, into the panel. `isInside` rather than `trigger.contains`, so a part of the overlay
+    // that is not in the panel either counts as being in the control; and only from its **last**
+    // stop, so the browser still walks the control's own controls first.
     if (panel.contains(active) || !overlay.isInside(active)) return;
+    if (last !== undefined && active !== last) return;
     event.preventDefault();
     event.stopPropagation();
     first.focus();

@@ -9,8 +9,13 @@ import { onScopeDispose, watch, type Ref } from 'vue';
 const FOCUSABLE =
   'a[href], area[href], button, input, select, textarea, details > summary:first-of-type, iframe, audio[controls], video[controls], [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex^="-"])';
 
-/** Marks an element that belongs to an overlay whose content element has this `id`. */
-const OWNER_ATTRIBUTE = 'data-eldra-overlay-owner';
+/**
+ * Marks an element that belongs to an overlay whose content element has this `id`.
+ *
+ * Exported for `usePopover`, which has to find those elements rather than only recognise one it is
+ * handed: a teleported panel's `Tab` walk runs through them (see its `tabRedirect` option).
+ */
+export const OVERLAY_OWNER_ATTRIBUTE = 'data-eldra-overlay-owner';
 
 export interface UseOverlayOptions {
   /** Whether the overlay is showing. Owned by the consumer; this composable only reads it. */
@@ -34,8 +39,15 @@ export interface UseOverlayReturn {
   close(): void;
   /** Focus the first focusable element inside the content, if there is one. */
   focusFirst(): void;
-  /** Every focusable element inside the content, in document order. */
-  focusables(): HTMLElement[];
+  /**
+   * Every element in the tab sequence inside `root`, in document order, plus `root` itself when it
+   * is one. Defaults to the content, which is what `focusFirst` walks.
+   *
+   * The argument is for an overlay whose parts are not all in one element — a teleported panel and
+   * the trigger-side controls that belong to it — so that one answer to "what is a tab stop" serves
+   * both halves.
+   */
+  focusables(root?: HTMLElement | null): HTMLElement[];
   /**
    * Whether a node counts as part of this overlay: the trigger, the content, or anything under an
    * element carrying `data-eldra-overlay-owner="<the content's id>"`.
@@ -92,11 +104,14 @@ export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
   const closeOnEscape = options.closeOnEscape ?? true;
   const returnFocus = options.returnFocus ?? true;
 
-  const focusables = (): HTMLElement[] => {
-    const root = content.value;
+  const focusables = (from?: HTMLElement | null): HTMLElement[] => {
+    const root = from === undefined ? content.value : from;
     if (!root) return [];
-    return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    // `root` first, and only when it is a tab stop itself: a panel never is, but a trigger passed
+    // in from outside is exactly one, and document order puts it before its own descendants.
+    return [root, ...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
       (element) =>
+        element.matches(FOCUSABLE) &&
         // The selector cannot express this on its own: `tabindex="-1"` on a natively focusable
         // element (`<button tabindex="-1">`) is still matched by the `button` term, so the
         // platform's own answer to "is this in the tab sequence" is what decides.
@@ -128,7 +143,7 @@ export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
       element !== null;
       element = element.parentElement
     ) {
-      if (element.getAttribute(OWNER_ATTRIBUTE) === id) return true;
+      if (element.getAttribute(OVERLAY_OWNER_ATTRIBUTE) === id) return true;
     }
     return false;
   };

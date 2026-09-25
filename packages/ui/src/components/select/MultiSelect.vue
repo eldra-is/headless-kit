@@ -643,9 +643,10 @@ const emptyText = computed(() =>
 
       <!-- `data-eldra-overlay-owner` makes `useOverlay` count this button as part of the overlay,
            so reaching it never closes the popover — the spec's own Tab table says the popover stays
-           open all the way to the footer's buttons. It is a *part of the overlay outside the panel*
-           in the sense `useOverlay` means: the panel itself is teleported away, and `usePopover`'s
-           `tabRedirect` walks from here into it rather than out of the control. -->
+           open all the way to the footer's buttons. `usePopover`'s `tabRedirect` reads the same
+           attribute to find the control's last tab stop now that the panel is teleported out of
+           DOM order: `Tab` walks trigger → this button on the browser's own order, and it is from
+           *here* that focus is sent into the panel (and back here on `Shift+Tab`). -->
       <button
         v-if="showClear"
         :id="clearId"

@@ -357,8 +357,11 @@ Four things follow from the move, and each is a real consequence rather than a d
   popup with its own controls never reached — which the spec's Multi-select Keyboard table forbids
   ("Tab moves from the search field (or the trigger) to the footer's Clear, then Done, with the
   popover still open"). `usePopover`'s **`tabRedirect`** puts exactly those two boundary steps back:
-  `Tab` from the control moves focus to the panel's first focusable, and `Shift+Tab` on that first
-  focusable moves it back to the trigger. Everything between is the browser's own order.
+  `Tab` on the last tab stop the control still holds moves focus to the panel's first focusable,
+  and `Shift+Tab` on that first focusable moves it back to that stop. Everything between is the
+  browser's own order — including the steps _inside_ the control, which are still DOM siblings: a
+  `MultiSelect` showing a clear button walks trigger → clear button on the browser's own order,
+  then into the footer's Clear, then Done, exactly as the table says, and back the same way.
 
   **This is a redirect, not a trap.** `Tab` on the panel's _last_ focusable is left entirely alone:
   focus leaves for the next thing on the page and `useOverlay` closes the popup behind it. So there
@@ -367,7 +370,9 @@ Four things follow from the move, and each is a real consequence rather than a d
   corrects focus after the fact. Controls that already move focus into the panel on open (any
   searchable `Select` or `MultiSelect`) are untouched: their order was already right. Turn it on
   with `tabRedirect` when your own panel holds tab stops; it is inert when the panel is rendered in
-  place or has none.
+  place or has none. What counts as "the control" is `useOverlay`'s own answer — the trigger plus
+  anything carrying `data-eldra-overlay-owner="<the panel's id>"` — so a control of your own puts
+  its trigger-side buttons in the walk by marking them the way `MultiSelect`'s clear button does.
 
 `teleport` is a prop on all three controls and an option on `usePopover`: `true` (default), a CSS
 selector string for a target of your own, or `false` to keep the old in-place `absolute` rendering
@@ -1028,12 +1033,12 @@ Additions and departures from the design spec, and why.
 - **`MultiSelect`'s clear button belongs to the popover while it is open.** It carries
   `data-eldra-overlay-owner="<the panel's id>"`, which is how `useOverlay` recognises a part of an
   overlay that is not inside its content element, so focus or a pointer press landing on it does
-  not close the popover. The spec's Tab table walks "from the search field (or the trigger) to the
-  footer's Clear, then Done, with the popover still open"; the panel is teleported, so that walk is
-  `usePopover`'s `tabRedirect` rather than DOM order (see [Layering](#layering)), and it steps from
-  the trigger — or from this button — into the panel. While the popover is open the trigger's own
-  clear button is therefore not a `Tab` stop; the footer's Clear does the same job, and the button
-  is back in the walk as soon as the popover closes.
+  not close the popover — and it is why the button is still in the `Tab` walk the spec's table
+  describes ("from the search field (or the trigger) to the footer's Clear, then Done, with the
+  popover still open") now that the panel is teleported out of DOM order. `usePopover`'s
+  `tabRedirect` reads that attribute to find the control's **last** tab stop and redirects only
+  there, so the browser still walks trigger → clear button itself and the walk continues
+  clear button → footer Clear → Done, and back the same way (see [Layering](#layering)).
 - **`Backspace` in a `MultiSelect`'s empty search field removes the last tag.** Not in the spec's
   keyboard table — it is the convention every chip input follows — and it is guarded on the query
   being empty, so it never eats a character the user meant to delete.
