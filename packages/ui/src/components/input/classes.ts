@@ -144,7 +144,13 @@ export const FIELD_LEADING_ICON =
  * order — which is also the tab order the Keyboard table asks for: the input first, the clear
  * button next.
  *
- * No `gap-*`: a single action needs none, and two (see `FIELD_TRAILING_PAD_PAIR` above) sit flush
- * against each other on purpose.
+ * `gap-1` is the shared default: `Input`'s own doc comment documents `clearable`/`type="search"`
+ * plus a populated `suffix` slot as first-class ("the clear button and the `suffix` slot share it,
+ * so a field with both keeps them on one row"), and this constant is `Input`'s and `SearchBar`'s
+ * row too — dropping the gap here would silently change `Input`'s rendered output for that
+ * combination, which review round 1 caught (task-14-fix-1). Only `UnitInput`'s two-action pair (see
+ * `FIELD_TRAILING_PAD_PAIR` above) wants flush icons, and it overrides this locally
+ * (`cx(FIELD_SUFFIX_ROW, isActionPair && 'gap-0')` — `gap-*` is a stock tailwind-merge group, so no
+ * merge-group registration is needed) rather than changing the shared default.
  */
-export const FIELD_SUFFIX_ROW = 'absolute end-1 inset-y-0 my-auto flex items-center';
+export const FIELD_SUFFIX_ROW = 'absolute end-1 inset-y-0 my-auto flex items-center gap-1';

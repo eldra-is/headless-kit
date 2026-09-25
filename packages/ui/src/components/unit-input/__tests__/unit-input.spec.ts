@@ -766,8 +766,22 @@ describe('UnitInput — trailing action pairs (operator report, 2026-09-25)', ()
   it('gives the row no gap when both actions show', async () => {
     const wrapper = mount({ modelValue: 5, clearable: true, enableDragAdjust: true });
     await nextTick();
-    expect(wrapper.find('[data-part="suffix"]').classes()).not.toContain('gap-1');
+    const suffixClasses = wrapper.find('[data-part="suffix"]').classes();
+    expect(suffixClasses).toContain('gap-0');
+    expect(suffixClasses).not.toContain('gap-1');
     wrapper.unmount();
+  });
+
+  it('keeps the shared gap-1 row with only one action showing (fix round 1, task-14-fix-1)', async () => {
+    const clearOnly = mount({ modelValue: 5, clearable: true });
+    await nextTick();
+    expect(clearOnly.find('[data-part="suffix"]').classes()).toContain('gap-1');
+    clearOnly.unmount();
+
+    const dragOnly = mount({ modelValue: 5, enableDragAdjust: true });
+    await nextTick();
+    expect(dragOnly.find('[data-part="suffix"]').classes()).toContain('gap-1');
+    dragOnly.unmount();
   });
 
   it.each([['sm' as const], ['lg' as const]])('applies the %s pair recipes too', async (size) => {

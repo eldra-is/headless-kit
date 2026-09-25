@@ -294,6 +294,21 @@ describe('Input — leading icon and suffix', () => {
     expect(control(wrapper).className.split(/\s+/)).toContain('pe-10');
     wrapper.unmount();
   });
+
+  it('keeps the row gap when the clear button and a populated suffix slot share the row (fix round 1, task-14-fix-1)', () => {
+    // `Input`'s own doc comment documents this combination as first-class: "the clear button and
+    // the `suffix` slot share it, so a field with both keeps them on one row." UnitInput's
+    // two-action pair (clear + drag handle) is the only thing allowed to go flush — Input's row
+    // must keep its `gap-1`, unchanged from before UnitInput grew that pair recipe.
+    const wrapper = mountWith(Input, {
+      props: { type: 'search', modelValue: 'merino scarf' },
+      attrs: NAME,
+      slots: { suffix: '<span>kg</span>' },
+    });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(true);
+    expect(wrapper.find('[data-part="suffix"]').classes()).toContain('gap-1');
+    wrapper.unmount();
+  });
 });
 
 describe('Input — clear button', () => {

@@ -747,7 +747,15 @@ const controlClass = computed(() =>
 const leadingIconClass = computed(() =>
   partClass(FIELD_LEADING_ICON, props.classes, 'leadingIcon')
 );
-const suffixClass = computed(() => partClass(FIELD_SUFFIX_ROW, props.classes, 'suffix'));
+/**
+ * `FIELD_SUFFIX_ROW`'s `gap-1` is the shared default (`Input`'s and `SearchBar`'s row too — see its
+ * own doc comment). Only the two-action pair wants its icons flush, so that case alone overrides
+ * the gap locally rather than changing the shared constant (`gap-*` is a stock tailwind-merge
+ * group, so `cx` needs no new merge-group registration for this).
+ */
+const suffixClass = computed(() =>
+  partClass(cx(FIELD_SUFFIX_ROW, isActionPair.value && 'gap-0'), props.classes, 'suffix')
+);
 const actionSize = computed(() =>
   isActionPair.value ? FIELD_ACTION_PAIR_SIZE[props.size] : FIELD_CLEAR_SIZE[props.size]
 );
