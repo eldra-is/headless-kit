@@ -181,6 +181,20 @@
     var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
 }
 
+/* A field's character counter (spec "Textarea" → Sizes, Counter row): "0.8125rem, line-height
+   1.5, tabular numerals, never wraps." The size reuses the caption token; the 1.5 ratio has no
+   token of its own (unlike the controls above, whose 1.5rem line is fixed, this one is the
+   button's kind of bare ratio), so — like `text-button-lg`'s font size — it is a per-component
+   variable with that literal default. Deliberately no `font-weight` here: the spec's over-limit
+   state needs `font-semibold` layered on top, and a shorthand `font` property here would fight a
+   separate `font-weight` utility for the same declaration depending on generation order, so the
+   component pairs this with the stock `font-normal`/`font-semibold` utilities instead. */
+@utility text-counter {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-counter-line-height, 1.5);
+}
+
 /* Control heights and targets. */
 @utility control-h {
   height: var(--eldra-control-height);

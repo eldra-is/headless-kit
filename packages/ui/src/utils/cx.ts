@@ -53,6 +53,7 @@ const twMerge = extendTailwindMerge<
             'control',
             'control-lg',
             'control-mobile',
+            'counter',
           ],
         },
       ],

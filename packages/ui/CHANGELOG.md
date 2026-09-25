@@ -5,6 +5,23 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `Textarea` — multi-line text entry that grows with its content from `minHeight` (`5rem` by
+  default) up to 16rem, then scrolls: `field-sizing: content` where the runtime supports it, with a
+  measured `rows` fallback (grown on `input` by comparing `scrollHeight` to `clientHeight`) where it
+  does not. `counter` shows `"n / maxLength"` in the foot row once `maxLength` is also set — `muted`
+  under the limit, `danger` weight 600 once the value runs over it (typing past this *soft* limit is
+  still allowed); `hardLimit` also sets the native `maxlength`, so typing stops there instead. The
+  counter is a `role="status"` region that is `aria-live="polite"` from 90% of the limit onward and
+  `"off"` below it, so ordinary typing stays silent. `invalid`, `describedBy`, `required`, `readonly`
+  and `disabled` share `Input`'s states and its field-context wiring through `FIELD_KEY`; the
+  per-part `classes` prop covers `root`, `control`, `foot` and `counter`. `--eldra-textarea-radius`,
+  `--eldra-textarea-min-height` and `--eldra-counter-line-height` restyle it without touching a
+  class.
+- `@eldrajs/ui/tailwind.css` gains `text-counter` (a field's character-counter type style: the
+  caption token's size on a `1.5` line, with no `font-weight` of its own so the over-limit state's
+  `font-semibold` is a plain, reliably-ordered stock utility rather than fighting a shorthand `font`
+  declaration).
+
 - First release: a public, MIT-licensed Vue 3 core component library for Eldra storefronts, built
   to the Eldra starter design spec and WCAG 2.2 AA. Peers on `vue` ^3.4; `vee-validate` ^4 is an
   optional peer used only by the `@eldrajs/ui/vee-validate` entry.

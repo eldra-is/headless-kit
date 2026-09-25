@@ -8,6 +8,7 @@ export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
+export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
 // Component types
@@ -22,6 +23,7 @@ export type {
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
+export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
 
 // Messages
