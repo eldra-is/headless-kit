@@ -640,15 +640,32 @@ Additions and departures from the design spec, and why.
 - **An idle panel with nothing in it does not open.** The spec says the panel opens on focus, and
   that neither the recent nor the popular list shows when it is empty — which together would leave
   an empty box under the field. `aria-expanded` stays `false` until there is something to show.
-- **Recent-search wording and the `viewAll` row's text come from the message catalogue**, which is
-  shared with the Search modal, so three strings read slightly differently from the spec's prose:
-  the count announcement is `resultsCount(n)` ("4 results", not "4 results for mer"), the "See all"
-  row is `viewAllResults(n)` ("See all 12 results", without the spec's trailing `for “mer”`), and
-  the popular heading is `popularSearches` ("Popular searches", not "Popular right now"). A store
-  that wants the spec's exact sentences passes them through `messages`. New messages beside them:
-  `noResultsFor(query)`, `searchSuggestions`, `searchProducts`, `searchCollections`,
+- **The `none` view waits for a first response.** The spec's `none` view is "Query **without
+  matches**" — an answer from the shop — so it is not drawn while `results` is still `undefined`,
+  or a shopper typing "m" would be told there is nothing called "m" while the request for it is
+  still in flight. Until the first response arrives the panel shows nothing at all; after 300ms the
+  loading view takes over, exactly as the spec's own `loading` row says.
+- **One search bar on a page answers `/`.** The spec says the shortcut focuses "the header search",
+  singular, but every instance listens on `document`. `src/components/search-bar/shortcutOwner.ts`
+  is a module-level claim queue (the same shape as the select family's `openRegistry`): the first
+  instance mounted with `shortcut` on owns the key, the others stand behind it, and an unmount — or
+  a `shortcut` prop turned off — hands it to the next in line. Ownership is read at keystroke time,
+  so nothing has to re-render for it to change hands.
+- **`resultsCount` and `viewAllResults` take the query as an optional second argument.** The spec
+  names it in both sentences — "4 results for mer", "See all 12 results for “mer”" — while the same
+  two messages are also used where there is no query to name (a filtered list's count, the Search
+  modal's own "See all n results" row), so the query is optional rather than required: with it the
+  message reads the spec's sentence, without it the plain count. One wording delta is left, because
+  the catalogue is shared: the popular heading is `popularSearches` ("Popular searches", not the
+  spec's "Popular right now"), which a store overrides through `messages`. New messages beside
+  them: `noResultsFor(query)`, `searchSuggestions`, `searchProducts`, `searchCollections`,
   `searchJournal` and `searchAdvice`; `clearRecent` is now the spec's own "Clear recent searches"
   and `viewAllResults` its "See all", which `is-IS` already said.
+- **`SearchBar` writes the recent-search history itself** when `recent` is not given: on submit and
+  on a followed row (not on every keystroke), most recent first, deduplicated without regard to
+  case, capped at 5, and wrapped so a storage that refuses leaves the list in memory for that page
+  only. A consumer that supplies `recent` owns the storage behind it and has `submit`/`select` to
+  write from; nothing is written over their list.
 - **The `/` hint carries `messages.shortcutHint` as its `title`.** The visible chip is the spec's
   bare `/` and is `aria-hidden`, so the full sentence ("Press / to search") has nowhere to be
   announced; it is the chip's tooltip, and the field carries `aria-keyshortcuts="/"`.

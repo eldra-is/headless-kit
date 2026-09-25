@@ -9,6 +9,7 @@ import { matchRange, type MatchParts } from '../select/useOptionList';
 import { usePopover } from '../select/usePopover';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import SearchResultsPanel from './SearchResultsPanel.vue';
+import { claimShortcut, ownsShortcut, releaseShortcut } from './shortcutOwner';
 import type {
   SearchBarPart,
   SearchBarProps,
@@ -111,6 +112,39 @@ function forgetStoredRecent(): void {
     globalThis.localStorage?.removeItem(RECENT_KEY);
   } catch {
     /* the same storage that refused to be read may refuse to be written */
+  }
+}
+
+/**
+ * Spec "Search bar" → Behaviour, Data: "Recent searches are stored per browser (max 5) and never
+ * sent to the server."
+ *
+ * Written when a search actually happens — the form is submitted, or a row in the panel is
+ * followed — rather than on every keystroke, so the history holds searches a shopper made and not
+ * every prefix they typed on the way. Only when the component owns the list: a consumer that
+ * supplies `recent` owns the storage behind it too, and has the `submit`/`select` events to write
+ * from.
+ *
+ * Most recent first, case-insensitively deduplicated (searching "Merino" again moves the entry it
+ * already has to the top rather than adding a second one), capped at five, and wrapped in the same
+ * try/catch as every other storage call: a browser that refuses simply keeps no history.
+ */
+function rememberSearch(text: string): void {
+  if (props.recent !== undefined) return;
+  const entry = text.trim();
+  if (entry === '') return;
+  const folded = entry.toLocaleLowerCase();
+  const next = [
+    entry,
+    ...storedRecent.value.filter((previous) => previous.toLocaleLowerCase() !== folded),
+  ].slice(0, RECENT_MAX);
+  storedRecent.value = next;
+  // A search made after "Clear recent searches" is new history, so the group comes back.
+  recentCleared.value = false;
+  try {
+    globalThis.localStorage?.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    /* a storage that refuses to be written leaves the list in memory for this page only */
   }
 }
 
@@ -257,6 +291,15 @@ watch(
   { immediate: true }
 );
 
+/**
+ * A query with no response behind it yet. The spec's `none` view is "Query **without matches**" —
+ * an answer from the shop — so it cannot be drawn before the first response arrives: a shopper
+ * typing "m" would be told there is nothing called "m" while the request for it is still in
+ * flight. Until `results` is given, the panel shows nothing at all (and, after 300ms, the loading
+ * view).
+ */
+const awaitingFirstResults = computed(() => query.value !== '' && props.results === undefined);
+
 const view = computed<'idle' | 'results' | 'none' | 'loading'>(() => {
   if (loadingShown.value) return 'loading';
   if (query.value === '') return 'idle';
@@ -270,7 +313,9 @@ const sections = computed<SearchSection[]>(() => {
 });
 
 /** The `none` view's suggestion chips, which belong to no group of their own. */
-const looseChips = computed<SearchRow[]>(() => (view.value === 'none' ? chipRows.value : []));
+const looseChips = computed<SearchRow[]>(() =>
+  view.value === 'none' && !awaitingFirstResults.value ? chipRows.value : []
+);
 
 /**
  * Spec → Panel views, `results`: '"See all N results for “q”" is always the last row.' The row is a
@@ -280,11 +325,13 @@ const looseChips = computed<SearchRow[]>(() => (view.value === 'none' ? chipRows
 const viewAllRow = computed<SearchRow | undefined>(() => {
   if (view.value !== 'results') return undefined;
   const total = props.results?.total ?? 0;
+  const separator = props.action.includes('?') ? '&' : '?';
   return {
     value: 'view-all',
-    label: m.value.viewAllResults(total),
+    label: m.value.viewAllResults(total, query.value),
     kind: 'viewAll',
-    href: `${props.action}?q=${encodeURIComponent(model.value)}`,
+    // An action that already carries a parameter ("/search?type=product") keeps it.
+    href: `${props.action}${separator}q=${encodeURIComponent(model.value)}`,
   };
 });
 
@@ -297,9 +344,12 @@ const listRows = computed<SearchRow[]>(() => {
   return rows;
 });
 
-const hasPanelContent = computed(
-  () => view.value === 'loading' || view.value === 'none' || listRows.value.length > 0
-);
+const hasPanelContent = computed(() => {
+  if (view.value === 'loading') return true;
+  if (awaitingFirstResults.value) return false;
+  if (view.value === 'none') return true;
+  return listRows.value.length > 0;
+});
 
 /**
  * An option's element id is built from its *position*, for the reason `Select`'s is: a row's value
@@ -307,8 +357,13 @@ const hasPanelContent = computed(
  * `getElementById` have to round-trip should hold nothing that needs escaping.
  */
 const indexOfRow = computed(() => new Map(listRows.value.map((row, index) => [row.value, index])));
-const optionId = (value: string): string =>
-  `${controlId.value}-o${indexOfRow.value.get(value) ?? 0}`;
+const optionId = (value: string): string | undefined => {
+  const index = indexOfRow.value.get(value);
+  // No fallback: a value with no row of its own has no element, and pointing
+  // `aria-activedescendant` at row 0 would announce a row the keyboard never moved to (the active
+  // row outlives a results change that drops it, for the moment before the next one arrives).
+  return index === undefined ? undefined : `${controlId.value}-o${index}`;
+};
 
 /**
  * Spec → Behaviour, Rendering: "matching ignores case and accents ('linen' finds 'Línen')", and
@@ -431,7 +486,8 @@ function onKeydown(event: KeyboardEvent): void {
  */
 function choose(row: SearchRow): void {
   if (row.kind === 'result' || row.kind === 'viewAll') {
-    document.getElementById(optionId(row.value))?.click();
+    const id = optionId(row.value);
+    if (id !== undefined) document.getElementById(id)?.click();
     return;
   }
   applyRow(row);
@@ -449,6 +505,8 @@ function onRowSelect(row: SearchRow, event: MouseEvent): void {
 }
 
 function reportSelection(row: SearchRow): void {
+  // Following a row is a search that happened, so it goes into the history (see `rememberSearch`).
+  rememberSearch(model.value);
   if (row.kind === 'viewAll') {
     emit('select', { id: row.value, title: row.label, href: row.href ?? '' }, 'viewAll');
     return;
@@ -486,6 +544,7 @@ function onClear(): void {
 
 /** "Enter in the field submits the form"; the native submit then takes the browser to the page. */
 function onSubmit(): void {
+  rememberSearch(model.value);
   emit('submit', model.value);
   closePopover(false);
 }
@@ -510,7 +569,7 @@ watch([query, () => props.results], ([text]) => {
   }
   announceTimer = setTimeout(() => {
     const total = props.results?.total ?? 0;
-    announcement.value = total > 0 ? m.value.resultsCount(total) : m.value.noResultsFor(text);
+    announcement.value = total > 0 ? m.value.resultsCount(total, text) : m.value.noResultsFor(text);
     announceTimer = undefined;
   }, ANNOUNCE_DELAY_MS);
 });
@@ -531,8 +590,17 @@ function isTypingTarget(element: Element | null): boolean {
   return role === 'textbox' || role === 'searchbox' || role === 'combobox' || role === 'spinbutton';
 }
 
+/**
+ * This instance's claim on the `/` key. An object identity rather than an id: the registry only
+ * ever compares it with `===`, and nothing outside this component can forge one.
+ */
+const shortcutToken = {};
+
 function onShortcut(event: KeyboardEvent): void {
-  if (!props.shortcut || event.key !== '/') return;
+  // Every search bar on the page listens, but only the one that owns the key answers — see
+  // `shortcutOwner.ts`. Read at keystroke time, so a claim released by an unmount takes effect on
+  // the very next `/`.
+  if (!props.shortcut || !ownsShortcut(shortcutToken) || event.key !== '/') return;
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   if (isTypingTarget(document.activeElement)) return;
   event.preventDefault();
@@ -540,13 +608,22 @@ function onShortcut(event: KeyboardEvent): void {
 }
 
 onMounted(() => {
+  // Claimed on mount rather than during setup, so a server render claims nothing and the queue is
+  // in mount order: the first search bar on the page owns the key.
+  if (props.shortcut) claimShortcut(shortcutToken);
   if (typeof document === 'undefined') return;
   document.addEventListener('keydown', onShortcut);
 });
 
+watch(
+  () => props.shortcut,
+  (on) => (on ? claimShortcut(shortcutToken) : releaseShortcut(shortcutToken))
+);
+
 onBeforeUnmount(() => {
   stopLoadingTimer();
   if (announceTimer !== undefined) clearTimeout(announceTimer);
+  releaseShortcut(shortcutToken);
   if (typeof document === 'undefined') return;
   document.removeEventListener('keydown', onShortcut);
 });

@@ -35,8 +35,11 @@ const props = withDefaults(
     looseChips: SearchRow[];
     /** The "See all N results" row, when there is one. Always the last option. */
     viewAll?: SearchRow;
-    /** The element id of a row, which is what `aria-activedescendant` points at. */
-    optionId: (value: string) => string;
+    /**
+     * The element id of a row, which is what `aria-activedescendant` points at — `undefined` for a
+     * value with no row of its own, which is an id the panel then does not write.
+     */
+    optionId: (value: string) => string | undefined;
     /** The active row's value, or `undefined`. */
     activeValue?: string;
     /** Per row value, where the query matched its title. */
@@ -201,7 +204,9 @@ const SKELETON_ROWS = [0, 1, 2];
 function scrollActiveIntoView(): void {
   const value = props.activeValue;
   if (value === undefined || typeof document === 'undefined') return;
-  document.getElementById(props.optionId(value))?.scrollIntoView?.({ block: 'nearest' });
+  const id = props.optionId(value);
+  if (id === undefined) return;
+  document.getElementById(id)?.scrollIntoView?.({ block: 'nearest' });
 }
 
 onMounted(scrollActiveIntoView);
@@ -286,14 +291,23 @@ function onPanelMouseDown(event: MouseEvent): void {
           {{ section.heading }}
         </div>
 
-        <!-- The popular list is a row of chips; every other section is a list of rows. -->
-        <div v-if="section.kind === 'popular'" data-part="popular" :class="popularClass">
+        <!-- The popular list is a row of chips; every other section is a list of rows. Both
+             wrappers are `role="presentation"`: a `role="group"` may own options and groups, and a
+             plain element between the two would otherwise be a node in the tree that names
+             nothing. -->
+        <div
+          v-if="section.kind === 'popular'"
+          data-part="popular"
+          role="presentation"
+          :class="popularClass"
+        >
           <a
             v-for="row in section.rows"
             :key="row.value"
             :id="optionId(row.value)"
             data-part="chip"
             role="option"
+            tabindex="-1"
             aria-selected="false"
             :class="chipClass(row)"
             @click="emit('select', row, $event)"
@@ -320,6 +334,7 @@ function onPanelMouseDown(event: MouseEvent): void {
 
         <div
           v-else
+          role="presentation"
           :data-part="section.kind === 'recent' ? 'recent' : undefined"
           :class="section.kind === 'recent' ? recentClass : undefined"
         >
@@ -329,6 +344,7 @@ function onPanelMouseDown(event: MouseEvent): void {
             :id="optionId(row.value)"
             :data-part="row.kind === 'clearRecent' ? 'clearRecent' : 'item'"
             role="option"
+            tabindex="-1"
             aria-selected="false"
             :href="row.href"
             :class="rowClass(row, row.kind === 'clearRecent' ? 'clearRecent' : 'item')"
@@ -466,6 +482,7 @@ function onPanelMouseDown(event: MouseEvent): void {
           :id="optionId(row.value)"
           data-part="chip"
           role="option"
+          tabindex="-1"
           aria-selected="false"
           :class="chipClass(row)"
           @click="emit('select', row, $event)"
@@ -495,6 +512,7 @@ function onPanelMouseDown(event: MouseEvent): void {
         :id="optionId(viewAll.value)"
         data-part="viewAll"
         role="option"
+        tabindex="-1"
         aria-selected="false"
         :href="viewAll.href"
         :class="viewAllClass"

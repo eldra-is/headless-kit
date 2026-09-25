@@ -103,10 +103,24 @@ export const enUS = {
   popularSearches: 'Popular searches',
   /** Empties the search history (the spec's own row label). */
   clearRecent: 'Clear recent searches',
-  /** The live-region announcement after a search. */
-  resultsCount: (n: number) => `${n} ${n === 1 ? 'result' : 'results'}`,
-  /** The last row of a search results panel, which opens the full results page. */
-  viewAllResults: (n: number) => (n === 1 ? 'See 1 result' : `See all ${n} results`),
+  /**
+   * The live-region announcement after a search (spec "Search bar" -> Behaviour, Announcements:
+   * 'announces "4 results for mer" (singular "1 result for mer")'). The query is optional: a
+   * results count with nothing to name — a filtered list, a Search page heading — reads "4 results".
+   */
+  resultsCount: (n: number, query?: string) =>
+    query === undefined || query === ''
+      ? `${n} ${n === 1 ? 'result' : 'results'}`
+      : `${n} ${n === 1 ? 'result' : 'results'} for “${query}”`,
+  /**
+   * The last row of a search results panel, which opens the full results page (spec "Search bar":
+   * '"See all N results for “q”" is always the last row'). The query is optional, for a panel that
+   * has none to show — the Search modal's own "See all n results" row.
+   */
+  viewAllResults: (n: number, query?: string) => {
+    const count = n === 1 ? 'See 1 result' : `See all ${n} results`;
+    return query === undefined || query === '' ? count : `${count} for “${query}”`;
+  },
   /** The keyboard hint beside a search control. */
   shortcutHint: 'Press / to search',
   /** The label of an error region. */

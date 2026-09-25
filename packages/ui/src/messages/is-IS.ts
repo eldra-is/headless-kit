@@ -58,9 +58,14 @@ export const isIS: UiMessages = {
   recentSearches: 'Nýlegar leitir',
   popularSearches: 'Vinsælar leitir',
   clearRecent: 'Hreinsa nýlegar leitir',
-  resultsCount: (n: number) => `${n} ${singular(n) ? 'niðurstaða' : 'niðurstöður'}`,
-  viewAllResults: (n: number) =>
-    singular(n) ? `Sjá ${n} niðurstöðu` : `Sjá allar ${n} niðurstöður`,
+  resultsCount: (n: number, query?: string) => {
+    const count = `${n} ${singular(n) ? 'niðurstaða' : 'niðurstöður'}`;
+    return query === undefined || query === '' ? count : `${count} fyrir „${query}“`;
+  },
+  viewAllResults: (n: number, query?: string) => {
+    const count = singular(n) ? `Sjá ${n} niðurstöðu` : `Sjá allar ${n} niðurstöður`;
+    return query === undefined || query === '' ? count : `${count} fyrir „${query}“`;
+  },
   shortcutHint: 'Ýttu á / til að leita',
   error: 'Villa',
 };

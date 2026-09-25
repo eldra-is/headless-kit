@@ -29,8 +29,12 @@ export interface UseListboxOptions<T extends ListboxOption = ListboxOption> {
   canOpen?: () => boolean;
   /** Whether a search field is showing: it owns `Home`/`End`, `Space` and every printable key. */
   searchable: () => boolean;
-  /** The element id of a row, which is what `aria-activedescendant` points at. */
-  optionId: (value: string) => string;
+  /**
+   * The element id of a row, which is what `aria-activedescendant` points at. `undefined` for a
+   * value that has no row on screen — an active row the list has just dropped — so the caller can
+   * leave the attribute off rather than point it at an element that is not there.
+   */
+  optionId: (value: string) => string | undefined;
   /** Open the popup. `edge` is `'end'` for `ArrowUp` on a closed non-searchable trigger. */
   open: (edge: 'start' | 'end') => void;
   /** Close the popup without choosing anything. */

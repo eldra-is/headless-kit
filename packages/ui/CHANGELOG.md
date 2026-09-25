@@ -33,10 +33,16 @@ Release-please writes the generated notes from commit messages and does not repl
   the field (never while someone is typing elsewhere), `ArrowDown`/`ArrowUp` walk every row across
   groups without wrapping, `Enter` follows the active row (or fills the field from a recent row or
   chip, or submits), `Escape` clears the active row, then the query, then closes, and `Tab` closes
-  and moves on. A visually hidden polite live region announces the count, or "No results for …",
-  400ms after typing stops. Recent searches come from `localStorage["eldra-ui:recent-searches"]`
-  when `recent` is not given (read and written defensively, capped at 5), and "Clear recent
-  searches" empties them and emits `clearRecent`. `size` is `"md"` or `"lg"`, `pill` rounds the
+  and moves on — options are never in the tab order. Only one search bar on a page answers `/`: the
+  first one mounted with `shortcut` on owns it and hands it to the next when it unmounts. A visually
+  hidden polite live region announces "4 results for “mer”", or "No results for “teapot”", 400ms
+  after typing stops. Recent searches live in `localStorage["eldra-ui:recent-searches"]` when
+  `recent` is not given: read on mount and **written when a search actually happens** — the form is
+  submitted, or a row is followed — most recent first, deduplicated without regard to case, capped
+  at 5, with every storage call wrapped so a browser that refuses simply keeps no history. "Clear
+  recent searches" empties them and emits `clearRecent`. A query with no `results` yet shows no
+  panel at all (and, after 300ms, the loading view): the "no results" view is an answer from the
+  shop, not the absence of one. `size` is `"md"` or `"lg"`, `pill` rounds the
   field fully, `autofocus` is for the Search page, `resultTypes` picks the groups, `showRecent`
   turns the history off, and `classes`/`messages`/the `item` and `empty` slots are the styling and
   content hooks. New type utilities `text-search-meta`, `text-search-title` and `text-search-kbd`,
@@ -49,8 +55,11 @@ Release-please writes the generated notes from commit messages and does not repl
   the first two, and neither their tests nor their screenshot baselines moved.
 - New messages `noResultsFor(query)`, `searchSuggestions`, `searchProducts`, `searchCollections`,
   `searchJournal` and `searchAdvice`. `clearRecent` is now the spec's own "Clear recent searches"
-  (it was "Clear recent") and `viewAllResults(n)` its "See all N results" (it was "View all N
-  results"); both were already worded that way in `is-IS`.
+  (it was "Clear recent"), and `resultsCount` and `viewAllResults` both take an optional second
+  argument: `resultsCount(4, 'mer')` is "4 results for “mer”" and `viewAllResults(12, 'mer')` is
+  "See all 12 results for “mer”", while the one-argument call is unchanged apart from
+  `viewAllResults`' verb ("See all N results", was "View all N results" — `is-IS` already said
+  "Sjá allar").
 
 - `VariantPicker` — a native radio group in a `<fieldset>` for a product option (size, colour):
   pills (default) or swatches. `modelValue` is two-way, defaulting to the first available option;

@@ -41,6 +41,10 @@ const EMPTY: SearchResults = {
   total: 0,
 };
 
+/** The key the component reads and writes when `recent` is not given. */
+const RECENT_KEY = 'eldra-ui:recent-searches';
+const stored = (): unknown => JSON.parse(localStorage.getItem(RECENT_KEY) ?? 'null');
+
 const RECENT = ['merino scarf', 'espresso cups'];
 const POPULAR = ['Gifts under $50', 'Merino', 'Stoneware mugs', 'Linen'];
 
@@ -266,7 +270,7 @@ describe('SearchBar', () => {
   describe('recent searches from browser storage', () => {
     it('reads them when the prop is not given, newest first and capped at five', async () => {
       localStorage.setItem(
-        'eldra-ui:recent-searches',
+        RECENT_KEY,
         JSON.stringify(['one', 'two', 'three', 'four', 'five', 'six'])
       );
       const wrapper = mount();
@@ -282,7 +286,7 @@ describe('SearchBar', () => {
     });
 
     it('prefers the prop over storage', async () => {
-      localStorage.setItem('eldra-ui:recent-searches', JSON.stringify(['stored']));
+      localStorage.setItem(RECENT_KEY, JSON.stringify(['stored']));
       const wrapper = mount({ recent: RECENT });
       await focusField(wrapper);
       expect(wrapper.findAll('[data-part="recent"] [role="option"]')[0]?.text()).toBe(RECENT[0]);
@@ -297,18 +301,90 @@ describe('SearchBar', () => {
       expect(headings(wrapper)).toEqual([enUS.popularSearches]);
       getItem.mockRestore();
 
-      localStorage.setItem('eldra-ui:recent-searches', '{not json');
+      localStorage.setItem(RECENT_KEY, '{not json');
       const broken = mount({ popular: POPULAR });
       await focusField(broken);
       expect(headings(broken)).toEqual([enUS.popularSearches]);
     });
 
-    it('removes the stored history when the Clear row is chosen', async () => {
-      localStorage.setItem('eldra-ui:recent-searches', JSON.stringify(['one']));
+    it('stores the query on submit, newest first and deduplicated by case', async () => {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(['espresso cups', 'merino scarf']));
+      const wrapper = mount();
+      await type(wrapper, 'Merino Scarf');
+      await wrapper.find('[data-part="form"]').trigger('submit');
+      expect(stored()).toEqual(['Merino Scarf', 'espresso cups']);
+    });
+
+    it('stores the query when a result row is followed', async () => {
+      const wrapper = mount({ results: RESULTS });
+      await type(wrapper, 'mer');
+      await key(wrapper, { key: 'ArrowDown' });
+      await key(wrapper, { key: 'Enter' });
+      expect(wrapper.emitted('select')).toHaveLength(1);
+      expect(stored()).toEqual(['mer']);
+    });
+
+    it('keeps only the five most recent', async () => {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(['one', 'two', 'three', 'four', 'five']));
+      const wrapper = mount();
+      await type(wrapper, 'six');
+      await wrapper.find('[data-part="form"]').trigger('submit');
+      expect(stored()).toEqual(['six', 'one', 'two', 'three', 'four']);
+    });
+
+    it('writes nothing for a blank query, and nothing at all when recent is given', async () => {
+      const own = mount();
+      await type(own, '   ');
+      await own.find('[data-part="form"]').trigger('submit');
+      expect(localStorage.getItem(RECENT_KEY)).toBeNull();
+
+      const controlled = mount({ recent: RECENT });
+      await type(controlled, 'merino');
+      await controlled.find('[data-part="form"]').trigger('submit');
+      expect(controlled.emitted('submit')).toHaveLength(1);
+      expect(localStorage.getItem(RECENT_KEY)).toBeNull();
+    });
+
+    it('survives a storage that refuses to be written', async () => {
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota');
+      });
+      const wrapper = mount();
+      await type(wrapper, 'merino');
+      await wrapper.find('[data-part="form"]').trigger('submit');
+      expect(wrapper.emitted('submit')?.[0]).toEqual(['merino']);
+      setItem.mockRestore();
+
+      // The write failed, but the list is still right in memory for this page.
+      await type(wrapper, '');
+      await focusField(wrapper);
+      expect(wrapper.findAll('[data-part="recent"] [role="option"]')[0]?.text()).toBe('merino');
+    });
+
+    it('brings the group back when a search follows Clear recent searches', async () => {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(['one']));
       const wrapper = mount();
       await focusField(wrapper);
       await wrapper.find('[data-part="clearRecent"]').trigger('click');
-      expect(localStorage.getItem('eldra-ui:recent-searches')).toBeNull();
+      await flush();
+      expect(wrapper.find('[data-part="recent"]').exists()).toBe(false);
+
+      await type(wrapper, 'merino');
+      await wrapper.find('[data-part="form"]').trigger('submit');
+      await type(wrapper, '');
+      await focusField(wrapper);
+      expect(wrapper.findAll('[data-part="recent"] [role="option"]').map((n) => n.text())).toEqual([
+        'merino',
+        enUS.clearRecent,
+      ]);
+    });
+
+    it('removes the stored history when the Clear row is chosen', async () => {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(['one']));
+      const wrapper = mount();
+      await focusField(wrapper);
+      await wrapper.find('[data-part="clearRecent"]').trigger('click');
+      expect(localStorage.getItem(RECENT_KEY)).toBeNull();
     });
   });
 
@@ -332,7 +408,7 @@ describe('SearchBar', () => {
       ]);
       const last = rows(wrapper).at(-1);
       expect(last?.attributes('data-part')).toBe('viewAll');
-      expect(last?.text()).toBe(enUS.viewAllResults(RESULTS.total));
+      expect(last?.text()).toBe(enUS.viewAllResults(RESULTS.total, 'mer'));
       expect(last?.attributes('href')).toBe('/search?q=mer');
     });
 
@@ -402,6 +478,56 @@ describe('SearchBar', () => {
       expect(wrapper.find('mark').text()).toBe('Línen');
     });
 
+    it('keeps every option out of the tab order', async () => {
+      // Spec → Keyboard, `Tab`: "Options are never in the tab order." They are real links, so
+      // without `tabindex="-1"` every row would be a tab stop between the field and the page.
+      const wrapper = mount({ modelValue: 'mer', results: RESULTS, popular: POPULAR });
+      await focusField(wrapper);
+      const listbox = wrapper.find('[data-part="listbox"]').element;
+      const reachable = [...listbox.querySelectorAll('*')].filter(
+        (node) => node instanceof HTMLElement && node.tabIndex >= 0
+      );
+      expect(reachable).toEqual([]);
+      expect(rows(wrapper).length).toBeGreaterThan(0);
+    });
+
+    it('marks the row and chip wrappers as presentational', async () => {
+      const wrapper = mount({ recent: RECENT, popular: POPULAR });
+      await focusField(wrapper);
+      expect(wrapper.find('[data-part="recent"]').attributes('role')).toBe('presentation');
+      expect(wrapper.find('[data-part="popular"]').attributes('role')).toBe('presentation');
+    });
+
+    it('appends q with & when the action already carries a parameter', async () => {
+      const wrapper = mount({
+        modelValue: 'mer wool',
+        results: RESULTS,
+        action: '/search?type=product',
+      });
+      await focusField(wrapper);
+      expect(wrapper.find('[data-part="viewAll"]').attributes('href')).toBe(
+        '/search?type=product&q=mer%20wool'
+      );
+    });
+
+    it('drops aria-activedescendant when the active row is no longer on screen', async () => {
+      const wrapper = mount({ modelValue: 'mer', results: RESULTS });
+      await focusField(wrapper);
+      await key(wrapper, { key: 'ArrowDown' });
+      expect(field(wrapper).getAttribute('aria-activedescendant')).not.toBeNull();
+
+      // A later response for the same query, with none of the rows the active one came from.
+      await wrapper.setProps({
+        results: {
+          ...EMPTY,
+          total: 1,
+          collections: [{ id: 'later', title: 'Merino', href: '/c/merino' }],
+        },
+      });
+      await flush();
+      expect(field(wrapper).getAttribute('aria-activedescendant')).toBeNull();
+    });
+
     it('gives every row a unique id inside a named group', async () => {
       const wrapper = mount({ modelValue: 'mer', results: RESULTS });
       await focusField(wrapper);
@@ -424,6 +550,30 @@ describe('SearchBar', () => {
       expect(empty.text()).toContain(enUS.searchAdvice);
       expect(wrapper.findAll('[data-part="chip"]').map((n) => n.text())).toEqual(POPULAR);
       expect(wrapper.find('[data-part="viewAll"]').exists()).toBe(false);
+    });
+
+    it('waits for a first response before saying there is nothing', async () => {
+      // A query with no `results` yet is a request in flight, not an answer.
+      const wrapper = mount({ modelValue: 'teapot', popular: POPULAR });
+      await focusField(wrapper);
+      expect(panel(wrapper).exists()).toBe(false);
+      expect(field(wrapper).getAttribute('aria-expanded')).toBe('false');
+
+      await wrapper.setProps({ results: EMPTY });
+      await flush();
+      expect(wrapper.find('[data-part="empty"]').text()).toContain(enUS.noResultsFor('teapot'));
+    });
+
+    it('still reaches the loading view while the first response is outstanding', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount({ modelValue: 'teapot', loading: true });
+      field(wrapper).focus();
+      await wrapper.find('[data-part="field"]').trigger('focus');
+      await nextTick();
+      expect(panel(wrapper).exists()).toBe(false);
+      vi.advanceTimersByTime(300);
+      await nextTick();
+      expect(wrapper.find('[data-part="loading"]').exists()).toBe(true);
     });
 
     it('renders the empty slot instead when there is one', async () => {
@@ -496,7 +646,7 @@ describe('SearchBar', () => {
 
       vi.advanceTimersByTime(1);
       await nextTick();
-      expect(region().text()).toBe(enUS.resultsCount(RESULTS.total));
+      expect(region().text()).toBe(enUS.resultsCount(RESULTS.total, 'me'));
     });
 
     it('announces no results by name, and clears on an empty query', async () => {
@@ -712,6 +862,49 @@ describe('SearchBar', () => {
       await flush();
       expect(document.activeElement).not.toBe(field(wrapper));
       editable.remove();
+    });
+
+    it('is answered by one search bar only, and passed on when that one unmounts', async () => {
+      const first = mount({ popular: POPULAR });
+      const second = mount({ popular: POPULAR });
+
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      await flush();
+      expect(document.activeElement).toBe(field(first));
+
+      field(first).blur();
+      first.unmount();
+      mounted.splice(mounted.indexOf(first as unknown as VueWrapper), 1);
+      await flush();
+
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      await flush();
+      expect(document.activeElement).toBe(field(second));
+    });
+
+    it('keeps the bar that claimed it first, whatever order the listeners run in', async () => {
+      // The first bar mounts without the shortcut, so it registers its document listener first but
+      // claims nothing; the second claims the key. When the first turns its shortcut on later it
+      // joins the queue *behind* the owner — and the owner still answers, even though the other
+      // bar's listener runs before it.
+      const late = mount({ shortcut: false, popular: POPULAR });
+      const owner = mount({ popular: POPULAR });
+      await late.setProps({ shortcut: true });
+      await flush();
+
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      await flush();
+      expect(document.activeElement).toBe(field(owner));
+      expect(document.activeElement).not.toBe(field(late));
+    });
+
+    it('is owned by the first bar that wants it, not by one that turned it off', async () => {
+      const without = mount({ shortcut: false });
+      const owner = mount({ popular: POPULAR });
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      await flush();
+      expect(document.activeElement).toBe(field(owner));
+      expect(document.activeElement).not.toBe(field(without));
     });
 
     it('does nothing when the shortcut is off', async () => {

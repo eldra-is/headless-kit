@@ -64,6 +64,14 @@ describe('counted messages read naturally at one', () => {
     expect(enUS.resultsCount(12)).toBe('12 results');
     expect(enUS.viewAllResults(1)).toBe('See 1 result');
     expect(enUS.viewAllResults(12)).toBe('See all 12 results');
+    // The same two with the query the search bar names (spec "Search bar" -> Announcements and
+    // Panel views). An empty query reads as no query at all, not as a pair of empty quotes.
+    expect(enUS.resultsCount(1, 'mer')).toBe('1 result for “mer”');
+    expect(enUS.resultsCount(4, 'mer')).toBe('4 results for “mer”');
+    expect(enUS.resultsCount(4, '')).toBe('4 results');
+    expect(enUS.viewAllResults(1, 'mer')).toBe('See 1 result for “mer”');
+    expect(enUS.viewAllResults(12, 'mer')).toBe('See all 12 results for “mer”');
+    expect(enUS.viewAllResults(12, '')).toBe('See all 12 results');
   });
 
   it('uses the Icelandic singular for any count ending in 1 except 11', () => {
@@ -75,5 +83,7 @@ describe('counted messages read naturally at one', () => {
     expect(isIS.resultsCount(21)).toBe('21 niðurstaða');
     expect(isIS.viewAllResults(1)).toBe('Sjá 1 niðurstöðu');
     expect(isIS.viewAllResults(12)).toBe('Sjá allar 12 niðurstöður');
+    expect(isIS.resultsCount(4, 'mer')).toBe('4 niðurstöður fyrir „mer“');
+    expect(isIS.viewAllResults(12, 'mer')).toBe('Sjá allar 12 niðurstöður fyrir „mer“');
   });
 });
