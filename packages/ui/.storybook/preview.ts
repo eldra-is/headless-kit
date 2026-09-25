@@ -54,14 +54,23 @@ function sectionOf(globals: Record<string, unknown>): SectionName {
  * Wraps every story in the selected section: `data-section` so a component can
  * be inspected (and asserted on) for the surface it sits on, plus the section's
  * own background and text colour so the story matches what the toolbar says.
+ *
+ * It also carries `group/section`, which is the hook the components' coloured-section
+ * variants read (`group-data-[section=primary]/section:…`). Without it the toolbar
+ * would paint the background but leave a primary Button in its light-ground colours.
  */
 const withSection: Decorator = (story, context) => {
   const section = sectionOf(context.globals);
   return {
     setup: () => () =>
-      h('div', { 'data-section': section, class: `${SECTIONS[section].classes} font-body p-6` }, [
-        h(story()),
-      ]),
+      h(
+        'div',
+        {
+          'data-section': section,
+          class: `group/section ${SECTIONS[section].classes} font-body p-6`,
+        },
+        [h(story())]
+      ),
   };
 };
 

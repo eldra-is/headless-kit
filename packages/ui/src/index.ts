@@ -3,10 +3,20 @@
 // `<EldraButton>`.
 
 // Components
+export { default as Button } from './components/button/Button.vue';
+export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
 // Component types
+export type {
+  ButtonGroupPart,
+  ButtonGroupProps,
+  ButtonPart,
+  ButtonProps,
+  ButtonSize,
+  ButtonVariant,
+} from './components/button/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
 
@@ -21,6 +31,10 @@ export {
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
+
+// Form context. A `FormLayout` provides it; every Button below reads it, so a submitting form
+// shows its primary action loading and every other action disabled.
+export { FORM_SUBMITTING_KEY } from './components/form-layout/context';
 
 // Styling helpers, so a consumer composing its own wrapper merges classes the
 // same way the components do.

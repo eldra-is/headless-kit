@@ -1,6 +1,11 @@
 /* Tailwind v4 theme for @eldrajs/ui. Every value is a --eldra-* variable from tokens.css, so a
-   consumer restyles by setting variables; nothing here is a literal. Consumers with Tailwind
-   import this file after `@import 'tailwindcss'`; consumers without Tailwind use style.css. */
+   consumer restyles by setting variables. Consumers with Tailwind import this file after
+   `@import 'tailwindcss'`; consumers without Tailwind use style.css.
+
+   Two kinds of value cannot be a variable and are written out here, nowhere else:
+   - container-query breakpoints, because a `@container (width < ...)` condition may not contain
+     `var()` — Tailwind inlines the `--container-*` value into the condition at build time;
+   - the spinner's own animation timings, which the spec fixes at 700ms (spin) and 1.2s (pulse). */
 @import './tokens.css';
 @source './';
 
@@ -59,6 +64,15 @@
   --container-narrow: var(--eldra-container-narrow);
   --container-content: var(--eldra-container-content);
   --container-wide: var(--eldra-container-wide);
+
+  /* In Tailwind v4 the `--container-*` namespace is the container-query breakpoint scale as well
+     as the width scale, so the three layout widths above already name the spec's `desktop`
+     (64rem, `--container-content`) and `wide` (80rem, `--container-wide`) breakpoints. The
+     mobile/tablet edge at 48rem has no layout width of its own, so it is named here: `@max-tablet`
+     is the spec's "narrower than 48rem", which is what grows an md button to `target-touch`.
+     Declaring these keys does not disturb Tailwind's own `@sm`/`@md`/... container scale — the
+     theme never resets `--container-*`. */
+  --container-tablet: 48rem;
 }
 
 /* Type styles: one utility per spec style, e.g. `text-body-sm`. */
@@ -124,6 +138,22 @@
   letter-spacing: var(--eldra-text-code-tracking);
 }
 
+/* Button type (spec "Button" → Sizes): weight 600 on a 1.2 line at every size, with the size's
+   own font size. sm and md reuse the body-sm and body token sizes; lg's 1.0625rem sits between two
+   type styles and has no token, so it is a per-component variable with that default. */
+@utility text-button-sm {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+}
+@utility text-button-md {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
+    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+}
+@utility text-button-lg {
+  font: var(--eldra-text-label-weight) var(--eldra-button-font-size-lg, 1.0625rem) /
+    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+}
+
 /* Control heights and targets. */
 @utility control-h {
   height: var(--eldra-control-height);
@@ -151,6 +181,32 @@
 }
 @utility duration-slow {
   transition-duration: var(--eldra-duration-slow);
+}
+
+/* The Button spinner (spec "Button" → Behaviour & motion): it turns once every 700ms, linear,
+   without end; with reduced motion it pulses at 60-100% opacity over 1.2s instead of spinning.
+   These two timings are the spec's own and are the only durations in the package that do not read
+   `--eldra-duration-*` — the reduced-motion rule in tokens.css zeroes those, which would stop the
+   pulse as well. */
+@keyframes eldra-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes eldra-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@utility animate-eldra-spin {
+  animation: eldra-spin 700ms linear infinite;
+}
+@utility animate-eldra-pulse {
+  animation: eldra-pulse 1.2s var(--eldra-ease-out) infinite;
 }
 
 /* Layers. */

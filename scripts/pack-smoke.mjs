@@ -73,13 +73,22 @@ const consumers = {
     `,
   },
   '@eldrajs/ui': {
-    // The scaffold ships no components yet: this proves the package resolves and that the three
-    // CSS entries are in the tarball. Later plans add the component and resolver probes.
+    // Proves the package resolves, that the three CSS entries are in the tarball, and that a
+    // component really is a component on the other side of the build (a Vue SFC that failed to
+    // compile still imports fine as a plain object, so the render function is what is asserted).
     runtime: `
       import { existsSync } from 'node:fs';
       import { createRequire } from 'node:module';
       import * as ui from '@eldrajs/ui';
+      import { Button, ButtonGroup } from '@eldrajs/ui';
       assert(ui && typeof ui === 'object', '@eldrajs/ui namespace');
+      for (const [name, component] of [['Button', Button], ['ButtonGroup', ButtonGroup]]) {
+        assert(component && typeof component === 'object', name + ' is an object');
+        assert(
+          typeof component.render === 'function' || typeof component.setup === 'function',
+          name + ' has a render or setup function'
+        );
+      }
       const resolve = createRequire(import.meta.url).resolve;
       for (const css of ['tokens.css', 'tailwind.css', 'style.css']) {
         assert(existsSync(resolve('@eldrajs/ui/' + css)), css);
@@ -87,7 +96,11 @@ const consumers = {
     `,
     types: `
       import * as ui from '@eldrajs/ui';
+      import { Button, ButtonGroup, FORM_SUBMITTING_KEY, type ButtonProps } from '@eldrajs/ui';
       export const namespace: typeof ui = ui;
+      export const components = { Button, ButtonGroup };
+      export const key = FORM_SUBMITTING_KEY;
+      export const props: ButtonProps = { variant: 'primary', size: 'lg' };
     `,
   },
   '@eldrajs/theme-core': {

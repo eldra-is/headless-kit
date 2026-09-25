@@ -24,6 +24,24 @@ Release-please writes the generated notes from commit messages and does not repl
 - `Icon` — renders a Tabler (or any) icon component at the spec's four sizes (1, 1.25, 1.5 and
   2rem) with stroke 1.75, in the current text colour. Decorative (`aria-hidden`) unless `label` is
   given, which makes it `role="img"` with an accessible name.
+- `Button` — the spec's one action control, in six variants (`primary`, `secondary`, `outline`,
+  `ghost`, `link`, `danger`) and three sizes. Renders a native `<button>`, or an `<a href>` when
+  `href` is set. `loading` hides the label and icons without changing the width, shows a spinner
+  and swaps the accessible name to `label`; `iconOnly` makes it square and named by `label`;
+  `pressed` exposes `aria-pressed` with a fill, not only a hue; `disabled`, `block` and the
+  per-part `classes` prop complete the set. Hover fills are `color-mix()` of the tokens, so a
+  rebranded `primary` or `accent` carries them with it, and on a `primary` or `accent` section the
+  variants invert on their own. `--eldra-button-radius`, `--eldra-button-line-height` and
+  `--eldra-button-font-size-lg` restyle it without touching a class.
+- `ButtonGroup` — the layout helper: a wrapping row with a `space-3` gap, or a segmented control
+  with `attached` (`role="group"`, square inner corners, 1px neighbour overlap, the focused button
+  raised above its neighbours). It is a container-query context, which is what lets an md Button
+  inside it grow to the 2.75rem touch target when the block is narrower than 48rem.
+- `FORM_SUBMITTING_KEY` — the injection key a form layout provides so that, while the form
+  submits, its `type="submit"` Button becomes a loading button and every other action is disabled.
+- `@eldrajs/ui/tailwind.css` gains `text-button-{sm,md,lg}`, `animate-eldra-spin` and
+  `animate-eldra-pulse` (with the `eldra-spin`/`eldra-pulse` keyframes), and a `--container-tablet`
+  key so `@max-tablet:` is the spec's "narrower than 48rem" container query.
 - `VisuallyHidden` — content for assistive technology only, with `as` for the rendered element and
   `focusable` for the skip-link pattern.
 - Messages: `useMessages`, `provideEldraUiMessages` and `MESSAGES_KEY` resolve the strings the
