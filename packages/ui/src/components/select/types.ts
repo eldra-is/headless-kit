@@ -37,6 +37,10 @@ export interface SelectOption {
  * prose ("swatch, icon, label + hint, meta, check") — but it is a part all the same, and the
  * trigger reuses `optionSwatch`/`optionIcon` for the chosen option's mark, so "an option's swatch"
  * is styled once wherever it appears.
+ *
+ * `native` is the odd one out: it marks the hidden native `<select>` with a `data-part` so a test
+ * or a form helper can find it, but the element is `hidden`, so `classes.native` merges onto
+ * nothing and has no effect. Every other part takes classes.
  */
 export type SelectPart =
   | 'root'
@@ -116,6 +120,12 @@ export interface SelectProps {
  * chosen" in both controls, so a consumer styles it once. The footer parts are not in the brief's
  * list but are in the spec's anatomy ("footer: live count · Clear (link button) · Done (primary
  * sm)"), and a part the component draws and a consumer cannot reach is not a part.
+ *
+ * Two inherited names draw nothing here. `value` is a `Select`'s chosen-option row; a multi-select
+ * draws `summary` (the labels and the "+N" pill) in its place, so `classes.value` has no effect.
+ * `native` is a `data-part` marker on a `hidden` element in both controls, so `classes.native` has
+ * none either. Both are kept in the union rather than subtracted from it, so that one `classes`
+ * object can be handed to either control.
  */
 export type MultiSelectPart =
   | SelectPart

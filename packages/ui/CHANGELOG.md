@@ -38,8 +38,10 @@ Release-please writes the generated notes from commit messages and does not repl
   `change`, so forms post every selected value. Toggling never closes the popover: `Enter` (and
   `Space` without a search field) toggles, `Alt+ArrowUp` toggles and closes, `Tab` walks into the
   footer with the popover still open, `Backspace` in an empty search field takes the last tag off,
-  and `Backspace`/`Delete` on the closed trigger clear everything. Slots: `option`
-  (`{ option, selected, active }`), `value` (`{ options }`), `tag` (`{ option }`) and `empty`.
+  and `Backspace`/`Delete` on the closed trigger clear everything. A `disabled` or `readonly`
+  control keeps its tags readable and drops their remove buttons, as it already drops the clear
+  button. Slots: `option` (`{ option, selected, active }`), `value` (`{ options }`), `tag`
+  (`{ option }`) and `empty`.
 - `Select`'s panel is now the same component `MultiSelect` opens. The search field, the listbox, the
   groups, the option rows, the empty state, the press guard that keeps a click inside the panel from
   blurring the focused element, and the active row's scroll-into-view live in one place; the two

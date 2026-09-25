@@ -453,6 +453,45 @@ describe('MultiSelect — clearing and tags', () => {
     const readonly = mount({ modelValue: ['sweaters'], readonly: true });
     expect(readonly.find('[data-part="clearButton"]').exists()).toBe(false);
   });
+
+  it.each(['disabled', 'readonly'])(
+    'keeps the tags readable but takes their remove buttons away when %s',
+    async (state) => {
+      const wrapper = mount({ modelValue: ['sweaters', 'mugs'], [state]: true });
+      // The tag list is the value made readable, so it stays...
+      expect(tags(wrapper).map((tag) => tag.text())).toEqual(['Sweaters', 'Mugs & cups']);
+      // ...and nothing on it offers an action that cannot happen — not even a disabled button,
+      // which would still be announced.
+      expect(wrapper.findAll('[data-part="tagRemove"]')).toHaveLength(0);
+      // The chip pads evenly instead of ending short where the button used to be.
+      expect(tags(wrapper)[0]?.classes()).toContain('px-2.5');
+
+      await wrapper.setProps({ [state]: false });
+      expect(wrapper.findAll('[data-part="tagRemove"]')).toHaveLength(2);
+      expect(tags(wrapper)[0]?.classes()).toContain('pe-0.5');
+    }
+  );
+
+  it('keeps focus where aria-activedescendant is when the clear button is used while open', async () => {
+    const wrapper = mount({ options: MANY, modelValue: ['v0', 'v1'] });
+    await press(triggerOf(wrapper));
+    expect(document.activeElement).toBe(search(wrapper));
+
+    await wrapper.find('[data-part="clearButton"]').trigger('click');
+    await flush();
+    expect(wrapper.emitted('clear')).toHaveLength(1);
+    // The panel is still open, and the search field is the element carrying the active row.
+    expect(panel(wrapper).exists()).toBe(true);
+    expect(document.activeElement).toBe(search(wrapper));
+    expect(search(wrapper).getAttribute('aria-activedescendant')).not.toBeNull();
+
+    // Closed, or open without a search field, it is the trigger's.
+    const plain = mount({ modelValue: ['sweaters'], searchable: false });
+    await press(triggerOf(plain));
+    await plain.find('[data-part="clearButton"]').trigger('click');
+    await flush();
+    expect(document.activeElement).toBe(trigger(plain));
+  });
 });
 
 describe('MultiSelect — searching and the shared panel', () => {
@@ -764,6 +803,71 @@ describe('MultiSelect — accessibility', () => {
     mounted.push(wrapper as unknown as VueWrapper);
     await press(wrapper.find('[data-part="trigger"]'));
     expect(await axe(document.body)).toHaveNoViolations();
+  });
+});
+
+describe('MultiSelect — the checkbox geometry', () => {
+  /**
+   * Spec "Multi-select" → Sizes, "Checkbox in option": "1rem square … Checked: `primary` fill and
+   * border with a `primary-contrast` tick (0.25 × 0.5rem, 2px stroke)." The svg is drawn at the
+   * tick's own size over an 8 × 4 viewBox, so one unit is one pixel of the drawn mark: the ink —
+   * the centreline plus a 1-unit round cap at each end — has to measure 8 × 4. Asserted as numbers
+   * rather than as a path string, so the shape can be redrawn and the measurements still hold.
+   *
+   * (The same shape at a 10-unit viewBox squeezed into 0.5rem would render `stroke-width="2"` as
+   * 1.6px, which is what this guards.)
+   */
+  const CAP = 1;
+
+  function points(d: string): Array<[number, number]> {
+    const numbers = [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+    const result: Array<[number, number]> = [[numbers[0] as number, numbers[1] as number]];
+    let [x, y] = result[0] as [number, number];
+    for (const index of [2, 4]) {
+      x += numbers[index] as number;
+      y += numbers[index + 1] as number;
+      result.push([x, y]);
+    }
+    return result;
+  }
+
+  async function tick() {
+    const wrapper = mount({ modelValue: ['sweaters'], searchable: false });
+    await press(triggerOf(wrapper));
+    const svg = wrapper.find('[data-part="optionCheck"] svg');
+    return {
+      classes: svg.classes(),
+      viewBox: svg.attributes('viewBox') ?? '',
+      strokeWidth: svg.attributes('stroke-width') ?? '',
+      d: (svg.find('path').element as SVGPathElement).getAttribute('d') ?? '',
+    };
+  }
+
+  it('draws the svg at the mark size, so a viewBox unit is a drawn pixel', async () => {
+    const { classes, viewBox } = await tick();
+    // 0.5rem × 0.25rem on the 0.25rem spacing step.
+    expect(classes).toContain('w-2');
+    expect(classes).toContain('h-1');
+    expect(viewBox).toBe('0 0 8 4');
+  });
+
+  it('draws the tick 0.5rem wide and 0.25rem tall, 2px thick', async () => {
+    const { d, strokeWidth } = await tick();
+    expect(strokeWidth).toBe('2');
+    const p = points(d);
+    const xs = p.map(([x]) => x);
+    const ys = p.map(([, y]) => y);
+    expect(Math.max(...xs) - Math.min(...xs) + 2 * CAP).toBeCloseTo(8, 5);
+    expect(Math.max(...ys) - Math.min(...ys) + 2 * CAP).toBeCloseTo(4, 5);
+  });
+
+  it('keeps the whole mark inside its viewBox, so no cap is clipped', async () => {
+    for (const [x, y] of points((await tick()).d)) {
+      expect(x - CAP).toBeGreaterThanOrEqual(0);
+      expect(x + CAP).toBeLessThanOrEqual(8);
+      expect(y - CAP).toBeGreaterThanOrEqual(0);
+      expect(y + CAP).toBeLessThanOrEqual(4);
+    }
   });
 });
 

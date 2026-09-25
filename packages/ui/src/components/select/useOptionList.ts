@@ -85,8 +85,6 @@ export interface UseOptionListOptions {
 }
 
 export interface UseOptionListReturn {
-  /** The options a query leaves visible, in the consumer's order. */
-  visibleOptions: ComputedRef<SelectOption[]>;
   /** The visible options bucketed into the panel's sections. */
   sections: ComputedRef<PanelSection[]>;
   /** *Every* option bucketed, for the hidden native select's `<optgroup>`s. */
@@ -107,6 +105,11 @@ export interface UseOptionListReturn {
 export function useOptionList(options: UseOptionListOptions): UseOptionListReturn {
   const trimmedQuery = computed(() => (options.searchable() ? options.query().trim() : ''));
 
+  /**
+   * The options a query leaves, in the consumer's order. Not returned: every caller wants them
+   * bucketed (`sections`) or in DOM order (`listOptions`), and a third view of the same list would
+   * only be a way to disagree with those two.
+   */
   const visibleOptions = computed(() => {
     const trimmed = trimmedQuery.value;
     if (trimmed === '') return options.options();
@@ -153,5 +156,5 @@ export function useOptionList(options: UseOptionListOptions): UseOptionListRetur
     );
   });
 
-  return { visibleOptions, sections, nativeSections, listOptions, hasOptions, highlights };
+  return { sections, nativeSections, listOptions, hasOptions, highlights };
 }

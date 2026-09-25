@@ -130,6 +130,18 @@ const hasSelection = computed(() => selectedOptions.value.length > 0);
 const showClear = computed(() => !props.disabled && !props.readonly && hasSelection.value);
 
 /**
+ * Whether a tag carries its remove button.
+ *
+ * The spec's States table ends a disabled control's row with "clear button hidden", and a read-only
+ * one is "the value is readable but fixed". The tag list *is* the value made readable, so it stays
+ * in both states; the control that would change it goes, exactly as the trigger's clear button
+ * already does (`showClear` above). Hidden rather than `disabled`: a disabled button stays in the
+ * accessibility tree, announcing a "Remove Sweaters" action that can never happen, and hiding it is
+ * the spec's own answer for the clear button in the same situation.
+ */
+const showTagRemove = computed(() => !props.disabled && !props.readonly);
+
+/**
  * Spec "Multi-select" → States, Some selected: "the trigger lists the first 2 labels, comma-
  * separated and truncated with an ellipsis, plus a '+N' pill for the rest."
  */
@@ -381,9 +393,17 @@ function clearAll(): boolean {
   return true;
 }
 
+/**
+ * The trigger's clear button. Focus goes back to the trigger — except while the panel is open with a
+ * search field, where focus belongs in that field: it is the element carrying
+ * `aria-activedescendant` (the trigger drops it the moment the search field takes focus), so
+ * pulling focus onto the trigger would leave the open listbox with no active-row announcement at
+ * all. The same rule the footer's Clear follows.
+ */
 function onClearClick(): void {
   clearAll();
-  triggerRef.value?.focus();
+  if (isOpen.value && searchable.value) searchRef.value?.focus();
+  else triggerRef.value?.focus();
 }
 
 /**
@@ -576,8 +596,12 @@ const tagsClass = computed(() => part('mt-1 flex list-none flex-wrap gap-1.5 p-0
 
 const tagClass = computed(() =>
   part(
-    'bg-surface-strong text-text inline-flex min-h-7 items-center gap-1 rounded-full ' +
-      'ps-2.5 pe-0.5 text-caption',
+    cx(
+      'bg-surface-strong text-text inline-flex min-h-7 items-center gap-1 rounded-full text-caption',
+      // 0.625rem at the start either way; the end padding is the remove button's own room, so a
+      // chip without one is padded evenly instead of ending short.
+      showTagRemove.value ? 'ps-2.5 pe-0.5' : 'px-2.5'
+    ),
     'tag'
   )
 );
@@ -778,6 +802,7 @@ const emptyText = computed(() =>
           <span class="min-w-0 truncate">{{ option.label }}</span>
         </slot>
         <button
+          v-if="showTagRemove"
           data-part="tagRemove"
           type="button"
           :class="tagRemoveClass"

@@ -279,6 +279,17 @@ Additions and departures from the design spec, and why.
 - **A `MultiSelect` value with no option of its own is dropped** from the summary, the tags, the
   count and the hidden native select. It has no label to show and a `<select>` cannot hold it, so
   showing a count that includes it would make the trigger disagree with the tags underneath it.
+- **A disabled or read-only `MultiSelect` keeps its tags and drops their remove buttons.** The
+  spec's States table ends a disabled control's row with "clear button hidden", and a read-only one
+  is "the value is readable but fixed" — the tag list _is_ the value made readable, so it stays in
+  both states while the control that would change it goes, exactly as the trigger's clear button
+  already does. Hidden rather than `disabled`: a disabled button stays in the accessibility tree
+  announcing a "Remove Sweaters" action that can never happen.
+- **`MultiSelect`'s `classes.value` and `classes.native` do nothing.** `value` is a `Select`'s
+  chosen-option row; a multi-select draws `summary` (the labels and the "+N" pill) in its place.
+  `native` marks the hidden native `<select>` with a `data-part` so a test or a form helper can
+  find it, but the element is `hidden` in both controls, so there is nothing for a class to do.
+  Both names stay in the part union so one `classes` object can be handed to either control.
 - **`MultiSelect`'s `value` slot takes `{ options }`** (the chosen ones, in the order they were
   chosen) and fills the `summary` part, and the `tag` slot takes `{ option }` and replaces a chip's
   **label**, leaving its remove button in place — a consumer restyling a chip should not have to
