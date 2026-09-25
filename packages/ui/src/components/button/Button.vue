@@ -42,16 +42,25 @@ const BASE =
 
 /**
  * Sizes (spec "Button" → Sizes). `--spacing` is 0.25rem, so `px-3`/`px-4.5`/`px-6` are the spec's
- * 0.75/1.125/1.5rem and `gap-1.5`/`gap-2` its 0.375/0.5rem. `@max-tablet` is a container query at
- * 48rem, so an md button grows to `target-touch` when the *block* it sits in is narrow — which is
- * what the spec measures, not the viewport. Its nearest container is a ButtonGroup, a FormLayout
- * or the theme's Section.
+ * 0.75/1.125/1.5rem and `gap-1.5`/`gap-2` its 0.375/0.5rem.
  */
 const SIZE: Record<ButtonSize, string> = {
   sm: 'control-h-sm px-3 gap-1.5 text-button-sm',
-  md: 'control-h @max-tablet:target-touch px-4.5 gap-2 text-button-md',
+  md: 'control-h px-4.5 gap-2 text-button-md',
   lg: 'control-h-lg px-6 gap-2 text-button-lg',
 };
+
+/**
+ * The touch target (spec "Actions and forms" → Compact controls): "Controls keep their height on
+ * mobile. **Only primary action buttons** grow to `target-touch` (2.75rem)." So the growth is the
+ * `primary` variant's, at `md`, and not every button's — a row of outline and ghost actions keeps
+ * the 2.5rem control height it shares with the inputs beside it.
+ *
+ * `@max-tablet` is a container query at 48rem, so it measures the *block* the button sits in, not
+ * the viewport, which is what the spec's "below a 48rem container" asks for. The nearest container
+ * is a ButtonGroup, a FormLayout or the theme's Section.
+ */
+const TOUCH_GROWTH = '@max-tablet:target-touch';
 
 /** Icon-only is square at its size's height and never grows: the spec lists 2 / 2.5 / 3rem. */
 const ICON_ONLY_SIZE: Record<ButtonSize, string> = {
@@ -162,7 +171,8 @@ const isDisabled = computed(() => props.disabled || (submitting.value && !isSubm
 
 const sizeClass = computed(() => {
   if (props.variant === 'link') return LINK_SIZE[props.size];
-  return props.iconOnly ? ICON_ONLY_SIZE[props.size] : SIZE[props.size];
+  if (props.iconOnly) return ICON_ONLY_SIZE[props.size];
+  return cx(SIZE[props.size], props.size === 'md' && props.variant === 'primary' && TOUCH_GROWTH);
 });
 
 const stateClass = computed(() =>

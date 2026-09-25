@@ -32,7 +32,9 @@ const meta = {
           '',
           '**Name**: `heading` renders a visible title and names the form through `aria-labelledby`;',
           '`ariaLabel` names a form with no visible title (the newsletter). A visible heading always',
-          'wins, so the accessible name never disagrees with what is on the screen.',
+          'wins, so the accessible name never disagrees with what is on the screen. `headingLevel`',
+          '(2, 3 or 4; default 2) picks the element — "h4" in the spec names the *type style*, not',
+          'the outline level, so a form nested under a page\'s own `<h3>` says `heading-level="4"`.',
           '',
           '**Two columns are a container query, not a media query**: the pairs appear from a **36rem',
           'container** and stack below it, measured on the form itself — so a form in a narrow',
@@ -50,8 +52,9 @@ const meta = {
           '**The actions row**: the primary action is **last in the DOM** and sits at the end on',
           'wide layouts. Below 36rem the row reverses visually (`flex-col-reverse`) so the primary',
           'is on top and every button fills the width — the reading and tab order stays the DOM',
-          'order. A tertiary back link comes first; give it `class="me-auto"` to push it to the',
-          'start of a wide row.',
+          'order. A tertiary back link comes first and pushes itself to the start of a wide row (it',
+          "is the only `<a>` the spec's actions row holds), so the row reads as space-between with a",
+          'back link and end-aligned without one, and there is nothing for you to remember.',
           '',
           '**Submitting**: `submitting` provides `FORM_SUBMITTING_KEY`, which every `Button` below',
           'injects — the `type="submit"` button becomes `loading` (`aria-busy="true"`, spinner, its',
@@ -61,10 +64,26 @@ const meta = {
           '**It is a `@container`**, which is also what lets the md Buttons inside it grow to the',
           '2.75rem touch target when the *form* is narrower than 48rem rather than when the page is.',
           '',
-          '**Validation is yours**: `submit` fires with the native `SubmitEvent` and the default is',
-          'not prevented. Call `preventDefault()` in your handler for a scripted form; leave it for',
-          'a form that posts. `novalidate` is on by default so the messages are the components own,',
-          'consistent and translated ones rather than the browser bubbles.',
+          '**Submitting is guarded**: on `submit` the form asks the DOM which fields are invalid',
+          '(`[aria-invalid="true"]`, which every control in this package sets from its field\'s',
+          '`error`), so the accessibility state and the validity state cannot drift apart. If any',
+          'field is invalid the submit is stopped, focus moves to the first one, and **`invalid`**',
+          'fires with their ids — which is what an error summary links to. Otherwise **`submit`**',
+          "fires with `{ event, data }`, where `data` is the form's own `FormData`, and the default",
+          'is deliberately not prevented: a form with an `action` still posts without scripting.',
+          'Call `preventDefault()` in your own handler for a scripted form. `novalidate` is on by',
+          'default so the messages are the components own, consistent and translated ones rather',
+          'than the browser bubbles.',
+          '',
+          "**Error summary**: fill the `errorSummary` slot and the form draws the spec's alert box",
+          'above the fields (`surface` fill, 1px `danger` border, `danger` icon) around your list of',
+          'links to the failed fields. It renders only when the slot is given; the links are yours,',
+          'because only you know which fields failed.',
+          '',
+          '**Success**: `statusMessage` feeds a polite `role="status"` region that is always in the',
+          'DOM and always visually hidden, so a confirmation set after a successful submit is',
+          "announced without moving focus. The *visible* confirmation is still the page's job —",
+          'replace the form, or navigate.',
         ].join('\n'),
       },
     },
@@ -125,7 +144,7 @@ export const TwoColumn: Story = {
             <Input v-model="postcode" autocomplete="postal-code" />
           </FieldWrapper>
           <template #actions>
-            <Link href="/basket" variant="standalone" :classes="{ root: 'me-auto' }">Return to basket</Link>
+            <Link href="/basket" variant="standalone">Return to basket</Link>
             <Button variant="outline">Save for later</Button>
             <Button variant="primary" type="submit" label="Continuing to shipping">Continue to shipping</Button>
           </template>
@@ -186,7 +205,49 @@ export const Submitting: Story = {
           <FieldWrapper label="Last name" required><Input v-model="last" autocomplete="family-name" /></FieldWrapper>
           <FieldWrapper label="Address" required full><Input v-model="address" autocomplete="address-line1" /></FieldWrapper>
           <template #actions>
-            <Link href="/basket" variant="standalone" :classes="{ root: 'me-auto' }">Return to basket</Link>
+            <Link href="/basket" variant="standalone">Return to basket</Link>
+            <Button variant="outline">Save for later</Button>
+            <Button variant="primary" type="submit" label="Continuing to shipping">Continue to shipping</Button>
+          </template>
+        </FormLayout>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * The failed-submit state of a long form: the spec's error summary alert above the fields, each
+ * error linked, and every failed field showing its own message.
+ */
+export const WithErrorSummary: Story = {
+  args: { layout: 'two', heading: 'Shipping address' },
+  render: (args) => ({
+    components: { FormLayout, FieldWrapper, Input, Button },
+    setup: () => ({
+      args,
+      first: ref(''),
+      address: ref('14 Harbour Lane'),
+      postcode: ref('BS1 4X'),
+    }),
+    template: `
+      <div class="max-w-3xl">
+        <FormLayout v-bind="args" status-message="There are 2 problems with this form.">
+          <template #errorSummary>
+            <p class="font-semibold">There are 2 problems with this form</p>
+            <ul class="mt-1 list-disc ps-4">
+              <li><a href="#summary-first" class="underline">Enter your first name</a></li>
+              <li><a href="#summary-postcode" class="underline">Enter a full postcode</a></li>
+            </ul>
+          </template>
+          <FieldWrapper id="summary-first" label="First name" required error="Enter your first name.">
+            <Input v-model="first" autocomplete="given-name" />
+          </FieldWrapper>
+          <FieldWrapper label="Last name" required><Input model-value="Holt" autocomplete="family-name" /></FieldWrapper>
+          <FieldWrapper label="Address" required full><Input v-model="address" autocomplete="address-line1" /></FieldWrapper>
+          <FieldWrapper id="summary-postcode" label="Postcode" required error="Enter a full postcode.">
+            <Input v-model="postcode" autocomplete="postal-code" />
+          </FieldWrapper>
+          <template #actions>
             <Button variant="outline">Save for later</Button>
             <Button variant="primary" type="submit" label="Continuing to shipping">Continue to shipping</Button>
           </template>

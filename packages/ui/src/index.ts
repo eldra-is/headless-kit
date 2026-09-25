@@ -28,8 +28,10 @@ export type {
   FieldWrapperProps,
 } from './components/field-wrapper/types';
 export type {
+  FormLayoutHeadingLevel,
   FormLayoutPart,
   FormLayoutProps,
+  FormLayoutSubmitPayload,
   FormLayoutVariant,
 } from './components/form-layout/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';

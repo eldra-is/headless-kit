@@ -61,12 +61,15 @@ const meta = {
           '**Form layout**: a Button inside a `FormLayout` that is submitting turns into a loading',
           'button when its `type` is `submit`, and is disabled otherwise.',
           '',
-          '**Container queries**: an `md` button grows to the 2.75rem touch target only when an',
-          'ancestor is a container (`@container`) narrower than 48rem — `ButtonGroup`, `FormLayout`',
-          "and the theme's `Section` all are. A Button dropped straight into a plain `<div>` has",
-          'no container to measure, so it stays 2.5rem however narrow the page gets. The spec',
-          'measures the block, not the viewport, which is what makes a narrow page-builder column',
-          'behave like a phone.',
+          '**Container queries**: an `md` **primary** button grows to the 2.75rem touch target when',
+          'an ancestor is a container (`@container`) narrower than 48rem — `ButtonGroup`,',
+          "`FormLayout` and the theme's `Section` all are. The spec grows the *primary action* only",
+          '("Controls keep their height on mobile. Only primary action buttons grow to',
+          '`target-touch`"), so a secondary, outline or ghost action in the same row keeps the',
+          '2.5rem control height it shares with the inputs beside it. A Button dropped straight into',
+          'a plain `<div>` has no container to measure, so it stays 2.5rem however narrow the page',
+          'gets. The spec measures the block, not the viewport, which is what makes a narrow',
+          'page-builder column behave like a phone.',
           '',
           '**On coloured sections**: the variant inversions apply to the live states only. A',
           'disabled button keeps its `surface-strong` fill and `muted` text on a `primary` or',
@@ -115,7 +118,7 @@ export const Danger: Story = {
   render: single('Remove item'),
 };
 
-/** 2rem, 2.5rem and 3rem. An md button grows to 2.75rem when its container is under 48rem. */
+/** 2rem, 2.5rem and 3rem. An md *primary* button grows to 2.75rem when its container is under 48rem. */
 export const Sizes: Story = {
   render: (args) => ({
     components: { Button },
@@ -289,8 +292,9 @@ export const LongContent: Story = {
 };
 
 /**
- * A 20rem container. The group wraps, and the md button grows to the 2.75rem touch target because
- * the container query measures the block, not the viewport.
+ * A 20rem container. The group wraps, and the md *primary* button grows to the 2.75rem touch target
+ * because the container query measures the block, not the viewport; the outline action beside it
+ * keeps the 2.5rem control height, which is the spec's "only primary action buttons grow".
  */
 export const Narrow: Story = {
   render: () => ({

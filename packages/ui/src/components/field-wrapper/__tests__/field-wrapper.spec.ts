@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { computed, defineComponent, h, inject } from 'vue';
+import { computed, defineComponent, h, inject, nextTick, ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { provideEldraUiMessages } from '../../../composables/useMessages';
@@ -77,6 +77,22 @@ describe('FieldWrapper — parts', () => {
     for (const part of ['requiredMark', 'optionalText', 'help', 'error', 'errorIcon', 'foot']) {
       expect(wrapper.find(`[data-part="${part}"]`).exists(), part).toBe(false);
     }
+    wrapper.unmount();
+  });
+
+  /**
+   * A grid item stretches to its row, so a field paired with a taller sibling in a two-column form
+   * used to have its own rows stretched with it: the label-to-control gap grew from 0.375rem to
+   * whatever the row needed, and the two controls stopped lining up. Packing the rows to the start
+   * is what fixes it.
+   */
+  it('packs its rows to the start, so a tall sibling never stretches its rhythm', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Town or city' },
+      slots: { default: CONTROL },
+      global: inLayout('two'),
+    });
+    expect(wrapper.classes()).toContain('content-start');
     wrapper.unmount();
   });
 
@@ -271,9 +287,27 @@ describe('FieldWrapper — counter', () => {
     wrapper.unmount();
   });
 
-  it('keeps the counter out of aria-describedby, which carries the error and help only', () => {
+  it('joins aria-describedby last, after the error and the help', () => {
     const wrapper = mountWith(FieldWrapper, {
-      props: { label: 'Monogram', help: 'Up to 3 letters.', counter: { max: 3, value: 2 } },
+      props: {
+        label: 'Monogram',
+        help: 'Up to 3 letters.',
+        error: 'Use no more than three letters.',
+        counter: { max: 3, value: 4 },
+      },
+      slots: { default: ContextProbe },
+    });
+    const errorId = wrapper.find('[data-part="error"]').attributes('id');
+    const helpId = wrapper.find('[data-part="help"]').attributes('id');
+    const counterId = wrapper.find('[data-part="counter"]').attributes('id');
+    expect(counterId).toBeTruthy();
+    expect(probe(wrapper)['data-described-by']).toBe(`${errorId} ${helpId} ${counterId}`);
+    wrapper.unmount();
+  });
+
+  it('leaves the counter id out when there is no counter', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Monogram', help: 'Up to 3 letters.' },
       slots: { default: ContextProbe },
     });
     const helpId = wrapper.find('[data-part="help"]').attributes('id');
@@ -288,6 +322,85 @@ describe('FieldWrapper — counter', () => {
     });
     expect(wrapper.find('[data-part="foot"]').exists()).toBe(true);
     expect(wrapper.find('[data-part="help"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe('FieldWrapper — the fieldset group variant', () => {
+  const OPTIONS =
+    '<label><input type="checkbox" /> Knitwear</label><label><input type="checkbox" /> Ceramics</label>';
+
+  it('renders a fieldset named by a legend, with the label styling on the legend', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'What are you shopping for?', group: true },
+      slots: { default: OPTIONS },
+    });
+    expect(wrapper.element.tagName).toBe('FIELDSET');
+    const legend = wrapper.find('[data-part="legend"]');
+    expect(legend.element.tagName).toBe('LEGEND');
+    expect(legend.text()).toContain('What are you shopping for?');
+    expect(legend.classes()).toContain('text-label');
+    // The spec's fieldset variant: no border, no padding, no min-width, 0.75rem grid gap, and a
+    // 0.5rem bottom margin on the legend.
+    expect(wrapper.classes()).toEqual(
+      expect.arrayContaining(['grid', 'gap-3', 'border-0', 'p-0', 'min-w-0'])
+    );
+    expect(legend.classes()).toContain('mb-2');
+    // There is no single control, so there is no `<label for>` either.
+    expect(wrapper.find('label[for]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('describes the fieldset itself, since no one control owns the help and error', async () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: {
+        label: 'What are you shopping for?',
+        group: true,
+        required: true,
+        help: 'Pick as many as you like.',
+        error: 'Choose at least one.',
+      },
+      slots: { default: OPTIONS },
+    });
+    const errorId = wrapper.find('[data-part="error"]').attributes('id');
+    const helpId = wrapper.find('[data-part="help"]').attributes('id');
+    expect(wrapper.attributes('aria-describedby')).toBe(`${errorId} ${helpId}`);
+    expect(wrapper.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.find('[data-part="requiredMark"]').attributes('aria-hidden')).toBe('true');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('provides the same context, so a future group control reads id and required from it', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Sizes', group: true, required: true, help: 'Pick as many as you like.' },
+      slots: { default: ContextProbe },
+    });
+    expect(probe(wrapper)['data-id']).toMatch(/^eldra-field-/);
+    expect(probe(wrapper)['data-required']).toBe('true');
+    expect(probe(wrapper)['data-described-by']).toBe(
+      wrapper.find('[data-part="help"]').attributes('id')
+    );
+    wrapper.unmount();
+  });
+
+  it('never flattens into an inline row: a group is a set of controls, not one field', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Sizes', group: true },
+      slots: { default: OPTIONS },
+      global: inLayout('inline'),
+    });
+    expect(wrapper.classes()).not.toContain('contents');
+    expect(wrapper.classes()).toContain('grid');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with no optional content at all', async () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Sizes', group: true },
+      slots: { default: OPTIONS },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });
@@ -449,6 +562,77 @@ describe('FieldWrapper — with a control inside', () => {
     });
     const wrapper = mountWith(Host);
     expect(wrapper.find('[data-part="clearButton"]').attributes('aria-label')).toBe('Clear search');
+    wrapper.unmount();
+  });
+});
+
+describe('FieldWrapper — slots that come and go', () => {
+  /**
+   * Slots are not reactive: a `computed` over `slots.error` caches its first answer, so a
+   * `<template #error v-if>` toggled later left the field describing a state the markup no longer
+   * had. Toggling one here is the guard.
+   */
+  function toggleHost(show: { value: boolean }) {
+    return defineComponent({
+      setup() {
+        return () =>
+          h(
+            FieldWrapper,
+            { label: 'Phone' },
+            {
+              default: () => h(ContextProbe),
+              ...(show.value ? { error: () => 'Enter a number we can text.' } : {}),
+            }
+          );
+      },
+    });
+  }
+
+  it('follows a #error slot that appears after mount', async () => {
+    const show = ref(false);
+    const wrapper = mountWith(toggleHost(show));
+    expect(probe(wrapper)['data-invalid']).toBe('false');
+    expect(probe(wrapper)['data-described-by']).toBe('');
+
+    show.value = true;
+    await nextTick();
+    const errorId = wrapper.find('[data-part="error"]').attributes('id');
+    expect(errorId).toBeTruthy();
+    expect(probe(wrapper)['data-invalid']).toBe('true');
+    expect(probe(wrapper)['data-described-by']).toBe(errorId);
+
+    show.value = false;
+    await nextTick();
+    expect(wrapper.find('[data-part="error"]').exists()).toBe(false);
+    expect(probe(wrapper)['data-invalid']).toBe('false');
+    expect(probe(wrapper)['data-described-by']).toBe('');
+    wrapper.unmount();
+  });
+
+  it('follows a #help slot that appears after mount, and reaches the real control', async () => {
+    const show = ref(false);
+    const Host = defineComponent({
+      setup() {
+        return () =>
+          h(
+            FieldWrapper,
+            { label: 'Postcode' },
+            {
+              default: () => h(Input, { modelValue: '' }),
+              ...(show.value ? { help: () => 'Like BS1 4XE' } : {}),
+            }
+          );
+      },
+    });
+    const wrapper = mountWith(Host);
+    const input = () => wrapper.find('input').element as HTMLInputElement;
+    expect(input().getAttribute('aria-describedby')).toBeNull();
+
+    show.value = true;
+    await nextTick();
+    expect(input().getAttribute('aria-describedby')).toBe(
+      wrapper.find('[data-part="help"]').attributes('id')
+    );
     wrapper.unmount();
   });
 });

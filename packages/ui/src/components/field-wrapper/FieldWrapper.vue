@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, provide, useSlots } from 'vue';
+import { computed, inject, onBeforeUpdate, provide, shallowRef, useSlots } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<FieldWrapperProps>(), {
   help: undefined,
   error: undefined,
   counter: undefined,
+  group: false,
   full: false,
   classes: undefined,
 });
@@ -35,28 +36,49 @@ const controlId = useUiId('field', () => props.id);
 const labelId = computed(() => `${controlId.value}-label`);
 const helpId = computed(() => `${controlId.value}-help`);
 const errorId = computed(() => `${controlId.value}-error`);
+const counterId = computed(() => `${controlId.value}-counter`);
+
+/**
+ * Slots are **not reactive** in Vue: `instance.slots` is a plain object the parent mutates in
+ * place, so `computed(() => slots.error !== undefined)` caches whatever was true at setup. A
+ * `<template #error v-if="failed">` toggled later left `invalid` and `aria-describedby` describing
+ * a state the markup no longer had — the field stayed valid while the error was on screen.
+ *
+ * So the presence of the two content slots is re-read from the live slots object at the start of
+ * every update, which runs *after* Vue has swapped the new slots in and *before* this component
+ * renders: both the template and the provided context see the slots this render actually has. The
+ * write is guarded on a real change, so a re-render for any other reason costs nothing.
+ */
+function readSlots(): { error: boolean; help: boolean } {
+  return { error: slots.error !== undefined, help: slots.help !== undefined };
+}
+const slotContent = shallowRef(readSlots());
+onBeforeUpdate(() => {
+  const next = readSlots();
+  const previous = slotContent.value;
+  if (next.error !== previous.error || next.help !== previous.help) slotContent.value = next;
+});
 
 /**
  * A slot counts as content: `<template #error>` is a richer way of writing the `error` prop (a
  * message with a link in it, say), not a different feature, so it makes the field invalid and
  * gets linked exactly as the prop does.
  */
-const hasError = computed(() => Boolean(props.error) || slots.error !== undefined);
-const hasHelp = computed(() => Boolean(props.help) || slots.help !== undefined);
+const hasError = computed(() => Boolean(props.error) || slotContent.value.error);
+const hasHelp = computed(() => Boolean(props.help) || slotContent.value.help);
 const hasCounter = computed(() => props.counter !== undefined);
 const hasFoot = computed(() => hasHelp.value || hasCounter.value);
 
 /**
- * Spec "Field wrapper" → Accessibility: "the error comes first and is announced on focus". Only
- * ids that actually render go in, so a field with no help never points at an element that is not
- * there. The counter is deliberately not in the list: it is a live status the Textarea wires in
- * itself when it owns one, and repeating "2 / 3" in front of every other description on focus
- * makes the field noisier, not clearer.
+ * Spec "Field wrapper" → Accessibility: `aria-describedby="<error-id> <help-id> <counter-id>"` —
+ * "the error comes first and is announced on focus". Only ids that actually render go in, so a
+ * field with no help never points at an element that is not there.
  */
 const describedBy = computed(() => {
   const ids = [
     hasError.value ? errorId.value : undefined,
     hasHelp.value ? helpId.value : undefined,
+    hasCounter.value ? counterId.value : undefined,
   ].filter((id): id is string => id !== undefined);
   return ids.length > 0 ? ids.join(' ') : undefined;
 });
@@ -64,6 +86,9 @@ const describedBy = computed(() => {
 /**
  * What the control inside reads (see `context.ts`). A `ComputedRef`, so a control that mounted
  * while the field was valid still sees `invalid` the moment an error arrives.
+ *
+ * A group provides it too: the `<fieldset>` is described by the same ids, and a future
+ * `CheckboxGroup` or `RadioGroup` reads `id` and `required` from here the way `Input` does.
  */
 const context = computed<FieldContext>(() => ({
   id: controlId.value,
@@ -94,22 +119,43 @@ const spansBothColumns = computed(() => props.full && layout?.value === 'two');
  * control instead of dropping to the bottom of the help text.
  *
  * Everywhere else the group is `display: contents` and the wrapper is its own grid, exactly as the
- * Field wrapper section draws it.
+ * Field wrapper section draws it. A `group` fieldset never flattens: it is a set of controls, not
+ * the one field an inline row holds.
  */
-const isInline = computed(() => layout?.value === 'inline');
+const isInline = computed(() => layout?.value === 'inline' && !props.group);
 
 /** Spec "Field wrapper" → Properties: a counter with no `value` is an empty field, so "0 / max". */
 const count = computed(() => props.counter?.value ?? 0);
 const isOverLimit = computed(() => props.counter !== undefined && count.value > props.counter.max);
 
 /**
+ * One root, two shapes. A `group` is a `<fieldset>` named by its `<legend>` and described as a
+ * whole: there is no single control for a `<label for>` to point at, so `aria-describedby` and
+ * `aria-invalid` sit on the fieldset itself. Everything inside is identical either way, which is
+ * why the template branches on the tag rather than duplicating itself — and why the root stays a
+ * single node, as `@vue/test-utils` and every `classes` override expect.
+ *
  * The vertical rhythm (spec "Field wrapper" → Sizes, "Vertical rhythm"): "Grid with a 0.25rem gap:
  * label → control 0.375rem (gap + label margin), control → help/error 0.25rem." So the gap is the
  * whole rhythm and the label's own 0.125rem bottom margin is what makes its row the wider one.
+ *
+ * `content-start` is what keeps that true inside a form. A grid item stretches to its row, so in a
+ * two-column layout the shorter of a pair used to have its own rows stretched to match the taller
+ * one — the gap grew from 0.375rem to whatever the row needed, and the two controls stopped lining
+ * up. Packing the rows to the start leaves the rhythm fixed and lets the extra height fall below
+ * the field, where it belongs.
+ *
+ * The fieldset variant is the spec's own separate geometry: "no border, padding or min-width, grid
+ * with a 0.75rem (`space-3`) gap, and the legend has a 0.5rem (`space-2`) bottom margin."
  */
 const rootClass = computed(() =>
   partClass(
-    cx('grid gap-1', isInline.value && 'contents', spansBothColumns.value && '@two-col:col-span-2'),
+    cx(
+      'grid content-start gap-1',
+      props.group && 'min-w-0 gap-3 rounded-none border-0 p-0',
+      isInline.value && 'contents',
+      spansBothColumns.value && '@two-col:col-span-2'
+    ),
     props.classes,
     'root'
   )
@@ -121,7 +167,7 @@ const rootClass = computed(() =>
  * as the rows of `root` that the spec's anatomy draws.
  */
 const groupClass = computed(() =>
-  isInline.value ? 'grid min-w-0 flex-[1_1_14rem] gap-1' : 'contents'
+  isInline.value ? 'grid min-w-0 flex-[1_1_14rem] content-start gap-1' : 'contents'
 );
 
 /** In an inline row the error and the foot take a full-width row of their own, below the button. */
@@ -131,10 +177,13 @@ const INLINE_ROW = 'order-1 w-full basis-full';
  * Spec "Field wrapper" → States: the label is `text` in every state, including error — "Don't turn
  * the label red on error. The border and message are enough, and red labels read as 'required'."
  * `w-fit` keeps the click target on the words rather than the whole grid row.
+ *
+ * The legend is the same type style with the fieldset variant's own 0.5rem bottom margin, and with
+ * the `padding-inline` a `<legend>` carries by default removed.
  */
-const labelClass = computed(() =>
-  partClass('text-label text-text mb-0.5 block w-fit', props.classes, 'label')
-);
+const LABEL_TYPE = 'text-label text-text block w-fit';
+const labelClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-0.5'), props.classes, 'label'));
+const legendClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-2 p-0'), props.classes, 'legend'));
 
 /** 0.125rem start margin, `danger`, inheriting the label's weight 600. */
 const requiredMarkClass = computed(() =>
@@ -200,9 +249,21 @@ const counterClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <component
+    :is="group ? 'fieldset' : 'div'"
+    data-part="root"
+    :class="rootClass"
+    :aria-describedby="group ? describedBy : undefined"
+    :aria-invalid="group && hasError ? 'true' : undefined"
+  >
     <div :class="groupClass">
-      <label :id="labelId" :for="controlId" data-part="label" :class="labelClass">
+      <component
+        :is="group ? 'legend' : 'label'"
+        :id="labelId"
+        :for="group ? undefined : controlId"
+        :data-part="group ? 'legend' : 'label'"
+        :class="group ? legendClass : labelClass"
+      >
         <slot name="label">{{ label }}</slot>
         <!-- The asterisk is decorative: the control's native `required` is what announces it. -->
         <span v-if="required" data-part="requiredMark" :class="requiredMarkClass" aria-hidden="true"
@@ -211,7 +272,7 @@ const counterClass = computed(() =>
         <span v-else-if="optional" data-part="optionalText" :class="optionalTextClass"
           >({{ m.optional }})</span
         >
-      </label>
+      </component>
 
       <div data-part="control" :class="controlClass"><slot /></div>
     </div>
@@ -247,9 +308,9 @@ const counterClass = computed(() =>
       <span v-if="hasHelp" :id="helpId" data-part="help" :class="helpClass">
         <slot name="help">{{ help }}</slot>
       </span>
-      <span v-if="counter" data-part="counter" :class="counterClass">
+      <span v-if="counter" :id="counterId" data-part="counter" :class="counterClass">
         {{ m.counter(count, counter.max) }}
       </span>
     </div>
-  </div>
+  </component>
 </template>

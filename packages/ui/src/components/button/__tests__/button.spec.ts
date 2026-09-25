@@ -104,7 +104,7 @@ describe('Button — sizes', () => {
     wrapper.unmount();
   });
 
-  it('grows md to the touch target when its container is narrower than 48rem', () => {
+  it('grows md primary to the touch target when its container is narrower than 48rem', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
@@ -117,6 +117,32 @@ describe('Button — sizes', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary', size },
       slots: { default: 'Add to cart' },
+    });
+    expect(wrapper.classes()).not.toContain('@max-tablet:target-touch');
+    wrapper.unmount();
+  });
+
+  /**
+   * Spec "Actions and forms" → Compact controls: "Controls keep their height on mobile. Only
+   * primary action buttons grow to `target-touch` (2.75rem)." A secondary or outline action in the
+   * same row keeps the 2.5rem control height the inputs beside it use.
+   */
+  it.each(['secondary', 'outline', 'ghost', 'danger'] as ButtonVariant[])(
+    'never grows an md %s button to the touch target',
+    (variant) => {
+      const wrapper = mountWith(Button, {
+        props: { variant },
+        slots: { default: 'Save for later' },
+      });
+      expect(wrapper.classes()).toContain('control-h');
+      expect(wrapper.classes()).not.toContain('@max-tablet:target-touch');
+      wrapper.unmount();
+    }
+  );
+
+  it('never grows an icon-only md primary button, which is square at its size', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', iconOnly: true, icon: IconHeart, label: 'Save for later' },
     });
     expect(wrapper.classes()).not.toContain('@max-tablet:target-touch');
     wrapper.unmount();

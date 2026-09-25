@@ -5,6 +5,7 @@ import { mountNarrow, mountWith } from '../../../test/mount';
 import Button from '../../button/Button.vue';
 import FieldWrapper from '../../field-wrapper/FieldWrapper.vue';
 import Input from '../../input/Input.vue';
+import Link from '../../link/Link.vue';
 import { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from '../context';
 import FormLayout from '../FormLayout.vue';
 import type { FormLayoutVariant } from '../types';
@@ -101,10 +102,212 @@ describe('FormLayout — native form attributes', () => {
     wrapper.unmount();
   });
 
-  it('emits the native submit event', async () => {
-    const wrapper = mountWith(FormLayout, { slots: { default: () => field('Name') } });
+  it('emits submit with the native event and the form data once every field is valid', async () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { ariaLabel: 'Newsletter sign-up' },
+      slots: {
+        default: () =>
+          h(
+            FieldWrapper,
+            { label: 'Email address' },
+            {
+              default: () => h(Input, { name: 'email', modelValue: 'maren@example.com' }),
+            }
+          ),
+      },
+    });
     await wrapper.trigger('submit');
-    expect(wrapper.emitted('submit')).toHaveLength(1);
+
+    const emitted = wrapper.emitted('submit');
+    expect(emitted).toHaveLength(1);
+    const payload = emitted?.[0]?.[0] as { event: SubmitEvent; data: FormData };
+    expect(payload.event.type).toBe('submit');
+    expect(payload.data.get('email')).toBe('maren@example.com');
+    // Not prevented: a form with an `action` still posts without scripting.
+    expect(payload.event.defaultPrevented).toBe(false);
+    expect(wrapper.emitted('invalid')).toBeUndefined();
+    wrapper.unmount();
+  });
+});
+
+describe('FormLayout — an invalid submit', () => {
+  /** Two fields, the second of which is in error — so "the first invalid one" is a real choice. */
+  function invalidForm(props: Record<string, unknown> = {}) {
+    return mountWith(FormLayout, {
+      props: { ariaLabel: 'Shipping address', ...props },
+      slots: {
+        default: () => [
+          h(
+            FieldWrapper,
+            { label: 'Town or city' },
+            { default: () => h(Input, { name: 'town', modelValue: 'Bristol' }) }
+          ),
+          h(
+            FieldWrapper,
+            { label: 'Postcode', error: 'Enter a full postcode.' },
+            { default: () => h(Input, { name: 'postcode', modelValue: 'BS1 4X' }) }
+          ),
+        ],
+        actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Continue'),
+      },
+    });
+  }
+
+  it('stops the submit, focuses the first invalid field and emits invalid with its id', async () => {
+    const wrapper = invalidForm();
+    const inputs = wrapper.findAll('input');
+    const postcode = inputs[1]?.element as HTMLInputElement;
+
+    await wrapper.trigger('submit');
+
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    expect(wrapper.emitted('invalid')).toHaveLength(1);
+    expect(wrapper.emitted('invalid')?.[0]?.[0]).toEqual([postcode.id]);
+    expect(document.activeElement).toBe(postcode);
+    wrapper.unmount();
+  });
+
+  it('prevents the default, so an invalid form never posts', async () => {
+    const wrapper = invalidForm({ action: '/checkout', method: 'post' });
+    const event = new Event('submit', { cancelable: true, bubbles: true });
+    wrapper.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('lists every invalid field, in document order', async () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { ariaLabel: 'Shipping address' },
+      slots: {
+        default: () => [
+          h(
+            FieldWrapper,
+            { label: 'First name', error: 'Enter your first name.' },
+            { default: () => h(Input, { name: 'first' }) }
+          ),
+          h(
+            FieldWrapper,
+            { label: 'Postcode', error: 'Enter a full postcode.' },
+            { default: () => h(Input, { name: 'postcode' }) }
+          ),
+        ],
+      },
+    });
+    await wrapper.trigger('submit');
+    const ids = wrapper.findAll('input').map((input) => (input.element as HTMLInputElement).id);
+    expect(wrapper.emitted('invalid')?.[0]?.[0]).toEqual(ids);
+    wrapper.unmount();
+  });
+
+  it('focuses into a group whose fieldset is invalid, since a fieldset cannot take focus', async () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { ariaLabel: 'Preferences' },
+      slots: {
+        default: () =>
+          h(
+            FieldWrapper,
+            { label: 'What are you shopping for?', group: true, error: 'Choose at least one.' },
+            {
+              default: () =>
+                h('label', [h('input', { type: 'checkbox', name: 'knitwear' }), ' Knitwear']),
+            }
+          ),
+      },
+    });
+    await wrapper.trigger('submit');
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    expect(document.activeElement).toBe(wrapper.find('input').element);
+    wrapper.unmount();
+  });
+});
+
+describe('FormLayout — the error summary and the status region', () => {
+  it('renders the error summary only when the slot is given, above the fields', () => {
+    const bare = mountWith(FormLayout, {
+      props: { ariaLabel: 'Test' },
+      slots: { default: () => field('Name') },
+    });
+    expect(bare.find('[data-part="errorSummary"]').exists()).toBe(false);
+    bare.unmount();
+
+    const wrapper = mountWith(FormLayout, {
+      props: { heading: 'Shipping address' },
+      slots: {
+        default: () => field('Postcode', { error: 'Enter a full postcode.' }),
+        errorSummary: () => h('a', { href: '#postcode' }, 'Enter a full postcode.'),
+      },
+    });
+    const summary = wrapper.find('[data-part="errorSummary"]');
+    expect(summary.exists()).toBe(true);
+    expect(summary.attributes('role')).toBe('alert');
+    expect(summary.classes()).toEqual(
+      expect.arrayContaining(['border', 'border-danger', 'bg-surface'])
+    );
+    // Above the fields, below the heading.
+    const children = [...wrapper.element.children].map((el) => el.getAttribute('data-part'));
+    expect(children.indexOf('errorSummary')).toBeGreaterThan(children.indexOf('heading'));
+    expect(children.indexOf('errorSummary')).toBeLessThan(children.indexOf('fields'));
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with the summary, a status message and three failed fields', async () => {
+    const wrapper = mountWith(FormLayout, {
+      props: {
+        layout: 'two',
+        heading: 'Shipping address',
+        statusMessage: 'There are 2 problems with this form.',
+      },
+      slots: {
+        errorSummary: () => h('a', { href: '#postcode' }, 'Enter a full postcode.'),
+        default: () => [
+          field('First name', { error: 'Enter your first name.' }),
+          field('Address', { full: true, help: 'House number and street.' }),
+          field('Postcode', { error: 'Enter a full postcode.', counter: { max: 8, value: 6 } }),
+        ],
+        actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Continue'),
+      },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('always carries a polite status region, empty until there is something to announce', async () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { ariaLabel: 'Newsletter sign-up' },
+      slots: { default: () => field('Email address') },
+    });
+    const status = wrapper.find('[data-part="status"]');
+    expect(status.exists()).toBe(true);
+    expect(status.attributes('role')).toBe('status');
+    expect(status.attributes('aria-live')).toBe('polite');
+    expect(status.classes()).toContain('sr-only');
+    expect(status.text()).toBe('');
+
+    await wrapper.setProps({ statusMessage: "Thanks, you're subscribed." });
+    expect(wrapper.find('[data-part="status"]').text()).toBe("Thanks, you're subscribed.");
+    wrapper.unmount();
+  });
+});
+
+describe('FormLayout — the heading element', () => {
+  it('is an h2 by default', () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { heading: 'Ask the studio' },
+      slots: { default: () => field('Name') },
+    });
+    expect(wrapper.find('[data-part="heading"]').element.tagName).toBe('H2');
+    wrapper.unmount();
+  });
+
+  it.each([2, 3, 4] as const)('takes level %s when the page needs it', (level) => {
+    const wrapper = mountWith(FormLayout, {
+      props: { heading: 'Ask the studio', headingLevel: level },
+      slots: { default: () => field('Name') },
+    });
+    expect(wrapper.find('[data-part="heading"]').element.tagName).toBe(`H${level}`);
+    expect(wrapper.attributes('aria-labelledby')).toBe(
+      wrapper.find('[data-part="heading"]').attributes('id')
+    );
     wrapper.unmount();
   });
 });
@@ -233,6 +436,27 @@ describe('FormLayout — layouts', () => {
     expect(root.classes()).toContain('grid');
     expect(root.classes()).not.toContain('contents');
     expect(wrapper.find('[data-part="foot"]').classes()).not.toContain('basis-full');
+    wrapper.unmount();
+  });
+
+  it('pushes a leading back link to the start without a class from the caller', () => {
+    const wrapper = mountWith(FormLayout, {
+      props: { layout: 'two', ariaLabel: 'Test' },
+      slots: {
+        default: () => field('First name'),
+        actions: () => [
+          h(Link, { href: '/basket', variant: 'standalone' }, () => 'Return to basket'),
+          h(Button, { variant: 'outline' }, () => 'Save for later'),
+          h(Button, { variant: 'primary', type: 'submit' }, () => 'Continue to shipping'),
+        ],
+      },
+    });
+    const actions = wrapper.find('[data-part="actions"]').classes();
+    // The row ends its content; the tertiary link — the only <a> the spec's actions row holds, and
+    // always first — pushes itself away, which is the spec's space-between without a caller class.
+    expect(actions).toContain('justify-end');
+    expect(actions).toContain('[&>a:first-child]:me-auto');
+    expect(wrapper.find('[data-part="actions"] > a').classes()).not.toContain('me-auto');
     wrapper.unmount();
   });
 

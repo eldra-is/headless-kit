@@ -2,6 +2,7 @@
 export type FieldWrapperPart =
   | 'root'
   | 'label'
+  | 'legend'
   | 'requiredMark'
   | 'optionalText'
   | 'help'
@@ -37,6 +38,12 @@ export interface FieldWrapperProps {
   error?: string;
   /** Shows the "n / max" counter in the foot row. */
   counter?: FieldWrapperCounter;
+  /**
+   * Renders a `<fieldset>` with the label as its `<legend>`, for a set of checkboxes or radios
+   * that share one question. There is no single control to tie a `<label for>` to, so the help and
+   * error are linked to the fieldset itself.
+   */
+  group?: boolean;
   /** Spans both columns of a two-column `FormLayout`. */
   full?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */

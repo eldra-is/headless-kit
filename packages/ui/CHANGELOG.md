@@ -11,22 +11,35 @@ Release-please writes the generated notes from commit messages and does not repl
   `help` at the start and a `counter` (`{ max, value }`, `danger` weight 600 once over the limit) at
   the end. It provides `FIELD_KEY`, so a bare `<Input />` or `<Textarea />` inside it needs no `id`,
   no `aria-describedby`, no `aria-invalid` and no `required` of its own — `describedBy` is the error
-  id **first**, then help, and only ids that actually render. The error is a plain `<p>` linked by
+  id **first**, then help, then the counter, and only ids that actually render. The error is a plain `<p>` linked by
   id, never a live region: announcing a failed submit belongs to the form. `full` spans both columns
-  of a two-column `FormLayout`. Slots: `default` (the control), `label`, `help`, `error`; per-part
-  `classes` for `root`, `label`, `requiredMark`, `optionalText`, `control`, `error`, `errorIcon`,
-  `foot`, `help` and `counter`.
+  of a two-column `FormLayout`, and `group` renders the whole wrapper as a `<fieldset>` with the
+  label as its `<legend>` — the spec's shape for a set of checkboxes or radios that answer one
+  question, with the help and error linked to the fieldset itself. Slots: `default` (the control),
+  `label`, `help`, `error` — a slot is content, so a `#error` slot makes the field invalid exactly
+  as the prop does, and one toggled on or off is followed. Per-part `classes` for `root`, `label`,
+  `legend`, `requiredMark`, `optionalText`, `control`, `error`, `errorIcon`, `foot`, `help` and
+  `counter`.
 - `FormLayout` — a real `<form novalidate>` that arranges fields in a single column, a responsive
   two-column grid or an inline row, and closes with an actions row. `heading` names it through
-  `aria-labelledby`, `ariaLabel` names one with no visible heading; `action` and `method` keep it
-  posting without scripting, and `submit` fires with the native `SubmitEvent` without preventing the
-  default. The two-column pairs appear from a **36rem container** (not a viewport width), so a form
-  in a narrow page-builder column behaves like a form on a phone; below it everything stacks and the
-  actions go full width with the primary first, without moving in the DOM. `submitting` provides
-  `FORM_SUBMITTING_KEY`, which makes the `type="submit"` Button loading and every other action
-  disabled while the fields stay editable. The form is a `@container`, which is what lets the md
-  Buttons inside it grow to the 2.75rem touch target on a narrow *form*. Slots: `default` (fields)
-  and `actions`; per-part `classes` for `root`, `heading`, `fields` and `actions`.
+  `aria-labelledby` (`headingLevel`, 2–4, picks the element; "h4" in the spec is the type style, not
+  the level), `ariaLabel` names one with no visible heading; `action` and `method` keep it posting
+  without scripting. On submit the form asks the DOM which fields are invalid
+  (`[aria-invalid="true"]`, which every control in this package sets from its field's `error`): if
+  any are, the submit is stopped, focus moves to the first one and **`invalid`** fires with their
+  ids; otherwise **`submit`** fires with `{ event, data }` — the native event, undefaulted so the
+  form still posts, and the form's own `FormData`. The `errorSummary` slot draws the spec's alert
+  box above the fields (`surface` fill, 1px `danger` border, `danger` icon) around your list of
+  links to the failed fields, and `statusMessage` feeds a permanent, visually hidden polite
+  `role="status"` region so a success is announced without moving focus. The two-column pairs appear
+  from a **36rem container** (not a viewport width), so a form in a narrow page-builder column
+  behaves like a form on a phone; below it everything stacks and the actions go full width with the
+  primary first, without moving in the DOM, and a leading back link pushes itself to the start of a
+  wide row without a class from the caller. `submitting` provides `FORM_SUBMITTING_KEY`, which makes
+  the `type="submit"` Button loading and every other action disabled while the fields stay editable.
+  The form is a `@container`, which is what lets the md primary Button inside it grow to the 2.75rem
+  touch target on a narrow *form*. Slots: `default` (fields), `errorSummary` and `actions`; per-part
+  `classes` for `root`, `heading`, `errorSummary`, `fields`, `actions` and `status`.
 - `FORM_LAYOUT_KEY` is exported alongside `FORM_SUBMITTING_KEY` and `FIELD_KEY`, so a consumer
   composing its own field or form wrapper can join the same wiring.
 - The `optional` message is now `"optional"` (`"valfrjálst"`), lower case: the `FieldWrapper`
@@ -34,6 +47,11 @@ Release-please writes the generated notes from commit messages and does not repl
 - `@eldrajs/ui/tailwind.css` gains `text-field-note` (the 0.8125rem / 1.45 line a field's help and
   error text share, with no `font-weight` of its own) and the `--container-two-col` breakpoint
   (36rem), which is the form layout's two-column edge — `@two-col:` and `@max-two-col:`.
+- **`Button`**: the 2.75rem touch-target growth below a 48rem container is now the **primary**
+  action's alone, per the spec's "Controls keep their height on mobile. Only primary action buttons
+  grow to `target-touch`." A secondary, outline, ghost or danger `md` button keeps the 2.5rem
+  control height it shares with the inputs beside it, so a mixed actions row no longer has two
+  button heights in it on a narrow container.
 
 - `Textarea` — multi-line text entry that grows with its content from `minHeight` (`5rem` by
   default) up to 16rem, then scrolls: `field-sizing: content` where the runtime supports it, with a

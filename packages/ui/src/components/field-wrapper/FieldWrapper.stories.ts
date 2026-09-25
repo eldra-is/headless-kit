@@ -64,13 +64,24 @@ const meta = {
           'control travel together as the growing half of the row, level with the button, and the',
           'error and foot row wrap onto full-width rows below both. Nothing moves in the DOM.',
           '',
+          '**The counter does not decide the error.** It turns `danger` weight 600 once `value`',
+          'runs past `max`, because the spec makes that a visible state of the counter — but it does',
+          'not make the field invalid on its own: the boundary and the message come from `error`, so',
+          'pass it with the over-limit wording you want ("Use no more than three letters."). A soft',
+          'limit that is merely exceeded is still a legitimate state, and only you know whether this',
+          'one is.',
+          '',
           '**Full width**: `full` spans both columns of a two-column `FormLayout` and does nothing',
           'anywhere else — it reads the layout from `FORM_LAYOUT_KEY`, so a field standing on its',
           'own in a page-builder column is unaffected.',
           '',
-          '**Groups**: for a set of checkboxes or radios the spec uses a `<fieldset>` with a',
-          '`<legend>` styled as the label rather than this wrapper; that lives with the group',
-          'components.',
+          '**Groups**: `group` renders the whole wrapper as a `<fieldset>` with the label as its',
+          "`<legend>` — the spec's shape for a set of checkboxes or radios that answer one",
+          'question. There is no single control for a `<label for>` to point at, so the help and',
+          'error are linked to the fieldset itself with `aria-describedby`; the required and',
+          'optional marks move into the legend, and the fieldset keeps no border, padding or',
+          'min-width, laying its controls out on a 0.75rem grid. It still provides `FIELD_KEY`, so',
+          'a group control inside it reads the same `id` and `required`.',
           '',
           '**CSS variable**: `--eldra-field-note-line-height` (default `1.45`) is the line the help',
           'and error text share.',
@@ -224,6 +235,55 @@ export const LongContent: Story = {
       <div class="${FRAME}">
         <FieldWrapper v-bind="args">
           <Textarea v-model="value" />
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
+/** A set of checkboxes that answer one question: a `<fieldset>` named by its `<legend>`. */
+export const Group: Story = {
+  args: {
+    label: 'What are you shopping for?',
+    group: true,
+    optional: true,
+    help: 'Pick as many as you like — it only changes what we show you first.',
+  },
+  render: (args) => ({
+    components: { FieldWrapper },
+    setup: () => ({ args, options: ['Knitwear', 'Ceramics', 'Kitchen goods'] }),
+    template: `
+      <div class="${FRAME}">
+        <FieldWrapper v-bind="args">
+          <label v-for="option in options" :key="option" class="text-body-sm flex items-center gap-2">
+            <input type="checkbox" :value="option" class="size-4" />
+            {{ option }}
+          </label>
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
+/** The same group in error: the message is linked to the fieldset, which carries `aria-invalid`. */
+export const GroupError: Story = {
+  args: {
+    label: 'What are you shopping for?',
+    group: true,
+    required: true,
+    help: 'Pick as many as you like.',
+    error: 'Choose at least one so we know where to start.',
+  },
+  render: (args) => ({
+    components: { FieldWrapper },
+    setup: () => ({ args, options: ['Knitwear', 'Ceramics', 'Kitchen goods'] }),
+    template: `
+      <div class="${FRAME}">
+        <FieldWrapper v-bind="args">
+          <label v-for="option in options" :key="option" class="text-body-sm flex items-center gap-2">
+            <input type="checkbox" :value="option" class="size-4" />
+            {{ option }}
+          </label>
         </FieldWrapper>
       </div>
     `,
