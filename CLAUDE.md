@@ -112,8 +112,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `<prefix><Name>` against `src/componentNames.ts` — a hand-maintained list rather than one
   generated from `src/index.ts`, guarded by `src/__tests__/componentNames.spec.ts` importing the
   index and comparing its component keys; a generator was judged not worth a build step ahead of
-  `vite build` for 18 names that change once per component, ever), `./vee-validate` (`Form` and
-  eleven `Field*` components wrapping `vee-validate`'s `useField`/`useForm`, plus `API_ERRORS_KEY`
+  `vite build` for 19 names that change once per component, ever), `./vee-validate` (`Form` and
+  twelve `Field*` components wrapping `vee-validate`'s `useField`/`useForm`, plus `API_ERRORS_KEY`
   and `useFieldControl`; `src/vee-validate/**` is the only place in the package that may import
   `vee-validate`, and `src/__tests__/veeValidateIsolation.spec.ts` proves the root entry loads
   without it in both the source graph and the built `dist/`), `./messages/is-IS` (the Icelandic message set, its

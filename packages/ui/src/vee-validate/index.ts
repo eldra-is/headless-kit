@@ -1,4 +1,4 @@
-// The optional vee-validate entry (`@eldrajs/ui/vee-validate`): `Form` and the eleven `Field*`
+// The optional vee-validate entry (`@eldrajs/ui/vee-validate`): `Form` and the twelve `Field*`
 // components.
 //
 // This directory is the **only** place in the package that may import `vee-validate`. The root
@@ -17,6 +17,7 @@ export { default as FieldCheckbox } from './FieldCheckbox.vue';
 export { default as FieldCheckboxGroup } from './FieldCheckboxGroup.vue';
 export { default as FieldInput } from './FieldInput.vue';
 export { default as FieldMultiSelect } from './FieldMultiSelect.vue';
+export { default as FieldNumberInput } from './FieldNumberInput.vue';
 export { default as FieldQuantityStepper } from './FieldQuantityStepper.vue';
 export { default as FieldRadioGroup } from './FieldRadioGroup.vue';
 export { default as FieldSearchBar } from './FieldSearchBar.vue';
@@ -33,6 +34,7 @@ export type {
   FieldCheckboxProps,
   FieldInputProps,
   FieldMultiSelectProps,
+  FieldNumberInputProps,
   FieldQuantityStepperProps,
   FieldRadioGroupProps,
   FieldSearchBarProps,

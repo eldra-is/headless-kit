@@ -999,3 +999,70 @@ describe('SearchBar', () => {
     });
   });
 });
+
+/**
+ * Operator report: the search field "does not behave like the regular input fields". It did not —
+ * `SearchBar.vue` held a hand-copied duplicate of `Input.vue`'s field recipe, and the copy had
+ * drifted: it had lost the `--eldra-input-radius` variable (re-declaring the radius in its own
+ * ternary instead) and carried its own spelling of the type-size rules.
+ *
+ * Both now import the one recipe from `src/components/input/classes.ts`. This asserts the field
+ * actually carries every token of it, which is the thing a second copy would silently stop doing.
+ */
+describe('SearchBar — the field is Input’s field', () => {
+  it('carries every token of Input’s base recipe', async () => {
+    const { FIELD_BASE } = await import('../../input/classes');
+    const classes = mount().find('[data-part="field"]').classes();
+    const tokens = FIELD_BASE.split(/\s+/).filter(Boolean);
+    expect(tokens.length).toBeGreaterThan(5);
+    for (const token of tokens) {
+      expect(classes, `the search field is missing Input's ${token}`).toContain(token);
+    }
+  });
+
+  it('carries Input’s own type style at each size, mobile override included', async () => {
+    const { FIELD_TEXT } = await import('../../input/classes');
+    for (const [size, recipe] of [
+      ['md', FIELD_TEXT.md],
+      ['lg', FIELD_TEXT.lg],
+    ] as const) {
+      const classes = mount({ size }).find('[data-part="field"]').classes();
+      for (const token of recipe.split(/\s+/)) {
+        expect(classes, `the ${size} search field is missing ${token}`).toContain(token);
+      }
+    }
+    // The md override is a *viewport* rule, so a focused field never zooms on iOS. That is the
+    // half the old copy had spelled out itself and could therefore have lost on its own.
+    expect(mount().find('[data-part="field"]').classes()).toContain('max-md:text-control-mobile');
+  });
+
+  it('carries Input’s live boundary, hover and focus colours', async () => {
+    const { FIELD_LIVE } = await import('../../input/classes');
+    const classes = mount().find('[data-part="field"]').classes();
+    for (const token of FIELD_LIVE.split(/\s+/)) {
+      expect(classes).toContain(token);
+    }
+  });
+
+  it('keeps its own pill radius, which replaces Input’s rather than landing beside it', () => {
+    const classes = mount({ pill: true }).find('[data-part="field"]').classes();
+    expect(classes).toContain('rounded-full');
+    expect(classes).not.toContain('rounded-[var(--eldra-input-radius,var(--eldra-radius-md))]');
+  });
+});
+
+/**
+ * The panel plays the same entrance as the select family's (operator request, 2026-09-25): a fade
+ * and a uniform scale from 98%, growing from the corner it is anchored by. It had none at all
+ * before — it was the only one of the three popovers that appeared instantly.
+ */
+describe('SearchBar — the panel entrance', () => {
+  it('carries the entrance utility and the origin the keyframes read', async () => {
+    const wrapper = mount({ recent: RECENT });
+    await focusField(wrapper);
+    expect(panel(wrapper).classes()).toContain('animate-eldra-popover-in');
+    expect(panel(wrapper).attributes('style')).toContain('--eldra-popover-origin: top left');
+    // The slide is gone from the entrance, so the variable that drove it is not written either.
+    expect(panel(wrapper).attributes('style')).not.toContain('--eldra-popover-slide');
+  });
+});

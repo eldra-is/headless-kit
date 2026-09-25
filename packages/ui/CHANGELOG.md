@@ -5,6 +5,43 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **New component: `NumberInput`** — an editable number, money and unit field, and the first thing
+  in this package the design spec has no equivalent of (its `Price` is a display component). It
+  draws `Input`'s box, sizes, focus ring and error boundary, and adds the part a text field cannot
+  do: a `number` on one side and a locale-formatted string on the other. Out of focus it shows the
+  formatted value (`$1,234.50`, `1.235 kr.`, `2.5 kg`); on focus, the plain editable string in the
+  locale; on blur or `Enter` it parses, clamps to `min`/`max`, rounds to `precision` and emits only
+  when the number moved. `precision` and `step` default to the currency's own minor unit (0 digits
+  and a whole króna for ISK, 2 and 0.01 for USD), `name` posts the **raw** number through a hidden
+  input, and unparseable text commits `null`. Exported from the root with `NumberInputProps`,
+  `NumberInputPart` and `NumberInputFormat`.
+- **New `./vee-validate` component: `FieldNumberInput`**, binding `number | null`.
+- **Typing into `QuantityStepper` and `NumberInput` is filtered.** Both fields are `type="text"`
+  (a native number input cannot hold a locale-grouped value), so neither had the browser's own
+  numeric filtering: you could type letters into a quantity and only the blur corrected it. A
+  `beforeinput` filter now cancels a non-numeric insertion, lets deletions/undo/redo through, and
+  **sanitises a paste instead of refusing it** — pasting `12ab3` inserts `123`. The helper is
+  exported as `filterNumericBeforeInput` for a consumer building a numeric control of their own.
+- **A pressed `Button` scales to 98% instead of moving down 1px.** `active:translate-y-px` is gone
+  from every variant; `link` keeps no press movement, and a disabled or loading button has none
+  either. Under `prefers-reduced-motion: reduce` the button does not scale at all. `eldra-focus`'s
+  transition list gained `scale` at `--eldra-duration-fast`, beside `translate`. A consumer who
+  targeted `active:translate-y-px` in their own CSS should target `active:scale-[0.98]`.
+- **One popover entrance for `Select`, `MultiSelect` and `SearchBar`:** a fade plus a uniform scale
+  from 98% over `--eldra-duration-base`, growing from the corner the panel is anchored by. The
+  slide is gone, and with it `--eldra-popover-slide` — `usePopover`'s `panelStyle` no longer writes
+  it, and the `eldra-popover-in` keyframes no longer read it. `--eldra-popover-origin` now carries
+  a two-value `transform-origin` (`top left` / `bottom left`) rather than `top` / `bottom`. The
+  `SearchBar`'s results panel had no entrance at all before this and now plays the same one.
+- **`Input`, `SearchBar` and `NumberInput` share one field class recipe** (`src/components/input/classes.ts`).
+  `SearchBar`'s field was a hand-copied duplicate that had drifted: it had lost the
+  `--eldra-input-radius` variable and the `max-md:` mobile type-size override, so it rounded and
+  resized differently from every `Input` beside it. No API change; the search field simply behaves
+  like the other fields now.
+- **`src/utils/number-format.ts` gains `localeSeparators`, `currencyFractionDigits`, and
+  `currencyDisplay`/`unitDisplay` on `NumberFormatOptions`** — all additive, all exported from the
+  root.
+
 - **`peerDependencies.vue` is now `^3.5.0`** (was `^3.4.0`). Every control's ids come from Vue's
   `useId()`, added in 3.5 — on 3.4 the install succeeded and the first control to mount threw
   `useId is not a function`. No code change; the declared range now matches what the package does.

@@ -31,7 +31,7 @@ const slots = useSlots();
  * colour, `radius-md` through the component's own variable, and the one focus ring.
  *
  * There is deliberately no `transition-*`/`duration-*` utility here. `eldra-focus` owns the
- * element's transition list — background, border, text colour and the 1px press movement at
+ * element's transition list — background, border, text colour and the press scale at
  * `duration-fast`, the ring itself at `duration-base`, nothing at all under reduced motion — and a
  * second `transition` shorthand on the same element replaces it wholesale, which is what used to
  * stop the ring growing in. See `src/styles/tailwind.css` and
@@ -191,6 +191,29 @@ const sizeClass = computed(() => {
   return cx(SIZE[props.size], props.size === 'md' && props.variant === 'primary' && TOUCH_GROWTH);
 });
 
+/**
+ * The press (operator ruling, 2026-09-25; recorded under Deviations in the README). The design
+ * spec's States table says a pressed button "moves down 1px", and that is what this shipped:
+ * `active:translate-y-px`. A 1px move is below the threshold at which a press reads as tactile —
+ * it looks like a rendering artefact rather than a button being pushed — so the press is a scale
+ * instead: the whole control shrinks to 98%, which is roughly half the 4% the private Eldra
+ * library's button uses and is felt rather than seen.
+ *
+ * `transform-origin` is left at its initial `center`, which is what makes the button shrink toward
+ * its own middle rather than toward a corner; nothing has to declare it.
+ *
+ * `scale` is an independent transform property in Tailwind v4 (`scale: 0.98`, not a `transform`
+ * shorthand), so it is in `eldra-focus`'s transition list beside `translate` and arrives over
+ * `duration-fast` — see `src/styles/tailwind.css`. Reduced motion needs **both** halves: the
+ * utility's `transition: none` removes the animation, and `motion-reduce:active:scale-100` removes
+ * the movement itself, because an instant 2% jump under a press is still motion.
+ *
+ * `link` is excluded, as the spec's own link row is: a link button is a line box with no fill and
+ * no box to press. A disabled or loading button has no press feedback either, which falls out of
+ * `isDisabled` below replacing the whole state class.
+ */
+const PRESS = 'active:scale-[0.98] motion-reduce:active:scale-100';
+
 const stateClass = computed(() =>
   isDisabled.value
     ? DISABLED[props.variant]
@@ -198,7 +221,10 @@ const stateClass = computed(() =>
       // the outline variant, the one it calls a toggle button.
       cx(
         VARIANT[props.variant],
-        'active:translate-y-px',
+        // A loading button is still clickable (the spec keeps it focusable and named), but the
+        // action is already under way — pressing it again is not a thing that happens, so it gets
+        // no press feedback, the same as a disabled one.
+        props.variant !== 'link' && !isLoading.value && PRESS,
         props.pressed === true &&
           props.variant === 'outline' &&
           'bg-surface-strong border-border-strong'

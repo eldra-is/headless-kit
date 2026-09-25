@@ -7,7 +7,22 @@ import { joinIds, useUiId } from '../../utils/id';
 import { applyMask, stripMask } from '../../utils/mask';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
-import type { InputProps, InputSize } from './types';
+import {
+  FIELD_BASE,
+  FIELD_CLEAR_BUTTON,
+  FIELD_CLEAR_SIZE,
+  FIELD_DISABLED,
+  FIELD_INVALID,
+  FIELD_LEADING_ICON,
+  FIELD_LEADING_PAD,
+  FIELD_LIVE,
+  FIELD_READONLY,
+  FIELD_SEARCH_APPEARANCE,
+  FIELD_SIZE,
+  FIELD_SUFFIX_ROW,
+  FIELD_TRAILING_PAD,
+} from './classes';
+import type { InputProps } from './types';
 
 defineOptions({ inheritAttrs: false });
 
@@ -116,58 +131,10 @@ const resolvedInputmode = computed<NativeInputMode | undefined>(
 );
 
 /**
- * Shared box (spec "Input" → Anatomy, Sizes, States). The `<input>` *is* the field box — the
- * anatomy calls it "the native `<input>`, full width" — so the border, the radius and the one
- * focus ring all live here, and the leading icon and trailing action are absolutely positioned
- * over the padding the sizes reserve for them.
- *
- * `eldra-focus-always` is the text-field rule from the focus-ring foundation: the ring shows on
- * *any* focus, pointer included, "because a caret alone is easy to miss". There is deliberately no
- * `transition-*`/`duration-*` utility beside it — `eldra-focus` owns this element's transition
- * list, including the `duration-fast` border-colour change the spec's Behaviour section asks for.
- * See `src/styles/tailwind.css` and `src/__tests__/focus-transition.spec.ts`.
+ * The field's box, sizes and states are `Input`'s own recipes, shared with `SearchBar` and
+ * `NumberInput` through `./classes.ts` — one field, one box. Read that file for what each one is
+ * and why (including the rule that `eldra-focus` owns this element's transition list).
  */
-const BASE =
-  'block w-full min-w-0 eldra-field-border bg-background text-text placeholder:text-muted ' +
-  'rounded-[var(--eldra-input-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-always';
-
-/**
- * Sizes (spec "Input" → Sizes). `--spacing` is 0.25rem, so `py-0.75`/`px-2.25` are the spec's
- * 0.1875/0.5625rem, `py-1.75`/`px-2.75` its 0.4375/0.6875rem and `py-2.75` its 0.6875rem.
- * The 1.5rem line comes from the `text-control*` utilities, so the value sits on the spec's line
- * inside the spec's box at every size.
- */
-const SIZE: Record<InputSize, string> = {
-  sm: 'control-h-sm py-0.75 px-2.25 text-control-sm',
-  md: 'control-h py-1.75 px-2.75 text-control max-md:text-control-mobile',
-  lg: 'control-h-lg py-2.75 px-2.75 text-control-lg',
-};
-
-/**
- * Room for the decorations (spec "Input" → Sizes, md row): "With a leading icon, the start padding
- * is 2.25rem. With a trailing action, the end padding is 2.5rem." The leading icon is 1.125rem at
- * every size, so its 2.25rem applies to all three; the trailing action is 2rem square, which does
- * not fit a 2rem sm box, so sm uses a 1.5rem button (still the 2.5.8 target minimum) and 2rem of
- * end padding to match.
- */
-const TRAILING_PAD: Record<InputSize, string> = { sm: 'pe-8', md: 'pe-10', lg: 'pe-10' };
-const CLEAR_SIZE: Record<InputSize, string> = { sm: 'size-6', md: 'size-8', lg: 'size-8' };
-
-/**
- * States (spec "Input" → States). Disabled and read-only replace the live colours outright rather
- * than layering over them, so a `:hover` rule can never win back a live boundary on a dead field.
- * The error row's second 1px line is drawn by the root's `eldra-field-invalid` pseudo-element,
- * because the ring already owns this element's `outline` and `box-shadow`.
- */
-const LIVE = 'border-border-strong hover:border-text focus:border-text';
-const INVALID = 'border-danger hover:border-danger focus:border-danger';
-const DISABLED = 'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
-const READONLY = 'bg-surface border-border text-text';
-
-/** Spec "Input" → Variants, `search`: "The browser's own clear button is hidden." */
-const SEARCH =
-  '[&::-webkit-search-cancel-button]:appearance-none ' +
-  '[&::-webkit-search-decoration]:appearance-none';
 
 /**
  * Spec "Input" -> States: the error boundary belongs to a field that can still be corrected. A
@@ -190,53 +157,28 @@ const rootClass = computed(() =>
 const controlClass = computed(() =>
   partClass(
     cx(
-      BASE,
-      SIZE[props.size],
-      hasLeading.value && 'ps-9',
-      hasTrailing.value && TRAILING_PAD[props.size],
+      FIELD_BASE,
+      FIELD_SIZE[props.size],
+      hasLeading.value && FIELD_LEADING_PAD,
+      hasTrailing.value && FIELD_TRAILING_PAD[props.size],
       props.type === 'number' && 'tabular-nums',
-      props.type === 'search' && SEARCH,
-      props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
-      showsInvalid.value && INVALID
+      props.type === 'search' && FIELD_SEARCH_APPEARANCE,
+      props.disabled ? FIELD_DISABLED : props.readonly ? FIELD_READONLY : FIELD_LIVE,
+      showsInvalid.value && FIELD_INVALID
     ),
     props.classes,
     'control'
   )
 );
 
-/** 1.125rem, `muted`, 0.6875rem from the start edge, and out of the pointer's way. */
 const leadingIconClass = computed(() =>
-  partClass(
-    'absolute start-2.75 inset-y-0 my-auto flex h-4.5 w-4.5 items-center justify-center ' +
-      'text-muted pointer-events-none',
-    props.classes,
-    'leadingIcon'
-  )
+  partClass(FIELD_LEADING_ICON, props.classes, 'leadingIcon')
 );
 
-/**
- * The end-edge area, 0.25rem from the edge (spec "Input" → Anatomy, "Trailing action"). The clear
- * button and the `suffix` slot share it, so a field that has both keeps them on one row in reading
- * order — which is also the tab order the Keyboard table asks for: the input first, the clear
- * button next.
- */
-const suffixClass = computed(() =>
-  partClass('absolute end-1 inset-y-0 my-auto flex items-center gap-1', props.classes, 'suffix')
-);
+const suffixClass = computed(() => partClass(FIELD_SUFFIX_ROW, props.classes, 'suffix'));
 
-/** A ghost icon button (spec "Input" → Anatomy): square, `muted`, the one focus ring. */
 const clearButtonClass = computed(() =>
-  partClass(
-    cx(
-      'inline-flex shrink-0 items-center justify-center rounded-[var(--eldra-radius-sm)]',
-      CLEAR_SIZE[props.size],
-      'text-muted hover:text-text',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'eldra-focus'
-    ),
-    props.classes,
-    'clearButton'
-  )
+  partClass(cx(FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE[props.size]), props.classes, 'clearButton')
 );
 
 /** The types whose selection API a browser actually implements; `number` and `email` throw. */

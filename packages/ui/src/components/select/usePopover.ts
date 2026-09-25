@@ -38,7 +38,7 @@ export interface UsePopoverReturn {
   open(activate?: (wasOpen: boolean) => void): void;
   /** Close, putting focus back on the trigger unless told not to. */
   close(returnFocus?: boolean): void;
-  /** `useFloating`'s position plus the two entrance variables the keyframes read. */
+  /** `useFloating`'s position plus the entrance origin the keyframes read. */
   panelStyle: ComputedRef<Record<string, string>>;
   /** The placement actually used, after flipping. */
   placement: ComputedRef<string>;
@@ -59,9 +59,9 @@ export interface UsePopoverReturn {
  *   popup that took its place.
  * - **Closing** (`useOverlay`): an outside pointer press, focus leaving, `Escape`. Non-modal, so
  *   nothing is trapped and `Tab` always moves on.
- * - **Positioning** (`useFloating`), plus the `--eldra-popover-origin`/`--eldra-popover-slide`
- *   pair the entrance keyframes read, so a panel that flips after floating-ui measures changes a
- *   custom property rather than its `animation-name` (which would replay the entrance).
+ * - **Positioning** (`useFloating`), plus the `--eldra-popover-origin` the entrance keyframes read,
+ *   so a panel that flips after floating-ui measures changes a custom property rather than its
+ *   `animation-name` (which would replay the entrance).
  * - **The open sequence**: open, make a row active, and — only when the call actually changed the
  *   state — run `afterOpen` a tick later, which is where focus moves into the panel.
  * - **The label-forwarded-click latch**: a `<label for>` naming the trigger forwards its click to
@@ -168,14 +168,19 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   });
 
   /**
-   * Which edge the panel grows from. Two CSS variables rather than two animation classes: see the
-   * composable's own comment above.
+   * Which corner the panel grows from: the one it is anchored by, so the entrance reads as the
+   * control opening out rather than as a box arriving from somewhere. A panel below the control
+   * grows from `top left`, a flipped one from `bottom left`. A custom property rather than a second
+   * animation class: see the composable's own comment above, and the keyframes in `tailwind.css`.
+   *
+   * Logical directions are deliberately not used. `transform-origin` takes physical keywords only
+   * (`left`/`right`, never `inline-start`), and every panel in this package is `start`-aligned and
+   * at least as wide as its control, so the horizontal half barely moves the result either way.
    */
   const isAbove = computed(() => placement.value.startsWith('top'));
   const panelStyle = computed<Record<string, string>>(() => ({
     ...floatingStyles.value,
-    '--eldra-popover-origin': isAbove.value ? 'bottom' : 'top',
-    '--eldra-popover-slide': isAbove.value ? '0.25rem' : '-0.25rem',
+    '--eldra-popover-origin': isAbove.value ? 'bottom left' : 'top left',
   }));
 
   return {

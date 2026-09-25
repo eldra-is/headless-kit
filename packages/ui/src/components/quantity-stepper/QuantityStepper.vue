@@ -27,6 +27,7 @@ import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { formatNumber, parseLocaleNumber } from '../../utils/number-format';
+import { filterNumericBeforeInput } from '../../utils/numeric-input';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
@@ -225,6 +226,26 @@ function onInput(event: Event): void {
   editingText.value = (event.target as HTMLInputElement).value;
 }
 
+/**
+ * The typing filter (`src/utils/numeric-input.ts`, shared with `NumberInput`). Operator report:
+ * "I can type anything into it" — and they could. A `type="text"` field comes with none of the
+ * browser's own numeric filtering (which is the price of not using `type="number"`, for the
+ * reasons at the top of this file), and `commit()` only corrects the value on blur, so until then
+ * the field showed whatever was typed.
+ *
+ * `beforeinput` cancels the insertion before it lands. Deletions, undo and redo pass; a paste is
+ * sanitised to its digits rather than refused. A `-` is offered only when `min` is actually
+ * negative, since a quantity's default range starts at 1. Decimals never are: this control rounds
+ * to a whole number on commit, so a typed `.` could only ever be discarded.
+ */
+function onBeforeInput(event: Event): void {
+  filterNumericBeforeInput(event as InputEvent, {
+    allowNegative: props.min < 0,
+    allowDecimal: false,
+    locale: props.locale,
+  });
+}
+
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Enter') {
     // Not inside a native <form> submit path by default (type="text", no implicit action), but a
@@ -372,6 +393,7 @@ const inputClass = computed(() =>
       :aria-valuemax="max"
       :aria-valuetext="displayValue"
       :disabled="disabled || undefined"
+      @beforeinput="onBeforeInput"
       @input="onInput"
       @focus="onFocus"
       @blur="onBlur"

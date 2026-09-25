@@ -6,11 +6,13 @@ The components are built to
 [`eldra-starter-spec/01-core-components.md`](../../eldra-starter-spec/01-core-components.md) (WCAG
 2.2 AA). Plan 1 — foundations, actions and forms (`Button`/`ButtonGroup`, `Link`, `Input`,
 `Textarea`, `FieldWrapper`, `FormLayout`, `Checkbox`/`CheckboxGroup`, `RadioGroup`, `Switch`,
-`Select`/`MultiSelect`, `QuantityStepper`, `VariantPicker`, `SearchBar`) — is complete; display,
-commerce, layout, overlays, navigation and feedback components land in the two sub-projects that
-follow, in the same delivery order the spec's "Components and delivery order" section lays out.
-Where this package adds something the spec's property tables do not list, it is recorded below
-under [Deviations](#deviations) rather than left for a reader to find.
+`Select`/`MultiSelect`, `QuantityStepper`, `VariantPicker`, `SearchBar`) — is complete, plus
+`NumberInput`, which the spec has no equivalent of; display, commerce, layout, overlays, navigation
+and feedback components land in the two sub-projects that follow, in the same delivery order the
+spec's "Components and delivery order" section lays out. What this package ships that the spec does
+not name is listed under
+[Additions beyond the spec](#additions-beyond-the-spec), and where it departs from a property table
+it is recorded under [Deviations](#deviations) — neither is left for a reader to find.
 
 ## Install
 
@@ -84,6 +86,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Input`           | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                          |
    | `Link`            | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                    |
    | `MultiSelect`     | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                            |
+   | `NumberInput`     | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width`                                                                                                                                                                                                    |
    | `QuantityStepper` | `--eldra-stepper-radius` (default `var(--eldra-radius-md)`)                                                                                                                                                                                                                                                                                                                                                |
    | `RadioGroup`      | `--eldra-radio-card-border-width` (default `1px`) and `--eldra-radio-card-radius` (default `radius-md`) for the card boundary; `--eldra-checkbox-border-width`/`-invalid` for the radio circle itself, shared with `Checkbox`                                                                                                                                                                              |
    | `SearchBar`       | `--eldra-search-panel-max-height` (default `32rem`, clamped to `70vh`), `--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-search-kbd-line`, `--eldra-input-radius`, `--eldra-field-border-width`, `--eldra-z-popover`, and `--eldra-popover-origin`/`--eldra-popover-slide` (set by the panel itself from the placement it resolved to)                                                    |
@@ -322,7 +325,7 @@ the root entry loads fine without it (a test proves both, in the source graph an
 pnpm add vee-validate   # optional peer, ^4.12
 ```
 
-It exports `Form`, eleven `Field*` components, `API_ERRORS_KEY` and the `useFieldControl`
+It exports `Form`, twelve `Field*` components, `API_ERRORS_KEY` and the `useFieldControl`
 composable they are all built on.
 
 ### The `FieldWrapper` pattern
@@ -376,6 +379,7 @@ and `FieldQuantityStepper` — and those draw their message themselves **only ou
 | ---------------------- | ----------------- | ---------------------------------------------------- |
 | `FieldInput`           | `Input`           | `string`                                             |
 | `FieldTextarea`        | `Textarea`        | `string`                                             |
+| `FieldNumberInput`     | `NumberInput`     | `number \| null` (`null` is an empty field)          |
 | `FieldCheckbox`        | `Checkbox`        | `boolean` (one consent box)                          |
 | `FieldCheckboxGroup`   | `CheckboxGroup`   | `string[]` (one question, several answers)           |
 | `FieldRadioGroup`      | `RadioGroup`      | `string`                                             |
@@ -491,10 +495,92 @@ which checks eleven pairs of the **starter's** `tokens.json`. Contrast, the scre
 the zoom/320px pass are therefore manual protocol steps, performed and recorded per component
 during development, outside this repository's own history.
 
+## Additions beyond the spec
+
+Things this package ships that design spec 1 does not name at all. Each is listed here so a reader
+comparing the package against the spec can tell an addition from a drift.
+
+- **`NumberInput`** — an editable number, money and unit field. The spec has no editable numeric
+  field: its `Price` is a display component (plan 2), and `Input`'s `type="number"` is a native
+  number input, which cannot hold a locale-grouped value at all. `NumberInput` is `Input`'s box in
+  every respect a customer can see (the same sizes, paddings, focus ring and error boundary,
+  imported from `src/components/input/classes.ts`), plus the part a text field cannot do: a
+  `number` on one side and a locale-formatted string on the other, through `Intl` and
+  `parseLocaleNumber`. See its own deviations below.
+- **`FieldNumberInput`**, its `./vee-validate` wrapper, binding `number | null`.
+- **`FieldCheckboxGroup`** — the twelfth `Field*`, for the one root-entry control the spec's list
+  of ten left without a way to validate it (see the deviation below).
+- **`filterNumericBeforeInput`** (`src/utils/numeric-input.ts`) — the `beforeinput` filter that
+  keeps a numeric text field numeric, shared by `QuantityStepper` and `NumberInput` and exported
+  for a consumer building a numeric control of their own.
+- **`createNumberFormat` / `formatNumber` / `parseLocaleNumber` / `localeSeparators` /
+  `currencyFractionDigits`** (`src/utils/number-format.ts`) — locale-aware number formatting and
+  its inverse, behind both numeric controls and exported for use outside them.
+- **`FormLayout`'s `statusMessage` and `focusOnInvalid`, `Form`'s `successMessage`, and
+  `FieldBinding`'s `path`** — each named in the deviations below, where the reason is.
+
 ## Deviations
 
 Additions and departures from the design spec, and why.
 
+- **Active buttons scale to 98% instead of moving down 1px** (operator decision, 2026-09-25). The
+  spec's Button States table gives the pressed row "moves down 1px", and that is what shipped:
+  `active:translate-y-px`. A 1px translate is below the threshold at which a press reads as
+  tactile — at the sizes the spec gives, it looks like a rendering artefact rather than a button
+  being pushed. The whole control now shrinks to 98% from its own centre over `duration-fast`
+  (roughly half the ~4% the private Eldra library's button uses), on every variant but `link`,
+  which the spec's own link row gives no press movement either, and never on a disabled or loading
+  button. Mechanically it is the independent `scale` property, which is in `eldra-focus`'s
+  transition list beside `translate`; under `prefers-reduced-motion: reduce` the button does not
+  scale **at all** (`motion-reduce:active:scale-100`), because removing the transition alone would
+  leave an instant 2% jump, which is still motion.
+- **One popover entrance for all three popovers, and it does not slide** (operator request,
+  2026-09-25). The spec's Select section describes the opening as a fade plus a 0.25rem slide plus
+  a _vertical_ scale from 98%; `SearchBar`'s results panel had no entrance at all. All three —
+  `Select`, `MultiSelect`, `SearchBar` — now play the same one: opacity 0 → 1 and a **uniform**
+  scale 0.98 → 1 over `duration-base` with `ease-out`, growing from the corner the panel is
+  anchored by (`--eldra-popover-origin`: `top left` below the control, `bottom left` above it).
+  The slide made the panel read as a separate object arriving from somewhere rather than as the
+  control opening out, and a `scaleY`-only entrance visibly stretches the type inside the panel
+  while it plays. `--eldra-popover-slide` is gone with it. Closing is instant, as the spec says,
+  and under reduced motion the panel simply appears (`--eldra-duration-base` is `0ms` there).
+- **`Input`, `SearchBar` and `NumberInput` share one field recipe.** The spec describes one field
+  box and three controls draw it; `SearchBar` used to hold a hand-copied duplicate of `Input`'s
+  classes, and the copy had drifted — it had lost the `--eldra-input-radius` variable and carried
+  its own spelling of the type-size rules, which is what an operator review saw as a search field
+  that "does not behave like the regular input fields". The recipes now live in
+  `src/components/input/classes.ts` and all three import them; a component may add its own deltas
+  (`SearchBar`'s pill radius and its two sizes, `NumberInput`'s `prefix` reservation) and never a
+  second copy of the box. The class strings are internal — a consumer restyles through tokens,
+  per-component variables and `classes`, never by importing them.
+- **Both numeric fields filter typing with `beforeinput`.** Neither `QuantityStepper` nor
+  `NumberInput` can be a native `<input type="number">` (see the `QuantityStepper` deviation
+  below), which also means neither gets the browser's own numeric filtering — an operator review
+  found you could type anything into a quantity field, and it was only corrected on blur.
+  `filterNumericBeforeInput` cancels an insertion that would put something non-numeric in the
+  field, letting deletions, undo and redo through untouched. **A paste is sanitised rather than
+  refused**: pasting `12ab3` inserts `123`, because someone who copied a number with a stray label
+  attached meant the number, and refusing the whole paste is a dead end with no message. The
+  locale's group separator is always accepted, whether or not the field takes decimals, because
+  the formatted text the field shows already contains one.
+- **`NumberInput` commits `null` for text that is not a number.** Not the previous value: a field
+  that silently restored a number the customer had just deleted would be lying about what it
+  holds, and `null` is the same thing an empty field means. Whether that is an _error_ is the
+  caller's to say, through `invalid` and a `FieldWrapper`'s message — the control never invents
+  one.
+- **`NumberInput` posts the raw number through a hidden input.** `name` renders
+  `<input type="hidden" :name :value>` carrying `1234.5`, and the visible control has no `name` of
+  its own, so exactly one value is posted and it is never the locale string — `"1.234,5"` would be
+  read as `1.2345` by almost every server.
+- **`NumberInput` has no `role="spinbutton"`, unlike `QuantityStepper`.** A spinbutton's value
+  space is bounded by `aria-valuemin`/`-valuemax`, and this control's `min`/`max` are optional; a
+  spinbutton with no bounds announces less than the plain text field a screen reader otherwise
+  reads. `ArrowUp`/`ArrowDown` still step (by `step`, ten times that with `Shift`).
+- **`NumberInput`'s `prefix` reserves a fixed start padding.** A `prefix` slot reserves `Input`'s
+  own 2.25rem, and an icon _plus_ a prefix reserves 3.5rem, with the prefix after the icon. Neither
+  is measured — the same rough edge `Input`'s `suffix` row has — so a prefix wider than its
+  reservation needs `classes.control` to say so. The currency symbol and the unit are not affected:
+  they are part of the formatted text `Intl` produces, not a part this component draws.
 - **The focus ring fades in at full size rather than growing.** The design spec's Focus ring
   section says the ring and its infill "grow from 0 to 2px over `duration-base`", and that is what
   this package shipped first: an animated `outline-width` and `box-shadow` spread. A browser paints

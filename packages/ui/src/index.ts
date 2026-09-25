@@ -13,6 +13,7 @@ export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
+export { default as NumberInput } from './components/number-input/NumberInput.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
@@ -55,6 +56,11 @@ export type {
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
+export type {
+  NumberInputFormat,
+  NumberInputPart,
+  NumberInputProps,
+} from './components/number-input/types';
 export type {
   RadioGroupLayout,
   RadioGroupOption,
@@ -154,7 +160,12 @@ export { joinIds, useUiId } from './utils/id';
 export { applyMask, defaultCharacterMeaning, stripMask } from './utils/mask';
 export {
   createNumberFormat,
+  currencyFractionDigits,
   formatNumber,
+  localeSeparators,
   parseLocaleNumber,
   type NumberFormatOptions,
 } from './utils/number-format';
+// The `beforeinput` filter that keeps a numeric text field numeric, shared by `QuantityStepper`
+// and `NumberInput` — exported for a consumer building a numeric control of their own.
+export { filterNumericBeforeInput, type NumericInputFilterOptions } from './utils/numeric-input';

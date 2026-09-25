@@ -11,6 +11,7 @@ import FieldCheckbox from '../FieldCheckbox.vue';
 import FieldCheckboxGroup from '../FieldCheckboxGroup.vue';
 import FieldInput from '../FieldInput.vue';
 import FieldMultiSelect from '../FieldMultiSelect.vue';
+import FieldNumberInput from '../FieldNumberInput.vue';
 import FieldQuantityStepper from '../FieldQuantityStepper.vue';
 import FieldRadioGroup from '../FieldRadioGroup.vue';
 import FieldSearchBar from '../FieldSearchBar.vue';
@@ -886,6 +887,69 @@ describe('a Field on its own', () => {
     expect(input.attributes('aria-invalid')).toBe('true');
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
+    wrapper.unmount();
+  });
+});
+
+describe('FieldNumberInput inside a Form', () => {
+  it('binds a number, not the locale string the customer read', async () => {
+    // The whole reason the control exists: a field showing "1.234,56" under `is-IS` has to put
+    // `1234.56` in the form's values, or every rule and every server after it reads 1.234.
+    const tooCheap = (value: unknown) =>
+      (typeof value === 'number' && value >= 10) || 'Enter at least 10.';
+
+    const wrapper = mountForm(() =>
+      h(FieldNumberInput, {
+        name: 'price',
+        rules: tooCheap,
+        locale: 'is-IS',
+        format: 'currency',
+        currency: 'ISK',
+        label: 'Price',
+      })
+    );
+    const control = wrapper.find('[data-part="control"]');
+
+    await control.trigger('focus');
+    (control.element as HTMLInputElement).value = '1234,56';
+    await control.trigger('input');
+    await control.trigger('blur');
+    await settle();
+
+    // ISK has no minor unit, so the commit rounds to a whole króna — and the hidden input that a
+    // scripting-free post would carry holds that same raw number.
+    expect(control.attributes('aria-invalid')).toBeUndefined();
+    expect((wrapper.find('input[type="hidden"]').element as HTMLInputElement).value).toBe('1235');
+
+    await wrapper.find('form').trigger('submit');
+    await settle();
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ price: 1235 });
+    wrapper.unmount();
+  });
+
+  it('shows a rule message once the field has been left', async () => {
+    const wrapper = mountForm(() =>
+      h(FieldNumberInput, {
+        name: 'price',
+        rules: (value: unknown) =>
+          (typeof value === 'number' && value >= 10) || 'Enter at least 10.',
+      })
+    );
+    const control = wrapper.find('[data-part="control"]');
+
+    await control.trigger('focus');
+    (control.element as HTMLInputElement).value = '2';
+    await control.trigger('input');
+    await settle();
+    // Still typing: the field knows it is invalid and says nothing yet.
+    expect(control.attributes('aria-invalid')).toBeUndefined();
+
+    await control.trigger('blur');
+    await settle();
+    expect(control.attributes('aria-invalid')).toBe('true');
+    // The *message* is not this control's to draw — like `Input`, it has no error row of its own;
+    // a `FieldWrapper` bound to the `Form`'s `errors` slot shows it. What is asserted here is the
+    // gate: nothing is announced until the customer has left the field.
     wrapper.unmount();
   });
 });

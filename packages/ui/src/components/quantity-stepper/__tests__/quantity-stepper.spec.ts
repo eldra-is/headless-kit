@@ -629,3 +629,80 @@ describe('QuantityStepper — accessibility', () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * Operator report: "I can type anything into it." They could. The field is `type="text"` (see the
+ * component's own doc comment for why it cannot be `type="number"`), which means the browser's own
+ * numeric filtering is not there either, and `commit()` only corrects the value on blur — so until
+ * the customer left the field it showed whatever they had typed.
+ *
+ * The filter itself is covered exhaustively in `src/utils/__tests__/numeric-input.spec.ts`; what
+ * these cases prove is that this control is wired to it, with the options a *quantity* needs.
+ */
+describe('QuantityStepper — numeric-only typing', () => {
+  function beforeInput(element: HTMLInputElement, data: string, inputType = 'insertText'): boolean {
+    const event = new InputEvent('beforeinput', {
+      inputType,
+      data,
+      cancelable: true,
+      bubbles: true,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  it('lets a digit through and refuses a letter', () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 2 } });
+    const element = input(wrapper);
+    element.setSelectionRange(1, 1);
+    expect(beforeInput(element, '3')).toBe(false);
+    expect(beforeInput(element, 'a')).toBe(true);
+    expect(beforeInput(element, 'e')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('refuses a decimal point: a quantity is a whole number', () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 2 } });
+    const element = input(wrapper);
+    element.setSelectionRange(1, 1);
+    expect(beforeInput(element, '.')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('refuses a minus while min is positive, and allows one when it is not', () => {
+    const positive = mountWith(QuantityStepper, { props: { modelValue: 2 } });
+    const positiveElement = input(positive);
+    positiveElement.setSelectionRange(0, 0);
+    expect(beforeInput(positiveElement, '-')).toBe(true);
+    positive.unmount();
+
+    const signed = mountWith(QuantityStepper, { props: { modelValue: 0, min: -5, max: 5 } });
+    const signedElement = input(signed);
+    signedElement.setSelectionRange(0, 0);
+    expect(beforeInput(signedElement, '-')).toBe(false);
+    signed.unmount();
+  });
+
+  it('sanitises a paste to its digits rather than refusing it outright', async () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 1, max: 999 } });
+    const field = wrapper.find('[data-part="input"]');
+    await field.trigger('focus');
+    const element = field.element as HTMLInputElement;
+    element.value = '';
+    element.setSelectionRange(0, 0);
+    expect(beforeInput(element, '12ab3', 'insertFromPaste')).toBe(true);
+    expect(element.value).toBe('123');
+    // The filter announced its own insertion, so the control's editing text followed — which is
+    // what makes the commit on blur see 123 rather than the value it started with.
+    await field.trigger('blur');
+    expect(wrapper.emitted('change')?.at(-1)).toEqual([123]);
+    wrapper.unmount();
+  });
+
+  it('never blocks a deletion', () => {
+    const wrapper = mountWith(QuantityStepper, { props: { modelValue: 12 } });
+    const element = input(wrapper);
+    expect(beforeInput(element, '', 'deleteContentBackward')).toBe(false);
+    wrapper.unmount();
+  });
+});

@@ -4,6 +4,13 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
+import {
+  FIELD_BASE,
+  FIELD_CLEAR_BUTTON,
+  FIELD_LIVE,
+  FIELD_SEARCH_APPEARANCE,
+  FIELD_TEXT,
+} from '../input/classes';
 import { useListbox } from '../select/useListbox';
 import { matchRange, type MatchParts } from '../select/useOptionList';
 import { usePopover } from '../select/usePopover';
@@ -637,36 +644,39 @@ const formClass = computed(() => part('relative block w-full', 'form'));
 
 /**
  * The field (spec "Search bar" → Sizes, and "Actions and forms" → Compact controls): the same box
- * as `Input`'s, because it is one. `eldra-focus-always` is the text-field rule from the focus-ring
- * foundation — the ring shows on *any* focus, pointer included, "because a caret alone is easy to
- * miss" — and there is deliberately no `transition-*`/`duration-*` utility beside it:
- * `eldra-focus` owns this element's transition list, including the border-colour change.
+ * as `Input`'s, **because it is one** — `FIELD_BASE`, `FIELD_TEXT` and `FIELD_LIVE` are imported
+ * from `../input/classes.ts` rather than copied here. The copy this replaces had drifted: it had
+ * lost the radius variable (it re-declared the radius in the ternary below instead) and kept its
+ * own spelling of the type-size rules, which is what the operator saw as a search field that
+ * "does not behave like the regular input fields".
+ *
+ * What is left here is genuinely the search bar's own: the browser's search-decoration reset (also
+ * `Input`'s, for `type="search"`), the two sizes with the paddings its own icon and clear button
+ * reserve, and the pill radius.
  */
-const FIELD_BASE =
-  'block w-full min-w-0 eldra-field-border bg-background text-text placeholder:text-muted ' +
-  'eldra-focus eldra-focus-always ' +
-  // "The browser's own clear and decoration are hidden" (anatomy, item 3).
-  '[&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none';
 
 /**
  * Sizes. `--spacing` is 0.25rem, so `ps-9.5` is the md row's 2.375rem start padding, `ps-11` the lg
  * row's 2.75rem and the shared 2.75rem end padding ("room for the clear button or hint"), and
- * `ps-10` the pill row's 2.5rem.
+ * `ps-10` the pill row's 2.5rem. The type style per size is `Input`'s, `FIELD_TEXT` — including
+ * the `max-md:` mobile override, which is a viewport rule so iOS never zooms into a focused field.
  */
 const SIZE: Record<SearchBarSize, string> = {
-  md: 'control-h ps-9.5 pe-11 text-control max-md:text-control-mobile',
-  lg: 'control-h-lg ps-11 pe-11 text-control-lg',
+  md: `control-h ps-9.5 pe-11 ${FIELD_TEXT.md}`,
+  lg: `control-h-lg ps-11 pe-11 ${FIELD_TEXT.lg}`,
 };
 
 const fieldClass = computed(() =>
   part(
     cx(
       FIELD_BASE,
+      // "The browser's own clear and decoration are hidden" (anatomy, item 3).
+      FIELD_SEARCH_APPEARANCE,
       SIZE[props.size],
-      props.pill
-        ? 'rounded-full ps-10'
-        : 'rounded-[var(--eldra-input-radius,var(--eldra-radius-md))]',
-      'border-border-strong hover:border-text focus:border-text'
+      // The pill's radius replaces the box's own through `tailwind-merge`, rather than the box
+      // shipping without one.
+      props.pill && 'rounded-full ps-10',
+      FIELD_LIVE
     ),
     'field'
   )
@@ -685,15 +695,17 @@ const leadingIconClass = computed(() =>
   )
 );
 
-/** "Clear: 2rem ghost icon button, 0.25rem from the end edge … round in the pill variant." */
+/**
+ * "Clear: 2rem ghost icon button, 0.25rem from the end edge … round in the pill variant." The
+ * button itself is `Input`'s (`FIELD_CLEAR_BUTTON`); what is added is where it sits — absolutely,
+ * because this field has no `suffix` row — its 2rem size at both sizes, and the pill's own radius.
+ */
 const clearButtonClass = computed(() =>
   part(
     cx(
-      'absolute end-1 inset-y-0 my-auto inline-flex size-8 items-center justify-center',
-      props.pill ? 'rounded-full' : 'rounded-sm',
-      'text-muted hover:text-text',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'eldra-focus'
+      FIELD_CLEAR_BUTTON,
+      'absolute end-1 inset-y-0 my-auto size-8',
+      props.pill ? 'rounded-full' : 'rounded-sm'
     ),
     'clearButton'
   )

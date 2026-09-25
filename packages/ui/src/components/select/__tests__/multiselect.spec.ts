@@ -914,3 +914,19 @@ describe('MultiSelect — long content and narrow containers', () => {
     expect(wrapper.find('[data-part="optionHint"]').exists()).toBe(true);
   });
 });
+
+/**
+ * One entrance for all three popovers in this package (operator request, 2026-09-25): a fade and a
+ * uniform scale from 98%, growing from the corner the panel is anchored by. `Select`'s own case is
+ * in `select.spec.ts`, the `SearchBar`'s in `search-bar.spec.ts`; this is the third, so a panel
+ * that stopped carrying the utility or the origin is caught wherever it happens.
+ */
+describe('MultiSelect — the panel entrance', () => {
+  it('carries the entrance utility and the origin the keyframes read', async () => {
+    const wrapper = mount();
+    await press(triggerOf(wrapper));
+    expect(panel(wrapper).classes()).toContain('animate-eldra-popover-in');
+    expect(panel(wrapper).attributes('style')).toContain('--eldra-popover-origin: top left');
+    expect(panel(wrapper).attributes('style')).not.toContain('--eldra-popover-slide');
+  });
+});

@@ -26,6 +26,13 @@ export interface NumberFormatOptions {
    * where the two differ), `unitDisplay: "narrow"` for a unit. No effect on a plain decimal.
    */
   narrow?: boolean;
+  /**
+   * `Intl.NumberFormat`'s own `currencyDisplay`, for the two values `narrow` cannot express
+   * (`"code"` → "USD 12.00", `"name"` → "12.00 US dollars"). Set, it wins over `narrow`.
+   */
+  currencyDisplay?: Intl.NumberFormatOptions['currencyDisplay'];
+  /** `Intl.NumberFormat`'s own `unitDisplay` (`"short"`, `"narrow"`, `"long"`). Wins over `narrow`. */
+  unitDisplay?: Intl.NumberFormatOptions['unitDisplay'];
 }
 
 /**
@@ -34,17 +41,29 @@ export interface NumberFormatOptions {
  * construction cost per value.
  */
 export function createNumberFormat(options: NumberFormatOptions): Intl.NumberFormat {
-  const { locale, style = 'decimal', currency, unit, maxFraction, minFraction, narrow } = options;
+  const {
+    locale,
+    style = 'decimal',
+    currency,
+    unit,
+    maxFraction,
+    minFraction,
+    narrow,
+    currencyDisplay,
+    unitDisplay,
+  } = options;
 
   const intlOptions: Intl.NumberFormatOptions = { style };
 
   if (style === 'currency') {
     intlOptions.currency = currency ?? 'USD';
     if (narrow) intlOptions.currencyDisplay = 'narrowSymbol';
+    if (currencyDisplay !== undefined) intlOptions.currencyDisplay = currencyDisplay;
   }
   if (style === 'unit') {
     intlOptions.unit = unit ?? 'kilogram';
     if (narrow) intlOptions.unitDisplay = 'narrow';
+    if (unitDisplay !== undefined) intlOptions.unitDisplay = unitDisplay;
   }
   if (maxFraction !== undefined) intlOptions.maximumFractionDigits = maxFraction;
   if (minFraction !== undefined) intlOptions.minimumFractionDigits = minFraction;
@@ -64,8 +83,14 @@ export function formatNumber(value: number, options: NumberFormatOptions): strin
  * `,` as the decimal point, `en-US` the reverse, and other locales use other characters entirely
  * (a non-breaking space, an apostrophe, …). `12345.6` is large enough to force a `group` part in
  * every locale that groups at all, and has a fractional part so `decimal` always appears too.
+ *
+ * Exported because a control that lets a person *type* a number needs exactly the two characters
+ * the formatter would print: `NumberInput` strips the group separator out of its editing text and
+ * accepts both through the `beforeinput` filter in `src/utils/numeric-input.ts`. A locale that does
+ * not group at all returns `""` for `group`, which a caller must read as "there is no group
+ * separator" rather than as a separator that happens to be empty.
  */
-function localeSeparators(locale: string): { group: string; decimal: string } {
+export function localeSeparators(locale: string): { group: string; decimal: string } {
   const parts = new Intl.NumberFormat(locale).formatToParts(12345.6);
   const group = parts.find((part) => part.type === 'group')?.value ?? ',';
   const decimal = parts.find((part) => part.type === 'decimal')?.value ?? '.';
@@ -108,4 +133,28 @@ export function parseLocaleNumber(text: string, locale: string): number | null {
 
   const value = Number(normalized);
   return Number.isNaN(value) ? null : value;
+}
+
+/**
+ * How many fraction digits a currency actually has — 2 for `USD` and `EUR`, **0** for `ISK` and
+ * `JPY`, 3 for `KWD` — read from the runtime's own ICU data rather than a hand-maintained table,
+ * the same way `localeSeparators` reads the separators.
+ *
+ * `NumberInput` uses it for the default `precision` of a currency field: rounding an Icelandic
+ * price to two decimals and then displaying it with none would silently drop what the customer
+ * typed, and hard-coding 2 is exactly the assumption that breaks in `is-IS`.
+ *
+ * The locale only picks which ICU data is consulted; the digit count is the currency's, so
+ * `ISK` is 0 under `en-US` too.
+ */
+export function currencyFractionDigits(currency: string, locale = 'en-US'): number {
+  try {
+    return (
+      new Intl.NumberFormat(locale, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
+    );
+  } catch {
+    // An unknown or malformed code throws `RangeError`; 2 is the ISO 4217 default.
+    return 2;
+  }
 }

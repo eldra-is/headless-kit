@@ -584,20 +584,84 @@ describe('Button — states', () => {
     wrapper.unmount();
   });
 
-  it('presses down 1px on a live button and never on a disabled one', () => {
-    const live = mountWith(Button, {
+  /**
+   * The press is a scale, not a 1px move (operator ruling, 2026-09-25 — README Deviations). The
+   * spec's States table says "moves down 1px"; a 1px translate is below the threshold at which a
+   * press reads as tactile, so the whole control shrinks to 98% instead.
+   */
+  it.each(VARIANTS.filter((variant) => variant !== 'link'))(
+    'scales a live %s button down on press',
+    (variant) => {
+      const wrapper = mountWith(Button, { props: { variant }, slots: { default: 'Add to cart' } });
+      expect(wrapper.classes()).toContain('active:scale-[0.98]');
+      // The class it replaced must be gone, on every variant: both present would make the button
+      // shrink *and* drop, which is neither state.
+      expect(wrapper.classes()).not.toContain('active:translate-y-px');
+      wrapper.unmount();
+    }
+  );
+
+  it('never scales a link button, which has no box to press', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'link' },
+      slots: { default: 'Size guide' },
+    });
+    expect(wrapper.classes()).not.toContain('active:scale-[0.98]');
+    expect(wrapper.classes()).not.toContain('active:translate-y-px');
+    wrapper.unmount();
+  });
+
+  it.each(VARIANTS)('gives a disabled %s button no press feedback at all', (variant) => {
+    const dead = mountWith(Button, {
+      props: { variant, disabled: true },
+      slots: { default: 'Sold out' },
+    });
+    expect(dead.classes()).not.toContain('active:scale-[0.98]');
+    expect(dead.classes()).not.toContain('active:translate-y-px');
+    dead.unmount();
+  });
+
+  it('gives a loading button no press feedback either', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', loading: true, label: 'Adding to cart' },
+      slots: { default: 'Add to cart' },
+    });
+    // A loading button stays clickable (it keeps its name and its place in the tab order), so
+    // nothing else would have taken the press class away — it is dropped explicitly, because the
+    // action is already under way.
+    expect(wrapper.classes().join(' ')).not.toMatch(/active:(scale|translate)/);
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    wrapper.unmount();
+  });
+
+  /**
+   * Reduced motion needs both halves. `eldra-focus`'s `transition: none` takes away the animation,
+   * but the button would still jump 2% smaller the instant it is pressed, and an instant jump is
+   * still motion — so the scale itself is reset there.
+   */
+  it('does not scale at all under reduced motion', () => {
+    const wrapper = mountWith(Button, {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(live.classes()).toContain('active:translate-y-px');
-    live.unmount();
+    expect(wrapper.classes()).toContain('motion-reduce:active:scale-100');
+    wrapper.unmount();
+  });
 
-    const dead = mountWith(Button, {
-      props: { variant: 'primary', disabled: true },
-      slots: { default: 'Sold out' },
-    });
-    expect(dead.classes()).not.toContain('active:translate-y-px');
-    dead.unmount();
+  it('leaves no press translate anywhere in the component source', async () => {
+    // The whole point of the ruling is that the 1px move is gone, and a single leftover variant
+    // string would bring it back for exactly that variant — which no rendered-class assertion
+    // above would notice if the variant is one nobody thought to list.
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath, URL: NodeURL } = await import('node:url');
+    const source = readFileSync(
+      fileURLToPath(new NodeURL('../Button.vue', import.meta.url)),
+      'utf8'
+    );
+    // Comments are prose *about* the class that was removed, and the component's own doc comment
+    // names it to explain the ruling — so they are stripped before the source is searched.
+    const code = source.replaceAll(/\/\*[\s\S]*?\*\//g, ' ').replaceAll(/<!--[\s\S]*?-->/g, ' ');
+    expect(code).not.toMatch(/active:(-?translate|-?top|-?mt)/);
   });
 
   it('leaves the transition list to the focus ring utility', () => {

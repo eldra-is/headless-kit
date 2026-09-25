@@ -394,6 +394,7 @@
     text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
     text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
     translate var(--eldra-duration-fast) var(--eldra-ease-out),
+    scale var(--eldra-duration-fast) var(--eldra-ease-out),
     opacity var(--eldra-duration-fast) var(--eldra-ease-out),
     --eldra-focus-alpha var(--eldra-duration-base) var(--eldra-ease-out);
   @media (prefers-reduced-motion: reduce) {
@@ -516,6 +517,7 @@
     text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
     text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
     translate var(--eldra-duration-fast) var(--eldra-ease-out),
+    scale var(--eldra-duration-fast) var(--eldra-ease-out),
     opacity var(--eldra-duration-fast) var(--eldra-ease-out),
     --eldra-focus-alpha var(--eldra-duration-base) var(--eldra-ease-out);
   @media (prefers-reduced-motion: reduce) {
@@ -773,24 +775,35 @@
   }
 }
 
-/* The popover's entrance (spec "Select" -> Behaviour & motion, Opening): "it fades in from 0 while
-   sliding 0.25rem and scaling vertically from 98% from its top edge (from its bottom edge when
-   flipped). Closing is instant."
+/* The entrance of EVERY popover in this package — `Select`'s panel, `MultiSelect`'s and the
+   `SearchBar`'s results panel — is this one animation: opacity 0 -> 1 and a uniform scale 0.98 -> 1
+   over `duration-base` with `ease-out`, growing from the corner the panel is anchored by. Closing
+   is instant.
 
-   One keyframe set, with the direction and the origin read from two custom properties the consumer
-   sets inline. It was two sets, one per direction, which meant a panel that flipped swapped
-   `animation-name` the frame after it mounted — floating-ui measures asynchronously — and a new
-   animation name restarts the animation from zero, so the popover visibly faded in twice. A custom
-   property is interpolated by the running animation instead, so the entrance plays exactly once
-   whichever way it ends up pointing.
+   The spec ("Select" -> Behaviour & motion, Opening) writes it as a fade plus a 0.25rem slide plus
+   a *vertical* scale, and that is what shipped first. Operator ruling, 2026-09-25: drop the slide
+   and scale both axes. The slide is what made the panel read as a separate object arriving from
+   somewhere rather than as the control opening out, and a `scaleY`-only entrance stretches the type
+   inside the panel while it plays. Recorded under Deviations in the README. The `SearchBar`'s panel
+   had no entrance at all before that ruling; it now plays the same one.
+
+   The origin is a custom property the panel sets inline from the placement it resolved to
+   (`usePopover`'s `panelStyle`): `top left` below the control, `bottom left` above it, so the panel
+   grows out of the edge it is attached to. One keyframe set with that property rather than two sets
+   with two names: a panel that flips swaps its origin the frame after it mounts — floating-ui
+   measures asynchronously — and a new `animation-name` would restart the animation from zero, so
+   the popover visibly faded in twice. A custom property is read by the running animation instead,
+   so the entrance plays exactly once whichever way it ends up pointing.
 
    Reduced motion needs nothing here: `--eldra-duration-base` is 0ms under
    `prefers-reduced-motion: reduce` (tokens.css), so the panel simply appears in its end state — the
-   same mechanism every transition in this package uses. */
+   same mechanism every transition in this package uses. `transform: scale()` rather than the
+   independent `scale` property, because the panel's `transform` is otherwise untouched and the
+   shorthand is the more widely animatable of the two. */
 @keyframes eldra-popover-in {
   from {
     opacity: 0;
-    transform: translateY(var(--eldra-popover-slide, -0.25rem)) scaleY(0.98);
+    transform: scale(0.98);
   }
   to {
     opacity: 1;
@@ -799,7 +812,7 @@
 }
 @utility animate-eldra-popover-in {
   animation: eldra-popover-in var(--eldra-duration-base) var(--eldra-ease-out);
-  transform-origin: var(--eldra-popover-origin, top);
+  transform-origin: var(--eldra-popover-origin, top left);
 }
 
 /* --- Search bar ------------------------------------------------------------------------------- */

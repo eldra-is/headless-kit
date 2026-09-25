@@ -871,20 +871,25 @@ describe('Select — placement and width', () => {
     expect(panel(above).attributes('data-placement')).toBe('top-start');
   });
 
-  it('plays one entrance animation whichever way the panel points', async () => {
+  it('plays one entrance animation, growing from the corner it is anchored by', async () => {
     const below = mount();
     await press(triggerOf(below));
     expect(panel(below).classes()).toContain('animate-eldra-popover-in');
-    expect(panel(below).attributes('style')).toContain('--eldra-popover-origin: top');
-    expect(panel(below).attributes('style')).toContain('--eldra-popover-slide: -0.25rem');
+    expect(panel(below).attributes('style')).toContain('--eldra-popover-origin: top left');
+    // The slide the entrance used to carry is gone (operator ruling: fade and scale only), so the
+    // variable that drove it must not be written either — a panel still setting it would claim the
+    // package animates something it no longer animates.
+    expect(panel(below).attributes('style')).not.toContain('--eldra-popover-slide');
 
+    // Opening the second one closes the first: the two share the "only one open at a time"
+    // registry, so `below`'s panel is gone from the DOM by the assertions past this line.
     const above = mount({ placement: 'above' });
     await press(triggerOf(above));
     // The same class — a second `animation-name` would restart the animation when `auto` flips.
     expect(panel(above).classes()).toContain('animate-eldra-popover-in');
     expect(panel(above).classes()).not.toContain('animate-eldra-popover-in-above');
-    expect(panel(above).attributes('style')).toContain('--eldra-popover-origin: bottom');
-    expect(panel(above).attributes('style')).toContain('--eldra-popover-slide: 0.25rem');
+    expect(panel(above).attributes('style')).toContain('--eldra-popover-origin: bottom left');
+    expect(panel(above).attributes('style')).not.toContain('--eldra-popover-slide');
   });
 
   it('is never narrower than its trigger in a narrow container', async () => {

@@ -128,6 +128,10 @@ describe('the focus ring owns its element transitions', () => {
       // shorthand — which is the whole point: one declaration, so nothing can replace half of it.
       expect(rule).toContain('background-color var(--eldra-duration-fast)');
       expect(rule).toContain('translate var(--eldra-duration-fast)');
+      // The Button's press is `active:scale-[0.98]`, and Tailwind v4 compiles `scale-*` to the
+      // independent `scale` property rather than to a `transform` shorthand — so `scale` has to be
+      // in this list by name or the press lands instantly. A `transform` entry would not cover it.
+      expect(rule).toContain('scale var(--eldra-duration-fast)');
       // Reduced motion is handled by the utility, so components need no `motion-reduce:` class.
       expect(rule).toContain('prefers-reduced-motion: reduce');
     }
