@@ -25,6 +25,7 @@ export const componentNames = [
   'FieldWrapper',
   'FormLayout',
   'Icon',
+  'Image',
   'Input',
   'Link',
   'MultiSelect',

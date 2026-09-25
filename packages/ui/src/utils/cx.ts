@@ -42,6 +42,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-variant-pill-selected-line'
   | 'eldra-skeleton'
   | 'eldra-rating-half'
+  | 'eldra-image-placeholder-hatch'
 >({
   extend: {
     classGroups: {
@@ -180,6 +181,10 @@ const twMerge = extendTailwindMerge<
       // The Rating half star's clip overlay (tailwind.css "Rating"): a one-off `clip-path` with no
       // stock Tailwind group, so it gets its own.
       'eldra-rating-half': ['eldra-rating-half'],
+      // The Image placeholder's diagonal hatching (tailwind.css "The live 'No image' placeholder's
+      // hatching"): a `background-color` plus a repeating-gradient `background-image`, no stock
+      // group, so it gets its own.
+      'eldra-image-placeholder-hatch': ['eldra-image-placeholder-hatch'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.
       z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"

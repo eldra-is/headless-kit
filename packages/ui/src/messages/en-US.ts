@@ -94,6 +94,12 @@ export const enUS = {
   overLimit: (n: number) => `Over the limit by ${n}`,
   /** A product that cannot be bought. */
   soldOut: 'Sold out',
+  /** `Image`'s live placeholder text, shown next to the photo icon when there is no `media` (spec
+   * "Image" → Variants, "Placeholder (live)" row). */
+  noImage: 'No image',
+  /** `Image`'s live placeholder's accessible name (spec "Image" → Accessibility: 'otherwise it
+   * gets `role="img"` and `aria-label="No image available"`'), omitted when `decorative` is on. */
+  noImageAvailable: 'No image available',
   /** A `StockBadge`'s default copy for `level="in"` (spec "Badge" → Stock status line). */
   stockIn: 'In stock, ships in 1–2 days',
   /**

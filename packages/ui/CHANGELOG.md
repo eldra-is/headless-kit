@@ -5,6 +5,31 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Image`** — the fifth component of the "display, commerce and layout" sub-project (design
+  spec's Image section). The responsive media frame every card and block builds on: a fixed aspect
+  preset (`auto`, `1x1`, `4x3`, `3x2`, `16x9`, `3x4`, `4x5`, default `4x3`) sets the frame's
+  `aspect-ratio` (`src/utils/ratio.ts`) — `auto` uses `media.width`/`height`'s own ratio when both
+  are given, or 4:3 when there is no `media` at all, so the frame always reserves its space and
+  never shifts the layout while an image loads. `focal` (0–100 percent on each axis, default
+  centred) sets `object-position`; once `zoom` (1–2) is above 1 the media also scales around a
+  `transform-origin` clamped into the safe band for that zoom, so a focal point near an edge never
+  pulls the image away from the frame's own edge and exposes it (never stretched, never
+  letterboxed). With no `media`, the live site shows a hatched `surface` placeholder (new
+  `eldra-image-placeholder-hatch` `tailwind.css` utility) with a photo icon and "No image",
+  `role="img"`/`aria-label="No image available"` unless `decorative` is set; a dev-only console
+  warning fires whenever `media` is set but neither `alt` nor `decorative` says anything about it
+  (WCAG 1.1.1). `caption` renders a `<figcaption>` and makes the root a `<figure>`. `rounded`
+  (`none`/`lg`/`xl`) maps to `radius-lg`/`radius-xl` on the frame. `priority` is for the first hero
+  image only (`loading="eager"`, `fetchpriority="high"`); every other image defaults to
+  `loading="lazy"`, `decoding="async"`. `loading` renders a skeleton (`eldra-skeleton`) at the
+  frame's own ratio instead of `media`/the placeholder. `media.type: 'video'` renders a `<video>`
+  with native controls instead of an `<img>`, never autoplaying. `Image` sets `inheritAttrs: false`
+  and forwards every attribute except `class`/`style` (which go to the root) onto the `<img>`/
+  `<video>` element, so a consumer's `data-testid`, `width`/`height` or a framing helper's
+  `data-*` markers land on the media element they describe. New `noImage`/`noImageAvailable`
+  messages. The starter's `UiImage` (`examples/starter-nuxt/app/components/ui/UiImage.vue`) is now
+  a thin wrapper over `Image` rather than its own hand-rolled `<img>` — see `README.md`'s
+  Deviations section for the framing-contract ruling and why it is a wrapper, not a replacement.
 - **Every enabled button shows `cursor: pointer`** (operator report, 2026-09-25), overriding
   Tailwind v4 preflight's `button { cursor: default }`: every live `Button` variant, the
   `Input`/`SearchBar`/`UnitInput`/`CurrencyInput` clear buttons, a live `QuantityStepper` +/-

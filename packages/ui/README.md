@@ -87,6 +87,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Button`          | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                    |
    | `Checkbox`        | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                                                                            |
    | `FieldWrapper`    | `--eldra-field-note-line-height` (default `1.45`) — the line the help and error text share                                                                                                                                                                                                                                                                                                                                                                          |
+   | `Image`           | `--eldra-image-hatch-gap` (default `0.75rem`) — the live "No image" placeholder's diagonal-line repeat distance                                                                                                                                                                                                                                                                                                                                                     |
    | `Input`           | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                                                                                   |
    | `Link`            | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                             |
    | `MultiSelect`     | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                     |
@@ -1306,3 +1307,26 @@ Additions and departures from the design spec, and why.
   read-only control keeps whatever cursor it already had (`cursor-not-allowed`, `cursor-progress`,
   or `Select`/`MultiSelect`'s read-only `cursor-default`), and the `UnitInput` drag handle keeps its
   own `cursor-ns-resize`. `Link` needed nothing — an `<a>` is a pointer already.
+- **The starter's `UiImage` is a thin wrapper over `Image`, not a replacement** (task-7 ruling,
+  2026-09-25; the plan's own wording said "replace `UiImage`"). `Image` must stay standalone of
+  `@eldrajs/theme-vue` (this package never depends on a theme package), but the starter's
+  `examples/starter-nuxt/app/components/ui/UiImage.vue` carries Studio's preview-overlay framing
+  contract — `imageFramingAttrs`/`imageFramingStyle` from `@eldrajs/theme-vue`, `entryId`/
+  `fieldPath` for the overlay's interactive framing controls — which `Image` must not know about.
+  So `UiImage` keeps its old prop names (`src`, `alt`, `framing`, `entryId`, `fieldPath`, `aspect`,
+  `sizes`, `priority`, so every block under `examples/starter-nuxt/blocks/*` needed no change) and
+  renders `Image` underneath: `framing.{x,y}` (0–1 fractions) map to `Image`'s `focal` (0–100
+  percent), `framing.zoom` passes straight through, and `aspect` (`"16/9"`-style strings) maps to
+  `Image`'s six `ImageRatio` presets, falling back to an inline `aspect-ratio` style on the root
+  for anything else. `Image` recomputes `object-position`/`transform`/`transform-origin` from
+  `focal`/`zoom` itself (the same clamped-transform-origin formula `imageFramingStyle` uses — see
+  `Image.vue`'s own `focalBand`/`clampToFocalBand` comment), so the rendered style is
+  byte-identical to the old hand-rolled version; `examples/starter-nuxt/test/framing.spec.ts`
+  (asserting on the `Hero`/`Image` blocks' actual rendered `<img>`) needed no change. Only
+  `imageFramingAttrs`' `data-eldra-framing*` marker attributes forward from `UiImage` to `Image`,
+  never that helper's own `style` — `Image`'s attribute-forwarding rule (below) puts a caller's
+  `style` on the root, not the media element, and `Image` already derives an equivalent style from
+  `focal`/`zoom`. One visible difference a block author may notice: `class`/`style` passed to
+  `UiImage` now land on `Image`'s root (the figure/frame wrapper) rather than the `<img>` itself, so
+  an `object-cover`/`object-contain` class some blocks still pass is now redundant — `Image`'s media
+  part always covers its own frame — rather than load-bearing.

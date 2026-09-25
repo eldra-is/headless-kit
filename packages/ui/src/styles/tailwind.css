@@ -1113,6 +1113,27 @@
   border-width: var(--eldra-variant-swatch-edge-width, 1px);
 }
 
+/* The live "No image" placeholder's hatching (spec "Image" → Sizes, "Placeholder hatching" row:
+   "1px diagonal lines (135°) every 0.75rem in `border` at 70% strength over `surface`"). A
+   `repeating-linear-gradient` rather than an SVG or a `background-image` data URI: it is one flat
+   colour repeated, which a gradient expresses exactly and without shipping a raster/vector asset
+   for a one-pixel line. "70% strength" is `border` mixed with 30% transparency, the same
+   `color-mix(in oklab, …, transparent <n>%)` shape `eldra-skeleton`'s shimmer above already uses
+   for its own "at 60% strength" fill. The repeat distance is a variable with the spec's own
+   0.75rem as its default rather than a literal in the gradient stops, so a consumer who wants a
+   finer or coarser hatch does not have to redeclare the whole gradient. */
+@utility eldra-image-placeholder-hatch {
+  --eldra-image-hatch-gap: 0.75rem;
+  background-color: var(--color-surface);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--eldra-color-border), transparent 30%) 0,
+    color-mix(in oklab, var(--eldra-color-border), transparent 30%) 1px,
+    transparent 1px,
+    transparent var(--eldra-image-hatch-gap)
+  );
+}
+
 /* A sold-out swatch's diagonal line (spec "Variant picker" → States, Sold out row: "2px diagonal
    line in `text` with a 1.5px `background` halo, from 4px inside the top to 4px inside the bottom,
    rotated 45°") is drawn in `VariantPicker.vue` as an inline `<svg>`, not a class-only utility —

@@ -13,6 +13,7 @@ export { default as CurrencyInput } from './components/currency-input/CurrencyIn
 export { default as FieldWrapper } from './components/field-wrapper/FieldWrapper.vue';
 export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
+export { default as Image } from './components/image/Image.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
@@ -69,6 +70,7 @@ export type {
   FormLayoutVariant,
 } from './components/form-layout/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
+export type { ImageMedia, ImagePart, ImageProps, ImageRatio } from './components/image/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
 export type {

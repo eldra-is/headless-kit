@@ -49,14 +49,28 @@ describe('image block', () => {
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...withImage, aspect: 'auto' } } })
     );
-    expect(wrapper.get('img').attributes('style') ?? '').not.toContain('aspect-ratio');
+    // The frame (not the `<img>` itself, which `Image` from `@eldrajs/ui` now wraps in an
+    // aspect-ratio box) carries the CSS `aspect-ratio` keyword `auto` — no fixed preset is
+    // forced, so the frame's own size tracks the image the same way "no forced ratio" always did.
+    expect(wrapper.get('[data-part="frame"]').attributes('style') ?? '').toContain(
+      'aspect-ratio: auto'
+    );
   });
 
-  it.each(['16/9', '4/3', '1/1', '3/4'] as const)('applies the %s aspect ratio', (aspect) => {
+  it.each([
+    ['16/9', '16 / 9'],
+    ['4/3', '4 / 3'],
+    ['1/1', '1 / 1'],
+    ['3/4', '3 / 4'],
+  ] as const)('applies the %s aspect ratio', (aspect, expected) => {
     const wrapper = mount(
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...withImage, aspect } } })
     );
-    expect(wrapper.get('img').attributes('style') ?? '').toContain(`aspect-ratio: ${aspect}`);
+    // `Image`'s frame carries the aspect-ratio, not the `<img>` itself — see the module comment
+    // on `app/components/ui/UiImage.vue` for the wrapper this block renders through.
+    expect(wrapper.get('[data-part="frame"]').attributes('style') ?? '').toContain(
+      `aspect-ratio: ${expected}`
+    );
   });
 });
