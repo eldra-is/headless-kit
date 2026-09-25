@@ -100,3 +100,33 @@ Release-please writes the generated notes from commit messages and does not repl
 - Messages — `opensInNewTab` (`en-US` "(opens in a new tab)", `is-IS` "(opnast í nýjum flipa)") is
   now parenthesised and lower-case, matching the design spec's own wording for the text a
   screen-reader appends after an external link's label.
+- `Input` — single-line text entry in seven native types (`text`, `email`, `tel`, `number`,
+  `search`, `url`, `password`) and three sizes (2rem / 2.5rem / 3rem). `leadingIcon` and the
+  `leadingIcon` slot put a decorative icon inside the field; `clearable` (on by default for
+  `type="search"`) adds a real `<button type="button">` that shows only while there is a value,
+  empties the field and returns focus to it; the `suffix` slot shares the end-edge area with it.
+  `invalid` sets `aria-invalid="true"` and draws the spec's 2px `danger` boundary without the value
+  shifting a pixel; `describedBy`, `required`, `readonly` and `disabled` complete the states, and
+  the per-part `classes` prop covers `root`, `leadingIcon`, `control`, `clearButton` and `suffix`.
+  The focus ring is on the `<input>` itself and shows on *any* focus, pointer included, as the spec
+  requires of text fields. `--eldra-input-radius`, `--eldra-control-font-size`,
+  `--eldra-control-font-size-mobile`, `--eldra-control-line-height` and `--eldra-field-border-width`
+  restyle it without touching a class.
+- `Input` masks — `mask` takes a format such as `(###) ###-####` or `A#A #A#` (`#` a digit, `A` a
+  letter, `*` either, everything else a separator). The field shows the formatted text while
+  `v-model` stays the **raw** value, so what you submit is what you store. The engine is exported
+  as `applyMask`, `stripMask` and `defaultCharacterMeaning` for the same job outside a component.
+- `FIELD_KEY` / `FieldContext` — the injection key a field wrapper provides so the control inside it
+  takes its `id`, `aria-describedby`, invalid and required state without any wiring. Any explicit
+  prop on the control wins over it.
+- `@eldrajs/ui/tailwind.css` gains `text-control{,-sm,-lg,-mobile}` (the compact-control type
+  styles, on the spec's fixed 1.5rem line; `max-md:text-control-mobile` is the spec's viewport
+  exception that keeps a focused field at 1rem below 48rem so iOS never zooms) and
+  `eldra-field-invalid` (the second 1px line that makes a field's error boundary read as 2px).
+- `cx` — `eldra-focus-always` no longer shares a class group with `eldra-focus`. It modifies the
+  ring rather than replacing it, so `cx('eldra-focus eldra-focus-always')` used to collapse to
+  `eldra-focus-always` alone: a `:focus` rule with no outline, infill or transition behind it. Any
+  text field of your own that carries both classes now keeps both.
+- Messages — `charactersLeft`, `resultsCount` and `viewAllResults` now read naturally at one
+  ("1 character left", "1 result", "View 1 result"), in English and in Icelandic (which takes the
+  singular for any count ending in 1 except 11).

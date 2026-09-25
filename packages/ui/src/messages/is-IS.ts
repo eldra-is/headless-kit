@@ -1,6 +1,15 @@
 import type { UiMessages } from './en-US';
 
 /**
+ * Icelandic takes the singular for any count ending in 1 except 11: "1 stafur", "21 stafur", but
+ * "11 stafir". English is simpler — only exactly 1 is singular — so the two catalogues do not
+ * share this helper.
+ */
+function singular(n: number): boolean {
+  return n % 10 === 1 && n % 100 !== 11;
+}
+
+/**
  * The Icelandic message set, shipped as its own entry point
  * (`@eldrajs/ui/messages/is-IS`) so an English-only store never bundles it.
  *
@@ -30,17 +39,15 @@ export const isIS: UiMessages = {
   quantity: 'Magn',
   opensInNewTab: '(opnast í nýjum flipa)',
   counter: (n: number, max: number) => `${n} af ${max}`,
-  // Icelandic takes the singular for any count ending in 1 except 11
-  // ("1 stafur", "21 stafur", but "11 stafir").
-  charactersLeft: (n: number) =>
-    `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'stafur' : 'stafir'} eftir`,
+  charactersLeft: (n: number) => `${n} ${singular(n) ? 'stafur' : 'stafir'} eftir`,
   soldOut: 'Uppselt',
   searchTheShop: 'Leitaðu í búðinni',
   recentSearches: 'Nýlegar leitir',
   popularSearches: 'Vinsælar leitir',
   clearRecent: 'Hreinsa nýlegar leitir',
-  resultsCount: (n: number) => `${n} niðurstöður`,
-  viewAllResults: (n: number) => `Sjá allar ${n} niðurstöður`,
+  resultsCount: (n: number) => `${n} ${singular(n) ? 'niðurstaða' : 'niðurstöður'}`,
+  viewAllResults: (n: number) =>
+    singular(n) ? `Sjá ${n} niðurstöðu` : `Sjá allar ${n} niðurstöður`,
   shortcutHint: 'Ýttu á / til að leita',
   error: 'Villa',
 };

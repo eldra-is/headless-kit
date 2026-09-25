@@ -44,7 +44,7 @@ export const enUS = {
   /** A position-in-a-set counter, e.g. a carousel's slide count. */
   counter: (n: number, max: number) => `${n} / ${max}`,
   /** A `Textarea`'s remaining-characters hint. */
-  charactersLeft: (n: number) => `${n} characters left`,
+  charactersLeft: (n: number) => `${n} ${n === 1 ? 'character' : 'characters'} left`,
   /** A product that cannot be bought. */
   soldOut: 'Sold out',
   /** The `SearchModal`'s field label. */
@@ -56,9 +56,9 @@ export const enUS = {
   /** Empties the `SearchModal`'s history. */
   clearRecent: 'Clear recent',
   /** The live-region announcement after a search. */
-  resultsCount: (n: number) => `${n} results`,
+  resultsCount: (n: number) => `${n} ${n === 1 ? 'result' : 'results'}`,
   /** The `SearchModal`'s footer link to the full results page. */
-  viewAllResults: (n: number) => `View all ${n} results`,
+  viewAllResults: (n: number) => (n === 1 ? 'View 1 result' : `View all ${n} results`),
   /** The keyboard hint beside a search control. */
   shortcutHint: 'Press / to search',
   /** The label of an error region. */

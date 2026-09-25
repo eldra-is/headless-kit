@@ -154,6 +154,33 @@
     var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
 }
 
+/* Compact-control type (spec "Actions and forms" → Compact controls, and "Input" → Sizes): the
+   text of a text input, textarea or select trigger, at body weight on the spec's fixed 1.5rem
+   line — not the body token's 1.6 ratio, which is a prose line and would make a 2.5rem box too
+   tall for its own text. sm and lg reuse the body-sm and body token sizes; md's 0.9375rem sits
+   between two type styles and has no token, so — like the button's lg size above — it is a
+   per-component variable with that default. `text-control-mobile` is the spec's viewport
+   exception: "Below a 48rem viewport the text of inputs … is 1rem, so iOS never zooms into a
+   focused field", applied as `max-md:text-control-mobile` (Tailwind's `md` *viewport* breakpoint
+   is 48rem, which is the edge the spec measures for this rule — unlike the button's touch-target
+   growth, which measures the block and uses the `@max-tablet` container query). */
+@utility text-control-sm {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-control {
+  font: var(--eldra-text-body-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-control-lg {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-control-mobile {
+  font: var(--eldra-text-body-weight) var(--eldra-control-font-size-mobile, 1rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
 /* Control heights and targets. */
 @utility control-h {
   height: var(--eldra-control-height);
@@ -304,6 +331,35 @@
   @media (forced-colors: active) {
     &:focus-visible {
       outline-color: Highlight;
+    }
+  }
+}
+
+/* The error boundary of a field (spec "Input" → States, Error row): "2px `danger` (1px border +
+   1px inset line). On focus the inset line sits inside the `focus-inner` infill."
+
+   Two things make that impossible to draw on the `<input>` itself. `eldra-focus` owns the
+   element's `box-shadow` (the focus infill) and its `outline` (the ring), and a second rule for
+   either would replace the ring rather than add to it; and an `<input>` is a replaced element, so
+   it has no `::after` to lend. So the inset line is drawn by the field's own wrapper — the one
+   element that shares the input's box exactly — as a pseudo-element inset by the input's border
+   width. Keeping the border at 1px in every state is the point: a 2px border would move the value
+   by 1px the moment the field went invalid. `pointer-events: none` keeps the clear button
+   clickable through it, and because the line is *inside* the box while the focus infill is
+   outside it, the two never overlap — which is what the spec's focus sentence asks for. */
+@utility eldra-field-invalid {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--eldra-field-border-width, 1px);
+    border: var(--eldra-field-border-width, 1px) solid var(--eldra-color-danger);
+    border-radius: calc(var(--eldra-radius-md) - var(--eldra-field-border-width, 1px));
+    pointer-events: none;
+  }
+  @media (forced-colors: active) {
+    &::after {
+      border-color: CanvasText;
     }
   }
 }

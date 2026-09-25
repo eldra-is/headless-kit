@@ -24,7 +24,9 @@ export type ClassValue = string | false | null | undefined | Record<string, bool
  * utility that is never added here (as `eldra-link-radius` first shipped) is caught by a test
  * instead of shipping unmerged.
  */
-const twMerge = extendTailwindMerge<'target-min' | 'target-touch' | 'eldra-focus'>({
+const twMerge = extendTailwindMerge<
+  'target-min' | 'target-touch' | 'eldra-focus' | 'eldra-focus-always' | 'eldra-field-invalid'
+>({
   extend: {
     classGroups: {
       // Type styles (tailwind.css "Type styles" + "Button type"): all `text-*` utilities, so a
@@ -47,6 +49,10 @@ const twMerge = extendTailwindMerge<'target-min' | 'target-touch' | 'eldra-focus
             'button-sm',
             'button-md',
             'button-lg',
+            'control-sm',
+            'control',
+            'control-lg',
+            'control-mobile',
           ],
         },
       ],
@@ -56,9 +62,20 @@ const twMerge = extendTailwindMerge<'target-min' | 'target-touch' | 'eldra-focus
       // No stock Tailwind group covers a minimum-target utility, so each gets its own group.
       'target-min': ['target-min'],
       'target-touch': ['target-touch'],
-      // The one focus ring (tailwind.css "The one focus ring"): the three variants are mutually
-      // exclusive, so they share a group with no stock Tailwind equivalent.
-      'eldra-focus': ['eldra-focus', 'eldra-focus-always', 'eldra-focus-inset'],
+      // The field error boundary (tailwind.css "The error boundary of a field"): a pseudo-element
+      // inset line with no stock Tailwind equivalent, so it gets its own group.
+      'eldra-field-invalid': ['eldra-field-invalid'],
+      // The one focus ring (tailwind.css "The one focus ring"). `eldra-focus` and
+      // `eldra-focus-inset` are mutually exclusive — one draws the ring outside the element, the
+      // other inside — so they share a group with no stock Tailwind equivalent.
+      'eldra-focus': ['eldra-focus', 'eldra-focus-inset'],
+      // `eldra-focus-always` is NOT one of those two: it adds the `:focus` rule that makes a text
+      // field show the ring on pointer focus as well, and it carries no base of its own. Putting
+      // it in the same group as `eldra-focus` made `cx('eldra-focus eldra-focus-always')` collapse
+      // to `eldra-focus-always` alone, which left an Input with a `:focus` rule and no ring to
+      // grow — the outline, the infill and the whole transition list live in `eldra-focus`. It
+      // gets its own group, so it still cannot be written twice.
+      'eldra-focus-always': ['eldra-focus-always'],
       // Link's focus-ring corner radius (tailwind.css "eldra-link-radius"): the same "rounded"
       // group as `rounded-*`, so a consumer's `classes.root: 'rounded-full'` replaces it.
       rounded: ['eldra-link-radius'],

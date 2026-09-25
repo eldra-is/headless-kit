@@ -6,6 +6,7 @@
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Icon } from './components/icon/Icon.vue';
+export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
@@ -19,6 +20,7 @@ export type {
   ButtonVariant,
 } from './components/button/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
+export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
 
@@ -38,8 +40,13 @@ export { useControllableModel } from './composables/useControllableModel';
 // shows its primary action loading and every other action disabled.
 export { FORM_SUBMITTING_KEY } from './components/form-layout/context';
 
+// Field context. A `FieldWrapper` provides it; the controls inside it read their `id`,
+// `aria-describedby`, invalid and required state from it, so a bare `<Input />` needs no wiring.
+export { FIELD_KEY, type FieldContext } from './components/field-wrapper/context';
+
 // Styling helpers, so a consumer composing its own wrapper merges classes the
 // same way the components do.
 export { cx, partClass, type ClassValue } from './utils/cx';
 export { mixToward } from './utils/color';
 export { useUiId } from './utils/id';
+export { applyMask, defaultCharacterMeaning, stripMask } from './utils/mask';

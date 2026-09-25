@@ -47,6 +47,15 @@ describe('cx — custom @utility class groups', () => {
     expect(cx('eldra-focus', 'eldra-focus-inset')).toBe('eldra-focus-inset');
   });
 
+  it('keeps eldra-focus-always beside eldra-focus, which it modifies rather than replaces', () => {
+    // The defect: `eldra-focus-always` shared a class group with `eldra-focus`, so a text field's
+    // own `eldra-focus eldra-focus-always` collapsed to `eldra-focus-always` — a `:focus` rule
+    // with no ring behind it (the outline, the infill and the transition list are all declared by
+    // `eldra-focus`). Input is the first component to need both.
+    expect(cx('eldra-focus', 'eldra-focus-always')).toBe('eldra-focus eldra-focus-always');
+    expect(cx('eldra-focus-always', 'eldra-focus-always')).toBe('eldra-focus-always');
+  });
+
   it('lets one control height replace another', () => {
     expect(cx('control-h-sm', 'control-h-lg')).toBe('control-h-lg');
   });
@@ -75,6 +84,19 @@ describe('cx — custom @utility class groups', () => {
 
   it('keeps a custom utility beside an unrelated stock utility', () => {
     expect(cx('target-min', 'bg-primary')).toBe('target-min bg-primary');
+  });
+
+  it('lets a consumer font size replace a control type style', () => {
+    expect(cx('text-control', 'text-body-lg')).toBe('text-body-lg');
+    expect(cx('text-control-sm', 'text-control-lg')).toBe('text-control-lg');
+    // The viewport override is a different variant, so it is not the same utility.
+    expect(cx('text-control', 'max-md:text-control-mobile')).toBe(
+      'text-control max-md:text-control-mobile'
+    );
+  });
+
+  it('dedupes eldra-field-invalid against itself instead of keeping both', () => {
+    expect(cx('eldra-field-invalid', 'eldra-field-invalid')).toBe('eldra-field-invalid');
   });
 
   it('dedupes eldra-link-radius against itself instead of keeping both', () => {
