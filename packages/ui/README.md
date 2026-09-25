@@ -8,6 +8,46 @@ The components are built to `eldra-starter-spec/01-core-components.md` (WCAG 2.2
 package adds something the spec's property tables do not list, it is recorded below rather than
 left for a reader to find.
 
+## Composables
+
+Exported from the package root, for a consumer building a control this package does not ship yet.
+`useControllableModel` is the model every stateful component here uses; the other two are the parts
+of a **non-modal popup** — a select panel, a search results panel, a menu — that are easy to get
+wrong. Neither traps focus: the design spec's non-negotiables reserve `<dialog>` and focus traps for
+modal surfaces, and say these popups are not dialogs.
+
+```ts
+import { useFloating, useOverlay } from '@eldrajs/ui';
+
+const open = ref(false);
+const trigger = ref<HTMLElement | null>(null);
+const panel = ref<HTMLElement | null>(null);
+
+// Closing and focus. Listens on `document` only while `open` is true.
+const { close, focusFirst, focusables } = useOverlay({
+  open,
+  trigger,
+  content: panel,
+  setOpen: (next) => (open.value = next),
+  // closeOnOutsideClick: true,  // an outside `pointerdown`, or focus landing outside
+  // closeOnEscape: true,        // `Escape`, consumed so an enclosing <dialog> does not also close
+  // returnFocus: true,          // back to the trigger, but never off what the user just clicked
+});
+
+// Position. `@floating-ui/vue` with `autoUpdate`, kept current while both elements are mounted.
+const { styles, placement, update } = useFloating(trigger, panel, {
+  placement: 'auto', // 'auto' = below, flipping above when it does not fit; 'above' never flips
+  offset: 4, // the gap in pixels
+  matchWidth: true, // adds `width` equal to the trigger's
+});
+```
+
+`styles` is a plain object for `:style` — `position`, `top`, `left`, and `width` under `matchWidth`
+— not a transform, so the panel keeps `transform` for its own open animation. `placement` is the
+placement actually used, after flipping. A panel rendered through a `<Teleport>` still counts as
+part of the overlay if it carries `data-eldra-overlay-owner="<the content element's id>"`; without
+that, a press inside it reads as a press outside and closes the popup.
+
 ## Deviations
 
 Additions and departures from the design spec, and why.

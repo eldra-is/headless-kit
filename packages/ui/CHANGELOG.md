@@ -5,6 +5,29 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `useOverlay` and `useFloating` — the two composables every **non-modal** popup in this package is
+  built from (Select, Multi-select, the Search bar's results panel), exported from the package root
+  so a consumer can build one of their own. Neither traps focus: the design spec reserves
+  `<dialog>` and focus traps for modal surfaces and says these popups are not dialogs, so `Tab`
+  always moves on and focus landing outside is what closes the popup.
+  `useOverlay({ open, trigger, content, setOpen, closeOnOutsideClick?, closeOnEscape?,
+  returnFocus? })` returns `{ close, focusFirst, focusables }` and listens on `document` only while
+  `open` is `true` — a captured `pointerdown` outside the trigger, the content, or any element
+  under `data-eldra-overlay-owner="<the content's id>"` (so a teleported panel still counts as
+  inside); a bubbling `focusout` whose new owner is outside; and a bubbling `Escape`, which it both
+  `preventDefault()`s and stops, so a popup inside a native `<dialog>` does not close the dialog
+  behind it. `returnFocus` (default on) puts focus back on the trigger on `Escape` and when focus
+  went nowhere, and never pulls it off the element a pointer press just moved it to. Every listener
+  comes off when the overlay closes or the scope is disposed.
+  `useFloating(reference, floating, { placement?, offset?, matchWidth?, flip? })` wraps
+  `@floating-ui/vue` (`autoUpdate`, `offset`, `flip`, `shift`, `size`) and returns
+  `{ styles, placement, update }`. `placement` takes the design spec's own words — `auto` (below,
+  flipping above when it does not fit) and `above` (always above, never flips) — as well as the
+  four concrete `bottom`/`bottom-start`/`top`/`top-start` values, and `flip` overrides either
+  default. `styles` is a plain `:style` object (`position`, `top`, `left`, plus `width` under
+  `matchWidth`) rather than a transform, leaving `transform` free for the popover's own open
+  animation.
+
 - `Switch` — an on/off control for a setting that takes effect immediately, `<button type="button"
   role="switch" aria-checked>` with the visible label as its own content (so the accessible name
   matches the screen) and no key handling of its own: `Space`/`Enter` toggle for free from a real,

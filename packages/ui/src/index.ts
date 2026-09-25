@@ -72,6 +72,17 @@ export {
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
+export {
+  useFloating,
+  type FloatingPlacement,
+  type UseFloatingOptions,
+  type UseFloatingReturn,
+} from './composables/useFloating';
+export {
+  useOverlay,
+  type UseOverlayOptions,
+  type UseOverlayReturn,
+} from './composables/useOverlay';
 
 // Form context. A `FormLayout` provides it; every Button below reads it, so a submitting form
 // shows its primary action loading and every other action disabled.
