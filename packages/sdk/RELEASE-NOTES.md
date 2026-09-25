@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.4...sdk-v0.2.5) (2026-09-25)
+
+
+### Features
+
+* **sdk:** build the analytics tracker script tag from the client configuration ([#34](https://github.com/eldra-is/headless-kit/issues/34)) ([688f7e7](https://github.com/eldra-is/headless-kit/commit/688f7e74584094fd13f9f6f8391e599349a3808c))
+
 ## [0.2.4](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.3...sdk-v0.2.4) (2026-09-23)
 
 
