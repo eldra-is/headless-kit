@@ -76,6 +76,14 @@ describe('cx — custom @utility class groups', () => {
   it('keeps a custom utility beside an unrelated stock utility', () => {
     expect(cx('target-min', 'bg-primary')).toBe('target-min bg-primary');
   });
+
+  it('dedupes eldra-link-radius against itself instead of keeping both', () => {
+    expect(cx('eldra-link-radius', 'eldra-link-radius')).toBe('eldra-link-radius');
+  });
+
+  it('lets a stock rounded utility replace eldra-link-radius', () => {
+    expect(cx('eldra-link-radius', 'rounded-full')).toBe('rounded-full');
+  });
 });
 
 describe('partClass', () => {

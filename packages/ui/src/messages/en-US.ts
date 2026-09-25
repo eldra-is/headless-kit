@@ -40,7 +40,7 @@ export const enUS = {
   /** The accessible name of a `QuantityStepper`'s field. */
   quantity: 'Quantity',
   /** Appended to a link that opens a new browsing context. */
-  opensInNewTab: 'Opens in a new tab',
+  opensInNewTab: '(opens in a new tab)',
   /** A position-in-a-set counter, e.g. a carousel's slide count. */
   counter: (n: number, max: number) => `${n} / ${max}`,
   /** A `Textarea`'s remaining-characters hint. */

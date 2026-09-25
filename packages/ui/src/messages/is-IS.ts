@@ -28,7 +28,7 @@ export const isIS: UiMessages = {
   decrease: 'Minnka',
   increase: 'Auka',
   quantity: 'Magn',
-  opensInNewTab: 'Opnast í nýjum flipa',
+  opensInNewTab: '(opnast í nýjum flipa)',
   counter: (n: number, max: number) => `${n} af ${max}`,
   // Icelandic takes the singular for any count ending in 1 except 11
   // ("1 stafur", "21 stafur", but "11 stafir").

@@ -57,7 +57,7 @@ Release-please writes the generated notes from commit messages and does not repl
 - `Link` — text navigation in three forms: `inline` (always underlined, 1px at 55% of the text
   colour thickening to 2px on hover), `standalone` (weight 600, optional trailing `arrow-right`
   that moves 2px right on hover, no underline at rest), and `external` (`target="_blank"`,
-  `rel="noopener noreferrer"`, the `external-link` icon and visually hidden "Opens in a new tab").
+  `rel="noopener noreferrer"`, the `external-link` icon and visually hidden "(opens in a new tab)").
   `tone="muted"` is for footer and meta-line links. With no `href` it renders a
   `<span data-part="root">` with the same text and no link semantics, per the spec's "render plain
   text instead of a link." `as` takes a tag or a router-link component (a component receives the
@@ -91,3 +91,12 @@ Release-please writes the generated notes from commit messages and does not repl
   did nothing and the next button's 1px overlap covered the focus ring. Its inner corners and
   overlap are now logical (`rounded-s-none`, `rounded-e-none`, `-ms-px`), so a segmented control
   reads correctly in an RTL document.
+- `cx` — `eldra-link-radius` (Link's focus-ring corner radius) is now registered in the `rounded`
+  class group, so a consumer's `classes.root: 'rounded-full'` replaces it instead of landing
+  beside it as an unmerged duplicate. A new spec,
+  `src/__tests__/custom-utility-coverage.spec.ts`, parses every `@utility` out of `tailwind.css`
+  and fails if any of them is not covered by the merge config, so the next custom utility cannot
+  ship unregistered the same way.
+- Messages — `opensInNewTab` (`en-US` "(opens in a new tab)", `is-IS` "(opnast í nýjum flipa)") is
+  now parenthesised and lower-case, matching the design spec's own wording for the text a
+  screen-reader appends after an external link's label.

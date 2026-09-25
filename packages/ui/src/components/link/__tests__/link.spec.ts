@@ -207,7 +207,7 @@ describe('Link — external', () => {
     const icon = wrapper.get('[data-part="externalIcon"]');
     expect(icon.attributes('aria-hidden')).toBe('true');
     expect(icon.classes()).toContain('size-3.5');
-    expect(wrapper.text()).toContain('Opens in a new tab');
+    expect(wrapper.text()).toContain('(opens in a new tab)');
     wrapper.unmount();
   });
 

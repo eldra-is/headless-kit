@@ -14,9 +14,15 @@ export type ClassValue = string | false | null | undefined | Record<string, bool
  * `src/styles/tailwind.css`'s `@utility` rules are invisible to `tailwind-merge` the same way —
  * it never reads the package's CSS, it only pattern-matches class names against its built-in
  * config — so every custom utility that shares a *concern* with a stock group (a font size, a
- * height, a duration, a z-index, an animation) is registered here under that group's id. The three
- * with no stock equivalent (`eldra-focus*`, `target-min`, `target-touch`) get their own group ids
- * instead, so they still conflict with each other without conflicting with unrelated utilities.
+ * height, a duration, a z-index, an animation, a border radius) is registered here under that
+ * group's id. The three with no stock equivalent (`eldra-focus*`, `target-min`, `target-touch`)
+ * get their own group ids instead, so they still conflict with each other without conflicting
+ * with unrelated utilities.
+ *
+ * `src/__tests__/custom-utility-coverage.spec.ts` parses every `@utility <name>` out of
+ * `tailwind.css` and fails if `cx(name, name)` does not collapse to one token, so a new custom
+ * utility that is never added here (as `eldra-link-radius` first shipped) is caught by a test
+ * instead of shipping unmerged.
  */
 const twMerge = extendTailwindMerge<'target-min' | 'target-touch' | 'eldra-focus'>({
   extend: {
@@ -53,6 +59,9 @@ const twMerge = extendTailwindMerge<'target-min' | 'target-touch' | 'eldra-focus
       // The one focus ring (tailwind.css "The one focus ring"): the three variants are mutually
       // exclusive, so they share a group with no stock Tailwind equivalent.
       'eldra-focus': ['eldra-focus', 'eldra-focus-always', 'eldra-focus-inset'],
+      // Link's focus-ring corner radius (tailwind.css "eldra-link-radius"): the same "rounded"
+      // group as `rounded-*`, so a consumer's `classes.root: 'rounded-full'` replaces it.
+      rounded: ['eldra-link-radius'],
       // Motion durations (tailwind.css "Motion"): the same "duration" group as `duration-150`.
       duration: ['duration-fast', 'duration-base', 'duration-slow'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.
