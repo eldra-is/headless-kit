@@ -133,7 +133,9 @@ describe('Select — anatomy and parts', () => {
     expect(trigger(wrapper).getAttribute('role')).toBe('combobox');
     expect(trigger(wrapper).getAttribute('aria-haspopup')).toBe('listbox');
     expect(trigger(wrapper).getAttribute('aria-expanded')).toBe('false');
-    expect(trigger(wrapper).getAttribute('aria-controls')).toBeNull();
+    // `aria-controls` is a *required* property of `role="combobox"` (ARIA 1.2), so it is on the
+    // trigger closed as well as open, and never changes.
+    expect(trigger(wrapper).getAttribute('aria-controls')).toBe(`${trigger(wrapper).id}-listbox`);
     expect(panel(wrapper).exists()).toBe(false);
 
     const select = native(wrapper);
@@ -217,13 +219,13 @@ describe('Select — opening', () => {
     await press(triggerOf(wrapper));
     expect(panel(wrapper).exists()).toBe(true);
     expect(trigger(wrapper).getAttribute('aria-expanded')).toBe('true');
-    expect(trigger(wrapper).getAttribute('aria-controls')).toBe(
-      wrapper.find('[data-part="listbox"]').attributes('id')
-    );
+    const controls = trigger(wrapper).getAttribute('aria-controls');
+    expect(controls).toBe(wrapper.find('[data-part="listbox"]').attributes('id'));
     expect(wrapper.emitted('open')).toHaveLength(1);
 
     await press(triggerOf(wrapper));
     expect(panel(wrapper).exists()).toBe(false);
+    expect(trigger(wrapper).getAttribute('aria-controls')).toBe(controls);
     expect(wrapper.emitted('close')).toHaveLength(1);
   });
 
@@ -266,8 +268,9 @@ describe('Select — opening', () => {
     expect(trigger(wrapper).disabled).toBe(true);
     expect(trigger(wrapper).getAttribute('aria-disabled')).toBe('true');
     await press(triggerOf(wrapper));
-    await key(trigger(wrapper), { key: 'ArrowDown' });
+    const event = await key(trigger(wrapper), { key: 'ArrowDown' });
     expect(panel(wrapper).exists()).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
     expect(wrapper.emitted('open')).toBeUndefined();
   });
 
@@ -277,8 +280,18 @@ describe('Select — opening', () => {
     expect(trigger(wrapper).disabled).toBe(false);
     expect(wrapper.find('[data-part="chevron"]').exists()).toBe(false);
     await press(triggerOf(wrapper));
-    await key(trigger(wrapper), { key: 'ArrowDown' });
     expect(panel(wrapper).exists()).toBe(false);
+  });
+
+  it('leaves every key alone on a read-only trigger rather than swallowing it', async () => {
+    const wrapper = mount({ readonly: true, modelValue: 'care', clearable: true });
+    trigger(wrapper).focus();
+    for (const pressed of ['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Home', 'a', 'Backspace']) {
+      const event = await key(trigger(wrapper), { key: pressed });
+      expect(event.defaultPrevented, pressed).toBe(false);
+    }
+    expect(panel(wrapper).exists()).toBe(false);
+    expect(wrapper.emitted('clear')).toBeUndefined();
   });
 
   it('focuses the trigger without opening when a label forwards its click', async () => {
@@ -288,6 +301,29 @@ describe('Select — opening', () => {
     await flush();
     expect(panel(wrapper).exists()).toBe(false);
     expect(document.activeElement).toBe(trigger(wrapper));
+  });
+
+  it('does not arm the next click with a press that was dragged off the trigger', async () => {
+    const wrapper = mount();
+    await triggerOf(wrapper).trigger('pointerdown');
+    // The pointer left the trigger and came up on the page, so no click ever arrives.
+    document.body.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    await flush();
+    expect(panel(wrapper).exists()).toBe(false);
+
+    // The next click is a label's, and must still only focus.
+    trigger(wrapper).dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    await flush();
+    expect(panel(wrapper).exists()).toBe(false);
+  });
+
+  it('still opens when the press ends on the trigger', async () => {
+    const wrapper = mount();
+    await triggerOf(wrapper).trigger('pointerdown');
+    trigger(wrapper).dispatchEvent(new Event('pointerup', { bubbles: true }));
+    trigger(wrapper).dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    await flush();
+    expect(panel(wrapper).exists()).toBe(true);
   });
 
   it('closes any other open select when it opens', async () => {
@@ -386,6 +422,22 @@ describe('Select — moving and choosing', () => {
     expect(panel(wrapper).exists()).toBe(false);
   });
 
+  it('gives the active and selected rows a forced-colours boundary of their own', async () => {
+    const wrapper = mount({ modelValue: 'care' });
+    await press(triggerOf(wrapper));
+    const rows = optionEls(wrapper);
+    // The selected row is the active one on open, so it carries both.
+    expect(rows[2]?.classes()).toContain('eldra-select-option-active');
+    expect(rows[2]?.classes()).toContain('eldra-select-option-selected');
+    expect(rows[0]?.classes()).not.toContain('eldra-select-option-active');
+    expect(rows[0]?.classes()).not.toContain('eldra-select-option-selected');
+
+    await rows[0]?.trigger('mouseenter');
+    expect(optionEls(wrapper)[0]?.classes()).toContain('eldra-select-option-active');
+    expect(optionEls(wrapper)[2]?.classes()).not.toContain('eldra-select-option-active');
+    expect(optionEls(wrapper)[2]?.classes()).toContain('eldra-select-option-selected');
+  });
+
   it('marks the selected option with aria-selected and a check', async () => {
     const wrapper = mount({ modelValue: 'care' });
     await press(triggerOf(wrapper));
@@ -394,12 +446,36 @@ describe('Select — moving and choosing', () => {
     expect(wrapper.findAll('[data-part="optionCheck"]')).toHaveLength(1);
   });
 
-  it('does not blur the focused element when a pointer presses inside the list', async () => {
-    const wrapper = mount();
+  it('does not blur the focused element when a pointer presses anywhere in the panel', async () => {
+    const wrapper = mount({ options: MANY });
+    await press(triggerOf(wrapper));
+    expect(document.activeElement).toBe(search(wrapper));
+
+    for (const target of [
+      optionEls(wrapper)[1]?.element,
+      wrapper.find('[data-part="listbox"]').element,
+      panel(wrapper).element,
+    ]) {
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      target?.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+
+    // ...including the empty state, which is a sibling of the listbox rather than inside it.
+    search(wrapper).value = 'zzz';
+    await wrapper.find('[data-part="search"]').trigger('input');
+    await flush();
+    const onEmpty = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    wrapper.find('[data-part="empty"]').element.dispatchEvent(onEmpty);
+    expect(onEmpty.defaultPrevented).toBe(true);
+  });
+
+  it('lets a press on the search field itself place the caret', async () => {
+    const wrapper = mount({ options: MANY });
     await press(triggerOf(wrapper));
     const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
-    optionEls(wrapper)[1]?.element.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(true);
+    search(wrapper).dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
   });
 });
 
@@ -693,6 +769,8 @@ describe('Select — the native select underneath', () => {
 
     await press(triggerOf(wrapper));
     await optionEls(wrapper)[4]?.trigger('click');
+    // The mount binds `modelValue`, so the parent is in charge; this is it accepting the change.
+    await wrapper.setProps({ modelValue: 'se' });
     await flush();
     expect(heard).toEqual(['se']);
     expect(select.value).toBe('se');
@@ -704,6 +782,39 @@ describe('Select — the native select underneath', () => {
     await wrapper.setProps({ modelValue: 'other' });
     await flush();
     expect(native(wrapper).value).toBe('other');
+  });
+
+  it('keeps the value when the options arrive after mount', async () => {
+    const wrapper = mount({ options: [], modelValue: 'care', name: 'topic' });
+    // Nothing to select yet, so the native select sits on the placeholder option.
+    expect(native(wrapper).value).toBe('');
+
+    await wrapper.setProps({ options: TOPIC });
+    await flush();
+    expect(native(wrapper).value).toBe('care');
+  });
+
+  it('keeps the value when the options are replaced', async () => {
+    const wrapper = mount({ options: TOPIC, modelValue: 'care', name: 'topic' });
+    expect(native(wrapper).value).toBe('care');
+
+    await wrapper.setProps({
+      options: [{ value: 'care', label: 'Product care (renamed)' }, ...COUNTRIES],
+    });
+    await flush();
+    expect(native(wrapper).value).toBe('care');
+  });
+
+  it('never runs ahead of a controlled parent that refuses the value', async () => {
+    // `modelValue` is bound and never updated, which is a parent refusing every change.
+    const wrapper = mount({ modelValue: 'care', name: 'topic' });
+    await press(triggerOf(wrapper));
+    await optionEls(wrapper)[0]?.trigger('click');
+    await flush();
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([['order']]);
+    expect(native(wrapper).value).toBe('care');
+    expect(wrapper.find('[data-part="value"]').text()).toBe('Product care');
   });
 
   it('adopts a change made on the native select itself', async () => {
@@ -758,6 +869,22 @@ describe('Select — placement and width', () => {
     const above = mount({ placement: 'above' });
     await press(triggerOf(above));
     expect(panel(above).attributes('data-placement')).toBe('top-start');
+  });
+
+  it('plays one entrance animation whichever way the panel points', async () => {
+    const below = mount();
+    await press(triggerOf(below));
+    expect(panel(below).classes()).toContain('animate-eldra-popover-in');
+    expect(panel(below).attributes('style')).toContain('--eldra-popover-origin: top');
+    expect(panel(below).attributes('style')).toContain('--eldra-popover-slide: -0.25rem');
+
+    const above = mount({ placement: 'above' });
+    await press(triggerOf(above));
+    // The same class — a second `animation-name` would restart the animation when `auto` flips.
+    expect(panel(above).classes()).toContain('animate-eldra-popover-in');
+    expect(panel(above).classes()).not.toContain('animate-eldra-popover-in-above');
+    expect(panel(above).attributes('style')).toContain('--eldra-popover-origin: bottom');
+    expect(panel(above).attributes('style')).toContain('--eldra-popover-slide: 0.25rem');
   });
 
   it('is never narrower than its trigger in a narrow container', async () => {

@@ -26,8 +26,12 @@ export const enUS = {
   required: 'Required',
   /** The search control's own label. */
   search: 'Search',
-  /** Shown by a `Select` with no value. */
-  selectPlaceholder: 'Select an option',
+  /**
+   * Shown by a `Select` with no value (spec "Select" -> Properties, `placeholder`: default
+   * `"Select"`). Two words would not fit a narrow filter bar's trigger, and the field's own label
+   * already says which choice this is.
+   */
+  selectPlaceholder: 'Select',
   /** Shown by a `MultiSelect` with no value. */
   multiSelectPlaceholder: 'Select options',
   /** Shown when a filtered list has nothing to show. */

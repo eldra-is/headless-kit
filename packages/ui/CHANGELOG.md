@@ -33,7 +33,12 @@ Release-please writes the generated notes from commit messages and does not repl
   `--eldra-select-group-tracking`, `--eldra-select-option-line`, `--eldra-select-swatch-edge` and
   `--eldra-select-match-weight`/`-underline`/`-underline-offset`. New utilities
   `eldra-focus-inset-always` (the inset ring on any focus, for a select's search field) and
-  `animate-eldra-popover-in`/`-above` (the popover's entrance, instant under reduced motion).
+  `animate-eldra-popover-in` (the popover's entrance, instant under reduced motion; its direction
+  comes from `--eldra-popover-origin`/`--eldra-popover-slide` so a panel that flips does not replay
+  it), and `eldra-select-option-active`/`-selected`, which give the active and the selected row a
+  real boundary under forced colours, where a fill and a weight difference both disappear.
+- **Breaking-ish:** the default `selectPlaceholder` message is now `"Select"` (`is-IS`: `"Velja"`),
+  the design spec's own default, rather than `"Select an option"`.
 
 - `useOverlay` and `useFloating` — the two composables every **non-modal** popup in this package is
   built from (Select, Multi-select, the Search bar's results panel), exported from the package root

@@ -17,6 +17,16 @@ export interface UseListboxOptions<T extends ListboxOption = ListboxOption> {
   options: () => T[];
   /** Whether the popup is open. The keyboard table is two different tables either side of this. */
   isOpen: () => boolean;
+  /**
+   * Whether the control can open at all. Default `true`.
+   *
+   * A read-only or disabled select still has a focusable trigger, and the closed keyboard table
+   * `preventDefault()`s before it asks the caller to open — so without this the trigger swallowed
+   * `ArrowDown`, `Enter`, `Space` and every printable key and did nothing with them, which is a
+   * keyboard dead end on a control the user can still `Tab` to. When this says no, the closed table
+   * is not consulted at all: nothing is prevented and nothing becomes active.
+   */
+  canOpen?: () => boolean;
   /** Whether a search field is showing: it owns `Home`/`End`, `Space` and every printable key. */
   searchable: () => boolean;
   /** The element id of a row, which is what `aria-activedescendant` points at. */
@@ -305,8 +315,12 @@ export function useListbox<T extends ListboxOption>(
 
   function onKeydown(event: KeyboardEvent): void {
     if (event.defaultPrevented) return;
-    if (options.isOpen()) onOpenKeydown(event);
-    else onClosedKeydown(event);
+    if (options.isOpen()) {
+      onOpenKeydown(event);
+      return;
+    }
+    if (options.canOpen?.() === false) return;
+    onClosedKeydown(event);
   }
 
   return {

@@ -36,6 +36,8 @@ const twMerge = extendTailwindMerge<
   | 'eldra-switch-thumb-offset'
   | 'eldra-select-match'
   | 'eldra-select-swatch'
+  | 'eldra-select-option-active'
+  | 'eldra-select-option-selected'
 >({
   extend: {
     classGroups: {
@@ -111,6 +113,10 @@ const twMerge = extendTailwindMerge<
       // group would let a `font-semibold` beside it drop the underline as well.)
       'eldra-select-match': ['eldra-select-match'],
       'eldra-select-swatch': ['eldra-select-swatch'],
+      // The forced-colours boundaries of an active and a selected option row. Two groups, not one:
+      // a row can be both at once, and folding them together would let `cx` drop one of them.
+      'eldra-select-option-active': ['eldra-select-option-active'],
+      'eldra-select-option-selected': ['eldra-select-option-selected'],
       // The one focus ring (tailwind.css "The one focus ring"). `eldra-focus` and
       // `eldra-focus-inset` are mutually exclusive — one draws the ring outside the element, the
       // other inside — so they share a group with no stock Tailwind equivalent.
@@ -139,12 +145,7 @@ const twMerge = extendTailwindMerge<
       z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
-      animate: [
-        'animate-eldra-spin',
-        'animate-eldra-pulse',
-        'animate-eldra-popover-in',
-        'animate-eldra-popover-in-above',
-      ],
+      animate: ['animate-eldra-spin', 'animate-eldra-pulse', 'animate-eldra-popover-in'],
     },
   },
 });

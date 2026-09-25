@@ -227,8 +227,9 @@ const listOptions = computed(() => sections.value.flatMap((section) => section.o
  * A `role="listbox"` may own only `option` and `group` children, so the "No matches" text is a
  * sibling of the listbox rather than a child of it — a `role="presentation"` div inside would be
  * an `aria-required-children` violation, while a genuinely empty listbox is merely "needs review".
- * The listbox itself always renders, empty or not: a `role="combobox"` with `aria-expanded="true"`
- * is *required* to carry `aria-controls`, so it must always have something real to point at.
+ * The listbox itself always renders whenever the panel does, empty or not, because
+ * `aria-controls` is a *required* property of a `role="combobox"` and has to point at something
+ * real while the popup is showing.
  */
 const hasOptions = computed(() => listOptions.value.length > 0);
 
@@ -246,6 +247,9 @@ const highlights = computed(
 const listbox = useListbox({
   options: () => listOptions.value,
   isOpen: () => isOpen.value,
+  // Spec "Select" → Properties: `disabled` "doesn't open", `readonly` "doesn't open". Told to the
+  // listbox rather than left to `openPanel`'s own guard, so those keys are not consumed either.
+  canOpen: () => !props.disabled && !props.readonly,
   searchable: () => searchable.value,
   optionId,
   open: (edge) => openPanel(edge),
@@ -337,7 +341,10 @@ function closePanel(returnFocus = true): void {
   if (returnFocus) triggerRef.value?.focus();
 }
 
-onBeforeUnmount(() => unregisterOpen(closeFromRegistry));
+onBeforeUnmount(() => {
+  unregisterOpen(closeFromRegistry);
+  detachTriggerRelease();
+});
 
 // --- choosing ------------------------------------------------------------------------------------
 
@@ -359,17 +366,41 @@ function syncNative(value: string, fire: boolean): void {
   dispatching = false;
 }
 
-/** Keeps the native select on the model whoever changed it — a parent's `v-model` included. */
-watchPostEffect(() => {
-  const element = nativeRef.value;
+/**
+ * Puts the model onto the native select, if the two have drifted apart.
+ *
+ * It reads the **options** as well as the value, and that is deliberate twice over. A `<select>`
+ * cannot hold a value none of its `<option>`s carries — assigning one silently selects nothing and
+ * reads back as the first option's — so what can be written depends on the list; and reading the
+ * list here is what makes the effect below re-run when the list changes under a value that was
+ * fine a moment ago. Without that, a list arriving after mount (fetched countries) or being
+ * replaced (a dependent list, when its parent field changes) left the native select on the
+ * placeholder while the trigger showed the label, and the form posted `''`.
+ */
+function syncNativeValue(): void {
   const value = model.value;
-  if (element !== null && element.value !== value) element.value = value;
-});
+  const known = props.options.some((option) => option.value === value);
+  const element = nativeRef.value;
+  if (element === null) return;
+  const next = known ? value : '';
+  if (element.value !== next) element.value = next;
+}
+
+/**
+ * Keeps the native select on the model whoever changed it — a parent's `v-model` included — and on
+ * whatever options it currently has. Post-flush, so the new `<option>` elements exist by the time
+ * the value is written.
+ */
+watchPostEffect(syncNativeValue);
 
 function commit(value: string): void {
   model.value = value;
   syncNative(value, true);
   emit('change', value);
+  // A controlled parent may refuse the value, in which case `model.value` never changed and the
+  // watcher above will not fire — but the native select has already been written. Put it back on
+  // whatever the model actually says, so it is never ahead of it.
+  void nextTick(syncNativeValue);
 }
 
 function choose(option: SelectOption): void {
@@ -412,8 +443,30 @@ function onNativeChange(event: Event): void {
  */
 let pressedTrigger = false;
 
+/**
+ * Ends the press. A press that finishes *on* the trigger becomes a click, which clears the latch
+ * itself; one that finishes anywhere else (a drag off the control, a cancelled touch) never will —
+ * and a latch left standing would arm the *next* click, which, if it came from a `<label for>`,
+ * would open the panel the spec says a label must not open.
+ */
+function releaseTrigger(event: Event): void {
+  detachTriggerRelease();
+  const target = event.target;
+  if (target instanceof Node && triggerRef.value?.contains(target) === true) return;
+  pressedTrigger = false;
+}
+
+function detachTriggerRelease(): void {
+  if (typeof document === 'undefined') return;
+  document.removeEventListener('pointerup', releaseTrigger, true);
+  document.removeEventListener('pointercancel', releaseTrigger, true);
+}
+
 function onTriggerPointerDown(): void {
   pressedTrigger = true;
+  if (typeof document === 'undefined') return;
+  document.addEventListener('pointerup', releaseTrigger, true);
+  document.addEventListener('pointercancel', releaseTrigger, true);
 }
 
 function onTriggerClick(event: MouseEvent): void {
@@ -430,10 +483,18 @@ function onTriggerClick(event: MouseEvent): void {
 
 /**
  * Spec "Select" → Behaviour: "Pointer presses inside the list don't blur the focused element."
- * `mousedown`'s default action is what moves focus, so preventing it keeps focus on the trigger
- * (or in the search field) while the click still lands on the option.
+ * `mousedown`'s default action is what moves focus, so preventing it keeps focus where it is while
+ * the click still lands.
+ *
+ * It guards the whole **panel**, not just the list: the padding around the list, the search field's
+ * hairline row and the "No matches" text are all press targets, and a press on any of them used to
+ * blur the search field — which `useOverlay` then reads as focus leaving the overlay, closing the
+ * panel mid-search. The search `<input>` itself is the one exception, because it needs the default
+ * action to take focus and put the caret where the user pressed.
  */
-function onListboxMouseDown(event: MouseEvent): void {
+function onPanelMouseDown(event: MouseEvent): void {
+  const target = event.target;
+  if (target instanceof Node && searchRef.value?.contains(target) === true) return;
   event.preventDefault();
 }
 
@@ -596,14 +657,29 @@ const panelClass = computed(() =>
       'absolute z-popover flex flex-col overflow-hidden',
       'eldra-select-panel-height eldra-select-panel-width',
       'rounded-md border border-border bg-background shadow-md',
-      resolvedPlacement.value.startsWith('top')
-        ? 'animate-eldra-popover-in-above'
-        : 'animate-eldra-popover-in'
+      'animate-eldra-popover-in'
     ),
     props.classes,
     'panel'
   )
 );
+
+/**
+ * Which edge the panel grows from (spec "Select" → Behaviour & motion: it slides 0.25rem and scales
+ * "from its top edge (from its bottom edge when flipped)").
+ *
+ * Two CSS variables rather than two animation classes. `placement` resolves a frame *after* the
+ * panel mounts — floating-ui measures asynchronously — so a panel that ends up flipped would swap
+ * class, and a new `animation-name` restarts the animation from zero: the popover visibly faded in
+ * twice. Changing a custom property the keyframes read leaves `animation-name` alone, so the
+ * entrance plays exactly once whichever way it ends up pointing.
+ */
+const isAbove = computed(() => resolvedPlacement.value.startsWith('top'));
+const panelStyle = computed<Record<string, string>>(() => ({
+  ...floatingStyles.value,
+  '--eldra-popover-origin': isAbove.value ? 'bottom' : 'top',
+  '--eldra-popover-slide': isAbove.value ? '0.25rem' : '-0.25rem',
+}));
 
 /** Spec "Select" → Sizes, Search field: 2.5rem tall, text from 2.125rem, inset focus ring. */
 const searchClass = computed(() =>
@@ -646,8 +722,10 @@ const optionClass = (option: SelectOption): string =>
   partClass(
     cx(
       'flex min-h-9 scroll-my-1 items-center gap-2 rounded-sm px-2 py-1.5 text-select-option',
-      isActive(option) && 'bg-surface-strong',
-      isSelected(option) && 'font-semibold',
+      // Forced colours replaces every fill and drops the weight difference, so the two states that
+      // are otherwise carried by a fill and by weight each get a real boundary of their own there.
+      isActive(option) && 'bg-surface-strong eldra-select-option-active',
+      isSelected(option) && 'font-semibold eldra-select-option-selected',
       option.disabled === true ? 'text-muted cursor-not-allowed' : 'text-text cursor-pointer'
     ),
     props.classes,
@@ -708,7 +786,7 @@ const emptyText = computed(() =>
       :class="triggerClass"
       aria-haspopup="listbox"
       :aria-expanded="isOpen ? 'true' : 'false'"
-      :aria-controls="isOpen ? listboxId : undefined"
+      :aria-controls="listboxId"
       :aria-activedescendant="isOpen && !searchable ? listbox.activeId.value : undefined"
       :aria-labelledby="labelledBy"
       :aria-describedby="describedBy"
@@ -796,8 +874,9 @@ const emptyText = computed(() =>
       :id="panelId"
       data-part="panel"
       :class="panelClass"
-      :style="floatingStyles"
+      :style="panelStyle"
       :data-placement="resolvedPlacement"
+      @mousedown="onPanelMouseDown"
     >
       <div v-if="searchable" class="border-border relative shrink-0 border-b">
         <!-- Tabler's `search` at 1rem, 0.625rem from the start edge. -->
@@ -842,7 +921,6 @@ const emptyText = computed(() =>
         :class="listboxClass"
         :aria-labelledby="labelledBy"
         :aria-label="fallbackLabel"
-        @mousedown="onListboxMouseDown"
       >
         <div
           v-for="(section, sectionIndex) in sections"

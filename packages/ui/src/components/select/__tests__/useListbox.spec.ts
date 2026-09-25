@@ -34,6 +34,7 @@ function harness(
     open?: boolean;
     searchable?: boolean;
     clearable?: boolean;
+    canOpen?: boolean;
   } = {}
 ): Harness {
   const rows = options.rows ?? ROWS;
@@ -47,6 +48,7 @@ function harness(
       isOpen: () => isOpen.value,
       searchable: () => searchable.value,
       optionId: (value) => `opt-${value}`,
+      canOpen: () => options.canOpen ?? true,
       open: (edge) => {
         calls.push(`open:${edge}`);
         isOpen.value = true;
@@ -185,6 +187,16 @@ describe('useListbox — the closed keyboard table', () => {
     press(plain, { key: 'd' });
     expect(plain.calls).toEqual(['open:start']);
     expect(plain.listbox.activeValue.value).toBe('d');
+  });
+
+  it('leaves every key alone when the caller says it cannot open', () => {
+    const h = make({ canOpen: false, clearable: true });
+    for (const key of ['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Home', 'Backspace', 'Delete', 'a']) {
+      expect(press(h, { key }).defaultPrevented, key).toBe(false);
+    }
+    // Nothing was asked of the caller, and nothing became active behind a control that cannot open.
+    expect(h.calls).toEqual([]);
+    expect(h.listbox.activeValue.value).toBeUndefined();
   });
 
   it('ignores a chord', () => {

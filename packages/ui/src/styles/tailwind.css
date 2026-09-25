@@ -606,26 +606,50 @@
     color-mix(in oklab, var(--eldra-color-text), transparent 70%);
 }
 
+/* The active and selected option rows under forced colours (spec "Select" -> States: the active row
+   is "`surface-strong`" fill and the selected row is "weight 600 + check"). Forced-colours mode
+   replaces every fill with the system canvas and flattens most weight differences, so each of the
+   two states needs a real boundary there or the list reads as one undifferentiated block. Both are
+   drawn as insets, so a row never changes size when it becomes active or selected.
+
+   `Highlight` for the active row is the system's own "this is where you are" colour, the same one
+   the focus ring borrows; the selected row takes a thinner `CanvasText` line, which reads as a
+   property of the row rather than as the cursor. `eldra-select-option-active` is declared *after*
+   `-selected` on purpose: the two write the same `outline`, and on a row that is both, the one
+   worth seeing is where the keyboard is — selection is still carried by the check mark beside it.
+   Nothing here applies outside forced colours, so the two utilities never fight the fill and weight
+   that carry the same states everywhere else. */
+@utility eldra-select-option-selected {
+  @media (forced-colors: active) {
+    outline: var(--eldra-select-selected-outline, 1px) solid CanvasText;
+    outline-offset: calc(-1 * var(--eldra-select-selected-outline, 1px));
+  }
+}
+@utility eldra-select-option-active {
+  @media (forced-colors: active) {
+    outline: var(--eldra-select-active-outline, 2px) solid Highlight;
+    outline-offset: calc(-1 * var(--eldra-select-active-outline, 2px));
+  }
+}
+
 /* The popover's entrance (spec "Select" -> Behaviour & motion, Opening): "it fades in from 0 while
    sliding 0.25rem and scaling vertically from 98% from its top edge (from its bottom edge when
-   flipped). Closing is instant." Two keyframe sets rather than one plus a transform-origin switch,
-   because the slide direction reverses with the origin. Reduced motion needs nothing here:
-   `--eldra-duration-base` is 0ms under `prefers-reduced-motion: reduce` (tokens.css), so the panel
-   simply appears in its end state — the same mechanism every transition in this package uses. */
+   flipped). Closing is instant."
+
+   One keyframe set, with the direction and the origin read from two custom properties the consumer
+   sets inline. It was two sets, one per direction, which meant a panel that flipped swapped
+   `animation-name` the frame after it mounted — floating-ui measures asynchronously — and a new
+   animation name restarts the animation from zero, so the popover visibly faded in twice. A custom
+   property is interpolated by the running animation instead, so the entrance plays exactly once
+   whichever way it ends up pointing.
+
+   Reduced motion needs nothing here: `--eldra-duration-base` is 0ms under
+   `prefers-reduced-motion: reduce` (tokens.css), so the panel simply appears in its end state — the
+   same mechanism every transition in this package uses. */
 @keyframes eldra-popover-in {
   from {
     opacity: 0;
-    transform: translateY(-0.25rem) scaleY(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes eldra-popover-in-above {
-  from {
-    opacity: 0;
-    transform: translateY(0.25rem) scaleY(0.98);
+    transform: translateY(var(--eldra-popover-slide, -0.25rem)) scaleY(0.98);
   }
   to {
     opacity: 1;
@@ -634,9 +658,5 @@
 }
 @utility animate-eldra-popover-in {
   animation: eldra-popover-in var(--eldra-duration-base) var(--eldra-ease-out);
-  transform-origin: top;
-}
-@utility animate-eldra-popover-in-above {
-  animation: eldra-popover-in-above var(--eldra-duration-base) var(--eldra-ease-out);
-  transform-origin: bottom;
+  transform-origin: var(--eldra-popover-origin, top);
 }

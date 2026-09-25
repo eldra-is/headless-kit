@@ -29,7 +29,7 @@ export const isIS: UiMessages = {
   optional: 'valfrjálst',
   required: 'Nauðsynlegt',
   search: 'Leita',
-  selectPlaceholder: 'Veldu valkost',
+  selectPlaceholder: 'Velja',
   multiSelectPlaceholder: 'Veldu valkosti',
   noResults: 'Engar niðurstöður',
   noMatchesFor: (query: string) => `Engar niðurstöður fyrir „${query}“`,

@@ -54,6 +54,7 @@ const listbox = useListbox({
   options: () => visibleOptions.value, // already filtered, in DOM order
   isOpen: () => open.value,
   searchable: () => searchable.value, // a search field owns Home/End, Space and printable keys
+  canOpen: () => !disabled && !readonly, // a control that cannot open must not swallow the keys
   optionId: (value) => `${id.value}-o${indexOf(value)}`,
   open: (edge) => openPanel(edge), // 'end' is ArrowUp on a closed, non-searchable trigger
   close: () => closePanel(),
@@ -214,8 +215,16 @@ Additions and departures from the design spec, and why.
 - **`Select`'s empty state is a sibling of the listbox, not a child.** A `role="listbox"` may own
   only `option` and `group` children, so "No matches for “…”" inside one is an
   `aria-required-children` violation. The listbox itself still renders when nothing matches (an
-  empty one is merely "needs review"), because a `role="combobox"` with `aria-expanded="true"` is
-  _required_ to carry `aria-controls` and therefore needs something real to point at.
+  empty one is merely "needs review"), because `aria-controls` is a _required_ property of
+  `role="combobox"` and needs something real to point at while the popup is showing. The trigger
+  carries `aria-controls` when it is closed too, as ARIA 1.2 asks; axe treats a collapsed
+  combobox's reference to a not-yet-rendered popup as "needs review", not a violation.
+- **`Select`'s option rows carry a forced-colours boundary.** The spec draws the active row as a
+  `surface-strong` fill and the selected row as weight 600 plus a check. Forced-colours mode
+  replaces every fill and flattens the weight, so the two utilities `eldra-select-option-active`
+  (a 2px `Highlight` inset outline) and `eldra-select-option-selected` (a 1px `CanvasText` one)
+  apply _only_ there. On a row that is both, the active outline wins — selection is still carried
+  by the check mark beside it.
 - **`Select`'s `noMatchesFor` message.** The spec asks for the empty state to read
   "No matches for “teal”" — the query is part of the string — and the message catalogue had only
   `noResults`. Both are used: `noResults` with no query, `noMatchesFor(query)` with one.
@@ -228,7 +237,8 @@ Additions and departures from the design spec, and why.
   wrapper's label focuses the trigger (it doesn't open it)" — but a `<label for>` naming a
   `<button>` forwards its click to it, and a forwarded click is otherwise indistinguishable from a
   real one. The trigger therefore opens only for a click with a pointer press behind it (or a
-  non-zero `detail`), and focuses without opening otherwise. The cost: a programmatic
+  non-zero `detail`) — a press that ends anywhere but the trigger releases the latch, so a drag off
+  the control cannot arm the next click — and focuses without opening otherwise. The cost: a programmatic
   `element.click()` focuses rather than opens. Keyboard activation never goes through a click at
   all, because `useListbox` consumes `Enter` and `Space` itself.
 - **`Select`'s `disabled` is the native `disabled` attribute.** The spec writes the state as
