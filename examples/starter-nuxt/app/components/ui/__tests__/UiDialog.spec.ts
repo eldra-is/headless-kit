@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { h, nextTick } from 'vue';
+import { Select } from '@eldrajs/ui';
 import { axe } from '../../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
 import UiDialog from '../UiDialog.vue';
@@ -185,6 +186,59 @@ describe('UiDialog', () => {
     expect(document.documentElement.style.overflow).toBe('hidden');
     await wrapper.setProps({ open: false });
     expect(document.documentElement.style.overflow).not.toBe('hidden');
+  });
+
+  /**
+   * `@eldrajs/ui`'s popup panels are teleported out of their control, and a modal `<dialog>` is
+   * the one place `document.body` is the **wrong** target: a dialog opened with `showModal()`
+   * renders in the browser's top layer, above every `z-index` on the page, so a panel on the body
+   * would be drawn behind the dialog that opened it and nothing could raise it. The kit resolves
+   * `closest('dialog[open]')` and teleports into the dialog instead — which is the case this
+   * starter actually hits, since a Select in a filters or address dialog is ordinary.
+   *
+   * jsdom has no top layer (see `test/support/dialog.ts`), so what is asserted here is the part
+   * that decides the outcome in a real browser: which element the panel is a child of.
+   */
+  it('keeps a Select panel inside the dialog rather than on the body', async () => {
+    const wrapper = mount(UiDialog, {
+      props: { open: true, title: 'Shipping' },
+      slots: {
+        default: () =>
+          h(Select, {
+            'aria-label': 'Shipping method',
+            options: [
+              { value: 'standard', label: 'Standard' },
+              { value: 'express', label: 'Express' },
+            ],
+          }),
+      },
+      global: eldraGlobal,
+      attachTo: document.body,
+    });
+    await nextTick();
+
+    const dialog = wrapper.find('dialog').element as HTMLDialogElement;
+    expect(dialog.hasAttribute('open')).toBe(true);
+
+    // A real pointer press: `pointerdown` then the click, which is what the kit's trigger reads as
+    // "a pointer opened this" (a bare `click()` is the label-forwarded kind, which only focuses).
+    const trigger = wrapper.find('[data-part="trigger"]');
+    await trigger.trigger('pointerdown');
+    await trigger.trigger('click');
+    await nextTick();
+
+    const panelId = `${trigger.attributes('id')}-panel`;
+    const panel = document.getElementById(panelId);
+    expect(panel).not.toBeNull();
+    expect(panel?.parentElement).toBe(dialog);
+    expect(panel?.parentElement).not.toBe(document.body);
+
+    // The listbox the trigger names is in there too, so the ARIA wiring survives the move.
+    const listbox = document.getElementById(trigger.attributes('aria-controls') ?? '');
+    expect(listbox).not.toBeNull();
+    expect(dialog.contains(listbox as HTMLElement)).toBe(true);
+
+    wrapper.unmount();
   });
 
   it('has no axe violations while open', async () => {

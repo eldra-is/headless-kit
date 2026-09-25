@@ -23,7 +23,12 @@ type Classes = Partial<Record<SearchBarPart, string>>;
 
 const props = withDefaults(
   defineProps<{
-    /** The panel element's own id. `useOverlay` reads it to recognise teleported parts. */
+    /**
+     * The panel element's own id, which is also its `data-eldra-overlay-owner`. `useOverlay`
+     * reads that attribute to recognise parts of an overlay that are not inside its content
+     * element — and, since this panel is normally teleported to `body`, it is what marks anything
+     * a consumer teleports out of the panel's own slots as still belonging to the overlay.
+     */
     panelId: string;
     /** The listbox's id — what the field's `aria-controls` points at. */
     listboxId: string;
@@ -81,6 +86,12 @@ const isActive = (row: SearchRow): boolean => props.activeValue === row.value;
  * min(32rem, 70vh), scrolls inside (scrolling doesn't chain to the page). 1px `border`,
  * `radius-lg`, `shadow-md`, `background`. Stacks above page content (z-index 30)." The 0.375rem gap
  * is `useFloating`'s offset, and the width floor is its `matchWidth`.
+ *
+ * "Stacks above page content" is why the panel is teleported (to `body`, or to the open
+ * `<dialog>` the field sits in): a search bar lives in a header, and a header is exactly the kind
+ * of element that starts its own stacking context and clips its overflow. `absolute` stays in the
+ * class list for a `teleport: false` search bar; the inline `position` from `useFloating` (`fixed`
+ * once teleported) is on the element and wins over it either way.
  */
 const panelClass = computed(() =>
   partClass(
@@ -231,6 +242,7 @@ function onPanelMouseDown(event: MouseEvent): void {
     ref="root"
     :id="panelId"
     data-part="panel"
+    :data-eldra-overlay-owner="panelId"
     :class="panelClass"
     :style="panelStyle"
     :data-placement="placement"

@@ -4,6 +4,7 @@ import { nextTick } from 'vue';
 import { enUS } from '../../../messages/en-US';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
+import { panelOf } from '../../../test/popover';
 import SearchBar from '../SearchBar.vue';
 import type { SearchResults } from '../types';
 
@@ -69,10 +70,25 @@ afterEach(() => {
 
 const field = (wrapper: ReturnType<typeof mount>) =>
   wrapper.find('[data-part="field"]').element as HTMLInputElement;
-const panel = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-part="panel"]');
-const rows = (wrapper: ReturnType<typeof mount>) => wrapper.findAll('[role="option"]');
+/**
+ * The panel is teleported to `body`, so every query into it starts here rather than at the
+ * wrapper: `panelOf` finds this control's panel by the field's id (see `src/test/popover.ts`).
+ */
+const panel = (wrapper: ReturnType<typeof mount>) =>
+  panelOf(wrapper.find('[data-part="field"]').element);
+/** A query inside the panel that answers "no" rather than throwing when the panel is closed. */
+const inPanel = (wrapper: ReturnType<typeof mount>, selector: string) => {
+  const root = panel(wrapper);
+  return root.exists() ? root.find(selector) : root;
+};
+const rows = (wrapper: ReturnType<typeof mount>) =>
+  panel(wrapper).exists() ? panel(wrapper).findAll('[role="option"]') : [];
 const headings = (wrapper: ReturnType<typeof mount>) =>
-  wrapper.findAll('[data-part="sectionHeading"]').map((node) => node.text());
+  panel(wrapper).exists()
+    ? panel(wrapper)
+        .findAll('[data-part="sectionHeading"]')
+        .map((node) => node.text())
+    : [];
 
 /** floating-ui settles on a promise of its own; the panel's own effects want a tick too. */
 async function flush(): Promise<void> {
@@ -137,7 +153,7 @@ describe('SearchBar', () => {
 
       await focusField(wrapper);
       expect(input.getAttribute('aria-expanded')).toBe('true');
-      const listbox = wrapper.find('[data-part="listbox"]');
+      const listbox = inPanel(wrapper, '[data-part="listbox"]');
       expect(listbox.attributes('role')).toBe('listbox');
       expect(input.getAttribute('aria-controls')).toBe(listbox.attributes('id'));
       expect(listbox.attributes('aria-label')).toBe(enUS.searchSuggestions);
@@ -195,11 +211,16 @@ describe('SearchBar', () => {
       await focusField(wrapper);
       expect(panel(wrapper).exists()).toBe(true);
       expect(headings(wrapper)).toEqual([enUS.recentSearches, enUS.popularSearches]);
-      expect(wrapper.findAll('[data-part="recent"] [role="option"]').map((n) => n.text())).toEqual([
-        ...RECENT,
-        enUS.clearRecent,
-      ]);
-      expect(wrapper.findAll('[data-part="chip"]').map((n) => n.text())).toEqual(POPULAR);
+      expect(
+        panel(wrapper)
+          .findAll('[data-part="recent"] [role="option"]')
+          .map((n) => n.text())
+      ).toEqual([...RECENT, enUS.clearRecent]);
+      expect(
+        panel(wrapper)
+          .findAll('[data-part="chip"]')
+          .map((n) => n.text())
+      ).toEqual(POPULAR);
     });
 
     it('never opens on hover', async () => {
@@ -229,7 +250,7 @@ describe('SearchBar', () => {
     it('fills the field from a recent row without navigating', async () => {
       const wrapper = mount({ recent: RECENT, popular: POPULAR });
       await focusField(wrapper);
-      const row = wrapper.findAll('[data-part="recent"] [role="option"]')[0];
+      const row = panel(wrapper).findAll('[data-part="recent"] [role="option"]')[0];
       expect(row?.attributes('href')).toBeUndefined();
       await row?.trigger('click');
       expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([RECENT[0]]);
@@ -240,7 +261,7 @@ describe('SearchBar', () => {
     it('fills the field from a popular chip without navigating', async () => {
       const wrapper = mount({ popular: POPULAR });
       await focusField(wrapper);
-      const chip = wrapper.findAll('[data-part="chip"]')[1];
+      const chip = panel(wrapper).findAll('[data-part="chip"]')[1];
       await chip?.trigger('click');
       expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([POPULAR[1]]);
       expect(wrapper.emitted('select')).toBeUndefined();
@@ -251,7 +272,7 @@ describe('SearchBar', () => {
       await focusField(wrapper);
       for (const selector of ['[data-part="recent"] [role="option"]', '[data-part="chip"]']) {
         const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-        wrapper.find(selector).element.dispatchEvent(event);
+        inPanel(wrapper, selector).element.dispatchEvent(event);
         expect(event.defaultPrevented, selector).toBe(true);
       }
     });
@@ -259,7 +280,7 @@ describe('SearchBar', () => {
     it('empties the history from the Clear recent searches row', async () => {
       const wrapper = mount({ recent: RECENT, popular: POPULAR });
       await focusField(wrapper);
-      await wrapper.find('[data-part="clearRecent"]').trigger('click');
+      await inPanel(wrapper, '[data-part="clearRecent"]').trigger('click');
       await flush();
       expect(wrapper.emitted('clearRecent')).toHaveLength(1);
       expect(headings(wrapper)).toEqual([enUS.popularSearches]);
@@ -275,21 +296,20 @@ describe('SearchBar', () => {
       );
       const wrapper = mount();
       await focusField(wrapper);
-      expect(wrapper.findAll('[data-part="recent"] [role="option"]').map((n) => n.text())).toEqual([
-        'one',
-        'two',
-        'three',
-        'four',
-        'five',
-        enUS.clearRecent,
-      ]);
+      expect(
+        panel(wrapper)
+          .findAll('[data-part="recent"] [role="option"]')
+          .map((n) => n.text())
+      ).toEqual(['one', 'two', 'three', 'four', 'five', enUS.clearRecent]);
     });
 
     it('prefers the prop over storage', async () => {
       localStorage.setItem(RECENT_KEY, JSON.stringify(['stored']));
       const wrapper = mount({ recent: RECENT });
       await focusField(wrapper);
-      expect(wrapper.findAll('[data-part="recent"] [role="option"]')[0]?.text()).toBe(RECENT[0]);
+      expect(panel(wrapper).findAll('[data-part="recent"] [role="option"]')[0]?.text()).toBe(
+        RECENT[0]
+      );
     });
 
     it('survives a storage that throws, and one holding nonsense', async () => {
@@ -358,32 +378,35 @@ describe('SearchBar', () => {
       // The write failed, but the list is still right in memory for this page.
       await type(wrapper, '');
       await focusField(wrapper);
-      expect(wrapper.findAll('[data-part="recent"] [role="option"]')[0]?.text()).toBe('merino');
+      expect(panel(wrapper).findAll('[data-part="recent"] [role="option"]')[0]?.text()).toBe(
+        'merino'
+      );
     });
 
     it('brings the group back when a search follows Clear recent searches', async () => {
       localStorage.setItem(RECENT_KEY, JSON.stringify(['one']));
       const wrapper = mount();
       await focusField(wrapper);
-      await wrapper.find('[data-part="clearRecent"]').trigger('click');
+      await inPanel(wrapper, '[data-part="clearRecent"]').trigger('click');
       await flush();
-      expect(wrapper.find('[data-part="recent"]').exists()).toBe(false);
+      expect(inPanel(wrapper, '[data-part="recent"]').exists()).toBe(false);
 
       await type(wrapper, 'merino');
       await wrapper.find('[data-part="form"]').trigger('submit');
       await type(wrapper, '');
       await focusField(wrapper);
-      expect(wrapper.findAll('[data-part="recent"] [role="option"]').map((n) => n.text())).toEqual([
-        'merino',
-        enUS.clearRecent,
-      ]);
+      expect(
+        panel(wrapper)
+          .findAll('[data-part="recent"] [role="option"]')
+          .map((n) => n.text())
+      ).toEqual(['merino', enUS.clearRecent]);
     });
 
     it('removes the stored history when the Clear row is chosen', async () => {
       localStorage.setItem(RECENT_KEY, JSON.stringify(['one']));
       const wrapper = mount();
       await focusField(wrapper);
-      await wrapper.find('[data-part="clearRecent"]').trigger('click');
+      await inPanel(wrapper, '[data-part="clearRecent"]').trigger('click');
       expect(localStorage.getItem(RECENT_KEY)).toBeNull();
     });
   });
@@ -397,7 +420,7 @@ describe('SearchBar', () => {
         enUS.searchCollections,
         enUS.searchJournal,
       ]);
-      const sections = wrapper.findAll('[data-part="section"]');
+      const sections = panel(wrapper).findAll('[data-part="section"]');
       expect(sections[0]?.findAll('[role="option"]')).toHaveLength(4);
       expect(sections[1]?.findAll('[role="option"]')).toHaveLength(3);
       // Articles and pages share one group, three rows between them.
@@ -420,9 +443,9 @@ describe('SearchBar', () => {
       });
       await focusField(wrapper);
       expect(headings(wrapper)).toEqual([enUS.searchCollections, enUS.searchJournal]);
-      expect(wrapper.text()).not.toContain('Merino crew sweater');
-      expect(wrapper.text()).toContain('Care guides');
-      expect(wrapper.text()).not.toContain('Meet the makers');
+      expect(panel(wrapper).text()).not.toContain('Merino crew sweater');
+      expect(panel(wrapper).text()).toContain('Care guides');
+      expect(panel(wrapper).text()).not.toContain('Meet the makers');
     });
 
     it('hides an empty group', async () => {
@@ -453,7 +476,7 @@ describe('SearchBar', () => {
         },
       });
       await focusField(wrapper);
-      const row = wrapper.find('[data-part="item"]');
+      const row = inPanel(wrapper, '[data-part="item"]');
       expect(row.element.tagName).toBe('A');
       expect(row.attributes('href')).toBe('/p/merino-crew');
       expect(row.attributes('role')).toBe('option');
@@ -475,7 +498,7 @@ describe('SearchBar', () => {
         },
       });
       await focusField(wrapper);
-      expect(wrapper.find('mark').text()).toBe('Línen');
+      expect(inPanel(wrapper, 'mark').text()).toBe('Línen');
     });
 
     it('keeps every option out of the tab order', async () => {
@@ -483,7 +506,7 @@ describe('SearchBar', () => {
       // without `tabindex="-1"` every row would be a tab stop between the field and the page.
       const wrapper = mount({ modelValue: 'mer', results: RESULTS, popular: POPULAR });
       await focusField(wrapper);
-      const listbox = wrapper.find('[data-part="listbox"]').element;
+      const listbox = inPanel(wrapper, '[data-part="listbox"]').element;
       const reachable = [...listbox.querySelectorAll('*')].filter(
         (node) => node instanceof HTMLElement && node.tabIndex >= 0
       );
@@ -494,8 +517,8 @@ describe('SearchBar', () => {
     it('marks the row and chip wrappers as presentational', async () => {
       const wrapper = mount({ recent: RECENT, popular: POPULAR });
       await focusField(wrapper);
-      expect(wrapper.find('[data-part="recent"]').attributes('role')).toBe('presentation');
-      expect(wrapper.find('[data-part="popular"]').attributes('role')).toBe('presentation');
+      expect(inPanel(wrapper, '[data-part="recent"]').attributes('role')).toBe('presentation');
+      expect(inPanel(wrapper, '[data-part="popular"]').attributes('role')).toBe('presentation');
     });
 
     it('appends q with & when the action already carries a parameter', async () => {
@@ -505,7 +528,7 @@ describe('SearchBar', () => {
         action: '/search?type=product',
       });
       await focusField(wrapper);
-      expect(wrapper.find('[data-part="viewAll"]').attributes('href')).toBe(
+      expect(inPanel(wrapper, '[data-part="viewAll"]').attributes('href')).toBe(
         '/search?type=product&q=mer%20wool'
       );
     });
@@ -533,7 +556,7 @@ describe('SearchBar', () => {
       await focusField(wrapper);
       const ids = rows(wrapper).map((node) => node.attributes('id'));
       expect(new Set(ids).size).toBe(ids.length);
-      const section = wrapper.find('[data-part="section"]');
+      const section = inPanel(wrapper, '[data-part="section"]');
       expect(section.attributes('role')).toBe('group');
       expect(section.attributes('aria-labelledby')).toBe(
         section.find('[data-part="sectionHeading"]').attributes('id')
@@ -545,11 +568,15 @@ describe('SearchBar', () => {
     it('names the query, gives advice and offers the popular chips', async () => {
       const wrapper = mount({ modelValue: 'teapot', results: EMPTY, popular: POPULAR });
       await focusField(wrapper);
-      const empty = wrapper.find('[data-part="empty"]');
+      const empty = inPanel(wrapper, '[data-part="empty"]');
       expect(empty.text()).toContain(enUS.noResultsFor('teapot'));
       expect(empty.text()).toContain(enUS.searchAdvice);
-      expect(wrapper.findAll('[data-part="chip"]').map((n) => n.text())).toEqual(POPULAR);
-      expect(wrapper.find('[data-part="viewAll"]').exists()).toBe(false);
+      expect(
+        panel(wrapper)
+          .findAll('[data-part="chip"]')
+          .map((n) => n.text())
+      ).toEqual(POPULAR);
+      expect(inPanel(wrapper, '[data-part="viewAll"]').exists()).toBe(false);
     });
 
     it('waits for a first response before saying there is nothing', async () => {
@@ -561,7 +588,7 @@ describe('SearchBar', () => {
 
       await wrapper.setProps({ results: EMPTY });
       await flush();
-      expect(wrapper.find('[data-part="empty"]').text()).toContain(enUS.noResultsFor('teapot'));
+      expect(inPanel(wrapper, '[data-part="empty"]').text()).toContain(enUS.noResultsFor('teapot'));
     });
 
     it('still reaches the loading view while the first response is outstanding', async () => {
@@ -573,7 +600,7 @@ describe('SearchBar', () => {
       expect(panel(wrapper).exists()).toBe(false);
       vi.advanceTimersByTime(300);
       await nextTick();
-      expect(wrapper.find('[data-part="loading"]').exists()).toBe(true);
+      expect(inPanel(wrapper, '[data-part="loading"]').exists()).toBe(true);
     });
 
     it('renders the empty slot instead when there is one', async () => {
@@ -582,7 +609,7 @@ describe('SearchBar', () => {
         { slots: { empty: '<p>Nothing here</p>' } }
       );
       await focusField(wrapper);
-      expect(wrapper.find('[data-part="empty"]').text()).toBe('Nothing here');
+      expect(inPanel(wrapper, '[data-part="empty"]').text()).toBe('Nothing here');
     });
   });
 
@@ -595,25 +622,25 @@ describe('SearchBar', () => {
       await nextTick();
       await wrapper.setProps({ loading: true });
       await nextTick();
-      expect(wrapper.find('[data-part="loading"]').exists()).toBe(false);
-      expect(wrapper.text()).toContain('Merino crew sweater');
+      expect(inPanel(wrapper, '[data-part="loading"]').exists()).toBe(false);
+      expect(panel(wrapper).text()).toContain('Merino crew sweater');
 
       vi.advanceTimersByTime(299);
       await nextTick();
-      expect(wrapper.find('[data-part="loading"]').exists()).toBe(false);
+      expect(inPanel(wrapper, '[data-part="loading"]').exists()).toBe(false);
 
       vi.advanceTimersByTime(1);
       await nextTick();
-      expect(wrapper.find('[data-part="loading"]').exists()).toBe(true);
-      expect(wrapper.text()).not.toContain('Merino crew sweater');
-      expect(wrapper.findAll('[data-part="loading"] [aria-hidden="true"]').length).toBeGreaterThan(
-        0
-      );
+      expect(inPanel(wrapper, '[data-part="loading"]').exists()).toBe(true);
+      expect(panel(wrapper).text()).not.toContain('Merino crew sweater');
+      expect(
+        panel(wrapper).findAll('[data-part="loading"] [aria-hidden="true"]').length
+      ).toBeGreaterThan(0);
 
       await wrapper.setProps({ loading: false });
       await nextTick();
-      expect(wrapper.find('[data-part="loading"]').exists()).toBe(false);
-      expect(wrapper.text()).toContain('Merino crew sweater');
+      expect(inPanel(wrapper, '[data-part="loading"]').exists()).toBe(false);
+      expect(panel(wrapper).text()).toContain('Merino crew sweater');
     });
 
     it('forgets a pending delay when the request finishes inside it', async () => {
@@ -625,7 +652,7 @@ describe('SearchBar', () => {
       await wrapper.setProps({ loading: false });
       vi.advanceTimersByTime(600);
       await nextTick();
-      expect(wrapper.find('[data-part="loading"]').exists()).toBe(false);
+      expect(inPanel(wrapper, '[data-part="loading"]').exists()).toBe(false);
     });
   });
 
@@ -692,7 +719,7 @@ describe('SearchBar', () => {
       await focusField(wrapper);
       await key(wrapper, { key: 'ArrowDown' });
       await key(wrapper, { key: 'ArrowDown' });
-      const items = wrapper.findAll('[data-part="item"]');
+      const items = panel(wrapper).findAll('[data-part="item"]');
       const active = items[1];
       expect(active?.attributes('id')).toBe(field(wrapper).getAttribute('aria-activedescendant'));
       // A fill *and* an arrow, plus the active-descendant above: never colour alone.
@@ -713,7 +740,7 @@ describe('SearchBar', () => {
         await key(wrapper, { key: 'ArrowDown' });
         await flush();
         expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
-        const active = wrapper.findAll('[data-part="item"]')[0];
+        const active = panel(wrapper).findAll('[data-part="item"]')[0];
         expect(scrollIntoView.mock.instances.at(-1)).toBe(active?.element);
       } finally {
         Element.prototype.scrollIntoView = original;
@@ -805,10 +832,13 @@ describe('SearchBar', () => {
       await focusField(wrapper);
       // `mousedown`'s default action is what moves focus, so preventing it is what keeps the
       // caret where it is while the click still lands on the row.
-      for (const selector of ['[data-part="item"]', '[data-part="panel"]']) {
+      for (const target of [
+        inPanel(wrapper, '[data-part="item"]').element,
+        panel(wrapper).element,
+      ]) {
         const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
-        wrapper.find(selector).element.dispatchEvent(event);
-        expect(event.defaultPrevented, selector).toBe(true);
+        target.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
       }
       expect(document.activeElement).toBe(field(wrapper));
     });
@@ -926,7 +956,7 @@ describe('SearchBar', () => {
       await focusField(wrapper);
       expect(field(wrapper).className).toContain('border-danger');
       expect(panel(wrapper).classes()).toContain('max-h-64');
-      expect(wrapper.find('[data-part="item"]').classes()).toContain('gap-6');
+      expect(inPanel(wrapper, '[data-part="item"]').classes()).toContain('gap-6');
       expect(headings(wrapper)[0]).toBe('Wares');
     });
 
@@ -936,7 +966,7 @@ describe('SearchBar', () => {
         { slots: { item: '<span class="mine">{{ params.type }}:{{ params.item.title }}</span>' } }
       );
       await focusField(wrapper);
-      expect(wrapper.find('.mine').text()).toBe('products:Merino crew sweater');
+      expect(inPanel(wrapper, '.mine').text()).toBe('products:Merino crew sweater');
     });
 
     it('grows the field and rounds it fully in the lg and pill variants', () => {
@@ -948,28 +978,33 @@ describe('SearchBar', () => {
     });
   });
 
+  /**
+   * `document.body` rather than `wrapper.element`: the results panel is teleported out of the
+   * component (see `usePopover`'s `teleport`), so a scan of the wrapper alone would quietly stop
+   * covering every open view. `mountWith` attaches to the body, so the control is in there too.
+   */
   describe('accessibility', () => {
     it('has no axe violations while closed', async () => {
-      const wrapper = mount({ modelValue: 'mer' });
-      expect(await axe(wrapper.element)).toHaveNoViolations();
+      mount({ modelValue: 'mer' });
+      expect(await axe(document.body)).toHaveNoViolations();
     });
 
     it('has no axe violations in the idle view', async () => {
       const wrapper = mount({ recent: RECENT, popular: POPULAR });
       await focusField(wrapper);
-      expect(await axe(wrapper.element)).toHaveNoViolations();
+      expect(await axe(document.body)).toHaveNoViolations();
     });
 
     it('has no axe violations in the results view', async () => {
       const wrapper = mount({ modelValue: 'mer', results: RESULTS });
       await focusField(wrapper);
-      expect(await axe(wrapper.element)).toHaveNoViolations();
+      expect(await axe(document.body)).toHaveNoViolations();
     });
 
     it('has no axe violations in the no-results view', async () => {
       const wrapper = mount({ modelValue: 'teapot', results: EMPTY, popular: POPULAR });
       await focusField(wrapper);
-      expect(await axe(wrapper.element)).toHaveNoViolations();
+      expect(await axe(document.body)).toHaveNoViolations();
     });
 
     it('has no axe violations in the loading view', async () => {
@@ -981,7 +1016,7 @@ describe('SearchBar', () => {
       vi.advanceTimersByTime(300);
       await nextTick();
       vi.useRealTimers();
-      expect(await axe(wrapper.element)).toHaveNoViolations();
+      expect(await axe(document.body)).toHaveNoViolations();
     });
 
     it('renders in a narrow container', async () => {
@@ -993,9 +1028,9 @@ describe('SearchBar', () => {
       (input.element as HTMLInputElement).focus();
       await input.trigger('focus');
       await flush();
-      expect(wrapper.find('[data-part="panel"]').exists()).toBe(true);
-      expect(wrapper.find('[data-part="itemTitle"]').classes()).toContain('truncate');
-      expect(await axe(wrapper.element)).toHaveNoViolations();
+      expect(panel(wrapper).exists()).toBe(true);
+      expect(inPanel(wrapper, '[data-part="itemTitle"]').classes()).toContain('truncate');
+      expect(await axe(document.body)).toHaveNoViolations();
     });
   });
 });

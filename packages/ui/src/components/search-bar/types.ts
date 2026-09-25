@@ -107,6 +107,16 @@ export interface SearchBarProps {
   shortcut?: boolean;
   /** Focus the field on mount. Only on the Search page itself. */
   autofocus?: boolean;
+  /**
+   * Where the results panel is rendered. `true` (default) teleports it to `document.body` — or to
+   * the open native `<dialog>` the field sits in, which renders in the browser's top layer and
+   * would otherwise cover it. A string is a CSS selector for your own target. `false` keeps the
+   * panel inside the control, which is only right when nothing above it clips or stacks over it;
+   * a search bar usually lives in a header, which is exactly such an ancestor.
+   *
+   * Read once, like every positioning option.
+   */
+  teleport?: boolean | string;
   /** Message overrides for this control alone. */
   messages?: Partial<UiMessages>;
   /** Per-part class overrides, merged with `tailwind-merge`. */

@@ -39,7 +39,12 @@ import type { MatchParts, PanelSection } from './useOptionList';
 
 const props = withDefaults(
   defineProps<{
-    /** The panel element's own id. `useOverlay` reads it to recognise teleported parts. */
+    /**
+     * The panel element's own id, which is also its `data-eldra-overlay-owner`. `useOverlay`
+     * reads that attribute to recognise parts of an overlay that are not inside its content
+     * element — and, since this panel is normally teleported to `body`, it is what marks anything
+     * a consumer teleports out of the panel's own slots as still belonging to the overlay.
+     */
     panelId: string;
     /** The listbox's id — what the trigger's `aria-controls` points at. */
     listboxId: string;
@@ -175,6 +180,7 @@ function onPanelMouseDown(event: MouseEvent): void {
     ref="root"
     :id="panelId"
     data-part="panel"
+    :data-eldra-overlay-owner="panelId"
     :class="panelClasses"
     :style="panelStyle"
     :data-placement="placement"

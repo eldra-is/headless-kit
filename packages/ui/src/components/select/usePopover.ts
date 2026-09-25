@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, ref, type ComputedRef, type Ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, type ComputedRef, type Ref } from 'vue';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
 import { useOverlay } from '../../composables/useOverlay';
 import { registerOpen, unregisterOpen } from './openRegistry';
@@ -14,8 +14,24 @@ export interface UsePopoverOptions {
   placement?: FloatingPlacement;
   /** The gap between the control and the panel, in pixels. Default `4` (0.25rem). */
   offset?: number;
-  /** Give the panel a `minWidth` equal to the control's. */
-  matchWidth?: boolean;
+  /** Give the panel a `minWidth` equal to the control's — and, under `'exact'`, a `maxWidth` too. */
+  matchWidth?: boolean | 'exact';
+  /**
+   * Where the panel is rendered. Read once, like every `useFloating` option.
+   *
+   * - `true` (the default) — through a `<Teleport>` to `document.body`, or to the nearest **open
+   *   native `<dialog>`** above the trigger when there is one (see `teleportTo` below).
+   * - a string — a CSS selector, passed to `<Teleport to>` verbatim.
+   * - `false` — no teleport: the panel stays where the consumer renders it, positioned
+   *   `absolute`ly, which is what this package did before.
+   *
+   * The default is `true` because a panel rendered inside its own control is at the mercy of
+   * everything above it: an ancestor with `overflow: hidden` (a card, a table cell, a carousel
+   * track) clips it, and any later sibling that starts a stacking context (a sticky header with a
+   * `z-index`, a section with `isolate`) paints over it however high the panel's own `z-index` is.
+   * On `body` neither can happen, and `z-popover` is then measured against the page.
+   */
+  teleport?: boolean | string;
   /** Ran while opening, after the registry slot is claimed: reset state, emit `open`. */
   onOpen?: () => void;
   /** Ran while closing, after the registry slot is released: reset state, emit `close`. */
@@ -42,6 +58,23 @@ export interface UsePopoverReturn {
   panelStyle: ComputedRef<Record<string, string>>;
   /** The placement actually used, after flipping. */
   placement: ComputedRef<string>;
+  /**
+   * `<Teleport to>`: the open `<dialog>` the trigger sits in, or `document.body`, or the
+   * consumer's own selector. An **element** rather than a selector wherever one is known, so two
+   * open dialogs cannot both answer the same query.
+   */
+  teleportTo: ComputedRef<HTMLElement | string>;
+  /**
+   * `<Teleport disabled>`: `true` until this component is mounted, and for good when
+   * `teleport: false`.
+   *
+   * The mounted flag is what makes the teleport SSR-safe. `<Teleport>` renders its content into a
+   * separate buffer on the server, and hydration then has to find it somewhere the server never
+   * put it; `disabled` renders in place on both sides instead, and the real teleport happens once,
+   * after mount, when Vue simply moves the nodes. (These popups also start closed, so a server
+   * render emits no panel at all — this is the second lock on the same door.)
+   */
+  teleportDisabled: ComputedRef<boolean>;
   /** Put these two on the trigger to get the label-forwarded-click rule (see below). */
   onTriggerPointerDown(): void;
   onTriggerClick(event: MouseEvent): void;
@@ -51,7 +84,7 @@ export interface UsePopoverReturn {
  * The open/closed life of a **non-modal popup** anchored to a control: `Select`'s panel,
  * `MultiSelect`'s, and the `SearchBar`'s results panel.
  *
- * Every one of them needs the same five things, and before this composable the first two controls
+ * Every one of them needs the same six things, and before this composable the first two controls
  * held a line-identical copy of all of them:
  *
  * - **"Only one open at a time"** (`openRegistry`): opening claims a module-level slot and closes
@@ -59,6 +92,10 @@ export interface UsePopoverReturn {
  *   popup that took its place.
  * - **Closing** (`useOverlay`): an outside pointer press, focus leaving, `Escape`. Non-modal, so
  *   nothing is trapped and `Tab` always moves on.
+ * - **Getting out of the way of the page** (`teleport`): the panel is rendered through a
+ *   `<Teleport>` to `body` — or to the open `<dialog>` the trigger is in, which is the one place
+ *   `body` would be *behind* — and positioned with floating-ui's `fixed` strategy, so no ancestor's
+ *   `overflow: hidden` clips it and no later stacking context paints over it.
  * - **Positioning** (`useFloating`), plus the `--eldra-popover-origin` the entrance keyframes read,
  *   so a panel that flips after floating-ui measures changes a custom property rather than its
  *   `animation-name` (which would replay the entrance).
@@ -105,10 +142,47 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     setOpen: (next) => setOpen(next),
   });
 
+  // --- where the panel is rendered ----------------------------------------------------------------
+
+  const teleport = options.teleport ?? true;
+
+  /**
+   * Only `true` after `onMounted`, which never runs on the server. Everything that reads the
+   * document below is behind it.
+   */
+  const isMounted = ref(false);
+  onMounted(() => {
+    isMounted.value = true;
+  });
+
+  const teleportDisabled = computed(() => teleport === false || !isMounted.value);
+
+  /**
+   * A native `<dialog>` opened as a modal renders in the browser's **top layer**, above every
+   * z-index on the page — which is exactly why the design spec's non-negotiable 2 puts every modal
+   * surface in one. A panel teleported to `body` would therefore render *behind* the dialog that
+   * opened it, with no `z-index` able to help. So a trigger inside an open dialog teleports into
+   * that dialog instead: same escape from clipping and stacking, same top layer.
+   *
+   * `isOpen` is read so the target is resolved afresh on every open — a dialog that was closed the
+   * last time this popup opened may be open now, and `closest()` answers about the DOM as it is,
+   * not reactively.
+   */
+  const teleportTo = computed<HTMLElement | string>(() => {
+    if (!isMounted.value) return 'body';
+    if (typeof teleport === 'string') return teleport;
+    void isOpen.value;
+    return trigger.value?.closest('dialog[open]') ?? document.body;
+  });
+
   const { styles: floatingStyles, placement } = useFloating(trigger, content, {
     placement: options.placement ?? 'auto',
     offset: options.offset,
     matchWidth: options.matchWidth,
+    // A teleported panel has left its control's positioning context behind, so the viewport is the
+    // only frame both elements still share. `autoUpdate` observes the reference's scroll ancestors
+    // either way, so the panel follows a trigger that scrolls under it.
+    strategy: teleport === false ? 'absolute' : 'fixed',
   });
 
   function open(activate?: (wasOpen: boolean) => void): void {
@@ -190,6 +264,8 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     close,
     panelStyle,
     placement,
+    teleportTo,
+    teleportDisabled,
     onTriggerPointerDown,
     onTriggerClick,
   };

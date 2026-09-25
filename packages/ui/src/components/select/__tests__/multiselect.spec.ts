@@ -4,6 +4,7 @@ import type { VueWrapper } from '@vue/test-utils';
 import { computed, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
+import { panelOf } from '../../../test/popover';
 import { enUS } from '../../../messages/en-US';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
 import FieldWrapper from '../../field-wrapper/FieldWrapper.vue';
@@ -63,20 +64,29 @@ type Mounted = ReturnType<typeof mount>;
 
 const triggerOf = (wrapper: VueWrapper | Mounted) => wrapper.find('[data-part="trigger"]');
 const trigger = (wrapper: Mounted) => triggerOf(wrapper).element as HTMLButtonElement;
-const panel = (wrapper: Mounted) => wrapper.find('[data-part="panel"]');
-const optionEls = (wrapper: Mounted) => wrapper.findAll('[data-part="option"]');
+/**
+ * The panel is teleported to `body`, so every query into it — the footer included, since that is
+ * the panel's own slot — starts here rather than at the wrapper: `panelOf` finds this control's
+ * panel by its id (see `src/test/popover.ts`).
+ */
+const panel = (wrapper: Mounted) => panelOf(triggerOf(wrapper).element);
+const optionEls = (wrapper: Mounted) => panel(wrapper).findAll('[data-part="option"]');
 const search = (wrapper: Mounted) =>
-  wrapper.find('[data-part="search"]').element as HTMLInputElement;
+  panel(wrapper).find('[data-part="search"]').element as HTMLInputElement;
 const native = (wrapper: Mounted) =>
   wrapper.find('[data-part="native"]').element as HTMLSelectElement;
 const footerClear = (wrapper: Mounted) =>
-  wrapper.find('[data-part="footerClear"]').element as HTMLButtonElement;
+  panel(wrapper).find('[data-part="footerClear"]').element as HTMLButtonElement;
 const footerDone = (wrapper: Mounted) =>
-  wrapper.find('[data-part="footerDone"]').element as HTMLButtonElement;
+  panel(wrapper).find('[data-part="footerDone"]').element as HTMLButtonElement;
 const tags = (wrapper: Mounted) => wrapper.findAll('[data-part="tag"]');
 
 const activeLabel = (wrapper: Mounted): string | undefined => {
-  const owner = wrapper.element.querySelector('[aria-activedescendant]');
+  const owner =
+    wrapper.element.querySelector('[aria-activedescendant]') ??
+    (panel(wrapper).exists()
+      ? panel(wrapper).element.querySelector('[aria-activedescendant]')
+      : null);
   const id = owner?.getAttribute('aria-activedescendant') ?? undefined;
   return id === undefined ? undefined : (document.getElementById(id)?.textContent?.trim() ?? '');
 };
@@ -162,7 +172,7 @@ describe('MultiSelect — anatomy and parts', () => {
     expect(tags(wrapper)[0]?.classes()).toContain('px-6');
 
     await press(triggerOf(wrapper));
-    expect(wrapper.find('[data-part="footer"]').classes()).toContain('p-4');
+    expect(panel(wrapper).find('[data-part="footer"]').classes()).toContain('p-4');
     expect(optionEls(wrapper)[0]?.classes()).toContain('px-6');
   });
 });
@@ -172,7 +182,9 @@ describe('MultiSelect — the listbox and its checkboxes', () => {
     const wrapper = mount({ modelValue: ['cardigans'], searchable: false });
     await press(triggerOf(wrapper));
 
-    expect(wrapper.find('[data-part="listbox"]').attributes('aria-multiselectable')).toBe('true');
+    expect(panel(wrapper).find('[data-part="listbox"]').attributes('aria-multiselectable')).toBe(
+      'true'
+    );
     expect(optionEls(wrapper).map((option) => option.attributes('aria-selected'))).toEqual([
       'false',
       'true',
@@ -182,7 +194,7 @@ describe('MultiSelect — the listbox and its checkboxes', () => {
     ]);
 
     // Every row draws a box; only the selected one is filled, and it holds the tick.
-    const boxes = wrapper.findAll('[data-part="optionCheck"]');
+    const boxes = panel(wrapper).findAll('[data-part="optionCheck"]');
     expect(boxes).toHaveLength(CATEGORIES.length);
     expect(boxes[1]?.classes()).toContain('bg-primary');
     // The tick is always drawn and scaled, so it can grow in over `duration-fast`.
@@ -276,12 +288,12 @@ describe('MultiSelect — the footer', () => {
   it('counts the selection in a polite live region', async () => {
     const wrapper = mount({ modelValue: [], searchable: false });
     await press(triggerOf(wrapper));
-    const count = wrapper.find('[data-part="footerCount"]');
+    const count = panel(wrapper).find('[data-part="footerCount"]');
     expect(count.attributes('aria-live')).toBe('polite');
     expect(count.text()).toBe(enUS.noneSelected);
 
     await wrapper.setProps({ modelValue: ['sweaters', 'mugs'] });
-    expect(wrapper.find('[data-part="footerCount"]').text()).toBe(enUS.selectedCount(2));
+    expect(panel(wrapper).find('[data-part="footerCount"]').text()).toBe(enUS.selectedCount(2));
   });
 
   it('empties the selection with Clear and keeps the popover open', async () => {
@@ -345,8 +357,8 @@ describe('MultiSelect — the footer', () => {
 
     // Everything else must not blur the search field, or `useOverlay` reads it as focus leaving.
     for (const target of [
-      wrapper.find('[data-part="footer"]').element,
-      wrapper.find('[data-part="footerCount"]').element,
+      panel(wrapper).find('[data-part="footer"]').element,
+      panel(wrapper).find('[data-part="footerCount"]').element,
       optionEls(wrapper)[1]?.element,
       panel(wrapper).element,
     ]) {
@@ -439,7 +451,7 @@ describe('MultiSelect — clearing and tags', () => {
     const wrapper = mount({ options: MANY, modelValue: ['v0'] });
     await press(triggerOf(wrapper));
     search(wrapper).value = 'Option';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
 
     const event = await key(search(wrapper), { key: 'Backspace' });
@@ -501,10 +513,14 @@ describe('MultiSelect — searching and the shared panel', () => {
     expect(document.activeElement).toBe(search(wrapper));
 
     search(wrapper).value = 'mos';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
     expect(optionEls(wrapper).map((option) => option.text())).toEqual(['Móss']);
-    expect(wrapper.findAll('.eldra-select-match').map((mark) => mark.text())).toEqual(['Mós']);
+    expect(
+      panel(wrapper)
+        .findAll('.eldra-select-match')
+        .map((mark) => mark.text())
+    ).toEqual(['Mós']);
     expect(wrapper.emitted('search')).toEqual([['mos']]);
   });
 
@@ -512,7 +528,7 @@ describe('MultiSelect — searching and the shared panel', () => {
     const wrapper = mount({ options: MANY });
     await press(triggerOf(wrapper));
     search(wrapper).value = 'Option 1';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
 
     const first = await key(search(wrapper), { key: 'Escape' });
@@ -529,38 +545,48 @@ describe('MultiSelect — searching and the shared panel', () => {
     const wrapper = mount({ options: COLOURS, searchable: true });
     await press(triggerOf(wrapper));
     search(wrapper).value = 'teal';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
-    expect(wrapper.find('[data-part="empty"]').text()).toBe(enUS.noMatchesFor('teal'));
+    expect(panel(wrapper).find('[data-part="empty"]').text()).toBe(enUS.noMatchesFor('teal'));
   });
 
   it('draws its groups and hides the ones a query empties', async () => {
     const wrapper = mount({ searchable: true });
     await press(triggerOf(wrapper));
-    expect(wrapper.findAll('[data-part="groupLabel"]').map((label) => label.text())).toEqual([
-      'Knitwear',
-      'Tableware',
-    ]);
+    expect(
+      panel(wrapper)
+        .findAll('[data-part="groupLabel"]')
+        .map((label) => label.text())
+    ).toEqual(['Knitwear', 'Tableware']);
 
     search(wrapper).value = 'mug';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
-    expect(wrapper.findAll('[data-part="groupLabel"]').map((label) => label.text())).toEqual([
-      'Tableware',
-    ]);
+    expect(
+      panel(wrapper)
+        .findAll('[data-part="groupLabel"]')
+        .map((label) => label.text())
+    ).toEqual(['Tableware']);
   });
 
   it('closes any open Select when it opens, and the other way round', async () => {
-    const single = mountWith(Select, { props: { options: CATEGORIES }, attrs: NAME });
+    // Explicit ids: `useId()` restarts per app and each `mount()` makes one, so two controls
+    // mounted separately would otherwise share an id — and both panels are teleported to the same
+    // `body`, where `panelOf` finds them by that id. A real page is one app, where they differ.
+    const single = mountWith(Select, {
+      props: { options: CATEGORIES, id: 'single' },
+      attrs: NAME,
+    });
     mounted.push(single as unknown as VueWrapper);
-    const multi = mount({ searchable: false });
+    const multi = mount({ searchable: false, id: 'multi' });
+    const singlePanel = () => panelOf(single.find('[data-part="trigger"]').element);
 
     await press(single.find('[data-part="trigger"]'));
-    expect(single.find('[data-part="panel"]').exists()).toBe(true);
+    expect(singlePanel().exists()).toBe(true);
 
     await press(triggerOf(multi));
     expect(panel(multi).exists()).toBe(true);
-    expect(single.find('[data-part="panel"]').exists()).toBe(false);
+    expect(singlePanel().exists()).toBe(false);
 
     await press(single.find('[data-part="trigger"]'));
     expect(panel(multi).exists()).toBe(false);
@@ -691,7 +717,7 @@ describe('MultiSelect — slots, messages and the field wrapper', () => {
     expect(wrapper.find('[data-testid="summary"]').text()).toBe('1 chosen');
 
     await press(triggerOf(wrapper));
-    expect(wrapper.findAll('[data-testid="row"]')[0]?.text()).toBe('Sweaters/true');
+    expect(panel(wrapper).findAll('[data-testid="row"]')[0]?.text()).toBe('Sweaters/true');
   });
 
   it('takes its own message overrides', async () => {
@@ -707,7 +733,7 @@ describe('MultiSelect — slots, messages and the field wrapper', () => {
     });
     expect(wrapper.find('[data-part="summaryMore"]').text()).toBe('og 1 til');
     await press(triggerOf(wrapper));
-    expect(wrapper.find('[data-part="footerCount"]').text()).toBe('3 valin');
+    expect(panel(wrapper).find('[data-part="footerCount"]').text()).toBe('3 valin');
     expect(footerDone(wrapper).textContent?.trim()).toBe('Lokið');
   });
 
@@ -839,7 +865,7 @@ describe('MultiSelect — the checkbox geometry', () => {
   async function tick() {
     const wrapper = mount({ modelValue: ['sweaters'], searchable: false });
     await press(triggerOf(wrapper));
-    const svg = wrapper.find('[data-part="optionCheck"] svg');
+    const svg = panel(wrapper).find('[data-part="optionCheck"] svg');
     return {
       classes: svg.classes(),
       viewBox: svg.attributes('viewBox') ?? '',
@@ -910,8 +936,8 @@ describe('MultiSelect — long content and narrow containers', () => {
       ({ x: 0, y: 0, left: 0, top: 0, right: 320, bottom: 40, width: 320, height: 40 }) as DOMRect;
 
     await press(wrapper.find('[data-part="trigger"]'));
-    expect(wrapper.find('[data-part="panel"]').attributes('style')).toContain('min-width: 320px');
-    expect(wrapper.find('[data-part="optionHint"]').exists()).toBe(true);
+    expect(panel(wrapper).attributes('style')).toContain('min-width: 320px');
+    expect(panel(wrapper).find('[data-part="optionHint"]').exists()).toBe(true);
   });
 });
 

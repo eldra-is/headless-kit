@@ -33,6 +33,7 @@ const props = withDefaults(defineProps<MultiSelectProps>(), {
   disabled: false,
   readonly: false,
   placement: 'auto',
+  teleport: true,
   showTags: true,
   maxSummary: 2,
   messages: undefined,
@@ -186,6 +187,8 @@ const {
   isOpen,
   panelStyle,
   placement: resolvedPlacement,
+  teleportTo,
+  teleportDisabled,
   open: openPopover,
   close: closePopover,
   onTriggerPointerDown,
@@ -195,6 +198,7 @@ const {
   content: panelRef,
   canOpen: () => !props.disabled && !props.readonly,
   placement: props.placement,
+  teleport: props.teleport,
   matchWidth: true,
   onOpen: () => {
     listbox.resetTypeahead();
@@ -663,67 +667,71 @@ const emptyText = computed(() =>
       </button>
     </div>
 
-    <SelectPanel
-      v-if="isOpen"
-      ref="panelComponent"
-      multiple
-      :panel-id="panelId"
-      :listbox-id="listboxId"
-      :sections="sections"
-      :has-options="hasOptions"
-      :highlights="highlights"
-      :option-id="optionId"
-      :active-value="listbox.activeValue.value"
-      :selected-values="model"
-      :searchable="searchable"
-      :query="query"
-      :search-placeholder="searchPlaceholderText"
-      :empty-text="emptyText"
-      :labelled-by="labelledBy"
-      :fallback-label="fallbackLabel"
-      :panel-style="panelStyle"
-      :placement="resolvedPlacement"
-      :classes="classes"
-      @search="setQuery"
-      @select="toggle"
-      @activate="listbox.setActive"
-      @keydown="onKeydown"
-    >
-      <template v-if="$slots.option" #option="params">
-        <slot name="option" v-bind="params" />
-      </template>
-      <template v-if="$slots.empty" #empty><slot name="empty" /></template>
+    <!-- Teleported to `body`, or to the open `<dialog>` this control sits in — see `usePopover`'s
+         `teleport` option, and `Select.vue` for why the `v-if` is on the `<Teleport>` itself. The
+         footer goes with it: it is the panel's own slot, not a sibling. -->
+    <Teleport v-if="isOpen" :to="teleportTo" :disabled="teleportDisabled">
+      <SelectPanel
+        ref="panelComponent"
+        multiple
+        :panel-id="panelId"
+        :listbox-id="listboxId"
+        :sections="sections"
+        :has-options="hasOptions"
+        :highlights="highlights"
+        :option-id="optionId"
+        :active-value="listbox.activeValue.value"
+        :selected-values="model"
+        :searchable="searchable"
+        :query="query"
+        :search-placeholder="searchPlaceholderText"
+        :empty-text="emptyText"
+        :labelled-by="labelledBy"
+        :fallback-label="fallbackLabel"
+        :panel-style="panelStyle"
+        :placement="resolvedPlacement"
+        :classes="classes"
+        @search="setQuery"
+        @select="toggle"
+        @activate="listbox.setActive"
+        @keydown="onKeydown"
+      >
+        <template v-if="$slots.option" #option="params">
+          <slot name="option" v-bind="params" />
+        </template>
+        <template v-if="$slots.empty" #empty><slot name="empty" /></template>
 
-      <template #footer>
-        <div data-part="footer" :class="footerClass">
-          <!-- Spec → Accessibility: the count is "an `aria-live="polite"` region, so every toggle
-               is confirmed without moving focus". -->
-          <span data-part="footerCount" :class="footerCountClass" aria-live="polite">
-            {{ countText }}
-          </span>
-          <Button
-            variant="link"
-            size="sm"
-            type="button"
-            data-part="footerClear"
-            :classes="{ container: footerClearClass }"
-            @click="onFooterClear"
-          >
-            {{ m.clear }}
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            type="button"
-            data-part="footerDone"
-            :classes="{ container: footerDoneClass }"
-            @click="onDone"
-          >
-            {{ m.done }}
-          </Button>
-        </div>
-      </template>
-    </SelectPanel>
+        <template #footer>
+          <div data-part="footer" :class="footerClass">
+            <!-- Spec → Accessibility: the count is "an `aria-live="polite"` region, so every toggle
+                 is confirmed without moving focus". -->
+            <span data-part="footerCount" :class="footerCountClass" aria-live="polite">
+              {{ countText }}
+            </span>
+            <Button
+              variant="link"
+              size="sm"
+              type="button"
+              data-part="footerClear"
+              :classes="{ container: footerClearClass }"
+              @click="onFooterClear"
+            >
+              {{ m.clear }}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              data-part="footerDone"
+              :classes="{ container: footerDoneClass }"
+              @click="onDone"
+            >
+              {{ m.done }}
+            </Button>
+          </div>
+        </template>
+      </SelectPanel>
+    </Teleport>
 
     <!-- Spec → Accessibility: "a `<ul>` named 'Selected <label>'. Each chip's remove control is a
          real `<button type="button">` named 'Remove <label>'." -->

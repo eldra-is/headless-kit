@@ -107,6 +107,15 @@ export interface SelectProps {
   readonly?: boolean;
   /** `auto` (default) flips above when there is no room below; `above` always opens above. */
   placement?: SelectPlacement;
+  /**
+   * Where the panel is rendered. `true` (default) teleports it to `document.body` — or to the
+   * open native `<dialog>` the control sits in, which renders in the browser's top layer and
+   * would otherwise cover it. A string is a CSS selector for your own target. `false` keeps the
+   * panel inside the control, which is only right when nothing above it clips or stacks over it.
+   *
+   * Read once, like `placement`.
+   */
+  teleport?: boolean | string;
   /** Message overrides for this control alone. */
   messages?: Partial<UiMessages>;
   /** Per-part class overrides, merged with `tailwind-merge`. */

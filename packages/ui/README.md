@@ -72,7 +72,10 @@ Every component supports all five of these; none hard-codes anything a store mig
 
 1. **Tokens.** Every colour, radius, height, spacing step, font, duration, easing and z-index a
    component uses resolves to a `--eldra-*` variable from [Styles](#styles) above — set one on any
-   ancestor (typically `:root`) and every component reading it follows.
+   ancestor (typically `:root`) and every component reading it follows. **`:root` rather than a
+   wrapper**, for the popup panels: `Select`, `MultiSelect` and `SearchBar` render theirs through a
+   `<Teleport>` to `body` (see [Layering](#layering)), so a variable set on a `<div>` around the
+   control is not an ancestor of the panel any more and is not inherited by it.
 2. **Per-component CSS variables**, declared on the component's own root with a token-derived
    default, for the handful of values that are not shared design tokens — a size with no dedicated
    token, a component-specific corner radius. Each one is documented on the component's own
@@ -278,11 +281,14 @@ Two things `useOverlay` deliberately does not do:
 
 `usePopover` is that registry, wired up: the one composable this package's own non-modal popups
 (`Select`, `MultiSelect`, `SearchBar`'s results panel) actually build on, exported from the root for
-a consumer whose control needs the same five things rather than reassembling them from
+a consumer whose control needs the same six things rather than reassembling them from
 `useFloating`/`useOverlay` by hand:
 
 - **the registry** — opening claims a module-level "only one open at a time" slot (via a stable
   per-instance handle) and closes whatever held it;
+- **the teleport** — `teleport` (default `true`) returns `teleportTo` and `teleportDisabled` to
+  put on a `<Teleport>` around the panel, and switches `useFloating` to the `fixed` strategy to
+  match. See [Layering](#layering) below for what it is for and how to turn it off;
 - **`useOverlay`** — the outside-press/focus-leaves/`Escape` closing rules, non-modal, so nothing
   traps focus and `Tab` always moves on;
 - **`useFloating`** — positioning, plus the `--eldra-popover-origin` the entrance keyframes read
@@ -303,6 +309,47 @@ a consumer whose control needs the same five things rather than reassembling the
 What stays with each control is what actually differs: which rows there are, what choosing one
 does, and which element the popup is anchored to. See `src/components/select/usePopover.ts` for
 the full option/return shape (`UsePopoverOptions`, `UsePopoverReturn`, also exported).
+
+### Layering
+
+A popup panel rendered inside its own control is at the mercy of everything above it on the page.
+An ancestor with `overflow: hidden` — a rounded card, a table cell, a carousel track, a scrolled
+column — clips it at that ancestor's edge; and any element that starts its own **stacking context**
+(a sticky header with a `z-index`, a section with `isolate`, anything with a `transform`, `filter`
+or `opacity` below 1) paints over it whatever the panel's own `z-index` says, because a `z-index`
+only orders siblings within one context.
+
+So `Select`, `MultiSelect` and `SearchBar` render their panel through a `<Teleport>` to
+`document.body`, positioned with floating-ui's **`fixed`** strategy — the viewport being the one
+frame the panel and its control still share once they are in different subtrees. `autoUpdate` keeps
+them together: it watches every scrollable ancestor of the control, so the panel follows a trigger
+that scrolls under it. On `body` the panel is a child of the root stacking context, where
+`z-popover` (`--eldra-z-popover`, default `30`) means what the spec's layer table says it means,
+above `z-sticky` (`20`) and below `z-drawer` (`40`).
+
+Three things follow from the move, and each is a real consequence rather than a detail:
+
+- **An open native `<dialog>` is the exception, and is handled.** A modal dialog renders in the
+  browser's _top layer_, above every `z-index` on the page, so a panel on `body` would be behind
+  the dialog that opened it and no `z-index` could help. When the control sits inside one
+  (`closest('dialog[open]')`), the panel is teleported into **that dialog** instead — same escape
+  from clipping and stacking, same top layer. The target is resolved on every open, so a control
+  that is sometimes in a dialog and sometimes not gets the right one each time.
+- **Custom properties are no longer inherited from around the control.** Set `--eldra-*` overrides
+  on `:root` (which is what [Customisation](#customisation) asks for anyway), not on a wrapper
+  `<div>`. A consumer with their own top-layer elements sets `--eldra-z-popover` there.
+- **The panel is no longer in document order after its control.** Nothing the components do with
+  the keyboard changed — `Tab` is still never consumed, `Escape` still closes, focus leaving still
+  closes — but sequential focus order is the browser's, and it follows the DOM. A searchable
+  `Select` or `MultiSelect` moves focus into the panel's search field on open, so `Tab` walks the
+  panel as before; in a **non-searchable** `MultiSelect`, focus stays on the trigger and `Tab` now
+  leaves the control (closing the popup) rather than stepping into the footer's Clear and Done,
+  which stay reachable by pointer, and whose actions are also on the keyboard (`Backspace`/`Delete`
+  clears, `Escape` closes). The same applies to the `SearchBar`'s "Clear recent searches" row.
+
+`teleport` is a prop on all three controls and an option on `usePopover`: `true` (default), a CSS
+selector string for a target of your own, or `false` to keep the old in-place `absolute` rendering
+when you know nothing above the control clips or stacks over it.
 
 ## Resolver
 
@@ -890,10 +937,17 @@ Additions and departures from the design spec, and why.
 - **`Select`'s `placement` is read once.** `useFloating`'s options are not reactive (see
   [Composables](#composables)), so a select that has to change placement at runtime needs a `:key`
   change. It is a layout decision — "the footer's selectors use `above`" — not state.
-- **`Select`'s panel is rendered in place, never teleported.** It is positioned absolutely inside
-  the component's own root, so `data-part` and `classes` selectors reach it and it inherits the
-  section it sits in. The spec's own "Don't place a select inside a container that clips overflow"
-  is the trade-off that buys.
+- **The popover panels are teleported, and positioned against the viewport** (operator decision,
+  2026-09-25). They used to be rendered in place, positioned absolutely inside the component's own
+  root, on the strength of the spec's own "Don't place a select inside a container that clips
+  overflow" — a rule a store owner cannot be asked to hold, since the container is usually a card
+  or a sticky header they did not write. `Select`, `MultiSelect` and `SearchBar` now render their
+  panel through a `<Teleport>` to `body` (or to the open `<dialog>` the control sits in) with
+  floating-ui's `fixed` strategy. `data-part` and `classes` still reach it — both are on the
+  element — but a descendant selector rooted above the control does not, custom properties set on
+  a wrapper are no longer inherited, and the panel is no longer in document order after its
+  trigger. [Layering](#layering) has the whole list, including what that last one costs and what
+  it does not. `teleport: false` restores the old shape.
 - **`MultiSelect`'s parts include the footer's.** The brief's part list stops at the tags; the
   spec's anatomy draws a footer ("live count · Clear (link button) · Done (primary sm)") and its
   acceptance criteria test it, so `footer`, `footerCount`, `footerClear` and `footerDone` are parts

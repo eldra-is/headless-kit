@@ -4,6 +4,7 @@ import type { VueWrapper } from '@vue/test-utils';
 import { computed, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
+import { panelOf } from '../../../test/popover';
 import { enUS } from '../../../messages/en-US';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
 import FieldWrapper from '../../field-wrapper/FieldWrapper.vue';
@@ -87,10 +88,17 @@ const triggerOf = (wrapper: VueWrapper | ReturnType<typeof mount>) =>
   wrapper.find('[data-part="trigger"]');
 const trigger = (wrapper: ReturnType<typeof mount>) =>
   triggerOf(wrapper).element as HTMLButtonElement;
-const panel = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-part="panel"]');
-const optionEls = (wrapper: ReturnType<typeof mount>) => wrapper.findAll('[data-part="option"]');
+/**
+ * The panel is teleported to `body`, so every query into it starts here rather than at the
+ * wrapper: `panelOf` finds this control's panel by its id (see `src/test/popover.ts`).
+ */
+const panel = (wrapper: ReturnType<typeof mount>) => panelOf(triggerOf(wrapper).element);
+const inPanel = (wrapper: ReturnType<typeof mount>, selector: string) =>
+  panel(wrapper).find(selector);
+const optionEls = (wrapper: ReturnType<typeof mount>) =>
+  panel(wrapper).findAll('[data-part="option"]');
 const search = (wrapper: ReturnType<typeof mount>) =>
-  wrapper.find('[data-part="search"]').element as HTMLInputElement;
+  inPanel(wrapper, '[data-part="search"]').element as HTMLInputElement;
 const native = (wrapper: ReturnType<typeof mount>) =>
   wrapper.find('[data-part="native"]').element as HTMLSelectElement;
 /**
@@ -100,7 +108,11 @@ const native = (wrapper: ReturnType<typeof mount>) =>
  * on its own in the searchable specs.
  */
 const activeLabel = (wrapper: ReturnType<typeof mount>): string | undefined => {
-  const owner = wrapper.element.querySelector('[aria-activedescendant]');
+  const owner =
+    wrapper.element.querySelector('[aria-activedescendant]') ??
+    (panel(wrapper).exists()
+      ? panel(wrapper).element.querySelector('[aria-activedescendant]')
+      : null);
   const id = owner?.getAttribute('aria-activedescendant') ?? undefined;
   return id === undefined ? undefined : (document.getElementById(id)?.textContent?.trim() ?? '');
 };
@@ -161,12 +173,12 @@ describe('Select — anatomy and parts', () => {
     await press(triggerOf(wrapper));
 
     expect(panel(wrapper).exists()).toBe(true);
-    expect(wrapper.find('[data-part="search"]').exists()).toBe(true);
-    expect(wrapper.find('[data-part="listbox"]').attributes('role')).toBe('listbox');
-    expect(wrapper.find('[data-part="optionSwatch"]').exists()).toBe(true);
-    expect(wrapper.find('[data-part="optionMeta"]').exists()).toBe(true);
-    expect(wrapper.find('[data-part="optionCheck"]').exists()).toBe(true);
-    expect(wrapper.find('[data-part="optionLabel"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="search"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="listbox"]').attributes('role')).toBe('listbox');
+    expect(panel(wrapper).find('[data-part="optionSwatch"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="optionMeta"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="optionCheck"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="optionLabel"]').exists()).toBe(true);
   });
 
   it('renders a leading icon in the trigger and an option icon in a row and the value', async () => {
@@ -179,9 +191,11 @@ describe('Select — anatomy and parts', () => {
     // The chosen option's mark shows in the trigger as well as in its row.
     expect(wrapper.find('[data-part="value"] [data-part="optionIcon"]').exists()).toBe(true);
     await press(triggerOf(wrapper));
-    expect(wrapper.find('[data-part="option"] [data-part="optionIcon"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="option"] [data-part="optionIcon"]').exists()).toBe(
+      true
+    );
     // Decorative: the row's own text is what names it.
-    expect(wrapper.find('[data-part="optionIcon"]').attributes('aria-hidden')).toBe('true');
+    expect(panel(wrapper).find('[data-part="optionIcon"]').attributes('aria-hidden')).toBe('true');
   });
 
   it('merges a per-part class override', async () => {
@@ -220,7 +234,7 @@ describe('Select — opening', () => {
     expect(panel(wrapper).exists()).toBe(true);
     expect(trigger(wrapper).getAttribute('aria-expanded')).toBe('true');
     const controls = trigger(wrapper).getAttribute('aria-controls');
-    expect(controls).toBe(wrapper.find('[data-part="listbox"]').attributes('id'));
+    expect(controls).toBe(panel(wrapper).find('[data-part="listbox"]').attributes('id'));
     expect(wrapper.emitted('open')).toHaveLength(1);
 
     await press(triggerOf(wrapper));
@@ -327,8 +341,11 @@ describe('Select — opening', () => {
   });
 
   it('closes any other open select when it opens', async () => {
-    const first = mount();
-    const second = mount({ options: COLOURS });
+    // Explicit ids: `useId()` restarts per app, and `mount()` makes one app each, so two selects
+    // mounted this way would otherwise share an id — and the panels are teleported to the same
+    // `body`, where `panelOf` finds them by that id. A real page is one app, where they differ.
+    const first = mount({ id: 'first' });
+    const second = mount({ options: COLOURS, id: 'second' });
     await press(triggerOf(first));
     expect(panel(first).exists()).toBe(true);
 
@@ -443,7 +460,7 @@ describe('Select — moving and choosing', () => {
     await press(triggerOf(wrapper));
     const selected = optionEls(wrapper).map((option) => option.attributes('aria-selected'));
     expect(selected).toEqual(['false', 'false', 'true', 'false', 'false']);
-    expect(wrapper.findAll('[data-part="optionCheck"]')).toHaveLength(1);
+    expect(panel(wrapper).findAll('[data-part="optionCheck"]')).toHaveLength(1);
   });
 
   it('does not blur the focused element when a pointer presses anywhere in the panel', async () => {
@@ -453,7 +470,7 @@ describe('Select — moving and choosing', () => {
 
     for (const target of [
       optionEls(wrapper)[1]?.element,
-      wrapper.find('[data-part="listbox"]').element,
+      panel(wrapper).find('[data-part="listbox"]').element,
       panel(wrapper).element,
     ]) {
       const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
@@ -463,10 +480,10 @@ describe('Select — moving and choosing', () => {
 
     // ...including the empty state, which is a sibling of the listbox rather than inside it.
     search(wrapper).value = 'zzz';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
     const onEmpty = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
-    wrapper.find('[data-part="empty"]').element.dispatchEvent(onEmpty);
+    panel(wrapper).find('[data-part="empty"]').element.dispatchEvent(onEmpty);
     expect(onEmpty.defaultPrevented).toBe(true);
   });
 
@@ -577,56 +594,59 @@ describe('Select — searching', () => {
   it('stays off at ten options or fewer unless asked for', async () => {
     const wrapper = mount();
     await press(triggerOf(wrapper));
-    expect(wrapper.find('[data-part="search"]').exists()).toBe(false);
+    expect(panel(wrapper).find('[data-part="search"]').exists()).toBe(false);
     expect(trigger(wrapper).getAttribute('aria-activedescendant')).not.toBeNull();
   });
 
   it('filters as you type, ignoring case and diacritics, and hides empty groups', async () => {
     const wrapper = mount({ options: COUNTRIES, searchable: true });
     await press(triggerOf(wrapper));
-    expect(wrapper.findAll('[data-part="group"]')).toHaveLength(2);
+    expect(panel(wrapper).findAll('[data-part="group"]')).toHaveLength(2);
 
     search(wrapper).value = 'isl';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
 
     expect(optionEls(wrapper).map((option) => option.text())).toEqual(['Ísland', 'Ísland']);
     expect(wrapper.emitted('search')).toEqual([['isl']]);
     // Both groups still have a match, so both headings stay.
-    expect(wrapper.findAll('[data-part="groupLabel"]').map((label) => label.text())).toEqual([
-      'Most used',
-      'All countries',
-    ]);
+    expect(
+      panel(wrapper)
+        .findAll('[data-part="groupLabel"]')
+        .map((label) => label.text())
+    ).toEqual(['Most used', 'All countries']);
 
     search(wrapper).value = 'mex';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
-    expect(wrapper.findAll('[data-part="groupLabel"]').map((label) => label.text())).toEqual([
-      'All countries',
-    ]);
+    expect(
+      panel(wrapper)
+        .findAll('[data-part="groupLabel"]')
+        .map((label) => label.text())
+    ).toEqual(['All countries']);
   });
 
   it('bolds and underlines the matched run, wherever it falls in the label', async () => {
     const wrapper = mount({ options: COUNTRIES, searchable: true });
     await press(triggerOf(wrapper));
     search(wrapper).value = 'ic';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
 
-    const marks = wrapper.findAll('.eldra-select-match');
+    const marks = panel(wrapper).findAll('.eldra-select-match');
     expect(marks.map((mark) => mark.text())).toEqual(['ic']);
-    expect(wrapper.find('[data-part="optionLabel"]').text()).toBe('Mexico');
+    expect(panel(wrapper).find('[data-part="optionLabel"]').text()).toBe('Mexico');
   });
 
   it('shows the spec empty state with the query in it, and the `empty` slot can replace it', async () => {
     const wrapper = mount({ options: COUNTRIES, searchable: true });
     await press(triggerOf(wrapper));
     search(wrapper).value = 'teal';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
 
     expect(optionEls(wrapper)).toHaveLength(0);
-    expect(wrapper.find('[data-part="empty"]').text()).toBe(enUS.noMatchesFor('teal'));
+    expect(panel(wrapper).find('[data-part="empty"]').text()).toBe(enUS.noMatchesFor('teal'));
 
     const slotted = mount(
       { options: COUNTRIES, searchable: true },
@@ -634,9 +654,9 @@ describe('Select — searching', () => {
     );
     await press(triggerOf(slotted));
     search(slotted).value = 'teal';
-    await slotted.find('[data-part="search"]').trigger('input');
+    await panel(slotted).find('[data-part="search"]').trigger('input');
     await flush();
-    expect(slotted.find('[data-testid="none"]').exists()).toBe(true);
+    expect(panel(slotted).find('[data-testid="none"]').exists()).toBe(true);
   });
 
   it('makes the first visible enabled option active after every change', async () => {
@@ -645,7 +665,7 @@ describe('Select — searching', () => {
     expect(activeLabel(wrapper)).toBe('Sweden');
 
     search(wrapper).value = 'is';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
     expect(activeLabel(wrapper)).toBe('Ísland');
   });
@@ -654,7 +674,7 @@ describe('Select — searching', () => {
     const wrapper = mount({ options: MANY });
     await press(triggerOf(wrapper));
     search(wrapper).value = 'Option 1';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
 
     const first = await key(search(wrapper), { key: 'Escape' });
@@ -689,7 +709,7 @@ describe('Select — searching', () => {
     const wrapper = mount({ options: MANY });
     await press(triggerOf(wrapper));
     search(wrapper).value = 'Option 1';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
     await key(search(wrapper), { key: 'Tab' });
     await press(triggerOf(wrapper));
@@ -838,7 +858,7 @@ describe('Select — groups', () => {
   it('draws each group as a role=group labelled by its heading', async () => {
     const wrapper = mount({ options: COUNTRIES, searchable: false });
     await press(triggerOf(wrapper));
-    const groups = wrapper.findAll('[data-part="group"]');
+    const groups = panel(wrapper).findAll('[data-part="group"]');
     expect(groups).toHaveLength(2);
     for (const group of groups) {
       expect(group.attributes('role')).toBe('group');
@@ -910,7 +930,7 @@ describe('Select — placement and width', () => {
     await press(wrapper.find('[data-part="trigger"]'));
     // Spec "Select" → Sizes, Popover: "Min width = trigger, grows to fit its content up to
     // min(22rem, 90vw)" — the floor is inline, the clamp is `eldra-select-panel-width`.
-    expect(wrapper.find('[data-part="panel"]').attributes('style')).toContain('min-width: 320px');
+    expect(panel(wrapper).attributes('style')).toContain('min-width: 320px');
   });
 });
 
@@ -928,7 +948,7 @@ describe('Select — slots', () => {
     );
     expect(wrapper.find('[data-testid="chosen"]').text()).toBe('Oat');
     await press(triggerOf(wrapper));
-    expect(wrapper.findAll('[data-testid="row"]')[0]?.text()).toBe('Oat/true/true');
+    expect(panel(wrapper).findAll('[data-testid="row"]')[0]?.text()).toBe('Oat/true/true');
   });
 });
 
@@ -1011,9 +1031,9 @@ describe('Select — messages', () => {
     await press(triggerOf(wrapper));
     expect(search(wrapper).getAttribute('placeholder')).toBe('Leita');
     search(wrapper).value = 'zzz';
-    await wrapper.find('[data-part="search"]').trigger('input');
+    await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
-    expect(wrapper.find('[data-part="empty"]').text()).toBe('Ekkert: zzz');
+    expect(panel(wrapper).find('[data-part="empty"]').text()).toBe('Ekkert: zzz');
   });
 });
 
@@ -1080,8 +1100,8 @@ describe('Select — long content and narrow containers', () => {
     mounted.push(wrapper as unknown as VueWrapper);
     expect(wrapper.find('[data-part="value"] span').classes()).toContain('truncate');
     await press(wrapper.find('[data-part="trigger"]'));
-    expect(wrapper.find('[data-part="optionHint"]').exists()).toBe(true);
-    expect(wrapper.find('[data-part="optionMeta"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="optionHint"]').exists()).toBe(true);
+    expect(panel(wrapper).find('[data-part="optionMeta"]').exists()).toBe(true);
   });
 });
 

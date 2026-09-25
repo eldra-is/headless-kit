@@ -47,6 +47,7 @@ const props = withDefaults(defineProps<SearchBarProps>(), {
   resultTypes: undefined,
   shortcut: true,
   autofocus: false,
+  teleport: true,
   messages: undefined,
   classes: undefined,
 });
@@ -402,14 +403,23 @@ const {
   isOpen,
   panelStyle,
   placement: resolvedPlacement,
+  teleportTo,
+  teleportDisabled,
   open: openPopover,
   close: closePopover,
 } = usePopover({
   trigger: fieldRef,
   content: panelRef,
-  // Spec "Search bar" → Sizes, Panel: "0.375rem gap below it", and "Matches the field's width".
+  // Spec "Search bar" → Sizes, Panel: "0.375rem gap below it".
   offset: 6,
-  matchWidth: true,
+  // …and "Matches the field's width". `'exact'` rather than `true`, which is only a floor: the
+  // panel is teleported, so the viewport is its containing block and shrink-to-fit would otherwise
+  // let it grow to the whole window. A `Select`'s panel may grow past its trigger (its own spec
+  // says so, up to its `max-width`); this one may not.
+  matchWidth: 'exact',
+  // A search bar lives in a header, and a header both clips its overflow and starts a stacking
+  // context of its own. Read once, like the two options above it.
+  teleport: props.teleport,
   onClose: () => listbox.setActive(undefined),
 });
 
@@ -820,32 +830,35 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
       >
     </form>
 
-    <SearchResultsPanel
-      v-if="showPanel"
-      ref="panelComponent"
-      :panel-id="panelId"
-      :listbox-id="listboxId"
-      :view="view"
-      :sections="sections"
-      :loose-chips="looseChips"
-      :view-all="viewAllRow"
-      :option-id="optionId"
-      :active-value="listbox.activeValue.value"
-      :highlights="highlights"
-      :listbox-label="m.searchSuggestions"
-      :empty-title="m.noResultsFor(model)"
-      :empty-advice="m.searchAdvice"
-      :panel-style="panelStyle"
-      :placement="resolvedPlacement"
-      :classes="classes"
-      @select="onRowSelect"
-      @activate="listbox.setActive"
-    >
-      <template v-if="$slots.item" #item="params">
-        <slot name="item" v-bind="params" />
-      </template>
-      <template v-if="$slots.empty" #empty><slot name="empty" /></template>
-    </SearchResultsPanel>
+    <!-- Teleported to `body`, or to the open `<dialog>` this field sits in — see `usePopover`'s
+         `teleport` option, and `Select.vue` for why the `v-if` is on the `<Teleport>` itself. -->
+    <Teleport v-if="showPanel" :to="teleportTo" :disabled="teleportDisabled">
+      <SearchResultsPanel
+        ref="panelComponent"
+        :panel-id="panelId"
+        :listbox-id="listboxId"
+        :view="view"
+        :sections="sections"
+        :loose-chips="looseChips"
+        :view-all="viewAllRow"
+        :option-id="optionId"
+        :active-value="listbox.activeValue.value"
+        :highlights="highlights"
+        :listbox-label="m.searchSuggestions"
+        :empty-title="m.noResultsFor(model)"
+        :empty-advice="m.searchAdvice"
+        :panel-style="panelStyle"
+        :placement="resolvedPlacement"
+        :classes="classes"
+        @select="onRowSelect"
+        @activate="listbox.setActive"
+      >
+        <template v-if="$slots.item" #item="params">
+          <slot name="item" v-bind="params" />
+        </template>
+        <template v-if="$slots.empty" #empty><slot name="empty" /></template>
+      </SearchResultsPanel>
+    </Teleport>
 
     <!-- Spec → Anatomy, item 11: a visually hidden, polite live region. Always in the DOM, because
          a region added to the page at the same moment as its text is not reliably announced. -->

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { IconArrowsSort, IconGift, IconTruck, IconWorld } from '@tabler/icons-vue';
-import { ref } from 'vue';
+import { nextTick, onMounted, ref } from 'vue';
 import FieldWrapper from '../field-wrapper/FieldWrapper.vue';
 import Select from './Select.vue';
 import type { SelectOption } from './types';
@@ -14,6 +14,10 @@ import type { SelectOption } from './types';
  * screenshot taken while its 200ms entrance animation is still running would be a flaky baseline.
  * The open panel — its listbox roles, groups, filtering, empty state and keyboard — is covered by
  * `__tests__/select.spec.ts`, including `axe` on every open shape.
+ *
+ * The two exceptions are `InClippedCard` and `UnderStickyHeader`, whose whole subject is *where*
+ * the panel renders: they open it on mount and rely on the screenshot harness's own 400ms settle,
+ * exactly as the `SearchBar`'s panel stories do through its `autofocus` prop.
  */
 const meta = {
   title: 'Forms/Select',
@@ -41,10 +45,19 @@ const meta = {
           'and is kept in sync with every change, firing a bubbling native `change` so forms post',
           'the value and existing listeners keep working.',
           '',
-          '**Not a dialog.** The panel is a non-modal popup (the spec’s non-negotiable 2), rendered',
-          'in place and positioned with `useFloating` (`matchWidth`, flipping above when there is',
-          'no room below), closed by `useOverlay`. Focus is never trapped: `Tab` always moves on,',
-          'and focus landing outside closes it. Opening one select closes any other that is open.',
+          '**Not a dialog.** The panel is a non-modal popup (the spec’s non-negotiable 2),',
+          'positioned with `useFloating` (`matchWidth`, flipping above when there is no room',
+          'below) and closed by `useOverlay`. Focus is never trapped: `Tab` always moves on, and',
+          'focus landing outside closes it. Opening one select closes any other that is open.',
+          '',
+          '**Teleported.** The panel is rendered through a `<Teleport>` to `document.body` — or to',
+          'the open native `<dialog>` the control sits in, which is in the browser’s top layer —',
+          'and positioned with floating-ui’s `fixed` strategy, so no ancestor’s `overflow: hidden`',
+          'clips it and no stacking context between the control and the page root paints over it.',
+          '`teleport` takes a CSS selector for a target of your own, or `false` for the old',
+          'in-place rendering. See the README’s **Layering** section for what follows from the',
+          'move: set `--eldra-*` overrides on `:root` rather than on a wrapper, and the panel is no',
+          'longer in document order after its trigger.',
           '',
           '**Keyboard.** `ArrowDown`/`Enter`/`Space` open with the selected option active, `ArrowUp`',
           'opens on the last one (or the selected one when the list is searchable), the arrows move',
@@ -478,6 +491,95 @@ export const ForcedColors: Story = {
         <FieldWrapper label="Account type">
           <Select :options="args.options" model-value="care" disabled />
         </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * Opens the panel the way a pointer does, for the two stories below.
+ *
+ * Every other story here renders the control **closed**, because a screenshot taken while the
+ * 200ms entrance is still running would be a flaky baseline — the screenshot harness lets a story
+ * settle for 400ms first, which is what makes an opened one safe (the `SearchBar`'s panel stories
+ * rely on the same wait, through its `autofocus` prop). A `Select` has no such prop, and it should
+ * not grow one just for Storybook: the panel is opened from a real press instead. `pointerdown`
+ * then `click()` is exactly the pair `usePopover`'s latch reads as "a pointer opened this" — a bare
+ * `click()` would carry `detail: 0`, which is the label-forwarded click that focuses without
+ * opening.
+ */
+function openOnMount(): void {
+  onMounted(() => {
+    void nextTick(() => {
+      const trigger = document.querySelector<HTMLElement>('[data-part="trigger"]');
+      trigger?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      trigger?.click();
+    });
+  });
+}
+
+/**
+ * The panel escapes an ancestor that clips its overflow.
+ *
+ * A card with `overflow-hidden` — a rounded product card, a table cell, a carousel track — used to
+ * cut the popover off at its edge, because the panel was a descendant of it. It is teleported to
+ * `body` now, so the card clips its own content and nothing else. The card is deliberately shorter
+ * than the panel, so a clipped panel would be unmistakable in the baseline.
+ */
+export const InClippedCard: Story = {
+  args: { options: COLOURS, searchable: false, clearable: true },
+  render: (args) => ({
+    components: { Select, FieldWrapper },
+    setup: () => {
+      openOnMount();
+      return { args, value: ref('charcoal') };
+    },
+    template: `
+      <div class="bg-surface p-4">
+        <div class="border-border bg-background h-28 w-80 overflow-hidden rounded-lg border p-4">
+          <FieldWrapper label="Colour">
+            <Select v-bind="args" v-model="value" />
+          </FieldWrapper>
+        </div>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * The panel renders over a sticky header.
+ *
+ * `z-sticky` is 20 and `z-popover` is 30, but a `z-index` only settles the order **within one
+ * stacking context** — and a sticky header with a `z-index` of its own starts one, so a panel
+ * nested below it in the page used to lose to it regardless of the numbers. On `body` both are
+ * children of the root stacking context, where the two tokens mean what they say.
+ *
+ * The select opens `above`, which is what puts the panel over the header rather than beside it;
+ * the header's title is drawn behind it, and the scroll container it all sits in would have
+ * clipped the panel too.
+ */
+export const UnderStickyHeader: Story = {
+  args: { options: SHIPPING, searchable: false, placement: 'above' },
+  render: (args) => ({
+    components: { Select, FieldWrapper },
+    setup: () => {
+      openOnMount();
+      return { args, value: ref('express') };
+    },
+    template: `
+      <div class="bg-surface relative h-80 overflow-y-auto">
+        <header
+          class="bg-background border-border z-sticky sticky top-0 border-b px-4 py-3 shadow-sm"
+        >
+          <p class="text-body-sm font-semibold">Stoneware &amp; Co. — checkout</p>
+        </header>
+        <div class="space-y-4 p-4 pt-24">
+          <div class="max-w-80">
+            <FieldWrapper label="Shipping method">
+              <Select v-bind="args" v-model="value" />
+            </FieldWrapper>
+          </div>
+        </div>
       </div>
     `,
   }),

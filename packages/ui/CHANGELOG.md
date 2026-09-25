@@ -5,6 +5,34 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Select`, `MultiSelect` and `SearchBar` panels are teleported and positioned against the
+  viewport.** They were rendered inside the control, positioned `absolute`ly with `z-popover`, so
+  any ancestor with `overflow: hidden` clipped them and any later stacking context (a sticky header
+  with a `z-index`, a card with `isolate`) painted over them however high that `z-index` was. The
+  panel now goes through a `<Teleport>` to `document.body` — or into the open native `<dialog>` the
+  control sits in, since that renders in the browser's top layer and `body` would be behind it —
+  with floating-ui's `fixed` strategy; `autoUpdate` keeps it on the trigger through every scroll.
+  Nothing about opening, closing, the keyboard, `matchWidth`, flipping or the entrance changed, and
+  a server render still emits no panel at all. Three consequences worth knowing, all in the
+  README's new **Layering** section: a descendant CSS selector rooted **above** the control no
+  longer reaches the panel (`data-part` and the `classes` prop still do, and so does
+  `#<control-id>-panel`); `--eldra-*` overrides must be set on `:root` rather than on a wrapper
+  `<div>`, because the panel no longer inherits from one; and the panel is no longer in document
+  order after its trigger, so sequential `Tab` from a **non-searchable** `MultiSelect`'s trigger
+  now leaves the control instead of stepping into the footer's Clear and Done (both still reachable
+  by pointer, and both actions also on the keyboard). New `teleport` prop on all three controls —
+  `true` (default), a CSS selector string, or `false` for the old in-place rendering.
+- **The `SearchBar`'s results panel is now exactly as wide as its field.** It always looked that
+  way, but only because its containing block happened to stop it: it is a shrink-to-fit box with a
+  `min-width` from the field and no `max-width`, and the teleport would have let it grow to the
+  window. `useFloating`'s `matchWidth` takes `'exact'` for that — a floor *and* a ceiling — which
+  is what the spec's "Matches the field's width" asks for. `Select`'s panel keeps the floor only,
+  and can now really grow to its own `min(22rem, 90vw)` the way its spec describes; in place it
+  could never exceed its trigger.
+- **`usePopover` gained `teleport`, and `useFloating` gained `strategy`.** `usePopover` returns
+  `teleportTo` and `teleportDisabled` for a `<Teleport>` around your own panel, resolving the
+  enclosing open `<dialog>` for you and staying disabled until mount so the pair is SSR-safe.
+  `useFloating`'s `strategy` is `'absolute'` by default, so nothing changes for an existing caller.
 - **A read-only `NumberInput` no longer enters edit mode or commits.** Focusing one kept the
   formatted value's place but swapped it for the editable string, and leaving it committed — which
   for a value outside `min`/`max` silently clamped a number the control had promised not to change.

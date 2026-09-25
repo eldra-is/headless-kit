@@ -10,10 +10,12 @@ import type { SelectOption } from './types';
  * `eldra-starter-spec/images/core/multi-select.png` is the review target for all of them;
  * `scripts/screenshots.mjs` compares each against the committed baseline in `__screenshots__/`.
  *
- * Like `Select`, the stories render the **closed** control: the panel is opened by a real
+ * Like `Select`, the stories here render the **closed** control: the panel is opened by a real
  * interaction, and a screenshot taken while its 200ms entrance animation is still running would be
  * a flaky baseline. The open panel — the checkbox rows, the footer, filtering, the empty state and
- * the whole keyboard — is covered by `__tests__/multiselect.spec.ts`, `axe` included.
+ * the whole keyboard — is covered by `__tests__/multiselect.spec.ts`, `axe` included. (`Select`'s
+ * own `InClippedCard` and `UnderStickyHeader` stories do show an open panel, because what they are
+ * about is where it renders; both wait out the entrance before the shutter falls.)
  */
 const meta = {
   title: 'Forms/MultiSelect',
@@ -46,9 +48,18 @@ const meta = {
           '',
           '**Keyboard.** As `Select`, except that `Enter` (and `Space` without a search field)',
           '*toggles* and leaves the popover open, `Alt+ArrowUp` toggles and closes, `Tab` walks from',
-          'the search field (or the trigger) to the footer’s Clear and Done with the popover still',
-          'open, `Backspace` in an empty search field takes the last tag off, and',
-          '`Backspace`/`Delete` on the closed trigger clear everything.',
+          'the search field to the footer’s Clear and Done with the popover still open,',
+          '`Backspace` in an empty search field takes the last tag off, and `Backspace`/`Delete` on',
+          'the closed trigger clear everything.',
+          '',
+          '**Teleported.** The panel — footer included — is rendered through a `<Teleport>` to',
+          '`document.body`, or to the open native `<dialog>` the control sits in, so nothing above',
+          'the control can clip it or paint over it. One consequence is in that `Tab` line above:',
+          'sequential focus follows the DOM, so it steps into the footer from the **search field**,',
+          'which is where opening a searchable multi-select puts focus. Without a search field',
+          'focus stays on the trigger and `Tab` leaves the control instead; the footer’s two',
+          'buttons are still there for the pointer, and both of their actions are on the keyboard',
+          '(`Backspace`/`Delete` clears, `Escape` closes). See the README’s **Layering** section.',
           '',
           '**Progressive enhancement.** A real `<select multiple name>` stays in the form',
           'underneath — `hidden`, `aria-hidden="true"`, `tabindex="-1"`, with `<optgroup>`s',

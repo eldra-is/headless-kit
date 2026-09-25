@@ -21,11 +21,21 @@ export type PanelClasses = Partial<Record<SelectPart, string>>;
  */
 
 /**
- * The popover (spec "Select" → Sizes, Popover row). Not a dialog and never teleported: it is a
- * non-modal popup (non-negotiable 2), positioned by `useFloating` against the trigger and kept
- * inside the component's own root so a consumer's `classes` and `data-part` selectors still reach
- * it. `z-popover` puts it over the sticky header, `overflow-hidden` keeps the search field's top
- * corners on the popover's radius, and the list — not the panel — is what scrolls.
+ * The popover (spec "Select" → Sizes, Popover row). Not a dialog: it is a non-modal popup
+ * (non-negotiable 2), positioned by `useFloating` against the trigger.
+ *
+ * It is **teleported** — to `body`, or to the open `<dialog>` the control sits in — so that no
+ * ancestor's `overflow: hidden` clips it and no later stacking context paints over it. `absolute`
+ * stays in the class list because it is what a `teleport: false` panel needs; the inline
+ * `position` `useFloating` writes (`fixed` once teleported) is on the element itself and wins
+ * over it either way. `z-popover` puts it over the sticky header, `overflow-hidden` keeps the
+ * search field's top corners on the popover's radius, and the list — not the panel — is what
+ * scrolls.
+ *
+ * Because the panel leaves the control's subtree, a consumer's `classes`/`data-part` styling still
+ * reaches it (both are on the element), but a **descendant selector rooted above the control does
+ * not**, and neither do custom properties set on a wrapper: set `--eldra-*` overrides on `:root`
+ * (or on the teleport target), which is what the README's Customisation section already asks for.
  */
 export function panelClass(classes: PanelClasses | undefined): string {
   return partClass(

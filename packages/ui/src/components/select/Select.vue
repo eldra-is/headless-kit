@@ -34,6 +34,7 @@ const props = withDefaults(defineProps<SelectProps>(), {
   disabled: false,
   readonly: false,
   placement: 'auto',
+  teleport: true,
   messages: undefined,
   classes: undefined,
 });
@@ -162,6 +163,8 @@ const {
   isOpen,
   panelStyle,
   placement: resolvedPlacement,
+  teleportTo,
+  teleportDisabled,
   open: openPopover,
   close: closePopover,
   onTriggerPointerDown,
@@ -175,6 +178,7 @@ const {
   // runtime re-keys instead. `placement` is a layout decision ("the footer's selectors use
   // `above`"), not state.
   placement: props.placement,
+  teleport: props.teleport,
   matchWidth: true,
   onOpen: () => {
     listbox.resetTypeahead();
@@ -570,37 +574,45 @@ const emptyText = computed(() =>
     </button>
 
     <!-- The panel is `SelectPanel`, which `MultiSelect` renders too: one search field, one
-         listbox, one set of option rows for both controls. -->
-    <SelectPanel
-      v-if="isOpen"
-      ref="panelComponent"
-      :panel-id="panelId"
-      :listbox-id="listboxId"
-      :sections="sections"
-      :has-options="hasOptions"
-      :highlights="highlights"
-      :option-id="optionId"
-      :active-value="listbox.activeValue.value"
-      :selected-values="selectedValues"
-      :searchable="searchable"
-      :query="query"
-      :search-placeholder="searchPlaceholderText"
-      :empty-text="emptyText"
-      :labelled-by="labelledBy"
-      :fallback-label="fallbackLabel"
-      :panel-style="panelStyle"
-      :placement="resolvedPlacement"
-      :classes="classes"
-      @search="setQuery"
-      @select="choose"
-      @activate="listbox.setActive"
-      @keydown="listbox.onKeydown"
-    >
-      <template v-if="$slots.option" #option="params">
-        <slot name="option" v-bind="params" />
-      </template>
-      <template v-if="$slots.empty" #empty><slot name="empty" /></template>
-    </SelectPanel>
+         listbox, one set of option rows for both controls.
+
+         `v-if` is on the `<Teleport>` rather than inside it, so a server render emits nothing at
+         all — no panel, and not even the teleport's own anchor comments — and the client's first
+         render agrees with it. From the second render on the panel lives on `body` (or in the
+         open `<dialog>` around the control), out of reach of any ancestor's `overflow: hidden`
+         and of any stacking context between here and the page root. `teleportDisabled` covers the
+         hydration case anyway: it is `true` until this component is mounted. -->
+    <Teleport v-if="isOpen" :to="teleportTo" :disabled="teleportDisabled">
+      <SelectPanel
+        ref="panelComponent"
+        :panel-id="panelId"
+        :listbox-id="listboxId"
+        :sections="sections"
+        :has-options="hasOptions"
+        :highlights="highlights"
+        :option-id="optionId"
+        :active-value="listbox.activeValue.value"
+        :selected-values="selectedValues"
+        :searchable="searchable"
+        :query="query"
+        :search-placeholder="searchPlaceholderText"
+        :empty-text="emptyText"
+        :labelled-by="labelledBy"
+        :fallback-label="fallbackLabel"
+        :panel-style="panelStyle"
+        :placement="resolvedPlacement"
+        :classes="classes"
+        @search="setQuery"
+        @select="choose"
+        @activate="listbox.setActive"
+        @keydown="listbox.onKeydown"
+      >
+        <template v-if="$slots.option" #option="params">
+          <slot name="option" v-bind="params" />
+        </template>
+        <template v-if="$slots.empty" #empty><slot name="empty" /></template>
+      </SelectPanel>
+    </Teleport>
 
     <!-- Spec "Select" → Progressive enhancement: the real `<select>` stays in the form, hidden and
          in sync, so forms post the value and existing `change` listeners keep working. -->

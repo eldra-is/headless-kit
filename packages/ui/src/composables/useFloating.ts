@@ -26,18 +26,41 @@ export interface UseFloatingOptions {
   /** Gap between the reference and the panel, in pixels. Default `4` (the spec's 0.25rem). */
   offset?: number;
   /**
-   * Add a `minWidth` equal to the reference's, so a panel is never narrower than the control it
-   * belongs to. A *minimum* rather than a fixed width because that is what the spec asks for:
-   * "Min width = trigger, grows to fit its content up to min(22rem, 90vw)" — the upper clamp is
-   * the panel's own `max-width`, which this composable does not set.
+   * Tie the panel's width to the reference's.
+   *
+   * `true` adds a `minWidth` equal to the reference's, so a panel is never narrower than the
+   * control it belongs to — a *minimum* rather than a fixed width, because that is what the Select
+   * spec asks for: "Min width = trigger, grows to fit its content up to min(22rem, 90vw)", where
+   * the upper clamp is the panel's own `max-width` rather than anything this composable sets.
+   *
+   * `'exact'` adds a `maxWidth` to match, for a panel whose spec says it *matches* its control —
+   * the Search bar's results panel ("Matches the field's width"). It has to be said rather than
+   * inherited: a panel positioned against the viewport has the viewport as its containing block,
+   * so nothing else would stop it growing to the full width of the window.
    */
-  matchWidth?: boolean;
+  matchWidth?: boolean | 'exact';
   /** Override the flipping that the placement implies: on for `auto`, off for `above`. */
   flip?: boolean;
+  /**
+   * Which coordinate space the returned `top`/`left` are in, and the `position` they come with.
+   * Default `'absolute'` — the panel is positioned against its nearest positioned ancestor, which
+   * is what a panel rendered inside its own control needs.
+   *
+   * `'fixed'` is for a panel that has been moved out of the control's subtree (a `<Teleport>` to
+   * `body`): coordinates are then relative to the **viewport**, so nothing between the control and
+   * the page root — a scrolled column, a transformed card — can shift the panel off its trigger.
+   * `autoUpdate` keeps it aligned either way: it observes every scrollable ancestor of the
+   * reference (`ancestorScroll`), the window (`ancestorResize`), and both elements' own sizes,
+   * so a panel fixed to the viewport still follows a trigger that scrolls under it.
+   */
+  strategy?: 'absolute' | 'fixed';
 }
 
 export interface UseFloatingReturn {
-  /** Inline styles for the panel: `position`, `top`, `left`, and `minWidth` when `matchWidth`. */
+  /**
+   * Inline styles for the panel: `position`, `top`, `left`, and — under `matchWidth` — `minWidth`,
+   * plus `maxWidth` when it is `'exact'`.
+   */
   styles: ComputedRef<Record<string, string>>;
   /** The placement actually used, after flipping. */
   placement: ComputedRef<string>;
@@ -62,11 +85,11 @@ const RESOLVED: Record<FloatingPlacement, { placement: Placement; flip: boolean 
  * It is a thin wrap of `@floating-ui/vue`: `autoUpdate` keeps the position current while both
  * elements are mounted (scrolling, resizing, an ancestor moving), `offset` sets the gap, `flip`
  * turns the panel above the trigger when there is no room below, `shift` keeps it inside the
- * viewport, and `size` measures the trigger for `matchWidth` (a floor on the panel's width, not a
- * fixed one — the spec lets a panel grow past its trigger up to its own `max-width`). What the wrap
- * adds is the design
- * spec's vocabulary (`auto` / `above`) and a plain style object rather than a transform, so a
- * consumer writes `<div :style="styles">` and nothing else.
+ * viewport, and `size` measures the trigger for `matchWidth` (a floor on the panel's width — the
+ * spec lets a select's panel grow past its trigger up to its own `max-width` — or a floor and a
+ * ceiling under `'exact'`). What the wrap adds is the design spec's vocabulary (`auto` / `above`)
+ * and a plain style object rather than a transform, so a consumer writes `<div :style="styles">`
+ * and nothing else.
  *
  * `top` and `left` are used instead of the default `transform`, because a panel positioned by
  * transform is blurry on fractional pixels and, more to the point, cannot then use `transform` for
@@ -85,7 +108,8 @@ export function useFloating(
 ): UseFloatingReturn {
   const resolved = RESOLVED[options.placement ?? 'auto'];
   const shouldFlip = options.flip ?? resolved.flip;
-  const matchWidth = options.matchWidth === true;
+  const exactWidth = options.matchWidth === 'exact';
+  const matchWidth = options.matchWidth === true || exactWidth;
 
   // Written by `size`, which is the only place the reference's width is known at the moment the
   // position is computed — reading it back off the element would measure a different frame.
@@ -106,7 +130,7 @@ export function useFloating(
 
   const position = useFloatingUi(reference, floating, {
     placement: resolved.placement,
-    strategy: 'absolute',
+    strategy: options.strategy ?? 'absolute',
     transform: false,
     middleware,
     whileElementsMounted: autoUpdate,
@@ -119,6 +143,7 @@ export function useFloating(
       top: `${position.y.value}px`,
     };
     if (matchWidth) base.minWidth = `${referenceWidth.value}px`;
+    if (exactWidth) base.maxWidth = `${referenceWidth.value}px`;
     return base;
   });
 
