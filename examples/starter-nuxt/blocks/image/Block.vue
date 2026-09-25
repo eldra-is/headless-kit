@@ -38,7 +38,7 @@ const aspect = computed(() => {
         :entry-id="entryId"
         field-path="image"
         :aspect="aspect"
-        class="rounded-theme-lg w-full object-cover"
+        class="w-full rounded-lg object-cover"
       />
       <figcaption v-if="data.caption" class="text-muted mt-3 text-sm">
         {{ data.caption }}

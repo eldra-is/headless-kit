@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { ref } from 'vue';
 import UiDrawer from './UiDrawer.vue';
-import UiButton from './UiButton.vue';
+import { Button } from '@eldrajs/ui';
 
 const meta: Meta<typeof UiDrawer> = {
   title: 'Primitives/UiDrawer',
@@ -13,11 +13,11 @@ const meta: Meta<typeof UiDrawer> = {
     persistent: { control: 'boolean' },
   },
   render: (args) => ({
-    components: { UiDrawer, UiButton },
+    components: { UiDrawer, Button },
     setup: () => ({ args, open: ref(false) }),
     template: `
       <div>
-        <UiButton @click="open = true">Open drawer</UiButton>
+        <Button variant="primary" @click="open = true">Open drawer</Button>
         <UiDrawer v-bind="args" v-model:open="open">
           <nav class="flex flex-col gap-3">
             <a href="#" class="text-text">Home</a>

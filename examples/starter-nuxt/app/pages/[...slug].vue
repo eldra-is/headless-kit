@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
-import UiButton from '../components/ui/UiButton.vue';
+import { Button } from '@eldrajs/ui';
 import UiSection from '../components/ui/UiSection.vue';
 import { useT } from '../composables/useT';
 
@@ -59,7 +59,7 @@ useHead(() => ({
         {{ t('notFound.title') }}
       </h1>
       <p class="text-muted mt-4 text-lg">{{ t('notFound.body') }}</p>
-      <UiButton class="mt-8" href="/">{{ t('notFound.back') }}</UiButton>
+      <Button variant="primary" class="mt-8" href="/">{{ t('notFound.back') }}</Button>
     </UiSection>
     <EldraLayout
       v-else-if="layout !== null"

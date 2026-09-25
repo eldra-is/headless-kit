@@ -10,8 +10,6 @@
     "typecheck": "nuxi typecheck && pnpm typecheck:storybook",
     "test": "vitest run",
     "demo-images": "node scripts/demo-images.mjs",
-    "sync-theme-colors": "node scripts/sync-theme-colors.mjs",
-    "check:theme-colors": "node scripts/sync-theme-colors.mjs --check",
     "storybook": "storybook dev -p 6007 --no-open",
     "build-storybook": "storybook build",
     "typecheck:storybook": "tsc -p tsconfig.storybook.json",
@@ -21,6 +19,7 @@
     "@eldrajs/theme-core": "workspace:*",
     "@eldrajs/theme-nuxt": "workspace:*",
     "@eldrajs/theme-vue": "workspace:*",
+    "@eldrajs/ui": "workspace:*",
     "@tabler/icons": "^3.34.0",
     "nuxt": "^4.0.0"
   },

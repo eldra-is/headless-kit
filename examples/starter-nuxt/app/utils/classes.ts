@@ -1,22 +1,16 @@
 /**
- * Shared Tailwind class recipes for the `Ui*` primitives (`app/components/ui/**`)
- * and, later, the rebuilt blocks. Centralised here so every interactive
- * element gets the same focus ring and every button gets the same base
- * shape, instead of each component re-deriving its own utility string.
+ * The one shared Tailwind class recipe left in the theme: the focus ring for
+ * the elements this starter still draws itself.
+ *
+ * Buttons, links and form controls come from `@eldrajs/ui` now and carry the
+ * package's own `eldra-focus` ring (drawn from `--eldra-color-focus` /
+ * `--eldra-color-focus-inner`, see `tokens.json`), so the recipes that used
+ * to live here — `buttonBase`, `buttonVariants`, `buttonSizes`, `inputBase` —
+ * are gone with the primitives that used them. What is left is everything the
+ * theme itself makes focusable: the still-local primitives
+ * (`UiAccordionItem`'s summary, `UiTab`, `UiDialog`'s close button — all
+ * replaced in the next sub-projects), a carousel track, a lightbox thumbnail,
+ * and the skip link.
  */
 export const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background';
-export const buttonBase = `inline-flex items-center justify-center gap-2 rounded-theme-md font-medium transition-colors motion-safe:duration-150 disabled:pointer-events-none disabled:opacity-50 ${focusRing}`;
-export const buttonVariants = {
-  primary: 'bg-primary text-primary-contrast hover:bg-primary/90',
-  secondary: 'bg-accent text-accent-contrast hover:bg-accent/90',
-  outline: 'border border-border bg-transparent text-text hover:bg-surface',
-  ghost: 'bg-transparent text-text hover:bg-surface',
-  link: 'bg-transparent text-primary underline-offset-4 hover:underline',
-} as const;
-export const buttonSizes = {
-  sm: 'h-9 px-3 text-sm',
-  md: 'h-11 px-5 text-base',
-  lg: 'h-12 px-6 text-lg',
-} as const;
-export const inputBase = `block w-full rounded-theme-md border border-border bg-background px-3 py-2 text-base text-text placeholder:text-muted aria-invalid:border-danger ${focusRing}`;

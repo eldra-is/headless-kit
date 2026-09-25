@@ -17,9 +17,9 @@ import { computed } from 'vue';
 import UiDialog from './UiDialog.vue';
 
 const SIDE_CLASSES = {
-  left: 'inset-y-0 left-0 m-0 h-full max-h-full w-[85vw] max-w-sm rounded-none border-r shadow-theme-md motion-safe:transition-transform motion-safe:duration-200 -translate-x-full open:translate-x-0',
+  left: 'inset-y-0 left-0 m-0 h-full max-h-full w-[85vw] max-w-sm rounded-none border-r shadow-md motion-safe:transition-transform motion-safe:duration-200 -translate-x-full open:translate-x-0',
   right:
-    'inset-y-0 right-0 m-0 h-full max-h-full w-[85vw] max-w-sm rounded-none border-l shadow-theme-md motion-safe:transition-transform motion-safe:duration-200 translate-x-full open:translate-x-0',
+    'inset-y-0 right-0 m-0 h-full max-h-full w-[85vw] max-w-sm rounded-none border-l shadow-md motion-safe:transition-transform motion-safe:duration-200 translate-x-full open:translate-x-0',
 } as const;
 
 const props = withDefaults(

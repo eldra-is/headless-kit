@@ -19,11 +19,18 @@ interface TokensFile {
 
 const tokens = JSON.parse(readFileSync(tokensPath, 'utf8')) as TokensFile;
 
+// The design spec's colour roles (eldra-starter-spec/tokens.json), which are
+// also the `--eldra-color-*` names `@eldrajs/ui` reads: the 13 the theme
+// always had plus `border-strong` (the boundary of an interactive control,
+// which `border` is deliberately too light for), the `focus`/`focus-inner`
+// pair the package's `eldra-focus` ring is drawn from, and `overlay`.
 const expectedIds = [
   'background',
   'surface',
   'surface-strong',
   'border',
+  'border-strong',
+  'overlay',
   'text',
   'muted',
   'primary',
@@ -33,6 +40,8 @@ const expectedIds = [
   'success',
   'warning',
   'danger',
+  'focus',
+  'focus-inner',
 ];
 
 // WCAG 2.x relative luminance / contrast ratio, computed from hex literals.
@@ -66,7 +75,7 @@ function tokenValue(id: string): string {
 }
 
 describe('design tokens', () => {
-  it('defines exactly the 13 expected color ids', () => {
+  it('defines exactly the expected color ids', () => {
     expect(Object.keys(tokens.colors).sort()).toEqual([...expectedIds].sort());
   });
 
@@ -77,6 +86,15 @@ describe('design tokens', () => {
     ['accent-contrast', 'accent', 4.5],
     ['text', 'surface', 7],
     ['text', 'surface-strong', 4.5],
+    // WCAG 1.4.11: a control's boundary is a non-text contrast pair, which is
+    // exactly why `border-strong` exists beside the decorative `border`.
+    ['border-strong', 'background', 3],
+    ['border-strong', 'surface-strong', 3],
+    // The focus indicator: the ring against the grounds it is drawn on, and
+    // against its own infill.
+    ['focus', 'background', 3],
+    ['focus', 'focus-inner', 3],
+    ['focus-inner', 'primary', 3],
   ] as const)('%s on %s has contrast >= %s', (foreground, background, min) => {
     const ratio = contrastRatio(tokenValue(foreground), tokenValue(background));
     expect(ratio).toBeGreaterThanOrEqual(min);

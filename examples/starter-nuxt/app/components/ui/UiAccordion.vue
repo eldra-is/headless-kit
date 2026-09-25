@@ -16,7 +16,7 @@ provide(ACCORDION_KEY, {
 </script>
 
 <template>
-  <div class="divide-border border-border rounded-theme-md divide-y border">
+  <div class="divide-border border-border divide-y rounded-md border">
     <slot />
   </div>
 </template>

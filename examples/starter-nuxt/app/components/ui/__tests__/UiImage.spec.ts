@@ -73,10 +73,10 @@ describe('UiImage', () => {
   it('forwards class and other attrs to the img element', () => {
     const wrapper = mount(UiImage, {
       props: { src: '/demo/hero.svg', alt: 'Hero' },
-      attrs: { class: 'rounded-theme-lg', 'data-testid': 'hero-image' },
+      attrs: { class: 'rounded-lg', 'data-testid': 'hero-image' },
     });
     const img = wrapper.find('img');
-    expect(img.classes()).toContain('rounded-theme-lg');
+    expect(img.classes()).toContain('rounded-lg');
     expect(img.attributes('data-testid')).toBe('hero-image');
   });
 

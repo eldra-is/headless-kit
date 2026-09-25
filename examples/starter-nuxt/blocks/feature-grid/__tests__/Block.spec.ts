@@ -16,8 +16,8 @@ import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 // merges shallowly).
 const withImages = { ...mock, ...preview };
 
-// `feature-grid` items may use a Tabler icon (`UiIcon`) instead of an image;
-// provide the same synchronous, network-free fetcher stub `UiIcon.spec.ts`
+// `feature-grid` items may use a Tabler icon (`EldraIcon`) instead of an image;
+// provide the same synchronous, network-free fetcher stub `eldraIcon.spec.ts`
 // uses (see `useEldraIcon.ts`), merged onto `mountOptions()`'s own provide
 // map so the shared Eldra context still comes through too.
 const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);

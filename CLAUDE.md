@@ -148,9 +148,12 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   silently.
 - `examples/starter-nuxt` — the theme starter: what `eldra-theme init` copies. `theme-cli`'s
   `prepack` script copies this directory into `packages/theme-cli/template/` (git-ignored, rebuilt
-  on every pack/publish) rather than the CLI depending on it at runtime. Copied source, not a
-  runtime UI library: `app/components/ui/` is the primitive layer (Tailwind classes, no scoped CSS,
-  no `@apply`), `blocks/<apiId>/{block.json,Block.vue,mock.json,preview.json?,preview.png,__tests__/}`
+  on every pack/publish) rather than the CLI depending on it at runtime. Buttons, links and form
+  controls come from `@eldrajs/ui` (a real dependency, restyled through the `--eldra-*` tokens,
+  never forked); everything else is copied source the customer owns — `app/components/ui/` is what
+  is left of the primitive layer (Tailwind classes, no scoped CSS, no `@apply`), replaced component
+  by component as the package's later sub-projects land,
+  `blocks/<apiId>/{block.json,Block.vue,mock.json,preview.json?,preview.png,__tests__/}`
   is the block contract — `mock.json` is exactly the seed Studio writes when an author inserts the
   block, so a media field is absent there (never a fixture object; `eldra-theme validate` enforces
   `{assetId: uuid}` or absent), and the optional sibling `preview.json` carries demo imagery as a
@@ -158,12 +161,16 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `app/components/ui/**` may call Nuxt globals
   (`useRoute`, `useHead`, `NuxtLink`, `$fetch`, `useAsyncData`) or rely on Nuxt auto-imports — every
   `vue`/`@eldrajs/*` import is explicit, which is what lets a block render in Storybook with no
-  Nuxt build step. Tailwind v4 is wired through the fallback route, not the plugin's
-  `virtual:eldra/tailwind-theme.css` CSS-level `@import` (that import only resolves at the JS level
-  — see `docs/theme-design-tokens.md`): `eldra.tailwind: false`, `app/assets/main.css` starts with
-  `@import 'tailwindcss'` and carries a generated `@theme static` color block kept in sync with
-  `tokens.json` by `scripts/sync-theme-colors.mjs` (`pnpm check:theme-colors` fails the build on
-  drift). **Storybook** (`examples/starter-nuxt/.storybook/`) generates its block stories from
+  Nuxt build step; `app/components/EldraRouterLink.vue` is the single carve-out that writes the
+  `<NuxtLink>` tag, and blocks hand it to `@eldrajs/ui`'s `Link` as `as` for a same-site
+  destination (always after `safeHref`). Tailwind v4 is wired through the fallback route, not the
+  plugin's `virtual:eldra/tailwind-theme.css` CSS-level `@import` (that import only resolves at the
+  JS level — see `docs/theme-design-tokens.md`): `eldra.tailwind: false`, `app/assets/main.css` is
+  `@import 'tailwindcss'` then `@import '@eldrajs/ui/tailwind.css'`. There is no generated colour
+  block and no sync script: `tokens.json`'s ids _are_ the package's `--eldra-color-*` role names,
+  so one edit restyles both, and `virtual:eldra/tokens.css` must stay ordered after the package's
+  defaults (it is, in the Nuxt build; `.storybook/preview.ts` imports them in that order
+  explicitly). **Storybook** (`examples/starter-nuxt/.storybook/`) generates its block stories from
   `virtual:eldra/manifest`/`virtual:eldra/blocks` rather than hand-written CSF — one `Default` story
   per block from `mock.json`, one per declared `variant` option; `pnpm --filter starter-nuxt
 build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/previews/*.png`,

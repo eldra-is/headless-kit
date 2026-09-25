@@ -43,15 +43,17 @@ export default defineNuxtConfig({
   // Keep this an exact origin: it is also emitted into the Pages CSP header.
   eldra: {
     studioOrigins: [process.env.ELDRA_STUDIO_ORIGIN ?? 'https://localhost:4311'],
-    // See app/assets/main.css and scripts/sync-theme-colors.mjs: the Tailwind
-    // adapter's own `virtual:eldra/tailwind-theme.css` entry cannot be
-    // resolved from an `@import` inside a Vite-processed CSS file (the
-    // Tailwind v4 Vite plugin uses its own CSS resolver, not Vite's
-    // resolveId chain), and a second CSS entry's `@theme` block is not
-    // merged into the Tailwind root defined by the first — both verified
-    // with a real `nuxi generate` (see task-1-report.md). Fall back to
-    // `@import 'tailwindcss'` directly in main.css with a generated color
-    // `@theme static` block instead.
+    // See app/assets/main.css: the Tailwind adapter's own
+    // `virtual:eldra/tailwind-theme.css` entry cannot be resolved from an
+    // `@import` inside a Vite-processed CSS file (the Tailwind v4 Vite plugin
+    // uses its own CSS resolver, not Vite's resolveId chain), and a second CSS
+    // entry's `@theme` block is not merged into the Tailwind root defined by
+    // the first — both verified with a real `nuxi generate` (see
+    // task-1-report.md). main.css is `@import 'tailwindcss'` followed by
+    // `@import '@eldrajs/ui/tailwind.css'` instead, which that same resolver
+    // finds in node_modules like any other package file, and which carries the
+    // whole `--color-<role>: var(--eldra-color-<role>)` mapping — so no colour
+    // block is generated into the theme any more.
     tailwind: false,
   },
   typescript: {

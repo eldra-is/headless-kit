@@ -62,7 +62,14 @@ describe('starter theme', () => {
     const result = scanTheme({ themeDir: templateDir, framework: 'nuxt' });
     expect(result.errors).toEqual([]);
     expect(result.manifest?.blocks.map((block) => block.apiId).sort()).toEqual(expectedBlocks);
-    expect(result.manifest?.tokens.colors.primary.value).toBe('#1d4ed8');
+    // The design spec's brand slot (eldra-starter-spec/tokens.json): a deep
+    // ink a customer replaces with their own colour, not a blue.
+    expect(result.manifest?.tokens.colors.primary.value).toBe('#24201c');
+    // The roles `@eldrajs/ui` needs beyond the original thirteen.
+    expect(result.manifest?.tokens.colors['border-strong']?.value).toBe('#7d7466');
+    expect(result.manifest?.tokens.colors.focus?.value).toBe('#1c1917');
+    expect(result.manifest?.tokens.colors['focus-inner']?.value).toBe('#ffffff');
+    expect(result.manifest?.tokens.colors.overlay?.value).toBe('#1c1917b3');
     const fields = Object.fromEntries(
       result.manifest!.blocks.map((block) => [
         block.apiId,

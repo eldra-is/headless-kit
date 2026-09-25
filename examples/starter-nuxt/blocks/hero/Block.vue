@@ -14,6 +14,13 @@
  *  - `centered`: single centered copy column, image (if any) below as a
  *    wide banner.
  *
+ * The scrimmed variant also marks itself `class="group/section"
+ * data-section="primary"`: that is `@eldrajs/ui`'s own signal for "the ground
+ * here is the primary colour", and it is what turns the `Button` into a
+ * `primary-contrast` fill with `primary` text and the `Link` into
+ * `primary-contrast` — the same pairing the scrim is built for, with no
+ * per-variant colour written into this block.
+ *
  * The image always gets a `framing` value (falling back to
  * `DEFAULT_IMAGE_FRAMING`, not `undefined`) so `UiImage` always emits the
  * `data-eldra-framing*` marker attributes and the default cover style, even
@@ -25,14 +32,13 @@
  * built-in buttons below are the fallback shown when the slot is empty.
  */
 import { computed } from 'vue';
+import { Button, Link } from '@eldrajs/ui';
 import { DEFAULT_IMAGE_FRAMING } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
-import { safeHref } from '../../app/utils/links';
-import { focusRing } from '../../app/utils/classes';
-import UiButton from '../../app/components/ui/UiButton.vue';
+import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import { isInternalHref, safeHref } from '../../app/utils/links';
 import UiContainer from '../../app/components/ui/UiContainer.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
-import UiLink from '../../app/components/ui/UiLink.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'hero'> }>();
 const { data, entryId } = useBlockData(props, 'hero');
@@ -46,18 +52,25 @@ const hasBackgroundImage = computed(() => isBackground.value && Boolean(data.val
 const framing = computed(() => data.value.image?.framing ?? DEFAULT_IMAGE_FRAMING);
 const ctaHref = computed(() => safeHref(data.value.ctaHref));
 const secondaryCtaHref = computed(() => safeHref(data.value.secondaryCtaHref));
-
-const secondaryLinkClass = computed(() => [
-  focusRing,
-  'rounded-theme-sm text-base font-semibold underline underline-offset-4',
-  hasBackgroundImage.value ? 'text-primary-contrast' : 'text-text',
-]);
+/** Only a same-site destination routes through the router — see `EldraRouterLink`. */
+const secondaryLinkAs = computed(() =>
+  secondaryCtaHref.value !== null && isInternalHref(secondaryCtaHref.value)
+    ? EldraRouterLink
+    : undefined
+);
 </script>
 
 <template>
   <section
     class="relative overflow-hidden"
-    :class="hasBackgroundImage ? 'text-primary-contrast' : isBackground ? 'bg-surface-strong' : ''"
+    :class="
+      hasBackgroundImage
+        ? 'group/section text-primary-contrast'
+        : isBackground
+          ? 'bg-surface-strong'
+          : ''
+    "
+    :data-section="hasBackgroundImage ? 'primary' : undefined"
   >
     <template v-if="hasBackgroundImage">
       <UiImage
@@ -103,16 +116,17 @@ const secondaryLinkClass = computed(() => [
           :class="variant === 'centered' || isBackground ? 'justify-center' : ''"
         >
           <slot name="actions">
-            <UiButton v-if="data.ctaLabel && ctaHref" :href="ctaHref" size="lg">{{
+            <Button v-if="data.ctaLabel && ctaHref" :href="ctaHref" size="lg" variant="primary">{{
               data.ctaLabel
-            }}</UiButton>
-            <UiLink
+            }}</Button>
+            <Link
               v-if="data.secondaryCtaLabel && secondaryCtaHref"
               :href="secondaryCtaHref"
-              :class="secondaryLinkClass"
+              :as="secondaryLinkAs"
+              variant="standalone"
             >
               {{ data.secondaryCtaLabel }}
-            </UiLink>
+            </Link>
           </slot>
         </div>
       </div>
@@ -126,7 +140,7 @@ const secondaryLinkClass = computed(() => [
         field-path="image"
         :aspect="variant === 'image-right' ? '4/3' : '16/9'"
         :class="[
-          'rounded-theme-xl shadow-theme-md w-full object-cover',
+          'w-full rounded-xl object-cover shadow-md',
           variant === 'image-right' ? 'md:order-2' : 'mx-auto mt-10 max-w-3xl',
         ]"
       />

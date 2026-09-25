@@ -55,12 +55,19 @@ author the CSS entry as a single self-contained Tailwind root —
 register `@tailwindcss/vite` directly in the theme's own Vite config (the adapter asserts
 `tailwindcss@4.x` is installed when `tailwind: true`, but never registers the actual transform
 plugin itself — every consumer must add `vite: { plugins: [tailwindcss()] }`), and keep the
-generated `@theme static` color block in sync with `tokens.json` with a small script checked in CI
-(`examples/starter-nuxt/scripts/sync-theme-colors.mjs` is the reference implementation —
-`pnpm sync-theme-colors` writes it, `pnpm check:theme-colors` fails the build if it has drifted).
+generated `@theme static` color block in sync with `tokens.json` with a small script checked in CI.
 `--eldra-color-*` custom properties are available regardless of the `tailwind` option (`theme-nuxt`
 always imports `virtual:eldra/tokens.css`), so the generated block's `var(--eldra-color-<id>)`
-references resolve either way. See [`docs/starter-kit.md`](starter-kit.md) and
+references resolve either way.
+
+**A theme on `@eldrajs/ui` writes no generated block at all**, which is what the starter now does:
+`@import '@eldrajs/ui/tailwind.css'` after `@import 'tailwindcss'` brings the whole `@theme`
+mapping with it (`--color-<role>: var(--eldra-color-<role>)` for every role, plus radii, shadows,
+fonts and the package's utilities), and unlike the virtual module it is an ordinary `node_modules`
+file Tailwind's CSS resolver finds. The theme's `tokens.json` ids and the package's role names are
+then the same set, so no sync script can drift. One ordering rule replaces it: the package's
+defaults must come _before_ `virtual:eldra/tokens.css`, or the package's values would win over the
+theme's own. See [`docs/starter-kit.md`](starter-kit.md) and
 `examples/starter-nuxt/app/assets/main.css` for the starter's exact version of this.
 
 Literal theme-source classes such as `bg-primary`, `text-muted`, and `border-border` then compile

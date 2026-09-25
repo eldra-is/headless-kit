@@ -10,18 +10,23 @@
  *    a lower column; pinning the row explicitly keeps all three on row 1 regardless of DOM order.
  *  - `minimal`: brand + hamburger only, at every width — links and CTA live only in the drawer.
  * The mobile drawer always lists the same links (+ CTA) regardless of variant.
+ *
+ * Links are `@eldrajs/ui`'s `Link`, resolved once in `links` below: `safeHref`
+ * drops an unsafe destination and a same-site path routes through Nuxt's
+ * router via `as` (see `EldraRouterLink`). The hamburger is an icon-only
+ * `Button` whose accessible name is its `label`, so the `sr-only` span the
+ * hand-rolled button needed is gone.
  */
 import { computed, ref } from 'vue';
+import { Button, Link } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
+import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
-import { safeHref } from '../../app/utils/links';
-import { focusRing } from '../../app/utils/classes';
-import UiButton from '../../app/components/ui/UiButton.vue';
+import { isInternalHref, safeHref } from '../../app/utils/links';
 import UiContainer from '../../app/components/ui/UiContainer.vue';
 import UiDrawer from '../../app/components/ui/UiDrawer.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
-import UiLink from '../../app/components/ui/UiLink.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
@@ -31,10 +36,14 @@ const drawerId = `nav-drawer-${useUiId()}`;
 const drawerOpen = ref(false);
 
 const variant = computed(() => data.value.variant ?? 'default');
-const links = computed(() => data.value.links ?? []);
 const ctaHref = computed(() => safeHref(data.value.ctaHref));
-
-const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text hover:text-primary'];
+const links = computed(() =>
+  (data.value.links ?? []).flatMap((link) => {
+    const href = safeHref(link.href);
+    if (href === null) return [];
+    return [{ label: link.label, href, as: isInternalHref(href) ? EldraRouterLink : undefined }];
+  })
+);
 </script>
 
 <template>
@@ -52,17 +61,20 @@ const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text ho
             : ''
         "
       >
-        <UiLink
+        <Link
           href="/"
-          :class="[
-            focusRing,
-            'rounded-theme-sm flex items-center gap-2',
-            variant === 'centered' ? 'md:col-start-2 md:row-start-1 md:justify-self-center' : '',
-          ]"
+          :as="EldraRouterLink"
+          variant="standalone"
+          :classes="{
+            root: [
+              'flex items-center gap-2 hover:no-underline active:no-underline',
+              variant === 'centered' ? 'md:col-start-2 md:row-start-1 md:justify-self-center' : '',
+            ].join(' '),
+          }"
         >
           <UiImage v-if="data.logo" :src="data.logo.url" :alt="data.brand" class="h-8 w-auto" />
           <span v-else class="font-heading text-text text-lg font-semibold">{{ data.brand }}</span>
-        </UiLink>
+        </Link>
 
         <ul
           v-if="variant !== 'minimal' && links.length > 0"
@@ -72,9 +84,13 @@ const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text ho
           "
         >
           <li v-for="(link, index) in links" :key="index">
-            <UiLink v-if="safeHref(link.href)" :href="link.href" :class="linkClass">{{
-              link.label
-            }}</UiLink>
+            <Link
+              :href="link.href"
+              :as="link.as"
+              variant="standalone"
+              :classes="{ root: 'text-sm font-medium' }"
+              >{{ link.label }}</Link
+            >
           </li>
         </ul>
 
@@ -82,34 +98,39 @@ const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text ho
           class="flex items-center gap-3"
           :class="variant === 'centered' ? 'md:col-start-3 md:row-start-1 md:justify-self-end' : ''"
         >
-          <UiButton
+          <Button
             v-if="variant !== 'minimal' && data.ctaLabel && ctaHref"
             :href="ctaHref"
             size="sm"
-            class="hidden md:inline-flex"
+            variant="primary"
+            :classes="{ container: 'hidden md:inline-flex' }"
           >
             {{ data.ctaLabel }}
-          </UiButton>
-          <UiButton
+          </Button>
+          <Button
             variant="ghost"
             size="sm"
-            :class="variant === 'minimal' ? '' : 'md:hidden'"
+            icon-only
+            :label="t('nav.menu')"
+            :classes="{ container: variant === 'minimal' ? '' : 'md:hidden' }"
             :aria-expanded="drawerOpen ? 'true' : 'false'"
             :aria-controls="drawerId"
             @click="drawerOpen = true"
           >
-            <svg
-              class="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
-            </svg>
-            <span class="sr-only">{{ t('nav.menu') }}</span>
-          </UiButton>
+            <template #leadingIcon>
+              <svg
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
+              </svg>
+            </template>
+          </Button>
         </div>
       </nav>
     </UiContainer>
@@ -124,27 +145,26 @@ const linkClass = [focusRing, 'rounded-theme-sm text-sm font-medium text-text ho
       <nav :aria-label="t('nav.primary')" class="flex flex-col gap-1">
         <ul class="flex flex-col gap-1">
           <li v-for="(link, index) in links" :key="index">
-            <UiLink
-              v-if="safeHref(link.href)"
+            <Link
               :href="link.href"
-              :class="[
-                focusRing,
-                'rounded-theme-sm text-text hover:text-primary block py-2 text-base font-medium',
-              ]"
+              :as="link.as"
+              variant="standalone"
+              :classes="{ root: 'block py-2 text-base font-medium' }"
               @click="drawerOpen = false"
             >
               {{ link.label }}
-            </UiLink>
+            </Link>
           </li>
         </ul>
-        <UiButton
+        <Button
           v-if="data.ctaLabel && ctaHref"
           :href="ctaHref"
-          class="mt-4"
+          variant="primary"
+          :classes="{ container: 'mt-4' }"
           @click="drawerOpen = false"
         >
           {{ data.ctaLabel }}
-        </UiButton>
+        </Button>
       </nav>
     </UiDrawer>
   </header>

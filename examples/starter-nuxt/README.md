@@ -1,10 +1,11 @@
 # Eldra Nuxt starter
 
-This is the base every Eldra theme starts from: Tailwind v4 bound to the Eldra design tokens, a
-copied (not installed) primitive layer under `app/components/ui/`, ten rebuilt content blocks,
-`en-US`/`is-IS` UI strings, Storybook with generated block previews, and an accessibility test
-harness. Running `eldra-theme init my-site` copies this directory — everything in it is source you
-own from day one, not a package you extend.
+This is the base every Eldra theme starts from: Tailwind v4 bound to the Eldra design tokens,
+`@eldrajs/ui` for the accessible core components (buttons, links, form controls), the copied (not
+installed) primitives still under `app/components/ui/`, ten rebuilt content blocks, `en-US`/`is-IS`
+UI strings, Storybook with generated block previews, and an accessibility test harness. Running
+`eldra-theme init my-site` copies this directory — everything in it is source you own from day one,
+apart from `@eldrajs/ui`, which is an ordinary versioned dependency you restyle through tokens.
 
 For the conventions behind the copied source (the block contract, why the primitives look the way
 they do, the Tailwind CSS route this starter uses), see
@@ -31,9 +32,7 @@ pnpm build-storybook        # static Storybook build (also runs in CI)
 pnpm previews               # regenerate blocks/<id>/preview.png + freshness hashes
                              #   (one-time setup: pnpm exec playwright install chromium)
 pnpm demo-images             # regenerate the deterministic SVG demo images
-pnpm sync-theme-colors        # regenerate main.css's color @theme block from tokens.json
-pnpm check:theme-colors        # fail if that block has drifted from tokens.json (wired into lint:check)
-pnpm validate                    # eldra-theme validate — the same scan/validation a build runs
+pnpm validate                 # eldra-theme validate — the same scan/validation a build runs
 ```
 
 ## The block contract
@@ -56,7 +55,10 @@ generated from every `block.json` into `.eldra/block-types.d.ts` — refresh the
 `pnpm exec eldra-theme types --blocks` after changing a field schema. A block never calls Nuxt
 globals (`useRoute`, `useHead`, `NuxtLink`, `$fetch`, `useAsyncData`) or relies on Nuxt's
 auto-import — every `vue`/`@eldrajs/*` import is explicit, which is what lets every block render
-correctly in Storybook (no Nuxt build step there to auto-import from). Links go through `UiLink`.
+correctly in Storybook (no Nuxt build step there to auto-import from). Links go through
+`@eldrajs/ui`'s `Link`, with `safeHref` (`app/utils/links.ts`) on the destination and
+`app/components/EldraRouterLink.vue` as `as` for a same-site path — that component is the one place
+in the theme that writes the `<NuxtLink>` tag.
 
 ### Add a block
 
@@ -85,16 +87,21 @@ alongside it.
 
 Two layers, both plain files:
 
-- **`tokens.json`** — colors (`background`, `surface`, `surface-strong`, `text`, `muted`, `border`,
-  `primary`, `primary-contrast`, `accent`, `accent-contrast`, `success`, `warning`, `danger`) and
-  layout containers (`narrow`, `content`, `wide`, `full`). These are also what Studio's site
-  settings can override live, per-site, without a redeploy (`allowSiteOverride: true`). After
-  editing a color here, run `pnpm sync-theme-colors` to regenerate `app/assets/main.css`'s
-  generated `@theme static` color block — `pnpm check:theme-colors` fails the build if you forget.
-- **`app/assets/main.css`** — everything Studio can't edit: fonts (`--theme-font-heading`,
-  `--theme-font-body`), the radius scale (`--theme-radius-sm/-md/-lg/-xl`), shadows
-  (`--theme-shadow-sm/-md`), section/stack spacing, and the base layer / rich-text typography
-  rules. Edit this file directly; there's no build step required.
+- **`tokens.json`** — the design spec's seventeen colour roles (`background`, `surface`,
+  `surface-strong`, `border`, `border-strong`, `overlay`, `text`, `muted`, `primary`,
+  `primary-contrast`, `accent`, `accent-contrast`, `success`, `warning`, `danger`, `focus`,
+  `focus-inner`) and layout containers (`narrow`, `content`, `wide`, `full`). These are also what
+  Studio's site settings can override live, per-site, without a redeploy (`allowSiteOverride:
+true`). Each id becomes a `--eldra-color-<id>` custom property, which is the _same_ name
+  `@eldrajs/ui` reads — so changing a colour here restyles the package's components too, with no
+  sync step and nothing generated into `main.css`.
+- **`app/assets/main.css`** — `@import 'tailwindcss'` then `@import '@eldrajs/ui/tailwind.css'`,
+  which brings in the `--eldra-*` variables, the Tailwind `@theme` mapping over them
+  (`bg-primary`, `rounded-md`, `shadow-md`, `font-heading`, `text-body`, …) and the package's own
+  utilities. What is left in the file is the theme's own: the section spacing scale, the container
+  rules, the base layer and the rich-text typography. Edit it directly; there's no build step.
+  Fonts are `--eldra-font-heading` / `--eldra-font-body` — override them here (the package names
+  its two faces but never loads them).
 
 Blocks and primitives compose these through Tailwind utilities only — no scoped CSS, no `@apply`
 outside `main.css` itself, so every block stays readable as plain markup.
@@ -104,9 +111,9 @@ outside `main.css` itself, so every block stays readable as plain markup.
 Every primitive and block ships an axe assertion
 (`expect(await axe(wrapper.element)).toHaveNoViolations()`, `vitest-axe` under jsdom) and, for
 anything interactive (menu, dialog, drawer, accordion, tabs, carousel, lightbox), a keyboard test.
-Every interactive element carries the same focus ring
-(`focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none`,
-`app/utils/classes.ts`'s `focusRing`), and animation is gated behind `motion-safe:` so it never runs
+Every interactive element carries a focus ring: `@eldrajs/ui`'s components draw the spec's own
+(`eldra-focus`, from the `focus`/`focus-inner` tokens), and what the theme still draws itself uses
+`app/utils/classes.ts`'s `focusRing`. Animation is gated behind `motion-safe:` so it never runs
 for a visitor who has asked their OS to reduce motion. `pnpm test` runs the whole suite; a failing
 axe assertion is a defect in the change, not a snapshot to update.
 

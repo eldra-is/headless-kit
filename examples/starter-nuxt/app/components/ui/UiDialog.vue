@@ -20,8 +20,7 @@ import { useScrollLock } from '../../composables/useScrollLock';
 import { useT } from '../../composables/useT';
 import { focusRing } from '../../utils/classes';
 
-const DEFAULT_PANEL_CLASS =
-  'm-auto w-[calc(100%-2rem)] max-w-lg rounded-theme-lg border shadow-theme-md';
+const DEFAULT_PANEL_CLASS = 'm-auto w-[calc(100%-2rem)] max-w-lg rounded-lg border shadow-md';
 
 const props = withDefaults(
   defineProps<{
@@ -115,7 +114,7 @@ onBeforeUnmount(() => deactivate());
       <button
         type="button"
         :class="[
-          'text-muted hover:text-text rounded-theme-sm inline-flex h-8 w-8 shrink-0 items-center justify-center',
+          'text-muted hover:text-text inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm',
           focusRing,
         ]"
         @click="dialogRef?.close()"

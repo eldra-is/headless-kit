@@ -10,12 +10,12 @@
  * own previous/next stepping and an `aria-live` "image X of Y" counter.
  */
 import { computed, ref } from 'vue';
+import { Button } from '@eldrajs/ui';
 import { focusRing } from '../../app/utils/classes';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useCarousel } from '../../app/composables/useCarousel';
 import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
-import UiButton from '../../app/components/ui/UiButton.vue';
 import UiDialog from '../../app/components/ui/UiDialog.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import UiSection from '../../app/components/ui/UiSection.vue';
@@ -88,7 +88,7 @@ function onLightboxKeydown(event: KeyboardEvent): void {
           :src="image.url"
           :alt="image.altText ?? ''"
           aspect="1/1"
-          class="rounded-theme-md w-full object-cover"
+          class="w-full rounded-md object-cover"
         />
       </component>
     </div>
@@ -102,7 +102,7 @@ function onLightboxKeydown(event: KeyboardEvent): void {
         :class="[focusRing, 'mb-4 block w-full break-inside-avoid']"
         @click="openLightbox(imageIndex)"
       >
-        <UiImage :src="image.url" :alt="image.altText ?? ''" class="rounded-theme-md w-full" />
+        <UiImage :src="image.url" :alt="image.altText ?? ''" class="w-full rounded-md" />
       </component>
     </div>
 
@@ -134,19 +134,19 @@ function onLightboxKeydown(event: KeyboardEvent): void {
             :src="image.url"
             :alt="image.altText ?? ''"
             aspect="4/3"
-            class="rounded-theme-md w-full object-cover"
+            class="w-full rounded-md object-cover"
           />
         </component>
       </div>
 
       <div class="mt-6 flex items-center justify-center gap-4">
-        <UiButton variant="outline" size="sm" @click="trackPrevious">{{
+        <Button variant="outline" size="sm" @click="trackPrevious">{{
           t('carousel.previous')
-        }}</UiButton>
+        }}</Button>
         <span class="text-muted text-sm" aria-live="polite">{{
           t('carousel.slideOf', { index: trackIndex + 1, total })
         }}</span>
-        <UiButton variant="outline" size="sm" @click="trackNext">{{ t('carousel.next') }}</UiButton>
+        <Button variant="outline" size="sm" @click="trackNext">{{ t('carousel.next') }}</Button>
       </div>
     </div>
 
@@ -154,7 +154,7 @@ function onLightboxKeydown(event: KeyboardEvent): void {
       v-if="lightboxEnabled"
       :open="lightboxOpen"
       :title="t('gallery.open')"
-      panel-class="m-auto w-[calc(100%-2rem)] max-w-4xl rounded-theme-lg border shadow-theme-md"
+      panel-class="m-auto w-[calc(100%-2rem)] max-w-4xl rounded-lg border shadow-md"
       @update:open="lightboxOpen = $event"
       @keydown="onLightboxKeydown"
     >
@@ -165,15 +165,13 @@ function onLightboxKeydown(event: KeyboardEvent): void {
           class="max-h-[85vh] w-auto object-contain"
         />
         <div class="flex items-center gap-4">
-          <UiButton variant="outline" size="sm" @click="previousImage">{{
+          <Button variant="outline" size="sm" @click="previousImage">{{
             t('gallery.previous')
-          }}</UiButton>
+          }}</Button>
           <span class="text-muted text-sm" aria-live="polite">{{
             t('gallery.imageOf', { index: lightboxIndex + 1, total })
           }}</span>
-          <UiButton variant="outline" size="sm" @click="nextImage">{{
-            t('gallery.next')
-          }}</UiButton>
+          <Button variant="outline" size="sm" @click="nextImage">{{ t('gallery.next') }}</Button>
         </div>
       </div>
     </UiDialog>

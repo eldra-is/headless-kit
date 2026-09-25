@@ -13,7 +13,7 @@ const meta: Meta<typeof UiAccordionItem> = {
     components: { UiAccordionItem },
     setup: () => ({ args }),
     template:
-      '<UiAccordionItem v-bind="args" class="border-border max-w-md rounded-theme-md border">Returns are accepted within 30 days of delivery, in original condition.</UiAccordionItem>',
+      '<UiAccordionItem v-bind="args" class="border-border max-w-md rounded-md border">Returns are accepted within 30 days of delivery, in original condition.</UiAccordionItem>',
   }),
 };
 export default meta;

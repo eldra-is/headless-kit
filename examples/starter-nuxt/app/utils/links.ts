@@ -25,3 +25,16 @@ export function safeHref(value: unknown): string | null {
     return null;
   }
 }
+
+/**
+ * A destination the site itself owns — a path (`/shop`) or an in-page hash
+ * (`#main`). These are the links that should route client-side, which is what
+ * `@eldrajs/ui`'s `Link` does when it is given Nuxt's `<NuxtLink>` as `as`
+ * (see `app/components/EldraRouterLink.vue`); everything else (an absolute URL,
+ * `mailto:`, `tel:`) is a document navigation and stays a plain `<a>`.
+ *
+ * Call it on the output of `safeHref`, never on a raw field value.
+ */
+export function isInternalHref(href: string): boolean {
+  return href.startsWith('/') || href.startsWith('#');
+}

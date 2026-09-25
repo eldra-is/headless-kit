@@ -21,10 +21,36 @@ describe('UiSection', () => {
     expect(wrapper.classes()).toContain(expected);
   });
 
-  it('maps the lg spacing to the calc() utility', () => {
+  it('maps the lg spacing to the section-lg step', () => {
     const wrapper = mount(UiSection, { props: { spacing: 'lg' } });
-    expect(wrapper.classes()).toContain('py-[calc(var(--theme-section)*1.5)]');
+    expect(wrapper.classes()).toContain('py-section-lg');
   });
+
+  // Every `@`-prefixed container query inside a section — `@eldrajs/ui`'s
+  // `@max-tablet:target-touch` on a primary md Button, its two-column form
+  // layout — measures the nearest container ancestor. The section is it.
+  it('is a container query context', () => {
+    const wrapper = mount(UiSection);
+    expect(wrapper.classes()).toContain('@container');
+  });
+
+  it.each([
+    ['primary', 'primary'],
+    ['accent', 'accent'],
+  ] as const)('marks a %s ground for the components inside it', (background, ground) => {
+    const wrapper = mount(UiSection, { props: { background } });
+    expect(wrapper.attributes('data-section')).toBe(ground);
+    expect(wrapper.classes()).toContain('group/section');
+  });
+
+  it.each(['none', 'surface', 'surface-strong'] as const)(
+    'leaves a %s ground unmarked',
+    (background) => {
+      const wrapper = mount(UiSection, { props: { background } });
+      expect(wrapper.attributes('data-section')).toBeUndefined();
+      expect(wrapper.classes()).not.toContain('group/section');
+    }
+  );
 
   it.each([
     ['surface', ['bg-surface']],

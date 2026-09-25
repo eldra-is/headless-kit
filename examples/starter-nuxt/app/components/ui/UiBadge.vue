@@ -13,7 +13,7 @@ const TONE = {
 const props = withDefaults(defineProps<{ tone?: keyof typeof TONE }>(), { tone: 'neutral' });
 
 const classes = computed(() => [
-  'inline-flex items-center rounded-theme-sm px-2 py-0.5 text-sm font-medium',
+  'inline-flex items-center rounded-sm px-2 py-0.5 text-sm font-medium',
   TONE[props.tone],
 ]);
 </script>

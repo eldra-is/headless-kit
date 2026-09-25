@@ -1,6 +1,8 @@
 import type { Decorator } from '@storybook/vue3-vite';
 import { createEldraClient } from '@eldrajs/theme-core';
 import { provideEldra } from '@eldrajs/theme-vue';
+import { provideEldraUiMessages } from '@eldrajs/ui';
+import { uiMessagesFor } from '../app/i18n/uiMessages';
 
 /**
  * Provides the same `EldraContext` a real page gets from
@@ -22,6 +24,9 @@ export const withEldraContext: Decorator = (story) => ({
       client: createEldraClient({ gatewayUrl: 'https://storybook.invalid', orgId: 'storybook' }),
     });
     context.preview.locale = 'en-US';
+    // The same wiring `app/plugins/eldra-ui-messages.ts` does on a real page:
+    // `@eldrajs/ui`'s own strings follow the story's content locale.
+    provideEldraUiMessages(uiMessagesFor(context.preview.locale));
     return {};
   },
   template: '<story />',

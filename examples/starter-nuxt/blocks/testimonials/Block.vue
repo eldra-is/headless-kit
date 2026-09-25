@@ -3,19 +3,19 @@
  * Customer quotes. `variant`:
  *  - `grid`: a responsive card grid, every quote visible at once.
  *  - `carousel`: a scroll-snap track exposing one quote (mobile) or a few
- *    (wider) at a time, stepped by previous/next `UiButton`s or
+ *    (wider) at a time, stepped by previous/next `Button`s or
  *    `ArrowLeft`/`ArrowRight` on the track (`useCarousel`). The track is a
  *    `role="region"` landmark labelled by the block's own heading, with an
  *    `aria-live="polite"` "slide X of Y" counter so the current position is
  *    announced to assistive tech without relying on visible scroll position.
  */
 import { computed } from 'vue';
+import { Button } from '@eldrajs/ui';
 import { focusRing } from '../../app/utils/classes';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useCarousel } from '../../app/composables/useCarousel';
 import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
-import UiButton from '../../app/components/ui/UiButton.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import UiRating from '../../app/components/ui/UiRating.vue';
 import UiSection from '../../app/components/ui/UiSection.vue';
@@ -75,7 +75,7 @@ function initialsOf(name: string | undefined): string {
         <div
           v-for="(item, itemIndex) in items"
           :key="itemIndex"
-          class="border-border bg-surface rounded-theme-lg w-[85%] shrink-0 snap-start border p-6 sm:w-[45%] lg:w-[30%]"
+          class="border-border bg-surface w-[85%] shrink-0 snap-start rounded-lg border p-6 sm:w-[45%] lg:w-[30%]"
         >
           <blockquote class="text-text text-lg">“{{ item.quote }}”</blockquote>
           <footer class="mt-4 flex items-center gap-3">
@@ -104,13 +104,11 @@ function initialsOf(name: string | undefined): string {
       </div>
 
       <div class="mt-6 flex items-center justify-center gap-4">
-        <UiButton variant="outline" size="sm" @click="previous">{{
-          t('carousel.previous')
-        }}</UiButton>
+        <Button variant="outline" size="sm" @click="previous">{{ t('carousel.previous') }}</Button>
         <span class="text-muted text-sm" aria-live="polite">{{
           t('carousel.slideOf', { index: index + 1, total })
         }}</span>
-        <UiButton variant="outline" size="sm" @click="next">{{ t('carousel.next') }}</UiButton>
+        <Button variant="outline" size="sm" @click="next">{{ t('carousel.next') }}</Button>
       </div>
     </div>
 
@@ -118,7 +116,7 @@ function initialsOf(name: string | undefined): string {
       <div
         v-for="(item, itemIndex) in items"
         :key="itemIndex"
-        class="border-border bg-surface rounded-theme-lg border p-6"
+        class="border-border bg-surface rounded-lg border p-6"
       >
         <blockquote class="text-text text-lg">“{{ item.quote }}”</blockquote>
         <footer class="mt-4 flex items-center gap-3">

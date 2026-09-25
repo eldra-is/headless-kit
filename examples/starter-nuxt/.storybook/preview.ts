@@ -1,11 +1,14 @@
 import { setup, type Preview } from '@storybook/vue3-vite';
 import { registerBlockFields } from '@eldrajs/theme-vue';
 import blockFields from 'virtual:eldra/block-fields';
-// The raw `--eldra-color-*` custom properties app/assets/main.css's
-// `@theme static` block maps into Tailwind color utilities — normally
-// injected by @eldrajs/theme-nuxt's runtime plugin.
-import 'virtual:eldra/tokens.css';
 import '../app/assets/main.css';
+// The theme's own `--eldra-color-*` / `--eldra-container-*` custom properties,
+// generated from tokens.json — normally injected by @eldrajs/theme-nuxt's
+// runtime plugin. It comes *after* main.css deliberately: main.css imports
+// `@eldrajs/ui/tailwind.css`, which declares the package's own defaults for
+// the same `--eldra-color-*` names on `:root`, and the theme's values (what
+// Studio edits) have to be the ones that win.
+import 'virtual:eldra/tokens.css';
 import { withEldraContext } from './eldra';
 import { NuxtLinkStub } from './nuxt-link-stub';
 import { createStorybookIconFetcher } from './iconFetcher';
@@ -17,11 +20,12 @@ import { ICON_FETCHER_KEY } from '../app/composables/iconFetcher';
 registerBlockFields(blockFields);
 
 setup((app) => {
-  // The only Nuxt global the ten starter blocks use (see
-  // blocks/navigation/Block.vue) — Storybook has no Nuxt runtime to resolve
-  // it, so render a plain `<a>` in its place.
+  // The only Nuxt global the theme reaches for, and only from
+  // `app/components/EldraRouterLink.vue` (the component blocks hand
+  // `@eldrajs/ui`'s `Link` as `as` for an internal destination) — Storybook has
+  // no Nuxt runtime to resolve the tag, so render a plain `<a>` in its place.
   app.component('NuxtLink', NuxtLinkStub);
-  // `UiIcon` -> `useEldraIcon` normally calls Nuxt's `/api/eldra-icon`
+  // `EldraIcon` -> `useEldraIcon` normally calls Nuxt's `/api/eldra-icon`
   // route, which does not exist under Storybook's plain Vite build. Provide
   // the glob-based fetcher app-wide so every story resolves icons the same
   // way a real page does, just from a different transport.
