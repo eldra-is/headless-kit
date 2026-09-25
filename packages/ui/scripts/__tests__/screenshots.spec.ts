@@ -2,11 +2,20 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+// `import.meta.url` IS a `file:` URL here; what is not is happy-dom's global `URL`, which refuses
+// that scheme. Node's own `URL` under another name resolves it — the same workaround
+// `src/__tests__/source-scan.spec.ts` documents.
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-// Vitest's module URLs are not `file:` URLs, so the script is resolved from the
-// package root (vitest's `root` for this project) rather than `import.meta.url`.
-const script = join(process.cwd(), 'scripts', 'screenshots.mjs');
+/**
+ * Resolved from this file, never from `process.cwd()`. The working directory is the package root
+ * under `pnpm --filter @eldrajs/ui test` but the *repository* root under the root `pnpm test`,
+ * where every project runs in one vitest process — so a cwd-relative path made this spec pass in
+ * one entry point and fail with `Cannot find module …/headless-kit/scripts/screenshots.mjs` in the
+ * other, which is the gate CI runs.
+ */
+const script = fileURLToPath(new NodeURL('../screenshots.mjs', import.meta.url));
 
 /**
  * The run must finish on its own; a leaked handle shows up as a timeout here.

@@ -27,15 +27,18 @@ const slots = useSlots();
 
 /**
  * Shared box (spec "Button" → Anatomy and Behaviour & motion): 1px border that a variant may
- * colour, `radius-md` through the component's own variable, and the one focus ring. Background,
- * border, text colour and the 1px press movement transition over `duration-fast` with `ease-out`;
- * with reduced motion there is no transition at all.
+ * colour, `radius-md` through the component's own variable, and the one focus ring.
+ *
+ * There is deliberately no `transition-*`/`duration-*` utility here. `eldra-focus` owns the
+ * element's transition list — background, border, text colour and the 1px press movement at
+ * `duration-fast`, the ring itself at `duration-base`, nothing at all under reduced motion — and a
+ * second `transition` shorthand on the same element replaces it wholesale, which is what used to
+ * stop the ring growing in. See `src/styles/tailwind.css` and
+ * `src/__tests__/focus-transition.spec.ts`.
  */
 const BASE =
   'relative inline-flex items-center justify-center border border-transparent ' +
-  'rounded-[var(--eldra-button-radius,var(--eldra-radius-md))] no-underline ' +
-  'transition-[color,background-color,border-color,text-decoration-thickness,translate] ' +
-  'duration-fast ease-out motion-reduce:transition-none eldra-focus';
+  'rounded-[var(--eldra-button-radius,var(--eldra-radius-md))] no-underline eldra-focus';
 
 /**
  * Sizes (spec "Button" → Sizes). `--spacing` is 0.25rem, so `px-3`/`px-4.5`/`px-6` are the spec's
@@ -224,6 +227,15 @@ const hasTrailing = computed(
  */
 const ariaLabel = computed(() => (props.iconOnly || isLoading.value ? props.label : undefined));
 
+/**
+ * `aria-pressed` is a toggle-button state, and `button` is the only role that takes it — an `<a>`
+ * is a link, and a link cannot be pressed. A `pressed` prop on a link button is therefore dropped
+ * from the DOM rather than emitted onto a role that would make it invalid.
+ */
+const ariaPressed = computed(() =>
+  isLink.value || props.pressed === undefined ? undefined : String(props.pressed)
+);
+
 if (import.meta.env?.DEV) {
   watchEffect(() => {
     if (props.iconOnly && props.label === undefined) {
@@ -231,6 +243,33 @@ if (import.meta.env?.DEV) {
         '[@eldrajs/ui] <Button icon-only> has no `label`, so it has no accessible name. ' +
           'Give it one that names the action and the object, e.g. ' +
           'label="Add Merino crew sweater to wishlist".'
+      );
+    }
+  });
+
+  /**
+   * The states table gives the toggle-pressed row a value for `outline` only, and "n/a" for every
+   * other variant: the pressed state has to be a fill, not a hue (1.4.1), and the other five
+   * either already have a fill or are meant to have none. `aria-pressed` is still emitted — the
+   * state is real and a screen reader should hear it — but the button will look identical pressed
+   * and unpressed, which is the bug worth naming.
+   */
+  watchEffect(() => {
+    if (props.pressed !== undefined && !isLink.value && props.variant !== 'outline') {
+      console.warn(
+        `[@eldrajs/ui] <Button variant="${props.variant}" pressed> shows no pressed state: the ` +
+          'design spec gives the toggle fill to the `outline` variant only, so this button looks ' +
+          'the same pressed and unpressed. Use variant="outline" for a toggle.'
+      );
+    }
+  });
+
+  /** A link cannot be pressed, so `pressed` is dropped rather than put on the wrong role. */
+  watchEffect(() => {
+    if (props.pressed !== undefined && isLink.value) {
+      console.warn(
+        '[@eldrajs/ui] <Button href pressed> ignores `pressed`: an <a href> is a link, and ' +
+          '`aria-pressed` is only valid on a button. Drop `href`, or drop `pressed`.'
       );
     }
   });
@@ -260,6 +299,18 @@ function onClick(event: MouseEvent): void {
   }
   emit('click', event);
 }
+
+/**
+ * A disabled link button (spec "Button" → Accessibility, and WAI-ARIA's `aria-disabled` pattern).
+ *
+ * `<a>` has no `disabled`, and dropping the `href` would turn the element into a generic — it
+ * loses `role="link"`, so a screen reader stops announcing what it is at exactly the moment the
+ * user needs to be told it is unavailable. So the `href` stays and three things make it inert:
+ * `aria-disabled="true"` for the announcement, `tabindex="-1"` to take it out of the tab order the
+ * way a disabled button is, and `preventDefault()` above so a pointer or programmatic click never
+ * navigates.
+ */
+const linkTabindex = computed(() => (isLink.value && isDisabled.value ? '-1' : undefined));
 </script>
 
 <template>
@@ -268,11 +319,12 @@ function onClick(event: MouseEvent): void {
     data-part="container"
     :class="containerClass"
     :type="isLink ? undefined : type"
-    :href="isLink && !isDisabled ? href : undefined"
+    :href="isLink ? href : undefined"
+    :tabindex="linkTabindex"
     :disabled="isLink ? undefined : isDisabled || undefined"
     :aria-disabled="isLink && isDisabled ? 'true' : undefined"
     :aria-busy="isLoading ? 'true' : undefined"
-    :aria-pressed="pressed === undefined ? undefined : String(pressed)"
+    :aria-pressed="ariaPressed"
     :aria-label="ariaLabel"
     @click="onClick"
   >

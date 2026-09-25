@@ -277,14 +277,29 @@ describe('Link — focus and motion', () => {
     wrapper.unmount();
   });
 
-  it('holds colour and underline changes to the fast duration and drops them under reduced motion', () => {
+  it('leaves the transition list to the focus ring utility', () => {
     const wrapper = mountWith(Link, {
       props: { href: '/x' },
       slots: { default: 'care for stoneware' },
     });
-    expect(wrapper.classes()).toContain('duration-fast');
-    expect(wrapper.classes()).toContain('ease-out');
-    expect(wrapper.classes()).toContain('motion-reduce:transition-none');
+    // `eldra-focus` declares one `transition` shorthand: the colour and underline changes at
+    // `duration-fast`, the ring at `duration-base`, nothing under reduced motion. A second
+    // shorthand from a `transition-*`/`duration-*` utility on this element would replace all of
+    // it and the ring would snap in instead of growing — see
+    // `src/__tests__/focus-transition.spec.ts`, which enforces this across every component.
+    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)(\S+:)*(transition|duration)-/);
+    wrapper.unmount();
+  });
+
+  it('still animates the standalone arrow, which is a different element', () => {
+    const wrapper = mountWith(Link, {
+      props: { href: '/x', variant: 'standalone', arrow: true },
+      slots: { default: 'Shop all knitwear' },
+    });
+    // The rule is per element, not per component: the arrow carries no focus ring, so its own
+    // `transition-[translate] duration-fast` is exactly right and must survive.
+    expect(wrapper.get('[data-part="arrow"]').classes()).toContain('duration-fast');
     wrapper.unmount();
   });
 });

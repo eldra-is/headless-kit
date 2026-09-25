@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 // happy-dom replaces the global `URL` with one that refuses the `file:` scheme, which is what
 // `import.meta.url` is here. Node's own `URL` under another name resolves it.
 import { fileURLToPath, URL as NodeURL } from 'node:url';
@@ -18,7 +19,8 @@ import { describe, expect, it } from 'vitest';
  * This spec is the missing proof: it compiles exactly what a consumer's stylesheet says, against
  * the built `dist/`, and asserts the Button's own utilities come out the other end.
  */
-const distDir = fileURLToPath(new NodeURL('../../dist/', import.meta.url));
+const packageRoot = fileURLToPath(new NodeURL('../../', import.meta.url));
+const distDir = `${packageRoot}dist/`;
 const built = existsSync(`${distDir}tailwind.css`) && existsSync(`${distDir}index.js`);
 
 describe('consumer Tailwind build', () => {
@@ -29,13 +31,27 @@ describe('consumer Tailwind build', () => {
       const { Scanner } = await import('@tailwindcss/oxide');
 
       // What a consumer's main.css says, verbatim. The bare specifier resolves through the
-      // package's `exports` map, so this is also a check that `./tailwind.css` is exported.
+      // package's `exports` map, so this is also a check that `./tailwind.css` is exported. The
+      // base is the package root rather than `dist/` — a consumer's stylesheet sits next to their
+      // own package.json, nowhere near ours — so nothing here can quietly resolve `@source './'`
+      // against the directory that happens to hold the answer.
       const compiler = await compile(
         `@import 'tailwindcss';\n@import '@eldrajs/ui/tailwind.css';`,
         {
-          base: distDir,
+          base: packageRoot,
           onDependency() {},
         }
+      );
+
+      // The scan has to land on `dist`, not on `src`. Tailwind reports a source as the declaring
+      // CSS file's directory plus the directive's own relative pattern, so both halves are
+      // checked: `@source '../src'` would still produce a fully styled stylesheet here (the class
+      // strings are in the source too) and ship a consumer nothing at all.
+      expect(compiler.sources).toHaveLength(1);
+      const source = compiler.sources[0];
+      expect(source?.base.replaceAll('\\', '/')).toMatch(/\/dist$/);
+      expect(resolve(source?.base ?? '', source?.pattern ?? '').replaceAll('\\', '/')).toMatch(
+        /\/dist$/
       );
 
       // `compile()` only records the `@source` directives; the integration (here, us) runs the

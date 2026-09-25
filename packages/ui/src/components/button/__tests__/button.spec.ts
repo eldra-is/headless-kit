@@ -254,15 +254,31 @@ describe('Button — states', () => {
     wrapper.unmount();
   });
 
-  it('drops the href of a disabled link button so it is not focusable either', async () => {
+  it('keeps a disabled link button a link, and makes it inert', async () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'outline', href: '/checkout', disabled: true },
       slots: { default: 'Checkout' },
     });
-    expect(wrapper.attributes('href')).toBeUndefined();
+    // The href stays: without it the <a> is a generic element, so assistive technology stops
+    // saying "link" at the moment the user most needs to hear what the thing is.
+    expect(wrapper.attributes('href')).toBe('/checkout');
     expect(wrapper.attributes('aria-disabled')).toBe('true');
-    await wrapper.trigger('click');
+    // ...and it is inert: out of the tab order, and it never navigates.
+    expect(wrapper.attributes('tabindex')).toBe('-1');
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    wrapper.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
     expect(wrapper.emitted('click')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('leaves an enabled link button in the tab order', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'outline', href: '/checkout' },
+      slots: { default: 'Checkout' },
+    });
+    expect(wrapper.attributes('tabindex')).toBeUndefined();
+    expect(wrapper.attributes('aria-disabled')).toBeUndefined();
     wrapper.unmount();
   });
 
@@ -398,6 +414,46 @@ describe('Button — states', () => {
     on.unmount();
   });
 
+  it('never puts aria-pressed on a link button, and says why', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Button, {
+      props: { variant: 'outline', href: '/collections', pressed: true },
+      slots: { default: 'Grid' },
+    });
+    // `aria-pressed` is only valid on a button role; an <a href> is a link.
+    expect(wrapper.attributes('aria-pressed')).toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('aria-pressed');
+    wrapper.unmount();
+  });
+
+  it.each(['primary', 'secondary', 'ghost', 'link', 'danger'] as ButtonVariant[])(
+    'warns that a pressed %s button shows no pressed state',
+    (variant) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const wrapper = mountWith(Button, {
+        props: { variant, pressed: true },
+        slots: { default: 'Grid' },
+      });
+      // The state is still exposed — a screen reader must hear it — but the spec's states table
+      // gives the toggle fill to `outline` alone, so nothing shows it.
+      expect(wrapper.attributes('aria-pressed')).toBe('true');
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain('outline');
+      wrapper.unmount();
+    }
+  );
+
+  it('says nothing about a pressed outline button', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Button, {
+      props: { variant: 'outline', pressed: true },
+      slots: { default: 'Grid' },
+    });
+    expect(warn).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('goes full width when block is set', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary', block: true },
@@ -423,14 +479,18 @@ describe('Button — states', () => {
     dead.unmount();
   });
 
-  it('holds every colour change to the fast duration and drops it under reduced motion', () => {
+  it('leaves the transition list to the focus ring utility', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.classes()).toContain('duration-fast');
-    expect(wrapper.classes()).toContain('ease-out');
-    expect(wrapper.classes()).toContain('motion-reduce:transition-none');
+    // `eldra-focus` declares one `transition` shorthand covering the colour and press changes at
+    // `duration-fast` and the ring at `duration-base`, plus the reduced-motion rule. A second
+    // shorthand from a `transition-*`/`duration-*` utility here would replace all of it, and the
+    // ring would snap in rather than grow. `src/__tests__/focus-transition.spec.ts` enforces this
+    // across every component; this keeps the reason next to the Button.
+    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)(\S+:)*(transition|duration)-/);
     wrapper.unmount();
   });
 
@@ -457,36 +517,53 @@ describe('Button — events and keyboard', () => {
     wrapper.unmount();
   });
 
-  it('leaves Enter and Space to the platform on a native button', async () => {
+  /**
+   * happy-dom does not run a button's default activation behaviour: a `keydown` of `Enter` or
+   * `Space` produces no `click`, so "press Enter, expect a click" cannot fail here and would be a
+   * test of nothing. The two specs below therefore assert the *contract* that gives a user those
+   * keys for free — which can fail, and would fail the moment someone reached for a keyboard
+   * handler of their own. Activation as rendered is a manual check against the stories.
+   */
+  it('meets the native activation contract for Enter and Space', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    // happy-dom does not run a button's default activation behaviour, so what is asserted is the
-    // contract that gives a user Enter/Space for free: a real <button> that is focusable and whose
-    // keydown is never cancelled. The rendered activation itself is covered by the Storybook story.
     const button = wrapper.element as HTMLButtonElement;
+    // A real <button>, in the tab order, is what the platform activates on Enter and Space.
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute('tabindex')).toBeNull();
     button.focus();
     expect(document.activeElement).toBe(button);
+    // Nothing cancels those keys, so the default action still runs...
     for (const key of ['Enter', ' ']) {
       const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
       button.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(false);
     }
-    expect(wrapper.emitted('click')).toBeUndefined();
+    // ...and the click it produces is the one the component re-emits.
     button.click();
     expect(wrapper.emitted('click')).toHaveLength(1);
     wrapper.unmount();
   });
 
-  it('does not follow a link button on Space', async () => {
+  it('meets the link activation contract: Enter follows it, Space is left to the page', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary', href: '/checkout' },
       slots: { default: 'Checkout' },
     });
     const anchor = wrapper.element as HTMLAnchorElement;
+    // A real <a href> is what the platform follows on Enter and, by the same rule, never on Space.
+    expect(anchor.tagName).toBe('A');
+    expect(anchor.getAttribute('href')).toBe('/checkout');
+    expect(anchor.getAttribute('role')).toBeNull();
     anchor.focus();
-    await wrapper.trigger('keydown', { key: ' ' });
+    // The component adds no key handling of its own, so Space keeps the page's own meaning
+    // (scroll) rather than being turned into an activation.
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    anchor.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(false);
     expect(wrapper.emitted('click')).toBeUndefined();
     wrapper.unmount();
   });
@@ -711,12 +788,19 @@ describe('ButtonGroup', () => {
     expect(wrapper.attributes('role')).toBe('group');
     expect(wrapper.attributes('aria-label')).toBe('View');
     expect(wrapper.classes()).toContain('gap-0');
-    // Inner corners square, neighbours overlapping by 1px.
-    expect(wrapper.classes()).toContain('[&>*:not(:first-child)]:rounded-l-none');
-    expect(wrapper.classes()).toContain('[&>*:not(:last-child)]:rounded-r-none');
-    expect(wrapper.classes()).toContain('[&>*:not(:first-child)]:-ml-px');
-    // The focused button is raised so its ring is never covered by a neighbour.
-    expect(wrapper.classes()).toContain('[&>*:focus-visible]:relative');
+    // Inner corners square and neighbours overlapping by 1px, in logical properties: an RTL
+    // document squares the same *inner* ends, not the mirrored ones.
+    expect(wrapper.classes()).toContain('[&>*:not(:first-child)]:rounded-s-none');
+    expect(wrapper.classes()).toContain('[&>*:not(:last-child)]:rounded-e-none');
+    expect(wrapper.classes()).toContain('[&>*:not(:first-child)]:-ms-px');
+    expect(wrapper.classes().join(' ')).not.toMatch(/rounded-[lr]-none|-ml-px/);
+    // The focused button is raised so its ring is never covered by a neighbour. It has to be a
+    // stacking raise: every Button is already `position: relative` (it positions its spinner), so
+    // `[&>*:focus-visible]:relative` changed nothing and the next button kept painting over the
+    // ring. `isolate` keeps the z-index from escaping into the page's own layers.
+    expect(wrapper.classes()).toContain('[&>*:focus-visible]:z-10');
+    expect(wrapper.classes()).toContain('isolate');
+    expect(wrapper.classes()).not.toContain('[&>*:focus-visible]:relative');
     wrapper.unmount();
   });
 

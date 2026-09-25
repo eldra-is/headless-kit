@@ -25,13 +25,21 @@ const LOOSE = 'flex-wrap gap-3';
  * there is one shared boundary rather than two, and the focused button raised above its neighbours
  * so the focus ring is never covered (2.4.11). `role="group"` with an `aria-label` ("View") comes
  * from the attrs the consumer passes.
+ *
+ * The raise is `z-10`, not `position: relative`. Every Button is already `relative` (it positions
+ * its own spinner), so the neighbours are positioned too and paint in source order — a `relative`
+ * on the focused one changed nothing at all, and the next button's 1px overlap kept covering the
+ * ring. `isolate` on the group keeps that `z-10` from escaping into the page's own layers.
+ *
+ * The corner and overlap rules are logical, not physical (`rounded-s-none`/`rounded-e-none`,
+ * `-ms-px`), so the control reads correctly in an RTL document instead of squaring the wrong end.
  */
 const ATTACHED = [
   'gap-0 isolate',
-  '[&>*:not(:first-child)]:-ml-px',
-  '[&>*:not(:first-child)]:rounded-l-none',
-  '[&>*:not(:last-child)]:rounded-r-none',
-  '[&>*:focus-visible]:relative',
+  '[&>*:not(:first-child)]:-ms-px',
+  '[&>*:not(:first-child)]:rounded-s-none',
+  '[&>*:not(:last-child)]:rounded-e-none',
+  '[&>*:focus-visible]:z-10',
 ].join(' ');
 
 const rootClass = computed(() =>

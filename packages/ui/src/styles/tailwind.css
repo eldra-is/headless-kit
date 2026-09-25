@@ -225,14 +225,35 @@
 
 /* The one focus ring (spec 1 "Focus ring"): 2px focus-inner infill hugging the element, 2px focus
    ring outside it, grown in over duration-base. `eldra-focus` shows on :focus-visible; text fields
-   add `eldra-focus-always` so it shows on any focus. `eldra-focus-inset` draws both inside. */
+   add `eldra-focus-always` so it shows on any focus. `eldra-focus-inset` draws both inside.
+
+   `eldra-focus` and `eldra-focus-inset` OWN the transition list of the element they sit on, and a
+   component must not add a `transition-*`/`duration-*` utility beside them. `transition` is one
+   shorthand property: a `transition-[background-color] duration-fast` utility on the same element
+   is a later rule in the same layer, so it replaced the ring's `outline-width`/`box-shadow`
+   entries outright and the ring snapped in instead of growing — silently, because the ring was
+   still drawn. So the ring declares every property a control in this package animates, each at the
+   spec's duration for it: `duration-fast` for the colour and press changes, `duration-base` for the
+   ring itself. Reduced motion is handled here too, so components do not carry
+   `motion-reduce:transition-none` either (it stays harmless where a consumer adds it).
+   `src/__tests__/focus-transition.spec.ts` fails a component that breaks the rule. */
 @utility eldra-focus {
   outline: 0 solid var(--eldra-color-focus);
   outline-offset: var(--eldra-focus-offset);
   box-shadow: 0 0 0 0 var(--eldra-color-focus-inner);
   transition:
+    color var(--eldra-duration-fast) var(--eldra-ease-out),
+    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    border-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
+    translate var(--eldra-duration-fast) var(--eldra-ease-out),
+    opacity var(--eldra-duration-fast) var(--eldra-ease-out),
     outline-width var(--eldra-duration-base) var(--eldra-ease-out),
     box-shadow var(--eldra-duration-base) var(--eldra-ease-out);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
   &:focus-visible {
     outline-width: var(--eldra-focus-width);
     box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
@@ -264,8 +285,18 @@
   outline-offset: calc(-1 * (var(--eldra-focus-width) + var(--eldra-focus-offset)));
   box-shadow: inset 0 0 0 0 var(--eldra-color-focus-inner);
   transition:
+    color var(--eldra-duration-fast) var(--eldra-ease-out),
+    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    border-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
+    translate var(--eldra-duration-fast) var(--eldra-ease-out),
+    opacity var(--eldra-duration-fast) var(--eldra-ease-out),
     outline-width var(--eldra-duration-base) var(--eldra-ease-out),
     box-shadow var(--eldra-duration-base) var(--eldra-ease-out);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
   &:focus-visible {
     outline-width: var(--eldra-focus-width);
     box-shadow: inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);

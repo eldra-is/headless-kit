@@ -69,3 +69,25 @@ Release-please writes the generated notes from commit messages and does not repl
 - `Button` — a `loading` button with no `label` now also warns once in development that it loses
   its accessible name while loading (the visible label is `visibility: hidden`), next to the
   existing icon-only warning.
+- `@eldrajs/ui/tailwind.css` — `eldra-focus` and `eldra-focus-inset` now own the transition list of
+  the element they sit on: one `transition` shorthand covering colour, border, text-decoration,
+  `translate` and `opacity` at `duration-fast` and the ring's own `outline-width`/`box-shadow` at
+  `duration-base`, plus the reduced-motion rule. Before this the ring never grew in — a component's
+  own `transition-[…] duration-fast` was a later rule for the same shorthand property and replaced
+  the ring's entries wholesale, so it snapped to full size. **If you put the focus ring on your own
+  element, do not add a `transition-*`/`duration-*` utility beside it**; add the property you need
+  to the ring's list instead. `motion-reduce:transition-none` is no longer needed and stays
+  harmless where it is.
+- `Button` — a disabled link button (`href` plus `disabled`) now keeps its `href` and gains
+  `aria-disabled="true"` and `tabindex="-1"`, with navigation prevented on click. It used to drop
+  the `href`, which also dropped `role="link"`, so assistive technology stopped naming the element
+  exactly when the user needed to hear that it was unavailable.
+- `Button` — `aria-pressed` is emitted only on a `<button>`; a `pressed` link button drops it (a
+  link cannot be pressed) and warns in development. `pressed` on any variant but `outline` also
+  warns: the design spec gives the toggle fill to `outline` alone, so the other variants look
+  identical pressed and unpressed.
+- `ButtonGroup` — the attached group raises the focused button with `z-10` inside an `isolate`
+  context rather than `position: relative`. Every Button is already `relative`, so the old raise
+  did nothing and the next button's 1px overlap covered the focus ring. Its inner corners and
+  overlap are now logical (`rounded-s-none`, `rounded-e-none`, `-ms-px`), so a segmented control
+  reads correctly in an RTL document.

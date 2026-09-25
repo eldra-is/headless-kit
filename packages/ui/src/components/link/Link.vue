@@ -52,15 +52,16 @@ const rootAttrs = computed(() => {
 });
 
 /**
- * Shared box (spec "Link" → Anatomy, Sizes, Behaviour & motion): no native underline, the one
- * focus ring at the spec's 2px corner radius, and every colour/underline change held to
- * `duration-fast`. `group` (unnamed) is the hover scope the standalone arrow reads — distinct
- * from the ancestor `group/section` a coloured Section provides.
+ * Shared box (spec "Link" → Anatomy, Sizes, Behaviour & motion): no native underline and the one
+ * focus ring at the spec's 2px corner radius. `group` (unnamed) is the hover scope the standalone
+ * arrow reads — distinct from the ancestor `group/section` a coloured Section provides.
+ *
+ * The colour and underline changes are held to `duration-fast` by `eldra-focus`, which owns this
+ * element's transition list; a `transition-*` utility here would replace the shorthand and stop
+ * the ring growing in. The arrow below is a *different* element, so it keeps its own transition.
+ * See `src/styles/tailwind.css` and `src/__tests__/focus-transition.spec.ts`.
  */
-const BASE =
-  'group no-underline eldra-focus eldra-link-radius ' +
-  'transition-[color,text-decoration-color,text-decoration-thickness] duration-fast ease-out ' +
-  'motion-reduce:transition-none';
+const BASE = 'group no-underline eldra-focus eldra-link-radius';
 
 /** Spec "Link" → States: `text` by default, `muted` turning `text` on hover. */
 const TONE: Record<LinkTone, string> = {
