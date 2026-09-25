@@ -40,6 +40,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-select-option-active'
   | 'eldra-select-option-selected'
   | 'eldra-variant-pill-selected-line'
+  | 'eldra-skeleton'
 >({
   extend: {
     classGroups: {
@@ -84,6 +85,11 @@ const twMerge = extendTailwindMerge<
             'variant-pill',
             'badge',
             'stock-status',
+            'price-sm',
+            'price-lg',
+            'price-current',
+            'price-secondary',
+            'price-unit',
           ],
         },
       ],
@@ -166,6 +172,10 @@ const twMerge = extendTailwindMerge<
       rounded: ['eldra-link-radius', 'eldra-select-check-radius'],
       // Motion durations (tailwind.css "Motion"): the same "duration" group as `duration-150`.
       duration: ['duration-fast', 'duration-base', 'duration-slow'],
+      // The skeleton shimmer (tailwind.css "The skeleton shimmer"): a `surface-strong` fill plus a
+      // moving highlight `::after`, no stock Tailwind equivalent, so it gets its own group. Shared
+      // by `Price`'s loading state and, later, `Skeleton` itself.
+      'eldra-skeleton': ['eldra-skeleton'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.
       z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"

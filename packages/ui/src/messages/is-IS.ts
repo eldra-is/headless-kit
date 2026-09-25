@@ -55,6 +55,10 @@ export const isIS: UiMessages = {
   stockOut: 'Uppselt',
   stockPreorder: (date?: string) =>
     date === undefined || date === '' ? 'Forpöntun' : `Forpöntun, send út ${date}`,
+  salePrice: 'Tilboðsverð',
+  regularPrice: 'Fullt verð',
+  from: 'Frá',
+  perUnit: (per: string) => `/ ${per}`,
   searchTheShop: 'Leitaðu í búðinni',
   searchSuggestions: 'Leitartillögur',
   searchProducts: 'Vörur',

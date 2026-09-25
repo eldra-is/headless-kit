@@ -168,6 +168,52 @@
     var(--eldra-stock-status-line, 1.4) var(--eldra-font-body);
 }
 
+/* --- Price -------------------------------------------------------------------------------- */
+
+/* Price's root size (spec "Price" → Sizes): only `sm` and `lg` set an explicit font-size, on the
+   root rather than on `current` directly, because `compareAt`/`from` below need to read the same
+   size to compute their own 0.9em. `md`'s current price "inherits parent (1rem by default)" and
+   gets no utility of its own, so a `<Price size="md">` sitting inside a product-card title or a
+   cart line naturally matches whatever text surrounds it, exactly as the spec's own wording asks. */
+@utility text-price-sm {
+  font-size: var(--eldra-price-current-sm-size, 0.9375rem);
+}
+@utility text-price-lg {
+  font-size: var(--eldra-price-current-lg-size, 1.5rem);
+}
+
+/* The current price (spec "Price" → Sizes): weight 600, tabular numerals, at the size the root
+   above sets or inherits. */
+@utility text-price-current {
+  font-family: var(--eldra-font-body);
+  font-weight: var(--eldra-text-label-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The compare-at and "From" text (spec "Price" → Sizes, "Compare-at / From (0.9em)" column): 90%
+   of whatever size the root sets, weight 400. `0.9em` is the spec's own explicit multiplier, not a
+   rem magnitude with a token to reach for, so it is written literally — and it reproduces the
+   table's 0.84rem/0.9rem/1.35rem rows exactly (0.9 × 0.9375rem/1rem/1.5rem) from the one root size
+   rather than three more per-size variables. `tabular-nums` is harmless on "From" (no digits) and
+   required on the compare-at, which shares this utility (spec "Price" → Acceptance criteria:
+   "Numerals are tabular so prices align in lists"). */
+@utility text-price-secondary {
+  font-family: var(--eldra-font-body);
+  font-size: 0.9em;
+  font-weight: var(--eldra-text-body-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The unit-price line (spec "Price" → Sizes, Unit column): "0.8125rem" at every size — the one
+   part of Price whose size does not scale with the root. Reuses the caption token's size exactly,
+   the same reuse `text-badge` makes. */
+@utility text-price-unit {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  font-weight: var(--eldra-text-body-weight);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Button type (spec "Button" → Sizes): weight 600 on a 1.2 line at every size, with the size's
    own font size. sm and md reuse the body-sm and body token sizes; lg's 1.0625rem sits between two
    type styles and has no token, so it is a per-component variable with that default. */
@@ -321,6 +367,48 @@
 }
 @utility animate-eldra-pulse {
   animation: eldra-pulse 1.2s var(--eldra-ease-out) infinite;
+}
+
+/* The skeleton shimmer (spec "Skeleton" → Behaviour & motion): "Shimmer sweeps left to right over
+   1.4s, ease-out, infinitely… Reduced motion: shimmer removed; shapes are static." Shared
+   infrastructure rather than a `Price`-only rule: `Price`'s own loading state below is the first
+   consumer, and the `Skeleton` primitive (a later task) reuses this same utility for every shape.
+   The shape itself is a `surface-strong` fill (spec "Skeleton" → States, "Shape" row); the shimmer
+   is a `background`-coloured band at 60% strength (States, "Shimmer" row) that sweeps across it.
+   It is layered on with a `::after` that slides across rather than an animated
+   `background-position` on the shape's own fill, so the base fill and the moving highlight are
+   independent — reduced motion removes the highlight element outright (`display: none`) instead of
+   merely freezing it mid-sweep, which is what "shapes are static" asks for rather than an instant
+   jump to one frame of the animation. */
+@keyframes eldra-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@utility eldra-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-surface-strong);
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--eldra-color-background), transparent 40%),
+      transparent
+    );
+    animation: eldra-shimmer 1.4s var(--eldra-ease-out) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      display: none;
+    }
+  }
 }
 
 /* Layers. */

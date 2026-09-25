@@ -5,6 +5,26 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Price`** — the third component of the "display, commerce and layout" sub-project (design
+  spec's Price section). Formats `amount` (minor units) with `Intl.NumberFormat`, so `4800` reads
+  `$48.00` in `en-US`/`USD` and `6990` reads `6.990 kr.` in `is-IS`/`ISK` (no minor units, "."
+  thousands grouping) — never a hand-concatenated currency symbol. Sale turns on automatically only
+  when `compareAt` is greater than `amount`: the current price turns `accent`, the compare-at
+  renders as a real `<s>`, `muted` and struck through, and both are preceded by a visually hidden
+  "Sale price"/"Regular price" label (`messages.salePrice`/`regularPrice`, or `labels.sale`/
+  `regular` per instance) so a screen reader reads "Sale price $38.40 Regular price $48.00" even
+  though many screen readers do not announce strike-through on their own. `from` shows a "From"
+  label (`messages.from`/`labels.from`); `unitPrice` renders a second, full-width line ("$5.10 /
+  100 g", `messages.perUnit`); three sizes, only `sm`/`lg` of which set an explicit size — `md`'s
+  current price inherits the surrounding text, and `compareAt`/`from`/`unit` scale at `0.9em` of
+  whichever size the root ends up at; `loading` replaces the whole price with one shimmering text
+  skeleton. New `provideEldraUiCurrency`/`useEldraUiCurrency`/`CURRENCY_KEY`
+  (`src/composables/useLocale.ts`), `LOCALE_KEY`'s sibling for the store currency `Price` formats
+  with by default (`USD`), and a new `eldra-skeleton` shimmer utility (`tailwind.css`) that the
+  `Skeleton` primitive (a later task) reuses for every shape. Every part also carries the
+  `group-data-[section=…]/section:` colour-switching classes `Button` and `Link` already use, so a
+  `Price` outside a card already reads correctly once `Section` (a later task) lands, without a
+  change here.
 - **`Badge` and `StockBadge`** — the first two components of the "display, commerce and layout"
   sub-project (design spec's Badge section). `Badge` is a static, non-interactive `<span>` (or
   `as`) for product flags, categories, materials and order states: six tones, `outline` and `pill`

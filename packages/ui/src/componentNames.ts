@@ -28,6 +28,7 @@ export const componentNames = [
   'Input',
   'Link',
   'MultiSelect',
+  'Price',
   'QuantityStepper',
   'RadioGroup',
   'SearchBar',

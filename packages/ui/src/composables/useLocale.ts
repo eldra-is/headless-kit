@@ -50,3 +50,46 @@ export function useEldraUiLocale(): ComputedRef<string> {
   const provided = inject(LOCALE_KEY, undefined);
   return computed(() => toValue(provided) ?? DEFAULT_UI_LOCALE);
 }
+
+/**
+ * The store currency `Price` and its future siblings format with by default (spec "Price" →
+ * Properties, `currency` row: "store currency") — a provide/inject pair, the same shape as
+ * `LOCALE_KEY` and deliberately separate from it: a store's number locale and its currency are two
+ * different decisions (an `en-US`-formatted store may still sell in `ISK`).
+ *
+ * It is an ambient default, never an answer: every component that reads it also takes a `currency`
+ * prop, and the prop wins. With nothing provided the components format in `USD`.
+ */
+export const DEFAULT_UI_CURRENCY = 'USD';
+
+/**
+ * The injection key the currency provider writes to. Exported so an app can set the currency from
+ * outside a `setup()` scope — and so it can provide a **getter**, which is what makes a currency
+ * switch reactive without an effect that outlives a server request:
+ *
+ * ```ts
+ * import { CURRENCY_KEY } from '@eldrajs/ui';
+ * app.provide(CURRENCY_KEY, () => store.currency);
+ * ```
+ */
+export const CURRENCY_KEY: InjectionKey<MaybeRefOrGetter<string | undefined>> =
+  Symbol('eldra-ui-currency');
+
+/**
+ * Set the store currency for this component and everything below it.
+ *
+ * Wraps Vue's `provide`, so it must be called during `setup()`. Use
+ * `app.provide(CURRENCY_KEY, currency)` for the app-wide case.
+ */
+export function provideEldraUiCurrency(currency: MaybeRefOrGetter<string | undefined>): void {
+  provide(CURRENCY_KEY, currency);
+}
+
+/**
+ * The currency a component should format money in: whatever an ancestor provided, else `USD`. A
+ * ref or a getter is unwrapped on every read, so the value follows a currency switch.
+ */
+export function useEldraUiCurrency(): ComputedRef<string> {
+  const provided = inject(CURRENCY_KEY, undefined);
+  return computed(() => toValue(provided) ?? DEFAULT_UI_CURRENCY);
+}

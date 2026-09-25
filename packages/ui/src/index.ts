@@ -16,6 +16,7 @@ export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
+export { default as Price } from './components/price/Price.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
@@ -96,6 +97,7 @@ export type {
   SearchSection,
   SearchSelectType,
 } from './components/search-bar/types';
+export type { PricePart, PriceProps, PriceSize } from './components/price/types';
 export type {
   QuantityStepperPart,
   QuantityStepperProps,
@@ -124,9 +126,13 @@ export {
 // The number locale, the same provide/inject shape as the messages: `UnitInput`, `CurrencyInput`
 // and `QuantityStepper` format with it unless their own `locale` prop says otherwise.
 export {
+  CURRENCY_KEY,
+  DEFAULT_UI_CURRENCY,
   DEFAULT_UI_LOCALE,
   LOCALE_KEY,
+  provideEldraUiCurrency,
   provideEldraUiLocale,
+  useEldraUiCurrency,
   useEldraUiLocale,
 } from './composables/useLocale';
 

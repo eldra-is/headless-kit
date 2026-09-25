@@ -103,6 +103,26 @@ export const enUS = {
    */
   stockPreorder: (date?: string) =>
     date === undefined || date === '' ? 'Pre-order' : `Pre-order, ships ${date}`,
+  /**
+   * A `Price`'s visually hidden label before the current amount when on sale (spec "Price" →
+   * Anatomy, part 2). `labels.sale` overrides it per instance.
+   */
+  salePrice: 'Sale price',
+  /**
+   * A `Price`'s visually hidden label before the compare-at amount when on sale (spec "Price" →
+   * Anatomy, part 3). `labels.regular` overrides it per instance.
+   */
+  regularPrice: 'Regular price',
+  /**
+   * A `Price`'s "From" label for a product whose variants differ in price (spec "Price" →
+   * Properties, `from` row). `labels.from` overrides it per instance.
+   */
+  from: 'From',
+  /**
+   * A `Price`'s unit-price line (spec "Price" → Anatomy, part 4): "$6.00 / 100 g" — this is the
+   * separator and unit half, appended after the formatted per-unit amount.
+   */
+  perUnit: (per: string) => `/ ${per}`,
   /** The `SearchModal`'s field label. */
   searchTheShop: 'Search the shop',
   /** The `SearchBar`'s results-panel name, and the `SearchModal`'s. */
