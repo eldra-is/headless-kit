@@ -55,6 +55,20 @@ const hasDescription = computed(
   () => props.description !== undefined || slots.description !== undefined
 );
 
+/**
+ * Spec precedent (Checkbox/CheckboxGroup/RadioGroup's own `describedBy` composition): a
+ * `FieldWrapper`'s `help` text describes the control too, alongside this switch's own
+ * description — own id first, so it is what a screen reader hears first, then whatever the field
+ * context adds.
+ */
+const describedBy = computed(() => {
+  const ids = [
+    hasDescription.value ? descriptionId.value : undefined,
+    field?.value.describedBy,
+  ].filter((id): id is string => Boolean(id));
+  return ids.length > 0 ? ids.join(' ') : undefined;
+});
+
 /** Controlled when the parent binds `modelValue`, self-managing when it does not. */
 const model = useControllableModel<boolean>(props, emit, () => false);
 
@@ -203,7 +217,7 @@ const descriptionClass = computed(() =>
     :id="controlId"
     :class="rootClass"
     :aria-checked="model ? 'true' : 'false'"
-    :aria-describedby="hasDescription ? descriptionId : undefined"
+    :aria-describedby="describedBy"
     :disabled="disabled || undefined"
     @click="toggle"
   >

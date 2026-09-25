@@ -5,6 +5,29 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `QuantityStepper` — a decrease/input/increase group for a basket quantity, never reaching 0.
+  `modelValue` is two-way (default `min`); `min`/`max` default `1`/`99`; `size` is `"md"` or
+  `"sm"`; `itemName` is appended to both button names ("Increase, Stoneware mug") for use in a
+  list of several lines; `error` renders the same error row a `FieldWrapper` draws, linked by
+  `aria-describedby`; `locale` (default `"en-US"`) drives display formatting and parsing of a
+  typed value. Pressing a button, or `ArrowUp`/`ArrowDown` in the field, steps by 1 and clamps to
+  `[min, max]`, firing `change` once — never per keystroke. A typed value is rounded to a whole
+  number and clamped on blur or `Enter`; a non-number becomes `min`; "0" and values past `max` are
+  silently corrected rather than shown as an error. The relevant button is `aria-disabled="true"`
+  at a limit (not `disabled`), so it stays focusable. A polite, visually-hidden live region
+  announces the settled value once per commit. The field is `type="text"` with
+  `inputmode="numeric"` and `role="spinbutton"` (`aria-valuenow`/`-valuemin`/`-valuemax`) rather
+  than the design spec's literal `<input type="number">` — see the component's own doc comment:
+  a native number input cannot hold a locale-grouped typed value (`is-IS`'s `"1.234"`).
+- New utility `src/utils/number-format.ts`: `createNumberFormat`/`formatNumber` wrap
+  `Intl.NumberFormat` for a decimal, currency or unit value, and `parseLocaleNumber` turns text a
+  person typed in their own locale back into a `number`, deriving the group and decimal separators
+  from `Intl.NumberFormat(locale).formatToParts()` rather than assuming an arrangement (so
+  `is-IS`'s `"1.234,56"` and `en-US`'s `"1,234.56"` both parse to `1234.56`).
+- New message `quantityUpdated(n)`, and new type utilities `text-stepper-value`/
+  `text-stepper-value-sm` (the stepper value's 0.9375rem/0.875rem, weight 600, tabular type).
+- `Switch` now merges a `FieldWrapper`'s `help` text into its `aria-describedby`, alongside its own
+  `description` when it has one (own id first), instead of only ever describing itself.
 - `MultiSelect` — the custom multiple select: the same trigger, popover, listbox, search field,
   groups, rich options, keyboard and "only one open at a time" rule as `Select`, with a checkbox on
   every row (`aria-multiselectable="true"`, `aria-selected` per row), a trigger summary of up to

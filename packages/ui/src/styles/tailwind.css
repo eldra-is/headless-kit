@@ -230,6 +230,22 @@
     var(--eldra-radio-card-title-line, 1.4) var(--eldra-font-body);
 }
 
+/* The Quantity stepper's value (spec "Quantity stepper" → Sizes): "0.9375rem, 600, tabular" at
+   `md`, "0.875rem" at `sm` (weight and line stay the same size only). The size matches
+   `text-control`/`text-control-sm` exactly, but the weight does not — `text-control`'s shorthand
+   bakes in `--eldra-text-body-weight` (400), and layering a `font-semibold` utility after a
+   shorthand `font` property is order-dependent (see `text-counter`'s own comment above) — so this
+   is its own utility rather than `text-control` plus an override, reusing `--eldra-text-label-
+   weight` (600) as `text-card-title` does for the same reason. */
+@utility text-stepper-value {
+  font: var(--eldra-text-label-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-stepper-value-sm {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
 /* Control heights and targets. */
 @utility control-h {
   height: var(--eldra-control-height);

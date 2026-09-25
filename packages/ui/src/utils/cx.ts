@@ -73,6 +73,8 @@ const twMerge = extendTailwindMerge<
             'select-group',
             'select-option',
             'select-pill',
+            'stepper-value',
+            'stepper-value-sm',
           ],
         },
       ],

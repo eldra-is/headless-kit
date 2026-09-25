@@ -13,6 +13,7 @@ export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
+export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Switch } from './components/switch/Switch.vue';
@@ -68,6 +69,11 @@ export type {
   SelectProps,
   SelectSize,
 } from './components/select/types';
+export type {
+  QuantityStepperPart,
+  QuantityStepperProps,
+  QuantityStepperSize,
+} from './components/quantity-stepper/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
@@ -119,3 +125,9 @@ export { cx, partClass, type ClassValue } from './utils/cx';
 export { mixToward } from './utils/color';
 export { useUiId } from './utils/id';
 export { applyMask, defaultCharacterMeaning, stripMask } from './utils/mask';
+export {
+  createNumberFormat,
+  formatNumber,
+  parseLocaleNumber,
+  type NumberFormatOptions,
+} from './utils/number-format';

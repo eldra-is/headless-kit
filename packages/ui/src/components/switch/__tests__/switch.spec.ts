@@ -130,6 +130,16 @@ describe('Switch — value and v-model', () => {
     wrapper.unmount();
   });
 
+  it('clicking the track toggles it, since the track is inside the button', async () => {
+    const wrapper = mountWith(Switch, {
+      props: { modelValue: false },
+      slots: { default: 'Restock alerts' },
+    });
+    await wrapper.find('[data-part="track"]').trigger('click');
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([true]);
+    wrapper.unmount();
+  });
+
   it('is uncontrolled without modelValue: toggling flips its own state', async () => {
     const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
     expect(root(wrapper).getAttribute('aria-checked')).toBe('false');
@@ -417,6 +427,31 @@ describe('Switch — inside a real FieldWrapper', () => {
     const button = wrapper.find('button[role="switch"]').element as HTMLButtonElement;
     expect(button.querySelector('[data-part="label"]')).not.toBeNull();
     expect(button.id).toBe('own-id');
+    wrapper.unmount();
+  });
+
+  it("merges the wrapper's help into aria-describedby when the switch has no description of its own", async () => {
+    const wrapper = inWrapper(
+      { label: 'Restock alerts', help: 'About one email a month.' },
+      '<Switch />'
+    );
+    const button = wrapper.find('button[role="switch"]').element as HTMLButtonElement;
+    const help = wrapper.find('[data-part="help"]').element;
+    expect(button.getAttribute('aria-describedby')).toBe(help.id);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it("puts the switch's own description first, then the wrapper's help", async () => {
+    const wrapper = inWrapper(
+      { label: 'Restock alerts', help: 'About one email a month.' },
+      '<Switch description="Email me when a sold-out size is back.">Restock alerts</Switch>'
+    );
+    const button = wrapper.find('button[role="switch"]').element as HTMLButtonElement;
+    const description = button.querySelector('[data-part="description"]') as HTMLElement;
+    const help = wrapper.find('[data-part="help"]').element;
+    expect(button.getAttribute('aria-describedby')).toBe(`${description.id} ${help.id}`);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });

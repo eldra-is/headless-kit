@@ -42,6 +42,7 @@ export const isIS: UiMessages = {
   decrease: 'Minnka',
   increase: 'Auka',
   quantity: 'Magn',
+  quantityUpdated: (n: number) => `Magn: ${n}`,
   opensInNewTab: '(opnast í nýjum flipa)',
   counter: (n: number, max: number) => `${n} af ${max}`,
   charactersLeft: (n: number) => `${n} ${singular(n) ? 'stafur' : 'stafir'} eftir`,

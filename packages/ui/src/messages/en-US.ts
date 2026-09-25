@@ -67,6 +67,8 @@ export const enUS = {
   increase: 'Increase',
   /** The accessible name of a `QuantityStepper`'s field. */
   quantity: 'Quantity',
+  /** A `QuantityStepper`'s polite live-region announcement after a settled change. */
+  quantityUpdated: (n: number) => `Quantity: ${n}`,
   /** Appended to a link that opens a new browsing context. */
   opensInNewTab: '(opens in a new tab)',
   /** A position-in-a-set counter, e.g. a carousel's slide count. */

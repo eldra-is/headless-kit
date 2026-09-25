@@ -283,3 +283,29 @@ Additions and departures from the design spec, and why.
   chosen) and fills the `summary` part, and the `tag` slot takes `{ option }` and replaces a chip's
   **label**, leaving its remove button in place — a consumer restyling a chip should not have to
   rebuild the control that empties it.
+- **`QuantityStepper`'s field is `type="text"`, not the spec anatomy's literal
+  `<input type="number">`.** A native number input's DOM value can only ever be the US-style,
+  ungrouped floating-point grammar (digits and a single `.`); it cannot hold a locale-grouped
+  string like `is-IS`'s `"1.234"` (`.` as the group separator) — assigning one is either silently
+  rejected by the browser's value-sanitisation algorithm or misread as the decimal `1.234`. The
+  task brief explicitly asks this control to parse a typed value with `parseLocaleNumber`, which
+  only makes sense for text the browser has not already mangled. `inputmode="numeric"` and
+  `role="spinbutton"` with `aria-valuenow`/`-valuemin`/`-valuemax` (the ARIA APG's own pattern for
+  this shape of control) satisfy the spec's 4.1.2 note ("The input exposes its value, min and max
+  natively") through the accessibility tree instead. "No native spin buttons" (the anatomy's own
+  item 3) is satisfied for free: a text input has none to hide.
+- **`QuantityStepper`'s live region announces its own value, not a cart subtotal.** The spec's
+  exact sentence ("Cart updates are announced in a polite live region near the cart total ...
+  'Quantity updated, subtotal $112.00'") names a subtotal a single, reusable control has no access
+  to — that announcement belongs to whatever composes this control with a cart total. What this
+  component owns and announces once per settled change (never per keystroke) is its own value,
+  via the new `quantityUpdated(n)` message.
+- **`QuantityStepper`'s group has one perimeter border, not one per part.** The spec's ASCII
+  anatomy draws `┬`/`┴` between the three parts; the reference image shows one continuous
+  boundary, so this is diagram notation, not a drawn divider. `overflow-hidden` on the rounded
+  group is what gives the two outer corners' square first/last children the "inner radius is
+  `radius-md` minus 1px" look the Sizes table asks for, without a literal px.
+- **`locale` is not part of the design spec's own Properties table for "Quantity stepper"** — the
+  task brief adds it (default `"en-US"`) for display formatting and for parsing a typed value.
+  `src/utils/number-format.ts` (`createNumberFormat`, `formatNumber`, `parseLocaleNumber`) is the
+  general-purpose utility behind it, exported from the package root for use outside this control.
