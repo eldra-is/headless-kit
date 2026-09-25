@@ -29,10 +29,13 @@ const twMerge = extendTailwindMerge<
   | 'target-touch'
   | 'eldra-focus'
   | 'eldra-focus-always'
+  | 'eldra-focus-inset-always'
   | 'eldra-focus-proxy'
   | 'eldra-field-invalid'
   | 'eldra-radio-card-selected'
   | 'eldra-switch-thumb-offset'
+  | 'eldra-select-match'
+  | 'eldra-select-swatch'
 >({
   extend: {
     classGroups: {
@@ -65,6 +68,8 @@ const twMerge = extendTailwindMerge<
             'card-title',
             'switch-label',
             'switch-description',
+            'select-group',
+            'select-option',
           ],
         },
       ],
@@ -95,6 +100,17 @@ const twMerge = extendTailwindMerge<
       // The Switch thumb's rest inset (tailwind.css "The Switch thumb's rest position"): a logical
       // `inset-inline-start` with no stock Tailwind equivalent, so it gets its own group too.
       'eldra-switch-thumb-offset': ['eldra-switch-thumb-offset'],
+      // The Select popover's own box (tailwind.css "Select"): whole class names rather than a
+      // `max-h-*`/`max-w-*` suffix, but Tailwind's own groups, so a consumer's
+      // `classes.panel: 'max-h-64'` replaces the height and leaves the width clamp alone.
+      'max-h': ['eldra-select-panel-height'],
+      'max-w': ['eldra-select-panel-width'],
+      // A filtered option's matched run, and an option's swatch edge: a weight-plus-underline
+      // bundle and an inset box-shadow, neither of which maps onto a stock group, so each gets its
+      // own. (`font-weight` is stock, but this utility is not only a weight — folding it into that
+      // group would let a `font-semibold` beside it drop the underline as well.)
+      'eldra-select-match': ['eldra-select-match'],
+      'eldra-select-swatch': ['eldra-select-swatch'],
       // The one focus ring (tailwind.css "The one focus ring"). `eldra-focus` and
       // `eldra-focus-inset` are mutually exclusive — one draws the ring outside the element, the
       // other inside — so they share a group with no stock Tailwind equivalent.
@@ -104,8 +120,10 @@ const twMerge = extendTailwindMerge<
       // it in the same group as `eldra-focus` made `cx('eldra-focus eldra-focus-always')` collapse
       // to `eldra-focus-always` alone, which left an Input with a `:focus` rule and no ring to
       // grow — the outline, the infill and the whole transition list live in `eldra-focus`. It
-      // gets its own group, so it still cannot be written twice.
-      'eldra-focus-always': ['eldra-focus-always'],
+      // gets its own group, so it still cannot be written twice. `eldra-focus-inset-always` is the
+      // same modifier for the inset ring (a select's search field), and the two are mutually
+      // exclusive — an element draws its ring either outside or inside — so they share this group.
+      'eldra-focus-always': ['eldra-focus-always', 'eldra-focus-inset-always'],
       // `eldra-focus-proxy` is the third of that family and gets a group of its own for the same
       // reason: it is a *modifier* of `eldra-focus`, adding the rule that turns the ring on when a
       // descendant is focus-visible (the Checkbox's visually hidden input inside its drawn box).
@@ -118,10 +136,15 @@ const twMerge = extendTailwindMerge<
       // Motion durations (tailwind.css "Motion"): the same "duration" group as `duration-150`.
       duration: ['duration-fast', 'duration-base', 'duration-slow'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.
-      z: ['z-sticky', 'z-drawer', 'z-dialog', 'z-toast'],
+      z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
-      animate: ['animate-eldra-spin', 'animate-eldra-pulse'],
+      animate: [
+        'animate-eldra-spin',
+        'animate-eldra-pulse',
+        'animate-eldra-popover-in',
+        'animate-eldra-popover-in-above',
+      ],
     },
   },
 });

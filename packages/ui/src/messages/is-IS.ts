@@ -32,6 +32,7 @@ export const isIS: UiMessages = {
   selectPlaceholder: 'Veldu valkost',
   multiSelectPlaceholder: 'Veldu valkosti',
   noResults: 'Engar niðurstöður',
+  noMatchesFor: (query: string) => `Engar niðurstöður fyrir „${query}“`,
   moreSelected: (n: number) => `+${n}`,
   removeTag: (label: string) => `Fjarlægja ${label}`,
   decrease: 'Minnka',

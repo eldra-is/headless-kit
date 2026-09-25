@@ -5,6 +5,36 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `Select` — the custom single select: a `<button role="combobox">` trigger over a non-modal
+  popover, never the platform's native select UI, with a hidden native `<select name>` (and
+  `<optgroup>`s) underneath that stays in sync and fires a bubbling `change`, so forms post the
+  value and existing listeners keep working. `modelValue` is two-way; `change`, `clear`, `open`,
+  `close` and `search` are emitted. `options` take a `group`, `hint`, `meta` (+ `metaTone`
+  `warning`/`danger`), `swatch`, `icon` and `disabled`, and the chosen option's swatch or icon
+  shows in the trigger. `searchable` turns itself on past 10 options and puts a search field
+  (`role="combobox"`, `aria-autocomplete="list"`, inset focus ring) at the top of the panel;
+  filtering ignores case and diacritics, bolds and underlines the matched run, hides groups with no
+  matches and shows "No matches for “…”" as real text. `clearable` adds a clear button beside the
+  chevron (`Backspace`/`Delete` clear too), `placeholder`, `leadingIcon`, `invalid`, `describedBy`,
+  `required`, `disabled`, `readonly`, `size` (`sm`/`md`/`lg`, the same box as `Input`) and
+  `placement` (`auto` flips above when there is no room; `above` always opens above) round it out.
+  Slots: `option` (`{ option, selected, active }`), `value` (`{ option }`) and `empty`. The whole of
+  the design spec's two keyboard tables is implemented, including `PageUp`/`PageDown` by ten,
+  `Alt+ArrowUp`, `Escape` clearing the query before it closes, `Tab` closing without trapping
+  focus, and type-ahead with a 0.6s buffer. Opening one select closes any other open one.
+- `useListbox` — the listbox keyboard and active row, exported from the package root: `Select` and
+  the coming `MultiSelect` share it, and so can a control of your own. It owns no DOM; `activeId`
+  is what you bind to `aria-activedescendant`, and choosing, clearing and querying are callbacks.
+  `normalizeText` is exported with it, for case- and diacritic-insensitive matching.
+- New message `noMatchesFor(query)` ("No matches for “…”"), used by `Select`'s empty state when a
+  search query is showing; `noResults` is still used when there is none.
+- New CSS variables: `--eldra-select-panel-max-height` (`20rem`), `--eldra-select-panel-max-width`
+  (`22rem`, clamped to `90vw`), `--eldra-z-popover` (`30`, above the sticky header),
+  `--eldra-select-group-tracking`, `--eldra-select-option-line`, `--eldra-select-swatch-edge` and
+  `--eldra-select-match-weight`/`-underline`/`-underline-offset`. New utilities
+  `eldra-focus-inset-always` (the inset ring on any focus, for a select's search field) and
+  `animate-eldra-popover-in`/`-above` (the popover's entrance, instant under reduced motion).
+
 - `useOverlay` and `useFloating` — the two composables every **non-modal** popup in this package is
   built from (Select, Multi-select, the Search bar's results panel), exported from the package root
   so a consumer can build one of their own. Neither traps focus: the design spec reserves

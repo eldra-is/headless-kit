@@ -32,6 +32,12 @@ export const enUS = {
   multiSelectPlaceholder: 'Select options',
   /** Shown when a filtered list has nothing to show. */
   noResults: 'No results',
+  /**
+   * A `Select`'s empty state while a search query is showing (spec "Select" -> Behaviour, Search:
+   * 'With no matches, the empty state "No matches for “query”" shows as real text'). The
+   * curly quotation marks are the spec's own.
+   */
+  noMatchesFor: (query: string) => `No matches for “${query}”`,
   /** The overflow badge on a `MultiSelect` that cannot show every tag. */
   moreSelected: (n: number) => `+${n}`,
   /** The accessible name of a selected tag's remove button. */

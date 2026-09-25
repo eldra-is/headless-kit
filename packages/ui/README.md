@@ -42,6 +42,34 @@ const { styles, placement, update } = useFloating(trigger, panel, {
 });
 ```
 
+`useListbox` is the third: the keyboard and the active row of a listbox popup, which `Select` and
+`MultiSelect` share. It owns no DOM — `activeId` is what you bind to `aria-activedescendant` on
+whichever element holds focus (the trigger, or the search field when there is one) — and everything
+that differs between a single and a multiple select is a callback.
+
+```ts
+import { useListbox } from '@eldrajs/ui';
+
+const listbox = useListbox({
+  options: () => visibleOptions.value, // already filtered, in DOM order
+  isOpen: () => open.value,
+  searchable: () => searchable.value, // a search field owns Home/End, Space and printable keys
+  optionId: (value) => `${id.value}-o${indexOf(value)}`,
+  open: (edge) => openPanel(edge), // 'end' is ArrowUp on a closed, non-searchable trigger
+  close: () => closePanel(),
+  select: (option) => choose(option), // closing afterwards is yours to decide
+  clear: () => clearValue(), // Backspace/Delete; return true if something was cleared
+  startQuery: (character) => setQuery(character),
+  escape: () => clearQuery(), // return true to consume Escape instead of closing
+});
+```
+
+`onKeydown` is the whole of the design spec's two Select keyboard tables: arrow movement that skips
+disabled and filtered-out rows and stops at the ends, `PageUp`/`PageDown` by ten, `Home`/`End`,
+`Alt+ArrowUp`, `Escape` clearing a query before it closes, `Tab` closing without preventing focus
+from moving on, and type-ahead with a 0.6s buffer that ignores case and diacritics (`normalizeText`
+is exported for the same folding in a search filter).
+
 `styles` is a plain object for `:style` — `position`, `top`, `left`, and `width` under `matchWidth`
 — not a transform, so the panel keeps `transform` for its own open animation. `placement` is the
 placement actually used, after flipping. A panel rendered through a `<Teleport>` still counts as
@@ -158,3 +186,48 @@ Additions and departures from the design spec, and why.
   `ease-out`." Neither element carries `eldra-focus` (that sits on the button), so — exactly like
   Link's arrow — each may carry its own `transition-*`/`duration-fast` utility with a
   `motion-reduce:transition-none` fallback.
+- **`Select` is `modelValue`, not `value`.** The spec's property table names the two-way value
+  `value`; every other control in this package takes `modelValue` with `update:modelValue`, which
+  is what `v-model` binds, so `Select` matches them. The spec's own `change` and `clear` events are
+  emitted exactly as written, alongside `open`, `close` and `search`.
+- **`Select`'s `optionIcon` part.** The spec's anatomy numbers the parts and then describes an
+  option's contents in prose ("swatch, icon, label + hint, meta, check"), so the icon has no
+  numbered name. It is a part all the same, and the _trigger_ reuses `optionSwatch` and
+  `optionIcon` for the chosen option's mark — "an option's swatch" is styled once wherever it
+  appears, rather than once in the list and again in the trigger.
+- **`Select`'s empty state is a sibling of the listbox, not a child.** A `role="listbox"` may own
+  only `option` and `group` children, so "No matches for “…”" inside one is an
+  `aria-required-children` violation. The listbox itself still renders when nothing matches (an
+  empty one is merely "needs review"), because a `role="combobox"` with `aria-expanded="true"` is
+  _required_ to carry `aria-controls` and therefore needs something real to point at.
+- **`Select`'s `noMatchesFor` message.** The spec asks for the empty state to read
+  "No matches for “teal”" — the query is part of the string — and the message catalogue had only
+  `noResults`. Both are used: `noResults` with no query, `noMatchesFor(query)` with one.
+- **`Select`'s clear button is named `aria-label` + `aria-labelledby`.** The spec wants
+  "Clear Country", and the component does not know the label's text — only its id. So the button
+  carries `aria-label="Clear"` and, inside a `FieldWrapper`, an `aria-labelledby` of
+  `"<its own id> <the label's id>"`, which the platform resolves to "Clear Country". On its own it
+  keeps the plain `aria-label`.
+- **`Select` distinguishes a label's forwarded click from a real one.** "Clicking the Field
+  wrapper's label focuses the trigger (it doesn't open it)" — but a `<label for>` naming a
+  `<button>` forwards its click to it, and a forwarded click is otherwise indistinguishable from a
+  real one. The trigger therefore opens only for a click with a pointer press behind it (or a
+  non-zero `detail`), and focuses without opening otherwise. The cost: a programmatic
+  `element.click()` focuses rather than opens. Keyboard activation never goes through a click at
+  all, because `useListbox` consumes `Enter` and `Space` itself.
+- **`Select`'s `disabled` is the native `disabled` attribute.** The spec writes the state as
+  `tabindex="-1"` plus `aria-disabled="true"`; a real `<button disabled>` is already unfocusable
+  and inert, so the component uses it and adds `aria-disabled="true"` beside it rather than
+  hand-rolling the tab behaviour.
+- **`Select`'s `required` reaches the hidden native `<select>`, as the spec asks.** That is what
+  makes the placeholder "invalid on submit if required" without scripting. Be aware of the
+  consequence in a browser: a `hidden` control that fails constraint validation cannot be focused
+  to report the problem, so the form is blocked and the browser logs it rather than showing a
+  bubble. Pair it with the `FieldWrapper`'s own `error` for a visible message.
+- **`Select`'s `placement` is read once.** `useFloating`'s options are not reactive (see
+  `Composables`), so a select that has to change placement at runtime needs a `:key` change. It is
+  a layout decision — "the footer's selectors use `above`" — not state.
+- **`Select`'s panel is rendered in place, never teleported.** It is positioned absolutely inside
+  the component's own root, so `data-part` and `classes` selectors reach it and it inherits the
+  section it sits in. The spec's own "Don't place a select inside a container that clips overflow"
+  is the trade-off that buys.

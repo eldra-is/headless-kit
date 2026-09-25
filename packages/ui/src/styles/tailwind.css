@@ -289,6 +289,13 @@
 @utility z-sticky {
   z-index: var(--eldra-z-sticky);
 }
+/* A non-modal popup's layer (spec "Select" -> Sizes, Popover row): "Stacks above page content and
+   the sticky header (z-index 30; the sticky header is 20)." 30 sits between two tokens and has
+   none of its own, so — like `eldra-link-radius`'s 2px — it is a per-component variable with that
+   literal default here, and no literal reaches a component class. */
+@utility z-popover {
+  z-index: var(--eldra-z-popover, 30);
+}
 @utility z-drawer {
   z-index: var(--eldra-z-drawer);
 }
@@ -378,6 +385,18 @@
    rings the focus ring foundation draws. */
 @utility eldra-link-radius {
   border-radius: var(--eldra-link-radius, 2px);
+}
+
+/* The inset ring's "any focus" modifier, the exact counterpart of `eldra-focus-always` above and a
+   modifier in the same way: it carries no ring of its own. A select's search field is a text field,
+   and the focus-ring foundation's rule for those — "Text fields (Input, Textarea, Search bar, a
+   select's search field) show it on *any* focus, pointer included, because a caret alone is easy to
+   miss" — applies whether the ring is drawn outside the element or, as here, just inside it. */
+@utility eldra-focus-inset-always {
+  &:focus {
+    outline-width: var(--eldra-focus-width);
+    box-shadow: inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+  }
 }
 
 @utility eldra-focus-inset {
@@ -530,4 +549,94 @@
 @utility text-switch-description {
   font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
     var(--eldra-switch-description-line, 1.4) var(--eldra-font-body);
+}
+
+/* --- Select ---------------------------------------------------------------------------------- */
+
+/* A group heading inside a select panel (spec "Select" -> Sizes, Group heading row): "0.75rem,
+   600, uppercase, 0.06em tracking, `muted`". Every number but the tracking is the overline token's
+   already; the spec's 0.06em is half the overline token's 0.12em, so it is this component's own
+   and gets a variable with that literal default, exactly like `text-card-title`'s 1.4 line. */
+@utility text-select-group {
+  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
+    var(--eldra-text-overline-line) var(--eldra-font-body);
+  letter-spacing: var(--eldra-select-group-tracking, 0.06em);
+  text-transform: uppercase;
+}
+
+/* An option row's own text (spec "Select" -> Sizes, Option row): "0.9375rem text on a 1.35 line".
+   The size is the control font size the trigger already uses (`--eldra-control-font-size`), so a
+   row and the trigger above it read at one size; only the 1.35 line is this component's own. It is
+   deliberately not `text-control`, whose fixed 1.5rem line is the height of a 2.5rem field box and
+   would push a two-line option (label + hint) past the spec's row. */
+@utility text-select-option {
+  font: var(--eldra-text-body-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-select-option-line, 1.35) var(--eldra-font-body);
+}
+
+/* The popover's own box (spec "Select" -> Sizes, Popover row): "Min width = trigger, grows to fit
+   its content up to min(22rem, 90vw). Max height 20rem: the list scrolls while the search field
+   stays put." Two utilities rather than one, because they belong to Tailwind's `max-h` and `max-w`
+   merge groups respectively — so a consumer's `classes.panel: 'max-h-64'` replaces the height
+   without also dropping the width clamp. */
+@utility eldra-select-panel-height {
+  max-height: var(--eldra-select-panel-max-height, 20rem);
+}
+@utility eldra-select-panel-width {
+  max-width: min(var(--eldra-select-panel-max-width, 22rem), 90vw);
+}
+
+/* The matched run of a filtered option (spec "Select" -> States, "Option filtered match"):
+   "matched characters weight 700, 2px underline at 0.15em offset". None of the three is a token —
+   the type styles stop at 600 and no underline offset exists anywhere else — so all three are
+   per-component variables with the spec's literals as defaults. */
+@utility eldra-select-match {
+  font-weight: var(--eldra-select-match-weight, 700);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--eldra-select-match-underline, 2px);
+  text-underline-offset: var(--eldra-select-match-underline-offset, 0.15em);
+}
+
+/* An option's colour swatch (spec "Select" -> Sizes, Option row): "Swatch 1rem with a 1px inner
+   edge of `text` at 30%", which the Accessibility notes explain — "Swatch edges carry a 1px inner
+   edge so pale colours stay visible". An inner edge rather than a border, so the swatch stays
+   exactly 1rem whatever colour a store's product data carries. */
+@utility eldra-select-swatch {
+  box-shadow: inset 0 0 0 var(--eldra-select-swatch-edge, 1px)
+    color-mix(in oklab, var(--eldra-color-text), transparent 70%);
+}
+
+/* The popover's entrance (spec "Select" -> Behaviour & motion, Opening): "it fades in from 0 while
+   sliding 0.25rem and scaling vertically from 98% from its top edge (from its bottom edge when
+   flipped). Closing is instant." Two keyframe sets rather than one plus a transform-origin switch,
+   because the slide direction reverses with the origin. Reduced motion needs nothing here:
+   `--eldra-duration-base` is 0ms under `prefers-reduced-motion: reduce` (tokens.css), so the panel
+   simply appears in its end state — the same mechanism every transition in this package uses. */
+@keyframes eldra-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem) scaleY(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes eldra-popover-in-above {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem) scaleY(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-eldra-popover-in {
+  animation: eldra-popover-in var(--eldra-duration-base) var(--eldra-ease-out);
+  transform-origin: top;
+}
+@utility animate-eldra-popover-in-above {
+  animation: eldra-popover-in-above var(--eldra-duration-base) var(--eldra-ease-out);
+  transform-origin: bottom;
 }
