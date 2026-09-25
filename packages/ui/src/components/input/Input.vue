@@ -114,7 +114,7 @@ const resolvedInputmode = computed<NativeInputMode | undefined>(
  * See `src/styles/tailwind.css` and `src/__tests__/focus-transition.spec.ts`.
  */
 const BASE =
-  'block w-full min-w-0 border bg-background text-text placeholder:text-muted ' +
+  'block w-full min-w-0 eldra-field-border bg-background text-text placeholder:text-muted ' +
   'rounded-[var(--eldra-input-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-always';
 
 /**
@@ -155,9 +155,19 @@ const SEARCH =
   '[&::-webkit-search-cancel-button]:appearance-none ' +
   '[&::-webkit-search-decoration]:appearance-none';
 
+/**
+ * Spec "Input" -> States: the error boundary belongs to a field that can still be corrected. A
+ * disabled field is out of the conversation, so it keeps its dead grey boundary and drops the
+ * danger one (`aria-invalid` stays: the field is still invalid, it just cannot be fixed here). A
+ * read-only field keeps it — the value is shown, cannot be edited in place, and is still wrong.
+ * The root and the control agree on that, so the 1px border and the 1px inset line that make up
+ * the spec's 2px boundary can never appear one without the other.
+ */
+const showsInvalid = computed(() => isInvalid.value && !props.disabled);
+
 const rootClass = computed(() =>
   partClass(
-    cx('relative block w-full', isInvalid.value && 'eldra-field-invalid'),
+    cx('relative block w-full', showsInvalid.value && 'eldra-field-invalid'),
     props.classes,
     'root'
   )
@@ -173,7 +183,7 @@ const controlClass = computed(() =>
       props.type === 'number' && 'tabular-nums',
       props.type === 'search' && SEARCH,
       props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
-      !props.disabled && !props.readonly && isInvalid.value && INVALID
+      showsInvalid.value && INVALID
     ),
     props.classes,
     'control'
@@ -237,9 +247,14 @@ function onInput(event: Event): void {
   model.value = raw;
   element.value = formatted;
 
-  // Writing `value` puts the caret at the end in every browser, which is where it already was in
-  // the only case the spec asks about — typing at the end of the field. Anything else (an edit in
-  // the middle) is left to the browser rather than guessed at.
+  // Writing `value` puts the caret at the end in every browser. For the one case the spec asks
+  // about — typing at the end of the field — that is where the caret already was, and the explicit
+  // `setSelectionRange` below keeps it there in the types whose selection API exists. An edit in
+  // the *middle* of the value therefore **loses the caret to the end of the field**: nothing here
+  // maps the old offset through the re-format, and the value rewrite has already moved it. That is
+  // a real cost of the mask and is pinned by a test ("resets the caret to the end after an edit in
+  // the middle of the value"), so preserving the caret later is a deliberate change rather than an
+  // accidental one.
   if (caretAtEnd && SELECTABLE_TYPES.has(props.type)) {
     element.setSelectionRange(formatted.length, formatted.length);
   }

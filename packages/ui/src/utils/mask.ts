@@ -7,6 +7,12 @@
  * The two are inverse for any raw value `applyMask` accepted, which is what lets a component keep
  * the raw value in its model and only ever show the formatted one.
  *
+ * A format with **no placeholder slots at all** (`'--'`, `'()- '`) therefore formats every value to
+ * the empty string and strips every value to the empty string: separators are only ever written
+ * behind a slot that filled, and there is no slot. A field masked that way shows nothing, whatever
+ * is typed into it. That is the consistent answer rather than a special case, but it is worth
+ * knowing before a format is built from anything but a literal.
+ *
  * Deliberately tiny and stateless: no caret model, no incremental diffing, no DOM. The component
  * owns the caret; this owns the string.
  */
@@ -16,7 +22,7 @@
  * `#` a digit, `A` a letter, `*` either. Any character that is not a key here is a separator, so
  * `(`, `)`, `-` and a space in `(###) ###-####` are literal text.
  */
-export const defaultCharacterMeaning: Record<string, RegExp> = {
+export const defaultCharacterMeaning: Readonly<Record<string, RegExp>> = {
   '#': /\d/,
   A: /[a-zA-Z]/,
   '*': /[a-zA-Z0-9]/,
@@ -42,12 +48,13 @@ function accepts(rule: RegExp, character: string): boolean {
  *   grows a dangling `)` or `-` the customer then has to delete.
  * - The result never exceeds the format: input past the last slot is ignored.
  *
- * An empty `format` means "no mask" and returns `raw` unchanged.
+ * An empty `format` means "no mask" and returns `raw` unchanged. A non-empty format with no
+ * placeholder slots in it returns `''` — see the module comment.
  */
 export function applyMask(
   raw: string,
   format: string,
-  characterMeaning: Record<string, RegExp> = defaultCharacterMeaning
+  characterMeaning: Readonly<Record<string, RegExp>> = defaultCharacterMeaning
 ): string {
   if (format.length === 0) return raw;
 
@@ -87,12 +94,13 @@ export function applyMask(
  * It tolerates a string that is not exactly what `applyMask` would have produced — a value the
  * customer pasted without separators, or one mid-edit with a separator deleted — by matching
  * characters against the slot rules rather than by position. Anything that fits no slot is
- * dropped. An empty `format` returns the value unchanged.
+ * dropped. An empty `format` returns the value unchanged, and one with no placeholder slots in
+ * it returns `''`.
  */
 export function stripMask(
   formatted: string,
   format: string,
-  characterMeaning: Record<string, RegExp> = defaultCharacterMeaning
+  characterMeaning: Readonly<Record<string, RegExp>> = defaultCharacterMeaning
 ): string {
   if (format.length === 0) return formatted;
 

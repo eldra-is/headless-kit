@@ -25,7 +25,12 @@ export type ClassValue = string | false | null | undefined | Record<string, bool
  * instead of shipping unmerged.
  */
 const twMerge = extendTailwindMerge<
-  'target-min' | 'target-touch' | 'eldra-focus' | 'eldra-focus-always' | 'eldra-field-invalid'
+  | 'target-min'
+  | 'target-touch'
+  | 'eldra-focus'
+  | 'eldra-focus-always'
+  | 'eldra-focus-proxy'
+  | 'eldra-field-invalid'
 >({
   extend: {
     classGroups: {
@@ -64,6 +69,11 @@ const twMerge = extendTailwindMerge<
       // No stock Tailwind group covers a minimum-target utility, so each gets its own group.
       'target-min': ['target-min'],
       'target-touch': ['target-touch'],
+      // Border widths (tailwind.css "A field's own boundary" and "The Checkbox box"): whole class
+      // names rather than a `border-*` suffix, but the same "border-w" group as Tailwind's own
+      // `border`/`border-2`, so a consumer's `border-2` replaces them and — the reason the two
+      // checkbox widths exist — the invalid width replaces the ordinary one.
+      'border-w': ['eldra-field-border', 'eldra-checkbox-border', 'eldra-checkbox-border-invalid'],
       // The field error boundary (tailwind.css "The error boundary of a field"): a pseudo-element
       // inset line with no stock Tailwind equivalent, so it gets its own group.
       'eldra-field-invalid': ['eldra-field-invalid'],
@@ -78,6 +88,12 @@ const twMerge = extendTailwindMerge<
       // grow — the outline, the infill and the whole transition list live in `eldra-focus`. It
       // gets its own group, so it still cannot be written twice.
       'eldra-focus-always': ['eldra-focus-always'],
+      // `eldra-focus-proxy` is the third of that family and gets a group of its own for the same
+      // reason: it is a *modifier* of `eldra-focus`, adding the rule that turns the ring on when a
+      // descendant is focus-visible (the Checkbox's visually hidden input inside its drawn box).
+      // It carries no base, so sharing a group with what it modifies would let `cx` drop the ring
+      // and keep only the trigger. A modifier never shares a group with the thing it modifies.
+      'eldra-focus-proxy': ['eldra-focus-proxy'],
       // Link's focus-ring corner radius (tailwind.css "eldra-link-radius"): the same "rounded"
       // group as `rounded-*`, so a consumer's `classes.root: 'rounded-full'` replaces it.
       rounded: ['eldra-link-radius'],

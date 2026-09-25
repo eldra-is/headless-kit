@@ -333,6 +333,30 @@
     box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
   }
 }
+/* Proxy focus (spec 1 "Focus ring" → Proxy focus): "When the focusable element is visually hidden
+   (the radio inside a size pill, the stretched link of a card), draw the ring on the visible shape
+   (the pill, the whole card), not on the hidden element."
+
+   Exactly the shape of `eldra-focus-always` above, and a *modifier* in the same way: it carries no
+   ring of its own, it only adds the rule that turns on the one `eldra-focus` already put on this
+   element. The difference is whose focus turns it on — a descendant's, not the element's own. So a
+   Checkbox writes `eldra-focus eldra-focus-proxy` on its drawn box and puts the `sr-only`
+   `<input>` inside it; the transition, the reduced-motion handling and the ring itself all still
+   live in `eldra-focus`, which is why the two must never share a merge group in `src/utils/cx.ts`.
+   The forced-colours rule is repeated here because the one in `eldra-focus` is keyed to that
+   element's own `:focus-visible`, which never happens on a box that is not focusable. */
+@utility eldra-focus-proxy {
+  &:has(:focus-visible) {
+    outline-width: var(--eldra-focus-width);
+    box-shadow: 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+  }
+  @media (forced-colors: active) {
+    &:has(:focus-visible) {
+      outline-color: Highlight;
+    }
+  }
+}
+
 /* The Link focus ring's corner radius (spec "Link" → Sizes): "2px for every variant." No radius
    token is this small — radius-sm is 0.375rem, for badges and chips — so, like the button's
    lg font size above, it is a per-component variable with a literal default and no token behind
@@ -371,6 +395,32 @@
   }
 }
 
+/* A field's own boundary (spec "Actions and forms" -> Compact controls: "1px `border-strong`
+   boundary"). The width is a variable rather than Tailwind's `border`, because the invalid inset
+   line below is inset by exactly this much and drawn exactly this thick: with `border` hard-wired
+   to 1px, setting `--eldra-field-border-width` moved the line without moving the border it sits
+   inside, and the two came apart. One variable now drives both. The literal default lives here,
+   not in a component class — the same shape as `eldra-link-radius` above. `border-style` comes
+   from Tailwind's preflight (`*, ::before, ::after { border: 0 solid }`), which both the
+   `tailwind.css` and the `style.css` route carry, so a width alone is a solid border and
+   `border-dashed` still wins where a component asks for one. */
+@utility eldra-field-border {
+  border-width: var(--eldra-field-border-width, 1px);
+}
+
+/* The Checkbox box (spec "Checkbox" → Sizes: "Border | 1.5px", and → States, Error row: "**2px**
+   `danger`"). Neither number is a token — they are this component's own — so each is a variable
+   with a literal default here, the same shape as `eldra-link-radius` and `eldra-field-border`
+   above, and neither literal reaches a component class. They are two utilities rather than one
+   because the error state changes the width as well as the colour, and both sit in the `border-w`
+   merge group, so the error width replaces the ordinary one instead of landing beside it. */
+@utility eldra-checkbox-border {
+  border-width: var(--eldra-checkbox-border-width, 1.5px);
+}
+@utility eldra-checkbox-border-invalid {
+  border-width: var(--eldra-checkbox-border-width-invalid, 2px);
+}
+
 /* The error boundary of a field (spec "Input" → States, Error row): "2px `danger` (1px border +
    1px inset line). On focus the inset line sits inside the `focus-inner` infill."
 
@@ -390,7 +440,10 @@
     position: absolute;
     inset: var(--eldra-field-border-width, 1px);
     border: var(--eldra-field-border-width, 1px) solid var(--eldra-color-danger);
-    border-radius: calc(var(--eldra-radius-md) - var(--eldra-field-border-width, 1px));
+    border-radius: calc(
+      var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md))) -
+        var(--eldra-field-border-width, 1px)
+    );
     pointer-events: none;
   }
   @media (forced-colors: active) {

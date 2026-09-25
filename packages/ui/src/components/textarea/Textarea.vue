@@ -116,7 +116,7 @@ watch(() => model.value, growFallback, { flush: 'post', immediate: true });
 
 /** Spec "Textarea" → Sizes and States, applied the same way Input.vue's BASE is. */
 const BASE =
-  'block w-full min-w-0 resize-y border bg-background text-text placeholder:text-muted ' +
+  'block w-full min-w-0 resize-y eldra-field-border bg-background text-text placeholder:text-muted ' +
   'rounded-[var(--eldra-textarea-radius,var(--eldra-radius-md))] py-2 px-2.75 ' +
   'text-control max-md:text-control-mobile ' +
   'min-h-[var(--eldra-textarea-min-height)] max-h-64 overflow-y-auto ' +
@@ -127,9 +127,21 @@ const INVALID = 'border-danger hover:border-danger focus:border-danger';
 const DISABLED = 'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
 const READONLY = 'bg-surface border-border text-text';
 
+/** See Input.vue: the danger boundary drops on a disabled field and stays on a read-only one. */
+const showsInvalid = computed(() => isInvalid.value && !props.disabled);
+
+/**
+ * `eldra-field-invalid` draws its inset line at the *field's* radius, which it reads from
+ * `--eldra-field-radius` (falling back to the Input's own `--eldra-input-radius`, then to
+ * `radius-md`). A Textarea rounds by `--eldra-textarea-radius`, so it points the line's radius at
+ * that one here rather than letting the line and the border round differently.
+ */
 const rootClass = computed(() =>
   partClass(
-    cx('relative block w-full', isInvalid.value && 'eldra-field-invalid'),
+    cx(
+      'relative block w-full [--eldra-field-radius:var(--eldra-textarea-radius,var(--eldra-radius-md))]',
+      showsInvalid.value && 'eldra-field-invalid'
+    ),
     props.classes,
     'root'
   )
@@ -140,7 +152,7 @@ const controlClass = computed(() =>
     cx(
       BASE,
       props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
-      !props.disabled && !props.readonly && isInvalid.value && INVALID
+      showsInvalid.value && INVALID
     ),
     props.classes,
     'control'

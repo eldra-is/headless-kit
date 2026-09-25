@@ -671,3 +671,41 @@ describe('Textarea — accessibility', () => {
     wrapper.unmount();
   });
 });
+
+describe('Textarea — the invalid boundary against the other states', () => {
+  /**
+   * The boundary is drawn by `eldra-field-border`, not Tailwind's `border`: the inset line that
+   * completes the 2px error state is inset by exactly this width, so both have to read the same
+   * `--eldra-field-border-width`. A `border` here would pin the boundary at 1px while the line
+   * moved, and the two would come apart the moment a consumer set the variable.
+   */
+  it('draws its boundary from the field border-width variable', () => {
+    const wrapper = mountWith(Textarea, { attrs: NAME });
+    const classes = control(wrapper).className.split(/\s+/);
+    expect(classes).toContain('eldra-field-border');
+    expect(classes).not.toContain('border');
+    wrapper.unmount();
+  });
+
+  it('drops every invalid style on a disabled field', () => {
+    const wrapper = mountWith(Textarea, { props: { invalid: true, disabled: true }, attrs: NAME });
+    const classes = control(wrapper).className.split(/\s+/);
+    expect(classes).not.toContain('border-danger');
+    expect(classes).toContain('border-dashed');
+    expect(wrapper.classes()).not.toContain('eldra-field-invalid');
+    wrapper.unmount();
+  });
+
+  it('keeps the invalid boundary on a read-only field', () => {
+    const wrapper = mountWith(Textarea, { props: { invalid: true, readonly: true }, attrs: NAME });
+    expect(control(wrapper).className.split(/\s+/)).toContain('border-danger');
+    expect(wrapper.classes()).toContain('eldra-field-invalid');
+    wrapper.unmount();
+  });
+
+  it('still reports aria-invalid on a disabled field', () => {
+    const wrapper = mountWith(Textarea, { props: { invalid: true, disabled: true }, attrs: NAME });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
+    wrapper.unmount();
+  });
+});

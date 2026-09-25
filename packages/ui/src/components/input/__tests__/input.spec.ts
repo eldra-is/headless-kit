@@ -638,3 +638,65 @@ describe('Input — accessibility', () => {
     wrapper.unmount();
   });
 });
+
+describe('Input — the invalid boundary against the other states', () => {
+  /**
+   * The boundary is drawn by `eldra-field-border`, not Tailwind's `border`: the inset line that
+   * completes the 2px error state is inset by exactly this width, so both have to read the same
+   * `--eldra-field-border-width`. A `border` here would pin the boundary at 1px while the line
+   * moved, and the two would come apart the moment a consumer set the variable.
+   */
+  it('draws its boundary from the field border-width variable', () => {
+    const wrapper = mountWith(Input, { attrs: NAME });
+    const classes = control(wrapper).className.split(/\s+/);
+    expect(classes).toContain('eldra-field-border');
+    expect(classes).not.toContain('border');
+    wrapper.unmount();
+  });
+
+  it('drops every invalid style on a disabled field', () => {
+    const wrapper = mountWith(Input, { props: { invalid: true, disabled: true }, attrs: NAME });
+    const classes = control(wrapper).className.split(/\s+/);
+    expect(classes).not.toContain('border-danger');
+    expect(classes).toContain('border-dashed');
+    expect(wrapper.classes()).not.toContain('eldra-field-invalid');
+    wrapper.unmount();
+  });
+
+  it('keeps the invalid boundary on a read-only field', () => {
+    const wrapper = mountWith(Input, { props: { invalid: true, readonly: true }, attrs: NAME });
+    expect(control(wrapper).className.split(/\s+/)).toContain('border-danger');
+    expect(wrapper.classes()).toContain('eldra-field-invalid');
+    wrapper.unmount();
+  });
+
+  it('still reports aria-invalid on a disabled field', () => {
+    const wrapper = mountWith(Input, { props: { invalid: true, disabled: true }, attrs: NAME });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
+    wrapper.unmount();
+  });
+});
+
+describe('Input — the mask and the caret', () => {
+  /**
+   * Writing `element.value` puts the caret at the end in every browser, and a masked field
+   * rewrites the value on every keystroke — so an edit in the middle of the value loses the caret
+   * position. That is the behaviour today; this pins it so that a future caret-preserving change
+   * is a deliberate one rather than an accident, and so the comment in `Input.vue` stays honest.
+   */
+  it('resets the caret to the end after an edit in the middle of the value', async () => {
+    const wrapper = mountWith(Input, {
+      props: { type: 'tel', mask: '(###) ###-####', modelValue: '5551234567' },
+      attrs: NAME,
+    });
+    const el = control(wrapper);
+    expect(el.value).toBe('(555) 123-4567');
+    // The customer put the caret after "(555" and typed a 9.
+    el.value = '(5559) 123-4567';
+    el.setSelectionRange(5, 5);
+    await wrapper.find('[data-part="control"]').trigger('input');
+    expect(el.value).toBe('(555) 912-3456');
+    expect(el.selectionStart).toBe(el.value.length);
+    wrapper.unmount();
+  });
+});

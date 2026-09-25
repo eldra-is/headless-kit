@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { applyMask, defaultCharacterMeaning, stripMask } from '../mask';
 
 /** The design spec's own example formats. */
@@ -16,6 +16,15 @@ describe('defaultCharacterMeaning', () => {
     expect(defaultCharacterMeaning['*'].test('a')).toBe(true);
     expect(defaultCharacterMeaning['*'].test('1')).toBe(true);
     expect(defaultCharacterMeaning['*'].test('-')).toBe(false);
+  });
+
+  /**
+   * It is a shared module-level object: a consumer that reassigned a rule on it would change how
+   * every masked field in the app formats. The type is what says so — only `pnpm typecheck` runs
+   * this assertion, `pnpm test` does not.
+   */
+  it('is exported read-only', () => {
+    expectTypeOf(defaultCharacterMeaning).toEqualTypeOf<Readonly<Record<string, RegExp>>>();
   });
 });
 
@@ -124,5 +133,26 @@ describe('stripMask', () => {
 
   it('accepts a custom character meaning', () => {
     expect(stripMask('a-b-c', 'L-L-L', { L: /[a-z]/ })).toBe('abc');
+  });
+});
+
+describe('a format with no placeholder slots', () => {
+  /**
+   * `'--'` has no `#`, `A` or `*` in it, so there is no slot for a raw character to land in and
+   * the separators are only ever written *behind* a filled slot. The result is the empty string —
+   * not the separators on their own, and not the raw value. Pinned here because it is the one
+   * result of `applyMask` that looks like a bug from the outside, and `Input` renders it: a field
+   * whose `mask` has no slots shows nothing whatever the customer types.
+   */
+  it('formats to an empty string rather than to the separators', () => {
+    expect(applyMask('5551234567', '--')).toBe('');
+    expect(applyMask('', '--')).toBe('');
+    expect(applyMask('abc', '()- ')).toBe('');
+  });
+
+  /** And the inverse: there is no slot to keep a character, so nothing survives the strip. */
+  it('strips to an empty string', () => {
+    expect(stripMask('--', '--')).toBe('');
+    expect(stripMask('5551234567', '--')).toBe('');
   });
 });

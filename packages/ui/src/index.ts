@@ -5,6 +5,8 @@
 // Components
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
+export { default as Checkbox } from './components/checkbox/Checkbox.vue';
+export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
 export { default as FieldWrapper } from './components/field-wrapper/FieldWrapper.vue';
 export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
@@ -22,6 +24,15 @@ export type {
   ButtonSize,
   ButtonVariant,
 } from './components/button/types';
+export type {
+  CheckboxGroupLayout,
+  CheckboxGroupOption,
+  CheckboxGroupPart,
+  CheckboxGroupProps,
+  CheckboxPart,
+  CheckboxProps,
+  CheckboxSize,
+} from './components/checkbox/types';
 export type {
   FieldWrapperCounter,
   FieldWrapperPart,

@@ -97,7 +97,6 @@ export const Default: Story = {
 export const Sizes: Story = {
   render: () => ({
     components: { Input },
-    setup: () => ({ IconSearch }),
     template: `
       <div class="flex max-w-80 flex-col gap-4">
         <div>

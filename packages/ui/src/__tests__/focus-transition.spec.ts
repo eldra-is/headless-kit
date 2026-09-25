@@ -80,7 +80,7 @@ describe('the focus ring owns its element transitions', () => {
       base: distDir,
       onDependency() {},
     });
-    const css = compiler.build(['eldra-focus', 'eldra-focus-inset']);
+    const css = compiler.build(['eldra-focus', 'eldra-focus-inset', 'eldra-focus-proxy']);
 
     for (const utility of ['.eldra-focus', '.eldra-focus-inset']) {
       const start = css.indexOf(`${utility} {`);
@@ -96,6 +96,21 @@ describe('the focus ring owns its element transitions', () => {
       // Reduced motion is handled by the utility, so components need no `motion-reduce:` class.
       expect(rule).toContain('prefers-reduced-motion: reduce');
     }
+
+    // Proxy focus (a Checkbox's hidden input inside its drawn box) is a *modifier*: it must add a
+    // `:has(:focus-visible)` rule and nothing else, so `eldra-focus` beside it keeps owning the
+    // ring, the transition and the reduced-motion rule. A `@utility` whose nested selector failed
+    // to compile would leave a box that never shows a focus ring, silently.
+    const proxyStart = css.indexOf('.eldra-focus-proxy');
+    expect(proxyStart, 'eldra-focus-proxy is not in the compiled stylesheet').toBeGreaterThan(-1);
+    const proxy = css.slice(proxyStart, css.indexOf('\n  }', proxyStart));
+    expect(proxy.startsWith('.eldra-focus-proxy:has(:focus-visible) {')).toBe(true);
+    expect(proxy).toContain('outline-width: var(--eldra-focus-width)');
+    expect(proxy).toContain('box-shadow: 0 0 0 var(--eldra-focus-offset)');
+    expect(proxy).not.toContain('transition');
+    // ...and the forced-colours half, which `eldra-focus`'s own rule cannot cover: that one is
+    // keyed to this element's `:focus-visible`, which never happens on a box that is not focusable.
+    expect(css).toContain('@media (forced-colors: active)');
   });
 
   it.skipIf(built)('needs a build first: run `pnpm --filter @eldrajs/ui build`', () => {

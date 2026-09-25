@@ -5,6 +5,38 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `Checkbox` — a native `<input type="checkbox">`, visually hidden inside its own `<label>` so the
+  whole row (box, label, hint) is the click target and is at least 1.5rem tall, drawn as a box with
+  a tick or a dash. `modelValue` is two-way and `change` fires with the new boolean; `indeterminate`
+  sets the native property (re-applied after every toggle, because activating a checkbox clears it
+  in the browser) and `aria-checked="mixed"` beside it, with `controls` naming the children an
+  indeterminate parent stands for. `size` is `md` (1.125rem box, nudged onto the first text line) or
+  `lg` (1.5rem, top-aligned); `hint` adds a `muted` second line under the label; `value`/`name` are
+  the native form values; `invalid`, `required`, `describedBy` and `id` fall back to the
+  `FieldWrapper`'s context exactly as `Input`'s do. Because the input is hidden, the standard focus
+  ring is drawn on the **box** through the new `eldra-focus-proxy` utility — the focus-ring
+  foundation's "Proxy focus" rule. Per-part `classes` for `root`, `box`, `check`, `label` and
+  `hint`. CSS variables: `--eldra-checkbox-radius` (default `radius-sm`),
+  `--eldra-checkbox-border-width` (`1.5px`) and `--eldra-checkbox-border-width-invalid` (`2px`).
+- `CheckboxGroup` — a real `<fieldset>` with a `<legend>`, so the question is read with every
+  option. `modelValue` is the two-way array of checked values (and `change` fires with the new
+  array, never the same instance twice), `options` is `{ value, label, hint?, disabled? }[]`,
+  `layout` is `vertical` (0.5rem gaps) or `row` (0.5rem × 1.5rem, wrapping, for short labels like
+  sizes), and `name` is the one form field name they share. `error` renders the message with its
+  `alert-circle` icon and links it to the **fieldset** with `aria-describedby`, marking that
+  `aria-invalid="true"` while the individual options stay valid. It needs no `FieldWrapper` around
+  it, and must not be put inside one with `group` set — that would nest a second `<fieldset>` and
+  legend around the first. Per-part `classes` for `root`, `legend`, `options` and `error`.
+- `Input`, `Textarea` — the error boundary now follows the field's own radius (`--eldra-input-radius`
+  / `--eldra-textarea-radius`, through the new `--eldra-field-radius`) rather than always
+  `radius-md`, and `--eldra-field-border-width` now drives the control's real border as well as the
+  inset line that completes it, so the two can no longer come apart. The danger boundary is also
+  dropped on a **disabled** field (`aria-invalid` stays: still invalid, just not correctable here)
+  and kept on a **read-only** one, on the root and the control alike.
+- `defaultCharacterMeaning` is exported as `Readonly<Record<string, RegExp>>`. Documented: a mask
+  format with no placeholder slots in it (`'--'`) formats and strips every value to `''`, and a
+  masked field loses the caret to the end of the value after an edit in the middle of it.
+
 - `FieldWrapper` — the wrapper every form control sits in: the visible `label` with its `required`
   asterisk (`aria-hidden`, with the control's native `required` doing the announcing) or
   `(optional)` mark, the control, the `error` with its `alert-circle` icon, and a foot row carrying

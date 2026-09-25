@@ -30,6 +30,25 @@ Additions and departures from the design spec, and why.
 - **`FieldWrapper` slots are content.** `<template #error>` and `<template #help>` are richer ways
   of writing the `error` and `help` props (a message with a link in it, say), so a field with an
   `error` _slot_ is invalid and linked exactly as one with the prop is.
+- **`Checkbox` `describedBy`.** The spec's Checkbox property table has no way to point at an
+  error, but its Accessibility notes require one ("Required consent: `required`,
+  `aria-invalid="true"` and `aria-describedby` pointing to an error that says what to do"). So
+  `Checkbox` takes `describedBy?: string`, exactly as `Input` and `Textarea` do, and falls back to
+  a `FieldWrapper`'s context when there is one.
+- **`Checkbox`'s hint is part of the accessible name.** The spec's anatomy puts the hint "inside
+  the label", and a `<label>`'s whole text is the control's name — so a box with a hint is
+  announced as "Washed linen Pre-softened, will not shrink further". That is the spec's own
+  structure, kept rather than swapped for an `aria-describedby` that would read the same words a
+  beat later. It is also what makes the hint part of the click target.
+- **`CheckboxGroup`'s error is the group's, not each option's.** `error` puts `aria-invalid="true"`
+  and the `aria-describedby` link on the `<fieldset>`; the individual boxes keep their ordinary
+  boundary. The spec's own 2px `danger` box is written against the **required consent** case (a
+  single `Checkbox` with `invalid`), and repeating "invalid" on every one of five options is noise
+  rather than information. This matches `FieldWrapper`'s `group` variant, which reads the same way.
+- **A `CheckboxGroup` is not put inside a `FieldWrapper`.** It draws its own `<fieldset>` and
+  `<legend>` — the spec's group anatomy — so a `FieldWrapper` with `group` set around it would nest
+  a second fieldset and legend, and one without `group` would point a second `<label for>` at a
+  box that already has one. Use the group on its own; use `FieldWrapper` for a single consent box.
 - **`Button` touch growth is the primary action's.** "Only primary action buttons grow to
   `target-touch` (2.75rem)" below a 48rem container, so an `md` `primary` button grows and a
   secondary, outline, ghost or danger action beside it keeps the 2.5rem control height it shares

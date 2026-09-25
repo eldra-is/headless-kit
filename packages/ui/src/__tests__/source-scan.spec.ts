@@ -72,6 +72,18 @@ describe('consumer Tailwind build', () => {
       // form simply never pairs its fields — so the emitted condition is asserted, not the class.
       expect(css).toContain('@container (width >= 36rem)');
       expect(css).toContain('@container (width < 36rem)');
+
+      // A field's boundary and the inset line that completes its 2px error state are one
+      // measurement in two places, and the line is inset by exactly the border's own width — so a
+      // border hard-wired to 1px while the line read a variable would come apart the moment a
+      // consumer set that variable. Both now read `--eldra-field-border-width`, and the line's
+      // corner follows the *field's* radius rather than always `radius-md`, so an Input with
+      // `--eldra-input-radius` set does not round its border one way and its error line another.
+      const fieldBorder = css.slice(css.indexOf('.eldra-field-border {'));
+      expect(fieldBorder.slice(0, 120)).toContain('var(--eldra-field-border-width, 1px)');
+      const invalid = css.slice(css.indexOf('.eldra-field-invalid'));
+      expect(invalid.slice(0, 600)).toContain('var(--eldra-input-radius');
+      expect(invalid.slice(0, 600)).toContain('var(--eldra-field-border-width, 1px)');
     }
   );
 
