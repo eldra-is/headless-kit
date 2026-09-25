@@ -7,19 +7,20 @@ export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
 export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
+export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
 export { default as FieldWrapper } from './components/field-wrapper/FieldWrapper.vue';
 export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
-export { default as NumberInput } from './components/number-input/NumberInput.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
+export { default as UnitInput } from './components/unit-input/UnitInput.vue';
 export { default as VariantPicker } from './components/variant-picker/VariantPicker.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
@@ -41,6 +42,7 @@ export type {
   CheckboxProps,
   CheckboxSize,
 } from './components/checkbox/types';
+export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
 export type {
   FieldWrapperCounter,
   FieldWrapperPart,
@@ -56,11 +58,6 @@ export type {
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
-export type {
-  NumberInputFormat,
-  NumberInputPart,
-  NumberInputProps,
-} from './components/number-input/types';
 export type {
   RadioGroupLayout,
   RadioGroupOption,
@@ -95,6 +92,7 @@ export type {
 } from './components/quantity-stepper/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
+export type { UnitInputPart, UnitInputProps } from './components/unit-input/types';
 export type {
   VariantPickerOption,
   VariantPickerPart,
@@ -111,6 +109,15 @@ export {
   useMessages,
   type UiMessages,
 } from './composables/useMessages';
+
+// The number locale, the same provide/inject shape as the messages: `UnitInput`, `CurrencyInput`
+// and `QuantityStepper` format with it unless their own `locale` prop says otherwise.
+export {
+  DEFAULT_UI_LOCALE,
+  LOCALE_KEY,
+  provideEldraUiLocale,
+  useEldraUiLocale,
+} from './composables/useLocale';
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
@@ -166,6 +173,6 @@ export {
   parseLocaleNumber,
   type NumberFormatOptions,
 } from './utils/number-format';
-// The `beforeinput` filter that keeps a numeric text field numeric, shared by `QuantityStepper`
-// and `NumberInput` — exported for a consumer building a numeric control of their own.
+// The `beforeinput` filter that keeps a numeric text field numeric, used by `QuantityStepper` —
+// exported for a consumer building a numeric control of their own.
 export { filterNumericBeforeInput, type NumericInputFilterOptions } from './utils/numeric-input';

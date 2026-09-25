@@ -1,4 +1,4 @@
-// The optional vee-validate entry (`@eldrajs/ui/vee-validate`): `Form` and the twelve `Field*`
+// The optional vee-validate entry (`@eldrajs/ui/vee-validate`): `Form` and the thirteen `Field*`
 // components.
 //
 // This directory is the **only** place in the package that may import `vee-validate`. The root
@@ -15,15 +15,16 @@ export { default as Form } from './Form.vue';
 
 export { default as FieldCheckbox } from './FieldCheckbox.vue';
 export { default as FieldCheckboxGroup } from './FieldCheckboxGroup.vue';
+export { default as FieldCurrencyInput } from './FieldCurrencyInput.vue';
 export { default as FieldInput } from './FieldInput.vue';
 export { default as FieldMultiSelect } from './FieldMultiSelect.vue';
-export { default as FieldNumberInput } from './FieldNumberInput.vue';
 export { default as FieldQuantityStepper } from './FieldQuantityStepper.vue';
 export { default as FieldRadioGroup } from './FieldRadioGroup.vue';
 export { default as FieldSearchBar } from './FieldSearchBar.vue';
 export { default as FieldSelect } from './FieldSelect.vue';
 export { default as FieldSwitch } from './FieldSwitch.vue';
 export { default as FieldTextarea } from './FieldTextarea.vue';
+export { default as FieldUnitInput } from './FieldUnitInput.vue';
 export { default as FieldVariantPicker } from './FieldVariantPicker.vue';
 
 export { API_ERRORS_KEY } from './context';
@@ -32,15 +33,16 @@ export type {
   FieldBinding,
   FieldCheckboxGroupProps,
   FieldCheckboxProps,
+  FieldCurrencyInputProps,
   FieldInputProps,
   FieldMultiSelectProps,
-  FieldNumberInputProps,
   FieldQuantityStepperProps,
   FieldRadioGroupProps,
   FieldSearchBarProps,
   FieldSelectProps,
   FieldSwitchProps,
   FieldTextareaProps,
+  FieldUnitInputProps,
   FieldVariantPickerProps,
   FormProps,
   FormSlotProps,
@@ -49,7 +51,7 @@ export type {
 } from './types';
 
 /**
- * The building block the eleven `Field*` components are made of, exported so a consumer wrapping a
+ * The building block the thirteen `Field*` components are made of, exported so a consumer wrapping a
  * control this package does not ship — or one of its own — binds it the same way: the value, the
  * message gated on "touched or submitted", the `id` the error summary links to, and the server
  * error that clears when the value changes.

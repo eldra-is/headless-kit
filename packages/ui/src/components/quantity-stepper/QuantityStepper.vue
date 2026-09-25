@@ -23,6 +23,7 @@
  */
 import { computed, inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
+import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
@@ -38,9 +39,6 @@ defineOptions({ inheritAttrs: false });
 /** Spec "Quantity stepper" → Properties. */
 const DEFAULT_MIN = 1;
 const DEFAULT_MAX = 99;
-/** Not part of the design spec's own Properties table — the task brief adds `locale` for display
- * formatting and typed-value parsing. */
-const DEFAULT_LOCALE = 'en-US';
 
 const props = withDefaults(defineProps<QuantityStepperProps>(), {
   modelValue: undefined,
@@ -52,7 +50,7 @@ const props = withDefaults(defineProps<QuantityStepperProps>(), {
   disabled: false,
   error: undefined,
   id: undefined,
-  locale: DEFAULT_LOCALE,
+  locale: undefined,
   classes: undefined,
 });
 
@@ -66,6 +64,13 @@ const emit = defineEmits<{
 }>();
 
 const m = useMessages();
+/**
+ * Not part of the design spec's own Properties table — the task brief adds `locale` for display
+ * formatting and typed-value parsing. Unset, it follows whatever `provideEldraUiLocale` set for
+ * the app (`en-US` with nothing provided), so one provide sets the locale of every numeric field.
+ */
+const ambientLocale = useEldraUiLocale();
+const locale = computed(() => props.locale ?? ambientLocale.value);
 
 /** See Input.vue for the field-context rationale: any explicit prop wins over the wrapper. */
 const field = inject(FIELD_KEY, null);
@@ -122,7 +127,7 @@ function clamp(value: number): number {
 /** The locale-formatted, whole-number text shown while the field is not being edited — a quantity
  * never carries a fraction (spec gives none for this control). */
 function formatDisplay(value: number): string {
-  return formatNumber(value, { locale: props.locale, maxFraction: 0, minFraction: 0 });
+  return formatNumber(value, { locale: locale.value, maxFraction: 0, minFraction: 0 });
 }
 
 /**
@@ -136,7 +141,7 @@ function formatDisplay(value: number): string {
  * had put there. Ungrouped while editing, there is never one to make a keystroke after.
  */
 function formatEditing(value: number): string {
-  const { group } = localeSeparators(props.locale);
+  const { group } = localeSeparators(locale.value);
   const plain = formatDisplay(value);
   return group === '' ? plain : plain.split(group).join('');
 }
@@ -208,7 +213,7 @@ function onIncrease(): void {
  * presses `Enter` and keeps typing without leaving the field is still shown what they type.
  */
 function commit(): void {
-  const parsed = parseLocaleNumber(editingText.value, props.locale);
+  const parsed = parseLocaleNumber(editingText.value, locale.value);
   const rounded = parsed === null ? props.min : Math.round(parsed);
   const next = clamp(rounded);
   if (next !== model.value) {
@@ -258,7 +263,7 @@ function onBeforeInput(event: Event): void {
   filterNumericBeforeInput(event as InputEvent, {
     allowNegative: props.min < 0,
     allowDecimal: false,
-    locale: props.locale,
+    locale: locale.value,
   });
 }
 

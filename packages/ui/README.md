@@ -7,7 +7,7 @@ The components are built to
 2.2 AA). Plan 1 — foundations, actions and forms (`Button`/`ButtonGroup`, `Link`, `Input`,
 `Textarea`, `FieldWrapper`, `FormLayout`, `Checkbox`/`CheckboxGroup`, `RadioGroup`, `Switch`,
 `Select`/`MultiSelect`, `QuantityStepper`, `VariantPicker`, `SearchBar`) — is complete, plus
-`NumberInput`, which the spec has no equivalent of; display, commerce, layout, overlays, navigation
+`UnitInput` and `CurrencyInput`, which the spec has no equivalent of; display, commerce, layout, overlays, navigation
 and feedback components land in the two sub-projects that follow, in the same delivery order the
 spec's "Components and delivery order" section lays out. What this package ships that the spec does
 not name is listed under
@@ -89,7 +89,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Input`           | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                                                                                   |
    | `Link`            | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                             |
    | `MultiSelect`     | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                     |
-   | `NumberInput`     | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width`                                                                                                                                                                                                                                                             |
+   | `UnitInput`       | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width` (`CurrencyInput` is a `UnitInput`, so the same)                                                                                                                                                                                                             |
    | `QuantityStepper` | `--eldra-stepper-radius` (default `var(--eldra-radius-md)`)                                                                                                                                                                                                                                                                                                                                                                                                         |
    | `RadioGroup`      | `--eldra-radio-card-border-width` (default `1px`) and `--eldra-radio-card-radius` (default `radius-md`) for the card boundary; `--eldra-checkbox-border-width`/`-invalid` for the radio circle itself, shared with `Checkbox`                                                                                                                                                                                                                                       |
    | `SearchBar`       | `--eldra-search-panel-max-height` (default `32rem`, clamped to `70vh`), `--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-search-kbd-line`, `--eldra-input-radius`, `--eldra-field-border-width`, `--eldra-z-popover`, and `--eldra-popover-origin` (set by the panel itself from the placement it resolved to: `top left` below the field, `bottom left` above it)                                                                                 |
@@ -101,7 +101,7 @@ Every component supports all five of these; none hard-codes anything a store mig
 
    One variable in that list is **derived, not a knob**: `--eldra-field-invalid-radius` is declared
    by the `eldra-field-invalid` utility on the field root that carries it (every control with the
-   2px error boundary — `Input`, `NumberInput`, `Select`, `MultiSelect`, `Textarea`, `SearchBar`) as
+   2px error boundary — `Input`, `UnitInput`, `Select`, `MultiSelect`, `Textarea`, `SearchBar`) as
    `var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md)))`, so the inset
    error line can round to the field's own corner minus the border width. It exists because a
    two-deep `var()` fallback written inline inside a `calc()` makes every consumer's PostCSS print a
@@ -445,7 +445,8 @@ and `FieldQuantityStepper` — and those draw their message themselves **only ou
 | ---------------------- | ----------------- | ---------------------------------------------------- |
 | `FieldInput`           | `Input`           | `string`                                             |
 | `FieldTextarea`        | `Textarea`        | `string`                                             |
-| `FieldNumberInput`     | `NumberInput`     | `number \| null` (`null` is an empty field)          |
+| `FieldUnitInput`       | `UnitInput`       | `number \| null` (`null` is an empty field)          |
+| `FieldCurrencyInput`   | `CurrencyInput`   | `number \| null` (`null` is an empty field)          |
 | `FieldCheckbox`        | `Checkbox`        | `boolean` (one consent box)                          |
 | `FieldCheckboxGroup`   | `CheckboxGroup`   | `string[]` (one question, several answers)           |
 | `FieldRadioGroup`      | `RadioGroup`      | `string`                                             |
@@ -566,19 +567,28 @@ during development, outside this repository's own history.
 Things this package ships that design spec 1 does not name at all. Each is listed here so a reader
 comparing the package against the spec can tell an addition from a drift.
 
-- **`NumberInput`** — an editable number, money and unit field. The spec has no editable numeric
-  field: its `Price` is a display component (plan 2), and `Input`'s `type="number"` is a native
-  number input, which cannot hold a locale-grouped value at all. `NumberInput` is `Input`'s box in
-  every respect a customer can see (the same sizes, paddings, focus ring and error boundary,
-  imported from `src/components/input/classes.ts`), plus the part a text field cannot do: a
-  `number` on one side and a locale-formatted string on the other, through `Intl` and
-  `parseLocaleNumber`. See its own deviations below.
-- **`FieldNumberInput`**, its `./vee-validate` wrapper, binding `number | null`.
+- **`UnitInput` and `CurrencyInput`** — editable unit and money fields, and **ports of the two
+  components Eldra's private component library ships**, not designs of this package's own. The spec
+  has no editable numeric field: its `Price` is a display component (plan 2), and `Input`'s
+  `type="number"` is a native number input, which cannot hold a locale-grouped value at all. They
+  are `Input`'s box in every respect a customer can see (the same sizes, paddings, focus ring and
+  error boundary, imported from `src/components/input/classes.ts`), plus the part a text field
+  cannot do: a `number` on one side and an `Intl`-formatted string in the field **at all times**,
+  reformatted on every keystroke with the caret mapped through the new text. They are a port so
+  that a store that knows those fields knows these; the handful of places this port deliberately
+  departs from them is listed under the deviations below.
+- **`FieldUnitInput` and `FieldCurrencyInput`**, their `./vee-validate` wrappers, binding
+  `number | null`.
+- **`provideEldraUiLocale` / `useEldraUiLocale` / `LOCALE_KEY`** (`src/composables/useLocale.ts`) —
+  the number locale as a provide/inject pair, the same shape as the messages one and deliberately a
+  separate key: the strings a component renders and the locale its numbers are formatted in are
+  different decisions. `UnitInput`, `CurrencyInput` and `QuantityStepper` read it, and each one's
+  own `locale` prop wins over it.
 - **`FieldCheckboxGroup`** — the twelfth `Field*`, for the one root-entry control the spec's list
   of ten left without a way to validate it (see the deviation below).
 - **`filterNumericBeforeInput`** (`src/utils/numeric-input.ts`) — the `beforeinput` filter that
-  keeps a numeric text field numeric, shared by `QuantityStepper` and `NumberInput` and exported
-  for a consumer building a numeric control of their own.
+  keeps a numeric text field numeric, used by `QuantityStepper` and exported for a consumer
+  building a numeric control of their own.
 - **`createNumberFormat` / `formatNumber` / `parseLocaleNumber` / `localeSeparators` /
   `currencyFractionDigits`** (`src/utils/number-format.ts`) — locale-aware number formatting and
   its inverse, behind both numeric controls and exported for use outside them.
@@ -610,63 +620,98 @@ Additions and departures from the design spec, and why.
   control opening out, and a `scaleY`-only entrance visibly stretches the type inside the panel
   while it plays. `--eldra-popover-slide` is gone with it. Closing is instant, as the spec says,
   and under reduced motion the panel simply appears (`--eldra-duration-base` is `0ms` there).
-- **`Input`, `SearchBar` and `NumberInput` share one field recipe.** The spec describes one field
+- **`Input`, `SearchBar` and `UnitInput` share one field recipe.** The spec describes one field
   box and three controls draw it; `SearchBar` used to hold a hand-copied duplicate of `Input`'s
   classes, and the copy had drifted — it had lost the `--eldra-input-radius` variable and carried
   its own spelling of the type-size rules, which is what an operator review saw as a search field
   that "does not behave like the regular input fields". The recipes now live in
   `src/components/input/classes.ts` and all three import them; a component may add its own deltas
-  (`SearchBar`'s pill radius and its two sizes, `NumberInput`'s `prefix` reservation) and never a
+  (`SearchBar`'s pill radius and its two sizes, `UnitInput`'s drag handle) and never a
   second copy of the box. The class strings are internal — a consumer restyles through tokens,
   per-component variables and `classes`, never by importing them.
-- **Both numeric fields filter typing with `beforeinput`.** Neither `QuantityStepper` nor
-  `NumberInput` can be a native `<input type="number">` (see the `QuantityStepper` deviation
-  below), which also means neither gets the browser's own numeric filtering — an operator review
+- **`QuantityStepper` filters typing with `beforeinput`.** It cannot be a native
+  `<input type="number">` (see its own deviation below), which also means it does not get the
+  browser's own numeric filtering — an operator review
   found you could type anything into a quantity field, and it was only corrected on blur.
   `filterNumericBeforeInput` cancels an insertion that would put something non-numeric in the
   field, letting deletions, undo and redo through untouched. **A paste is sanitised rather than
   refused**: pasting `12ab3` inserts `123`, because someone who copied a number with a stray label
   attached meant the number, and refusing the whole paste is a dead end with no message.
 
-  **The locale's group separator is accepted on a decimal field and refused on a whole-number one.**
-  On a decimal field it is useful — someone pasting `1,234.50` means 1234.5, and stripping the comma
-  would give 123450. On a quantity it is a trap, because the same character means different things
-  in different locales: `1,5` reads as "one thousand five" to the parser and as "one point five" to
-  an Icelandic customer, and the field committed 15 while showing something that looked like 1.5.
-  Refused, that character never reaches the field, so the text can never say one thing while the
-  value says another. Both controls show an **ungrouped** editing string while focused
-  (`1,000` becomes `1000`), which is what makes refusing it free: there is never a separator in the
-  field to type after.
+  **The locale's group separator is refused on this whole-number field.** The same character means
+  different things in different locales: `1,5` reads as "one thousand five" to the parser and as
+  "one point five" to an Icelandic customer, and the field committed 15 while showing something
+  that looked like 1.5. Refused, that character never reaches the field, so the text can never say
+  one thing while the value says another. The control shows an **ungrouped** editing string while
+  focused (`1,000` becomes `1000`), which is what makes refusing it free: there is never a
+  separator in the field to type after. `filterNumericBeforeInput` still accepts it on a
+  decimal field, for a consumer building one — someone pasting `1,234.50` means 1234.5.
 
-- **`Enter` in a `NumberInput` commits and does not submit.** The field is inside a `<form>` more
-  often than not, and a keystroke that both corrected the value and sent the form would give nobody
-  a chance to see the correction — so the implicit submission is prevented, the value is parsed,
-  clamped and reformatted under the caret, and focus stays where it is. A second `Enter`, on a
-  field that now shows what it holds, submits as usual. `QuantityStepper` behaves the same way, for
-  the same reason.
-- **A read-only `NumberInput` never enters edit mode and never commits.** Read-only means "the
-  value is readable but fixed", so focusing one keeps the _formatted_ text (a price goes on looking
-  like a price when it is clicked) and leaving it writes nothing — which matters most for a value
-  outside `min`/`max`, where committing would have silently clamped a number the control had
-  promised not to change. `disabled` is inert natively; this is the case that is not.
-- **`NumberInput` commits `null` for text that is not a number.** Not the previous value: a field
-  that silently restored a number the customer had just deleted would be lying about what it
-  holds, and `null` is the same thing an empty field means. Whether that is an _error_ is the
-  caller's to say, through `invalid` and a `FieldWrapper`'s message — the control never invents
-  one.
-- **`NumberInput` posts the raw number through a hidden input.** `name` renders
+  **`UnitInput` and `CurrencyInput` do the opposite, on purpose** (see below): they let a
+  non-numeric keystroke land and strip it on the reformat.
+
+- **`UnitInput` and `CurrencyInput` are ports, and the behaviour is the private library's**
+  (operator ruling, 2026-09-25). "The currency input, unit input should function identical to how
+  they do in the private ui." The field is formatted **while it is typed into** — there is no
+  editing mode and no focus-dependent text — because that is what a merchant already knows these
+  fields to do; a field that showed a plain number under the caret and a formatted one on blur was
+  rejected. Everything that follows from it (the caret mapped by numeric content, the arrow/
+  backspace/delete rules that step over separators and never eat the symbol, `,` and `.` both
+  inserting the locale's decimal, the empty-until-blur rule, the controlled reconciliation, the
+  drag handle) is ported case for case, and
+  `src/components/{unit-input,currency-input}/__tests__/` carries the private specs' own cases
+  under their own names.
+
+  **Typing is not filtered in these two.** A non-numeric keystroke lands and the reformat removes
+  it — the opposite of `QuantityStepper`, and deliberate: this field's own text is full of
+  characters that are not digits (a symbol, group separators, a literal), so a filter judging the
+  resulting value would have to understand the formatted string it is judging. Pasting `12ab3`
+  leaves `123` either way.
+
+  **Four deliberate departures from the private components**, each because the private behaviour is
+  wrong here rather than merely different:
+
+  1. **A typed decimal separator is put back inside the number, not appended to the string.** The
+     private component appends it, which is right for `$1,234.` and wrong for every suffix-symbol
+     format — it produced `1,234 km.` and `1.234 kr.,`.
+  2. **`CurrencyInput` forwards only the props that were actually passed.** The private wrapper
+     spreads all of them, so `UnitInput` sees a bound `modelValue` on a field nobody bound and the
+     reconciliation clears an uncontrolled field a tick after every keystroke.
+  3. **Double-click is wired to the native `dblclick` event.** The private wrapper listens for a
+     `doubleClick` that nothing emits, so selecting the digits by double-click never worked there.
+  4. **Read-only and disabled fields do nothing at all** — no editing, no caret placement, no
+     stepping, no drag, no clear button. The private component has no read-only state.
+
+  And the package conventions on top of the port: the `data-part` anatomy and `classes`, the three
+  field sizes, the `FieldWrapper` context (`id`, `invalid`, `required`, composed `describedBy`),
+  `locale` from a prop or `provideEldraUiLocale()` rather than from vue-i18n, and the form value
+  below.
+
+- **`UnitInput` draws its own `label` only when nothing above it names the field.** The prop is
+  kept for parity with the private component, whose own wrapper draws a label; inside a
+  `FieldWrapper` the wrapper owns the label, and a second one would say it twice. That is also why
+  the field box is one element deeper than `Input`'s: the `field` part is what the leading icon and
+  the suffix row are positioned against, so a label above them cannot shift them.
+- **`UnitInput` posts the raw number through a hidden input.** `name` renders
   `<input type="hidden" :name :value>` carrying `1234.5`, and the visible control has no `name` of
   its own, so exactly one value is posted and it is never the locale string — `"1.234,5"` would be
-  read as `1.2345` by almost every server.
-- **`NumberInput` has no `role="spinbutton"`, unlike `QuantityStepper`.** A spinbutton's value
-  space is bounded by `aria-valuemin`/`-valuemax`, and this control's `min`/`max` are optional; a
-  spinbutton with no bounds announces less than the plain text field a screen reader otherwise
-  reads. `ArrowUp`/`ArrowDown` still step (by `step`, ten times that with `Shift`).
-- **`NumberInput`'s `prefix` reserves a fixed start padding.** A `prefix` slot reserves `Input`'s
-  own 2.25rem, and an icon _plus_ a prefix reserves 3.5rem, with the prefix after the icon. Neither
-  is measured — the same rough edge `Input`'s `suffix` row has — so a prefix wider than its
-  reservation needs `classes.control` to say so. The currency symbol and the unit are not affected:
-  they are part of the formatted text `Intl` produces, not a part this component draws.
+  read as `1.2345` by almost every server. (The private component posts the formatted string,
+  because it has no hidden input; this package already made the other choice for its numeric
+  fields, and a form value that parses differently on every server is not a parity worth keeping.)
+- **`UnitInput` has no `role="spinbutton"`, unlike `QuantityStepper`.** A spinbutton's value space
+  is bounded by `aria-valuemin`/`-valuemax`, and this control's `max` defaults to the largest safe
+  integer; a spinbutton with no meaningful bounds announces less than the plain text field a screen
+  reader otherwise reads. `ArrowUp`/`ArrowDown` still step by `step`.
+- **The drag handle is out of the accessible tree** (`aria-hidden`, `tabindex="-1"`, pointer only).
+  Every value it can reach is reachable with `ArrowUp`/`ArrowDown` on the field itself, so
+  announcing a second control for the same job would only add a stop to the keyboard path.
+- **The tick in a `Checkbox` and in a multi-select option is Tabler's check, not the spec's literal
+  ink box** (operator finding, 2026-09-25). The spec's Sizes tables give the tick as
+  0.3125 × 0.625rem (and 0.25 × 0.5rem in an option row) — a 2 : 1 box — and drawn at exactly that
+  it reads as a shallow V rather than as a tick. Both marks are now Tabler's `check` geometry
+  (`M5 12l5 5l10 -10` over 24 units, ≈3 : 2), scaled to fit each box with the spec's 2px stroke and
+  round caps, centred. The widths are unchanged, so the marks still fill the boxes they sit in; the
+  indeterminate dash is untouched.
 - **A `Select` or `MultiSelect` trigger shows the focus ring while its popover is open** (operator
   request). A trigger opened with the pointer is focused but not `:focus-visible`, so the ring did
   not show, and an open popover hung off a control with nothing saying it was the one the keyboard

@@ -1,6 +1,6 @@
 import { defineNuxtPlugin } from 'nuxt/app';
 import { inject } from 'vue';
-import { MESSAGES_KEY, type UiMessages } from '@eldrajs/ui';
+import { LOCALE_KEY, MESSAGES_KEY, type UiMessages } from '@eldrajs/ui';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { uiEnUS, uiMessagesFor } from '../i18n/uiMessages';
 
@@ -14,6 +14,12 @@ import { uiEnUS, uiMessagesFor } from '../i18n/uiMessages';
  * reads the injected object inside a `computed`, so touching `preview.locale`
  * through a getter is what makes the switch reactive — and, unlike a `watch`,
  * it creates no effect that would outlive a server request.
+ *
+ * The same provide gives the package the content locale its **numbers** are
+ * formatted in (`UnitInput`, `CurrencyInput`, `QuantityStepper`), as a getter
+ * for the same reason. The two are separate keys on purpose: the strings a
+ * component renders and the locale its numbers are formatted in are different
+ * decisions, and a component's own `locale` prop still wins over this.
  *
  * `runWithContext` is how a plugin injects an app-level provide from outside a
  * `setup()` scope: @eldrajs/theme-nuxt's own plugin puts the context on
@@ -34,5 +40,6 @@ export default defineNuxtPlugin({
       });
     }
     nuxtApp.vueApp.provide(MESSAGES_KEY, messages);
+    nuxtApp.vueApp.provide(LOCALE_KEY, () => context?.preview.locale ?? undefined);
   },
 });

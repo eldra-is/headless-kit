@@ -276,13 +276,14 @@ function onPanelMouseDown(event: MouseEvent): void {
               :class="boxClass(option)"
               aria-hidden="true"
             >
-              <!-- The same tick as `Checkbox`, at the spec's 0.25 × 0.5rem with a 2px stroke. The
-                   svg is drawn at exactly that size over an 8 × 4 viewBox, so one unit is one
-                   pixel: `stroke-width="2"` is 2px, and the ink — the centreline plus a 1-unit
-                   round cap at each end — measures 8 × 4 units, which is 0.5rem × 0.25rem. -->
+              <!-- The same tick as `Checkbox`: Tabler's check (`M5 12l5 5l10 -10` over 24 units)
+                   scaled by 0.4 and centred, so a 6 × 4 centreline — 3 : 2, not the 2 : 1 of the
+                   spec's literal 0.25 × 0.5rem ink box, which read flat at this size. The svg is
+                   drawn 0.5rem square over an 8 × 8 viewBox, so one unit is still one pixel and
+                   `stroke-width="2"` is still 2px; the ink is 8 × 6 units, inside the box. -->
               <svg
                 :class="optionTickClass(isSelected(option))"
-                viewBox="0 0 8 4"
+                viewBox="0 0 8 8"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
@@ -291,7 +292,7 @@ function onPanelMouseDown(event: MouseEvent): void {
                 aria-hidden="true"
                 focusable="false"
               >
-                <path d="M1 1.83l1.5 1.17l4.5 -2" />
+                <path d="M1 4l2 2l4 -4" />
               </svg>
             </span>
 

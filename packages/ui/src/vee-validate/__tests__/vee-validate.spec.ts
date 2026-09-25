@@ -11,13 +11,14 @@ import FieldCheckbox from '../FieldCheckbox.vue';
 import FieldCheckboxGroup from '../FieldCheckboxGroup.vue';
 import FieldInput from '../FieldInput.vue';
 import FieldMultiSelect from '../FieldMultiSelect.vue';
-import FieldNumberInput from '../FieldNumberInput.vue';
+import FieldCurrencyInput from '../FieldCurrencyInput.vue';
 import FieldQuantityStepper from '../FieldQuantityStepper.vue';
 import FieldRadioGroup from '../FieldRadioGroup.vue';
 import FieldSearchBar from '../FieldSearchBar.vue';
 import FieldSelect from '../FieldSelect.vue';
 import FieldSwitch from '../FieldSwitch.vue';
 import FieldTextarea from '../FieldTextarea.vue';
+import FieldUnitInput from '../FieldUnitInput.vue';
 import FieldVariantPicker from '../FieldVariantPicker.vue';
 import Form from '../Form.vue';
 
@@ -891,7 +892,7 @@ describe('a Field on its own', () => {
   });
 });
 
-describe('FieldNumberInput inside a Form', () => {
+describe('FieldCurrencyInput and FieldUnitInput inside a Form', () => {
   it('binds a number, not the locale string the customer read', async () => {
     // The whole reason the control exists: a field showing "1.234,56" under `is-IS` has to put
     // `1234.56` in the form's values, or every rule and every server after it reads 1.234.
@@ -899,11 +900,10 @@ describe('FieldNumberInput inside a Form', () => {
       (typeof value === 'number' && value >= 10) || 'Enter at least 10.';
 
     const wrapper = mountForm(() =>
-      h(FieldNumberInput, {
+      h(FieldCurrencyInput, {
         name: 'price',
         rules: tooCheap,
         locale: 'is-IS',
-        format: 'currency',
         currency: 'ISK',
         label: 'Price',
       })
@@ -913,24 +913,27 @@ describe('FieldNumberInput inside a Form', () => {
     await control.trigger('focus');
     (control.element as HTMLInputElement).value = '1234,56';
     await control.trigger('input');
-    await control.trigger('blur');
     await settle();
 
-    // ISK has no minor unit, so the commit rounds to a whole króna — and the hidden input that a
-    // scripting-free post would carry holds that same raw number.
+    // The field is formatted while it is being typed into — there is no blur to wait for — and
+    // the hidden input a scripting-free post would carry holds the raw number.
+    expect((control.element as HTMLInputElement).value).toBe('1.234,56\u00a0kr.');
     expect(control.attributes('aria-invalid')).toBeUndefined();
-    expect((wrapper.find('input[type="hidden"]').element as HTMLInputElement).value).toBe('1235');
+    expect((wrapper.find('input[type="hidden"]').element as HTMLInputElement).value).toBe(
+      '1234.56'
+    );
 
     await wrapper.find('form').trigger('submit');
     await settle();
-    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ price: 1235 });
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ price: 1234.56 });
     wrapper.unmount();
   });
 
   it('shows a rule message once the field has been left', async () => {
     const wrapper = mountForm(() =>
-      h(FieldNumberInput, {
-        name: 'price',
+      h(FieldUnitInput, {
+        name: 'distance',
+        unit: 'kilometer',
         rules: (value: unknown) =>
           (typeof value === 'number' && value >= 10) || 'Enter at least 10.',
       })

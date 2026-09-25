@@ -1016,11 +1016,14 @@ describe('Checkbox — inside a real FieldWrapper', () => {
 
 describe('Checkbox — the mark geometry', () => {
   /**
-   * Spec "Checkbox" → Sizes: "tick 0.3125 × 0.625rem, 2px stroke; dash 0.625rem wide, 2px". The
-   * svg is 0.625rem across a 10-unit viewBox, so one unit is one pixel of the drawn mark and the
-   * ink — the centreline plus a 1-unit round cap at each end — has to measure 10 × 5 for the tick
-   * and 10 × 2 for the dash. Asserted as numbers rather than as a path string, so the shape can be
-   * redrawn and the measurements still hold.
+   * The svg is 0.625rem across a 10-unit viewBox, so one unit is one pixel of the drawn mark: the
+   * dash's ink — the centreline plus a 1-unit round cap at each end — has to measure the spec's
+   * 10 × 2.
+   *
+   * The **tick** is Tabler's check rather than the spec's literal 0.3125 × 0.625rem ink box: drawn
+   * at that 2 : 1 it read flat (operator finding), so the geometry is Tabler's ≈3 : 2 scaled to fit
+   * and centred. What is asserted is therefore the *ratio* and the fit, not a path string — the
+   * shape can be redrawn and the measurements still hold.
    */
   const CAP = 1;
 
@@ -1073,10 +1076,30 @@ describe('Checkbox — the mark geometry', () => {
     wrapper.unmount();
   });
 
-  it('draws the tick 0.625rem wide and 0.3125rem tall, 2px thick', () => {
+  it('draws the tick at Tabler’s 3 : 2, 2px thick, filling the box it is centred in', () => {
     const { d, strokeWidth } = markPath({ modelValue: true });
     expect(strokeWidth).toBe('2');
-    expect(inkBox(d)).toEqual({ width: 10, height: 5 });
+
+    // The centreline, which is what carries the shape: Tabler's check is 15 × 10 over 24 units.
+    const p = points(d);
+    const xs = p.map(([x]) => x);
+    const ys = p.map(([, y]) => y);
+    const width = Math.max(...xs) - Math.min(...xs);
+    const height = Math.max(...ys) - Math.min(...ys);
+    expect(width / height).toBeCloseTo(1.5, 5);
+
+    // Centred in the 10-unit box, and its ink (the 1-unit caps included) inside it.
+    const { width: inkWidth, height: inkHeight } = inkBox(d);
+    expect(inkWidth).toBeLessThanOrEqual(10);
+    expect(inkHeight).toBeLessThanOrEqual(10);
+    expect(Math.min(...xs) + Math.max(...xs)).toBeCloseTo(10, 5);
+    expect(Math.min(...ys) + Math.max(...ys)).toBeCloseTo(10, 5);
+
+    // Tabler's own segment shape: down-right to the corner, then up-right twice as far.
+    const [start, corner, end] = p as [[number, number], [number, number], [number, number]];
+    expect(corner[1]).toBeGreaterThan(start[1]);
+    expect(end[1]).toBeLessThan(start[1]);
+    expect((end[0] - corner[0]) / (corner[0] - start[0])).toBeCloseTo(2, 5);
   });
 
   it('draws the dash 0.625rem wide and 2px thick', () => {

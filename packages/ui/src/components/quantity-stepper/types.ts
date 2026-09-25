@@ -29,7 +29,7 @@ export interface QuantityStepperProps {
   /**
    * The BCP 47 locale for display formatting and for parsing a typed value (`parseLocaleNumber`) —
    * not part of the design spec's own Properties table, which the task brief adds. Defaults to
-   * `"en-US"`.
+   * whatever `provideEldraUiLocale` set for the app, and to `"en-US"` with nothing provided.
    */
   locale?: string;
   /** Per-part class overrides, merged with `tailwind-merge`. */

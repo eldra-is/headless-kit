@@ -2,13 +2,14 @@ import type { FormMeta, FormOptions, RuleExpression } from 'vee-validate';
 import type { CheckboxGroupProps, CheckboxProps } from '../components/checkbox/types';
 import type { FormLayoutProps } from '../components/form-layout/types';
 import type { InputProps } from '../components/input/types';
-import type { NumberInputProps } from '../components/number-input/types';
+import type { CurrencyInputProps } from '../components/currency-input/types';
 import type { QuantityStepperProps } from '../components/quantity-stepper/types';
 import type { RadioGroupProps } from '../components/radio/types';
 import type { SearchBarProps } from '../components/search-bar/types';
 import type { MultiSelectProps, SelectProps } from '../components/select/types';
 import type { SwitchProps } from '../components/switch/types';
 import type { TextareaProps } from '../components/textarea/types';
+import type { UnitInputProps } from '../components/unit-input/types';
 import type { VariantPickerProps } from '../components/variant-picker/types';
 
 /**
@@ -53,7 +54,11 @@ export type FieldTextareaProps = Omit<TextareaProps, 'modelValue' | 'invalid'> &
   FieldBinding<string>;
 
 /** `number | null`, not a string: a rule compares numbers and the form submits one. */
-export type FieldNumberInputProps = Omit<NumberInputProps, 'modelValue' | 'invalid'> &
+export type FieldUnitInputProps = Omit<UnitInputProps, 'modelValue' | 'invalid'> &
+  FieldBinding<number | null>;
+
+/** The same value as `FieldUnitInput`'s, for the money field. */
+export type FieldCurrencyInputProps = Omit<CurrencyInputProps, 'modelValue' | 'invalid'> &
   FieldBinding<number | null>;
 
 export type FieldCheckboxProps = Omit<CheckboxProps, 'modelValue' | 'invalid'> &

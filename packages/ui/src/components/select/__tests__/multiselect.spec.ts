@@ -840,13 +840,14 @@ describe('MultiSelect — accessibility', () => {
 describe('MultiSelect — the checkbox geometry', () => {
   /**
    * Spec "Multi-select" → Sizes, "Checkbox in option": "1rem square … Checked: `primary` fill and
-   * border with a `primary-contrast` tick (0.25 × 0.5rem, 2px stroke)." The svg is drawn at the
-   * tick's own size over an 8 × 4 viewBox, so one unit is one pixel of the drawn mark: the ink —
-   * the centreline plus a 1-unit round cap at each end — has to measure 8 × 4. Asserted as numbers
-   * rather than as a path string, so the shape can be redrawn and the measurements still hold.
-   *
-   * (The same shape at a 10-unit viewBox squeezed into 0.5rem would render `stroke-width="2"` as
+   * border with a `primary-contrast` tick (0.5rem wide, 2px stroke)." The svg is drawn 0.5rem
+   * square over an 8 × 8 viewBox, so one unit is one pixel of the drawn mark and `stroke-width`
+   * `2` is 2px. (The same shape at a 10-unit viewBox squeezed into 0.5rem would render that `2` as
    * 1.6px, which is what this guards.)
+   *
+   * The mark itself is `Checkbox`'s — Tabler's check at ≈3 : 2, not the spec's literal 2 : 1 ink
+   * box, which read flat (operator finding) — so what is asserted is the ratio and the fit rather
+   * than a path string.
    */
   const CAP = 1;
 
@@ -876,20 +877,24 @@ describe('MultiSelect — the checkbox geometry', () => {
 
   it('draws the svg at the mark size, so a viewBox unit is a drawn pixel', async () => {
     const { classes, viewBox } = await tick();
-    // 0.5rem × 0.25rem on the 0.25rem spacing step.
-    expect(classes).toContain('w-2');
-    expect(classes).toContain('h-1');
-    expect(viewBox).toBe('0 0 8 4');
+    // 0.5rem square on the 0.25rem spacing step.
+    expect(classes).toContain('size-2');
+    expect(viewBox).toBe('0 0 8 8');
   });
 
-  it('draws the tick 0.5rem wide and 0.25rem tall, 2px thick', async () => {
+  it('draws the tick at Tabler’s 3 : 2, 2px thick, filling the width it is centred in', async () => {
     const { d, strokeWidth } = await tick();
     expect(strokeWidth).toBe('2');
     const p = points(d);
     const xs = p.map(([x]) => x);
     const ys = p.map(([, y]) => y);
-    expect(Math.max(...xs) - Math.min(...xs) + 2 * CAP).toBeCloseTo(8, 5);
-    expect(Math.max(...ys) - Math.min(...ys) + 2 * CAP).toBeCloseTo(4, 5);
+    const width = Math.max(...xs) - Math.min(...xs);
+    const height = Math.max(...ys) - Math.min(...ys);
+    expect(width / height).toBeCloseTo(1.5, 5);
+    // The ink is the spec's 0.5rem wide, and the mark is centred in its box.
+    expect(width + 2 * CAP).toBeCloseTo(8, 5);
+    expect(Math.min(...xs) + Math.max(...xs)).toBeCloseTo(8, 5);
+    expect(Math.min(...ys) + Math.max(...ys)).toBeCloseTo(8, 5);
   });
 
   it('keeps the whole mark inside its viewBox, so no cap is clipped', async () => {
@@ -897,7 +902,7 @@ describe('MultiSelect — the checkbox geometry', () => {
       expect(x - CAP).toBeGreaterThanOrEqual(0);
       expect(x + CAP).toBeLessThanOrEqual(8);
       expect(y - CAP).toBeGreaterThanOrEqual(0);
-      expect(y + CAP).toBeLessThanOrEqual(4);
+      expect(y + CAP).toBeLessThanOrEqual(8);
     }
   });
 });

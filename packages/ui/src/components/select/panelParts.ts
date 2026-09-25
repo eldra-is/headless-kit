@@ -194,17 +194,18 @@ export function emptyClass(classes: PanelClasses | undefined): string {
  * The tick inside that box (spec "Multi-select" → Sizes: "a `primary-contrast` tick (0.25 × 0.5rem,
  * 2px stroke)").
  *
- * The svg is drawn at the tick's own size — 0.5rem × 0.25rem, which is `w-2 h-1` on the 0.25rem
- * spacing step — over an 8 × 4 viewBox, so one viewBox unit is one pixel of the drawn mark and
- * `stroke-width="2"` is the spec's 2px. (The same relationship `Checkbox` has at its own larger
- * size; a 10-unit viewBox squeezed into 0.5rem would render that same `2` as 1.6px.)
+ * The svg is drawn 0.5rem square — `size-2` on the 0.25rem spacing step — over an 8 × 8 viewBox,
+ * so one viewBox unit is one pixel of the drawn mark and `stroke-width="2"` is the spec's 2px.
+ * (The same relationship `Checkbox` has at its own larger size; a 10-unit viewBox squeezed into
+ * 0.5rem would render that same `2` as 1.6px.) The mark is Tabler's check at 3 : 2 — 0.5 × 0.375rem
+ * of ink rather than the spec's literal 0.5 × 0.25rem, which read flat (see `Checkbox.vue`).
  *
  * It is always rendered and scaled from 0, rather than added and removed, so it can grow in over
  * `duration-fast` the way `Checkbox`'s does.
  */
 export function optionTickClass(selected: boolean): string {
   return cx(
-    'text-primary-contrast pointer-events-none h-1 w-2 transition-transform duration-fast ease-out',
+    'text-primary-contrast pointer-events-none size-2 transition-transform duration-fast ease-out',
     selected ? 'scale-100' : 'scale-0'
   );
 }

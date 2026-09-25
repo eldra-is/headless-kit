@@ -274,13 +274,16 @@ function onChange(event: Event): void {
         :aria-checked="indeterminate ? 'mixed' : undefined"
         @change="onChange"
       />
-      <!-- The mark (spec "Checkbox" → Sizes): "tick 0.3125 × 0.625rem, 2px stroke; dash 0.625rem
-           wide, 2px". The box is 0.625rem across and the viewBox 10 units, so one unit is one
-           pixel of the mark at its drawn size: `stroke-width="2"` is the spec's 2px, and the ink —
-           the centreline plus a 1-unit round cap each side — measures 10 × 5 units for the tick
-           (0.625 × 0.3125rem) and 10 × 2 for the dash. The tick is therefore twice as wide as it
-           is tall, which is the spec's own ratio, not a steeper one. Decorative: the checked state
-           is the input's, which assistive technology reads. -->
+      <!-- The mark. The box is 0.625rem across and the viewBox 10 units, so one unit is one pixel
+           of the mark at its drawn size: `stroke-width="2"` is the spec's 2px, and the dash is the
+           spec's 0.625rem wide (10 × 2 units of ink).
+
+           The tick is **Tabler's check** (`M5 12l5 5l10 -10` over 24 units), scaled by 0.5 and
+           centred: a 7.5 × 5 centreline, so 3 : 2 rather than the 2 : 1 the spec's literal
+           0.3125 × 0.625rem ink box gives. Drawn at 2 : 1 it read flat — a shallow V rather than a
+           tick (operator finding) — and the ratio was the reason. Ink (centreline plus a 1-unit
+           round cap each side) is 9.5 × 7 units, inside the box at every edge. Decorative: the
+           checked state is the input's, which assistive technology reads. -->
       <svg
         data-part="check"
         :class="checkClass"
@@ -294,7 +297,7 @@ function onChange(event: Event): void {
         focusable="false"
       >
         <path v-if="indeterminate" data-mark="dash" d="M1 5h8" />
-        <path v-else data-mark="tick" d="M1 4.75l2 1.75l6 -3" />
+        <path v-else data-mark="tick" d="M1.25 5l2.5 2.5l5 -5" />
       </svg>
     </span>
 

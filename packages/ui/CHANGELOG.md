@@ -33,19 +33,15 @@ Release-please writes the generated notes from commit messages and does not repl
   `teleportTo` and `teleportDisabled` for a `<Teleport>` around your own panel, resolving the
   enclosing open `<dialog>` for you and staying disabled until mount so the pair is SSR-safe.
   `useFloating`'s `strategy` is `'absolute'` by default, so nothing changes for an existing caller.
-- **A read-only `NumberInput` no longer enters edit mode or commits.** Focusing one kept the
-  formatted value's place but swapped it for the editable string, and leaving it committed — which
-  for a value outside `min`/`max` silently clamped a number the control had promised not to change.
 - **`parseLocaleNumber` reads a trailing decimal separator as the whole number.** `"12."` is `12`,
-  and so is `"12,"` under `is-IS`; a lone `-`, `.` or `,` is still `null`. A `NumberInput` whose
+  and so is `"12,"` under `is-IS`; a lone `-`, `.` or `,` is still `null`. A numeric field whose
   fraction digits were deleted before the field was left used to commit an empty value.
 - **The numeric typing filter refuses the locale group separator on whole-number fields.** `1,5`
   typed into a `QuantityStepper` under `en-US` used to leave the field showing what an Icelandic
-  customer reads as "one point five" while committing fifteen. Both numeric controls now show an
+  customer reads as "one point five" while committing fifteen. It now shows an
   **ungrouped** editing string while focused (`1,000` becomes `1000` and back on blur), which is
-  what makes refusing the character cost nothing. Decimal fields still accept it, so pasting
-  `1,234.50` still means 1234.5.
-- **`NumberInput`'s first arrow press on an empty field lands on `min`**, not `min + step`.
+  what makes refusing the character cost nothing. `filterNumericBeforeInput` still accepts it on a
+  decimal field, so pasting `1,234.50` still means 1234.5.
 - **A disabled `Button` with a component `as` no longer navigates.** A router link navigates from
   its own click listener rather than from the default action, so `preventDefault()` arrived after
   the route had already changed. While disabled the element falls back to the plain `<a href>` for
@@ -61,23 +57,39 @@ Release-please writes the generated notes from commit messages and does not repl
   scan reads this package's `README.md` and `CHANGELOG.md` as well as `src/`, and all three named
   that class while explaining the change — which emitted real CSS for a class on no element.
 
-- **New component: `NumberInput`** — an editable number, money and unit field, and the first thing
-  in this package the design spec has no equivalent of (its `Price` is a display component). It
-  draws `Input`'s box, sizes, focus ring and error boundary, and adds the part a text field cannot
-  do: a `number` on one side and a locale-formatted string on the other. Out of focus it shows the
-  formatted value (`$1,234.50`, `1.235 kr.`, `2.5 kg`); on focus, the plain editable string in the
-  locale; on blur or `Enter` it parses, clamps to `min`/`max`, rounds to `precision` and emits only
-  when the number moved. `precision` and `step` default to the currency's own minor unit (0 digits
-  and a whole króna for ISK, 2 and 0.01 for USD), `name` posts the **raw** number through a hidden
-  input, and unparseable text commits `null`. Exported from the root with `NumberInputProps`,
-  `NumberInputPart` and `NumberInputFormat`.
-- **New `./vee-validate` component: `FieldNumberInput`**, binding `number | null`.
-- **Typing into `QuantityStepper` and `NumberInput` is filtered.** Both fields are `type="text"`
-  (a native number input cannot hold a locale-grouped value), so neither had the browser's own
+- **New components: `UnitInput` and `CurrencyInput`**, replacing the `NumberInput` that appeared
+  earlier in this same unreleased window and **never shipped**. They are one-to-one ports of the
+  two fields Eldra's private component library ships, so a store that knows those fields knows
+  these: the value is formatted in the field **while it is typed into** (`$1,234.5`, `1.234 kr.`,
+  `1,234 km`) rather than on blur, with the caret mapped through each reformat by numeric content,
+  `ArrowUp`/`ArrowDown` stepping by `step`, arrow/backspace/delete rules that step over separators
+  and never eat the symbol, `,` and `.` both inserting the locale's own decimal, undo/redo, an
+  optional pointer-only drag handle (`enableDragAdjust`), a clear button, and an emptied field that
+  stays empty until you leave it and then falls back to `min`. They draw `Input`'s box, sizes,
+  focus ring and error boundary; `name` posts the **raw** number through a hidden input. Exported
+  from the root with `UnitInputProps`/`UnitInputPart` and `CurrencyInputProps`/`CurrencyInputPart`.
+  **Anyone who took `NumberInput` from a pre-release build**: `UnitInput` replaces it —
+  `format="currency"` becomes `CurrencyInput` (or `isCurrency`), `format="unit"` is `UnitInput`'s
+  default shape, `precision` is `maxFraction`, and there is no plain `decimal` format: a field with
+  no unit and no currency is not one of these two.
+- **New `./vee-validate` components: `FieldUnitInput` and `FieldCurrencyInput`**, both binding
+  `number | null`. `FieldNumberInput` is gone with the component it wrapped.
+- **New: `provideEldraUiLocale()` / `useEldraUiLocale()` / `LOCALE_KEY`** — the number locale as a
+  provide/inject pair, the same shape as the messages one and a separate key on purpose. It is the
+  default for `UnitInput`, `CurrencyInput` and `QuantityStepper`; each component's own `locale`
+  prop still wins, and with nothing provided every field formats in `en-US` as before.
+- **Typing into `QuantityStepper` is filtered.** The field is `type="text"`
+  (a native number input cannot hold a locale-grouped value), so it did not have the browser's own
   numeric filtering: you could type letters into a quantity and only the blur corrected it. A
   `beforeinput` filter now cancels a non-numeric insertion, lets deletions/undo/redo through, and
   **sanitises a paste instead of refusing it** — pasting `12ab3` inserts `123`. The helper is
   exported as `filterNumericBeforeInput` for a consumer building a numeric control of their own.
+  `UnitInput` and `CurrencyInput` deliberately do **not** use it: a non-numeric keystroke lands
+  there and the reformat strips it, which is the private components' own behaviour.
+- **The tick in a `Checkbox` and in a multi-select option is a real tick.** Both were drawn to the
+  spec's literal 2 : 1 ink box and read as a shallow V; both are now Tabler's `check` geometry
+  (≈3 : 2) scaled to fit the same box with the same 2px stroke, centred. The indeterminate dash is
+  unchanged. A consumer who styled `[data-part="check"] path` by its `d` attribute should stop.
 - **A pressed `Button` scales to 98% instead of moving down 1px.** The `active:` one-pixel
   downward translate utility is gone from every variant, replaced by `active:scale-[0.98]`; `link`
   keeps no press movement, and a disabled or loading button has none either. Under
@@ -90,7 +102,7 @@ Release-please writes the generated notes from commit messages and does not repl
   it, and the `eldra-popover-in` keyframes no longer read it. `--eldra-popover-origin` now carries
   a two-value `transform-origin` (`top left` / `bottom left`) rather than `top` / `bottom`. The
   `SearchBar`'s results panel had no entrance at all before this and now plays the same one.
-- **`Input`, `SearchBar` and `NumberInput` share one field class recipe** (`src/components/input/classes.ts`).
+- **`Input`, `SearchBar` and `UnitInput` share one field class recipe** (`src/components/input/classes.ts`).
   `SearchBar`'s field was a hand-copied duplicate that had drifted: it had lost the
   `--eldra-input-radius` variable and the `max-md:` mobile type-size override, so it rounded and
   resized differently from every `Input` beside it. No API change; the search field simply behaves
