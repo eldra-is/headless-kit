@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { computed, nextTick } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
@@ -83,6 +83,15 @@ describe('Textarea — value and v-model', () => {
     el.value = 'Happy';
     await wrapper.find('[data-part="control"]').trigger('input');
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['Happy']);
+    wrapper.unmount();
+  });
+
+  it('emits input alongside update:modelValue on every keystroke', async () => {
+    const wrapper = mountWith(Textarea, { props: { modelValue: '' }, attrs: NAME });
+    const el = control(wrapper);
+    el.value = 'Happy';
+    await wrapper.find('[data-part="control"]').trigger('input');
+    expect(wrapper.emitted('input')?.at(-1)).toEqual(['Happy']);
     wrapper.unmount();
   });
 
@@ -201,7 +210,10 @@ describe('Textarea — sizing', () => {
   it('grows the rows fallback with content when field-sizing is unsupported', async () => {
     vi.spyOn(supportsFieldSizingModule, 'supportsFieldSizing').mockReturnValue(false);
 
-    const wrapper = mountWith(Textarea, { props: { modelValue: '' }, attrs: NAME });
+    // Uncontrolled: the watch that drives growFallback reads `model.value`, which for a
+    // controlled instance is the `modelValue` prop itself — a raw `el.value` + `trigger('input')`
+    // never feeds a new prop back in, so nothing here would be measured under a fixed prop value.
+    const wrapper = mountWith(Textarea, { attrs: NAME });
     const el = control(wrapper);
     expect(el.getAttribute('rows')).toBe('3');
 
@@ -210,6 +222,47 @@ describe('Textarea — sizing', () => {
     el.value = 'a lot of text';
     await wrapper.find('[data-part="control"]').trigger('input');
     expect(el.getAttribute('rows')).toBe('10');
+
+    wrapper.unmount();
+    vi.restoreAllMocks();
+  });
+
+  it('re-measures on a programmatic value change, not only on input', async () => {
+    vi.spyOn(supportsFieldSizingModule, 'supportsFieldSizing').mockReturnValue(false);
+
+    const wrapper = mountWith(Textarea, { props: { modelValue: '' }, attrs: NAME });
+    const el = control(wrapper);
+    expect(el.getAttribute('rows')).toBe('3');
+
+    Object.defineProperty(el, 'scrollHeight', { value: 200, configurable: true });
+    Object.defineProperty(el, 'clientHeight', { value: 60, configurable: true });
+    await wrapper.setProps({ modelValue: 'set from outside, never typed' });
+    expect(el.getAttribute('rows')).toBe('10');
+
+    wrapper.unmount();
+    vi.restoreAllMocks();
+  });
+
+  it('grows to an intermediate row count and shrinks back once the value is cleared', async () => {
+    vi.spyOn(supportsFieldSizingModule, 'supportsFieldSizing').mockReturnValue(false);
+
+    // Uncontrolled, for the same reason as the test above.
+    const wrapper = mountWith(Textarea, { attrs: NAME });
+    const el = control(wrapper);
+    // clientHeight tracks the current `rows` the way a real box would (more rows, more height);
+    // scrollHeight is fixed at whatever the current content needs, so the loop stops the moment
+    // the box is tall enough rather than always running to MAX_ROWS.
+    Object.defineProperty(el, 'clientHeight', { get: () => el.rows * 24, configurable: true });
+    Object.defineProperty(el, 'scrollHeight', { value: 150, configurable: true, writable: true });
+
+    el.value = 'several lines of content that need more than the minimum rows to fit';
+    await wrapper.find('[data-part="control"]').trigger('input');
+    expect(el.getAttribute('rows')).toBe('7');
+
+    Object.defineProperty(el, 'scrollHeight', { value: 40, configurable: true, writable: true });
+    el.value = '';
+    await wrapper.find('[data-part="control"]').trigger('input');
+    expect(el.getAttribute('rows')).toBe('3');
 
     wrapper.unmount();
     vi.restoreAllMocks();
@@ -322,47 +375,106 @@ describe('Textarea — counter', () => {
   });
 });
 
-describe('Textarea — live region thresholds', () => {
-  it('is aria-live off well under 90% of the limit', () => {
+describe('Textarea — limit announcements', () => {
+  /** The live region — a `VisuallyHidden`, not the counter itself, which now carries neither. */
+  function liveRegion(wrapper: { find: (s: string) => { text: () => string } }) {
+    return wrapper.find('[role="status"]');
+  }
+
+  it('renders the live region up front, empty, before any threshold is crossed', () => {
     const wrapper = mountWith(Textarea, {
       props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(50) },
       attrs: NAME,
     });
-    expect(wrapper.find('[data-part="counter"]').attributes('aria-live')).toBe('off');
+    const region = liveRegion(wrapper);
+    expect(region.text()).toBe('');
     wrapper.unmount();
   });
 
-  it('turns aria-live polite once the count reaches 90%', async () => {
+  it('the counter itself carries no role and no aria-live', () => {
     const wrapper = mountWith(Textarea, {
-      props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(89) },
+      props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(90) },
       attrs: NAME,
     });
-    expect(wrapper.find('[data-part="counter"]').attributes('aria-live')).toBe('off');
-
-    await wrapper.setProps({ modelValue: 'x'.repeat(90) });
-    expect(wrapper.find('[data-part="counter"]').attributes('aria-live')).toBe('polite');
+    const counter = wrapper.find('[data-part="counter"]');
+    expect(counter.attributes('role')).toBeUndefined();
+    expect(counter.attributes('aria-live')).toBeUndefined();
     wrapper.unmount();
   });
 
-  it('stays aria-live polite once the limit is passed', () => {
+  it('announces the remaining count once on crossing 80%, and not again while still typing past it', async () => {
     const wrapper = mountWith(Textarea, {
-      props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(120) },
+      props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(79) },
       attrs: NAME,
     });
-    expect(wrapper.find('[data-part="counter"]').attributes('aria-live')).toBe('polite');
+    expect(liveRegion(wrapper).text()).toBe('');
+
+    // Crosses 80% (80/100): 20 characters left.
+    await wrapper.setProps({ modelValue: 'x'.repeat(80) });
+    expect(liveRegion(wrapper).text()).toBe('20 characters left');
+
+    // Still in the same zone (85/100, still under the limit): the announcement does not update
+    // to "15 characters left" — it was spoken once, at the crossing, not on every keystroke.
+    await wrapper.setProps({ modelValue: 'x'.repeat(85) });
+    expect(liveRegion(wrapper).text()).toBe('20 characters left');
     wrapper.unmount();
   });
 
-  it('carries a role of status, never announcing every keystroke below 90%', async () => {
+  it('announces the overage once on passing the limit', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(95) },
+      attrs: NAME,
+    });
+
+    await wrapper.setProps({ modelValue: 'x'.repeat(105) });
+    expect(liveRegion(wrapper).text()).toBe('Over the limit by 5');
+
+    // Still over: typing further does not re-announce.
+    await wrapper.setProps({ modelValue: 'x'.repeat(110) });
+    expect(liveRegion(wrapper).text()).toBe('Over the limit by 5');
+    wrapper.unmount();
+  });
+
+  it('jumps straight from below the threshold to over the limit (e.g. a paste)', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(10) },
+      attrs: NAME,
+    });
+    await wrapper.setProps({ modelValue: 'x'.repeat(130) });
+    expect(liveRegion(wrapper).text()).toBe('Over the limit by 30');
+    wrapper.unmount();
+  });
+
+  it('clears the region on leaving a zone, and announces again on re-crossing it', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { counter: true, maxLength: 100, modelValue: 'x'.repeat(70) },
+      attrs: NAME,
+    });
+    expect(liveRegion(wrapper).text()).toBe('');
+
+    // Cross 80%: announces.
+    await wrapper.setProps({ modelValue: 'x'.repeat(80) });
+    expect(liveRegion(wrapper).text()).toBe('20 characters left');
+
+    // Back under 80%: the region clears rather than keeping stale text around.
+    await wrapper.setProps({ modelValue: 'x'.repeat(50) });
+    expect(liveRegion(wrapper).text()).toBe('');
+
+    // Re-crossing 80% announces again, even though it is the same words as before — the content
+    // change is real ('' → text) each time, so it is not a silent no-op update.
+    await wrapper.setProps({ modelValue: 'x'.repeat(82) });
+    expect(liveRegion(wrapper).text()).toBe('18 characters left');
+    wrapper.unmount();
+  });
+
+  it('never announces on every keystroke below 80%', async () => {
     const wrapper = mountWith(Textarea, {
       props: { counter: true, maxLength: 100, modelValue: '' },
       attrs: NAME,
     });
-    const counter = wrapper.find('[data-part="counter"]');
-    expect(counter.attributes('role')).toBe('status');
     for (const value of ['a', 'ab', 'abc']) {
       await wrapper.setProps({ modelValue: value });
-      expect(wrapper.find('[data-part="counter"]').attributes('aria-live')).toBe('off');
+      expect(liveRegion(wrapper).text()).toBe('');
     }
     wrapper.unmount();
   });
@@ -484,11 +596,23 @@ describe('Textarea — describedBy and the field context', () => {
   });
 
   it('follows the field context as it changes', async () => {
+    const invalid = ref(false);
     const wrapper = mountWith(Textarea, {
       attrs: NAME,
-      global: fieldProvider({ invalid: false }),
+      global: {
+        provide: {
+          [FIELD_KEY as symbol]: computed<FieldContext>(() => ({
+            id: 'field-message',
+            invalid: invalid.value,
+            required: false,
+          })),
+        },
+      },
     });
     expect(control(wrapper).getAttribute('aria-invalid')).toBeNull();
+    invalid.value = true;
+    await nextTick();
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
     wrapper.unmount();
   });
 });

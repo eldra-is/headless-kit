@@ -46,8 +46,10 @@ export const enUS = {
   opensInNewTab: '(opens in a new tab)',
   /** A position-in-a-set counter, e.g. a carousel's slide count. */
   counter: (n: number, max: number) => `${n} / ${max}`,
-  /** A `Textarea`'s remaining-characters hint. */
+  /** A `Textarea`'s remaining-characters hint, announced once at 80% of the limit. */
   charactersLeft: (n: number) => `${n} ${n === 1 ? 'character' : 'characters'} left`,
+  /** A `Textarea`'s over-the-limit hint, announced once when the limit is passed. */
+  overLimit: (n: number) => `Over the limit by ${n}`,
   /** A product that cannot be bought. */
   soldOut: 'Sold out',
   /** The `SearchModal`'s field label. */

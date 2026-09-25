@@ -40,6 +40,7 @@ export const isIS: UiMessages = {
   opensInNewTab: '(opnast í nýjum flipa)',
   counter: (n: number, max: number) => `${n} af ${max}`,
   charactersLeft: (n: number) => `${n} ${singular(n) ? 'stafur' : 'stafir'} eftir`,
+  overLimit: (n: number) => `Yfir hámarkinu um ${n}`,
   soldOut: 'Uppselt',
   searchTheShop: 'Leitaðu í búðinni',
   recentSearches: 'Nýlegar leitir',

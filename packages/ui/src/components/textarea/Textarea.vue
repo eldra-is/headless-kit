@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
+import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { supportsFieldSizing } from './supportsFieldSizing';
 import type { TextareaProps } from './types';
 
@@ -29,6 +30,8 @@ const props = withDefaults(defineProps<TextareaProps>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
+  /** Spec "Textarea" → Events: "`input`: fires with the new value on every keystroke." */
+  input: [value: string];
   change: [value: string];
 }>();
 
@@ -58,10 +61,18 @@ const controlStyle = computed(() => ({ '--eldra-textarea-min-height': props.minH
 /**
  * Spec "Textarea" → Variants, Auto-grow: `field-sizing: content` where supported, with a fallback
  * measured on input where it is not. The three numbers below match the spec's own: 5rem (about 3
- * lines) is the growth algorithm's starting point regardless of `minHeight` — CSS `min-height`
- * already enforces the visible floor for a taller `minHeight`, so the fallback only needs a
- * reasonable rows to start counting up from — and 16rem is the max height, which at the control's
- * 1.5rem line and 0.5rem block padding is about 10 rows.
+ * lines) is the growth algorithm's starting point, and 16rem is the max height, which at the
+ * control's 1.5rem line and 0.5rem block padding is about 10 rows.
+ *
+ * (Q3, cosmetic, documented rather than solved) `MIN_ROWS` does not adapt to a smaller `minHeight`.
+ * CSS `min-height` only ever raises a box that would otherwise be shorter — it cannot shrink one
+ * that is already taller — so a `minHeight` set below about 3 lines (the `HardLimit` story's
+ * `min-height="3rem"`, for instance) renders at the `MIN_ROWS`-implied ~5.6rem in a runtime without
+ * `field-sizing` support, not at its own smaller floor, until the box has reason to grow past it
+ * anyway. Every runtime this package tests against (and every runtime the spec's browser support
+ * line covers) has `field-sizing: content`, where this fallback never runs at all. Computing an
+ * accurate floor would mean reverse-engineering padding and line-height back out of an arbitrary
+ * `rem` string passed as a prop; not attempted here.
  */
 const MIN_ROWS = 3;
 const MAX_ROWS = 10;
@@ -76,7 +87,9 @@ const rowsFallback = ref<number | undefined>(fieldSizingSupported ? undefined : 
  * height on input, clamped to 16rem." `rows` is what is actually adjustable on a native
  * `<textarea>`, so growth is done by increasing it until the content fits, capped at `MAX_ROWS` —
  * `max-h-64` (16rem) plus `overflow-y-auto` on the control is the safety net once that cap is hit,
- * so typing further scrolls instead of growing the `rows` attribute without bound.
+ * so typing further scrolls instead of growing the `rows` attribute without bound. Resetting to
+ * `MIN_ROWS` on every call, rather than only ever growing, is also what shrinks the box back down
+ * once its content is cleared or trimmed.
  */
 function growFallback(): void {
   if (fieldSizingSupported) return;
@@ -93,7 +106,13 @@ function growFallback(): void {
   rowsFallback.value = rows;
 }
 
-onMounted(growFallback);
+/**
+ * Re-measures on mount (`immediate`), on every keystroke and on a programmatic `v-model` change
+ * alike — all three are exactly "the value changed" — rather than calling `growFallback` by hand
+ * from each site. `flush: 'post'` so the control's own `value` has already been patched onto the
+ * DOM (and `controlRef` is attached) by the time `scrollHeight` is read.
+ */
+watch(() => model.value, growFallback, { flush: 'post', immediate: true });
 
 /** Spec "Textarea" → Sizes and States, applied the same way Input.vue's BASE is. */
 const BASE =
@@ -146,18 +165,6 @@ const describedBy = computed(() => {
 const length = computed(() => model.value.length);
 /** Spec "Textarea" → States, Error row: "counter `danger` weight 600" once past the limit. */
 const isOverLimit = computed(() => props.maxLength !== undefined && length.value > props.maxLength);
-/**
- * Spec "Textarea" → Behaviour & motion: the limit is announced, never every keystroke. The
- * counter's own `role="status"` region is `aria-live="polite"` only from 90% of the limit onward
- * (which covers both the 90% and the 100%-and-over case the spec names) and `"off"` below it, so
- * ordinary typing stays silent and only a value close to or past the limit is read out.
- */
-const percent = computed(() =>
-  props.maxLength && props.maxLength > 0 ? length.value / props.maxLength : 0
-);
-const liveMode = computed<'polite' | 'off'>(() =>
-  showCounter.value && percent.value >= 0.9 ? 'polite' : 'off'
-);
 
 const footClass = computed(() =>
   partClass('mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1', props.classes, 'foot')
@@ -174,10 +181,50 @@ const counterClass = computed(() =>
   )
 );
 
+/**
+ * Spec "Textarea" → Behaviour & motion: "one polite, visually hidden live region announces once
+ * when the count reaches 80% of the limit ('20 characters left') and once when the limit is passed
+ * ('Over the limit by 3'). It never announces every keystroke." And → Accessibility: "The counter
+ * itself has **no** `aria-live`."
+ *
+ * So the counter span (above) carries neither `role` nor `aria-live`; a separate `VisuallyHidden`
+ * region owns both, always rendered while `showCounter` is true (never toggled by the threshold
+ * itself) so the region already exists in the DOM before its text ever changes — a live region a
+ * screen reader discovers only when it already has new content is not reliably announced.
+ *
+ * The three zones below name the *crossings* the spec asks for. `announcement` is written only on
+ * a zone change: entering `near` (from anywhere) announces the remaining count *at that instant*
+ * (typing further within the same zone does not re-announce, matching "never announces every
+ * keystroke" — the exact figure spoken is a snapshot of the crossing, not a live counter);
+ * entering `over` announces the overage; returning to `below` clears the region's text, so
+ * crossing back into `near` or `over` later announces again (content genuinely changes from `''`
+ * rather than being set to the same string twice, which some screen readers would not re-speak).
+ */
+type LimitZone = 'below' | 'near' | 'over';
+const limitZone = computed<LimitZone>(() => {
+  if (!showCounter.value || props.maxLength === undefined) return 'below';
+  if (length.value > props.maxLength) return 'over';
+  if (length.value / props.maxLength >= 0.8) return 'near';
+  return 'below';
+});
+
+const limitAnnouncement = ref('');
+
+watch(limitZone, (zone) => {
+  const max = props.maxLength as number;
+  if (zone === 'over') {
+    limitAnnouncement.value = m.value.overLimit(length.value - max);
+  } else if (zone === 'near') {
+    limitAnnouncement.value = m.value.charactersLeft(max - length.value);
+  } else {
+    limitAnnouncement.value = '';
+  }
+});
+
 function onInput(event: Event): void {
   const el = event.target as HTMLTextAreaElement;
   model.value = el.value;
-  growFallback();
+  emit('input', el.value);
 }
 
 /** Spec "Textarea" → Events: "`change`: fires with the committed value." */
@@ -210,15 +257,12 @@ function onChange(event: Event): void {
     ></textarea>
 
     <div v-if="showCounter" data-part="foot" :class="footClass">
-      <span
-        :id="counterId"
-        data-part="counter"
-        role="status"
-        :aria-live="liveMode"
-        :class="counterClass"
-      >
+      <span :id="counterId" data-part="counter" :class="counterClass">
         {{ m.counter(length, maxLength as number) }}
       </span>
+      <VisuallyHidden as="p" role="status" aria-live="polite">{{
+        limitAnnouncement
+      }}</VisuallyHidden>
     </div>
   </div>
 </template>

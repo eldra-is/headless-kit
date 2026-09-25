@@ -37,16 +37,22 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - `Textarea` — multi-line text entry that grows with its content from `minHeight` (`5rem` by
   default) up to 16rem, then scrolls: `field-sizing: content` where the runtime supports it, with a
-  measured `rows` fallback (grown on `input` by comparing `scrollHeight` to `clientHeight`) where it
-  does not. `counter` shows `"n / maxLength"` in the foot row once `maxLength` is also set — `muted`
-  under the limit, `danger` weight 600 once the value runs over it (typing past this *soft* limit is
-  still allowed); `hardLimit` also sets the native `maxlength`, so typing stops there instead. The
-  counter is a `role="status"` region that is `aria-live="polite"` from 90% of the limit onward and
-  `"off"` below it, so ordinary typing stays silent. `invalid`, `describedBy`, `required`, `readonly`
-  and `disabled` share `Input`'s states and its field-context wiring through `FIELD_KEY`; the
-  per-part `classes` prop covers `root`, `control`, `foot` and `counter`. `--eldra-textarea-radius`,
-  `--eldra-textarea-min-height` and `--eldra-counter-line-height` restyle it without touching a
-  class.
+  measured `rows` fallback (re-measured against `scrollHeight`/`clientHeight` on mount, on every
+  `input`, and on a programmatic `v-model` change alike) where it does not. `counter` shows
+  `"n / maxLength"` in the foot row once `maxLength` is also set — `muted` under the limit, `danger`
+  weight 600 once the value runs over it (typing past this *soft* limit is still allowed);
+  `hardLimit` also sets the native `maxlength`, so typing stops there instead. The counter itself
+  carries no `role` or `aria-live`; a separate visually hidden, always-rendered `role="status"`
+  `aria-live="polite"` region announces once on crossing 80% of the limit ("20 characters left")
+  and once on passing it ("Over the limit by 3"), clearing itself on leaving a zone so re-crossing
+  it announces again — never on every keystroke. `input` fires alongside `update:modelValue` on
+  every keystroke; `change` fires the committed value. `invalid`, `describedBy` (the counter wires
+  its own id in automatically), `required`, `readonly` and `disabled` share `Input`'s states and its
+  field-context wiring through `FIELD_KEY`; the per-part `classes` prop covers `root`, `control`,
+  `foot` and `counter`. `--eldra-textarea-radius`, `--eldra-textarea-min-height` and
+  `--eldra-counter-line-height` restyle it without touching a class.
+- Messages — `overLimit` (a `Textarea`'s over-the-limit announcement: en-US "Over the limit by 3",
+  is-IS "Yfir hámarkinu um 3").
 - `@eldrajs/ui/tailwind.css` gains `text-counter` (a field's character-counter type style: the
   caption token's size on a `1.5` line, with no `font-weight` of its own so the over-limit state's
   `font-semibold` is a plain, reliably-ordered stock utility rather than fighting a shorthand `font`
