@@ -257,3 +257,29 @@ Additions and departures from the design spec, and why.
   the component's own root, so `data-part` and `classes` selectors reach it and it inherits the
   section it sits in. The spec's own "Don't place a select inside a container that clips overflow"
   is the trade-off that buys.
+- **`MultiSelect`'s parts include the footer's.** The brief's part list stops at the tags; the
+  spec's anatomy draws a footer ("live count · Clear (link button) · Done (primary sm)") and its
+  acceptance criteria test it, so `footer`, `footerCount`, `footerClear` and `footerDone` are parts
+  as well. `optionCheck` is reused for an option's **checkbox** — it is the mark that says a row is
+  chosen in both controls, so a consumer styles it once — and the footer's two buttons are real
+  `Button`s whose `data-part` is the multi-select's rather than `Button`'s own `container`.
+- **`MultiSelect`'s placeholder default is the spec's `"Any"`** (`is-IS`: `"Allt"`), not
+  `"Select options"`. New messages with it: `selected` ("Selected", which names the tag list beside
+  the field's own label), `selectedCount(n)` ("4 selected"), `noneSelected` and `done`.
+- **`MultiSelect`'s clear button belongs to the popover while it is open.** The spec's Tab table
+  walks "from the search field (or the trigger) to the footer's Clear, then Done, with the popover
+  still open", and the trigger's own clear button sits between the trigger and the panel in the tab
+  order. It therefore carries `data-eldra-overlay-owner="<the panel's id>"`, which is how
+  `useOverlay` already recognises a part of an overlay that is not inside its content element, so
+  tabbing through it does not close the popover. `Tab` itself is never consumed: focus landing
+  outside the control is what closes it, which is also what closes it past Done.
+- **`Backspace` in a `MultiSelect`'s empty search field removes the last tag.** Not in the spec's
+  keyboard table — it is the convention every chip input follows — and it is guarded on the query
+  being empty, so it never eats a character the user meant to delete.
+- **A `MultiSelect` value with no option of its own is dropped** from the summary, the tags, the
+  count and the hidden native select. It has no label to show and a `<select>` cannot hold it, so
+  showing a count that includes it would make the trigger disagree with the tags underneath it.
+- **`MultiSelect`'s `value` slot takes `{ options }`** (the chosen ones, in the order they were
+  chosen) and fills the `summary` part, and the `tag` slot takes `{ option }` and replaces a chip's
+  **label**, leaving its remove button in place — a consumer restyling a chip should not have to
+  rebuild the control that empties it.

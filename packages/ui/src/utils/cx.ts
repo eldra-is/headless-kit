@@ -72,6 +72,7 @@ const twMerge = extendTailwindMerge<
             'switch-description',
             'select-group',
             'select-option',
+            'select-pill',
           ],
         },
       ],
@@ -138,7 +139,7 @@ const twMerge = extendTailwindMerge<
       'eldra-focus-proxy': ['eldra-focus-proxy'],
       // Link's focus-ring corner radius (tailwind.css "eldra-link-radius"): the same "rounded"
       // group as `rounded-*`, so a consumer's `classes.root: 'rounded-full'` replaces it.
-      rounded: ['eldra-link-radius'],
+      rounded: ['eldra-link-radius', 'eldra-select-check-radius'],
       // Motion durations (tailwind.css "Motion"): the same "duration" group as `duration-150`.
       duration: ['duration-fast', 'duration-base', 'duration-slow'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.

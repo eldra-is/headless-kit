@@ -574,6 +574,17 @@
     var(--eldra-select-option-line, 1.35) var(--eldra-font-body);
 }
 
+/* The "+N" pill on a Multi-select trigger (spec "Multi-select" -> Sizes: "0.75rem 600 tabular").
+   The overline token carries both numbers, but `text-overline` itself is uppercase — which "+2"
+   must not be — so the pill takes the token pair without the transform, on the pill's own 1.25rem
+   height as its line box. `font-variant-numeric` comes after the `font` shorthand, which resets
+   it. */
+@utility text-select-pill {
+  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
+    var(--eldra-select-pill-line, 1.25rem) var(--eldra-font-body);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The popover's own box (spec "Select" -> Sizes, Popover row): "Min width = trigger, grows to fit
    its content up to min(22rem, 90vw). Max height 20rem: the list scrolls while the search field
    stays put." Two utilities rather than one, because they belong to Tailwind's `max-h` and `max-w`
@@ -604,6 +615,15 @@
 @utility eldra-select-swatch {
   box-shadow: inset 0 0 0 var(--eldra-select-swatch-edge, 1px)
     color-mix(in oklab, var(--eldra-color-text), transparent 70%);
+}
+
+/* A Multi-select option's checkbox (spec "Multi-select" -> Sizes, "Checkbox in option"): "1rem
+   square, 1.5px `border-strong`, 0.25rem radius". The radius is its own variable rather than
+   `--eldra-checkbox-radius`: the box is 1rem where a `Checkbox`'s is 1.125rem or 1.5rem, and
+   `radius-sm` (0.375rem) on a 1rem square reads as a pill rather than a checkbox. The border
+   width is shared with `Checkbox` through `eldra-checkbox-border`. */
+@utility eldra-select-check-radius {
+  border-radius: var(--eldra-select-check-radius, 0.25rem);
 }
 
 /* The active and selected option rows under forced colours (spec "Select" -> States: the active row

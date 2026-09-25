@@ -20,12 +20,21 @@ const componentsDir = fileURLToPath(new NodeURL('../components/', import.meta.ur
 const distDir = fileURLToPath(new NodeURL('../../dist/', import.meta.url));
 const built = existsSync(`${distDir}tailwind.css`) && existsSync(`${distDir}index.js`);
 
-/** Every `.vue` file under `src/components`. */
-function vueFiles(dir: string): string[] {
+/**
+ * Every file under `src/components` that can build a class list: the `.vue` components and the
+ * `.ts` modules some of them keep their class builders in (`select/panelParts.ts`, which holds the
+ * select panel's parts for both `Select` and `MultiSelect` — the search field's inset ring among
+ * them). Specs and stories are excluded: both name these classes in prose without drawing
+ * anything.
+ */
+function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
     const path = join(dir, entry);
-    if (statSync(path).isDirectory()) return vueFiles(path);
-    return path.endsWith('.vue') ? [path] : [];
+    if (statSync(path).isDirectory()) {
+      return entry === '__tests__' ? [] : sourceFiles(path);
+    }
+    if (path.endsWith('.vue')) return [path];
+    return path.endsWith('.ts') && !path.endsWith('.stories.ts') ? [path] : [];
   });
 }
 
@@ -58,7 +67,7 @@ function classLists(source: string): string[] {
 const OWNED = /(?:^|\s)(?:[\w@[\]./-]+:)*(transition|duration)-\S*/;
 
 describe('the focus ring owns its element transitions', () => {
-  const files = vueFiles(componentsDir);
+  const files = sourceFiles(componentsDir);
 
   it('finds the components to check', () => {
     expect(files.length).toBeGreaterThan(0);

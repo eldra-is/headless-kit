@@ -108,3 +108,44 @@ export interface SelectProps {
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<SelectPart, string>>;
 }
+
+/**
+ * A `MultiSelect`'s parts: every part of a `Select` plus the ones only a multi-select draws.
+ *
+ * `optionCheck` is reused for an option's **checkbox** — it is the mark that says "this row is
+ * chosen" in both controls, so a consumer styles it once. The footer parts are not in the brief's
+ * list but are in the spec's anatomy ("footer: live count · Clear (link button) · Done (primary
+ * sm)"), and a part the component draws and a consumer cannot reach is not a part.
+ */
+export type MultiSelectPart =
+  | SelectPart
+  | 'summary'
+  | 'summaryMore'
+  | 'tags'
+  | 'tag'
+  | 'tagRemove'
+  | 'footer'
+  | 'footerCount'
+  | 'footerClear'
+  | 'footerDone';
+
+/**
+ * Everything a `Select` takes except the three the spec redefines: the value is a list, the
+ * placeholder's default is `"Any"` rather than `"Select"`, and there is no `clearable` — "the clear
+ * button is always available when something is selected".
+ */
+export interface MultiSelectProps extends Omit<
+  SelectProps,
+  'modelValue' | 'placeholder' | 'clearable'
+> {
+  /** The selected values (two-way). `[]` means nothing is selected. */
+  modelValue?: string[];
+  /** Shown in `muted` when nothing is selected ("Any colour"). */
+  placeholder?: string;
+  /** The removable tag list under the control. `false` for compact toolbars. */
+  showTags?: boolean;
+  /** How many labels the trigger lists before the "+N" pill. Defaults to 2. */
+  maxSummary?: number;
+  /** Per-part class overrides, merged with `tailwind-merge`. */
+  classes?: Partial<Record<MultiSelectPart, string>>;
+}

@@ -12,6 +12,7 @@ export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
+export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Switch } from './components/switch/Switch.vue';
@@ -59,6 +60,8 @@ export type {
   RadioGroupSize,
 } from './components/radio/types';
 export type {
+  MultiSelectPart,
+  MultiSelectProps,
   SelectOption,
   SelectPart,
   SelectPlacement,

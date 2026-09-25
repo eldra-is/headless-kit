@@ -18,8 +18,11 @@ import { useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
 import { registerOpen, unregisterOpen } from './openRegistry';
+import { optionIconClass, optionSwatchClass } from './panelParts';
+import SelectPanel from './SelectPanel.vue';
 import type { SelectOption, SelectProps, SelectSize } from './types';
-import { normalizeText, useListbox } from './useListbox';
+import { useListbox } from './useListbox';
+import { useOptionList } from './useOptionList';
 
 defineOptions({ inheritAttrs: false });
 
@@ -127,120 +130,31 @@ const showClear = computed(
 const isOpen = ref(false);
 const query = ref('');
 const triggerRef = ref<HTMLButtonElement | null>(null);
-const panelRef = ref<HTMLElement | null>(null);
-const searchRef = ref<HTMLInputElement | null>(null);
 const nativeRef = ref<HTMLSelectElement | null>(null);
 
-// --- filtering ---------------------------------------------------------------------------------
-
 /**
- * Where a query matches inside a label, in **code points of the original string**.
- *
- * Matching is case- and diacritic-insensitive (the spec's "'island' finds 'Ísland'"), so the
- * comparison happens on a normalised copy — and the match has to be reported back in the original
- * string's own offsets, or the bold-and-underlined run would land on the wrong characters for any
- * label holding an accent. Hence the per-character walk: each original code point contributes zero
- * (a combining mark) or more normalised characters, and `positions` maps back.
+ * The panel's own elements. `SelectPanel` owns the DOM it draws and exposes the two pieces this
+ * component has to reach: the panel element, which `useFloating` positions and `useOverlay`
+ * measures "inside" against, and the search input, which opening focuses.
  */
-function matchRange(label: string, rawQuery: string): { start: number; end: number } | null {
-  const needle = normalizeText(rawQuery);
-  if (needle === '') return null;
-  const characters = [...label];
-  const positions: number[] = [];
-  let normalized = '';
-  for (const [index, character] of characters.entries()) {
-    const piece = normalizeText(character);
-    for (let step = 0; step < piece.length; step += 1) positions.push(index);
-    normalized += piece;
-  }
-  const at = normalized.indexOf(needle);
-  if (at === -1) return null;
-  const start = positions[at] ?? 0;
-  const end = (positions[at + needle.length - 1] ?? characters.length - 1) + 1;
-  return { start, end };
-}
-
-/** The label split into the run before the match, the match itself, and the run after it. */
-interface MatchParts {
-  before: string;
-  match: string;
-  after: string;
-}
-
-function matchParts(label: string): MatchParts | null {
-  if (!searchable.value) return null;
-  const range = matchRange(label, query.value.trim());
-  if (range === null) return null;
-  const characters = [...label];
-  return {
-    before: characters.slice(0, range.start).join(''),
-    match: characters.slice(range.start, range.end).join(''),
-    after: characters.slice(range.end).join(''),
-  };
-}
-
-const visibleOptions = computed(() => {
-  const trimmed = query.value.trim();
-  if (!searchable.value || trimmed === '') return props.options;
-  return props.options.filter((option) => matchRange(option.label, trimmed) !== null);
-});
-
-interface Section {
-  key: string;
-  label?: string;
-  labelId?: string;
-  options: SelectOption[];
-}
-
-/**
- * Options bucketed by `group`, in the order each group first appears — so a "Most used" group
- * written first stays first, which is exactly the spec's advice ("Put the 3 to 5 most likely
- * answers first"). Options with no `group` form an unlabelled section of their own.
- */
-function groupOptions(list: SelectOption[], idPrefix: string): Section[] {
-  const order: string[] = [];
-  const buckets = new Map<string, SelectOption[]>();
-  for (const option of list) {
-    const key = option.group ?? '';
-    let bucket = buckets.get(key);
-    if (bucket === undefined) {
-      bucket = [];
-      buckets.set(key, bucket);
-      order.push(key);
-    }
-    bucket.push(option);
-  }
-  return order.map((key, index) => ({
-    key: key === '' ? `${idPrefix}-plain-${index}` : `${idPrefix}-group-${key}`,
-    label: key === '' ? undefined : key,
-    labelId: key === '' ? undefined : `${controlId.value}-g${index}`,
-    options: buckets.get(key) ?? [],
-  }));
-}
-
-const sections = computed(() => groupOptions(visibleOptions.value, 'panel'));
-const nativeSections = computed(() => groupOptions(props.options, 'native'));
-/** The rows in DOM order — which is the section order, not the prop order, once groups interleave. */
-const listOptions = computed(() => sections.value.flatMap((section) => section.options));
-
-/**
- * A `role="listbox"` may own only `option` and `group` children, so the "No matches" text is a
- * sibling of the listbox rather than a child of it — a `role="presentation"` div inside would be
- * an `aria-required-children` violation, while a genuinely empty listbox is merely "needs review".
- * The listbox itself always renders whenever the panel does, empty or not, because
- * `aria-controls` is a *required* property of a `role="combobox"` and has to point at something
- * real while the popup is showing.
- */
-const hasOptions = computed(() => listOptions.value.length > 0);
-
-/**
- * Spec "Select" → Variants, Searchable: "The matched part is bold with a 2px underline." Computed
- * once per query rather than per render of each row: the walk is O(label) and the template would
- * otherwise run it three times for every visible option on every keystroke.
- */
-const highlights = computed(
-  () => new Map(listOptions.value.map((option) => [option.value, matchParts(option.label)]))
+const panelComponent = ref<InstanceType<typeof SelectPanel> | null>(null);
+const panelRef = computed<HTMLElement | null>(() => panelComponent.value?.root ?? null);
+const searchRef = computed<HTMLInputElement | null>(
+  () => panelComponent.value?.searchInput ?? null
 );
+
+// --- the list ----------------------------------------------------------------------------------
+
+/**
+ * Filtering, grouping and match highlighting, shared with `MultiSelect` (see `useOptionList`).
+ * Nothing about *which* rows a panel shows differs between the two controls.
+ */
+const { sections, nativeSections, listOptions, hasOptions, highlights } = useOptionList({
+  options: () => props.options,
+  query: () => query.value,
+  searchable: () => searchable.value,
+  controlId: () => controlId.value,
+});
 
 // --- the keyboard ------------------------------------------------------------------------------
 
@@ -264,8 +178,11 @@ const listbox = useListbox({
   },
 });
 
-const isActive = (option: SelectOption): boolean => listbox.activeValue.value === option.value;
-const isSelected = (option: SelectOption): boolean => model.value === option.value;
+/**
+ * What the panel marks as selected. A single select has exactly one value, and passing it as a
+ * list is what lets one panel serve both controls.
+ */
+const selectedValues = computed(() => [model.value]);
 
 // --- opening and closing -------------------------------------------------------------------------
 
@@ -330,7 +247,6 @@ async function afterOpen(): Promise<void> {
     element?.focus();
     element?.setSelectionRange?.(element.value.length, element.value.length);
   }
-  scrollActiveIntoView();
 }
 
 function closePanel(returnFocus = true): void {
@@ -481,23 +397,6 @@ function onTriggerClick(event: MouseEvent): void {
   else openPanel('start');
 }
 
-/**
- * Spec "Select" → Behaviour: "Pointer presses inside the list don't blur the focused element."
- * `mousedown`'s default action is what moves focus, so preventing it keeps focus where it is while
- * the click still lands.
- *
- * It guards the whole **panel**, not just the list: the padding around the list, the search field's
- * hairline row and the "No matches" text are all press targets, and a press on any of them used to
- * blur the search field — which `useOverlay` then reads as focus leaving the overlay, closing the
- * panel mid-search. The search `<input>` itself is the one exception, because it needs the default
- * action to take focus and put the caret where the user pressed.
- */
-function onPanelMouseDown(event: MouseEvent): void {
-  const target = event.target;
-  if (target instanceof Node && searchRef.value?.contains(target) === true) return;
-  event.preventDefault();
-}
-
 // --- searching ---------------------------------------------------------------------------------
 
 function setQuery(next: string): void {
@@ -506,31 +405,12 @@ function setQuery(next: string): void {
   emit('search', next);
 }
 
-function onSearchInput(event: Event): void {
-  setQuery((event.target as HTMLInputElement).value);
-}
-
 // Spec "Select" → Behaviour, Search: "The first visible enabled option becomes active after each
 // change."
 watch(query, () => {
   if (!isOpen.value) return;
   listbox.activateFrom(undefined);
 });
-
-function scrollActiveIntoView(): void {
-  const id = listbox.activeId.value;
-  if (id === undefined || typeof document === 'undefined') return;
-  // Spec "Select" → Behaviour: "The active option is scrolled into view with a 0.25rem margin
-  // whenever it changes" — the margin is the row's own `scroll-my-1`.
-  document.getElementById(id)?.scrollIntoView?.({ block: 'nearest' });
-}
-
-watch(
-  () => listbox.activeValue.value,
-  () => {
-    if (isOpen.value) void nextTick(scrollActiveIntoView);
-  }
-);
 
 // --- classes -----------------------------------------------------------------------------------
 
@@ -645,26 +525,6 @@ const clearButtonClass = computed(() =>
 );
 
 /**
- * The popover (spec "Select" → Sizes, Popover row). Not a dialog and never teleported: it is a
- * non-modal popup (non-negotiable 2), positioned by `useFloating` against the trigger and kept
- * inside the component's own root so a consumer's `classes` and `data-part` selectors still reach
- * it. `z-popover` puts it over the sticky header, `overflow-hidden` keeps the search field's top
- * corners on the popover's radius, and the list — not the panel — is what scrolls.
- */
-const panelClass = computed(() =>
-  partClass(
-    cx(
-      'absolute z-popover flex flex-col overflow-hidden',
-      'eldra-select-panel-height eldra-select-panel-width',
-      'rounded-md border border-border bg-background shadow-md',
-      'animate-eldra-popover-in'
-    ),
-    props.classes,
-    'panel'
-  )
-);
-
-/**
  * Which edge the panel grows from (spec "Select" → Behaviour & motion: it slides 0.25rem and scales
  * "from its top edge (from its bottom edge when flipped)").
  *
@@ -681,92 +541,9 @@ const panelStyle = computed<Record<string, string>>(() => ({
   '--eldra-popover-slide': isAbove.value ? '0.25rem' : '-0.25rem',
 }));
 
-/** Spec "Select" → Sizes, Search field: 2.5rem tall, text from 2.125rem, inset focus ring. */
-const searchClass = computed(() =>
-  partClass(
-    cx(
-      'control-h w-full min-w-0 rounded-t-md bg-transparent ps-8.5 pe-3',
-      'text-control-sm max-md:text-control-mobile text-text placeholder:text-muted',
-      'eldra-focus-inset eldra-focus-inset-always'
-    ),
-    props.classes,
-    'search'
-  )
-);
-
-const listboxClass = computed(() =>
-  partClass(
-    cx(
-      'overflow-y-auto overscroll-contain',
-      // An empty listbox still renders (see `hasOptions`), so it takes no room of its own.
-      hasOptions.value ? 'min-h-0 flex-1 p-1' : 'h-0'
-    ),
-    props.classes,
-    'listbox'
-  )
-);
-
-/** Spec: "Every group after the first gets a 1px `border` hairline and 0.25rem gap above it." */
-const groupClass = (index: number): string =>
-  partClass(cx(index > 0 && 'mt-1 border-t border-border'), props.classes, 'group');
-
-const groupLabelClass = (index: number): string =>
-  partClass(
-    cx('text-select-group text-muted px-2 pb-1', index > 0 ? 'pt-2.5' : 'pt-2'),
-    props.classes,
-    'groupLabel'
-  );
-
-/** Spec "Select" → Sizes, Option row, and → States for active / selected / disabled. */
-const optionClass = (option: SelectOption): string =>
-  partClass(
-    cx(
-      'flex min-h-9 scroll-my-1 items-center gap-2 rounded-sm px-2 py-1.5 text-select-option',
-      // Forced colours replaces every fill and drops the weight difference, so the two states that
-      // are otherwise carried by a fill and by weight each get a real boundary of their own there.
-      isActive(option) && 'bg-surface-strong eldra-select-option-active',
-      isSelected(option) && 'font-semibold eldra-select-option-selected',
-      option.disabled === true ? 'text-muted cursor-not-allowed' : 'text-text cursor-pointer'
-    ),
-    props.classes,
-    'option'
-  );
-
-const optionLabelClass = (option: SelectOption): string =>
-  partClass(cx('block', option.disabled === true && 'line-through'), props.classes, 'optionLabel');
-
-const optionHintClass = computed(() =>
-  partClass('text-caption text-muted block', props.classes, 'optionHint')
-);
-
-const META_TONE = {
-  warning: 'text-warning font-semibold',
-  danger: 'text-danger font-semibold',
-} as const;
-
-const optionMetaClass = (option: SelectOption): string =>
-  partClass(
-    cx(
-      'ms-3 shrink-0 text-caption tabular-nums',
-      option.metaTone === undefined ? 'text-muted' : META_TONE[option.metaTone]
-    ),
-    props.classes,
-    'optionMeta'
-  );
-
-const optionSwatchClass = computed(() =>
-  partClass('size-4 shrink-0 rounded-full eldra-select-swatch', props.classes, 'optionSwatch')
-);
-
-const optionIconClass = computed(() => partClass('size-4.5 shrink-0', props.classes, 'optionIcon'));
-
-const optionCheckClass = computed(() =>
-  partClass('size-4.5 shrink-0 text-text', props.classes, 'optionCheck')
-);
-
-const emptyClass = computed(() =>
-  partClass('px-3 py-4 text-center text-body-sm text-muted', props.classes, 'empty')
-);
+/** The chosen option's mark in the trigger: the same two parts an option row draws it with. */
+const triggerSwatchClass = computed(() => optionSwatchClass(props.classes));
+const triggerIconClass = computed(() => optionIconClass(props.classes));
 
 /** Spec "Select" → Behaviour, Search: 'the empty state "No matches for “<query>”" shows as text'. */
 const emptyText = computed(() =>
@@ -808,7 +585,7 @@ const emptyText = computed(() =>
           <span
             v-if="selectedOption.swatch"
             data-part="optionSwatch"
-            :class="optionSwatchClass"
+            :class="triggerSwatchClass"
             :style="{ backgroundColor: selectedOption.swatch }"
             aria-hidden="true"
           />
@@ -816,7 +593,7 @@ const emptyText = computed(() =>
             v-else-if="selectedOption.icon"
             data-part="optionIcon"
             :icon="selectedOption.icon"
-            :classes="{ root: optionIconClass }"
+            :classes="{ root: triggerIconClass }"
           />
           <span class="min-w-0 flex-1 truncate">{{ selectedOption.label }}</span>
         </slot>
@@ -868,156 +645,38 @@ const emptyText = computed(() =>
       </svg>
     </button>
 
-    <div
+    <!-- The panel is `SelectPanel`, which `MultiSelect` renders too: one search field, one
+         listbox, one set of option rows for both controls. -->
+    <SelectPanel
       v-if="isOpen"
-      ref="panelRef"
-      :id="panelId"
-      data-part="panel"
-      :class="panelClass"
-      :style="panelStyle"
-      :data-placement="resolvedPlacement"
-      @mousedown="onPanelMouseDown"
+      ref="panelComponent"
+      :panel-id="panelId"
+      :listbox-id="listboxId"
+      :sections="sections"
+      :has-options="hasOptions"
+      :highlights="highlights"
+      :option-id="optionId"
+      :active-value="listbox.activeValue.value"
+      :selected-values="selectedValues"
+      :searchable="searchable"
+      :query="query"
+      :search-placeholder="searchPlaceholderText"
+      :empty-text="emptyText"
+      :labelled-by="labelledBy"
+      :fallback-label="fallbackLabel"
+      :panel-style="panelStyle"
+      :placement="resolvedPlacement"
+      :classes="classes"
+      @search="setQuery"
+      @select="choose"
+      @activate="listbox.setActive"
+      @keydown="listbox.onKeydown"
     >
-      <div v-if="searchable" class="border-border relative shrink-0 border-b">
-        <!-- Tabler's `search` at 1rem, 0.625rem from the start edge. -->
-        <svg
-          class="text-muted pointer-events-none absolute inset-y-0 start-2.5 my-auto size-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-          <path d="M21 21l-6 -6" />
-        </svg>
-        <input
-          ref="searchRef"
-          data-part="search"
-          type="text"
-          role="combobox"
-          :class="searchClass"
-          :value="query"
-          :placeholder="searchPlaceholderText"
-          :aria-label="searchPlaceholderText"
-          aria-autocomplete="list"
-          aria-expanded="true"
-          :aria-controls="listboxId"
-          :aria-activedescendant="listbox.activeId.value"
-          autocomplete="off"
-          spellcheck="false"
-          @input="onSearchInput"
-          @keydown="listbox.onKeydown"
-        />
-      </div>
-
-      <div
-        :id="listboxId"
-        data-part="listbox"
-        role="listbox"
-        :class="listboxClass"
-        :aria-labelledby="labelledBy"
-        :aria-label="fallbackLabel"
-      >
-        <div
-          v-for="(section, sectionIndex) in sections"
-          :key="section.key"
-          :data-part="section.label ? 'group' : undefined"
-          :role="section.label ? 'group' : 'presentation'"
-          :class="section.label ? groupClass(sectionIndex) : undefined"
-          :aria-labelledby="section.labelId"
-        >
-          <div
-            v-if="section.label"
-            :id="section.labelId"
-            data-part="groupLabel"
-            role="presentation"
-            :class="groupLabelClass(sectionIndex)"
-          >
-            {{ section.label }}
-          </div>
-
-          <div
-            v-for="option in section.options"
-            :key="option.value"
-            :id="optionId(option.value)"
-            data-part="option"
-            role="option"
-            :class="optionClass(option)"
-            :aria-selected="isSelected(option) ? 'true' : 'false'"
-            :aria-disabled="option.disabled ? 'true' : undefined"
-            @click="choose(option)"
-            @mouseenter="option.disabled ? undefined : listbox.setActive(option.value)"
-          >
-            <slot
-              name="option"
-              :option="option"
-              :selected="isSelected(option)"
-              :active="isActive(option)"
-            >
-              <span
-                v-if="option.swatch"
-                data-part="optionSwatch"
-                :class="optionSwatchClass"
-                :style="{ backgroundColor: option.swatch }"
-                aria-hidden="true"
-              />
-              <Icon
-                v-else-if="option.icon"
-                data-part="optionIcon"
-                :icon="option.icon"
-                :classes="{ root: optionIconClass }"
-              />
-
-              <span class="min-w-0 flex-1">
-                <span data-part="optionLabel" :class="optionLabelClass(option)">
-                  <template v-if="highlights.get(option.value)"
-                    >{{ highlights.get(option.value)?.before
-                    }}<span class="eldra-select-match">{{
-                      highlights.get(option.value)?.match
-                    }}</span
-                    >{{ highlights.get(option.value)?.after }}</template
-                  >
-                  <template v-else>{{ option.label }}</template>
-                </span>
-                <span v-if="option.hint" data-part="optionHint" :class="optionHintClass">
-                  {{ option.hint }}
-                </span>
-              </span>
-
-              <span v-if="option.meta" data-part="optionMeta" :class="optionMetaClass(option)">
-                {{ option.meta }}
-              </span>
-
-              <!-- Spec "Select" → States, Option selected: "check mark in `text` (never colour
-                   alone)". Decorative: `aria-selected` is what announces it. -->
-              <svg
-                v-if="isSelected(option)"
-                data-part="optionCheck"
-                :class="optionCheckClass"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path d="M5 12l5 5l10 -10" />
-              </svg>
-            </slot>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="!hasOptions" data-part="empty" :class="emptyClass">
-        <slot name="empty">{{ emptyText }}</slot>
-      </div>
-    </div>
+      <template v-if="$slots.option" #option="params">
+        <slot name="option" v-bind="params" />
+      </template>
+      <template v-if="$slots.empty" #empty><slot name="empty" /></template>
+    </SelectPanel>
 
     <!-- Spec "Select" → Progressive enhancement: the real `<select>` stays in the form, hidden and
          in sync, so forms post the value and existing `change` listeners keep working. -->

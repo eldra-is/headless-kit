@@ -5,6 +5,29 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `MultiSelect` — the custom multiple select: the same trigger, popover, listbox, search field,
+  groups, rich options, keyboard and "only one open at a time" rule as `Select`, with a checkbox on
+  every row (`aria-multiselectable="true"`, `aria-selected` per row), a trigger summary of up to
+  `maxSummary` labels followed by a "+N" pill, a removable tag list under the control
+  (`showTags: false` turns it off) and a panel footer holding a polite live count, Clear and Done.
+  `modelValue` is a `string[]`; `change`, `clear`, `open`, `close` and `search` are emitted, and a
+  hidden native `<select multiple name>` underneath stays in sync both ways and fires a bubbling
+  `change`, so forms post every selected value. Toggling never closes the popover: `Enter` (and
+  `Space` without a search field) toggles, `Alt+ArrowUp` toggles and closes, `Tab` walks into the
+  footer with the popover still open, `Backspace` in an empty search field takes the last tag off,
+  and `Backspace`/`Delete` on the closed trigger clear everything. Slots: `option`
+  (`{ option, selected, active }`), `value` (`{ options }`), `tag` (`{ option }`) and `empty`.
+- `Select`'s panel is now the same component `MultiSelect` opens. The search field, the listbox, the
+  groups, the option rows, the empty state, the press guard that keeps a click inside the panel from
+  blurring the focused element, and the active row's scroll-into-view live in one place; the two
+  controls differ only in what choosing a row does. Nothing about `Select` changed — every part,
+  class and screenshot baseline is identical.
+- New messages `selected`, `selectedCount(n)`, `noneSelected` and `done`, and the default
+  `multiSelectPlaceholder` is now the spec's `"Any"` (`is-IS`: `"Allt"`) rather than
+  `"Select options"`.
+- New utilities `text-select-pill` (the "+N" pill's 0.75rem/600 tabular type) and
+  `eldra-select-check-radius` (an option checkbox's 0.25rem corner), with the variables
+  `--eldra-select-pill-line` and `--eldra-select-check-radius`.
 - `Select` — the custom single select: a `<button role="combobox">` trigger over a non-modal
   popover, never the platform's native select UI, with a hidden native `<select name>` (and
   `<optgroup>`s) underneath that stays in sync and fires a bubbling `change`, so forms post the

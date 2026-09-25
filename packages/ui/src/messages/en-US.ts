@@ -32,8 +32,12 @@ export const enUS = {
    * already says which choice this is.
    */
   selectPlaceholder: 'Select',
-  /** Shown by a `MultiSelect` with no value. */
-  multiSelectPlaceholder: 'Select options',
+  /**
+   * Shown by a `MultiSelect` with no value (spec "Multi-select" -> Properties, `placeholder`:
+   * default `"Any"`). It reads as a filter's "no filter applied", which is what a multi-select
+   * mostly is, and the field's own label says which choice it belongs to.
+   */
+  multiSelectPlaceholder: 'Any',
   /** Shown when a filtered list has nothing to show. */
   noResults: 'No results',
   /**
@@ -46,6 +50,17 @@ export const enUS = {
   moreSelected: (n: number) => `+${n}`,
   /** The accessible name of a selected tag's remove button. */
   removeTag: (label: string) => `Remove ${label}`,
+  /**
+   * Names a `MultiSelect`'s tag list. Inside a `FieldWrapper` it is joined with the field's own
+   * label, so the list reads "Selected categories".
+   */
+  selected: 'Selected',
+  /** A `MultiSelect` footer's live count. */
+  selectedCount: (n: number) => `${n} selected`,
+  /** A `MultiSelect` footer's live count with nothing chosen. */
+  noneSelected: 'None selected',
+  /** Closes a `MultiSelect`'s popover. It commits nothing: every toggle already applied. */
+  done: 'Done',
   /** The accessible name of a `QuantityStepper`'s minus button. */
   decrease: 'Decrease',
   /** The accessible name of a `QuantityStepper`'s plus button. */
