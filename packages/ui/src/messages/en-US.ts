@@ -29,6 +29,14 @@ export const enUS = {
   clear: 'Clear',
   /** Dismisses a dialog, a drawer or a toast. */
   close: 'Close',
+  /**
+   * A `Drawer`'s close button, when the drawer has a name to put in it (spec "Drawer" →
+   * Accessibility: "Close button names the drawer: 'Close cart', 'Close menu', 'Close filters'").
+   * `name` is whatever names the drawer — its `title` text if it has one, else its `ariaLabel` —
+   * so a consumer names the exact wording by choosing that prop's value (`title="Cart"` reads
+   * "Close Cart"). Falls back to the plain `close` above when the drawer has neither.
+   */
+  closeDrawer: (name: string) => `Close ${name}`,
   /** Accompanies a spinner or a busy region. */
   loading: 'Loading',
   /**

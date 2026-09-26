@@ -31,6 +31,7 @@ function reviewsWord(n: number): string {
 export const isIS: UiMessages = {
   clear: 'Hreinsa',
   close: 'Loka',
+  closeDrawer: (name: string) => `Loka ${name}`,
   loading: 'Hleð',
   optional: 'valfrjálst',
   required: 'Nauðsynlegt',

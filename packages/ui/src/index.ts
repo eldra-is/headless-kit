@@ -21,6 +21,7 @@ export { default as Container } from './components/container/Container.vue';
 export { default as ContentCard } from './components/card/ContentCard.vue';
 export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
 export { default as Dialog } from './components/dialog/Dialog.vue';
+export { default as Drawer } from './components/drawer/Drawer.vue';
 export { default as EditorPlaceholder } from './components/empty-state/EditorPlaceholder.vue';
 export { default as EmptyState } from './components/empty-state/EmptyState.vue';
 export { default as FeatureCard } from './components/card/FeatureCard.vue';
@@ -116,6 +117,7 @@ export type {
 } from './components/card/types';
 export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
 export type { DialogPart, DialogProps, DialogSize } from './components/dialog/types';
+export type { DrawerPart, DrawerProps, DrawerSide } from './components/drawer/types';
 export type {
   EditorPlaceholderPart,
   EditorPlaceholderProps,

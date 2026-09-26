@@ -31,6 +31,7 @@ export const componentNames = [
   'ContentCard',
   'CurrencyInput',
   'Dialog',
+  'Drawer',
   'EditorPlaceholder',
   'EmptyState',
   'FeatureCard',

@@ -98,6 +98,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `ContentCard`       | `--eldra-content-card-title-size` (default `1.25rem`) and `--eldra-content-card-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own; `--eldra-content-card-excerpt-size` (default `0.9375rem`) and `--eldra-content-card-excerpt-line` (default `1.5`) — the excerpt's own size and line ratio, shared by `FeatureCard`'s `body` (`text-content-card-excerpt` in `tailwind.css`), since both read the same spec number           |
    | `CurrencyInput`     | `UnitInput`'s exactly (it renders a `UnitInput` with `isCurrency` always on) — see the `UnitInput` row                                                                                                                                                                                                                                                                                                                                                              |
    | `Dialog`            | `--eldra-dialog-title-size` (default `1.25rem`), `--eldra-dialog-title-line` (default `1.3`) — the title's own size/line, no token of its own; `--eldra-dialog-width` (default `32rem`), `--eldra-dialog-width-sm` (default `24rem`) — the panel's own width, always capped at `100vw - 2rem` inside the utility itself; `--eldra-dialog-max-height` (default `calc(100vh - 4rem)`)                                                                                 |
+   | `Drawer`            | `--eldra-drawer-title-size` (default `1.25rem`), `--eldra-drawer-title-line` (default `1.3`) — the title's own size/line, no token of its own (the same numbers as `Dialog`'s, but its own variable pair); `--eldra-drawer-width` (default `28rem`) — the panel's own maximum width, capped at the viewport inside the utility itself, which also carries the full-screen-below-a-48rem-_viewport_ media query                                                      |
    | `EditorPlaceholder` | `--eldra-editor-placeholder-border-width` (default `1.5px`) — the dashed boundary's width, distinct from `EmptyState`'s own stock `border` (1px)                                                                                                                                                                                                                                                                                                                    |
    | `EmptyState`        | `--eldra-empty-state-title-size` (default `1.25rem`) and `--eldra-empty-state-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own                                                                                                                                                                                                                                                                                                |
    | `FeatureCard`       | Shares `ContentCard`'s `--eldra-content-card-excerpt-size`/`-line` for its own `body` text (`text-content-card-excerpt`); its `title` reads `text-h4` directly, no variable of its own                                                                                                                                                                                                                                                                              |
@@ -369,8 +370,12 @@ does, and which element the popup is anchored to. See `src/components/select/use
 the full option/return shape (`UsePopoverOptions`, `UsePopoverReturn`, also exported).
 
 `useDialog` is the **modal** counterpart: the shared "Modal dialogs" rules applied to a native
-`<dialog>`, built for `Dialog` and reused by every later modal surface (`Drawer`, `Lightbox`,
-`SearchModal`) instead of each reimplementing them.
+`<dialog>`, built for `Dialog` and reused by every modal surface after it (`Drawer` now; `Lightbox`
+and `SearchModal` next) instead of each reimplementing them. `Drawer` is `Dialog`'s side-sheet
+sibling: it adds only what a side sheet needs beyond the shared contract — a per-side slide, a
+full-screen mobile variant, and a right-side default of focusing the close button first (see the
+README's Deviations for why that is the opposite of `Dialog`'s own initial-focus rule) — passing
+its own `initialFocus` computed ref into the same `useDialog` call shown below.
 
 ```ts
 import { useDialog } from '@eldrajs/ui';
@@ -1866,3 +1871,70 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   addition), so both the probe and the fallback read/write `name` through `getAttribute`/
   `setAttribute` rather than the property, which is what Vue's own `:name` binding sets in every
   engine regardless of whether that engine also exposes it as a property.
+- **`Drawer`'s `label` becomes `ariaLabel`.** The brief's own prop name is an accessible-name-only
+  prop — it never renders as visible text, it only becomes the `<dialog>`'s `aria-label` when there
+  is no `title` to be `aria-labelledby` instead (the menu drawer) — and this package's own naming
+  rule for that shape is `ariaLabel`, not the bare noun (`title` is reserved for _visible_ text
+  everywhere else in the package). Matches operator ruling, 2026-09-25.
+- **`Drawer`'s full-screen mobile variant is a plain `@media (width < 48rem)` query baked into the
+  `eldra-drawer-width` utility itself, never a `@container` query.** The design spec's own Global
+  Constraints name exactly two rules in the whole spec that measure the **viewport** rather than
+  the enclosing block — form-field text below a 48rem viewport, and "the full-screen variants of
+  Drawer, Lightbox and Search modal" below a 48rem viewport — and this is the second one (operator
+  ruling, 2026-09-25). Every other responsive rule in this package measures a container
+  (`@max-tablet`, `@two-col`, …); this one measures the screen a real device has, because a drawer
+  covering "the whole screen" is a statement about the device, not about whatever page-builder
+  column happens to contain it. `48rem` is Tailwind's own `md` breakpoint, the same edge
+  `max-md:text-control-mobile` already measures for the other viewport exception, so the media
+  query is written as literal CSS (`@media (width < 48rem)`, Tailwind v4's own compiled form of
+  `max-md:`) nested inside the `@utility` body rather than a second Tailwind variant class, so a
+  consumer overriding `classes.panel` cannot separate the width clamp from its own mobile
+  exception — the two are one rule together, the same way `eldra-dialog-width`'s viewport clamp is
+  baked into that utility rather than left to a second class.
+- **`Drawer`'s `width` prop feeds `--eldra-drawer-width` (default `28rem`) with the viewport clamp
+  and the full-screen media query both inside the one `eldra-drawer-width` utility**, the same
+  shape `--eldra-dialog-width` uses for `Dialog`'s own width — a literal per-component variable
+  rather than a token, because the spec's own default sits between two tokens and has none of its
+  own. `Textarea`'s `--eldra-textarea-min-height` is the precedent for setting one of these from a
+  prop's inline style rather than a fixed default only.
+- **`Drawer`'s close button focuses first on the right side (cart, filters, quick view), unlike
+  `Dialog`'s own initial-focus rule.** The design spec's own "Drawer" → Variants table gives the
+  right side a different default than every other modal surface in this package: "Cart: the close
+  button. Filters and quick view: the close button unless a control is marked `autofocus`" — the
+  opposite of `Dialog`'s "never the close button while a better candidate exists." `Drawer.vue`
+  computes its own `initialFocus` for `useDialog` (a native `[autofocus]` element inside the body,
+  else the close button) only for `side="right"`; the left side (the menu) passes `undefined`, so
+  `useDialog`'s own default — the first focusable that is not `[data-part="close"]` — already gives
+  "the first link in the menu" for free, since the anatomy puts the `<nav>` first in the body.
+- **`Drawer` has no `dismissable` prop**, unlike `Dialog`. The design spec's own "Drawer" →
+  Behaviour & motion row is unconditional — "Closes on `Esc`, the close button, and a backdrop
+  click" — with no exception column the way the shared modal rules' "unless the dialog holds
+  unsaved input" gives `Dialog`. `useDialog`'s `dismissable` option is simply never passed, which
+  defaults to `true`.
+- **`Drawer`'s reduced-motion entrance reuses `Dialog`'s own `animate-eldra-dialog-in-reduced`
+  keyframe rather than a third one of its own.** Both spec sections ask for the identical "plain
+  opacity fade over `duration-base` (200ms), linear" — no rise, no scale, nothing side-specific — so
+  a second keyframe with the same two declarations would only be a second name for the same rule.
+  Only the non-reduced entrance gets `Drawer`-specific keyframes (`eldra-drawer-in-right`/`-left`,
+  a `translateX` slide from the correct edge), since that part _is_ side-specific.
+- **`Drawer`'s slide animation is on the root `<dialog>`, not the panel**, the same placement
+  `Dialog`'s own `animate-eldra-dialog-in` uses. The root is a full-viewport transparent flex box
+  that only docks its (opaque) panel child to one edge; translating the root by a full 100% of its
+  own (viewport) width slides the panel fully off-screen and back regardless of the panel's own
+  width, while the `::backdrop` — a sibling box, not a descendant — is untouched by the transform
+  and simply stays in place.
+- **`Drawer`'s close button aria-label is a function of whichever prop names the drawer, not a
+  fixed string.** The design spec's own Accessibility notes give three different literal labels
+  for the one control ("Close cart", "Close menu", "Close filters"), which this package cannot know
+  in advance — a new `closeDrawer(name)` message (`Close ${name}`, is-IS `Loka ${name}`) reads
+  whichever of `title`/`ariaLabel` names the drawer, so a consumer reaches the spec's exact wording
+  by choosing that prop's value (`title="Cart"` reads "Close Cart") — falling back to the plain
+  `close` message when the drawer has neither.
+- **`Drawer`'s events and props follow `Dialog`'s own naming, not the design spec's literal
+  `open`/`openChange` two-way property and `afterLeave` event.** `modelValue` (two-way, `Dialog`'s
+  own convention every stateful component in this package shares) replaces `open`/`openChange`;
+  `close(reason)` fires with `"escape"`/`"backdrop"`/`"button"`/an action value, the identical shape
+  `Dialog`'s own `close` event already uses, rather than a bare `close` with no reason. There is no
+  `afterLeave`: the spec's own exit is "instant" (no animation to wait for), the same reasoning that
+  gives `Dialog` no exit-coordination event either — an event that only ever fires on the same tick
+  as `close` would tell a consumer nothing `close` does not already.

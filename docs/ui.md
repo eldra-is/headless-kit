@@ -80,6 +80,9 @@ in progress)
 
 - `Accordion` / `AccordionItem` — a stack of native `<details>`/`<summary>` disclosure rows, single-
   or multiple-open, with an optional link row for a menu entry without children.
+- `Drawer` — a modal side sheet for long content (the cart, filters, quick view from the right;
+  the mobile menu from the left), built on the same `useDialog` contract as `Dialog` and sharing
+  its one-modal-at-a-time slot.
 
 ## Styles
 

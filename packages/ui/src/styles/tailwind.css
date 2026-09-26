@@ -1442,3 +1442,71 @@
     display: none;
   }
 }
+
+/* --- Drawer ----------------------------------------------------------------------------------- */
+
+/* The title (spec "Drawer" → Sizes): "heading font, 1.25rem / 1.3, weight 600, letter-spacing
+   -0.01em" — the exact same numbers as `text-dialog-title` above, but its own variable pair
+   rather than a shared one: a consumer restyling one component's title should not have to think
+   about whether the other one moves with it. */
+@utility text-drawer-title {
+  font: var(--eldra-text-h3-weight) var(--eldra-drawer-title-size, 1.25rem) /
+    var(--eldra-drawer-title-line, 1.3) var(--eldra-font-heading);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
+/* The panel's own width (spec "Drawer" → Properties, `width` row: "Maximum width; always capped
+   at 100% of the viewport") plus the full-screen mobile variant (spec "Drawer" → Mobile: "On any
+   viewport narrower than the drawer's width, the drawer is full width and full height"; Global
+   Constraints: the full-screen variants of Drawer, Lightbox and Search modal are one of only two
+   rules in the whole spec measured on the **viewport**, not a container — operator ruling,
+   2026-09-25). `--eldra-drawer-width` is a literal per-component variable (the spec's own 28rem
+   default sits between two tokens and has none of its own, the same shape as `--eldra-dialog-
+   width`), set from the `width` prop on the panel's own inline style; the viewport cap lives
+   inside the utility itself so it still applies to whatever a consumer sets that variable to, not
+   only to the default. The `48rem` edge below is a plain `@media` query — Tailwind's own `md`
+   *viewport* breakpoint, the same one `max-md:text-control-mobile` above measures — never a
+   `@container` query: this is one of the two rules in the whole design spec that measures the
+   viewport on purpose, not the enclosing block. */
+@utility eldra-drawer-width {
+  width: min(var(--eldra-drawer-width, 28rem), 100vw);
+  @media (width < 48rem) {
+    width: 100vw;
+  }
+}
+
+/* The drawer's own entrance (spec "Drawer" → Behaviour & motion): "Enter: slides in from its edge
+   (translateX(100%) -> 0 for right, -100% -> 0 for left), duration-slow (250ms) ease-out. Exit:
+   instant." Applied to the `<dialog>` root itself (`Drawer.vue`: `animate-eldra-drawer-in-{side}
+   motion-reduce:animate-eldra-dialog-in-reduced`), the same placement `Dialog`'s own
+   `animate-eldra-dialog-in` uses — the root is a full-viewport transparent flex box that only
+   docks its (opaque) panel child to one edge, so translating the root by a full 100% of its own
+   (viewport) width slides the panel fully off-screen and back regardless of the panel's own
+   width, while the `::backdrop` (a sibling box, not a descendant) is untouched by the transform
+   and simply stays put. Reduced motion reuses `Dialog`'s own `eldra-dialog-in-reduced` keyframe
+   rather than a third one of its own: the spec's "plain fade over duration-base (200ms), linear"
+   is the identical opacity-only fade Dialog's reduced-motion state already draws, so a second
+   keyframe with the same two declarations would only be a second name for the same rule. Exit
+   needs no utility at all, matching "instant by default" the same way Dialog's own exit does. */
+@keyframes eldra-drawer-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes eldra-drawer-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@utility animate-eldra-drawer-in-right {
+  animation: eldra-drawer-in-right var(--eldra-duration-slow) var(--eldra-ease-out);
+}
+@utility animate-eldra-drawer-in-left {
+  animation: eldra-drawer-in-left var(--eldra-duration-slow) var(--eldra-ease-out);
+}

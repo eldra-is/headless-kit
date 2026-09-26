@@ -137,6 +137,43 @@ aria-labelledby` its
   (`src/components/accordion/detailsExclusivity.ts`), with a JS fallback that only runs where the
   platform lacks it — which is also what the test suite (happy-dom) exercises, since that engine
   implements neither the grouping algorithm nor the `.name` property.
+- **`Drawer` — Task 2 of the "overlays, navigation, feedback" sub-project, built on Task 1's
+  `useDialog`.** A modal side sheet for long content (design spec's Drawer section): the cart,
+  filters and quick view slide in from the right; the mobile menu from the left. Native `<dialog>`
+  + `showModal()`, sharing `Dialog`'s one-modal-at-a-time `dialogStack` slot. Parts (`data-part`):
+  `root`, `panel`, `header`, `title`, `count`, `close`, `body`, `footer`; slots `default`
+  (scrolling body) and `footer` (fixed); props `modelValue` (two-way), `side` (`"right"` default /
+  `"left"`), `title` (visible `<h2>`, `aria-labelledby`), `ariaLabel` (the accessible name with no
+  visible heading — the menu drawer: `ariaLabel="Menu"` — the brief's own `label` renamed to match
+  this package's "accessible-name-only props are `ariaLabel`" convention), `count` (appends "(3)"
+  in `muted` next to `title`), `width` (a CSS length feeding `--eldra-drawer-width`, default
+  `28rem`, always capped at the viewport), `messages`, `classes`; emits `update:modelValue`,
+  `cancel`, `close` (with how — the identical `"escape"`/`"backdrop"`/`"button"`/action-value shape
+  `Dialog`'s own `close` uses). No `dismissable` prop: the spec gives a drawer's backdrop click no
+  exception, unlike `Dialog`'s. Below a 48rem **viewport** (one of only two rules in the whole
+  design spec measured on the viewport rather than a container — the other is form-field text) the
+  drawer covers the full screen, via a plain `@media (width < 48rem)` query baked into the new
+  `eldra-drawer-width` utility itself, never a `@container` query. The right side (cart, filters,
+  quick view) focuses the close button on open by default, unless a control inside is marked
+  `autofocus` — the opposite of `Dialog`'s own "never the close button while a better candidate
+  exists" — computed as `Drawer`'s own `initialFocus` passed into the same `useDialog` call
+  `Dialog` uses; the left side (the menu) gets no override, so `useDialog`'s existing default (the
+  first focusable that is not `[data-part="close"]`) already gives "the first link in the menu" for
+  free. A new `closeDrawer(name)` message (`en-US`/`is-IS`) gives the close button a name-specific
+  accessible name ("Close cart", "Close menu") from whichever of `title`/`ariaLabel` names the
+  drawer, falling back to the plain `close` message with neither. New `tailwind.css`: `text-drawer-
+  title`, `eldra-drawer-width` (the width variable, viewport clamp and full-screen media query all
+  in one utility), and the `eldra-drawer-in-right`/`-left` entrance keyframes (a `translateX` slide
+  over `duration-slow` `ease-out`, applied to the root `<dialog>` the same way `Dialog`'s own
+  `animate-eldra-dialog-in` is) — reduced motion reuses `Dialog`'s own `eldra-dialog-in-reduced`
+  fade rather than a third keyframe, since both spec sections ask for the identical plain opacity
+  fade. All new utilities registered in `src/utils/cx.ts`'s `cx()` merge groups. `README.md` gained
+  the `Drawer` Customisation row, a `useDialog` Composables note, and Deviations entries (`label` →
+  `ariaLabel`, the viewport-not-container full-screen rule, the width variable, the right-side
+  close-button-first focus rule, no `dismissable` prop, the reused reduced-motion keyframe, the
+  root-not-panel animation placement, the name-specific close message, and the `modelValue`/`close`
+  event naming versus the spec's literal `open`/`openChange`/`afterLeave`); `docs/ui.md`'s
+  "Overlays" section gained a `Drawer` bullet.
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,
