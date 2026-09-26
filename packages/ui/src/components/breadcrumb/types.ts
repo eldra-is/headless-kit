@@ -39,8 +39,13 @@ export interface BreadcrumbProps {
   /** Levels kept visible at the start when collapsed (spec "Breadcrumb" → Properties: "Home").
    *  Defaults to `1`. */
   collapseAfter?: number;
-  /** Levels kept visible at the end when collapsed (spec "Breadcrumb" → Properties: "the parent
-   *  and the current page"). Defaults to `2`. */
+  /**
+   * Levels kept visible at the end when collapsed (spec "Breadcrumb" → Properties: "the parent
+   * and the current page"). Defaults to `2`. Clamped up to a minimum of `1`: the trail's last
+   * item is always the current page (see `BreadcrumbItem`'s own comment) and can never be
+   * collapsed away, so `0` behaves the same as `1` rather than swallowing the current page into
+   * the collapsible middle.
+   */
   keepLast?: number;
   /**
    * Render every level link as a different tag or component instead of a native `<a>` — a router

@@ -1,3 +1,4 @@
+import type { VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
@@ -153,6 +154,106 @@ describe('Breadcrumb — collapse rule', () => {
     expect(wrapper.get('[data-part="ellipsis"]').attributes('aria-label')).toBe(
       'Show 1 more level'
     );
+    wrapper.unmount();
+  });
+});
+
+/**
+ * Fix round 1 (review of `ebeec99`, Major finding): `keepLast: 0` reached a bare
+ * `props.items.slice(-props.keepLast)`, and `slice(-0)` is specified to behave as `slice(0)` — the
+ * whole array — not an empty one, because `-0` is not `< 0`. The current page leaked into
+ * `middleItems` as a demoted, non-current item and `endItems` duplicated the entire trail on top
+ * of it, so every label rendered twice and the true current page briefly lost its `aria-current`.
+ * Fixed by clamping `keepLast` up to a minimum of `1` (`effectiveKeepLast` in `Breadcrumb.vue`) —
+ * every case below asserts each label renders exactly once, in order, and `aria-current="page"`
+ * sits on the last one only, for the three boundary values the review named plus the review's own
+ * "no collapse" cases (`collapseAfter + keepLast >= items.length`, `keepLast > items.length`).
+ */
+describe('Breadcrumb — collapse boundary values', () => {
+  /** Every level's own `[data-part="link"]`/`[data-part="current"]` text, in DOM order — the
+   *  general "no duplicates, right labels, right order" probe every case below reuses. */
+  function renderedLabels(wrapper: VueWrapper): string[] {
+    return wrapper.findAll('[data-part="link"], [data-part="current"]').map((el) => el.text());
+  }
+
+  it('keepLast: 0 renders every label exactly once and keeps aria-current on the true last item', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: CERAMICS_TRAIL, keepLast: 0 } });
+
+    // `effectiveKeepLast` clamps 0 up to 1, so the current page alone survives in `endItems` and
+    // the other four levels (Ceramics, Tableware, Serving, Bowls) collapse — one level more
+    // than the `collapseAfter: 1, keepLast: 1` case would, since nothing is reserved for a
+    // separate "parent" slot.
+    expect(renderedLabels(wrapper)).toEqual(CERAMICS_TRAIL.map((item) => item.label));
+
+    const currents = wrapper.findAll('[data-part="current"]');
+    expect(currents).toHaveLength(1);
+    expect(currents[0]!.attributes('aria-current')).toBe('page');
+    expect(currents[0]!.text()).toBe('Hand-thrown serving bowl, large');
+
+    expect(wrapper.get('[data-part="ellipsis"]').attributes('aria-label')).toBe(
+      'Show 4 more levels'
+    );
+    wrapper.unmount();
+  });
+
+  it('keepLast: 0 keeps hasMiddle in lock step with middleItems, so no stale ellipsis shows', () => {
+    // A two-item trail with the default `collapseAfter: 1`: `effectiveKeepLast` clamps `0` up to
+    // `1`, so `items.length (2) > collapseAfter (1) + effectiveKeepLast (1)` is false — nothing to
+    // collapse. Read `hasMiddle` off the *raw* `keepLast: 0` instead (as the pre-fix code did) and
+    // it computes `2 > 1 + 0`, true — an ellipsis for a `middleItems` that (reading the clamped
+    // value, same as this fix) is actually empty. Both computations reading the same clamped value
+    // is what keeps this trail collapse-free instead of showing a stale, empty ellipsis.
+    const wrapper = mountWith(Breadcrumb, {
+      props: {
+        keepLast: 0,
+        items: [{ label: 'Home', href: '/' }, { label: 'Current page' }],
+      },
+    });
+    expect(wrapper.find('[data-part="ellipsis"]').exists()).toBe(false);
+    expect(renderedLabels(wrapper)).toEqual(['Home', 'Current page']);
+    expect(wrapper.get('[data-part="current"]').attributes('aria-current')).toBe('page');
+    wrapper.unmount();
+  });
+
+  it('collapseAfter: 0 keeps no levels at the start, renders every label once', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: CERAMICS_TRAIL, collapseAfter: 0 } });
+
+    // Nothing is reserved for "Home" specifically, so it collapses along with Ceramics, Tableware
+    // and Serving (default `keepLast: 2` still keeps Bowls and the current page visible) — the
+    // ellipsis itself is the trail's first rendered element.
+    expect(renderedLabels(wrapper)).toEqual(CERAMICS_TRAIL.map((item) => item.label));
+    const currents = wrapper.findAll('[data-part="current"]');
+    expect(currents).toHaveLength(1);
+    expect(currents[0]!.attributes('aria-current')).toBe('page');
+    expect(wrapper.get('[data-part="ellipsis"]').attributes('aria-label')).toBe(
+      'Show 4 more levels'
+    );
+    wrapper.unmount();
+  });
+
+  it('collapseAfter + keepLast >= items.length never collapses, renders every label once', () => {
+    const wrapper = mountWith(Breadcrumb, {
+      // 3 items, collapseAfter (1, default) + keepLast (2, default) = 3 = items.length.
+      props: { items: CERAMICS_TRAIL.slice(0, 3) },
+    });
+    expect(wrapper.find('[data-part="ellipsis"]').exists()).toBe(false);
+    expect(renderedLabels(wrapper)).toEqual(['Home', 'Ceramics', 'Tableware']);
+    const currents = wrapper.findAll('[data-part="current"]');
+    expect(currents).toHaveLength(1);
+    expect(currents[0]!.attributes('aria-current')).toBe('page');
+    expect(currents[0]!.text()).toBe('Tableware');
+    wrapper.unmount();
+  });
+
+  it('keepLast > items.length never collapses, renders every label once', () => {
+    const wrapper = mountWith(Breadcrumb, {
+      props: { items: CERAMICS_TRAIL.slice(0, 3), keepLast: 10 },
+    });
+    expect(wrapper.find('[data-part="ellipsis"]').exists()).toBe(false);
+    expect(renderedLabels(wrapper)).toEqual(['Home', 'Ceramics', 'Tableware']);
+    const currents = wrapper.findAll('[data-part="current"]');
+    expect(currents).toHaveLength(1);
+    expect(currents[0]!.attributes('aria-current')).toBe('page');
     wrapper.unmount();
   });
 });

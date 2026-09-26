@@ -40,27 +40,55 @@ function linkAttrs(item: BreadcrumbItem): Record<string, unknown> {
 }
 
 /**
+ * Spec "Breadcrumb" → Properties, `items` row: "the last item is the current page and has no
+ * `href`" — that invariant (see `BreadcrumbItem`'s own comment) means the trail's true last item
+ * can never be swallowed by the collapsible middle, whatever `keepLast` the caller passes. Every
+ * computation below reads `effectiveKeepLast`, not the raw prop, for exactly that reason:
+ * `keepLast: 0` is clamped up to `1` so the current page always has its own slot in `endItems`,
+ * never `middleItems`.
+ *
+ * This also sidesteps a sharper bug a raw `keepLast: 0` produces on its own: `Array.prototype.
+ * slice`'s negative-zero hazard. `slice(-0)` is specified to behave as `slice(0)` (`-0` is not
+ * `< 0`), so a bare `props.items.slice(-props.keepLast)` at `keepLast: 0` returned the *whole*
+ * array instead of an empty one — review round 1 caught this: the current page leaked into
+ * `middleItems` as a demoted, non-current item, and `endItems` duplicated the entire trail on top
+ * of it, so every label rendered twice above the 48rem collapse threshold. Every slice below is
+ * either unconditional-length-based (`items.length - effectiveKeepLast.value`, never negative
+ * while `hasMiddle` is true — see below) or, for `startItems`, never touches `keepLast` at all.
+ */
+const effectiveKeepLast = computed(() => Math.max(props.keepLast, 1));
+
+/**
  * Spec "Breadcrumb" → Variants, Collapsible: "Keeps the first (Home) and the last two levels."
  * `hasMiddle` is `false` whenever there is nothing to hide — a short trail is never collapsible at
  * any width, and `startItems`/`middleItems` stay empty so every level renders through `endItems`
- * unconditionally (see the template).
+ * unconditionally (see the template). Reads `effectiveKeepLast`, not the raw prop, so this stays
+ * in lock step with `middleItems`/`endItems` below — otherwise a `keepLast: 0` trail exactly as
+ * long as `collapseAfter + 1` could compute `hasMiddle: true` (using the raw `0`) while
+ * `middleItems` (using the clamped `1`) came out empty, showing an ellipsis for zero hidden
+ * levels.
  */
-const hasMiddle = computed(() => props.items.length > props.collapseAfter + props.keepLast);
+const hasMiddle = computed(
+  () => props.items.length > props.collapseAfter + effectiveKeepLast.value
+);
 const startItems = computed(() =>
   hasMiddle.value ? props.items.slice(0, props.collapseAfter) : []
 );
 const middleItems = computed(() =>
-  hasMiddle.value ? props.items.slice(props.collapseAfter, props.items.length - props.keepLast) : []
+  hasMiddle.value
+    ? props.items.slice(props.collapseAfter, props.items.length - effectiveKeepLast.value)
+    : []
 );
 /**
- * Spec "Breadcrumb" → Properties, `items` row: "the last item is the current page and has no
- * `href`." This is the one place that convention is enforced: whichever item ends up last in
- * `endItems` — always `items[items.length - 1]`, whether or not the trail collapses — renders as
- * `<span aria-current="page">` in the template (see `isLast` there), never as a link, regardless
- * of what `href` it happens to carry.
+ * Whichever item ends up last here — always `items[items.length - 1]`, whether or not the trail
+ * collapses — renders as `<span aria-current="page">` in the template (see `isLast` there), never
+ * as a link, regardless of what `href` it happens to carry. `items.length - effectiveKeepLast.value`
+ * (not `-effectiveKeepLast.value`, i.e. never a *negative* `slice` argument) is always `>= 0` here:
+ * `hasMiddle` being `true` already proves `items.length > collapseAfter + effectiveKeepLast.value`,
+ * and `collapseAfter >= 0`, so `items.length > effectiveKeepLast.value` follows directly.
  */
 const endItems = computed(() =>
-  hasMiddle.value ? props.items.slice(-props.keepLast) : props.items
+  hasMiddle.value ? props.items.slice(props.items.length - effectiveKeepLast.value) : props.items
 );
 
 /**

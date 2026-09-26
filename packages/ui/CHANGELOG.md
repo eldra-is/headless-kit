@@ -1294,3 +1294,13 @@ aria-labelledby` its
   `linkAs` naming joins `ContentCard`/`FeatureCard`/`ProductCard` in the Customisation section's
   own `as`-vs-`linkAs` rule rather than getting a Deviations entry of its own. `docs/ui.md`'s
   "Navigation, overlays and feedback" list gained its line.
+- **`Breadcrumb` fix: `keepLast: 0` no longer duplicates the whole trail.** `endItems` reached a
+  bare `props.items.slice(-props.keepLast)`, and `Array.prototype.slice(-0)` is specified to
+  behave as `slice(0)` — the whole array, not an empty one, because `-0` is not `< 0` — so the
+  current page leaked into the collapsible middle as a demoted, non-current item while `endItems`
+  rendered the entire trail again on top of it. Every level-count computation (`hasMiddle`,
+  `startItems`, `middleItems`, `endItems`) now reads a clamped `effectiveKeepLast` (`Math.max
+  (props.keepLast, 1)`) instead of the raw prop: the trail's last item is always the current page
+  (see `BreadcrumbItem`'s own comment) and can never be collapsed away, so `keepLast: 0` behaves
+  the same as `1` rather than losing that guarantee. New regression tests cover `keepLast: 0`,
+  `collapseAfter: 0`, `collapseAfter + keepLast >= items.length`, and `keepLast > items.length`.
