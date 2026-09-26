@@ -44,6 +44,7 @@ export const componentNames = [
   'Link',
   'LogoItem',
   'MultiSelect',
+  'Popover',
   'Price',
   'ProductCard',
   'QuantityStepper',

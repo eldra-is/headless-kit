@@ -5,6 +5,25 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Popover`** — an operator addition beyond design spec 1 (plan 3 task 5), for the private
+  component library's own `Popover`/`Dropdown`: a generic non-modal trigger + floating panel for
+  menus, filters and dropdowns, built on `usePopover` (`Select`/`MultiSelect`/`SearchBar`'s own
+  shared machinery — the "only one open at a time" registry, `useOverlay`'s closing rules,
+  `useFloating`'s positioning, the teleport, the pointer latch), one level more generic: it draws no
+  listbox of its own and joins the same registry, so opening it closes an open `Select` and vice
+  versa. Parts `root` (a `display: contents` wrapper), `trigger` (not drawn — the consumer's own
+  element, wired through a scoped slot: `{ open, toggle, attrs }`, `attrs` carrying `id`, `type:
+  'button'`, `aria-haspopup`, `aria-expanded`, `aria-controls` and the click/pointerdown pair for
+  `v-bind="attrs"`, mirroring the private library's own `#trigger="{ triggerAttrs }"` shape) and
+  `panel` (the floating box, teleported and positioned exactly like `Select`'s). The panel carries no
+  default `role` — a consumer's own fallthrough attrs (`inheritAttrs: false`) land on it directly
+  (`<Popover role="menu">`), and `ariaLabel` sets its `aria-label`. `tabRedirect` is always on;
+  opening moves no focus into the panel (the private library's own `focusOnOpen: false` default).
+  `modelValue` (two-way), `placement` (`useFloating`'s own vocabulary), `matchWidth`, `teleport`
+  (`boolean` only — no custom-selector target for this addition). `README.md` gained the `Popover`
+  Customisation row and an Additions entry; `docs/ui.md`'s "Navigation, overlays and feedback" list
+  gained a `Popover` bullet (and lost a stray duplicate heading line left over from an earlier
+  merge).
 - **Final whole-branch review fixes for the "display, commerce and layout" sub-project.**
   - `formatDate` (`src/utils/date.ts`) never throws now: a malformed, empty or calendar-invalid
     date (`'2026-02-30'`) returns `null` instead of an Invalid Date/`RangeError`, and `ContentCard`

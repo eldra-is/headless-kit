@@ -111,6 +111,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Link`              | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                             |
    | `LogoItem`          | `--eldra-logo-image-max-height` (default `2.5rem`), `--eldra-logo-image-max-width` (default `9rem`) — the logo image's contain box; `--eldra-logo-wordmark-size` (default `1.25rem`) — the wordmark fallback's font size (its weight, line-height and letter-spacing reuse `h2`/`h3` tokens directly, see `text-logo-wordmark` in `tailwind.css`)                                                                                                                   |
    | `MultiSelect`       | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                     |
+   | `Popover`           | `--eldra-z-popover` (default `30`), shared with the other popover panels — no per-component variable of its own: it has no fixed size to clamp, unlike `Select`'s panel                                                                                                                                                                                                                                                                                             |
    | `Price`             | `--eldra-price-current-sm-size` (default `0.9375rem`), `--eldra-price-current-lg-size` (default `1.5rem`) — only `sm`/`lg` need one: `md`'s current price inherits the surrounding text, and `compareAt`/`from`/`unit` scale off whichever size the root sets (`0.9em`, a literal ratio the spec itself gives, and a fixed `0.8125rem`), so neither needs a variable of its own                                                                                     |
    | `UnitInput`         | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width` (`CurrencyInput` is a `UnitInput`, so the same)                                                                                                                                                                                                             |
    | `ProductCard`       | none of its own — it composes `Image`/`Badge`/`StockBadge`/`Price`/`Button`, each restyled through its own row above                                                                                                                                                                                                                                                                                                                                                |
@@ -893,6 +894,34 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   avatar-shaped fallback.
 - **`FormLayout`'s `statusMessage` and `focusOnInvalid`, `Form`'s `successMessage`, and
   `FieldBinding`'s `path`** — each named in the deviations below, where the reason is.
+- **`Popover`** — an operator addition (2026-09-25) for the private component library's own
+  `Popover`/`Dropdown`, which a store migrating onto this package needs a generic equivalent of.
+  There is no spec 1 "Popover" section; the visual language is `Select`'s own popup (its rounded
+  panel, border, shadow and `animate-eldra-popover-in` entrance) and the behaviour is `usePopover`'s
+  — the same registry (`openRegistry`, "only one open at a time" _with_ `Select`/`MultiSelect`/
+  `SearchBar` too), `useOverlay` closing rules, `useFloating` positioning (`placement`,
+  `matchWidth`), teleport (`body`, or the open native `<dialog>` the trigger sits in) and pointer
+  latch that those three controls already share, extracted one level further so a component with no
+  listbox of its own — a menu, a filter panel, a dropdown — can use the exact same machinery instead
+  of a hand-rolled copy.
+
+  Its `trigger` is not drawn by the component at all: a scoped slot (`{ open, toggle, attrs }`,
+  mirroring the private library's own Studio-documented `#trigger="{ triggerAttrs }"` shape) hands
+  the consumer everything to spread (`v-bind="attrs"`) onto whatever element they render — `id`,
+  `type: 'button'`, `aria-haspopup`, `aria-expanded`, `aria-controls`, a `class` built from
+  `classes.trigger`, and the click/pointerdown pair — because a generic popover cannot know whether
+  its trigger should be a `<button>`, an `<a>`, or a table row the way `Select`'s always-a-button
+  trigger can. The panel itself carries **no default `role`** — deliberately, unlike `Select`'s
+  panel, which is always `role="listbox"` because it always is one: a `Popover`'s content could be a
+  menu, a listbox, or a plain filter form, and a package-imposed role would be wrong for at least
+  two of the three. `Popover`'s own `$attrs` (`inheritAttrs: false`) forward onto the panel instead
+  — `<Popover role="menu">` puts `role="menu"` on it directly, the same shape the private library's
+  own `Popover` forwards its fallthrough `attrs` onto its content element with — and `ariaLabel`
+  (this package's own accessible-name convention) sets `aria-label` there for a panel with no
+  visible heading. Opening moves no focus into the panel by default (the private library's own
+  `Popover` makes the same `focusOnOpen: false` choice, for the same reason: it has no idea what is
+  inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
+  the real tab stops that behaviour exists for.
 
 ## Deviations
 

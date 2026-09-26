@@ -76,8 +76,6 @@ in progress)
   for every modal surface built on top of them).
 - `Tabs` / `Tab` / `TabPanel` — an APG-pattern tab list that switches between sibling panels in
   place, `underline` or `pills`, data-driven (`items`) or built from `Tab`/`TabPanel` children.
-  **Navigation, overlays and feedback**
-
 - `Accordion` / `AccordionItem` — a stack of native `<details>`/`<summary>` disclosure rows, single-
   or multiple-open, with an optional link row for a menu entry without children.
 - `Drawer` — a modal side sheet for long content (the cart, filters, quick view from the right;
@@ -85,6 +83,9 @@ in progress)
   its one-modal-at-a-time slot.
 - `Tooltip` — a short, non-modal text label naming or describing an icon-only trigger on hover and
   keyboard focus (WCAG 1.4.13: dismissible, hoverable, persistent).
+- `Popover` — a generic non-modal trigger + floating panel for menus, filters and dropdowns (an
+  operator addition beyond the design spec — see the README), built on the same `usePopover`
+  machinery as `Select`'s own popup.
 
 **Feedback**
 
