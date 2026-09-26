@@ -2327,14 +2327,31 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   review concurrently as this task's own dependency), so `Lightbox.vue` temporarily replaces the
   track's own `scrollTo` for the duration of that one synchronous call and restores it immediately
   after — a local decorator, not a change to `useCarousel` itself.
-- **Every slide's `Image` is `priority` (eager), not only the one at the current index.** The
-  closed `<dialog>` itself already satisfies the spec's own "load full-resolution images only when
-  the viewer opens" — a UA fetches nothing inside an element with no layout box, `loading`
-  attribute aside — so the choice between eager and lazy only matters for the slides a shopper has
-  not yet scrolled to. A plain `loading="lazy"` there depends on the browser's own proximity
-  heuristic, which does not treat an image as "near the viewport" merely because its own (real,
-  visible) scrolling ancestor put it there — a shopper clicking through several images quickly
-  should not wait on a fetch that only starts once each one is scrolled fully into view.
+- **Every slide's `Image` (the element that actually carries a `src`) only exists in the DOM while
+  the viewer is open — `v-if="model"` on `Image` itself, the slide `<div>` wrapping it staying
+  mounted throughout (fix round 1, corrected below).** An earlier draft of this component instead
+  relied on the closed `<dialog>`'s own `display: none`, reasoning that "a UA fetches nothing
+  inside an element with no layout box" — **true for `loading="lazy"`, false for an eager `<img>`**:
+  a plain (non-lazy) `<img>`, which `priority` forces, begins fetching the moment it is _connected_
+  to the DOM, independent of any ancestor's `display` — so a `Lightbox` mounted closed next to a
+  product gallery (its whole intended usage) downloaded every full-resolution photo immediately,
+  never open or not. Caught by code review, not the screenshot harness (every story and every test
+  mounted already open, so the closed-state network behaviour was never observed) — fixed by
+  gating `Image` on `model` instead. The slide _wrapper_ stays mounted unconditionally on purpose:
+  `useCarousel`'s own index/count maths reads `trackRef.value.children.length` directly, and
+  keeping that count constant across an open/close transition means neither depends on the
+  `MutationObserver` timing a `v-if` on the wrapper itself would introduce (proven live: the
+  existing "jumps to the starting index" test, which mounts closed and opens with a non-zero
+  `index`, stayed green with no changes once the fix landed on `Image` alone). Every slide stays
+  `priority` (eager) once it exists — by definition that is only while the viewer is open, so
+  there is no `loading="lazy"` proximity heuristic left to fight (the problem the _original_ task
+  hit, when only the current slide was eager and the rest never left that heuristic) and no reason
+  to delay any of them once the shopper can already see the current one.
+- **The track's own accessible name is the spec's literal "Images" (a dedicated `lightboxImages`
+  message key), not `Carousel`'s own "Slides."** Every other string this component renders already
+  says "image" rather than "slide" (see `previousImage`/`imageOf`/`goToImage` above) — the track's
+  label was the one place that still reused `Carousel`'s `slides` key by oversight, caught by code
+  review (fix round 1) since nothing asserted its value.
 - **The stage's own 4rem side padding (spec "Sizes": "room for the arrows") lives on each slide,
   not on the scrolling track.** Padding on the track itself (an `overflow-x-auto` element) does not
   shrink what a scroll-snapped, 100%-wide slide's own `clientWidth` shows at rest — it only shifts
@@ -2344,3 +2361,11 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   out). A slide's own inset costs nothing at the track's box-sizing level — its outer width is still
   exactly the track's own, since border-box already includes the padding — so moving `px-16` there
   removes the peek entirely while the image still loses the 4rem the arrows need.
+- **`index`'s two-way binding only reflects `props.index` at the moment the viewer transitions to
+  open (or is already open at mount) — it does not reactively re-jump the track if a consumer
+  changes `index` while the viewer is already open and visible.** The spec's own Properties wording
+  ("set it to the thumbnail that was activated _before opening_") only describes the opening
+  moment, which is the only case `watch(model, …, { immediate: true })` actually calls
+  `openAtIndex` for; an intentional scope limit, not a gap, but worth stating here since a future
+  consumer reading only this file (not the task's own internal report) would otherwise have no way
+  to know it was considered.

@@ -67,6 +67,7 @@ export const isIS: UiMessages = {
   nextImage: 'Næsta mynd',
   imageOf: (position: number, total: number) => `${position} af ${total}`,
   goToImage: (n: number) => `Fara á mynd ${n}`,
+  lightboxImages: 'Myndir',
   charactersLeft: (n: number) => `${n} ${singular(n) ? 'stafur' : 'stafir'} eftir`,
   overLimit: (n: number) => `Yfir hámarkinu um ${n}`,
   soldOut: 'Uppselt',

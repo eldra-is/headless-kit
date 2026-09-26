@@ -154,6 +154,12 @@ export const enUS = {
    * `Carousel` — to the person using it. Recorded under Deviations in the README.
    */
   goToImage: (n: number) => `Go to image ${n}`,
+  /** A `Lightbox` track's own accessible name (spec "Lightbox" → Accessibility: "Track: focusable
+   *  (`tabindex="0"`), `aria-label="Images"`") — the spec's own literal word, not `Carousel`'s
+   *  `slides` key: unlike the rest of this component's vocabulary (see `previousImage`/`imageOf`/
+   *  `goToImage` above), the spec gives the track a specific, real word here rather than leaving it
+   *  to this package's own generic choice, so it gets its own key instead of reusing `slides`. */
+  lightboxImages: 'Images',
   /** A `Textarea`'s remaining-characters hint, announced once at 80% of the limit. */
   charactersLeft: (n: number) => `${n} ${n === 1 ? 'character' : 'characters'} left`,
   /** A `Textarea`'s over-the-limit hint, announced once when the limit is passed. */

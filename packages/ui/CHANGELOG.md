@@ -294,6 +294,19 @@ aria-labelledby` its
   Deviations entries for that and the rest of this task's judgment calls (the always-full-screen
   reading of the spec's own viewport exception, the `<div>`-not-`<figure>` slide wrapper axe fix,
   and the `*Image` message vocabulary).
+- **`Lightbox` fix: full-resolution images no longer fetch while the viewer is closed.** Every
+  slide's `Image` was `priority` (eager) and unconditionally in the DOM, on the mistaken premise
+  that a closed `<dialog>`'s own `display: none` blocks every fetch regardless of `loading` — true
+  for `loading="lazy"`, **false for an eager `<img>`**, which starts fetching the moment it is
+  connected to the DOM. A `Lightbox` mounted closed next to a product gallery downloaded every
+  full-resolution photo immediately. `Image` is now `v-if="model"` inside each slide (the slide
+  `<div>` wrapper itself stays mounted, since `useCarousel`'s own index/count maths reads its
+  children directly and must not depend on `MutationObserver` timing across an open/close
+  transition); every slide stays `priority` once it exists, since by definition that is only while
+  the viewer is open. Also: the track's own `aria-label` is now the spec's literal "Images" (a
+  dedicated `lightboxImages` message key), not `Carousel`'s own "Slides", which the original task
+  reused by oversight. New tests cover the closed/open/reopened-closed image lifecycle and the
+  track's own label; see the README's Deviations entries for the full reasoning.
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,

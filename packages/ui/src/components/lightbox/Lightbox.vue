@@ -8,10 +8,15 @@
  * Built on `useDialog` (native `<dialog>` + `showModal()`, no custom focus trap, the single-modal
  * slot shared with `Dialog`/`Drawer`) and `useCarousel` (index tracking, previous/next/goTo, edge
  * detection, `←`/`→` stepping) unchanged — this file only draws the anatomy, forces the viewer to
- * always fill the viewport, and wires the three behaviours neither composable owns on its own:
- * opening at `index` without animation, `←`/`→` working from *anywhere* in the viewer (not only a
- * focused track), and initial focus landing on the close button (the opposite of `useDialog`'s own
- * default, the same kind of override `Drawer`'s right side already makes).
+ * always fill the viewport, and wires the behaviours neither composable owns on its own: opening
+ * at `index` without animation, `←`/`→` working from *anywhere* in the viewer (not only a focused
+ * track), initial focus landing on the close button (the opposite of `useDialog`'s own default,
+ * the same kind of override `Drawer`'s right side already makes), and every full-resolution
+ * `<img>` staying out of the DOM until the viewer actually opens (spec "Do": "load full-resolution
+ * images only when the viewer opens" — an eager `<img>` fetches the moment it is *connected*,
+ * `display: none` on the closed `<dialog>` notwithstanding, so this is a `v-if` on `Image` itself,
+ * not a `loading` attribute (see the template's own comment on the track for why the *wrapper*
+ * stays mounted).
  */
 import { computed, nextTick, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
@@ -431,21 +436,26 @@ const thumbnailClass = computed(() =>
           ref="trackRef"
           data-part="track"
           tabindex="0"
-          :aria-label="m.slides"
+          :aria-label="m.lightboxImages"
           aria-live="off"
           :class="trackClass"
         >
-          <!-- Every slide is `priority` (eager), not only the one at `carouselIndex` (spec "Do":
-               "load full-resolution images only when the viewer opens" — satisfied uniformly by
-               the closed `<dialog>` itself: a UA never fetches any image with no layout box,
-               `loading` attribute aside, so nothing here loads before the viewer does). A plain
-               `loading="lazy"` on the rest would leave them to the browser's own proximity
-               heuristic, which does not consider an image "near the viewport" merely because its
-               (real, visible) ancestor track scrolls it there — a shopper clicking through several
-               images quickly is closer to this component's own spirit than a lazy fetch delay on
-               each one. -->
+          <!-- The wrapper is always rendered — `useCarousel`'s own index/count math reads
+               `trackRef.value.children.length`, and keeping that count constant across open/close
+               means neither depends on the `MutationObserver` timing a v-if on the wrapper itself
+               would introduce. Only the `<Image>` inside it — the element that actually carries a
+               `src` — is gated on `model` (fix round 1, Major finding: an eager `<img>` starts
+               fetching the instant it is connected to the DOM, `display: none` on an ancestor
+               `<dialog>` notwithstanding; a plain `<img>` is not "lazy" merely by sitting inside a
+               closed dialog). Every slide stays `priority` (eager) once it exists — by definition
+               that is only while the viewer is open, so there is no proximity heuristic to fight
+               (the problem the original task's own screenshot-harness finding hit, when only the
+               current slide was eager and the rest never left `loading="lazy"`'s own proximity
+               heuristic) and no reason to delay any of them once the shopper can already see the
+               current one. -->
           <div v-for="(img, i) in images" :key="`${img.src}-${i}`" :class="slideClass">
             <Image
+              v-if="model"
               data-part="image"
               :class="imageRootClass"
               :classes="{ frame: imageFrameClass, caption: imageCaptionClass }"
@@ -485,7 +495,7 @@ const thumbnailClass = computed(() =>
         </button>
       </div>
 
-      <div v-if="thumbnails && !single" data-part="thumbnails" :class="thumbnailsClass">
+      <div v-if="thumbnails && !single && model" data-part="thumbnails" :class="thumbnailsClass">
         <button
           v-for="(img, i) in images"
           :key="`thumb-${img.src}-${i}`"

@@ -82,6 +82,15 @@ describe('Lightbox — element and structure', () => {
     wrapper.unmount();
   });
 
+  it('names the track "Images" (the spec\'s own literal word), not Carousel\'s "Slides"', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    expect(wrapper.find('[data-part="track"]').attributes('aria-label')).toBe(enUS.lightboxImages);
+    wrapper.unmount();
+  });
+
   it('passes a classes.track override through tailwind-merge', async () => {
     const wrapper = mountWith(Lightbox, {
       props: {
@@ -128,6 +137,53 @@ describe('Lightbox — captions', () => {
     expect(firstCaption?.element.tagName).toBe('FIGCAPTION');
     expect(firstCaption?.text()).toBe('Oatmeal, folded.');
     expect(slides[1]?.find('[data-part="caption"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe('Lightbox — images mount only while open', () => {
+  // Fix round 1, Major finding: an eager `<img>` starts fetching the instant it is connected to
+  // the DOM, regardless of `display: none` on the closed `<dialog>` ancestor — so every slide's
+  // `Image` (the element that actually carries a `src`) must not exist at all until `model` is
+  // `true`. The slide *wrapper* (`data-part="slide"`) stays mounted throughout, since
+  // `useCarousel`'s own index/count maths reads its children's count directly and must not depend
+  // on `MutationObserver` timing across an open/close transition.
+  it('renders no <img> anywhere in the document while mounted closed', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: false, thumbnails: true },
+    });
+    await settle();
+    expect(document.querySelectorAll('img')).toHaveLength(0);
+    // The slide wrappers themselves still exist (useCarousel's own count reads them), just empty.
+    expect(wrapper.findAll('[data-part="slide"]')).toHaveLength(4);
+    expect(wrapper.find('[data-part="thumbnails"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders one eager <img> per image once opened', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: false, thumbnails: true },
+    });
+    await settle();
+    await wrapper.setProps({ modelValue: true });
+    await settle();
+    const slideImages = wrapper.findAll('[data-part="image"]');
+    expect(slideImages).toHaveLength(4);
+    slideImages.forEach((img) => expect(img.attributes('loading')).toBe('eager'));
+    // Thumbnails are their own, separate <img>s (cover-fit, decorative) — 4 more, 8 total.
+    expect(document.querySelectorAll('img')).toHaveLength(8);
+    wrapper.unmount();
+  });
+
+  it('removes the images again once closed, so a reopened gallery starts clean', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true, thumbnails: true },
+    });
+    await settle();
+    expect(document.querySelectorAll('img').length).toBeGreaterThan(0);
+    await wrapper.setProps({ modelValue: false });
+    await settle();
+    expect(document.querySelectorAll('img')).toHaveLength(0);
     wrapper.unmount();
   });
 });
