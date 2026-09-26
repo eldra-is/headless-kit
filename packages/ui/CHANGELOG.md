@@ -5,6 +5,8 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Breadcrumb` items sit closer together** (operator, 2026-09-26): the list gap is 0.25rem and the chevron carries 0.125rem on each side (1.5rem between words instead of 2rem).
+
 - **Fix (2026-09-26, operator report): `Carousel`/`Lightbox` pointer drag and touch swipe actually
   work; no text selection while dragging; `Breadcrumb` separator chevron enlarged.** The track's
   `scroll-smooth` was fighting the drag's own instant `scrollLeft` writes (each one started an

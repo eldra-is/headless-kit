@@ -135,7 +135,7 @@ async function expand(): Promise<void> {
 const rootClass = computed(() => partClass('@container', props.classes, 'root'));
 
 const listClass = computed(() =>
-  partClass('flex flex-wrap list-none gap-x-2 gap-y-1 p-0 m-0', props.classes, 'list')
+  partClass('flex flex-wrap list-none gap-x-1 gap-y-1 p-0 m-0', props.classes, 'list')
 );
 
 /** `collapsible` items (the middle run) carry the container-query hidden class only while the
@@ -193,12 +193,12 @@ const ellipsisItemClass = computed(() =>
  *   with no separate branch, since that is also exactly where a non-wrapping sibling's frame already
  *   sits.
  *
- * `mx-1` (was `mr-0.5`, right-only) — even spacing on both sides of the mark itself, on top of the
- * list's own 0.5rem item gap (`gap-x-2` above).
+ * `mx-0.5` — even spacing on both sides of the mark itself, on top of the
+ * list's own 0.25rem item gap (`gap-x-1` above; operator: the 0.5rem gap read too wide).
  */
 function separatorClass(): string {
   return partClass(
-    cx('inline-flex items-center justify-center self-start h-6 mx-1 shrink-0 text-muted'),
+    cx('inline-flex items-center justify-center self-start h-6 mx-0.5 shrink-0 text-muted'),
     props.classes,
     'separator'
   );

@@ -184,12 +184,16 @@ async function mouseDragSmoke(page, label) {
 
   const failures = [];
   if (midDragging !== 'true') failures.push('data-dragging was not "true" mid-drag');
-  if (midSelection !== '') failures.push(`text got selected mid-drag: ${JSON.stringify(midSelection)}`);
+  if (midSelection !== '')
+    failures.push(`text got selected mid-drag: ${JSON.stringify(midSelection)}`);
   if (!(duringScrollLeft > before.scrollLeft)) {
-    failures.push(`scrollLeft did not advance during the drag (${before.scrollLeft} -> ${duringScrollLeft})`);
+    failures.push(
+      `scrollLeft did not advance during the drag (${before.scrollLeft} -> ${duringScrollLeft})`
+    );
   }
   if (afterDragging !== null) failures.push('data-dragging was not cleared after release');
-  if (afterSelection !== '') failures.push(`text stayed selected after release: ${JSON.stringify(afterSelection)}`);
+  if (afterSelection !== '')
+    failures.push(`text stayed selected after release: ${JSON.stringify(afterSelection)}`);
   if (!(after.index > before.index)) {
     failures.push(`active index did not advance (${before.index} -> ${after.index})`);
   }
@@ -225,7 +229,9 @@ async function touchSwipeSmoke(context, page, label) {
 
   const failures = [];
   if (!(after.index > before.index)) {
-    failures.push(`touch swipe did not advance the active index (${before.index} -> ${after.index})`);
+    failures.push(
+      `touch swipe did not advance the active index (${before.index} -> ${after.index})`
+    );
   }
   return failures;
 }
@@ -246,7 +252,9 @@ async function main() {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const page = await context.newPage();
       await gotoStory(page, baseUrl, 'navigation-carousel--product-row');
-      failures.push(...(await mouseDragSmoke(page, 'Carousel ProductRow')).map((f) => `Carousel mouse: ${f}`));
+      failures.push(
+        ...(await mouseDragSmoke(page, 'Carousel ProductRow')).map((f) => `Carousel mouse: ${f}`)
+      );
       await context.close();
     }
 
@@ -260,7 +268,9 @@ async function main() {
       const page = await context.newPage();
       await gotoStory(page, baseUrl, 'navigation-carousel--product-row');
       failures.push(
-        ...(await touchSwipeSmoke(context, page, 'Carousel ProductRow')).map((f) => `Carousel touch: ${f}`)
+        ...(await touchSwipeSmoke(context, page, 'Carousel ProductRow')).map(
+          (f) => `Carousel touch: ${f}`
+        )
       );
       await context.close();
     }
@@ -270,7 +280,9 @@ async function main() {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const page = await context.newPage();
       await gotoStory(page, baseUrl, 'overlays-lightbox--default');
-      failures.push(...(await mouseDragSmoke(page, 'Lightbox Default')).map((f) => `Lightbox mouse: ${f}`));
+      failures.push(
+        ...(await mouseDragSmoke(page, 'Lightbox Default')).map((f) => `Lightbox mouse: ${f}`)
+      );
       await context.close();
     }
   } finally {
