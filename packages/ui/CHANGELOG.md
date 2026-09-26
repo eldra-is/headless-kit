@@ -5,6 +5,30 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`ContentCard` and `FeatureCard`** — the editorial/journal card and the icon feature card
+  (design spec's "Content card" and "Feature card" sections), both composing `Image`, `Skeleton`
+  and a shared "whole card is one link" pattern. `ContentCard` renders optional media (`ratio`
+  `3x2`/`4x3`/`16x9`, `radius-lg`), an eyebrow, a title (the stretched link), a clamped excerpt, a
+  date + meta line (`date` formatted through the new `src/utils/date.ts#formatDate` as
+  `<time datetime>`), and a `variant` (`plain`/`surface`/`outlined`) — `plain` with no `image`
+  renders as `surface` automatically, `surface` shows an optional "Read the update"-style link cue
+  pinned to the card's bottom, `outlined` pins a count meta ("24 products") there instead.
+  `FeatureCard` renders an icon tile, title, body and, only when `href` makes it linked, a "Learn
+  more" cue (new `learnMore` message key) — unlinked cards have no tab stop at all. Both take
+  `headingLevel` (2–6, default `3`) and `as` (the same `Button`/`Link` contract: a string tag still
+  takes `href`, a component takes it as `to`).
+
+  Root `<article>`/`<div>`, the whole card a single tab stop with the standard focus ring around it
+  at `radius-lg` corners — the shared pattern lives in
+  `src/components/card/stretchedLink.ts` (`CARD_FOCUS_PROXY`, `STRETCHED_LINK`,
+  `STRETCHED_LINK_OUTLINE`), the same `eldra-focus-proxy` shape `Checkbox`'s drawn box uses, applied
+  here to a *visible* title `<a>` rather than a hidden input. New `text-content-card-title` and
+  `text-content-card-excerpt` `tailwind.css` utilities (the latter shared by `FeatureCard`'s `body`,
+  since both read the same 0.9375rem spec number).
+
+  See `README.md`'s Deviations section for the shared stretched-link file (and the note for
+  `ProductCard`, landing in the same wave, to reuse it), the `outline-none` vs. `outline-hidden`
+  ruling, and the `formatDate` locale behaviour.
 - **`EmptyState` and `EditorPlaceholder`** — the seventh component of the "display, commerce and
   layout" sub-project (design spec's "Empty and error states" section). `EmptyState` is the shared
   "nothing here / no results / error" panel shown inside a block: an icon circle, a required

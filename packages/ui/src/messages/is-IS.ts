@@ -102,6 +102,7 @@ export const isIS: UiMessages = {
     const items = more > 0 ? [...names, `${more} til viðbótar`] : names;
     return `${label}: ${formatConjunctionList(items, 'is-IS')}`;
   },
+  learnMore: 'Skoða nánar',
 };
 
 export default isIS;

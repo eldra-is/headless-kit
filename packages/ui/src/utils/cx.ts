@@ -99,6 +99,8 @@ const twMerge = extendTailwindMerge<
             'avatar-initials-lg',
             'avatar-initials-xl',
             'empty-state-title',
+            'content-card-title',
+            'content-card-excerpt',
           ],
         },
       ],

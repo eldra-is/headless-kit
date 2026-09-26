@@ -231,6 +231,9 @@ export const enUS = {
     const items = more > 0 ? [...names, `${more} more`] : names;
     return `${label}: ${formatConjunctionList(items, 'en-US')}`;
   },
+  /** A `FeatureCard`'s default link cue when linked (spec "Feature card" → Properties, `cue` row:
+   * default `"Learn more"`). `cue` overrides it per instance. */
+  learnMore: 'Learn more',
 };
 
 /**

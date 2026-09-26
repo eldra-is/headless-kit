@@ -353,6 +353,35 @@
     var(--eldra-font-heading);
 }
 
+/* `ContentCard`'s title (spec "Content card" → Sizes, "Title" row): "heading family, 1.25rem,
+   line-height 1.3, weight 600, letter-spacing −0.01em" — the same size/line/weight/family
+   combination as `text-empty-state-title` just above, but with a tracking value that one has none
+   of, so it is its own utility rather than that one plus an arbitrary `tracking-*` alongside it.
+   The weight and tracking both already read tokens (`text-label-weight` is 600, `text-h3-tracking`
+   is −0.01em, reused directly the same way `text-logo-wordmark` reuses three `h2`/`h3` tokens at
+   once); only the 1.25rem size and the 1.3 line ratio have none of their own, so — the same shape
+   as `text-empty-state-title`'s own 1.3 — the line is a per-component variable with that literal
+   default. */
+@utility text-content-card-title {
+  font: var(--eldra-text-label-weight) 1.25rem / var(--eldra-content-card-title-line, 1.3)
+    var(--eldra-font-heading);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
+/* `ContentCard`'s excerpt and `FeatureCard`'s body (spec "Content card" → Sizes, "Excerpt" row:
+   "0.9375rem, clamp 3 lines"; "Feature card" → Sizes, "Body" row: "0.9375rem, `muted`") — the same
+   numeric size in both specs, reused as one utility across the two components rather than two
+   near-identical ones, the same "share when the numbers actually match" reuse `text-badge`/
+   `text-stock-status` make across their own components. Neither spec gives a line ratio for this
+   size, so — like `text-counter`'s 1.5 — it is a per-component variable with a literal default; a
+   readable paragraph ratio rather than a control's fixed line box, since both are prose. */
+@utility text-content-card-excerpt {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-content-card-excerpt-size, 0.9375rem);
+  line-height: var(--eldra-content-card-excerpt-line, 1.5);
+  font-weight: var(--eldra-text-body-weight);
+}
+
 /* Control heights and targets. */
 @utility control-h {
   height: var(--eldra-control-height);

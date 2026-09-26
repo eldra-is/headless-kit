@@ -87,6 +87,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Badge`             | `--eldra-badge-line-height` (default `1`) — the badge text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                        |
    | `Button`            | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                    |
    | `Checkbox`          | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                                                                            |
+   | `ContentCard`       | `--eldra-content-card-title-line` (default `1.3`) — the title's line ratio, no token of its own; `--eldra-content-card-excerpt-size` (default `0.9375rem`) and `--eldra-content-card-excerpt-line` (default `1.5`) — the excerpt's own size and line ratio, shared by `FeatureCard`'s `body` (`text-content-card-excerpt` in `tailwind.css`), since both read the same spec number                                                                                  |
    | `EditorPlaceholder` | `--eldra-editor-placeholder-border-width` (default `1.5px`) — the dashed boundary's width, distinct from `EmptyState`'s own stock `border` (1px)                                                                                                                                                                                                                                                                                                                    |
    | `EmptyState`        | `--eldra-empty-state-title-line` (default `1.3`) — the title's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                      |
    | `FieldWrapper`      | `--eldra-field-note-line-height` (default `1.45`) — the line the help and error text share                                                                                                                                                                                                                                                                                                                                                                          |
@@ -126,11 +127,12 @@ Every component supports all five of these; none hard-codes anything a store mig
 4. **A slot for every part that holds content** (`label`, `description`, `error`, `leading`,
    `trailing`, `empty`, `header`, `footer`, `item`, …), named after the part it replaces.
 5. **`as`**, on the components whose spec allows a different rendered element (`Button`, `Link`,
-   `Badge`, `Container`, `Section`, and the rest of the display/layout components landing in this
-   sub-project). `Button` and the future card components render an `<a>` automatically when `href`
-   is set, without needing `as` for that case; `Badge` defaults to `<span>` and is never a link;
-   `Section` picks `<section>`/`<div>` itself from whether it is named (`as` overrides that choice
-   outright, for a `<header>`/`<footer>` landmark that needs no name of its own).
+   `Badge`, `Container`, `Section`, `ContentCard`, `FeatureCard`, and the rest of the display/layout
+   components landing in this sub-project). `Button`, `ContentCard` and `FeatureCard` render an
+   `<a>` automatically when `href` is set, without needing `as` for that case; `Badge` defaults to
+   `<span>` and is never a link; `Section` picks `<section>`/`<div>` itself from whether it is named
+   (`as` overrides that choice outright, for a `<header>`/`<footer>` landmark that needs no name of
+   its own).
 
 ## Fields: the context a `FieldWrapper` provides
 
@@ -676,6 +678,24 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
 
 Additions and departures from the design spec, and why.
 
+- **The stretched-link + proxy-focus pattern is factored into `src/components/card/stretchedLink.ts`,
+  shared by `ContentCard` and `FeatureCard`.** Both spec sections describe the identical shape —
+  the card root proxies the ring for a visible title `<a>` that stretches to cover the whole card
+  via `after:absolute after:inset-0` — so it is one exported set of class strings
+  (`CARD_FOCUS_PROXY`, `STRETCHED_LINK`, `STRETCHED_LINK_OUTLINE`) rather than duplicated per
+  component. `ProductCard`, landing in the same wave, wants the identical pattern; point it at this
+  file instead of a third copy. The title link uses `outline-none`, not `Rating.vue`'s
+  `outline-hidden`: `outline-hidden` stays visible under forced colours by design, which here would
+  draw a second, text-sized ring beside `eldra-focus-proxy`'s own card-wide one — the spec's own
+  acceptance criterion for the sibling Product card rules that out ("the link shows no separate
+  ring"). See `stretchedLink.ts`'s own comment for the rest of the reasoning.
+- **`ContentCard`'s `date` prop is formatted by `src/utils/date.ts#formatDate`, not a literal
+  `"12 Sep 2026"` string.** The spec's own example is one locale's rendering (`Intl.DateTimeFormat`
+  with `day: 'numeric', month: 'short', year: 'numeric'`), not a fixed format the component
+  reproduces regardless of locale — `en-US` reads "Sep 12, 2026", `is-IS` reads "12. sep. 2026". The
+  ISO string is parsed by its own calendar components rather than handed to `new Date(iso)`
+  directly, because that constructor reads a date-only string as UTC midnight and a locale west of
+  UTC would format it a calendar day early.
 - **`Skeleton`'s `width` prop sizes the root, not the shape's own literal width.** The spec's
   Properties table lists `width` as the text/title shape's own CSS width ("Default 100% (title
   60%)"). Read that literally, an override would have to be applied to a percentage-wide `line`

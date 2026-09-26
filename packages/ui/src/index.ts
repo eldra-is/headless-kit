@@ -9,6 +9,8 @@ export { default as Badge } from './components/badge/Badge.vue';
 export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
+export { default as ContentCard } from './components/card/ContentCard.vue';
+export { default as FeatureCard } from './components/card/FeatureCard.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
 export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
 export { default as Container } from './components/container/Container.vue';
@@ -65,6 +67,15 @@ export type {
   ButtonSize,
   ButtonVariant,
 } from './components/button/types';
+export type {
+  ContentCardPart,
+  ContentCardProps,
+  ContentCardRatio,
+  ContentCardVariant,
+  FeatureCardPart,
+  FeatureCardProps,
+  FeatureCardVariant,
+} from './components/card/types';
 export type {
   CheckboxGroupLayout,
   CheckboxGroupOption,
