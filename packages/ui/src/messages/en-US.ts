@@ -131,6 +131,29 @@ export const enUS = {
    * scrollable list" for a product row and "Slides" for a gallery; this package uses the single
    * generic word for both, recorded under Deviations in the README). */
   slides: 'Slides',
+  /** A `Lightbox`'s close button (spec "Lightbox" → Anatomy, part 3: "'Close image viewer'") —
+   *  distinct from `close` above, the same way `dismissNotification` is distinct from it for
+   *  `Toast`: a full-screen image viewer is not "a dialog" to the person closing it. */
+  closeLightbox: 'Close image viewer',
+  /** A `Lightbox` arrow's accessible name (spec "Lightbox" → Accessibility: "'Previous image' /
+   *  'Next image'"). Deliberately `*Image`, not `Carousel`'s own `previous`/`next` ("…slide"): the
+   *  Lightbox spec's own wording never says "slide" anywhere in its Anatomy or Accessibility
+   *  sections, even though it is built on the same track internally. */
+  previousImage: 'Previous image',
+  /** A `Lightbox` arrow's accessible name. See `previousImage`. */
+  nextImage: 'Next image',
+  /** A `Lightbox` slide's accessible label (spec "Lightbox" → Accessibility: `aria-label="2 of
+   *  4"`), `position` and `total` both 1-based — the same shape as `Carousel`'s own `slideOf`, but
+   *  its own key: a consumer overriding one must not silently change the other's wording. */
+  imageOf: (position: number, total: number) => `${position} of ${total}`,
+  /**
+   * A `Lightbox` thumbnail's accessible name. The spec's own wording ("With thumbnails" → "each
+   * 'Go to slide n'") reuses `Carousel`'s dot phrasing verbatim, but this package gives `Lightbox`
+   * its own `*Image` vocabulary throughout (see `previousImage`/`imageOf` above) rather than
+   * surfacing "slide" — an internal implementation detail this component's own track shares with
+   * `Carousel` — to the person using it. Recorded under Deviations in the README.
+   */
+  goToImage: (n: number) => `Go to image ${n}`,
   /** A `Textarea`'s remaining-characters hint, announced once at 80% of the limit. */
   charactersLeft: (n: number) => `${n} ${n === 1 ? 'character' : 'characters'} left`,
   /** A `Textarea`'s over-the-limit hint, announced once when the limit is passed. */

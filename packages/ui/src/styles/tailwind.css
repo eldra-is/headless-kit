@@ -1646,3 +1646,26 @@
     }
   }
 }
+
+/* --- Lightbox ----------------------------------------------------------------------------- */
+
+/* The viewer's own entrance (spec "Lightbox" → Behaviour & motion: "Enter: fade in over
+   duration-slow (250ms) ease-out. Moving between images scrolls smoothly." / "Reduced motion: the
+   viewer fades in over duration-base (200ms) with no movement, and image changes are instant.").
+   Unlike `Dialog`'s own entrance, there is no rise or scale here — the spec gives the Lightbox a
+   plain fade, full stop, so this needs its own (simpler) keyframe rather than reusing
+   `eldra-dialog-in`. The reduced-motion state, though, is the exact "plain opacity fade over
+   duration-base (200ms), linear" `eldra-dialog-in-reduced` already draws for `Dialog` and `Drawer`
+   — reused rather than given a third identical keyframe, the same call `Drawer`'s own comment on
+   that utility makes. */
+@keyframes eldra-lightbox-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility animate-eldra-lightbox-in {
+  animation: eldra-lightbox-in var(--eldra-duration-slow) var(--eldra-ease-out);
+}

@@ -32,6 +32,7 @@ export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as Image } from './components/image/Image.vue';
 export { default as Input } from './components/input/Input.vue';
+export { default as Lightbox } from './components/lightbox/Lightbox.vue';
 export { default as Link } from './components/link/Link.vue';
 export { default as LoadMore } from './components/load-more/LoadMore.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
@@ -159,6 +160,7 @@ export type {
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
 export type { ImageMedia, ImagePart, ImageProps, ImageRatio } from './components/image/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
+export type { LightboxImage, LightboxPart, LightboxProps } from './components/lightbox/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
 export type { LoadMorePart, LoadMoreProps } from './components/load-more/types';
 export type { LogoItemPart, LogoItemProps } from './components/logo-item/types';

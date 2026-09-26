@@ -47,6 +47,16 @@ export interface ImageProps {
    * passes `'4x5'` itself, per the spec's own per-context default. */
   ratio?: ImageRatio;
   /**
+   * How the media fills its frame: `'cover'` (default) crops to fill, matching the spec's own
+   * "the frame always crops; it never stretches" rule for every card/grid context this component
+   * originally shipped for. `'contain'` letterboxes instead — added for `Lightbox` (plan-3 Task
+   * 11), whose own spec explicitly wants the opposite ("Image: fits the stage height and width,
+   * keeps its aspect ratio (contain)"): a full-resolution photo in a viewer must never be cropped.
+   * `focal`/`zoom` still apply to `cover`; they have no effect under `contain` (there is nothing to
+   * pan or scale once the whole image is always visible).
+   */
+  fit?: 'cover' | 'contain';
+  /**
    * Crop anchor, in percent (0–100 on each axis): sets the media's `object-position` and, when
    * `zoom` is above 1, the scale's `transform-origin`. Defaults to centred (`{ x: 50, y: 50 }`).
    */

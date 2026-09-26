@@ -263,6 +263,7 @@ const twMerge = extendTailwindMerge<
         'animate-eldra-drawer-in-right',
         'animate-eldra-drawer-in-left',
         'animate-eldra-toast-in',
+        'animate-eldra-lightbox-in',
       ],
     },
   },

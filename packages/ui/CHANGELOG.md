@@ -279,6 +279,21 @@ aria-labelledby` its
   Deviations entries for the ways this simplifies the spec's own product-row/gallery split (one
   slide-labelling rule for both, one fixed track name, no separate "slideshow" suffix on
   Pause/Play, an unbolded counter).
+- **`Lightbox`** — task 11 of the "overlays, navigation and feedback" sub-project (design spec's
+  "Lightbox" section). A full-screen native `<dialog>` image viewer for product galleries, built on
+  `useDialog` and `useCarousel` unchanged: `modelValue`/`index` (both two-way), `images` (`{ src,
+  alt, caption?, width, height }[]`), `ariaLabel` (required), `thumbnails`. A counter, close button
+  and previous/next arrows sit in a bar/stage around a one-image-per-view track; arrows never loop,
+  and a focused arrow that becomes disabled moves focus to the other one, exactly like `Carousel`.
+  Opens at `index` with no scroll animation, then scrolls smoothly on every later move unless
+  reduced motion is on. Initial focus is the close button (the opposite of `Dialog`'s own rule);
+  focus returns to the opener on close. `←`/`→` move the image from anywhere in the viewer, not
+  only a focused track. There is no backdrop click and no `dismissable` prop — the viewer's own
+  ground covers the backdrop entirely. `Image` (this task) gained a `fit?: 'cover' | 'contain'`
+  prop for the Lightbox's own "never crop a full-resolution photo" rule; see the README's
+  Deviations entries for that and the rest of this task's judgment calls (the always-full-screen
+  reading of the spec's own viewport exception, the `<div>`-not-`<figure>` slide wrapper axe fix,
+  and the `*Image` message vocabulary).
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,

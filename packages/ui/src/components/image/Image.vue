@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<ImageProps>(), {
   alt: undefined,
   decorative: false,
   ratio: '4x3',
+  fit: 'cover',
   focal: () => ({ x: 50, y: 50 }),
   zoom: 1,
   rounded: 'none',
@@ -142,7 +143,11 @@ const mediaStyle = computed<StyleValue>(() => {
 });
 
 const mediaClass = computed(() =>
-  partClass(cx('block h-full w-full object-cover'), props.classes, 'media')
+  partClass(
+    cx('block h-full w-full', props.fit === 'contain' ? 'object-contain' : 'object-cover'),
+    props.classes,
+    'media'
+  )
 );
 
 const placeholderClass = computed(() =>

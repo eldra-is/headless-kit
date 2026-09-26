@@ -42,6 +42,7 @@ export const componentNames = [
   'Icon',
   'Image',
   'Input',
+  'Lightbox',
   'Link',
   'LoadMore',
   'LogoItem',

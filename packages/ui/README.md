@@ -109,6 +109,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Icon`              | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Image`             | `--eldra-image-hatch-gap` (default `0.75rem`) — the live "No image" placeholder's diagonal-line repeat distance                                                                                                                                                                                                                                                                                                                                                     |
    | `Input`             | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                                                                                   |
+   | `Lightbox`          | none of its own — the entrance keyframe (`eldra-lightbox-in`) and every size are either shared tokens or literal component-specific classes (`px-16`, `size-11`/`max-md:size-11`), the same "no dedicated variable" shape as `AvatarGroup`/`ButtonGroup`                                                                                                                                                                                                            |
    | `Link`              | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                             |
    | `LoadMore`          | none — the status/meter/button sizes all reuse shared tokens (`text-body-sm`, `control-h`, `text-button-md`), no per-component variable                                                                                                                                                                                                                                                                                                                             |
    | `LogoItem`          | `--eldra-logo-image-max-height` (default `2.5rem`), `--eldra-logo-image-max-width` (default `9rem`) — the logo image's contain box; `--eldra-logo-wordmark-size` (default `1.25rem`) — the wordmark fallback's font size (its weight, line-height and letter-spacing reuse `h2`/`h3` tokens directly, see `text-logo-wordmark` in `tailwind.css`)                                                                                                                   |
@@ -385,8 +386,8 @@ does, and which element the popup is anchored to. See `src/components/select/use
 the full option/return shape (`UsePopoverOptions`, `UsePopoverReturn`, also exported).
 
 `useDialog` is the **modal** counterpart: the shared "Modal dialogs" rules applied to a native
-`<dialog>`, built for `Dialog` and reused by every modal surface after it (`Drawer` now; `Lightbox`
-and `SearchModal` next) instead of each reimplementing them. `Drawer` is `Dialog`'s side-sheet
+`<dialog>`, built for `Dialog` and reused by every modal surface after it (`Drawer` and `Lightbox` now;
+`SearchModal` next) instead of each reimplementing them. `Drawer` is `Dialog`'s side-sheet
 sibling: it adds only what a side sheet needs beyond the shared contract — a per-side slide, a
 full-screen mobile variant, and a right-side default of focusing the close button first (see the
 README's Deviations for why that is the opposite of `Dialog`'s own initial-focus rule) — passing
@@ -479,13 +480,13 @@ oldest.
 `<Toaster />`, mounted once near an app's root, owns every timer (paused while the pointer is over
 the stack or focus is inside it, resumed for whatever time was left) and where the region actually
 renders: `TOAST_HOST_KEY` (see `useDialog` above) if a modal `Dialog` is open, `<body>` otherwise —
-the same hand-off `Dialog` and a future `Drawer`/`Lightbox` already share, so a toast raised during
+the same hand-off `Dialog`, `Drawer` and `Lightbox` already share, so a toast raised during
 a modal flow is never inert behind it.
 
 `useCarousel` is the scroll-snap carousel's whole behaviour with no rendering of its own — index
 tracking, previous/next/`goTo`, edge detection for the arrows, and autoplay with the spec's pause
-rules — so `Carousel` renders the markup around it and a future `Lightbox` (its own track reuses
-this file unchanged) needs nothing else.
+rules — so `Carousel` renders the markup around it and `Lightbox` (its own track reuses this file
+unchanged) needs nothing else.
 
 ```ts
 import { ref } from 'vue';
@@ -528,7 +529,7 @@ result as `aria-label`, and the `eldra-carousel-slide` sizing class — through 
 on the track, so a consumer's own `<li>`/`<figure>`/component root becomes the slide with no
 wrapper element added around it. `resolveCarouselPerView` and `carouselPerViewClasses` turn
 `CarouselProps['perView']` into the container-query classes `--eldra-carousel-per-view` reads, so
-`Carousel` and a future `Lightbox` share one reading of the prop. `prefersReducedMotion` is the one
+`Carousel` and `Lightbox` share one reading of the prop. `prefersReducedMotion` is the one
 JavaScript check CSS's own `motion-reduce:` cannot make on its own — whether autoplay may start at
 all.
 
@@ -2258,3 +2259,88 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `loading` state follows (see that component's own comment). `pending` shows a spinner and sets
   `aria-busy="true"`; a consumer wanting to prevent a duplicate `load` mid-flight guards its own
   handler, the same way a consumer of `Button loading` already must.
+- **`Image` gained a `fit?: 'cover' | 'contain'` prop (default `'cover'`, unchanged for every
+  existing consumer).** The Image spec is explicit that "the frame always crops; it never
+  stretches," but `Lightbox`'s own spec is just as explicit the other way ("Image: fits the stage
+  height and width, keeps its aspect ratio (contain)") — a full-resolution photo in a viewer must
+  never be cropped. Rather than duplicate `Image`'s frame/media/placeholder/caption machinery in a
+  second component for one property, the crop behaviour became a prop; `focal`/`zoom` still apply
+  under `cover` and have no effect under `contain` (there is nothing to pan once the whole image is
+  always visible).
+- **`Lightbox`'s own `label` is `ariaLabel`, per this package's own convention** (an accessible-
+  name-only prop is never the bare noun): the viewer has no visible heading of its own to be
+  `aria-labelledby`, only `aria-label`.
+- **The viewer is unconditionally full screen, at every width — there is no windowed size above a
+  48rem viewport.** The design spec's own "Global Constraints" section groups Drawer, Lightbox and
+  Search modal together as "full-screen variants … apply below a 48rem viewport," which `Drawer`'s
+  own `eldra-drawer-width` utility takes literally (a real windowed default above that edge). The
+  Lightbox section itself, though, is unambiguous and stated twice ("Viewer: the full viewport …
+  100% × 100%"; "Mobile: The Lightbox is always full screen, at every width") — a specialisation of
+  the general rule that is trivially true at every width, not a contradiction of it, since "full
+  screen below 48rem" is a subset of "full screen everywhere." The one behaviour that genuinely
+  does change at that viewport edge is the close button's own size (spec: "2.5rem … 2.75rem below
+  48rem"), implemented exactly like `Drawer`'s own close button (`size-10 max-md:size-11`, a real
+  `@media` query, no `@container`).
+- **Every slide the track scrolls between is a plain `<div data-part="slide">`, not itself the
+  `<figure>` the spec's own anatomy names ("Slide: a `<figure>` holding the image").**
+  `useCarousel`'s shared `annotate()` puts `role="group"` on whatever element it treats as the
+  slide, and axe's `aria-allowed-role` refuses that role specifically on a `<figure>` that also
+  contains a `<figcaption>` (proven live: only the captioned images in this component's own tests
+  failed it; the uncaptioned ones did not) — the same shape as `Carousel`'s own `<li>` exception,
+  just discovered one level deeper. `Image`'s own `caption` prop already renders the real
+  `<figure>`/`<figcaption>` pairing one level inside this wrapper, so the caption is still a real
+  `<figcaption>` of a real `<figure>`, just not the element carrying the group semantics.
+- **Message vocabulary is `*Image`, never `*Slide`, anywhere in this component** (`previousImage`/
+  `nextImage`/`imageOf`/`goToImage`), even where the design spec's own wording for the thumbnail
+  strip reuses `Carousel`'s literal dot phrasing ("With thumbnails" → "each 'Go to slide n'"). A
+  Lightbox viewer shares its track with `Carousel` as an implementation detail this package's own
+  users never see; every string this component renders says "image," matching every other word in
+  its own spec section (arrows, accessibility notes, anatomy).
+- **The visible counter is not bolded on its current number**, for the identical reason `Carousel`'s
+  own counter is not (see that component's own Deviations entry): it is `aria-hidden` and rendered
+  from one localized `messages.counter(n, max)` string that cannot be split back apart by character
+  position across locales.
+- **`←`/`→` are handled on the `<dialog>` root itself, not through `useCarousel`'s own
+  `onTrackKeydown` bound to the track.** The spec's own Keyboard row is explicit that these keys
+  work "from anywhere in the viewer," not only a focused track — binding both the root's own
+  listener and `onTrackKeydown` on the track would double-fire `next()`/`prev()` whenever the track
+  itself holds focus, so this component reimplements the two-line key check once, at the root,
+  instead.
+- **No `dismissable` prop, unconditionally the opposite of `Drawer`'s own unconditional rule.** The
+  spec's own words are as direct as `Drawer`'s: "There is no backdrop click: the viewer fills the
+  viewport and its ground is part of the viewer" — `useDialog`'s `dismissable` option is passed a
+  literal `false`, never a prop.
+- **A disabled arrow's icon alone drops to 45% opacity (`disabled:text-background/45`); the border
+  stays at its full 70%.** The spec's own States table gives the border and the icon separate
+  values at that state ("border: same" / "icon: … at 45% opacity"), so the dimming lives on the
+  icon's own `currentColor` rather than a whole-button `opacity-*`, which would fade the border too.
+- **Thumbnails have no size/state table of their own in the spec** ("Carousel dots styled as small
+  images" is the whole description) — this component's own choice is a `size-12` square, opacity
+  60% at rest raised to 100% on hover/selection, and a light `outline` (rather than a `ring`, to
+  avoid a `ring-offset-color` arbitrary value against the ground's own `color-mix()` fill) on the
+  image showing.
+- **Opening at a non-zero `index` moves the track there with no scroll animation, regardless of
+  `prefers-reduced-motion`**, unlike every later move (arrows, `←`/`→`, a thumbnail), which scrolls
+  smoothly unless reduced motion is on — the spec's own "Opens at index" is a distinct sentence from
+  "Moving between images scrolls smoothly." `useCarousel`'s own `goTo` has no per-call override for
+  this (and gaining one was judged not worth changing a composable shared with `Carousel`, under
+  review concurrently as this task's own dependency), so `Lightbox.vue` temporarily replaces the
+  track's own `scrollTo` for the duration of that one synchronous call and restores it immediately
+  after — a local decorator, not a change to `useCarousel` itself.
+- **Every slide's `Image` is `priority` (eager), not only the one at the current index.** The
+  closed `<dialog>` itself already satisfies the spec's own "load full-resolution images only when
+  the viewer opens" — a UA fetches nothing inside an element with no layout box, `loading`
+  attribute aside — so the choice between eager and lazy only matters for the slides a shopper has
+  not yet scrolled to. A plain `loading="lazy"` there depends on the browser's own proximity
+  heuristic, which does not treat an image as "near the viewport" merely because its own (real,
+  visible) scrolling ancestor put it there — a shopper clicking through several images quickly
+  should not wait on a fetch that only starts once each one is scrolled fully into view.
+- **The stage's own 4rem side padding (spec "Sizes": "room for the arrows") lives on each slide,
+  not on the scrolling track.** Padding on the track itself (an `overflow-x-auto` element) does not
+  shrink what a scroll-snapped, 100%-wide slide's own `clientWidth` shows at rest — it only shifts
+  where the content starts, so the very next slide's own padding-width sliver was already visible
+  beside the first one before any scrolling happened (caught live in the `Narrow` story's own
+  360px-wide baseline, a real peek the spec's own "one slide = 100% of the stage, no gap" rule rules
+  out). A slide's own inset costs nothing at the track's box-sizing level — its outer width is still
+  exactly the track's own, since border-box already includes the padding — so moving `px-16` there
+  removes the peek entirely while the image still loses the 4rem the arrows need.

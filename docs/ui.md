@@ -105,6 +105,10 @@ in progress)
   no rendering of its own, reused unchanged by the Lightbox's own track.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind
   an ellipsis button below its own 48rem width (never the viewport) and never truncating a title.
+- `Lightbox` — a full-screen native `<dialog>` image viewer for product galleries, built on
+  `useDialog` and `useCarousel` unchanged: counter, close, arrows and a caption around a one-
+  image-per-view track, with an optional thumbnail strip. Opens at a given `index` (two-way) with
+  no scroll animation; `←`/`→` move the image from anywhere in the viewer, not only the track.
 
 ## Styles
 
