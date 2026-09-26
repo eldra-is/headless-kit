@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { cx, partClass } from '../../utils/cx';
 import { ACCORDION_KEY } from './context';
 import { supportsExclusiveDetailsGroups } from './detailsExclusivity';
+import { animatePanelHeight } from './heightTransition';
 import type { AccordionItemProps } from './types';
 
 const props = withDefaults(defineProps<AccordionItemProps>(), {
@@ -26,6 +27,22 @@ const emit = defineEmits<{
 const group = inject(ACCORDION_KEY, null);
 
 const model = useControllableModel<boolean>(props, emit, () => false);
+
+/** The `<details>` and its panel, both needed by the height animation below: `detailsRef` so
+ *  `onSummaryClick` can read/flip `open` without walking the DOM from the event, `panelRef` so
+ *  both it and `onToggle` can measure and animate the same element. Undefined on a link row, which
+ *  renders neither. */
+const detailsRef = ref<HTMLDetailsElement>();
+const panelRef = ref<HTMLDivElement>();
+
+/**
+ * Guards `onSummaryClick`'s close animation against re-entry from a fast repeat activation (a
+ * second click, or Enter/Space pressed again) while the panel is still shrinking. `details.open`
+ * stays `true` for the whole close animation (see `onSummaryClick`), so without this a second
+ * activation would read that same "currently open, so this is a close" branch and start a second
+ * `animate()` on top of the first. Plain instance state, not a `ref`: nothing here is rendered.
+ */
+let isClosing = false;
 
 const isLinkRow = computed(() => props.href !== undefined);
 
@@ -69,11 +86,74 @@ function closeOtherOpenSiblings(name: string, current: HTMLDetailsElement): void
 function onToggle(event: Event): void {
   const target = event.target as HTMLDetailsElement;
   const open = target.open;
+  // Closed via any route — this handler's own eventual `.open = false` at the end of
+  // `onSummaryClick` included — leaves nothing left for that guard to protect.
+  if (!open) isClosing = false;
   model.value = open;
   emit('toggle', open);
+  /**
+   * Keyed off `toggle` rather than the click handler below, so a browser-forced open — find-in-
+   * page revealing a match inside a closed panel, `hidden="until-found"` — animates too (spec
+   * "Accordion" → Acceptance criteria: "Find-in-page finds text in closed panels and opens the
+   * item"). The browser has already flipped `open` and revealed the panel by the time this event
+   * fires, so `scrollHeight` here already reflects the fully laid-out panel; the animation plays
+   * from `0` up to it. See `heightTransition.ts` for exactly when this is skipped in favour of an
+   * instant reveal (reduced motion, no `Element.prototype.animate`, or no stylesheet to read the
+   * duration/easing tokens from).
+   */
+  if (open && panelRef.value) {
+    void animatePanelHeight(
+      panelRef.value,
+      0,
+      panelRef.value.scrollHeight,
+      '--eldra-duration-base',
+      '--eldra-ease-out'
+    );
+  }
   if (open && detailsName.value !== undefined && !supportsExclusiveDetailsGroups()) {
     closeOtherOpenSiblings(detailsName.value, target);
   }
+}
+
+/**
+ * Intercepts the summary's own click (spec "Accordion" → Behaviour & motion, operator override
+ * 2026-09-26: "the accordion should have some expand transition" — the collapse animates too, not
+ * just the expand). Native `<summary>` activation closes the `<details>` — and, with it, removes
+ * the panel from layout via the browser's own
+ * `details:not([open]) > *:not(summary) { display: none; }` UA rule — before any script gets a
+ * chance to see the panel at its full height, so there would be nothing left to animate *from* by
+ * the time a `toggle` listener runs. `preventDefault()` here stops that default action; this
+ * function then plays the same height animation in reverse and only flips `open` itself once it
+ * settles, which is what fires the native `toggle` this component already listens for (`onToggle`
+ * above) — `model`/`update:modelValue`/the re-emitted `toggle` all still go through that one path,
+ * completely unchanged.
+ *
+ * Only the closing direction is intercepted here. An opening click needs no interception at all:
+ * the native default action already reveals the panel — there is no "before" state worth
+ * preserving — so it is left to run, and `onToggle` above does the animating once it has.
+ *
+ * `Enter`/`Space` on a focused `<summary>` reach here too: the browser's own default action for
+ * both converts them into this same `click` event (see `AccordionItem.spec.ts`'s own comment on
+ * why that particular conversion is untestable in happy-dom), so no separate `@keydown` is needed.
+ *
+ * Exclusive `name` groups: a sibling that closes natively because this item opened is not reached
+ * through this function at all — the browser (or `closeOtherOpenSiblings`'s fallback) flips that
+ * sibling's `open` directly, with no click of its own to intercept — so that sibling still closes
+ * instantly, exactly as it did before this change. Animating that collapse too would mean reaching
+ * into a sibling `AccordionItem` instance from this one; the README's Deviations entry records
+ * this as the deliberate, documented gap rather than something left unfinished.
+ */
+function onSummaryClick(event: MouseEvent): void {
+  const details = detailsRef.value;
+  const panel = panelRef.value;
+  if (!details || !panel || !details.open || isClosing) return; // opening, or already closing
+  event.preventDefault();
+  isClosing = true;
+  const fromPx = panel.scrollHeight;
+  void animatePanelHeight(panel, fromPx, 0, '--eldra-duration-base', '--eldra-ease-in').then(() => {
+    isClosing = false;
+    details.open = false; // fires the native `toggle` → `onToggle` → model/emit, exactly as today
+  });
 }
 
 /**
@@ -148,8 +228,10 @@ const chevronClass = computed(() =>
 
 /** Spec "Accordion" → Sizes: panel `padding-bottom 1.25rem, max-width 65ch`. States, "Open" row:
  *  "panel copy `muted`". Behaviour & motion: "fades in over `duration-base` `ease-out` when
- *  opened" (baked into `eldra-accordion-panel`, see its own comment in `tailwind.css` for why that
- *  is a fade and not a height animation), reduced motion instant. */
+ *  opened" — still exactly `eldra-accordion-panel`'s own CSS opacity fade (see its comment in
+ *  `tailwind.css`), running alongside the height animation `onToggle`/`onSummaryClick` above drive
+ *  through the Web Animations API (operator override 2026-09-26, `heightTransition.ts`), not
+ *  replaced by it. Reduced motion: both are instant. */
 const panelClass = computed(() =>
   partClass('max-w-[65ch] pb-5 text-muted eldra-accordion-panel', props.classes, 'panel')
 );
@@ -164,13 +246,14 @@ const panelClass = computed(() =>
   </a>
   <details
     v-else
+    ref="detailsRef"
     data-part="root"
     :class="rootClass"
     :name="detailsName"
     :open="model"
     @toggle="onToggle"
   >
-    <summary data-part="summary" :class="summaryClass">
+    <summary data-part="summary" :class="summaryClass" @click="onSummaryClick">
       <span class="min-w-0 flex-1">
         <component :is="titleTag" data-part="title" :class="titleClass">{{ title }}</component>
         <span v-if="help" data-part="help" :class="helpClass">{{ help }}</span>
@@ -192,7 +275,7 @@ const panelClass = computed(() =>
         <path d="M6 9l6 6l6 -6" />
       </svg>
     </summary>
-    <div data-part="panel" :class="panelClass">
+    <div ref="panelRef" data-part="panel" :class="panelClass">
       <slot />
     </div>
   </details>

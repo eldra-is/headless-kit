@@ -458,7 +458,16 @@
    Overriding `display` to keep the row always rendered is exactly what would defeat that feature
    in whichever engine implements it that way. This utility never sets `display` at all — only
    `opacity` and `display`'s own place in the transition list — so the native hide/reveal (and
-   whatever a browser does with it for find-in-page) is completely untouched. */
+   whatever a browser does with it for find-in-page) is completely untouched.
+
+   Operator override, 2026-09-26 ("the accordion should have some expand transition"):
+   `AccordionItem.vue` now also plays a *height* animation on the same panel element, through the
+   Web Animations API (`heightTransition.ts`) rather than CSS — it animates a measured pixel height
+   (`0` ↔ `scrollHeight`), never touches `display`, and needs no grid wrapper, so the find-in-page
+   argument above never applies to it. This utility is unchanged and keeps doing exactly what it
+   always did (the opacity fade); the two run side by side. See the README's Deviations entry for
+   the fuller account, including the exclusive-group sibling that still closes with no animation of
+   its own. */
 @utility eldra-accordion-panel {
   transition:
     opacity var(--eldra-duration-base) var(--eldra-ease-out),

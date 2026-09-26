@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
@@ -12,6 +12,32 @@ const LONG_CONTENT =
 afterEach(() => {
   document.body.innerHTML = '';
 });
+
+/**
+ * `animatePanelHeight` (`heightTransition.ts`) only ever animates once `--eldra-duration-base`/
+ * `--eldra-ease-out`/`--eldra-ease-in` resolve to real values through `getComputedStyle` — true in
+ * any real consumer, which always ships `tokens.css`, but not in this suite, which mounts the
+ * component with no stylesheet at all. Every other spec in this file relies on exactly that gap to
+ * stay a synchronous, un-animated assertion of the `<details>`/`modelValue`/`toggle` contract (see
+ * the "height animation" describe block below for the specs that turn the animation on on purpose,
+ * this same way).
+ */
+function giveMotionTokens(el: HTMLElement): void {
+  el.style.setProperty('--eldra-duration-base', '20ms');
+  el.style.setProperty('--eldra-ease-out', 'cubic-bezier(0.2,0,0,1)');
+  el.style.setProperty('--eldra-ease-in', 'cubic-bezier(0.4,0,1,1)');
+}
+
+/**
+ * Waits past both the `20ms` `giveMotionTokens` duration (real, un-stubbed `Element.animate` runs
+ * on happy-dom's own timer) and the microtask hops after it settles — `animatePanelHeight`'s own
+ * `.then()` plus whichever `AccordionItem.vue` handler chains onto that. `250ms` is a generous
+ * margin over the `20ms` animation itself, not a tuned minimum, so this stays robust under a slow
+ * or loaded CI runner rather than flaking on timing.
+ */
+function flushAnimationSettling(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 250));
+}
 
 describe('AccordionItem — disclosure semantics', () => {
   it('is a native <details><summary>, closed by default, with a data-part on every part', () => {
@@ -246,6 +272,174 @@ describe('AccordionItem — accessibility', () => {
       props: { title: 'Size guide', href: '/pages/size-guide' },
     });
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('AccordionItem — height animation (operator, 2026-09-26)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('closing intercepts the click, animates the panel height down, and only flips `open`/emits once that settles', async () => {
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Materials & care', modelValue: true },
+      slots: { default: 'Body' },
+    });
+    const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+    giveMotionTokens(wrapper.get('[data-part="panel"]').element as HTMLElement);
+
+    await wrapper.get('[data-part="summary"]').trigger('click');
+    // The click was intercepted (`preventDefault`): the browser's own default action never ran,
+    // so `open` has not moved yet and nothing has been emitted — the whole point of animating the
+    // collapse before applying it.
+    expect(details.open).toBe(true);
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    expect(wrapper.emitted('toggle')).toBeUndefined();
+
+    await flushAnimationSettling();
+    expect(details.open).toBe(false);
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+    expect(wrapper.emitted('toggle')?.[0]).toEqual([false]);
+    wrapper.unmount();
+  });
+
+  it('falls back to an instant close when `Element.prototype.animate` is unavailable', async () => {
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Materials & care', modelValue: true },
+      slots: { default: 'Body' },
+    });
+    const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+    giveMotionTokens(panel);
+    // Simulates an engine (or a stricter DOM environment than happy-dom) with no Web Animations
+    // API at all — `heightTransition.ts` feature-detects this per element rather than assuming it.
+    Object.defineProperty(panel, 'animate', { value: undefined, configurable: true });
+
+    const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+    await wrapper.get('[data-part="summary"]').trigger('click');
+    // No animation to await: the fallback is synchronous, so this is already settled.
+    expect(details.open).toBe(false);
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+    wrapper.unmount();
+  });
+
+  it('reduced motion closes instantly and never starts a height animation', async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+    try {
+      const wrapper = mountWith(AccordionItem, {
+        props: { title: 'Materials & care', modelValue: true },
+        slots: { default: 'Body' },
+      });
+      const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+      giveMotionTokens(panel);
+      const animateSpy = vi.spyOn(panel, 'animate');
+
+      const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+      await wrapper.get('[data-part="summary"]').trigger('click');
+      expect(details.open).toBe(false);
+      expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+      expect(animateSpy).not.toHaveBeenCalled();
+      wrapper.unmount();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('reduced motion opens instantly and never starts a height animation', async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+    try {
+      const wrapper = mountWith(AccordionItem, {
+        props: { title: 'Materials & care', modelValue: false },
+        slots: { default: 'Body' },
+      });
+      const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+      giveMotionTokens(panel);
+      const animateSpy = vi.spyOn(panel, 'animate');
+
+      const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+      await wrapper.get('[data-part="summary"]').trigger('click');
+      expect(details.open).toBe(true);
+      expect(animateSpy).not.toHaveBeenCalled();
+      wrapper.unmount();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('opening via an ordinary click animates the panel height from 0 to its measured scrollHeight', async () => {
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Materials & care', modelValue: false },
+      slots: { default: 'Body' },
+    });
+    const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+    giveMotionTokens(panel);
+    const animateSpy = vi
+      .spyOn(panel, 'animate')
+      .mockReturnValue({ finished: Promise.resolve() } as unknown as Animation);
+
+    await wrapper.get('[data-part="summary"]').trigger('click');
+    expect(animateSpy).toHaveBeenCalledTimes(1);
+    const [keyframes, options] = animateSpy.mock.calls[0]!;
+    expect(keyframes).toEqual([{ height: '0px' }, { height: `${panel.scrollHeight}px` }]);
+    expect((options as KeyframeAnimationOptions).duration).toBe(20);
+    expect((options as KeyframeAnimationOptions).easing).toBe('cubic-bezier(0.2,0,0,1)');
+    wrapper.unmount();
+  });
+
+  it('a browser-forced open with no preceding click (find-in-page) still animates, via `toggle`', () => {
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Materials & care', modelValue: false },
+      slots: { default: 'Body' },
+    });
+    const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+    giveMotionTokens(panel);
+    const animateSpy = vi
+      .spyOn(panel, 'animate')
+      .mockReturnValue({ finished: Promise.resolve() } as unknown as Animation);
+
+    const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+    // No `.trigger('click')` at all: this is what the browser does on its own when find-in-page
+    // reveals a match inside a closed panel — it flips `open` and fires `toggle` with no click
+    // event preceding it.
+    details.open = true;
+    expect(animateSpy).toHaveBeenCalledTimes(1);
+    const [keyframes, options] = animateSpy.mock.calls[0]!;
+    expect(keyframes).toEqual([{ height: '0px' }, { height: `${panel.scrollHeight}px` }]);
+    expect((options as KeyframeAnimationOptions).easing).toBe('cubic-bezier(0.2,0,0,1)');
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([true]);
+    expect(wrapper.emitted('toggle')?.[0]).toEqual([true]);
+    wrapper.unmount();
+  });
+
+  it('closing a second time in quick succession is ignored while the first close is still animating', async () => {
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Materials & care', modelValue: true },
+      slots: { default: 'Body' },
+    });
+    const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+    giveMotionTokens(panel);
+    let resolveFinished!: () => void;
+    const animateSpy = vi.spyOn(panel, 'animate').mockReturnValue({
+      finished: new Promise<void>((resolve) => {
+        resolveFinished = resolve;
+      }),
+    } as unknown as Animation);
+
+    const summary = wrapper.get('[data-part="summary"]');
+    await summary.trigger('click');
+    await summary.trigger('click'); // still mid-animation: must not start a second one
+    expect(animateSpy).toHaveBeenCalledTimes(1);
+
+    resolveFinished();
+    await flushAnimationSettling();
+    const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+    expect(details.open).toBe(false);
     wrapper.unmount();
   });
 });

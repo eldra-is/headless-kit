@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/axe';
 import { mountWith } from '../../../test/mount';
 import Accordion from '../Accordion.vue';
@@ -13,6 +13,14 @@ function detailsOf(wrapper: { findAll: (selector: string) => { element: Element 
   return wrapper
     .findAll('details[data-part="root"]')
     .map((item) => item.element as HTMLDetailsElement);
+}
+
+/** See `AccordionItem.spec.ts`'s own copy of this helper: gives an element the three motion
+ *  tokens `heightTransition.ts` reads, which no test in this file's suite otherwise ships. */
+function giveMotionTokens(el: HTMLElement): void {
+  el.style.setProperty('--eldra-duration-base', '20ms');
+  el.style.setProperty('--eldra-ease-out', 'cubic-bezier(0.2,0,0,1)');
+  el.style.setProperty('--eldra-ease-in', 'cubic-bezier(0.4,0,1,1)');
 }
 
 describe('Accordion — element and structure', () => {
@@ -158,6 +166,47 @@ describe('Accordion — single-open (`multiple="false"`)', () => {
     await summaries[1]!.trigger('click');
     expect(second!.open).toBe(true);
     expect(first!.open).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('the sibling that native (or fallback) exclusivity closes is not itself height-animated — it closes instantly, the documented gap (README Deviations)', async () => {
+    const wrapper = mountWith(
+      {
+        components: { Accordion, AccordionItem },
+        template: `
+          <Accordion :multiple="false">
+            <AccordionItem title="One">Body one</AccordionItem>
+            <AccordionItem title="Two">Body two</AccordionItem>
+          </Accordion>
+        `,
+      },
+      {}
+    );
+    const panels = wrapper
+      .findAll('[data-part="panel"]')
+      .map((item) => item.element as HTMLElement);
+    for (const panel of panels) giveMotionTokens(panel);
+    const animateSpies = panels.map((panel) =>
+      vi
+        .spyOn(panel, 'animate')
+        .mockReturnValue({ finished: Promise.resolve() } as unknown as Animation)
+    );
+
+    const summaries = wrapper.findAll('[data-part="summary"]');
+    const [first, second] = detailsOf(wrapper);
+    await summaries[0]!.trigger('click');
+    expect(first!.open).toBe(true);
+    expect(animateSpies[0]).toHaveBeenCalledTimes(1); // the opening animation
+
+    await summaries[1]!.trigger('click');
+    expect(second!.open).toBe(true);
+    expect(first!.open).toBe(false); // closed by exclusivity, not by its own summary click
+    // The first item's own `animate` was never called a second time: `onSummaryClick` only
+    // intercepts a click on *that* item's own summary, and this closure went through
+    // `closeOtherOpenSiblings`/native exclusivity instead, which flips `open` directly.
+    expect(animateSpies[0]).toHaveBeenCalledTimes(1);
+    expect(animateSpies[1]).toHaveBeenCalledTimes(1); // the second item's own opening animation
+    vi.restoreAllMocks();
     wrapper.unmount();
   });
 

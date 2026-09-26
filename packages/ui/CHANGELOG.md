@@ -18,6 +18,18 @@ Release-please writes the generated notes from commit messages and does not repl
   threshold. The click a mouse drag fires on release is still cancelled, but only after a real
   drag — a sub-threshold press still clicks or navigates normally, on a link or button exactly as it
   did on plain track background.
+- **`Accordion` animates height on expand and collapse** (operator, 2026-09-26): opening plays a
+  `Element.prototype.animate` height transition from `0` to the panel's measured content height
+  (`--eldra-duration-base`/`--eldra-ease-out`), driven by the native `toggle` event so a
+  browser-forced open (find-in-page revealing a match inside a closed panel) animates too, with no
+  click involved. Closing intercepts the summary's `click` (and the `Enter`/`Space` activation the
+  browser converts into one) to play the same animation in reverse
+  (`--eldra-ease-in`) before flipping `open` itself, so `modelValue`/`toggle` still fire at exactly
+  the point they did before. The existing opacity fade is unchanged and runs alongside. Reduced
+  motion skips the height animation entirely, the same way `useCarousel`/`Tooltip` check it. An
+  exclusive-`name` group's sibling closed by another item opening still closes instantly, with no
+  collapse animation of its own — see the README's Deviations entry for the full account.
+
 - **`Breadcrumb` items sit closer together** (operator, 2026-09-26): the list gap is 0.25rem and the chevron carries 0.125rem on each side (1.5rem between words instead of 2rem).
 
 - **Fix (2026-09-26, operator report): `Carousel`/`Lightbox` pointer drag and touch swipe actually

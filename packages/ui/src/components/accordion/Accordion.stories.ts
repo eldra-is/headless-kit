@@ -48,12 +48,15 @@ const meta = {
           "open panel's own controls; `Enter`/`Space` toggle the focused summary. This component",
           'adds no key handling of its own.',
           '',
-          '**Motion**: the chevron rotates 180° and the panel fades in, both over `duration-base`',
-          '`ease-out`. Reduced motion snaps the chevron and pops the panel open instantly. The',
-          "panel is a fade, not a height animation — see the README's Deviations for why a",
-          'grid-rows height animation was rejected (it would have to defeat the same native',
-          '`<details>` mechanism that makes closed-panel text findable, and re-openable, by the',
-          "browser's own find-in-page).",
+          '**Motion**: the chevron rotates 180°, the panel fades in, and the panel height',
+          'animates between `0` and its measured content height — all over `duration-base`, the',
+          'fade and rotation `ease-out`, the height animation `ease-out` opening / `ease-in`',
+          'closing (operator addition, 2026-09-26). Reduced motion makes all three instant. The',
+          'height animation runs through the Web Animations API on a measured pixel height, never',
+          'touching `display`, so closed-panel text stays findable — and re-openable — by the',
+          "browser's own find-in-page; see the README's Deviations for the fuller account,",
+          'including the one documented gap (an exclusive-group sibling closed by another item',
+          'opening closes instantly, with no collapse animation of its own).',
         ].join('\n'),
       },
     },
@@ -208,7 +211,10 @@ export const Narrow: Story = {
  * `--reduced-motion` with Playwright's `reducedMotion: 'reduce'` emulation: `duration-base` reads
  * `--eldra-duration-base`, which `tokens.css` zeroes under `prefers-reduced-motion`, so the
  * chevron snaps and the panel pops open instead of fading — this story renders identically to
- * `Multiple`'s first (open) row under that emulation, which is the point.
+ * `Multiple`'s first (open) row under that emulation, which is the point. The height animation
+ * (`heightTransition.ts`) checks `prefers-reduced-motion` the same way `useCarousel`/`Tooltip` do
+ * (`prefersReducedMotion()`), independently of the zeroed token, and skips outright rather than
+ * playing a real 0ms animation — either way, nothing here moves.
  */
 export const ReducedMotion: Story = {
   render: () => ({

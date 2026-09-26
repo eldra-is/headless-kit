@@ -2055,20 +2055,54 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   itself. A component reusing a differently-named cross-component utility is unusual enough to
   call out here rather than leave a reader wondering why `Tab.vue` imports nothing from
   `variant-picker/`.
-- **`Accordion`'s panel fades in; it does not animate height.** The spec's own Behaviour & motion
-  text says exactly that ("Panel: fades in over `duration-base` `ease-out` when opened"), but a
-  grid-rows height animation was the first design considered and is worth recording as rejected:
-  making one work at all requires the panel to stay in the layout while "closed" — collapsed to a
-  zero-height row rather than genuinely hidden — which means overriding the panel's own `display`
-  so the browser's default `details:not([open]) > *:not(summary) { display: none; }` rule (the
-  HTML spec's own UA style) never applies to it. The spec's own Accordion acceptance criteria
-  requires "Find-in-page finds text in closed panels and opens the item", a `<details>`-specific
-  browser feature keyed to that exact default hiding — so a height animation that has to defeat it
-  to exist would trade one acceptance criterion for another. `eldra-accordion-panel` (see
-  `tailwind.css`) instead only ever touches `opacity` and adds `display` to the transition list
-  (`transition-behavior: allow-discrete` plus `@starting-style`, so the fade plays as the element's
-  default `display: none → block` toggles) — the native hide/reveal, and whatever a browser does
-  with it for find-in-page, is completely untouched.
+- **`Accordion`'s panel animates height on expand and collapse, through the Web Animations API, not
+  CSS** (operator override, 2026-09-26: "the accordion should have some expand transition" —
+  supersedes the original "fades, does not animate height" ruling below it in earlier versions of
+  this file). The spec's own Behaviour & motion text only asked for a fade ("Panel: fades in over
+  `duration-base` `ease-out` when opened"), and a CSS grid-rows height animation was the original
+  design and was rejected for it: making one work at all requires the panel to stay in the layout
+  while "closed" — collapsed to a zero-height row rather than genuinely hidden — which means
+  overriding the panel's own `display` so the browser's default
+  `details:not([open]) > *:not(summary) { display: none; }` rule (the HTML spec's own UA style)
+  never applies to it, defeating the Accordion acceptance criterion "Find-in-page finds text in
+  closed panels and opens the item" (a `<details>`-specific browser feature keyed to that exact
+  default hiding) to satisfy a different one. `eldra-accordion-panel` (see `tailwind.css`) still
+  only ever touches `opacity` and `display`'s place in the transition list for exactly that reason,
+  and the operator's height animation does not replace it — it runs alongside, entirely in
+  JavaScript, entirely in `src/components/accordion/heightTransition.ts` and
+  `AccordionItem.vue`'s `onToggle`/`onSummaryClick`: `Element.prototype.animate` on the panel
+  element from a measured pixel height (`0` ↔ `scrollHeight`) to the other, which never touches
+  `display` at all, so the find-in-page argument above never applies to it.
+  - **Open** is driven by the native `toggle` event, not the click — the browser has already
+    flipped `open` and revealed the panel by the time `toggle` fires, so `scrollHeight` is already
+    accurate, and keying off `toggle` rather than a click handler is what makes a browser-forced
+    open (find-in-page revealing a match inside a closed panel, `hidden="until-found"`) animate
+    too, with no click ever having happened.
+  - **Close** intercepts the summary's own `click` (`Enter`/`Space` reach it too, converted to a
+    `click` by the browser's own default action) with `preventDefault()`, since the browser's
+    default close action would otherwise remove the panel from layout before any script could
+    measure it. The height animation plays in reverse and only then sets `details.open = false`
+    itself, which is what fires the native `toggle` this component already listens for — the
+    `modelValue`/`update:modelValue`/re-emitted `toggle` contract is completely unchanged, just
+    deferred until the animation settles.
+  - **Reduced motion** (`prefers-reduced-motion: reduce`) is checked the same way
+    `useCarousel`/`Tooltip` do (`prefersReducedMotion()`), independently of `tokens.css` already
+    zeroing `--eldra-duration-base` under the same media query — either one skips the animation.
+  - **Duration and easing are read from the panel's own computed style** at animation time
+    (`--eldra-duration-base`, `--eldra-ease-out` opening / `--eldra-ease-in` closing) rather than a
+    literal number in `heightTransition.ts`, matching this package's "every duration/easing
+    resolves to a token" rule even though this is a JS animation, not a CSS one — a consumer
+    overriding those tokens changes this animation too. There is deliberately no literal fallback:
+    when the variable does not resolve to a usable value at all (no stylesheet loaded — a unit
+    test mounting the component with no CSS pipeline, most likely), the animation is skipped
+    outright, exactly like `Element.prototype.animate` being unavailable.
+  - **The documented gap**: an exclusive-`name` group's sibling that closes because another item
+    opened is not reached through the click-intercept above at all — the browser (or
+    `closeOtherOpenSiblings`'s happy-dom fallback, see below) flips that sibling's `open` directly,
+    with no click of its own to intercept — so it still closes instantly, exactly as it did before
+    this change. Animating that collapse too would mean one `AccordionItem` instance reaching into
+    a sibling's; left as the deliberate trade-off an operator override at this scope calls for,
+    not something left unfinished.
 - **`AccordionItem`'s open state is `modelValue` (two-way `update:modelValue`), not the spec's own
   `open`.** Every other stateful control in this package (`Switch`, `Checkbox`, `Select`, …) takes
   its state through `modelValue`/`v-model`, and `open` would be the one exception with no
@@ -2236,8 +2270,11 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   for one extra frame) would fit this case in roughly 40 lines; it does not, for a reason specific
   to _this_ removal rather than the general "no `<TransitionGroup>` in this package" one.
   `Accordion`'s panel animates a native `<details>` toggling its own `display` — the browser drives
-  both the open _and_ the close transition from one `[open]` attribute change, with zero JS
-  coordination. `Toaster` removes a toast by splicing Vue's reactive `toasts` array (`useToast`'s
+  the open transition entirely from the `[open]` attribute change, and even the close (now
+  intercepted by JS to play the height animation before that same attribute flips — see this
+  file's own Accordion entry above, added after this comparison was written) still has one
+  persistent element with a `[open]` attribute to key a transition off, at every point in the
+  process. `Toaster` removes a toast by splicing Vue's reactive `toasts` array (`useToast`'s
   `dismiss()`), which unmounts the element immediately; there is no attribute to key a CSS
   transition off after that point; nothing renders to transition once it's gone. Reaching the same
   effect needs `Toaster` to intercept every removal, hold the removed item in a locally-tracked
