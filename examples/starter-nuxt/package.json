@@ -16,6 +16,7 @@
     "previews": "node scripts/previews.mjs"
   },
   "dependencies": {
+    "@eldrajs/sdk": "workspace:*",
     "@eldrajs/theme-core": "workspace:*",
     "@eldrajs/theme-nuxt": "workspace:*",
     "@eldrajs/theme-vue": "workspace:*",

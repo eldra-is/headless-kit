@@ -21,4 +21,21 @@ export const enUS = {
   testimonials: {
     carousel: 'Customer testimonials',
   },
+  storefront: {
+    loading: 'Loading…',
+    error: "We couldn't load this right now.",
+    orderStatus: {
+      processing: 'Processing',
+      shipped: 'Shipped',
+      delivered: 'Delivered',
+      delayed: 'Delayed',
+      cancelled: 'Cancelled',
+    },
+    orderSteps: {
+      ordered: 'Ordered',
+      packed: 'Packed',
+      shipped: 'Shipped',
+      delivered: 'Delivered',
+    },
+  },
 } satisfies Messages;

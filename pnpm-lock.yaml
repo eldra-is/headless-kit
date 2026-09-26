@@ -56,6 +56,9 @@ importers:
 
   examples/starter-nuxt:
     dependencies:
+      '@eldrajs/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@eldrajs/theme-core':
         specifier: workspace:*
         version: link:../../packages/theme-core

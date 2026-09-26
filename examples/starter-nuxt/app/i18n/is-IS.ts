@@ -21,4 +21,21 @@ export const isIS = {
   testimonials: {
     carousel: 'Umsagnir viðskiptavina',
   },
+  storefront: {
+    loading: 'Hleð…',
+    error: 'Ekki tókst að sækja þetta núna.',
+    orderStatus: {
+      processing: 'Í vinnslu',
+      shipped: 'Sent',
+      delivered: 'Afhent',
+      delayed: 'Seinkun',
+      cancelled: 'Hætt við',
+    },
+    orderSteps: {
+      ordered: 'Pantað',
+      packed: 'Pakkað',
+      shipped: 'Sent',
+      delivered: 'Afhent',
+    },
+  },
 } satisfies Messages;

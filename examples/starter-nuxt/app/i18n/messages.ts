@@ -34,6 +34,31 @@ export interface Messages {
   testimonials: {
     carousel: string;
   };
+  /**
+   * Shared vocabulary for the commerce blocks built on `app/storefront/*` (design doc
+   * §"Storefront source") — a `StorefrontResult.pending`/`error` state or an order's delivery
+   * step is the same kind of thing across `collection-grid`, `product-detail`, `search`,
+   * `cart` and `order-status`, so it lives here once instead of once per block namespace.
+   */
+  storefront: {
+    /** A `StorefrontResult` still loading (`pending` true, no `data` yet). */
+    loading: string;
+    /** A `StorefrontResult.error` with no more specific, block-authored copy for it. */
+    error: string;
+    orderStatus: {
+      processing: string;
+      shipped: string;
+      delivered: string;
+      delayed: string;
+      cancelled: string;
+    };
+    orderSteps: {
+      ordered: string;
+      packed: string;
+      shipped: string;
+      delivered: string;
+    };
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

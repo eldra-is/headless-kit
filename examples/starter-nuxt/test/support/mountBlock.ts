@@ -19,6 +19,8 @@ import {
 import { createEldraPreviewState, ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
 import { currencyFor, uiMessagesFor } from '../../app/i18n/uiMessages';
+import { createDemoStorefront } from '../../app/storefront/demo';
+import { STOREFRONT_KEY } from '../../app/storefront/types';
 
 /**
  * The single place a block's test environment mimics the site — mirrors
@@ -57,6 +59,10 @@ export function mountOptions(
         [MESSAGES_KEY]: uiMessagesFor(locale),
         [LOCALE_KEY]: locale,
         [CURRENCY_KEY]: currencyFor(locale),
+        // The same wiring `app/plugins/eldra-storefront.ts` does on a real page: a commerce block
+        // reads `useStorefront()`, never the client directly, so every block test sees the
+        // Northwind demo catalogue (`app/storefront/demo.ts`) instead of a live gateway.
+        [STOREFRONT_KEY]: createDemoStorefront(),
       },
       // `components`, not only `stubs`: blocks route an internal destination
       // through `app/components/EldraRouterLink.vue`, whose template writes

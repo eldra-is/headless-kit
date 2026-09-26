@@ -1,0 +1,642 @@
+import { onWatcherCleanup, ref, watch, type Ref } from 'vue';
+import { createCartSession, EldraHttpError, type EldraClient } from '@eldrajs/sdk';
+import { createCartStore, type CartOps, type CartSnapshot } from './cart';
+import { createHistoryStore, createWishlistStore } from './history';
+import type {
+  StorefrontAck,
+  StorefrontCartLine,
+  StorefrontCartTotals,
+  StorefrontCatalog,
+  StorefrontCollectionInfo,
+  StorefrontFacet,
+  StorefrontForms,
+  StorefrontMedia,
+  StorefrontOrder,
+  StorefrontOrders,
+  StorefrontProduct,
+  StorefrontProductListItem,
+  StorefrontResult,
+  StorefrontRoute,
+  StorefrontSearch,
+  StorefrontSearchResponse,
+  StorefrontSource,
+} from './types';
+
+/**
+ * The live implementation: `client.catalog`/`client.search`/`client.cart`/`client.orders`/
+ * `client.inventory` map into the view types in `types.ts`. `@eldrajs/sdk`'s own response types
+ * are contract-derived (`EldraContractResponse<...>`) and resolve to `unknown` in this project
+ * (no generated `contract.ts` — headless-kit `CLAUDE.md`'s "the SDK ships no response types"
+ * invariant), so every `Raw*` interface below is this file's own minimal, hand-written shape of
+ * the gateway's actual JSON (matching `packages/sdk/src/__tests__/fixtures/contract.ts`, a
+ * generated *test* fixture never imported here) — the same thing a real customer theme has to do
+ * before its own `eldra()` Vite plugin has generated a contract against their tenant.
+ *
+ * `forms.subscribe`/`forms.sendMessage`/`catalog.notifyBackInStock` have no gateway endpoint today
+ * (design doc §"Storefront source"): this posts to `options.formsEndpoint` when the plugin
+ * configured one, and resolves `{ ok: false, reason: 'unsupported' }` otherwise.
+ */
+
+// ---------------------------------------------------------------------------------------------
+// Raw gateway shapes this file expects (see the file-level comment above)
+// ---------------------------------------------------------------------------------------------
+
+interface RawThumbnail {
+  assetId: string;
+  url: string;
+  altText?: string;
+}
+
+interface RawProductOptionSwatchValue {
+  key: string;
+  name: string;
+}
+
+interface RawProductOptionSwatch {
+  key: string;
+  values?: RawProductOptionSwatchValue[] | null;
+}
+
+interface RawProductListItem {
+  id: string;
+  slug: string;
+  title: string;
+  status: string;
+  minPrice: number;
+  maxPrice: number;
+  compareAtPrice?: number;
+  thumbnail?: RawThumbnail;
+  totalVariants: number;
+  options?: RawProductOptionSwatch[] | null;
+}
+
+interface RawMediaItem {
+  assetId: string;
+  url: string;
+  altText?: string;
+  sortOrder: number;
+}
+
+interface RawProductOptionValue {
+  id: string;
+  key: string;
+  name: string;
+}
+
+interface RawProductOption {
+  id: string;
+  key: string;
+  name: string;
+  values?: RawProductOptionValue[] | null;
+}
+
+interface RawProductVariant {
+  id: string;
+  sku: string;
+  price: number;
+  compareAtPrice?: number;
+  status: string;
+  media?: RawMediaItem[] | null;
+  optionValues?: Array<{ id: string; name: string; optionId: string; optionValueId: string }> | null;
+}
+
+interface RawProductDetails {
+  id: string;
+  slug: string;
+  title: string;
+  status: string;
+  description?: Record<string, unknown>;
+  mediaLinks?: RawMediaItem[] | null;
+  options?: RawProductOption[] | null;
+  variants?: RawProductVariant[] | null;
+}
+
+interface RawCollectionItem {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  image?: RawThumbnail;
+  productCount: number;
+}
+
+interface RawPageMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  rows: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+interface RawProductList {
+  data: RawProductListItem[] | null;
+  meta: RawPageMeta;
+}
+
+interface RawSearchResult {
+  id: string;
+  kind: 'PRODUCT' | 'CMS_ENTRY' | 'CMS_SCHEMA' | 'CATEGORY';
+  title: string;
+  targetUrl?: string;
+  snippet?: string;
+  summary?: string;
+  breadcrumb?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface RawSearchResponse {
+  results: RawSearchResult[] | null;
+  total: number;
+}
+
+interface RawCartItem {
+  id: string;
+  productId: string;
+  variantId: string;
+  title: string;
+  price: number;
+  quantity: number;
+  thumbnail?: { assetId: string; url: string };
+  optionSnapshots?: Array<{ optionName?: string; optionValueName?: string }> | null;
+}
+
+interface RawCartTotals {
+  subtotal: number;
+  discount: number;
+  taxAmount: number;
+  total: number;
+}
+
+interface RawCart {
+  id: string;
+  currency: string;
+  items?: RawCartItem[] | null;
+  totals: RawCartTotals;
+  discountCode?: string;
+}
+
+interface RawOrderLine {
+  id: string;
+  productId: string;
+  productName: string;
+  variantId?: string;
+  variantName?: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  imageUrl?: string;
+}
+
+interface RawOrder {
+  id: string;
+  orderNumber: number;
+  status: string;
+  createdAt: string;
+  orderLines?: RawOrderLine[] | null;
+  subtotalAmount: number;
+  shippingAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  discountAmount: number;
+  discountCode?: string;
+  shipping?: {
+    customer: { name: string; address: string; town: string; zipcode: number };
+    providerType: string;
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mapping — raw gateway JSON → this theme's view types (all money in minor units already)
+// ---------------------------------------------------------------------------------------------
+
+function toMedia(item: RawThumbnail | RawMediaItem | undefined, fallbackAlt: string): StorefrontMedia | null {
+  if (!item) return null;
+  return { src: item.url, alt: item.altText ?? fallbackAlt };
+}
+
+function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem {
+  return {
+    handle: raw.slug,
+    title: raw.title,
+    url: `/products/${raw.slug}`,
+    featuredImage: toMedia(raw.thumbnail, raw.title),
+    price: { amount: raw.minPrice, compareAt: raw.compareAtPrice ?? null, from: raw.minPrice !== raw.maxPrice },
+    stock: raw.status === 'ACTIVE' ? 'in' : 'out',
+    available: raw.status === 'ACTIVE',
+    variantId: raw.id,
+  };
+}
+
+function mapProductDetails(raw: RawProductDetails): StorefrontProduct {
+  const variants = raw.variants ?? [];
+  const firstAvailable = variants.find((variant) => variant.status === 'ACTIVE') ?? variants[0];
+  const prices = variants.map((variant) => variant.price);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+  const images = (raw.mediaLinks ?? [])
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((media) => toMedia(media, raw.title))
+    .filter((media): media is StorefrontMedia => media !== null);
+
+  return {
+    handle: raw.slug,
+    title: raw.title,
+    url: `/products/${raw.slug}`,
+    featuredImage: images[0] ?? null,
+    images,
+    price: {
+      amount: firstAvailable?.price ?? minPrice,
+      compareAt: firstAvailable?.compareAtPrice ?? null,
+    },
+    options: (raw.options ?? []).map((option) => ({
+      name: option.key,
+      label: option.name,
+      type: 'pills' as const,
+      values: (option.values ?? []).map((value) => ({
+        value: value.key,
+        label: value.name,
+        available: variants.some(
+          (variant) =>
+            variant.status === 'ACTIVE' &&
+            (variant.optionValues ?? []).some((ov) => ov.optionValueId === value.id)
+        ),
+      })),
+    })),
+    categoryTrail: [],
+    description: (() => {
+      const text = raw.description?.text;
+      return typeof text === 'string' ? text : '';
+    })(),
+    inventory: null,
+    stock: firstAvailable?.status === 'ACTIVE' ? 'in' : 'out',
+    available: raw.status === 'ACTIVE',
+    variantId: firstAvailable?.id ?? raw.id,
+  };
+}
+
+function mapCollectionItem(raw: RawCollectionItem): StorefrontCollectionInfo {
+  return {
+    handle: raw.slug,
+    title: raw.title,
+    description: raw.description ?? null,
+    image: toMedia(raw.image, raw.title),
+    productCount: raw.productCount,
+  };
+}
+
+function mapCartLine(raw: RawCartItem): StorefrontCartLine {
+  const variantLabel = (raw.optionSnapshots ?? [])
+    .map((snapshot) => snapshot.optionValueName)
+    .filter((value): value is string => Boolean(value))
+    .join(' / ');
+  return {
+    id: raw.id,
+    variantId: raw.variantId,
+    title: raw.title,
+    url: `/products/${raw.productId}`,
+    variantLabel,
+    quantity: raw.quantity,
+    unitPrice: raw.price,
+    lineTotal: raw.price * raw.quantity,
+    image: raw.thumbnail ? { src: raw.thumbnail.url, alt: raw.title } : null,
+    max: null,
+  };
+}
+
+function mapCartTotals(raw: RawCartTotals, discountCode: string | undefined): StorefrontCartTotals {
+  return {
+    subtotal: raw.subtotal,
+    discount: discountCode && raw.discount > 0 ? { code: discountCode, amount: raw.discount } : null,
+    shipping: null,
+    tax: raw.taxAmount,
+    total: raw.total,
+  };
+}
+
+function mapCart(raw: RawCart): CartSnapshot {
+  return {
+    lines: (raw.items ?? []).map(mapCartLine),
+    totals: mapCartTotals(raw.totals, raw.discountCode),
+  };
+}
+
+const ORDER_STATUS_MAP: Record<string, StorefrontOrder['status']> = {
+  PENDING: 'processing',
+  CONFIRMED: 'processing',
+  PROCESSING: 'processing',
+  SHIPPED: 'shipped',
+  DELIVERED: 'delivered',
+  DELAYED: 'delayed',
+  CANCELLED: 'cancelled',
+  CANCELED: 'cancelled',
+};
+
+function mapOrder(raw: RawOrder): StorefrontOrder {
+  const status = ORDER_STATUS_MAP[raw.status.toUpperCase()] ?? 'processing';
+  const lines: StorefrontCartLine[] = (raw.orderLines ?? []).map((line) => ({
+    id: line.id,
+    variantId: line.variantId ?? line.productId,
+    title: line.productName,
+    url: `/products/${line.productId}`,
+    variantLabel: line.variantName ?? '',
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    lineTotal: line.totalPrice,
+    image: line.imageUrl ? { src: line.imageUrl, alt: line.productName } : null,
+    max: null,
+  }));
+  return {
+    number: `NW-${raw.orderNumber}`,
+    placedAt: raw.createdAt,
+    itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
+    status,
+    steps: [
+      { key: 'ordered', label: 'Ordered', date: raw.createdAt, state: 'done' },
+      { key: 'packed', label: 'Packed', date: null, state: status === 'processing' ? 'current' : 'done' },
+      {
+        key: 'shipped',
+        label: 'Shipped',
+        date: null,
+        state: status === 'shipped' ? 'current' : status === 'delivered' || status === 'delayed' ? 'done' : 'upcoming',
+      },
+      {
+        key: 'delivered',
+        label: 'Delivered',
+        date: null,
+        state: status === 'delivered' ? 'done' : status === 'delayed' ? 'warning' : 'upcoming',
+      },
+    ],
+    lines,
+    totals: {
+      subtotal: raw.subtotalAmount,
+      discount: raw.discountCode && raw.discountAmount > 0 ? { code: raw.discountCode, amount: raw.discountAmount } : null,
+      shipping: raw.shippingAmount,
+      tax: raw.taxAmount,
+      total: raw.totalAmount,
+    },
+    shippingAddress: raw.shipping
+      ? [raw.shipping.customer.name, raw.shipping.customer.address, raw.shipping.customer.town]
+      : [],
+    payment: { brand: '', last4: '' },
+  };
+}
+
+function mapSearchResponse(raw: RawSearchResponse, query: string): StorefrontSearchResponse {
+  const results = raw.results ?? [];
+  const products: StorefrontProductListItem[] = results
+    .filter((result) => result.kind === 'PRODUCT')
+    .map((result) => ({
+      handle: result.id,
+      title: result.title,
+      url: result.targetUrl ?? '#',
+      featuredImage: null,
+      price: { amount: 0 },
+      stock: 'in',
+      available: true,
+      variantId: result.id,
+    }));
+  const articles = results
+    .filter((result) => result.kind === 'CMS_ENTRY')
+    .map((result) => ({
+      title: result.title,
+      href: result.targetUrl ?? '#',
+      category: result.breadcrumb ?? '',
+      readingTime: '',
+      image: null,
+    }));
+  const pages = results
+    .filter((result) => result.kind === 'CMS_SCHEMA')
+    .map((result) => ({
+      title: result.title,
+      href: result.targetUrl ?? '#',
+      path: result.targetUrl ?? '',
+      snippet: result.snippet ?? result.summary ?? '',
+    }));
+  return { query, total: raw.total, products, articles, pages, suggestion: null };
+}
+
+// ---------------------------------------------------------------------------------------------
+// StorefrontResult helper — one AbortController per watcher, aborted on re-run/teardown; error
+// text comes from `EldraHttpError.message` when the gateway itself rejected the request.
+// ---------------------------------------------------------------------------------------------
+
+function errorMessage(caught: unknown): string {
+  if (caught instanceof EldraHttpError) return caught.message;
+  if (caught instanceof Error) return caught.message;
+  return 'Something went wrong.';
+}
+
+function createGatewayResult<T>(
+  sources: Ref<unknown>[],
+  resolve: (signal: AbortSignal) => Promise<T | null>
+): StorefrontResult<T> {
+  const data = ref<T | null>(null) as Ref<T | null>;
+  const pending = ref(true);
+  const error = ref<string | null>(null);
+
+  async function load(): Promise<void> {
+    const controller = new AbortController();
+    onWatcherCleanup(() => controller.abort());
+    pending.value = true;
+    error.value = null;
+    try {
+      const result = await resolve(controller.signal);
+      if (controller.signal.aborted) return;
+      data.value = result;
+    } catch (caught) {
+      if (controller.signal.aborted) return;
+      error.value = errorMessage(caught);
+    } finally {
+      if (!controller.signal.aborted) pending.value = false;
+    }
+  }
+
+  watch(sources, load, { immediate: true, deep: true });
+
+  return { data, pending, error, refresh: load };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Cart — createCartSession() for the remembered cart id, client.cart.* for persistence
+// ---------------------------------------------------------------------------------------------
+
+function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | undefined): CartOps {
+  const session = createCartSession();
+  let cartId = session.read();
+  const checkoutUrl = ref<string | null>(
+    cartId ? client.checkout.handoffUrl({ cartId, checkoutUrl: checkoutBaseUrl }) : null
+  );
+
+  function remember(id: string): void {
+    cartId = id;
+    session.remember(id);
+    checkoutUrl.value = client.checkout.handoffUrl({ cartId: id, checkoutUrl: checkoutBaseUrl });
+  }
+
+  return {
+    async init() {
+      if (!cartId) return { lines: [], totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 } };
+      try {
+        const raw = (await client.cart.get(cartId)) as unknown as RawCart;
+        return mapCart(raw);
+      } catch {
+        // A remembered cart id the gateway no longer recognises (expired, cleared server-side).
+        session.forget();
+        cartId = null;
+        return { lines: [], totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 } };
+      }
+    },
+    async add({ variantId, quantity }) {
+      const raw = (await client.cart.addItem({
+        cartId: cartId ?? undefined,
+        productId: variantId,
+        variantId,
+        quantity,
+      })) as unknown as RawCart;
+      remember(raw.id);
+      return mapCart(raw);
+    },
+    async setQuantity(lineId, quantity) {
+      if (!cartId) throw new Error('No cart to update yet.');
+      const raw = (await client.cart.updateItem(cartId, lineId, { quantity })) as unknown as RawCart;
+      return mapCart(raw);
+    },
+    async remove(lineId) {
+      if (!cartId) throw new Error('No cart to update yet.');
+      const raw = (await client.cart.removeItem(cartId, lineId)) as unknown as RawCart;
+      return mapCart(raw);
+    },
+    async applyDiscount(code) {
+      if (!cartId) return { ack: { ok: false, reason: 'invalid' } };
+      try {
+        const result = await client.cart.applyDiscount(cartId, code);
+        const applied = (result as unknown as { applied: boolean }).applied;
+        const raw = (result as unknown as { cart: RawCart }).cart;
+        if (!applied) return { ack: { ok: false, reason: 'invalid' } };
+        return { ack: { ok: true }, snapshot: mapCart(raw) };
+      } catch {
+        return { ack: { ok: false, reason: 'failed' } };
+      }
+    },
+    async removeDiscount() {
+      if (!cartId) return { lines: [], totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 } };
+      const raw = (await client.cart.removeDiscount(cartId)) as unknown as RawCart;
+      return mapCart(raw);
+    },
+    checkoutUrl,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Forms / back-in-stock — no gateway endpoint today; post to the plugin-configured endpoint.
+// ---------------------------------------------------------------------------------------------
+
+async function postToEndpoint(endpoint: string | undefined, body: Record<string, unknown>): Promise<StorefrontAck> {
+  if (!endpoint) return { ok: false, reason: 'unsupported' };
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return response.ok ? { ok: true } : { ok: false, reason: 'failed' };
+  } catch {
+    return { ok: false, reason: 'failed' };
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// createGatewayStorefront
+// ---------------------------------------------------------------------------------------------
+
+export interface GatewayStorefrontOptions {
+  route: StorefrontRoute;
+  formsEndpoint?: string;
+  checkoutUrl?: string;
+}
+
+export function createGatewayStorefront(client: EldraClient, options: GatewayStorefrontOptions): StorefrontSource {
+  const catalog: StorefrontCatalog = {
+    product: (handle) =>
+      createGatewayResult([handle], async (signal) => {
+        if (!handle.value) return null;
+        const raw = (await client.catalog.getProduct(handle.value, {}, { signal })) as unknown as RawProductDetails;
+        return mapProductDetails(raw);
+      }),
+    collection: (handle) =>
+      createGatewayResult([handle], async (signal) => {
+        if (!handle.value) return null;
+        const raw = (await client.catalog.getCollection(handle.value, {}, { signal })) as unknown as RawCollectionItem;
+        return mapCollectionItem(raw);
+      }),
+    collectionProducts: (handle, opts) =>
+      createGatewayResult([handle, opts], async (signal) => {
+        if (!handle.value) return null;
+        const { page, pageSize, sort, filters } = opts.value;
+        const raw = (await client.catalog.listCollectionProducts(
+          handle.value,
+          { page, pageSize, sort: sort ? [sort] : undefined, filter: filters ? Object.entries(filters).map(([key, values]) => `${key}:${values.join(',')}`) : undefined },
+          { signal }
+        )) as unknown as RawProductList;
+        const facets: StorefrontFacet[] = [];
+        return { items: (raw.data ?? []).map(mapProductListItem), total: raw.meta.total, facets };
+      }),
+    related: (handle, limit) =>
+      createGatewayResult([handle], async (signal) => {
+        if (!handle.value) return [];
+        const raw = (await client.catalog.listProducts(
+          { limit, filter: [`relatedTo:${handle.value}`] },
+          { signal }
+        )) as unknown as RawProductList;
+        return (raw.data ?? []).slice(0, limit).map(mapProductListItem);
+      }),
+    byHandles: (handles) =>
+      createGatewayResult([handles], async (signal) => {
+        if (handles.value.length === 0) return [];
+        const raw = (await client.catalog.listProducts(
+          { filter: [`slug:${handles.value.join(',')}`] },
+          { signal }
+        )) as unknown as RawProductList;
+        return (raw.data ?? []).map(mapProductListItem);
+      }),
+    notifyBackInStock: (input) => postToEndpoint(options.formsEndpoint, { kind: 'notifyBackInStock', ...input }),
+  };
+
+  const search: StorefrontSearch = {
+    run: (query) =>
+      createGatewayResult([query], async (signal) => {
+        if (!query.value) return { query: query.value, total: 0, products: [], articles: [], pages: [], suggestion: null };
+        const raw = (await client.catalog.search(query.value, {}, { signal })) as unknown as RawSearchResponse;
+        return mapSearchResponse(raw, query.value);
+      }),
+  };
+
+  const orders: StorefrontOrders = {
+    current: (token) =>
+      createGatewayResult([token], async (signal) => {
+        if (!token.value) return null;
+        const raw = (await client.orders.get(token.value, {}, { signal })) as unknown as RawOrder;
+        return mapOrder(raw);
+      }),
+  };
+
+  const forms: StorefrontForms = {
+    subscribe: (input) => postToEndpoint(options.formsEndpoint, { kind: 'subscribe', ...input }),
+    sendMessage: (input) => postToEndpoint(options.formsEndpoint, { kind: 'sendMessage', ...input }),
+  };
+
+  return {
+    ready: ref(true),
+    route: options.route,
+    catalog,
+    cart: createCartStore(createGatewayCartOps(client, options.checkoutUrl)),
+    search,
+    orders,
+    forms,
+    wishlist: createWishlistStore(),
+    history: createHistoryStore(),
+  };
+}
