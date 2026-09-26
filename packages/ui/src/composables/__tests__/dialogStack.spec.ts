@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   closeDialog,
   currentDialog,
@@ -8,9 +8,11 @@ import {
 } from '../dialogStack';
 
 /**
- * `useDialog`/`Dialog.vue`'s own specs exercise this module through a real dialog end to end;
- * these specs are the registry's own contract in isolation — the "never stack" refusal, the
- * idempotent re-open, the toast hand-off and the scroll lock — with no component in the way.
+ * `useDialog`/`Dialog.vue`'s own specs exercise this module through a real dialog end to end
+ * (including the stacked-dialog behaviours — Esc/backdrop top-only, focus return, and the
+ * `StackedConfirm` story); these specs are the stack's own contract in isolation — push/pop
+ * ordering, idempotent re-open, the toast hand-off and the scroll lock — with no component in the
+ * way.
  */
 
 function makeDialog(): HTMLDialogElement {
@@ -20,61 +22,116 @@ function makeDialog(): HTMLDialogElement {
 }
 
 afterEach(() => {
-  // Every test either releases the slot itself or leaves a dialog that never claimed it; this is
-  // a defensive reset so a test that throws mid-way cannot leak state into the next one.
-  const leftover = currentDialog();
-  if (leftover !== null) closeDialog(leftover);
+  // Every test either releases every entry it pushed itself or leaves dialogs that never claimed
+  // one; this is a defensive reset so a test that throws mid-way cannot leak state into the next.
+  let leftover = currentDialog();
+  while (leftover !== null) {
+    closeDialog(leftover);
+    leftover = currentDialog();
+  }
   document.body.innerHTML = '';
   document.documentElement.style.overflow = '';
 });
 
-describe('dialogStack — the single modal slot', () => {
+describe('dialogStack — the stack', () => {
   it('starts with no dialog registered', () => {
     expect(currentDialog()).toBeNull();
   });
 
-  it('claims the slot for the first dialog', () => {
+  it('claims the top for the first dialog', () => {
     const dialog = makeDialog();
-    expect(openDialog(dialog)).toBe(true);
+    openDialog(dialog);
     expect(currentDialog()).toBe(dialog);
     expect(isOpenDialog(dialog)).toBe(true);
   });
 
-  it('refuses a second dialog while one is open, warning in dev', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const first = makeDialog();
-    const second = makeDialog();
-    expect(openDialog(first)).toBe(true);
-    expect(openDialog(second)).toBe(false);
-    expect(currentDialog()).toBe(first);
-    expect(isOpenDialog(second)).toBe(false);
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]?.[0])).toContain('stack');
-  });
-
-  it('re-registering the dialog that already holds the slot is a no-op, not a warning', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const dialog = makeDialog();
-    expect(openDialog(dialog)).toBe(true);
-    expect(openDialog(dialog)).toBe(true);
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  it('closeDialog releases the slot, letting the next dialog claim it', () => {
+  it('a second dialog opening while one is already open is pushed on top — no refusal', () => {
     const first = makeDialog();
     const second = makeDialog();
     openDialog(first);
-    closeDialog(first);
-    expect(currentDialog()).toBeNull();
-    expect(openDialog(second)).toBe(true);
+    openDialog(second);
+    expect(currentDialog()).toBe(second);
+    expect(isOpenDialog(second)).toBe(true);
+    // The first is still open, just no longer the top — `isOpenDialog` (and `useDialog`'s own
+    // `isTop`) means "topmost", not "the only one".
+    expect(isOpenDialog(first)).toBe(false);
   });
 
-  it('closeDialog on a dialog that never held the slot does nothing', () => {
+  it('a third dialog goes on top of the second, which stays open underneath both', () => {
+    const first = makeDialog();
+    const second = makeDialog();
+    const third = makeDialog();
+    openDialog(first);
+    openDialog(second);
+    openDialog(third);
+    expect(currentDialog()).toBe(third);
+    expect(isOpenDialog(second)).toBe(false);
+    expect(isOpenDialog(first)).toBe(false);
+  });
+
+  it('re-registering the dialog that already holds the top is a no-op, not a duplicate entry', () => {
+    const dialog = makeDialog();
+    openDialog(dialog);
+    openDialog(dialog);
+    expect(currentDialog()).toBe(dialog);
+    // A duplicate push would need two pops to clear it; one is enough if it was a no-op.
+    closeDialog(dialog);
+    expect(currentDialog()).toBeNull();
+  });
+
+  it('re-registering a dialog that is open but not the top does not move it', () => {
+    const first = makeDialog();
+    const second = makeDialog();
+    openDialog(first);
+    openDialog(second);
+    openDialog(first);
+    expect(currentDialog()).toBe(second);
+  });
+
+  it('closeDialog pops whichever entry it names, wherever it sits in the stack', () => {
+    const first = makeDialog();
+    const second = makeDialog();
+    const third = makeDialog();
+    openDialog(first);
+    openDialog(second);
+    openDialog(third);
+    // The middle one closes (e.g. a consumer sets its own modelValue to false directly) while the
+    // top stays open and on top.
+    closeDialog(second);
+    expect(currentDialog()).toBe(third);
+    expect(isOpenDialog(first)).toBe(false);
+  });
+
+  it('closing the top uncovers whichever is now the top', () => {
+    const first = makeDialog();
+    const second = makeDialog();
+    openDialog(first);
+    openDialog(second);
+    closeDialog(second);
+    expect(currentDialog()).toBe(first);
+    expect(isOpenDialog(first)).toBe(true);
+  });
+
+  it('closeDialog on a dialog that never held a slot does nothing', () => {
     const first = makeDialog();
     const other = makeDialog();
     openDialog(first);
     closeDialog(other);
     expect(currentDialog()).toBe(first);
+  });
+
+  it('closing everything empties the stack, freeing it for a fresh top', () => {
+    const first = makeDialog();
+    const second = makeDialog();
+    openDialog(first);
+    openDialog(second);
+    closeDialog(second);
+    closeDialog(first);
+    expect(currentDialog()).toBeNull();
+
+    const third = makeDialog();
+    openDialog(third);
+    expect(currentDialog()).toBe(third);
   });
 });
 
@@ -88,12 +145,20 @@ describe('dialogStack — TOAST_HOST_KEY', () => {
     expect(TOAST_HOST_KEY.value).toBeNull();
   });
 
-  it('stays put when a second dialog is refused', () => {
+  it('follows the top of the stack as dialogs push and pop', () => {
     const first = makeDialog();
     const second = makeDialog();
     openDialog(first);
-    openDialog(second);
     expect(TOAST_HOST_KEY.value).toBe(first);
+
+    openDialog(second);
+    expect(TOAST_HOST_KEY.value).toBe(second);
+
+    closeDialog(second);
+    expect(TOAST_HOST_KEY.value).toBe(first);
+
+    closeDialog(first);
+    expect(TOAST_HOST_KEY.value).toBeNull();
   });
 });
 
@@ -104,6 +169,23 @@ describe('dialogStack — scroll lock', () => {
     openDialog(dialog);
     expect(document.documentElement.style.overflow).toBe('hidden');
     closeDialog(dialog);
+    expect(document.documentElement.style.overflow).toBe('scroll');
+  });
+
+  it('stays locked while a second dialog opens and closes, releasing only once both have', () => {
+    document.documentElement.style.overflow = 'scroll';
+    const first = makeDialog();
+    const second = makeDialog();
+    openDialog(first);
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    openDialog(second);
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    closeDialog(second);
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    closeDialog(first);
     expect(document.documentElement.style.overflow).toBe('scroll');
   });
 });

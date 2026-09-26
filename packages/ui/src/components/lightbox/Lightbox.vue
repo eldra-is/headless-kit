@@ -5,8 +5,10 @@
  * track. Use it for zooming into product photos; never for a single small image that is already
  * readable, and never put buy actions in it.
  *
- * Built on `useDialog` (native `<dialog>` + `showModal()`, no custom focus trap, the single-modal
- * slot shared with `Dialog`/`Drawer`) and `useCarousel` (index tracking, previous/next/goTo, edge
+ * Built on `useDialog` (native `<dialog>` + `showModal()`, no custom focus trap, the shared
+ * `dialogStack` stack `Dialog`/`Drawer` also push onto — nested modals allowed, `Esc`/a backdrop
+ * click act on the topmost one only, operator override, see the README's Deviations entry) and
+ * `useCarousel` (index tracking, previous/next/goTo, edge
  * detection, `←`/`→` stepping) unchanged — this file only draws the anatomy, forces the viewer to
  * always fill the viewport, and wires the behaviours neither composable owns on its own: opening
  * at `index` without animation, `←`/`→` working from *anywhere* in the viewer (not only a focused
@@ -211,7 +213,18 @@ const rootClass = computed(() =>
       // against the design spec's own general "full-screen variants … apply below a 48rem
       // viewport" line, and `closeClass` below for the one measurement that actually does change
       // at that edge (the close button, exactly like `Drawer`'s own).
-      'fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 bg-transparent p-0 text-background',
+      //
+      // `hidden open:block`, not bare (fix round 2, the operator's own finding — see `Dialog`'s own
+      // rootClass comment for the full mechanism): without it a closed viewer still painted its
+      // full-viewport ground, because an author `display` utility beats the UA's own `display: none`
+      // for a closed `<dialog>` regardless of specificity. `open:block`, not `open:flex` like
+      // `Drawer`'s/`SearchModal`'s own roots, for the identical reason `Dialog`'s own rootClass
+      // comment documents: this root never carried `flex` before (its one `panel` child, already
+      // `flex flex-col` internally, is sized by `w-full h-full`, not fit-content, so there is no
+      // shrink-to-fit ambiguity for a flex container to resolve differently here — but `open:block`
+      // costs nothing and keeps every modal root that never needed `flex` on the same, proven-safe
+      // choice rather than two different justifications for the same fix).
+      'hidden open:block fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 bg-transparent p-0 text-background',
       'backdrop:bg-overlay',
       'animate-eldra-lightbox-in motion-reduce:animate-eldra-dialog-in-reduced'
     ),

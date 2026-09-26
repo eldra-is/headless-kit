@@ -77,7 +77,7 @@ function resolveDuration(variant: ToastVariant, duration: number | undefined): n
 
 /**
  * The one toast queue for the whole app — a module-level store, not a `provide`d instance, the
- * same shape `dialogStack.ts` uses for the single modal slot. The design spec's region is "placed
+ * same shape `dialogStack.ts` uses for its own modal stack. The design spec's region is "placed
  * once in the app layout" (spec "Toast" -> Properties), and a toast is often raised from code with
  * no `provide`/`inject` ancestry to a `Toaster` at all (a fetch error handler, a cart store) — so
  * the hand-off is a plain shared reference every caller reads and writes, exactly `TOAST_HOST_KEY`'s

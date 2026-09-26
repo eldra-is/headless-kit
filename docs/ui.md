@@ -71,15 +71,15 @@ table and Storybook for the full contract of each).
 
 - `Dialog` — a small modal window for one decision or a short form, native `<dialog>` +
   `showModal()` with no custom focus trap (`useDialog` and `dialogStack` in `packages/ui/README.md`
-  own the shared modal rules — never stacking two, initial focus, focus return, the scroll lock —
-  for every modal surface built on top of them).
+  own the shared modal rules — nested modals with `Esc`/a backdrop click acting only on the topmost
+  one, initial focus, focus return, the scroll lock — for every modal surface built on top of them).
 - `Tabs` / `Tab` / `TabPanel` — an APG-pattern tab list that switches between sibling panels in
   place, `underline` or `pills`, data-driven (`items`) or built from `Tab`/`TabPanel` children.
 - `Accordion` / `AccordionItem` — a stack of native `<details>`/`<summary>` disclosure rows, single-
   or multiple-open, with an optional link row for a menu entry without children.
 - `Drawer` — a modal side sheet for long content (the cart, filters, quick view from the right;
   the mobile menu from the left), built on the same `useDialog` contract as `Dialog` and sharing
-  its one-modal-at-a-time slot.
+  its modal stack (a `Dialog` may open on top of it — Esc/a backdrop click act only on the topmost).
 - `Tooltip` — a short, non-modal text label naming or describing an icon-only trigger on hover and
   keyboard focus (WCAG 1.4.13: dismissible, hoverable, persistent).
 - `Popover` — a generic non-modal trigger + floating panel for menus, filters and dropdowns (an

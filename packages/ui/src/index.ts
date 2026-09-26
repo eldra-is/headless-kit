@@ -276,11 +276,12 @@ export {
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
-// The single-modal-at-a-time registry every modal surface in this package shares (`Dialog`,
-// `Drawer`, `Lightbox` and `SearchModal`). `TOAST_HOST_KEY` is the hand-off a `Toaster` reads to
-// render its live region inside whichever dialog is currently open, per the shared modal rule that
-// a toast raised while a modal is open must not be inert behind it; the rest are exported for a
-// consumer building a modal surface of their own on top of `useDialog`.
+// The modal stack every modal surface in this package shares (`Dialog`, `Drawer`, `Lightbox` and
+// `SearchModal`) — nested modals are allowed; `Esc`/a backdrop click act only on the topmost one
+// (operator override, see the README's Deviations entry). `TOAST_HOST_KEY` is the hand-off a
+// `Toaster` reads to render its live region inside whichever dialog is topmost, per the shared
+// modal rule that a toast raised while a modal is open must not be inert behind it; the rest are
+// exported for a consumer building a modal surface of their own on top of `useDialog`.
 export {
   closeDialog,
   currentDialog,

@@ -410,34 +410,39 @@ spec's own non-negotiable 2):
 - **open/close**, synced to `open` via `showModal()`/`.close()`. A modal `<dialog>` already makes
   the rest of the page inert and already contains `Tab`/`Shift+Tab` to its own controls, so nothing
   here re-implements either;
-- **"never stack two modals"**, **the scroll lock**, and **the toast hand-off** — all in
-  `src/composables/dialogStack.ts`, the module-level "one modal at a time" registry every consumer
-  of `useDialog` shares (the same shape as `usePopover`'s own `openRegistry.ts`, but refusing a
-  second open rather than closing the first — "never stack" is stricter than "only the newest
-  shows"). A second dialog asked to open while one already is gets a dev-only console warning and
-  is refused; `useDialog` then puts that dialog's own `open` back to `false`. `TOAST_HOST_KEY`
-  (exported) is a plain `Ref<HTMLDialogElement | null>`, **not a Vue injection key** despite the
-  name matching this package's `*_KEY` convention — see its own doc comment for why: a `Toaster`
-  mounted near an app's root is a sibling of whatever opens a `Dialog` elsewhere in the tree, and
-  `provide`/`inject` cannot connect two siblings, so the hand-off is a plain shared reference both
-  sides read and write, exactly the same reasoning `usePopover`'s `topLayerDialog()` already uses to
-  teleport a panel into a dialog it did not render;
+- **nested modals** (operator override, 2026-09-26 — see [Deviations](#deviations)), **the scroll
+  lock**, and **the toast hand-off** — all in `src/composables/dialogStack.ts`, the module-level
+  stack every consumer of `useDialog` shares (the same shape as `usePopover`'s own
+  `openRegistry.ts`, but pushing on top rather than closing or refusing anything — a modal opening
+  while another is already open is simply left open, underneath). `Esc` and a backdrop click,
+  though, only ever act on the **topmost** entry (`isTop` below); a lower dialog ignores both, even
+  one dispatched at it directly. The scroll lock is held while the stack is non-empty, released only
+  once every open modal has closed. `TOAST_HOST_KEY` (exported) is a plain
+  `Ref<HTMLDialogElement | null>` tracking the **topmost** dialog, **not a Vue injection key**
+  despite the name matching this package's `*_KEY` convention — see its own doc comment for why: a
+  `Toaster` mounted near an app's root is a sibling of whatever opens a `Dialog` elsewhere in the
+  tree, and `provide`/`inject` cannot connect two siblings, so the hand-off is a plain shared
+  reference both sides read and write, exactly the same reasoning `usePopover`'s `topLayerDialog()`
+  already uses to teleport a panel into a dialog it did not render;
 - **initial focus** — `initialFocus`, else the first focusable that is not `[data-part="close"]`
   (this package's own "every part carries `data-part`" convention doubling as the composable's
   exclusion rule, so any modal built on this contract needs no second constant to stay in sync),
   else the close button itself, applied a tick after `showModal()` so slot content mounted alongside
   the dialog (a form's first field) already exists to focus;
 - **focus return** — whatever had focus immediately before `showModal()`, refocused the moment the
-  dialog actually closes, by any route;
-- **`Esc`** (the native `cancel` event) — always closes, never gated by `dismissable`; `onCancel` is
-  a plain callback with nothing to call `preventDefault()` on, so it cannot keep the dialog open;
+  dialog actually closes, by any route — the page's own opener at the bottom of the stack, or,
+  for a modal opened from inside another one, whichever control still had focus in the modal
+  underneath, so closing the top one lands focus back there instead of on the page;
+- **`Esc`** (the native `cancel` event) — closes the dialog, never gated by `dismissable`, but only
+  while it is the top of the stack; `onCancel` is a plain callback with nothing to call
+  `preventDefault()` on, so it cannot keep the dialog open;
 - **backdrop click** — a `click` whose `target` is the `<dialog>` element itself (not a descendant),
-  closing it when `dismissable` reads `true`.
+  closing it when `dismissable` reads `true` **and** it is the top of the stack.
 
 `close(returnValue?)` is exposed so a consumer can close with an action value of their own — a
 `Dialog`'s exposed `close` (`<Dialog ref="dialogRef">` then `dialogRef.value.close('remove')`) is
-this, unchanged. `isTop` is `true` while this dialog is the one `dialogStack` currently holds the
-slot for.
+this, unchanged. `isTop` is `true` while this dialog is the **topmost** entry `dialogStack` holds —
+`false` for one still open but covered by a modal opened on top of it.
 `Tooltip` is built on `useFloating` and `useOverlay` directly rather than on `usePopover`, because
 it must never join the "only one open at a time" registry — showing a tooltip must never close
 somebody else's open `Select`. It still shares the _teleport target_ logic (an internal
@@ -1975,6 +1980,25 @@ role="group" aria-busy aria-label="messages.loading">`, not the `<article>` its 
   close button and later closed again through `v-model` read a stale `"button"` for a close that
   was not one — `"programmatic"` is both a distinct, honest fifth reason and a reset on every route
   through `hide()`. `Drawer` and `SearchModal` inherit the same reason through `useDialog`.
+- **Modal stacking is now allowed** (operator override, 2026-09-26, superseding the design spec's
+  own shared modal rule "Never stack two modals" — every other rule in that section stays). The
+  operator's own report: "we should allow modals to open inside of a modal, but Esc / click outside
+  etc. must only close the topmost modal" — a cart `Drawer`'s "Remove" opening a confirm `Dialog` on
+  top of it (`Drawer`'s `StackedConfirm` story) is exactly this. `src/composables/dialogStack.ts`
+  changed from a single module-level slot that refused a second `showModal()` outright to a stack: a
+  dialog opening while others are already open is pushed on top and left there, no refusal, no dev
+  warning — the ones underneath stay open, simply no longer the top. `Esc` and a backdrop click act
+  only on the topmost entry (`useDialog`'s own `isTop`, now "top of stack" rather than "the only
+  entry"); a lower dialog ignores both, even one dispatched directly at it in a test, which real
+  top-layer stacking would never route there in a browser. Closing the top returns focus to whatever
+  was focused in the modal underneath (the same per-instance `opener` capture `useDialog` always
+  had, unchanged — a modal opened from inside another one simply captures that other one's currently
+  focused control as its own opener, for free). The scroll lock is held while the stack is
+  non-empty, released only once every open modal has closed; `TOAST_HOST_KEY` tracks the topmost
+  dialog, following it down as each closes. `docs/ui.md`'s "never stacking two" line and its
+  Drawer entry's "one-modal-at-a-time slot" wording are updated to match; the design spec's own
+  words are left as written (the spec is the historical record the override departs from, not
+  something this package edits).
 - **`TOAST_HOST_KEY` (`src/composables/dialogStack.ts`) is a plain `Ref<HTMLDialogElement |
 null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming convention for
   `provide`/`inject` pairs (`FIELD_KEY`, `MESSAGES_KEY`, `CHIP_GROUP_KEY`, …).** A `Toaster` is

@@ -3,6 +3,7 @@ import { IconLock, IconTruck } from '@tabler/icons-vue';
 import { ref } from 'vue';
 import Button from '../button/Button.vue';
 import CheckboxGroup from '../checkbox/CheckboxGroup.vue';
+import Dialog from '../dialog/Dialog.vue';
 import Price from '../price/Price.vue';
 import QuantityStepper from '../quantity-stepper/QuantityStepper.vue';
 import Drawer from './Drawer.vue';
@@ -38,9 +39,10 @@ const meta = {
           'and `footer` (the fixed footer, which never scrolls).',
           '',
           '**Built on `useDialog`**, the same contract `Dialog` uses — native `<dialog>` +',
-          '`showModal()`, no custom focus trap, and the same single-modal slot (a `Dialog` and a',
-          '`Drawer` cannot both be open at once). Unlike `Dialog`, there is no `dismissable` prop —',
-          'a backdrop click always closes a Drawer.',
+          '`showModal()`, no custom focus trap, and the same shared modal stack (a `Dialog` may',
+          'open on top of a `Drawer`, or vice versa — Esc and a backdrop click act only on the',
+          'topmost one). Unlike `Dialog`, there is no `dismissable` prop — a backdrop click always',
+          'closes the topmost Drawer.',
           '',
           '**Naming**: use either `title` (a visible `<h2>`, `aria-labelledby`) or `ariaLabel` (no',
           'visible heading — the menu drawer: `ariaLabel="Menu"`). `count` appends "(3)" in `muted`',
@@ -136,6 +138,71 @@ export const Cart: Story = {
               </Button>
             </div>
           </template>
+        </Drawer>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * Nested modals (operator override, 2026-09-26 — see the README's Deviations entry): removing a
+ * line item opens a confirm `Dialog` on top of the still-open cart `Drawer`, rendered inside the
+ * Drawer's own body so it is a genuine DOM descendant of it, the same shape a real nested-modal
+ * flow takes. `Esc`/a backdrop click close only the `Dialog` on top; the Drawer stays open
+ * underneath, and closing the confirm returns focus to whichever "Remove" button opened it, back
+ * inside the Drawer — never to the page behind both.
+ */
+export const StackedConfirm: Story = {
+  args: { title: 'Your cart', count: 2 },
+  render: (args) => ({
+    components: { Drawer, Dialog, Button, Price },
+    setup: () => {
+      const open = ref(true);
+      const confirmOpen = ref(false);
+      const pendingId = ref<string | null>(null);
+      const lines = ref<CartLine[]>([
+        {
+          id: 'sweater',
+          name: 'Merino crew sweater',
+          variant: 'Oat, M',
+          quantity: 1,
+          amount: 8900,
+        },
+        { id: 'mug', name: 'Stoneware mug', variant: 'Clay', quantity: 1, amount: 2400 },
+      ]);
+      function askRemove(id: string): void {
+        pendingId.value = id;
+        confirmOpen.value = true;
+      }
+      function confirmRemove(): void {
+        lines.value = lines.value.filter((line) => line.id !== pendingId.value);
+        confirmOpen.value = false;
+      }
+      return { args, open, confirmOpen, lines, askRemove, confirmRemove };
+    },
+    template: `
+      <div>
+        <Button variant="outline" @click="open = true">Open cart</Button>
+        <Drawer v-bind="args" v-model="open">
+          <ul class="flex flex-col gap-4">
+            <li v-for="line in lines" :key="line.id" class="flex items-center gap-3">
+              <div class="min-w-0 flex-1">
+                <p class="text-body text-text">{{ line.name }}</p>
+                <p class="text-body-sm text-muted">{{ line.variant }}</p>
+              </div>
+              <Price :amount="line.amount * line.quantity" size="sm" />
+              <Button variant="ghost" size="sm" @click="askRemove(line.id)">Remove</Button>
+            </li>
+          </ul>
+          <template #footer>
+            <Button variant="primary" size="lg" block @click="open = false">Check out</Button>
+          </template>
+          <Dialog v-model="confirmOpen" title="Remove from cart?" size="sm" description="This removes it from your bag.">
+            <template #footer>
+              <Button variant="outline" @click="confirmOpen = false">Keep it</Button>
+              <Button variant="danger" @click="confirmRemove">Remove</Button>
+            </template>
+          </Dialog>
         </Drawer>
       </div>
     `,

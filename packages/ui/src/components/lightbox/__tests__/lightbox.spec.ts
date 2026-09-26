@@ -6,6 +6,7 @@ import { isBuilt, itFailsWithoutDist } from '../../../test/built';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { enUS } from '../../../messages/en-US';
 import { currentDialog } from '../../../composables/dialogStack';
+import { expectClosedModalRendersNothing } from '../../../test/modal';
 import Dialog from '../../dialog/Dialog.vue';
 import Lightbox from '../Lightbox.vue';
 import type { LightboxImage } from '../types';
@@ -386,6 +387,28 @@ describe('Lightbox — open and close (useDialog)', () => {
     wrapper.unmount();
   });
 
+  /** Fix round 2, the operator's own finding — the same closed-modal-renders-nothing bug the Drawer
+   *  `Cart` story surfaced, guarded for every modal root the same way. */
+  it('renders nothing while closed — hidden open:flex on the root, not a bare flex', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: false },
+    });
+    await settle();
+    expectClosedModalRendersNothing(root(wrapper), 'block');
+    wrapper.unmount();
+  });
+
+  it('closing it (modelValue turns false) goes back to hidden open:flex, not a leftover flex', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    await wrapper.setProps({ modelValue: false });
+    await settle();
+    expectClosedModalRendersNothing(root(wrapper), 'block');
+    wrapper.unmount();
+  });
+
   it('Esc closes it', async () => {
     const wrapper = mountWith(Lightbox, {
       props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
@@ -409,7 +432,7 @@ describe('Lightbox — open and close (useDialog)', () => {
     wrapper.unmount();
   });
 
-  it('never stacks with a Dialog — the shared modal slot refuses the second one', async () => {
+  it('a Dialog opens on top of an already-open Lightbox — no refusal, no warning', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const lightbox = mountWith(Lightbox, {
       props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
@@ -418,8 +441,15 @@ describe('Lightbox — open and close (useDialog)', () => {
     const dialog = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
     await settle();
     expect(root(lightbox).open).toBe(true);
+    expect((dialog.element as HTMLDialogElement).open).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+
+    // Esc acts on the top (the Dialog) only — the Lightbox stays open underneath.
+    (dialog.element as HTMLDialogElement).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await settle();
     expect((dialog.element as HTMLDialogElement).open).toBe(false);
-    expect(warn).toHaveBeenCalled();
+    expect(root(lightbox).open).toBe(true);
+
     lightbox.unmount();
     dialog.unmount();
   });

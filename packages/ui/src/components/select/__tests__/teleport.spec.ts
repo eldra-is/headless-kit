@@ -366,6 +366,32 @@ describe('inside an open native <dialog>', () => {
     expect(panel.element.parentElement).not.toBe(inner);
   });
 
+  /**
+   * Nested modals (operator override, 2026-09-26 — see the README's Deviations entry): a `Dialog`
+   * opened from inside another one's slot content is a genuine DOM descendant of it, both really
+   * `showModal()`-modal. `topLayerDialog`'s own walk starts from the nearest ancestor dialog and
+   * returns as soon as it finds one in the top layer — which, for a trigger inside the *inner* of
+   * two stacked modals, is the inner one, found first. This is the "confirm it picks the top one"
+   * half of the stack ruling: not a new branch in `topLayerDialog` (nesting already made this work),
+   * but a test proving the existing walk actually resolves to the top when both ancestors are
+   * legitimately modal, not only in the modal-vs-non-modal case above.
+   */
+  it('prefers the inner of two stacked modal dialogs — both genuinely modal', async () => {
+    const outer = openDialog();
+    const inner = document.createElement('dialog');
+    outer.append(inner);
+    inner.setAttribute('open', '');
+    declareModal(outer, true);
+    declareModal(inner, true);
+
+    const wrapper = mountSelect({}, inner);
+    await press(triggerOf(wrapper));
+
+    const panel = panelOf(wrapper.find('[data-part="trigger"]').element);
+    expect(panel.element.parentElement).toBe(inner);
+    expect(panel.element.parentElement).not.toBe(outer);
+  });
+
   it('keeps the nearest open dialog when nothing above it claims the top layer', async () => {
     // Either they are all really non-modal or the engine cannot answer `:modal`, and nothing tells
     // the two apart — so the nearest open dialog is kept, which is the safe mistake of the two

@@ -8,6 +8,7 @@ import { currentDialog } from '../../../composables/dialogStack';
 import { enUS } from '../../../messages/en-US';
 import { axe } from '../../../test/axe';
 import { isBuilt, itFailsWithoutDist } from '../../../test/built';
+import { expectClosedModalRendersNothing } from '../../../test/modal';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Dialog from '../../dialog/Dialog.vue';
 import SearchBar from '../../search-bar/SearchBar.vue';
@@ -224,16 +225,31 @@ describe('SearchModal — open and close (useDialog)', () => {
     expect(root(wrapper).open).toBe(true);
   });
 
-  it('never stacks two modals — a Dialog already open refuses this one, and vice versa', async () => {
+  it('opens on top of an already-open Dialog, and vice versa — no refusal, no warning', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const dialog = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
     const modal = mount({ modelValue: true });
     await nextTick();
-    expect(currentDialog()).toBe(root(dialog));
-    expect(root(modal).open).toBe(false);
-    expect(modal.emitted('update:modelValue')?.[0]).toEqual([false]);
-    expect(warn).toHaveBeenCalled();
+    expect(currentDialog()).toBe(root(modal));
+    expect(root(dialog).open).toBe(true);
+    expect(root(modal).open).toBe(true);
+    expect(modal.emitted('update:modelValue')).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
     dialog.unmount();
+  });
+
+  /** Fix round 2, the operator's own finding — the same closed-modal-renders-nothing bug the
+   *  Drawer `Cart` story surfaced, guarded for every modal root the same way. */
+  it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {
+    const wrapper = mount({ modelValue: false });
+    expectClosedModalRendersNothing(root(wrapper));
+  });
+
+  it('closing it (modelValue turns false) goes back to hidden open:flex, not a leftover flex', async () => {
+    const wrapper = mount({ modelValue: true });
+    await settle();
+    await wrapper.setProps({ modelValue: false });
+    expectClosedModalRendersNothing(root(wrapper));
   });
 
   it('returns focus to the opener once the modal closes', async () => {
@@ -483,6 +499,30 @@ describe('SearchModal — Esc, in the spec’s three steps', () => {
     expect(root(wrapper).open).toBe(false);
     expect(wrapper.emitted('close')?.[0]).toEqual(['escape']);
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+  });
+
+  /** Nested modals: this modal's own three-step Esc handler runs before `useDialog`'s own top-of-
+   *  stack guard, so it needs the identical check — otherwise a cancel reaching a covered
+   *  `SearchModal` would still clear its active option, even though the modal on top of it is the
+   *  one `Esc` is actually for. */
+  it('does nothing — not even clearing the active option — while covered by another dialog', async () => {
+    const wrapper = mount({ modelValue: true, query: 'mer', results: RESULTS });
+    await settle();
+    const input = wrapper.find('[data-part="field"]');
+    await input.trigger('keydown', { key: 'ArrowDown' });
+    expect(field(wrapper).getAttribute('aria-activedescendant')).toBeTruthy();
+
+    const dialog = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    await nextTick();
+
+    root(wrapper).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await nextTick();
+    expect(field(wrapper).getAttribute('aria-activedescendant')).toBeTruthy();
+    expect(root(wrapper).open).toBe(true);
+    expect(wrapper.emitted('cancel')).toBeUndefined();
+    expect(root(dialog).open).toBe(true);
+
+    dialog.unmount();
   });
 });
 

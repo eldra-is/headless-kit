@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
-import { currentDialog } from '../../../composables/dialogStack';
+import { currentDialog, TOAST_HOST_KEY } from '../../../composables/dialogStack';
+import { expectClosedModalRendersNothing } from '../../../test/modal';
 import Dialog from '../Dialog.vue';
 
 type Finder = { find: (selector: string) => { element: Element } };
@@ -112,6 +113,21 @@ describe('Dialog — open and close', () => {
   it('is uncontrolled without modelValue: it stays closed until told to open', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me' } });
     expect(root(wrapper).open).toBe(false);
+    wrapper.unmount();
+  });
+
+  /** Fix round 2, the operator's own finding: a closed `Dialog` must render nothing, not sit on
+   *  screen because a `display` utility on the root beat the UA's own `display: none`. */
+  it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: false } });
+    expectClosedModalRendersNothing(root(wrapper), 'block');
+    wrapper.unmount();
+  });
+
+  it('closing it (modelValue turns false) goes back to hidden open:flex, not a leftover flex', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    await wrapper.setProps({ modelValue: false });
+    expectClosedModalRendersNothing(root(wrapper), 'block');
     wrapper.unmount();
   });
 
@@ -248,18 +264,17 @@ describe('Dialog — backdrop click', () => {
   });
 });
 
-describe('Dialog — never stack two modals', () => {
-  it('a second dialog asked to open while one is already open is refused, with a dev warning', async () => {
+describe('Dialog — nested modals (operator override, 2026-09-26)', () => {
+  it('a second dialog opens on top of the first — no refusal, no warning', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const first = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
-    const second = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    const first = mountWith(Dialog, { props: { title: 'Your cart', modelValue: true } });
+    const second = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
     await nextTick();
 
     expect(root(first).open).toBe(true);
-    expect(root(second).open).toBe(false);
-    expect(second.emitted('update:modelValue')?.[0]).toEqual([false]);
-    expect(warn).toHaveBeenCalled();
-    expect(String(warn.mock.calls[0]?.[0])).toContain('modal');
+    expect(root(second).open).toBe(true);
+    expect(second.emitted('update:modelValue')).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
 
     first.unmount();
     second.unmount();
@@ -284,6 +299,136 @@ describe('Dialog — never stack two modals', () => {
     await wrapper.setProps({ modelValue: true });
     expect(root(wrapper).open).toBe(true);
     wrapper.unmount();
+  });
+
+  it('Esc closes only the top dialog; the lower one stays open', async () => {
+    const lower = mountWith(Dialog, { props: { title: 'Your cart', modelValue: true } });
+    const top = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
+    await nextTick();
+
+    root(top).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await nextTick();
+
+    expect(root(top).open).toBe(false);
+    expect(top.emitted('close')?.[0]).toEqual(['escape']);
+    expect(root(lower).open).toBe(true);
+    expect(lower.emitted('close')).toBeUndefined();
+
+    lower.unmount();
+    top.unmount();
+  });
+
+  it('Esc dispatched at the lower dialog directly does nothing — it is not the top', async () => {
+    const lower = mountWith(Dialog, { props: { title: 'Your cart', modelValue: true } });
+    const top = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
+    await nextTick();
+
+    root(lower).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await nextTick();
+
+    expect(root(lower).open).toBe(true);
+    expect(root(top).open).toBe(true);
+    expect(lower.emitted('cancel')).toBeUndefined();
+    expect(lower.emitted('close')).toBeUndefined();
+
+    lower.unmount();
+    top.unmount();
+  });
+
+  it('a backdrop click on the top dialog closes only the top', async () => {
+    const lower = mountWith(Dialog, { props: { title: 'Your cart', modelValue: true } });
+    const top = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
+    await nextTick();
+
+    root(top).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await nextTick();
+
+    expect(root(top).open).toBe(false);
+    expect(top.emitted('close')?.[0]).toEqual(['backdrop']);
+    expect(root(lower).open).toBe(true);
+
+    lower.unmount();
+    top.unmount();
+  });
+
+  it('a backdrop click dispatched at the lower dialog directly does nothing', async () => {
+    const lower = mountWith(Dialog, { props: { title: 'Your cart', modelValue: true } });
+    const top = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
+    await nextTick();
+
+    root(lower).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await nextTick();
+
+    expect(root(lower).open).toBe(true);
+    expect(root(top).open).toBe(true);
+
+    lower.unmount();
+    top.unmount();
+  });
+
+  it('closing the top returns focus to whatever was focused in the lower dialog, not the page', async () => {
+    const lower = mountWith(Dialog, {
+      props: { title: 'Your cart', modelValue: true },
+      slots: { footer: '<button type="button" data-testid="remove">Remove…</button>' },
+    });
+    await nextTick();
+    const trigger = lower.find('[data-testid="remove"]').element as HTMLButtonElement;
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+
+    const top = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
+    await nextTick();
+    expect(document.activeElement).not.toBe(trigger);
+
+    await top.setProps({ modelValue: false });
+    await nextTick();
+    expect(document.activeElement).toBe(trigger);
+
+    lower.unmount();
+    top.unmount();
+  });
+
+  it('TOAST_HOST_KEY follows the top of the stack, and back down as each closes', async () => {
+    const lower = mountWith(Dialog, { props: { title: 'Your cart', modelValue: true } });
+    await nextTick();
+    expect(TOAST_HOST_KEY.value).toBe(root(lower));
+
+    const top = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
+    await nextTick();
+    expect(TOAST_HOST_KEY.value).toBe(root(top));
+
+    await top.setProps({ modelValue: false });
+    await nextTick();
+    expect(TOAST_HOST_KEY.value).toBe(root(lower));
+
+    await lower.setProps({ modelValue: false });
+    await nextTick();
+    expect(TOAST_HOST_KEY.value).toBeNull();
+
+    lower.unmount();
+    top.unmount();
+  });
+
+  it('the scroll lock is released only once every open dialog has closed', async () => {
+    document.documentElement.style.overflow = '';
+    const lower = mountWith(Dialog, { props: { title: 'Your cart', modelValue: true } });
+    await nextTick();
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    const top = mountWith(Dialog, { props: { title: 'Remove from cart?', modelValue: true } });
+    await nextTick();
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    await top.setProps({ modelValue: false });
+    await nextTick();
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    await lower.setProps({ modelValue: false });
+    await nextTick();
+    expect(document.documentElement.style.overflow).toBe('');
+
+    lower.unmount();
+    top.unmount();
   });
 });
 

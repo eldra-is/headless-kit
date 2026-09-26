@@ -38,6 +38,26 @@ Release-please writes the generated notes from commit messages and does not repl
   text line, applied even before a `target-min` (1.5rem) link or the ellipsis button — it now uses
   `align-self: center` there instead, keeping the old fixed offset only before the trail's final,
   possibly-wrapping current-page item.
+- **Fix: closed modal dialogs (`Dialog`, `Drawer`, `Lightbox`, `SearchModal`) rendered their full
+  box instead of nothing.** Each root's own `display` utility (a bare `flex`, or nothing at all)
+  overrode the UA stylesheet's `dialog:not([open]) { display: none }` — an author `display` rule
+  always beats a user-agent one in the cascade, regardless of specificity, so the closed `<dialog>`
+  kept its box on screen (most visibly, a `Drawer`'s `Cart` story: "opens as a dialog; once closed
+  it just sits on the right-hand side"). Every modal root now carries `hidden open:flex`
+  (`Drawer`/`SearchModal`) or `hidden open:block` (`Dialog`/`Lightbox`, whose roots never used
+  `flex` — `open:flex` there measurably narrows the panel at small viewports, a flex item's default
+  shrinking fighting the UA `dialog:modal` rule's own `max-width`; `open:block` does not) instead —
+  `hidden` sets `display: none` unconditionally, `open:<value>` only wins once the `open` attribute
+  is back, by specificity, both being the same author origin.
+- **Modal stacking is now allowed, superseding the design spec's "Never stack two modals" rule**
+  (operator override; see the README's Deviations entry for the full reasoning). A modal may open
+  another modal on top of it — `Drawer`'s new `StackedConfirm` story is a cart drawer whose
+  "Remove" opens a confirm `Dialog` — with `Esc` and a backdrop click acting only on the topmost
+  one; a lower modal stays open, untouched, until the one above it closes. `dialogStack.ts` changed
+  from a single slot that refused a second `showModal()` to a stack: opening pushes, closing pops,
+  `TOAST_HOST_KEY` and the scroll lock both track/hold for the stack rather than one dialog.
+  Closing the top returns focus to whatever was focused in the modal underneath, for free (the
+  existing per-instance opener capture already worked this way).
 - **Plan 3 final review fixes.** `Dialog`/`Drawer`/`Lightbox` default `modelValue: undefined`
   (not a literal `false`), so an uncontrolled instance is genuinely self-managing instead of
   permanently "controlled" the moment a parent stops binding `v-model` — see `useControllableModel`'s

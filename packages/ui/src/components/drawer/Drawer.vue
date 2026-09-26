@@ -6,13 +6,14 @@
  * shopper asked to see the cart.
  *
  * Built on `useDialog`, the same shared "Modal dialogs" contract `Dialog` uses: native `<dialog>`
- * + `showModal()`, no `role="dialog"`, no custom focus trap, never stacking two modals (`Dialog`
- * and `Drawer` share the one `dialogStack` slot), the page behind inert and not scrolling, `Esc`
- * always closing, a backdrop click closing (the spec gives `Drawer` no `dismissable` prop at all —
- * unlike `Dialog`, a drawer's backdrop click always closes it). See `useDialog`'s own doc comment
- * for the full contract; this file only draws the anatomy, the per-side slide and full-screen
- * mobile variant, and the one behaviour `Dialog` does not need: which control gets initial focus
- * differs by `side` (below).
+ * + `showModal()`, no `role="dialog"`, no custom focus trap, nested modals allowed with `Esc`/a
+ * backdrop click acting only on the topmost one (`Dialog` and `Drawer` share the one `dialogStack`
+ * stack — operator override, see the README's Deviations entry), the page behind inert and not
+ * scrolling, `Esc` always closing the top, a backdrop click closing the top (the spec gives
+ * `Drawer` no `dismissable` prop at all — unlike `Dialog`, a drawer's backdrop click always closes
+ * it, when it is the topmost dialog). See `useDialog`'s own doc comment for the full contract; this
+ * file only draws the anatomy, the per-side slide and full-screen mobile variant, and the one
+ * behaviour `Dialog` does not need: which control gets initial focus differs by `side` (below).
  */
 import { computed, ref, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
@@ -130,11 +131,17 @@ const closeLabel = computed(() => {
  * `eldra-drawer-in-right`/`-left` for why): translating this full-viewport-width transparent box
  * moves its panel child fully off-screen and back regardless of the panel's own width, while the
  * `::backdrop` — a sibling box, not a descendant — is untouched and simply stays in place.
+ *
+ * `hidden open:flex`, not a bare `flex` (fix round 2, the operator's own finding — see `Dialog`'s
+ * own rootClass comment for the full mechanism): a bare `flex` here is exactly what left a closed
+ * `Drawer` sitting on screen, panel and all, instead of vanishing — the UA's own `display: none`
+ * for a closed `<dialog>` loses to *any* author `display` utility regardless of specificity, so
+ * `flex` alone painted the box even with the `open` attribute gone.
  */
 const rootClass = computed(() =>
   partClass(
     cx(
-      'fixed inset-0 m-0 flex h-full max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
+      'fixed inset-0 m-0 hidden open:flex h-full max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
       props.side === 'left' ? 'justify-start' : 'justify-end',
       'backdrop:bg-overlay',
       props.side === 'left'

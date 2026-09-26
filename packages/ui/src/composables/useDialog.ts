@@ -32,7 +32,8 @@ export interface UseDialogReturn {
    *  `returnValue` becomes the reason a consumer's own `close` handler reads back. No-op if the
    *  dialog is not open. */
   close(returnValue?: string): void;
-  /** Whether this is *the* open modal — the one `dialogStack` currently holds the slot for. */
+  /** Whether this dialog is the **topmost** one — `dialogStack`'s own top of stack. `true` for a
+   *  modal opened alone; `false` for one still open but covered by another opened on top of it. */
   isTop: ComputedRef<boolean>;
 }
 
@@ -86,27 +87,37 @@ function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
  *   outside it is focusable or reachable by a screen reader's virtual cursor) and already contains
  *   `Tab`/`Shift+Tab` to its own controls for free — that is the entire point of using one, so
  *   nothing here re-implements either.
- * - **"Never stack two modals"** (`dialogStack`): opening claims the single module-level slot; a
- *   second dialog asked to open while one is already open is refused, with a dev warning, and this
- *   composable puts the refused dialog's own `open` back to `false` so a consumer's `v-model`
- *   matches what actually happened.
+ * - **Nested modals** (`dialogStack`, operator override, 2026-09-26 — see the README's Deviations
+ *   entry): opening a dialog pushes it onto the shared stack; a dialog already open when another
+ *   one opens is left open, underneath — no refusal, no warning. `Esc` and a backdrop click,
+ *   though, only ever act on the **topmost** dialog (`isTop` below): a lower one ignores both,
+ *   even if one somehow reaches its own listeners directly (native top-layer stacking already
+ *   routes `Esc` to the top only; this is defence in depth, not the primary mechanism).
  * - **Scroll lock and the toast host** (`dialogStack`, shared with every future modal built on this
- *   composable): the page behind does not scroll while any modal is open, and `TOAST_HOST_KEY`
- *   tracks which dialog a `Toaster` should render into.
+ *   composable): the page behind does not scroll while the stack is non-empty (released only once
+ *   every open modal has closed), and `TOAST_HOST_KEY` tracks the **topmost** dialog a `Toaster`
+ *   should render into.
  * - **Initial focus**: `initialFocus`, else the first meaningful control (never the close button —
  *   see `firstMeaningfulControl` above), else the close button itself as a last resort, else
  *   whatever the platform already focused. Applied a tick after `showModal()`, so slot content that
  *   mounts alongside the dialog (a form's first field) already exists in the DOM to focus.
- * - **Focus return**: whatever had focus immediately before `showModal()` — the opener, almost
- *   always — gets it back the moment the dialog actually closes, by any route.
- * - **`Esc`** (the native `cancel` event): always closes, never `dismissable`-gated (the shared
- *   rule: "`Esc` … always closes it"). `onCancel` is a notification, not a guard — it cannot
- *   prevent the close, matching the interface below (`() => void`, nothing to call
- *   `preventDefault()` on).
+ * - **Focus return**: whatever had focus immediately before `showModal()` gets it back the moment
+ *   the dialog actually closes, by any route — the page's own opener for the bottom of the stack,
+ *   or, for a modal opened from inside another one, whichever control still had focus in the modal
+ *   underneath (captured the same way, just a tick earlier), so closing the top one lands focus
+ *   back in the modal below rather than on the page.
+ * - **`Esc`** (the native `cancel` event): closes the dialog, never `dismissable`-gated (the shared
+ *   rule: "`Esc` … always closes it") — but only while this dialog is the top of the stack; a lower
+ *   one ignores it outright (`preventDefault()`ed, so even the platform's own default action cannot
+ *   close it). `onCancel` is a notification, not a guard — it cannot prevent the close, matching
+ *   the interface below (`() => void`, nothing to call `preventDefault()` on).
  * - **Backdrop click**: a `click` whose `target` is the `<dialog>` element itself — not a
  *   descendant, which stops the target at that descendant — closes it when `dismissable` is `true`
- *   (default). `dismissable` is read on every click, so a consumer can flip it while the dialog is
- *   open (a form that becomes dirty part-way through).
+ *   (default) **and** this dialog is the top of the stack; a lower dialog's own backdrop click
+ *   (unreachable in a real browser, where the topmost modal's full-viewport surface covers it, but
+ *   reachable from a test dispatching the event directly) does nothing. `dismissable` is read on
+ *   every click, so a consumer can flip it while the dialog is open (a form that becomes dirty
+ *   part-way through).
  *
  * ```ts
  * const open = ref(false);
@@ -143,13 +154,11 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
   function show(): void {
     const el = dialog.value;
     if (el === null || el.open) return;
-    if (!openDialog(el)) {
-      // Refused: another dialog already holds the slot. Put this one's own state back so a
-      // consumer's `v-model` reflects reality — it never actually opened.
-      setOpen(false);
-      return;
-    }
+    // Captured before `showModal()` moves focus — for a modal opened from inside another one, this
+    // is whatever control still had focus in the modal underneath, which is exactly what makes
+    // `onNativeClose`'s own `opener?.focus()` land back there instead of on the page.
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    openDialog(el);
     el.showModal();
     void nextTick(focusInitial);
   }
@@ -173,7 +182,16 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
     // The native `close` listener below does the rest: unregisters, syncs `open`, returns focus.
   }
 
-  function onNativeCancel(): void {
+  function onNativeCancel(event: Event): void {
+    const el = dialog.value;
+    if (el === null || !isOpenDialog(el)) {
+      // Not the top of the stack: ignore it outright, including the platform's own default action
+      // (which would otherwise close this dialog anyway even though nothing here called `close()`).
+      // Real top-layer stacking already keeps this from happening — `Esc` only ever reaches the
+      // topmost modal's close watcher — so this is defence in depth, not the primary mechanism.
+      event.preventDefault();
+      return;
+    }
     options.onCancel?.();
     // Never `dismissable`-gated: the shared modal rules make `Esc` close unconditionally.
     close('escape');
@@ -189,7 +207,7 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
 
   function onNativeClick(event: MouseEvent): void {
     const el = dialog.value;
-    if (el === null || event.target !== el || !dismissable()) return;
+    if (el === null || event.target !== el || !dismissable() || !isOpenDialog(el)) return;
     close('backdrop');
   }
 

@@ -8,6 +8,7 @@ import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { isBuilt, itFailsWithoutDist } from '../../../test/built';
 import { currentDialog } from '../../../composables/dialogStack';
+import { expectClosedModalRendersNothing } from '../../../test/modal';
 import Dialog from '../../dialog/Dialog.vue';
 import Drawer from '../Drawer.vue';
 
@@ -259,6 +260,22 @@ describe('Drawer — open and close (useDialog)', () => {
     wrapper.unmount();
   });
 
+  /** Fix round 2, the operator's own finding: the Drawer `Cart` story "opens as a dialog; once
+   *  closed it just sits on the right-hand side, not as a dialog" — a bare `flex` on the root beat
+   *  the UA's own `display: none` for a closed `<dialog>`. */
+  it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: false } });
+    expectClosedModalRendersNothing(root(wrapper));
+    wrapper.unmount();
+  });
+
+  it('closing it (modelValue turns false) goes back to hidden open:flex, not a leftover flex', async () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
+    await wrapper.setProps({ modelValue: false });
+    expectClosedModalRendersNothing(root(wrapper));
+    wrapper.unmount();
+  });
+
   it('the close button closes it, emitting close("button") and update:modelValue(false)', async () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     await closeButton(wrapper).click();
@@ -349,8 +366,8 @@ describe('Drawer — open and close (useDialog)', () => {
   });
 });
 
-describe('Drawer — never stack two modals (shared with Dialog)', () => {
-  it('a second Drawer asked to open while one is already open is refused', async () => {
+describe('Drawer — nested modals (operator override, 2026-09-26)', () => {
+  it('a second Drawer opens on top of the first — no refusal, no warning', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const first = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     const second = mountWith(Drawer, {
@@ -359,22 +376,32 @@ describe('Drawer — never stack two modals (shared with Dialog)', () => {
     await nextTick();
 
     expect(root(first).open).toBe(true);
-    expect(root(second).open).toBe(false);
-    expect(second.emitted('update:modelValue')?.[0]).toEqual([false]);
-    expect(warn).toHaveBeenCalled();
+    expect(root(second).open).toBe(true);
+    expect(second.emitted('update:modelValue')).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
 
     first.unmount();
     second.unmount();
   });
 
-  it('a Dialog cannot open while a Drawer already holds the slot, and vice versa', async () => {
+  /** The story this guards: `StackedConfirm` (cart Drawer → confirm Dialog) — the mechanism the
+   *  operator's report described directly ("we should allow modals to open inside of a modal"). */
+  it('a Dialog opens on top of an already-open Drawer, and vice versa', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const drawer = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     const dialog = mountWith(Dialog, { props: { title: 'Remove item?', modelValue: true } });
     await nextTick();
 
     expect((drawer.find('[data-part="root"]').element as HTMLDialogElement).open).toBe(true);
+    expect((dialog.find('[data-part="root"]').element as HTMLDialogElement).open).toBe(true);
+
+    // Esc acts on the top (the Dialog, opened last) only.
+    (dialog.find('[data-part="root"]').element as HTMLDialogElement).dispatchEvent(
+      new Event('cancel', { cancelable: true })
+    );
+    await nextTick();
     expect((dialog.find('[data-part="root"]').element as HTMLDialogElement).open).toBe(false);
+    expect((drawer.find('[data-part="root"]').element as HTMLDialogElement).open).toBe(true);
 
     drawer.unmount();
     dialog.unmount();

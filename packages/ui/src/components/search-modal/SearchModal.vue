@@ -11,16 +11,22 @@
  * beyond the `SearchResultsPanel`/`useListbox` pair this file reuses directly.
  *
  * Built on `useDialog`, the same shared "Modal dialogs" contract `Dialog`/`Drawer` use: native
- * `<dialog>` + `showModal()`, no `role="dialog"`, no custom focus trap, never stacking two modals,
- * the page behind inert and not scrolling, a backdrop click closing. The one behaviour `useDialog`
- * does not cover is the spec's own three-step `Esc` (clear the active option, then the query, then
- * close) — `useDialog`'s own `onCancel` is a plain notification with nothing to prevent the close,
- * which is right for `Dialog`/`Drawer` ("Esc always closes") but not for this component, so the
- * native `cancel` event is intercepted directly on the `<dialog>` (`onDialogCancel` below, bound in
- * the template so it attaches *before* `useDialog`'s own listener, which attaches in its own
- * `onMounted`) and stopped with `stopImmediatePropagation()` on the two steps that must not close.
+ * `<dialog>` + `showModal()`, no `role="dialog"`, no custom focus trap, nested modals allowed with
+ * `Esc`/a backdrop click acting only on the topmost one (the shared `dialogStack` stack — operator
+ * override, see the README's Deviations entry), the page behind inert and not scrolling, a backdrop
+ * click closing the topmost dialog. The one behaviour `useDialog` does not cover is the spec's own
+ * three-step `Esc` (clear the active option, then the query, then close) — `useDialog`'s own
+ * `onCancel` is a plain notification with nothing to prevent the close, which is right for
+ * `Dialog`/`Drawer` ("Esc always closes") but not for this component, so the native `cancel` event
+ * is intercepted directly on the `<dialog>` (`onDialogCancel` below, bound in the template so it
+ * attaches *before* `useDialog`'s own listener, which attaches in its own `onMounted`) and stopped
+ * with `stopImmediatePropagation()` on the two steps that must not close. `onDialogCancel` itself
+ * ignores the event outright when this modal is not the topmost dialog — the same guard
+ * `useDialog`'s own listener applies, needed here too because this one runs first and would
+ * otherwise mutate the active option/query of a modal that is not even the one `Esc` is for.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { isOpenDialog } from '../../composables/dialogStack';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
@@ -420,8 +426,17 @@ function onKeydown(event: KeyboardEvent): void {
  * file's own top comment) — this listener runs first (template bindings attach before a
  * composable's own `onMounted`) and calls `stopImmediatePropagation()` on the two steps that must
  * not reach `useDialog`'s listener at all.
+ *
+ * Nested modals: this listener runs *before* `useDialog`'s own top-of-stack guard, so it needs the
+ * identical check — without it, a cancel that somehow reaches a `SearchModal` sitting underneath
+ * another open modal would still clear its active option or query, even though `useDialog`'s own
+ * listener would go on to correctly refuse the close itself.
  */
 function onDialogCancel(event: Event): void {
+  if (dialogEl.value === null || !isOpenDialog(dialogEl.value)) {
+    event.preventDefault();
+    return;
+  }
   if (listbox.activeValue.value !== undefined) {
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -662,11 +677,15 @@ const part = (base: string, name: SearchModalPart): string => partClass(base, pr
  * intrinsic height is its content's, and the spec's mobile row is "100% × 100%" — a floor, not
  * only the ceiling `eldra-search-modal-max-height` already gives it — so short content (the idle
  * view) would otherwise leave a visible gap under a short panel instead of filling the screen.
+ *
+ * `hidden open:flex`, not a bare `flex` (fix round 2, the operator's own finding — see `Dialog`'s
+ * own rootClass comment for the full mechanism): the same author-beats-UA-origin trap left a closed
+ * `SearchModal` painting its full box.
  */
 const rootClass = computed(() =>
   part(
     cx(
-      'flex max-w-none flex-col overflow-hidden border-0 bg-background p-0 text-text',
+      'hidden open:flex max-w-none flex-col overflow-hidden border-0 bg-background p-0 text-text',
       'eldra-search-modal-position',
       'eldra-search-modal-width',
       'eldra-search-modal-max-height',

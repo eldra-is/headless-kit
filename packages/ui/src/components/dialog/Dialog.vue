@@ -3,10 +3,11 @@
  * A small modal window for one decision or a short form (design spec "Dialog", lines 3568-3700).
  * Native `<dialog>` + `showModal()` throughout — the shared modal rules' non-negotiable: "there is
  * no `role="dialog"` on any other element and no custom focus-trap code." Everything the design
- * spec calls for beyond open/close (never stacking two modals, initial focus, focus return, the
- * page behind being inert and not scrolling) is `useDialog`'s job, not this component's — see its
- * own doc comment for the full contract. This file only draws the anatomy and wires the three
- * events a consumer needs (`update:modelValue`, `cancel`, `close`).
+ * spec calls for beyond open/close (nested modals with top-only `Esc`/backdrop dismissal — operator
+ * override, see the README's Deviations entry — initial focus, focus return, the page behind being
+ * inert and not scrolling) is `useDialog`'s job, not this component's — see its own doc comment for
+ * the full contract. This file only draws the anatomy and wires the three events a consumer needs
+ * (`update:modelValue`, `cancel`, `close`).
  */
 import { computed, ref, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
@@ -85,7 +86,29 @@ defineExpose({ close, isTop });
 const rootClass = computed(() =>
   partClass(
     cx(
-      'm-auto border-0 bg-transparent p-0 text-text',
+      // `hidden open:block`, not a bare `m-auto` alone (fix round 2, the operator's own finding):
+      // the UA stylesheet's `dialog:not([open]) { display: none }` only wins on specificity, and
+      // origin always beats specificity in the cascade — any author `display` utility on this
+      // element, however unspecific, overrides it once the dialog closes. `hidden` sets
+      // `display: none` unconditionally; `open:block` (`.open\:block:is([open], …)`, two
+      // selectors deep — see `modalClosedDisplay.spec.ts`) only wins once the `open` attribute is
+      // back, by specificity, both rules being the same author origin.
+      //
+      // `open:block`, not `open:flex` like `Drawer`'s/`SearchModal`'s own roots — a deliberate
+      // deviation from the pattern those two use, proven necessary rather than assumed: this root
+      // never carried `flex` before (it only ever centres one `panel` child via `m-auto`, and
+      // `panel` already does its own `flex flex-col` internally), and turning it into a flex
+      // *container* makes that child a flex *item* — subject to default `flex-shrink: 1`. The
+      // `dialog:modal` UA rule's own `max-width` can be narrower than `panel`'s own
+      // `eldra-dialog-width` at small viewports, and a flex item shrinks to fit a constrained
+      // container in a way a block-level child (which simply keeps its specified width, overflow
+      // or not) never does — confirmed by an A/B screenshot comparison: `open:flex` here measurably
+      // narrows the panel and reflows its text at 360px (`overlays-dialog--long-content--360`, an
+      // extra word per line moved down), `open:block` is pixel-identical to every existing
+      // baseline. `position: fixed` (the UA's own modal positioning) already forces this box's
+      // *outer* display to block regardless of which inner value wins, so the auto-margin centring
+      // is unaffected either way — only the flex-shrink behaviour on the child differs.
+      'hidden open:block m-auto border-0 bg-transparent p-0 text-text',
       'backdrop:bg-overlay',
       'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
     ),
