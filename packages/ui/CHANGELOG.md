@@ -1263,3 +1263,34 @@ aria-labelledby` its
   forced-colours mode is unchanged (a static `outline` in the system `Highlight` colour).
   **If you restyle the ring**, note it is now one `box-shadow` pair rather than a `box-shadow` plus
   an `outline`, and `--eldra-focus-alpha` is what the `transition` list carries.
+- **`Breadcrumb` — Task 8 of the "overlays, navigation, feedback" sub-project** (design spec's
+  "Breadcrumb" section). A `<nav aria-label="Breadcrumb">` landmark wrapping an `<ol>`, one `<li>`
+  per level: props `items` (`{ label, href? }[]`, root first — the last entry always renders as the
+  current page, `<span aria-current="page">`, never a link, whatever `href` it carries), `collapseAfter`
+  (default `1`, levels kept at the start), `keepLast` (default `2`, levels kept at the end), `linkAs`
+  (every level link's tag/component, `Link`/`LogoItem`'s own `as` contract, named `linkAs` because
+  this component's own root is spec-fixed at `<nav>` — the same reason `ContentCard`/`FeatureCard`/
+  `ProductCard` use `linkAs` rather than `as`), `classes`. Parts (`data-part`): `root`, `list`,
+  `item`, `link`, `current`, `separator`, `ellipsis`. No events, no slots — purely data-driven, the
+  same shape `LogoItem` takes.
+
+  The collapse (spec: "driven by the breadcrumb's own width, not the viewport") is pure CSS: a
+  `@container` root plus the existing `--container-tablet` (48rem) breakpoint `Container`'s own
+  gutters already use, so a middle level carries `@max-tablet:hidden` and the ellipsis carries
+  `hidden @max-tablet:inline-flex` — no `ResizeObserver`, no JS width measurement. Activating the
+  ellipsis (`Enter`/`Space`, native `<button type="button">` semantics — no keydown handling needed)
+  sets one internal `expanded` ref that reveals every level and removes the ellipsis from the DOM
+  for good, then moves focus to the first revealed link once Vue's next tick has rendered it. The
+  ellipsis's accessible name is a new `showMoreLevels(n)` message ("Show 3 more levels", singular
+  "Show 1 more level"); the landmark's own name is a new `breadcrumbLabel` message ("Breadcrumb"),
+  both `en-US`/`is-IS`. The separator is an inline Tabler `chevron-right` SVG (`aria-hidden`), not
+  text, so it is never announced. **No title is ever truncated** — the design spec is explicit
+  ("Product titles are never truncated; the trail wraps") and binding over an earlier truncation
+  rule in the task's own interface comment; see the README's Deviations entry. `Breadcrumb` also
+  emits the spec's own `BreadcrumbList` JSON-LD from the same `items`, as a `<script type=
+  "application/ld+json">` set with `v-text` (not `v-html` or `{{ }}` — see the README's Deviations
+  entry for why). `README.md` gained the `Breadcrumb` Customisation row and four Deviations entries
+  (no truncation, the SVG separator, the message-catalogue names and the `v-text` JSON-LD); the
+  `linkAs` naming joins `ContentCard`/`FeatureCard`/`ProductCard` in the Customisation section's
+  own `as`-vs-`linkAs` rule rather than getting a Deviations entry of its own. `docs/ui.md`'s
+  "Navigation, overlays and feedback" list gained its line.

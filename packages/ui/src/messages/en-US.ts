@@ -306,6 +306,16 @@ export const enUS = {
   /** A `FeatureCard`'s default link cue when linked (spec "Feature card" → Properties, `cue` row:
    * default `"Learn more"`). `cue` overrides it per instance. */
   learnMore: 'Learn more',
+  /** `Breadcrumb`'s landmark name (spec "Breadcrumb" → Accessibility: `<nav aria-label=
+   *  "Breadcrumb">`). */
+  breadcrumbLabel: 'Breadcrumb',
+  /**
+   * `Breadcrumb`'s ellipsis button (spec "Breadcrumb" → Accessibility: `<button type="button"
+   * aria-label="Show 3 more levels">`, "the count is the number of hidden levels"). `n` is always
+   * the number of collapsed middle items, so the same rule reads "Show 1 more level" for a single
+   * hidden level rather than the spec's own three-level example.
+   */
+  showMoreLevels: (n: number) => (n === 1 ? 'Show 1 more level' : `Show ${n} more levels`),
 };
 
 /**

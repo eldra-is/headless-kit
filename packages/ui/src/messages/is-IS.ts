@@ -121,6 +121,13 @@ export const isIS: UiMessages = {
     return `${label}: ${formatConjunctionList(items, 'is-IS')}`;
   },
   learnMore: 'Skoða nánar',
+  // "Leiðarslóð" (route/way trail) reads naturally as the landmark name for a breadcrumb trail —
+  // there is no single settled Icelandic UI term for "breadcrumb" the way there is for, say,
+  // "close" or "search".
+  breadcrumbLabel: 'Leiðarslóð',
+  // "þrep" (a rung/step) does not change form between one and many, so — unlike `formErrors` or
+  // `resultsCount` above — this needs no singular/plural branch of its own.
+  showMoreLevels: (n: number) => `Sýna ${n} þrep í viðbót`,
 };
 
 export default isIS;

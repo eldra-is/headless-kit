@@ -11,6 +11,7 @@ export { default as AccordionItem } from './components/accordion/AccordionItem.v
 export { default as Avatar } from './components/avatar/Avatar.vue';
 export { default as AvatarGroup } from './components/avatar/AvatarGroup.vue';
 export { default as Badge } from './components/badge/Badge.vue';
+export { default as Breadcrumb } from './components/breadcrumb/Breadcrumb.vue';
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Carousel } from './components/carousel/Carousel.vue';
@@ -86,6 +87,11 @@ export type {
   StockBadgeProps,
   StockLevel,
 } from './components/badge/types';
+export type {
+  BreadcrumbItem,
+  BreadcrumbPart,
+  BreadcrumbProps,
+} from './components/breadcrumb/types';
 export type {
   ButtonGroupPart,
   ButtonGroupProps,

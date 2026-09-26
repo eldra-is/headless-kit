@@ -88,6 +88,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Avatar`            | `--eldra-avatar-initials-size-{sm,md,lg,xl}` (defaults `0.76rem`/`0.95rem`/`1.33rem`/`2.28rem`, "38% of diameter" — no token of its own), `--eldra-avatar-initials-tracking` (default `0.02em`), `--eldra-avatar-icon-size-{sm,md,lg,xl}` (defaults `0.857rem`/`1.071rem`/`1.5rem`/`2.571rem`, the spec's own lg number scaled proportionally to the other three diameters)                                                                                         |
    | `AvatarGroup`       | none — the overlap and stack order are plain Tailwind, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Badge`             | `--eldra-badge-line-height` (default `1`) — the badge text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                        |
+   | `Breadcrumb`        | none — the collapse threshold reads `--container-tablet` (`Container`'s own 48rem gutter breakpoint), and the link/ellipsis boxes reuse `target-min`/`eldra-link-radius`/`radius-sm`, no per-component variable of its own                                                                                                                                                                                                                                          |
    | `Button`            | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                    |
    | `ButtonGroup`       | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Carousel`          | `--eldra-carousel-per-view` (set per container-query breakpoint by `carouselPerViewClasses`, no default of its own — a slide with none set stays full width) and `--eldra-carousel-gap` (default `var(--eldra-space-4)`), both read by the `eldra-carousel-slide` utility's width formula; `--eldra-carousel-dot-size` (default `0.5rem`) and `--eldra-carousel-dot-ring` (default `1.5px`), read by `eldra-carousel-dot`                                           |
@@ -161,11 +162,12 @@ Every component supports all five of these; none hard-codes anything a store mig
    an `<a>` automatically when `href` is set, without needing `as` for that case; `Badge` defaults
    to `<span>` and is never a link; `Section` picks `<section>`/`<div>` itself from whether it is
    named (`as` overrides that choice outright, for a `<header>`/`<footer>` landmark that needs no
-   name of its own). **`linkAs`**, not `as`, on `ContentCard`/`FeatureCard`/`ProductCard`: each of
-   these three has a spec-fixed root (`<article>`/`<div>`), and `linkAs` instead picks the element
-   for a _nested_ part — the stretched title link — so the name never collides with the root-tag
-   meaning `as` carries everywhere else (a string still takes `href`; a component receives the
-   destination as `to`, the same contract `as` uses).
+   name of its own). **`linkAs`**, not `as`, on `ContentCard`/`FeatureCard`/`ProductCard`/`Breadcrumb`:
+   each of these has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and `linkAs` instead picks the
+   element for a _nested_ part — the stretched title link on the cards, every level's link on
+   `Breadcrumb` — so the name never collides with the root-tag meaning `as` carries everywhere else
+   (a string still takes `href`; a component receives the destination as `to`, the same contract
+   `as` uses).
 
 Two naming rules hold across every component, on top of the five capabilities above:
 
@@ -2168,3 +2170,38 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `Button` for Pause alone while hand-rolling the arrows beside it would leave one control built two
   different ways for no real gain.
   engine regardless of whether that engine also exposes it as a property.
+- **`Breadcrumb` never truncates a label, even a long one — this reverses a truncation rule an
+  earlier draft of the task's own interface comment carried ("long titles truncate at 40ch with the
+  full title in `title`").** The design spec text is explicit and binding over that comment: "Product
+  titles are never truncated; the trail wraps" (Behaviour & motion), repeated as its own acceptance
+  criterion ("At 320px and 200% zoom the trail wraps without horizontal scroll and titles are not
+  truncated", 1.4.10). There is no `truncate`/`line-clamp` class anywhere in this component and no
+  native `title` attribute either — nothing here is ever clipped, so a hover tooltip repeating text
+  that is already fully visible would add nothing. `LongTitles` (Storybook) shows a long current-page
+  title wrapping onto a second line instead of clipping.
+- **The separator between levels is an inline Tabler `chevron-right` SVG (`aria-hidden`, the same
+  shape `AccordionItem`'s own chevron uses), not the CSS-drawn two-border chevron the design spec's
+  own Sizes row describes ("a small chevron drawn in CSS between items").** Operator direction,
+  2026-09-25: consistent with every other directional glyph this package draws (`Link`'s arrow,
+  `AccordionItem`'s chevron), all of which are inline SVGs, not CSS pseudo-element borders — a
+  second decorative-line technique for one component would be a new pattern with no reuse anywhere
+  else in the package. It is still `aria-hidden` and still not text, so it is still never announced.
+- **The `<nav>` landmark name and the ellipsis button's accessible name are catalogue messages
+  (`breadcrumbLabel`, `showMoreLevels`), not literal strings baked into the template**, following
+  this package's own rule that text a component renders on its own — never passed in by a caller —
+  goes through `useMessages()`. Icelandic has no single settled UI term for "breadcrumb" the way it
+  does for "close" or "search"; `breadcrumbLabel` reads `'Leiðarslóð'` (route/way trail) and
+  `showMoreLevels` reads `` `Sýna ${n} þrep í viðbót` `` ("þrep", a rung/step, does not change form
+  between one and many) — both judgement calls, recorded here rather than left silent.
+- **`Breadcrumb` emits its `BreadcrumbList` JSON-LD (spec "Breadcrumb" → Behaviour & motion: "Emit
+  `BreadcrumbList` structured data from the same items") as a `<script type="application/ld+json">`
+  inside the `<nav>`, set with `v-text` rather than mustache interpolation or `v-html`.** `<script>`
+  is a RAWTEXT element, so Vue's compiler never parses `{{ }}` inside its children the same way it
+  never parses them inside a `<textarea>` — the content would render as the literal four characters
+  `{{ x }}`. `v-html` would work (a `<script>`'s `innerHTML` setter is a text-content assignment, not
+  script execution) but reopens the fragment through the HTML parser, which resolves a `</script`
+  substring inside the JSON as the tag's own close and truncates it — a real risk for a label a
+  merchant wrote, not a synthetic one. `v-text` sets `el.textContent` directly and skips HTML
+  parsing entirely, so nothing inside the JSON can end the tag early. The current page's own `item`
+  URL is omitted from its `ListItem`, matching both schema.org's own guidance for a list's last entry
+  and this component's rule that the last item is never a link regardless of what `href` it carries.

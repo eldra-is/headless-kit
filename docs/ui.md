@@ -98,6 +98,8 @@ in progress)
   autoplay with a mandatory Pause/Play button (WCAG 2.2.2); never loops except autoplay wrapping
   from the last slide back to the first. `useCarousel` (also exported) is the whole behaviour with
   no rendering of its own, reused unchanged by the Lightbox's own track.
+- `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind
+  an ellipsis button below its own 48rem width (never the viewport) and never truncating a title.
 
 ## Styles
 

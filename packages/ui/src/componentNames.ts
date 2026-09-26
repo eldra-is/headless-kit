@@ -21,6 +21,7 @@ export const componentNames = [
   'Avatar',
   'AvatarGroup',
   'Badge',
+  'Breadcrumb',
   'Button',
   'ButtonGroup',
   'Carousel',
