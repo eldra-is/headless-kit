@@ -58,6 +58,7 @@ export const componentNames = [
   'TabPanel',
   'Tabs',
   'Textarea',
+  'Tooltip',
   'UnitInput',
   'VariantPicker',
   'VisuallyHidden',

@@ -47,6 +47,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-editor-placeholder-border'
   | 'eldra-accordion-chevron'
   | 'eldra-accordion-panel'
+  | 'eldra-tooltip-arrow'
 >({
   extend: {
     classGroups: {
@@ -107,6 +108,7 @@ const twMerge = extendTailwindMerge<
             'dialog-title',
             'accordion-title',
             'drawer-title',
+            'tooltip',
           ],
         },
       ],
@@ -232,6 +234,9 @@ const twMerge = extendTailwindMerge<
       // hatching"): a `background-color` plus a repeating-gradient `background-image`, no stock
       // group, so it gets its own.
       'eldra-image-placeholder-hatch': ['eldra-image-placeholder-hatch'],
+      // The Tooltip arrow's shape (tailwind.css "Tooltip"): a sized, rotated, filled square with no
+      // stock Tailwind group, so it gets its own.
+      'eldra-tooltip-arrow': ['eldra-tooltip-arrow'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.
       z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
       // Accordion's chevron rotation and panel fade (tailwind.css "Accordion"): each a bundled

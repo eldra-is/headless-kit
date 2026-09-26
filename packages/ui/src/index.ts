@@ -48,6 +48,7 @@ export { default as Tab } from './components/tabs/Tab.vue';
 export { default as TabPanel } from './components/tabs/TabPanel.vue';
 export { default as Tabs } from './components/tabs/Tabs.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
+export { default as Tooltip } from './components/tooltip/Tooltip.vue';
 export { default as UnitInput } from './components/unit-input/UnitInput.vue';
 export { default as VariantPicker } from './components/variant-picker/VariantPicker.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
@@ -202,6 +203,13 @@ export type {
   TabsVariant,
 } from './components/tabs/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
+export type {
+  TooltipAlign,
+  TooltipPart,
+  TooltipPlacement,
+  TooltipProps,
+  TooltipRole,
+} from './components/tooltip/types';
 export type { UnitInputPart, UnitInputProps } from './components/unit-input/types';
 export type {
   VariantPickerOption,

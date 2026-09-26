@@ -126,6 +126,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `TabPanel`          | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Tabs`              | none — reads only the shared tokens from layer 1; the new `eldra-scrollbar-hide` utility the tab list uses has no variable of its own                                                                                                                                                                                                                                                                                                                               |
    | `Textarea`          | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                          |
+   | `Tooltip`           | `--eldra-tooltip-arrow-size` (default `0.3125rem`) — the arrow's side length, no token of its own; `--eldra-z-popover` (default `30`), shared with the popover panels                                                                                                                                                                                                                                                                                               |
    | `VariantPicker`     | `--eldra-variant-legend-line` (default `1.4`), `--eldra-variant-pill-border-width` (default `1px`), `--eldra-variant-pill-selected-color` (default `var(--eldra-color-text)`), `--eldra-variant-pill-radius` (default `var(--eldra-radius-md)`), `--eldra-variant-swatch-ring-width` (default `2px`), `--eldra-variant-swatch-edge-width` (default `1px`)                                                                                                           |
    | `VisuallyHidden`    | none — reads only the shared tokens from layer 1 (it renders no visible box at all)                                                                                                                                                                                                                                                                                                                                                                                 |
 
@@ -427,6 +428,12 @@ spec's own non-negotiable 2):
 `Dialog`'s exposed `close` (`<Dialog ref="dialogRef">` then `dialogRef.value.close('remove')`) is
 this, unchanged. `isTop` is `true` while this dialog is the one `dialogStack` currently holds the
 slot for.
+`Tooltip` is built on `useFloating` and `useOverlay` directly rather than on `usePopover`, because
+it must never join the "only one open at a time" registry — showing a tooltip must never close
+somebody else's open `Select`. It still shares the _teleport target_ logic (an internal
+`useTeleportTarget`, not exported: body, or the open modal `<dialog>` the trigger sits in) with
+`usePopover`, so both answer "where does this popup escape to" the same way. See
+[Layering](#layering) below.
 
 ### Layering
 
@@ -437,7 +444,8 @@ column — clips it at that ancestor's edge; and any element that starts its own
 or `opacity` below 1) paints over it whatever the panel's own `z-index` says, because a `z-index`
 only orders siblings within one context.
 
-So `Select`, `MultiSelect` and `SearchBar` render their panel through a `<Teleport>` to
+So `Select`, `MultiSelect`, `SearchBar` and `Tooltip` render their panel (or bubble) through a
+`<Teleport>` to
 `document.body`, positioned with floating-ui's **`fixed`** strategy — the viewport being the one
 frame the panel and its control still share once they are in different subtrees. `autoUpdate` keeps
 them together: it watches every scrollable ancestor of the control, so the panel follows a trigger
@@ -491,9 +499,11 @@ Four things follow from the move, and each is a real consequence rather than a d
   anything carrying `data-eldra-overlay-owner="<the panel's id>"` — so a control of your own puts
   its trigger-side buttons in the walk by marking them the way `MultiSelect`'s clear button does.
 
-`teleport` is a prop on all three controls and an option on `usePopover`: `true` (default), a CSS
-selector string for a target of your own, or `false` to keep the old in-place `absolute` rendering
-when you know nothing above the control clips or stacks over it.
+`teleport` is a prop on `Select`, `MultiSelect` and `SearchBar`, and an option on `usePopover`:
+`true` (default), a CSS selector string for a target of your own, or `false` to keep the old
+in-place `absolute` rendering when you know nothing above the control clips or stacks over it.
+`Tooltip` has no `teleport` prop — it always teleports (`fixed` strategy, same target resolution),
+because a tooltip has no in-place `absolute` rendering to fall back to.
 
 ## Resolver
 
@@ -1938,3 +1948,43 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `afterLeave`: the spec's own exit is "instant" (no animation to wait for), the same reasoning that
   gives `Dialog` no exit-coordination event either — an event that only ever fires on the same tick
   as `close` would tell a consumer nothing `close` does not already.
+- **`Tooltip`'s bubble stays mounted permanently, unlike every other teleported panel in this
+  package.** `Select`/`MultiSelect`/`SearchBar` mount their panel fresh on every open (`v-if` on
+  the `<Teleport>`), so `animate-eldra-popover-in`'s keyframe replays each time. The spec's own
+  Tooltip motion is a plain opacity **transition** (`duration-fast`, `ease-out`), and a CSS
+  transition only plays on a change to an element already in the DOM — mounting a fresh element
+  straight into its end state plays no fade at all. So the bubble is teleported unconditionally
+  (behind `teleportDisabled` until mount, same as everywhere else) and toggles
+  `opacity`/`pointer-events` through a reactive class instead.
+- **The trigger's `aria-labelledby`/`aria-describedby` is grafted onto the slotted element with
+  `cloneVNode`, not read from a scoped slot the consumer wires up.** The spec is explicit that
+  "the component generates the tooltip id and wires the trigger to it" — the wiring is `Tooltip`'s
+  job, not a prop the consumer must remember to bind — and that attribute has to land on the
+  actual focusable element, not on `root` (the neutral wrapper span the hover/focus listeners live
+  on): a screen reader computes an element's accessible name from what _that_ element points at.
+  The default slot's single element is therefore cloned with the id merged in
+  (`joinIds`, so an existing `aria-describedby` is not clobbered), via a stable
+  functional-component wrapper (`<component :is="Trigger" />`) so Vue patches the same underlying
+  element across renders rather than replacing it. This is the one place in the package that
+  reaches into a slot's own vnode instead of only rendering it.
+- **No show delay, on hover or on focus.** The spec's own Behaviour bullet says it twice ("No
+  delay on focus; none needed on hover") and the acceptance criteria repeat it ("appears ... with
+  no delay on focus"); `Tooltip` shows on the very hover/focus event with no timer at all. The
+  task brief's own test note ("hover (delay, fake timers)") is read as "prove there is no delay",
+  not as a requirement for one — `__tests__/tooltip.spec.ts` uses fake timers to advance past a
+  hover event and assert the bubble is already visible before any time has passed.
+- **The `0.5rem` hover bridge (WCAG 1.4.13) is a CSS `::before` on the bubble, not a fourth DOM
+  part.** The anatomy lists three parts (`root`, `bubble`, `arrow`); the bridge is an invisible
+  pseudo-element extending the bubble's own hit-test area back to the trigger's edge, sized and
+  positioned to the gap, so a real pointer crossing it never leaves a hoverable element. It carries
+  no `data-part` and is not reachable through `classes` for the same reason `Skeleton`'s shimmer
+  and `Rating`'s half-star clip are not — it is drawn, not a component part.
+- **`useFloating`'s `FloatingPlacement` gained `top-end`/`bottom-end`.** `Tooltip`'s `align="end"`
+  needs a floating-ui placement the existing union did not have (only the `-start` pair, for
+  `Select`/`MultiSelect`'s own footer selectors); the two additions are purely additive and behave
+  like their `-start` siblings (`flip: true`).
+- **The teleport-target lookup (`topLayerDialog`/`isTopLayer`, the "body, or the open modal
+  `<dialog>` the trigger sits in" rule) moved to `src/composables/teleportTarget.ts`.** `usePopover`
+  and `Tooltip` both need it and neither should duplicate it; it is not exported from the package
+  root, the same as `openRegistry` — an internal building block the two share, not part of the
+  public composable surface. `usePopover`'s own behaviour and tests are unchanged by the move.

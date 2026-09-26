@@ -1096,6 +1096,37 @@
   transform-origin: var(--eldra-popover-origin, top left);
 }
 
+/* --- Tooltip ---------------------------------------------------------------------------------- */
+
+/* Spec "Tooltip" -> Sizes: "0.8125rem / 1.4, weight 500, one line (no wrap)". The size and line
+   are `text-caption`'s exactly (0.8125rem / 1.4) -- reused rather than duplicated, the same shape
+   as `text-variant-legend` reusing `text-body-sm`'s. The weight is left to the stock
+   `font-medium` utility, also `text-variant-legend`'s own reasoning: a `font` shorthand here would
+   bake a weight in ahead of it in source order, and `tailwind-merge`'s `font-size` group (this
+   utility's own, via `cx.ts`) does not touch `font-weight` anyway. */
+@utility text-tooltip {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-text-caption-line);
+}
+
+/* The arrow (spec "Tooltip" -> Sizes, Arrow row): "0.3125rem, centred (start / end: 1.25rem from
+   the aligned edge)" -- a rotated square, half on each side of the boundary between the bubble and
+   the trigger, so it reads as a triangle pointing at whichever one is behind it. `0.3125rem` has no
+   shared token (nothing else in the package needs a fifth-of-a-rem), so it is a per-component
+   variable with that literal default, the same shape as `--eldra-avatar-initials-size-*`; see the
+   README's Customisation table. The horizontal alignment (`left-5`/`right-5`/centred) and the
+   vertical offset (which edge, since the bubble can flip) are `Tooltip.vue`'s own reactive classes
+   and inline style -- this utility only draws the shape. */
+@utility eldra-tooltip-arrow {
+  position: absolute;
+  width: var(--eldra-tooltip-arrow-size, 0.3125rem);
+  height: var(--eldra-tooltip-arrow-size, 0.3125rem);
+  background-color: var(--eldra-color-text);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
 /* --- Search bar ------------------------------------------------------------------------------- */
 
 /* A result row's meta (spec "Search bar" -> Sizes, "Title / sub / meta" row): "0.875rem 600

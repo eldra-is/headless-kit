@@ -1,5 +1,6 @@
-import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, type ComputedRef, type Ref } from 'vue';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
+import { useTeleportTarget } from '../../composables/teleportTarget';
 import { OVERLAY_OWNER_ATTRIBUTE, useOverlay } from '../../composables/useOverlay';
 import { registerOpen, unregisterOpen } from './openRegistry';
 
@@ -149,60 +150,6 @@ export interface UsePopoverReturn {
  * What stays with each control is what actually differs: which rows there are, what choosing one
  * does, and which element the popup is anchored to.
  */
-/**
- * Whether an element is a dialog the browser has put in its **top layer**.
- *
- * `:modal` is the only way to ask: a `<dialog>` has the `open` attribute whether it was shown with
- * `show()` (an ordinary in-flow element, which clips and stacks like any other) or with
- * `showModal()` (top layer, above every z-index, with a backdrop), and nothing else in the DOM
- * tells the two apart. Engines that do not implement `:modal` answer `false` here — happy-dom
- * parses the selector and never matches it, jsdom does not implement `<dialog>` modality at all —
- * which is what the caller's fallback is for.
- *
- * Wrapped in a `try`: a selector an engine cannot parse is a `SyntaxError`, not a `false`.
- */
-function isTopLayer(element: Element): boolean {
-  try {
-    return element.matches(':modal');
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The `<dialog>` a panel anchored to `anchor` has to be teleported *into* rather than escape, or
- * `null` when there is none.
- *
- * A **modal** dialog is the one place `document.body` is the wrong target: the dialog is in the top
- * layer, so a panel on the body would be painted behind it and no `z-index` could raise it. So the
- * nearest open ancestor dialog that is actually in the top layer wins — which is not always the
- * nearest one, since a non-modal `<dialog open>` may sit inside a modal one.
- *
- * When **no** ancestor dialog claims the top layer, the nearest open one is still the answer. That
- * case is ambiguous — either they really are all non-modal, or the engine does not implement
- * `:modal` and cannot say — and the two mistakes are not equally bad. Teleporting into a dialog
- * that did not need it still escapes everything between the control and that dialog, and the
- * dialog is a box the panel had no business overflowing anyway; teleporting to `body` out of a
- * dialog that *was* modal puts the panel behind it, invisibly, which is the very bug this whole
- * mechanism exists to fix. There is no engine-independent probe to break the tie —
- * `CSS.supports('selector(:modal)')` answers `true` for nonsense in happy-dom — so the safe
- * mistake is the one taken. A non-modal `<dialog open>` is in any case close to hypothetical here:
- * the design spec's non-negotiable 2 opens every modal surface with `showModal()`, and says the
- * non-modal popups are not dialogs at all.
- */
-function topLayerDialog(anchor: HTMLElement): HTMLElement | null {
-  const nearest = anchor.closest<HTMLElement>('dialog[open]');
-  if (nearest === null) return null;
-  for (
-    let dialog: HTMLElement | null = nearest;
-    dialog !== null;
-    dialog = dialog.parentElement?.closest<HTMLElement>('dialog[open]') ?? null
-  ) {
-    if (isTopLayer(dialog)) return dialog;
-  }
-  return nearest;
-}
-
 export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   const { trigger, content } = options;
   const canOpen = (): boolean => options.canOpen?.() !== false;
@@ -238,34 +185,14 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   const teleport = options.teleport ?? true;
 
   /**
-   * Only `true` after `onMounted`, which never runs on the server. Everything that reads the
-   * document below is behind it.
-   */
-  const isMounted = ref(false);
-  onMounted(() => {
-    isMounted.value = true;
-  });
-
-  const teleportDisabled = computed(() => teleport === false || !isMounted.value);
-
-  /**
    * A native `<dialog>` opened as a modal renders in the browser's **top layer**, above every
    * z-index on the page — which is exactly why the design spec's non-negotiable 2 puts every modal
    * surface in one. A panel teleported to `body` would therefore render *behind* the dialog that
    * opened it, with no `z-index` able to help. So a trigger inside an open dialog teleports into
-   * that dialog instead: same escape from clipping and stacking, same top layer.
-   *
-   * `isOpen` is read so the target is resolved afresh on every open — a dialog that was closed the
-   * last time this popup opened may be open now, and `closest()` answers about the DOM as it is,
-   * not reactively.
+   * that dialog instead: same escape from clipping and stacking, same top layer. See
+   * `../../composables/teleportTarget`, shared with `Tooltip`.
    */
-  const teleportTo = computed<HTMLElement | string>(() => {
-    if (!isMounted.value) return 'body';
-    if (typeof teleport === 'string') return teleport;
-    void isOpen.value;
-    const anchor = trigger.value;
-    return (anchor === null ? null : topLayerDialog(anchor)) ?? document.body;
-  });
+  const { teleportTo, teleportDisabled } = useTeleportTarget({ trigger, teleport, isOpen });
 
   const { styles: floatingStyles, placement } = useFloating(trigger, content, {
     placement: options.placement ?? 'auto',

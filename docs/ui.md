@@ -83,6 +83,8 @@ in progress)
 - `Drawer` — a modal side sheet for long content (the cart, filters, quick view from the right;
   the mobile menu from the left), built on the same `useDialog` contract as `Dialog` and sharing
   its one-modal-at-a-time slot.
+- `Tooltip` — a short, non-modal text label naming or describing an icon-only trigger on hover and
+  keyboard focus (WCAG 1.4.13: dismissible, hoverable, persistent).
 
 ## Styles
 

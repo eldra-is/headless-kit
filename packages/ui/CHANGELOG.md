@@ -174,6 +174,22 @@ aria-labelledby` its
   root-not-panel animation placement, the name-specific close message, and the `modelValue`/`close`
   event naming versus the spec's literal `open`/`openChange`/`afterLeave`); `docs/ui.md`'s
   "Overlays" section gained a `Drawer` bullet.
+- **`Tooltip`** (design spec's "Tooltip" section, plan 3 task 4) — a short, non-modal text label
+  that names an icon-only trigger on hover and keyboard focus, or adds a description to one that
+  already has a visible label (`role="label"` / `role="description"`). Built directly on
+  `useFloating` and `useOverlay` — never on `usePopover`, and never joining its "only one open at a
+  time" registry, so showing a tooltip can never close somebody else's open `Select`. `placement`
+  (`top`/`bottom`) and `align` (`start`/`center`/`end`) cover the spec's Variants table;
+  `useFloating`'s `FloatingPlacement` gained `top-end`/`bottom-end` to express `align="end"`. The
+  bubble is teleported like the popover panels (a new internal `useTeleportTarget`, shared with
+  `usePopover`, which now reads from it too with no behaviour change) but stays mounted
+  permanently and fades with a CSS transition, unlike a `usePopover` panel's mount-and-replay
+  keyframe — a transition only plays on a change to an element already in the DOM. WCAG 1.4.13:
+  dismissible (`Esc`, without moving focus), hoverable (a CSS bridge across the visual gap) and
+  persistent (stays until hover and focus both end). The trigger's `aria-labelledby`/
+  `aria-describedby` is wired onto the slotted element itself via `cloneVNode`, the one place in
+  the package that reaches into a slot's own vnode. See the README's Deviations section for the
+  full reasoning on each of these.
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,

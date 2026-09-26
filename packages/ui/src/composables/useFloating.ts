@@ -16,9 +16,19 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue';
  * `auto` and `above` are the design spec's own words (Select and Multi-select take
  * `placement: "auto" | "above"`): `auto` opens below and flips above when there is no room, and
  * `above` always opens above — the footer's selectors, where below is off-screen by definition. The
- * four concrete values are `@floating-ui/dom` placements for anything that wants to be explicit.
+ * remaining values are `@floating-ui/dom` placements for anything that wants to be explicit —
+ * `top-end`/`bottom-end` are `Tooltip`'s own `align="end"`, added alongside the `-start` pair
+ * already here for `align="start"`.
  */
-export type FloatingPlacement = 'auto' | 'above' | 'bottom' | 'bottom-start' | 'top' | 'top-start';
+export type FloatingPlacement =
+  | 'auto'
+  | 'above'
+  | 'bottom'
+  | 'bottom-start'
+  | 'bottom-end'
+  | 'top'
+  | 'top-start'
+  | 'top-end';
 
 export interface UseFloatingOptions {
   /** Default `'auto'` — below, flipping above when it does not fit. */
@@ -74,8 +84,10 @@ const RESOLVED: Record<FloatingPlacement, { placement: Placement; flip: boolean 
   above: { placement: 'top-start', flip: false },
   bottom: { placement: 'bottom', flip: true },
   'bottom-start': { placement: 'bottom-start', flip: true },
+  'bottom-end': { placement: 'bottom-end', flip: true },
   top: { placement: 'top', flip: true },
   'top-start': { placement: 'top-start', flip: true },
+  'top-end': { placement: 'top-end', flip: true },
 };
 
 /**
