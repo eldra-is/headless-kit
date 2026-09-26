@@ -1,9 +1,9 @@
 # UI components
 
 `@eldrajs/ui` is a public, MIT-licensed Vue 3 component library for Eldra storefronts: accessible
-(WCAG 2.2 AA) actions, forms, and display, commerce and layout components, themed entirely through
-CSS design tokens rather than a fixed look. Overlay and navigation components land in a later
-sub-project. It has no dependency on Studio, a theme, or any other package in this kit; any Vue 3
+(WCAG 2.2 AA) actions, forms, display, commerce and layout components, plus overlays and navigation
+landing incrementally in this sub-project, themed entirely through CSS design tokens rather than a
+fixed look. It has no dependency on Studio, a theme, or any other package in this kit; any Vue 3
 project can install it on its own.
 
 ```bash
@@ -66,6 +66,13 @@ table and Storybook for the full contract of each).
   and an icon tile plus title and body, optionally linked.
 - `ProductCard` — the product tile used in grids, carousels and search results, composing `Image`,
   `Price`, `Rating`, `Badge`, `StockBadge` and `Button`.
+
+**Overlays**
+
+- `Dialog` — a small modal window for one decision or a short form, native `<dialog>` +
+  `showModal()` with no custom focus trap (`useDialog` and `dialogStack` in `packages/ui/README.md`
+  own the shared modal rules — never stacking two, initial focus, focus return, the scroll lock —
+  for every modal surface built on top of them).
 
 ## Styles
 

@@ -95,6 +95,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Container`         | none — the gutter widths (`--eldra-gutter-{mobile,tablet,desktop}`) are shared tokens, also read by `Section`                                                                                                                                                                                                                                                                                                                                                       |
    | `ContentCard`       | `--eldra-content-card-title-size` (default `1.25rem`) and `--eldra-content-card-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own; `--eldra-content-card-excerpt-size` (default `0.9375rem`) and `--eldra-content-card-excerpt-line` (default `1.5`) — the excerpt's own size and line ratio, shared by `FeatureCard`'s `body` (`text-content-card-excerpt` in `tailwind.css`), since both read the same spec number           |
    | `CurrencyInput`     | `UnitInput`'s exactly (it renders a `UnitInput` with `isCurrency` always on) — see the `UnitInput` row                                                                                                                                                                                                                                                                                                                                                              |
+   | `Dialog`            | `--eldra-dialog-title-size` (default `1.25rem`), `--eldra-dialog-title-line` (default `1.3`) — the title's own size/line, no token of its own; `--eldra-dialog-width` (default `32rem`), `--eldra-dialog-width-sm` (default `24rem`) — the panel's own width, always capped at `100vw - 2rem` inside the utility itself; `--eldra-dialog-max-height` (default `calc(100vh - 4rem)`)                                                                                 |
    | `EditorPlaceholder` | `--eldra-editor-placeholder-border-width` (default `1.5px`) — the dashed boundary's width, distinct from `EmptyState`'s own stock `border` (1px)                                                                                                                                                                                                                                                                                                                    |
    | `EmptyState`        | `--eldra-empty-state-title-size` (default `1.25rem`) and `--eldra-empty-state-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own                                                                                                                                                                                                                                                                                                |
    | `FeatureCard`       | Shares `ContentCard`'s `--eldra-content-card-excerpt-size`/`-line` for its own `body` text (`text-content-card-excerpt`); its `title` reads `text-h4` directly, no variable of its own                                                                                                                                                                                                                                                                              |
@@ -361,6 +362,61 @@ a consumer whose control needs the same six things rather than reassembling them
 What stays with each control is what actually differs: which rows there are, what choosing one
 does, and which element the popup is anchored to. See `src/components/select/usePopover.ts` for
 the full option/return shape (`UsePopoverOptions`, `UsePopoverReturn`, also exported).
+
+`useDialog` is the **modal** counterpart: the shared "Modal dialogs" rules applied to a native
+`<dialog>`, built for `Dialog` and reused by every later modal surface (`Drawer`, `Lightbox`,
+`SearchModal`) instead of each reimplementing them.
+
+```ts
+import { useDialog } from '@eldrajs/ui';
+
+const open = ref(false);
+const dialog = ref<HTMLDialogElement | null>(null);
+
+const { close, isTop } = useDialog({
+  open,
+  setOpen: (next) => (open.value = next),
+  dialog,
+  dismissable: () => !formIsDirty.value, // default true; read on every backdrop click
+  initialFocus: someRef, // else the first control that is not `[data-part="close"]`
+  onCancel: () => emit('cancel'), // Esc always closes — this is a notification, not a guard
+});
+```
+
+It owns, through the native element alone — **no custom focus trap, no `role="dialog"`** (the
+spec's own non-negotiable 2):
+
+- **open/close**, synced to `open` via `showModal()`/`.close()`. A modal `<dialog>` already makes
+  the rest of the page inert and already contains `Tab`/`Shift+Tab` to its own controls, so nothing
+  here re-implements either;
+- **"never stack two modals"**, **the scroll lock**, and **the toast hand-off** — all in
+  `src/composables/dialogStack.ts`, the module-level "one modal at a time" registry every consumer
+  of `useDialog` shares (the same shape as `usePopover`'s own `openRegistry.ts`, but refusing a
+  second open rather than closing the first — "never stack" is stricter than "only the newest
+  shows"). A second dialog asked to open while one already is gets a dev-only console warning and
+  is refused; `useDialog` then puts that dialog's own `open` back to `false`. `TOAST_HOST_KEY`
+  (exported) is a plain `Ref<HTMLDialogElement | null>`, **not a Vue injection key** despite the
+  name matching this package's `*_KEY` convention — see its own doc comment for why: a `Toaster`
+  mounted near an app's root is a sibling of whatever opens a `Dialog` elsewhere in the tree, and
+  `provide`/`inject` cannot connect two siblings, so the hand-off is a plain shared reference both
+  sides read and write, exactly the same reasoning `usePopover`'s `topLayerDialog()` already uses to
+  teleport a panel into a dialog it did not render;
+- **initial focus** — `initialFocus`, else the first focusable that is not `[data-part="close"]`
+  (this package's own "every part carries `data-part`" convention doubling as the composable's
+  exclusion rule, so any modal built on this contract needs no second constant to stay in sync),
+  else the close button itself, applied a tick after `showModal()` so slot content mounted alongside
+  the dialog (a form's first field) already exists to focus;
+- **focus return** — whatever had focus immediately before `showModal()`, refocused the moment the
+  dialog actually closes, by any route;
+- **`Esc`** (the native `cancel` event) — always closes, never gated by `dismissable`; `onCancel` is
+  a plain callback with nothing to call `preventDefault()` on, so it cannot keep the dialog open;
+- **backdrop click** — a `click` whose `target` is the `<dialog>` element itself (not a descendant),
+  closing it when `dismissable` reads `true`.
+
+`close(returnValue?)` is exposed so a consumer can close with an action value of their own — a
+`Dialog`'s exposed `close` (`<Dialog ref="dialogRef">` then `dialogRef.value.close('remove')`) is
+this, unchanged. `isTop` is `true` while this dialog is the one `dialogStack` currently holds the
+slot for.
 
 ### Layering
 
@@ -1719,3 +1775,35 @@ role="group" aria-busy aria-label="messages.loading">`, not the `<article>` its 
   discount. A caller passing `badge: { variant: 'sale' }` with no (or an equal/lower) `compareAt`
   previously still rendered a fabricated "−0%"; `discountPercent > 0` is now also a condition of
   showing the sale badge at all, not only of what number it prints.
+- **`Dialog`'s close button "moves down 1px" active state (spec "Dialog" → States) is a 2%
+  `scale-[0.98]`, not a 1px translate — the same substitution `Button`'s own press state made
+  (operator ruling, 2026-09-25).** A 1px move reads as a rendering artefact rather than a press,
+  and `src/__tests__/source-scan.spec.ts` fails the shipped stylesheet on any `active:` translate,
+  `top`, or `margin-top` utility for exactly that reason — first caught here when this component's
+  literal reading of the spec's own words tripped that guard.
+- **`Dialog`'s `close` event reason for a plain external close (a parent sets `modelValue` to
+  `false` directly, through neither the close button, a backdrop click, nor the exposed
+  `close(value)`) reads `"escape"`, by the same fallback that turns an empty native
+  `returnValue` into that string.** The spec names four reasons (`"escape"`, `"backdrop"`,
+  `"button"`, an action value) and does not name this fifth route at all; `useDialog`'s own
+  `hide()` calls the native `.close()` with no argument for it, exactly as the browser's own
+  unprevented `cancel` default action would, so the two are indistinguishable from `returnValue`
+  alone. Treating it as the closest of the four documented reasons was judged safer than
+  inventing a fifth string `DialogProps`' `close` event type does not carry.
+- **`TOAST_HOST_KEY` (`src/composables/dialogStack.ts`) is a plain `Ref<HTMLDialogElement |
+null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming convention for
+  `provide`/`inject` pairs (`FIELD_KEY`, `MESSAGES_KEY`, `CHIP_GROUP_KEY`, …).** A `Toaster` (plan-3
+  Task 3) is expected to mount once near an app's root — a sibling of whatever page content opens
+  a `Dialog` elsewhere in the tree — and `provide`/`inject` only ever connects a provider to its
+  own descendants, never to a sibling. The module-level `Ref` both `useDialog` (writer) and the
+  future `Toaster` (reader) import directly is the same hand-off shape `usePopover`'s own
+  `topLayerDialog()` already relies on to teleport a panel into a modal dialog it did not render.
+  See the Composables section above and the constant's own doc comment for the full reasoning.
+- **`Dialog` exposes `close`/`isTop` via `defineExpose` rather than adding an `actionValue` prop
+  or a dedicated footer-button component.** The spec's `close` event can carry "an action value"
+  (the Confirm variant's "Remove", a form's successful submit), and the anatomy's `footer` is a
+  plain slot the consumer fills with their own buttons — there is no library-owned action button
+  for those buttons to be. A template ref to the `Dialog` (`<Dialog ref="dialogRef">`, then
+  `dialogRef.value.close('remove')` from the consumer's own click handler) is the smallest surface
+  that lets a footer button close with a value of its own, and matches how a native `<dialog>`'s
+  own `.close(returnValue)` already works — no new prop, no new component.

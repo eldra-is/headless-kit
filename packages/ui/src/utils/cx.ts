@@ -101,12 +101,19 @@ const twMerge = extendTailwindMerge<
             'empty-state-title',
             'content-card-title',
             'content-card-excerpt',
+            'dialog-title',
           ],
         },
       ],
       // Control heights (tailwind.css "Control heights and targets"): whole class names, not a
       // `h-*` suffix, but the same "h" group as Tailwind's own `h-*` scale.
       h: ['control-h', 'control-h-sm', 'control-h-lg'],
+      // The Dialog panel's own width (tailwind.css "Dialog"): whole class names rather than a
+      // `w-*` suffix, but Tailwind's own "w" group, so a consumer's `classes.panel: 'w-full'`
+      // replaces the clamp instead of landing beside it. The two are mutually exclusive (`size`
+      // picks one), so they still need to conflict with each other the same way `eldra-select-
+      // panel-height`/`-width` do not need to (those are two different CSS properties).
+      w: ['eldra-dialog-width', 'eldra-dialog-width-sm'],
       // The user-icon fallback's size (tailwind.css "Avatar"): whole class names, not a `size-*`
       // suffix, but the same "size" group Tailwind's own `size-*` scale belongs to, so a
       // consumer's `classes.icon: 'size-6'` replaces one of these instead of landing beside it.
@@ -147,7 +154,11 @@ const twMerge = extendTailwindMerge<
       // The Select popover's own box (tailwind.css "Select"): whole class names rather than a
       // `max-h-*`/`max-w-*` suffix, but Tailwind's own groups, so a consumer's
       // `classes.panel: 'max-h-64'` replaces the height and leaves the width clamp alone.
-      'max-h': ['eldra-select-panel-height', 'eldra-search-panel-height'],
+      'max-h': [
+        'eldra-select-panel-height',
+        'eldra-search-panel-height',
+        'eldra-dialog-max-height',
+      ],
       // `max-w-narrow`/`-content`/`-wide` (tailwind.css's `@theme` block, "Container and section"):
       // Tailwind generates these from the `--container-*` theme namespace, not from an `@utility`
       // this package writes, so `custom-utility-coverage.spec.ts`'s scan (which only reads
@@ -214,7 +225,13 @@ const twMerge = extendTailwindMerge<
       z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
-      animate: ['animate-eldra-spin', 'animate-eldra-pulse', 'animate-eldra-popover-in'],
+      animate: [
+        'animate-eldra-spin',
+        'animate-eldra-pulse',
+        'animate-eldra-popover-in',
+        'animate-eldra-dialog-in',
+        'animate-eldra-dialog-in-reduced',
+      ],
     },
   },
 });

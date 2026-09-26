@@ -18,6 +18,7 @@ export { default as ChipGroup } from './components/chip/ChipGroup.vue';
 export { default as Container } from './components/container/Container.vue';
 export { default as ContentCard } from './components/card/ContentCard.vue';
 export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
+export { default as Dialog } from './components/dialog/Dialog.vue';
 export { default as EditorPlaceholder } from './components/empty-state/EditorPlaceholder.vue';
 export { default as EmptyState } from './components/empty-state/EmptyState.vue';
 export { default as FeatureCard } from './components/card/FeatureCard.vue';
@@ -102,6 +103,7 @@ export type {
   FeatureCardVariant,
 } from './components/card/types';
 export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
+export type { DialogPart, DialogProps, DialogSize } from './components/dialog/types';
 export type {
   EditorPlaceholderPart,
   EditorPlaceholderProps,
@@ -208,6 +210,19 @@ export {
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
+// The single-modal-at-a-time registry every modal surface in this package shares (`Dialog` today;
+// `Drawer`, `Lightbox` and `SearchModal` next). `TOAST_HOST_KEY` is the hand-off a `Toaster` (plan-3
+// Task 3) reads to render its live region inside whichever dialog is currently open, per the shared
+// modal rule that a toast raised while a modal is open must not be inert behind it; the rest are
+// exported for a consumer building a modal surface of their own on top of `useDialog`.
+export {
+  closeDialog,
+  currentDialog,
+  isOpenDialog,
+  openDialog,
+  TOAST_HOST_KEY,
+} from './composables/dialogStack';
+export { useDialog, type UseDialogOptions, type UseDialogReturn } from './composables/useDialog';
 export {
   useFloating,
   type FloatingPlacement,

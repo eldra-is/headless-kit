@@ -28,6 +28,7 @@ export const componentNames = [
   'Container',
   'ContentCard',
   'CurrencyInput',
+  'Dialog',
   'EditorPlaceholder',
   'EmptyState',
   'FeatureCard',

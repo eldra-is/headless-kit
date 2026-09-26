@@ -1299,3 +1299,72 @@
 [data-section-bg='accent'] + [data-section-bg='accent'] {
   padding-top: 0;
 }
+
+/* --- Dialog ---------------------------------------------------------------------------------- */
+
+/* The title (spec "Dialog" → Sizes): "heading font, 1.25rem / 1.3, weight 600, letter-spacing
+   -0.01em." Weight and tracking already read `h3`'s own tokens exactly (600, -0.01em — the same
+   reuse `text-logo-wordmark` makes for its own weight/tracking); only the 1.25rem size and 1.3 line
+   sit between two type styles with no token of their own, so, like `Button`'s `lg` size, they are
+   per-component variables with the spec's literals as defaults. */
+@utility text-dialog-title {
+  font: var(--eldra-text-h3-weight) var(--eldra-dialog-title-size, 1.25rem) /
+    var(--eldra-dialog-title-line, 1.3) var(--eldra-font-heading);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
+/* The panel's own box (spec "Dialog" → Sizes): "Width min(32rem, 100vw − 2rem) (sm: min(24rem,
+   100vw − 2rem))" and "Max height 100vh − 4rem; content beyond that scrolls inside the dialog." The
+   width pair keep the viewport clamp inside the utility itself, unlike `eldra-select-panel-width`'s
+   `min()` — a Dialog's own width is a fixed spec number a consumer can override with
+   `--eldra-dialog-width(-sm)`, and the clamp must still apply to whatever that override is, not
+   only to the default. Each is in Tailwind's own `w`/`max-h` group (`src/utils/cx.ts`), so a
+   consumer's `classes.panel: 'w-full'` replaces the clamp instead of landing beside it. */
+@utility eldra-dialog-width {
+  width: min(var(--eldra-dialog-width, 32rem), calc(100vw - 2rem));
+}
+@utility eldra-dialog-width-sm {
+  width: min(var(--eldra-dialog-width-sm, 24rem), calc(100vw - 2rem));
+}
+@utility eldra-dialog-max-height {
+  max-height: var(--eldra-dialog-max-height, calc(100vh - 4rem));
+}
+
+/* The dialog's own entrance (spec "Dialog" → Behaviour & motion): "Enter: opacity 0 -> 1, 0.5rem
+   rise and scale 0.98 -> 1, duration-slow (250ms) ease-out. Exit: instant." The house pattern is
+   `eldra-popover-in` above — fade plus scale over a token duration, nothing to do for reduced
+   motion because the duration token itself zeroes — but Dialog's own reduced-motion row is not
+   "nothing moves, so the token collapsing to 0ms already reads as done": the spec asks for "a plain
+   fade over duration-base (200ms), linear," a real, *visible* fade, the same exception
+   `animate-eldra-pulse` makes for the Button spinner and for the same reason — reading
+   `--eldra-duration-base` here would zero it too and the dialog would just snap into view with no
+   fade at all. So the reduced-motion state is a second keyframe set with its own literal, always-on
+   200ms, applied through `motion-reduce:` (`Dialog.vue`: `animate-eldra-dialog-in
+   motion-reduce:animate-eldra-dialog-in-reduced`) rather than through the zeroing token — exactly
+   the two-utility shape `animate-eldra-spin`/`animate-eldra-pulse` already uses, registered in the
+   same `animate` merge group in `src/utils/cx.ts`. Exit needs no utility at all: the spec's own
+   "instant by default" is simply not animating the close. */
+@keyframes eldra-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes eldra-dialog-in-reduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility animate-eldra-dialog-in {
+  animation: eldra-dialog-in var(--eldra-duration-slow) var(--eldra-ease-out);
+}
+@utility animate-eldra-dialog-in-reduced {
+  animation: eldra-dialog-in-reduced 200ms linear;
+}

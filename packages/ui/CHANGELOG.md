@@ -46,6 +46,41 @@ Release-please writes the generated notes from commit messages and does not repl
     `roundRatingToHalf`/`ratingStarStates`, and `initialsFromName` are now exported from the root
     entry, matching their plan-1 peers (`cx`, `mixToward`, `useUiId`, …); `tagRecipe`/`listFormat`
     stay internal (class strings and a join helper, not public API).
+- **`Dialog` and `useDialog`/`dialogStack` — Task 1 of the "overlays, navigation, feedback"
+  sub-project, and the foundation `Drawer`, `Lightbox`, `SearchModal` and the `Toaster` build on.**
+  `Dialog` is a small modal window for one decision or a short form (design spec's Dialog section):
+  a native `<dialog>` opened with `showModal()`, no `role="dialog"` anywhere and no custom focus
+  trap — a modal `<dialog>` already makes the rest of the page inert and already contains
+  `Tab`/`Shift+Tab` to its own controls for free. Parts (`data-part`): `root`, `panel`, `header`,
+  `title`, `close`, `description`, `body`, `footer`; slots `default` (body) and `footer`; props
+  `modelValue` (two-way), `title` (required, the `<h2>`/`aria-labelledby`), `description`
+  (`aria-describedby`, omitted for a form body), `size` (`sm` 24rem / `md` 32rem, both capped at
+  `100vw - 2rem`), `dismissable` (default `true` — a backdrop click only), `messages`, `classes`;
+  emits `update:modelValue`, `cancel` (the native `cancel` event, before the dialog actually
+  closes), `close` (with how: `"escape"`, `"backdrop"`, `"button"`, or an action value passed to
+  the exposed `close(returnValue)` method — `<Dialog ref="dialogRef">` then
+  `dialogRef.value.close('remove')` from a footer button's own handler). `useDialog`
+  (`src/composables/useDialog.ts`, exported from the root) is the reusable modal lifecycle every
+  later modal surface is built on: open/close synced to `open`, initial focus (the first meaningful
+  control that is not `[data-part="close"]`, applied a tick after `showModal()`), focus return to
+  the opener, `Esc` always closing (never `dismissable`-gated), and a backdrop click closing only
+  when `dismissable` is `true`. `dialogStack.ts` (also exported) is the "never stack two modals"
+  registry: a second `showModal()` while one is open is refused with a dev-only console warning and
+  the refused dialog's own `v-model` is put back to `false`; it also owns the page-scroll lock
+  (`<html>` gets `overflow: hidden` while any modal is open) and `TOAST_HOST_KEY` — a plain
+  `Ref<HTMLDialogElement | null>`, **not** a Vue injection key despite matching this package's
+  `*_KEY` naming convention (see its own doc comment: a `Toaster`, plan-3 Task 3, mounts as a
+  sibling of whatever opens a `Dialog`, and `provide`/`inject` cannot connect siblings) — that
+  Task 3's `Toaster` will read to render its live region inside the open dialog rather than being
+  inert behind it. New `tailwind.css` utilities: `text-dialog-title`, `eldra-dialog-width(-sm)`,
+  `eldra-dialog-max-height`, and the `eldra-dialog-in`/`-reduced` entrance keyframes (fade + 0.5rem
+  rise + scale over `duration-slow` `ease-out`; reduced motion is a real 200ms linear fade, not the
+  zeroed-duration token, the same exception `animate-eldra-pulse` makes for the Button spinner) —
+  all registered in `src/utils/cx.ts`'s `cx()` merge groups. `README.md` gained the `Dialog`
+  Customisation row, a `useDialog` Composables write-up and four Deviations entries (the close
+  button's active state as a 2% scale rather than a 1px translate, the `close` event's reason for a
+  plain external close, `TOAST_HOST_KEY`'s not-an-injection-key shape, and `defineExpose`d
+  `close`/`isTop` instead of an `actionValue` prop); `docs/ui.md` gained an "Overlays" section.
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,

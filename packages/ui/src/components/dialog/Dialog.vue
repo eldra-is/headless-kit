@@ -1,0 +1,213 @@
+<script setup lang="ts">
+/**
+ * A small modal window for one decision or a short form (design spec "Dialog", lines 3568-3700).
+ * Native `<dialog>` + `showModal()` throughout — the shared modal rules' non-negotiable: "there is
+ * no `role="dialog"` on any other element and no custom focus-trap code." Everything the design
+ * spec calls for beyond open/close (never stacking two modals, initial focus, focus return, the
+ * page behind being inert and not scrolling) is `useDialog`'s job, not this component's — see its
+ * own doc comment for the full contract. This file only draws the anatomy and wires the three
+ * events a consumer needs (`update:modelValue`, `cancel`, `close`).
+ */
+import { computed, ref, useSlots } from 'vue';
+import { useControllableModel } from '../../composables/useControllableModel';
+import { useDialog } from '../../composables/useDialog';
+import { useMessages } from '../../composables/useMessages';
+import { cx, partClass } from '../../utils/cx';
+import { useUiId } from '../../utils/id';
+import type { DialogProps } from './types';
+
+const props = withDefaults(defineProps<DialogProps>(), {
+  modelValue: false,
+  description: undefined,
+  size: 'md',
+  dismissable: true,
+  messages: undefined,
+  classes: undefined,
+});
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
+  /** Fires when `Esc` is pressed (the native `cancel` event), before the dialog actually closes. */
+  cancel: [];
+  /**
+   * Fires after the dialog has closed, with how: `"escape"`, `"backdrop"`, `"button"`, or whatever
+   * a consumer passed to the exposed `close(returnValue)` method (an action value — the Confirm
+   * variant's "Remove", the Form variant's successful submit).
+   */
+  close: [reason: string];
+}>();
+
+const slots = useSlots();
+const m = useMessages(() => props.messages);
+
+/** Controlled when the parent binds `v-model`, self-managing when it does not — the same model
+ *  every stateful component in this package uses (see `Select`, `Switch`). */
+const model = useControllableModel<boolean>(props, emit, () => false);
+
+const dialogEl = ref<HTMLDialogElement | null>(null);
+
+const titleId = useUiId('dialog-title');
+const descriptionId = useUiId('dialog-description');
+
+const { close, isTop } = useDialog({
+  open: model,
+  setOpen: (next) => {
+    model.value = next;
+  },
+  dialog: dialogEl,
+  dismissable: () => props.dismissable,
+  onCancel: () => emit('cancel'),
+});
+
+/**
+ * The one place the public `close` event is emitted, for every closing route at once (`Esc`, the
+ * close button, a backdrop click, or a consumer's own `close(value)` call) — `returnValue` is
+ * `useDialog`'s own record of *why*, read back from the native element itself rather than tracked a
+ * second time here. A plain external close (a parent just sets `modelValue` to `false`, with no
+ * `returnValue` of its own) leaves `returnValue` at `''`, which reads as `"escape"` below; the
+ * spec's own four reasons do not cover that route, and treating it as the closest of the four is a
+ * safer default than fabricating a fifth string with no home in `DialogProps`' documented type.
+ */
+function onNativeClose(): void {
+  emit('close', dialogEl.value?.returnValue || 'escape');
+}
+
+function onCloseClick(): void {
+  close('button');
+}
+
+/** So a consumer can close the dialog with its own action value from a footer button — the
+ *  Confirm variant's "Remove", or a form's successful submit — via a template ref:
+ *  `<Dialog ref="dialogRef" …>` then `dialogRef.value.close('remove')`. */
+defineExpose({ close, isTop });
+
+const rootClass = computed(() =>
+  partClass(
+    cx(
+      'm-auto border-0 bg-transparent p-0 text-text',
+      'backdrop:bg-overlay',
+      'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
+    ),
+    props.classes,
+    'root'
+  )
+);
+
+/**
+ * The visible box (spec "Dialog" → Sizes): the `<dialog>` itself stays transparent and unsized
+ * above, so this inner flex column carries the border/shadow/radius and the width/max-height
+ * clamps — and is what actually keeps long content scrolling inside `body` rather than growing the
+ * whole dialog past the viewport (`header`/`footer` are `shrink-0`, `body` alone is `flex-1
+ * overflow-y-auto`).
+ */
+const panelClass = computed(() =>
+  partClass(
+    cx(
+      'flex flex-col overflow-hidden rounded-lg border border-border bg-background shadow-md',
+      props.size === 'sm' ? 'eldra-dialog-width-sm' : 'eldra-dialog-width',
+      'eldra-dialog-max-height'
+    ),
+    props.classes,
+    'panel'
+  )
+);
+
+const headerClass = computed(() =>
+  partClass('flex shrink-0 items-start justify-between gap-4 p-6 pb-0', props.classes, 'header')
+);
+
+const titleClass = computed(() =>
+  partClass('min-w-0 text-dialog-title text-text', props.classes, 'title')
+);
+
+/**
+ * Spec "Dialog" → States: rest transparent, hover `text` at 6% over the panel, active 11% and
+ * "moves down 1px". The 1px move is the same literal `Button`'s own press state replaced with a 2%
+ * shrink instead (operator ruling, 2026-09-25, recorded under Deviations in the README): a 1px
+ * translate reads as a rendering artefact, not a press, and `src/__tests__/source-scan.spec.ts`
+ * fails the build on any shipped `active:` translate/top/margin-top class for exactly that reason.
+ * `active:scale-[0.98]` needs no `transition-*`/`duration-*` utility of its own — `eldra-focus`
+ * already owns this element's whole transition list, `scale` included (see
+ * `src/styles/tailwind.css` and `src/__tests__/focus-transition.spec.ts`), so adding one here would
+ * fail that guard for no visual gain.
+ */
+const closeClass = computed(() =>
+  partClass(
+    cx(
+      '-m-1 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm',
+      'text-text eldra-focus',
+      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+      'active:scale-[0.98] active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]'
+    ),
+    props.classes,
+    'close'
+  )
+);
+
+const bodyClass = computed(() =>
+  partClass('min-h-0 flex-1 overflow-y-auto px-6 py-4', props.classes, 'body')
+);
+
+const descriptionClass = computed(() =>
+  partClass('text-body text-muted', props.classes, 'description')
+);
+
+const footerClass = computed(() =>
+  partClass(
+    'flex shrink-0 flex-wrap items-center justify-end gap-3 px-6 pt-4 pb-6',
+    props.classes,
+    'footer'
+  )
+);
+</script>
+
+<template>
+  <dialog
+    ref="dialogEl"
+    data-part="root"
+    :class="rootClass"
+    :aria-labelledby="titleId"
+    :aria-describedby="description ? descriptionId : undefined"
+    @close="onNativeClose"
+  >
+    <div data-part="panel" :class="panelClass">
+      <div data-part="header" :class="headerClass">
+        <h2 :id="titleId" data-part="title" :class="titleClass">{{ title }}</h2>
+        <button
+          type="button"
+          data-part="close"
+          :class="closeClass"
+          :aria-label="m.close"
+          @click="onCloseClick"
+        >
+          <!-- Tabler's `x`, 1.75 stroke, matching Select's own clear button. -->
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M18 6l-12 12" />
+            <path d="M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div data-part="body" :class="bodyClass">
+        <p v-if="description" :id="descriptionId" data-part="description" :class="descriptionClass">
+          {{ description }}
+        </p>
+        <slot />
+      </div>
+
+      <div v-if="slots.footer" data-part="footer" :class="footerClass">
+        <slot name="footer" />
+      </div>
+    </div>
+  </dialog>
+</template>
