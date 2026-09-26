@@ -118,6 +118,25 @@ aria-labelledby` its
   `.panel` to in the `items` API, and which a standalone `<Tab>`/`<TabPanel>` takes directly in the
   slots API. Stories: `Underline`, `Pills`, `Manual`, `ManyTabs`, `LongContent`, `Narrow`,
   `ReducedMotion`, `ForcedColors`.
+- **`Accordion` and `AccordionItem`** (design spec's "Accordion" section) — the first component of
+  the "overlays, navigation and feedback" sub-project. Native `<details>`/`<summary>` disclosure
+  rows: `Accordion` is a plain grouping wrapper (`multiple`, default `true`; `false` puts every
+  child `AccordionItem` in the same native `name` group, generated when not given, so the browser
+  closes the previously open sibling itself). `AccordionItem` takes `title`, an optional `help`
+  line (part of the accessible name for free, since both are plain text inside the same
+  `<summary>`), `modelValue` (two-way, mirroring the native `open` attribute — see the README's
+  Deviations entry for why this is `modelValue` and not the spec's own `open`), `headingLevel`
+  (`2`–`4`, no default — plain text unless the page outline needs a heading) and `href` (a link
+  row: a plain `<a>` styled as the same trigger, no `<details>`, no chevron, no panel). The chevron
+  is Tabler's `chevron-down` geometry, rotating 180° on open via a new self-conditioned
+  `eldra-accordion-chevron` utility (`details[open] & { rotate: 180deg }`, reduced motion baked
+  in); the panel fades in via `eldra-accordion-panel` (`@starting-style` plus
+  `transition-behavior: allow-discrete` on `opacity`/`display`) rather than animating height — see
+  the README's Deviations entry for why a grid-rows height animation was rejected. Same-`name`
+  exclusivity is native in every current browser and feature-detected
+  (`src/components/accordion/detailsExclusivity.ts`), with a JS fallback that only runs where the
+  platform lacks it — which is also what the test suite (happy-dom) exercises, since that engine
+  implements neither the grouping algorithm nor the `.name` property.
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,

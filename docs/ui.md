@@ -76,6 +76,10 @@ in progress)
   for every modal surface built on top of them).
 - `Tabs` / `Tab` / `TabPanel` — an APG-pattern tab list that switches between sibling panels in
   place, `underline` or `pills`, data-driven (`items`) or built from `Tab`/`TabPanel` children.
+  **Navigation, overlays and feedback**
+
+- `Accordion` / `AccordionItem` — a stack of native `<details>`/`<summary>` disclosure rows, single-
+  or multiple-open, with an optional link row for a menu entry without children.
 
 ## Styles
 

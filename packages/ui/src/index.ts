@@ -6,6 +6,8 @@
 // which compares this list's keys against the hand-maintained `componentNames` array sorted) —
 // not grouped by source file, so `StockBadge`/`ContentCard`+`FeatureCard`/`Select` sit at their
 // own alphabetical position rather than beside the sibling component that shares their file.
+export { default as Accordion } from './components/accordion/Accordion.vue';
+export { default as AccordionItem } from './components/accordion/AccordionItem.vue';
 export { default as Avatar } from './components/avatar/Avatar.vue';
 export { default as AvatarGroup } from './components/avatar/AvatarGroup.vue';
 export { default as Badge } from './components/badge/Badge.vue';
@@ -54,6 +56,13 @@ export { default as VisuallyHidden } from './components/visually-hidden/Visually
 // (`Badge`+`StockBadge`, `ContentCard`+`FeatureCard`, `EditorPlaceholder`+`EmptyState`,
 // `MultiSelect`+`Select`) sits at its *first* name's position, the same structural exception the
 // component export list above notes.
+export type {
+  AccordionItemHeadingLevel,
+  AccordionItemPart,
+  AccordionItemProps,
+  AccordionPart,
+  AccordionProps,
+} from './components/accordion/types';
 export type {
   AvatarGroupPart,
   AvatarGroupPerson,
@@ -289,6 +298,9 @@ export { SECTION_KEY } from './components/section/context';
 // Chip group context. A `ChipGroup` provides it; a member `Chip` with both a `value` and a group
 // above it reads its selected state and toggles it here instead of through its own `selected` prop.
 export { CHIP_GROUP_KEY, type ChipGroupContext } from './components/chip/context';
+// Accordion context. An `Accordion` provides it; a member `AccordionItem` reads whether the group
+// is single-open and, if so, the shared native `name` every item in it takes.
+export { ACCORDION_KEY, type AccordionContext } from './components/accordion/context';
 
 // Tabs context. A `Tabs` provides it; a standalone `Tab`/`TabPanel` reads the selected value,
 // activation and variant from it, and registers itself so cross-tab arrow-key moves work with no

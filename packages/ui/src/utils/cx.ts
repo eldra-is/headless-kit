@@ -45,6 +45,8 @@ const twMerge = extendTailwindMerge<
   | 'eldra-rating-half'
   | 'eldra-image-placeholder-hatch'
   | 'eldra-editor-placeholder-border'
+  | 'eldra-accordion-chevron'
+  | 'eldra-accordion-panel'
 >({
   extend: {
     classGroups: {
@@ -103,6 +105,7 @@ const twMerge = extendTailwindMerge<
             'content-card-title',
             'content-card-excerpt',
             'dialog-title',
+            'accordion-title',
           ],
         },
       ],
@@ -227,6 +230,11 @@ const twMerge = extendTailwindMerge<
       'eldra-image-placeholder-hatch': ['eldra-image-placeholder-hatch'],
       // Layers (tailwind.css "Layers"): the same "z" group as `z-10`.
       z: ['z-sticky', 'z-popover', 'z-drawer', 'z-dialog', 'z-toast'],
+      // Accordion's chevron rotation and panel fade (tailwind.css "Accordion"): each a bundled
+      // rule with no stock Tailwind equivalent, so each gets its own group, the same shape as
+      // `eldra-skeleton`.
+      'eldra-accordion-chevron': ['eldra-accordion-chevron'],
+      'eldra-accordion-panel': ['eldra-accordion-panel'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

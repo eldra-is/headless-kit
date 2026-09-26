@@ -327,6 +327,16 @@
     var(--eldra-radio-card-title-line, 1.4) var(--eldra-font-body);
 }
 
+/* Accordion's label (spec "Accordion" → Sizes, "Label" row): "1.0625rem / 1.4, weight 600" —
+   between `text-body` (1rem) and `text-h4` (1.125rem), no token of its own, so — the same shape as
+   `text-card-title` just above — it is its own utility reusing `--eldra-text-label-weight` (600)
+   and the body family, with the 1.4 line ratio as a per-component variable carrying that literal
+   default. */
+@utility text-accordion-title {
+  font: var(--eldra-text-label-weight) 1.0625rem / var(--eldra-accordion-title-line, 1.4)
+    var(--eldra-font-body);
+}
+
 /* The Quantity stepper's value (spec "Quantity stepper" → Sizes): "0.9375rem, 600, tabular" at
    `md`, "0.875rem" at `sm` (weight and line stay the same size only). The size matches
    `text-control`/`text-control-sm` exactly, but the weight does not — `text-control`'s shorthand
@@ -410,6 +420,55 @@
 }
 @utility duration-slow {
   transition-duration: var(--eldra-duration-slow);
+}
+
+/* Accordion (spec "Accordion" → Behaviour & motion): "Chevron rotation: `duration-base` (200ms)
+   `ease-out`." self-conditioned on the ancestor `<details>`'s own native `[open]` attribute, so no
+   JS state is needed for it at all — `AccordionItem.vue` never touches this class beyond putting
+   it on the chevron `<svg>`. The reduced-motion override is baked into the utility itself, the
+   same shape as `eldra-focus`'s own `@media` block, rather than a `motion-reduce:` variant at the
+   call site: this is one bundled rule, not a component assembling stock `transition-*`/`duration-
+   *` pieces the way `Switch`'s track/thumb do. */
+@utility eldra-accordion-chevron {
+  transition: rotate var(--eldra-duration-base) var(--eldra-ease-out);
+  details[open] & {
+    rotate: 180deg;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/* Accordion's panel (spec "Accordion" → Behaviour & motion): "Panel: fades in over `duration-base`
+   `ease-out` when opened." Deliberately an opacity fade only, not a height animation: the panel
+   `<div>` is a plain child of `<details>`, and its `display: none` while closed comes entirely
+   from the browser's own default rendering rule for `<details>` content
+   (`details:not([open]) > *:not(summary) { display: none; }`, the HTML spec's own UA style) —
+   nothing here touches or replaces that. `@starting-style` plus `transition-behavior: allow-
+   discrete` is the standard mechanism for animating *into* a value on an element whose `display`
+   toggles between `none` and its default (Chrome 117+, Safari 17.4+, Firefox 129+); everywhere
+   else the panel simply pops open, exactly like `<details>` always has, which is a fine
+   progressive-enhancement fallback and never a broken one.
+
+   A grid-rows height animation was the first design considered here and was rejected: making it
+   work at all requires overriding the panel's own `display` so it never actually leaves the
+   layout while "closed" (only collapsed to a zero-height row) — and the spec's own acceptance
+   criteria requires "Find-in-page finds text in closed panels and opens the item", which is a
+   `<details>`-specific browser feature keyed to the element's default closed-content hiding.
+   Overriding `display` to keep the row always rendered is exactly what would defeat that feature
+   in whichever engine implements it that way. This utility never sets `display` at all — only
+   `opacity` and `display`'s own place in the transition list — so the native hide/reveal (and
+   whatever a browser does with it for find-in-page) is completely untouched. */
+@utility eldra-accordion-panel {
+  transition:
+    opacity var(--eldra-duration-base) var(--eldra-ease-out),
+    display var(--eldra-duration-base) allow-discrete;
+  @starting-style {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 }
 
 /* The Button spinner (spec "Button" → Behaviour & motion): it turns once every 700ms, linear,

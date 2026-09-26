@@ -83,6 +83,8 @@ Every component supports all five of these; none hard-codes anything a store mig
 
    | Component           | CSS variables                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
    | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `Accordion`         | none — the top divider is a stock `border-t`, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                             |
+   | `AccordionItem`     | `--eldra-accordion-title-line` (default `1.4`) — the label's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                        |
    | `Avatar`            | `--eldra-avatar-initials-size-{sm,md,lg,xl}` (defaults `0.76rem`/`0.95rem`/`1.33rem`/`2.28rem`, "38% of diameter" — no token of its own), `--eldra-avatar-initials-tracking` (default `0.02em`), `--eldra-avatar-icon-size-{sm,md,lg,xl}` (defaults `0.857rem`/`1.071rem`/`1.5rem`/`2.571rem`, the spec's own lg number scaled proportionally to the other three diameters)                                                                                         |
    | `AvatarGroup`       | none — the overlap and stack order are plain Tailwind, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Badge`             | `--eldra-badge-line-height` (default `1`) — the badge text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                        |
@@ -1835,3 +1837,32 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   itself. A component reusing a differently-named cross-component utility is unusual enough to
   call out here rather than leave a reader wondering why `Tab.vue` imports nothing from
   `variant-picker/`.
+- **`Accordion`'s panel fades in; it does not animate height.** The spec's own Behaviour & motion
+  text says exactly that ("Panel: fades in over `duration-base` `ease-out` when opened"), but a
+  grid-rows height animation was the first design considered and is worth recording as rejected:
+  making one work at all requires the panel to stay in the layout while "closed" — collapsed to a
+  zero-height row rather than genuinely hidden — which means overriding the panel's own `display`
+  so the browser's default `details:not([open]) > *:not(summary) { display: none; }` rule (the
+  HTML spec's own UA style) never applies to it. The spec's own Accordion acceptance criteria
+  requires "Find-in-page finds text in closed panels and opens the item", a `<details>`-specific
+  browser feature keyed to that exact default hiding — so a height animation that has to defeat it
+  to exist would trade one acceptance criterion for another. `eldra-accordion-panel` (see
+  `tailwind.css`) instead only ever touches `opacity` and adds `display` to the transition list
+  (`transition-behavior: allow-discrete` plus `@starting-style`, so the fade plays as the element's
+  default `display: none → block` toggles) — the native hide/reveal, and whatever a browser does
+  with it for find-in-page, is completely untouched.
+- **`AccordionItem`'s open state is `modelValue` (two-way `update:modelValue`), not the spec's own
+  `open`.** Every other stateful control in this package (`Switch`, `Checkbox`, `Select`, …) takes
+  its state through `modelValue`/`v-model`, and `open` would be the one exception with no
+  compensating benefit — a consumer already reaches for `v-model="isOpen"` on every other control
+  here.
+- **Native same-`name` `<details>` exclusivity is feature-detected, with a JS fallback for an
+  engine that lacks it**, rather than assumed or always re-implemented in script. Every current
+  browser (Chromium, Firefox, Safari) already closes the previously open sibling itself — see
+  `src/components/accordion/detailsExclusivity.ts` — so `AccordionItem.vue` only runs its own
+  `closeOtherOpenSiblings` query when the one-time probe says the platform does not, which is also
+  what makes the package's own test suite exercise that fallback at all: happy-dom implements
+  neither the `name` grouping algorithm nor the `.name` IDL property (a fairly recent HTML
+  addition), so both the probe and the fallback read/write `name` through `getAttribute`/
+  `setAttribute` rather than the property, which is what Vue's own `:name` binding sets in every
+  engine regardless of whether that engine also exposes it as a property.
