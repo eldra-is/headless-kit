@@ -57,6 +57,16 @@ Release-please writes the generated notes from commit messages and does not repl
   `UiContainer`/`UiSection` primitives with these, `app/assets/main.css` no longer declares its own
   container/gutter rules or `--spacing-section`/`-lg` (`Container`/`Section` own that now), and the
   regenerated block previews are the visible result.
+- **`Chip` and `ChipGroup`** — an operator addition beyond design spec 1 (the private component
+  library's `FilterChip`, for a store migrating onto this package): a removable tag or a
+  selectable filter chip, never both at once on the same element (see `README.md`'s Additions
+  entry for why). `size` `sm`/`md`, `removable` (a `"Remove <label>"` button, `Backspace`/`Delete`
+  on a focused root or that button), `selectable`/`selected` (a real `aria-pressed` `<button>`,
+  filled `primary` when selected), an optional leading `icon` or `avatar`, `disabled`. `ChipGroup`
+  (`modelValue: string[]`, `label`, `disabled`) is a `role="group"` slot wrapper, like
+  `ButtonGroup`, that derives a member chip's selected state and toggle from context rather than
+  props. New `CHIP_GROUP_KEY`/`ChipGroupContext` exported from the root entry for a consumer
+  building a chip-like control of its own.
 - **`Avatar` and `AvatarGroup`** — the sixth component of the "display, commerce and layout"
   sub-project (design spec's Avatar section). `Avatar` is the people/maker identity atom: a round
   `sm`/`md`/`lg`/`xl` (2rem/2.5rem/3.5rem/6rem) circle that falls back image → initials → the

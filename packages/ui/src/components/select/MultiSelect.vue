@@ -4,6 +4,7 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
+import { TAG_FILL, TAG_REMOVE_BUTTON, TAG_SHAPE, tagPadding } from '../../utils/tagRecipe';
 import Button from '../button/Button.vue';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
@@ -554,31 +555,17 @@ const footerDoneClass = computed(() => part('', 'footerDone'));
 /**
  * Spec "Multi-select" → Sizes, Tags: "small chips: min 1.75rem tall, 0.8125rem text, 0.625rem start
  * padding, `surface-strong` fill, `radius-full`. … The list wraps with a 0.375rem gap, 0.25rem
- * below the control."
+ * below the control." The chip and its remove button are the same recipe `Chip`'s own `sm` size
+ * draws — see `src/utils/tagRecipe.ts`.
  */
 const tagsClass = computed(() => part('mt-1 flex list-none flex-wrap gap-1.5 p-0', 'tags'));
 
 const tagClass = computed(() =>
-  part(
-    cx(
-      'bg-surface-strong text-text inline-flex min-h-7 items-center gap-1 rounded-full text-caption',
-      // 0.625rem at the start either way; the end padding is the remove button's own room, so a
-      // chip without one is padded evenly instead of ending short.
-      showTagRemove.value ? 'ps-2.5 pe-0.5' : 'px-2.5'
-    ),
-    'tag'
-  )
+  part(cx(TAG_FILL, TAG_SHAPE, tagPadding(showTagRemove.value)), 'tag')
 );
 
 /** "Remove button 1.5rem circle with a 0.875rem icon (hover `text` at 11%)." */
-const tagRemoveClass = computed(() =>
-  part(
-    'inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted ' +
-      'hover:text-text hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)] ' +
-      'eldra-focus',
-    'tagRemove'
-  )
-);
+const tagRemoveClass = computed(() => part(TAG_REMOVE_BUTTON, 'tagRemove'));
 
 const emptyText = computed(() =>
   query.value.trim() === '' ? m.value.noResults : m.value.noMatchesFor(query.value.trim())

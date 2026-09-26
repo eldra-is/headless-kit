@@ -605,6 +605,38 @@ during development, outside this repository's own history.
 Things this package ships that design spec 1 does not name at all. Each is listed here so a reader
 comparing the package against the spec can tell an addition from a drift.
 
+- **`Chip` and `ChipGroup`** — an operator addition (2026-09-25) for the private component
+  library's `FilterChip`, which a store migrating onto this package needs an equivalent of. There
+  is no spec 1 "Chip" section; the visual language is derived from two sections that do exist:
+  Badge's pill shape and Multi-select's removable tag row, whose exact class recipe `Chip`'s `sm`
+  size shares with `MultiSelect.vue` (`src/utils/tagRecipe.ts`, extracted rather than duplicated).
+  A plain chip is a `<span>`, no role; `selectable` renders a real `<button type="button"
+aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same pair Badge's
+  own `primary` tone fills with. `removable` adds a separate `<button>` named `"Remove <label>"`
+  (`messages.removeTag`, `MultiSelect`'s own tag message, reused rather than duplicated) —
+  **and always wins over `selectable`**: a removable chip's root is never also the selection
+  toggle, because nesting a real `<button>` (remove) inside a real `<button>` (root) is invalid
+  HTML. This is the same rule the private library's own `FilterChip` states outright in its
+  `CLAUDE.md` ("removable mode is display-only for the chip body; only the close button is
+  interactive"); a dev-only console warning fires for the combination. `Backspace`/`Delete` on a
+  focused removable chip's root (`tabindex="0"`, no invented ARIA role) or its remove button emits
+  `remove`; `Enter`/`Space` toggle a selectable chip through the native `<button>`'s own behaviour,
+  with no separate keydown handler that could double-toggle. `icon` draws directly (Badge's own
+  reasoning: neither chip size's icon dimension or stroke is one of `Icon.vue`'s four); `avatar`
+  draws through `Avatar` at the chip's own icon size via `classes.root` — no built-in `Avatar` size
+  is small enough to sit inside either chip size, so it is drawn undersized rather than left at
+  `Avatar`'s own smallest, `sm`.
+
+  `ChipGroup` (`modelValue: string[]`, `label`, `disabled`) is a slot wrapper like `ButtonGroup` —
+  it does not render its children, a consumer places `<Chip value="…" selectable>`s in its default
+  slot — that provides `CHIP_GROUP_KEY` context (`src/components/chip/context.ts`, exported from
+  the root entry): a member chip with both `selectable` and a `value` reads its selected state from
+  `modelValue` and toggles through the group's own `update:modelValue` instead of its own
+  `selected`/`update:selected`. `role="group"` with the given `aria-label`; the wrap gap is
+  `space-2`, `tokens.json`'s own token description for "chip gaps" — a narrower gap than
+  `ButtonGroup`'s `space-3` "gap inside control groups", because these are a row of chips, not a
+  row of whole controls.
+
 - **`UnitInput` and `CurrencyInput`** — editable unit and money fields, and **ports of the two
   components Eldra's private component library ships**, not designs of this package's own. The spec
   has no editable numeric field: its `Price` is a display component (plan 2), and `Input`'s

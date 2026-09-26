@@ -24,6 +24,8 @@ export const componentNames = [
   'Checkbox',
   'CheckboxGroup',
   'Container',
+  'Chip',
+  'ChipGroup',
   'CurrencyInput',
   'EditorPlaceholder',
   'EmptyState',

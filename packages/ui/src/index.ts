@@ -12,6 +12,8 @@ export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
 export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
 export { default as Container } from './components/container/Container.vue';
+export { default as Chip } from './components/chip/Chip.vue';
+export { default as ChipGroup } from './components/chip/ChipGroup.vue';
 export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
 export { default as EditorPlaceholder } from './components/empty-state/EditorPlaceholder.vue';
 export { default as EmptyState } from './components/empty-state/EmptyState.vue';
@@ -73,6 +75,13 @@ export type {
   CheckboxSize,
 } from './components/checkbox/types';
 export type { ContainerPart, ContainerProps, ContainerWidth } from './components/container/types';
+export type {
+  ChipGroupPart,
+  ChipGroupProps,
+  ChipPart,
+  ChipProps,
+  ChipSize,
+} from './components/chip/types';
 export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
 export type {
   EditorPlaceholderPart,
@@ -215,6 +224,9 @@ export { FIELD_KEY, type FieldContext } from './components/field-wrapper/context
 // Section context. A `Section` provides it for its own subtree so a nested `Section` can warn
 // against the spec's own "sections are never nested inside another section" rule.
 export { SECTION_KEY } from './components/section/context';
+// Chip group context. A `ChipGroup` provides it; a member `Chip` with both a `value` and a group
+// above it reads its selected state and toggles it here instead of through its own `selected` prop.
+export { CHIP_GROUP_KEY, type ChipGroupContext } from './components/chip/context';
 
 // Styling helpers, so a consumer composing its own wrapper merges classes the
 // same way the components do.
