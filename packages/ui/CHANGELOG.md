@@ -148,6 +148,31 @@ Release-please writes the generated notes from commit messages and does not repl
   root is `aria-hidden="true"`; there is no live region — a loading region's own `aria-busy`/hidden
   text is the caller's responsibility, not this primitive's. `Price` and `Image` keep their own
   inline loading skeletons unchanged (follow-up: point them at `Skeleton` itself in a later pass).
+- **`ProductCard`** — the first composed component of the "display, commerce and layout"
+  sub-project (design spec's Product card section): the product tile used in every grid, carousel
+  and search result, assembling `Image`, `Price`, `Rating`, `Badge`, `StockBadge`, `Button` and
+  `Skeleton` — all already shipped — rather than duplicating any of them. `product` is one object
+  (`ProductCardProduct`: `title`, `url`, `vendor`, `featuredImage`, `price`, `rating`, `colours`,
+  `badge`, `stock`, `available`); `showVendor`/`showRating`/`showSwatches`/`quickAdd` toggle the
+  optional rows, `ratio` picks the media's aspect (`4x5`/`1x1`/`3x4`, default `4x5`), `headingLevel`
+  sets the title's heading level (default `3`), `loading` swaps the whole card for a skeleton, and
+  `currency`/`locale` pass straight through to `Price`. The whole card is one stretched link (a
+  card-covering `::after` on the title's `<a>`, anchored to the card root so it is not clipped to
+  the title's own box) with the design spec's proxy focus ring (`eldra-focus-proxy`) drawn on the
+  card itself, `radius-lg` cornered; quick add sits above that overlay (`relative z-10`) so
+  clicking it never navigates, and is named "Quick add" plus the full product title via the new
+  `quickAdd(title)` function message, applied as the button's `aria-label`. Sold out
+  (`available: false`) dims the media to 60% opacity, shows an outline "Sold out" `Badge` in the
+  media-corner badge stack (never alongside a sale/new badge — a third badge is never rendered),
+  and replaces quick add with a disabled "Sold out" button. The sale badge's rounded percentage
+  ("−20%") derives from `price.compareAt`/`price.amount`, independently of the caller's own
+  `badge` field. Colour dots show up to three plus a "+N" overflow, `aria-hidden`, summarised by a
+  new hidden `swatchesAvailable(n)` message ("Available in N colours"). An addition beyond the
+  spec's own 8-part anatomy: when `product.stock` is set (and the product is not sold out), a
+  `StockBadge` status line renders above quick add — see the README's Deviations section for why,
+  and for the corner "Sold out" badge being a plain `Badge` rather than `StockBadge` despite the
+  task brief's own framing. New messages: `quickAdd`, `quickAddLabel`, `newBadge`,
+  `loadingProduct`, `swatchesAvailable`, in both `en-US`/`is-IS`.
 - **`Image`** — the fifth component of the "display, commerce and layout" sub-project (design
   spec's Image section). The responsive media frame every card and block builds on: a fixed aspect
   preset (`auto`, `1x1`, `4x3`, `3x2`, `16x9`, `3x4`, `4x5`, default `4x3`) sets the frame's

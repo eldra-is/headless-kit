@@ -99,6 +99,41 @@ export const enUS = {
   overLimit: (n: number) => `Over the limit by ${n}`,
   /** A product that cannot be bought. */
   soldOut: 'Sold out',
+  /**
+   * `ProductCard`'s "New" badge (spec "Product card" → Anatomy, part 2). A plain string, unlike
+   * `quickAdd` below: the word never takes a value, so it needs no function.
+   */
+  newBadge: 'New',
+  /**
+   * `ProductCard`'s quick-add button's *visible* text (spec "Product card" → Anatomy, part 8:
+   * "Quick add"). Separate from `quickAdd` below — see that key's own comment for why the two are
+   * not the same string.
+   */
+  quickAddLabel: 'Quick add',
+  /**
+   * `ProductCard`'s quick-add button's full accessible name (spec "Product card" → Accessibility:
+   * "Quick add names the product: 'Quick add' + hidden ' Merino crew sweater'"), a *function*
+   * rather than the visible label plus an appended title: the English spec text always puts the
+   * product name last, but a locale's natural word order need not — `is-IS`'s own translation
+   * puts it in the middle ("Setja {title} í körfu") — so the whole sentence has to be one
+   * catalogue entry a locale can reorder freely, not `quickAddLabel` plus a raw suffix glued on
+   * by the component. Applied as the button's `aria-label`, which replaces the *visible* text for
+   * accessible-name purposes (confirmed: a fallthrough `aria-label` on `<Button>` overrides its
+   * own computed one — see `ProductCard.vue`'s own comment), so the visible/hidden split the spec
+   * draws for English is honoured without constraining every locale to the same shape.
+   */
+  quickAdd: (title: string) => `Quick add ${title}`,
+  /**
+   * `ProductCard`'s loading skeleton's accessible name (spec "Product card" → Variants, Loading
+   * row: `aria-label="Loading product"`).
+   */
+  loadingProduct: 'Loading product',
+  /**
+   * `ProductCard`'s colour dots' hidden summary (spec "Product card" → Anatomy, part 7: 'hidden
+   * "Available in 5 colours"'; → Accessibility: "Colour dots are `aria-hidden`, summarised by
+   * hidden 'Available in 5 colours'"). The dots themselves carry no text of their own.
+   */
+  swatchesAvailable: (n: number) => `Available in ${n} ${n === 1 ? 'colour' : 'colours'}`,
   /** `Image`'s live placeholder text, shown next to the photo icon when there is no `media` (spec
    * "Image" → Variants, "Placeholder (live)" row). */
   noImage: 'No image',

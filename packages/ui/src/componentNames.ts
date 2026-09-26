@@ -40,6 +40,7 @@ export const componentNames = [
   'LogoItem',
   'MultiSelect',
   'Price',
+  'ProductCard',
   'QuantityStepper',
   'RadioGroup',
   'Rating',

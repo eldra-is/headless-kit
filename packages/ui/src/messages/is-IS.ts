@@ -55,6 +55,15 @@ export const isIS: UiMessages = {
   charactersLeft: (n: number) => `${n} ${singular(n) ? 'stafur' : 'stafir'} eftir`,
   overLimit: (n: number) => `Yfir hámarkinu um ${n}`,
   soldOut: 'Uppselt',
+  newBadge: 'Nýtt',
+  quickAddLabel: 'Setja í körfu',
+  // Word order differs from the English "Quick add {title}" — the product name sits in the
+  // middle of the Icelandic sentence, not appended at the end. See `en-US.ts`'s own comment on
+  // `quickAdd` for why the whole sentence is one catalogue entry rather than a label plus a
+  // glued-on suffix.
+  quickAdd: (title: string) => `Setja ${title} í körfu`,
+  loadingProduct: 'Hleð vöru',
+  swatchesAvailable: (n: number) => `Til í ${n} ${singular(n) ? 'lit' : 'litum'}`,
   noImage: 'Engin mynd',
   noImageAvailable: 'Engin mynd í boði',
   stockistSite: ' (síða söluaðila)',

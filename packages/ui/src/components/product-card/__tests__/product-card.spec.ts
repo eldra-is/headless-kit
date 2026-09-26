@@ -1,0 +1,538 @@
+import { defineComponent, h, nextTick } from 'vue';
+import { afterEach, describe, expect, it } from 'vitest';
+import { provideEldraUiMessages } from '../../../composables/useMessages';
+import { isIS } from '../../../messages/is-IS';
+import { axe } from '../../../test/axe';
+import { mountNarrow, mountWith } from '../../../test/mount';
+import ProductCard from '../ProductCard.vue';
+import type { ProductCardProduct } from '../types';
+
+/** The spec's own reference product (spec "Product card" → Anatomy example row). */
+const PRODUCT: ProductCardProduct = {
+  title: 'Merino crew sweater',
+  url: '/products/merino-crew-sweater',
+  vendor: 'Kiln Street Studio',
+  featuredImage: { src: '/img/sweater.jpg', alt: 'Oatmeal merino crew sweater, folded' },
+  price: { amount: 3840, compareAt: 4800 },
+  rating: { value: 4.5, count: 128 },
+  colours: [
+    { name: 'Oatmeal', swatch: '#e7ded1' },
+    { name: 'Charcoal', swatch: '#2f2f2f' },
+    { name: 'Moss', swatch: '#4d5a45' },
+    { name: 'Clay', swatch: '#8c3b2a' },
+    { name: 'Ecru', swatch: '#f2ede3' },
+  ],
+  badge: { variant: 'sale' },
+  available: true,
+};
+
+/** Twice the length of the spec's own title example. */
+const LONG_TITLE =
+  'Hand-finished merino wool crew neck sweater in a relaxed fit with ribbed cuffs and hem';
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+describe('ProductCard — element and parts', () => {
+  it('renders an article with data-part on every part', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, showVendor: true } });
+    expect(wrapper.element.tagName).toBe('ARTICLE');
+    expect(wrapper.attributes('data-part')).toBe('root');
+    for (const part of [
+      'media',
+      'badges',
+      'body',
+      'vendor',
+      'title',
+      'link',
+      'price',
+      'rating',
+      'swatches',
+      'quickAdd',
+    ]) {
+      expect(wrapper.find(`[data-part="${part}"]`).exists(), part).toBe(true);
+    }
+    wrapper.unmount();
+  });
+
+  it('renders the title at the default heading level (h3)', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.get('[data-part="title"]').element.tagName).toBe('H3');
+    wrapper.unmount();
+  });
+
+  it('renders the title at a caller-given heading level', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, headingLevel: 2 } });
+    expect(wrapper.get('[data-part="title"]').element.tagName).toBe('H2');
+    wrapper.unmount();
+  });
+
+  it('renders the full title text in the link, unclamped in the DOM text', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, title: LONG_TITLE } },
+    });
+    expect(wrapper.get('[data-part="link"]').text()).toBe(LONG_TITLE);
+    wrapper.unmount();
+  });
+
+  it('clamps the title to two lines', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.get('[data-part="title"]').classes()).toContain('line-clamp-2');
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — the stretched link', () => {
+  it('points the link at the product url', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const link = wrapper.get('[data-part="link"]');
+    expect(link.element.tagName).toBe('A');
+    expect(link.attributes('href')).toBe(PRODUCT.url);
+    wrapper.unmount();
+  });
+
+  it('covers the card with an ::after pseudo-element rather than the link box alone', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const link = wrapper.get('[data-part="link"]');
+    expect(link.classes()).toContain('after:absolute');
+    expect(link.classes()).toContain('after:inset-0');
+    // Anchored to the card, not itself: the link carries no `relative` of its own.
+    expect(link.classes()).not.toContain('relative');
+    wrapper.unmount();
+  });
+
+  it('draws the proxy focus ring on the root, not on the link', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.classes()).toContain('eldra-focus-proxy');
+    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.get('[data-part="link"]').classes()).not.toContain('eldra-focus-proxy');
+    wrapper.unmount();
+  });
+
+  it('gives the root radius-lg corners for the ring to follow', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.classes()).toContain('rounded-lg');
+    wrapper.unmount();
+  });
+
+  it('renders the link as the given `as` component and forwards the url as `to`', () => {
+    const FakeRouterLink = defineComponent({
+      props: { to: { type: String, required: true } },
+      setup:
+        (props, { slots }) =>
+        () =>
+          h('a', { 'data-fake-router-link': props.to }, slots.default?.()),
+    });
+    const wrapper = mountWith(ProductCard, {
+      props: { product: PRODUCT, as: FakeRouterLink },
+    });
+    const link = wrapper.get('[data-part="link"]');
+    expect(link.attributes('data-fake-router-link')).toBe(PRODUCT.url);
+    expect(link.attributes('href')).toBeUndefined();
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — quick add', () => {
+  it('renders the quick-add button outside the stretched link, above it in stacking order', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const button = wrapper.get('[data-part="quickAdd"]');
+    expect(button.element.tagName).toBe('BUTTON');
+    expect(button.classes()).toContain('relative');
+    expect(button.classes()).toContain('z-10');
+    wrapper.unmount();
+  });
+
+  it('names the quick-add button "Quick add" plus the full product title', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const button = wrapper.get('[data-part="quickAdd"]');
+    expect(button.attributes('aria-label')).toBe('Quick add Merino crew sweater');
+    wrapper.unmount();
+  });
+
+  it('reads the Icelandic accessible name, title placed mid-sentence', () => {
+    const Wrapped = defineComponent({
+      setup() {
+        provideEldraUiMessages(isIS);
+        return () => h(ProductCard, { product: PRODUCT });
+      },
+    });
+    const wrapper = mountWith(Wrapped);
+    expect(wrapper.get('[data-part="quickAdd"]').attributes('aria-label')).toBe(
+      'Setja Merino crew sweater í körfu'
+    );
+    wrapper.unmount();
+  });
+
+  it('shows "Quick add" as the visible label', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.get('[data-part="quickAdd"]').text()).toBe('Quick add');
+    wrapper.unmount();
+  });
+
+  it('emits quickAdd with the product when clicked', async () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    await wrapper.get('[data-part="quickAdd"]').trigger('click');
+    expect(wrapper.emitted('quickAdd')).toEqual([[PRODUCT]]);
+    wrapper.unmount();
+  });
+
+  it('never navigates when quick add is clicked (no click reaches the link)', async () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const linkClicks: Event[] = [];
+    wrapper.get('[data-part="link"]').element.addEventListener('click', (e) => linkClicks.push(e));
+    await wrapper.get('[data-part="quickAdd"]').trigger('click');
+    expect(linkClicks).toHaveLength(0);
+    wrapper.unmount();
+  });
+
+  it('hides the quick-add control entirely when quickAdd is false', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, quickAdd: false } });
+    expect(wrapper.find('[data-part="quickAdd"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('is at least 2.5rem tall (Button md, control-h)', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.get('[data-part="quickAdd"]').classes()).toContain('control-h');
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — sold out', () => {
+  const soldOut = { ...PRODUCT, available: false };
+
+  it('dims the media to 60% opacity', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: soldOut } });
+    expect(wrapper.get('[data-part="media"] img').classes()).toContain('opacity-60');
+    wrapper.unmount();
+  });
+
+  it('does not dim the media for an available product', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.get('[data-part="media"] img').classes()).not.toContain('opacity-60');
+    wrapper.unmount();
+  });
+
+  it('shows an outline "Sold out" badge in the badge stack', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: soldOut } });
+    const badges = wrapper.findAll('[data-part="badges"] [data-part="root"]');
+    expect(badges).toHaveLength(1);
+    expect(badges[0]?.text()).toBe('Sold out');
+    expect(badges[0]?.classes()).toContain('border-border-strong');
+    wrapper.unmount();
+  });
+
+  it('suppresses the sale/new badge while sold out', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: soldOut } });
+    expect(wrapper.text()).not.toContain('−');
+    wrapper.unmount();
+  });
+
+  it('replaces quick add with a disabled "Sold out" button', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: soldOut } });
+    const button = wrapper.get('[data-part="quickAdd"]');
+    expect(button.text()).toBe('Sold out');
+    expect((button.element as HTMLButtonElement).disabled).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('renders no quick-add control at all when quickAdd is false, sold out included', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: soldOut, quickAdd: false },
+    });
+    expect(wrapper.find('[data-part="quickAdd"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('removes the disabled button from the tab order', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: soldOut } });
+    const focusable = wrapper.findAll('a, button:not([disabled]), [tabindex]');
+    expect(focusable).toHaveLength(1);
+    expect(focusable[0]?.element.tagName).toBe('A');
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — sale badge', () => {
+  it('renders the rounded percentage with a hidden "off"', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const badge = wrapper.get('[data-part="badges"] [data-part="root"]');
+    expect(badge.get('[data-part="label"]').text()).toBe('−20%');
+    expect(badge.get('[data-part="hiddenSuffix"]').text()).toBe('off');
+    wrapper.unmount();
+  });
+
+  it('renders no badge when there is no compareAt or badge flag', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, badge: null, price: { amount: 3840 } } },
+    });
+    expect(wrapper.find('[data-part="badges"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders a "New" badge for badge.variant "new"', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, badge: { variant: 'new' }, price: { amount: 3840 } } },
+    });
+    expect(wrapper.get('[data-part="badges"]').text()).toBe('New');
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — vendor, rating and swatch toggles', () => {
+  it('hides the vendor by default', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.find('[data-part="vendor"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows the vendor when showVendor is true', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, showVendor: true } });
+    expect(wrapper.get('[data-part="vendor"]').text()).toBe('Kiln Street Studio');
+    wrapper.unmount();
+  });
+
+  it('renders no vendor line when the product has none, even with showVendor true', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, vendor: undefined }, showVendor: true },
+    });
+    expect(wrapper.find('[data-part="vendor"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows the rating by default', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.find('[data-part="rating"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('hides the rating when showRating is false', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, showRating: false } });
+    expect(wrapper.find('[data-part="rating"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('hides the rating when the product has none, even with showRating true', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, rating: null }, showRating: true },
+    });
+    expect(wrapper.find('[data-part="rating"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows up to three swatch dots plus a "+N" overflow', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.findAll('[data-part="swatch"]')).toHaveLength(3);
+    expect(wrapper.get('[data-part="swatchOverflow"]').text()).toBe('+2');
+    wrapper.unmount();
+  });
+
+  it('renders no overflow badge with three or fewer colours', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, colours: PRODUCT.colours!.slice(0, 2) } },
+    });
+    expect(wrapper.findAll('[data-part="swatch"]')).toHaveLength(2);
+    expect(wrapper.find('[data-part="swatchOverflow"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('sets each dot colour as an inline style, never a class', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const swatch = wrapper.get('[data-part="swatch"]');
+    expect((swatch.element as HTMLElement).getAttribute('style')).toContain('e7ded1');
+    expect(swatch.classes().join(' ')).not.toContain('#e7ded1');
+    wrapper.unmount();
+  });
+
+  it('hides the swatch row from assistive technology and names the count in hidden text', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.get('[data-part="swatches"]').attributes('aria-hidden')).toBe('true');
+    expect(wrapper.text()).toContain('Available in 5 colours');
+    wrapper.unmount();
+  });
+
+  it('hides swatches when showSwatches is false', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, showSwatches: false } });
+    expect(wrapper.find('[data-part="swatches"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders no swatch row when the product has no colours', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, colours: undefined } },
+    });
+    expect(wrapper.find('[data-part="swatches"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — stock line (addition beyond the literal anatomy)', () => {
+  it('renders no stock line when the product has none', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.find('[data-part="stockLine"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders the StockBadge line for a given level', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, stock: 'low' } },
+    });
+    expect(wrapper.get('[data-part="stockLine"]').text()).toContain('Low stock');
+    wrapper.unmount();
+  });
+
+  it('suppresses the stock line while sold out', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, stock: 'low', available: false } },
+    });
+    expect(wrapper.find('[data-part="stockLine"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — image ratio', () => {
+  it('passes the ratio through to the media frame', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, ratio: '1x1' } });
+    const frame = wrapper.get('[data-part="media"] [data-part="frame"]');
+    expect((frame.element as HTMLElement).style.aspectRatio).toBe('1 / 1');
+    wrapper.unmount();
+  });
+
+  it('defaults to 4x5', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const frame = wrapper.get('[data-part="media"] [data-part="frame"]');
+    expect((frame.element as HTMLElement).style.aspectRatio).toBe('4 / 5');
+    wrapper.unmount();
+  });
+
+  it('renders the no-image placeholder, decorative, at the same ratio', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, featuredImage: null } },
+    });
+    const placeholder = wrapper.get('[data-part="media"] [data-part="placeholder"]');
+    expect(placeholder.attributes('aria-hidden')).toBe('true');
+    expect(placeholder.attributes('role')).toBeUndefined();
+    const frame = wrapper.get('[data-part="media"] [data-part="frame"]');
+    expect((frame.element as HTMLElement).style.aspectRatio).toBe('4 / 5');
+    wrapper.unmount();
+  });
+
+  it('scales the image on hover, off the card root, and drops it under reduced motion', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const img = wrapper.get('[data-part="media"] img');
+    expect(img.classes()).toContain('group-hover:scale-[1.03]');
+    expect(img.classes()).toContain('motion-reduce:transition-none');
+    // The hover trigger is the card root's own `:hover` (`group`), not a `group-has-*` on the
+    // stretched link — see `rootClass`'s own comment.
+    expect(wrapper.classes()).toContain('group');
+  });
+});
+
+describe('ProductCard — loading', () => {
+  it('renders role=group, aria-busy and the loading accessible name', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, loading: true } });
+    expect(wrapper.attributes('role')).toBe('group');
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.attributes('aria-label')).toBe('Loading product');
+    wrapper.unmount();
+  });
+
+  it('renders a skeleton in place of the whole card', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, loading: true } });
+    expect(wrapper.find('[data-part="skeleton"]').exists()).toBe(true);
+    expect(wrapper.find('[data-part="link"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="quickAdd"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders no interactive element while loading', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, loading: true } });
+    expect(wrapper.findAll('a, button, [tabindex]')).toHaveLength(0);
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — currency and locale', () => {
+  it('formats the price with a given currency and locale', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: PRODUCT, currency: 'ISK', locale: 'is-IS' },
+    });
+    expect(wrapper.get('[data-part="price"] [data-part="current"]').text()).toContain('kr');
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — customisation', () => {
+  it('merges an override onto every part', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: {
+        product: PRODUCT,
+        classes: {
+          root: 'ring-1',
+          media: 'ring-2',
+          badges: 'gap-4',
+          body: 'gap-4',
+          vendor: 'italic',
+          title: 'uppercase',
+          link: 'font-bold',
+          price: 'ml-4',
+          rating: 'ml-4',
+          swatches: 'ml-4',
+          swatch: 'grayscale',
+          swatchOverflow: 'italic',
+          quickAdd: 'ml-4',
+        },
+      },
+    });
+    expect(wrapper.classes()).toContain('ring-1');
+    expect(wrapper.get('[data-part="media"]').classes()).toContain('ring-2');
+    expect(wrapper.get('[data-part="badges"]').classes()).toContain('gap-4');
+    expect(wrapper.get('[data-part="body"]').classes()).toContain('gap-4');
+    expect(wrapper.get('[data-part="title"]').classes()).toContain('uppercase');
+    expect(wrapper.get('[data-part="link"]').classes()).toContain('font-bold');
+    expect(wrapper.get('[data-part="swatch"]').classes()).toContain('grayscale');
+    expect(wrapper.get('[data-part="swatchOverflow"]').classes()).toContain('italic');
+    expect(wrapper.get('[data-part="quickAdd"]').classes()).toContain('ml-4');
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — narrow container', () => {
+  it('renders without horizontal overflow in a 20rem container', () => {
+    const wrapper = mountNarrow(ProductCard, { props: { product: PRODUCT, showVendor: true } });
+    expect(wrapper.attributes('data-part')).toBe('root');
+    expect((wrapper.element as HTMLElement).scrollWidth).toBeLessThanOrEqual(
+      (wrapper.element as HTMLElement).offsetWidth + 1
+    );
+    wrapper.unmount();
+  });
+
+  it('renders a long title clamped rather than overflowing', () => {
+    const wrapper = mountNarrow(ProductCard, {
+      props: { product: { ...PRODUCT, title: LONG_TITLE } },
+    });
+    expect(wrapper.get('[data-part="title"]').classes()).toContain('line-clamp-2');
+    wrapper.unmount();
+  });
+});
+
+describe('ProductCard — accessibility', () => {
+  it.each([
+    ['default', { product: PRODUCT }],
+    ['with vendor', { product: PRODUCT, showVendor: true }],
+    ['sold out', { product: { ...PRODUCT, available: false } }],
+    ['no image', { product: { ...PRODUCT, featuredImage: null } }],
+    ['no rating', { product: PRODUCT, showRating: false }],
+    ['no quick add', { product: PRODUCT, quickAdd: false }],
+    ['minimal', { product: PRODUCT, showRating: false, showSwatches: false, quickAdd: false }],
+    ['loading', { product: PRODUCT, loading: true }],
+    ['stock line', { product: { ...PRODUCT, stock: 'preorder' } }],
+  ] as const)('has no axe violations: %s', async (_name, props) => {
+    const wrapper = mountWith(ProductCard, { props });
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});

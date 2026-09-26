@@ -1541,3 +1541,64 @@ max-h-[inherit]` — `max-h-[inherit]` reads the _frame's_ own `max-height` back
   chrome this component renders itself (spec → Default copy, "Try again"), the same category as
   every other message key here, so it goes through `useMessages()` like the rest rather than being
   hard-coded English.
+- **`ProductCard`'s media-corner "Sold out" is a plain outline `Badge`, not `StockBadge`.** The
+  task brief's own framing ("a sale/new Badge and a StockBadge stack in the media corner")
+  reads as though both components land there, but the design spec's anatomy line is explicit
+  ("Badge stack ... Badge sale / new / outline 'Sold out'") and its States table describes the
+  sold-out badge as "inset 1px `border-strong`" — exactly `Badge`'s own `outline` recipe
+  (`bg-background text-text border-border-strong`), which `StockBadge` has no equivalent of (it
+  is bare inline text and an icon, no fill or border at all). The corner stack is therefore
+  `Badge :outline`, matching the spec's literal styling; `StockBadge` composes elsewhere (next
+  bullet), which is what gives the brief's "Composes ... Badge/StockBadge ..." line a real,
+  distinct component for each half.
+- **`ProductCardProduct.stock` and the `stockLine` part are an addition beyond the spec's own
+  8-part anatomy.** The anatomy diagram draws no stock-status row at all, but the brief's own
+  `ProductCardProduct` type carries a `stock?: StockLevel | null` field distinct from
+  `available`, and composing `StockBadge` needed a real use beyond the outline "Sold out" badge
+  above (which is `Badge`, not `StockBadge` — see the previous bullet). When `stock` is set (and
+  the product is not sold out, where the disabled quick-add button already carries the same
+  meaning), a `StockBadge` status line renders above quick add, in the position most storefront
+  cards put a "Only 3 left" line. Omit `stock` for a card that should render exactly the spec's
+  own anatomy with nothing extra.
+- **The sold-out quick-add control is a disabled `Button`, not `StockBadge`.** Same reasoning as
+  the corner badge: the spec's States table describes it as "`muted` on `surface-strong`, no
+  border" — `Button`'s own `outline` variant's `DISABLED` recipe
+  (`bg-surface-strong text-muted border-transparent`) verbatim — and its Accessibility section
+  says sold out reads "the words 'Sold out' on **badge and button**", naming two separate
+  elements. A disabled `<button>` (not `StockBadge`, which renders no button at all) is what
+  keeps it out of the tab order natively, with no `tabindex` bookkeeping.
+- **The quick-add button's accessible name is one whole-sentence function message
+  (`messages.quickAdd(title)`), applied as an explicit `aria-label`, not the visible "Quick add"
+  text plus the raw title glued on as visually hidden content.** The spec's own English
+  description ("'Quick add' + hidden ' Merino crew sweater'") is content-splicing shaped, and
+  that shape was tried first — but Icelandic's natural phrasing puts the product name in the
+  _middle_ of the sentence ("Setja {title} í körfu"), which splicing a fixed visible prefix with
+  a trailing hidden suffix cannot express for every locale, only English's own word order. The
+  whole sentence is therefore one catalogue entry (`quickAdd`, new in both `en-US`/`is-IS`) a
+  locale can reorder freely, and it replaces `Button`'s own (otherwise absent, for a plain
+  outline button) `aria-label` via ordinary Vue attribute fallthrough — confirmed empirically
+  against this exact component (a fallthrough `aria-label` on `<Button>` overrides its own
+  computed one) before relying on it, since `Button` only turns its `label` prop into
+  `aria-label` for `iconOnly`/`loading` buttons. The _visible_ button text stays the spec's own
+  "Quick add" (`messages.quickAddLabel`), a separate, non-parametrised catalogue entry.
+- **The hover zoom scales from the image's centre, not its authored focal point.** The spec says
+  the zoom scales "from the image's focal point", which `Image`'s own `focal`/`zoom` props exist
+  for — but they drive a _static_ crop, not a `:hover` transition, and `ProductCardProduct` (the
+  task brief's own type) carries no per-image focal data for the card to read. The hover scale is
+  a plain `group-hover:scale-[1.03]` CSS transform with the default `transform-origin: center`,
+  which only matters visually for an image whose subject sits noticeably off-centre.
+- **`ProductCard`'s loading state renders a `<div role="group">`, not `<article role="group">`.**
+  The spec's own Loading row asks for `role="group"` on "the card", but the ARIA-in-HTML
+  allowed-roles table does not permit `group` on `<article>` (axe's `aria-allowed-role` rule
+  catches it), and there is no article content to justify the tag while loading anyway — the
+  element itself changes for that one state rather than fighting an invalid role onto `<article>`.
+- **The sale/new badge is suppressed while sold out, even if both are set on the same product.**
+  Task 1's own Badge acceptance criterion ("a third badge is never rendered") and the spec's own
+  sold-out States row name only the outline "Sold out" badge, so `ProductCard` trusts `available`
+  over `badge` when they conflict rather than stacking both.
+- **The sale badge's percentage is derived from `price`, independently of what set `badgeKind`.**
+  `ProductCardProduct.badge` is the caller's own sale/new _decision_ (the spec's "derived
+  automatically ... when tagged `new`" needs a tag vocabulary this type does not carry, so
+  presence is trusted rather than re-derived) — but its rounded percentage text ("−20%") still
+  comes from `price.amount`/`price.compareAt` via the same `compareAt > amount` rule `Price`'s
+  own `isSale` uses, so the badge and the price never disagree about whether there is a discount.

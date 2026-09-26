@@ -28,6 +28,7 @@ export { default as Link } from './components/link/Link.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as Price } from './components/price/Price.vue';
+export { default as ProductCard } from './components/product-card/ProductCard.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Rating } from './components/rating/Rating.vue';
@@ -153,6 +154,12 @@ export type {
   SectionSpacing,
 } from './components/section/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';
+export type {
+  ProductCardPart,
+  ProductCardProduct,
+  ProductCardProps,
+  ProductCardRatio,
+} from './components/product-card/types';
 export type {
   QuantityStepperPart,
   QuantityStepperProps,
