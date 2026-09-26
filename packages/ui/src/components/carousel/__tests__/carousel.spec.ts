@@ -617,6 +617,86 @@ describe('Carousel — pointer drag', () => {
     wrapper.unmount();
   });
 
+  /**
+   * Operator fix (2026-09-26): "swiping/dragging ... starts and then kind of cancels" traced to
+   * `scroll-behavior: smooth` fighting the drag's own instant `scrollLeft` writes — `scroll-auto`
+   * (alongside the existing `snap-none`) must ride the same `data-dragging` attribute so it turns
+   * off for the drag's duration; `select-none` on the same attribute is the track's own half of the
+   * text-selection fix (the `document.documentElement` half is proven separately below); `touch-
+   * pan-x` alongside the existing `touch-pan-y` is what restores native horizontal touch swipe
+   * (`touch-pan-y` alone told the browser to handle only the vertical axis, leaving horizontal touch
+   * events to a handler that deliberately ignores `pointerType === 'touch'`).
+   */
+  it('carries scroll-auto/select-none on data-dragging and pan-x/pan-y touch-action on the track', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const classes = track(wrapper).className;
+    expect(classes).toContain('data-[dragging=true]:scroll-auto');
+    expect(classes).toContain('data-[dragging=true]:select-none');
+    expect(classes).toContain('touch-pan-x');
+    expect(classes).toContain('touch-pan-y');
+    wrapper.unmount();
+  });
+
+  /**
+   * Operator fix (2026-09-26): `pointermove`'s own `preventDefault()` never stopped the browser's
+   * native text-selection drag, which starts on `mousedown` before any `pointermove` fires —
+   * `onTrackPointerDown` must call it itself, but only once every bail-out (wrong button, touch, an
+   * interactive descendant) has already passed, so a click that will never become a drag (a slide's
+   * own button) still focuses/clicks normally.
+   */
+  it('prevents default on a pointerdown that may start a drag, but not one on an interactive descendant', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default:
+          '<li><button type="button" data-testid="buy">Buy</button></li><li>Bravo</li><li>Charlie</li>',
+      },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    const trackDown = pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0);
+    trackEl.dispatchEvent(trackDown);
+    expect(trackDown.defaultPrevented).toBe(true);
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 100, pointerId: 1 }, 10));
+
+    const buttonEl = wrapper.find('[data-testid="buy"]').element as HTMLButtonElement;
+    const buttonDown = pointerEventAt('pointerdown', { clientX: 50, pointerId: 2, button: 0 }, 20);
+    buttonEl.dispatchEvent(buttonDown);
+    expect(buttonDown.defaultPrevented).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * Operator fix (2026-09-26): the belt-and-braces half of the text-selection fix —
+   * `document.documentElement`'s own `user-select` is suppressed for the drag's duration (the
+   * pointer can leave the track mid-drag, past the track's own `select-none`) and restored once the
+   * drag ends, whether that end is a plain `pointerup` or (proven in the `lostpointercapture` spec
+   * below) capture being revoked with no preceding `pointerup`/`pointercancel` at all.
+   */
+  it('suppresses document.documentElement user-select while dragging, restoring it on pointerup', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    expect(document.documentElement.style.userSelect).toBe('');
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 80, pointerId: 1 }, 10));
+    expect(document.documentElement.style.userSelect).toBe('none');
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 80, pointerId: 1 }, 20));
+    await settle();
+    expect(document.documentElement.style.userSelect).toBe('');
+    wrapper.unmount();
+  });
+
   it('release snaps to the nearest slide by position, clears data-dragging and emits change', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers' },
@@ -711,6 +791,7 @@ describe('Carousel — pointer drag', () => {
     trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -30, pointerId: 1 }, 10));
     trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -30, pointerId: 1 }, 40));
     expect(trackEl.getAttribute('data-dragging')).toBe('true');
+    expect(document.documentElement.style.userSelect).toBe('none');
     // The browser revokes capture with no preceding pointerup/pointercancel — an edge-swipe
     // gesture, another element stealing capture, the captured element becoming disabled. Without
     // a `lostpointercapture` listener, `endTrackDrag` never runs and the drag state (and autoplay
@@ -718,6 +799,10 @@ describe('Carousel — pointer drag', () => {
     trackEl.dispatchEvent(pointerEventAt('lostpointercapture', { clientX: -30, pointerId: 1 }, 41));
     await settle();
     expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    // `document.documentElement`'s own `user-select` override is restored on `lostpointercapture`
+    // exactly like on a plain `pointerup` — proven in the dedicated pointerup spec above; this
+    // proves the "stuck forever" hazard that spec's own comment describes doesn't apply here either.
+    expect(document.documentElement.style.userSelect).toBe('');
     expect(wrapper.emitted('change')).toEqual([[1]]);
     // Autoplay resumes — proven the same way the pointerup pause/resume spec above proves it: the
     // timer fires again after release.

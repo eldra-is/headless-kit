@@ -608,6 +608,42 @@ describe('Lightbox — pointer drag', () => {
     expect(wrapper.emitted('update:index')).toEqual([[1]]);
     wrapper.unmount();
   });
+
+  /** Same fix, same shared `useCarousel` state machine as `carousel.spec.ts`'s own equivalent spec
+   *  (see that file's own comment) — proven here too since `Lightbox.vue`'s `trackClass` is a
+   *  separate literal from `Carousel.vue`'s, not a shared constant. */
+  it('carries scroll-auto/select-none on data-dragging and pan-x/pan-y touch-action on the track', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    const classes = wrapper.find('[data-part="track"]').element.className;
+    expect(classes).toContain('data-[dragging=true]:scroll-auto');
+    expect(classes).toContain('data-[dragging=true]:select-none');
+    expect(classes).toContain('touch-pan-x');
+    expect(classes).toContain('touch-pan-y');
+    wrapper.unmount();
+  });
+
+  it('suppresses document.documentElement user-select while dragging, restoring it on pointerup', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    const trackEl = wrapper.find('[data-part="track"]').element as HTMLElement;
+    trackEl.scrollTo = vi.fn();
+    Object.defineProperty(trackEl, 'scrollLeft', { value: 0, configurable: true, writable: true });
+    expect(document.documentElement.style.userSelect).toBe('');
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 300, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 280, pointerId: 1 }, 10));
+    expect(document.documentElement.style.userSelect).toBe('none');
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 280, pointerId: 1 }, 20));
+    await settle();
+    expect(document.documentElement.style.userSelect).toBe('');
+    wrapper.unmount();
+  });
 });
 
 describe('Lightbox — built CSS', () => {

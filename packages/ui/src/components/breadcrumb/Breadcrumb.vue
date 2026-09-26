@@ -157,9 +157,12 @@ const ellipsisItemClass = computed(() =>
 
 /**
  * Spec "Breadcrumb" → Sizes, "Separator" row: "0.375rem square ... rotated 45° (a chevron), 0.125rem
- * extra space after" — the current chevron's own size (`size-1.5`), kept unchanged; see the
- * README's Deviations entry for why it stays an inline Tabler `chevron-right` SVG rather than the
- * spec's own CSS-drawn two-border technique (operator direction, 2026-09-25, predates this fix).
+ * extra space after" — the chevron's own size, overridden by direct operator report (2026-09-26:
+ * "Breadcrumb arrow icons are way, way too small") to `size-4` (1rem), stroke `1.75`, `text-muted`
+ * (inherited from this span's own `text-muted` below via `currentColor`) — see the README's
+ * Deviations entry for the size override, and for why it stays an inline Tabler `chevron-right` SVG
+ * rather than the spec's own CSS-drawn two-border technique (operator direction, 2026-09-25,
+ * predates this fix).
  *
  * Review t14 (round 2): the previous fix still centred the separator before a link/the ellipsis and
  * the one before the current page against two *different* reference boxes — `self-center` against
@@ -169,7 +172,9 @@ const ellipsisItemClass = computed(() =>
  * *same* class recipe, unconditionally, rather than branching on which kind of sibling it precedes:
  * every separator is a `<span data-part="separator">` frame, `inline-flex items-center justify-
  * center`, fixed at `h-6` (1.5rem = 24px — the same `target-min` height `linkClass`/`ellipsisClass`
- * give their own sibling), holding the actual 0.375rem chevron `<svg>` centred inside it.
+ * give their own sibling), holding the actual `size-4` (1rem) chevron `<svg>` centred inside it —
+ * the frame's own 24px height is unchanged by the chevron's own operator-directed size increase
+ * above; a 1rem mark still centres inside a 1.5rem frame with room either side.
  *
  * That fixed 24px frame is what makes one recipe correct for both siblings a separator can sit
  * next to:
@@ -308,7 +313,7 @@ const structuredData = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-1.5 shrink-0"
+            class="size-4 shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -333,7 +338,7 @@ const structuredData = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-1.5 shrink-0"
+            class="size-4 shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -364,7 +369,7 @@ const structuredData = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-1.5 shrink-0"
+            class="size-4 shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -400,7 +405,7 @@ const structuredData = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-1.5 shrink-0"
+            class="size-4 shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />

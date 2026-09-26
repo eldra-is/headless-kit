@@ -2305,6 +2305,28 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `Button` for Pause alone while hand-rolling the arrows beside it would leave one control built two
   different ways for no real gain.
   engine regardless of whether that engine also exposes it as a property.
+- **Fix (2026-09-26, operator report: "swiping/dragging on both lightbox and carousel is very
+  broken — it starts and then kind of cancels; while dragging we are highlighting stuff"): the
+  track's own `touch-action` changes from `touch-pan-y` alone to `touch-pan-x touch-pan-y`
+  (`Carousel.vue`'s own `trackClass` comment has the full mechanism), and the pointer-drag state
+  machine in `useCarousel` gains two fixes shared by `Carousel` and `Lightbox`.** First: the track
+  keeps `scroll-behavior: smooth` at rest for its own arrow/dot/autoplay navigation, but every
+  `scrollLeft` write the drag makes is a real, instant assignment — under `smooth`, each one started
+  an animation the very next write interrupted, which is what read as "starts and then kind of
+  cancels." `data-[dragging=true]:scroll-auto` (riding the same `data-dragging` attribute
+  `data-[dragging=true]:snap-none` already used) turns `scroll-behavior` off for the drag's
+  duration; a forced reflow between clearing the attribute and the release's `goTo()` call
+  (`endTrackDrag`'s own comment) is what lets the class change actually take effect before the
+  snap-back animates, rather than either jumping instantly or fighting the drag's own last write.
+  Second: `pointermove`'s own `preventDefault()` (unchanged) never stopped the browser's native
+  text-selection drag, which starts on `mousedown`, before any `pointermove` fires — so dragging
+  across a slide's caption highlighted it. `onTrackPointerDown` now calls `preventDefault()` itself,
+  once every bail-out (wrong button, touch, an interactive descendant) has already passed, and the
+  drag also toggles `user-select: none` on `document.documentElement` for its duration (the pointer
+  can leave the track mid-drag, past the track's own `data-[dragging=true]:select-none`), restored on
+  `pointerup`/`pointercancel`/`lostpointercapture` alike. Touch was never affected by either fix —
+  it swipes through native scroll-snap panning, which is exactly what the `touch-action` change
+  above restores.
 - **`Breadcrumb` never truncates a label, even a long one — this reverses a truncation rule an
   earlier draft of the task's own interface comment carried ("long titles truncate at 40ch with the
   full title in `title`").** The design spec text is explicit and binding over that comment: "Product
@@ -2354,6 +2376,17 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   assert the class-recipe identity across positions directly (sorted class-list equality between the
   separator before a link and the one before the current page, wrapping or not) rather than only
   checking which one Tailwind class name a given position carries, per the review that caught this.
+- **Fix (2026-09-26, operator report: "Breadcrumb arrow icons are way, way too small"): the
+  separator chevron grows from the spec's own `0.375rem` (`size-1.5`) to `1rem` (`size-4`) —
+  superseding the "chevron's own size is unchanged" line in the fix above, which predates this
+  report.** The spec's own Sizes row for "Separator" gives `0.375rem`, but the operator judged the
+  built result illegible at a glance; `size-4` is this package's own override, recorded here rather
+  than silently changed. The chevron still centres inside the same fixed `h-6` (24px) frame
+  `separatorClass` (`Breadcrumb.vue`) already gives every separator — see that fix's own comment
+  above for why the frame, not the chevron, is what keeps every separator's vertical position
+  identical regardless of what it sits beside — so this is a pure size bump with no other geometry
+  to reconcile. Stroke width (`1.75`) and colour (`text-muted`, inherited via `currentColor`) are
+  unchanged.
 - **`Breadcrumb`'s trail links are underlined at rest, not only on hover — the same operator
   ruling as `Link`'s own Deviations entry above ("all link elements... underline by default").**
   The spec's own States row for the Link part ("`muted`, underline hidden (transparent)" at rest)

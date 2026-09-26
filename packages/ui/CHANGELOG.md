@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Fix (2026-09-26, operator report): `Carousel`/`Lightbox` pointer drag and touch swipe actually
+  work; no text selection while dragging; `Breadcrumb` separator chevron enlarged.** The track's
+  `scroll-smooth` was fighting the drag's own instant `scrollLeft` writes (each one started an
+  animation the next write interrupted) — `data-[dragging=true]:scroll-auto` now rides the same
+  `data-dragging` attribute as `snap-none`, with a forced reflow before the release snap so it still
+  animates. `touch-action` changes from `touch-pan-y` alone to `touch-pan-x touch-pan-y`, restoring
+  native horizontal touch-swipe panning that `pan-y` alone left with no native handler. A mouse drag
+  no longer highlights text: `onTrackPointerDown` now calls `preventDefault()` once a drag may
+  start, and `document.documentElement`'s own `user-select` is suppressed for the drag's duration
+  (the pointer can leave the track), restored on release. `Breadcrumb`'s separator chevron grows
+  from `size-1.5` (0.375rem, the spec's own number) to `size-4` (1rem) — see the README's Deviations
+  entries for both.
 - **Batch fix (2026-09-26): `Breadcrumb` separator alignment for every position (including a
   wrapping current-page title); `Carousel`/`Lightbox` pointer drag now also ends on
   `lostpointercapture`; `Tooltip` no longer treats Enter/Space typed inside an editable trigger as

@@ -291,16 +291,21 @@ const stageClass = 'relative min-h-0 flex-1';
  * track's own content box to be exactly the track's own visible width, no more and no less.
  */
 /**
- * `touch-pan-y`, `cursor-grab`/`-grabbing` and `data-[dragging=true]:snap-none`: the same pointer-
- * drag affordance `Carousel.vue`'s own `trackClass` carries (see that file's own comment) — always
- * on here, since this component has no `draggable` prop of its own (`useCarousel` call above).
+ * `touch-pan-x touch-pan-y`, `cursor-grab`/`-grabbing` and
+ * `data-[dragging=true]:snap-none:scroll-auto:select-none`: the same pointer-drag affordance and
+ * fix (operator report, 2026-09-26: broken swipe/drag, text getting highlighted while dragging)
+ * `Carousel.vue`'s own `trackClass` carries — see that file's own comment for why `touch-action`
+ * needs both axes and why `scroll-auto`/`select-none` need to ride the same `data-dragging`
+ * attribute as `snap-none` — always on here, since this component has no `draggable` prop of its
+ * own (`useCarousel` call above).
  */
 const trackClass = computed(() =>
   partClass(
     cx(
-      'flex h-full touch-pan-y cursor-grab snap-x snap-mandatory overflow-x-auto overscroll-x-contain',
+      'flex h-full touch-pan-x touch-pan-y cursor-grab snap-x snap-mandatory overflow-x-auto overscroll-x-contain',
       'scroll-smooth motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus',
       '[--eldra-focus-offset:4px] data-[dragging=true]:cursor-grabbing data-[dragging=true]:snap-none',
+      'data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
       carouselPerViewClasses({ base: 1 })
     ),
     props.classes,

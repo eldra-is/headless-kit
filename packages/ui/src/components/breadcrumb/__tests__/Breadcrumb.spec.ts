@@ -201,6 +201,22 @@ describe('Breadcrumb — separator geometry', () => {
     expect(beforeCurrent.classes()).toContain('self-start');
     wrapper.unmount();
   });
+
+  /** Operator report (2026-09-26): "Breadcrumb arrow icons are way, way too small" — the chevron
+   *  `<svg>` grows from the spec's own `size-1.5` (0.375rem) to `size-4` (1rem), still centred
+   *  inside the same fixed 24px (`h-6`) separator frame the previous test above already proves. */
+  it('sizes the chevron svg at size-4 (1rem), overriding the spec\'s 0.375rem', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
+    const separators = wrapper.findAll('[data-part="separator"]');
+    expect(separators.length).toBeGreaterThan(0);
+    for (const separator of separators) {
+      const svg = separator.find('svg');
+      expect(svg.exists()).toBe(true);
+      expect(svg.classes()).toContain('size-4');
+      expect(svg.classes()).not.toContain('size-1.5');
+    }
+    wrapper.unmount();
+  });
 });
 
 describe('Breadcrumb — collapse rule', () => {

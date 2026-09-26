@@ -103,22 +103,29 @@ const headerClass = computed(() =>
  * JavaScript for the *programmatic* scrolls (arrows, dots, autoplay) `scroll-behavior` alone does
  * not cover — see that file's own comment.
  *
- * `touch-pan-y` (spec-adjacent, operator ruling): touch's own horizontal swipe is native
- * scroll-snap panning, which browsers already treat as "this axis is taken"; declaring it
- * explicitly (rather than leaving `touch-action` at its `auto` default) is what keeps *vertical*
- * page scrolling working with one finger on a touch device — `auto` lets the browser guess, which
- * a horizontally-scrollable element does not always get right. `cursor-grab`/`-grabbing` and the
- * `data-[dragging=true]:snap-none` pair are the drag affordance and the snap-suspend the pointer
- * drag state machine drives (`useCarousel`'s own comment on its `data-dragging` attribute) — both
- * stock Tailwind utilities, gated on `draggable` so a `draggable: false` track shows neither.
+ * `touch-pan-x touch-pan-y` (spec-adjacent, operator ruling; fixed 2026-09-26 — was `touch-pan-y`
+ * alone). Tailwind's `touch-pan-*` utilities compose into one `touch-action` (each sets its own
+ * `--tw-pan-*` variable, the declared property reads both), so this is `touch-action: pan-x
+ * pan-y`, not "pan-y, then pan-x overriding it" — declaring only `pan-y` told the browser to
+ * handle *just* vertical panning itself, which left a horizontal touch swipe producing pointer
+ * events with nothing native to fall back on (the drag state machine above already bails out on
+ * `pointerType === 'touch'`, deliberately leaving touch to the browser) — so touch swipe was dead.
+ * `pan-x pan-y` hands both axes to native scroll-snap panning (one-finger vertical page scroll
+ * still works, horizontal swipe now does too) while still omitting `pinch-zoom`, so pinch-to-zoom
+ * stays disabled on the track. See the README's Deviations entry. `cursor-grab`/`-grabbing` and
+ * the `data-[dragging=true]:snap-none:scroll-auto:select-none` group are the drag affordance and
+ * the snap/smooth-scroll/selection suspension the pointer drag state machine drives (`useCarousel`'s
+ * own comment on its `data-dragging` attribute and `setDocumentSelectionSuppressed`) — all stock
+ * Tailwind utilities, the `cursor-*` pair gated on `draggable` so a `draggable: false` track shows
+ * neither.
  */
 const trackClass = computed(() =>
   partClass(
     cx(
-      'flex touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
+      'flex touch-pan-x touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
       'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
       props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
-      'data-[dragging=true]:snap-none',
+      'data-[dragging=true]:snap-none data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
       carouselPerViewClasses(props.perView)
     ),
     props.classes,

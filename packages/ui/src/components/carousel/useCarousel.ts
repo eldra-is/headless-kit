@@ -410,19 +410,26 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   // trick. State machine, one pointer at a time (`dragPointerId`):
   //
   //   pointerdown (primary button, mouse/pen, not on an interactive descendant)
-  //     -> capture the pointer, remember the start position; not yet "dragging".
+  //     -> capture the pointer, remember the start position, `preventDefault()` (operator fix,
+  //        2026-09-26 — see `setDocumentSelectionSuppressed`'s own comment for why); not yet
+  //        "dragging".
   //   pointermove, |dx| < 6px
   //     -> still not dragging: `scrollLeft` is untouched, so a plain click still lands normally
   //        (spec "sub-threshold drag still lets a slide's button click through").
   //   pointermove, |dx| >= 6px (first time)
   //     -> now dragging: `data-dragging="true"` goes on the track (the CSS this attribute
-  //        drives — `data-[dragging=true]:snap-none`/`:cursor-grabbing` — lives in `Carousel.vue`
-  //        and `Lightbox.vue`, not here; this file only ever sets/clears the attribute), autoplay
-  //        suspends via `dragging` above, and every subsequent move drags `scrollLeft` 1:1 with
-  //        the pointer.
+  //        drives — `data-[dragging=true]:snap-none:scroll-auto:select-none`/`:cursor-grabbing` —
+  //        lives in `Carousel.vue` and `Lightbox.vue`, not here; this file only ever sets/clears
+  //        the attribute) and `document.documentElement`'s own `user-select` (the pointer can
+  //        leave the track mid-drag, where the track's own `select-none` no longer reaches),
+  //        autoplay suspends via `dragging` above, and every subsequent move drags `scrollLeft`
+  //        1:1 with the pointer.
   //   pointerup / pointercancel / lostpointercapture
-  //     -> if it was dragging: release the pointer, clear the attribute, arm `suppressNextClick`
-  //        (the click a mouse drag always fires on release must not reach whatever was under the
+  //     -> if it was dragging: release the pointer, clear the attribute and the documentElement
+  //        `user-select` override, force a reflow so the class change is in effect before the
+  //        release snap starts (operator fix, 2026-09-26: `scroll-smooth` fighting the drag's own
+  //        `scrollLeft` writes — see `endTrackDrag`'s own comment), arm `suppressNextClick` (the
+  //        click a mouse drag always fires on release must not reach whatever was under the
   //        pointer), then `goTo()` the release position's nearest slide, nudged one further by a
   //        fast flick (see `endDrag` below) — never past `[0, count - 1]`, `goTo`'s own clamp.
   //        If it never crossed the threshold: nothing to undo, the browser's own click just
@@ -452,6 +459,25 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     );
   }
 
+  /**
+   * Operator fix (2026-09-26): "while dragging we are highlighting stuff." `preventDefault()` on
+   * `pointermove` (still called below, once the drag threshold crosses) never stopped the browser's
+   * own text-selection drag — that starts the instant a `mousedown` lands on selectable text, before
+   * any `pointermove` fires at all — so a real mouse drag over a slide's caption highlighted it every
+   * time. Toggling `document.documentElement`'s own `user-select` for the drag's span (called from
+   * `onTrackPointerMove` once the threshold crosses, restored in `endTrackDrag`) is the belt; this is
+   * the braces: the CSS property alone does not stop the browser from *starting* a selection anchor
+   * on `mousedown`, only from letting it visibly extend, in every engine tested. Called from
+   * `onTrackPointerDown` itself (not gated on the threshold, unlike the `data-dragging` toggle) —
+   * only after every bail-out above has already passed, so a `pointerdown` that will never become a
+   * drag (a click on a button, a touch pointer, a non-primary button) never has its default
+   * prevented, which is what leaves focus and click landing normally on those.
+   */
+  function setDocumentSelectionSuppressed(suppressed: boolean): void {
+    if (typeof document === 'undefined' || !document.documentElement) return;
+    document.documentElement.style.userSelect = suppressed ? 'none' : '';
+  }
+
   let dragPointerId: number | null = null;
   let dragStartX = 0;
   let dragStartScrollLeft = 0;
@@ -473,6 +499,13 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     if (isInteractiveDescendant(event.target)) return;
     const track = trackRef.value;
     if (!track) return;
+    // Operator fix (2026-09-26): a mouse-down that reaches this point is a pointer that *may* start
+    // a drag — every bail-out above (wrong button, touch, an interactive descendant) has already
+    // passed — so its default (starting a native text-selection drag, among other things) is
+    // prevented right here rather than waiting for the 6px threshold on `pointermove`, which is too
+    // late: the selection anchor is already down by then. See `setDocumentSelectionSuppressed`'s own
+    // comment for why this alone is not sufficient.
+    event.preventDefault();
     dragPointerId = event.pointerId;
     dragStartX = event.clientX;
     dragStartScrollLeft = track.scrollLeft;
@@ -502,6 +535,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       dragCrossedThreshold = true;
       dragging.value = true;
       track.setAttribute('data-dragging', 'true');
+      setDocumentSelectionSuppressed(true);
     }
     event.preventDefault();
     track.scrollLeft = dragStartScrollLeft - dx;
@@ -528,9 +562,25 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     const wasDragging = dragCrossedThreshold;
     dragPointerId = null;
     dragCrossedThreshold = false;
-    if (!wasDragging || !track) return;
+    if (!wasDragging || !track) {
+      setDocumentSelectionSuppressed(false);
+      return;
+    }
     dragging.value = false;
     track.removeAttribute('data-dragging');
+    setDocumentSelectionSuppressed(false);
+    // Operator fix (2026-09-26): "swiping/dragging ... starts and then kind of cancels." The track
+    // keeps `scroll-smooth` at rest, so every `track.scrollLeft = …` write during the drag above
+    // (real, instant assignments) was starting a smooth-scroll animation the *next* write then
+    // interrupted — `data-[dragging=true]:scroll-auto` (`Carousel.vue`/`Lightbox.vue`'s own
+    // `trackClass`) is what turns that off for the drag's duration, matched by `snap-none` so
+    // scroll-snap does not fight the raw `scrollLeft` writes either. Removing `data-dragging` above
+    // already flips both back on for the CSSOM, but nothing has forced the browser to recompute
+    // style from that change yet — reading a layout property does, synchronously — which is what
+    // makes the `goTo()` call below actually animate instead of either jumping instantly (still
+    // reading the just-removed `scroll-auto`) or fighting the drag's own last write (still mid an
+    // interrupted smooth scroll from before this line).
+    void track.offsetWidth;
     // The mouse's own `click`, firing right after this `pointerup`, must not reach whatever was
     // under the cursor at release — `onTrackClickCapture` below consumes exactly one.
     suppressNextClick = true;

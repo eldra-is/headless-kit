@@ -62,7 +62,8 @@
     "test": "vitest run",
     "storybook": "storybook dev -p 6008 --no-open",
     "build-storybook": "storybook build",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "drag-smoke": "node scripts/drag-smoke.mjs"
   },
   "dependencies": {
     "@floating-ui/vue": "^1.1.5",
