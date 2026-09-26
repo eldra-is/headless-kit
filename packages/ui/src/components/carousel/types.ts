@@ -71,6 +71,14 @@ export interface CarouselProps {
    * Spec Do/Don't: "Don't autoplay product rows" — never set this alongside `controls: 'header'`.
    */
   autoplay?: number;
+  /**
+   * Enables mouse/pen pointer drag on the track — grab the track and drag it, released with a
+   * snap to the nearest slide (operator ruling: "the carousel should be
+   * draggable/swipeable"). Default `true`. Touch already swipes for free through native
+   * scroll-snap regardless of this prop; it only governs the added pointer-drag behaviour. See
+   * `useCarousel`'s own drag state machine for the mechanics.
+   */
+  draggable?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<CarouselPart, string>>;
 }

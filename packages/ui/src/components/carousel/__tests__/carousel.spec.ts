@@ -51,6 +51,38 @@ async function settle(): Promise<void> {
   await Promise.resolve();
 }
 
+/**
+ * `offsetLeft` is real-layout geometry too (`useCarousel`'s own drag-release "nearest slide" math
+ * reads it, the same way `syncIndexFromScroll` already did before this file existed) — always `0`
+ * in happy-dom for the same reason `scrollWidth`/`clientWidth` are, so the drag specs below stub
+ * it per slide the same way `stubOverflow` stubs the track's own geometry, standing in for a real
+ * browser's laid-out slide positions.
+ */
+function stubSlideOffsets(wrapper: { find: (selector: string) => { element: Element } }): void {
+  slidesOf(wrapper).forEach((slide, i) => {
+    Object.defineProperty(slide, 'offsetLeft', { value: i * 100, configurable: true });
+  });
+}
+
+/**
+ * A `PointerEvent` with `timeStamp` pinned to `t` — real `Event.timeStamp` is read-only and set at
+ * construction to "whenever `new PointerEvent(...)` happened to run", which in a synchronous test
+ * leaves every dispatched event a fraction of a millisecond apart regardless of what the test is
+ * trying to simulate. `useCarousel`'s own release-velocity math (`endTrackDrag`) divides by the
+ * gap between the last two samples' `timeStamp`s, so the "flick advances" vs. "plain release
+ * doesn't" specs below need to control it directly rather than relying on however fast this
+ * process happens to dispatch events.
+ */
+function pointerEventAt(
+  type: string,
+  init: PointerEventInit & { clientX: number },
+  t: number
+): PointerEvent {
+  const event = new PointerEvent(type, { bubbles: true, cancelable: true, ...init });
+  Object.defineProperty(event, 'timeStamp', { value: t, configurable: true });
+  return event;
+}
+
 describe('Carousel — element and structure', () => {
   it('renders a labelled region with a focusable track', async () => {
     const wrapper = mountWith(Carousel, {
@@ -562,6 +594,207 @@ describe('Carousel — narrow (peek)', () => {
     await settle();
     expect(track(wrapper).className).toContain('[--eldra-carousel-per-view:1.25]');
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Carousel — pointer drag', () => {
+  it('crosses the 6px threshold and moves scrollLeft 1:1 with the pointer, marking the track dragging', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 80, pointerId: 1 }, 10));
+    expect(trackEl.scrollLeft).toBe(20);
+    expect(trackEl.getAttribute('data-dragging')).toBe('true');
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 80, pointerId: 1 }, 20));
+    wrapper.unmount();
+  });
+
+  it('release snaps to the nearest slide by position, clears data-dragging and emits change', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    stubSlideOffsets(wrapper); // slide offsets 0, 100, 200
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    // scrollLeft lands at 130 — closer to slide 1 (offset 100, distance 30) than slide 2 (offset
+    // 200, distance 70) — and the second, stationary sample keeps the release velocity at 0, so
+    // no flick bias applies (see the next spec for that).
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -30, pointerId: 1 }, 10));
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -30, pointerId: 1 }, 40));
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: -30, pointerId: 1 }, 50));
+    await settle();
+    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    expect(wrapper.emitted('change')).toEqual([[1]]);
+    wrapper.unmount();
+  });
+
+  it('a fast flick advances one slide further than the release position alone', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    stubSlideOffsets(wrapper); // slide offsets 0, 100, 200
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 70, pointerId: 1 }, 5));
+    // The final sample moves 40px in 1ms — a -40 px/ms flick, well past the 0.5 px/ms line.
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 30, pointerId: 1 }, 6));
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 30, pointerId: 1 }, 7));
+    await settle();
+    // scrollLeft lands at 70, whose nearest slide by position alone is slide 1 (offset 100,
+    // distance 30, vs. slide 0's distance 70) — the flick pushes one further, straight to slide 2.
+    // Proven by mutation: deleting `endTrackDrag`'s velocity `if`/`else if` pair lands this on
+    // slide 1 instead (the previous spec's own scenario).
+    expect(wrapper.emitted('change')).toEqual([[2]]);
+    wrapper.unmount();
+  });
+
+  it('a sub-threshold drag still lets a slide’s own button click through', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default:
+          '<li><button type="button" data-testid="buy">Buy</button></li><li>Bravo</li><li>Charlie</li>',
+      },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    const buttonEl = wrapper.find('[data-testid="buy"]').element as HTMLButtonElement;
+    const handler = vi.fn();
+    buttonEl.addEventListener('click', handler);
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 103, pointerId: 1 }, 5));
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 103, pointerId: 1 }, 10));
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    buttonEl.dispatchEvent(clickEvent);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(clickEvent.defaultPrevented).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('drag starting on an inner button does nothing — the button keeps its own click', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default:
+          '<li><button type="button" data-testid="buy">Buy</button></li><li>Bravo</li><li>Charlie</li>',
+      },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    const buttonEl = wrapper.find('[data-testid="buy"]').element as HTMLButtonElement;
+    const handler = vi.fn();
+    buttonEl.addEventListener('click', handler);
+    // Started on the button itself — `isInteractiveDescendant` refuses to track this pointer at
+    // all, proven by mutation: removing that guard in `onTrackPointerDown` turns `scrollLeft`
+    // below into `60` instead of staying put.
+    buttonEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 40, pointerId: 1 }, 10));
+    buttonEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 40, pointerId: 1 }, 20));
+    expect(trackEl.scrollLeft).toBe(0);
+    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    buttonEl.dispatchEvent(clickEvent);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(clickEvent.defaultPrevented).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('cancels the click that follows a real drag, wherever the pointer lands', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default:
+          '<li><button type="button" data-testid="buy">Buy</button></li><li>Bravo</li><li>Charlie</li>',
+      },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    const buttonEl = wrapper.find('[data-testid="buy"]').element as HTMLButtonElement;
+    const handler = vi.fn();
+    buttonEl.addEventListener('click', handler);
+    // The drag starts on the track's own background (not the button), crosses the threshold, and
+    // happens to release with the pointer over the button — the ordinary shape of a real mouse
+    // drag that ends over a slide's own link.
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 200, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 100, pointerId: 1 }, 10));
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 100, pointerId: 1 }, 20));
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    buttonEl.dispatchEvent(clickEvent);
+    expect(handler).not.toHaveBeenCalled();
+    expect(clickEvent.defaultPrevented).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('draggable: false disables pointer drag entirely', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers', draggable: false },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 40, pointerId: 1 }, 10));
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 40, pointerId: 1 }, 20));
+    expect(trackEl.scrollLeft).toBe(0);
+    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('pauses autoplay while dragging and resumes after release, without flipping the Pause label', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Gallery', autoplay: 1000 },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 93, pointerId: 1 }, 10));
+    // A second, stationary sample zeroes the release velocity — this spec is only about the
+    // pause/resume timing, not the flick bias the earlier specs already cover — so the release
+    // below lands back on the (untouched, still tied at slide 0) nearest slide and emits nothing
+    // of its own.
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 93, pointerId: 1 }, 15));
+    await settle();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(wrapper.emitted('change')).toBeUndefined();
+    expect(wrapper.find('[data-part="pause"]').text()).toBe(enUS.pause);
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 93, pointerId: 1 }, 5020));
+    await settle();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(wrapper.emitted('change')).toEqual([[1]]);
     wrapper.unmount();
   });
 });

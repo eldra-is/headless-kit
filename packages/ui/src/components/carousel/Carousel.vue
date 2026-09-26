@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<CarouselProps>(), {
   dots: false,
   counter: false,
   autoplay: 0,
+  draggable: true,
   classes: undefined,
 });
 
@@ -55,6 +56,7 @@ const {
   autoplay: () => props.autoplay,
   slideLabel: () => messages.value.slideOf,
   slideClass: () => props.classes?.slide,
+  draggable: () => props.draggable,
   onChange: (value) => emit('change', value),
 });
 
@@ -100,12 +102,23 @@ const headerClass = computed(() =>
  * `prefers-reduced-motion` at paint time; `useCarousel`'s own `scrollToIndex` still checks it in
  * JavaScript for the *programmatic* scrolls (arrows, dots, autoplay) `scroll-behavior` alone does
  * not cover — see that file's own comment.
+ *
+ * `touch-pan-y` (spec-adjacent, operator ruling): touch's own horizontal swipe is native
+ * scroll-snap panning, which browsers already treat as "this axis is taken"; declaring it
+ * explicitly (rather than leaving `touch-action` at its `auto` default) is what keeps *vertical*
+ * page scrolling working with one finger on a touch device — `auto` lets the browser guess, which
+ * a horizontally-scrollable element does not always get right. `cursor-grab`/`-grabbing` and the
+ * `data-[dragging=true]:snap-none` pair are the drag affordance and the snap-suspend the pointer
+ * drag state machine drives (`useCarousel`'s own comment on its `data-dragging` attribute) — both
+ * stock Tailwind utilities, gated on `draggable` so a `draggable: false` track shows neither.
  */
 const trackClass = computed(() =>
   partClass(
     cx(
-      'flex gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
+      'flex touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
       'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
+      props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
+      'data-[dragging=true]:snap-none',
       carouselPerViewClasses(props.perView)
     ),
     props.classes,

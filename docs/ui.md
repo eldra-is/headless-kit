@@ -101,14 +101,17 @@ table and Storybook for the full contract of each).
   of `<body>` while one is open (see `packages/ui/README.md`'s Composables section).
 - `Carousel` — a native scroll-snap track with arrows, an optional counter and dots, and optional
   autoplay with a mandatory Pause/Play button (WCAG 2.2.2); never loops except autoplay wrapping
-  from the last slide back to the first. `useCarousel` (also exported) is the whole behaviour with
-  no rendering of its own, reused unchanged by the Lightbox's own track.
+  from the last slide back to the first. Touch swipes natively; mouse/pen drag (`draggable`,
+  default `true`) snaps to the nearest slide on release, biased one slide further by a fast flick.
+  `useCarousel` (also exported) is the whole behaviour with no rendering of its own, reused
+  unchanged by the Lightbox's own track.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind
   an ellipsis button below its own 48rem width (never the viewport) and never truncating a title.
 - `Lightbox` — a full-screen native `<dialog>` image viewer for product galleries, built on
   `useDialog` and `useCarousel` unchanged: counter, close, arrows and a caption around a one-
   image-per-view track, with an optional thumbnail strip. Opens at a given `index` (two-way) with
-  no scroll animation; `←`/`→` move the image from anywhere in the viewer, not only the track.
+  no scroll animation; `←`/`→` move the image from anywhere in the viewer, not only the track; the
+  stage is draggable the same way `Carousel`'s own track is (thumbnails unaffected).
 
 ## Styles
 

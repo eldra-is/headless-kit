@@ -15,6 +15,17 @@ Release-please writes the generated notes from commit messages and does not repl
   `supportsFieldSizing`). Activating the trigger (`pointerdown`, `click`, or an `Enter`/`Space`
   `keydown`) now also dismisses the tooltip exactly like `Esc` does, clearing again on the next
   hover or the focus actually leaving — see the README's Deviations section.
+- **`Carousel` and `Lightbox` gain pointer drag (operator fix).** Touch already swiped the track
+  for free through native scroll-snap; mouse/pen dragging the track now does too. `Carousel` gets
+  a `draggable` prop (default `true`); `Lightbox` inherits it through `useCarousel` unchanged, on
+  its image stage (thumbnails unaffected). A drag past a 6px threshold suspends scroll snapping
+  (`cursor-grab`/`cursor-grabbing`, `touch-pan-y` so a touch page-scroll still works) and moves
+  `scrollLeft` with the pointer; release snaps to the nearest slide, biased one slide further by a
+  fast flick (> 0.5 px/ms), and cancels the click that would otherwise follow the drag. Starting a
+  drag on a slide's own link/button is left alone entirely, so its click still works regardless of
+  how far the pointer moves. Autoplay pauses for the span of a drag and resumes after, without
+  flipping the Pause/Play label; reduced motion still snaps instantly. `index`/`update:index` and
+  the arrows/keyboard are unchanged.
 - **Plan 3 final review fixes.** `Dialog`/`Drawer`/`Lightbox` default `modelValue: undefined`
   (not a literal `false`), so an uncontrolled instance is genuinely self-managing instead of
   permanently "controlled" the moment a parent stops binding `v-model` — see `useControllableModel`'s

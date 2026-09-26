@@ -86,6 +86,15 @@ export interface UseCarouselOptions {
    *  same way `data-part="slide"` does, without this composable knowing about `classes` objects
    *  at all. */
   slideClass?: MaybeRefOrGetter<string | undefined>;
+  /**
+   * Enables mouse/pen pointer drag on the track (operator ruling: "the carousel should
+   * be draggable/swipeable"). Touch already swipes for free through native scroll-snap — this
+   * only adds the equivalent for a pointer type that has no native swipe gesture of its own.
+   * Defaults to `true` when omitted, which is what `Lightbox` relies on: it passes no option of
+   * its own and still drags, per the same ruling ("Lightbox inherits it through `useCarousel`").
+   * `Carousel.vue` exposes this as its own `draggable` prop, default `true`.
+   */
+  draggable?: MaybeRefOrGetter<boolean | undefined>;
   /** Called after the current slide actually changes, with the new index — `Carousel`'s own
    *  `change` event. */
   onChange?: (index: number) => void;
@@ -269,22 +278,35 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     }
   }
 
-  // --- Scroll-settle index sync (spec: "everything re-syncs after scrolling settles, about 60ms
-  // after the last scroll event") -------------------------------------------------------------
-  let settleTimer: ReturnType<typeof setTimeout> | undefined;
-  function syncIndexFromScroll(): void {
-    const track = trackRef.value;
+  /**
+   * The slide whose `offsetLeft` sits closest to a given scroll position — "current index is the
+   * slide whose start is closest to the track's scroll position" (spec "Carousel" → Behaviour).
+   * Shared by the scroll-settle sync below and by the pointer-drag release handler further down,
+   * which needs the exact same "closest slide to *this* scroll position" question answered for
+   * wherever the drag let go, not only for wherever a real `scroll` event last settled.
+   */
+  function closestChildIndex(scrollLeft: number): number {
     const kids = children();
-    if (!track || kids.length === 0) return;
+    if (kids.length === 0) return 0;
     let closest = 0;
     let closestDistance = Number.POSITIVE_INFINITY;
     kids.forEach((child, i) => {
-      const distance = Math.abs(child.offsetLeft - track.scrollLeft);
+      const distance = Math.abs(child.offsetLeft - scrollLeft);
       if (distance < closestDistance) {
         closestDistance = distance;
         closest = i;
       }
     });
+    return closest;
+  }
+
+  // --- Scroll-settle index sync (spec: "everything re-syncs after scrolling settles, about 60ms
+  // after the last scroll event") -------------------------------------------------------------
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
+  function syncIndexFromScroll(): void {
+    const track = trackRef.value;
+    if (!track || children().length === 0) return;
+    const closest = closestChildIndex(track.scrollLeft);
     if (closest !== index.value) {
       index.value = closest;
       options.onChange?.(closest);
@@ -309,7 +331,16 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   const hovered = ref(false);
   const focusedWithin = ref(false);
   const hidden = ref(typeof document !== 'undefined' && document.hidden);
-  const suspended = computed(() => hovered.value || focusedWithin.value || hidden.value);
+  /** `true` for the span of an actual pointer drag (past the 6px threshold, see the drag state
+   *  machine below) — not merely a `pointerdown` that never moved. Folded into `suspended` the
+   *  same way `hovered`/`focusedWithin` are, rather than calling `pause()`: a drag is a momentary
+   *  interruption, not the shopper asking to stop the slideshow, so the Pause/Play button's own
+   *  label must not flip (operator ruling: "autoplay pauses during a drag and resumes
+   *  after"). */
+  const dragging = ref(false);
+  const suspended = computed(
+    () => hovered.value || focusedWithin.value || hidden.value || dragging.value
+  );
 
   function tick(): void {
     if (count.value <= 1) return;
@@ -371,6 +402,179 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     hidden.value = typeof document !== 'undefined' && document.hidden;
   }
 
+  // --- Pointer drag (operator ruling) ------------------------------------------------
+  //
+  // Touch already swipes the track for free through native scroll-snap (spec "Carousel" →
+  // Behaviour & motion: "Scrolling is native: touch, trackpad and shift-wheel all work"); this
+  // only teaches mouse/pen — pointer types with no native swipe gesture of their own — the same
+  // trick. State machine, one pointer at a time (`dragPointerId`):
+  //
+  //   pointerdown (primary button, mouse/pen, not on an interactive descendant)
+  //     -> capture the pointer, remember the start position; not yet "dragging".
+  //   pointermove, |dx| < 6px
+  //     -> still not dragging: `scrollLeft` is untouched, so a plain click still lands normally
+  //        (spec "sub-threshold drag still lets a slide's button click through").
+  //   pointermove, |dx| >= 6px (first time)
+  //     -> now dragging: `data-dragging="true"` goes on the track (the CSS this attribute
+  //        drives — `data-[dragging=true]:snap-none`/`:cursor-grabbing` — lives in `Carousel.vue`
+  //        and `Lightbox.vue`, not here; this file only ever sets/clears the attribute), autoplay
+  //        suspends via `dragging` above, and every subsequent move drags `scrollLeft` 1:1 with
+  //        the pointer.
+  //   pointerup / pointercancel
+  //     -> if it was dragging: release the pointer, clear the attribute, arm `suppressNextClick`
+  //        (the click a mouse drag always fires on release must not reach whatever was under the
+  //        pointer), then `goTo()` the release position's nearest slide, nudged one further by a
+  //        fast flick (see `endDrag` below) — never past `[0, count - 1]`, `goTo`'s own clamp.
+  //        If it never crossed the threshold: nothing to undo, the browser's own click just
+  //        happens.
+  //
+  // A pointerdown that starts on an interactive descendant (a slide's own button/link) is not
+  // tracked at all — not "tracked but immediately released", genuinely never entered into this
+  // state machine — which is what leaves that element's own click free to fire however the
+  // pointer moved afterwards (spec "drag on an inner button does nothing").
+  const DRAG_THRESHOLD_PX = 6;
+  const FLICK_VELOCITY_PX_MS = 0.5;
+
+  function draggableEnabled(): boolean {
+    const value = toValue(options.draggable);
+    return value === undefined ? true : value;
+  }
+
+  function isInteractiveDescendant(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) return false;
+    return (
+      target.closest(
+        'a[href], button, input, select, textarea, [role="button"], [contenteditable="true"]'
+      ) !== null
+    );
+  }
+
+  let dragPointerId: number | null = null;
+  let dragStartX = 0;
+  let dragStartScrollLeft = 0;
+  let dragCrossedThreshold = false;
+  // The last two pointermove samples (position + `event.timeStamp`), used only to compute the
+  // release velocity — the *instantaneous* speed of the final movement, not the average speed of
+  // the whole gesture, which is what lets a slow drag ending in a fast flick still count as one
+  // (spec ruling: "a fast flick of > 0.5 px/ms advances one slide in the flick direction").
+  let dragSampleX = 0;
+  let dragSampleT = 0;
+  let dragPrevSampleX = 0;
+  let dragPrevSampleT = 0;
+  let suppressNextClick = false;
+
+  function onTrackPointerDown(event: PointerEvent): void {
+    if (!draggableEnabled()) return;
+    if (event.pointerType === 'touch') return;
+    if (event.button !== 0) return;
+    if (isInteractiveDescendant(event.target)) return;
+    const track = trackRef.value;
+    if (!track) return;
+    dragPointerId = event.pointerId;
+    dragStartX = event.clientX;
+    dragStartScrollLeft = track.scrollLeft;
+    dragCrossedThreshold = false;
+    dragSampleX = event.clientX;
+    dragSampleT = event.timeStamp;
+    dragPrevSampleX = event.clientX;
+    dragPrevSampleT = event.timeStamp;
+    if (typeof track.setPointerCapture === 'function') {
+      try {
+        track.setPointerCapture(event.pointerId);
+      } catch {
+        // A pointer capture request can be refused (or throw, in some test environments) with no
+        // effect on the gesture itself — capture is only an enhancement that keeps pointermove
+        // arriving if the cursor leaves the track's own bounds mid-drag, not a requirement.
+      }
+    }
+  }
+
+  function onTrackPointerMove(event: PointerEvent): void {
+    if (dragPointerId === null || event.pointerId !== dragPointerId) return;
+    const track = trackRef.value;
+    if (!track) return;
+    const dx = event.clientX - dragStartX;
+    if (!dragCrossedThreshold) {
+      if (Math.abs(dx) < DRAG_THRESHOLD_PX) return;
+      dragCrossedThreshold = true;
+      dragging.value = true;
+      track.setAttribute('data-dragging', 'true');
+    }
+    event.preventDefault();
+    track.scrollLeft = dragStartScrollLeft - dx;
+    dragPrevSampleX = dragSampleX;
+    dragPrevSampleT = dragSampleT;
+    dragSampleX = event.clientX;
+    dragSampleT = event.timeStamp;
+  }
+
+  function endTrackDrag(event: PointerEvent): void {
+    if (dragPointerId === null || event.pointerId !== dragPointerId) return;
+    const track = trackRef.value;
+    if (track && typeof track.releasePointerCapture === 'function') {
+      const stillCaptured =
+        typeof track.hasPointerCapture !== 'function' || track.hasPointerCapture(dragPointerId);
+      if (stillCaptured) {
+        try {
+          track.releasePointerCapture(dragPointerId);
+        } catch {
+          // Already released (e.g. by the browser itself on pointercancel).
+        }
+      }
+    }
+    const wasDragging = dragCrossedThreshold;
+    dragPointerId = null;
+    dragCrossedThreshold = false;
+    if (!wasDragging || !track) return;
+    dragging.value = false;
+    track.removeAttribute('data-dragging');
+    // The mouse's own `click`, firing right after this `pointerup`, must not reach whatever was
+    // under the cursor at release — `onTrackClickCapture` below consumes exactly one.
+    suppressNextClick = true;
+    const elapsed = dragSampleT - dragPrevSampleT;
+    const velocity = elapsed > 0 ? (dragSampleX - dragPrevSampleX) / elapsed : 0;
+    let target = closestChildIndex(track.scrollLeft);
+    // Pointer moving right (`velocity > 0`) drags the track's content right, i.e. *toward* the
+    // previous slide (`scrollLeft` falls); moving left does the opposite. A flick past the 0.5
+    // px/ms line nudges one slide further than the release position alone would land on, in
+    // that same direction — proven by mutation: dropping this `if`/`else if` pair leaves the
+    // "flick advances" spec red (it lands on the merely-nearest slide instead of one further).
+    if (velocity > FLICK_VELOCITY_PX_MS) target -= 1;
+    else if (velocity < -FLICK_VELOCITY_PX_MS) target += 1;
+    goTo(target);
+  }
+
+  function onTrackPointerUp(event: PointerEvent): void {
+    endTrackDrag(event);
+  }
+  function onTrackPointerCancel(event: PointerEvent): void {
+    endTrackDrag(event);
+  }
+
+  /**
+   * Capture phase, deliberately: this must run *before* the click reaches whatever the pointer
+   * was actually released over (a slide's own link, a product card's `Add to cart`), which a
+   * bubble-phase listener on the track — after the descendant's own handler has already run —
+   * would be too late to stop. One `click` consumed per drag (`suppressNextClick` resets itself
+   * immediately), so a plain click right after a drag-free click still works normally.
+   */
+  function onTrackClickCapture(event: MouseEvent): void {
+    if (!suppressNextClick) return;
+    suppressNextClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  /**
+   * Browsers make an `<img>`/`<a>` draggable by default, entirely independently of the Pointer
+   * Events this file otherwise relies on — without this, starting a mouse drag over a slide's own
+   * image (every Carousel/Lightbox slide has one) fires the native "drag this image out" gesture
+   * instead, which swallows the `pointermove` events the drag above needs.
+   */
+  function onTrackDragStart(event: DragEvent): void {
+    if (draggableEnabled()) event.preventDefault();
+  }
+
   let observer: MutationObserver | undefined;
   let resizeObserver: ResizeObserver | undefined;
 
@@ -380,6 +584,12 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     const track = trackRef.value;
     if (track) {
       track.addEventListener('scroll', onScroll, { passive: true });
+      track.addEventListener('pointerdown', onTrackPointerDown);
+      track.addEventListener('pointermove', onTrackPointerMove);
+      track.addEventListener('pointerup', onTrackPointerUp);
+      track.addEventListener('pointercancel', onTrackPointerCancel);
+      track.addEventListener('click', onTrackClickCapture, true);
+      track.addEventListener('dragstart', onTrackDragStart);
       if (typeof MutationObserver !== 'undefined') {
         observer = new MutationObserver(annotate);
         observer.observe(track, { childList: true });
@@ -411,6 +621,12 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     resizeObserver?.disconnect();
     const track = trackRef.value;
     track?.removeEventListener('scroll', onScroll);
+    track?.removeEventListener('pointerdown', onTrackPointerDown);
+    track?.removeEventListener('pointermove', onTrackPointerMove);
+    track?.removeEventListener('pointerup', onTrackPointerUp);
+    track?.removeEventListener('pointercancel', onTrackPointerCancel);
+    track?.removeEventListener('click', onTrackClickCapture, true);
+    track?.removeEventListener('dragstart', onTrackDragStart);
     const root = rootRef.value;
     root?.removeEventListener('pointerenter', onPointerEnter);
     root?.removeEventListener('pointerleave', onPointerLeave);

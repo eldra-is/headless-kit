@@ -536,6 +536,50 @@ describe('Lightbox — accessibility', () => {
   });
 });
 
+describe('Lightbox — pointer drag', () => {
+  /** Pins `timeStamp` the same way `carousel.spec.ts`'s own `pointerEventAt` does — real
+   *  `Event.timeStamp` is set at construction, a fraction of a millisecond apart for events
+   *  dispatched synchronously in a test, which would otherwise turn every drag here into an
+   *  accidental flick (`useCarousel`'s release-velocity math divides by that gap). */
+  function pointerEventAt(
+    type: string,
+    init: PointerEventInit & { clientX: number },
+    t: number
+  ): PointerEvent {
+    const event = new PointerEvent(type, { bubbles: true, cancelable: true, ...init });
+    Object.defineProperty(event, 'timeStamp', { value: t, configurable: true });
+    return event;
+  }
+
+  it('dragging the stage past the threshold and releasing changes the page, emitting update:index', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    const trackEl = wrapper.find('[data-part="track"]').element as HTMLElement;
+    trackEl.scrollTo = vi.fn();
+    Object.defineProperty(trackEl, 'scrollLeft', { value: 0, configurable: true, writable: true });
+    // The always-mounted slide wrappers (see this component's own comment on why they never
+    // v-if), stubbed with real-looking positions the same way `carousel.spec.ts` stubs offsets.
+    Array.from(trackEl.children).forEach((slide, i) => {
+      Object.defineProperty(slide, 'offsetLeft', { value: i * 400, configurable: true });
+    });
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 300, pointerId: 1, button: 0 }, 0)
+    );
+    // scrollLeft lands at 400 — exactly image 2's own offset — and the second, stationary sample
+    // keeps the release velocity at 0, so this is a plain release, not a flick (`carousel.spec.ts`
+    // covers the flick-bias arithmetic itself; this spec only proves the drag reaches Lightbox's
+    // own track and page-changes through the same `useCarousel` `goTo()`).
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -100, pointerId: 1 }, 10));
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -100, pointerId: 1 }, 40));
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: -100, pointerId: 1 }, 50));
+    await settle();
+    expect(wrapper.emitted('update:index')).toEqual([[1]]);
+    wrapper.unmount();
+  });
+});
+
 describe('Lightbox — built CSS', () => {
   const distDir = fileURLToPath(new NodeURL('../../../../dist/', import.meta.url));
   const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);

@@ -511,6 +511,7 @@ const {
   trackRef,
   autoplay: () => props.autoplay, // ms; 0/undefined means off, and it never starts under reduced motion
   slideLabel: () => messages.value.slideOf, // (position, total) => string, 1-based
+  draggable: () => props.draggable, // mouse/pen drag on the track; default true if omitted
   onChange: (i) => emit('change', i),
 });
 ```
@@ -527,6 +528,21 @@ wrapper element added around it. `resolveCarouselPerView` and `carouselPerViewCl
 `Carousel` and `Lightbox` share one reading of the prop. `prefersReducedMotion` is the one
 JavaScript check CSS's own `motion-reduce:` cannot make on its own — whether autoplay may start at
 all.
+
+**Pointer drag** (operator ruling): touch already swipes the track for free through native
+scroll-snap; `draggable` (default `true`) adds the mouse/pen equivalent. `pointerdown` on the
+track — the primary button, not on an interactive descendant (a slide's own link/button, which
+keeps its plain click regardless of how far the pointer moves afterward) — starts tracking the
+pointer; once it has moved 6px, the gesture becomes a drag: `data-dragging="true"` goes on the
+track (the CSS `Carousel`/`Lightbox` read it with — `data-[dragging=true]:snap-none` suspends scroll
+snapping, `data-[dragging=true]:cursor-grabbing` swaps the cursor from `cursor-grab`), and
+`scrollLeft` follows the pointer 1:1. On release, the track snaps to the nearest slide by position,
+nudged one slide further in the flick's direction if the final movement was faster than 0.5px/ms —
+`goTo`, so it clamps and emits the same as any other navigation — and the click that would
+otherwise follow a mouse drag is cancelled so it never reaches whatever was under the pointer at
+release. Autoplay pauses for the span of the drag (folded into the same suspend `hovered`/
+`focusedWithin` already use, so the Pause/Play button's label never flips) and resumes after.
+Reduced motion is respected the same way every other `goTo` call already is — instant, not smooth.
 
 ### Layering
 

@@ -76,6 +76,11 @@ const {
   // with Carousel, see that utility's own comment) turn `{ base: 1 }` into "100% of the track,
   // no gap" for free (spec "Sizes", Track row).
   slideLabel: () => m.value.imageOf,
+  // Always on — unlike `Carousel`, this component has no `draggable` prop of its own (operator
+  // ruling: "Lightbox inherits it through `useCarousel`"). Dragging on the stage moves
+  // between images; the prev/next arrows and the thumbnail strip sit outside `trackRef`, so a
+  // drag never reaches (and never needs to suppress a click on) either.
+  draggable: true,
   onChange: (value) => emit('update:index', value),
 });
 
@@ -272,11 +277,17 @@ const stageClass = 'relative min-h-0 flex-1';
  * with `Carousel` — see `eldra-carousel-slide`'s own comment in `tailwind.css`), which needs the
  * track's own content box to be exactly the track's own visible width, no more and no less.
  */
+/**
+ * `touch-pan-y`, `cursor-grab`/`-grabbing` and `data-[dragging=true]:snap-none`: the same pointer-
+ * drag affordance `Carousel.vue`'s own `trackClass` carries (see that file's own comment) — always
+ * on here, since this component has no `draggable` prop of its own (`useCarousel` call above).
+ */
 const trackClass = computed(() =>
   partClass(
     cx(
-      'flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth',
-      'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
+      'flex h-full touch-pan-y cursor-grab snap-x snap-mandatory overflow-x-auto overscroll-x-contain',
+      'scroll-smooth motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus',
+      '[--eldra-focus-offset:4px] data-[dragging=true]:cursor-grabbing data-[dragging=true]:snap-none',
       carouselPerViewClasses({ base: 1 })
     ),
     props.classes,
