@@ -58,6 +58,12 @@ const props = withDefaults(
     panelStyle?: Record<string, string>;
     placement?: string;
     classes?: Classes;
+    /**
+     * Renders the panel **flat**: no floating position, no border/shadow/radius, no popover
+     * entrance — it fills its parent instead (`SearchModal`, whose own frame already draws those).
+     * `false` (the default) is `SearchBar`'s own popup box, unchanged.
+     */
+    flat?: boolean;
   }>(),
   {
     viewAll: undefined,
@@ -65,6 +71,7 @@ const props = withDefaults(
     panelStyle: undefined,
     placement: undefined,
     classes: undefined,
+    flat: false,
   }
 );
 
@@ -95,12 +102,17 @@ const isActive = (row: SearchRow): boolean => props.activeValue === row.value;
  */
 const panelClass = computed(() =>
   partClass(
-    cx(
-      'absolute z-popover flex flex-col overflow-y-auto overscroll-contain p-1.5',
-      'eldra-search-panel-height',
-      'rounded-lg border border-border bg-background shadow-md',
-      'animate-eldra-popover-in'
-    ),
+    props.flat
+      ? // Spec "Search modal" → Sizes, Panel row: "Inline, fills the remaining height and
+        // scrolls; padding 0.5rem; no border, shadow or open animation." The dialog frame around
+        // this component already clips to the radius, so nothing here draws one.
+        'flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain p-2'
+      : cx(
+          'absolute z-popover flex flex-col overflow-y-auto overscroll-contain p-1.5',
+          'eldra-search-panel-height',
+          'rounded-lg border border-border bg-background shadow-md',
+          'animate-eldra-popover-in'
+        ),
     props.classes,
     'panel'
   )

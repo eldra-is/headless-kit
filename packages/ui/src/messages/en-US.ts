@@ -37,6 +37,16 @@ export const enUS = {
    * "Close Cart"). Falls back to the plain `close` above when the drawer has neither.
    */
   closeDrawer: (name: string) => `Close ${name}`,
+  /** The `SearchModal`'s close button (desktop and tablet) — distinct from the plain `close` above
+   *  because the design spec gives it this exact wording (spec "Search modal" → Sizes, Close row:
+   *  "'Close search'"), unlike `Dialog`/`Drawer`'s generic "Close". */
+  closeSearch: 'Close search',
+  /** The `SearchModal`'s own text button on phones, replacing the icon `closeSearch` button there
+   *  (spec "Search modal" → Sizes, Close row: "'Cancel' small ghost text button"). */
+  cancel: 'Cancel',
+  /** The `SearchModal`'s clear button (spec "Search modal" → Sizes, Clear row: "'Clear search'") —
+   *  distinct from the plain `clear` above for the same reason `closeSearch` is. */
+  clearSearch: 'Clear search',
   /** A `Toast`'s close button (spec "Toast" -> Accessibility: `aria-label="Dismiss notification"`)
    *  — distinct from `close` above, which is the generic word `Dialog` and future modal surfaces
    *  use for the same button. */
@@ -309,6 +319,14 @@ export const enUS = {
   },
   /** The keyboard hint beside a search control. */
   shortcutHint: 'Press / to search',
+  /** The `SearchModal`'s foot, first hint (spec "Search modal" → Anatomy, item 6: "↑↓ to move").
+   *  Read after a key-cap pair, `aria-hidden` alongside it — screen readers get the combobox
+   *  semantics instead (spec → Accessibility). */
+  searchMoveHint: 'to move',
+  /** The `SearchModal`'s foot, second hint ("↵ to open"). */
+  searchOpenHint: 'to open',
+  /** The `SearchModal`'s foot, third hint ("esc to clear or close"). */
+  searchEscHint: 'to clear or close',
   /** The label of an error region. */
   error: 'Error',
   /** `EmptyState`'s built-in "Try again" button (`variant="error"`, no `actions` slot given). */

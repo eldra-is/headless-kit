@@ -1542,6 +1542,69 @@
   animation: eldra-drawer-in-left var(--eldra-duration-slow) var(--eldra-ease-out);
 }
 
+/* --- Search modal ------------------------------------------------------------------------------ */
+
+/* The field's own type (spec "Search modal" → Sizes, Field row): "1.0625rem text" (desktop and
+   tablet); mobile reuses `text-control-mobile`'s existing 1rem (`Input`'s own "the field text is
+   1rem below 48rem, so iOS never zooms into a focused field" rule applies here too), composed
+   alongside this one the same way `Input`'s own `FIELD_TEXT.md` pairs `text-control` with
+   `max-md:text-control-mobile` — two whole utilities, not one bundling a media query, because the
+   mobile number already has a name. 1.0625rem sits between two type-scale steps with no token of
+   its own, so, like `text-button-lg`'s identical number, it is a per-component variable with the
+   spec's literal as its default. */
+@utility text-search-modal-field {
+  font: var(--eldra-text-body-weight) var(--eldra-search-modal-field-size, 1.0625rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
+/* The foot's own text (spec "Search modal" → Sizes, Foot row): "0.75rem `muted` text on `surface`".
+   Plain body weight and family — unlike `text-overline` (also 0.75rem), this is sentence-case hint
+   copy, not an uppercase, tracked label — so it is its own utility rather than that one plus an
+   override. */
+@utility text-search-modal-foot {
+  font: var(--eldra-text-body-weight) var(--eldra-search-modal-foot-size, 0.75rem) /
+    var(--eldra-search-modal-foot-line, 1.4) var(--eldra-font-body);
+}
+
+/* The foot's key caps (spec, same row): "monospace 0.6875rem, min-width 1.25rem" — smaller than
+   `text-search-kbd` (the Search bar's own inline `/` chip, 0.75rem), for a denser row of three
+   hints. */
+@utility text-search-modal-kbd {
+  font: var(--eldra-text-body-weight) var(--eldra-search-modal-kbd-size, 0.6875rem) / 1rem
+    var(--eldra-font-mono);
+}
+
+/* The dialog's own box (spec "Search modal" → Sizes, Dialog row): "min(40rem, 100vw − 2rem) wide;
+   max-height min(40rem, 100vh − 6rem); top margin 8vh, centred horizontally … radius-lg, 1px
+   border, shadow-md" on desktop and tablet (viewport ≥ 48rem); "Full screen: 100% × 100%, no
+   margin, radius or border" below it. One utility per CSS property — the same shape as `eldra-
+   dialog-width`/`-max-height` — each bundling its own `@media (width < 48rem)` override, the exact
+   technique `eldra-drawer-width` above already documents and this file's own
+   `search-modal.spec.ts` compiles and asserts directly, rather than a class-level arbitrary value:
+   a consumer overriding `classes.root` then replaces the desktop clamp *and* its full-screen
+   exception together, never just one half of the rule. The radius/border/shadow removal below
+   48rem is plain `max-md:` utilities in `SearchModal.vue` instead — three independent, already-
+   token-driven stock groups (`rounded`, `border-w`, `shadow`) that do not need a fourth bundled
+   name of their own the way the three interdependent geometry numbers here do. */
+@utility eldra-search-modal-width {
+  width: min(var(--eldra-search-modal-width, 40rem), calc(100vw - 2rem));
+  @media (width < 48rem) {
+    width: 100vw;
+  }
+}
+@utility eldra-search-modal-max-height {
+  max-height: min(var(--eldra-search-modal-max-height, 40rem), calc(100vh - 6rem));
+  @media (width < 48rem) {
+    max-height: 100vh;
+  }
+}
+@utility eldra-search-modal-position {
+  margin: 8vh auto auto;
+  @media (width < 48rem) {
+    margin: 0;
+  }
+}
+
 /* --- Toast ------------------------------------------------------------------------------------ */
 
 /* The region's own width (spec "Toast" -> Sizes, "Region" row): "min(24rem, 100vw - 2rem) wide ...

@@ -5,6 +5,24 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`SearchModal`** — the Search bar's field, results panel and listbox inside a native `<dialog>`,
+  opened by a consumer's own trigger or by `/`/`⌘K`/`Ctrl+K` from anywhere. Built on `useDialog`
+  (the same shared modal contract `Dialog`/`Drawer` use) and the reused `SearchResultsPanel`/
+  `useListbox` pair (`SearchResultsPanel` gained a `flat` prop for this: no floating position,
+  border, shadow or open animation of its own). Properties mirror `SearchBar`'s data props
+  (`results`, `loading`, `recent`, `popular`, `showRecent`, `resultTypes`, `placeholder`, `action`,
+  `shortcut`), plus `ariaLabel` (the dialog's own accessible name, default `messages.search`) and a
+  named `query`/`update:query` v-model distinct from the open/closed `modelValue`. Recent searches
+  share `SearchBar`'s own `localStorage` key. `/` opens it only while no `SearchBar` on the page
+  owns that key, and `⌘K`/`Ctrl+K` always opens it — `shortcutOwner.ts` gained a `kind` parameter
+  (default `'/'`, so every existing call is unchanged) for the independent `⌘K` queue. `Esc` is the
+  spec's own three steps (clear the active option; clear the query; close), handled by a listener on
+  the dialog's native `cancel` event rather than `useDialog`'s `onCancel` (which cannot prevent the
+  close that always follows it). The dialog is `min(40rem, 100vw - 2rem)` wide, 8vh from the top,
+  full screen below a 48rem *viewport* (`eldra-search-modal-width`/`-max-height`/`-position`, the
+  same bundled-media-query technique `eldra-drawer-width` uses). `README.md` gained the
+  `SearchModal` Customisation row and nine Deviations entries; `docs/ui.md`'s "Navigation, overlays
+  and feedback" list gained a `SearchModal` bullet.
 - **`Popover`** — an operator addition beyond design spec 1 (plan 3 task 5), for the private
   component library's own `Popover`/`Dropdown`: a generic non-modal trigger + floating panel for
   menus, filters and dropdowns, built on `usePopover` (`Select`/`MultiSelect`/`SearchBar`'s own

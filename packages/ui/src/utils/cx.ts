@@ -112,6 +112,9 @@ const twMerge = extendTailwindMerge<
             'drawer-title',
             'tooltip',
             'toast-title',
+            'search-modal-field',
+            'search-modal-foot',
+            'search-modal-kbd',
           ],
         },
       ],
@@ -126,7 +129,13 @@ const twMerge = extendTailwindMerge<
       // `eldra-drawer-width` (tailwind.css "Drawer") is the same shape: a consumer's
       // `classes.panel: 'w-full'` should replace the width-plus-viewport-cap-plus-full-screen-
       // media-query utility outright, not land beside it.
-      w: ['eldra-dialog-width', 'eldra-dialog-width-sm', 'eldra-drawer-width', 'eldra-toast-width'],
+      w: [
+        'eldra-dialog-width',
+        'eldra-dialog-width-sm',
+        'eldra-drawer-width',
+        'eldra-toast-width',
+        'eldra-search-modal-width',
+      ],
       // The user-icon fallback's size (tailwind.css "Avatar"): whole class names, not a `size-*`
       // suffix, but the same "size" group Tailwind's own `size-*` scale belongs to, so a
       // consumer's `classes.icon: 'size-6'` replaces one of these instead of landing beside it.
@@ -174,7 +183,13 @@ const twMerge = extendTailwindMerge<
         'eldra-select-panel-height',
         'eldra-search-panel-height',
         'eldra-dialog-max-height',
+        'eldra-search-modal-max-height',
       ],
+      // The Search modal's own position (tailwind.css "Search modal"): "8vh from the top, centred
+      // horizontally" on desktop, no margin (full screen) below 48rem — one bundled `margin`
+      // shorthand, the same technique `eldra-drawer-width` uses for its own viewport exception, in
+      // Tailwind's own `m` group so a consumer's `classes.root: 'm-0'` replaces it outright.
+      m: ['eldra-search-modal-position'],
       // `max-w-narrow`/`-content`/`-wide` (tailwind.css's `@theme` block, "Container and section"):
       // Tailwind generates these from the `--container-*` theme namespace, not from an `@utility`
       // this package writes, so `custom-utility-coverage.spec.ts`'s scan (which only reads

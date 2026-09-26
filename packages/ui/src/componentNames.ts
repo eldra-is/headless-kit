@@ -55,6 +55,7 @@ export const componentNames = [
   'RadioGroup',
   'Rating',
   'SearchBar',
+  'SearchModal',
   'Section',
   'Select',
   'Skeleton',

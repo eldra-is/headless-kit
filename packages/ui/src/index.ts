@@ -45,6 +45,7 @@ export { default as QuantityStepper } from './components/quantity-stepper/Quanti
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Rating } from './components/rating/Rating.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
+export { default as SearchModal } from './components/search-modal/SearchModal.vue';
 export { default as Section } from './components/section/Section.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
@@ -206,6 +207,7 @@ export type {
   SearchSection,
   SearchSelectType,
 } from './components/search-bar/types';
+export type { SearchModalPart, SearchModalProps } from './components/search-modal/types';
 export type {
   SectionBackground,
   SectionPart,
@@ -266,9 +268,9 @@ export {
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
-// The single-modal-at-a-time registry every modal surface in this package shares (`Dialog` today;
-// `Drawer`, `Lightbox` and `SearchModal` next). `TOAST_HOST_KEY` is the hand-off a `Toaster` (plan-3
-// Task 3) reads to render its live region inside whichever dialog is currently open, per the shared
+// The single-modal-at-a-time registry every modal surface in this package shares (`Dialog`,
+// `Drawer` and `SearchModal` today; `Lightbox` next). `TOAST_HOST_KEY` is the hand-off a `Toaster`
+// (plan-3 Task 3) reads to render its live region inside whichever dialog is currently open, per the shared
 // modal rule that a toast raised while a modal is open must not be inert behind it; the rest are
 // exported for a consumer building a modal surface of their own on top of `useDialog`.
 export {

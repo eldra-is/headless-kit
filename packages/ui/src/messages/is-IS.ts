@@ -32,6 +32,9 @@ export const isIS: UiMessages = {
   clear: 'Hreinsa',
   close: 'Loka',
   closeDrawer: (name: string) => `Loka ${name}`,
+  closeSearch: 'Loka leit',
+  cancel: 'Hætta við',
+  clearSearch: 'Hreinsa leit',
   dismissNotification: 'Loka tilkynningu',
   notifications: 'Tilkynningar',
   loading: 'Hleð',
@@ -116,6 +119,9 @@ export const isIS: UiMessages = {
     return query === undefined || query === '' ? count : `${count} fyrir „${query}“`;
   },
   shortcutHint: 'Ýttu á / til að leita',
+  searchMoveHint: 'til að fara á milli',
+  searchOpenHint: 'til að opna',
+  searchEscHint: 'til að hreinsa eða loka',
   error: 'Villa',
   tryAgain: 'Reyna aftur',
   formErrors: (n: number) =>

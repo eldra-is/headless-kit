@@ -91,6 +91,10 @@ in progress)
   `hrefForPage`, or buttons emitting `update:page` without it.
 - `LoadMore` — a "Showing 24 of 96 products" live status, a progress meter and a button that hides
   once everything is shown, for collections where browsing matters more than position.
+- `SearchModal` — the Search bar's field, results panel and listbox inside a native `<dialog>`,
+  opened by a consumer's own trigger or by `/`/`⌘K`/`Ctrl+K` from anywhere, sharing `useDialog`'s
+  contract with `Dialog` and `Drawer` and reusing `SearchBar`'s own `SearchResultsPanel`/
+  `useListbox`.
 
 **Feedback**
 
