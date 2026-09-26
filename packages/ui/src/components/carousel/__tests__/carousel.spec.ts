@@ -666,6 +666,66 @@ describe('Carousel — pointer drag', () => {
     wrapper.unmount();
   });
 
+  it('a rightward flick moves one slide further back than the release position alone', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    stubSlideOffsets(wrapper); // slide offsets 0, 100, 200
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 400, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 100, pointerId: 1 }, 5));
+    // The final sample moves 110px in 1ms rightward (100 -> 210) — a +110 px/ms flick, well past
+    // the 0.5 px/ms line the other direction from the existing leftward-flick spec above. Release
+    // scrollLeft (400 - 210 = 190) is nearest slide 2 (offset 200, distance 10, vs. slide 1's
+    // distance 90) before any flick adjustment.
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 210, pointerId: 1 }, 6));
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 210, pointerId: 1 }, 7));
+    await settle();
+    // The rightward flick nudges one slide further *back* than the merely-nearest slide 2, landing
+    // on slide 1. Proven by mutation: deleting the `velocity > FLICK_VELOCITY_PX_MS` branch lands
+    // this on slide 2 instead.
+    expect(wrapper.emitted('change')).toEqual([[1]]);
+    wrapper.unmount();
+  });
+
+  it('lostpointercapture mid-drag ends the drag exactly like pointercancel — snaps, clears data-dragging, resumes autoplay', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Gallery', autoplay: 1000 },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    stubSlideOffsets(wrapper); // slide offsets 0, 100, 200
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    // Crosses the threshold, landing scrollLeft at 130 — nearest slide 1 (see the release spec
+    // above) — with a stationary final sample so no flick bias applies.
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -30, pointerId: 1 }, 10));
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: -30, pointerId: 1 }, 40));
+    expect(trackEl.getAttribute('data-dragging')).toBe('true');
+    // The browser revokes capture with no preceding pointerup/pointercancel — an edge-swipe
+    // gesture, another element stealing capture, the captured element becoming disabled. Without
+    // a `lostpointercapture` listener, `endTrackDrag` never runs and the drag state (and autoplay
+    // suspension) is stuck forever.
+    trackEl.dispatchEvent(pointerEventAt('lostpointercapture', { clientX: -30, pointerId: 1 }, 41));
+    await settle();
+    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    expect(wrapper.emitted('change')).toEqual([[1]]);
+    // Autoplay resumes — proven the same way the pointerup pause/resume spec above proves it: the
+    // timer fires again after release.
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(wrapper.emitted('change')).toEqual([[1], [2]]);
+    wrapper.unmount();
+  });
+
   it('a sub-threshold drag still lets a slide’s own button click through', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers' },

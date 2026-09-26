@@ -161,33 +161,39 @@ const ellipsisItemClass = computed(() =>
  * README's Deviations entry for why it stays an inline Tabler `chevron-right` SVG rather than the
  * spec's own CSS-drawn two-border technique (operator direction, 2026-09-25, predates this fix).
  *
- * The bug the operator reported ("separators render as tiny marks sitting above the baseline") was
- * never the size — it was a single `mt-1.875` used for two siblings of different heights. Every
- * separator sits in the *same* `<li>`, immediately before the one thing it separates from the
- * previous level, and that sibling is one of two shapes:
+ * Review t14 (round 2): the previous fix still centred the separator before a link/the ellipsis and
+ * the one before the current page against two *different* reference boxes — `self-center` against
+ * the sibling link's own 1.5rem `target-min` box for the former, a hand-tuned `mt-1.875` against the
+ * text's 1.3125rem line-height for the latter — so the two never quite lined up (24px vs. 21px is
+ * exactly the gap the pixel crops in that review showed). This version gives every separator the
+ * *same* class recipe, unconditionally, rather than branching on which kind of sibling it precedes:
+ * every separator is a `<span data-part="separator">` frame, `inline-flex items-center justify-
+ * center`, fixed at `h-6` (1.5rem = 24px — the same `target-min` height `linkClass`/`ellipsisClass`
+ * give their own sibling), holding the actual 0.375rem chevron `<svg>` centred inside it.
  *
- * - A **link or the ellipsis button** — always exactly one line, and always `target-min` (1.5rem)
- *   tall from its own `inline-flex`/`min-height` box (`linkClass`/`ellipsisClass` below), not from
- *   `text-body-sm`'s 1.3125rem line-height. `align-self: center` (`self-center`) is exactly right
- *   here: with no wrapping possible, the `<li>`'s own cross-size *is* that 1.5rem box, so the
- *   browser centres the 0.375rem chevron against it with no margin arithmetic at all.
- * - The **current page**, a plain `<span>` with no flex box of its own (`currentClass` below) — the
- *   one item the spec allows to wrap onto several lines ("Product titles are never truncated; the
- *   trail wraps" — see `BreadcrumbItem`'s own comment; proved by the `LongTitles` story). Here
- *   `self-center` would centre the chevron against the *whole* wrapped block, floating it down
- *   toward a middle line instead of the first one — so this case keeps the `<li>`'s own `items-
- *   start` (top-aligned) instead, with `mt-1.875` (0.46875rem) nudging the top-aligned chevron down
- *   to the vertical centre of exactly the first `text-body-sm` line
- *   (`(1.3125rem line-height − 0.375rem separator) ÷ 2`).
+ * That fixed 24px frame is what makes one recipe correct for both siblings a separator can sit
+ * next to:
  *
- * `alignCenter` is `true` for every separator except the one immediately before the trail's final,
- * current-page item (see the template's own `endItems` loop, the only place `false` is passed).
+ * - A **link or the ellipsis button** is always exactly one line and always exactly 1.5rem tall
+ *   (its own `target-min` box), so the `<li>`'s cross-size *is* 24px here — a 24px frame pinned to
+ *   the `<li>`'s own top edge (`self-start`, matching `itemClass`'s `items-start`) lands in exactly
+ *   the same place `self-center` against a 24px-tall `<li>` would.
+ * - The **current page** (`currentClass` below, now carrying the same `inline-flex items-center
+ *   target-min` frame the links use) is the one item the spec allows to wrap onto several lines
+ *   ("Product titles are never truncated; the trail wraps" — see `BreadcrumbItem`'s own comment;
+ *   proved by the `LongTitles` story). Here the `<li>`'s cross-size can be much taller than 24px, so
+ *   `self-center` against the whole `<li>` would float the chevron down toward a middle line instead
+ *   of the first one. Pinning the separator's own 24px frame to the `<li>`'s top edge (`self-start`)
+ *   instead keeps it centred on exactly the first line, whatever the title's own wrapped height is —
+ *   with no separate branch, since that is also exactly where a non-wrapping sibling's frame already
+ *   sits.
+ *
  * `mx-1` (was `mr-0.5`, right-only) — even spacing on both sides of the mark itself, on top of the
  * list's own 0.5rem item gap (`gap-x-2` above).
  */
-function separatorClass(alignCenter: boolean): string {
+function separatorClass(): string {
   return partClass(
-    cx('size-1.5 shrink-0 mx-1 text-muted', alignCenter ? 'self-center' : 'mt-1.875'),
+    cx('inline-flex items-center justify-center self-start h-6 mx-1 shrink-0 text-muted'),
     props.classes,
     'separator'
   );
@@ -223,9 +229,20 @@ const linkClass = computed(() =>
   )
 );
 
-/** Spec "Breadcrumb" → States, "Current page": "none / `text`, weight 500 / none." */
+/**
+ * Spec "Breadcrumb" → States, "Current page": "none / `text`, weight 500 / none."
+ *
+ * Review t14 (round 2): carries the same `inline-flex items-center target-min` frame `linkClass`
+ * gives the trail's links — see `separatorClass`'s own comment above for why that shared 1.5rem
+ * frame, not the frame-less plain `<span>` this used to be, is what lets one separator recipe stay
+ * correct whether this item wraps onto one line or several.
+ */
 const currentClass = computed(() =>
-  partClass('text-body-sm text-text font-medium', props.classes, 'current')
+  partClass(
+    'inline-flex items-center target-min text-body-sm text-text font-medium',
+    props.classes,
+    'current'
+  )
 );
 
 /**
@@ -283,42 +300,45 @@ const structuredData = computed(() =>
         data-part="item"
         :class="itemClass(false)"
       >
-        <svg
-          v-if="index > 0"
-          data-part="separator"
-          :class="separatorClass(true)"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d="M9 6l6 6l-6 6" />
-        </svg>
+        <span v-if="index > 0" data-part="separator" :class="separatorClass()" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="size-1.5 shrink-0"
+            focusable="false"
+          >
+            <path d="M9 6l6 6l-6 6" />
+          </svg>
+        </span>
         <component :is="linkTag(item)" data-part="link" :class="linkClass" v-bind="linkAttrs(item)">
           {{ item.label }}
         </component>
       </li>
 
       <li v-if="hasMiddle && !expanded" data-part="item" :class="ellipsisItemClass">
-        <svg
+        <span
           v-if="startItems.length > 0"
           data-part="separator"
-          :class="separatorClass(true)"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          :class="separatorClass()"
           aria-hidden="true"
-          focusable="false"
         >
-          <path d="M9 6l6 6l-6 6" />
-        </svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="size-1.5 shrink-0"
+            focusable="false"
+          >
+            <path d="M9 6l6 6l-6 6" />
+          </svg>
+        </span>
         <button
           type="button"
           data-part="ellipsis"
@@ -336,20 +356,20 @@ const structuredData = computed(() =>
         data-part="item"
         :class="itemClass(true)"
       >
-        <svg
-          data-part="separator"
-          :class="separatorClass(true)"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d="M9 6l6 6l-6 6" />
-        </svg>
+        <span data-part="separator" :class="separatorClass()" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="size-1.5 shrink-0"
+            focusable="false"
+          >
+            <path d="M9 6l6 6l-6 6" />
+          </svg>
+        </span>
         <component
           :is="linkTag(item)"
           :ref="(el: Element | ComponentPublicInstance | null) => setFirstRevealedLink(el, index)"
@@ -367,21 +387,25 @@ const structuredData = computed(() =>
         data-part="item"
         :class="itemClass(false)"
       >
-        <svg
+        <span
           v-if="hasMiddle || index > 0"
           data-part="separator"
-          :class="separatorClass(index !== endItems.length - 1)"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          :class="separatorClass()"
           aria-hidden="true"
-          focusable="false"
         >
-          <path d="M9 6l6 6l-6 6" />
-        </svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="size-1.5 shrink-0"
+            focusable="false"
+          >
+            <path d="M9 6l6 6l-6 6" />
+          </svg>
+        </span>
         <span
           v-if="index === endItems.length - 1"
           data-part="current"

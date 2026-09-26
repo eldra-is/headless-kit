@@ -420,13 +420,16 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   //        and `Lightbox.vue`, not here; this file only ever sets/clears the attribute), autoplay
   //        suspends via `dragging` above, and every subsequent move drags `scrollLeft` 1:1 with
   //        the pointer.
-  //   pointerup / pointercancel
+  //   pointerup / pointercancel / lostpointercapture
   //     -> if it was dragging: release the pointer, clear the attribute, arm `suppressNextClick`
   //        (the click a mouse drag always fires on release must not reach whatever was under the
   //        pointer), then `goTo()` the release position's nearest slide, nudged one further by a
   //        fast flick (see `endDrag` below) — never past `[0, count - 1]`, `goTo`'s own clamp.
   //        If it never crossed the threshold: nothing to undo, the browser's own click just
-  //        happens.
+  //        happens. `lostpointercapture` is treated identically to `pointercancel` (see
+  //        `onTrackLostPointerCapture`'s own comment below) — capture can be lost with no
+  //        preceding `pointerup`/`pointercancel` at all, and without this branch the drag state
+  //        would stay stuck.
   //
   // A pointerdown that starts on an interactive descendant (a slide's own button/link) is not
   // tracked at all — not "tracked but immediately released", genuinely never entered into this
@@ -550,6 +553,19 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   function onTrackPointerCancel(event: PointerEvent): void {
     endTrackDrag(event);
   }
+  /**
+   * Review t15-M1: capture can be lost with no preceding `pointerup`/`pointercancel` — another
+   * element calling `setPointerCapture` for the same pointer, the OS/browser revoking it (an
+   * edge-swipe gesture, a system UI interruption), or the captured element becoming disabled.
+   * Without this, `endTrackDrag` never runs in that case: `dragging.value` stays `true` forever
+   * (autoplay permanently suspended), `data-dragging="true"` stays on the track (scroll-snap
+   * permanently disabled, cursor stuck on `grabbing`), with no further user action guaranteed to
+   * clear it. Treated exactly like `pointercancel` — capture is already gone by the time this
+   * fires, so there is nothing left to release, only the same drag-state cleanup to run.
+   */
+  function onTrackLostPointerCapture(event: PointerEvent): void {
+    endTrackDrag(event);
+  }
 
   /**
    * Capture phase, deliberately: this must run *before* the click reaches whatever the pointer
@@ -588,6 +604,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       track.addEventListener('pointermove', onTrackPointerMove);
       track.addEventListener('pointerup', onTrackPointerUp);
       track.addEventListener('pointercancel', onTrackPointerCancel);
+      track.addEventListener('lostpointercapture', onTrackLostPointerCapture);
       track.addEventListener('click', onTrackClickCapture, true);
       track.addEventListener('dragstart', onTrackDragStart);
       if (typeof MutationObserver !== 'undefined') {
@@ -625,6 +642,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     track?.removeEventListener('pointermove', onTrackPointerMove);
     track?.removeEventListener('pointerup', onTrackPointerUp);
     track?.removeEventListener('pointercancel', onTrackPointerCancel);
+    track?.removeEventListener('lostpointercapture', onTrackLostPointerCapture);
     track?.removeEventListener('click', onTrackClickCapture, true);
     track?.removeEventListener('dragstart', onTrackDragStart);
     const root = rootRef.value;

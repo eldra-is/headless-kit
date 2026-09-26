@@ -396,6 +396,40 @@ describe('Tooltip — keyboard focus vs. pointer focus (operator report / contro
     await nextTick();
     expect(isVisible(bubble)).toBe(true);
   });
+
+  /**
+   * Review t17 (moderate, deferred at the time, now fixed): `Enter`/`Space` bubbling from an
+   * *editable* trigger — a text input inside the wrapper, the shape a `role="description"` tooltip
+   * labelling a search field takes — must never count as "activation" the way it does for a
+   * button/link. Without `isActivatableTarget`'s guard, typing a space while composing text set
+   * `dismissed` on every keystroke, and since focus never actually left the field, nothing cleared
+   * it again until an unrelated blur/refocus — the description tooltip vanished for the rest of
+   * that focus session after the very first space or Enter. Mutation check: deleting
+   * `onRootKeyDown`'s `isActivatableTarget` guard (treating every `Enter`/`Space` as activation
+   * again, the pre-fix behaviour) turns both assertions below red.
+   */
+  it('Space or Enter typed inside an editable trigger does not dismiss its description tooltip', async () => {
+    vi.spyOn(supportsFocusVisibleModule, 'supportsFocusVisible').mockReturnValue(false);
+    const wrapper = mountTooltip(
+      { role: 'description' },
+      '<input type="text" aria-label="Search" />'
+    );
+    const trigger = wrapper.get('input').element as HTMLInputElement;
+    const bubble = bubbleOf(wrapper.get('input'));
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    trigger.focus();
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+  });
 });
 
 describe('Tooltip — role modes and the trigger’s ARIA', () => {

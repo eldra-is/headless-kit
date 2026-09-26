@@ -215,10 +215,36 @@ function onRootPointerDown(): void {
 function onRootClick(): void {
   dismissed.value = true;
 }
-function onRootKeyDown(event: KeyboardEvent): void {
-  if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-    dismissed.value = true;
+/**
+ * Review t17 (moderate, deferred at the time, now fixed): `Enter`/`Space` only counts as
+ * *activation* — the button/link click the spec's Dismissed state means — when the event's own
+ * target is actually button/link-like. Without this, the same keydown bubbling up from an editable
+ * trigger (a text input, textarea, or `contenteditable` element) inside the wrapper — e.g. a
+ * `role="description"` tooltip labelling a search field — set `dismissed` on every space the visitor
+ * typed while composing their own text, with nothing to clear it again until an unrelated
+ * blur/refocus (focus never actually leaves the field just because they typed a space). `button`,
+ * `a[href]`, `[role="button"]`/`[role="link"]` and `summary` are the activatable roles `Enter`/
+ * `Space` triggers a real click on; `input`, `textarea`, `select` and `[contenteditable]` are
+ * excluded explicitly (rather than only allow-listing the activatable set) so a consumer's own
+ * custom editable widget — anything that isn't literally one of the activatable tags/roles above —
+ * still falls through to "not activation" by default by simply not matching the allow-list, while
+ * this list makes the exclusion reasoning explicit for the elements the spec calls out. The
+ * `[contenteditable]:not([contenteditable="false"])` shape is the same one `useDialog`'s and
+ * `useOverlay`'s own focusable selectors already use — a bare `contenteditable`, `=""`, `="true"`
+ * or `="plaintext-only"` all mean editable; only the literal `="false"` opts out.
+ */
+function isActivatableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.matches('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
+    return false;
   }
+  return target.matches('button, a[href], [role="button"], [role="link"], summary');
+}
+
+function onRootKeyDown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+  if (!isActivatableTarget(event.target)) return;
+  dismissed.value = true;
 }
 
 /**

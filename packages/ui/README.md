@@ -548,6 +548,12 @@ otherwise follow a mouse drag is cancelled so it never reaches whatever was unde
 release. Autoplay pauses for the span of the drag (folded into the same suspend `hovered`/
 `focusedWithin` already use, so the Pause/Play button's label never flips) and resumes after.
 Reduced motion is respected the same way every other `goTo` call already is — instant, not smooth.
+The drag also ends on `lostpointercapture`, not only `pointerup`/`pointercancel` (fix, 2026-09-26):
+capture can be revoked with no preceding pointer event at all — another element calling
+`setPointerCapture` for the same pointer, an OS/browser gesture (an edge-swipe), the captured
+element becoming disabled — and without this the drag state (and autoplay's suspension) would stay
+stuck forever with no further user action guaranteed to clear it. It is handled identically to
+`pointercancel`, since there is nothing left to release by the time it fires.
 
 ### Layering
 
@@ -2190,6 +2196,16 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   focused. The `hoveringTrigger` watcher that clears a dismissal fires on either edge, not only the
   pointer leaving, so a dismissal that started with no hover at all (an `Enter`/`Space` activation)
   still clears the next time the pointer enters, rather than needing an unrelated blur/refocus.
+- **Fix (2026-09-26): activation only counts for a button/link-like trigger, never an editable
+  one.** The dismissal above was originally keyed off any `Enter`/`Space` `keydown` bubbling
+  through the wrapper, with no check on what fired it. For a `role="description"` tooltip labelling
+  a text input, that meant every space a shopper typed while composing their own text set
+  `dismissed` — and since focus never actually left the field, nothing cleared it again until an
+  unrelated blur/refocus, so the description tooltip vanished for the rest of that focus session
+  after the first keystroke. `onRootKeyDown` now checks `event.target` via `isActivatableTarget`
+  first: `Enter`/`Space` only dismisses when the target matches `button`, `a[href]`,
+  `[role="button"]`, `[role="link"]` or `summary`, and is explicitly excluded for `input`,
+  `textarea`, `select` and `[contenteditable]` regardless.
 - **The `0.5rem` hover bridge (WCAG 1.4.13) is a CSS `::before` on the bubble, not a fourth DOM
   part.** The anatomy lists three parts (`root`, `bubble`, `arrow`); the bridge is an invisible
   pseudo-element extending the bubble's own hit-test area back to the trigger's edge, sized and
@@ -2319,6 +2335,25 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   the `LongTitles` story and a dedicated `Breadcrumb.spec.ts` case both prove stays correct. The
   chevron's own size is unchanged (0.375rem, `size-1.5`, already the spec's own number); only the
   horizontal margin moved from `mr-0.5` (0.125rem, right only) to `mx-1` (0.25rem, both sides).
+- **Fix, round 2 (2026-09-26): the round-1 fix above still centred the two kinds of separator
+  against two different reference boxes — `self-center` against a link's real 1.5rem `target-min`
+  height, the fixed `mt-1.875` against the current page's plain 1.3125rem text line — so they never
+  quite lined up (a pixel review of the built `navigation-breadcrumb--default`/`--long-titles`
+  baselines found the current-page separator sitting visibly above the others, not centred on
+  them).** `separatorClass` (`Breadcrumb.vue`) no longer takes an `alignCenter` argument or branches
+  on position at all: every separator is now a `<span data-part="separator">` frame — `inline-flex
+items-center justify-center`, fixed at `h-6` (1.5rem = 24px, the same height `target-min` gives a
+  link or the ellipsis button), `self-start` against the `<li>`'s own `items-start` — wrapping the
+  actual 0.375rem chevron `<svg>` centred inside it. `currentClass` now carries the same `inline-
+flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrapping current page
+  lines up with a link exactly. That fixed, top-pinned 24px frame is also what keeps a _wrapping_
+  current-page title's separator correct with the identical recipe rather than a special case: since
+  the frame's own height never grows past 24px regardless of how tall the wrapped `<li>` becomes,
+  and it is pinned to the `<li>`'s top edge, it stays centred on the title's first line exactly like
+  it would if the title were a single line. `Breadcrumb.spec.ts`'s "separator geometry" tests now
+  assert the class-recipe identity across positions directly (sorted class-list equality between the
+  separator before a link and the one before the current page, wrapping or not) rather than only
+  checking which one Tailwind class name a given position carries, per the review that caught this.
 - **`Breadcrumb`'s trail links are underlined at rest, not only on hover — the same operator
   ruling as `Link`'s own Deviations entry above ("all link elements... underline by default").**
   The spec's own States row for the Link part ("`muted`, underline hidden (transparent)" at rest)

@@ -130,33 +130,59 @@ describe('Breadcrumb — separator geometry', () => {
     { label: 'Current page' },
   ];
 
-  /** Every separator before a link (or the ellipsis) is vertically centred on its sibling with
-   *  `align-self: center`, not the fixed `mt-1.875` used only before the trail's final,
-   *  possibly-wrapping current-page item — see `separatorClass`'s own comment in `Breadcrumb.vue`. */
-  it('centres the separator before a link with self-center, not the fixed top offset', () => {
+  /** Review t14 (round 2): the two separators used to carry different class recipes — `self-center`
+   *  before a link/the ellipsis, a hand-tuned `mt-1.875` before the current page — centred against
+   *  two different reference boxes (24px vs. 21px), which is exactly what left them visibly
+   *  misaligned in the required baselines. This asserts the fix at the level the review asked for:
+   *  every separator in the trail carries the *identical* class recipe, with no per-position branch
+   *  to drift apart again — not merely "which one Tailwind class name is present", which the
+   *  previous round's tests already passed while the pixels were still wrong. */
+  it('gives every separator in the trail the identical class recipe — no per-position branch', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
     const separators = wrapper.findAll('[data-part="separator"]');
     expect(separators).toHaveLength(2);
-    const beforeLink = separators[0]!;
-    expect(beforeLink.classes()).toContain('self-center');
-    expect(beforeLink.classes()).not.toContain('mt-1.875');
+    const [beforeLink, beforeCurrent] = separators;
+    expect([...beforeLink!.classes()].sort()).toEqual([...beforeCurrent!.classes()].sort());
     wrapper.unmount();
   });
 
-  it('keeps the fixed top offset only on the separator before the current-page title', () => {
+  /** `separatorClass`'s own comment in `Breadcrumb.vue`: every separator is a fixed `h-6` (24px —
+   *  the same `target-min` height `linkClass`/`ellipsisClass` give their own sibling) flex frame,
+   *  pinned to the `<li>`'s top edge, with the chevron centred inside that frame — not the old
+   *  `self-center`/`mt-1.875` pair. */
+  it('sizes every separator as a 24px (h-6) top-pinned frame around the chevron', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
     const separators = wrapper.findAll('[data-part="separator"]');
-    const beforeCurrent = separators[1]!;
-    expect(beforeCurrent.classes()).toContain('mt-1.875');
-    expect(beforeCurrent.classes()).not.toContain('self-center');
+    for (const separator of separators) {
+      const classes = separator.classes();
+      expect(classes).toContain('h-6');
+      expect(classes).toContain('items-center');
+      expect(classes).toContain('self-start');
+      expect(classes).not.toContain('mt-1.875');
+      expect(classes).not.toContain('self-center');
+    }
+    wrapper.unmount();
+  });
+
+  /** `currentClass`'s own comment: the current-page `<span>` now carries the same `target-min`
+   *  frame the trail's links use, which is what lets one separator recipe stay correct against
+   *  either kind of sibling. */
+  it('gives the current-page span the same target-min frame the trail links carry', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
+    const current = wrapper.get('[data-part="current"]');
+    const link = wrapper.get('[data-part="link"]');
+    expect(current.classes()).toContain('target-min');
+    expect(current.classes()).toContain('items-center');
+    expect(link.classes()).toContain('target-min');
     wrapper.unmount();
   });
 
   /** `LongTitles`-shaped: the current page wraps onto several lines inside a narrow host. The
-   *  separator before it still gets the fixed top offset (not `self-center`, which would centre
-   *  against the whole wrapped block instead of its first line) — proving the story's own claim
-   *  in code, not only by eye. */
-  it('still uses the fixed top offset before a current-page title long enough to wrap', () => {
+   *  separator before it keeps the exact same class recipe as every other separator in the trail —
+   *  no branch reappears just because this one sibling can wrap — which is what pins its 24px frame
+   *  to the `<li>`'s top edge instead of the fixed frame floating down to centre against the whole
+   *  wrapped block. */
+  it('keeps the identical separator recipe before a current-page title long enough to wrap', () => {
     const wrapper = mountNarrow(Breadcrumb, {
       props: {
         items: [
@@ -167,9 +193,12 @@ describe('Breadcrumb — separator geometry', () => {
       },
     });
     const separators = wrapper.findAll('[data-part="separator"]');
+    expect(separators.length).toBeGreaterThan(1);
+    const [beforeLink] = separators;
     const beforeCurrent = separators[separators.length - 1]!;
-    expect(beforeCurrent.classes()).toContain('mt-1.875');
-    expect(beforeCurrent.classes()).not.toContain('self-center');
+    expect([...beforeLink!.classes()].sort()).toEqual([...beforeCurrent.classes()].sort());
+    expect(beforeCurrent.classes()).toContain('h-6');
+    expect(beforeCurrent.classes()).toContain('self-start');
     wrapper.unmount();
   });
 });

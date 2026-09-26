@@ -5,6 +5,22 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Batch fix (2026-09-26): `Breadcrumb` separator alignment for every position (including a
+  wrapping current-page title); `Carousel`/`Lightbox` pointer drag now also ends on
+  `lostpointercapture`; `Tooltip` no longer treats Enter/Space typed inside an editable trigger as
+  activation.** `Breadcrumb`'s separator no longer branches its class recipe by position — every
+  separator is now the same fixed 24px (`h-6`) top-pinned flex frame around the chevron, and the
+  current-page `<span>` carries the same `target-min` frame the trail links use, so a separator's
+  vertical position no longer depends on which kind of sibling it precedes (see the README's
+  Deviations entry for the geometry). `useCarousel`'s pointer drag now also listens for
+  `lostpointercapture` — capture can be revoked with no preceding `pointerup`/`pointercancel` (an
+  OS edge-swipe gesture, another element stealing capture) — ending the drag exactly like
+  `pointercancel` does: snapping to the nearest slide, clearing `data-dragging`, resuming autoplay.
+  `Tooltip`'s `onRootKeyDown` now only treats `Enter`/`Space` as activation when the event's own
+  target is button/link-like (`button`, `a[href]`, `[role="button"]`, `[role="link"]`, `summary`),
+  never an editable one (`input`, `textarea`, `select`, `[contenteditable]`) — a `role="description"`
+  tooltip on a text input no longer disappears for the rest of the focus session after the first
+  space or Enter typed into it.
 - **`Tooltip` hides after pointer activation; focus holds only when keyboard-visible** (operator
   report, 2026-09-26: "hover and click the element, the tooltip gets stuck and does not disappear
   on hover-out"). `focusWithin` counted any `focusin` toward the spec's "focus within it", and a
