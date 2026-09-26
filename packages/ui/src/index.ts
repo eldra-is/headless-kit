@@ -13,6 +13,7 @@ export { default as AvatarGroup } from './components/avatar/AvatarGroup.vue';
 export { default as Badge } from './components/badge/Badge.vue';
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
+export { default as Carousel } from './components/carousel/Carousel.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
 export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
 export { default as Chip } from './components/chip/Chip.vue';
@@ -92,6 +93,12 @@ export type {
   ButtonSize,
   ButtonVariant,
 } from './components/button/types';
+export type {
+  CarouselControls,
+  CarouselPart,
+  CarouselPerViewBreakpoints,
+  CarouselProps,
+} from './components/carousel/types';
 export type {
   CheckboxGroupLayout,
   CheckboxGroupOption,
@@ -301,6 +308,20 @@ export {
 // of a plain `$slots.x !== undefined` (slots are not reactive on their own — see its own comment)
 // — exported so a consumer's own wrapper composing this package's parts gets the same behaviour.
 export { useSlotPresence } from './composables/useSlotPresence';
+// The scroll-snap carousel's own behaviour — index tracking, previous/next/goTo, edge detection
+// for the arrows, autoplay with the spec's pause rules — with no rendering of its own, so `Task
+// 11`'s `Lightbox` reuses it unchanged for its own track. `resolveCarouselPerView` and
+// `carouselPerViewClasses` turn `CarouselProps['perView']` into the same container-query classes
+// `Carousel` and a future `Lightbox` both read; `prefersReducedMotion` is the one JavaScript check
+// `motion-reduce:` CSS cannot make on its own (whether autoplay may start at all).
+export {
+  carouselPerViewClasses,
+  prefersReducedMotion,
+  resolveCarouselPerView,
+  useCarousel,
+  type UseCarouselOptions,
+  type UseCarouselReturn,
+} from './components/carousel/useCarousel';
 
 // Form context. A `FormLayout` provides it; every Button below reads it, so a submitting form
 // shows its primary action loading and every other action disabled.

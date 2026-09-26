@@ -93,6 +93,10 @@ in progress)
   one `<Toaster />` mounted near an app's root. Auto-dismisses per variant (success 6s, warning
   10s, danger never), pauses while hovered or focused, and teleports into an open `Dialog` instead
   of `<body>` while one is open (see `packages/ui/README.md`'s Composables section).
+- `Carousel` — a native scroll-snap track with arrows, an optional counter and dots, and optional
+  autoplay with a mandatory Pause/Play button (WCAG 2.2.2); never loops except autoplay wrapping
+  from the last slide back to the first. `useCarousel` (also exported) is the whole behaviour with
+  no rendering of its own, reused unchanged by the Lightbox's own track.
 
 ## Styles
 

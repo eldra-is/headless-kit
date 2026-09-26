@@ -219,6 +219,27 @@ aria-labelledby` its
   `aria-describedby` is wired onto the slotted element itself via `cloneVNode`, the one place in
   the package that reaches into a slot's own vnode. See the README's Deviations section for the
   full reasoning on each of these.
+- **`Carousel` and `useCarousel`** — task 10 of the "overlays, navigation and feedback"
+  sub-project (design spec's "Carousel" section). A native scroll-snap track with arrows, an
+  optional counter and dots, and optional autoplay with a mandatory Pause/Play button (WCAG
+  2.2.2): `ariaLabel` (required, the region's own accessible name), `perView` (a number or
+  `{ base, md, lg }`, default `1.25`; `md`/`lg` are the package's own 48rem/64rem container-query
+  breakpoints — the same ones `Container`'s gutter step reads), `controls` (`"header"` default or
+  `"below"`), `dots`, `counter`, `autoplay` (ms; any non-zero value always renders Pause/Play).
+  Arrows and dots never loop — they disable at the ends, and a focused arrow that becomes disabled
+  moves focus to the other one; only autoplay wraps from the last slide back to the first.
+  Autoplay pauses on hover, on focus and while the tab is hidden, and never starts at all under
+  reduced motion. `useCarousel` (`src/components/carousel/useCarousel.ts`, exported from the root)
+  is the whole behaviour with no rendering of its own — index tracking from real scroll geometry
+  (with an index-based fallback where none exists), previous/next/`goTo`, edge detection, autoplay
+  — reading the track's own DOM children directly rather than Vue's slot vnodes, and annotating
+  each one in place (`data-part="slide"`, `role="group"`, `aria-roledescription="slide"`, an "n of
+  total" `aria-label`, the `eldra-carousel-slide` sizing class) via a `MutationObserver`, so a
+  consumer's own `<li>`/`<figure>`/component root becomes the slide with no wrapper added — the
+  same file a future `Lightbox` (task 11) reuses unchanged for its own track. See the README's
+  Deviations entries for the ways this simplifies the spec's own product-row/gallery split (one
+  slide-labelling rule for both, one fixed track name, no separate "slideshow" suffix on
+  Pause/Play, an unbolded counter).
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,

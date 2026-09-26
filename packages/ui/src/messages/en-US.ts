@@ -108,6 +108,29 @@ export const enUS = {
   opensInNewTab: '(opens in a new tab)',
   /** A position-in-a-set counter, e.g. a carousel's slide count. */
   counter: (n: number, max: number) => `${n} / ${max}`,
+  /** `Carousel`'s previous-arrow accessible name (spec "Carousel" → Accessibility: "'Previous
+   * slide' ... (galleries)"; used uniformly for product rows too — see `Carousel.vue`'s own
+   * comment on why one label serves both variants). */
+  previous: 'Previous slide',
+  /** `Carousel`'s next-arrow accessible name. */
+  next: 'Next slide',
+  /** `Carousel`'s Pause/Play button, both its visible text and (with no autoplay-specific
+   * "slideshow" suffix — a deliberate simplification, recorded under Deviations in the README)
+   * its accessible name while playing. */
+  pause: 'Pause',
+  /** `Carousel`'s Pause/Play button while paused. */
+  play: 'Play',
+  /** A `Carousel` slide's accessible label (spec "Carousel" → Accessibility: `aria-label="2 of
+   * 4"`), `position` and `total` both 1-based. */
+  slideOf: (position: number, total: number) => `${position} of ${total}`,
+  /** A `Carousel` dot's accessible name (spec "Carousel" → Accessibility: `aria-label="Go to
+   * slide 3"`), 1-based. */
+  goToSlide: (n: number) => `Go to slide ${n}`,
+  /** A `Carousel` track's own accessible name (spec "Carousel" → Accessibility: the track needs
+   * "a label" distinct from the region's own — the spec's own examples are "Bestsellers,
+   * scrollable list" for a product row and "Slides" for a gallery; this package uses the single
+   * generic word for both, recorded under Deviations in the README). */
+  slides: 'Slides',
   /** A `Textarea`'s remaining-characters hint, announced once at 80% of the limit. */
   charactersLeft: (n: number) => `${n} ${n === 1 ? 'character' : 'characters'} left`,
   /** A `Textarea`'s over-the-limit hint, announced once when the limit is passed. */

@@ -48,6 +48,8 @@ const twMerge = extendTailwindMerge<
   | 'eldra-accordion-chevron'
   | 'eldra-accordion-panel'
   | 'eldra-tooltip-arrow'
+  | 'eldra-carousel-slide'
+  | 'eldra-carousel-dot'
 >({
   extend: {
     classGroups: {
@@ -245,6 +247,11 @@ const twMerge = extendTailwindMerge<
       // `eldra-skeleton`.
       'eldra-accordion-chevron': ['eldra-accordion-chevron'],
       'eldra-accordion-panel': ['eldra-accordion-panel'],
+      // A Carousel slide's own sizing (tailwind.css "Carousel"): a `flex`/width/`scroll-snap-align`
+      // bundle with no stock Tailwind equivalent, so it gets its own group, the same shape as
+      // `eldra-skeleton`. A Carousel dot's visible ring/pill shape is the same shape again.
+      'eldra-carousel-slide': ['eldra-carousel-slide'],
+      'eldra-carousel-dot': ['eldra-carousel-dot'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

@@ -23,6 +23,7 @@ export const componentNames = [
   'Badge',
   'Button',
   'ButtonGroup',
+  'Carousel',
   'Checkbox',
   'CheckboxGroup',
   'Chip',

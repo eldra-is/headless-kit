@@ -90,6 +90,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Badge`             | `--eldra-badge-line-height` (default `1`) — the badge text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                        |
    | `Button`            | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                    |
    | `ButtonGroup`       | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                    |
+   | `Carousel`          | `--eldra-carousel-per-view` (set per container-query breakpoint by `carouselPerViewClasses`, no default of its own — a slide with none set stays full width) and `--eldra-carousel-gap` (default `var(--eldra-space-4)`), both read by the `eldra-carousel-slide` utility's width formula; `--eldra-carousel-dot-size` (default `0.5rem`) and `--eldra-carousel-dot-ring` (default `1.5px`), read by `eldra-carousel-dot`                                           |
    | `Checkbox`          | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                                                                            |
    | `CheckboxGroup`     | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Chip`              | none — the selected/hover fills are `color-mix()` over shared `--eldra-color-*` tokens, no per-component variable                                                                                                                                                                                                                                                                                                                                                   |
@@ -469,6 +470,56 @@ the stack or focus is inside it, resumed for whatever time was left) and where t
 renders: `TOAST_HOST_KEY` (see `useDialog` above) if a modal `Dialog` is open, `<body>` otherwise —
 the same hand-off `Dialog` and a future `Drawer`/`Lightbox` already share, so a toast raised during
 a modal flow is never inert behind it.
+
+`useCarousel` is the scroll-snap carousel's whole behaviour with no rendering of its own — index
+tracking, previous/next/`goTo`, edge detection for the arrows, and autoplay with the spec's pause
+rules — so `Carousel` renders the markup around it and a future `Lightbox` (its own track reuses
+this file unchanged) needs nothing else.
+
+```ts
+import { ref } from 'vue';
+import { useCarousel } from '@eldrajs/ui';
+
+// Declared locally and passed in, the same shape `useDialog`'s own `dialog` option takes — a
+// plain top-level `const x = ref(...)` is what <script setup>'s template-ref wiring
+// (`ref="rootRef"`/`ref="trackRef"` in the template) recognises.
+const rootRef = ref<HTMLElement | null>(null); // hover/focus-within/tab-hidden pause autoplay
+const trackRef = ref<HTMLElement | null>(null); // its real DOM children are what this composable reads
+
+const {
+  index, // 0-based, the slide whose start is closest to the track's scroll position
+  count, // the track's current child count, read from the live DOM
+  canPrev,
+  canNext, // false at an end — including when nothing overflows, so both arrows disable together
+  goTo,
+  next,
+  prev, // never loop — arrows/dots disable at the ends instead
+  onTrackKeydown, // ArrowLeft/ArrowRight — bind to the track's `keydown`
+  playing,
+  pause,
+  resume,
+  toggle, // autoplay's own toggle state, independent of the momentary hover/focus pause
+} = useCarousel({
+  rootRef,
+  trackRef,
+  autoplay: () => props.autoplay, // ms; 0/undefined means off, and it never starts under reduced motion
+  slideLabel: () => messages.value.slideOf, // (position, total) => string, 1-based
+  onChange: (i) => emit('change', i),
+});
+```
+
+It reads `trackRef.value.children` directly rather than Vue's slot vnodes: a carousel's whole job
+is scroll geometry (`scrollLeft`, `offsetLeft`, `scrollWidth`), which only exists once the browser
+has laid the slides out, so `count`, the index-from-scroll math and the per-slide `aria-label`s all
+agree with what is really on screen however the slide markup got there. Every slide is annotated in
+place — `data-part="slide"`, `role="group"`, `aria-roledescription="slide"`, the `slideLabel`
+result as `aria-label`, and the `eldra-carousel-slide` sizing class — through a `MutationObserver`
+on the track, so a consumer's own `<li>`/`<figure>`/component root becomes the slide with no
+wrapper element added around it. `resolveCarouselPerView` and `carouselPerViewClasses` turn
+`CarouselProps['perView']` into the container-query classes `--eldra-carousel-per-view` reads, so
+`Carousel` and a future `Lightbox` share one reading of the prop. `prefersReducedMotion` is the one
+JavaScript check CSS's own `motion-reduce:` cannot make on its own — whether autoplay may start at
+all.
 
 ### Layering
 
@@ -2053,3 +2104,38 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   fire as well — closing the dialog behind the toast, not only the toast the spec's own Keyboard
   row asks Escape to close ("closes the toast that holds focus"). `preventDefault()` on the
   `keydown` suppresses that native "close request" before it reaches the dialog.
+- **Every `Carousel` slide gets the spec's gallery treatment — `role="group"`,
+  `aria-roledescription="slide"`, an "n of total" `aria-label` — including product rows.** The
+  spec's own Accessibility section gives that markup to "gallery slides" only and calls a product
+  row's own slides plain list items holding Product cards, but `CarouselProps` carries nothing that
+  tells the component which of the two a given instance is (no `variant` prop — the spec's variant
+  table is a controls/dots/counter combination, not a discriminant `useCarousel` can read), and the
+  same track this composable drives is shared by both. One consistent rule for every slide, applied
+  by `useCarousel` itself rather than duplicated per call site, was judged better than inventing a
+  prop the type brief for this task does not have — a screen reader user hears "group, slide, 1 of
+  4" on a product row's cards, slightly more verbose than the spec's plain list items, never less
+  informative.
+- **The track's own accessible name is the fixed word "Slides", not the spec's two literal
+  examples** ("Bestsellers, scrollable list" for a row, "Slides" for a gallery). Composing the
+  first would mean formatting it from the region's own `ariaLabel`, coupling the track's wording to
+  whatever a caller happened to name the whole carousel; the plain generic word reads correctly for
+  both variants and needs no `messages` key of its own beyond `slides`.
+- **The Pause/Play button's accessible name is its visible text ("Pause"/"Play"), not the spec's
+  longer "Pause slideshow"/"Play slideshow".** The task brief's own message-key guidance names the
+  pair `pause`/`play`, one string each — this package uses that one string for both the visible
+  label and the accessible name (a native `<button>`'s default accessible name is already its own
+  text content) rather than adding a second, longer key purely for the ARIA name.
+- **The visible "n / total" counter is not bolded on its current number**, despite the spec's own
+  Sizes row ("current number bold"). The counter is `aria-hidden` and rendered from
+  `messages.counter(n, max)` — a single localized string ("n / max" in English, "n af max" in
+  Icelandic) — so bolding only the leading number would mean splitting that string back apart by
+  position, which breaks the moment a locale's own word order does not put the number first. The
+  counter stays plain text; the locale-correct string was judged more important than the one-weight
+  visual detail on a range that is not read by assistive technology.
+- **Arrow, Pause/Play and dot markup is hand-rolled `<button>`s rather than `<Button icon-only>` or
+  `<Button variant="outline" size="sm">`**, even though the Pause/Play recipe is otherwise byte-for-
+  byte `Button`'s own outline/`sm` box. `data-part="pause"` (and `"prev"`/`"next"`) needs to land on
+  the actual rendered element, and no `Button` size is the arrow's own 2.75rem circle; reusing
+  `Button` for Pause alone while hand-rolling the arrows beside it would leave one control built two
+  different ways for no real gain.
+  engine regardless of whether that engine also exposes it as a property.

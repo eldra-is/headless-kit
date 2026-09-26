@@ -1586,3 +1586,63 @@
 @utility animate-eldra-toast-in {
   animation: eldra-toast-in var(--eldra-duration-base) var(--eldra-ease-out);
 }
+/* --- Carousel -------------------------------------------------------------------------------- */
+
+/* A slide's own width (spec "Carousel" → Sizes, "Slide width" row): "default 80% of the track;
+   product rows `(100% − 3 × 1rem) / 4` from 64rem block width, 3 per view from 48rem, ~80% below
+   48rem (peek); single-slide galleries 100%" — one formula, `(100% - (perView - 1) * gap) /
+   perView`, covers every row of that table: `perView: 1` gives 100%, `perView: 4` with a 1rem gap
+   gives the product-row formula verbatim, and the default `perView: 1.25` gives "~80%" (literally
+   80% minus a fifth of the gap, which is what the spec's own "~" already concedes).
+   `--eldra-carousel-per-view` is set per container-query breakpoint by `carouselPerViewClasses`
+   (`useCarousel.ts`) rather than read here as a prop — this utility only ever reads the variable,
+   so `Carousel.vue` and a future `Lightbox` share one definition. The gap defaults to
+   `--eldra-space-4` (1rem), the same token `gap-4` on the track itself resolves to, so the two
+   numbers in the formula can never drift apart even if a consumer overrides one. */
+@utility eldra-carousel-slide {
+  flex: none;
+  scroll-snap-align: start;
+  width: calc(
+    (100% - (var(--eldra-carousel-per-view, 1) - 1) *
+        var(--eldra-carousel-gap, var(--eldra-space-4))) /
+      var(--eldra-carousel-per-view, 1)
+  );
+}
+
+/* A dot's own visual (spec "Carousel" → Sizes, Dot row: "1.5rem square target; visible dot 0.5rem
+   circle with a 1.5px ring; current: 1.25rem × 0.5rem pill; no gap between dot targets"). The
+   1.5rem target itself is a plain `size-6` button in `Carousel.vue`; this utility is only the
+   dot's *visible* inner shape, switched by the button's own `aria-current` — a shape change as
+   well as a colour change (spec → States: "shape change, not colour alone", 1.4.1), so the
+   component computes no separate "current" class. The ring's width has no stock Tailwind border
+   step (1.5px sits between `border-1`'s 1px and `border-2`'s 2px), so — like `eldra-field-border`'s
+   own width — it is a per-component variable with that literal default. Motion: width and colour
+   change over `duration-fast` `ease-out` (spec → Behaviour & motion), nothing under reduced
+   motion — a shape/colour swap has no "motion" to remove, only a transition to skip. */
+@utility eldra-carousel-dot {
+  display: block;
+  width: var(--eldra-carousel-dot-size, 0.5rem);
+  height: var(--eldra-carousel-dot-size, 0.5rem);
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  box-shadow: inset 0 0 0 var(--eldra-carousel-dot-ring, 1.5px) var(--color-border-strong);
+  transition:
+    width var(--eldra-duration-fast) var(--eldra-ease-out),
+    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    box-shadow var(--eldra-duration-fast) var(--eldra-ease-out);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+  [aria-current='true'] > & {
+    width: 1.25rem;
+    background-color: var(--color-text);
+    box-shadow: inset 0 0 0 var(--eldra-carousel-dot-ring, 1.5px) var(--color-text);
+  }
+  @media (forced-colors: active) {
+    box-shadow: none;
+    border: var(--eldra-carousel-dot-ring, 1.5px) solid CanvasText;
+    [aria-current='true'] > & {
+      background-color: CanvasText;
+    }
+  }
+}
