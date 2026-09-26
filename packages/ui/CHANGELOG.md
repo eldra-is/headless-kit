@@ -81,6 +81,43 @@ Release-please writes the generated notes from commit messages and does not repl
   button's active state as a 2% scale rather than a 1px translate, the `close` event's reason for a
   plain external close, `TOAST_HOST_KEY`'s not-an-injection-key shape, and `defineExpose`d
   `close`/`isTop` instead of an `actionValue` prop); `docs/ui.md` gained an "Overlays" section.
+- **`Tabs`, `Tab` and `TabPanel`** — task 7 of the "overlays, navigation and feedback"
+  sub-project (design spec's "Tabs" section, APG tabs pattern with automatic activation by
+  default). Two ways to build one: `items` (`{ value, title, content? }`) renders the whole thing
+  from data; for panel content richer than plain text, place `<Tab>`s in the `tabs` slot and
+  `<TabPanel>`s in the default slot instead. Both share one implementation — `items` renders as
+  exactly that `Tab`/`TabPanel` pair internally — and one new `TABS_KEY` context
+  (`src/components/tabs/context.ts`, exported from the root entry): each `Tab` registers itself in
+  `onMounted`/unregisters in `onBeforeUnmount`, which is what gives `Tabs` its children's order
+  (Vue mounts siblings in document order) with no prop telling it what that order is, needed both
+  for the spec's "defaults to the first tab" rule and for cross-tab arrow-key moves.
+
+  Roving tabindex: only the selected tab has `tabindex="0"`, the rest `-1`, set from selection and
+  moved together with `aria-selected` on every change. `←`/`→` move focus one tab, wrapping at the
+  ends; `Home`/`End` jump to the first/last. Under the default `activation="auto"` moving focus
+  selects immediately; `"manual"` moves focus only, and `Enter`/`Space` select through the tab's
+  own native `<button>` activation — no keydown handling for either key exists at all, since a
+  second path risked firing selection twice. Each panel is `role="tabpanel"
+aria-labelledby` its
+  tab, `hidden` when inactive, and gets `tabindex="0"` only when it holds no focusable content of
+  its own (the brief's "panel focusability rule" — see the README's Deviations entry).
+
+  `underline` (default) draws a per-tab indicator bar, and `pills` a per-tab filled background —
+  the spec's "the indicator does not slide" means there is no shared, position-animated element to
+  slide in the first place: each `Tab` owns its own indicator (or, for pills, its own fill), shown
+  or hidden by a `duration-fast` colour transition alone. The tab list scrolls horizontally rather
+  than wrapping, scrollbar hidden via the new `eldra-scrollbar-hide` `tailwind.css` utility (no
+  stock Tailwind equivalent, registered in `src/utils/cx.ts`'s own merge group). `Tab`'s own type
+  style reuses `VariantPicker`'s `text-variant-pill` (same numbers, same "no baked-in weight"
+  reasoning) rather than a new utility; see the README's Deviations entry for that and for the
+  spec's `label` property shipping as `ariaLabel` (package convention) and the lack of a
+  `disabled` tab, which the spec's own "Tabs" section never mentions.
+
+  Parts (`data-part`, and `classes` keys): `root`, `list`, `tab`, `indicator`, `panel` — the last
+  three drawn by `Tab`/`TabPanel`, which `Tabs` forwards its own `classes.tab`/`.indicator`/
+  `.panel` to in the `items` API, and which a standalone `<Tab>`/`<TabPanel>` takes directly in the
+  slots API. Stories: `Underline`, `Pills`, `Manual`, `ManyTabs`, `LongContent`, `Narrow`,
+  `ReducedMotion`, `ForcedColors`.
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,

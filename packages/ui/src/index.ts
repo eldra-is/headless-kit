@@ -41,6 +41,9 @@ export { default as Select } from './components/select/Select.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
 export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Switch } from './components/switch/Switch.vue';
+export { default as Tab } from './components/tabs/Tab.vue';
+export { default as TabPanel } from './components/tabs/TabPanel.vue';
+export { default as Tabs } from './components/tabs/Tabs.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as UnitInput } from './components/unit-input/UnitInput.vue';
 export { default as VariantPicker } from './components/variant-picker/VariantPicker.vue';
@@ -176,6 +179,17 @@ export type {
 } from './components/section/types';
 export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
+export type {
+  TabPanelPart,
+  TabPanelProps,
+  TabPart,
+  TabProps,
+  TabsActivation,
+  TabsItem,
+  TabsPart,
+  TabsProps,
+  TabsVariant,
+} from './components/tabs/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type { UnitInputPart, UnitInputProps } from './components/unit-input/types';
 export type {
@@ -275,6 +289,11 @@ export { SECTION_KEY } from './components/section/context';
 // Chip group context. A `ChipGroup` provides it; a member `Chip` with both a `value` and a group
 // above it reads its selected state and toggles it here instead of through its own `selected` prop.
 export { CHIP_GROUP_KEY, type ChipGroupContext } from './components/chip/context';
+
+// Tabs context. A `Tabs` provides it; a standalone `Tab`/`TabPanel` reads the selected value,
+// activation and variant from it, and registers itself so cross-tab arrow-key moves work with no
+// prop telling `Tabs` what order its children are in.
+export { TABS_KEY, type TabsContext, type TabsEntry } from './components/tabs/context';
 
 // Styling helpers, so a consumer composing its own wrapper merges classes the
 // same way the components do.

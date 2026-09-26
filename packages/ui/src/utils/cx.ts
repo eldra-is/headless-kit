@@ -27,6 +27,7 @@ export type ClassValue = string | false | null | undefined | Record<string, bool
 const twMerge = extendTailwindMerge<
   | 'target-min'
   | 'target-touch'
+  | 'eldra-scrollbar-hide'
   | 'eldra-focus'
   | 'eldra-focus-always'
   | 'eldra-focus-inset-always'
@@ -126,6 +127,9 @@ const twMerge = extendTailwindMerge<
       // No stock Tailwind group covers a minimum-target utility, so each gets its own group.
       'target-min': ['target-min'],
       'target-touch': ['target-touch'],
+      // The Tabs list's hidden scrollbar (tailwind.css "Tabs"): no stock group covers hiding a
+      // scrollbar either, so it gets its own.
+      'eldra-scrollbar-hide': ['eldra-scrollbar-hide'],
       // Border widths (tailwind.css "A field's own boundary" and "The Checkbox box"): whole class
       // names rather than a `border-*` suffix, but the same "border-w" group as Tailwind's own
       // `border`/`border-2`, so a consumer's `border-2` replaces them and — the reason the two

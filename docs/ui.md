@@ -67,12 +67,15 @@ table and Storybook for the full contract of each).
 - `ProductCard` — the product tile used in grids, carousels and search results, composing `Image`,
   `Price`, `Rating`, `Badge`, `StockBadge` and `Button`.
 
-**Overlays**
+**Navigation, overlays and feedback** (landing incrementally; the rest of the sub-project is still
+in progress)
 
 - `Dialog` — a small modal window for one decision or a short form, native `<dialog>` +
   `showModal()` with no custom focus trap (`useDialog` and `dialogStack` in `packages/ui/README.md`
   own the shared modal rules — never stacking two, initial focus, focus return, the scroll lock —
   for every modal surface built on top of them).
+- `Tabs` / `Tab` / `TabPanel` — an APG-pattern tab list that switches between sibling panels in
+  place, `underline` or `pills`, data-driven (`items`) or built from `Tab`/`TabPanel` children.
 
 ## Styles
 

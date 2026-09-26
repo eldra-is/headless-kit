@@ -119,6 +119,9 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Skeleton`          | none — `width` sets an inline style directly (see the Deviations entry), no CSS variable involved                                                                                                                                                                                                                                                                                                                                                                   |
    | `StockBadge`        | `--eldra-stock-status-line` (default `1.4`) — the status line text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                |
    | `Switch`            | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                                                                                        |
+   | `Tab`               | none — reads only the shared tokens from layer 1, plus `VariantPicker`'s `text-variant-pill` type style (no per-component variable of its own; see that component's row)                                                                                                                                                                                                                                                                                            |
+   | `TabPanel`          | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                    |
+   | `Tabs`              | none — reads only the shared tokens from layer 1; the new `eldra-scrollbar-hide` utility the tab list uses has no variable of its own                                                                                                                                                                                                                                                                                                                               |
    | `Textarea`          | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                          |
    | `VariantPicker`     | `--eldra-variant-legend-line` (default `1.4`), `--eldra-variant-pill-border-width` (default `1px`), `--eldra-variant-pill-selected-color` (default `var(--eldra-color-text)`), `--eldra-variant-pill-radius` (default `var(--eldra-radius-md)`), `--eldra-variant-swatch-ring-width` (default `2px`), `--eldra-variant-swatch-edge-width` (default `1px`)                                                                                                           |
    | `VisuallyHidden`    | none — reads only the shared tokens from layer 1 (it renders no visible box at all)                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -1807,3 +1810,28 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `dialogRef.value.close('remove')` from the consumer's own click handler) is the smallest surface
   that lets a footer button close with a value of its own, and matches how a native `<dialog>`'s
   own `.close(returnValue)` already works — no new prop, no new component.
+- **`Tabs`' spec property named `label` ships as `ariaLabel`.** Package convention, applied
+  consistently everywhere a prop's only job is to name an element for assistive technology
+  (`FormLayout`'s own `ariaLabel`, `ChipGroup`'s `label` predates the convention and is left as
+  is): an accessible-name-only prop is `ariaLabel`, so it reads as what it does rather than
+  colliding, in a reader's head, with a prop that renders visible text — which `Tab`'s own
+  `title` is, following `Button`'s `label`/default-slot pattern.
+- **`TabPanel` gives `tabindex="0"` only to a panel with no focusable content of its own**, not
+  unconditionally as the spec's own Accessibility line reads literally ("`tabindex="0"`" with no
+  qualifier). This is the ARIA APG tabs pattern's own narrower rule — a panel that already
+  contains a link or a button needs no second stop for the same content — and the task brief
+  names it outright as "the panel focusability rule"; `TabPanel.vue` checks its own rendered DOM
+  for a focusable descendant on mount and after every update.
+- **`Tab` and the `items` API carry no `disabled`.** The spec's "Tabs" section — Properties,
+  States, Keyboard, Accessibility — never mentions a disabled tab (unlike `RadioGroup`'s or
+  `Select`'s options, which the spec states explicitly), so none is added; a store that needs to
+  keep a tab reachable-but-inert can hide its `Tab` entirely instead, the same way an unlinked
+  `FeatureCard` has no tab stop at all.
+- **A `Tab`'s own type style reuses `VariantPicker`'s `text-variant-pill` utility**, not a new
+  `text-tab`. The two are the exact same numbers — "0.9375rem … 500 (600 selected)" — and
+  `text-variant-pill` already carries no baked-in weight for the same reason a new one would need
+  none (see that component's own comment): one size, two weights depending on state, which no
+  `font` shorthand can express, so the component pairs it with `font-medium`/`font-semibold`
+  itself. A component reusing a differently-named cross-component utility is unusual enough to
+  call out here rather than leave a reader wondering why `Tab.vue` imports nothing from
+  `variant-picker/`.

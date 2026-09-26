@@ -1368,3 +1368,18 @@
 @utility animate-eldra-dialog-in-reduced {
   animation: eldra-dialog-in-reduced 200ms linear;
 }
+/* --- Tabs ---------------------------------------------------------------------------------- */
+
+/* Spec "Tabs" → Anatomy, point 1: "scrolls horizontally when the tabs overflow (never wraps),
+   scrollbar hidden." Tailwind has no stock utility for hiding a scrollbar — `overflow-x-auto`
+   alone still shows the browser's own bar — so this is one small utility rather than an arbitrary
+   value repeated at the call site. Registered in `src/utils/cx.ts` under its own class group (see
+   `custom-utility-coverage.spec.ts`), the same shape as `target-min`/`target-touch` above: no stock
+   Tailwind group covers "show/hide a scrollbar" either. */
+@utility eldra-scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
