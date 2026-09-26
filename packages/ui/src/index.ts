@@ -33,9 +33,11 @@ export { default as Icon } from './components/icon/Icon.vue';
 export { default as Image } from './components/image/Image.vue';
 export { default as Input } from './components/input/Input.vue';
 export { default as Link } from './components/link/Link.vue';
+export { default as LoadMore } from './components/load-more/LoadMore.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as Popover } from './components/popover/Popover.vue';
+export { default as Pagination } from './components/pagination/Pagination.vue';
 export { default as Price } from './components/price/Price.vue';
 export { default as ProductCard } from './components/product-card/ProductCard.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
@@ -158,6 +160,7 @@ export type { IconComponent, IconPart, IconProps, IconSize } from './components/
 export type { ImageMedia, ImagePart, ImageProps, ImageRatio } from './components/image/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
+export type { LoadMorePart, LoadMoreProps } from './components/load-more/types';
 export type { LogoItemPart, LogoItemProps } from './components/logo-item/types';
 export type {
   MultiSelectPart,
@@ -168,6 +171,7 @@ export type {
   SelectProps,
   SelectSize,
 } from './components/select/types';
+export type { PaginationPart, PaginationProps } from './components/pagination/types';
 export type { PopoverPart, PopoverProps } from './components/popover/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';
 export type {

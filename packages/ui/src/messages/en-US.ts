@@ -316,6 +316,41 @@ export const enUS = {
    * hidden level rather than the spec's own three-level example.
    */
   showMoreLevels: (n: number) => (n === 1 ? 'Show 1 more level' : `Show ${n} more levels`),
+  /** `Pagination`'s `<nav>` accessible name (spec "Pagination" → Accessibility:
+   *  `<nav aria-label="Pagination">`), the default for its `ariaLabel` prop. */
+  pagination: 'Pagination',
+  /**
+   * `Pagination`'s previous control, in both forms: the numbered form's visible "Previous page"
+   * link text and the compact form's icon-only `aria-label`. The design spec's own anatomy gives
+   * the numbered form a shorter visible "Previous" — this package uses the one fuller phrase for
+   * both, rather than a second, unspecified sentence for the compact icon-only arrow (see the
+   * README's Deviations entry).
+   */
+  previousPage: 'Previous page',
+  /** `Pagination`'s next control — see `previousPage` above. */
+  nextPage: 'Next page',
+  /**
+   * A `Pagination` page link's accessible name (spec "Pagination" → Accessibility: `aria-label="Page
+   * 7"`; the current one `aria-label="Page 6, current page"`). One message, not two: `current`
+   * defaults to `false`, so `pageN(7)` and `pageN(6, true)` share a single translatable sentence
+   * rather than a second key existing only to append four words.
+   */
+  pageN: (n: number, current = false) => (current ? `Page ${n}, current page` : `Page ${n}`),
+  /**
+   * `Pagination`'s compact-form status (spec "Pagination" → Anatomy, part 6: "Page 2 of 12"). Not
+   * one of the message keys the task brief names explicitly, but the compact form has no other way
+   * to say it: unlike `pageN`, the sentence needs the total baked in, and generating it from two
+   * separate calls would leave "of" untranslated. Recorded under the README's Deviations entry.
+   */
+  pageOfTotal: (page: number, total: number) => `Page ${page} of ${total}`,
+  /**
+   * `LoadMore`'s live status (spec "Pagination" → Anatomy, part 7: "Showing 24 of 96 products").
+   * `noun` is the caller's own word (the `noun` prop), already declined for this sentence — the
+   * same shape `QuantityStepper`'s `unit` prop follows.
+   */
+  showingOf: (shown: number, total: number, noun: string) => `Showing ${shown} of ${total} ${noun}`,
+  /** `LoadMore`'s button label (spec "Pagination" → Anatomy, part 9). */
+  loadMore: 'Load more',
 };
 
 /**

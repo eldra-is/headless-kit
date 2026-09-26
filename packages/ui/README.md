@@ -110,9 +110,11 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Image`             | `--eldra-image-hatch-gap` (default `0.75rem`) — the live "No image" placeholder's diagonal-line repeat distance                                                                                                                                                                                                                                                                                                                                                     |
    | `Input`             | `--eldra-input-radius` (default `var(--eldra-radius-md)`), `--eldra-control-font-size` (default `0.9375rem`), `--eldra-control-font-size-mobile` (default `1rem`), `--eldra-control-line-height` (default `1.5rem`), `--eldra-field-border-width` (default `1px`)                                                                                                                                                                                                   |
    | `Link`              | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                             |
+   | `LoadMore`          | none — the status/meter/button sizes all reuse shared tokens (`text-body-sm`, `control-h`, `text-button-md`), no per-component variable                                                                                                                                                                                                                                                                                                                             |
    | `LogoItem`          | `--eldra-logo-image-max-height` (default `2.5rem`), `--eldra-logo-image-max-width` (default `9rem`) — the logo image's contain box; `--eldra-logo-wordmark-size` (default `1.25rem`) — the wordmark fallback's font size (its weight, line-height and letter-spacing reuse `h2`/`h3` tokens directly, see `text-logo-wordmark` in `tailwind.css`)                                                                                                                   |
    | `MultiSelect`       | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                     |
    | `Popover`           | `--eldra-z-popover` (default `30`), shared with the other popover panels — no per-component variable of its own: it has no fixed size to clamp, unlike `Select`'s panel                                                                                                                                                                                                                                                                                             |
+   | `Pagination`        | none — every size (the 2.5rem page link/`control-h` previous-next, the `target-touch` compact arrows, the 0.9375rem `text-control` compact status) reuses a shared token or a shared arbitrary spacing multiple, no per-component variable                                                                                                                                                                                                                          |
    | `Price`             | `--eldra-price-current-sm-size` (default `0.9375rem`), `--eldra-price-current-lg-size` (default `1.5rem`) — only `sm`/`lg` need one: `md`'s current price inherits the surrounding text, and `compareAt`/`from`/`unit` scale off whichever size the root sets (`0.9em`, a literal ratio the spec itself gives, and a fixed `0.8125rem`), so neither needs a variable of its own                                                                                     |
    | `UnitInput`         | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width` (`CurrencyInput` is a `UnitInput`, so the same)                                                                                                                                                                                                             |
    | `ProductCard`       | none of its own — it composes `Image`/`Badge`/`StockBadge`/`Price`/`Button`, each restyled through its own row above                                                                                                                                                                                                                                                                                                                                                |
@@ -168,6 +170,12 @@ Every component supports all five of these; none hard-codes anything a store mig
    `Breadcrumb` — so the name never collides with the root-tag meaning `as` carries everywhere else
    (a string still takes `href`; a component receives the destination as `to`, the same contract
    `as` uses).
+   name of its own). **`linkAs`**, not `as`, on `ContentCard`/`FeatureCard`/`ProductCard` and
+   `Pagination`: each has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and `linkAs` instead
+   picks the element for a _nested_ part — the stretched title link, or a page/previous/next
+   control — so the name never collides with the root-tag meaning `as` carries everywhere else (a
+   string still takes `href`; a component receives the destination as `to`, the same contract `as`
+   uses).
 
 Two naming rules hold across every component, on top of the five capabilities above:
 
@@ -2205,3 +2213,48 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   parsing entirely, so nothing inside the JSON can end the tag early. The current page's own `item`
   URL is omitted from its `ListItem`, matching both schema.org's own guidance for a list's last entry
   and this component's rule that the last item is never a link regardless of what `href` it carries.
+- **`Pagination` renders as `<button>` elements emitting `update:page` without `hrefForPage`,
+  rather than the spec's own literal default `?page={n}`** (controller ruling, task 9). A consumer
+  driving pagination from in-memory state (a client-side filtered grid, a `Load more`-adjacent
+  paged view with no server round trip) has no URL to build, and the spec's own default would have
+  forced one anyway. With `hrefForPage` given, every control — page, previous, next — renders as a
+  real `<a href>` (or the `linkAs` component, `Link`'s own `as` contract) exactly as the spec describes;
+  without it, the same controls are native `<button type="button">`s and the component is
+  controlled through `page`/`update:page` instead.
+- **`Pagination`'s numbered and compact forms are two sibling subtrees inside one `<nav>`, switched
+  by a `@container` query on the root, not one element that changes shape.** The design spec's own
+  Behaviour bullet ("Numbered and compact are driven by the same data") reads either way; two
+  subtrees was chosen because the two forms are not simply a style change of one control — the
+  compact previous/next arrows are icon-only outline buttons with a different accessible name
+  ("Previous page") than the numbered form's chevron-plus-text link, and the compact form adds a
+  "Page 2 of 12" status with nothing to correspond to in the numbered list. `compact` forces the
+  compact form by not rendering the numbered subtree at all, rather than leaving it in the DOM and
+  hidden; the default (unforced) case renders both, one `hidden @tablet:flex` and the other `flex
+@tablet:hidden`, with `--container-tablet` (`tailwind.css`, declared for exactly this edge —
+  see its own comment) as the shared 48rem breakpoint.
+- **`Pagination`'s previous/next controls read "Previous page"/"Next page" in both forms**, not the
+  spec's own shorter visible "Previous"/"Next" text for the numbered form with a separate,
+  unspecified full sentence for the compact icon-only arrows. One message pair (`previousPage`/
+  `nextPage`) serves both, which is also the exact pair the task's own message list names.
+- **`Pagination` gained a `pageOfTotal(page, total)` message beyond the task's listed set**, because
+  the compact form's status ("Page 2 of 12") needs the total baked into the sentence, unlike
+  `pageN(n)`'s single-page accessible name — composing it from two separate calls would leave "of"
+  untranslated. `pageN` itself grew an optional second parameter (`current = false`) rather than a
+  second key, so `pageN(6)` ("Page 6") and `pageN(6, true)` ("Page 6, current page") share one
+  translatable sentence instead of a key that exists only to append four words.
+- **`Pagination`'s compact status does not bold the page numbers inside the sentence**, though the
+  spec's own States table gives it ("numbers `text` weight 600"): the sentence comes back from
+  `pageOfTotal` as one translated string with no seam to split the digits back out of generically,
+  across locales, the same trade-off `avatarGroup`'s own plain-conjunction-list rendering accepts
+  elsewhere in this catalogue. The whole sentence is `muted`, tabular-numbered, and unbolded.
+- **`LoadMore`'s button is hand-rolled rather than a wrapped `<Button variant="outline">`**, the
+  same reason `Drawer`'s own close button is hand-rolled instead of a wrapped `<Button icon-only>`:
+  this part needs its own literal `data-part="button"`, and `Button`'s root hard-codes
+  `data-part="container"` with no prop to override it. The recipe (`control-h`, `text-button-md`,
+  the `eldra-focus` ring, the 98%-scale press) is `Button`'s own `outline` variant, copied rather
+  than composed.
+- **`LoadMore`'s button stays clickable while `pending`, and is never `disabled`** — the same "a
+  loading control is still clickable; the action is already under way" rule `Button`'s own
+  `loading` state follows (see that component's own comment). `pending` shows a spinner and sets
+  `aria-busy="true"`; a consumer wanting to prevent a duplicate `load` mid-flight guards its own
+  handler, the same way a consumer of `Button loading` already must.

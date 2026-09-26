@@ -86,6 +86,11 @@ in progress)
 - `Popover` — a generic non-modal trigger + floating panel for menus, filters and dropdowns (an
   operator addition beyond the design spec — see the README), built on the same `usePopover`
   machinery as `Select`'s own popup.
+- `Pagination` — numbered page links with previous/next, collapsing to a compact "Page 2 of 12"
+  form below 48rem of its own width (a `@container` query, not the viewport); real links with
+  `hrefForPage`, or buttons emitting `update:page` without it.
+- `LoadMore` — a "Showing 24 of 96 products" live status, a progress meter and a button that hides
+  once everything is shown, for collections where browsing matters more than position.
 
 **Feedback**
 

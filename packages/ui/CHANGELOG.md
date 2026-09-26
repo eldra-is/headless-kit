@@ -24,6 +24,26 @@ Release-please writes the generated notes from commit messages and does not repl
   Customisation row and an Additions entry; `docs/ui.md`'s "Navigation, overlays and feedback" list
   gained a `Popover` bullet (and lost a stray duplicate heading line left over from an earlier
   merge).
+- **`Pagination` and `LoadMore` — Task 9 of the "overlays, navigation, feedback" sub-project.**
+  - `Pagination`: numbered links (previous/next, page numbers collapsing to "…" past `siblings`
+    pages on each side of the current one, first and last always shown) with a compact "Page 2 of
+    12" alternative, switched by a `@container` query on the pagination's own root — not the
+    viewport — from 48rem of its own width; `compact` forces the compact form regardless of width.
+    Renders nothing at all with one page or fewer. With `hrefForPage` (page → URL), every control
+    is a real `<a href>` (`rel="prev"`/`rel="next"` on the ends, `linkAs` for a router component,
+    the same contract `Link`'s own `as` uses — named `linkAs` rather than `as` because this
+    component's root is spec-fixed, the same reason `ContentCard`/`FeatureCard`/`ProductCard`'s
+    own title-link prop is `linkAs`); without it, the controls are `<button type="button">`s that
+    emit `update:page` instead. Parts: `root`, `list`, `item`, `page`, `current`, `ellipsis`,
+    `prev`, `next`.
+  - `LoadMore`: a live "Showing 24 of 96 products" status (`role="status" aria-live="polite"`), a
+    decorative progress meter, and an outline button that hides once `shown` reaches `total`,
+    stays clickable and shows a spinner while `pending` (the same "still clickable, the action is
+    already under way" rule `Button`'s own `loading` state follows), and is `aria-describedby` the
+    status. Emits `load`. Parts: `root`, `status`, `button`.
+  - New messages: `pagination`, `previousPage`, `nextPage`, `pageN(n, current?)`,
+    `pageOfTotal(page, total)`, `showingOf(shown, total, noun)`, `loadMore` — in both `en-US` and
+    `is-IS`.
 - **Final whole-branch review fixes for the "display, commerce and layout" sub-project.**
   - `formatDate` (`src/utils/date.ts`) never throws now: a malformed, empty or calendar-invalid
     date (`'2026-02-30'`) returns `null` instead of an Invalid Date/`RangeError`, and `ContentCard`

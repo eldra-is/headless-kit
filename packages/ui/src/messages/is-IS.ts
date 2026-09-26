@@ -128,6 +128,13 @@ export const isIS: UiMessages = {
   // "þrep" (a rung/step) does not change form between one and many, so — unlike `formErrors` or
   // `resultsCount` above — this needs no singular/plural branch of its own.
   showMoreLevels: (n: number) => `Sýna ${n} þrep í viðbót`,
+  pagination: 'Síðuskipting',
+  previousPage: 'Fyrri síða',
+  nextPage: 'Næsta síða',
+  pageN: (n: number, current = false) => (current ? `Síða ${n}, núverandi síða` : `Síða ${n}`),
+  pageOfTotal: (page: number, total: number) => `Síða ${page} af ${total}`,
+  showingOf: (shown: number, total: number, noun: string) => `Sýni ${shown} af ${total} ${noun}`,
+  loadMore: 'Hlaða meira',
 };
 
 export default isIS;
