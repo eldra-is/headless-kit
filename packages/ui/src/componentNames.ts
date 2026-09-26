@@ -38,6 +38,7 @@ export const componentNames = [
   'Rating',
   'SearchBar',
   'Select',
+  'Skeleton',
   'StockBadge',
   'Switch',
   'Textarea',

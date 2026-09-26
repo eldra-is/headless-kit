@@ -640,6 +640,24 @@ comparing the package against the spec can tell an addition from a drift.
 
 Additions and departures from the design spec, and why.
 
+- **`Skeleton`'s `width` prop sizes the root, not the shape's own literal width.** The spec's
+  Properties table lists `width` as the text/title shape's own CSS width ("Default 100% (title
+  60%)"). Read that literally, an override would have to be applied to a percentage-wide `line`
+  directly, which does nothing to fix the trap task-2-fix-1.md found in `Price`: a percentage width
+  inside a shrink-to-fit ancestor (`inline-flex`/`inline-block`) collapses to nothing regardless of
+  which element carries the percentage, because the ancestor itself has no definite width to
+  resolve it against. `width` is the escape hatch for exactly that case instead: it sets the root's
+  own width (replacing its default `w-full`) to a literal, always-definite value, and every shape
+  inside then renders at that full (now definite) width rather than its own default fraction of it
+  — so `<Skeleton width="12rem" variant="title" />` still renders a 12rem-wide bar, just sized from
+  the root down rather than the shape up, and works inside a shrink-to-fit container the literal
+  reading would not fix.
+- **`Skeleton`'s `btn` variant takes `--eldra-control-height` (2.5rem), not the spec's literal
+  2.75rem.** The Sizes table gives `btn` a fixed `2.75rem` — the same figure as `target-touch`,
+  which `Button`'s own `md` size only grows to below a 48rem **container** (a container query this
+  placeholder does not replicate). Reserving the shape that actually needs holding in the common,
+  non-narrow case — a resting `Button`'s own height — means reading its `control-h` utility
+  instead, the same one `Button`'s `md` size uses.
 - **Active buttons scale to 98% instead of moving down 1px** (operator decision, 2026-09-25). The
   spec's Button States table gives the pressed row "moves down 1px", and that is what shipped: an
   `active:` one-pixel downward translate utility. A 1px translate is below the threshold at which a

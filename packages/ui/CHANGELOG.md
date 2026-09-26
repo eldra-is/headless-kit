@@ -45,6 +45,23 @@ Release-please writes the generated notes from commit messages and does not repl
   the new `stockistSite` message (" (stockist site)") appended automatically when `href` looks
   external (an absolute URL) — `LogoItem` has no `external` prop like `Link`'s, so this is judged
   from the href itself — and `linkContext` overrides the judgement either way, rendered verbatim.
+- **`Skeleton`** — the sixth component of the "display, commerce and layout" sub-project (design
+  spec's Skeleton section). A neutral, shimmering loading placeholder: `variant` picks the shape —
+  `text` (default; `lines` rows, each a percentage width cycling 85/70/55/35% deterministically by
+  index, or the row's own `100%` for a single line), `title` (one fixed 60%-wide bar), `circle`
+  (`size`, default `2.5rem`, width = height, fully round), `media` (`ratio`, default `4x5`, the
+  same presets `Image`'s `src/utils/ratio.ts` uses), `btn` (the shared `control-height`, matching a
+  resting `Button`). Every shape is the `eldra-skeleton` utility (`tailwind.css`) — the shimmer
+  `Price`'s own loading state already draws — which was already reduced-motion aware (no change
+  needed there). `width` sizes the root itself instead of letting it fill its container: the root
+  is `block`/`w-full` by default (never `inline-*`) so the default percentage-wide `text`/`title`
+  shapes resolve against something even inside an ordinary block layout; `width` is the escape
+  hatch for a shrink-to-fit ancestor (`inline-flex`/`inline-block`), where a percentage width would
+  otherwise collapse to nothing exactly like task-2-fix-1.md's `Price` bug — every shape then
+  renders at the root's own (now definite) full width instead of its default fraction of it. The
+  root is `aria-hidden="true"`; there is no live region — a loading region's own `aria-busy`/hidden
+  text is the caller's responsibility, not this primitive's. `Price` and `Image` keep their own
+  inline loading skeletons unchanged (follow-up: point them at `Skeleton` itself in a later pass).
 - **`Image`** — the fifth component of the "display, commerce and layout" sub-project (design
   spec's Image section). The responsive media frame every card and block builds on: a fixed aspect
   preset (`auto`, `1x1`, `4x3`, `3x2`, `16x9`, `3x4`, `4x5`, default `4x3`) sets the frame's

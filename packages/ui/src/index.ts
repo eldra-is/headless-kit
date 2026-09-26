@@ -26,6 +26,7 @@ export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Rating } from './components/rating/Rating.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as Select } from './components/select/Select.vue';
+export { default as Skeleton } from './components/skeleton/Skeleton.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as UnitInput } from './components/unit-input/UnitInput.vue';
@@ -119,6 +120,7 @@ export type {
   QuantityStepperProps,
   QuantityStepperSize,
 } from './components/quantity-stepper/types';
+export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type { UnitInputPart, UnitInputProps } from './components/unit-input/types';
