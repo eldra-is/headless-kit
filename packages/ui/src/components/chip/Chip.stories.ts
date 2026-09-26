@@ -55,7 +55,7 @@ const meta = {
           "double-toggle. `Backspace`/`Delete` on a focused removable chip's root, or on its remove",
           'button, emits `remove`.',
           '',
-          '**`ChipGroup`** (`modelValue: string[]`, `label`, `disabled`) renders `role="group"` with',
+          '**`ChipGroup`** (`modelValue: string[]`, `ariaLabel`, `disabled`) renders `role="group"` with',
           'that `aria-label` and provides context a member `Chip` with both `selectable` and a',
           '`value` reads: its `selected` prop is ignored in favour of whether `value` is in',
           "`modelValue`, and a click toggles the group's `modelValue` instead of the chip's own",
@@ -95,7 +95,7 @@ export const Group: Story = {
     components: { Chip, ChipGroup },
     data: () => ({ materials: ['wool'] }),
     template: `
-      <ChipGroup v-model="materials" label="Materials">
+      <ChipGroup v-model="materials" ariaLabel="Materials">
         <Chip value="wool" label="Merino wool" selectable />
         <Chip value="cotton" label="Cotton" selectable />
         <Chip value="linen" label="Washed linen" selectable />
@@ -113,6 +113,25 @@ export const WithIcon: Story = {
       <div class="flex flex-wrap items-center gap-2">
         <Chip label="Organic cotton" :icon="IconTag" />
         <Chip label="Ingrid Solberg" :avatar="PORTRAIT" removable />
+      </div>
+    `,
+  }),
+};
+
+/**
+ * M13's own fix: `Avatar`'s initials/icon fallbacks are drawn for its own `sm` size (a 2rem
+ * circle), not for a chip's much smaller leading slot — without scaling them down too, a failed
+ * image nearly fills a `sm` chip's 0.875rem box with the user icon, or overflows it with initials.
+ * `Chip` passes its own `label` as the internal `Avatar`'s `name`, so a broken (or absent) image
+ * falls back to initials of the label — shown at both chip sizes here.
+ */
+export const WithAvatarFallback: Story = {
+  render: () => ({
+    components: { Chip },
+    template: `
+      <div class="flex flex-wrap items-center gap-2">
+        <Chip label="Ingrid Solberg" size="sm" avatar="/broken-image-url.jpg" />
+        <Chip label="Ingrid Solberg" size="md" avatar="/broken-image-url.jpg" />
       </div>
     `,
   }),
@@ -161,7 +180,7 @@ export const Narrow: Story = {
     data: () => ({ materials: ['wool'] }),
     template: `
       <div class="w-80 border border-border p-4 flex flex-col gap-3">
-        <ChipGroup v-model="materials" label="Materials">
+        <ChipGroup v-model="materials" ariaLabel="Materials">
           <Chip value="wool" label="Merino wool" selectable />
           <Chip value="cotton" label="Cotton" selectable />
           <Chip value="linen" label="Washed linen" selectable />

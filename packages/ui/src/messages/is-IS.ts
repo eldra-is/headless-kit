@@ -70,7 +70,6 @@ export const isIS: UiMessages = {
   stockIn: 'Til á lager, sent út á 1–2 dögum',
   stockLow: (n: number | null) =>
     n === null ? 'Lítið til' : `Lítið til: aðeins ${n} ${singular(n) ? 'eintak' : 'eintök'} eftir`,
-  stockOut: 'Uppselt',
   stockPreorder: (date?: string) =>
     date === undefined || date === '' ? 'Forpöntun' : `Forpöntun, send út ${date}`,
   salePrice: 'Tilboðsverð',

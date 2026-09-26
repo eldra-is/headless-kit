@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, useSlots } from 'vue';
+import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useSlotPresence } from '../../composables/useSlotPresence';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
@@ -140,7 +141,7 @@ const rootClass = computed(() =>
  * form's own title takes under a page's `<h1>`. In the inline row it is a full-width line above
  * the field and the button.
  */
-const headingTag = computed(() => `h${props.headingLevel}`);
+const headingTag = useHeadingTag(() => props.headingLevel);
 const headingClass = computed(() =>
   partClass(
     cx('text-h4 text-text', props.layout === 'inline' && 'basis-full'),

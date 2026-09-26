@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
+import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import Image from '../image/Image.vue';
 import Price from '../price/Price.vue';
@@ -10,6 +11,7 @@ import StockBadge from '../badge/StockBadge.vue';
 import Button from '../button/Button.vue';
 import Skeleton from '../skeleton/Skeleton.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
+import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from '../card/stretchedLink';
 import type { ProductCardProduct, ProductCardProps } from './types';
 
 const props = withDefaults(defineProps<ProductCardProps>(), {
@@ -22,7 +24,7 @@ const props = withDefaults(defineProps<ProductCardProps>(), {
   loading: false,
   currency: undefined,
   locale: undefined,
-  as: undefined,
+  linkAs: undefined,
   classes: undefined,
 });
 
@@ -53,7 +55,10 @@ const badgeKind = computed(() => (isSoldOut.value ? null : (props.product.badge?
  * The sale badge's own percentage text (spec "Product card" → Behaviour: "badge reads the
  * rounded percentage, '−20%'"), derived from `price` regardless of what `badgeKind` itself came
  * from — the same `compareAt > amount` rule `Price`'s own `isSale` uses, so the two never
- * disagree about whether there is a discount to report.
+ * disagree about whether there is a discount to report. `0` when there is none, in which case the
+ * template renders no sale badge at all (`badgeKind === 'sale' && discountPercent > 0`) rather
+ * than a fabricated "−0%" for a caller who passed `badge: { variant: 'sale' }` with no (or an
+ * equal/lower) `compareAt`.
  */
 const discountPercent = computed(() => {
   const { amount, compareAt } = props.product.price;
@@ -86,13 +91,18 @@ const showSwatchesResolved = computed(() => props.showSwatches && swatches.value
 const visibleSwatches = computed(() => swatches.value.slice(0, 3));
 const overflowCount = computed(() => Math.max(0, swatches.value.length - 3));
 
-/** `as` follows `Link`/`Rating`'s own contract: a string tag still takes `href`, a component
- * takes the destination as `to`. */
-const isComponentAs = computed(() => props.as !== undefined && typeof props.as !== 'string');
+/** `linkAs` follows `Link`/`Rating`'s own `as` contract: a string tag still takes `href`, a
+ * component takes the destination as `to`. Named `linkAs`, not `as`: this card's own root is a
+ * fixed `<article>`/`<div>` (loading), so `as` would be ambiguous with `Badge`/`Container`/
+ * `Section`'s `as`, which picks the root tag itself — see this package's README "as vs linkAs"
+ * note. */
+const isComponentAs = computed(
+  () => props.linkAs !== undefined && typeof props.linkAs !== 'string'
+);
 const linkAttrs = computed(() =>
   isComponentAs.value ? { to: props.product.url } : { href: props.product.url }
 );
-const headingTag = computed(() => `h${props.headingLevel}`);
+const headingTag = useHeadingTag(() => props.headingLevel);
 
 /**
  * The quick-add button's full accessible name (spec "Product card" → Accessibility: "Quick add
@@ -118,19 +128,17 @@ function onQuickAdd(): void {
 
 /**
  * Spec "Product card" → Sizes, Card row: "fills its grid column; minimum 14rem recommended."
- * `rounded-lg` gives the proxy focus ring's outline/box-shadow the same corner radius as the
- * media frame below (spec "Product card" → Accessibility, 2.4.7: "the ring is drawn around the
- * whole card ... because the link's own outline would only wrap the title"; Acceptance: "with
- * `radius-lg` corners"). `group` is read by the media's own hover-zoom below — plain `:hover` on
- * this element already fires whenever the pointer is over ANY descendant, including the title
- * link's card-covering `::after` (see `linkClass`), so no `:has()`/`group-has-*` trick is needed.
+ * `CARD_FOCUS_PROXY` (`group relative rounded-lg eldra-focus eldra-focus-proxy`, shared with
+ * `ContentCard`/`FeatureCard` via `card/stretchedLink.ts` rather than redeclared here) gives the
+ * proxy focus ring's outline/box-shadow the same corner radius as the media frame below (spec
+ * "Product card" → Accessibility, 2.4.7: "the ring is drawn around the whole card ... because the
+ * link's own outline would only wrap the title"; Acceptance: "with `radius-lg` corners"). `group`
+ * is read by the media's own hover-zoom below — plain `:hover` on this element already fires
+ * whenever the pointer is over ANY descendant, including the title link's card-covering `::after`
+ * (see `linkClass`), so no `:has()`/`group-has-*` trick is needed.
  */
 const rootClass = computed(() =>
-  partClass(
-    cx('group relative flex h-full min-w-56 flex-col rounded-lg eldra-focus eldra-focus-proxy'),
-    props.classes,
-    'root'
-  )
+  partClass(cx(CARD_FOCUS_PROXY, 'flex h-full min-w-56 flex-col'), props.classes, 'root')
 );
 
 /** The media's own positioning context for the absolutely placed badge stack (spec "Product
@@ -196,17 +204,32 @@ const titleClass = computed(() =>
  * colours by design (`Rating`'s linked variant wants exactly that, on its own, not part of a
  * stretched-card root) — keeping it here would draw a second ring hugging the title text beside
  * `eldra-focus-proxy`'s own card-wide one, which the spec's own acceptance criteria rule out ("the
- * link shows no separate ring"). Same reasoning as `ContentCard`/`FeatureCard`'s
- * `STRETCHED_LINK_OUTLINE` (`src/components/card/stretchedLink.ts`).
+ * link shows no separate ring"). `STRETCHED_LINK`/`STRETCHED_LINK_OUTLINE` are the same two
+ * constants `ContentCard`/`FeatureCard` consume from `card/stretchedLink.ts`, not a hand-rolled
+ * copy of them.
  */
 const linkClass = computed(() =>
   partClass(
-    'text-text no-underline outline-none hover:underline decoration-1 underline-offset-[0.2em] after:absolute after:inset-0',
+    cx(
+      'text-text no-underline hover:underline decoration-1 underline-offset-[0.2em]',
+      STRETCHED_LINK,
+      STRETCHED_LINK_OUTLINE
+    ),
     props.classes,
     'link'
   )
 );
 
+/**
+ * `price`/`rating`/`stockLine` each wrap their composed child in a `<div data-part="…">` — the
+ * same convention `mediaClass` already uses for `Image` above — rather than passing `data-part`/
+ * `class` straight through as fallthrough attributes on `<Price>`/`<Rating>`/`<StockBadge>`. Vue
+ * applies fallthrough attrs *after* a child's own template bindings, so a bare `data-part="price"`
+ * on `<Price>` would replace, not supplement, `Price`'s own `data-part="root"` on that same
+ * element — losing the ability to select `[data-part="price"] [data-part="root"]` — while `class`
+ * would still merge fine (Vue always merges `class`/`style` specially). The wrapper keeps both:
+ * the parent's own part name on the wrapper, the child's full part tree intact inside it.
+ */
 const priceClass = computed(() => partClass('', props.classes, 'price'));
 const ratingClass = computed(() => partClass('', props.classes, 'rating'));
 const stockLineClass = computed(() => partClass('', props.classes, 'stockLine'));
@@ -289,7 +312,7 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
       />
       <div v-if="badgeKind || isSoldOut" data-part="badges" :class="badgesClass">
         <Badge
-          v-if="badgeKind === 'sale'"
+          v-if="badgeKind === 'sale' && discountPercent > 0"
           variant="sale"
           :label="`−${discountPercent}%`"
           hidden-suffix=" off"
@@ -304,33 +327,26 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
         {{ product.vendor }}
       </p>
       <component :is="headingTag" data-part="title" :class="titleClass">
-        <component :is="as ?? 'a'" data-part="link" :class="linkClass" v-bind="linkAttrs">{{
+        <component :is="linkAs ?? 'a'" data-part="link" :class="linkClass" v-bind="linkAttrs">{{
           product.title
         }}</component>
       </component>
-      <Price
-        data-part="price"
-        :class="priceClass"
-        :amount="product.price.amount"
-        :compare-at="product.price.compareAt"
-        :from="product.price.from"
-        size="sm"
-        :currency="currency"
-        :locale="locale"
-      />
-      <Rating
-        v-if="showRatingResolved"
-        data-part="rating"
-        :class="ratingClass"
-        :value="ratingValue"
-        :count="ratingCount"
-      />
-      <StockBadge
-        v-if="showStockLine"
-        data-part="stockLine"
-        :class="stockLineClass"
-        :level="stockLevel"
-      />
+      <div data-part="price" :class="priceClass">
+        <Price
+          :amount="product.price.amount"
+          :compare-at="product.price.compareAt"
+          :from="product.price.from"
+          size="sm"
+          :currency="currency"
+          :locale="locale"
+        />
+      </div>
+      <div v-if="showRatingResolved" data-part="rating" :class="ratingClass">
+        <Rating :value="ratingValue" :count="ratingCount" />
+      </div>
+      <div v-if="showStockLine" data-part="stockLine" :class="stockLineClass">
+        <StockBadge :level="stockLevel" />
+      </div>
       <template v-if="showSwatchesResolved">
         <div data-part="swatches" :class="swatchesClass" aria-hidden="true">
           <span

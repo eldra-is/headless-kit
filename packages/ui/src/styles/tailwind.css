@@ -345,12 +345,13 @@
 
 /* `EmptyState`'s title (spec "Empty and error states" → Sizes, "Title" row): "heading family,
    1.25rem, line-height 1.3, weight 600" — between `text-h4` (1.125rem) and `text-h3` (1.5rem), so
-   it is its own utility rather than either. The size and weight are literal spec numbers with no
-   token of their own (like `text-card-title`'s 1rem/600 above); the 1.3 ratio is a per-component
-   variable with that literal default, the same shape as `text-counter`'s 1.5. */
+   it is its own utility rather than either. The weight is a literal spec number with no token of
+   its own (like `text-card-title`'s 600 above); the size and the 1.3 line ratio are both
+   per-component variables with that literal default, the same shape as `text-counter`'s 1.5 — see
+   the README's Customisation table for `--eldra-empty-state-title-size`. */
 @utility text-empty-state-title {
-  font: var(--eldra-text-label-weight) 1.25rem / var(--eldra-empty-state-title-line, 1.3)
-    var(--eldra-font-heading);
+  font: var(--eldra-text-label-weight) var(--eldra-empty-state-title-size, 1.25rem) /
+    var(--eldra-empty-state-title-line, 1.3) var(--eldra-font-heading);
 }
 
 /* `ContentCard`'s title (spec "Content card" → Sizes, "Title" row): "heading family, 1.25rem,
@@ -359,12 +360,12 @@
    of, so it is its own utility rather than that one plus an arbitrary `tracking-*` alongside it.
    The weight and tracking both already read tokens (`text-label-weight` is 600, `text-h3-tracking`
    is −0.01em, reused directly the same way `text-logo-wordmark` reuses three `h2`/`h3` tokens at
-   once); only the 1.25rem size and the 1.3 line ratio have none of their own, so — the same shape
-   as `text-empty-state-title`'s own 1.3 — the line is a per-component variable with that literal
-   default. */
+   once); the size and the 1.3 line ratio are both per-component variables with that literal
+   default — the same shape as `text-empty-state-title`'s own — see the README's Customisation
+   table for `--eldra-content-card-title-size`. */
 @utility text-content-card-title {
-  font: var(--eldra-text-label-weight) 1.25rem / var(--eldra-content-card-title-line, 1.3)
-    var(--eldra-font-heading);
+  font: var(--eldra-text-label-weight) var(--eldra-content-card-title-size, 1.25rem) /
+    var(--eldra-content-card-title-line, 1.3) var(--eldra-font-heading);
   letter-spacing: var(--eldra-text-h3-tracking);
 }
 

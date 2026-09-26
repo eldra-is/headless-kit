@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watchEffect } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
@@ -36,6 +36,18 @@ const OVERLAP_CLASS = '-ml-2';
  * circle — 4 in total, whatever `max` says.
  */
 const effectiveMax = computed(() => Math.min(Math.max(Math.trunc(props.max), 0), 3));
+
+if (import.meta.env?.DEV) {
+  watchEffect(() => {
+    if (props.max > 3 || props.max < 0) {
+      console.warn(
+        `[@eldrajs/ui] <AvatarGroup max="${props.max}"> is clamped to 0-3: a group never shows ` +
+          'more than three avatars plus one "+N" counter.'
+      );
+    }
+  });
+}
+
 const visiblePeople = computed(() => props.people.slice(0, effectiveMax.value));
 const overflowCount = computed(() => Math.max(0, props.people.length - visiblePeople.value.length));
 

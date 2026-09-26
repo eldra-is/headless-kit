@@ -111,7 +111,7 @@ describe('UiImage', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  describe('rounded (task-7-fix-1.md ruling 1)', () => {
+  describe('rounded (fix round 1, ruling 1)', () => {
     it('applies no radius class by default', () => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
       const frame = wrapper.get('[data-part="frame"]');
@@ -125,7 +125,7 @@ describe('UiImage', () => {
     });
   });
 
-  describe('fill (task-7-fix-1.md ruling 2)', () => {
+  describe('fill (fix round 1, ruling 2)', () => {
     it('fills the nearest positioned ancestor: absolute inset-0 h-full w-full on root, h-full w-full on frame', () => {
       const wrapper = mount(UiImage, {
         props: { src: '/demo/hero.svg', alt: 'Hero', fill: true },
@@ -158,7 +158,7 @@ describe('UiImage', () => {
     });
   });
 
-  describe('fit (task-7-fix-1.md ruling 3, contain fully implemented in task-7-fix-2.md ruling 2)', () => {
+  describe('fit (fix round 1 ruling 3, contain fully implemented in fix round 2 ruling 2)', () => {
     it('defaults to cover: the frame stays w-full, the media stays h-full w-full object-cover — unchanged', () => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
       const frame = wrapper.get('[data-part="frame"]');
@@ -170,12 +170,12 @@ describe('UiImage', () => {
     });
 
     /**
-     * task-7-fix-2.md ruling 2: `contain` is not just `object-contain` on the media. `Image`'s
+     * Fix round 2 ruling 2: `contain` is not just `object-contain` on the media. `Image`'s
      * `frame` is unconditionally `w-full overflow-hidden`, so a tall (portrait) image under
      * `h-full w-full` still computes its box from the frame's full width scaled by its own
      * intrinsic ratio — if that scaled height exceeds a height cap on the frame (the lightbox's
      * `max-h-[85vh]`), the frame's `overflow-hidden` clips it instead of shrinking it, the
-     * opposite of "contain" (review-t7-fix1-report.md, Concern (b)). `contain` therefore also
+     * opposite of "contain". `contain` therefore also
      * shrink-wraps the frame (`w-auto max-w-full`) and gives the media both a width and a height
      * constraint together (`h-auto w-auto max-w-full max-h-[inherit]`, `max-h-[inherit]` reading
      * the frame's own `max-height` back onto the media) rather than a percentage height that
@@ -219,7 +219,7 @@ describe('UiImage', () => {
     });
   });
 
-  describe('classes pass-through (task-7-fix-1.md ruling 3/4)', () => {
+  describe('classes pass-through (fix round 1, ruling 3/4)', () => {
     it('forwards an arbitrary classes.frame to the frame, merged with rounded', () => {
       const wrapper = mount(UiImage, {
         props: {

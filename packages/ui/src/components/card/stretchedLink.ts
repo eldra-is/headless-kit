@@ -1,7 +1,8 @@
 /**
  * The "whole card is one link" pattern shared by every card whose entire surface is a single tab
- * stop: `ContentCard` and `FeatureCard` here, and `ProductCard` (built in the same wave — see the
- * task-12 report for the note to point it at this file rather than duplicating the pattern).
+ * stop: `ContentCard` and `FeatureCard` here, and `ProductCard` (built in the same wave, and
+ * consuming these same three constants rather than duplicating the pattern — see
+ * `ProductCard.vue`'s own `rootClass`/`linkClass` comments).
  *
  * The card's real focusable element is the title's `<a>` (or its `as` substitute) — a normal,
  * visible piece of text, unlike `Checkbox`'s visually hidden input. Two class lists make the whole

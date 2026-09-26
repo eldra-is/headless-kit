@@ -30,7 +30,7 @@ const meta = {
           '`from` and per-unit are independent flags that combine freely.',
           '',
           '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `current`,',
-          '`compareAt`, `from`, `unit`, `srLabel` (the hidden "Sale price"/"Regular price" labels,',
+          '`compareAt`, `from`, `unit`, `srText` (the hidden "Sale price"/"Regular price" labels,',
           'two elements sharing one part name), `skeleton`.',
           '',
           '**Sale is automatic.** It turns on only when `compareAt` is greater than `amount`; a',

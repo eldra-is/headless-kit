@@ -36,4 +36,15 @@ describe('componentNames matches src/index.ts', () => {
   it('has exactly the components src/index.ts exports, no more and no fewer', () => {
     expect([...componentNames].sort()).toEqual(exportedComponentNames.sort());
   });
+
+  /**
+   * M16: the previous assertion sorted *both* sides before comparing, so a `componentNames` entry
+   * out of alphabetical order (`Container` before `Chip`, once) never failed it — sorting away the
+   * only thing that assertion could have caught. This one does not sort `componentNames` itself,
+   * so an out-of-order hand-maintained list fails here even though the previous assertion still
+   * passes.
+   */
+  it('is itself in alphabetical order', () => {
+    expect(componentNames as unknown as string[]).toEqual([...componentNames].sort());
+  });
 });

@@ -59,7 +59,7 @@ const meta = {
     loading: { control: 'boolean' },
     currency: { control: 'text' },
     locale: { control: 'text' },
-    as: { table: { disable: true } },
+    linkAs: { table: { disable: true } },
     classes: { table: { disable: true } },
   },
   parameters: {

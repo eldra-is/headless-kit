@@ -54,7 +54,7 @@ const rootClass = computed(() => partClass(cx('flex flex-wrap gap-2'), props.cla
   <div
     data-part="root"
     role="group"
-    :aria-label="label"
+    :aria-label="ariaLabel"
     :aria-disabled="disabled ? 'true' : undefined"
     :class="rootClass"
   >

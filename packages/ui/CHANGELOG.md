@@ -5,6 +5,47 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Final whole-branch review fixes for the "display, commerce and layout" sub-project.**
+  - `formatDate` (`src/utils/date.ts`) never throws now: a malformed, empty or calendar-invalid
+    date (`'2026-02-30'`) returns `null` instead of an Invalid Date/`RangeError`, and `ContentCard`
+    renders no `<time>` at all for one rather than a fabricated `"Jan 1, 1900"`.
+  - `Skeleton` gained a `busyLabel?: string | null` prop (spec :3340): with one given, the root is a
+    named live busy region (`role="status"`, `aria-busy="true"`, `aria-label`, every shape
+    individually `aria-hidden`); without it the root stays plain `aria-hidden`, as before.
+    `ContentCard`'s own loading state is now a named `role="group"` region too, matching
+    `ProductCard`'s existing treatment.
+  - Removed every internal SDD planning-artifact reference (numbered task/fix filenames and their
+    review reports, and the private planning repo's own directory path) from shipped files,
+    including one that named a full private-repo path in
+    `examples/starter-nuxt/app/components/ui/UiImage.vue`. `src/__tests__/publicRepoHygiene.spec.ts`
+    now fails on any of those patterns in `src/`, `README.md`, `CHANGELOG.md` and the starter's
+    `app`/`blocks` directories.
+  - `ContentCard`/`FeatureCard`/`ProductCard`'s title-link prop is now **`linkAs`**, not `as` — the
+    card's own root is spec-fixed, so `as` was ambiguous with `Badge`/`Container`/`Section`'s `as`,
+    which picks the root tag itself. Breaking, pre-release.
+  - `Section.label` and `ChipGroup.label` are now **`ariaLabel`** — both are accessible-name-only
+    props, and `label` means visible text everywhere else in this package. Breaking, pre-release.
+    The starter's own `[...slug].vue` not-found `Section` switched from `:label` (duplicating a
+    visible `<h1>`) to `:labelled-by` pointing at it.
+  - `ProductCard` now consumes `card/stretchedLink.ts`'s shared `CARD_FOCUS_PROXY`/
+    `STRETCHED_LINK`/`STRETCHED_LINK_OUTLINE` instead of a hand-rolled copy of the same classes, and
+    wraps its composed `Price`/`Rating`/`StockBadge` in their own `<div data-part="…">` (the same
+    convention already used for `Image`'s `media` wrapper) so each child's own `data-part="root"`
+    survives instead of being overwritten by the parent's fallthrough attribute.
+  - `ProductCard`'s sale badge no longer renders (a fabricated "−0%") for `badge: { variant: 'sale'
+    }` with no real discount.
+  - `Price`'s `srLabel` part is renamed **`srText`**, matching `Avatar`/`LogoItem`'s naming for the
+    same visually-hidden-text concept. `StockBadge`'s `out` level now reads the shared `soldOut`
+    message key instead of a separately-translatable `stockOut` (identical string in both locales).
+  - `AvatarGroup` warns once in dev when `max` is out of the 0–3 range it clamps to, matching the
+    package's existing override-warning convention; `Chip`'s leading `Avatar` scales its icon/
+    initials fallback down to the chip's own leading size instead of leaving them sized for a 2rem
+    circle, and now passes `label` as the `Avatar`'s `name` so a broken image falls back to initials
+    rather than the generic icon.
+  - `frameAspectRatio`, `formatDate`, `useSlotPresence`, `useHeadingTag`/`HeadingLevel`,
+    `roundRatingToHalf`/`ratingStarStates`, and `initialsFromName` are now exported from the root
+    entry, matching their plan-1 peers (`cx`, `mixToward`, `useUiId`, …); `tagRecipe`/`listFormat`
+    stay internal (class strings and a join helper, not public API).
 - **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
   `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,
@@ -164,7 +205,7 @@ Release-please writes the generated notes from commit messages and does not repl
   is `block`/`w-full` by default (never `inline-*`) so the default percentage-wide `text`/`title`
   shapes resolve against something even inside an ordinary block layout; `width` is the escape
   hatch for a shrink-to-fit ancestor (`inline-flex`/`inline-block`), where a percentage width would
-  otherwise collapse to nothing exactly like task-2-fix-1.md's `Price` bug — every shape then
+  otherwise collapse to nothing exactly like the trap `Price`'s own loading state once had — every shape then
   renders at the root's own (now definite) full width instead of its default fraction of it. The
   root is `aria-hidden="true"`; there is no live region — a loading region's own `aria-busy`/hidden
   text is the caller's responsibility, not this primitive's. `Price` and `Image` keep their own
@@ -219,13 +260,13 @@ Release-please writes the generated notes from commit messages and does not repl
   messages. The starter's `UiImage` (`examples/starter-nuxt/app/components/ui/UiImage.vue`) is now
   a thin wrapper over `Image` rather than its own hand-rolled `<img>` — see `README.md`'s
   Deviations section for the framing-contract ruling and why it is a wrapper, not a replacement.
-  Fix round 1 (`task-7-fix-1.md`): `UiImage` gained `rounded`/`fill`/`fit`/`classes`, mapped onto
+  Fix round 1: `UiImage` gained `rounded`/`fill`/`fit`/`classes`, mapped onto
   `Image`'s `rounded` prop and `classes.frame`/`classes.media`, so every block that needs a
   radius (`hero`, `gallery`, `feature-grid`, `testimonials`, `image`), a background fill
   (`hero`'s `image-background` variant) or an uncropped view (the gallery lightbox) still gets
   one now that a caller's plain `class`/`style` land on `Image`'s root rather than the `<img>`
   itself — see `README.md`'s Deviations section.
-  Fix round 2 (`task-7-fix-2.md`): the navigation block's logo (not a CMS-framed image — no
+  Fix round 2: the navigation block's logo (not a CMS-framed image — no
   `framing`, no `entryId`/`fieldPath`) no longer goes through `UiImage` at all, since its bare
   `class="h-8 w-auto"` had the same class-lands-on-the-root problem round 1 fixed everywhere else;
   it is a plain `<img>` now. `fit="contain"` also shrink-wraps the frame (`classes.frame` gains

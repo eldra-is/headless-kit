@@ -1,3 +1,4 @@
+import type { HeadingLevel } from '../../composables/useHeadingTag';
 import type { IconComponent } from '../icon/types';
 
 /**
@@ -31,7 +32,7 @@ export interface EmptyStateProps {
    * (spec → Variants, "Plain" row). */
   plain?: boolean;
   /** The title's heading level. `2` for a page-level state, `3` (the default) inside a block. */
-  headingLevel?: 2 | 3 | 4 | 5 | 6;
+  headingLevel?: HeadingLevel;
   /**
    * `error` only: the built-in "Try again" button shows its busy state (spinner, `aria-busy`) —
    * only takes effect while there is no `actions` slot, since a caller-supplied button reads this

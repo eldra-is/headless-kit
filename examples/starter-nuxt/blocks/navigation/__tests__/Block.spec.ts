@@ -31,13 +31,13 @@ describe('navigation block', () => {
   });
 
   /**
-   * task-7-fix-2.md ruling 1: the logo is not a CMS-framed image (no `framing`, no `entryId`/
+   * Fix round 2 ruling 1: the logo is not a CMS-framed image (no `framing`, no `entryId`/
    * `fieldPath`), so it renders as a plain `<img>` rather than through `UiImage` — routing it
    * through `UiImage` put the `h-8 w-auto` height cap on `Image`'s root instead of the `<img>`
    * itself, and with no `aspect`/`fill` the frame had no definite height for it to reach, so a
-   * real logo would render at its own scaled height instead of the fixed 2rem brand slot
-   * (review-t7-fix1-report.md, Concern (a)). Asserting the class lands directly on the `<img>`,
-   * with no `[data-part]` wrapper around it, is what would have caught that.
+   * real logo would render at its own scaled height instead of the fixed 2rem brand slot.
+   * Asserting the class lands directly on the `<img>`, with no `[data-part]` wrapper around it, is
+   * what would have caught that.
    */
   it('renders the logo as a plain <img> with the height cap directly on it, no [data-part] wrapper', () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withLogo } }));
@@ -148,7 +148,7 @@ describe('navigation block', () => {
     // jsdom does not lay out grid, so this asserts the class set that pins
     // every child to `md:row-start-1` instead of a rendered bounding box;
     // the actual single-row rendering is confirmed with a Storybook/Chromium
-    // screenshot (see task-6-report.md's Fix round 1 section).
+    // screenshot.
     const wrapper = mount(
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'centered' } } })

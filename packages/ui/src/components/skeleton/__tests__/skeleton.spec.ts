@@ -25,7 +25,7 @@ describe('Skeleton — element and parts', () => {
   });
 });
 
-describe('Skeleton — root is block-level (task-2-fix-1.md trap)', () => {
+describe('Skeleton — root is block-level (the percentage-width-in-shrink-to-fit trap)', () => {
   it('is block and w-full by default, with no inline width', () => {
     const wrapper = mountWith(Skeleton);
     expect(wrapper.classes()).toContain('block');
@@ -212,6 +212,47 @@ describe('Skeleton — accessibility', () => {
       wrapper.unmount();
     }
   );
+});
+
+describe('Skeleton — busyLabel', () => {
+  it('is a named live busy region when busyLabel is given', () => {
+    const wrapper = mountWith(Skeleton, { props: { busyLabel: 'Loading products…' } });
+    expect(wrapper.attributes('role')).toBe('status');
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.attributes('aria-label')).toBe('Loading products…');
+    expect(wrapper.attributes('aria-hidden')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('hides every shape from assistive technology even when the root is the named region', () => {
+    const wrapper = mountWith(Skeleton, {
+      props: { busyLabel: 'Loading products…', variant: 'text', lines: 3 },
+    });
+    for (const line of wrapper.findAll('[data-part="line"]')) {
+      expect(line.attributes('aria-hidden')).toBe('true');
+    }
+    wrapper.unmount();
+  });
+
+  it('treats an empty or null busyLabel the same as omitted — the root stays aria-hidden', () => {
+    const empty = mountWith(Skeleton, { props: { busyLabel: '' } });
+    expect(empty.attributes('aria-hidden')).toBe('true');
+    expect(empty.attributes('role')).toBeUndefined();
+    empty.unmount();
+
+    const nullLabel = mountWith(Skeleton, { props: { busyLabel: null } });
+    expect(nullLabel.attributes('aria-hidden')).toBe('true');
+    expect(nullLabel.attributes('role')).toBeUndefined();
+    nullLabel.unmount();
+  });
+
+  it('has no axe violations when named as a busy region', async () => {
+    const wrapper = mountWith(Skeleton, {
+      props: { busyLabel: 'Loading products…', variant: 'text', lines: 3 },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
 });
 
 describe('Skeleton — customisation', () => {

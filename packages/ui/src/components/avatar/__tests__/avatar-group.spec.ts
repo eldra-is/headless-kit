@@ -94,6 +94,32 @@ describe('AvatarGroup — max and overflow', () => {
     wrapper.unmount();
   });
 
+  /** M12: every other component in this package that overrides what a caller passed (`Badge`,
+   * `Button`, `Chip`, `Image`, `Price`, `Section`) warns once in dev — `AvatarGroup` previously
+   * clamped `max` silently. */
+  it('warns in development when max is out of the 0-3 range, still clamping it', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const over = mountWith(AvatarGroup, {
+      props: { people: SEVEN_PEOPLE, label: 'Makers', max: 10 },
+    });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('clamped to 0-3'));
+    over.unmount();
+
+    warn.mockClear();
+    const negative = mountWith(AvatarGroup, {
+      props: { people: PEOPLE, label: 'Makers', max: -1 },
+    });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('clamped to 0-3'));
+    negative.unmount();
+  });
+
+  it('does not warn for a max already inside 0-3', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(AvatarGroup, { props: { people: PEOPLE, label: 'Makers', max: 2 } });
+    expect(warn).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('renders no counter at all when max already covers everyone', () => {
     const wrapper = mountWith(AvatarGroup, {
       props: { people: PEOPLE, label: 'Makers', max: 3 },

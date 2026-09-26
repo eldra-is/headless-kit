@@ -268,6 +268,48 @@ describe('Chip — icon and avatar', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });
+
+  /**
+   * M13's own defect: `Avatar`'s `sm`-size icon/initials fallbacks (drawn for a 2rem circle) were
+   * unscaled inside a chip's much smaller 0.875rem/1rem leading slot — a failed image nearly filled
+   * the box with the icon, or overflowed it with initials. `Chip` passes `label` as the internal
+   * `Avatar`'s `name`, so initials (not the icon) is the reachable fallback for a real chip.
+   */
+  it('falls back to initials of the chip label when the image fails, scaled for `sm`', async () => {
+    const wrapper = mountWith(Chip, {
+      props: { label: 'Ingrid Solberg', avatar: '/broken-image-url.jpg', size: 'sm' },
+    });
+    const img = wrapper.get('[data-part="avatar"] [data-part="image"]');
+    await img.trigger('error');
+    const initials = wrapper.get('[data-part="avatar"] [data-part="initials"]');
+    expect(initials.text()).toBe('IS');
+    expect(initials.classes()).toContain('text-[0.33rem]');
+    expect(initials.classes()).not.toContain('text-avatar-initials-sm');
+    wrapper.unmount();
+  });
+
+  it('falls back to initials of the chip label when the image fails, scaled for `md`', async () => {
+    const wrapper = mountWith(Chip, {
+      props: { label: 'Ingrid Solberg', avatar: '/broken-image-url.jpg', size: 'md' },
+    });
+    const img = wrapper.get('[data-part="avatar"] [data-part="image"]');
+    await img.trigger('error');
+    const initials = wrapper.get('[data-part="avatar"] [data-part="initials"]');
+    expect(initials.text()).toBe('IS');
+    expect(initials.classes()).toContain('text-[0.38rem]');
+    wrapper.unmount();
+  });
+
+  it('shows scaled initials, not the generic icon, for an avatar with no image at all', () => {
+    const wrapper = mountWith(Chip, { props: { label: 'Ingrid Solberg', avatar: '', size: 'sm' } });
+    // `label` is a non-empty string, so `Avatar` always has initials to show — the generic
+    // user-icon fallback is unreachable through Chip's own props.
+    const initials = wrapper.find('[data-part="avatar"] [data-part="initials"]');
+    expect(initials.exists()).toBe(true);
+    expect(initials.text()).toBe('IS');
+    expect(initials.classes()).toContain('text-[0.33rem]');
+    wrapper.unmount();
+  });
 });
 
 describe('Chip — content', () => {
@@ -324,7 +366,7 @@ describe('Chip — accessibility', () => {
 
 describe('ChipGroup — element and toggling', () => {
   it('renders role="group" with the given label', () => {
-    const wrapper = mountWith(ChipGroup, { props: { modelValue: [], label: 'Materials' } });
+    const wrapper = mountWith(ChipGroup, { props: { modelValue: [], ariaLabel: 'Materials' } });
     expect(wrapper.attributes('data-part')).toBe('root');
     expect(wrapper.attributes('role')).toBe('group');
     expect(wrapper.attributes('aria-label')).toBe('Materials');
@@ -333,7 +375,7 @@ describe('ChipGroup — element and toggling', () => {
 
   it('derives each chip’s selected state from modelValue', () => {
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue: ['wool'], label: 'Materials' },
+      props: { modelValue: ['wool'], ariaLabel: 'Materials' },
       slots: {
         default: `
           <Chip value="wool" selectable label="Wool" />
@@ -350,7 +392,7 @@ describe('ChipGroup — element and toggling', () => {
 
   it('emits update:modelValue with a new array on toggle, adding and removing', async () => {
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue: ['wool'], label: 'Materials' },
+      props: { modelValue: ['wool'], ariaLabel: 'Materials' },
       slots: {
         default: `
           <Chip value="wool" selectable label="Wool" />
@@ -371,7 +413,7 @@ describe('ChipGroup — element and toggling', () => {
   it('never mutates the array instance it was given', async () => {
     const modelValue = ['wool'];
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue, label: 'Materials' },
+      props: { modelValue, ariaLabel: 'Materials' },
       slots: { default: `<Chip value="cotton" selectable label="Cotton" />` },
       global: { components: { Chip } },
     });
@@ -382,7 +424,7 @@ describe('ChipGroup — element and toggling', () => {
 
   it('disables every member chip, and toggling a disabled chip does nothing', async () => {
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue: [], label: 'Materials', disabled: true },
+      props: { modelValue: [], ariaLabel: 'Materials', disabled: true },
       slots: { default: `<Chip value="wool" selectable label="Wool" />` },
       global: { components: { Chip } },
     });
@@ -396,7 +438,7 @@ describe('ChipGroup — element and toggling', () => {
 
   it('lets a member chip disable itself independently', () => {
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue: [], label: 'Materials' },
+      props: { modelValue: [], ariaLabel: 'Materials' },
       slots: {
         default: `
           <Chip value="wool" selectable label="Wool" />
@@ -413,7 +455,7 @@ describe('ChipGroup — element and toggling', () => {
 
   it('accepts a root class override', () => {
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue: [], label: 'Materials', classes: { root: 'ring-1' } },
+      props: { modelValue: [], ariaLabel: 'Materials', classes: { root: 'ring-1' } },
     });
     expect(wrapper.classes()).toContain('ring-1');
     wrapper.unmount();
@@ -421,7 +463,7 @@ describe('ChipGroup — element and toggling', () => {
 
   it('has no axe violations', async () => {
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue: ['wool'], label: 'Materials' },
+      props: { modelValue: ['wool'], ariaLabel: 'Materials' },
       slots: {
         default: `
           <Chip value="wool" selectable label="Wool" />

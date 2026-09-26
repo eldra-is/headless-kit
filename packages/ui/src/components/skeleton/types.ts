@@ -25,6 +25,17 @@ export interface SkeletonProps {
   ratio?: ImageRatio;
   /** The circle's diameter (width = height). `circle` only. Defaults to `'2.5rem'`. */
   size?: string;
+  /**
+   * Names the root as a live busy region (spec "Skeleton" → Anatomy, part 1: "Busy region: the
+   * element being filled, with `aria-busy=\"true\"` and a visually hidden 'Loading products…'
+   * text"; region-level `busyLabel`, default `"Loading products…"`). With a label, the root gets
+   * `role="status"`, `aria-busy="true"` and `aria-label` set to it, and every shape is individually
+   * `aria-hidden`. `null`/omitted (the default) leaves the root itself `aria-hidden`, as it always
+   * was — the right shape for a `Skeleton` composed *inside* another component's own already-named
+   * busy region (`ProductCard`'s loading root, for one), where naming this root too would give the
+   * region two competing accessible names.
+   */
+  busyLabel?: string | null;
   /** Per-part class overrides, merged over the component's own classes with `tailwind-merge`. */
   classes?: Partial<Record<SkeletonPart, string>>;
 }

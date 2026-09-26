@@ -23,8 +23,7 @@
  *   an equivalent style from `focal`/`zoom` above.
  * - `priority`/`sizes` pass straight through.
  *
- * **`rounded`/`fill`/`fit`/`classes` (fix round 1, see
- * `.superpowers/sdd/2026-09-25-eldrajs-ui-plan-2/task-7-fix-1.md`).** `Image`'s attribute-
+ * **`rounded`/`fill`/`fit`/`classes` (fix round 1).** `Image`'s attribute-
  * forwarding contract puts a caller's plain `class`/`style` on the **root** — the figure/frame
  * wrapper `Image` clips its content to — not on the `<img>` itself. A block that used to write
  * `class="rounded-lg object-cover"` straight onto a bare `<img>` therefore needs a different way to
@@ -40,7 +39,7 @@
  *   `media`, which this wrapper never has `width`/`height` for. `media`'s own `object-cover`
  *   (`Image`'s default) does the rest.
  * - **`fit`** (`'cover' | 'contain'`, default `'cover'`) — `cover` changes nothing (`Image`'s own
- *   default). `contain` (fix round 2, see `task-7-fix-2.md`) is for a lightbox-style full view that
+ *   default). `contain` (fix round 2) is for a lightbox-style full view that
  *   must never crop: it is not just `object-contain` on the media, because `Image`'s `frame` is
  *   unconditionally `w-full overflow-hidden` and a `contain`-fit `<img>` under `h-full w-full`
  *   still computes its own box from the frame's full width scaled by its own intrinsic ratio — a

@@ -48,8 +48,9 @@ export interface ChipProps {
   icon?: IconComponent;
   /**
    * A decorative leading photo, drawn with `Avatar` at the chip's own icon size (see `Chip.vue`'s
-   * comment — no built-in `Avatar` size is small enough to sit inside either chip size). Takes
-   * priority over `icon` when both are given.
+   * comment — no built-in `Avatar` size is small enough to sit inside either chip size). A missing
+   * or failed image falls back to initials of `label`, then to `Avatar`'s own user icon — both
+   * scaled down to fit the chip's own leading slot. Takes priority over `icon` when both are given.
    */
   avatar?: ImageMedia | string | null;
   /** This chip's value inside a `ChipGroup` — see `selected` and `ChipGroup`'s own docs. */
@@ -64,8 +65,12 @@ export type ChipGroupPart = 'root';
 export interface ChipGroupProps {
   /** The selected chips' values (two-way, `update:modelValue`). */
   modelValue: string[];
-  /** The group's accessible name (`aria-label` on the `role="group"` root). */
-  label: string;
+  /**
+   * The group's accessible name (`aria-label` on the `role="group"` root). Named `ariaLabel`, not
+   * `label`: it is never visible text, unlike `label` on `Badge`/`Chip`/`Checkbox`/`Select` and the
+   * rest of the package — see the README's "`ariaLabel` is always an accessible name" rule.
+   */
+  ariaLabel: string;
   /** Disables every member `Chip`, in addition to whatever each one says on its own. */
   disabled?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */

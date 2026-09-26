@@ -30,12 +30,28 @@ import { describe, expect, it } from 'vitest';
  */
 
 const packageRoot = fileURLToPath(new NodeURL('../../', import.meta.url));
+const monorepoRoot = fileURLToPath(new NodeURL('../../../../', import.meta.url));
 const selfPath = fileURLToPath(import.meta.url);
 
 const scannableExtensions = /\.(ts|vue|md|json|css|mjs|cjs)$/;
 
+// Directories that are never source: build output, dependencies and generated caches. Scanning
+// them would be slow at best (a bundled `dist/` or `node_modules` tree) and a source of false
+// positives at worst — a minified bundle can contain any substring by coincidence.
+const skippedDirs = new Set([
+  'node_modules',
+  'dist',
+  '.nuxt',
+  '.output',
+  'storybook-static',
+  'coverage',
+  '.git',
+  '.turbo',
+]);
+
 function collectFiles(dir: string, out: string[]): string[] {
   for (const entry of readdirSync(dir)) {
+    if (skippedDirs.has(entry)) continue;
     const full = join(dir, entry);
     const stat = statSync(full);
     if (stat.isDirectory()) {
@@ -51,6 +67,13 @@ const files = [
   ...collectFiles(join(packageRoot, 'src'), []),
   join(packageRoot, 'README.md'),
   join(packageRoot, 'CHANGELOG.md'),
+  // The starter ships in the same public repository (and `theme-cli`'s `prepack` copies it
+  // verbatim into what `eldra-theme init` scaffolds), so a dangling internal reference there is
+  // exactly as visible to an external reader as one in this package itself — see I3's own worst
+  // offender, `examples/starter-nuxt/app/components/ui/UiImage.vue`, which named this plan's own
+  // private planning artifact by its full path.
+  ...collectFiles(join(monorepoRoot, 'examples/starter-nuxt/app'), []),
+  ...collectFiles(join(monorepoRoot, 'examples/starter-nuxt/blocks'), []),
 ];
 
 const privateNpmScope = ['@eldra', 'is/'].join('-'); // never write this contiguously above
@@ -60,6 +83,13 @@ const forbidden: { label: string; pattern: RegExp }[] = [
   { label: `the private npm scope (${privateNpmScope}…)`, pattern: new RegExp(privateNpmScope) },
   { label: 'an internal-only preview hostname', pattern: /local\.eldra\.app/ },
   { label: 'an internal-only gateway service name', pattern: /studio-gateway/ },
+  // This plan's own private SDD planning artifacts (`.superpowers/sdd/...`, `task-7-fix-1.md`,
+  // `review-t7-fix1-report.md`) are dangling pointers for every external reader — a name in a
+  // comment that resolves to nothing at all outside the private planning repo. See I3.
+  {
+    label: 'an internal SDD planning artifact reference',
+    pattern: /\.superpowers|\btask-\d+-|fix-\d\b|review-t\d/,
+  },
 ];
 
 describe('public-repo hygiene: no private scope or internal hostname in shipped files', () => {

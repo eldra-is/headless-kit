@@ -102,6 +102,19 @@ describe('ProductCard — the stretched link', () => {
     wrapper.unmount();
   });
 
+  /**
+   * I6: `ProductCard` consumes `card/stretchedLink.ts`'s `STRETCHED_LINK`/`STRETCHED_LINK_OUTLINE`
+   * rather than a hand-rolled copy of the same two class strings — asserting `outline-none`
+   * specifically (not just the `after:*` pair above) is what a coincidentally-identical hard-coded
+   * string would also pass; this is the one that would break if `ProductCard` stopped importing
+   * the shared constant.
+   */
+  it('suppresses the native outline the same way ContentCard/FeatureCard do (shared stretchedLink.ts)', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    expect(wrapper.get('[data-part="link"]').classes()).toContain('outline-none');
+    wrapper.unmount();
+  });
+
   it('draws the proxy focus ring on the root, not on the link', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     expect(wrapper.classes()).toContain('eldra-focus-proxy');
@@ -116,7 +129,7 @@ describe('ProductCard — the stretched link', () => {
     wrapper.unmount();
   });
 
-  it('renders the link as the given `as` component and forwards the url as `to`', () => {
+  it('renders the link as the given `linkAs` component and forwards the url as `to`', () => {
     const FakeRouterLink = defineComponent({
       props: { to: { type: String, required: true } },
       setup:
@@ -125,7 +138,7 @@ describe('ProductCard — the stretched link', () => {
           h('a', { 'data-fake-router-link': props.to }, slots.default?.()),
     });
     const wrapper = mountWith(ProductCard, {
-      props: { product: PRODUCT, as: FakeRouterLink },
+      props: { product: PRODUCT, linkAs: FakeRouterLink },
     });
     const link = wrapper.get('[data-part="link"]');
     expect(link.attributes('data-fake-router-link')).toBe(PRODUCT.url);
@@ -277,6 +290,44 @@ describe('ProductCard — sale badge', () => {
       props: { product: { ...PRODUCT, badge: { variant: 'new' }, price: { amount: 3840 } } },
     });
     expect(wrapper.get('[data-part="badges"]').text()).toBe('New');
+    wrapper.unmount();
+  });
+
+  /**
+   * M9's own defect: `badge: { variant: 'sale' }` with no `compareAt` (or one that is not actually
+   * higher than `amount`) previously rendered a fabricated "−0%" badge — `discountPercent` is `0`
+   * whenever there is no real discount, and the old template rendered the sale badge whenever
+   * `badgeKind === 'sale'` regardless of that value.
+   */
+  it('renders no sale badge, and no badge at all, when badge is "sale" but there is no discount', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: {
+        product: {
+          ...PRODUCT,
+          badge: { variant: 'sale' },
+          price: { amount: 3840, compareAt: null },
+        },
+      },
+    });
+    // The badge-stack wrapper still renders (`badgeKind` is `'sale'`, unrelated to the discount),
+    // but no `Badge` renders inside it — never a fabricated "−0%".
+    expect(wrapper.find('[data-part="badges"] [data-part="root"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('%');
+    wrapper.unmount();
+  });
+
+  it('renders no sale badge when compareAt is equal to or lower than amount', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: {
+        product: {
+          ...PRODUCT,
+          badge: { variant: 'sale' },
+          price: { amount: 3840, compareAt: 3840 },
+        },
+      },
+    });
+    expect(wrapper.find('[data-part="badges"] [data-part="root"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('%');
     wrapper.unmount();
   });
 });
@@ -464,6 +515,24 @@ describe('ProductCard — currency and locale', () => {
   });
 });
 
+describe('ProductCard — composed children keep their own data-part="root" (I7)', () => {
+  it('wraps Price, Rating and StockBadge so each keeps its own data-part="root" nested inside', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, stock: 'low' } },
+    });
+    // The wrapper carries the parent's own part name...
+    expect(wrapper.get('[data-part="price"]').element.tagName).toBe('DIV');
+    expect(wrapper.get('[data-part="rating"]').element.tagName).toBe('DIV');
+    expect(wrapper.get('[data-part="stockLine"]').element.tagName).toBe('DIV');
+    // ...while each child's own root, with its own data-part="root", survives nested inside it —
+    // proving the fallthrough `data-part` no longer overwrites it.
+    expect(wrapper.find('[data-part="price"] [data-part="root"]').exists()).toBe(true);
+    expect(wrapper.find('[data-part="rating"] [data-part="root"]').exists()).toBe(true);
+    expect(wrapper.find('[data-part="stockLine"] [data-part="root"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+});
+
 describe('ProductCard — customisation', () => {
   it('merges an override onto every part', () => {
     const wrapper = mountWith(ProductCard, {
@@ -492,6 +561,8 @@ describe('ProductCard — customisation', () => {
     expect(wrapper.get('[data-part="body"]').classes()).toContain('gap-4');
     expect(wrapper.get('[data-part="title"]').classes()).toContain('uppercase');
     expect(wrapper.get('[data-part="link"]').classes()).toContain('font-bold');
+    expect(wrapper.get('[data-part="price"]').classes()).toContain('ml-4');
+    expect(wrapper.get('[data-part="rating"]').classes()).toContain('ml-4');
     expect(wrapper.get('[data-part="swatch"]').classes()).toContain('grayscale');
     expect(wrapper.get('[data-part="swatchOverflow"]').classes()).toContain('italic');
     expect(wrapper.get('[data-part="quickAdd"]').classes()).toContain('ml-4');

@@ -10,17 +10,38 @@ const props = withDefaults(defineProps<SkeletonProps>(), {
   width: undefined,
   ratio: '4x5',
   size: '2.5rem',
+  busyLabel: null,
   classes: undefined,
 });
 
+/** See `SkeletonProps.busyLabel`'s own comment. */
+const hasBusyLabel = computed(
+  () => props.busyLabel !== undefined && props.busyLabel !== null && props.busyLabel !== ''
+);
+const rootAria = computed(() =>
+  hasBusyLabel.value
+    ? {
+        role: 'status' as const,
+        'aria-busy': 'true' as const,
+        'aria-label': props.busyLabel!,
+        'aria-hidden': undefined,
+      }
+    : {
+        role: undefined,
+        'aria-busy': undefined,
+        'aria-label': undefined,
+        'aria-hidden': 'true' as const,
+      }
+);
+
 /**
- * task-2-fix-1.md's trap, generalised: a percentage-width shape inside an `inline-flex`/
- * shrink-to-fit ancestor (auto width) never resolves — it silently collapses to 0 and renders
- * invisible, exactly like `Price`'s loading skeleton did before that fix. `Skeleton`'s own default
- * text/title shapes are percentage-wide (see `textWidthClass`/`TITLE_WIDTH_CLASS` below), so the
- * root itself must always be a definite box for them to resolve against: `block` (never `inline-*`)
- * plus `w-full` (fills whatever the root's own parent gives it, which is only "auto" if that
- * parent is itself a shrink-to-fit flex/inline container).
+ * The same trap `Price`'s own loading skeleton once had, generalised: a percentage-width shape
+ * inside an `inline-flex`/shrink-to-fit ancestor (auto width) never resolves — it silently
+ * collapses to 0 and renders invisible. `Skeleton`'s own default text/title shapes are
+ * percentage-wide (see `textWidthClass`/`TITLE_WIDTH_CLASS` below), so the root itself must always
+ * be a definite box for them to resolve against: `block` (never `inline-*`) plus `w-full` (fills
+ * whatever the root's own parent gives it, which is only "auto" if that parent is itself a
+ * shrink-to-fit flex/inline container).
  *
  * `width` is the escape hatch for exactly that remaining case: a consumer who knows their
  * container is shrink-to-fit passes an explicit width (e.g. `"12rem"`), which replaces `w-full`
@@ -38,9 +59,9 @@ const rootStyle = computed<StyleValue | undefined>(() =>
 
 /**
  * Spec "Skeleton" → Properties, `width` row: "Vary text widths between 35% and 85%." Deterministic
- * rather than random, so a test can assert an exact value per line index (task-8-brief.md): a fixed
- * four-value cycle, widest first. A single line (the default `lines`) instead renders the row's
- * other stated default, `100%` (`w-full`) — spec: "Default 100% (title 60%)".
+ * rather than random, so a test can assert an exact value per line index: a fixed four-value
+ * cycle, widest first. A single line (the default `lines`) instead renders the row's other stated
+ * default, `100%` (`w-full`) — spec: "Default 100% (title 60%)".
  */
 const TEXT_WIDTH_CYCLE = ['w-[85%]', 'w-[70%]', 'w-[55%]', 'w-[35%]'];
 
@@ -81,6 +102,10 @@ const SHAPE_CLASS: Record<Exclude<SkeletonVariant, 'text' | 'title'>, string> = 
 function lineClass(index: number): string {
   const base = 'eldra-skeleton block';
   const variant = props.variant;
+  // `0.3rem` is the spec's own literal margin (Skeleton → Sizes, `text` row: "height 0.875rem,
+  // 0.3rem margin above and below (one 1.5 line-height row)"), not a rounding of a spacing-scale
+  // step — the package's `0.25rem` unit has no `0.3rem` multiple — so it stays a documented
+  // arbitrary value rather than a token that would not actually match the spec's own number.
   if (variant === 'text') return cx(base, 'h-3.5 my-[0.3rem] rounded-sm', textWidthClass(index));
   if (variant === 'title') {
     return cx(base, 'h-6 rounded-sm', props.width ? 'w-full' : TITLE_WIDTH_CLASS);
@@ -105,13 +130,14 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass" :style="rootStyle" aria-hidden="true">
+  <div data-part="root" :class="rootClass" :style="rootStyle" v-bind="rootAria">
     <div
       v-for="line in lines"
       :key="line.key"
       data-part="line"
       :class="line.class"
       :style="line.style"
+      aria-hidden="true"
     />
   </div>
 </template>

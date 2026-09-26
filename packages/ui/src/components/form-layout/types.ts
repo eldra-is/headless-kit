@@ -1,8 +1,14 @@
+import type { HeadingLevel } from '../../composables/useHeadingTag';
+
 /** The three arrangements the design spec's Form layout section gives. */
 export type FormLayoutVariant = 'single' | 'two' | 'inline';
 
-/** The heading levels the form's own title can take under a page's `<h1>`. */
-export type FormLayoutHeadingLevel = 2 | 3 | 4;
+/** The heading levels the form's own title can take under a page's `<h1>` — narrower than the
+ * shared `HeadingLevel` (`2 | 3 | 4 | 5 | 6`) every other component's `headingLevel` prop uses,
+ * because a form's own title realistically never sits six levels deep. Declared as an explicit
+ * subtype of `HeadingLevel` (`Extract`, not a separately re-typed union) so the two stay in sync
+ * if the shared type ever changes. */
+export type FormLayoutHeadingLevel = Extract<HeadingLevel, 2 | 3 | 4>;
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type FormLayoutPart = 'root' | 'heading' | 'errorSummary' | 'fields' | 'actions' | 'status';

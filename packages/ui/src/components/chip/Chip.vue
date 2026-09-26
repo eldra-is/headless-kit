@@ -258,6 +258,28 @@ const hasIcon = computed(
 const avatarWrapClass = computed(() => partClass('inline-flex shrink-0', props.classes, 'avatar'));
 const avatarSizeClass = computed(() => LEADING_SIZE[props.size]);
 
+/**
+ * `Avatar`'s own icon/initials fallbacks are drawn for its own sizes (`sm` = 2rem), not for
+ * sitting inside a chip's much smaller leading slot (`size-3.5`/`size-4` = 0.875rem/1rem) — passing
+ * only `classes: { root: avatarSizeClass }` shrinks the circle but leaves `eldra-avatar-icon-sm`
+ * (0.857rem) and `text-avatar-initials-sm` (0.76rem) unchanged, so a failed image (`Avatar` is
+ * given `label` as its `name` below, so initials are reachable, not just the icon) nearly fills a
+ * 0.875rem box with icon, or overflows it with initials. `Avatar`'s own icon-to-diameter ratio is
+ * a consistent 3/7 across every size (0.857/2, 1.071/2.5, 1.5/3.5, 2.571/6 all reduce to 3/7);
+ * initials is a consistent 0.38 (0.76/2, 0.95/2.5). These scale that same ratio down to the chip's
+ * own leading size instead of guessing a value. `leading-none`/`font-semibold` replace the
+ * weight/line-height the overridden `text-avatar-initials-*` utility's own `font` shorthand would
+ * otherwise have set — `tailwind-merge` drops that whole utility once its font-size conflicts with
+ * the override, not just the size.
+ */
+const AVATAR_ICON_CLASS: Record<ChipSize, string> = { sm: 'size-1.5', md: 'size-1.75' };
+const AVATAR_INITIALS_CLASS: Record<ChipSize, string> = {
+  sm: 'text-[0.33rem] leading-none font-semibold',
+  md: 'text-[0.38rem] leading-none font-semibold',
+};
+const avatarIconClass = computed(() => AVATAR_ICON_CLASS[props.size]);
+const avatarInitialsClass = computed(() => AVATAR_INITIALS_CLASS[props.size]);
+
 const iconWrapClass = computed(() =>
   partClass(cx(LEADING_SIZE[props.size], 'shrink-0'), props.classes, 'icon')
 );
@@ -288,7 +310,17 @@ const removeButtonClass = computed(() =>
   >
     <span v-if="hasAvatar" data-part="avatar" :class="avatarWrapClass">
       <slot name="avatar">
-        <Avatar :src="avatar" size="sm" :decorative="true" :classes="{ root: avatarSizeClass }" />
+        <Avatar
+          :src="avatar"
+          :name="label"
+          size="sm"
+          :decorative="true"
+          :classes="{
+            root: avatarSizeClass,
+            icon: avatarIconClass,
+            initials: avatarInitialsClass,
+          }"
+        />
       </slot>
     </span>
     <span v-else-if="hasIcon" data-part="icon" :class="iconWrapClass">

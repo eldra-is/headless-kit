@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import Icon from '../icon/Icon.vue';
 import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from './stretchedLink';
+import { CUE_ARROW_CLASS, CUE_ARROW_PATHS } from './cueArrow';
 import type { FeatureCardProps, FeatureCardVariant } from './types';
 
 const props = withDefaults(defineProps<FeatureCardProps>(), {
@@ -11,7 +13,7 @@ const props = withDefaults(defineProps<FeatureCardProps>(), {
   cue: undefined,
   variant: 'plain',
   headingLevel: 3,
-  as: undefined,
+  linkAs: undefined,
   classes: undefined,
 });
 
@@ -29,12 +31,15 @@ const hasHref = computed(
  * translation without passing `cue` on every card. */
 const resolvedCue = computed(() => props.cue ?? messages.value.learnMore);
 
-const headingTag = computed(() => `h${props.headingLevel}`);
+const headingTag = useHeadingTag(() => props.headingLevel);
 
-/** `as` follows `Link`/`Button`'s own contract exactly — see `Link.vue`'s comment. Linked only:
- * with no `href` there is no tag to choose. */
-const isComponentAs = computed(() => props.as !== undefined && typeof props.as !== 'string');
-const titleTag = computed(() => props.as ?? 'a');
+/** `linkAs` follows `Link`/`Button`'s own `as` contract exactly — see `Link.vue`'s comment — but
+ * targets the title's stretched link, not this card's own root (see `card/types.ts`'s comment on
+ * the rename). Linked only: with no `href` there is no tag to choose. */
+const isComponentAs = computed(
+  () => props.linkAs !== undefined && typeof props.linkAs !== 'string'
+);
+const titleTag = computed(() => props.linkAs ?? 'a');
 const titleAttrs = computed<Record<string, unknown>>(() =>
   isComponentAs.value ? { to: props.href } : { href: props.href }
 );
@@ -123,11 +128,9 @@ const cueClass = computed(() =>
   )
 );
 
-/** The cue's arrow — identical geometry and hover-nudge to `ContentCard.vue`'s own; see that
- * component's comment on its `arrowClass`. */
-const arrowClass =
-  'inline-block size-4.5 shrink-0 transition-[translate] duration-fast ease-out ' +
-  'motion-reduce:transition-none group-hover:translate-x-0.5';
+/** The cue's arrow — identical geometry and hover-nudge to `ContentCard.vue`'s own; shared via
+ * `card/cueArrow.ts` rather than redeclared here. */
+const arrowClass = CUE_ARROW_CLASS;
 </script>
 
 <template>
@@ -167,9 +170,7 @@ const arrowClass =
         aria-hidden="true"
         focusable="false"
       >
-        <path d="M5 12l14 0" />
-        <path d="M13 18l6 -6" />
-        <path d="M13 6l6 6" />
+        <path v-for="d in CUE_ARROW_PATHS" :key="d" :d="d" />
       </svg>
     </span>
   </div>

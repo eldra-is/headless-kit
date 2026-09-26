@@ -47,11 +47,12 @@ function toMajor(minorUnits: number): number {
 /**
  * `Intl.NumberFormat`'s constructor throws `RangeError` for a currency code it does not recognise
  * — an unknown or malformed ISO 4217 code (`'XYZ1'`, `''`) — and this runs inside a `computed`,
- * where a throw breaks the whole render, not just the price (task-2-fix-1.md item 2: "Never throw
- * from a computed"). On failure, fall back to a plain decimal formatter and append the raw code
- * after the number (`"1,234 XYZ1"`), and warn once per bad code in dev so the mistake is visible
- * without taking the page down. `currencyFractionDigits` (used by `toMajor` above) already guards
- * the same construction internally and defaults to 2, so it needs no change here.
+ * where a throw breaks the whole render, not just the price ("never throw from a computed" — the
+ * same rule `src/utils/date.ts#formatDate` follows for a malformed date, for the identical reason).
+ * On failure, fall back to a plain decimal formatter and append the raw code after the number
+ * (`"1,234 XYZ1"`), and warn once per bad code in dev so the mistake is visible without taking the
+ * page down. `currencyFractionDigits` (used by `toMajor` above) already guards the same
+ * construction internally and defaults to 2, so it needs no change here.
  *
  * `lastWarnedInvalidCurrency` is a plain closure variable, not a `ref` — it exists only to
  * de-duplicate the warning, never to drive a re-render — and it is scoped to this component
@@ -150,13 +151,13 @@ const SECTION =
   'group-data-[section=accent]/section:text-accent-contrast';
 
 /**
- * `w-full` applies only while `loading`. The skeleton below is `w-[35%]` (task-2-fix-1.md item
- * 1), and a percentage width on a flex item cannot resolve against a flex container whose own
- * width is `auto` — `inline-flex`'s ordinary shrink-to-fit sizing — so without this the skeleton
- * silently collapses to 0 and renders invisible (confirmed empirically: both the `Loading` and
- * `ReducedMotion` screenshots were blank before this was added). Giving the root a definite width
- * exactly when there is a percentage child depending on one fixes it without affecting the
- * ordinary (non-loading) inline-flex row, which has no such child.
+ * `w-full` applies only while `loading`. The skeleton below is `w-[35%]`, and a percentage width
+ * on a flex item cannot resolve against a flex container whose own width is `auto` —
+ * `inline-flex`'s ordinary shrink-to-fit sizing — so without this the skeleton silently collapses
+ * to 0 and renders invisible (confirmed empirically: both the `Loading` and `ReducedMotion`
+ * screenshots were blank before this was added). Giving the root a definite width exactly when
+ * there is a percentage child depending on one fixes it without affecting the ordinary
+ * (non-loading) inline-flex row, which has no such child.
  */
 const rootClass = computed(() =>
   partClass(
@@ -197,14 +198,14 @@ const unitClass = computed(() =>
   partClass(cx('text-price-unit text-muted basis-full', SECTION), props.classes, 'unit')
 );
 
-const srLabelClass = computed(() => partClass('sr-only', props.classes, 'srLabel'));
+const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
 
 /**
  * Spec "Price" → States, Loading row: "text skeleton (`surface-strong`) at 35% width" — every
  * other column is blank, so loading replaces the whole price with one shape rather than a
  * skeleton per part. `w-[35%]` is the spec's own literal percentage, not a rem magnitude with a
- * token to reach for (task-2-fix-1.md item 1), so it stays a percentage rather than a fixed
- * width — the height still tracks the current type size via the relative `0.85em`.
+ * token to reach for, so it stays a percentage rather than a fixed width — the height still tracks
+ * the current type size via the relative `0.85em`.
  * `eldra-skeleton` (`tailwind.css`) is the shimmer this component shares with the `Skeleton`
  * primitive a later task adds.
  */
@@ -234,11 +235,11 @@ const skeletonClass = computed(() =>
         ><span data-part="from" :class="fromClass">{{ fromLabel }}</span
         >{{ ' ' }}</template
       ><template v-if="isSale"
-        ><span data-part="srLabel" :class="srLabelClass">{{ saleLabel }}</span
+        ><span data-part="srText" :class="srTextClass">{{ saleLabel }}</span
         >{{ ' ' }}</template
       ><span data-part="current" :class="currentClass">{{ formattedCurrent }}</span
       ><template v-if="isSale"
-        >{{ ' ' }}<span data-part="srLabel" :class="srLabelClass">{{ regularLabel }}</span
+        >{{ ' ' }}<span data-part="srText" :class="srTextClass">{{ regularLabel }}</span
         >{{ ' '
         }}<s data-part="compareAt" :class="compareAtClass">{{ formattedCompareAt }}</s></template
       ><template v-if="unitPrice"

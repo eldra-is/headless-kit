@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
+import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import type { StockBadgeProps, StockLevel } from './types';
 
 const props = withDefaults(defineProps<StockBadgeProps>(), {
@@ -19,15 +20,12 @@ const messages = useMessages();
  * "outline" 24x24 viewBox those icons use, rather than a runtime dependency on the package: a
  * decision recorded in the plan (like `Button`'s spinner, which is also a hand-written SVG). Each
  * level's colour and icon are fixed by the spec, so there is no `icon` prop to take a consumer's
- * own component.
+ * own component. `low`'s `alert-triangle` path data lives in `src/icons/paths.ts`, shared with
+ * `EmptyState`'s own `error` default icon rather than duplicated (M19).
  */
 const LEVEL_ICON_PATHS: Record<StockLevel, string[]> = {
   in: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M9 12l2 2l4 -4'],
-  low: [
-    'M12 9v4',
-    'M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0',
-    'M12 16h.01',
-  ],
+  low: ALERT_TRIANGLE_PATHS,
   out: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M10 10l4 4m0 -4l-4 4'],
   preorder: ['M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0', 'M12 7v5l3 3'],
 };
@@ -52,7 +50,10 @@ const LEVEL_TEXT_CLASS: Record<StockLevel, string> = {
 const defaultMessage = computed<string>(() => {
   if (props.level === 'in') return messages.value.stockIn;
   if (props.level === 'low') return messages.value.stockLow(props.quantity ?? null);
-  if (props.level === 'out') return messages.value.stockOut;
+  // `out` aliases the shared `soldOut` key (M15) rather than a separately-translatable
+  // `stockOut` — `en-US`/`is-IS` had the same string under both keys, so a translator had to
+  // render the same phrase twice, and they could drift.
+  if (props.level === 'out') return messages.value.soldOut;
   return messages.value.stockPreorder();
 });
 

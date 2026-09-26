@@ -6,10 +6,11 @@
 export type PriceSize = 'sm' | 'md' | 'lg';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them.
- * `srLabel` covers both hidden labels (the "Sale price" before `current` and the "Regular price"
+ * `srText` covers both hidden labels (the "Sale price" before `current` and the "Regular price"
  * before `compareAt`) — two elements sharing one part name, the same shape as a repeated part in
- * any list-like component. */
-export type PricePart = 'root' | 'current' | 'compareAt' | 'from' | 'unit' | 'srLabel' | 'skeleton';
+ * any list-like component. Named `srText`, not `srLabel`, to match the same visually-hidden part
+ * on `Avatar`/`LogoItem` — see this package's README for the naming rule. */
+export type PricePart = 'root' | 'current' | 'compareAt' | 'from' | 'unit' | 'srText' | 'skeleton';
 
 export interface PriceProps {
   /**

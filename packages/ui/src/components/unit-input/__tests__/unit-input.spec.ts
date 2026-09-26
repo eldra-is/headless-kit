@@ -772,7 +772,7 @@ describe('UnitInput — trailing action pairs (operator report, 2026-09-25)', ()
     wrapper.unmount();
   });
 
-  it('keeps the shared gap-1 row with only one action showing (fix round 1, task-14-fix-1)', async () => {
+  it('keeps the shared gap-1 row with only one action showing (fix round 1)', async () => {
     const clearOnly = mount({ modelValue: 5, clearable: true });
     await nextTick();
     expect(clearOnly.find('[data-part="suffix"]').classes()).toContain('gap-1');

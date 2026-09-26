@@ -59,6 +59,16 @@ describe('message catalogues', () => {
     );
     expect(untranslated).toEqual([]);
   });
+
+  /**
+   * M15: `soldOut` and `stockOut` were the same string in both locales ('Sold out'/'Uppselt') —
+   * `StockBadge`'s `out` level now aliases `soldOut` instead of carrying a second, separately
+   * translatable key for the identical phrase.
+   */
+  it('has no separate stockOut key — StockBadge aliases the shared soldOut key', () => {
+    expect(Object.keys(enUS)).not.toContain('stockOut');
+    expect(Object.keys(isIS)).not.toContain('stockOut');
+  });
 });
 
 describe('counted messages read naturally at one', () => {

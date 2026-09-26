@@ -52,7 +52,7 @@ useHead(() => ({
     <Section
       v-else-if="isNotFound"
       spacing="lg"
-      :label="t('notFound.title')"
+      labelled-by="not-found-title"
       data-eldra-not-found
       :classes="{ root: 'text-center' }"
     >
@@ -60,7 +60,10 @@ useHead(() => ({
         <p class="text-muted text-sm font-semibold tracking-widest uppercase">
           {{ t('notFound.eyebrow') }}
         </p>
-        <h1 class="font-heading mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1
+          id="not-found-title"
+          class="font-heading mt-2 text-3xl font-semibold tracking-tight sm:text-4xl"
+        >
           {{ t('notFound.title') }}
         </h1>
         <p class="text-muted mt-4 text-lg">{{ t('notFound.body') }}</p>

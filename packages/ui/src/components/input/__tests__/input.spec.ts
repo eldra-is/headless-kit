@@ -295,7 +295,7 @@ describe('Input — leading icon and suffix', () => {
     wrapper.unmount();
   });
 
-  it('keeps the row gap when the clear button and a populated suffix slot share the row (fix round 1, task-14-fix-1)', () => {
+  it('keeps the row gap when the clear button and a populated suffix slot share the row (fix round 1)', () => {
     // `Input`'s own doc comment documents this combination as first-class: "the clear button and
     // the `suffix` slot share it, so a field with both keeps them on one row." UnitInput's
     // two-action pair (clear + drag handle) is the only thing allowed to go flush — Input's row

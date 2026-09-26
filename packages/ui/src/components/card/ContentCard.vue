@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue';
 import { useEldraUiLocale } from '../../composables/useLocale';
+import { useHeadingTag } from '../../composables/useHeadingTag';
+import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
 import { cx, partClass } from '../../utils/cx';
 import { formatDate } from '../../utils/date';
 import Image from '../image/Image.vue';
 import Skeleton from '../skeleton/Skeleton.vue';
 import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from './stretchedLink';
+import { CUE_ARROW_CLASS, CUE_ARROW_PATHS } from './cueArrow';
 import type { ContentCardProps, ContentCardVariant } from './types';
 
 const props = withDefaults(defineProps<ContentCardProps>(), {
@@ -21,9 +24,11 @@ const props = withDefaults(defineProps<ContentCardProps>(), {
   headingLevel: 3,
   loading: false,
   locale: undefined,
-  as: undefined,
+  linkAs: undefined,
   classes: undefined,
 });
+
+const messages = useMessages();
 
 const slots = useSlots();
 /** See `useSlotPresence`'s own comment: slots are not reactive on their own, so every part whose
@@ -48,13 +53,17 @@ const resolvedVariant = computed<ContentCardVariant>(() =>
 const hasEyebrow = computed(() => Boolean(props.eyebrow) || present.value.eyebrow);
 const hasExcerpt = computed(() => Boolean(props.excerpt) || present.value.excerpt);
 
-const formattedDate = computed(() => (props.date ? formatDate(props.date, locale.value) : ''));
+/** `formatDate` never throws (`src/utils/date.ts`) but returns `null` for a malformed/empty
+ * `date` — in which case no `<time>` element renders at all rather than a fabricated date. */
+const formattedDate = computed(() => (props.date ? formatDate(props.date, locale.value) : null));
 
 /** Spec → Anatomy, part 2.4 and part 4: the date/meta line ("12 Sep 2026 · 4 min read") in the
  * `plain`/`surface` variants, or the count alone ("24 products") pinned to the bottom in
- * `outlined` — see `metaClass` below for the pinning. Both read this one part. */
+ * `outlined` — see `metaClass` below for the pinning. Both read this one part. Reads
+ * `formattedDate`, not `props.date`, so a malformed date with no other meta renders no meta line
+ * at all rather than an empty one. */
 const hasMetaLine = computed(
-  () => Boolean(props.date) || Boolean(props.meta) || present.value.meta
+  () => Boolean(formattedDate.value) || Boolean(props.meta) || present.value.meta
 );
 
 /** Spec → Anatomy, part 3: "Link cue (surface variant, optional) … pinned to the bottom." Reads
@@ -64,11 +73,15 @@ const showCue = computed(
   () => resolvedVariant.value === 'surface' && (Boolean(props.cue) || present.value.cue)
 );
 
-const headingTag = computed(() => `h${props.headingLevel}`);
+const headingTag = useHeadingTag(() => props.headingLevel);
 
-/** `as` follows `Link`/`Button`'s own contract exactly — see `Link.vue`'s comment. */
-const isComponentAs = computed(() => props.as !== undefined && typeof props.as !== 'string');
-const titleTag = computed(() => props.as ?? 'a');
+/** `linkAs` follows `Link`/`Button`'s own `as` contract exactly — see `Link.vue`'s comment — but
+ * is named for what it actually targets: the title's stretched link, a nested part, not the card's
+ * own fixed `<article>` root (see `card/types.ts`'s own comment on the rename). */
+const isComponentAs = computed(
+  () => props.linkAs !== undefined && typeof props.linkAs !== 'string'
+);
+const titleTag = computed(() => props.linkAs ?? 'a');
 const titleAttrs = computed<Record<string, unknown>>(() =>
   isComponentAs.value ? { to: props.href } : { href: props.href }
 );
@@ -178,74 +191,84 @@ const cueClass = computed(() =>
  * same geometry and hover-nudge as `Link.vue`'s own standalone arrow, redrawn here for the same
  * "no `href`, no styling" reason `cueClass` explains. A different element than `titleLinkClass`
  * above, so it keeps its own `transition-*` utility (`src/__tests__/focus-transition.spec.ts` only
- * guards elements that also carry `eldra-focus*`). */
-const arrowClass =
-  'inline-block size-4.5 shrink-0 transition-[translate] duration-fast ease-out ' +
-  'motion-reduce:transition-none group-hover:translate-x-0.5';
+ * guards elements that also carry `eldra-focus*`). Shared with `FeatureCard.vue` via
+ * `card/cueArrow.ts` rather than redeclared here. */
+const arrowClass = CUE_ARROW_CLASS;
+
+/**
+ * The loading root is a `<div>`, not the `<article>` the real card below renders: the
+ * ARIA-in-HTML allowed-roles table does not permit `role="group"` on `<article>` (axe's
+ * `aria-allowed-role` rule catches it — see `ProductCard.vue`'s own comment, which established
+ * this pattern first), and there is no real article content to justify the tag while loading
+ * anyway. Named (`aria-label="messages.loading"`) so a loading card is never an empty, unlabelled
+ * busy region (spec "Skeleton" → Anatomy, part 1: "Busy region … with a visually hidden 'Loading
+ * …' text"). No stray HTML comment sits beside the `v-if`/`v-else` pair below in the template
+ * either — see `ProductCard.vue`'s own comment for why that would turn the single conditional
+ * root into a genuine multi-root Fragment.
+ */
 </script>
 
 <template>
-  <article data-part="root" :class="rootClass" :aria-busy="loading ? 'true' : undefined">
-    <template v-if="loading">
-      <div data-part="media" :class="mediaClass" aria-hidden="true">
-        <Skeleton variant="media" :ratio="ratio" />
-      </div>
-      <div data-part="body" :class="bodyClass">
-        <Skeleton variant="text" :lines="3" />
-      </div>
-    </template>
-    <template v-else>
-      <!-- Spec → Anatomy, part 1: "Media (optional)". `alt` is left to `Image`'s own default
-           (the media's own `alt`, then `""`) rather than forced here, so a card whose image adds
-           real information can still describe it (spec → Accessibility, 1.1.1). -->
-      <div v-if="hasImage" data-part="media" :class="mediaClass">
-        <Image :media="image" :ratio="ratio" rounded="lg" />
-      </div>
-      <div data-part="body" :class="bodyClass">
-        <p v-if="hasEyebrow" data-part="eyebrow" :class="eyebrowClass">
-          <slot name="eyebrow">{{ eyebrow }}</slot>
-        </p>
-        <component :is="headingTag" data-part="title" :class="titleClass">
-          <component
-            :is="titleTag"
-            data-part="titleLink"
-            :class="titleLinkClass"
-            v-bind="titleAttrs"
-          >
-            <slot name="title">{{ title }}</slot>
-          </component>
+  <div
+    v-if="loading"
+    data-part="root"
+    :class="rootClass"
+    role="group"
+    aria-busy="true"
+    :aria-label="messages.loading"
+  >
+    <div data-part="media" :class="mediaClass" aria-hidden="true">
+      <Skeleton variant="media" :ratio="ratio" />
+    </div>
+    <div data-part="body" :class="bodyClass">
+      <Skeleton variant="text" :lines="3" />
+    </div>
+  </div>
+
+  <article v-else data-part="root" :class="rootClass">
+    <!-- Spec → Anatomy, part 1: "Media (optional)". `alt` is left to `Image`'s own default
+         (the media's own `alt`, then `""`) rather than forced here, so a card whose image adds
+         real information can still describe it (spec → Accessibility, 1.1.1). -->
+    <div v-if="hasImage" data-part="media" :class="mediaClass">
+      <Image :media="image" :ratio="ratio" rounded="lg" />
+    </div>
+    <div data-part="body" :class="bodyClass">
+      <p v-if="hasEyebrow" data-part="eyebrow" :class="eyebrowClass">
+        <slot name="eyebrow">{{ eyebrow }}</slot>
+      </p>
+      <component :is="headingTag" data-part="title" :class="titleClass">
+        <component :is="titleTag" data-part="titleLink" :class="titleLinkClass" v-bind="titleAttrs">
+          <slot name="title">{{ title }}</slot>
         </component>
-        <p v-if="hasExcerpt" data-part="excerpt" :class="excerptClass">
-          <slot name="excerpt">{{ excerpt }}</slot>
-        </p>
-        <p v-if="hasMetaLine" data-part="meta" :class="metaClass">
-          <slot name="meta">
-            <time v-if="date" :datetime="date">{{ formattedDate }}</time>
-            <template v-if="date && meta"> · </template>
-            <template v-if="meta">{{ meta }}</template>
-          </slot>
-        </p>
-        <!-- Spec → Accessibility: "The cue is `aria-hidden="true"` so the destination is not read
-             twice. No separate 'Read more' link." -->
-        <span v-if="showCue" data-part="cue" :class="cueClass" aria-hidden="true">
-          <slot name="cue">{{ cue }}</slot>
-          <svg
-            :class="arrowClass"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M5 12l14 0" />
-            <path d="M13 18l6 -6" />
-            <path d="M13 6l6 6" />
-          </svg>
-        </span>
-      </div>
-    </template>
+      </component>
+      <p v-if="hasExcerpt" data-part="excerpt" :class="excerptClass">
+        <slot name="excerpt">{{ excerpt }}</slot>
+      </p>
+      <p v-if="hasMetaLine" data-part="meta" :class="metaClass">
+        <slot name="meta">
+          <time v-if="formattedDate" :datetime="date!">{{ formattedDate }}</time>
+          <template v-if="formattedDate && meta"> · </template>
+          <template v-if="meta">{{ meta }}</template>
+        </slot>
+      </p>
+      <!-- Spec → Accessibility: "The cue is `aria-hidden="true"` so the destination is not read
+           twice. No separate 'Read more' link." -->
+      <span v-if="showCue" data-part="cue" :class="cueClass" aria-hidden="true">
+        <slot name="cue">{{ cue }}</slot>
+        <svg
+          :class="arrowClass"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path v-for="d in CUE_ARROW_PATHS" :key="d" :d="d" />
+        </svg>
+      </span>
+    </div>
   </article>
 </template>

@@ -25,7 +25,7 @@ describe('Price — element and parts', () => {
     expect(wrapper.find('[data-part="compareAt"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="from"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="unit"]').exists()).toBe(false);
-    expect(wrapper.find('[data-part="srLabel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="srText"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="skeleton"]').exists()).toBe(false);
     wrapper.unmount();
   });
@@ -79,8 +79,8 @@ describe('Price — formatting', () => {
 
   it('renders three decimals for a 3-fraction-digit currency (BHD)', () => {
     // BHD has 3 minor-unit digits, so 1_234_567 minor units is 1234.567 major units — asserted
-    // against Intl's own output (task-2-fix-1.md item 3), not a hard-coded string, so ICU data
-    // differences across platforms cannot break this test.
+    // against Intl's own output, not a hard-coded string, so ICU data differences across
+    // platforms cannot break this test.
     const expected = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BHD' }).format(
       1234.567
     );
@@ -272,9 +272,9 @@ describe('Price — sale', () => {
     wrapper.unmount();
   });
 
-  it('renders exactly two visually hidden srLabel spans, in Sale-then-Regular order', () => {
+  it('renders exactly two visually hidden srText spans, in Sale-then-Regular order', () => {
     const wrapper = mountWith(Price, { props: { amount: 3840, compareAt: 4800 } });
-    const labels = wrapper.findAll('[data-part="srLabel"]');
+    const labels = wrapper.findAll('[data-part="srText"]');
     expect(labels).toHaveLength(2);
     expect(labels[0]?.text()).toBe('Sale price');
     expect(labels[0]?.classes()).toContain('sr-only');
@@ -291,7 +291,7 @@ describe('Price — sale', () => {
         labels: { sale: 'Tilboðsverð', regular: 'Fullt verð' },
       },
     });
-    const labels = wrapper.findAll('[data-part="srLabel"]');
+    const labels = wrapper.findAll('[data-part="srText"]');
     expect(labels[0]?.text()).toBe('Tilboðsverð');
     expect(labels[1]?.text()).toBe('Fullt verð');
     wrapper.unmount();
@@ -433,7 +433,7 @@ describe('Price — loading', () => {
     expect(wrapper.find('[data-part="from"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="compareAt"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="unit"]').exists()).toBe(false);
-    expect(wrapper.find('[data-part="srLabel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="srText"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });
@@ -488,13 +488,13 @@ describe('Price — customisation', () => {
       props: {
         amount: 3840,
         compareAt: 4800,
-        classes: { root: 'gap-x-4', current: 'uppercase', compareAt: 'italic', srLabel: 'italic' },
+        classes: { root: 'gap-x-4', current: 'uppercase', compareAt: 'italic', srText: 'italic' },
       },
     });
     expect(wrapper.classes()).toContain('gap-x-4');
     expect(wrapper.get('[data-part="current"]').classes()).toContain('uppercase');
     expect(wrapper.get('[data-part="compareAt"]').classes()).toContain('italic');
-    expect(wrapper.get('[data-part="srLabel"]').classes()).toContain('italic');
+    expect(wrapper.get('[data-part="srText"]').classes()).toContain('italic');
     wrapper.unmount();
   });
 });

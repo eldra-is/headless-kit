@@ -271,9 +271,9 @@ describe('ContentCard — stretched link and focus ring', () => {
   });
 });
 
-describe('ContentCard — as', () => {
+describe('ContentCard — linkAs', () => {
   it('uses a string as the tag and still passes href as href', () => {
-    const wrapper = mountCard({ title: 'Studio notes', href: '/x', as: 'a' });
+    const wrapper = mountCard({ title: 'Studio notes', href: '/x', linkAs: 'a' });
     expect(wrapper.get('[data-part="titleLink"]').attributes('href')).toBe('/x');
     wrapper.unmount();
   });
@@ -286,7 +286,7 @@ describe('ContentCard — as', () => {
         () =>
           h('a', { 'data-fake-nuxt-link': props.to }, slots.default?.()),
     });
-    const wrapper = mountCard({ title: 'Studio notes', href: '/x', as: FakeNuxtLink });
+    const wrapper = mountCard({ title: 'Studio notes', href: '/x', linkAs: FakeNuxtLink });
     const link = wrapper.get('[data-part="titleLink"]');
     expect(link.attributes('data-fake-nuxt-link')).toBe('/x');
     expect(link.attributes('href')).toBeUndefined();
@@ -310,6 +310,49 @@ describe('ContentCard — loading', () => {
   it('renders no focus ring while loading — there is no focusable descendant', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x', loading: true });
     expect(wrapper.get('[data-part="root"]').classes()).not.toContain('eldra-focus-proxy');
+    wrapper.unmount();
+  });
+
+  /**
+   * I2's own defect: a loading card previously had no accessible name at all — a screen reader
+   * found an empty busy `<article>` full of `aria-hidden` skeletons. The root is a named busy
+   * region now, matching `ProductCard`'s own `role="group"` treatment.
+   */
+  it('is a named busy region while loading', () => {
+    const wrapper = mountCard({ title: 'Studio notes', href: '/x', loading: true });
+    const root = wrapper.get('[data-part="root"]');
+    expect(root.attributes('role')).toBe('group');
+    expect(root.attributes('aria-label')).toBe('Loading');
+    wrapper.unmount();
+  });
+
+  it('is a single element, not a two-root Fragment, in both states', () => {
+    const loading = mountCard({ title: 'Studio notes', href: '/x', loading: true });
+    expect(loading.element.getAttribute('data-part')).toBe('root');
+    loading.unmount();
+    const loaded = mountCard({ title: 'Studio notes', href: '/x' });
+    expect(loaded.element.getAttribute('data-part')).toBe('root');
+    loaded.unmount();
+  });
+});
+
+describe('ContentCard — malformed date', () => {
+  it('renders no <time> and no meta line for a date formatDate cannot parse', () => {
+    const wrapper = mountCard({ title: 'Studio notes', href: '/x', date: 'not-a-date' });
+    expect(wrapper.find('[data-part="meta"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('still renders the meta line for its own text when the date is malformed', () => {
+    const wrapper = mountCard({
+      title: 'Studio notes',
+      href: '/x',
+      date: 'not-a-date',
+      meta: '4 min read',
+    });
+    const meta = wrapper.get('[data-part="meta"]');
+    expect(meta.text()).toBe('4 min read');
+    expect(meta.find('time').exists()).toBe(false);
     wrapper.unmount();
   });
 });

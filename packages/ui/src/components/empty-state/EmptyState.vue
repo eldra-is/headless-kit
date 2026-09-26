@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue';
+import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
 import { cx, partClass } from '../../utils/cx';
+import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import Button from '../button/Button.vue';
 import type { EmptyStateProps, EmptyStateVariant } from './types';
 
@@ -27,7 +29,8 @@ const slots = useSlots();
  * variant-neutral fallback — `search` for "nothing matched", `alert-triangle` for "something
  * failed" — Tabler outline path data (`IconInbox`/`IconSearch`/`IconAlertTriangle`, MIT licensed),
  * the same "copy the path data rather than depend on `@tabler/icons-vue` at runtime" decision
- * `StockBadge.vue` already documents (its `alert-triangle` paths are copied verbatim from there).
+ * `StockBadge.vue` already documents. `error`'s `alert-triangle` path data is `src/icons/paths.ts`'s
+ * `ALERT_TRIANGLE_PATHS`, shared with `StockBadge`'s own `low` icon rather than duplicated (M19).
  */
 const DEFAULT_ICON_PATHS: Record<EmptyStateVariant, string[]> = {
   empty: [
@@ -35,11 +38,7 @@ const DEFAULT_ICON_PATHS: Record<EmptyStateVariant, string[]> = {
     'M4 13h3l3 3h4l3 -3h3',
   ],
   noResults: ['M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0', 'M21 21l-6 -6'],
-  error: [
-    'M12 9v4',
-    'M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0',
-    'M12 16h.01',
-  ],
+  error: ALERT_TRIANGLE_PATHS,
 };
 
 /** Icon circle (spec → Sizes): 1.75rem icon, stroke 1.5 — not one of `Icon.vue`'s four sizes
@@ -68,7 +67,7 @@ const hasText = computed(() => Boolean(props.text));
  */
 const hasActions = computed(() => present.value.actions || props.variant === 'error');
 
-const headingTag = computed(() => `h${props.headingLevel}`);
+const headingTag = useHeadingTag(() => props.headingLevel);
 
 const rootClass = computed(() =>
   partClass(

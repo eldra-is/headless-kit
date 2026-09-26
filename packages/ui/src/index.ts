@@ -2,23 +2,25 @@
 // registered globally; `@eldrajs/ui/resolver` does that for consumers who want
 // `<EldraButton>`.
 
-// Components
+// Components. Alphabetical by exported name (guarded by `src/__tests__/componentNames.spec.ts`,
+// which compares this list's keys against the hand-maintained `componentNames` array sorted) —
+// not grouped by source file, so `StockBadge`/`ContentCard`+`FeatureCard`/`Select` sit at their
+// own alphabetical position rather than beside the sibling component that shares their file.
 export { default as Avatar } from './components/avatar/Avatar.vue';
 export { default as AvatarGroup } from './components/avatar/AvatarGroup.vue';
 export { default as Badge } from './components/badge/Badge.vue';
-export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
-export { default as ContentCard } from './components/card/ContentCard.vue';
-export { default as FeatureCard } from './components/card/FeatureCard.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
 export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
-export { default as Container } from './components/container/Container.vue';
 export { default as Chip } from './components/chip/Chip.vue';
 export { default as ChipGroup } from './components/chip/ChipGroup.vue';
+export { default as Container } from './components/container/Container.vue';
+export { default as ContentCard } from './components/card/ContentCard.vue';
 export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
 export { default as EditorPlaceholder } from './components/empty-state/EditorPlaceholder.vue';
 export { default as EmptyState } from './components/empty-state/EmptyState.vue';
+export { default as FeatureCard } from './components/card/FeatureCard.vue';
 export { default as FieldWrapper } from './components/field-wrapper/FieldWrapper.vue';
 export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
@@ -36,13 +38,18 @@ export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as Section } from './components/section/Section.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
+export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as UnitInput } from './components/unit-input/UnitInput.vue';
 export { default as VariantPicker } from './components/variant-picker/VariantPicker.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
 
-// Component types
+// Component types. Each block is alphabetical within itself, and the blocks are ordered by their
+// own first name (`src/__tests__/indexExportOrder.spec.ts` guards both) — a multi-component file
+// (`Badge`+`StockBadge`, `ContentCard`+`FeatureCard`, `EditorPlaceholder`+`EmptyState`,
+// `MultiSelect`+`Select`) sits at its *first* name's position, the same structural exception the
+// component export list above notes.
 export type {
   AvatarGroupPart,
   AvatarGroupPerson,
@@ -69,15 +76,6 @@ export type {
   ButtonVariant,
 } from './components/button/types';
 export type {
-  ContentCardPart,
-  ContentCardProps,
-  ContentCardRatio,
-  ContentCardVariant,
-  FeatureCardPart,
-  FeatureCardProps,
-  FeatureCardVariant,
-} from './components/card/types';
-export type {
   CheckboxGroupLayout,
   CheckboxGroupOption,
   CheckboxGroupPart,
@@ -86,7 +84,6 @@ export type {
   CheckboxProps,
   CheckboxSize,
 } from './components/checkbox/types';
-export type { ContainerPart, ContainerProps, ContainerWidth } from './components/container/types';
 export type {
   ChipGroupPart,
   ChipGroupProps,
@@ -94,6 +91,16 @@ export type {
   ChipProps,
   ChipSize,
 } from './components/chip/types';
+export type { ContainerPart, ContainerProps, ContainerWidth } from './components/container/types';
+export type {
+  ContentCardPart,
+  ContentCardProps,
+  ContentCardRatio,
+  ContentCardVariant,
+  FeatureCardPart,
+  FeatureCardProps,
+  FeatureCardVariant,
+} from './components/card/types';
 export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
 export type {
   EditorPlaceholderPart,
@@ -120,14 +127,6 @@ export type { InputPart, InputProps, InputSize, InputType } from './components/i
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
 export type { LogoItemPart, LogoItemProps } from './components/logo-item/types';
 export type {
-  RadioGroupLayout,
-  RadioGroupOption,
-  RadioGroupPart,
-  RadioGroupProps,
-  RadioGroupSize,
-} from './components/radio/types';
-export type { RatingPart, RatingProps, RatingSize } from './components/rating/types';
-export type {
   MultiSelectPart,
   MultiSelectProps,
   SelectOption,
@@ -136,23 +135,6 @@ export type {
   SelectProps,
   SelectSize,
 } from './components/select/types';
-export type {
-  SearchBarPart,
-  SearchBarProps,
-  SearchBarSize,
-  SearchResultItem,
-  SearchResults,
-  SearchResultType,
-  SearchRow,
-  SearchSection,
-  SearchSelectType,
-} from './components/search-bar/types';
-export type {
-  SectionBackground,
-  SectionPart,
-  SectionProps,
-  SectionSpacing,
-} from './components/section/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';
 export type {
   ProductCardPart,
@@ -165,6 +147,31 @@ export type {
   QuantityStepperProps,
   QuantityStepperSize,
 } from './components/quantity-stepper/types';
+export type {
+  RadioGroupLayout,
+  RadioGroupOption,
+  RadioGroupPart,
+  RadioGroupProps,
+  RadioGroupSize,
+} from './components/radio/types';
+export type { RatingPart, RatingProps, RatingSize } from './components/rating/types';
+export type {
+  SearchBarPart,
+  SearchBarProps,
+  SearchBarSize,
+  SearchResultItem,
+  SearchResultType,
+  SearchResults,
+  SearchRow,
+  SearchSection,
+  SearchSelectType,
+} from './components/search-bar/types';
+export type {
+  SectionBackground,
+  SectionPart,
+  SectionProps,
+  SectionSpacing,
+} from './components/section/types';
 export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
@@ -207,6 +214,10 @@ export {
   type UseFloatingOptions,
   type UseFloatingReturn,
 } from './composables/useFloating';
+// `headingLevel` → `<component :is>` tag, shared by every component with a `headingLevel` prop
+// (`ContentCard`, `FeatureCard`, `ProductCard`, `EmptyState`, `FormLayout`) — exported so a
+// consumer's own wrapper picks the same heading tag the same way.
+export { useHeadingTag, type HeadingLevel } from './composables/useHeadingTag';
 export {
   useOverlay,
   type UseOverlayOptions,
@@ -230,6 +241,10 @@ export {
   type UsePopoverOptions,
   type UsePopoverReturn,
 } from './components/select/usePopover';
+// Reactive slot presence: every component in this package that branches on a slot uses it instead
+// of a plain `$slots.x !== undefined` (slots are not reactive on their own — see its own comment)
+// — exported so a consumer's own wrapper composing this package's parts gets the same behaviour.
+export { useSlotPresence } from './composables/useSlotPresence';
 
 // Form context. A `FormLayout` provides it; every Button below reads it, so a submitting form
 // shows its primary action loading and every other action disabled.
@@ -263,3 +278,16 @@ export {
 // The `beforeinput` filter that keeps a numeric text field numeric, used by `QuantityStepper` —
 // exported for a consumer building a numeric control of their own.
 export { filterNumericBeforeInput, type NumericInputFilterOptions } from './utils/numeric-input';
+// `ImageRatio` (above) is public, but the only function that turns a preset into the CSS
+// `aspect-ratio` value it resolves to was not — a consumer accepting an `ImageRatio` of their own
+// could not honour it without this. Shared by `Image` and `Skeleton`'s `media` variant.
+export { frameAspectRatio } from './utils/ratio';
+// Never throws (see its own comment) — a consumer rendering its own `<time>` from a CMS date gets
+// the same guard `ContentCard` uses, rather than reimplementing the ISO-parsing/invalid-date rules.
+export { formatDate } from './utils/date';
+// `Rating`'s own rounding/star-fill rules, pulled out for a consumer building a rating display of
+// their own (or a custom `Rating` slot) that still rounds to the nearest half star the same way.
+export { ratingStarStates, roundRatingToHalf, type RatingStarState } from './utils/rating';
+// `Avatar`'s initials rule (first + last word's first letter, uppercase; two letters for a single
+// word) — exported so a consumer's own avatar-shaped fallback matches `Avatar`'s own.
+export { initialsFromName } from './utils/avatar';

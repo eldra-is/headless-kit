@@ -66,13 +66,12 @@ describe('gallery block', () => {
   );
 
   /**
-   * The lightbox's full-image view must never crop (task-7-fix-1.md ruling 3: "gallery lightbox
-   * constraint lost"). `fit="contain"` maps to `Image`'s `media` part; the height cap that used to
-   * sit on the `<img>` itself (`max-h-[85vh]`) now has to sit on the `frame` `Image` wraps it in,
-   * since a caller's `classes` land on named parts, not the media element directly.
-   */
-  /**
-   * task-7-fix-2.md ruling 2: a portrait image must be scaled down to fit inside the 85vh cap,
+   * The lightbox's full-image view must never crop ("gallery lightbox constraint lost", fix round
+   * 1 ruling 3). `fit="contain"` maps to `Image`'s `media` part; the height cap that used to sit on
+   * the `<img>` itself (`max-h-[85vh]`) now has to sit on the `frame` `Image` wraps it in, since a
+   * caller's `classes` land on named parts, not the media element directly.
+   *
+   * Fix round 2 ruling 2: a portrait image must be scaled down to fit inside the 85vh cap,
    * never clipped by the frame's `overflow-hidden` — `fit="contain"` shrink-wraps the frame
    * (`w-auto max-w-full`, on top of `max-h-[85vh]`) and gives the media a `max-h-[inherit]` that
    * reads the frame's own height cap back onto it, alongside `h-auto w-auto` so the browser scales

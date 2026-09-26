@@ -86,7 +86,7 @@ describe('hero block', () => {
   });
 
   /**
-   * `UiImage`'s `fill` prop (task-7-fix-1.md ruling 2): the background image must cover the
+   * `UiImage`'s `fill` prop (fix round 1 ruling 2): the background image must cover the
    * section it sits behind, which needs `Image`'s root to fill the section (`absolute inset-0
    * h-full w-full`) and its frame to fill the root (`h-full w-full`) rather than reserving its own
    * aspect-ratio box — `Image`'s attribute-forwarding contract puts a caller's plain `class` on

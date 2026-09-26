@@ -15,15 +15,17 @@ export interface SectionProps {
   /**
    * Id of the visible block heading, when the block has one — typically an `<h1>`/`<h2>` the block
    * itself renders. Renders `aria-labelledby` and, with no `as` override, a `<section>`. Wins over
-   * `label` when both are given.
+   * `ariaLabel` when both are given.
    */
   labelledBy?: string | null;
   /**
    * Used when the block has no visible heading. Renders `aria-label` and, with no `as` override, a
    * `<section>`. With neither this nor `labelledBy`, the root is a plain `<div>` instead — the spec's
-   * "not a meaningful region" case.
+   * "not a meaningful region" case. Named `ariaLabel`, not `label`: this is the section's accessible
+   * name only, never visible text (unlike `label` on `Badge`/`Checkbox`/`Select` and the rest of the
+   * package — see the README's "`ariaLabel` is always an accessible name" rule).
    */
-  label?: string | null;
+  ariaLabel?: string | null;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<SectionPart, string>>;
   /**

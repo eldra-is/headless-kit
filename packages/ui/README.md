@@ -93,10 +93,10 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Chip`              | none — the selected/hover fills are `color-mix()` over shared `--eldra-color-*` tokens, no per-component variable                                                                                                                                                                                                                                                                                                                                                   |
    | `ChipGroup`         | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Container`         | none — the gutter widths (`--eldra-gutter-{mobile,tablet,desktop}`) are shared tokens, also read by `Section`                                                                                                                                                                                                                                                                                                                                                       |
-   | `ContentCard`       | `--eldra-content-card-title-line` (default `1.3`) — the title's line ratio, no token of its own; `--eldra-content-card-excerpt-size` (default `0.9375rem`) and `--eldra-content-card-excerpt-line` (default `1.5`) — the excerpt's own size and line ratio, shared by `FeatureCard`'s `body` (`text-content-card-excerpt` in `tailwind.css`), since both read the same spec number                                                                                  |
+   | `ContentCard`       | `--eldra-content-card-title-size` (default `1.25rem`) and `--eldra-content-card-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own; `--eldra-content-card-excerpt-size` (default `0.9375rem`) and `--eldra-content-card-excerpt-line` (default `1.5`) — the excerpt's own size and line ratio, shared by `FeatureCard`'s `body` (`text-content-card-excerpt` in `tailwind.css`), since both read the same spec number           |
    | `CurrencyInput`     | `UnitInput`'s exactly (it renders a `UnitInput` with `isCurrency` always on) — see the `UnitInput` row                                                                                                                                                                                                                                                                                                                                                              |
    | `EditorPlaceholder` | `--eldra-editor-placeholder-border-width` (default `1.5px`) — the dashed boundary's width, distinct from `EmptyState`'s own stock `border` (1px)                                                                                                                                                                                                                                                                                                                    |
-   | `EmptyState`        | `--eldra-empty-state-title-line` (default `1.3`) — the title's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                      |
+   | `EmptyState`        | `--eldra-empty-state-title-size` (default `1.25rem`) and `--eldra-empty-state-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own                                                                                                                                                                                                                                                                                                |
    | `FeatureCard`       | Shares `ContentCard`'s `--eldra-content-card-excerpt-size`/`-line` for its own `body` text (`text-content-card-excerpt`); its `title` reads `text-h4` directly, no variable of its own                                                                                                                                                                                                                                                                              |
    | `FieldWrapper`      | `--eldra-field-note-line-height` (default `1.45`) — the line the help and error text share                                                                                                                                                                                                                                                                                                                                                                          |
    | `FormLayout`        | `--eldra-form-summary-radius` (default `var(--eldra-radius-md)`) — the status summary box's corner radius                                                                                                                                                                                                                                                                                                                                                           |
@@ -144,13 +144,33 @@ Every component supports all five of these; none hard-codes anything a store mig
    `eldra-button-radius` instead of landing beside it.
 4. **A slot for every part that holds content** (`label`, `description`, `error`, `leading`,
    `trailing`, `empty`, `header`, `footer`, `item`, …), named after the part it replaces.
-5. **`as`**, on the components whose spec allows a different rendered element (`Button`, `Link`,
-   `Badge`, `Container`, `Section`, `ContentCard`, `FeatureCard`, and the rest of the display/layout
-   components landing in this sub-project). `Button`, `ContentCard` and `FeatureCard` render an
-   `<a>` automatically when `href` is set, without needing `as` for that case; `Badge` defaults to
-   `<span>` and is never a link; `Section` picks `<section>`/`<div>` itself from whether it is named
-   (`as` overrides that choice outright, for a `<header>`/`<footer>` landmark that needs no name of
-   its own).
+5. **`as`**, on the components whose spec allows a different rendered _root_ element (`Button`,
+   `Link`, `Badge`, `Container`, `Section`, `VisuallyHidden`, `Rating`, `LogoItem`). `Button` renders
+   an `<a>` automatically when `href` is set, without needing `as` for that case; `Badge` defaults
+   to `<span>` and is never a link; `Section` picks `<section>`/`<div>` itself from whether it is
+   named (`as` overrides that choice outright, for a `<header>`/`<footer>` landmark that needs no
+   name of its own). **`linkAs`**, not `as`, on `ContentCard`/`FeatureCard`/`ProductCard`: each of
+   these three has a spec-fixed root (`<article>`/`<div>`), and `linkAs` instead picks the element
+   for a _nested_ part — the stretched title link — so the name never collides with the root-tag
+   meaning `as` carries everywhere else (a string still takes `href`; a component receives the
+   destination as `to`, the same contract `as` uses).
+
+Two naming rules hold across every component, on top of the five capabilities above:
+
+- **`ariaLabel` is always an accessible name; `label`/`title` are visible text.** `Section.ariaLabel`
+  and `ChipGroup.ariaLabel` render `aria-label` and nothing else — there is no visible text
+  anywhere they could name instead. `label` means visible content everywhere else it appears
+  (`Badge`, `Chip`, `Checkbox`, `Select`, `RadioGroup`, `VariantPicker`, `EditorPlaceholder`), and
+  `FormLayout`/`CheckboxGroup`/`RadioGroup`'s own `ariaLabel` prop (plan 1) already followed this
+  rule — `Section`/`ChipGroup` used to call the same accessible-name-only concept `label`, which
+  the starter's own `[...slug].vue` fell into once, passing `:label` where `:labelled-by` pointing
+  at a real heading was the fix (see the Deviations entry). `AvatarGroup.label` is the one
+  exception that is not a bug: it is spoken content ("Makers: Ingrid, Tomas…"), not an
+  accessible-name-only prop.
+- **The visually hidden part on a component with one is always named `srText`**, not `srLabel` —
+  `Avatar`/`LogoItem`/`Price` (`Price.compareAt`'s hidden "Sale price"/"Regular price" labels used
+  to be `srLabel`) all agree on `srText` now. `Badge`'s `hiddenSuffix` is a deliberate exception: it
+  mirrors its own prop name (`hiddenSuffix`), not a generic "hidden text" part.
 
 ## Fields: the context a `FieldWrapper` provides
 
@@ -647,7 +667,7 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   is small enough to sit inside either chip size, so it is drawn undersized rather than left at
   `Avatar`'s own smallest, `sm`.
 
-  `ChipGroup` (`modelValue: string[]`, `label`, `disabled`) is a slot wrapper like `ButtonGroup` —
+  `ChipGroup` (`modelValue: string[]`, `ariaLabel`, `disabled`) is a slot wrapper like `ButtonGroup` —
   it does not render its children, a consumer places `<Chip value="…" selectable>`s in its default
   slot — that provides `CHIP_GROUP_KEY` context (`src/components/chip/context.ts`, exported from
   the root entry): a member chip with both `selectable` and a `value` reads its selected state from
@@ -689,6 +709,26 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   keep the private library's rule that `maxFraction` is `2` whatever the currency, so it is
   exported for a consumer who wants the currency's own minor unit instead (`0` for ISK, `3` for
   KWD, read from ICU).
+- **`frameAspectRatio`** (`src/utils/ratio.ts`) — turns an `ImageRatio` preset into the CSS
+  `aspect-ratio` value `Image`'s frame and `Skeleton`'s `media` variant both resolve it to; exported
+  so a consumer accepting an `ImageRatio` of their own (`ImageRatio` itself is public) can honour it.
+- **`formatDate`** (`src/utils/date.ts`) — the ISO-date formatter behind `ContentCard`'s `date` prop.
+  Never throws: a malformed, empty or calendar-invalid value (`'2026-02-30'`) returns `null` rather
+  than a fabricated date or a thrown `RangeError`, warning once per bad value in dev.
+- **`useSlotPresence`** (`src/composables/useSlotPresence.ts`) — reactive named-slot presence, used
+  by every component in this package that branches on a slot (slots are not reactive on their own —
+  see the composable's own comment).
+- **`useHeadingTag`** (`src/composables/useHeadingTag.ts`), and the shared **`HeadingLevel`** type
+  (`2 | 3 | 4 | 5 | 6`) it takes — `headingLevel` → `<component :is>` tag name, factored out of
+  `ContentCard`/`FeatureCard`/`ProductCard`/`EmptyState`/`FormLayout`, each of which used to
+  redeclare the identical one-line `computed`. `FormLayout`'s own narrower `FormLayoutHeadingLevel`
+  (`2 | 3 | 4`) is `Extract<HeadingLevel, 2 | 3 | 4>`, not a separately re-typed union.
+- **`roundRatingToHalf` / `ratingStarStates`** (`src/utils/rating.ts`) — `Rating`'s own
+  round-to-nearest-half-star and five-star-fill-state rules, for a consumer building a rating
+  display (or a custom `Rating` slot) that should round the same way.
+- **`initialsFromName`** (`src/utils/avatar.ts`) — `Avatar`'s own initials rule (first + last word's
+  first letter, uppercase; a single word keeps its own first two letters), for a consumer's own
+  avatar-shaped fallback.
 - **`FormLayout`'s `statusMessage` and `focusOnInvalid`, `Form`'s `successMessage`, and
   `FieldBinding`'s `path`** — each named in the deviations below, where the reason is.
 
@@ -697,21 +737,16 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
 Additions and departures from the design spec, and why.
 
 - **The stretched-link + proxy-focus pattern is factored into `src/components/card/stretchedLink.ts`,
-  shared by `ContentCard` and `FeatureCard`.** Both spec sections describe the identical shape —
-  the card root proxies the ring for a visible title `<a>` that stretches to cover the whole card
-  via `after:absolute after:inset-0` — so it is one exported set of class strings
-  (`CARD_FOCUS_PROXY`, `STRETCHED_LINK`, `STRETCHED_LINK_OUTLINE`) rather than duplicated per
-  component. `ProductCard`, landing in the same wave, wants the identical pattern; point it at this
-  file instead of a third copy. The title link uses `outline-none`, not `Rating.vue`'s
-  `outline-hidden`: `outline-hidden` stays visible under forced colours by design, which here would
-  draw a second, text-sized ring beside `eldra-focus-proxy`'s own card-wide one — the spec's own
-  acceptance criterion for the sibling Product card rules that out ("the link shows no separate
-  ring"). See `stretchedLink.ts`'s own comment for the rest of the reasoning. `ProductCard`
-  landed (in a parallel worktree) before this file existed and had shipped with `outline-hidden`
-  on its own title link — the exact double-ring bug this paragraph describes, under forced
-  colours; task 13 corrected it to `outline-none`, matching this ruling, without pulling
-  `ProductCard` onto the shared file itself (its root class list differs enough — `h-full
-min-w-56 flex-col` — that extracting it was judged not worth the risk this late).
+  shared by `ContentCard`, `FeatureCard` and `ProductCard`.** All three spec sections describe the
+  identical shape — the card root proxies the ring for a visible title `<a>` that stretches to
+  cover the whole card via `after:absolute after:inset-0` — so it is one exported set of class
+  strings (`CARD_FOCUS_PROXY`, `STRETCHED_LINK`, `STRETCHED_LINK_OUTLINE`) rather than duplicated
+  three times. `ProductCard`'s root layout classes (`flex h-full min-w-56 flex-col`) sit alongside
+  `CARD_FOCUS_PROXY` rather than replacing any part of it. The title link uses `outline-none`, not
+  `Rating.vue`'s `outline-hidden`: `outline-hidden` stays visible under forced colours by design,
+  which here would draw a second, text-sized ring beside `eldra-focus-proxy`'s own card-wide one —
+  the spec's own acceptance criterion for the sibling Product card rules that out ("the link shows
+  no separate ring"). See `stretchedLink.ts`'s own comment for the rest of the reasoning.
 - **`ContentCard`'s `date` prop is formatted by `src/utils/date.ts#formatDate`, not a literal
   `"12 Sep 2026"` string.** The spec's own example is one locale's rendering (`Intl.DateTimeFormat`
   with `day: 'numeric', month: 'short', year: 'numeric'`), not a fixed format the component
@@ -722,8 +757,9 @@ min-w-56 flex-col` — that extracting it was judged not worth the risk this lat
 - **`Skeleton`'s `width` prop sizes the root, not the shape's own literal width.** The spec's
   Properties table lists `width` as the text/title shape's own CSS width ("Default 100% (title
   60%)"). Read that literally, an override would have to be applied to a percentage-wide `line`
-  directly, which does nothing to fix the trap task-2-fix-1.md found in `Price`: a percentage width
-  inside a shrink-to-fit ancestor (`inline-flex`/`inline-block`) collapses to nothing regardless of
+  directly, which does nothing to fix the same trap `Price`'s own loading skeleton once had: a
+  percentage width inside a shrink-to-fit ancestor (`inline-flex`/`inline-block`) collapses to
+  nothing regardless of
   which element carries the percentage, because the ancestor itself has no definite width to
   resolve it against. `width` is the escape hatch for exactly that case instead: it sets the root's
   own width (replacing its default `w-full`) to a literal, always-definite value, and every shape
@@ -737,6 +773,15 @@ min-w-56 flex-col` — that extracting it was judged not worth the risk this lat
   placeholder does not replicate). Reserving the shape that actually needs holding in the common,
   non-narrow case — a resting `Button`'s own height — means reading its `control-h` utility
   instead, the same one `Button`'s `md` size uses.
+- **`Skeleton`'s region-level `busyLabel` (spec :3340, default `"Loading products…"`) is a real
+  `busyLabel?: string | null` prop** (final review, plan 2), not deferred. With one given, the root
+  becomes the live busy region itself (`role="status"`, `aria-busy="true"`, `aria-label`, every
+  shape individually `aria-hidden`); with none (the default), the root stays plain `aria-hidden`, as
+  it always was — the right shape for a `Skeleton` composed _inside_ another component's own
+  already-named busy region (`ProductCard`'s loading root already carries `role="group"
+aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matches it with
+  `messages.loading`). `FeatureCard` has no `loading` variant of its own, so nothing there composes
+  `Skeleton` at all.
 - **`Section` marks every background, including `none`, with a new `data-section-bg` attribute**
   (distinct from `data-section`, which stays reserved for the `primary`/`accent` colour-inversion
   signal `Button`/`Link`/`Price`/`Rating` already read) — an implementation detail beyond the
@@ -744,15 +789,26 @@ min-w-56 flex-col` — that extracting it was judged not worth the risk this lat
   neighbouring blocks instead of adding divider lines"). An unlayered `tailwind.css` rule
   (`[data-section-bg=X] + [data-section-bg=X]`, five pairs — CSS has no same-value-as-previous-
   sibling selector) zeroes a `Section`'s own top padding whenever the **previous** sibling
-  `Section` shares its background, and wins over the layered `pt-*` utility regardless of
-  specificity or source order (CSS Cascade Layers), so `spacing` itself stays an ordinary,
-  consumer-overridable class rather than something the sibling rule has to fight.
+  `Section` shares its background, and wins over _any_ layered `pt-*`/`py-*` class regardless of
+  specificity or source order (CSS Cascade Layers) — not only `spacing`'s own default, but a
+  consumer's `classes.root: 'pt-12'` too, since a class from any source still compiles into the
+  same layered `@layer utilities`. The escape hatch is one of the two things this rule does not
+  touch: give the two `Section`s different `background` values (the rule only fires on a match), or
+  reach for an unlayered override of your own (`!pt-12`, which Tailwind never puts in a layer).
 - **`Section` provides a new `SECTION_KEY` context and warns, in development, when a `Section`
   mounts inside another one** — the spec's own text says "sections are never nested inside
   another section" but names no mechanism for catching a violation; this package's existing
   dev-only-warning convention (`Button`'s `iconOnly`/`label` warnings) is reused rather than
   invented fresh, and a warning, not a thrown error, so a misuse degrades instead of crashing a
   live storefront.
+- **`Section.ariaLabel`/`ChipGroup.ariaLabel`, not `label`** (final review, plan 2). Both shipped
+  as `label` first; see the Customisation section's "`ariaLabel` is always an accessible name" rule
+  above for why that collides with every other `label` in this package. Caught by the starter's own
+  `[...slug].vue`, whose not-found `Section` passed `:label="t('notFound.title')"` two lines above a
+  visible `<h1>` with the identical text — an `aria-label` duplicating a visible heading is exactly
+  the case `labelledBy` exists for. Fixed there by giving the `<h1>` an `id` and switching the
+  `Section` to `labelled-by` pointing at it, rather than by renaming the prop and leaving the
+  duplication in place.
 - **Active buttons scale to 98% instead of moving down 1px** (operator decision, 2026-09-25). The
   spec's Button States table gives the pressed row "moves down 1px", and that is what shipped: an
   `active:` one-pixel downward translate utility. A 1px translate is below the threshold at which a
@@ -1431,8 +1487,8 @@ min-w-56 flex-col` — that extracting it was judged not worth the risk this lat
   read-only control keeps whatever cursor it already had (`cursor-not-allowed`, `cursor-progress`,
   or `Select`/`MultiSelect`'s read-only `cursor-default`), and the `UnitInput` drag handle keeps its
   own `cursor-ns-resize`. `Link` needed nothing — an `<a>` is a pointer already.
-- **The starter's `UiImage` is a thin wrapper over `Image`, not a replacement** (task-7 ruling,
-  2026-09-25; the plan's own wording said "replace `UiImage`"). `Image` must stay standalone of
+- **The starter's `UiImage` is a thin wrapper over `Image`, not a replacement** (ruling, 2026-09-25;
+  the plan's own wording said "replace `UiImage`"). `Image` must stay standalone of
   `@eldrajs/theme-vue` (this package never depends on a theme package), but the starter's
   `examples/starter-nuxt/app/components/ui/UiImage.vue` carries Studio's preview-overlay framing
   contract — `imageFramingAttrs`/`imageFramingStyle` from `@eldrajs/theme-vue`, `entryId`/
@@ -1452,7 +1508,7 @@ min-w-56 flex-col` — that extracting it was judged not worth the risk this lat
   `style` on the root, not the media element, and `Image` already derives an equivalent style from
   `focal`/`zoom`. `class`/`style` passed to `UiImage` land on `Image`'s root (the figure/frame
   wrapper) rather than the `<img>` itself.
-- **Fix round 1 (task-7-fix-1.md, 2026-09-25): `UiImage` gained `rounded`/`fill`/`fit`/`classes`,
+- **Fix round 1 (2026-09-25): `UiImage` gained `rounded`/`fill`/`fit`/`classes`,
   and every block that needs a radius, a background fill, or an uncropped view was updated to use
   them.** The first round's own Deviations entry (above) claimed a block's leftover `rounded-*`/
   `object-cover`/`object-contain` class was now merely "redundant" once `class`/`style` moved to
@@ -1493,11 +1549,14 @@ min-w-56 flex-col` — that extracting it was judged not worth the risk this lat
   the spec shows elsewhere (a testimonial byline, a journal author card). A consumer who wants a
   different size restyles through `classes.item`/`classes.more` (both take the `size-*` group, so
   a replacement diameter also has to update the initials text size alongside it).
-- **`AvatarGroup`'s `max` is clamped to 0–3, whatever is passed.** The spec's Avatar section gives
-  `max` a default of `3` and, separately, an unconditional acceptance criterion: "Groups never show
-  more than four circles in total." Those two only agree if `max` itself never exceeds `3` — three
+- **`AvatarGroup`'s `max` is clamped to 0–3, whatever is passed, with a dev-only warning when it
+  had to clamp** (the warning: final review, plan 2). The spec's Avatar section gives `max` a
+  default of `3` and, separately, an unconditional acceptance criterion: "Groups never show more
+  than four circles in total." Those two only agree if `max` itself never exceeds `3` — three
   avatars plus one "+N" counter — so the prop is clamped rather than trusted, and a caller who
-  passes `max="10"` still sees at most four circles.
+  passes `max="10"` still sees at most four circles; the warning matches the same
+  dev-only-when-overriding-a-caller convention `Badge`/`Button`/`Chip`/`Image`/`Price`/`Section`
+  already use.
 - **`AvatarGroup`'s accessible sentence strips `Intl.ListFormat`'s own Oxford comma** (task brief:
   "Icelandic list joining: use `Intl.ListFormat` with the message locale where available"). Node's
   (and every major browser's) English "long conjunction" CLDR pattern joins three or more items as
@@ -1535,11 +1594,11 @@ more"` — has no comma before "and". Icelandic's own pattern already has no suc
   is a new component variable (`--eldra-logo-wordmark-size`) with a literal default — the same
   "reuse what matches, one new variable for what doesn't" shape `text-card-title`/`text-stepper-value`
   already use, just spread across two donor styles instead of one.
-- **Fix round 2 (task-7-fix-2.md, 2026-09-25): the navigation logo dropped `UiImage` entirely, and
+- **Fix round 2 (2026-09-25): the navigation logo dropped `UiImage` entirely, and
   `fit="contain"` now also shrink-wraps the frame.** Two open findings from the round 1 re-review:
   - **The navigation block's logo was still routed through `UiImage`** with a bare
     `class="h-8 w-auto"`, the exact class-lands-on-the-root problem round 1 fixed everywhere else —
-    missed because the fix brief's own scope named five blocks and not this one. The logo is not a
+    missed because round 1's own scope named five blocks and not this one. The logo is not a
     CMS-framed image at all (no `framing`, no `entryId`/`fieldPath`), so it no longer goes through
     `UiImage`: `blocks/navigation/Block.vue` now renders a plain
     `<img :src="data.logo.url" :alt="data.brand" class="h-8 w-auto" loading="eager"
@@ -1635,13 +1694,28 @@ max-h-[inherit]` — `max-h-[inherit]` reads the _frame's_ own `max-height` back
   allowed-roles table does not permit `group` on `<article>` (axe's `aria-allowed-role` rule
   catches it), and there is no article content to justify the tag while loading anyway — the
   element itself changes for that one state rather than fighting an invalid role onto `<article>`.
+  `ContentCard`'s own loading state follows the same pattern (final review, plan 2): a `<div
+role="group" aria-busy aria-label="messages.loading">`, not the `<article>` its loaded state
+  renders, so a loading card is always a named busy region rather than an unlabelled one.
+- **`ProductCard` wraps `Price`/`Rating`/`StockBadge` in their own `<div data-part="…">`, the same
+  convention it already used for `Image`'s `media` wrapper** (final review, plan 2). Passing
+  `data-part`/`class` straight through as fallthrough attributes on those three components
+  replaced, rather than supplemented, each one's own `data-part="root"` — Vue applies fallthrough
+  attributes after a child's own template bindings, so `<Price data-part="price">` left the
+  rendered element with `data-part="price"`, not `"root"`, and no way to select
+  `[data-part="price"] [data-part="root"]`. The wrapper keeps both: `ProductCard`'s own part name
+  on the wrapper `<div>`, the composed child's full part tree intact inside it.
 - **The sale/new badge is suppressed while sold out, even if both are set on the same product.**
   Task 1's own Badge acceptance criterion ("a third badge is never rendered") and the spec's own
   sold-out States row name only the outline "Sold out" badge, so `ProductCard` trusts `available`
   over `badge` when they conflict rather than stacking both.
-- **The sale badge's percentage is derived from `price`, independently of what set `badgeKind`.**
-  `ProductCardProduct.badge` is the caller's own sale/new _decision_ (the spec's "derived
-  automatically ... when tagged `new`" needs a tag vocabulary this type does not carry, so
-  presence is trusted rather than re-derived) — but its rounded percentage text ("−20%") still
-  comes from `price.amount`/`price.compareAt` via the same `compareAt > amount` rule `Price`'s
-  own `isSale` uses, so the badge and the price never disagree about whether there is a discount.
+- **The sale badge's percentage is derived from `price`, independently of what set `badgeKind`,
+  and renders no badge at all when that derivation finds no real discount** (the second half,
+  final review, plan 2). `ProductCardProduct.badge` is the caller's own sale/new _decision_ (the
+  spec's "derived automatically ... when tagged `new`" needs a tag vocabulary this type does not
+  carry, so presence is trusted rather than re-derived) — but its rounded percentage text ("−20%")
+  still comes from `price.amount`/`price.compareAt` via the same `compareAt > amount` rule
+  `Price`'s own `isSale` uses, so the badge and the price never disagree about whether there is a
+  discount. A caller passing `badge: { variant: 'sale' }` with no (or an equal/lower) `compareAt`
+  previously still rendered a fabricated "−0%"; `discountPercent > 0` is now also a condition of
+  showing the sale badge at all, not only of what number it prints.

@@ -61,6 +61,23 @@ describe('StockBadge — default copy per level', () => {
     wrapper.unmount();
   });
 
+  /**
+   * M15: `out` reads the shared `soldOut` message key, not a separate `stockOut` — proven by
+   * overriding only `soldOut` and checking the level picks up the override, rather than by string
+   * equality alone (which a coincidentally-identical `stockOut` string could also satisfy).
+   */
+  it("reads the shared soldOut key, not a separate stockOut key, for level 'out'", () => {
+    const Wrapped = defineComponent({
+      setup() {
+        provideEldraUiMessages({ soldOut: 'Discontinued' });
+        return () => h(StockBadge, { level: 'out' });
+      },
+    });
+    const wrapper = mountWith(Wrapped);
+    expect(wrapper.get('[data-part="label"]').text()).toBe('Discontinued');
+    wrapper.unmount();
+  });
+
   it('reads the pre-order default with no date', () => {
     const wrapper = mountWith(StockBadge, { props: { level: 'preorder' } });
     expect(wrapper.get('[data-part="label"]').text()).toBe('Pre-order');

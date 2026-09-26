@@ -15,7 +15,7 @@
  * feature), so `EldraRichText` renders each answer through the same
  * component (and gets the same real markup) but with no `api-id` — read
  * rendering only, no editing/localization binding pretending to know a
- * field path the bindings do not actually support. See task-7-report.md.
+ * field path the bindings do not actually support.
  */
 import { computed } from 'vue';
 import { EldraRichText } from '@eldrajs/theme-vue';

@@ -8,7 +8,7 @@ const props = withDefaults(defineProps<SectionProps>(), {
   background: 'none',
   spacing: 'md',
   labelledBy: undefined,
-  label: undefined,
+  ariaLabel: undefined,
   classes: undefined,
   as: undefined,
 });
@@ -73,7 +73,10 @@ const hasLabelledBy = computed(
 );
 const hasLabel = computed(
   () =>
-    !hasLabelledBy.value && props.label !== undefined && props.label !== null && props.label !== ''
+    !hasLabelledBy.value &&
+    props.ariaLabel !== undefined &&
+    props.ariaLabel !== null &&
+    props.ariaLabel !== ''
 );
 
 /**
@@ -87,7 +90,7 @@ const rootTag = computed(
   () => props.as ?? (hasLabelledBy.value || hasLabel.value ? 'section' : 'div')
 );
 const ariaLabelledBy = computed(() => (hasLabelledBy.value ? props.labelledBy! : undefined));
-const ariaLabel = computed(() => (hasLabel.value ? props.label! : undefined));
+const resolvedAriaLabel = computed(() => (hasLabel.value ? props.ariaLabel! : undefined));
 
 /**
  * Every block root is a width container (spec "Container and section" → Anatomy): `@container`
@@ -117,7 +120,7 @@ const rootClass = computed(() =>
     :data-section="inverts ? background : undefined"
     :class="rootClass"
     :aria-labelledby="ariaLabelledBy"
-    :aria-label="ariaLabel"
+    :aria-label="resolvedAriaLabel"
   >
     <slot />
   </component>

@@ -1,4 +1,5 @@
 import type { Component } from 'vue';
+import type { HeadingLevel } from '../../composables/useHeadingTag';
 import type { ImageMedia } from '../image/types';
 import type { StockLevel } from '../badge/types';
 
@@ -90,7 +91,7 @@ export interface ProductCardProps {
   ratio?: ProductCardRatio;
   /** The title heading's level; follows the surrounding block. Defaults to `3` (h3 under a
    * block h2, spec "Product card" → Anatomy, part 4). */
-  headingLevel?: 2 | 3 | 4 | 5 | 6;
+  headingLevel?: HeadingLevel;
   /** Renders the loading skeleton (spec "Product card" → Variants, Loading row) instead of the
    * card. */
   loading?: boolean;
@@ -98,9 +99,14 @@ export interface ProductCardProps {
   currency?: string;
   /** `Price`'s own `locale` prop, passed straight through. Defaults to `useEldraUiLocale()`. */
   locale?: string;
-  /** Render the title link as a different component (e.g. a router link), which receives the
-   * destination as `to` instead of `href` — the same contract as `Link`/`Rating`'s `as`. */
-  as?: string | Component;
+  /**
+   * Render the title link as a different component (e.g. a router link), which receives the
+   * destination as `to` instead of `href` — the same contract as `Link`/`Rating`'s `as`. Named
+   * `linkAs`, not `as`: this card's own root is a fixed `<article>`/`<div>` (loading), so `as`
+   * would be ambiguous with `Badge`/`Container`/`Section`'s `as`, which picks the root tag itself —
+   * see this package's README "as vs linkAs" note.
+   */
+  linkAs?: string | Component;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<ProductCardPart, string>>;
 }

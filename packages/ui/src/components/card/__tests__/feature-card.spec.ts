@@ -172,20 +172,20 @@ describe('FeatureCard — linked', () => {
   });
 });
 
-describe('FeatureCard — as', () => {
+describe('FeatureCard — linkAs', () => {
   it('uses a string as the tag and still passes href as href', () => {
     const wrapper = mountCard({
       icon: IconTruck,
       title: 'Free shipping over $80',
       body: 'Delivered in 2-4 business days.',
       href: '/shipping',
-      as: 'a',
+      linkAs: 'a',
     });
     expect(wrapper.get('[data-part="titleLink"]').attributes('href')).toBe('/shipping');
     wrapper.unmount();
   });
 
-  it('passes href as `to` when as is a component', () => {
+  it('passes href as `to` when linkAs is a component', () => {
     const FakeNuxtLink = defineComponent({
       props: { to: { type: String, required: true } },
       setup:
@@ -198,7 +198,7 @@ describe('FeatureCard — as', () => {
       title: 'Free shipping over $80',
       body: 'Delivered in 2-4 business days.',
       href: '/shipping',
-      as: FakeNuxtLink,
+      linkAs: FakeNuxtLink,
     });
     const link = wrapper.get('[data-part="titleLink"]');
     expect(link.attributes('data-fake-nuxt-link')).toBe('/shipping');

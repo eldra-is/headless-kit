@@ -1,4 +1,5 @@
 import type { Component } from 'vue';
+import type { HeadingLevel } from '../../composables/useHeadingTag';
 import type { IconComponent } from '../icon/types';
 import type { ImageMedia } from '../image/types';
 
@@ -54,16 +55,21 @@ export interface ContentCardProps {
    * (the default) renders no cue; ignored outside the resolved `surface` variant. */
   cue?: string | null;
   /** The title's heading level. Follows the block. Defaults to `3`. */
-  headingLevel?: 2 | 3 | 4 | 5 | 6;
+  headingLevel?: HeadingLevel;
   /** Renders a skeleton media frame and three skeleton text lines instead of real content.
    * Defaults to `false`. */
   loading?: boolean;
   /** The locale `date` formats in. Defaults to the ambient `useEldraUiLocale()` value. */
   locale?: string;
-  /** Render the title link through a different element/component than the default `<a>` — the
+  /**
+   * Render the title link through a different element/component than the default `<a>` — the
    * same contract as `Button`/`Link`'s own `as` (see `Link.vue`): a string tag still takes `href`;
-   * a component takes the destination as `to`, matching Vue Router / NuxtLink. */
-  as?: string | Component;
+   * a component takes the destination as `to`, matching Vue Router / NuxtLink. Named `linkAs`, not
+   * `as`: this card's own root is spec-fixed (`<article>`/`<div>`), so `as` would be ambiguous with
+   * `Badge`/`Container`/`Section`'s `as`, which *does* pick the root tag — see this package's
+   * README "as vs linkAs" note.
+   */
+  linkAs?: string | Component;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<ContentCardPart, string>>;
 }
@@ -93,10 +99,10 @@ export interface FeatureCardProps {
   /** Defaults to `'plain'`. */
   variant?: FeatureCardVariant;
   /** The title's heading level. Follows the block. Defaults to `3`. */
-  headingLevel?: 2 | 3 | 4 | 5 | 6;
+  headingLevel?: HeadingLevel;
   /** Render the title link through a different element/component than the default `<a>` — see
-   * `ContentCardProps.as`. Linked only. */
-  as?: string | Component;
+   * `ContentCardProps.linkAs`. Linked only. */
+  linkAs?: string | Component;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<FeatureCardPart, string>>;
 }

@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe('Section — element and aria naming', () => {
-  it('renders a plain div with neither labelledBy nor label', () => {
+  it('renders a plain div with neither labelledBy nor ariaLabel', () => {
     const wrapper = mountWith(Section, { slots: { default: 'content' } });
     expect(wrapper.element.tagName).toBe('DIV');
     expect(wrapper.attributes('aria-labelledby')).toBeUndefined();
@@ -28,25 +28,25 @@ describe('Section — element and aria naming', () => {
     wrapper.unmount();
   });
 
-  it('renders a section named by aria-label when only label is set', () => {
-    const wrapper = mountWith(Section, { props: { label: 'Newsletter' } });
+  it('renders a section named by aria-label when only ariaLabel is set', () => {
+    const wrapper = mountWith(Section, { props: { ariaLabel: 'Newsletter' } });
     expect(wrapper.element.tagName).toBe('SECTION');
     expect(wrapper.attributes('aria-label')).toBe('Newsletter');
     expect(wrapper.attributes('aria-labelledby')).toBeUndefined();
     wrapper.unmount();
   });
 
-  it('prefers labelledBy over label when both are given', () => {
+  it('prefers labelledBy over ariaLabel when both are given', () => {
     const wrapper = mountWith(Section, {
-      props: { labelledBy: 'block-heading', label: 'Newsletter' },
+      props: { labelledBy: 'block-heading', ariaLabel: 'Newsletter' },
     });
     expect(wrapper.attributes('aria-labelledby')).toBe('block-heading');
     expect(wrapper.attributes('aria-label')).toBeUndefined();
     wrapper.unmount();
   });
 
-  it('treats null labelledBy/label the same as absent', () => {
-    const wrapper = mountWith(Section, { props: { labelledBy: null, label: null } });
+  it('treats null labelledBy/ariaLabel the same as absent', () => {
+    const wrapper = mountWith(Section, { props: { labelledBy: null, ariaLabel: null } });
     expect(wrapper.element.tagName).toBe('DIV');
     wrapper.unmount();
   });
@@ -57,7 +57,7 @@ describe('Section — element and aria naming', () => {
     expect(wrapper.attributes('aria-label')).toBeUndefined();
     wrapper.unmount();
 
-    const labelled = mountWith(Section, { props: { as: 'header', label: 'Site header' } });
+    const labelled = mountWith(Section, { props: { as: 'header', ariaLabel: 'Site header' } });
     expect(labelled.element.tagName).toBe('HEADER');
     expect(labelled.attributes('aria-label')).toBe('Site header');
     labelled.unmount();
@@ -215,7 +215,7 @@ describe('Section — accessibility', () => {
   it.each<[string, Record<string, unknown>]>([
     ['default', {}],
     ['labelled by a heading id', { labelledBy: 'heading-id' }],
-    ['labelled directly', { label: 'Newsletter' }],
+    ['labelled directly', { ariaLabel: 'Newsletter' }],
     ['primary background', { background: 'primary' }],
     ['accent background', { background: 'accent' }],
     ['as a footer', { as: 'footer' }],

@@ -97,7 +97,8 @@ export const enUS = {
   charactersLeft: (n: number) => `${n} ${n === 1 ? 'character' : 'characters'} left`,
   /** A `Textarea`'s over-the-limit hint, announced once when the limit is passed. */
   overLimit: (n: number) => `Over the limit by ${n}`,
-  /** A product that cannot be bought. */
+  /** A product that cannot be bought. `ProductCard`'s own sold-out `Badge`, and `StockBadge`'s
+   * default copy for `level="out"` — one key, not two, for the same English/Icelandic phrase. */
   soldOut: 'Sold out',
   /**
    * `ProductCard`'s "New" badge (spec "Product card" → Anatomy, part 2). A plain string, unlike
@@ -155,8 +156,6 @@ export const enUS = {
    * is nothing to count, so the copy drops the count rather than fabricate one.
    */
   stockLow: (n: number | null) => (n === null ? 'Low stock' : `Low stock: only ${n} left`),
-  /** A `StockBadge`'s default copy for `level="out"`. */
-  stockOut: 'Sold out',
   /**
    * A `StockBadge`'s default copy for `level="preorder"` (spec "Badge" → Stock status line): the
    * spec's own example is "Pre-order, ships 14 Nov", but `StockBadge` has no `date` prop to fill
