@@ -93,6 +93,7 @@ export const isIS: UiMessages = {
   },
   shortcutHint: 'Ýttu á / til að leita',
   error: 'Villa',
+  tryAgain: 'Reyna aftur',
   formErrors: (n: number) =>
     singular(n) ? `Það er ${n} villa í þessu eyðublaði` : `Það eru ${n} villur í þessu eyðublaði`,
   // "N til viðbótar" ("N in addition") reads naturally at any count, so — unlike `stockLow` or

@@ -43,6 +43,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-skeleton'
   | 'eldra-rating-half'
   | 'eldra-image-placeholder-hatch'
+  | 'eldra-editor-placeholder-border'
 >({
   extend: {
     classGroups: {
@@ -97,6 +98,7 @@ const twMerge = extendTailwindMerge<
             'avatar-initials-md',
             'avatar-initials-lg',
             'avatar-initials-xl',
+            'empty-state-title',
           ],
         },
       ],
@@ -128,6 +130,7 @@ const twMerge = extendTailwindMerge<
         'eldra-variant-pill-border',
         'eldra-variant-swatch-ring',
         'eldra-variant-swatch-edge',
+        'eldra-editor-placeholder-border',
       ],
       // The field error boundary (tailwind.css "The error boundary of a field"): a pseudo-element
       // inset line with no stock Tailwind equivalent, so it gets its own group.

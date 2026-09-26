@@ -5,6 +5,32 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`EmptyState` and `EditorPlaceholder`** — the seventh component of the "display, commerce and
+  layout" sub-project (design spec's "Empty and error states" section). `EmptyState` is the shared
+  "nothing here / no results / error" panel shown inside a block: an icon circle, a required
+  `title`, optional `text` (max 36ch, `null` renders nothing), and an `actions` slot scoped with
+  `{ retrying }` so a caller's own "Try again" `Button` can bind `:loading="retrying"` itself. With
+  no `actions` slot, `variant="error"` alone renders a built-in "Try again" `Button` (new `tryAgain`
+  message key) wired to `retrying` and emitting `retry` — `empty`/`noResults` have no generic
+  action to fall back to, since the spec's own examples are all store-specific. `variant`
+  (`empty`/`noResults`/`error`, default `empty`) sets the role — `status` for the first two,
+  `alert` for `error` — and colours the icon circle `danger` for `error`, default icon or caller's
+  own alike. With no `icon` prop a built-in Tabler-geometry icon is drawn per variant (inbox,
+  magnifying glass, warning triangle) at the spec's 1.75rem / 1.5 stroke, the same "copy the path
+  data, no runtime `@tabler/icons-vue` dependency" approach `StockBadge`'s icons already use.
+  `plain` drops the boundary and background for a state already inside a drawer, list or card;
+  `headingLevel` (2–6, default `3`) picks the title's heading element. New `text-empty-state-title`
+  `tailwind.css` utility.
+
+  `EditorPlaceholder` is the Studio page-builder's own hint for an unfilled block field — an
+  optional icon, a required `label` (the action, e.g. "Add products"), and optional `help`
+  guidance — never rendered on the live storefront and, per the spec's own accessibility note,
+  carrying no ARIA role. `inline` shrinks the padding from 2rem to 1rem for a hint inside a compact
+  inline field (an empty heading). New `eldra-editor-placeholder-border` `tailwind.css` utility
+  (1.5px dashed boundary, distinct from `EmptyState`'s own 1px one).
+
+  See `README.md`'s Deviations section for the default-icon-per-variant choice, the
+  `empty`/`noResults`-have-no-built-in-action ruling, and the new `tryAgain` message key.
 - **`Avatar` and `AvatarGroup`** — the sixth component of the "display, commerce and layout"
   sub-project (design spec's Avatar section). `Avatar` is the people/maker identity atom: a round
   `sm`/`md`/`lg`/`xl` (2rem/2.5rem/3.5rem/6rem) circle that falls back image → initials → the

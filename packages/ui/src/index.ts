@@ -12,6 +12,8 @@ export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
 export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
 export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
+export { default as EditorPlaceholder } from './components/empty-state/EditorPlaceholder.vue';
+export { default as EmptyState } from './components/empty-state/EmptyState.vue';
 export { default as FieldWrapper } from './components/field-wrapper/FieldWrapper.vue';
 export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
@@ -69,6 +71,13 @@ export type {
   CheckboxSize,
 } from './components/checkbox/types';
 export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
+export type {
+  EditorPlaceholderPart,
+  EditorPlaceholderProps,
+  EmptyStatePart,
+  EmptyStateProps,
+  EmptyStateVariant,
+} from './components/empty-state/types';
 export type {
   FieldWrapperCounter,
   FieldWrapperPart,

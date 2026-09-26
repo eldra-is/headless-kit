@@ -343,6 +343,16 @@
     var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
 }
 
+/* `EmptyState`'s title (spec "Empty and error states" → Sizes, "Title" row): "heading family,
+   1.25rem, line-height 1.3, weight 600" — between `text-h4` (1.125rem) and `text-h3` (1.5rem), so
+   it is its own utility rather than either. The size and weight are literal spec numbers with no
+   token of their own (like `text-card-title`'s 1rem/600 above); the 1.3 ratio is a per-component
+   variable with that literal default, the same shape as `text-counter`'s 1.5. */
+@utility text-empty-state-title {
+  font: var(--eldra-text-label-weight) 1.25rem / var(--eldra-empty-state-title-line, 1.3)
+    var(--eldra-font-heading);
+}
+
 /* Control heights and targets. */
 @utility control-h {
   height: var(--eldra-control-height);
@@ -736,6 +746,16 @@
 }
 @utility eldra-checkbox-border-invalid {
   border-width: var(--eldra-checkbox-border-width-invalid, 2px);
+}
+
+/* `EditorPlaceholder`'s own boundary (spec "Empty and error states" → Sizes, "Editor hint" row:
+   "1.5px dashed border, `radius-lg`") — not a token, and a different number from the panel's own
+   `EmptyState` boundary (a stock `border` at 1px, spec's "Panel border and radius" row), so it
+   gets a variable of its own rather than reusing `eldra-checkbox-border`, the same shape as that
+   utility. `border-style: dashed` is a separate stock `border-dashed` utility on the component,
+   same as `EmptyState`'s panel. */
+@utility eldra-editor-placeholder-border {
+  border-width: var(--eldra-editor-placeholder-border-width, 1.5px);
 }
 
 /* The error boundary of a field (spec "Input" → States, Error row): "2px `danger` (1px border +

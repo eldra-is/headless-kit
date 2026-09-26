@@ -210,6 +210,8 @@ export const enUS = {
   shortcutHint: 'Press / to search',
   /** The label of an error region. */
   error: 'Error',
+  /** `EmptyState`'s built-in "Try again" button (`variant="error"`, no `actions` slot given). */
+  tryAgain: 'Try again',
   /**
    * The error summary's own line in the `./vee-validate` entry's `Form` (spec "Form layout" ->
    * States, Invalid on submit: "Long forms add an error summary alert at the top ... that lists a
