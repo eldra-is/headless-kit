@@ -23,7 +23,7 @@ import { useUiId } from '../../utils/id';
 import type { DrawerProps } from './types';
 
 const props = withDefaults(defineProps<DrawerProps>(), {
-  modelValue: false,
+  modelValue: undefined,
   side: 'right',
   title: undefined,
   ariaLabel: undefined,
@@ -37,8 +37,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   /** Fires when `Esc` is pressed (the native `cancel` event), before the drawer actually closes. */
   cancel: [];
-  /** Fires after the drawer has closed, with how: `"escape"`, `"backdrop"`, `"button"`, or
-   *  whatever a consumer passed to the exposed `close(returnValue)` method. */
+  /** Fires after the drawer has closed, with how: `"escape"`, `"backdrop"`, `"button"`,
+   *  `"programmatic"` (a parent set `modelValue` to `false` directly), or whatever a consumer
+   *  passed to the exposed `close(returnValue)` method. */
   close: [reason: string];
 }>();
 
@@ -93,8 +94,8 @@ const { close, isTop } = useDialog({
 });
 
 /** The one place the public `close` event is emitted, for every closing route at once — see
- *  `Dialog.vue`'s own comment on this exact pattern, including why a plain external close (no
- *  `returnValue` of its own) reads as `"escape"`. */
+ *  `Dialog.vue`'s own comment on this exact pattern, including the `"programmatic"` reason a plain
+ *  external close (a parent setting `modelValue` to `false` directly) now reads. */
 function onNativeClose(): void {
   emit('close', dialogEl.value?.returnValue || 'escape');
 }

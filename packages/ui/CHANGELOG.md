@@ -5,6 +5,32 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Plan 3 final review fixes.** `Dialog`/`Drawer`/`Lightbox` default `modelValue: undefined`
+  (not a literal `false`), so an uncontrolled instance is genuinely self-managing instead of
+  permanently "controlled" the moment a parent stops binding `v-model` — see `useControllableModel`'s
+  own doc comment. A programmatic close (a parent setting `modelValue` to `false` directly) now
+  reports `close("programmatic")` instead of a stale reason left over from an earlier close via the
+  close button; `Drawer`/`SearchModal` inherit it through `useDialog`. `Pagination`'s compact status
+  ("Page 2 of 12") bolds the page numbers by splitting the translated sentence on digit runs,
+  message contract unchanged. `Carousel`'s `Play` button no longer re-arms autoplay under reduced
+  motion. `Toast`/`Toaster`'s types (`ToastProps`, `ToasterProps`, `ToastPart`, `ToasterPart`,
+  `ToastVariant`, `ToastAction`) are now exported from the root entry, closing the one gap in an
+  index-order guard that now checks every component directory has a matching type-export block. The
+  component value-export list in `src/index.ts` is fully alphabetical (`Pagination`/`Popover`,
+  `Toast`/`Toaster`/`Tooltip`), guarded going forward. The README's per-component CSS-variable table
+  was accidentally duplicated (both copies incomplete) by an earlier change; merged into one
+  complete table, with a guard that fails on a second copy or a duplicated row. `@eldrajs/ui —
+  everything, without vue`'s size budget is raised to 80 kB (the real, tree-shaken cost of twelve
+  overlay/navigation components — see `.size-limit.cjs`'s own comment), alongside a new
+  `Badge`-only 12 kB budget that keeps tree-shaking itself guarded. Internal plan/task references
+  ("Task 11", "plan-3 Task 3") are reworded to plain design-decision language throughout the shipped
+  source, README and starter; `publicRepoHygiene.spec.ts` now catches a bare reference like this
+  too, not only an artifact filename. `Tooltip` warns in development when its ARIA graft
+  (`aria-labelledby`/`aria-describedby`) does not reach the DOM — a slotted trigger with
+  `inheritAttrs: false` whose own template rebinds the attribute after `v-bind="$attrs"`
+  (`Input`/`Textarea`/`Select`/`Switch`/…) silently overwrote it — and documents the trigger
+  contract this implies. `Tabs`' `v-model` is now tested through the slot-children API, not only
+  `items`; manual activation gained a direct Enter/Space selection test.
 - **Task 13 (starter, docs, closing) for the "overlays, navigation and feedback" sub-project.** The
   starter (`examples/starter-nuxt`) drops its last hand-rolled overlay/navigation primitives:
   `UiAccordion.vue`/`UiAccordionItem.vue`, `UiDialog.vue`, `UiDrawer.vue` and

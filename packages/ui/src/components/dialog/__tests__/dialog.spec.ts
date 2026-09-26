@@ -143,6 +143,49 @@ describe('Dialog — open and close', () => {
     expect(wrapper.emitted('close')?.[0]).toEqual(['remove']);
     wrapper.unmount();
   });
+
+  /**
+   * Final review M2/item 1: `modelValue` must default to `undefined`, not a literal `false` — a
+   * literal default is never `undefined`, so `useControllableModel` would treat the dialog as
+   * *permanently controlled* the instant a parent stops passing the prop at all, snapping it shut
+   * as a side effect (the prop resolves to the buggy default, `false`) rather than leaving it open
+   * and self-managed the way `SearchModal`/`Tabs` already document. This is the regression that
+   * default breaks: closing it via its own close button once the parent stops binding v-model.
+   */
+  it('going uncontrolled (modelValue prop removed) keeps the dialog open instead of snapping shut', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    await wrapper.setProps({ modelValue: undefined });
+    expect(root(wrapper).open).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('once uncontrolled, its own close button still closes it and emits update:modelValue(false)', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    await wrapper.setProps({ modelValue: undefined });
+    await closeButton(wrapper).click();
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    expect(wrapper.emitted('close')?.[0]).toEqual(['button']);
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — close reason does not go stale (I4)', () => {
+  it('a v-model close after a prior button close reads "programmatic", not the stale "button"', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    await closeButton(wrapper).click();
+    await nextTick();
+    expect(wrapper.emitted('close')?.[0]).toEqual(['button']);
+    // Simulate the real v-model round trip: the parent accepts the emitted `false`, then reopens
+    // and closes again from outside (a route with no `returnValue` of its own).
+    await wrapper.setProps({ modelValue: false });
+    await wrapper.setProps({ modelValue: true });
+    await wrapper.setProps({ modelValue: false });
+    await nextTick();
+    expect(wrapper.emitted('close')?.[1]).toEqual(['programmatic']);
+    wrapper.unmount();
+  });
 });
 
 describe('Dialog — Esc (the native cancel event)', () => {

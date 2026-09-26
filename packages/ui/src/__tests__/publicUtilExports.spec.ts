@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import * as ui from '../index';
 
 /**
- * I8: this wave's own new utils (`frameAspectRatio`, `formatDate`, `useSlotPresence`,
+ * A batch of this package's own utils (`frameAspectRatio`, `formatDate`, `useSlotPresence`,
  * `roundRatingToHalf`/`ratingStarStates`, `initialsFromName`) were missing from `src/index.ts`
- * while their plan-1 peers (`cx`, `mixToward`, `useUiId`, `createNumberFormat`, …) are all public —
- * a consumer composing a wrapper around this package's components could not reach them. Calls each
- * one through the public entry, not just checks it is defined, so a re-export of the wrong value
- * (or one whose signature drifted) would fail here too.
+ * while their earlier peers (`cx`, `mixToward`, `useUiId`, `createNumberFormat`, …) are all public
+ * — a consumer composing a wrapper around this package's components could not reach them. Calls
+ * each one through the public entry, not just checks it is defined, so a re-export of the wrong
+ * value (or one whose signature drifted) would fail here too.
  */
-describe('public util exports (I8)', () => {
+describe('public util exports', () => {
   it('exports frameAspectRatio, and it turns an ImageRatio into a real aspect-ratio value', () => {
     expect(ui.frameAspectRatio('16x9', null)).toBe('16 / 9');
   });

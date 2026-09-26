@@ -841,8 +841,8 @@ describe('Button — events and keyboard', () => {
 
 describe('Button — form submitting context', () => {
   /**
-   * What Task 7's `FormLayout` will do: provide the submitting flag the whole form reads. The
-   * spec's Form layout row says "submitting: primary button loading, other actions disabled".
+   * What `FormLayout` does: provide the submitting flag the whole form reads. The spec's Form
+   * layout row says "submitting: primary button loading, other actions disabled".
    */
   function mountInForm(props: ButtonProps, submitting: boolean) {
     const state = ref(submitting);

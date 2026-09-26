@@ -17,7 +17,7 @@ import { useUiId } from '../../utils/id';
 import type { DialogProps } from './types';
 
 const props = withDefaults(defineProps<DialogProps>(), {
-  modelValue: false,
+  modelValue: undefined,
   description: undefined,
   size: 'md',
   dismissable: true,
@@ -30,9 +30,10 @@ const emit = defineEmits<{
   /** Fires when `Esc` is pressed (the native `cancel` event), before the dialog actually closes. */
   cancel: [];
   /**
-   * Fires after the dialog has closed, with how: `"escape"`, `"backdrop"`, `"button"`, or whatever
-   * a consumer passed to the exposed `close(returnValue)` method (an action value — the Confirm
-   * variant's "Remove", the Form variant's successful submit).
+   * Fires after the dialog has closed, with how: `"escape"`, `"backdrop"`, `"button"`,
+   * `"programmatic"` (a parent set `modelValue` to `false` directly, through none of the other
+   * routes), or whatever a consumer passed to the exposed `close(returnValue)` method (an action
+   * value — the Confirm variant's "Remove", the Form variant's successful submit).
    */
   close: [reason: string];
 }>();
@@ -61,12 +62,12 @@ const { close, isTop } = useDialog({
 
 /**
  * The one place the public `close` event is emitted, for every closing route at once (`Esc`, the
- * close button, a backdrop click, or a consumer's own `close(value)` call) — `returnValue` is
- * `useDialog`'s own record of *why*, read back from the native element itself rather than tracked a
- * second time here. A plain external close (a parent just sets `modelValue` to `false`, with no
- * `returnValue` of its own) leaves `returnValue` at `''`, which reads as `"escape"` below; the
- * spec's own four reasons do not cover that route, and treating it as the closest of the four is a
- * safer default than fabricating a fifth string with no home in `DialogProps`' documented type.
+ * close button, a backdrop click, a consumer's own `close(value)` call, or a parent setting
+ * `modelValue` to `false` directly) — `returnValue` is `useDialog`'s own record of *why*, read back
+ * from the native element itself rather than tracked a second time here. `useDialog`'s `hide()`
+ * always sets it to `"programmatic"` for that last route, so the `|| 'escape'` fallback below only
+ * matters for a `returnValue` this composable never wrote to in the first place (defensive, not a
+ * documented route).
  */
 function onNativeClose(): void {
   emit('close', dialogEl.value?.returnValue || 'escape');

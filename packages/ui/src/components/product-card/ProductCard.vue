@@ -45,7 +45,7 @@ const isSoldOut = computed(() => props.product.available === false);
  * The caller's own sale/new decision (spec anatomy part 2), per `ProductCardProduct.badge`'s own
  * comment: the spec's "derived automatically ... when tagged `new`" needs a tag vocabulary this
  * component's type does not carry, so the badge's *presence* is trusted from the caller rather
- * than re-derived from `price`/tags. Suppressed while sold out — Task 1's own acceptance
+ * than re-derived from `price`/tags. Suppressed while sold out — `Badge`'s own acceptance
  * criterion ("a third badge is never rendered") and the spec's own sold-out row, which names only
  * the outline "Sold out" badge.
  */

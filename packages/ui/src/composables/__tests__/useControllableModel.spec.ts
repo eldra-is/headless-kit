@@ -13,6 +13,57 @@ const Probe = defineComponent({
   template: '<i>{{ model }}</i>',
 });
 
+/**
+ * A boolean model, defaulted the *wrong* way (`false`, not `undefined`) — the exact shape
+ * `Dialog`/`Drawer`/`Lightbox` shipped before this fix (final review M2). Kept beside `BoolFixed`
+ * below so a regression to the literal-`false` default anywhere in this package's components is
+ * exactly the failure these two tests would themselves report if the check they assert were
+ * inlined into a component's own `withDefaults` call.
+ */
+const BoolBuggy = defineComponent({
+  props: { modelValue: { type: Boolean, default: false } },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const model = useControllableModel<boolean>(props, emit, () => false);
+    return { model, set: (value: boolean) => (model.value = value) };
+  },
+  template: '<i>{{ model }}</i>',
+});
+
+/** The fix: `default: undefined`, with the same `() => false` fallback supplying the uncontrolled
+ *  starting value the literal default used to (incorrectly) provide. */
+const BoolFixed = defineComponent({
+  props: { modelValue: { type: Boolean, default: undefined } },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const model = useControllableModel<boolean>(props, emit, () => false);
+    return { model, set: (value: boolean) => (model.value = value) };
+  },
+  template: '<i>{{ model }}</i>',
+});
+
+describe('useControllableModel — the modelValue: false trap (final review M2)', () => {
+  it('a literal false default is never treated as uncontrolled: an internal write is silently swallowed', async () => {
+    const wrapper = mountWith(BoolBuggy);
+    wrapper.vm.set(true);
+    await nextTick();
+    // The component believes it is controlled (its own `false` default is never `undefined`), so
+    // the write never reaches `internal` and the getter keeps reading the prop — permanently false.
+    expect(wrapper.vm.model).toBe(false);
+    expect(wrapper.emitted('update:modelValue')).toEqual([[true]]);
+    wrapper.unmount();
+  });
+
+  it('an undefined default is genuinely uncontrolled: an internal write takes effect', async () => {
+    const wrapper = mountWith(BoolFixed);
+    wrapper.vm.set(true);
+    await nextTick();
+    expect(wrapper.vm.model).toBe(true);
+    expect(wrapper.emitted('update:modelValue')).toEqual([[true]]);
+    wrapper.unmount();
+  });
+});
+
 describe('useControllableModel', () => {
   it('starts at the fallback when uncontrolled', () => {
     const wrapper = mountWith(Probe);

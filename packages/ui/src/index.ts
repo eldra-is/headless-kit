@@ -37,8 +37,8 @@ export { default as Link } from './components/link/Link.vue';
 export { default as LoadMore } from './components/load-more/LoadMore.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
-export { default as Popover } from './components/popover/Popover.vue';
 export { default as Pagination } from './components/pagination/Pagination.vue';
+export { default as Popover } from './components/popover/Popover.vue';
 export { default as Price } from './components/price/Price.vue';
 export { default as ProductCard } from './components/product-card/ProductCard.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
@@ -55,9 +55,9 @@ export { default as Tab } from './components/tabs/Tab.vue';
 export { default as TabPanel } from './components/tabs/TabPanel.vue';
 export { default as Tabs } from './components/tabs/Tabs.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
-export { default as Tooltip } from './components/tooltip/Tooltip.vue';
 export { default as Toast } from './components/toast/Toast.vue';
 export { default as Toaster } from './components/toast/Toaster.vue';
+export { default as Tooltip } from './components/tooltip/Tooltip.vue';
 export { default as UnitInput } from './components/unit-input/UnitInput.vue';
 export { default as VariantPicker } from './components/variant-picker/VariantPicker.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
@@ -229,6 +229,14 @@ export type {
 } from './components/tabs/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type {
+  ToastAction,
+  ToastPart,
+  ToastProps,
+  ToastVariant,
+  ToasterPart,
+  ToasterProps,
+} from './components/toast/types';
+export type {
   TooltipAlign,
   TooltipPart,
   TooltipPlacement,
@@ -269,10 +277,10 @@ export {
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
 // The single-modal-at-a-time registry every modal surface in this package shares (`Dialog`,
-// `Drawer` and `SearchModal` today; `Lightbox` next). `TOAST_HOST_KEY` is the hand-off a `Toaster`
-// (plan-3 Task 3) reads to render its live region inside whichever dialog is currently open, per the shared
-// modal rule that a toast raised while a modal is open must not be inert behind it; the rest are
-// exported for a consumer building a modal surface of their own on top of `useDialog`.
+// `Drawer`, `Lightbox` and `SearchModal`). `TOAST_HOST_KEY` is the hand-off a `Toaster` reads to
+// render its live region inside whichever dialog is currently open, per the shared modal rule that
+// a toast raised while a modal is open must not be inert behind it; the rest are exported for a
+// consumer building a modal surface of their own on top of `useDialog`.
 export {
   closeDialog,
   currentDialog,

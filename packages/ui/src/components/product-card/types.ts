@@ -42,7 +42,7 @@ export interface ProductCardProduct {
   colours?: Array<{ name: string; swatch: string }>;
   /** The caller's own sale/new decision (spec anatomy part 2). `null`/omitted renders no
    * sale/new badge. Ignored while `available` is `false` — the "Sold out" badge replaces it
-   * rather than stacking a third badge (Task 1's own acceptance criterion: "a third badge is
+   * rather than stacking a third badge (`Badge`'s own acceptance criterion: "a third badge is
    * never rendered"). */
   badge?: { variant: 'sale' | 'new' } | null;
   /** An additional stock status line beyond the spec's own 8-part anatomy — see

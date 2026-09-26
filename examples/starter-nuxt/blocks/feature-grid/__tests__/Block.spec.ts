@@ -10,8 +10,8 @@ import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/ico
 import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 // `mock.json` is the seed Studio writes on insert — its items carry no
-// `image` (see task-9b-live-report.md, Finding 2); `preview.json` is the
-// demo-imagery overlay `scripts/generate-stories.mjs`'s `Default` story
+// `image` (Core's write-side media validator rejects a fixture-shaped object there);
+// `preview.json` is the demo-imagery overlay `scripts/generate-stories.mjs`'s `Default` story
 // merges onto it (a full `items` replacement, since the overlay contract
 // merges shallowly).
 const withImages = { ...mock, ...preview };

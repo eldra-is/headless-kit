@@ -64,7 +64,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** A label, because the spec's Textarea never appears without one. `FieldWrapper` lands in Task 7. */
+/** A label, because the spec's Textarea never appears without one — `FieldWrapper` is a separate
+ *  component, so these stories draw their own label instead of depending on it. */
 const LABEL_CLASS = 'text-label text-text mb-1 block';
 const HELP_CLASS = 'text-body-sm text-muted mt-1';
 

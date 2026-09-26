@@ -9,8 +9,8 @@ import {
 import { currentOpen, registerOpen, unregisterOpen } from '../openRegistry';
 
 /**
- * `useListbox` is the half of `Select` that `MultiSelect` will reuse verbatim, so it is exercised
- * on its own as well as through the component: these specs are the contract Task 13 inherits.
+ * `useListbox` is the half of `Select` that `MultiSelect` reuses verbatim, so it is exercised on
+ * its own as well as through the component: these specs are the contract `MultiSelect` inherits.
  */
 const ROWS: ListboxOption[] = [
   { value: 'a', label: 'Alpha' },

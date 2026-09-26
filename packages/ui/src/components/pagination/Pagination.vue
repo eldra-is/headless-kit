@@ -14,9 +14,9 @@ const props = withDefaults(defineProps<PaginationProps>(), {
 });
 
 /**
- * Controller ruling (task 9): without `hrefForPage` the controls are `<button type="button">`
- * elements that emit `update:page` instead of real links — see `types.ts`'s own comment on
- * `hrefForPage` and the README's Deviations entry.
+ * Controller ruling: without `hrefForPage` the controls are `<button type="button">` elements
+ * that emit `update:page` instead of real links — see `types.ts`'s own comment on `hrefForPage`
+ * and the README's Deviations entry.
  */
 const emit = defineEmits<{ 'update:page': [page: number] }>();
 
@@ -174,11 +174,28 @@ const compactArrowDisabledClass =
 
 /** Spec → Sizes: "Compact status: 0.9375rem, padding 0 0.75rem, tabular numbers, no wrap." Reuses
  *  the shared `text-control` type style (also 0.9375rem, the form controls' own font size) rather
- *  than a new per-component variable for the identical number. The spec also bolds the numbers
- *  inside the sentence (States: "numbers `text` weight 600") — not reproduced, since the sentence
- *  comes back as one translated string with no seam to split the digits back out of; recorded
- *  under the README's Deviations entry. */
+ *  than a new per-component variable for the identical number. */
 const compactStatusClass = 'text-control text-muted tabular-nums whitespace-nowrap px-3';
+
+/**
+ * Spec → States: "numbers `text` weight 600" inside the compact status sentence ("Page **2** of
+ * **12**"). The sentence itself is one translated string (`m.pageOfTotal`) with no seam of its own
+ * to split the digits back out of — this splits on digit *runs* (`/(\d+)/`, keeping the capturing
+ * group so `String.split` returns the matched runs too) rather than changing the message contract
+ * itself, so a translator still writes one plain sentence and `messages/__tests__/parity.spec.ts`
+ * sees no new key. Presentation only: `text` (`compactStatusClass`'s own `text-muted`) already
+ * applies to both bold and non-bold segments, and only the font-weight differs.
+ */
+function splitDigitRuns(text: string): Array<{ text: string; bold: boolean }> {
+  return text
+    .split(/(\d+)/)
+    .filter((part) => part !== '')
+    .map((part) => ({ text: part, bold: /^\d+$/.test(part) }));
+}
+
+const compactStatusParts = computed(() =>
+  splitDigitRuns(m.value.pageOfTotal(props.page, props.totalPages))
+);
 </script>
 
 <template>
@@ -354,7 +371,12 @@ const compactStatusClass = 'text-control text-muted tabular-nums whitespace-nowr
         </svg>
       </component>
 
-      <span :class="compactStatusClass">{{ m.pageOfTotal(page, totalPages) }}</span>
+      <span :class="compactStatusClass"
+        ><template v-for="(part, index) in compactStatusParts" :key="index"
+          ><strong v-if="part.bold">{{ part.text }}</strong
+          ><template v-else>{{ part.text }}</template></template
+        ></span
+      >
 
       <span
         v-if="nextDisabled"

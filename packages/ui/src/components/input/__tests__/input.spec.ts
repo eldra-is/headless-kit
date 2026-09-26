@@ -21,7 +21,7 @@ function control(wrapper: { find: (s: string) => { element: Element } }): HTMLIn
   return wrapper.find('[data-part="control"]').element as HTMLInputElement;
 }
 
-/** A stub FieldWrapper: exactly what Task 7 will provide. */
+/** A stub FieldWrapper: exactly what the real FieldWrapper component provides. */
 function fieldProvider(context: Partial<FieldContext> = {}) {
   return {
     provide: {

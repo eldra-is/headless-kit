@@ -466,6 +466,35 @@ describe('Carousel — autoplay', () => {
     wrapper.unmount();
     window.matchMedia = original;
   });
+
+  /**
+   * Final review item 3/M3: `playing`'s initial value already checked `prefersReducedMotion()`, but
+   * `resume()` — reached only by pressing `Play` — did not, so a reduced-motion user pressing the
+   * button the spec still shows them got a running slideshow anyway (spec: "autoplay never
+   * starts"). Pressing `Play` must stay a no-op under reduced motion, not just never auto-arm.
+   */
+  it('pressing Play under reduced motion does not re-arm autoplay (M3)', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+    vi.useFakeTimers();
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Gallery', autoplay: 1000 },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const pauseButton = wrapper.find('[data-part="pause"]');
+    expect(pauseButton.text()).toBe(enUS.play);
+    await pauseButton.trigger('click');
+    await settle();
+    // Still showing "Play": the click did not flip it into a playing state.
+    expect(wrapper.find('[data-part="pause"]').text()).toBe(enUS.play);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(wrapper.emitted('change')).toBeUndefined();
+    wrapper.unmount();
+    window.matchMedia = original;
+  });
 });
 
 describe('Carousel — keyboard', () => {

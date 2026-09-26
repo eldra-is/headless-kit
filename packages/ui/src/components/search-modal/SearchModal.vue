@@ -76,8 +76,8 @@ const emit = defineEmits<{
    *  those clear state and consume the key instead of closing anything. */
   cancel: [];
   /** Fires after the modal has closed, with how: `"escape"`, `"backdrop"`, `"button"`, `"select"`
-   *  (a result or "See all" row was followed), or whatever a consumer passed to the exposed
-   *  `close(returnValue)` method. */
+   *  (a result or "See all" row was followed), `"programmatic"` (a parent set `modelValue` to
+   *  `false` directly), or whatever a consumer passed to the exposed `close(returnValue)` method. */
   close: [reason: string];
   /** A row was chosen — with the keyboard (`Enter` on an active option) or the pointer. */
   select: [item: SearchResultItem, type: SearchSelectType];
@@ -449,7 +449,8 @@ const { close, isTop } = useDialog({
 });
 
 /** The one place the public `close` event is emitted, for every closing route at once — the same
- *  pattern `Dialog`/`Drawer` use, including why a plain external close reads as `"escape"`. */
+ *  pattern `Dialog`/`Drawer` use, including the `"programmatic"` reason a plain external close now
+ *  reads. */
 function onNativeClose(): void {
   emit('close', dialogEl.value?.returnValue || 'escape');
 }

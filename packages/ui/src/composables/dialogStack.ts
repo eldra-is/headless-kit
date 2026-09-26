@@ -38,8 +38,8 @@ function unlockScroll(): void {
 }
 
 /**
- * The DOM element a `Toaster` (plan-3 Task 3) should render its live region into while a modal
- * dialog is open, or `null` while none is.
+ * The DOM element a `Toaster` should render its live region into while a modal dialog is open, or
+ * `null` while none is.
  *
  * **Not a Vue injection key**, despite the name matching this package's `*_KEY` convention
  * (`FIELD_KEY`, `MESSAGES_KEY`, …) — those all connect a provider to its own *descendants*, and a
@@ -53,9 +53,9 @@ function unlockScroll(): void {
  *
  * It holds the open dialog's own root element — the `Dialog` anatomy has no separate "toast host"
  * part to render (`DialogPart` is `root | panel | header | title | close | description | body |
- * footer`), so Task 3's `Toaster` is expected to render its live region as an appended child of
- * this element (a `<dialog>` accepts ordinary children anywhere in its box) rather than one this
- * package declares a slot or a `data-part` for.
+ * footer`), so `Toaster` renders its live region as an appended child of this element (a
+ * `<dialog>` accepts ordinary children anywhere in its box) rather than one this package declares
+ * a slot or a `data-part` for.
  */
 export const TOAST_HOST_KEY: Ref<HTMLDialogElement | null> = shallowRef(null);
 

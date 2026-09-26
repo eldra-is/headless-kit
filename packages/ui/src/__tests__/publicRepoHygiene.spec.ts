@@ -88,11 +88,35 @@ const forbidden: { label: string; pattern: RegExp }[] = [
   // comment that resolves to nothing at all outside the private planning repo. See I3.
   {
     label: 'an internal SDD planning artifact reference',
-    pattern: /\.superpowers|\btask-\d+-|fix-\d\b|review-t\d/,
+    pattern: /\.superpowers|\btask-\d+-|fix-\d\b|review-t\d/i,
   },
 ];
 
+/**
+ * Final review I5: a second, wider pattern for a bare plan/task *reference* in prose — "Task 11",
+ * "plan-3 Task 3" — as opposed to the artifact-*filename*-shaped patterns above. The original
+ * single pattern needed a trailing hyphen after the task number (`\btask-\d+-`) and was
+ * case-sensitive, so this slipped through untouched, along with `task-9b-live-report.md` in the
+ * starter (the `b` between the digit and the hyphen broke the old pattern's assumption that a
+ * digit run is always followed immediately by `-`).
+ *
+ * Deliberately **not** merged into `forbidden` above and deliberately **not** checked against
+ * `CHANGELOG.md`: unlike a dangling filename or an internal hostname, "Task 13 of the … sub-
+ * project" in a changelog entry is this package's own long-standing, narrated-history convention
+ * (every plan-3 entry uses it, predating this fix) — a changelog documents shipped work under
+ * whatever internal label it shipped under, the same way many real-world changelogs cite internal
+ * ticket numbers, and rewriting that whole history is a content change with nothing left to guard
+ * once done, not a hygiene fix. A doc comment or README paragraph describing present-tense design
+ * rationale has no such excuse: "Task 11" there names nothing an external reader can resolve.
+ */
+const planTaskReference = {
+  label: 'a bare internal plan/task reference',
+  pattern: /\btask[- ]\d+|\bplan-\d/i,
+};
+
 describe('public-repo hygiene: no private scope or internal hostname in shipped files', () => {
+  const changelogPath = join(packageRoot, 'CHANGELOG.md');
+
   it('finds files to scan', () => {
     expect(files.length).toBeGreaterThan(50);
   });
@@ -103,6 +127,16 @@ describe('public-repo hygiene: no private scope or internal hostname in shipped 
       expect(contents, `${file} contains ${label}`).not.toMatch(pattern);
     }
   });
+
+  it.each(files.filter((file) => file !== changelogPath))(
+    '%s carries no bare plan/task reference',
+    (file) => {
+      const contents = readFileSync(file, 'utf8');
+      expect(contents, `${file} contains ${planTaskReference.label}`).not.toMatch(
+        planTaskReference.pattern
+      );
+    }
+  );
 });
 
 /**

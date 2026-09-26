@@ -260,6 +260,21 @@ describe('SearchModal — open and close (useDialog)', () => {
     expect(root(wrapper).open).toBe(false);
     expect(wrapper.emitted('close')?.[0]).toEqual(['remove']);
   });
+
+  it('a v-model close after a prior button close reads "programmatic", not the stale "button" (I4)', async () => {
+    const wrapper = mount({ modelValue: true });
+    await settle();
+    await wrapper.findAll('[data-part="close"]')[0]?.trigger('click');
+    await nextTick();
+    expect(wrapper.emitted('close')?.[0]).toEqual(['button']);
+    // Simulate the real v-model round trip: the parent accepts the emitted `false`, then reopens
+    // and closes again from outside (a route with no `returnValue` of its own).
+    await wrapper.setProps({ modelValue: false });
+    await wrapper.setProps({ modelValue: true });
+    await wrapper.setProps({ modelValue: false });
+    await nextTick();
+    expect(wrapper.emitted('close')?.[1]).toEqual(['programmatic']);
+  });
 });
 
 describe('SearchModal — query reset on close', () => {

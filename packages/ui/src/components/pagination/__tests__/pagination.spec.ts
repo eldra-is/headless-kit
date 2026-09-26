@@ -4,6 +4,8 @@ import { defineComponent, h } from 'vue';
 import { axe } from '../../../test/axe';
 import { isBuilt, itFailsWithoutDist } from '../../../test/built';
 import { mountNarrow, mountWith } from '../../../test/mount';
+import { isIS } from '../../../messages/is-IS';
+import { MESSAGES_KEY } from '../../../composables/useMessages';
 import Pagination from '../Pagination.vue';
 
 afterEach(() => {
@@ -289,6 +291,27 @@ describe('Pagination — compact mode (forced)', () => {
     const row = compactRow(wrapper);
     await (row.querySelector('[data-part="next"]') as HTMLButtonElement).click();
     expect(wrapper.emitted('update:page')?.[0]).toEqual([7]);
+    wrapper.unmount();
+  });
+
+  it('bolds the page numbers inside the compact status sentence, en-US', () => {
+    const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12, compact: true } });
+    const row = compactRow(wrapper);
+    const strongs = [...row.querySelectorAll('strong')].map((el) => el.textContent);
+    expect(strongs).toEqual(['6', '12']);
+    expect(row.textContent).toContain('Page 6 of 12');
+    wrapper.unmount();
+  });
+
+  it('bolds the page numbers inside the compact status sentence, is-IS (word order differs)', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, compact: true },
+      global: { provide: { [MESSAGES_KEY as symbol]: isIS } },
+    });
+    const row = compactRow(wrapper);
+    const strongs = [...row.querySelectorAll('strong')].map((el) => el.textContent);
+    expect(strongs).toEqual(['6', '12']);
+    expect(row.textContent).toContain('Síða 6 af 12');
     wrapper.unmount();
   });
 });

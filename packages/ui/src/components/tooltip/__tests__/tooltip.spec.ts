@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL as NodeURL } from 'node:url';
 import type { VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { h, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
+import Button from '../../button/Button.vue';
+import Input from '../../input/Input.vue';
 import Tooltip from '../Tooltip.vue';
 
 /**
@@ -257,6 +259,16 @@ describe('Tooltip — role modes and the trigger’s ARIA', () => {
     expect(trigger.getAttribute('aria-describedby')).toBe(`existing-hint ${bubble.id}`);
   });
 
+  it('joins the tooltip id onto an aria-labelledby the trigger already carries', async () => {
+    const wrapper = mountTooltip(
+      {},
+      '<button type="button" aria-labelledby="existing-label">♡</button>'
+    );
+    const trigger = triggerOf(wrapper).element;
+    const bubble = bubbleOf(triggerOf(wrapper));
+    expect(trigger.getAttribute('aria-labelledby')).toBe(`existing-label ${bubble.id}`);
+  });
+
   it('keeps the same trigger element across re-renders (no remount on prop change)', async () => {
     const wrapper = mountTooltip({ text: 'Add to wishlist' });
     const trigger = triggerOf(wrapper).element;
@@ -387,5 +399,56 @@ describe('Tooltip — dev warnings', () => {
     mountTooltip();
     await nextTick();
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('warns that content beyond the first element is dropped, not merely un-wired, for a multi-element slot', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const wrapper = mountTooltip({}, '<button type="button">♡</button><span>Extra</span>');
+    await nextTick();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('everything after it is dropped, not merely left un-wired')
+    );
+    // The claim the new wording makes is true: the second element never renders at all.
+    expect(wrapper.text()).not.toContain('Extra');
+  });
+
+  /**
+   * Final review M5: a component trigger whose focusable root receives `$attrs` (the default —
+   * `Button` declares no `inheritAttrs: false`) works exactly like a plain element, so the graft
+   * both lands on the DOM and raises no warning.
+   */
+  it('grafts the aria attribute onto a component trigger whose root forwards $attrs (e.g. Button)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const wrapper = mountWith(Tooltip, {
+      props: { text: 'Add to wishlist' },
+      slots: { default: () => h(Button, { variant: 'ghost' }, () => '♡') },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    await nextTick();
+    const trigger = wrapper.get('button').element;
+    const bubble = bubbleOf(wrapper.get('button'));
+    expect(trigger.getAttribute('aria-labelledby')).toBe(bubble.id);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Final review M5: `Input` declares `inheritAttrs: false` and binds its own `aria-describedby`
+   * (from `FieldWrapper` context, `undefined` here) after `v-bind="$attrs"` on its inner control —
+   * so the grafted attribute never reaches the DOM at all, and this component warns about it,
+   * naming the fix.
+   */
+  it('warns when a component trigger with inheritAttrs: false overwrites the grafted attribute (Input)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const wrapper = mountWith(Tooltip, {
+      props: { text: 'Digits only', role: 'description' },
+      slots: { default: () => h(Input, {}) },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    await nextTick();
+    const control = wrapper.get('[data-part="control"]').element;
+    expect(control.getAttribute('aria-describedby')).toBeNull();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('could not find its own aria-describedby on the trigger element')
+    );
   });
 });

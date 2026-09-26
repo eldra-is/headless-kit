@@ -157,6 +157,41 @@ if (import.meta.env?.DEV) {
       );
     }
   });
+
+  /**
+   * Final review M5: the ARIA `cloneVNode` grafts (below) only reach the DOM when the slotted
+   * vnode's own attrs land on a real element. A plain element, or a component that forwards
+   * `$attrs` to its root with nothing of its own overwriting them, both work — `Button` does, since
+   * it lets `$attrs` (including a merged `aria-labelledby`/`aria-describedby`) fall through
+   * undisturbed. A component declared `inheritAttrs: false` whose own template then binds its
+   * *own* `aria-describedby` after spreading `$attrs` (`Input`, `Textarea`, `Select`, `Switch`, …)
+   * silently overwrites the grafted attribute with its own — the graft still "succeeds" from this
+   * component's point of view (`cloneVNode` never throws), but the resulting DOM carries no trace
+   * of it, so the tooltip is invisible to assistive technology. This is checked after every render
+   * by looking for the expected id on some element inside `root`, not by inspecting `original.type`
+   * for `inheritAttrs` statically — the graft can be lost by other means a static check would miss
+   * (a spread that reorders `$attrs` after its own bindings for an unrelated reason), and this way
+   * the warning verifies the actual outcome rather than a proxy for it.
+   */
+  watchEffect(() => {
+    const root = rootRef.value;
+    if (root === null) return;
+    const attr = props.role === 'label' ? 'aria-labelledby' : 'aria-describedby';
+    const id = bubbleId.value;
+    const landed = [...root.querySelectorAll(`[${attr}]`)].some((element) =>
+      (element.getAttribute(attr) ?? '').split(/\s+/).includes(id)
+    );
+    if (!landed) {
+      console.warn(
+        `[@eldrajs/ui] <Tooltip> could not find its own ${attr} on the trigger element after ` +
+          'mount. The slotted trigger is likely a component with `inheritAttrs: false` whose own ' +
+          'template binds its own `aria-*` after `v-bind="$attrs"`, overwriting the one this ' +
+          'component grafted on. Wrap the trigger in a plain element the tooltip can attach to ' +
+          'instead (e.g. `<span tabindex="-1">…</span>` around the control), or forward the ' +
+          'merged attribute from inside that component.'
+      );
+    }
+  });
 }
 
 // --- the trigger's ARIA, wired onto the slotted element itself -----------------------------------
@@ -189,8 +224,8 @@ function Trigger(): VNode | null {
     nodes.filter((node) => node !== original).some((node) => firstElement([node]) !== undefined)
   ) {
     console.warn(
-      '[@eldrajs/ui] <Tooltip> default slot has more than one element; only the first is wired up ' +
-        'as the trigger.'
+      '[@eldrajs/ui] <Tooltip> default slot has more than one element; only the first is rendered ' +
+        'at all — everything after it is dropped, not merely left un-wired.'
     );
   }
   const originalProps = (original.props ?? {}) as Record<string, unknown>;

@@ -312,6 +312,41 @@ describe('Drawer — open and close (useDialog)', () => {
     expect(wrapper.emitted('close')?.[0]).toEqual(['checkout']);
     wrapper.unmount();
   });
+
+  /** Final review M2/item 1 — see `dialog.spec.ts`'s identical pair for the full rationale: a
+   *  literal `false` default snaps the drawer shut the instant a parent stops binding v-model. */
+  it('going uncontrolled (modelValue prop removed) keeps the drawer open instead of snapping shut', async () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
+    await wrapper.setProps({ modelValue: undefined });
+    expect(root(wrapper).open).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('once uncontrolled, its own close button still closes it and emits update:modelValue(false)', async () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
+    await wrapper.setProps({ modelValue: undefined });
+    await closeButton(wrapper).click();
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    expect(wrapper.emitted('close')?.[0]).toEqual(['button']);
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+    wrapper.unmount();
+  });
+
+  it('a v-model close after a prior button close reads "programmatic", not the stale "button" (I4)', async () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
+    await closeButton(wrapper).click();
+    await nextTick();
+    expect(wrapper.emitted('close')?.[0]).toEqual(['button']);
+    // Simulate the real v-model round trip: the parent accepts the emitted `false`, then reopens
+    // and closes again from outside (a route with no `returnValue` of its own).
+    await wrapper.setProps({ modelValue: false });
+    await wrapper.setProps({ modelValue: true });
+    await wrapper.setProps({ modelValue: false });
+    await nextTick();
+    expect(wrapper.emitted('close')?.[1]).toEqual(['programmatic']);
+    wrapper.unmount();
+  });
 });
 
 describe('Drawer — never stack two modals (shared with Dialog)', () => {

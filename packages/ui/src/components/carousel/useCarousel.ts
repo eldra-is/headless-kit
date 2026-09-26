@@ -14,9 +14,8 @@ import type { CarouselPerViewBreakpoints } from './types';
 /**
  * `true` under `prefers-reduced-motion: reduce`. Exported (not folded into `useCarousel` itself)
  * because two independent things read it: `useCarousel` below, to keep autoplay from ever
- * starting, and `Carousel.vue`, to scroll instantly instead of smoothly. Also the one place a
- * future `Lightbox` (Task 11, which reuses this whole module) reads the same signal for its own
- * `←`/`→` stepping.
+ * starting, and `Carousel.vue`, to scroll instantly instead of smoothly. `Lightbox` (which reuses
+ * this whole module) reads the same signal for its own `←`/`→` stepping.
  *
  * `window.matchMedia` is guarded rather than assumed: this file has no DOM-environment
  * requirement of its own beyond what `useCarousel`'s own refs already need, and a node-environment
@@ -120,8 +119,8 @@ export interface UseCarouselReturn {
 /**
  * The scroll-snap carousel's behaviour: index tracking, previous/next/goTo, edge detection for
  * disabling the arrows, and autoplay with the spec's pause rules. `Carousel.vue` renders the
- * arrows/dots/counter/Pause markup around it; a future `Lightbox` (Task 11) reuses this file
- * unchanged for its own track.
+ * arrows/dots/counter/Pause markup around it; `Lightbox` reuses this file unchanged for its own
+ * track.
  *
  * Deliberately DOM-first rather than slot-first: this package's other multi-child components
  * (`Tabs`, `Accordion`) read their children through Vue's own slot/registration mechanisms, but a
@@ -338,8 +337,16 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   function pause(): void {
     playing.value = false;
   }
+  /**
+   * Final review item 3/M3: `playing`'s own initial value already checks `prefersReducedMotion()`
+   * ("autoplay never starts" — spec), but this — the `Play` button's own handler, via `toggle()`
+   * below — did not, so a reduced-motion user who explicitly pressed `Play` got a running
+   * slideshow the spec never intends this control to reach. Re-checking here, not only at
+   * initialisation, closes that: `resume()` is a no-op under reduced motion regardless of what
+   * called it.
+   */
   function resume(): void {
-    if ((toValue(options.autoplay) ?? 0) > 0) playing.value = true;
+    if ((toValue(options.autoplay) ?? 0) > 0 && !prefersReducedMotion()) playing.value = true;
   }
   function toggle(): void {
     if (playing.value) pause();

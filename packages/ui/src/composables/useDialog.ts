@@ -75,8 +75,8 @@ function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
 /**
  * The lifecycle of one **modal surface**: the design spec's shared "Modal dialogs" rules, applied
  * to whichever native `<dialog>` a component hands this composable. `Dialog` is the first consumer;
- * `Drawer`, `Lightbox` and `SearchModal` (later plan-3 tasks) are built on the same contract rather
- * than reimplementing it, which is why every rule below lives here instead of in `Dialog.vue`.
+ * `Drawer`, `Lightbox` and `SearchModal` are built on the same contract rather than reimplementing
+ * it, which is why every rule below lives here instead of in `Dialog.vue`.
  *
  * What it owns, entirely through the native element — **no custom focus trap, no `role="dialog"`**
  * (the design spec's own non-negotiable 2, and this file's whole reason to exist):
@@ -157,7 +157,12 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
   function hide(): void {
     const el = dialog.value;
     if (el === null) return;
-    if (el.open) el.close();
+    // `'programmatic'`, not a bare `close()`: an argument-less native close leaves `returnValue`
+    // at whatever the *previous* close set it to (the HTML `close(returnValue)` steps only touch
+    // `returnValue` when an argument is passed), so a consumer's own `close('button')` followed
+    // later by a plain `modelValue = false` would otherwise still read back `"button"` for a close
+    // that was not a button press. Passing a reason here resets it on every route through `hide()`.
+    if (el.open) el.close('programmatic');
     closeDialog(el);
   }
 
@@ -207,9 +212,9 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
 
   // `onMounted`, not an immediate watcher: the dialog's template ref and an immediate watcher's
   // first run are both scheduled during this same `setup()` call, and the watcher (registered
-  // first, in program order) would see `dialog.value === null` on a dialog that starts open — the
-  // exact race `examples/starter-nuxt/app/components/ui/UiDialog.vue` documents and works around
-  // the same way. `onMounted` is guaranteed to run after this component's own refs are assigned.
+  // first, in program order) would see `dialog.value === null` on a dialog that starts open —
+  // `onMounted` is guaranteed to run after this component's own refs are assigned, so it sees the
+  // real element instead.
   onMounted(() => {
     const el = dialog.value;
     if (el !== null) attach(el);

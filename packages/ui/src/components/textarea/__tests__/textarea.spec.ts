@@ -19,7 +19,7 @@ function control(wrapper: { find: (s: string) => { element: Element } }): HTMLTe
   return wrapper.find('[data-part="control"]').element as HTMLTextAreaElement;
 }
 
-/** A stub FieldWrapper: exactly what Task 7 will provide. */
+/** A stub FieldWrapper: exactly what the real FieldWrapper component provides. */
 function fieldProvider(context: Partial<FieldContext> = {}) {
   return {
     provide: {

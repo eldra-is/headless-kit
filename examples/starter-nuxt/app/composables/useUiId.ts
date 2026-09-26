@@ -9,9 +9,9 @@ import { useId as vueUseId } from 'vue';
  * needs a fix here, e.g. prefixing with a per-app id. Named `useUiId` (not
  * `useId`) because Nuxt auto-imports Vue's own `useId` under that exact
  * name; a same-named local composable collided with it and warned at
- * `nuxi prepare`. See `app/components/ui/UiDialog.vue` and the `gallery` /
- * `navigation` blocks for callers (`@eldrajs/ui`'s own controls have their
- * own equivalent, `useUiId` in that package).
+ * `nuxi prepare`. See the `faq`/`testimonials`/`cta`/`gallery`/`navigation`/
+ * `feature-grid`/`article`/`hero` blocks for callers (`@eldrajs/ui`'s own
+ * controls have their own equivalent, `useUiId` in that package).
  */
 export function useUiId(): string {
   return vueUseId();

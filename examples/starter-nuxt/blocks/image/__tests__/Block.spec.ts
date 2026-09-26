@@ -7,9 +7,9 @@ import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 
-// `mock.json` is the seed Studio writes on insert — no `image` yet (see
-// task-9b-live-report.md, Finding 2); `preview.json` is the demo-imagery
-// overlay `scripts/generate-stories.mjs`'s `Default` story merges onto it.
+// `mock.json` is the seed Studio writes on insert — no `image` yet (Core's write-side media
+// validator rejects a fixture-shaped object there); `preview.json` is the demo-imagery overlay
+// `scripts/generate-stories.mjs`'s `Default` story merges onto it.
 const withImage = { ...mock, ...preview };
 
 describe('image block', () => {

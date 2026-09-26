@@ -432,6 +432,31 @@ describe('Lightbox — open and close (useDialog)', () => {
     wrapper.unmount();
     expect(currentDialog()).toBeNull();
   });
+
+  /** Final review M2/item 1 — see `dialog.spec.ts`'s identical pair for the full rationale: a
+   *  literal `false` default snaps the viewer shut the instant a parent stops binding v-model. */
+  it('going uncontrolled (modelValue prop removed) keeps the viewer open instead of snapping shut', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    await wrapper.setProps({ modelValue: undefined });
+    expect(root(wrapper).open).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('once uncontrolled, its own close button still closes it and emits update:modelValue(false)', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    await wrapper.setProps({ modelValue: undefined });
+    await closeButton(wrapper).click();
+    await settle();
+    expect(root(wrapper).open).toBe(false);
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+    wrapper.unmount();
+  });
 });
 
 describe('Lightbox — initial focus and focus return', () => {

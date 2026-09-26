@@ -28,7 +28,7 @@ import Image from '../image/Image.vue';
 import type { LightboxProps } from './types';
 
 const props = withDefaults(defineProps<LightboxProps>(), {
-  modelValue: false,
+  modelValue: undefined,
   index: 0,
   thumbnails: false,
   messages: undefined,
@@ -117,10 +117,10 @@ watch(canNext, (can) => {
  * every image in between as the viewer fades in.
  *
  * `useCarousel`'s own `goTo` always asks `scrollTo` for `'smooth'` unless the OS-level reduced-
- * motion media query is already on, with no per-call override of its own. Rather than adding one
- * to a composable shared with `Carousel` (under review concurrently as Task 10), this temporarily
- * replaces the track's own `scrollTo` for the duration of this one synchronous `goTo` call — a
- * plain decorator local to this file, restored immediately after.
+ * motion media query is already on, with no per-call override of its own. Rather than adding one to
+ * a composable shared with `Carousel`, this temporarily replaces the track's own `scrollTo` for the
+ * duration of this one synchronous `goTo` call — a plain decorator local to this file, restored
+ * immediately after.
  */
 function openAtIndex(target: number): void {
   const track = trackRef.value;

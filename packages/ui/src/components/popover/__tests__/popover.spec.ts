@@ -9,11 +9,12 @@ import type { SelectOption } from '../../select/types';
 import Popover from '../Popover.vue';
 
 /**
- * `Popover` (operator addition, plan 3 task 5): a generic non-modal trigger + floating panel built
- * on `usePopover`, the same machinery `Select`/`MultiSelect`/`SearchBar` share. Unlike those three,
- * it draws no trigger and no default panel role at all — the `trigger` slot's `attrs` and the
- * panel's own fallthrough `$attrs` are how a consumer wires both, so most of these tests build a
- * plain menu-shaped trigger/panel pair through the slots rather than reaching for a fixture.
+ * `Popover` (an operator addition beyond the design spec): a generic non-modal trigger + floating
+ * panel built on `usePopover`, the same machinery `Select`/`MultiSelect`/`SearchBar` share. Unlike
+ * those three, it draws no trigger and no default panel role at all — the `trigger` slot's
+ * `attrs` and the panel's own fallthrough `$attrs` are how a consumer wires both, so most of these
+ * tests build a plain menu-shaped trigger/panel pair through the slots rather than reaching for a
+ * fixture.
  */
 
 type TriggerSlotProps = {

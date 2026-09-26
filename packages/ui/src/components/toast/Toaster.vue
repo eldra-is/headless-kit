@@ -6,7 +6,7 @@
  * the only place that ever reads `toasts` to render), every toast's auto-dismiss timer (paused
  * while the pointer is over the stack or focus is inside it), and where the region actually lives
  * in the DOM — a sibling of whatever opens a `Dialog` when one is open (`TOAST_HOST_KEY`, from
- * `dialogStack.ts`, Task 1), `<body>` otherwise.
+ * `dialogStack.ts`), `<body>` otherwise.
  *
  * **Two live regions, never nested** (spec "Toast" -> Behaviour & motion): "insert them into the
  * same fixed stack but outside the polite status element ... so the two live regions aren't

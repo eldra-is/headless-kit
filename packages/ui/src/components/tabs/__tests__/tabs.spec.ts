@@ -190,6 +190,30 @@ describe('Tabs — manual activation', () => {
     tab.dispatchEvent(space);
     expect(space.defaultPrevented).toBe(false);
   });
+
+  /**
+   * Final review item 6: the test above only proves this component gets *out of the way* of
+   * Enter/Space — it never proves a focused tab actually *selects* on either key, which is the
+   * whole reason not intercepting them matters. A real `<button>` fires its own `click` when Enter
+   * or Space is pressed while it has focus (the platform's own default action for a focused
+   * button); jsdom/happy-dom do not synthesize that default action for a raw `KeyboardEvent`, so
+   * this dispatches the `click` a browser would fire immediately after, the same way
+   * `firstMeaningfulControl`'s own focused-button contract is exercised elsewhere in this package.
+   */
+  it.each(['Enter', ' '])(
+    'selects the focused tab when %s is pressed (via the native button click it triggers)',
+    async (key) => {
+      const wrapper = await mount({ activation: 'manual' });
+      const tab = tabsOf(wrapper)[1]!.element as HTMLElement;
+      tab.focus();
+      const keydown = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      tab.dispatchEvent(keydown);
+      expect(keydown.defaultPrevented).toBe(false);
+      await tabsOf(wrapper)[1]!.trigger('click');
+      expect(tabsOf(wrapper)[1]!.attributes('aria-selected')).toBe('true');
+      expect(wrapper.emitted('update:modelValue')).toEqual([['materials']]);
+    }
+  );
 });
 
 describe('TabPanel — focusability rule', () => {
@@ -274,6 +298,48 @@ describe('Tabs — the items and slots APIs render the same structure', () => {
     expect(tabsOf(fromSlots).map((tab) => tab.text())).toEqual(
       tabsOf(fromItems).map((tab) => tab.text())
     );
+  });
+});
+
+/**
+ * M7 (final review): every v-model test above (`describe('Tabs — selection')`) mounts through the
+ * `items` prop. The slot-children path — `<Tab>`s registering themselves through `TABS_KEY` — is
+ * the API the README leads with, and had no `update:modelValue`/controlled-value coverage of its
+ * own before this: a regression that broke `v-model` only through the slots API could ship
+ * unnoticed while every `items`-based test kept passing.
+ */
+describe('Tabs — v-model through the slots API (M7)', () => {
+  function mountFromSlots(props: Record<string, unknown> = {}) {
+    const wrapper = mountWith(Tabs, {
+      props: { ariaLabel: 'Product information', ...props },
+      slots: {
+        tabs: ITEMS.map((item) => `<Tab value="${item.value}">${item.title}</Tab>`).join(''),
+        default: ITEMS.map(
+          (item) => `<TabPanel value="${item.value}">${item.content}</TabPanel>`
+        ).join(''),
+      },
+      global: { components: { Tab, TabPanel } },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    return wrapper;
+  }
+
+  it('emits update:modelValue and change when a slot-placed Tab is clicked', async () => {
+    const wrapper = mountFromSlots();
+    await nextTick();
+    await tabsOf(wrapper)[2]!.trigger('click');
+    expect(wrapper.emitted('update:modelValue')).toEqual([['shipping']]);
+    expect(wrapper.emitted('change')).toEqual([['shipping']]);
+    expect(tabsOf(wrapper)[2]!.attributes('aria-selected')).toBe('true');
+  });
+
+  it('is controlled once modelValue is bound, through the slots API', async () => {
+    const wrapper = mountFromSlots({ modelValue: 'materials', 'onUpdate:modelValue': () => {} });
+    await nextTick();
+    expect(tabsOf(wrapper)[1]!.attributes('aria-selected')).toBe('true');
+    await wrapper.setProps({ modelValue: 'shipping' });
+    expect(tabsOf(wrapper)[2]!.attributes('aria-selected')).toBe('true');
+    expect(tabsOf(wrapper)[1]!.attributes('aria-selected')).toBe('false');
   });
 });
 

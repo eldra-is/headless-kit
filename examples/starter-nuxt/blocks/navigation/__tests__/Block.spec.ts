@@ -9,7 +9,7 @@ import { mountOptions } from '../../../test/support/mountBlock';
 
 // `mock.json` is the seed Studio writes when an author inserts the block —
 // it never carries a logo (Core's write-side media validator rejects the
-// old Storybook-fixture shape; see task-9b-live-report.md, Finding 2).
+// old Storybook-fixture shape).
 // `preview.json` is the story/preview-only demo-imagery overlay, merged the
 // same way `scripts/generate-stories.mjs`'s `Default` story merges it.
 const withLogo = { ...mock, ...preview };
