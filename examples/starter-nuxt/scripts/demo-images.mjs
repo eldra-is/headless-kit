@@ -209,17 +209,135 @@ function featureSvg(name, width, height) {
   return svgWrap(name, width, height, `${body}${mark}`);
 }
 
-// --- image manifest -----------------------------------------------------------
+// A backdrop with a simple person silhouette (head + shoulders), used by the
+// `team` block's member photos and `quote`'s portrait variant — both want a
+// "photo of a person" placeholder, distinct from the small circular
+// initials `avatarSvg` draws for byline/reviewer avatars.
+function personSvg(name, width, height) {
+  const rng = makeRng(seedFromName(name));
+  const label = name.replace(/[^a-z0-9]/gi, '');
+  const body = backdrop(rng, width, height, label);
+  const headR = round(width * 0.16);
+  const headCx = round(width / 2);
+  const headCy = round(height * (0.3 + rng() * 0.06));
+  const shoulderW = round(width * 0.72);
+  const shoulderH = round(height * 0.46);
+  const shoulderX = round((width - shoulderW) / 2);
+  const shoulderY = round(height * 0.6);
+  const shoulderRx = round(shoulderW * 0.32);
+  const silhouette = `<g fill="${INK}" fill-opacity="0.82">
+    <circle cx="${headCx}" cy="${headCy}" r="${headR}"/>
+    <rect x="${shoulderX}" y="${shoulderY}" width="${shoulderW}" height="${shoulderH}" rx="${shoulderRx}"/>
+  </g>`;
+  return svgWrap(name, width, height, `${body}${silhouette}`);
+}
 
-const avatarNames = ['Avery Kim', 'Priya Nair', 'Sam Osei', 'Jordan Lee'];
+// An abstract mark-plus-wordmark shape (a gradient mark beside two tapered
+// bars standing in for a company name and tagline) — deliberately not a
+// real or invented brand name, just a coloured shape in the spirit of this
+// script's placeholders, for the `logo-cloud` block's partner-logo strip.
+function wordmarkSvg(name, width, height) {
+  const rng = makeRng(seedFromName(name));
+  const label = name.replace(/[^a-z0-9]/gi, '');
+  const gradId = `${label}-grad`;
+  const markR = round(height * 0.28);
+  const markCx = round(height * 0.5);
+  const markCy = round(height * 0.5);
+  const angle = round(rng() * 360);
+  const gradient = gradientDef(gradId, angle, [
+    [0, PRIMARY],
+    [100, ACCENT],
+  ]);
+  const textX = round(markCx + markR + height * 0.3);
+  const barH = round(height * 0.16);
+  const gap = round(height * 0.12);
+  const bar1Y = round(height * 0.34);
+  const bar2Y = round(bar1Y + barH + gap);
+  const bar1W = round(width * (0.32 + rng() * 0.14));
+  const bar2W = round(bar1W * (0.5 + rng() * 0.3));
+  const body = `<defs>${gradient}</defs>
+    <circle cx="${markCx}" cy="${markCy}" r="${markR}" fill="url(#${gradId})"/>
+    <rect x="${textX}" y="${bar1Y}" width="${bar1W}" height="${barH}" rx="${round(barH / 2)}" fill="${INK}" fill-opacity="0.82"/>
+    <rect x="${textX}" y="${bar2Y}" width="${bar2W}" height="${barH}" rx="${round(barH / 2)}" fill="${INK}" fill-opacity="0.5"/>`;
+  return svgWrap(name, width, height, body);
+}
+
+// A stylised map placeholder (a light grid of "roads" plus one pin) for the
+// `contact` block's map slot — a flat shape standing in for an embedded
+// map, the same way every other generator stands in for a photo.
+function mapSvg(name, width, height) {
+  const rng = makeRng(seedFromName(name));
+  const parts = [`<rect width="${width}" height="${height}" fill="${SURFACE}"/>`];
+  const vLines = 6;
+  const hLines = 3;
+  for (let i = 1; i < vLines; i++) {
+    const x = round((width / vLines) * i + (rng() - 0.5) * 20);
+    parts.push(
+      `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="${SURFACE_STRONG}" stroke-width="3"/>`
+    );
+  }
+  for (let i = 1; i < hLines; i++) {
+    const y = round((height / hLines) * i + (rng() - 0.5) * 10);
+    parts.push(
+      `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="${SURFACE_STRONG}" stroke-width="3"/>`
+    );
+  }
+  const pinX = round(width * (0.4 + rng() * 0.2));
+  const pinY = round(height * (0.35 + rng() * 0.25));
+  const pinR = round(Math.min(width, height) * 0.06);
+  parts.push(`<circle cx="${pinX}" cy="${pinY}" r="${pinR}" fill="${ACCENT}"/>`);
+  parts.push(`<circle cx="${pinX}" cy="${pinY}" r="${round(pinR * 0.4)}" fill="${SURFACE}"/>`);
+  return svgWrap(name, width, height, parts.join(''));
+}
+
+// --- image manifest -----------------------------------------------------------
+//
+// Every name here is a `mock.json`/`preview.json` media source across the 33
+// blocks (see task-2-brief.md step 5): generic photographic backdrops
+// (`heroOrGallerySvg`) for hero/gallery/collection/split/article/poster/cta
+// imagery, product silhouettes (`productSvg`) at both the portrait and
+// square crops product cards use, person placeholders (`personSvg`) for
+// team photos and the quote block's portrait variant, initials avatars
+// (`avatarSvg`) for bylines and reviews, abstract wordmarks (`wordmarkSvg`)
+// for the logo cloud, and one map (`mapSvg`) for the contact block.
+
+const avatarNames = [
+  'Avery Kim',
+  'Priya Nair',
+  'Sam Osei',
+  'Jordan Lee',
+  'Riley Chen',
+  'Morgan Diaz',
+  'Jamie Okafor',
+  'Casey Novak',
+];
+
+function seriesOf(prefix, count, width, height, render) {
+  return Array.from({ length: count }, (_, i) => {
+    const name = `${prefix}-${i + 1}`;
+    return { name, width, height, render: () => render(name, width, height) };
+  });
+}
 
 const images = [
   { name: 'hero', width: 1600, height: 1000, render: () => heroOrGallerySvg('hero', 1600, 1000) },
-  ...Array.from({ length: 6 }, (_, i) => {
-    const name = `product-${i + 1}`;
-    return { name, width: 1200, height: 1200, render: () => productSvg(name, 1200, 1200) };
-  }),
-  ...Array.from({ length: 4 }, (_, i) => {
+  {
+    name: 'hero-wide',
+    width: 2400,
+    height: 800,
+    render: () => heroOrGallerySvg('hero-wide', 2400, 800),
+  },
+  ...seriesOf('hero-slide', 4, 1200, 1500, heroOrGallerySvg),
+  ...seriesOf('product', 12, 1200, 1500, productSvg),
+  ...seriesOf('product-square', 6, 1200, 1200, productSvg),
+  ...seriesOf('collection', 2, 1600, 1067, heroOrGallerySvg),
+  ...seriesOf('split', 4, 1600, 1200, heroOrGallerySvg),
+  ...seriesOf('feature', 4, 800, 600, featureSvg),
+  ...seriesOf('gallery', 8, 1600, 1000, heroOrGallerySvg),
+  ...seriesOf('team', 4, 1000, 1250, personSvg),
+  { name: 'logo', width: 480, height: 160, render: () => logoSvg('logo', 480, 160) },
+  ...seriesOf('logo', 8, 480, 160, wordmarkSvg),
+  ...Array.from({ length: 8 }, (_, i) => {
     const name = `avatar-${i + 1}`;
     return {
       name,
@@ -228,15 +346,37 @@ const images = [
       render: () => avatarSvg(name, 256, 256, avatarNames[i]),
     };
   }),
-  ...Array.from({ length: 6 }, (_, i) => {
-    const name = `gallery-${i + 1}`;
-    return { name, width: 1600, height: 1000, render: () => heroOrGallerySvg(name, 1600, 1000) };
-  }),
-  { name: 'logo', width: 480, height: 160, render: () => logoSvg('logo', 480, 160) },
-  ...Array.from({ length: 4 }, (_, i) => {
-    const name = `feature-${i + 1}`;
-    return { name, width: 800, height: 600, render: () => featureSvg(name, 800, 600) };
-  }),
+  {
+    name: 'article-cover',
+    width: 1920,
+    height: 1080,
+    render: () => heroOrGallerySvg('article-cover', 1920, 1080),
+  },
+  {
+    name: 'article-figure',
+    width: 1600,
+    height: 1000,
+    render: () => heroOrGallerySvg('article-figure', 1600, 1000),
+  },
+  {
+    name: 'quote-portrait',
+    width: 1000,
+    height: 1250,
+    render: () => personSvg('quote-portrait', 1000, 1250),
+  },
+  {
+    name: 'poster',
+    width: 1920,
+    height: 1080,
+    render: () => heroOrGallerySvg('poster', 1920, 1080),
+  },
+  { name: 'map', width: 1600, height: 500, render: () => mapSvg('map', 1600, 500) },
+  {
+    name: 'cta-split',
+    width: 1200,
+    height: 900,
+    render: () => heroOrGallerySvg('cta-split', 1200, 900),
+  },
 ];
 
 for (const image of images) {
