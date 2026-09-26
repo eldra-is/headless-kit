@@ -19,19 +19,20 @@ export interface Messages {
     skipToContent: string;
     primary: string;
   };
+  /**
+   * The gallery block's own fallback accessible name — used for its `Carousel` variant and its
+   * `Lightbox`, only when the block has no `heading` to use instead (a heading is content, not UI
+   * copy, so it is used directly when present; see `blocks/gallery/Block.vue`). Every other
+   * gallery/lightbox string (arrows, counter, close button, "Go to image n") is
+   * `@eldrajs/ui`'s own `Lightbox`/`Carousel` vocabulary now (`useMessages`), not this starter's.
+   */
   gallery: {
-    previous: string;
-    next: string;
-    imageOf: string;
-    open: string;
+    viewer: string;
   };
-  dialog: {
-    close: string;
-  };
-  carousel: {
-    previous: string;
-    next: string;
-    slideOf: string;
+  /** The testimonials block's own fallback accessible name for its `carousel` variant, only when
+   *  the block has no `heading` (see `gallery.viewer` above for the same pattern). */
+  testimonials: {
+    carousel: string;
   };
 }
 

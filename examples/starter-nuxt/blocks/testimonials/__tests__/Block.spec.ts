@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { axe } from '../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
@@ -74,15 +75,23 @@ describe('testimonials block', () => {
     expect(wrapper.findAll('[role="img"]')).toHaveLength(1);
   });
 
-  it('labels the carousel region and shows the initial slide counter', () => {
+  it('labels the carousel region with the block heading and shows the initial slide counter', async () => {
     const wrapper = mount(
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'carousel' } } })
     );
-    const region = wrapper.get('[role="region"]');
+    // `Carousel`'s root is a `<section>` named by `ariaLabel` — an *implicit* ARIA `region` role
+    // (a named `<section>`), not an explicit `role` attribute, so this selects on the attribute
+    // `Carousel` actually renders instead.
+    const region = wrapper.get('section[aria-roledescription="carousel"]');
     expect(region.attributes('aria-roledescription')).toBe('carousel');
-    expect(region.attributes('aria-labelledby')).toBeTruthy();
-    expect(wrapper.text()).toContain(`Slide 1 of ${mock.items.length}`);
+    expect(region.attributes('aria-label')).toBe(mock.heading);
+    // `useCarousel`'s own slide count is set from `onMounted`, a reactive update Vue only flushes
+    // to the DOM on the next tick — the same reason the package's own Carousel spec always awaits
+    // a tick before reading rendered index/count state.
+    await nextTick();
+    // `@eldrajs/ui`'s `Carousel` own counter format: "n / total" (its `useMessages` default).
+    expect(wrapper.text()).toContain(`1 / ${mock.items.length}`);
   });
 
   it('steps the slide with next/previous buttons', async () => {
@@ -90,13 +99,18 @@ describe('testimonials block', () => {
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'carousel' } } })
     );
+    await nextTick();
+    // The arrows are `Carousel`'s own icon-only buttons — no visible text, so found by their
+    // accessible name (`@eldrajs/ui`'s default English messages: "Next slide"/"Previous slide").
     const buttons = wrapper.findAll('button');
-    const next = buttons.find((button) => button.text() === 'Next')!;
+    const next = buttons.find((button) => button.attributes('aria-label') === 'Next slide')!;
     await next.trigger('click');
-    expect(wrapper.text()).toContain('Slide 2');
-    const previous = buttons.find((button) => button.text() === 'Previous')!;
+    expect(wrapper.text()).toContain(`2 / ${mock.items.length}`);
+    const previous = buttons.find(
+      (button) => button.attributes('aria-label') === 'Previous slide'
+    )!;
     await previous.trigger('click');
-    expect(wrapper.text()).toContain('Slide 1');
+    expect(wrapper.text()).toContain(`1 / ${mock.items.length}`);
   });
 
   it('steps the slide with ArrowRight/ArrowLeft on the track', async () => {
@@ -106,8 +120,8 @@ describe('testimonials block', () => {
     );
     const track = wrapper.get('[tabindex="0"]');
     await track.trigger('keydown', { key: 'ArrowRight' });
-    expect(wrapper.text()).toContain('Slide 2');
+    expect(wrapper.text()).toContain(`2 / ${mock.items.length}`);
     await track.trigger('keydown', { key: 'ArrowLeft' });
-    expect(wrapper.text()).toContain('Slide 1');
+    expect(wrapper.text()).toContain(`1 / ${mock.items.length}`);
   });
 });

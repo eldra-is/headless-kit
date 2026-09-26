@@ -16,15 +16,22 @@
  * router via `as` (see `EldraRouterLink`). The hamburger is an icon-only
  * `Button` whose accessible name is its `label`, so the `sr-only` span the
  * hand-rolled button needed is gone.
+ *
+ * The mobile menu is `@eldrajs/ui`'s `Drawer`, `side="left"` — the package's own convention for a
+ * menu drawer (`right` is for a cart/filters/quick-view sheet). Its own doc comment (`Drawer.vue`)
+ * puts initial focus on the first focusable element for a left-side drawer, which is exactly this
+ * menu's own first link, so no `autofocus` override is needed here. `drawerId` still exists only
+ * so the hamburger's `aria-controls` can name it — `id` reaches the drawer's root `<dialog>`
+ * through Vue's own single-root attribute fallthrough, the same as it did on the old hand-rolled
+ * `UiDrawer`.
  */
 import { computed, ref } from 'vue';
-import { Button, Container, Link, Section } from '@eldrajs/ui';
+import { Button, Container, Drawer, Link, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import UiDrawer from '../../app/components/ui/UiDrawer.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
@@ -154,13 +161,7 @@ const links = computed(() =>
       </nav>
     </Container>
 
-    <UiDrawer
-      :id="drawerId"
-      :open="drawerOpen"
-      :title="t('nav.menu')"
-      side="right"
-      @update:open="drawerOpen = $event"
-    >
+    <Drawer :id="drawerId" v-model="drawerOpen" :title="t('nav.menu')" side="left">
       <nav :aria-label="t('nav.primary')" class="flex flex-col gap-1">
         <ul class="flex flex-col gap-1">
           <li v-for="(link, index) in links" :key="index">
@@ -186,6 +187,6 @@ const links = computed(() =>
           {{ data.ctaLabel }}
         </Button>
       </nav>
-    </UiDrawer>
+    </Drawer>
   </Section>
 </template>

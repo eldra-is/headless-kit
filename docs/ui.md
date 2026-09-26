@@ -1,10 +1,10 @@
 # UI components
 
 `@eldrajs/ui` is a public, MIT-licensed Vue 3 component library for Eldra storefronts: accessible
-(WCAG 2.2 AA) actions, forms, display, commerce and layout components, plus overlays and navigation
-landing incrementally in this sub-project, themed entirely through CSS design tokens rather than a
-fixed look. It has no dependency on Studio, a theme, or any other package in this kit; any Vue 3
-project can install it on its own.
+(WCAG 2.2 AA) actions, forms, display, commerce and layout components, plus navigation, overlay and
+feedback components, themed entirely through CSS design tokens rather than a fixed look. It has no
+dependency on Studio, a theme, or any other package in this kit; any Vue 3 project can install it on
+its own.
 
 ```bash
 pnpm add @eldrajs/ui vue
@@ -67,8 +67,7 @@ table and Storybook for the full contract of each).
 - `ProductCard` — the product tile used in grids, carousels and search results, composing `Image`,
   `Price`, `Rating`, `Badge`, `StockBadge` and `Button`.
 
-**Navigation, overlays and feedback** (landing incrementally; the rest of the sub-project is still
-in progress)
+**Navigation, overlays and feedback**
 
 - `Dialog` — a small modal window for one decision or a short form, native `<dialog>` +
   `showModal()` with no custom focus trap (`useDialog` and `dialogStack` in `packages/ui/README.md`
@@ -95,9 +94,6 @@ in progress)
   opened by a consumer's own trigger or by `/`/`⌘K`/`Ctrl+K` from anywhere, sharing `useDialog`'s
   contract with `Dialog` and `Drawer` and reusing `SearchBar`'s own `SearchResultsPanel`/
   `useListbox`.
-
-**Feedback**
-
 - `Toast` / `Toaster` — a brief, non-blocking status message in a fixed bottom-right region, raised
   from anywhere with `useToast()` (a module-level queue, not a `provide`d instance) and rendered by
   one `<Toaster />` mounted near an app's root. Auto-dismisses per variant (success 6s, warning

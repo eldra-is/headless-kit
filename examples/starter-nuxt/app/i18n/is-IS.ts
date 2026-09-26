@@ -16,17 +16,9 @@ export const isIS = {
     primary: 'Aðalvalmynd',
   },
   gallery: {
-    previous: 'Fyrri',
-    next: 'Næsta',
-    imageOf: 'Mynd {index} af {total}',
-    open: 'Opna mynd',
+    viewer: 'Myndaskoðari',
   },
-  dialog: {
-    close: 'Loka glugga',
-  },
-  carousel: {
-    previous: 'Fyrri',
-    next: 'Næsta',
-    slideOf: 'Skyggna {index} af {total}',
+  testimonials: {
+    carousel: 'Umsagnir viðskiptavina',
   },
 } satisfies Messages;

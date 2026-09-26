@@ -69,17 +69,12 @@ describe('useT', () => {
     expect(t('nav.menu')).toBe('Menu');
   });
 
-  it('interpolates {param} placeholders from the params argument', () => {
-    const t = mountWithLocale('en-US');
-    expect(t('gallery.imageOf', { index: 2, total: 5 })).toBe('Image 2 of 5');
-    const isT = mountWithLocale('is-IS');
-    expect(isT('gallery.imageOf', { index: 2, total: 5 })).toBe('Mynd 2 af 5');
-  });
-
-  it('leaves an unmatched {param} placeholder untouched', () => {
-    const t = mountWithLocale('en-US');
-    expect(t('gallery.imageOf', { index: 2 })).toBe('Image 2 of {total}');
-  });
+  // `{param}` interpolation has no shipped message left that uses it — every string with a
+  // placeholder (`gallery.imageOf`, `carousel.slideOf`) belonged to the hand-rolled primitives
+  // plan 3 replaced with `@eldrajs/ui`'s `Lightbox`/`Carousel`, which carry their own equivalent
+  // vocabulary through their own `useMessages` instead. `interpolate()` itself is exercised
+  // indirectly (a no-params call is still a call) by every other test in this file; a future
+  // block that needs `{param}` text back is what re-earns a dedicated test here.
 
   it('returns the key itself when it does not resolve to a message', () => {
     const t = mountWithLocale('en-US');

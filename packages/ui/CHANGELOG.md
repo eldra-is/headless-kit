@@ -5,7 +5,39 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
-- **`SearchModal`** — the Search bar's field, results panel and listbox inside a native `<dialog>`,
+- **Task 13 (starter, docs, closing) for the "overlays, navigation and feedback" sub-project.** The
+  starter (`examples/starter-nuxt`) drops its last hand-rolled overlay/navigation primitives:
+  `UiAccordion.vue`/`UiAccordionItem.vue`, `UiDialog.vue`, `UiDrawer.vue` and
+  `UiTabs.vue`/`UiTab.vue`/`UiTabPanel.vue` (plus their stories and `__tests__`) are deleted, and the
+  composables only they used (`useAccordion`, `useCarousel`, `useFocusTrap`, `useScrollLock`,
+  `useTabs`, plus `test/useFocusTrap.spec.ts`/`useScrollLock.spec.ts`) go with them. Every block that
+  used them now imports the package component directly: `faq` → `Accordion`/`AccordionItem`;
+  `gallery`'s lightbox → `Lightbox` (its own images now carry `width`/`height`, falling back to the
+  demo assets' real 1600×1000 where a media item has none) and its `carousel` variant, and
+  `testimonials`' `carousel` variant, → `Carousel`; `navigation`'s mobile menu → `Drawer`, moved to
+  `side="left"` (the package's own convention for a menu drawer, `right` being for a cart/filters/
+  quick-view sheet — the hand-rolled version used `right`). No block in this starter has a search
+  trigger or toast-like feedback, so `SearchModal` and `Toaster` are not wired in; `UiTabs`/`UiDialog`
+  had no block usage to move either, only the files to delete. `UiImage.vue` stays — it carries
+  Studio's own image-framing contract, not a duplicate of anything this package ships (see the
+  README's Deviations entry). `test/support/dialog.ts` (the `showModal`/`close` polyfill) stays too:
+  the starter's own vitest config still runs on jsdom, which — unlike the package's own happy-dom
+  suite — implements neither method natively, regardless of which component now calls them.
+  `app/i18n`'s `gallery.previous`/`.next`/`.imageOf`/`.open`, `carousel.previous`/`.next`/`.slideOf`
+  and `dialog.close` keys are removed (dead: `Lightbox`/`Carousel`/`Dialog` carry their own English/
+  Icelandic vocabulary now); `gallery.viewer` and `testimonials.carousel` replace them as the two
+  blocks' own fallback accessible names for when they have no heading to use instead. Previews
+  regenerated for the four changed blocks (`faq`, `gallery`, `navigation`, `testimonials`).
+  `README.md`: fixed a merge artifact in the Composables section that left two contradictory,
+  partially-duplicated sentences about which modal surfaces `useDialog`/`useToast` are shared by
+  (`Drawer`/`Lightbox`/`SearchModal`, all three, now that all three have landed); `Accordion`'s
+  Deviations-adjacent ordinal ("the first component of the sub-project") is now `Task 6`, matching
+  every sibling entry's own "Task N" convention, and `SearchModal`'s entry gained the `Task 12`
+  reference every other component in this sub-project already carries. `docs/starter-kit.md` now
+  describes the starter's primitives as package components throughout, with `UiImage` named as the
+  one exception and why.
+- **`SearchModal`** — Task 12 of the "overlays, navigation, feedback" sub-project. Puts the Search
+  bar's field, results panel and listbox inside a native `<dialog>`,
   opened by a consumer's own trigger or by `/`/`⌘K`/`Ctrl+K` from anywhere. Built on `useDialog`
   (the same shared modal contract `Dialog`/`Drawer` use) and the reused `SearchResultsPanel`/
   `useListbox` pair (`SearchResultsPanel` gained a `flat` prop for this: no floating position,
@@ -204,8 +236,8 @@ aria-labelledby` its
   `.panel` to in the `items` API, and which a standalone `<Tab>`/`<TabPanel>` takes directly in the
   slots API. Stories: `Underline`, `Pills`, `Manual`, `ManyTabs`, `LongContent`, `Narrow`,
   `ReducedMotion`, `ForcedColors`.
-- **`Accordion` and `AccordionItem`** (design spec's "Accordion" section) — the first component of
-  the "overlays, navigation and feedback" sub-project. Native `<details>`/`<summary>` disclosure
+- **`Accordion` and `AccordionItem`** (design spec's "Accordion" section) — Task 6 of the
+  "overlays, navigation and feedback" sub-project. Native `<details>`/`<summary>` disclosure
   rows: `Accordion` is a plain grouping wrapper (`multiple`, default `true`; `false` puts every
   child `AccordionItem` in the same native `name` group, generated when not given, so the browser
   closes the previously open sibling itself). `AccordionItem` takes `title`, an optional `help`

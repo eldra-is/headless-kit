@@ -7,10 +7,9 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 
-// Per the HTML spec (and `UiAccordion.spec.ts`'s own note): a `<details>`
-// click toggles its `open` attribute synchronously, but fires the `toggle`
-// event — which drives `single` mode's sibling-closing — via a queued task,
-// one tick later.
+// Per the HTML spec (and `@eldrajs/ui`'s own `AccordionItem`/`detailsExclusivity` comments): a
+// `<details>` click toggles its `open` attribute synchronously, but fires the `toggle` event —
+// which drives `single` mode's sibling-closing — via a queued task, one tick later.
 async function flushToggle() {
   await new Promise((resolve) => setTimeout(resolve));
   await nextTick();
@@ -34,10 +33,15 @@ describe('faq block', () => {
   });
 
   it('closes the other question when single is true and a new one opens', async () => {
-    const wrapper = mount(
-      Block,
-      mountOptions({ entry: { id: 'e1', data: { ...mock, single: true } } })
-    );
+    // `AccordionItem`'s own single-open fallback (`closeOtherOpenSiblings`, for an engine that
+    // does not implement the native same-`name` `<details>` exclusivity — jsdom among them, per
+    // `detailsExclusivity.ts`'s own comment) queries the real `document`, so the wrapper must
+    // actually be attached to it — mirrors the navigation block's own Escape test, which needs the
+    // same thing for its own document-level keydown listener.
+    const wrapper = mount(Block, {
+      ...mountOptions({ entry: { id: 'e1', data: { ...mock, single: true } } }),
+      attachTo: document.body,
+    });
     const summaries = wrapper.findAll('summary');
     const details = wrapper.findAll('details');
 
@@ -50,6 +54,7 @@ describe('faq block', () => {
     await flushToggle();
     expect(details[0]!.attributes('open')).toBeUndefined();
     expect(details[1]!.attributes('open')).toBe('');
+    wrapper.unmount();
   });
 
   it('lets more than one question stay open when single is false', async () => {

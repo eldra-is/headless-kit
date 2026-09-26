@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
- * Disclosure list of questions built on `UiAccordion`/`UiAccordionItem`.
- * `single` closes a sibling item when a new one opens (see
- * `UiAccordion.vue`).
+ * Disclosure list of questions built on `@eldrajs/ui`'s `Accordion`/`AccordionItem`. `single`
+ * (the block's own field) maps to `Accordion`'s `multiple` prop, inverted: `single: true` ->
+ * `:multiple="false"`, which puts every `AccordionItem` in the same native `<details name>` group
+ * so the browser itself closes the previously open sibling — no JavaScript coordinates it (see
+ * that component's own doc comment).
  *
  * Each answer is rich text, but it lives one level inside a `list` item
  * (`items[].answer`), not as one of the block's own top-level fields.
@@ -19,11 +21,9 @@
  */
 import { computed } from 'vue';
 import { EldraRichText } from '@eldrajs/theme-vue';
-import { Container, Section } from '@eldrajs/ui';
+import { Accordion, AccordionItem, Container, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useUiId } from '../../app/composables/useUiId';
-import UiAccordion from '../../app/components/ui/UiAccordion.vue';
-import UiAccordionItem from '../../app/components/ui/UiAccordionItem.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'faq'> }>();
 const { data, entryId } = useBlockData(props, 'faq');
@@ -40,16 +40,16 @@ const headingId = `faq-heading-${useUiId()}`;
         <p v-if="data.intro" class="text-muted mt-3 text-lg">{{ data.intro }}</p>
       </div>
 
-      <UiAccordion class="mt-10" :single="data.single ?? false">
-        <UiAccordionItem v-for="(item, index) in items" :key="index" :title="item.question">
+      <Accordion class="mt-10" :multiple="!(data.single ?? false)">
+        <AccordionItem v-for="(item, index) in items" :key="index" :title="item.question">
           <EldraRichText
             class="prose-eldra"
             :entry-id="entryId"
             :field="`items.${index}.answer`"
             :doc="item.answer"
           />
-        </UiAccordionItem>
-      </UiAccordion>
+        </AccordionItem>
+      </Accordion>
     </Container>
   </Section>
 </template>

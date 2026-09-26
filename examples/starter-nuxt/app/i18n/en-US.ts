@@ -16,17 +16,9 @@ export const enUS = {
     primary: 'Primary navigation',
   },
   gallery: {
-    previous: 'Previous',
-    next: 'Next',
-    imageOf: 'Image {index} of {total}',
-    open: 'Open image',
+    viewer: 'Image viewer',
   },
-  dialog: {
-    close: 'Close dialog',
-  },
-  carousel: {
-    previous: 'Previous',
-    next: 'Next',
-    slideOf: 'Slide {index} of {total}',
+  testimonials: {
+    carousel: 'Customer testimonials',
   },
 } satisfies Messages;

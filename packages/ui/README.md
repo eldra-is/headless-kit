@@ -439,10 +439,8 @@ does, and which element the popup is anchored to. See `src/components/select/use
 the full option/return shape (`UsePopoverOptions`, `UsePopoverReturn`, also exported).
 
 `useDialog` is the **modal** counterpart: the shared "Modal dialogs" rules applied to a native
-`<dialog>`, built for `Dialog` and reused by every modal surface after it (`Drawer` and `Lightbox` now;
-`SearchModal` next) instead of each reimplementing them. `Drawer` is `Dialog`'s side-sheet
-`<dialog>`, built for `Dialog` and reused by every modal surface after it (`Drawer` and
-`SearchModal` now; `Lightbox` next) instead of each reimplementing them. `Drawer` is `Dialog`'s side-sheet
+`<dialog>`, built for `Dialog` and reused by every modal surface after it (`Drawer`, `Lightbox` and
+`SearchModal`) instead of each reimplementing them. `Drawer` is `Dialog`'s side-sheet
 sibling: it adds only what a side sheet needs beyond the shared contract — a per-side slide, a
 full-screen mobile variant, and a right-side default of focusing the close button first (see the
 README's Deviations for why that is the opposite of `Dialog`'s own initial-focus rule) — passing
@@ -535,9 +533,8 @@ oldest.
 `<Toaster />`, mounted once near an app's root, owns every timer (paused while the pointer is over
 the stack or focus is inside it, resumed for whatever time was left) and where the region actually
 renders: `TOAST_HOST_KEY` (see `useDialog` above) if a modal `Dialog` is open, `<body>` otherwise —
-the same hand-off `Dialog`, `Drawer` and `Lightbox` already share, so a toast raised during
-the same hand-off `Dialog`, `Drawer` and `SearchModal` already share, so a toast raised during
-a modal flow is never inert behind it.
+the same hand-off `Dialog`, `Drawer`, `Lightbox` and `SearchModal` already share, so a toast raised
+during a modal flow is never inert behind it.
 
 `useCarousel` is the scroll-snap carousel's whole behaviour with no rendering of its own — index
 tracking, previous/next/`goTo`, edge detection for the arrows, and autoplay with the spec's pause

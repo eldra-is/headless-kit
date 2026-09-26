@@ -3,10 +3,11 @@
 `examples/starter-nuxt` is what `eldra-theme init` copies: the base every customer theme starts
 from. Everything under it is source the customer owns, with one deliberate dependency:
 [`@eldrajs/ui`](../packages/ui/README.md), the accessible core component library, supplies the
-buttons, links, form controls, and display/commerce/layout components (`Badge`, `Price`, `Rating`,
-`Image`, `Container`, `Section`, and the rest). It is restyled through the same `--eldra-*` design
-tokens the rest of the theme uses — never by overriding its internals — and everything else
-(blocks, the remaining primitives, the CSS) stays source the customer edits directly.
+buttons, links, form controls, display/commerce/layout components (`Badge`, `Price`, `Rating`,
+`Image`, `Container`, `Section`, and the rest) and every overlay/navigation primitive (`Accordion`,
+`Drawer`, `Carousel`, `Lightbox`, `Dialog`, `Tabs`, and the rest). It is restyled through the same
+`--eldra-*` design tokens the rest of the theme uses — never by overriding its internals — and
+everything else (blocks, `UiImage`, the CSS) stays source the customer edits directly.
 
 This doc covers the conventions a customer inherits: the styling foundation, the primitive layer,
 the block contract, Storybook and generated previews, strings, and the testing/accessibility gates.
@@ -101,19 +102,24 @@ blanket `:focus-visible` base rule; each focusable element says which ring it ca
 
 ### `@eldrajs/ui` — the core components
 
-Buttons, links, layout, form controls and display/commerce components come from the package, not
-from copied source: `Button`, `ButtonGroup`, `Link`, `Container`, `Section`, `Input`, `Textarea`,
-`FieldWrapper`, `FormLayout`, `Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `Select`,
-`MultiSelect`, `QuantityStepper`, `VariantPicker`, `SearchBar`, `Icon`, `VisuallyHidden`, and — as
-of this sub-project — `Badge`/`StockBadge`, `Price` and `Rating` (the starter's own `UiBadge`,
-`UiPrice` and `UiRating` are gone; `testimonials` is the one block that renders a rating, now via
-`<Rating :count="1" :show-value="false" :show-count="false">` — a single testimonial has no review
-count of its own, so it is framed as "one review", matching `Rating`'s own accessible sentence
-without fabricating a number). Import them by name (`import { Button, Link, Rating } from
-'@eldrajs/ui'`) — they are never globally registered — and restyle them through tokens, the
-per-component CSS variables, each component's `classes` prop, its slots, or `as`.
-[`packages/ui/README.md`](../packages/ui/README.md) is the contract; overlay and navigation
-components land there in the next sub-project and replace the rest of the copied layer as they do.
+Buttons, links, layout, form controls, display/commerce components and — as of this sub-project —
+every overlay and navigation primitive come from the package, not from copied source: `Button`,
+`ButtonGroup`, `Link`, `Container`, `Section`, `Input`, `Textarea`, `FieldWrapper`, `FormLayout`,
+`Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `Select`, `MultiSelect`, `QuantityStepper`,
+`VariantPicker`, `SearchBar`, `Icon`, `VisuallyHidden`, `Badge`/`StockBadge`, `Price`, `Rating`, and
+now `Accordion`/`AccordionItem`, `Drawer`, `Carousel` and `Lightbox` (the starter's own `UiAccordion`/
+`UiAccordionItem`, `UiDialog`, `UiDrawer`, `UiTabs`/`UiTab`/`UiTabPanel` and `app/composables/
+useCarousel.ts` are gone): `faq` renders its questions through `Accordion`/`AccordionItem`
+(`multiple` is the block's own `single` field, inverted); `navigation`'s mobile menu is a `Drawer`
+with `side="left"` (the package's own convention for a menu drawer — a cart/filters/quick-view sheet
+is `right`, the default); `gallery`'s lightbox is `Lightbox` and its `carousel` variant (along with
+`testimonials`' own `carousel` variant) is `Carousel`. No block in this starter has a search trigger
+or toast-like feedback, so `SearchModal` and `Toaster` have nothing to wire in yet, and no block
+ever used `Tabs` or `Dialog` directly — only their now-deleted starter equivalents existed, unused.
+Import components by name (`import { Button, Link, Rating, Drawer } from '@eldrajs/ui'`) — they are
+never globally registered — and restyle them through tokens, the per-component CSS variables, each
+component's `classes` prop, its slots, or `as`. [`packages/ui/README.md`](../packages/ui/README.md)
+is the contract for all of them.
 
 Three things a theme has to keep on its own side of that boundary:
 
@@ -138,22 +144,31 @@ two-locale mapping `uiMessagesFor` already used for strings). No block calls `Pr
 no product data source this early in the theme — so this is wired ahead of the first one that
 will; `.storybook/eldra.ts` and `test/support/mountBlock.ts` do the same for their environments.
 
-### Primitives still copied into `app/components/ui/`
+### The one primitive left in `app/components/ui/`: `UiImage`
+
+Every other hand-rolled primitive that used to live here — `UiDialog`, `UiDrawer`, `UiAccordion`/
+`UiAccordionItem`, `UiTabs`/`UiTab`/`UiTabPanel` — is gone, replaced block by block with the
+`@eldrajs/ui` component it duplicated (see the previous section). `UiImage` stays, and is not a
+duplicate to eventually retire the same way: it is the one place the theme's own Studio
+preview-overlay framing contract (`imageFraming`/`imageFramingAttrs`/`imageFramingStyle`,
+`entryId`/`fieldPath` from `@eldrajs/theme-vue`) meets `@eldrajs/ui`'s `Image`, which must stay
+standalone of `@eldrajs/theme-vue` and knows nothing about Studio. A block never calls `Image`
+directly for CMS-sourced media — it calls `UiImage`, which maps `framing` to `Image`'s own
+`focal`/`zoom` props, adds the `data-eldra-framing*` marker attributes Studio's interactive framing
+controls key off, and forwards everything else (`aspect`, `sizes`, `priority`, `rounded`, `fill`,
+`fit`, `classes`) straight through.
 
 Vue 3 `<script setup lang="ts">`, Tailwind classes, no scoped CSS, every prop typed, `class`
-passthrough via `attrs`. Restyle one by editing its file — there is no upstream package to fork or
-override, and each is replaced by a `@eldrajs/ui` component in a later sub-project.
+passthrough via `attrs`. Restyle it by editing its file — there is no upstream package to fork or
+override.
 
-| Primitive                         | Contract                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UiDialog`                        | Native `<dialog>` via `.showModal()`/`.close()`. `open` v-model, focus trap, focus restore on close, Escape closes, backdrop click closes unless `persistent`, body scroll locked.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `UiDrawer`                        | `UiDialog` positioned as a side sheet (`side: 'left' \| 'right'`), motion-safe slide.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `UiAccordion` / `UiAccordionItem` | Native `<details>/<summary>`; `single` mode closes siblings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `UiTabs` / `UiTab` / `UiTabPanel` | `role="tablist"`, roving tabindex, arrow-key navigation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `UiImage`                         | Thin wrapper over `@eldrajs/ui`'s `Image`. `src`, required `alt` (empty string allowed for decorative), `framing?`, `aspect?`, `sizes`, lazy by default, `priority` for above-the-fold, `rounded?` (`'none' \| 'lg' \| 'xl'`, forwards to `Image`'s own radius), `fill?` (covers a positioned ancestor — the hero background), `fit?` (`'cover' \| 'contain'`, for an uncropped view — the gallery lightbox), `classes?` (passthrough to `Image`'s `classes`, for a radius/size `rounded`/`fill`/`fit` don't cover, e.g. `rounded-full`/`rounded-md`). `class`/`style` land on `Image`'s root (the frame's wrapper), not the `<img>` — use `rounded`/`fit`/`classes` for anything that needs to reach the frame or media element instead. |
+| Primitive | Contract                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UiImage` | Thin wrapper over `@eldrajs/ui`'s `Image`. `src`, required `alt` (empty string allowed for decorative), `framing?`, `aspect?`, `sizes`, lazy by default, `priority` for above-the-fold, `rounded?` (`'none' \| 'lg' \| 'xl'`, forwards to `Image`'s own radius), `fill?` (covers a positioned ancestor — the hero background), `fit?` (`'cover' \| 'contain'`, for an uncropped view — the gallery lightbox), `classes?` (passthrough to `Image`'s `classes`, for a radius/size `rounded`/`fill`/`fit` don't cover, e.g. `rounded-full`/`rounded-md`). `class`/`style` land on `Image`'s root (the frame's wrapper), not the `<img>` — use `rounded`/`fit`/`classes` for anything that needs to reach the frame or media element instead. |
 
-Each primitive has `<Name>.vue`, `<Name>.stories.ts`, and `__tests__/<Name>.spec.ts` (render, axe,
-plus a keyboard test for anything interactive).
+Same as any other primitive: `UiImage.vue`, `UiImage.stories.ts`, and
+`__tests__/UiImage.spec.ts` (render, axe, plus a keyboard test — not applicable here, since `Image`
+renders no interactive control of its own).
 
 One component sits outside both groups: `app/components/EldraIcon.vue` resolves a Tabler icon
 _name_ — what a CMS field holds — to markup through `useEldraIcon` and hands it to `@eldrajs/ui`'s

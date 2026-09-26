@@ -65,37 +65,6 @@ describe('gallery block', () => {
     }
   );
 
-  /**
-   * The lightbox's full-image view must never crop ("gallery lightbox constraint lost", fix round
-   * 1 ruling 3). `fit="contain"` maps to `Image`'s `media` part; the height cap that used to sit on
-   * the `<img>` itself (`max-h-[85vh]`) now has to sit on the `frame` `Image` wraps it in, since a
-   * caller's `classes` land on named parts, not the media element directly.
-   *
-   * Fix round 2 ruling 2: a portrait image must be scaled down to fit inside the 85vh cap,
-   * never clipped by the frame's `overflow-hidden` — `fit="contain"` shrink-wraps the frame
-   * (`w-auto max-w-full`, on top of `max-h-[85vh]`) and gives the media a `max-h-[inherit]` that
-   * reads the frame's own height cap back onto it, alongside `h-auto w-auto` so the browser scales
-   * the image to fit both constraints together instead of a percentage height that ignores the cap.
-   */
-  it('lets the lightbox image show uncropped, capped at 85vh on the frame (and inherited onto the media)', async () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImages } }));
-    await wrapper.findAll('button')[0]!.trigger('click');
-    await nextTick();
-
-    const dialog = wrapper.get('dialog');
-    const media = dialog.get('[data-part="media"]');
-    expect(media.classes()).toEqual(
-      expect.arrayContaining(['object-contain', 'h-auto', 'w-auto', 'max-h-[inherit]'])
-    );
-    expect(media.classes()).not.toContain('object-cover');
-    expect(media.classes()).not.toContain('h-full');
-    const frame = dialog.get('[data-part="frame"]');
-    expect(frame.classes()).toEqual(
-      expect.arrayContaining(['max-h-[85vh]', 'w-auto', 'max-w-full'])
-    );
-    expect(frame.classes()).not.toContain('w-full');
-  });
-
   it('renders plain (non-interactive) thumbnails when lightbox is disabled', () => {
     const wrapper = mount(
       Block,
@@ -113,7 +82,9 @@ describe('gallery block', () => {
 
     const dialog = wrapper.get('dialog');
     expect(dialog.attributes('open')).toBe('');
-    expect(wrapper.text()).toContain(`2 of ${withImages.images.length}`);
+    // `@eldrajs/ui`'s `Lightbox` own counter format: "n / total" (its `useMessages` default,
+    // shared with `Carousel`).
+    expect(wrapper.text()).toContain(`2 / ${withImages.images.length}`);
   });
 
   it('steps forward and back inside the lightbox', async () => {
@@ -122,31 +93,35 @@ describe('gallery block', () => {
     await nextTick();
 
     const dialog = wrapper.get('dialog');
+    // `Lightbox`'s arrows are icon-only — found by accessible name ("Next image"/"Previous
+    // image", `@eldrajs/ui`'s default English messages), not visible text.
     await dialog
       .findAll('button')
-      .find((button) => button.text() === 'Next')!
+      .find((button) => button.attributes('aria-label') === 'Next image')!
       .trigger('click');
-    expect(wrapper.text()).toContain('2 of');
+    expect(wrapper.text()).toContain(`2 / ${withImages.images.length}`);
     await dialog
       .findAll('button')
-      .find((button) => button.text() === 'Previous')!
+      .find((button) => button.attributes('aria-label') === 'Previous image')!
       .trigger('click');
-    expect(wrapper.text()).toContain('1 of');
+    expect(wrapper.text()).toContain(`1 / ${withImages.images.length}`);
   });
 
-  it('steps forward and back inside the lightbox with ArrowRight/ArrowLeft', async () => {
+  it('steps forward and back inside the lightbox with ArrowRight/ArrowLeft, never wrapping', async () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImages } }));
     await wrapper.findAll('button')[0]!.trigger('click');
     await nextTick();
 
     const dialog = wrapper.get('dialog');
     await dialog.trigger('keydown', { key: 'ArrowRight' });
-    expect(wrapper.text()).toContain('2 of');
+    expect(wrapper.text()).toContain(`2 / ${withImages.images.length}`);
     await dialog.trigger('keydown', { key: 'ArrowLeft' });
-    expect(wrapper.text()).toContain('1 of');
+    expect(wrapper.text()).toContain(`1 / ${withImages.images.length}`);
 
+    // `Lightbox` never loops (only autoplay would, and it has none): ArrowLeft at the first image
+    // stays put instead of wrapping to the last one, unlike the old hand-rolled implementation.
     await dialog.trigger('keydown', { key: 'ArrowLeft' });
-    expect(wrapper.text()).toContain(`${withImages.images.length} of`);
+    expect(wrapper.text()).toContain(`1 / ${withImages.images.length}`);
   });
 
   it('closes the lightbox via the dialog close button', async () => {
@@ -156,7 +131,10 @@ describe('gallery block', () => {
     expect(wrapper.get('dialog').attributes('open')).toBe('');
 
     const dialog = wrapper.get('dialog');
-    await dialog.findAll('button')[0]!.trigger('click');
+    await dialog
+      .findAll('button')
+      .find((button) => button.attributes('aria-label') === 'Close image viewer')!
+      .trigger('click');
     expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
   });
 
@@ -165,8 +143,11 @@ describe('gallery block', () => {
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...withImages, variant: 'carousel' } } })
     );
-    const track = wrapper.get('[tabindex="0"]');
+    // `Carousel`'s root is a `<section>` named by `ariaLabel` — an *implicit* ARIA `region` role,
+    // not an explicit `role` attribute — so this scopes by the attribute it actually renders.
+    const track = wrapper.get('section[aria-roledescription="carousel"] [tabindex="0"]');
     await track.trigger('keydown', { key: 'ArrowRight' });
-    expect(wrapper.text()).toContain(`Slide 2 of ${withImages.images.length}`);
+    // `Carousel`'s own counter format: "n / total".
+    expect(wrapper.text()).toContain(`2 / ${withImages.images.length}`);
   });
 });

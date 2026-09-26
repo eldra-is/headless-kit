@@ -2,18 +2,15 @@
 /**
  * Customer quotes. `variant`:
  *  - `grid`: a responsive card grid, every quote visible at once.
- *  - `carousel`: a scroll-snap track exposing one quote (mobile) or a few
- *    (wider) at a time, stepped by previous/next `Button`s or
- *    `ArrowLeft`/`ArrowRight` on the track (`useCarousel`). The track is a
- *    `role="region"` landmark labelled by the block's own heading, with an
- *    `aria-live="polite"` "slide X of Y" counter so the current position is
- *    announced to assistive tech without relying on visible scroll position.
+ *  - `carousel`: `@eldrajs/ui`'s `Carousel`, `controls="below"` with a counter, roughly the same
+ *    peek-of-the-next-card sizing the old hand-rolled track used
+ *    (`{ base: 1.15, md: 2.2, lg: 3.3 }`). `Carousel` renders its own
+ *    `role="region"`/`aria-roledescription="carousel"` wrapper, named by its own `ariaLabel` —
+ *    the block's own heading text (content, not UI copy) when there is one.
  */
 import { computed } from 'vue';
-import { Button, Container, Rating, Section } from '@eldrajs/ui';
-import { focusRing } from '../../app/utils/classes';
+import { Carousel, Container, Rating, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
-import { useCarousel } from '../../app/composables/useCarousel';
 import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import UiImage from '../../app/components/ui/UiImage.vue';
@@ -27,8 +24,9 @@ const isCarousel = computed(() => data.value.variant === 'carousel');
 const headingId = `testimonials-heading-${useUiId()}`;
 /**
  * The outer `Section` is named by the heading only for the `grid` variant. In `carousel` the
- * track below is already a `role="region"` named by the same heading, and naming the `Section`
- * too would give two nested landmarks an identical accessible name (axe `landmark-unique`).
+ * `Carousel` below is already a `role="region"` named by its own `ariaLabel`, and naming the
+ * `Section` too would give two nested landmarks an identical accessible name (axe
+ * `landmark-unique`).
  *
  * It still renders as an actual `<section>` either way (`as="section"` below, not left to
  * `Section`'s own labelled/unlabelled choice): each quote card has its own `<footer>` for the
@@ -40,8 +38,7 @@ const headingId = `testimonials-heading-${useUiId()}`;
  */
 const sectionLabelledBy = computed(() => (isCarousel.value ? undefined : headingId));
 
-const total = computed(() => items.value.length);
-const { index, trackRef, next, previous, onTrackKeydown } = useCarousel(total);
+const ariaLabel = computed(() => data.value.heading || t('testimonials.carousel'));
 
 /**
  * Fallback avatar for an item with no `avatar` media: the first letters of
@@ -69,71 +66,52 @@ function initialsOf(name: string | undefined): string {
         {{ data.heading }}
       </h2>
 
-      <div
+      <Carousel
         v-if="isCarousel"
-        role="region"
-        aria-roledescription="carousel"
-        :aria-labelledby="headingId"
         class="mt-10"
+        :aria-label="ariaLabel"
+        controls="below"
+        counter
+        :per-view="{ base: 1.15, md: 2.2, lg: 3.3 }"
       >
         <div
-          ref="trackRef"
-          tabindex="0"
-          :class="[
-            focusRing,
-            'scrollbar-hidden flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-2',
-          ]"
-          @keydown="onTrackKeydown"
+          v-for="(item, itemIndex) in items"
+          :key="itemIndex"
+          class="border-border bg-surface rounded-lg border p-6"
         >
-          <div
-            v-for="(item, itemIndex) in items"
-            :key="itemIndex"
-            class="border-border bg-surface w-[85%] shrink-0 snap-start rounded-lg border p-6 sm:w-[45%] lg:w-[30%]"
-          >
-            <blockquote class="text-text text-lg">“{{ item.quote }}”</blockquote>
-            <footer class="mt-4 flex items-center gap-3">
-              <UiImage
-                v-if="item.avatar"
-                :src="item.avatar.url"
-                :alt="''"
-                aspect="1/1"
-                class="h-10 w-10"
-                :classes="{ frame: 'rounded-full' }"
-              />
-              <span
-                v-else
-                aria-hidden="true"
-                class="bg-primary text-primary-contrast flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-                >{{ initialsOf(item.author) }}</span
-              >
-              <div>
-                <cite class="text-text block text-sm font-semibold not-italic">{{
-                  item.author
-                }}</cite>
-                <span v-if="item.role" class="text-muted block text-sm">{{ item.role }}</span>
-              </div>
-            </footer>
-            <Rating
-              v-if="item.rating !== undefined"
-              class="mt-3"
-              :value="item.rating"
-              :count="1"
-              :show-value="false"
-              :show-count="false"
+          <blockquote class="text-text text-lg">“{{ item.quote }}”</blockquote>
+          <footer class="mt-4 flex items-center gap-3">
+            <UiImage
+              v-if="item.avatar"
+              :src="item.avatar.url"
+              :alt="''"
+              aspect="1/1"
+              class="h-10 w-10"
+              :classes="{ frame: 'rounded-full' }"
             />
-          </div>
+            <span
+              v-else
+              aria-hidden="true"
+              class="bg-primary text-primary-contrast flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+              >{{ initialsOf(item.author) }}</span
+            >
+            <div>
+              <cite class="text-text block text-sm font-semibold not-italic">{{
+                item.author
+              }}</cite>
+              <span v-if="item.role" class="text-muted block text-sm">{{ item.role }}</span>
+            </div>
+          </footer>
+          <Rating
+            v-if="item.rating !== undefined"
+            class="mt-3"
+            :value="item.rating"
+            :count="1"
+            :show-value="false"
+            :show-count="false"
+          />
         </div>
-
-        <div class="mt-6 flex items-center justify-center gap-4">
-          <Button variant="outline" size="sm" @click="previous">{{
-            t('carousel.previous')
-          }}</Button>
-          <span class="text-muted text-sm" aria-live="polite">{{
-            t('carousel.slideOf', { index: index + 1, total })
-          }}</span>
-          <Button variant="outline" size="sm" @click="next">{{ t('carousel.next') }}</Button>
-        </div>
-      </div>
+      </Carousel>
 
       <div v-else class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <div
