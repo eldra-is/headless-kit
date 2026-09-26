@@ -139,14 +139,14 @@ describe('Link — variants', () => {
     wrapper.unmount();
   });
 
-  it('gives the standalone variant weight 600, no underline at rest, and the target-min box', () => {
+  it('gives the standalone variant weight 600, underlined at rest, and the target-min box', () => {
     const wrapper = mountWith(Link, {
       props: { href: '/x', variant: 'standalone' },
       slots: { default: 'Shop all knitwear' },
     });
     expect(wrapper.classes()).toContain('font-semibold');
-    expect(wrapper.classes()).toContain('no-underline');
-    expect(wrapper.classes()).not.toContain('underline');
+    expect(wrapper.classes()).toContain('underline');
+    expect(wrapper.classes()).not.toContain('no-underline');
     expect(wrapper.classes()).toContain('target-min');
     expect(wrapper.classes()).toContain('inline-flex');
     wrapper.unmount();
@@ -160,6 +160,36 @@ describe('Link — variants', () => {
         slots: { default: LONG_LABEL },
       });
       expect(wrapper.classes()).not.toContain('whitespace-nowrap');
+      wrapper.unmount();
+    }
+  );
+});
+
+describe('Link — underline', () => {
+  it.each<LinkVariant>(['inline', 'standalone'])(
+    'underlines the %s variant at rest by default',
+    (variant) => {
+      const wrapper = mountWith(Link, {
+        props: { href: '/x', variant },
+        slots: { default: 'care for stoneware' },
+      });
+      expect(wrapper.classes()).toContain('underline');
+      expect(wrapper.classes()).not.toContain('no-underline');
+      wrapper.unmount();
+    }
+  );
+
+  it.each<LinkVariant>(['inline', 'standalone'])(
+    'removes the rest-state underline on the %s variant when underline is false, keeping it on hover',
+    (variant) => {
+      const wrapper = mountWith(Link, {
+        props: { href: '/x', variant, underline: false },
+        slots: { default: 'care for stoneware' },
+      });
+      expect(wrapper.classes()).toContain('no-underline');
+      expect(wrapper.classes()).not.toContain('underline');
+      expect(wrapper.classes()).toContain('hover:underline');
+      expect(wrapper.classes()).toContain('active:underline');
       wrapper.unmount();
     }
   );

@@ -26,6 +26,18 @@ Release-please writes the generated notes from commit messages and does not repl
   how far the pointer moves. Autoplay pauses for the span of a drag and resumes after, without
   flipping the Pause/Play label; reduced motion still snaps instantly. `index`/`update:index` and
   the arrows/keyboard are unchanged.
+- **Operator fix (2026-09-26): links underlined at rest by default; `Breadcrumb` separator
+  geometry.** `Link` now underlines every variant at rest, including `standalone` — WCAG 2.2 F73 /
+  1.4.1 — with a new `underline` prop (default `true`) whose `false` value restores the old
+  standalone-only, hover-appears shape for a navigation bar whose own design removes the rest-state
+  underline. The same underline-at-rest change reaches `Breadcrumb`'s trail links and the stretched
+  title links `ContentCard`, `FeatureCard` and `ProductCard` build on `stretchedLink.ts` — see the
+  README's Deviations entries for the full reasoning; `LogoItem`'s link and `Rating`'s linked
+  variant were reviewed and left unchanged. Separately, `Breadcrumb`'s separator chevron no longer
+  sits above the baseline before a link: it was centred with a fixed `mt-1.875` sized for a plain
+  text line, applied even before a `target-min` (1.5rem) link or the ellipsis button — it now uses
+  `align-self: center` there instead, keeping the old fixed offset only before the trail's final,
+  possibly-wrapping current-page item.
 - **Plan 3 final review fixes.** `Dialog`/`Drawer`/`Lightbox` default `modelValue: undefined`
   (not a literal `false`), so an uncontrolled instance is genuinely self-managing instead of
   permanently "controlled" the moment a parent stops binding `v-model` — see `useControllableModel`'s

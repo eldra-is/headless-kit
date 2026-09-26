@@ -99,6 +99,81 @@ describe('Breadcrumb — landmark and current page', () => {
   });
 });
 
+describe('Breadcrumb — link underline', () => {
+  it('underlines every trail link at rest, not only on hover (operator ruling: all links underlined)', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: PRODUCT_TRAIL } });
+    const links = wrapper.findAll('[data-part="link"]');
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.classes()).toContain('underline');
+      expect(link.classes()).not.toContain('no-underline');
+    }
+    wrapper.unmount();
+  });
+
+  it('leaves the current page as plain text with no underline utility at all', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: PRODUCT_TRAIL } });
+    const current = wrapper.get('[data-part="current"]');
+    expect(current.classes()).not.toContain('underline');
+    wrapper.unmount();
+  });
+});
+
+describe('Breadcrumb — separator geometry', () => {
+  /** A short, three-level trail with nothing to collapse (`items.length` is not greater than
+   *  `collapseAfter + keepLast`, so `hasMiddle` is `false` and every level renders through
+   *  `endItems` — see `Breadcrumb.vue`'s own `hasMiddle` comment): exactly two separators, one
+   *  before the "Category" link and one before the current page. */
+  const SHORT_TRAIL: BreadcrumbItem[] = [
+    { label: 'Home', href: '/' },
+    { label: 'Category', href: '/category' },
+    { label: 'Current page' },
+  ];
+
+  /** Every separator before a link (or the ellipsis) is vertically centred on its sibling with
+   *  `align-self: center`, not the fixed `mt-1.875` used only before the trail's final,
+   *  possibly-wrapping current-page item — see `separatorClass`'s own comment in `Breadcrumb.vue`. */
+  it('centres the separator before a link with self-center, not the fixed top offset', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
+    const separators = wrapper.findAll('[data-part="separator"]');
+    expect(separators).toHaveLength(2);
+    const beforeLink = separators[0]!;
+    expect(beforeLink.classes()).toContain('self-center');
+    expect(beforeLink.classes()).not.toContain('mt-1.875');
+    wrapper.unmount();
+  });
+
+  it('keeps the fixed top offset only on the separator before the current-page title', () => {
+    const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
+    const separators = wrapper.findAll('[data-part="separator"]');
+    const beforeCurrent = separators[1]!;
+    expect(beforeCurrent.classes()).toContain('mt-1.875');
+    expect(beforeCurrent.classes()).not.toContain('self-center');
+    wrapper.unmount();
+  });
+
+  /** `LongTitles`-shaped: the current page wraps onto several lines inside a narrow host. The
+   *  separator before it still gets the fixed top offset (not `self-center`, which would centre
+   *  against the whole wrapped block instead of its first line) — proving the story's own claim
+   *  in code, not only by eye. */
+  it('still uses the fixed top offset before a current-page title long enough to wrap', () => {
+    const wrapper = mountNarrow(Breadcrumb, {
+      props: {
+        items: [
+          { label: 'Home', href: '/' },
+          { label: 'Category', href: '/category' },
+          { label: LONG_TITLE },
+        ],
+      },
+    });
+    const separators = wrapper.findAll('[data-part="separator"]');
+    const beforeCurrent = separators[separators.length - 1]!;
+    expect(beforeCurrent.classes()).toContain('mt-1.875');
+    expect(beforeCurrent.classes()).not.toContain('self-center');
+    wrapper.unmount();
+  });
+});
+
 describe('Breadcrumb — collapse rule', () => {
   it('collapses the middle levels behind an ellipsis named with the hidden count', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: CERAMICS_TRAIL } });

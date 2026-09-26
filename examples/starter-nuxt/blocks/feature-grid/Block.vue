@@ -54,16 +54,24 @@ const tileClass = computed(() =>
 
 /**
  * A linked tile's `Link` props. The tile is a card, not a line of text, so the
- * standalone variant's inline-flex row and its hover underline are replaced on
- * the root (`classes` merges with `tailwind-merge`, so `block` really does
- * replace `inline-flex`), and the label part — the span `Link` wraps its
- * content in — becomes `block` for the stacked icon/title/body.
+ * standalone variant's inline-flex row is replaced on the root (`classes`
+ * merges with `tailwind-merge`, so `block` really does replace `inline-flex`),
+ * and the label part — the span `Link` wraps its content in — becomes `block`
+ * for the stacked icon/title/body. `underline: false`: `@eldrajs/ui`'s `Link`
+ * underlines every variant at rest by default now (operator ruling, "all link
+ * elements"), but this tile wraps an icon, a title and body copy, not a line
+ * of text — an underline running the full width of the tile under all three
+ * would misread as a stray rule, not a link affordance, so this is the
+ * explicit opt-out the prop exists for. `hover:no-underline active:no-underline`
+ * still cancel the standalone variant's own hover underline on top of that,
+ * unchanged from before.
  */
 function linkProps(href: string, as: Component | string | undefined): Record<string, unknown> {
   return {
     href,
     as,
     variant: 'standalone',
+    underline: false,
     classes: {
       root: `block font-normal hover:no-underline active:no-underline ${tileClass.value}`,
       label: 'block',

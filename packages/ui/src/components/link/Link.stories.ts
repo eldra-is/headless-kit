@@ -16,6 +16,7 @@ const meta = {
     tone: { control: 'inline-radio', options: ['default', 'muted'] },
     arrow: { control: 'boolean' },
     external: { control: 'boolean' },
+    underline: { control: 'boolean' },
     as: { table: { disable: true } },
     classes: { table: { disable: true } },
   },
@@ -40,6 +41,11 @@ const meta = {
           '**No destination**: with no `href`, Link renders a `<span data-part="root">` with',
           'the same text and no link semantics at all, per the spec: "If no destination exists,',
           'render plain text instead of a link."',
+          '',
+          '**`underline`** (default `true`): every variant, including `standalone`, is underlined',
+          'at rest — operator direction, WCAG 2.2 F73/1.4.1 (see the README’s Deviations entry).',
+          '`underline: false` is the explicit opt-out for a navigation bar whose design removes',
+          'the rest-state underline; hover still shows it — see the `NoUnderline` story.',
         ].join('\n'),
       },
     },
@@ -65,7 +71,8 @@ export const Inline: Story = {
   }),
 };
 
-/** "Read the journal", a block-heading action — bold weight identifies it, no arrow. */
+/** "Read the journal", a block-heading action — bold weight and the rest-state underline both
+ *  identify it, no arrow. */
 export const Standalone: Story = {
   args: { variant: 'standalone' },
   render: (args) => ({
@@ -109,6 +116,27 @@ export const Muted: Story = {
     components: { Link },
     setup: () => ({ args }),
     template: `<Link v-bind="args" href="/size-guide">Size guide</Link>`,
+  }),
+};
+
+/**
+ * `underline: false` — the explicit opt-out (spec's own "no underline at rest" shape, kept
+ * available to every variant), for a navigation bar whose own design removes the rest-state
+ * underline. Hover still shows a 1px underline, thickening to 2px on `:active`, exactly as it did
+ * before this package defaulted every link to underlined at rest.
+ */
+export const NoUnderline: Story = {
+  args: { variant: 'standalone', underline: false },
+  render: (args) => ({
+    components: { Link },
+    setup: () => ({ args }),
+    template: `
+      <nav class="flex gap-6 text-body-sm" aria-label="Example">
+        <Link v-bind="args" href="/new">New</Link>
+        <Link v-bind="args" href="/knitwear">Knitwear</Link>
+        <Link v-bind="args" href="/sale">Sale</Link>
+      </nav>
+    `,
   }),
 };
 

@@ -156,38 +156,67 @@ const ellipsisItemClass = computed(() =>
 );
 
 /**
- * Spec "Breadcrumb" → Sizes: "Separator ... 0.125rem extra space after" — on top of the list's own
- * 0.5rem item gap (`gap-x-2` above), not in place of it. `items-start` on the `<li>` (not `items-
- * center`) plus this `mt-1.875` is a long current-page title's own fix: a title never truncates
- * (see `BreadcrumbItem`'s own comment), so it can wrap to several lines inside its `<li>`, and a
- * `<li>` that centred the separator across the *whole* wrapped block would float it down toward
- * the middle line rather than beside the first one — `mt-1.875` (0.46875rem) nudges the top-aligned
- * separator down to the vertical centre of exactly one `text-body-sm` line
- * (`(1.3125rem line-height − 0.375rem separator) ÷ 2`), which reads identically to the old
- * `items-center` result for every item that never wraps, and correctly for the ones that do.
+ * Spec "Breadcrumb" → Sizes, "Separator" row: "0.375rem square ... rotated 45° (a chevron), 0.125rem
+ * extra space after" — the current chevron's own size (`size-1.5`), kept unchanged; see the
+ * README's Deviations entry for why it stays an inline Tabler `chevron-right` SVG rather than the
+ * spec's own CSS-drawn two-border technique (operator direction, 2026-09-25, predates this fix).
+ *
+ * The bug the operator reported ("separators render as tiny marks sitting above the baseline") was
+ * never the size — it was a single `mt-1.875` used for two siblings of different heights. Every
+ * separator sits in the *same* `<li>`, immediately before the one thing it separates from the
+ * previous level, and that sibling is one of two shapes:
+ *
+ * - A **link or the ellipsis button** — always exactly one line, and always `target-min` (1.5rem)
+ *   tall from its own `inline-flex`/`min-height` box (`linkClass`/`ellipsisClass` below), not from
+ *   `text-body-sm`'s 1.3125rem line-height. `align-self: center` (`self-center`) is exactly right
+ *   here: with no wrapping possible, the `<li>`'s own cross-size *is* that 1.5rem box, so the
+ *   browser centres the 0.375rem chevron against it with no margin arithmetic at all.
+ * - The **current page**, a plain `<span>` with no flex box of its own (`currentClass` below) — the
+ *   one item the spec allows to wrap onto several lines ("Product titles are never truncated; the
+ *   trail wraps" — see `BreadcrumbItem`'s own comment; proved by the `LongTitles` story). Here
+ *   `self-center` would centre the chevron against the *whole* wrapped block, floating it down
+ *   toward a middle line instead of the first one — so this case keeps the `<li>`'s own `items-
+ *   start` (top-aligned) instead, with `mt-1.875` (0.46875rem) nudging the top-aligned chevron down
+ *   to the vertical centre of exactly the first `text-body-sm` line
+ *   (`(1.3125rem line-height − 0.375rem separator) ÷ 2`).
+ *
+ * `alignCenter` is `true` for every separator except the one immediately before the trail's final,
+ * current-page item (see the template's own `endItems` loop, the only place `false` is passed).
+ * `mx-1` (was `mr-0.5`, right-only) — even spacing on both sides of the mark itself, on top of the
+ * list's own 0.5rem item gap (`gap-x-2` above).
  */
-const separatorClass = computed(() =>
-  partClass('size-1.5 shrink-0 mr-0.5 mt-1.875 text-muted', props.classes, 'separator')
-);
+function separatorClass(alignCenter: boolean): string {
+  return partClass(
+    cx('size-1.5 shrink-0 mx-1 text-muted', alignCenter ? 'self-center' : 'mt-1.875'),
+    props.classes,
+    'separator'
+  );
+}
 
 /**
  * Spec "Breadcrumb" → Sizes, "Link" row: min-height 1.5rem (`target-min`), corner radius 2px for
- * the focus ring (`eldra-link-radius`, `Link`'s own recipe — see that component's comment). States:
- * "Link: `muted`, underline hidden (transparent)" at rest, "Link hover: `text`, underline visible,
- * 0.2em offset" — the same no-underline-until-hover shape `Link`'s own standalone variant uses,
- * copied here rather than imported because `Link` bundles a weight-600/`inline-flex` layout and an
- * optional arrow that this component's plain trail links never want. `inline-flex items-center` is
- * still needed alongside `target-min` (unlike `Link`'s own plain inline variant, which never grows
- * past its text): `min-height` does nothing on a plain inline element, only on a block/flex/grid
- * one, and once a long label wraps past 1.5rem the flex box simply grows to fit it, so this never
- * re-introduces the wrapped-title centring problem `separatorClass`'s own comment describes.
+ * the focus ring (`eldra-link-radius`, `Link`'s own recipe — see that component's comment).
+ *
+ * Deviation, operator direction 2026-09-26 (see the README's Deviations entry): the spec's own
+ * States row reads "Link: `muted`, underline hidden (transparent)" at rest, underline appearing on
+ * hover — the same no-underline-until-hover shape `Link`'s own standalone variant used to have.
+ * The operator's "all link elements" underline-at-rest ruling applies here too, so this now uses
+ * `Link`'s own shared rest recipe instead (1px at 55% of the text colour, thickening to 2px at
+ * hover) — copied here rather than imported because `Link` also bundles a weight-600/`inline-flex`
+ * layout and an optional arrow that this component's plain trail links never want. `inline-flex
+ * items-center` is still needed alongside `target-min` (unlike `Link`'s own plain inline variant,
+ * which never grows past its text): `min-height` does nothing on a plain inline element, only on a
+ * block/flex/grid one, and once a long label wraps past 1.5rem the flex box simply grows to fit it,
+ * so this never re-introduces the wrapped-title centring problem `separatorClass`'s own comment
+ * describes.
  */
 const linkClass = computed(() =>
   partClass(
     cx(
-      'inline-flex items-center target-min eldra-link-radius eldra-focus no-underline',
-      'text-body-sm text-muted hover:text-text hover:underline hover:decoration-1',
-      'hover:decoration-current hover:underline-offset-[0.2em]'
+      'inline-flex items-center target-min eldra-link-radius eldra-focus',
+      'text-body-sm text-muted hover:text-text',
+      'underline decoration-1 decoration-current/55 underline-offset-[0.2em]',
+      'hover:decoration-2 hover:decoration-current'
     ),
     props.classes,
     'link'
@@ -257,7 +286,7 @@ const structuredData = computed(() =>
         <svg
           v-if="index > 0"
           data-part="separator"
-          :class="separatorClass"
+          :class="separatorClass(true)"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -278,7 +307,7 @@ const structuredData = computed(() =>
         <svg
           v-if="startItems.length > 0"
           data-part="separator"
-          :class="separatorClass"
+          :class="separatorClass(true)"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -309,7 +338,7 @@ const structuredData = computed(() =>
       >
         <svg
           data-part="separator"
-          :class="separatorClass"
+          :class="separatorClass(true)"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -341,7 +370,7 @@ const structuredData = computed(() =>
         <svg
           v-if="hasMiddle || index > 0"
           data-part="separator"
-          :class="separatorClass"
+          :class="separatorClass(index !== endItems.length - 1)"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

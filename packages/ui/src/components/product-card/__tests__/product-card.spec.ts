@@ -92,6 +92,15 @@ describe('ProductCard — the stretched link', () => {
     wrapper.unmount();
   });
 
+  it('underlines the title at rest, thickening on hover (operator ruling: all links underlined)', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
+    const link = wrapper.get('[data-part="link"]').classes();
+    expect(link).toContain('underline');
+    expect(link).not.toContain('no-underline');
+    expect(link).toContain('hover:decoration-2');
+    wrapper.unmount();
+  });
+
   it('covers the card with an ::after pseudo-element rather than the link box alone', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     const link = wrapper.get('[data-part="link"]');

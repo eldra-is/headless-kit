@@ -1222,6 +1222,23 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   container. The WCAG 2.5.8 24px minimum is still met at every size (`sm` is 2rem = 32px).
   `--eldra-target-touch` and the `target-touch` utility are unchanged and still available for a
   future component.
+- **`Link` underlines every variant at rest, including `standalone` — operator direction,
+  2026-09-26: "I would preferably have all link elements also have underline by default — that
+  goes for breadcrumbs as well, as that is the recommended WCAG 2.2 standard" (F73, 1.4.1).** This
+  overrides the design spec's own text for the standalone variant ("No underline at rest ... bold
+  weight + arrow identify it"), which stays true only for the new `underline: false` opt-out. A
+  `Link` with `underline` at its default `true` gets the spec's inline/external recipe (1px at 55%
+  of the text colour, thickening to 2px at full colour on hover, held through `:active`) on every
+  variant; `underline: false` restores the old standalone-only shape — no underline at rest, 1px
+  appearing on hover, 2px on `:active` — for a navigation bar whose own design removes it. The same
+  ruling reaches three other places that render a link-shaped affordance without going through
+  `Link` itself, all updated alongside it: `Breadcrumb`'s trail links (`linkClass` — see that
+  component's own Deviations entry below) and the stretched title links `ContentCard`, `FeatureCard`
+  and `ProductCard` build from `stretchedLink.ts` (underlined at rest now, thickening on hover via
+  the card root's `group`, not only on hover as the spec's own States rows read — see
+  `stretchedLink.ts`'s own comment and each component's `titleLinkClass`/`linkClass`). `LogoItem`'s
+  link and `Rating`'s linked variant were reviewed and intentionally left as they were — see the
+  `LogoItem` Deviations entry above for why.
 - **`Link` has no `externalIcon` prop and no `@tabler/icons-vue` runtime dependency.** The arrow and
   external-link icons are both fixed by the spec's anatomy, not swappable the way `Button`'s
   `iconLeft`/`iconRight` are, so both are inline `<svg>`s using Tabler's own published path data —
@@ -1809,6 +1826,14 @@ more"` — has no comma before "and". Icelandic's own pattern already has no suc
   is a new component variable (`--eldra-logo-wordmark-size`) with a literal default — the same
   "reuse what matches, one new variable for what doesn't" shape `text-card-title`/`text-stepper-value`
   already use, just spread across two donor styles instead of one.
+- **`LogoItem`'s link stays without an underline, even after the operator's "all link elements are
+  underlined" ruling below (`Link`, `Breadcrumb`, card titles).** Reviewed as part of that same
+  change and deliberately left alone: the linked cell's own text is the greyscale/wordmark brand
+  mark or an image, not a run of body copy — underlining a wordmark reads as a broken heading, not
+  a link affordance, and the cell's non-colour affordance is already its own hover/focus treatment
+  (opacity rising to 100%, the `eldra-focus` ring, the 4rem target) rather than a text decoration.
+  `Rating`'s linked variant needed no change either: its `count` text ("128 reviews") was already
+  underlined at rest before this task (`decoration-1 decoration-current/55`), not hover-gated.
 - **Fix round 2 (2026-09-25): the navigation logo dropped `UiImage` entirely, and
   `fit="contain"` now also shrink-wraps the frame.** Two open findings from the round 1 re-review:
   - **The navigation block's logo was still routed through `UiImage`** with a bare
@@ -2256,6 +2281,27 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `AccordionItem`'s chevron), all of which are inline SVGs, not CSS pseudo-element borders — a
   second decorative-line technique for one component would be a new pattern with no reuse anywhere
   else in the package. It is still `aria-hidden` and still not text, so it is still never announced.
+- **Fix (2026-09-26): the separator's fixed `mt-1.875` — sized to centre a 0.375rem chevron on one
+  `text-body-sm` line (1.3125rem) — was also being used before a link, whose own sibling box is
+  `target-min` (1.5rem), not that line-height.** The operator reported "separators render as tiny
+  marks sitting above the baseline" — true of most separators in an ordinary trail, since only the
+  one immediately before the current page (see `BreadcrumbItem`'s own comment on wrapping) ever sits
+  beside a plain, line-height-driven `<span>`; every other separator sits beside a `target-min` link
+  or the ellipsis button. `separatorClass` (`Breadcrumb.vue`) now takes an `alignCenter` argument:
+  `true` (`self-center`, letting the flexbox centre the chevron against its sibling's real height,
+  no arithmetic needed) before a link or the ellipsis; `false` (the original `mt-1.875` math,
+  unchanged) only before the trail's final, possibly-wrapping current-page item — `self-center`
+  there would centre the chevron against the _whole_ wrapped block instead of its first line, which
+  the `LongTitles` story and a dedicated `Breadcrumb.spec.ts` case both prove stays correct. The
+  chevron's own size is unchanged (0.375rem, `size-1.5`, already the spec's own number); only the
+  horizontal margin moved from `mr-0.5` (0.125rem, right only) to `mx-1` (0.25rem, both sides).
+- **`Breadcrumb`'s trail links are underlined at rest, not only on hover — the same operator
+  ruling as `Link`'s own Deviations entry above ("all link elements... underline by default").**
+  The spec's own States row for the Link part ("`muted`, underline hidden (transparent)" at rest)
+  predates that ruling; `linkClass` now carries `Link`'s own shared rest recipe (1px at 55% of the
+  text colour, thickening to 2px on hover) instead of the old no-underline-until-hover shape. The
+  current page (`currentClass`) is unaffected — it was never a link and carries no underline in
+  either state.
 - **The `<nav>` landmark name and the ellipsis button's accessible name are catalogue messages
   (`breadcrumbLabel`, `showMoreLevels`), not literal strings baked into the template**, following
   this package's own rule that text a component renders on its own — never passed in by a caller —

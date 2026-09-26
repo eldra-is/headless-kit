@@ -23,6 +23,15 @@ export interface LinkProps {
   external?: boolean;
   /** Tertiary links in footers and meta lines. Defaults to `default`. */
   tone?: LinkTone;
+  /**
+   * Underline at rest. Defaults to `true` — every variant, including `standalone`, is underlined
+   * at rest (Deviation, operator direction 2026-09-26: WCAG 2.2 F73/1.4.1 — see the README's
+   * Deviations entry, which overrides the spec's own "no underline at rest" for `standalone`).
+   * `false` is the explicit opt-out for a navigation bar (or similar) whose design removes the
+   * rest-state underline; hover still shows a 1px underline, thickening to 2px on `:active`, the
+   * same as before this default changed.
+   */
+  underline?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<LinkPart, string>>;
   /**

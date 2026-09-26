@@ -196,9 +196,11 @@ const titleClass = computed(() =>
  * `position: absolute; inset: 0` with no `position: relative` of its own, so it anchors to the
  * nearest *positioned* ancestor — `root` above — covering the whole card rather than only this
  * `<a>`'s own text box; giving this element `relative` too would break that by anchoring the
- * pseudo-element to itself instead. `hover:underline` only visibly affects the text (the
- * pseudo-element carries no content of its own), matching the States table's "title underlined
- * 1px" row exactly, even though the *hit area* the hover reads from is the whole card.
+ * pseudo-element to itself instead. Underlined at rest, thickening on hover — text-only in both
+ * states (the pseudo-element carries no content of its own) — a Deviation, operator direction
+ * 2026-09-26 (README Deviations entry): the spec's own States row reads "title underlined 1px" on
+ * hover only, but "all link elements" get the rest-state underline now, even a stretched card
+ * title, even though the *hit area* the hover reads from is the whole card.
  * `outline-none`, not `Rating.vue`'s `outline-hidden`, suppresses the native focus ring here: the
  * visible one is `root`'s proxy ring above, and `outline-hidden` stays visible under forced
  * colours by design (`Rating`'s linked variant wants exactly that, on its own, not part of a
@@ -211,7 +213,8 @@ const titleClass = computed(() =>
 const linkClass = computed(() =>
   partClass(
     cx(
-      'text-text no-underline hover:underline decoration-1 underline-offset-[0.2em]',
+      'text-text underline decoration-1 decoration-current/55 underline-offset-[0.2em]',
+      'hover:decoration-2 hover:decoration-current',
       STRETCHED_LINK,
       STRETCHED_LINK_OUTLINE
     ),

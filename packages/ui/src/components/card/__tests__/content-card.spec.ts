@@ -263,10 +263,13 @@ describe('ContentCard — stretched link and focus ring', () => {
     wrapper.unmount();
   });
 
-  it('underlines the title on hover via the root group, not the link itself', () => {
+  it('underlines the title at rest, thickening on hover via the root group (operator ruling: all links underlined)', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x' });
     expect(wrapper.get('[data-part="root"]').classes()).toContain('group');
-    expect(wrapper.get('[data-part="titleLink"]').classes()).toContain('group-hover:underline');
+    const titleLink = wrapper.get('[data-part="titleLink"]').classes();
+    expect(titleLink).toContain('underline');
+    expect(titleLink).not.toContain('no-underline');
+    expect(titleLink).toContain('group-hover:decoration-2');
     wrapper.unmount();
   });
 });

@@ -99,12 +99,18 @@ const iconTileClass = computed(() =>
  * directly rather than a new utility. */
 const titleClass = computed(() => partClass('text-h4 text-text', props.classes, 'title'));
 
-/** The stretched link (spec → Anatomy, part 2: "with the stretched link when linked"); see
- * `stretchedLink.ts`'s own comment and `ContentCard.vue`'s `titleLinkClass` for why
- * `group-hover:underline`/`outline-none` are written this way. */
+/** The stretched link (spec → Anatomy, part 2: "with the stretched link when linked"); underlined
+ * at rest, thickening on hover — see `stretchedLink.ts`'s own comment and `ContentCard.vue`'s
+ * `titleLinkClass` for the full reasoning (operator direction 2026-09-26, README Deviations) and
+ * why `group-hover:decoration-2`/`outline-none` are written this way. */
 const titleLinkClass = computed(() =>
   partClass(
-    cx('no-underline group-hover:underline', STRETCHED_LINK, STRETCHED_LINK_OUTLINE),
+    cx(
+      'underline decoration-1 decoration-current/55 underline-offset-[0.2em]',
+      'group-hover:decoration-2 group-hover:decoration-current',
+      STRETCHED_LINK,
+      STRETCHED_LINK_OUTLINE
+    ),
     props.classes,
     'titleLink'
   )

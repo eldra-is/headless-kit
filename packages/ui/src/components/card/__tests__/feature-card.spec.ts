@@ -93,6 +93,20 @@ describe('FeatureCard — linked', () => {
     wrapper.unmount();
   });
 
+  it('underlines the title at rest, thickening on hover via the root group (operator ruling: all links underlined)', () => {
+    const wrapper = mountCard({
+      icon: IconTruck,
+      title: 'Free shipping over $80',
+      body: 'Delivered in 2-4 business days.',
+      href: '/shipping',
+    });
+    const titleLink = wrapper.get('[data-part="titleLink"]').classes();
+    expect(titleLink).toContain('underline');
+    expect(titleLink).not.toContain('no-underline');
+    expect(titleLink).toContain('group-hover:decoration-2');
+    wrapper.unmount();
+  });
+
   it('shows the default "Learn more" cue, aria-hidden, with an arrow', () => {
     const wrapper = mountCard({
       icon: IconTruck,
