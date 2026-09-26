@@ -191,12 +191,17 @@ const titleClass = computed(() =>
  * pseudo-element to itself instead. `hover:underline` only visibly affects the text (the
  * pseudo-element carries no content of its own), matching the States table's "title underlined
  * 1px" row exactly, even though the *hit area* the hover reads from is the whole card.
- * `outline-hidden` suppresses the native focus ring: the visible one is `root`'s proxy ring
- * above, not this element's own.
+ * `outline-none`, not `Rating.vue`'s `outline-hidden`, suppresses the native focus ring here: the
+ * visible one is `root`'s proxy ring above, and `outline-hidden` stays visible under forced
+ * colours by design (`Rating`'s linked variant wants exactly that, on its own, not part of a
+ * stretched-card root) — keeping it here would draw a second ring hugging the title text beside
+ * `eldra-focus-proxy`'s own card-wide one, which the spec's own acceptance criteria rule out ("the
+ * link shows no separate ring"). Same reasoning as `ContentCard`/`FeatureCard`'s
+ * `STRETCHED_LINK_OUTLINE` (`src/components/card/stretchedLink.ts`).
  */
 const linkClass = computed(() =>
   partClass(
-    'text-text no-underline outline-hidden hover:underline decoration-1 underline-offset-[0.2em] after:absolute after:inset-0',
+    'text-text no-underline outline-none hover:underline decoration-1 underline-offset-[0.2em] after:absolute after:inset-0',
     props.classes,
     'link'
   )

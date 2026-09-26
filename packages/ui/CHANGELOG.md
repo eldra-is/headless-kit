@@ -5,6 +5,27 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Task 13 (starter, docs, closing) for the "display, commerce and layout" sub-project.** The
+  starter (`examples/starter-nuxt`) drops its last duplicated primitives of package components:
+  `UiBadge.vue`, `UiPrice.vue` and `UiRating.vue` (plus their stories and `__tests__`) are deleted,
+  and every block/page that used them now imports `Badge`/`StockBadge`, `Price` and `Rating`
+  straight from `@eldrajs/ui`, the same way blocks already import `Button`/`Input`/`Link`/`Icon`/
+  `Image`. `UiImage.vue` stays (it carries Studio's own framing contract, not a duplicate — see
+  the README's Deviations entry); `UiAccordion*`/`UiDialog`/`UiDrawer`/`UiTab*` stay (plan 3).
+  `README.md`'s Customisation table now has a row for every one of this package's 38 components
+  (`src/componentNames.ts`), guarded against drift by the new
+  `src/__tests__/readmeCoverage.spec.ts`; the "sixth component" ordinal collision in this file
+  (`Avatar`/`LogoItem`/`Skeleton`/`EmptyState` all separately claiming "sixth") is renumbered by
+  actual landing order (`LogoItem` seventh, `Skeleton` eighth, `EmptyState`/`EditorPlaceholder`
+  ninth); `README.md`'s Deviations section gained the `Container`/`Section` entries
+  (`data-section-bg`, `SECTION_KEY`'s nesting warning) and the `EditorPlaceholder`-icon-via-`Icon`
+  entry that earlier tasks recorded in their own reports but never actually added to the file.
+  `ProductCard`'s title link now uses `outline-none`, matching `stretchedLink.ts`'s own
+  `STRETCHED_LINK_OUTLINE` ruling, instead of the `outline-hidden` it shipped with (a double-ring
+  bug under forced colours that Task 12's own report flagged for a later task to fix, since
+  `ProductCard` merged after `ContentCard`/`FeatureCard` despite landing as the earlier-numbered
+  task). `docs/ui.md` gained a full one-line-per-component list; `docs/starter-kit.md` reflects the
+  starter's primitive table after this move.
 - **`ContentCard` and `FeatureCard`** — the editorial/journal card and the icon feature card
   (design spec's "Content card" and "Feature card" sections), both composing `Image`, `Skeleton`
   and a shared "whole card is one link" pattern. `ContentCard` renders optional media (`ratio`
@@ -29,7 +50,7 @@ Release-please writes the generated notes from commit messages and does not repl
   See `README.md`'s Deviations section for the shared stretched-link file (and the note for
   `ProductCard`, landing in the same wave, to reuse it), the `outline-none` vs. `outline-hidden`
   ruling, and the `formatDate` locale behaviour.
-- **`EmptyState` and `EditorPlaceholder`** — the seventh component of the "display, commerce and
+- **`EmptyState` and `EditorPlaceholder`** — the ninth component of the "display, commerce and
   layout" sub-project (design spec's "Empty and error states" section). `EmptyState` is the shared
   "nothing here / no results / error" panel shown inside a block: an icon circle, a required
   `title`, optional `text` (max 36ch, `null` renders nothing), and an `actions` slot scoped with
@@ -115,7 +136,7 @@ Release-please writes the generated notes from commit messages and does not repl
   with no `Intl.ListFormat` at all). See `README.md`'s Deviations section for the `max` clamp, the
   fixed `sm` group size (the brief's own `AvatarGroupProps` type has no `size` prop) and the
   Oxford-comma ruling.
-- **`LogoItem`** — the sixth component of the "display, commerce and layout" sub-project (design
+- **`LogoItem`** — the seventh component of the "display, commerce and layout" sub-project (design
   spec's Logo item section). One logo in a stockist/press logo cloud: `name` (used as the logo
   image's `alt`, never "logo", and as the wordmark text), an optional `logo` (`ImageMedia | null`;
   no logo renders the wordmark fallback, never an empty cell), and an optional `href` that renders
@@ -131,7 +152,7 @@ Release-please writes the generated notes from commit messages and does not repl
   the new `stockistSite` message (" (stockist site)") appended automatically when `href` looks
   external (an absolute URL) — `LogoItem` has no `external` prop like `Link`'s, so this is judged
   from the href itself — and `linkContext` overrides the judgement either way, rendered verbatim.
-- **`Skeleton`** — the sixth component of the "display, commerce and layout" sub-project (design
+- **`Skeleton`** — the eighth component of the "display, commerce and layout" sub-project (design
   spec's Skeleton section). A neutral, shimmering loading placeholder: `variant` picks the shape —
   `text` (default; `lines` rows, each a percentage width cycling 85/70/55/35% deterministically by
   index, or the row's own `100%` for a single line), `title` (one fixed 60%-wide bar), `circle`

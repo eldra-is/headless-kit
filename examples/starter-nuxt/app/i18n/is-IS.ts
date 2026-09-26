@@ -24,13 +24,6 @@ export const isIS = {
   dialog: {
     close: 'Loka glugga',
   },
-  rating: {
-    outOf: '{value} af {max}',
-  },
-  price: {
-    was: 'Áður',
-    now: 'Nú',
-  },
   carousel: {
     previous: 'Fyrri',
     next: 'Næsta',

@@ -10,14 +10,13 @@
  *    announced to assistive tech without relying on visible scroll position.
  */
 import { computed } from 'vue';
-import { Button, Container, Section } from '@eldrajs/ui';
+import { Button, Container, Rating, Section } from '@eldrajs/ui';
 import { focusRing } from '../../app/utils/classes';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useCarousel } from '../../app/composables/useCarousel';
 import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import UiImage from '../../app/components/ui/UiImage.vue';
-import UiRating from '../../app/components/ui/UiRating.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'testimonials'> }>();
 const { data } = useBlockData(props, 'testimonials');
@@ -114,7 +113,14 @@ function initialsOf(name: string | undefined): string {
                 <span v-if="item.role" class="text-muted block text-sm">{{ item.role }}</span>
               </div>
             </footer>
-            <UiRating v-if="item.rating !== undefined" class="mt-3" :value="item.rating" />
+            <Rating
+              v-if="item.rating !== undefined"
+              class="mt-3"
+              :value="item.rating"
+              :count="1"
+              :show-value="false"
+              :show-count="false"
+            />
           </div>
         </div>
 
@@ -158,7 +164,14 @@ function initialsOf(name: string | undefined): string {
               <span v-if="item.role" class="text-muted block text-sm">{{ item.role }}</span>
             </div>
           </footer>
-          <UiRating v-if="item.rating !== undefined" class="mt-3" :value="item.rating" />
+          <Rating
+            v-if="item.rating !== undefined"
+            class="mt-3"
+            :value="item.rating"
+            :count="1"
+            :show-value="false"
+            :show-count="false"
+          />
         </div>
       </div>
     </Container>

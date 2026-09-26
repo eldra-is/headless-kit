@@ -20,4 +20,15 @@ export function uiMessagesFor(locale: string | null | undefined): UiMessages {
   return locale === 'is-IS' ? uiIsIS : uiEnUS;
 }
 
+/**
+ * The store currency `Price` (and its numeric-input siblings) format with by default, per content
+ * locale — the same two-locale mapping `uiMessagesFor` uses, so an `is-IS` page reads `6.990 kr.`
+ * rather than an ISK amount rendered with English grouping. No block in this starter calls `Price`
+ * yet (there is no product data source in the theme this early), so nothing depends on this beyond
+ * `app/plugins/eldra-ui-messages.ts` wiring it ahead of the first one that will.
+ */
+export function currencyFor(locale: string | null | undefined): string {
+  return locale === 'is-IS' ? 'ISK' : 'USD';
+}
+
 export { uiEnUS };

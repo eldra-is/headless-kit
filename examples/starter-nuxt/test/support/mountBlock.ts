@@ -17,8 +17,8 @@ import {
 // starter (including `test/`) into a customer's project verbatim, where no
 // monorepo sibling exists to reach into at all.
 import { createEldraPreviewState, ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
-import { MESSAGES_KEY } from '@eldrajs/ui';
-import { uiMessagesFor } from '../../app/i18n/uiMessages';
+import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
+import { currencyFor, uiMessagesFor } from '../../app/i18n/uiMessages';
 
 /**
  * The single place a block's test environment mimics the site — mirrors
@@ -52,8 +52,11 @@ export function mountOptions(
       provide: {
         [ELDRA_KEY]: createTestEldraContext(locale),
         // The same wiring `app/plugins/eldra-ui-messages.ts` does on a real
-        // page: `@eldrajs/ui`'s own strings follow the content locale.
+        // page: `@eldrajs/ui`'s own strings, number locale and store
+        // currency all follow the content locale.
         [MESSAGES_KEY]: uiMessagesFor(locale),
+        [LOCALE_KEY]: locale,
+        [CURRENCY_KEY]: currencyFor(locale),
       },
       // `components`, not only `stubs`: blocks route an internal destination
       // through `app/components/EldraRouterLink.vue`, whose template writes

@@ -3,9 +3,10 @@
 `examples/starter-nuxt` is what `eldra-theme init` copies: the base every customer theme starts
 from. Everything under it is source the customer owns, with one deliberate dependency:
 [`@eldrajs/ui`](../packages/ui/README.md), the accessible core component library, supplies the
-buttons, links and form controls. It is restyled through the same `--eldra-*` design tokens the
-rest of the theme uses — never by overriding its internals — and everything else (blocks, the
-remaining primitives, the CSS) stays source the customer edits directly.
+buttons, links, form controls, and display/commerce/layout components (`Badge`, `Price`, `Rating`,
+`Image`, `Container`, `Section`, and the rest). It is restyled through the same `--eldra-*` design
+tokens the rest of the theme uses — never by overriding its internals — and everything else
+(blocks, the remaining primitives, the CSS) stays source the customer edits directly.
 
 This doc covers the conventions a customer inherits: the styling foundation, the primitive layer,
 the block contract, Storybook and generated previews, strings, and the testing/accessibility gates.
@@ -100,15 +101,19 @@ blanket `:focus-visible` base rule; each focusable element says which ring it ca
 
 ### `@eldrajs/ui` — the core components
 
-Buttons, links, layout and form controls come from the package, not from copied source: `Button`,
-`ButtonGroup`, `Link`, `Container`, `Section`, `Input`, `Textarea`, `FieldWrapper`, `FormLayout`,
-`Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `Select`, `MultiSelect`, `QuantityStepper`,
-`VariantPicker`, `SearchBar`, `Icon`, `VisuallyHidden`. Import them by name
-(`import { Button, Link } from '@eldrajs/ui'`) — they are never globally registered — and restyle
-them through tokens, the per-component CSS variables, each component's `classes` prop, its slots,
-or `as`. [`packages/ui/README.md`](../packages/ui/README.md) is the contract; display, commerce,
-overlay and navigation components land there in the next two sub-projects and replace more of the
-copied layer as they do.
+Buttons, links, layout, form controls and display/commerce components come from the package, not
+from copied source: `Button`, `ButtonGroup`, `Link`, `Container`, `Section`, `Input`, `Textarea`,
+`FieldWrapper`, `FormLayout`, `Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `Select`,
+`MultiSelect`, `QuantityStepper`, `VariantPicker`, `SearchBar`, `Icon`, `VisuallyHidden`, and — as
+of this sub-project — `Badge`/`StockBadge`, `Price` and `Rating` (the starter's own `UiBadge`,
+`UiPrice` and `UiRating` are gone; `testimonials` is the one block that renders a rating, now via
+`<Rating :count="1" :show-value="false" :show-count="false">` — a single testimonial has no review
+count of its own, so it is framed as "one review", matching `Rating`'s own accessible sentence
+without fabricating a number). Import them by name (`import { Button, Link, Rating } from
+'@eldrajs/ui'`) — they are never globally registered — and restyle them through tokens, the
+per-component CSS variables, each component's `classes` prop, its slots, or `as`.
+[`packages/ui/README.md`](../packages/ui/README.md) is the contract; overlay and navigation
+components land there in the next sub-project and replace the rest of the copied layer as they do.
 
 Three things a theme has to keep on its own side of that boundary:
 
@@ -126,8 +131,12 @@ Three things a theme has to keep on its own side of that boundary:
   surface (the `cta` block's card) marks that surface the same way by hand.
 
 `app/plugins/eldra-ui-messages.ts` provides the package's own strings (`Close`, `Clear`, "opens in
-a new tab", …) for the active content locale, from `app/i18n/uiMessages.ts`; `.storybook/eldra.ts`
-and `test/support/mountBlock.ts` do the same for their environments.
+a new tab", …) for the active content locale, from `app/i18n/uiMessages.ts`, and — as of this
+sub-project — `Price`'s number locale and store currency too (`LOCALE_KEY`/`CURRENCY_KEY`;
+`app/i18n/uiMessages.ts#currencyFor` maps `is-IS` to `ISK` and everything else to `USD`, the same
+two-locale mapping `uiMessagesFor` already used for strings). No block calls `Price` yet — there is
+no product data source this early in the theme — so this is wired ahead of the first one that
+will; `.storybook/eldra.ts` and `test/support/mountBlock.ts` do the same for their environments.
 
 ### Primitives still copied into `app/components/ui/`
 
@@ -141,9 +150,6 @@ override, and each is replaced by a `@eldrajs/ui` component in a later sub-proje
 | `UiDrawer`                        | `UiDialog` positioned as a side sheet (`side: 'left' \| 'right'`), motion-safe slide.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `UiAccordion` / `UiAccordionItem` | Native `<details>/<summary>`; `single` mode closes siblings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `UiTabs` / `UiTab` / `UiTabPanel` | `role="tablist"`, roving tabindex, arrow-key navigation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `UiBadge`                         | `tone`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `UiPrice`                         | `amount`, `currency`, `compareAt?`, `locale`; `Intl.NumberFormat`, compare-at struck through with `sr-only` "was/now" text.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `UiRating`                        | `value` 0–5, `count?`; SVG stars with an `sr-only` label.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `UiImage`                         | Thin wrapper over `@eldrajs/ui`'s `Image`. `src`, required `alt` (empty string allowed for decorative), `framing?`, `aspect?`, `sizes`, lazy by default, `priority` for above-the-fold, `rounded?` (`'none' \| 'lg' \| 'xl'`, forwards to `Image`'s own radius), `fill?` (covers a positioned ancestor — the hero background), `fit?` (`'cover' \| 'contain'`, for an uncropped view — the gallery lightbox), `classes?` (passthrough to `Image`'s `classes`, for a radius/size `rounded`/`fill`/`fit` don't cover, e.g. `rounded-full`/`rounded-md`). `class`/`style` land on `Image`'s root (the frame's wrapper), not the `<img>` — use `rounded`/`fit`/`classes` for anything that needs to reach the frame or media element instead. |
 
 Each primitive has `<Name>.vue`, `<Name>.stories.ts`, and `__tests__/<Name>.spec.ts` (render, axe,

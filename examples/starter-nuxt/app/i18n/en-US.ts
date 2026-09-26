@@ -24,13 +24,6 @@ export const enUS = {
   dialog: {
     close: 'Close dialog',
   },
-  rating: {
-    outOf: '{value} of {max}',
-  },
-  price: {
-    was: 'Was',
-    now: 'Now',
-  },
   carousel: {
     previous: 'Previous',
     next: 'Next',

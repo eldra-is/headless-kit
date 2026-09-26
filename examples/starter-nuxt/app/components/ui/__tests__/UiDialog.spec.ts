@@ -7,8 +7,10 @@ import { describe, expect, it } from 'vitest';
 import UiDialog from '../UiDialog.vue';
 import { mountOptions } from '../../../../test/support/mountBlock';
 
-// Only `provide` is needed (for `useT()`'s Eldra context) — see the same
-// note in UiRating.spec.ts on why `.global` isn't spread wholesale.
+// Only the `provide` half of `mountOptions()`'s `global` is needed here (for
+// `useT()`'s Eldra context) — its `stubs` is typed loosely
+// (`Record<string, unknown>`) for block mounts and isn't assignable to
+// `@vue/test-utils`'s own `Stubs` type, which this component doesn't need.
 const eldraGlobal = { provide: mountOptions({ entry: { id: 'test', data: {} } }).global.provide };
 
 describe('UiDialog', () => {

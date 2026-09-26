@@ -28,13 +28,6 @@ export interface Messages {
   dialog: {
     close: string;
   };
-  rating: {
-    outOf: string;
-  };
-  price: {
-    was: string;
-    now: string;
-  };
   carousel: {
     previous: string;
     next: string;
