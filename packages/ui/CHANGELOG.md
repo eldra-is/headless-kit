@@ -5,6 +5,19 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Fix (2026-09-26, operator report: "we are not able to drag on a card, we have to place the
+  cursor between cards"): `Carousel`/`Lightbox` pointer drag now starts on any pointer press inside
+  the track — a slide's own link or button included — not only the track's bare background.** The
+  previous fix bailed out of tracking a pointerdown on any link/button/`role="button"`, which is
+  exactly why a `ProductCard`'s card-covering title link swallowed every drag attempt; now only an
+  editable/range control (`input`, `textarea`, `select`, `[contenteditable]`, `input[type="range"]`)
+  or an explicit `data-no-drag` opt-out is excluded. The pointerdown itself is never
+  `preventDefault()`ed (the previous fix did this on every qualifying press, which is what also
+  suppressed a slide's own focus/click below the drag threshold); a text selection the bare
+  `mousedown` already started is instead cleared the instant the gesture actually crosses the
+  threshold. The click a mouse drag fires on release is still cancelled, but only after a real
+  drag — a sub-threshold press still clicks or navigates normally, on a link or button exactly as it
+  did on plain track background.
 - **`Breadcrumb` items sit closer together** (operator, 2026-09-26): the list gap is 0.25rem and the chevron carries 0.125rem on each side (1.5rem between words instead of 2rem).
 
 - **Fix (2026-09-26, operator report): `Carousel`/`Lightbox` pointer drag and touch swipe actually

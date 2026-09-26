@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // Real-browser smoke test for Carousel/Lightbox pointer drag and touch swipe (operator fix,
 // 2026-09-26: "swiping/dragging ... is very broken — it starts and then kind of cancels; while
-// dragging we are highlighting stuff"). happy-dom (the unit test environment) has no real layout
-// or native scroll-snap/touch-action behaviour, so the drag-without-fighting-scroll-smooth fix, the
-// touch-action fix and the no-text-selection fix can only be proven against a real Chromium build
-// of Storybook — this is that proof, not a replacement for the Vitest specs in
+// dragging we are highlighting stuff"; round 2, same day: "we are not able to drag on a card, we
+// have to place the cursor between cards ... if it's a clickable entry we should cancel the click
+// ... if we swipe over some offset. That way the click stays functional but we can still swipe.").
+// happy-dom (the unit test environment) has no real layout or native scroll-snap/touch-action
+// behaviour, so the drag-without-fighting-scroll-smooth fix, the touch-action fix, the
+// no-text-selection fix and the drag-starts-on-a-card fix can only be proven against a real
+// Chromium build of Storybook — this is that proof, not a replacement for the Vitest specs in
 // `src/components/carousel/__tests__/carousel.spec.ts` and
 // `src/components/lightbox/__tests__/lightbox.spec.ts`, which cover the same behaviour at the
 // DOM-event level.
@@ -16,9 +19,14 @@
 // plain static file server on a free port), drives real pointer/touch input against the built
 // `ProductRow` Carousel story and the `Default` Lightbox story, and asserts:
 //   (a) a mouse drag moves `scrollLeft`/the active slide and leaves `window.getSelection()` empty
-//       throughout, on both Carousel and Lightbox;
+//       throughout, on both Carousel and Lightbox, starting from the gap between two slides;
 //   (b) a touch swipe (`hasTouch: true`, raw CDP `Input.dispatchTouchEvent`) advances the active
-//       slide through native scroll-snap panning, proving the `touch-action: pan-x pan-y` fix.
+//       slide through native scroll-snap panning, proving the `touch-action: pan-x pan-y` fix;
+//   (c) a mouse drag starting directly ON a product card's own title link still drags the track
+//       (proving the round-2 fix), never navigates the page, and never selects text;
+//   (d) a plain click on a product card's title link, with no pointer movement at all, still
+//       reaches the link with its default untouched — the click is only ever cancelled after a
+//       real drag.
 // Exits non-zero on any failed assertion, printing every observed number either way.
 import { createReadStream, existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -121,15 +129,16 @@ async function selectionText(page) {
   return page.evaluate(() => window.getSelection()?.toString() ?? '');
 }
 
-/** A point inside the track that is not over any interactive descendant — so the drag actually
- *  starts (`isInteractiveDescendant` in `useCarousel.ts` bails out of tracking a pointerdown that
- *  lands on a slide's own stretched-link/button). Two shapes of track exist in this package:
- *  `Carousel`'s own "peek" tracks (several partial slides visible, `ProductCard`'s whole card is a
- *  stretched link) need the *gap* between two slides; `Lightbox`'s track is always one 100%-width
- *  slide per view (`carouselPerViewClasses({ base: 1 })` — every image `<div>` wrapper stays
- *  mounted per that component's own comment, so `children.length` is the image *count*, not the
- *  per-view count, and slide 1's real position is off-screen, not beside slide 0) with no
- *  interactive element of its own inside the track (the prev/next arrows and thumbnails sit
+/** A point inside the track that is not over any of a slide's own content — used to prove a drag
+ *  still works starting from plain track background, distinct from `productCardLinkPoint` below,
+ *  which deliberately targets a slide's own stretched link (operator fix, 2026-09-26, round 2: a
+ *  drag must also start ON a card, not only in the gap between cards). Two shapes of track exist in
+ *  this package: `Carousel`'s own "peek" tracks (several partial slides visible, `ProductCard`'s
+ *  whole card is a stretched link) need the *gap* between two slides; `Lightbox`'s track is always
+ *  one 100%-width slide per view (`carouselPerViewClasses({ base: 1 })` — every image `<div>`
+ *  wrapper stays mounted per that component's own comment, so `children.length` is the image
+ *  *count*, not the per-view count, and slide 1's real position is off-screen, not beside slide 0)
+ *  with no interactive element of its own inside the track (the prev/next arrows and thumbnails sit
  *  outside `trackRef`), so its own centre is always safe. Told apart by whether the first slide's
  *  own width already fills the track. */
 async function dragStartPoint(page) {
@@ -148,9 +157,28 @@ async function dragStartPoint(page) {
   });
 }
 
-async function mouseDragSmoke(page, label) {
+/** The bounding-box centre of the *first* slide's own title link (`ProductCard`'s stretched
+ *  `[data-part="link"]`, spec "Product card" → Anatomy) — the exact point the operator's round-2
+ *  complaint names: "we are not able to drag on a card, we have to place the cursor between
+ *  cards." `dragStartPoint` above deliberately avoids this same point (to keep proving a drag
+ *  starting elsewhere on the track still works); this proves the fix's whole point, that starting
+ *  directly on the card's own link now works too. */
+async function productCardLinkPoint(page) {
+  return page.evaluate(() => {
+    const link = document.querySelector('[data-part="track"] [data-part="link"]');
+    const rect = link.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  });
+}
+
+/** `startOverride` lets a caller drag from a specific point (`productCardLinkPoint` above) instead
+ *  of the plain-background `dragStartPoint`; `page.url()` before/after proves the link's own
+ *  navigation never fired (operator ruling: "the click stays functional but we can still swipe" —
+ *  a real drag must resolve as a drag, never as a navigation). */
+async function mouseDragSmoke(page, label, startOverride) {
   const before = { scrollLeft: await trackScrollLeft(page), index: await activeIndex(page) };
-  const start = await dragStartPoint(page);
+  const beforeHref = page.url();
+  const start = startOverride ?? (await dragStartPoint(page));
   const steps = 10;
   const totalDx = 300;
 
@@ -170,16 +198,17 @@ async function mouseDragSmoke(page, label) {
   await page.mouse.up();
   await page.waitForTimeout(500); // let the release snap settle
   const after = { scrollLeft: await trackScrollLeft(page), index: await activeIndex(page) };
+  const afterHref = page.url();
   const afterSelection = await selectionText(page);
   const afterDragging = await trackDragging(page);
 
   console.log(`[drag-smoke] ${label}: mouse drag`);
-  console.log(`  before  scrollLeft=${before.scrollLeft} index=${before.index}`);
+  console.log(`  before  scrollLeft=${before.scrollLeft} index=${before.index} href=${beforeHref}`);
   console.log(
     `  mid-drag scrollLeft=${duringScrollLeft} data-dragging=${midDragging} selection=${JSON.stringify(midSelection)}`
   );
   console.log(
-    `  after   scrollLeft=${after.scrollLeft} index=${after.index} data-dragging=${afterDragging} selection=${JSON.stringify(afterSelection)}`
+    `  after   scrollLeft=${after.scrollLeft} index=${after.index} href=${afterHref} data-dragging=${afterDragging} selection=${JSON.stringify(afterSelection)}`
   );
 
   const failures = [];
@@ -196,6 +225,50 @@ async function mouseDragSmoke(page, label) {
     failures.push(`text stayed selected after release: ${JSON.stringify(afterSelection)}`);
   if (!(after.index > before.index)) {
     failures.push(`active index did not advance (${before.index} -> ${after.index})`);
+  }
+  if (afterHref !== beforeHref) {
+    failures.push(`the page navigated during the drag (${beforeHref} -> ${afterHref})`);
+  }
+  return failures;
+}
+
+/**
+ * The other half of the round-2 ruling: "if it's a clickable entry we should cancel the click ...
+ * if we swipe over some offset. That way the click stays functional but we can still swipe." A
+ * plain click on the card's title link, with no pointer movement at all, must never have already
+ * had its default prevented by the drag machinery — it is only ever cancelled *after* a real drag
+ * (proven separately by `mouseDragSmoke` on this exact link, above). The listener records
+ * `event.defaultPrevented` as read at the moment it runs, then prevents the click itself so the
+ * assertion never actually navigates this page away from the story regardless of the outcome.
+ */
+async function cardLinkClickSmoke(page, label) {
+  const point = await productCardLinkPoint(page);
+  await page.evaluate(() => {
+    window.__eldraLinkClickDefaultPrevented = undefined;
+    const link = document.querySelector('[data-part="track"] [data-part="link"]');
+    link.addEventListener(
+      'click',
+      (event) => {
+        window.__eldraLinkClickDefaultPrevented = event.defaultPrevented;
+        event.preventDefault();
+      },
+      { once: true }
+    );
+  });
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(50);
+  const defaultPrevented = await page.evaluate(() => window.__eldraLinkClickDefaultPrevented);
+
+  console.log(`[drag-smoke] ${label}: plain click on card title link (no movement)`);
+  console.log(`  click defaultPrevented=${defaultPrevented}`);
+
+  const failures = [];
+  if (defaultPrevented !== false) {
+    failures.push(
+      `a plain click on the card title link had its default already prevented (expected false, got ${defaultPrevented})`
+    );
   }
   return failures;
 }
@@ -282,6 +355,39 @@ async function main() {
       await gotoStory(page, baseUrl, 'overlays-lightbox--default');
       failures.push(
         ...(await mouseDragSmoke(page, 'Lightbox Default')).map((f) => `Lightbox mouse: ${f}`)
+      );
+      await context.close();
+    }
+
+    // (d) Carousel ProductRow — a mouse drag starting directly ON a product card's own title link
+    // (operator fix, 2026-09-26, round 2: "we are not able to drag on a card, we have to place the
+    // cursor between cards").
+    {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const page = await context.newPage();
+      await gotoStory(page, baseUrl, 'navigation-carousel--product-row');
+      failures.push(
+        ...(
+          await mouseDragSmoke(
+            page,
+            'Carousel ProductRow (drag starting on the card link)',
+            await productCardLinkPoint(page)
+          )
+        ).map((f) => `Carousel link drag: ${f}`)
+      );
+      await context.close();
+    }
+
+    // (e) Carousel ProductRow — a plain click on the card's title link, no movement at all, keeps
+    // its own default: the click is only ever cancelled after a real drag.
+    {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const page = await context.newPage();
+      await gotoStory(page, baseUrl, 'navigation-carousel--product-row');
+      failures.push(
+        ...(await cardLinkClickSmoke(page, 'Carousel ProductRow')).map(
+          (f) => `Carousel link click: ${f}`
+        )
       );
       await context.close();
     }

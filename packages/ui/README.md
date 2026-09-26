@@ -536,24 +536,32 @@ all.
 
 **Pointer drag** (operator ruling): touch already swipes the track for free through native
 scroll-snap; `draggable` (default `true`) adds the mouse/pen equivalent. `pointerdown` on the
-track — the primary button, not on an interactive descendant (a slide's own link/button, which
-keeps its plain click regardless of how far the pointer moves afterward) — starts tracking the
-pointer; once it has moved 6px, the gesture becomes a drag: `data-dragging="true"` goes on the
-track (the CSS `Carousel`/`Lightbox` read it with — `data-[dragging=true]:snap-none` suspends scroll
-snapping, `data-[dragging=true]:cursor-grabbing` swaps the cursor from `cursor-grab`), and
-`scrollLeft` follows the pointer 1:1. On release, the track snaps to the nearest slide by position,
-nudged one slide further in the flick's direction if the final movement was faster than 0.5px/ms —
-`goTo`, so it clamps and emits the same as any other navigation — and the click that would
-otherwise follow a mouse drag is cancelled so it never reaches whatever was under the pointer at
-release. Autoplay pauses for the span of the drag (folded into the same suspend `hovered`/
-`focusedWithin` already use, so the Pause/Play button's label never flips) and resumes after.
-Reduced motion is respected the same way every other `goTo` call already is — instant, not smooth.
-The drag also ends on `lostpointercapture`, not only `pointerup`/`pointercancel` (fix, 2026-09-26):
-capture can be revoked with no preceding pointer event at all — another element calling
-`setPointerCapture` for the same pointer, an OS/browser gesture (an edge-swipe), the captured
-element becoming disabled — and without this the drag state (and autoplay's suspension) would stay
-stuck forever with no further user action guaranteed to clear it. It is handled identically to
-`pointercancel`, since there is nothing left to release by the time it fires.
+track — the primary button, anywhere except an editable/range control (`input`, `textarea`,
+`select`, `[contenteditable]`, `input[type="range"]`) or an element opted out with `data-no-drag` —
+starts tracking the pointer, buttons and links included (fix, 2026-09-26, round 2: a `ProductCard`'s
+stretched title link covers the whole card, so a blanket "no interactive descendant" rule left no
+way to drag from a card at all — the operator's own words: "we are not able to drag on a card, we
+have to place the cursor between cards"). The `pointerdown` itself is never `preventDefault()`ed, so
+native focus/click behaviour is untouched below the threshold. Once the pointer has moved 6px, the
+gesture becomes a drag: `data-dragging="true"` goes on the track (the CSS `Carousel`/`Lightbox` read
+it with — `data-[dragging=true]:snap-none` suspends scroll snapping, `data-[dragging=true]:cursor-grabbing`
+swaps the cursor from `cursor-grab`), any text selection the native `mousedown` already started is
+cleared (`window.getSelection()?.removeAllRanges()`), and `scrollLeft` follows the pointer 1:1. On
+release, the track snaps to the nearest slide by position, nudged one slide further in the flick's
+direction if the final movement was faster than 0.5px/ms — `goTo`, so it clamps and emits the same
+as any other navigation — and, only because a real drag happened, the click that a mouse drag always
+fires on release is cancelled so it never reaches whatever was under the pointer (a card's own link,
+a quick-add button); a press that never crossed the threshold arms nothing, so its plain click or
+link navigation lands exactly as if this composable did not exist. Autoplay pauses for the span of
+the drag (folded into the same suspend `hovered`/`focusedWithin` already use, so the Pause/Play
+button's label never flips) and resumes after. Reduced motion is respected the same way every other
+`goTo` call already is — instant, not smooth. The drag also ends on `lostpointercapture`, not only
+`pointerup`/`pointercancel` (fix, 2026-09-26): capture can be revoked with no preceding pointer event
+at all — another element calling `setPointerCapture` for the same pointer, an OS/browser gesture (an
+edge-swipe), the captured element becoming disabled — and without this the drag state (and
+autoplay's suspension) would stay stuck forever with no further user action guaranteed to clear it.
+It is handled identically to `pointercancel`, since there is nothing left to release by the time it
+fires.
 
 ### Layering
 
@@ -2320,13 +2328,32 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   snap-back animates, rather than either jumping instantly or fighting the drag's own last write.
   Second: `pointermove`'s own `preventDefault()` (unchanged) never stopped the browser's native
   text-selection drag, which starts on `mousedown`, before any `pointermove` fires — so dragging
-  across a slide's caption highlighted it. `onTrackPointerDown` now calls `preventDefault()` itself,
-  once every bail-out (wrong button, touch, an interactive descendant) has already passed, and the
+  across a slide's caption highlighted it. `onTrackPointerDown` now called `preventDefault()` itself,
+  once every bail-out (wrong button, touch, an interactive descendant) had already passed, and the
   drag also toggles `user-select: none` on `document.documentElement` for its duration (the pointer
   can leave the track mid-drag, past the track's own `data-[dragging=true]:select-none`), restored on
   `pointerup`/`pointercancel`/`lostpointercapture` alike. Touch was never affected by either fix —
   it swipes through native scroll-snap panning, which is exactly what the `touch-action` change
-  above restores.
+  above restores. (The `preventDefault()`-on-`pointerdown` half of this fix was itself replaced the
+  same day — see the round-2 fix below.)
+- **Fix (2026-09-26, round 2, operator report: "we are not able to drag on a card, we have to place
+  the cursor between cards. If it's a clickable entry we should cancel the click ... if we swipe
+  over some offset. That way the click stays functional but we can still swipe."): a drag may now
+  start on any pointer press inside the track — buttons and links included — not only the track's
+  bare background between slides.** The previous round's `isInteractiveDescendant` bailed out of
+  tracking a pointerdown on _any_ `a[href]`/`button`/`input`/`[role="button"]`/etc., which is exactly
+  why dragging never started on a `ProductCard` (its title link is stretched over the whole card).
+  Replaced with `isNoDragTarget`, which only excludes an editable/range control (`input`, `textarea`,
+  `select`, `[contenteditable]`, `input[type="range"]`) or an explicit `data-no-drag` opt-out. The
+  round-1 `preventDefault()` on every qualifying `pointerdown` is gone too — it was what stopped a
+  slide's own link/button from focusing or clicking normally below the 6px threshold, which the
+  ruling requires ("Do NOT preventDefault() the pointerdown — keep native focus/click behaviour").
+  In its place, `onTrackPointerMove` clears any text selection the bare `mousedown` already started
+  (`window.getSelection()?.removeAllRanges()`) the instant the gesture crosses the threshold, which
+  is the only moment a selection anchor stops being wanted. The click-cancelling half of the state
+  machine (`suppressNextClick`, armed only once a real drag happened, consumed by a capture-phase
+  listener on the track) needed no change — it already canceled a click "wherever the pointer lands,"
+  drag start included.
 - **`Breadcrumb` never truncates a label, even a long one — this reverses a truncation rule an
   earlier draft of the task's own interface comment carried ("long titles truncate at 40ch with the
   full title in `title`").** The design spec text is explicit and binding over that comment: "Product

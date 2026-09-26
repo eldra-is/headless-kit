@@ -642,31 +642,219 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
-   * Operator fix (2026-09-26): `pointermove`'s own `preventDefault()` never stopped the browser's
-   * native text-selection drag, which starts on `mousedown` before any `pointermove` fires —
-   * `onTrackPointerDown` must call it itself, but only once every bail-out (wrong button, touch, an
-   * interactive descendant) has already passed, so a click that will never become a drag (a slide's
-   * own button) still focuses/clicks normally.
+   * Operator fix (2026-09-26, round 2): "Do NOT preventDefault() the pointerdown (keep native
+   * focus/click behaviour)" — round one's `preventDefault()` on every qualifying pointerdown is
+   * gone entirely, proven on both a pointerdown that may go on to start a drag (the track's own
+   * background) and one landing directly on a slide's own link (round one refused to track this
+   * pointer at all and asserted the identical `false` for the opposite reason — see the drag-starts-
+   * on-a-link specs below for what tracking it now actually does).
    */
-  it('prevents default on a pointerdown that may start a drag, but not one on an interactive descendant', async () => {
+  it('never prevents default on pointerdown — native focus/click behaviour is kept', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers' },
       slots: {
         default:
-          '<li><button type="button" data-testid="buy">Buy</button></li><li>Bravo</li><li>Charlie</li>',
+          '<li><a href="/products/1" data-testid="details">Details</a></li><li>Bravo</li><li>Charlie</li>',
       },
     });
     await settle();
     const trackEl = track(wrapper);
     const trackDown = pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0);
     trackEl.dispatchEvent(trackDown);
-    expect(trackDown.defaultPrevented).toBe(true);
+    expect(trackDown.defaultPrevented).toBe(false);
     trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 100, pointerId: 1 }, 10));
 
-    const buttonEl = wrapper.find('[data-testid="buy"]').element as HTMLButtonElement;
-    const buttonDown = pointerEventAt('pointerdown', { clientX: 50, pointerId: 2, button: 0 }, 20);
-    buttonEl.dispatchEvent(buttonDown);
-    expect(buttonDown.defaultPrevented).toBe(false);
+    const linkEl = wrapper.find('[data-testid="details"]').element as HTMLAnchorElement;
+    const linkDown = pointerEventAt('pointerdown', { clientX: 50, pointerId: 2, button: 0 }, 20);
+    linkEl.dispatchEvent(linkDown);
+    expect(linkDown.defaultPrevented).toBe(false);
+    linkEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 50, pointerId: 2 }, 30));
+    wrapper.unmount();
+  });
+
+  /**
+   * Operator ruling (2026-09-26, round 2): "we are not able to drag on a card, we have to place the
+   * cursor between cards ... if it's a clickable entry we should cancel the click ... if we swipe
+   * over some offset. That way the click stays functional but we can still swipe." Starting the
+   * pointerdown directly on a slide's own link, then crossing the 6px threshold, both starts the
+   * drag (`scrollLeft`/`data-dragging`) and arms the same click suppression a drag starting on the
+   * track's bare background already gets — proven by mutation: reinstating round one's
+   * `isInteractiveDescendant` bail-out in `onTrackPointerDown` leaves `scrollLeft` at `0` and the
+   * click un-prevented.
+   */
+  it('a drag starting directly on a slide’s own link crosses the threshold and cancels the link’s click', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default:
+          '<li><a href="/products/1" data-testid="details">Details</a></li><li>Bravo</li><li>Charlie</li>',
+      },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    const linkEl = wrapper.find('[data-testid="details"]').element as HTMLAnchorElement;
+    const handler = vi.fn();
+    linkEl.addEventListener('click', handler);
+    linkEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 200, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 160, pointerId: 1 }, 10));
+    expect(trackEl.scrollLeft).toBe(40);
+    expect(trackEl.getAttribute('data-dragging')).toBe('true');
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 160, pointerId: 1 }, 20));
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    linkEl.dispatchEvent(clickEvent);
+    expect(handler).not.toHaveBeenCalled();
+    expect(clickEvent.defaultPrevented).toBe(true);
+    wrapper.unmount();
+  });
+
+  /**
+   * The other half of the same ruling: "the click stays functional" below the threshold, even when
+   * the pointerdown that may have started a drag landed directly on the link itself.
+   */
+  it('a sub-threshold drag starting directly on a slide’s own link leaves its click alone', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default:
+          '<li><a href="/products/1" data-testid="details">Details</a></li><li>Bravo</li><li>Charlie</li>',
+      },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    const linkEl = wrapper.find('[data-testid="details"]').element as HTMLAnchorElement;
+    const handler = vi.fn();
+    linkEl.addEventListener('click', handler);
+    linkEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 200, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 197, pointerId: 1 }, 5));
+    linkEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 197, pointerId: 1 }, 10));
+    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    linkEl.dispatchEvent(clickEvent);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(clickEvent.defaultPrevented).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * `isNoDragTarget`'s editable-control carve-out — an `<input>` must never lose a click/typing
+   * gesture to the drag machinery, unlike a plain link or button. Proven by mutation: dropping the
+   * `input` clause from `isNoDragTarget`'s selector turns `scrollLeft` below into `60`.
+   */
+  it('pointerdown on an <input> inside a slide never starts a drag', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: '<li><input data-testid="qty" /></li><li>Bravo</li><li>Charlie</li>' },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    const inputEl = wrapper.find('[data-testid="qty"]').element as HTMLInputElement;
+    inputEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 40, pointerId: 1 }, 10));
+    inputEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 40, pointerId: 1 }, 20));
+    expect(trackEl.scrollLeft).toBe(0);
+    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * `data-no-drag` — an author's explicit opt-out (ruling: "and any element with `data-no-drag`"),
+   * for a slide's own control that needs every pointer gesture for itself (a swatch picker, an
+   * embedded range slider) even though it is neither an editable nor a `<input>`-family element.
+   * Proven by mutation: dropping `[data-no-drag]` from `isNoDragTarget`'s selector turns
+   * `scrollLeft` below into `60`.
+   */
+  it('data-no-drag opts an element out of starting a drag', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default:
+          '<li><div data-testid="swatches" data-no-drag>Swatches</div></li><li>Bravo</li><li>Charlie</li>',
+      },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    const swatchesEl = wrapper.find('[data-testid="swatches"]').element as HTMLElement;
+    swatchesEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 40, pointerId: 1 }, 10));
+    swatchesEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 40, pointerId: 1 }, 20));
+    expect(trackEl.scrollLeft).toBe(0);
+    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * Operator fix (2026-09-26, round 2): the other half of "while dragging we are highlighting
+   * stuff" now that `onTrackPointerDown` no longer prevents the pointerdown's default — a press over
+   * selectable text has already anchored a native selection by the time a real drag is confirmed, so
+   * `onTrackPointerMove` clears it (`window.getSelection()?.removeAllRanges()`) the instant the
+   * threshold crosses, not before. Proven by mutation: deleting that call leaves `removeAllRanges`
+   * uncalled below.
+   */
+  it('clears any started text selection the instant the drag threshold crosses', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    const removeAllRanges = vi.fn();
+    const getSelectionSpy = vi
+      .spyOn(window, 'getSelection')
+      .mockReturnValue({ removeAllRanges } as unknown as Selection);
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 97, pointerId: 1 }, 5));
+    expect(removeAllRanges).not.toHaveBeenCalled();
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 80, pointerId: 1 }, 10));
+    expect(removeAllRanges).toHaveBeenCalledTimes(1);
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 80, pointerId: 1 }, 20));
+    getSelectionSpy.mockRestore();
+    wrapper.unmount();
+  });
+
+  /**
+   * Real-browser bug this guards the *shape* of (the actual retargeting behaviour is only provable
+   * in a real Chromium — see `scripts/drag-smoke.mjs`'s own "plain click on card title link" check,
+   * happy-dom implements `setPointerCapture` as a no-op with no click-retargeting side effect of its
+   * own to observe): a mouse pointer's capture retargets its eventual `click` to the *capturing*
+   * element too, not only `pointermove`/`pointerup`. Requesting capture unconditionally on every
+   * qualifying `pointerdown` broke a plain, never-moved click on a slide's own link/button, because
+   * the click fired with `event.target` retargeted away from the link to the track. Capture must
+   * only be requested once the gesture is a confirmed drag. Proven by mutation: moving the
+   * `setPointerCapture` call back into `onTrackPointerDown` turns the first assertion below red.
+   */
+  it('defers pointer capture to the confirmed-drag moment, not the initial pointerdown', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    const captureSpy = vi.spyOn(trackEl, 'setPointerCapture');
+    trackEl.dispatchEvent(
+      pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
+    );
+    expect(captureSpy).not.toHaveBeenCalled();
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 97, pointerId: 1 }, 5));
+    expect(captureSpy).not.toHaveBeenCalled();
+    trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 80, pointerId: 1 }, 10));
+    expect(captureSpy).toHaveBeenCalledTimes(1);
+    expect(captureSpy).toHaveBeenCalledWith(1);
+    trackEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 80, pointerId: 1 }, 20));
     wrapper.unmount();
   });
 
@@ -836,7 +1024,14 @@ describe('Carousel — pointer drag', () => {
     wrapper.unmount();
   });
 
-  it('drag starting on an inner button does nothing — the button keeps its own click', async () => {
+  /**
+   * Operator ruling (2026-09-26, round 2): "buttons and links included" — a drag starting directly
+   * on a slide's own button behaves exactly like one starting on its own link (the dedicated link
+   * specs above): crossing the threshold drags the track and cancels the button's own click.
+   * Proven by mutation: reinstating round one's `isInteractiveDescendant` bail-out in
+   * `onTrackPointerDown` leaves `scrollLeft` at `0` and the click un-prevented.
+   */
+  it('drag starting directly on an inner button also drags and cancels the button’s click', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers' },
       slots: {
@@ -850,20 +1045,17 @@ describe('Carousel — pointer drag', () => {
     const buttonEl = wrapper.find('[data-testid="buy"]').element as HTMLButtonElement;
     const handler = vi.fn();
     buttonEl.addEventListener('click', handler);
-    // Started on the button itself — `isInteractiveDescendant` refuses to track this pointer at
-    // all, proven by mutation: removing that guard in `onTrackPointerDown` turns `scrollLeft`
-    // below into `60` instead of staying put.
     buttonEl.dispatchEvent(
       pointerEventAt('pointerdown', { clientX: 100, pointerId: 1, button: 0 }, 0)
     );
     trackEl.dispatchEvent(pointerEventAt('pointermove', { clientX: 40, pointerId: 1 }, 10));
+    expect(trackEl.scrollLeft).toBe(60);
+    expect(trackEl.getAttribute('data-dragging')).toBe('true');
     buttonEl.dispatchEvent(pointerEventAt('pointerup', { clientX: 40, pointerId: 1 }, 20));
-    expect(trackEl.scrollLeft).toBe(0);
-    expect(trackEl.hasAttribute('data-dragging')).toBe(false);
     const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
     buttonEl.dispatchEvent(clickEvent);
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(clickEvent.defaultPrevented).toBe(false);
+    expect(handler).not.toHaveBeenCalled();
+    expect(clickEvent.defaultPrevented).toBe(true);
     wrapper.unmount();
   });
 

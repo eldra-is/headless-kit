@@ -409,39 +409,50 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   // only teaches mouse/pen — pointer types with no native swipe gesture of their own — the same
   // trick. State machine, one pointer at a time (`dragPointerId`):
   //
-  //   pointerdown (primary button, mouse/pen, not on an interactive descendant)
-  //     -> capture the pointer, remember the start position, `preventDefault()` (operator fix,
-  //        2026-09-26 — see `setDocumentSelectionSuppressed`'s own comment for why); not yet
-  //        "dragging".
+  //   pointerdown (primary button, mouse/pen, not on an editable/range control or an explicit
+  //   `data-no-drag` opt-out — see `isNoDragTarget`)
+  //     -> remember the start position; not yet "dragging", and pointer capture is NOT requested
+  //        yet either (see the threshold branch below for why). Operator fix (2026-09-26, round 2):
+  //        "we are not able to drag on a card, we have to place the cursor between cards" — a
+  //        slide's own link/button (a `ProductCard`'s stretched title link covers the whole card) is
+  //        tracked exactly like the track's bare background now; the previous round's blanket
+  //        bail-out on any interactive descendant is what caused the complaint. This never calls
+  //        `preventDefault()` — see `onTrackPointerDown`'s own comment for why keeping the
+  //        pointerdown's native effect (focus, the eventual click) matters.
   //   pointermove, |dx| < 6px
-  //     -> still not dragging: `scrollLeft` is untouched, so a plain click still lands normally
-  //        (spec "sub-threshold drag still lets a slide's button click through").
+  //     -> still not dragging: `scrollLeft` is untouched, nothing was prevented, and the pointer is
+  //        not captured, so a plain click or tap-to-focus on whatever the gesture started over still
+  //        lands exactly as if this file did not exist (ruling: "the click stays functional").
   //   pointermove, |dx| >= 6px (first time)
   //     -> now dragging: `data-dragging="true"` goes on the track (the CSS this attribute
   //        drives — `data-[dragging=true]:snap-none:scroll-auto:select-none`/`:cursor-grabbing` —
   //        lives in `Carousel.vue` and `Lightbox.vue`, not here; this file only ever sets/clears
-  //        the attribute) and `document.documentElement`'s own `user-select` (the pointer can
-  //        leave the track mid-drag, where the track's own `select-none` no longer reaches),
-  //        autoplay suspends via `dragging` above, and every subsequent move drags `scrollLeft`
-  //        1:1 with the pointer.
+  //        the attribute), `document.documentElement`'s own `user-select` (the pointer can leave
+  //        the track mid-drag, where the track's own `select-none` no longer reaches), the pointer
+  //        is captured only now — not at `pointerdown` — because a mouse pointer's capture
+  //        retargets its eventual `click` to the capturing element too, which broke a plain,
+  //        never-moved click on a link/button before this was deferred (see this branch's own
+  //        in-line comment), and any text selection the native `mousedown` already anchored is
+  //        cleared (`window.getSelection()?.removeAllRanges()` — the pointerdown was never
+  //        prevented, so a press over selectable text starts a selection anchor the instant the
+  //        button goes down, before any `pointermove` fires at all; this is the moment the gesture
+  //        commits to being a drag rather than a click, so it is also the moment that anchor stops
+  //        being wanted). Autoplay suspends via `dragging` above, and every subsequent move drags
+  //        `scrollLeft` 1:1 with the pointer.
   //   pointerup / pointercancel / lostpointercapture
   //     -> if it was dragging: release the pointer, clear the attribute and the documentElement
   //        `user-select` override, force a reflow so the class change is in effect before the
   //        release snap starts (operator fix, 2026-09-26: `scroll-smooth` fighting the drag's own
   //        `scrollLeft` writes — see `endTrackDrag`'s own comment), arm `suppressNextClick` (the
   //        click a mouse drag always fires on release must not reach whatever was under the
-  //        pointer), then `goTo()` the release position's nearest slide, nudged one further by a
-  //        fast flick (see `endDrag` below) — never past `[0, count - 1]`, `goTo`'s own clamp.
-  //        If it never crossed the threshold: nothing to undo, the browser's own click just
-  //        happens. `lostpointercapture` is treated identically to `pointercancel` (see
-  //        `onTrackLostPointerCapture`'s own comment below) — capture can be lost with no
-  //        preceding `pointerup`/`pointercancel` at all, and without this branch the drag state
-  //        would stay stuck.
-  //
-  // A pointerdown that starts on an interactive descendant (a slide's own button/link) is not
-  // tracked at all — not "tracked but immediately released", genuinely never entered into this
-  // state machine — which is what leaves that element's own click free to fire however the
-  // pointer moved afterwards (spec "drag on an inner button does nothing").
+  //        pointer — the *only* thing that ever cancels that click; a drag that never crossed the
+  //        threshold arms nothing, so an ordinary click or link navigation is untouched), then
+  //        `goTo()` the release position's nearest slide, nudged one further by a fast flick (see
+  //        `endDrag` below) — never past `[0, count - 1]`, `goTo`'s own clamp. If it never crossed
+  //        the threshold: nothing to undo, the browser's own click just happens. `lostpointercapture`
+  //        is treated identically to `pointercancel` (see `onTrackLostPointerCapture`'s own comment
+  //        below) — capture can be lost with no preceding `pointerup`/`pointercancel` at all, and
+  //        without this branch the drag state would stay stuck.
   const DRAG_THRESHOLD_PX = 6;
   const FLICK_VELOCITY_PX_MS = 0.5;
 
@@ -450,28 +461,37 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     return value === undefined ? true : value;
   }
 
-  function isInteractiveDescendant(target: EventTarget | null): boolean {
+  /**
+   * Operator ruling (2026-09-26, round 2): a drag may start on *any* pointer press inside the
+   * track — buttons and links included — except an editable or range control (typing/selecting a
+   * value must never be hijacked into a swipe) or an element an author has explicitly opted out
+   * with `data-no-drag`. `input` alone already covers `input[type="range"]`; both are named here
+   * because the ruling names both. Renamed from the previous round's `isInteractiveDescendant`,
+   * which this replaces rather than narrows — that function refused *every* link/button, which is
+   * the exact behaviour the operator reported as broken ("we have to place the cursor between
+   * cards").
+   */
+  function isNoDragTarget(target: EventTarget | null): boolean {
     if (!(target instanceof Element)) return false;
     return (
       target.closest(
-        'a[href], button, input, select, textarea, [role="button"], [contenteditable="true"]'
+        'input, textarea, select, [contenteditable], input[type="range"], [data-no-drag]'
       ) !== null
     );
   }
 
   /**
-   * Operator fix (2026-09-26): "while dragging we are highlighting stuff." `preventDefault()` on
-   * `pointermove` (still called below, once the drag threshold crosses) never stopped the browser's
-   * own text-selection drag — that starts the instant a `mousedown` lands on selectable text, before
-   * any `pointermove` fires at all — so a real mouse drag over a slide's caption highlighted it every
-   * time. Toggling `document.documentElement`'s own `user-select` for the drag's span (called from
-   * `onTrackPointerMove` once the threshold crosses, restored in `endTrackDrag`) is the belt; this is
-   * the braces: the CSS property alone does not stop the browser from *starting* a selection anchor
-   * on `mousedown`, only from letting it visibly extend, in every engine tested. Called from
-   * `onTrackPointerDown` itself (not gated on the threshold, unlike the `data-dragging` toggle) —
-   * only after every bail-out above has already passed, so a `pointerdown` that will never become a
-   * drag (a click on a button, a touch pointer, a non-primary button) never has its default
-   * prevented, which is what leaves focus and click landing normally on those.
+   * Toggles `document.documentElement`'s own `user-select` for the drag's span (called from
+   * `onTrackPointerMove` once the 6px threshold crosses, restored in `endTrackDrag`) — the pointer
+   * can leave the track mid-drag, past where the track's own `data-[dragging=true]:select-none`
+   * reaches. This alone stops a selection from *visibly extending* as the pointer keeps moving, but
+   * it does not undo an anchor the browser already started at `mousedown` before the threshold ever
+   * crossed (operator fix, 2026-09-26: "while dragging we are highlighting stuff") — see
+   * `onTrackPointerMove`'s own `window.getSelection()?.removeAllRanges()` call for the other half of
+   * that fix. Both together replace round one's approach of calling `preventDefault()` on every
+   * qualifying `pointerdown`, which stopped the selection anchor from ever starting but also broke
+   * native focus/click on the very targets this fix now needs to keep working — see
+   * `onTrackPointerDown`'s own comment for why that no longer happens.
    */
   function setDocumentSelectionSuppressed(suppressed: boolean): void {
     if (typeof document === 'undefined' || !document.documentElement) return;
@@ -496,16 +516,17 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     if (!draggableEnabled()) return;
     if (event.pointerType === 'touch') return;
     if (event.button !== 0) return;
-    if (isInteractiveDescendant(event.target)) return;
+    if (isNoDragTarget(event.target)) return;
     const track = trackRef.value;
     if (!track) return;
-    // Operator fix (2026-09-26): a mouse-down that reaches this point is a pointer that *may* start
-    // a drag — every bail-out above (wrong button, touch, an interactive descendant) has already
-    // passed — so its default (starting a native text-selection drag, among other things) is
-    // prevented right here rather than waiting for the 6px threshold on `pointermove`, which is too
-    // late: the selection anchor is already down by then. See `setDocumentSelectionSuppressed`'s own
-    // comment for why this alone is not sufficient.
-    event.preventDefault();
+    // Operator fix (2026-09-26, round 2): unlike the previous round, this deliberately does NOT
+    // call `preventDefault()` — the ruling is explicit: "Do NOT preventDefault() the pointerdown
+    // (keep native focus/click behaviour)". A pointer press that reaches this point may still turn
+    // out to be nothing more than a click or a focus move on a slide's own button/link (below the
+    // 6px threshold, see `onTrackPointerMove`), and preventing the pointerdown's default would have
+    // suppressed exactly that. Whatever native effect a real drag's `mousedown` incidentally starts
+    // (a text-selection anchor) is cleaned up once, only once the gesture actually crosses the
+    // threshold — see `onTrackPointerMove` and `setDocumentSelectionSuppressed`'s own comments.
     dragPointerId = event.pointerId;
     dragStartX = event.clientX;
     dragStartScrollLeft = track.scrollLeft;
@@ -514,15 +535,9 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     dragSampleT = event.timeStamp;
     dragPrevSampleX = event.clientX;
     dragPrevSampleT = event.timeStamp;
-    if (typeof track.setPointerCapture === 'function') {
-      try {
-        track.setPointerCapture(event.pointerId);
-      } catch {
-        // A pointer capture request can be refused (or throw, in some test environments) with no
-        // effect on the gesture itself — capture is only an enhancement that keeps pointermove
-        // arriving if the cursor leaves the track's own bounds mid-drag, not a requirement.
-      }
-    }
+    // Pointer capture is deliberately NOT requested here — see `onTrackPointerMove`'s own comment,
+    // where it is requested instead, for why capturing on every qualifying pointerdown broke a
+    // plain click on a slide's own link/button.
   }
 
   function onTrackPointerMove(event: PointerEvent): void {
@@ -536,6 +551,42 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       dragging.value = true;
       track.setAttribute('data-dragging', 'true');
       setDocumentSelectionSuppressed(true);
+      /**
+       * Real-browser-only bug, caught by `scripts/drag-smoke.mjs` (a real Chromium, not
+       * happy-dom — the unit specs dispatch `click` directly and so never exercise real capture
+       * semantics): a mouse-type pointer's capture retargets its `click` event to the *capturing*
+       * element too, not only `pointermove`/`pointerup` — proven with a minimal Playwright repro
+       * outside this file before landing the fix here. Requesting capture unconditionally on every
+       * qualifying `pointerdown` (this round's first pass) meant a plain click on a slide's own
+       * link/button — even one that never moved at all — fired with `event.target` retargeted to
+       * the track instead of the link, so the browser's own default action (the link's navigation)
+       * had nothing to act on: the ruling's "the click stays functional" broke for *every* click in
+       * the carousel, not only ones that followed a drag. Requesting capture here instead — the
+       * gesture is already a confirmed drag by this line — means a sub-threshold press never
+       * captures at all, so its `click` keeps the real link/button as its target and the browser's
+       * own default runs untouched; a real drag's own release `click`, deliberately cancelled below
+       * by `onTrackClickCapture` regardless of which element it nominally targets, is unaffected.
+       */
+      if (typeof track.setPointerCapture === 'function') {
+        try {
+          track.setPointerCapture(event.pointerId);
+        } catch {
+          // A pointer capture request can be refused (or throw, in some test environments) with no
+          // effect on the gesture itself — capture is only an enhancement that keeps pointermove
+          // arriving if the cursor leaves the track's own bounds mid-drag, not a requirement.
+        }
+      }
+      // The other half of the operator fix (round 2): `onTrackPointerDown` no longer prevents the
+      // pointerdown's default, so a press over selectable text has already anchored a native
+      // selection by the time a real drag is confirmed here. Clearing it the instant the gesture
+      // commits to being a drag (not on every pointerdown, which would also fire for a press that
+      // turns out to be a plain click) is what round one's `preventDefault()` used to buy for free.
+      // Guarded the same way `setDocumentSelectionSuppressed` guards `document`: `window` itself can
+      // be absent (SSR), `getSelection` can be missing on it (a bare test environment), and the call
+      // itself can still return `null` per spec.
+      if (typeof window !== 'undefined' && typeof window.getSelection === 'function') {
+        window.getSelection()?.removeAllRanges();
+      }
     }
     event.preventDefault();
     track.scrollLeft = dragStartScrollLeft - dx;
