@@ -46,6 +46,35 @@ Release-please writes the generated notes from commit messages and does not repl
     `roundRatingToHalf`/`ratingStarStates`, and `initialsFromName` are now exported from the root
     entry, matching their plan-1 peers (`cx`, `mixToward`, `useUiId`, …); `tagRecipe`/`listFormat`
     stay internal (class strings and a join helper, not public API).
+- **`Toast`, `Toaster` and `useToast` — Task 3 of the "overlays, navigation, feedback" sub-project.**
+  A brief, non-blocking status message in a fixed bottom-right region (design spec's Toast
+  section): `useToast()` is a module-level queue (`show`/`dismiss`/`clear`/`toasts`), callable from
+  anywhere, not only from a `Toaster`'s own subtree; `Toaster` is the one host an app mounts once
+  (`<Toaster />`, no props required) and owns every timer, the region's placement, and rendering the
+  queue. `show({ variant, title, text?, action?, duration?, id? })` resolves `variant` (default
+  `"success"`) and `duration` together — `success` 6000ms, `warning` 10000ms, both overridable,
+  `danger` always `0` regardless of what is passed (never auto-dismissed); an `id` dedupes (a second
+  `show()` with the same `id` replaces that toast in place rather than adding a second one); at most
+  three toasts queue at once, the oldest evicted when a fourth arrives. Parts (`data-part`): `Toast`
+  — `root`, `icon`, `title`, `text`, `action`, `close`; `Toaster` — `root`, `list`. Every timer pauses
+  while the pointer is over the stack or focus is inside it, and resumes for whatever time was left;
+  `Esc` closes only the toast that holds focus (its `keydown` handler also `preventDefault()`s, so a
+  toast teleported inside an open `Dialog` does not also close the dialog behind it — see the
+  Deviations entry). Two live regions, never nested: non-danger toasts render inside an always-
+  present `role="status" aria-live="polite"` `list`; a danger toast is `role="alert"` on `Toast`'s
+  own root, rendered as a further direct child of `root`, a sibling of `list`, never inside it.
+  While a modal `Dialog` is open, `Toaster` teleports its region into that dialog's own element
+  (`TOAST_HOST_KEY`, from Task 1's `dialogStack`) instead of `<body>`, so a toast raised mid-flow is
+  never inert behind it. `useToast` is SSR-safe: no `window`/`document` access and no timer starts
+  outside `Toaster`. New `tailwind.css` utilities: `eldra-toast-width` (the region's own width,
+  capped at `100vw - 2rem`), `text-toast-title`, and the `eldra-toast-in` entrance keyframes (fade +
+  0.5rem rise over `duration-base` `ease-out`; reduced motion needs no second keyframe — the zeroed
+  duration token already produces no movement) — all registered in `src/utils/cx.ts`'s merge groups.
+  New messages: `dismissNotification` ("Dismiss notification", the close button's name, distinct
+  from the generic `close`), `notifications` (the region's `aria-label`), in both `en-US` and
+  `is-IS`. `README.md` gained the `Toast`/`Toaster` Customisation rows, a `useToast` Composables
+  write-up, and four Deviations entries (no exit animation, `Toaster`'s two-part anatomy despite the
+  danger group, `list`'s `hidden`-while-empty collapse, and the Escape `preventDefault()`).
 - **`Dialog` and `useDialog`/`dialogStack` — Task 1 of the "overlays, navigation, feedback"
   sub-project, and the foundation `Drawer`, `Lightbox`, `SearchModal` and the `Toaster` build on.**
   `Dialog` is a small modal window for one decision or a short form (design spec's Dialog section):

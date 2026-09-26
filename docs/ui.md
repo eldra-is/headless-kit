@@ -86,6 +86,14 @@ in progress)
 - `Tooltip` — a short, non-modal text label naming or describing an icon-only trigger on hover and
   keyboard focus (WCAG 1.4.13: dismissible, hoverable, persistent).
 
+**Feedback**
+
+- `Toast` / `Toaster` — a brief, non-blocking status message in a fixed bottom-right region, raised
+  from anywhere with `useToast()` (a module-level queue, not a `provide`d instance) and rendered by
+  one `<Toaster />` mounted near an app's root. Auto-dismisses per variant (success 6s, warning
+  10s, danger never), pauses while hovered or focused, and teleports into an open `Dialog` instead
+  of `<body>` while one is open (see `packages/ui/README.md`'s Composables section).
+
 ## Styles
 
 Pick one of three CSS entries, depending on how the consuming project builds CSS:

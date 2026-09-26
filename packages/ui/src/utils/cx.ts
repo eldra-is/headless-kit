@@ -109,6 +109,7 @@ const twMerge = extendTailwindMerge<
             'accordion-title',
             'drawer-title',
             'tooltip',
+            'toast-title',
           ],
         },
       ],
@@ -123,7 +124,7 @@ const twMerge = extendTailwindMerge<
       // `eldra-drawer-width` (tailwind.css "Drawer") is the same shape: a consumer's
       // `classes.panel: 'w-full'` should replace the width-plus-viewport-cap-plus-full-screen-
       // media-query utility outright, not land beside it.
-      w: ['eldra-dialog-width', 'eldra-dialog-width-sm', 'eldra-drawer-width'],
+      w: ['eldra-dialog-width', 'eldra-dialog-width-sm', 'eldra-drawer-width', 'eldra-toast-width'],
       // The user-icon fallback's size (tailwind.css "Avatar"): whole class names, not a `size-*`
       // suffix, but the same "size" group Tailwind's own `size-*` scale belongs to, so a
       // consumer's `classes.icon: 'size-6'` replaces one of these instead of landing beside it.
@@ -254,6 +255,7 @@ const twMerge = extendTailwindMerge<
         'animate-eldra-dialog-in-reduced',
         'animate-eldra-drawer-in-right',
         'animate-eldra-drawer-in-left',
+        'animate-eldra-toast-in',
       ],
     },
   },

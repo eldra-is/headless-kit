@@ -127,6 +127,8 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Tabs`              | none — reads only the shared tokens from layer 1; the new `eldra-scrollbar-hide` utility the tab list uses has no variable of its own                                                                                                                                                                                                                                                                                                                               |
    | `Textarea`          | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                          |
    | `Tooltip`           | `--eldra-tooltip-arrow-size` (default `0.3125rem`) — the arrow's side length, no token of its own; `--eldra-z-popover` (default `30`), shared with the popover panels                                                                                                                                                                                                                                                                                               |
+   | `Toast`             | `--eldra-toast-title-size` (default `0.9375rem`), `--eldra-toast-title-line` (default `1.4`) — the title's own size/line, sitting between two type-scale steps with no token of its own                                                                                                                                                                                                                                                                             |
+   | `Toaster`           | `--eldra-toast-width` (default `24rem`) — the fixed region's own width, always capped at `100vw - 2rem` inside the utility itself, the same shape as `Dialog`'s own width variables                                                                                                                                                                                                                                                                                 |
    | `VariantPicker`     | `--eldra-variant-legend-line` (default `1.4`), `--eldra-variant-pill-border-width` (default `1px`), `--eldra-variant-pill-selected-color` (default `var(--eldra-color-text)`), `--eldra-variant-pill-radius` (default `var(--eldra-radius-md)`), `--eldra-variant-swatch-ring-width` (default `2px`), `--eldra-variant-swatch-edge-width` (default `1px`)                                                                                                           |
    | `VisuallyHidden`    | none — reads only the shared tokens from layer 1 (it renders no visible box at all)                                                                                                                                                                                                                                                                                                                                                                                 |
 
@@ -434,6 +436,39 @@ somebody else's open `Select`. It still shares the _teleport target_ logic (an i
 `useTeleportTarget`, not exported: body, or the open modal `<dialog>` the trigger sits in) with
 `usePopover`, so both answer "where does this popup escape to" the same way. See
 [Layering](#layering) below.
+
+`useToast` is the toast queue behind `Toast`/`Toaster` (design spec "Toast") — a **module-level**
+store, not a `provide`d instance: call it from anywhere, not only from inside a `Toaster`'s own
+subtree (a fetch error handler, a Pinia/Vuex store, a route guard).
+
+```ts
+import { useToast } from '@eldrajs/ui';
+
+const toast = useToast();
+toast.show({
+  title: 'Added to cart',
+  text: 'Merino crew sweater · Oatmeal · M',
+  action: { label: 'View cart (3)', href: '/cart' }, // or { label, onActivate: () => {...} }
+});
+const dangerId = toast.show({ variant: 'danger', title: "Couldn't update your cart" });
+toast.dismiss(dangerId); // closes it early, e.g. once a retry succeeds
+toast.clear(); // empties the queue
+toast.toasts; // Readonly<Ref<ToastItem[]>> — what a mounted `Toaster` renders
+```
+
+`show` resolves `variant` (default `"success"`) and `duration` together: `success` defaults to
+6000ms, `warning` to 10000ms, both overridable per call, and `danger` is always `0` (never
+auto-dismissed) regardless of what is passed. An `id` is a dedupe key — a second `show()` with the
+same `id` replaces that toast in place (same position, a fresh timer) instead of adding a second
+one; omitted, one is generated. At most three toasts are queued at once; a fourth evicts the
+oldest.
+
+**SSR-safe**: nothing in `useToast` touches `window`/`document`, and it starts no timer — a single
+`<Toaster />`, mounted once near an app's root, owns every timer (paused while the pointer is over
+the stack or focus is inside it, resumed for whatever time was left) and where the region actually
+renders: `TOAST_HOST_KEY` (see `useDialog` above) if a modal `Dialog` is open, `<body>` otherwise —
+the same hand-off `Dialog` and a future `Drawer`/`Lightbox` already share, so a toast raised during
+a modal flow is never inert behind it.
 
 ### Layering
 
@@ -1988,3 +2023,33 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   and `Tooltip` both need it and neither should duplicate it; it is not exported from the package
   root, the same as `openRegistry` — an internal building block the two share, not part of the
   public composable surface. `usePopover`'s own behaviour and tests are unchanged by the move.
+- **`Toast`'s exit is not animated, even though the spec asks for a 150ms fade out on dismiss**
+  (spec "Toast" → Behaviour & motion) — the same "instant by default" trade-off `Dialog`'s own exit
+  makes (see its own entry above), for the same reason: animating a `v-for` departure needs Vue's
+  `<TransitionGroup>`, which nothing else in this package uses and which is difficult to drive
+  reliably under `vi.useFakeTimers()` in this test environment. The entrance animation (fade + a
+  0.5rem rise over `duration-base`) ships as specified; `Toaster` removes a dismissed toast from
+  the DOM immediately instead.
+- **`Toaster`'s own anatomy has only two named parts, `root` and `list`, even though a danger toast
+  renders outside both** (spec "Toast" → Behaviour & motion: "insert them into the same fixed stack
+  but outside the polite status element … so the two live regions aren't nested"). There is no
+  visually distinct "danger group" box to name a third part for — a danger toast is simply a
+  further direct child of `root`, a sibling of `list` (the `role="status" aria-live="polite"`
+  element), so the two live regions never nest; each danger toast is its own `role="alert"` region,
+  set on `Toast`'s own root by its `variant`. One consequence, accepted rather than solved: a mixed
+  sequence of variants does not interleave perfectly in the visual stack (every non-danger toast is
+  grouped inside `list`, so a danger toast raised in between still renders after that whole group).
+  The spec does not describe cross-variant ordering closely enough to rule this out, and getting it
+  exactly right would mean nesting the two live regions after all.
+- **`list` collapses to `hidden` (rather than staying `flex flex-col gap-3`) while it holds no
+  non-danger toast**, purely so `root`'s own `gap-3` does not insert a spare 0.75rem gap above a
+  danger-only stack (an empty `list` would otherwise still count as one flex item). This does not
+  affect the polite announcement itself — an empty `aria-live="polite"` region announces nothing
+  regardless of its own `display`, and Vue applies the class change in the same patch that inserts
+  a first toast's markup, so the region is already visible by the time anything is announced.
+- **`Toast`'s own `keydown` handler calls `preventDefault()` on `Escape`**, beyond what closing
+  just this toast requires. While a toast is teleported inside an open `Dialog` (`TOAST_HOST_KEY`)
+  and holds focus, the platform's own Escape-closes-the-topmost-dialog behaviour would otherwise
+  fire as well — closing the dialog behind the toast, not only the toast the spec's own Keyboard
+  row asks Escape to close ("closes the toast that holds focus"). `preventDefault()` on the
+  `keydown` suppresses that native "close request" before it reaches the dialog.

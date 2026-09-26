@@ -37,6 +37,13 @@ export const enUS = {
    * "Close Cart"). Falls back to the plain `close` above when the drawer has neither.
    */
   closeDrawer: (name: string) => `Close ${name}`,
+  /** A `Toast`'s close button (spec "Toast" -> Accessibility: `aria-label="Dismiss notification"`)
+   *  — distinct from `close` above, which is the generic word `Dialog` and future modal surfaces
+   *  use for the same button. */
+  dismissNotification: 'Dismiss notification',
+  /** A `Toaster`'s own region (spec "Toast" -> Accessibility: `aria-label="Notifications"`, on the
+   *  `role="status" aria-live="polite"` element). */
+  notifications: 'Notifications',
   /** Accompanies a spinner or a busy region. */
   loading: 'Loading',
   /**

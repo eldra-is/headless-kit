@@ -49,6 +49,8 @@ export { default as TabPanel } from './components/tabs/TabPanel.vue';
 export { default as Tabs } from './components/tabs/Tabs.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as Tooltip } from './components/tooltip/Tooltip.vue';
+export { default as Toast } from './components/toast/Toast.vue';
+export { default as Toaster } from './components/toast/Toaster.vue';
 export { default as UnitInput } from './components/unit-input/UnitInput.vue';
 export { default as VariantPicker } from './components/variant-picker/VariantPicker.vue';
 export { default as VisuallyHidden } from './components/visually-hidden/VisuallyHidden.vue';
@@ -256,6 +258,12 @@ export {
   TOAST_HOST_KEY,
 } from './composables/dialogStack';
 export { useDialog, type UseDialogOptions, type UseDialogReturn } from './composables/useDialog';
+export {
+  useToast,
+  type ToastItem,
+  type ToastOptions,
+  type UseToastReturn,
+} from './composables/useToast';
 export {
   useFloating,
   type FloatingPlacement,

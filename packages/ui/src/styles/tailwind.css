@@ -1541,3 +1541,48 @@
 @utility animate-eldra-drawer-in-left {
   animation: eldra-drawer-in-left var(--eldra-duration-slow) var(--eldra-ease-out);
 }
+
+/* --- Toast ------------------------------------------------------------------------------------ */
+
+/* The region's own width (spec "Toast" -> Sizes, "Region" row): "min(24rem, 100vw - 2rem) wide ...
+   1rem from the right and bottom edges." Same shape as `eldra-dialog-width`: the viewport clamp
+   lives inside the utility itself, so a consumer's `--eldra-toast-width` override still gets
+   capped on a narrow screen. In Tailwind's own `w` group (`src/utils/cx.ts`), so `classes.root:
+   'w-full'` replaces the clamp instead of landing beside it. */
+@utility eldra-toast-width {
+  width: min(var(--eldra-toast-width, 24rem), calc(100vw - 2rem));
+}
+
+/* The title (spec "Toast" -> Sizes, "Title" row): "0.9375rem, weight 600." The weight already
+   reads the label token (600, the same reuse `text-stock-status` makes for its own weight); the
+   size sits between two type-scale steps with none of its own — the same shape as `text-price-sm`'s
+   0.9375rem and `text-dialog-title`'s 1.25rem — so it is a per-component variable with that literal
+   default. No line-height is given, so, like `text-stock-status`'s 1.4, it gets one too. */
+@utility text-toast-title {
+  font: var(--eldra-text-label-weight) var(--eldra-toast-title-size, 0.9375rem) /
+    var(--eldra-toast-title-line, 1.4) var(--eldra-font-body);
+}
+
+/* The toast's own entrance (spec "Toast" -> Behaviour & motion): "Enter: fade in with a 0.5rem
+   rise, duration-base (200ms) ease-out." Unlike `Dialog`, the spec's reduced-motion row here only
+   asks that toasts "appear and disappear without movement" — not, as `Dialog`'s own row demands, a
+   still-visible fade at a literal duration — so the ordinary zeroing `--eldra-duration-base`
+   already satisfies it (an instant appearance has no movement to speak of) and this needs no
+   second `-reduced` keyframe. Exit is not animated (no CSS at all): the spec asks for a 150ms fade
+   out on removal, but animating a `v-for` departure needs Vue's `<TransitionGroup>`, which nothing
+   else in this package uses and which is difficult to drive reliably under `vi.useFakeTimers()`;
+   `Toaster` removes a dismissed toast from the DOM immediately, the same "instant by default"
+   call `Dialog`'s own exit makes (see its Deviations entry) for the equivalent trade-off. */
+@keyframes eldra-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-eldra-toast-in {
+  animation: eldra-toast-in var(--eldra-duration-base) var(--eldra-ease-out);
+}

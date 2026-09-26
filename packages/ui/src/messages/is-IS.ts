@@ -32,6 +32,8 @@ export const isIS: UiMessages = {
   clear: 'Hreinsa',
   close: 'Loka',
   closeDrawer: (name: string) => `Loka ${name}`,
+  dismissNotification: 'Loka tilkynningu',
+  notifications: 'Tilkynningar',
   loading: 'Hleð',
   optional: 'valfrjálst',
   required: 'Nauðsynlegt',
