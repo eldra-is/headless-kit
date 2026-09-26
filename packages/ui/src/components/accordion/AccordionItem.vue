@@ -4,7 +4,7 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { cx, partClass } from '../../utils/cx';
 import { ACCORDION_KEY } from './context';
 import { supportsExclusiveDetailsGroups } from './detailsExclusivity';
-import { animatePanelHeight } from './heightTransition';
+import { createPanelHeightAnimator, type PanelHeightAnimator } from './heightTransition';
 import type { AccordionItemProps } from './types';
 
 const props = withDefaults(defineProps<AccordionItemProps>(), {
@@ -36,13 +36,28 @@ const detailsRef = ref<HTMLDetailsElement>();
 const panelRef = ref<HTMLDivElement>();
 
 /**
- * Guards `onSummaryClick`'s close animation against re-entry from a fast repeat activation (a
- * second click, or Enter/Space pressed again) while the panel is still shrinking. `details.open`
- * stays `true` for the whole close animation (see `onSummaryClick`), so without this a second
- * activation would read that same "currently open, so this is a close" branch and start a second
- * `animate()` on top of the first. Plain instance state, not a `ref`: nothing here is rendered.
+ * The one height-animation owner for this item's panel (`heightTransition.ts`), created lazily —
+ * `panelRef` is `undefined` until mount, and this never runs before it — and memoized: every
+ * open/close for this item's whole lifetime goes through the same instance, which is what lets it
+ * reverse a still-running animation instead of racing it (review round 1, 2026-09-26: "one
+ * animation owner per item").
  */
-let isClosing = false;
+let heightAnimator: PanelHeightAnimator | null = null;
+function heightAnimatorFor(panel: HTMLDivElement | undefined): PanelHeightAnimator | null {
+  if (!panel) return null;
+  heightAnimator ??= createPanelHeightAnimator(panel);
+  return heightAnimator;
+}
+
+/**
+ * `true` for the whole span from "a close was requested" to "that close actually settled and
+ * `open` was cleared" — including while `onSummaryClick`'s own animation is reversing a still-
+ * running *open* back toward closed. `details.open` itself cannot carry this: it stays `true` for
+ * that entire span too (see `onSummaryClick`), so this is what lets a second click tell "closing,
+ * click again to reopen" apart from "opening, click again to close" — both read `details.open ===
+ * true`. Plain instance state, not a `ref`: nothing here is rendered.
+ */
+let closing = false;
 
 const isLinkRow = computed(() => props.href !== undefined);
 
@@ -88,7 +103,7 @@ function onToggle(event: Event): void {
   const open = target.open;
   // Closed via any route — this handler's own eventual `.open = false` at the end of
   // `onSummaryClick` included — leaves nothing left for that guard to protect.
-  if (!open) isClosing = false;
+  if (!open) closing = false;
   model.value = open;
   emit('toggle', open);
   /**
@@ -97,18 +112,13 @@ function onToggle(event: Event): void {
    * "Accordion" → Acceptance criteria: "Find-in-page finds text in closed panels and opens the
    * item"). The browser has already flipped `open` and revealed the panel by the time this event
    * fires, so `scrollHeight` here already reflects the fully laid-out panel; the animation plays
-   * from `0` up to it. See `heightTransition.ts` for exactly when this is skipped in favour of an
-   * instant reveal (reduced motion, no `Element.prototype.animate`, or no stylesheet to read the
-   * duration/easing tokens from).
+   * from `0` up to it (or reverses a close `onSummaryClick` below has in flight — the animator
+   * handles that itself; this call site does not need to know which). See `heightTransition.ts`
+   * for exactly when this is skipped in favour of an instant reveal (reduced motion, no
+   * `Element.prototype.animate`, or no stylesheet to read the duration/easing tokens from).
    */
-  if (open && panelRef.value) {
-    void animatePanelHeight(
-      panelRef.value,
-      0,
-      panelRef.value.scrollHeight,
-      '--eldra-duration-base',
-      '--eldra-ease-out'
-    );
+  if (open) {
+    void heightAnimatorFor(panelRef.value)?.open();
   }
   if (open && detailsName.value !== undefined && !supportsExclusiveDetailsGroups()) {
     closeOtherOpenSiblings(detailsName.value, target);
@@ -128,9 +138,24 @@ function onToggle(event: Event): void {
  * above) — `model`/`update:modelValue`/the re-emitted `toggle` all still go through that one path,
  * completely unchanged.
  *
- * Only the closing direction is intercepted here. An opening click needs no interception at all:
- * the native default action already reveals the panel — there is no "before" state worth
- * preserving — so it is left to run, and `onToggle` above does the animating once it has.
+ * Three cases, all reached through the same `details.open`/`closing` pair (fix, review round 1,
+ * 2026-09-26 — "one animation owner per item", see `heightTransition.ts`'s own comment for the bug
+ * this replaced):
+ *
+ * - **Opening** (`details.open` is `false`): no interception at all. The native default action
+ *   already reveals the panel — there is no "before" state worth preserving — so it is left to
+ *   run, and `onToggle` above does the animating once it has.
+ * - **Closing** (`details.open` is `true`, `closing` is `false` — a fully open, idle panel, *or* an
+ *   opening animation from an earlier click still in flight): intercepted, animates toward `0`.
+ *   `heightAnimatorFor(...)?.close()` reverses that still-running open animation itself if there is
+ *   one (reads the panel's *current* rendered height, not an assumed `scrollHeight`) — this call
+ *   site does not need to tell the two apart.
+ * - **Reopening** (`closing` is already `true` — a second click arrived while an earlier close was
+ *   still animating): reverses back toward `scrollHeight` and keeps `open`, exactly the mirror of
+ *   the closing case. `details.open` never actually left `true` for this whole span (only the
+ *   *first* close request's own eventual settle would have cleared it, and this call supersedes
+ *   that request before it gets the chance to), so there is nothing to restore here beyond
+ *   `closing` itself.
  *
  * `Enter`/`Space` on a focused `<summary>` reach here too: the browser's own default action for
  * both converts them into this same `click` event (see `AccordionItem.spec.ts`'s own comment on
@@ -145,15 +170,27 @@ function onToggle(event: Event): void {
  */
 function onSummaryClick(event: MouseEvent): void {
   const details = detailsRef.value;
-  const panel = panelRef.value;
-  if (!details || !panel || !details.open || isClosing) return; // opening, or already closing
+  if (!details) return;
+  if (closing) {
+    // Reopening: cancel/reverse the in-flight close and head back toward `scrollHeight`, keeping
+    // `open` — `details.open` is still `true` here (see the function comment), so the browser's
+    // own default action for *this* click would otherwise close it outright; prevented for the
+    // same reason the closing branch below prevents it.
+    event.preventDefault();
+    closing = false;
+    void heightAnimatorFor(panelRef.value)?.open();
+    return;
+  }
+  if (!details.open) return; // opening: let the native default action run; onToggle animates it
   event.preventDefault();
-  isClosing = true;
-  const fromPx = panel.scrollHeight;
-  void animatePanelHeight(panel, fromPx, 0, '--eldra-duration-base', '--eldra-ease-in').then(() => {
-    isClosing = false;
-    details.open = false; // fires the native `toggle` → `onToggle` → model/emit, exactly as today
-  });
+  closing = true;
+  void heightAnimatorFor(panelRef.value)
+    ?.close()
+    .then(() => {
+      if (!closing) return; // superseded by a reopen in the meantime; that call owns the outcome
+      closing = false;
+      details.open = false; // fires the native `toggle` → `onToggle` → model/emit, exactly as today
+    });
 }
 
 /**

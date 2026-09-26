@@ -14,13 +14,13 @@ afterEach(() => {
 });
 
 /**
- * `animatePanelHeight` (`heightTransition.ts`) only ever animates once `--eldra-duration-base`/
- * `--eldra-ease-out`/`--eldra-ease-in` resolve to real values through `getComputedStyle` — true in
- * any real consumer, which always ships `tokens.css`, but not in this suite, which mounts the
- * component with no stylesheet at all. Every other spec in this file relies on exactly that gap to
- * stay a synchronous, un-animated assertion of the `<details>`/`modelValue`/`toggle` contract (see
- * the "height animation" describe block below for the specs that turn the animation on on purpose,
- * this same way).
+ * `createPanelHeightAnimator`'s `run()` (`heightTransition.ts`) only ever animates once
+ * `--eldra-duration-base`/`--eldra-ease-out`/`--eldra-ease-in` resolve to real values through
+ * `getComputedStyle` — true in any real consumer, which always ships `tokens.css`, but not in this
+ * suite, which mounts the component with no stylesheet at all. Every other spec in this file
+ * relies on exactly that gap to stay a synchronous, un-animated assertion of the
+ * `<details>`/`modelValue`/`toggle` contract (see the "height animation" describe block below for
+ * the specs that turn the animation on on purpose, this same way).
  */
 function giveMotionTokens(el: HTMLElement): void {
   el.style.setProperty('--eldra-duration-base', '20ms');
@@ -30,13 +30,59 @@ function giveMotionTokens(el: HTMLElement): void {
 
 /**
  * Waits past both the `20ms` `giveMotionTokens` duration (real, un-stubbed `Element.animate` runs
- * on happy-dom's own timer) and the microtask hops after it settles — `animatePanelHeight`'s own
- * `.then()` plus whichever `AccordionItem.vue` handler chains onto that. `250ms` is a generous
- * margin over the `20ms` animation itself, not a tuned minimum, so this stays robust under a slow
- * or loaded CI runner rather than flaking on timing.
+ * on happy-dom's own timer) and the microtask hops after it settles — the animator's own `.then()`
+ * plus whichever `AccordionItem.vue` handler chains onto that. `250ms` is a generous margin over
+ * the `20ms` animation itself, not a tuned minimum, so this stays robust under a slow or loaded CI
+ * runner rather than flaking on timing.
  */
 function flushAnimationSettling(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 250));
+}
+
+/**
+ * One fake `Animation` `panel.animate()` returns, controllable from the test: `resolve()` settles
+ * `finished` "naturally". `cancel()` is real enough to matter, not just a call-recording spy: it
+ * rejects `finished` with an `AbortError`, exactly what a real `Animation.cancel()` does — a stub
+ * whose `cancel` were a no-op would let a superseded animation's own `.then()` chain sit forever
+ * unsettled, which would hide exactly the "does the superseded call's callback still wrongly fire"
+ * class of bug (`onSummaryClick`'s `if (!closing) return;` guard, and `heightTransition.ts`'s own
+ * `if (currentAnimation !== animation) return;`) that review round 1's ruling is about. Exposes
+ * `cancel`/`finished`/`onfinish` per that ruling's own requirement.
+ */
+interface FakeAnimation {
+  cancel: ReturnType<typeof vi.fn>;
+  finished: Promise<void>;
+  onfinish: (() => void) | null;
+  resolve: () => void;
+  keyframes: unknown;
+  options: unknown;
+}
+
+/** Replaces `panel.animate` with a stub that records one `FakeAnimation` per call — a click during
+ *  a still-running animation calls `panel.animate` a second time (the reversal), so tests that
+ *  exercise that path read `animations[1]`, `animations[0].cancel`, etc. */
+function stubAnimate(panel: HTMLElement): FakeAnimation[] {
+  const animations: FakeAnimation[] = [];
+  vi.spyOn(panel, 'animate').mockImplementation(((keyframes: unknown, options: unknown) => {
+    let resolve!: () => void;
+    let reject!: (reason: unknown) => void;
+    const finished = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    // Every `Promise` in this file already treats a rejection as "unhandled" only if nothing ever
+    // attaches a rejection handler; `heightTransition.ts`'s own `.then(() => undefined, () =>
+    // undefined)` always does, but attach a no-op catch here too so a *cancelled-and-never-reached*
+    // fake (not exercised by every test that creates one) never logs an unhandled-rejection warning.
+    finished.catch(() => {});
+    const cancel = vi.fn(() => {
+      reject(new DOMException('cancelled', 'AbortError'));
+    });
+    const fake: FakeAnimation = { cancel, finished, onfinish: null, resolve, keyframes, options };
+    animations.push(fake);
+    return fake as unknown as Animation;
+  }) as typeof panel.animate);
+  return animations;
 }
 
 describe('AccordionItem — disclosure semantics', () => {
@@ -417,29 +463,65 @@ describe('AccordionItem — height animation (operator, 2026-09-26)', () => {
     wrapper.unmount();
   });
 
-  it('closing a second time in quick succession is ignored while the first close is still animating', async () => {
+  it('a click during the OPENING animation reverses it to closing, cancelling the first animation and settling with no inline overflow/height stuck (review round 1 regression)', async () => {
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Materials & care', modelValue: false },
+      slots: { default: 'Body' },
+    });
+    const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+    giveMotionTokens(panel);
+    const animations = stubAnimate(panel);
+
+    const summary = wrapper.get('[data-part="summary"]');
+    await summary.trigger('click'); // opens: starts the 0 → scrollHeight animation
+    expect(animations).toHaveLength(1);
+    expect(panel.style.overflow).toBe('hidden');
+
+    await summary.trigger('click'); // mid-open: reverses to closing, must not race the first call
+    expect(animations[0]!.cancel).toHaveBeenCalledTimes(1);
+    expect(animations).toHaveLength(2); // the reversal's own close animation
+    // Still owned by the (now second) animation — the bug this guards against left `overflow`
+    // stuck at `'hidden'` forever because each call captured/restored it independently.
+    expect(panel.style.overflow).toBe('hidden');
+
+    animations[1]!.resolve();
+    await flushAnimationSettling();
+    const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+    expect(details.open).toBe(false); // the reversal was a close request, so it ends closed
+    expect(panel.style.overflow).toBe(''); // restored to the ORIGINAL pre-animation value, not stuck
+    expect(panel.style.height).toBe('');
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([false]);
+    wrapper.unmount();
+  });
+
+  it('a click during the CLOSING animation reverses it to reopening, ends open, no inline styles stuck', async () => {
     const wrapper = mountWith(AccordionItem, {
       props: { title: 'Materials & care', modelValue: true },
       slots: { default: 'Body' },
     });
     const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
     giveMotionTokens(panel);
-    let resolveFinished!: () => void;
-    const animateSpy = vi.spyOn(panel, 'animate').mockReturnValue({
-      finished: new Promise<void>((resolve) => {
-        resolveFinished = resolve;
-      }),
-    } as unknown as Animation);
+    const animations = stubAnimate(panel);
 
-    const summary = wrapper.get('[data-part="summary"]');
-    await summary.trigger('click');
-    await summary.trigger('click'); // still mid-animation: must not start a second one
-    expect(animateSpy).toHaveBeenCalledTimes(1);
-
-    resolveFinished();
-    await flushAnimationSettling();
     const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
-    expect(details.open).toBe(false);
+    const summary = wrapper.get('[data-part="summary"]');
+    await summary.trigger('click'); // closes: starts the scrollHeight → 0 animation
+    expect(animations).toHaveLength(1);
+    expect(details.open).toBe(true); // deferred until the animation settles
+
+    await summary.trigger('click'); // mid-close: reverses to reopening, not "ignored"
+    expect(animations[0]!.cancel).toHaveBeenCalledTimes(1);
+    expect(animations).toHaveLength(2); // the reversal's own open animation
+    expect(details.open).toBe(true); // never left true across the whole reversal
+
+    animations[1]!.resolve();
+    await flushAnimationSettling();
+    expect(details.open).toBe(true); // the reversal was an open request, so it ends open
+    expect(panel.style.overflow).toBe('');
+    expect(panel.style.height).toBe('');
+    // `open` never actually changed value across this whole dance, so the native `toggle` this
+    // component listens for never fired — no spurious `toggle`/`update:modelValue` from it.
+    expect(wrapper.emitted('toggle')).toBeUndefined();
     wrapper.unmount();
   });
 });
