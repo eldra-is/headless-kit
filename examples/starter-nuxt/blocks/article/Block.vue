@@ -15,30 +15,34 @@
  */
 import { computed } from 'vue';
 import { EldraRichText } from '@eldrajs/theme-vue';
+import { Container, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
-import UiSection from '../../app/components/ui/UiSection.vue';
+import { useUiId } from '../../app/composables/useUiId';
 
 const props = defineProps<{ entry: EldraBlockEntry<'article'> }>();
 const { data, entryId } = useBlockData(props, 'article');
 
 const width = computed(() => data.value.width ?? 'narrow');
+const headingId = `article-heading-${useUiId()}`;
 </script>
 
 <template>
-  <UiSection spacing="md" :container-size="width">
-    <article>
-      <header>
-        <h1 class="text-4xl font-semibold md:text-5xl">{{ data.heading }}</h1>
-        <p v-if="data.meta" class="text-muted mt-3 text-sm">{{ data.meta }}</p>
-        <p v-if="data.lead" class="text-text mt-6 text-xl leading-relaxed">{{ data.lead }}</p>
-      </header>
-      <EldraRichText
-        class="prose-eldra mt-10"
-        :entry-id="entryId"
-        field="body"
-        :doc="data.body"
-        api-id="article"
-      />
-    </article>
-  </UiSection>
+  <Section spacing="md" :labelled-by="headingId">
+    <Container :width="width">
+      <article>
+        <header>
+          <h1 :id="headingId" class="text-4xl font-semibold md:text-5xl">{{ data.heading }}</h1>
+          <p v-if="data.meta" class="text-muted mt-3 text-sm">{{ data.meta }}</p>
+          <p v-if="data.lead" class="text-text mt-6 text-xl leading-relaxed">{{ data.lead }}</p>
+        </header>
+        <EldraRichText
+          class="prose-eldra mt-10"
+          :entry-id="entryId"
+          field="body"
+          :doc="data.body"
+          api-id="article"
+        />
+      </article>
+    </Container>
+  </Section>
 </template>

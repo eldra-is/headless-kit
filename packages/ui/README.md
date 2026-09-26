@@ -126,9 +126,11 @@ Every component supports all five of these; none hard-codes anything a store mig
 4. **A slot for every part that holds content** (`label`, `description`, `error`, `leading`,
    `trailing`, `empty`, `header`, `footer`, `item`, …), named after the part it replaces.
 5. **`as`**, on the components whose spec allows a different rendered element (`Button`, `Link`,
-   `Badge`, and the rest of the display/layout components landing in this sub-project). `Button`
-   and the future card components render an `<a>` automatically when `href` is set, without
-   needing `as` for that case; `Badge` defaults to `<span>` and is never a link.
+   `Badge`, `Container`, `Section`, and the rest of the display/layout components landing in this
+   sub-project). `Button` and the future card components render an `<a>` automatically when `href`
+   is set, without needing `as` for that case; `Badge` defaults to `<span>` and is never a link;
+   `Section` picks `<section>`/`<div>` itself from whether it is named (`as` overrides that choice
+   outright, for a `<header>`/`<footer>` landmark that needs no name of its own).
 
 ## Fields: the context a `FieldWrapper` provides
 

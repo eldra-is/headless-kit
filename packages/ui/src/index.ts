@@ -11,6 +11,7 @@ export { default as Button } from './components/button/Button.vue';
 export { default as ButtonGroup } from './components/button/ButtonGroup.vue';
 export { default as Checkbox } from './components/checkbox/Checkbox.vue';
 export { default as CheckboxGroup } from './components/checkbox/CheckboxGroup.vue';
+export { default as Container } from './components/container/Container.vue';
 export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
 export { default as EditorPlaceholder } from './components/empty-state/EditorPlaceholder.vue';
 export { default as EmptyState } from './components/empty-state/EmptyState.vue';
@@ -27,6 +28,7 @@ export { default as QuantityStepper } from './components/quantity-stepper/Quanti
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as Rating } from './components/rating/Rating.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
+export { default as Section } from './components/section/Section.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
 export { default as Switch } from './components/switch/Switch.vue';
@@ -70,6 +72,7 @@ export type {
   CheckboxProps,
   CheckboxSize,
 } from './components/checkbox/types';
+export type { ContainerPart, ContainerProps, ContainerWidth } from './components/container/types';
 export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
 export type {
   EditorPlaceholderPart,
@@ -123,6 +126,12 @@ export type {
   SearchSection,
   SearchSelectType,
 } from './components/search-bar/types';
+export type {
+  SectionBackground,
+  SectionPart,
+  SectionProps,
+  SectionSpacing,
+} from './components/section/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';
 export type {
   QuantityStepperPart,
@@ -202,6 +211,10 @@ export { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './components/form-layout/c
 // Field context. A `FieldWrapper` provides it; the controls inside it read their `id`,
 // `aria-describedby`, invalid and required state from it, so a bare `<Input />` needs no wiring.
 export { FIELD_KEY, type FieldContext } from './components/field-wrapper/context';
+
+// Section context. A `Section` provides it for its own subtree so a nested `Section` can warn
+// against the spec's own "sections are never nested inside another section" rule.
+export { SECTION_KEY } from './components/section/context';
 
 // Styling helpers, so a consumer composing its own wrapper merges classes the
 // same way the components do.

@@ -146,7 +146,13 @@ const twMerge = extendTailwindMerge<
       // `max-h-*`/`max-w-*` suffix, but Tailwind's own groups, so a consumer's
       // `classes.panel: 'max-h-64'` replaces the height and leaves the width clamp alone.
       'max-h': ['eldra-select-panel-height', 'eldra-search-panel-height'],
-      'max-w': ['eldra-select-panel-width'],
+      // `max-w-narrow`/`-content`/`-wide` (tailwind.css's `@theme` block, "Container and section"):
+      // Tailwind generates these from the `--container-*` theme namespace, not from an `@utility`
+      // this package writes, so `custom-utility-coverage.spec.ts`'s scan (which only reads
+      // `@utility` names) cannot catch a missing entry here the way it does for the rest of this
+      // file — proven by mutation: without this line, `cx('max-w-narrow', 'max-w-full')` keeps
+      // both instead of letting `Container`'s own `full` (or a consumer's `classes.root`) win.
+      'max-w': ['eldra-select-panel-width', 'max-w-narrow', 'max-w-content', 'max-w-wide'],
       // A filtered option's matched run, and an option's swatch edge: a weight-plus-underline
       // bundle and an inset box-shadow, neither of which maps onto a stock group, so each gets its
       // own. (`font-weight` is stock, but this utility is not only a weight — folding it into that

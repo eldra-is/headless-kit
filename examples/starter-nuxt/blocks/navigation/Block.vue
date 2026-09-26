@@ -18,13 +18,12 @@
  * hand-rolled button needed is gone.
  */
 import { computed, ref } from 'vue';
-import { Button, Link } from '@eldrajs/ui';
+import { Button, Container, Link, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import UiContainer from '../../app/components/ui/UiContainer.vue';
 import UiDrawer from '../../app/components/ui/UiDrawer.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
@@ -55,11 +54,15 @@ const links = computed(() =>
 </script>
 
 <template>
-  <header
-    class="border-border bg-background border-b"
-    :class="data.sticky ? 'sticky top-0 z-40' : ''"
+  <Section
+    as="header"
+    background="none"
+    spacing="none"
+    :classes="{
+      root: ['border-border border-b', data.sticky ? 'sticky top-0 z-40' : ''].join(' '),
+    }"
   >
-    <UiContainer size="wide">
+    <Container width="wide">
       <nav
         :aria-label="t('nav.primary')"
         class="flex items-center justify-between gap-4 py-4"
@@ -149,7 +152,7 @@ const links = computed(() =>
           </Button>
         </div>
       </nav>
-    </UiContainer>
+    </Container>
 
     <UiDrawer
       :id="drawerId"
@@ -184,5 +187,5 @@ const links = computed(() =>
         </Button>
       </nav>
     </UiDrawer>
-  </header>
+  </Section>
 </template>

@@ -80,12 +80,11 @@ colour in `tokens.json` restyles the theme _and_ the package's components.
 motion, z-index), which a customer overrides in `main.css` — for example `--eldra-font-heading` /
 `--eldra-font-body`, whose defaults name two faces the package deliberately does not load. They
 reach Tailwind through the package's own `@theme` as `rounded-md`, `shadow-md`, `font-heading`,
-`text-body` and the rest. The only design values `main.css` still declares itself are the section
-steps (`--spacing-section` and `--spacing-section-lg`, mapped from `--eldra-section-*` so `py-section`
-keeps working), because the package names no spacing utility for them until its own `Section`
-lands. Container gutters come from the token CSS's `--eldra-container-<id>-gutter-*` variables
-through `UiContainer`, not Tailwind's own `container` utility — see the
-`.eldra-container[data-size]` rules in `main.css`.
+`text-body` and the rest. `main.css` declares no design values of its own any more: `Container` and
+`Section` (`@eldrajs/ui`) now own the container widths, gutters and section spacing that used to be
+hand-written here as `.eldra-container[data-size]` rules and a `--spacing-section`/`-lg` `@theme`
+block — every block wraps its content in `<Section><Container width="…">…</Container></Section>`
+instead of the copied `UiContainer`/`UiSection` primitives.
 
 **Type scale** is Tailwind's defaults plus the package's type utilities: `body` takes `text-body`,
 headings use `font-heading tracking-tight leading-[1.1]`. No scoped CSS and no `@apply` in blocks or
@@ -101,9 +100,9 @@ blanket `:focus-visible` base rule; each focusable element says which ring it ca
 
 ### `@eldrajs/ui` — the core components
 
-Buttons, links and form controls come from the package, not from copied source: `Button`,
-`ButtonGroup`, `Link`, `Input`, `Textarea`, `FieldWrapper`, `FormLayout`, `Checkbox`,
-`CheckboxGroup`, `RadioGroup`, `Switch`, `Select`, `MultiSelect`, `QuantityStepper`,
+Buttons, links, layout and form controls come from the package, not from copied source: `Button`,
+`ButtonGroup`, `Link`, `Container`, `Section`, `Input`, `Textarea`, `FieldWrapper`, `FormLayout`,
+`Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `Select`, `MultiSelect`, `QuantityStepper`,
 `VariantPicker`, `SearchBar`, `Icon`, `VisuallyHidden`. Import them by name
 (`import { Button, Link } from '@eldrajs/ui'`) — they are never globally registered — and restyle
 them through tokens, the per-component CSS variables, each component's `classes` prop, its slots,
@@ -123,7 +122,8 @@ Three things a theme has to keep on its own side of that boundary:
 - **Coloured grounds announce themselves.** A section (or card) whose background is the `primary`
   or `accent` token carries `class="group/section" data-section="primary|accent"`; the package's
   components read it and invert their own colours, so no block hand-writes a contrast colour for a
-  button or link. `UiSection` does it from its `background` prop.
+  button or link. `Section` does it from its `background` prop; a block that colours its own inner
+  surface (the `cta` block's card) marks that surface the same way by hand.
 
 `app/plugins/eldra-ui-messages.ts` provides the package's own strings (`Close`, `Clear`, "opens in
 a new tab", …) for the active content locale, from `app/i18n/uiMessages.ts`; `.storybook/eldra.ts`
@@ -144,8 +144,6 @@ override, and each is replaced by a `@eldrajs/ui` component in a later sub-proje
 | `UiBadge`                         | `tone`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `UiPrice`                         | `amount`, `currency`, `compareAt?`, `locale`; `Intl.NumberFormat`, compare-at struck through with `sr-only` "was/now" text.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `UiRating`                        | `value` 0–5, `count?`; SVG stars with an `sr-only` label.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `UiContainer`                     | `size: 'narrow' \| 'content' \| 'wide' \| 'full'`; max-width/gutters from the container tokens.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `UiSection`                       | `spacing`, `background` (sets matching contrast text color, and marks a `primary`/`accent` ground for `@eldrajs/ui`), a `@container` context, wraps a `UiContainer`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `UiImage`                         | Thin wrapper over `@eldrajs/ui`'s `Image`. `src`, required `alt` (empty string allowed for decorative), `framing?`, `aspect?`, `sizes`, lazy by default, `priority` for above-the-fold, `rounded?` (`'none' \| 'lg' \| 'xl'`, forwards to `Image`'s own radius), `fill?` (covers a positioned ancestor — the hero background), `fit?` (`'cover' \| 'contain'`, for an uncropped view — the gallery lightbox), `classes?` (passthrough to `Image`'s `classes`, for a radius/size `rounded`/`fill`/`fit` don't cover, e.g. `rounded-full`/`rounded-md`). `class`/`style` land on `Image`'s root (the frame's wrapper), not the `<img>` — use `rounded`/`fit`/`classes` for anything that needs to reach the frame or media element instead. |
 
 Each primitive has `<Name>.vue`, `<Name>.stories.ts`, and `__tests__/<Name>.spec.ts` (render, axe,

@@ -103,7 +103,9 @@ describe('hero block', () => {
         entry: { id: 'e1', data: { ...withImage, variant: 'image-background' } },
       })
     );
-    const root = wrapper.get('[data-part="root"]');
+    // `Section` and `Container` also carry `data-part="root"` on their own elements — this
+    // scopes to the one Image's `fill` prop actually put the absolute-fill classes on.
+    const root = wrapper.get('[data-part="root"].absolute');
     expect(root.classes()).toEqual(
       expect.arrayContaining(['absolute', 'inset-0', 'h-full', 'w-full'])
     );

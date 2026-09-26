@@ -19,33 +19,37 @@
  */
 import { computed } from 'vue';
 import { EldraRichText } from '@eldrajs/theme-vue';
+import { Container, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { useUiId } from '../../app/composables/useUiId';
 import UiAccordion from '../../app/components/ui/UiAccordion.vue';
 import UiAccordionItem from '../../app/components/ui/UiAccordionItem.vue';
-import UiSection from '../../app/components/ui/UiSection.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'faq'> }>();
 const { data, entryId } = useBlockData(props, 'faq');
 
 const items = computed(() => data.value.items ?? []);
+const headingId = `faq-heading-${useUiId()}`;
 </script>
 
 <template>
-  <UiSection spacing="md" container-size="narrow">
-    <div class="text-center">
-      <h2 class="text-3xl font-semibold md:text-4xl">{{ data.heading }}</h2>
-      <p v-if="data.intro" class="text-muted mt-3 text-lg">{{ data.intro }}</p>
-    </div>
+  <Section spacing="md" :labelled-by="headingId">
+    <Container width="narrow">
+      <div class="text-center">
+        <h2 :id="headingId" class="text-3xl font-semibold md:text-4xl">{{ data.heading }}</h2>
+        <p v-if="data.intro" class="text-muted mt-3 text-lg">{{ data.intro }}</p>
+      </div>
 
-    <UiAccordion class="mt-10" :single="data.single ?? false">
-      <UiAccordionItem v-for="(item, index) in items" :key="index" :title="item.question">
-        <EldraRichText
-          class="prose-eldra"
-          :entry-id="entryId"
-          :field="`items.${index}.answer`"
-          :doc="item.answer"
-        />
-      </UiAccordionItem>
-    </UiAccordion>
-  </UiSection>
+      <UiAccordion class="mt-10" :single="data.single ?? false">
+        <UiAccordionItem v-for="(item, index) in items" :key="index" :title="item.question">
+          <EldraRichText
+            class="prose-eldra"
+            :entry-id="entryId"
+            :field="`items.${index}.answer`"
+            :doc="item.answer"
+          />
+        </UiAccordionItem>
+      </UiAccordion>
+    </Container>
+  </Section>
 </template>

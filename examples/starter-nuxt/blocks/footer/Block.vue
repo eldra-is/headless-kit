@@ -14,11 +14,10 @@
  * write out by hand.
  */
 import { computed, useSlots } from 'vue';
-import { Link } from '@eldrajs/ui';
+import { Container, Link, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import UiContainer from '../../app/components/ui/UiContainer.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
@@ -39,8 +38,13 @@ const groups = computed(() =>
 </script>
 
 <template>
-  <footer class="border-border bg-surface border-t">
-    <UiContainer size="wide" class="py-section">
+  <Section
+    as="footer"
+    background="surface"
+    spacing="md"
+    :classes="{ root: 'border-border border-t' }"
+  >
+    <Container width="wide">
       <div
         v-if="variant === 'default'"
         class="grid gap-10 md:grid-cols-[2fr_repeat(4,minmax(0,1fr))]"
@@ -80,6 +84,6 @@ const groups = computed(() =>
       >
         <p>{{ data.legal }}</p>
       </div>
-    </UiContainer>
-  </footer>
+    </Container>
+  </Section>
 </template>

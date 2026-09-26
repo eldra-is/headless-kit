@@ -11,16 +11,17 @@
  * same markup either way.
  */
 import { computed, type Component } from 'vue';
-import { Link } from '@eldrajs/ui';
+import { Container, Link, Section } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
-import UiSection from '../../app/components/ui/UiSection.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'feature-grid'> }>();
 const { data } = useBlockData(props, 'feature-grid');
+const headingId = `feature-grid-heading-${useUiId()}`;
 
 const COLUMNS = {
   '2': 'sm:grid-cols-2',
@@ -72,31 +73,33 @@ function linkProps(href: string, as: Component | string | undefined): Record<str
 </script>
 
 <template>
-  <UiSection spacing="md" container-size="wide">
-    <div class="mx-auto max-w-2xl text-center">
-      <h2 class="text-3xl font-semibold md:text-4xl">{{ data.heading }}</h2>
-      <p v-if="data.intro" class="text-muted mt-3 text-lg">{{ data.intro }}</p>
-    </div>
+  <Section spacing="md" :labelled-by="headingId">
+    <Container width="wide">
+      <div class="mx-auto max-w-2xl text-center">
+        <h2 :id="headingId" class="text-3xl font-semibold md:text-4xl">{{ data.heading }}</h2>
+        <p v-if="data.intro" class="text-muted mt-3 text-lg">{{ data.intro }}</p>
+      </div>
 
-    <div class="mt-12 grid grid-cols-1 gap-6" :class="columnsClass">
-      <component
-        :is="item.href ? Link : 'div'"
-        v-for="(item, index) in items"
-        :key="index"
-        v-bind="item.href ? linkProps(item.href, item.as) : { class: tileClass }"
-      >
-        <EldraIcon v-if="item.icon" :name="item.icon" class="text-primary" />
-        <UiImage
-          v-else-if="item.image"
-          :src="item.image.url"
-          :alt="item.image.altText ?? ''"
-          aspect="1/1"
-          class="h-12 w-12"
-          :classes="{ frame: 'rounded-md' }"
-        />
-        <h3 class="text-text mt-4 text-lg font-semibold">{{ item.title }}</h3>
-        <p v-if="item.body" class="text-muted mt-2">{{ item.body }}</p>
-      </component>
-    </div>
-  </UiSection>
+      <div class="mt-12 grid grid-cols-1 gap-6" :class="columnsClass">
+        <component
+          :is="item.href ? Link : 'div'"
+          v-for="(item, index) in items"
+          :key="index"
+          v-bind="item.href ? linkProps(item.href, item.as) : { class: tileClass }"
+        >
+          <EldraIcon v-if="item.icon" :name="item.icon" class="text-primary" />
+          <UiImage
+            v-else-if="item.image"
+            :src="item.image.url"
+            :alt="item.image.altText ?? ''"
+            aspect="1/1"
+            class="h-12 w-12"
+            :classes="{ frame: 'rounded-md' }"
+          />
+          <h3 class="text-text mt-4 text-lg font-semibold">{{ item.title }}</h3>
+          <p v-if="item.body" class="text-muted mt-2">{{ item.body }}</p>
+        </component>
+      </div>
+    </Container>
+  </Section>
 </template>

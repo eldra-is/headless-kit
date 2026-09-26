@@ -16,14 +16,15 @@
  * primary button and `text` link.
  */
 import { computed } from 'vue';
-import { Button, Link } from '@eldrajs/ui';
+import { Button, Container, Link, Section } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import { useUiId } from '../../app/composables/useUiId';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import UiSection from '../../app/components/ui/UiSection.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'cta'> }>();
 const { data } = useBlockData(props, 'cta');
+const headingId = `cta-heading-${useUiId()}`;
 
 const variant = computed(() => data.value.variant ?? 'primary');
 const isPrimary = computed(() => variant.value === 'primary');
@@ -42,50 +43,52 @@ const secondaryLinkAs = computed(() => routerLinkAs(secondaryButtonHref.value));
 </script>
 
 <template>
-  <UiSection spacing="md" container-size="wide">
-    <div
-      class="rounded-xl px-8 py-12 md:px-12"
-      :class="[
-        isPrimary ? 'group/section bg-primary text-primary-contrast' : '',
-        variant === 'subtle' ? 'bg-surface text-text' : '',
-        isSplit
-          ? 'border-border bg-background text-text border md:flex md:items-center md:justify-between md:gap-10'
-          : '',
-      ]"
-      :data-section="isPrimary ? 'primary' : undefined"
-    >
-      <div :class="isSplit ? '' : 'mx-auto max-w-2xl text-center'">
-        <h2 class="text-3xl font-semibold md:text-4xl">{{ data.heading }}</h2>
-        <p
-          v-if="data.body"
-          class="mt-3 text-lg"
-          :class="isPrimary ? 'text-primary-contrast/90' : 'text-muted'"
-        >
-          {{ data.body }}
-        </p>
-      </div>
+  <Section spacing="md" :labelled-by="headingId">
+    <Container width="wide">
       <div
-        class="flex flex-wrap items-center gap-x-6 gap-y-4"
-        :class="isSplit ? 'mt-6 shrink-0 md:mt-0' : 'mt-8 justify-center'"
+        class="rounded-xl px-8 py-12 md:px-12"
+        :class="[
+          isPrimary ? 'group/section bg-primary text-primary-contrast' : '',
+          variant === 'subtle' ? 'bg-surface text-text' : '',
+          isSplit
+            ? 'border-border bg-background text-text border md:flex md:items-center md:justify-between md:gap-10'
+            : '',
+        ]"
+        :data-section="isPrimary ? 'primary' : undefined"
       >
-        <Button
-          v-if="data.buttonLabel && buttonHref"
-          :href="buttonHref"
-          :as="buttonLinkAs"
-          size="lg"
-          variant="primary"
+        <div :class="isSplit ? '' : 'mx-auto max-w-2xl text-center'">
+          <h2 :id="headingId" class="text-3xl font-semibold md:text-4xl">{{ data.heading }}</h2>
+          <p
+            v-if="data.body"
+            class="mt-3 text-lg"
+            :class="isPrimary ? 'text-primary-contrast/90' : 'text-muted'"
+          >
+            {{ data.body }}
+          </p>
+        </div>
+        <div
+          class="flex flex-wrap items-center gap-x-6 gap-y-4"
+          :class="isSplit ? 'mt-6 shrink-0 md:mt-0' : 'mt-8 justify-center'"
         >
-          {{ data.buttonLabel }}
-        </Button>
-        <Link
-          v-if="data.secondaryButtonLabel && secondaryButtonHref"
-          :href="secondaryButtonHref"
-          :as="secondaryLinkAs"
-          variant="standalone"
-        >
-          {{ data.secondaryButtonLabel }}
-        </Link>
+          <Button
+            v-if="data.buttonLabel && buttonHref"
+            :href="buttonHref"
+            :as="buttonLinkAs"
+            size="lg"
+            variant="primary"
+          >
+            {{ data.buttonLabel }}
+          </Button>
+          <Link
+            v-if="data.secondaryButtonLabel && secondaryButtonHref"
+            :href="secondaryButtonHref"
+            :as="secondaryLinkAs"
+            variant="standalone"
+          >
+            {{ data.secondaryButtonLabel }}
+          </Link>
+        </div>
       </div>
-    </div>
-  </UiSection>
+    </Container>
+  </Section>
 </template>

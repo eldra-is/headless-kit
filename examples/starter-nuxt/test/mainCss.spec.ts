@@ -47,12 +47,6 @@ describe('main.css', () => {
     expect(css).not.toContain('bg-black');
   });
 
-  it('emits the section rhythm the theme names itself', async () => {
-    const css = await build(['py-section', 'py-section-lg']);
-    expect(css).toContain('var(--spacing-section)');
-    expect(css).toContain('var(--spacing-section-lg)');
-  });
-
   // The package's own utilities and its colour/type scale, proving the
   // `@import '@eldrajs/ui/tailwind.css'` half of the file is live: these exist
   // only because that import brought the `@theme` block and the `@utility`
@@ -81,5 +75,24 @@ describe('main.css', () => {
       expect(css).toContain(rule);
     }
     expect(css).toContain('var(--eldra-color-primary)');
+  });
+
+  // `Container`/`Section` (task 6) replaced this file's own `.eldra-container[data-size]` rules
+  // and the `--spacing-section`/`-lg` `@theme` keys: max-width and gutters now come from the
+  // package's `max-w-*` scale and `--eldra-gutter-*`, and padding-block from `--eldra-section-*`
+  // directly on `Section`'s own `pt-*`/`pb-*` classes — nothing left for `main.css` to declare.
+  // This proves the classes those two components emit still compile through this file's own
+  // import chain, the same way the assertion above proves the rest of the package's utilities do.
+  it('emits the layout primitives Container and Section use, through this file', async () => {
+    const css = await build([
+      'max-w-narrow',
+      'max-w-content',
+      'max-w-wide',
+      'pt-[var(--eldra-section-md)]',
+    ]);
+    expect(css).toContain('var(--eldra-container-narrow)');
+    expect(css).toContain('var(--eldra-container-content)');
+    expect(css).toContain('var(--eldra-container-wide)');
+    expect(css).toContain('padding-top: var(--eldra-section-md)');
   });
 });

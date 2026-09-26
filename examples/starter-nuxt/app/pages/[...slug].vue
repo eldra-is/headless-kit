@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
-import { Button } from '@eldrajs/ui';
+import { Button, Container, Section } from '@eldrajs/ui';
 import EldraRouterLink from '../components/EldraRouterLink.vue';
-import UiSection from '../components/ui/UiSection.vue';
 import { useT } from '../composables/useT';
 
 const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
@@ -40,32 +39,38 @@ useHead(() => ({
 
 <template>
   <main id="main">
-    <UiSection v-if="pending" spacing="lg" container-size="content">
-      <p aria-busy="true">{{ t('loading') }}</p>
-    </UiSection>
-    <UiSection v-else-if="error && !isNotFoundRoute" spacing="lg" container-size="content">
-      <p role="alert">{{ error }}</p>
-    </UiSection>
-    <UiSection
+    <Section v-if="pending" spacing="lg">
+      <Container width="content">
+        <p aria-busy="true">{{ t('loading') }}</p>
+      </Container>
+    </Section>
+    <Section v-else-if="error && !isNotFoundRoute" spacing="lg">
+      <Container width="content">
+        <p role="alert">{{ error }}</p>
+      </Container>
+    </Section>
+    <Section
       v-else-if="isNotFound"
       spacing="lg"
-      container-size="narrow"
+      :label="t('notFound.title')"
       data-eldra-not-found
-      class="text-center"
+      :classes="{ root: 'text-center' }"
     >
-      <p class="text-muted text-sm font-semibold tracking-widest uppercase">
-        {{ t('notFound.eyebrow') }}
-      </p>
-      <h1 class="font-heading mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-        {{ t('notFound.title') }}
-      </h1>
-      <p class="text-muted mt-4 text-lg">{{ t('notFound.body') }}</p>
-      <!-- `/` is always same-site, so it always routes: `Button`'s `as` hands the href to
-           `EldraRouterLink` as `to`, exactly as a `Link` does. -->
-      <Button variant="primary" class="mt-8" href="/" :as="EldraRouterLink">{{
-        t('notFound.back')
-      }}</Button>
-    </UiSection>
+      <Container width="narrow">
+        <p class="text-muted text-sm font-semibold tracking-widest uppercase">
+          {{ t('notFound.eyebrow') }}
+        </p>
+        <h1 class="font-heading mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+          {{ t('notFound.title') }}
+        </h1>
+        <p class="text-muted mt-4 text-lg">{{ t('notFound.body') }}</p>
+        <!-- `/` is always same-site, so it always routes: `Button`'s `as` hands the href to
+             `EldraRouterLink` as `to`, exactly as a `Link` does. -->
+        <Button variant="primary" class="mt-8" href="/" :as="EldraRouterLink">{{
+          t('notFound.back')
+        }}</Button>
+      </Container>
+    </Section>
     <EldraLayout
       v-else-if="layout !== null"
       :layout="layout"

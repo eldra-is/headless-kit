@@ -31,6 +31,32 @@ Release-please writes the generated notes from commit messages and does not repl
 
   See `README.md`'s Deviations section for the default-icon-per-variant choice, the
   `empty`/`noResults`-have-no-built-in-action ruling, and the new `tryAgain` message key.
+- **`Container` and `Section`** — the layout primitives every block is built from (design spec's
+  "Container and section" section). `Section` sets the background (`none`/`surface`/
+  `surface-strong`/`primary`/`accent`) and the vertical `spacing` (`none`/`sm`/`md`/`lg`, from the
+  new `--eldra-section-*` tokens split into separate `pt-*`/`pb-*` utilities); `Container` sets the
+  max content width (`narrow`/`content`/`wide`/`full`, the existing `--eldra-container-*` scale)
+  and the side gutters (`--eldra-gutter-mobile/-tablet/-desktop`, breakpointed on the **block**
+  width via the `@tablet`/`@content` container queries already declared for `Button`, not the
+  viewport). `Section` renders `<section aria-labelledby>` when given `labelledBy`, `<section
+  aria-label>` when given only `label`, or a plain `<div>` with neither — `as` overrides the tag
+  outright, independent of the aria attributes, for a `<header>`/`<footer>` landmark that needs no
+  name of its own. A `primary`/`accent` `Section` marks itself `class="group/section"
+  data-section="primary|accent"`, the same mechanism `Button`, `Link`, `Price` and `Rating` already
+  read for their own colour inversion (task 6 is the first to render it); every background,
+  including `none`, is also marked with the new `data-section-bg`, which a new unlayered rule in
+  `tailwind.css` reads to drop a `Section`'s own top padding when the **previous** sibling `Section`
+  shares its background (spec Do/Don't: "alternate none and surface between neighbouring blocks
+  instead of adding divider lines") — unlayered CSS always wins the cascade over the layered
+  `pt-*` utility it overrides, regardless of specificity, so `Section`'s own `spacing` stays an
+  ordinary, always-overridable class. `Section` is `@container`, which is what every block's own
+  breakpoints (and `Container`'s gutters) measure — the anatomy's "block root" — and it provides
+  the new `SECTION_KEY` for its own subtree, so a `Section` mounted inside another warns in
+  development against the spec's "sections are never nested inside another section". The starter
+  (`examples/starter-nuxt`) moves onto both in the same change: every block replaces its copied
+  `UiContainer`/`UiSection` primitives with these, `app/assets/main.css` no longer declares its own
+  container/gutter rules or `--spacing-section`/`-lg` (`Container`/`Section` own that now), and the
+  regenerated block previews are the visible result.
 - **`Avatar` and `AvatarGroup`** — the sixth component of the "display, commerce and layout"
   sub-project (design spec's Avatar section). `Avatar` is the people/maker identity atom: a round
   `sm`/`md`/`lg`/`xl` (2rem/2.5rem/3.5rem/6rem) circle that falls back image → initials → the

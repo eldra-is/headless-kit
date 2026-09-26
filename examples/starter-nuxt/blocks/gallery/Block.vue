@@ -10,7 +10,7 @@
  * own previous/next stepping and an `aria-live` "image X of Y" counter.
  */
 import { computed, ref } from 'vue';
-import { Button } from '@eldrajs/ui';
+import { Button, Container, Section } from '@eldrajs/ui';
 import { focusRing } from '../../app/utils/classes';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useCarousel } from '../../app/composables/useCarousel';
@@ -18,7 +18,6 @@ import { useUiId } from '../../app/composables/useUiId';
 import { useT } from '../../app/composables/useT';
 import UiDialog from '../../app/components/ui/UiDialog.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
-import UiSection from '../../app/components/ui/UiSection.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'gallery'> }>();
 const { data } = useBlockData(props, 'gallery');
@@ -28,6 +27,16 @@ const images = computed(() => data.value.images ?? []);
 const variant = computed(() => data.value.variant ?? 'grid');
 const lightboxEnabled = computed(() => data.value.lightbox !== false);
 const headingId = `gallery-heading-${useUiId()}`;
+/**
+ * The outer `Section` is named by the heading only when there is one to point at (with none it
+ * falls back to a plain `<div>` — spec "Container and section" → Accessibility) **and** the
+ * `carousel` variant is not active: that variant's own track is already a `role="region"` named by
+ * the same heading, and naming the `Section` too would give two nested landmarks an identical
+ * accessible name (axe `landmark-unique`).
+ */
+const sectionLabelledBy = computed(() =>
+  data.value.heading && variant.value !== 'carousel' ? headingId : undefined
+);
 
 const total = computed(() => images.value.length);
 const {
@@ -70,118 +79,124 @@ function onLightboxKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <UiSection spacing="md" container-size="wide">
-    <h2 v-if="data.heading" :id="headingId" class="text-center text-3xl font-semibold md:text-4xl">
-      {{ data.heading }}
-    </h2>
-
-    <div v-if="variant === 'grid'" class="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3">
-      <component
-        :is="lightboxEnabled ? 'button' : 'div'"
-        v-for="(image, imageIndex) in images"
-        :key="imageIndex"
-        v-bind="lightboxEnabled ? { type: 'button' } : {}"
-        :class="[focusRing, 'block']"
-        @click="openLightbox(imageIndex)"
+  <Section spacing="md" :labelled-by="sectionLabelledBy">
+    <Container width="wide">
+      <h2
+        v-if="data.heading"
+        :id="headingId"
+        class="text-center text-3xl font-semibold md:text-4xl"
       >
-        <UiImage
-          :src="image.url"
-          :alt="image.altText ?? ''"
-          aspect="1/1"
-          class="w-full"
-          :classes="{ frame: 'rounded-md' }"
-        />
-      </component>
-    </div>
+        {{ data.heading }}
+      </h2>
 
-    <div v-else-if="variant === 'masonry'" class="mt-10 columns-2 gap-4 sm:columns-3">
-      <component
-        :is="lightboxEnabled ? 'button' : 'div'"
-        v-for="(image, imageIndex) in images"
-        :key="imageIndex"
-        v-bind="lightboxEnabled ? { type: 'button' } : {}"
-        :class="[focusRing, 'mb-4 block w-full break-inside-avoid']"
-        @click="openLightbox(imageIndex)"
-      >
-        <UiImage
-          :src="image.url"
-          :alt="image.altText ?? ''"
-          class="w-full"
-          :classes="{ frame: 'rounded-md' }"
-        />
-      </component>
-    </div>
-
-    <div
-      v-else
-      role="region"
-      aria-roledescription="carousel"
-      :aria-labelledby="headingId"
-      class="mt-10"
-    >
-      <div
-        ref="trackRef"
-        tabindex="0"
-        :class="[
-          focusRing,
-          'scrollbar-hidden flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2',
-        ]"
-        @keydown="onTrackKeydown"
-      >
+      <div v-if="variant === 'grid'" class="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <component
           :is="lightboxEnabled ? 'button' : 'div'"
           v-for="(image, imageIndex) in images"
           :key="imageIndex"
           v-bind="lightboxEnabled ? { type: 'button' } : {}"
-          :class="[focusRing, 'w-[70%] shrink-0 snap-start sm:w-[40%] lg:w-[28%]']"
+          :class="[focusRing, 'block']"
           @click="openLightbox(imageIndex)"
         >
           <UiImage
             :src="image.url"
             :alt="image.altText ?? ''"
-            aspect="4/3"
+            aspect="1/1"
             class="w-full"
             :classes="{ frame: 'rounded-md' }"
           />
         </component>
       </div>
 
-      <div class="mt-6 flex items-center justify-center gap-4">
-        <Button variant="outline" size="sm" @click="trackPrevious">{{
-          t('carousel.previous')
-        }}</Button>
-        <span class="text-muted text-sm" aria-live="polite">{{
-          t('carousel.slideOf', { index: trackIndex + 1, total })
-        }}</span>
-        <Button variant="outline" size="sm" @click="trackNext">{{ t('carousel.next') }}</Button>
+      <div v-else-if="variant === 'masonry'" class="mt-10 columns-2 gap-4 sm:columns-3">
+        <component
+          :is="lightboxEnabled ? 'button' : 'div'"
+          v-for="(image, imageIndex) in images"
+          :key="imageIndex"
+          v-bind="lightboxEnabled ? { type: 'button' } : {}"
+          :class="[focusRing, 'mb-4 block w-full break-inside-avoid']"
+          @click="openLightbox(imageIndex)"
+        >
+          <UiImage
+            :src="image.url"
+            :alt="image.altText ?? ''"
+            class="w-full"
+            :classes="{ frame: 'rounded-md' }"
+          />
+        </component>
       </div>
-    </div>
 
-    <UiDialog
-      v-if="lightboxEnabled"
-      :open="lightboxOpen"
-      :title="t('gallery.open')"
-      panel-class="m-auto w-[calc(100%-2rem)] max-w-4xl rounded-lg border shadow-md"
-      @update:open="lightboxOpen = $event"
-      @keydown="onLightboxKeydown"
-    >
-      <div v-if="lightboxOpen && currentImage" class="flex flex-col items-center gap-4">
-        <UiImage
-          :src="currentImage.url"
-          :alt="currentImage.altText ?? ''"
-          fit="contain"
-          :classes="{ frame: 'max-h-[85vh]' }"
-        />
-        <div class="flex items-center gap-4">
-          <Button variant="outline" size="sm" @click="previousImage">{{
-            t('gallery.previous')
+      <div
+        v-else
+        role="region"
+        aria-roledescription="carousel"
+        :aria-labelledby="headingId"
+        class="mt-10"
+      >
+        <div
+          ref="trackRef"
+          tabindex="0"
+          :class="[
+            focusRing,
+            'scrollbar-hidden flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2',
+          ]"
+          @keydown="onTrackKeydown"
+        >
+          <component
+            :is="lightboxEnabled ? 'button' : 'div'"
+            v-for="(image, imageIndex) in images"
+            :key="imageIndex"
+            v-bind="lightboxEnabled ? { type: 'button' } : {}"
+            :class="[focusRing, 'w-[70%] shrink-0 snap-start sm:w-[40%] lg:w-[28%]']"
+            @click="openLightbox(imageIndex)"
+          >
+            <UiImage
+              :src="image.url"
+              :alt="image.altText ?? ''"
+              aspect="4/3"
+              class="w-full"
+              :classes="{ frame: 'rounded-md' }"
+            />
+          </component>
+        </div>
+
+        <div class="mt-6 flex items-center justify-center gap-4">
+          <Button variant="outline" size="sm" @click="trackPrevious">{{
+            t('carousel.previous')
           }}</Button>
           <span class="text-muted text-sm" aria-live="polite">{{
-            t('gallery.imageOf', { index: lightboxIndex + 1, total })
+            t('carousel.slideOf', { index: trackIndex + 1, total })
           }}</span>
-          <Button variant="outline" size="sm" @click="nextImage">{{ t('gallery.next') }}</Button>
+          <Button variant="outline" size="sm" @click="trackNext">{{ t('carousel.next') }}</Button>
         </div>
       </div>
-    </UiDialog>
-  </UiSection>
+
+      <UiDialog
+        v-if="lightboxEnabled"
+        :open="lightboxOpen"
+        :title="t('gallery.open')"
+        panel-class="m-auto w-[calc(100%-2rem)] max-w-4xl rounded-lg border shadow-md"
+        @update:open="lightboxOpen = $event"
+        @keydown="onLightboxKeydown"
+      >
+        <div v-if="lightboxOpen && currentImage" class="flex flex-col items-center gap-4">
+          <UiImage
+            :src="currentImage.url"
+            :alt="currentImage.altText ?? ''"
+            fit="contain"
+            :classes="{ frame: 'max-h-[85vh]' }"
+          />
+          <div class="flex items-center gap-4">
+            <Button variant="outline" size="sm" @click="previousImage">{{
+              t('gallery.previous')
+            }}</Button>
+            <span class="text-muted text-sm" aria-live="polite">{{
+              t('gallery.imageOf', { index: lightboxIndex + 1, total })
+            }}</span>
+            <Button variant="outline" size="sm" @click="nextImage">{{ t('gallery.next') }}</Button>
+          </div>
+        </div>
+      </UiDialog>
+    </Container>
+  </Section>
 </template>

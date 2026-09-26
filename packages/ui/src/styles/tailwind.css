@@ -1241,3 +1241,31 @@
   width: var(--eldra-avatar-icon-size-xl, 2.571rem);
   height: var(--eldra-avatar-icon-size-xl, 2.571rem);
 }
+
+/* --- Container and section -------------------------------------------------------------------- */
+
+/* Spec "Container and section" → Do/Don't: "Do alternate none and surface between neighbouring
+   blocks instead of adding divider lines" and the acceptance criterion this rule is actually for —
+   two adjacent same-background `Section`s read as one continuous band, not as two spacing bands
+   stacked with a visible seam. `Section.vue` marks its own ground on every background (including
+   `none`) with `data-section-bg`, and a second `Section` immediately after one with the same value
+   drops its own top padding (`Section` splits its spacing into separate `pt-*`/`pb-*` utilities
+   instead of the `py-*` shorthand for exactly this: only the top half is ever touched, so the
+   bottom edge — what the *next* sibling's own top-drop reads against — never moves).
+
+   This is plain CSS, not `@utility`, and deliberately outside every `@layer`: Tailwind's utilities
+   compile into `@layer utilities` (`@import 'tailwindcss'` declares the layer order), and a rule
+   with no layer at all always wins the cascade over every layered rule regardless of selector
+   specificity or source order (CSS Cascade Layers) — which is what lets `Section`'s own `spacing`
+   stay an ordinary, always-overridable `pt-*`/`pb-*` utility while this one rule still beats it
+   whenever two matching grounds are adjacent. `src/__tests__/sectionAdjacentBackground.spec.ts`
+   compiles this file and asserts the built rule wins. Five explicit pairs, not a single generic
+   attribute selector, because CSS has no "same value as the previous sibling" selector — only an
+   exact value can be matched on each side. */
+[data-section-bg='none'] + [data-section-bg='none'],
+[data-section-bg='surface'] + [data-section-bg='surface'],
+[data-section-bg='surface-strong'] + [data-section-bg='surface-strong'],
+[data-section-bg='primary'] + [data-section-bg='primary'],
+[data-section-bg='accent'] + [data-section-bg='accent'] {
+  padding-top: 0;
+}

@@ -14,12 +14,11 @@
  *  - `centered`: single centered copy column, image (if any) below as a
  *    wide banner.
  *
- * The scrimmed variant also marks itself `class="group/section"
- * data-section="primary"`: that is `@eldrajs/ui`'s own signal for "the ground
- * here is the primary colour", and it is what turns the `Button` into a
- * `primary-contrast` fill with `primary` text and the `Link` into
- * `primary-contrast` — the same pairing the scrim is built for, with no
- * per-variant colour written into this block.
+ * The scrimmed variant renders `@eldrajs/ui`'s `Section` with `background="primary"`, which marks
+ * `class="group/section" data-section="primary"` itself — that is the package's own signal for
+ * "the ground here is the primary colour", and it is what turns the `Button` into a
+ * `primary-contrast` fill with `primary` text and the `Link` into `primary-contrast` — the same
+ * pairing the scrim is built for, with no per-variant colour written into this block.
  *
  * The image always gets a `framing` value (falling back to
  * `DEFAULT_IMAGE_FRAMING`, not `undefined`) so `UiImage` always emits the
@@ -32,16 +31,18 @@
  * built-in buttons below are the fallback shown when the slot is empty.
  */
 import { computed } from 'vue';
-import { Button, Link } from '@eldrajs/ui';
+import { Button, Container, Link, Section } from '@eldrajs/ui';
+import type { SectionBackground } from '@eldrajs/ui';
 import { DEFAULT_IMAGE_FRAMING } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import { useUiId } from '../../app/composables/useUiId';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import UiContainer from '../../app/components/ui/UiContainer.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'hero'> }>();
 const { data, entryId } = useBlockData(props, 'hero');
+const headingId = `hero-heading-${useUiId()}`;
 
 const variant = computed(() => data.value.variant ?? 'image-right');
 const isBackground = computed(() => variant.value === 'image-background');
@@ -49,6 +50,10 @@ const isBackground = computed(() => variant.value === 'image-background');
 // an actual image to scrim over; a freshly-inserted block (mock.json never
 // seeds media) falls back to a plain surface with ordinary body text.
 const hasBackgroundImage = computed(() => isBackground.value && Boolean(data.value.image));
+/** `Section`'s own `background`: the scrim ground, the imageless fallback, or the plain default. */
+const sectionBackground = computed<SectionBackground>(() =>
+  hasBackgroundImage.value ? 'primary' : isBackground.value ? 'surface-strong' : 'none'
+);
 const framing = computed(() => data.value.image?.framing ?? DEFAULT_IMAGE_FRAMING);
 const ctaHref = computed(() => safeHref(data.value.ctaHref));
 const secondaryCtaHref = computed(() => safeHref(data.value.secondaryCtaHref));
@@ -64,16 +69,11 @@ const secondaryLinkAs = computed(() => routerLinkAs(secondaryCtaHref.value));
 </script>
 
 <template>
-  <section
-    class="relative overflow-hidden"
-    :class="
-      hasBackgroundImage
-        ? 'group/section text-primary-contrast'
-        : isBackground
-          ? 'bg-surface-strong'
-          : ''
-    "
-    :data-section="hasBackgroundImage ? 'primary' : undefined"
+  <Section
+    :background="sectionBackground"
+    spacing="md"
+    :labelled-by="headingId"
+    :classes="{ root: 'relative overflow-hidden' }"
   >
     <template v-if="hasBackgroundImage">
       <UiImage
@@ -90,13 +90,15 @@ const secondaryLinkAs = computed(() => routerLinkAs(secondaryCtaHref.value));
       />
     </template>
 
-    <UiContainer
-      size="wide"
-      :class="[
-        'py-section relative',
-        variant === 'image-right' ? 'grid items-center gap-10 md:grid-cols-2' : '',
-        variant === 'centered' || isBackground ? 'text-center' : '',
-      ]"
+    <Container
+      width="wide"
+      :classes="{
+        root: [
+          'relative',
+          variant === 'image-right' ? 'grid items-center gap-10 md:grid-cols-2' : '',
+          variant === 'centered' || isBackground ? 'text-center' : '',
+        ].join(' '),
+      }"
     >
       <div :class="variant === 'image-right' ? 'md:order-1' : 'mx-auto max-w-2xl'">
         <p
@@ -106,7 +108,7 @@ const secondaryLinkAs = computed(() => routerLinkAs(secondaryCtaHref.value));
         >
           {{ data.eyebrow }}
         </p>
-        <h1 class="mt-2 text-4xl font-semibold md:text-5xl">{{ data.heading }}</h1>
+        <h1 :id="headingId" class="mt-2 text-4xl font-semibold md:text-5xl">{{ data.heading }}</h1>
         <p
           v-if="data.subheading"
           class="mt-4 text-lg"
@@ -153,6 +155,6 @@ const secondaryLinkAs = computed(() => routerLinkAs(secondaryCtaHref.value));
           variant === 'image-right' ? 'md:order-2' : 'mx-auto mt-10 max-w-3xl',
         ]"
       />
-    </UiContainer>
-  </section>
+    </Container>
+  </Section>
 </template>
