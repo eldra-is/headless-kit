@@ -7,6 +7,7 @@ import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Button from '../../button/Button.vue';
 import Input from '../../input/Input.vue';
+import * as supportsFocusVisibleModule from '../supportsFocusVisible';
 import Tooltip from '../Tooltip.vue';
 
 /**
@@ -223,6 +224,175 @@ describe('Tooltip — hoverable (WCAG 1.4.13)', () => {
 
     // A stray mouseleave (the pointer was never really over it) must not hide a focus-shown tip.
     wrapper.element.dispatchEvent(new MouseEvent('mouseleave'));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+  });
+});
+
+describe('Tooltip — pointer activation dismisses it (operator report / controller ruling)', () => {
+  /**
+   * The bug: hovering a trigger shows the tooltip; a mouse click also focuses the trigger, and
+   * `focusWithin` alone used to count that as "focus within the wrapper" — so leaving with the
+   * pointer afterwards no longer hid it. Mutation check: reverting `wantsOpen` to read `focusWithin`
+   * instead of `keyboardFocusWithin` (this spec's original defect) turns this red — the tooltip is
+   * still visible after the final `mouseleave` — which is what proves this test actually guards it,
+   * not merely that a click hides *something*.
+   */
+  it('hides once the pointer leaves after a click, even though the click itself focused the trigger', async () => {
+    vi.spyOn(supportsFocusVisibleModule, 'supportsFocusVisible').mockReturnValue(false);
+    const wrapper = mountTooltip();
+    const root = wrapper.element as HTMLElement;
+    const trigger = triggerOf(wrapper).element as HTMLElement;
+    const bubble = bubbleOf(triggerOf(wrapper));
+
+    root.dispatchEvent(new MouseEvent('mouseenter'));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+
+    // A real click: pointerdown, the focus a browser gives a clicked button, then click — all
+    // still while the pointer sits over the trigger.
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    trigger.focus();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await nextTick();
+    // Dismissed by the click alone — the operator's exact complaint ("gets stuck") never gets the
+    // chance to happen, even before the pointer moves.
+    expect(isVisible(bubble)).toBe(false);
+
+    root.dispatchEvent(new MouseEvent('mouseleave'));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(false);
+
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Mutation check: deleting `onRootPointerDown`'s `dismissed.value = true` (leaving only the
+   * `click` and `keydown` listeners) turns this specific test red at the pointerdown assertion,
+   * proving it is `pointerdown` itself doing the work there, not the `click` that follows.
+   */
+  it('a bare pointerdown (no click yet) already dismisses a shown tooltip', async () => {
+    const wrapper = mountTooltip();
+    const root = wrapper.element as HTMLElement;
+    const trigger = triggerOf(wrapper).element as HTMLElement;
+    const bubble = bubbleOf(triggerOf(wrapper));
+
+    root.dispatchEvent(new MouseEvent('mouseenter'));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(false);
+  });
+});
+
+describe('Tooltip — keyboard focus vs. pointer focus (operator report / controller ruling)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Mutation check: reverting `onRootFocusIn` to set `keyboardFocusWithin.value = true`
+   * unconditionally (ignoring `isKeyboardFocus`) leaves this test passing (focus still shows it) —
+   * so the *real* guard is the pair with the "mouse focus" test below, which that same mutation
+   * turns red.
+   */
+  it('a keyboard (Tab) focus keeps it open, via the :focus-visible fallback flag', async () => {
+    vi.spyOn(supportsFocusVisibleModule, 'supportsFocusVisible').mockReturnValue(false);
+    const wrapper = mountTooltip();
+    const trigger = triggerOf(wrapper).element as HTMLElement;
+    const bubble = bubbleOf(triggerOf(wrapper));
+    expect(isVisible(bubble)).toBe(false);
+
+    // The keydown a real Tab press fires on whatever had focus before this trigger — simulated on
+    // `document`, exactly where the fallback flag's own listener is attached.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    trigger.focus();
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+  });
+
+  /**
+   * The operator's own repro, isolated from both hover and the click-dismissal handler above: the
+   * pointerdown that flips the fallback flag happens on an unrelated element, never on the trigger
+   * itself, so `onRootPointerDown`'s own dismissal (proven separately above) cannot be what keeps
+   * this one hidden — only `keyboardFocusWithin` can be. Mutation check: this is the test the
+   * `isKeyboardFocus`/`keyboardFocusWithin` split exists for — reverting `wantsOpen` to read plain
+   * `focusWithin` turns it red (confirmed: reverting it makes the assertion below fail, `true`
+   * where `false` is expected, while every other spec in this file still passes).
+   */
+  it('a mouse-focused trigger (no keydown beforehand) does not show the tooltip on focus alone', async () => {
+    vi.spyOn(supportsFocusVisibleModule, 'supportsFocusVisible').mockReturnValue(false);
+    const wrapper = mountTooltip();
+    const trigger = triggerOf(wrapper).element as HTMLElement;
+    const bubble = bubbleOf(triggerOf(wrapper));
+    const outside = document.createElement('button');
+    document.body.append(outside);
+
+    outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    trigger.focus();
+    await nextTick();
+    expect(isVisible(bubble)).toBe(false);
+
+    outside.remove();
+  });
+
+  /**
+   * Mutation check: reverting `onRootFocusOut` to leave `keyboardFocusWithin` untouched (only
+   * clearing `focusWithin`) turns this red — the tooltip would stay visible after `outside.focus()`
+   * because nothing else re-reads `keyboardFocusWithin` at that point.
+   */
+  it('tabbing away from a keyboard-focused trigger hides it', async () => {
+    vi.spyOn(supportsFocusVisibleModule, 'supportsFocusVisible').mockReturnValue(false);
+    const wrapper = mountTooltip();
+    const trigger = triggerOf(wrapper).element as HTMLElement;
+    const bubble = bubbleOf(triggerOf(wrapper));
+    const outside = document.createElement('button');
+    document.body.append(outside);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    trigger.focus();
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+
+    outside.focus();
+    await nextTick();
+    expect(isVisible(bubble)).toBe(false);
+
+    outside.remove();
+  });
+
+  /**
+   * Activating a keyboard-focused trigger (here, the `Enter` that a screen-reader or keyboard user
+   * presses to press the button) must not leave its own label floating over it — the same
+   * click-dismissal as the mouse case above, proven here without any pointer ever touching the
+   * trigger, and with focus never leaving it either. Mutation check: deleting `onRootKeyDown`'s
+   * `dismissed.value = true` turns the first assertion red (the bubble stays visible through
+   * `Enter`); reverting the `hoveringTrigger` watcher to its old falling-edge-only form (`!hovering
+   * && wasHovering`) turns the *second* assertion red — the pointer never left, so a leave-only
+   * watcher never clears the dismissal and re-hovering does nothing.
+   */
+  it('Enter on a keyboard-focused trigger dismisses it until it is hovered', async () => {
+    vi.spyOn(supportsFocusVisibleModule, 'supportsFocusVisible').mockReturnValue(false);
+    const wrapper = mountTooltip();
+    const root = wrapper.element as HTMLElement;
+    const trigger = triggerOf(wrapper).element as HTMLElement;
+    const bubble = bubbleOf(triggerOf(wrapper));
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    trigger.focus();
+    await nextTick();
+    expect(isVisible(bubble)).toBe(true);
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await nextTick();
+    expect(isVisible(bubble)).toBe(false);
+    // Still focused — Enter activates the button, it does not move focus off it.
+    expect(document.activeElement).toBe(trigger);
+
+    // "Until it is hovered": the pointer entering, not a blur/refocus, is what clears it here.
+    root.dispatchEvent(new MouseEvent('mouseenter'));
     await nextTick();
     expect(isVisible(bubble)).toBe(true);
   });

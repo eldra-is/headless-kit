@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`Tooltip` hides after pointer activation; focus holds only when keyboard-visible** (operator
+  report, 2026-09-26: "hover and click the element, the tooltip gets stuck and does not disappear
+  on hover-out"). `focusWithin` counted any `focusin` toward the spec's "focus within it", and a
+  mouse click also focuses its target, so `mouseleave` alone could no longer hide the bubble.
+  `wantsOpen` now reads a new `keyboardFocusWithin`, gated on `element.matches(':focus-visible')`
+  behind a `supportsFocusVisible` feature test with a same-page keyboard/pointer fallback flag for
+  where `:focus-visible` cannot be trusted (`supportsFocusVisible.ts`, mirroring `Textarea`'s
+  `supportsFieldSizing`). Activating the trigger (`pointerdown`, `click`, or an `Enter`/`Space`
+  `keydown`) now also dismisses the tooltip exactly like `Esc` does, clearing again on the next
+  hover or the focus actually leaving — see the README's Deviations section.
 - **Plan 3 final review fixes.** `Dialog`/`Drawer`/`Lightbox` default `modelValue: undefined`
   (not a literal `false`), so an uncontrolled instance is genuinely self-managing instead of
   permanently "controlled" the moment a parent stops binding `v-model` — see `useControllableModel`'s

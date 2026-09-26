@@ -5,6 +5,8 @@ import {
   Text,
   cloneVNode,
   computed,
+  onMounted,
+  onUnmounted,
   ref,
   useSlots,
   watch,
@@ -16,6 +18,7 @@ import { useFloating, type FloatingPlacement } from '../../composables/useFloati
 import { useOverlay } from '../../composables/useOverlay';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
+import { supportsFocusVisible } from './supportsFocusVisible';
 import type { TooltipProps } from './types';
 
 /**
@@ -49,15 +52,29 @@ import type { TooltipProps } from './types';
  * other transition in this package reads) needs the former.
  *
  * **Hoverable (WCAG 1.4.13).** `hoveringTrigger` and `hoveringBubble` are independent booleans;
- * `visible` is their disjunction (`focusWithin` besides), so the pointer can leave the trigger and
- * land on the bubble without a gap where neither is true. The `0.5rem` gap itself is bridged in
- * pure CSS — an invisible `::before` on the bubble, sized to the gap and positioned into it, extends
- * the bubble's own hit area back to the trigger's edge, so no dead pixels sit between the two
- * hoverable regions in a real browser (see `bubbleClass` below). Dismissible: `Esc` hides it without
- * moving focus, and leaving with the pointer or focus clears the dismissal so hovering or focusing
- * again re-shows it — `useOverlay`'s own Escape handling, with outside-click/focus-out closing and
- * the focus return both turned off (a tooltip closes on `mouseleave`/`blur`, not on a click
- * elsewhere, and `Esc` must never move focus off the trigger).
+ * `visible` is their disjunction (`keyboardFocusWithin` besides), so the pointer can leave the
+ * trigger and land on the bubble without a gap where neither is true. The `0.5rem` gap itself is
+ * bridged in pure CSS — an invisible `::before` on the bubble, sized to the gap and positioned into
+ * it, extends the bubble's own hit area back to the trigger's edge, so no dead pixels sit between
+ * the two hoverable regions in a real browser (see `bubbleClass` below). Dismissible: `Esc` hides it
+ * without moving focus, and leaving with the pointer or focus clears the dismissal so hovering or
+ * focusing again re-shows it — `useOverlay`'s own Escape handling, with outside-click/focus-out
+ * closing and the focus return both turned off (a tooltip closes on `mouseleave`/`blur`, not on a
+ * click elsewhere, and `Esc` must never move focus off the trigger).
+ *
+ * **Focus only holds it open when the focus is keyboard-visible (operator report / controller
+ * ruling).** A mouse click also focuses its target; counting *any* `focusin` toward "focus within
+ * the wrapper" left the bubble stuck open after a click, since `mouseleave` alone could no longer
+ * hide it. `focusWithin` (any focus in the wrapper, for the Dismissed state's "focus leaves the
+ * wrapper" clear below) and `keyboardFocusWithin` (the subset that also keeps `visible` true) are
+ * therefore tracked separately, `keyboardFocusWithin` gated on `isKeyboardFocus` — the browser's own
+ * `element.matches(':focus-visible')`, behind the `supportsFocusVisible` feature test, falling back
+ * to a same-page "was the last input a key or a pointer" flag where it is unsupported (this
+ * package's own test environment, happy-dom, is one such case — see `supportsFocusVisible.ts`).
+ * *Activating* the trigger (`pointerdown`, `click`, or an `Enter`/`Space` `keydown`) additionally
+ * sets `dismissed`, exactly like `Esc` does (spec → States, "Dismissed"): a clicked button should
+ * not keep its label floating just because the click left it focused. The same two watchers below
+ * clear it again once the pointer or focus actually leaves.
  */
 
 const props = withDefaults(defineProps<TooltipProps>(), {
@@ -78,30 +95,45 @@ const bubbleId = useUiId('tooltip');
 
 const hoveringTrigger = ref(false);
 const hoveringBubble = ref(false);
+/** Any focus inside the wrapper — used only for the Dismissed-clearing watcher below. */
 const focusWithin = ref(false);
+/** The subset of `focusWithin` that also holds the tooltip open — see `isKeyboardFocus`. */
+const keyboardFocusWithin = ref(false);
 /**
  * Spec → States, Dismissed: "hidden until the pointer leaves or focus leaves the wrapper, then
- * resets." Esc sets this while the tooltip is showing; it is not itself an opacity state, but a
- * mask over `wantsOpen` below until one of the two watchers underneath clears it.
+ * resets." Esc sets this while the tooltip is showing, and so does activating the trigger (operator
+ * report / controller ruling — see `onRootPointerDown`/`onRootClick`/`onRootKeyDown` below); it is
+ * not itself an opacity state, but a mask over `wantsOpen` below until one of the two watchers
+ * underneath clears it.
  */
 const dismissed = ref(false);
 
 const wantsOpen = computed(
-  () => hoveringTrigger.value || hoveringBubble.value || focusWithin.value
+  () => hoveringTrigger.value || hoveringBubble.value || keyboardFocusWithin.value
 );
 /** What the bubble actually shows. Spec: "No delay on focus; none needed on hover" — neither does. */
 const visible = computed(() => wantsOpen.value && !dismissed.value);
 
 /**
- * "Leaving with the pointer ... clears the dismissed state" — regardless of whether focus is also
- * still on the trigger, since the rule is an *or*: either the pointer leaving or focus leaving is
- * enough. Watched rather than folded into `wantsOpen`, because a dismissal must survive the pointer
- * moving from the trigger onto the bubble (`hoveringBubble` going true) without resetting.
+ * "Leaving with the pointer ... clears the dismissed state" (spec → States, Dismissed) — regardless
+ * of whether focus is also still on the trigger, since the rule is an *or*: either the pointer
+ * leaving or focus leaving is enough. Watched rather than folded into `wantsOpen`, because a
+ * dismissal must survive the pointer moving from the trigger onto the bubble (`hoveringBubble`
+ * going true) without resetting.
+ *
+ * Fires on *either* edge of `hoveringTrigger`, not only the falling one: Esc's own case (already
+ * hovering when dismissed, leaves, then re-enters) clears on the leaving edge exactly as before, but
+ * the operator report / controller ruling's click-dismissal can also fire while the pointer was
+ * never hovering at all (an `Enter`/`Space` activation while only keyboard-focused, say) — the
+ * pointer then has nothing to "leave", and only a *later* `mouseenter` — a rising edge — is the
+ * "re-hover" that clears it. Without this, that dismissal would stay stuck until an unrelated
+ * blur/refocus instead.
  */
-watch(hoveringTrigger, (hovering, wasHovering) => {
-  if (!hovering && wasHovering && dismissed.value) dismissed.value = false;
+watch(hoveringTrigger, () => {
+  if (dismissed.value) dismissed.value = false;
 });
-/** "... or focus leaves the wrapper" — the other half of the same rule. */
+/** "... or focus leaves the wrapper" — the other half of the same rule (Esc's own case; a click's
+ * own dismissal already has `hoveringTrigger` above to clear it). */
 watch(focusWithin, (focused, wasFocused) => {
   if (!focused && wasFocused && dismissed.value) dismissed.value = false;
 });
@@ -112,20 +144,81 @@ function onRootMouseEnter(): void {
 function onRootMouseLeave(): void {
   hoveringTrigger.value = false;
 }
-function onRootFocusIn(): void {
+
+// --- keyboard vs pointer focus (operator report / controller ruling) -----------------------------
+
+/**
+ * Same-page "was the last input a key or a pointer" — the fallback `isKeyboardFocus` reaches for
+ * where `:focus-visible` itself cannot be asked (see `supportsFocusVisible.ts`). Global (`document`,
+ * not `rootRef`) because, like the browser's own heuristic, it has to be listening *before* this
+ * trigger is ever focused: a `Tab` keydown fires on whatever had focus before, which is not this
+ * element.
+ */
+const lastInputWasKeyboard = ref(true);
+function onDocumentKeyDown(): void {
+  lastInputWasKeyboard.value = true;
+}
+function onDocumentPointerDown(): void {
+  lastInputWasKeyboard.value = false;
+}
+onMounted(() => {
+  document.addEventListener('keydown', onDocumentKeyDown, true);
+  document.addEventListener('pointerdown', onDocumentPointerDown, true);
+});
+onUnmounted(() => {
+  document.removeEventListener('keydown', onDocumentKeyDown, true);
+  document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+});
+
+/**
+ * `element.matches(':focus-visible')` first, when `supportsFocusVisible` trusts this runtime's
+ * answer to it — the browser's own, exact heuristic, including modalities the flag above cannot see
+ * (a screen reader's virtual cursor, for one). Falls back to the flag otherwise.
+ */
+function isKeyboardFocus(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (supportsFocusVisible()) return target.matches(':focus-visible');
+  return lastInputWasKeyboard.value;
+}
+
+function onRootFocusIn(event: FocusEvent): void {
   focusWithin.value = true;
+  keyboardFocusWithin.value = isKeyboardFocus(event.target);
 }
 /** Only real focus loss counts: focus moving *inside* the wrapper is not focus leaving it. */
 function onRootFocusOut(event: FocusEvent): void {
   const next = event.relatedTarget;
   if (next instanceof Node && rootRef.value?.contains(next) === true) return;
   focusWithin.value = false;
+  keyboardFocusWithin.value = false;
 }
 function onBubbleMouseEnter(): void {
   hoveringBubble.value = true;
 }
 function onBubbleMouseLeave(): void {
   hoveringBubble.value = false;
+}
+
+/**
+ * Spec → States, Dismissed, extended by the operator report / controller ruling: activating the
+ * trigger dismisses the tooltip exactly like `Esc` does — a clicked button should not keep its
+ * label floating, and a mouse click also focuses its target, which is precisely how it used to stay
+ * stuck open (see the doc comment above). `pointerdown` covers a mouse press or touch; `click`
+ * covers a real browser's own synthetic click from an `Enter`/`Space` activation; the `keydown`
+ * handler covers `Enter`/`Space` directly, for the test environment, which does not synthesise that
+ * click. The two watchers already below (`hoveringTrigger`, `focusWithin`) clear `dismissed` again
+ * once the pointer or focus actually leaves — the same "leaves ... then resets" rule Esc uses.
+ */
+function onRootPointerDown(): void {
+  dismissed.value = true;
+}
+function onRootClick(): void {
+  dismissed.value = true;
+}
+function onRootKeyDown(event: KeyboardEvent): void {
+  if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+    dismissed.value = true;
+  }
 }
 
 /**
@@ -340,6 +433,9 @@ const arrowStyle = computed<Record<string, string>>(() => ({
     @mouseleave="onRootMouseLeave"
     @focusin="onRootFocusIn"
     @focusout="onRootFocusOut"
+    @pointerdown="onRootPointerDown"
+    @click="onRootClick"
+    @keydown="onRootKeyDown"
   >
     <component :is="Trigger" />
 

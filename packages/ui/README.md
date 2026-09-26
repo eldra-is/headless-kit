@@ -2108,6 +2108,23 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   task brief's own test note ("hover (delay, fake timers)") is read as "prove there is no delay",
   not as a requirement for one — `__tests__/tooltip.spec.ts` uses fake timers to advance past a
   hover event and assert the bubble is already visible before any time has passed.
+- **"Focus within it" (spec → States, Shown) reads as _keyboard_ focus, and activating the trigger
+  dismisses the tooltip like `Esc` does — neither is in the design spec's own text.** An operator
+  report ("hover and click the element, the tooltip gets stuck and does not disappear on
+  hover-out") traced to `focusWithin` counting any `focusin`, including the one a mouse click gives
+  its own target — so `mouseleave` alone could no longer hide it. The controller's ruling narrows
+  "focus within it" to `keyboardFocusWithin`, gated on `element.matches(':focus-visible')` behind a
+  `supportsFocusVisible` feature test (`supportsFocusVisible.ts`, mirroring `Textarea`'s
+  `supportsFieldSizing`), falling back to a same-page "was the last input a key or a pointer" flag
+  where `:focus-visible` cannot be trusted — this package's own test environment, happy-dom,
+  implements it as a synonym for `:focus` rather than throwing, so the flag has to be reached for
+  deliberately (a spec stubs `supportsFocusVisible` to exercise it) rather than detected by a
+  `try`/`catch`. Beyond that narrowing, activating the trigger (`pointerdown`, `click`, or an
+  `Enter`/`Space` `keydown`) now also sets the Dismissed state exactly like `Esc`, on the same
+  reasoning: a clicked button should not keep its own label floating just because the click left it
+  focused. The `hoveringTrigger` watcher that clears a dismissal fires on either edge, not only the
+  pointer leaving, so a dismissal that started with no hover at all (an `Enter`/`Space` activation)
+  still clears the next time the pointer enters, rather than needing an unrelated blur/refocus.
 - **The `0.5rem` hover bridge (WCAG 1.4.13) is a CSS `::before` on the bubble, not a fourth DOM
   part.** The anatomy lists three parts (`root`, `bubble`, `arrow`); the bridge is an invisible
   pseudo-element extending the bubble's own hit-test area back to the trigger's edge, sized and
