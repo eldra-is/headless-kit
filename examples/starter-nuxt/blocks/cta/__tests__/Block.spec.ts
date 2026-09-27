@@ -157,6 +157,22 @@ describe('cta block', () => {
     expect(wrapper.findAll('a, button')).toHaveLength(1);
   });
 
+  it('renders an entry saved before version 2 (no primaryCtaLabel at all) without throwing, and with no action', () => {
+    // A published page can carry a cta entry written against the previous block version, whose
+    // fields were `buttonLabel`/`buttonHref`/`body`. Those never migrate on their own, and a
+    // required-field guarantee only holds for entries Studio wrote against *this* version — so a
+    // missing string must read as empty, never crash server rendering of the whole page.
+    const wrapper = mountBlock({
+      variant: 'primary',
+      heading: mock.heading,
+      body: 'Connect your repo and publish in minutes.',
+      buttonLabel: 'Start now',
+      buttonHref: '/contact',
+    });
+    expect(wrapper.text()).toContain(mock.heading);
+    expect(wrapper.findAll('a, button')).toHaveLength(0);
+  });
+
   it('renders minimal content — heading and one button — with no eyebrow or text', async () => {
     const wrapper = mountBlock({
       variant: 'primary',

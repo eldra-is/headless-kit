@@ -59,7 +59,7 @@ const background = computed<'primary' | 'accent' | 'surface-strong'>(() => {
   return 'primary';
 });
 
-const message = computed(() => data.value.message.trim());
+const message = computed(() => (data.value.message ?? '').trim());
 const hasMessage = computed(() => message.value !== '');
 
 const linkHref = computed(() => safeHref(data.value.linkHref));

@@ -116,7 +116,7 @@ const primaryAs = computed(() => routerLinkAs(primaryHref.value));
 const secondaryAs = computed(() => routerLinkAs(secondaryHref.value));
 
 const hasPrimaryCta = computed(
-  () => data.value.primaryCtaLabel.trim() !== '' && primaryHref.value !== null
+  () => (data.value.primaryCtaLabel ?? '').trim() !== '' && primaryHref.value !== null
 );
 const hasSecondaryCta = computed(
   () =>

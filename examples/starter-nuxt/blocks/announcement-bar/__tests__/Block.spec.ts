@@ -189,6 +189,15 @@ describe('announcement-bar block', () => {
     expect(wrapper.text()).toBe('');
   });
 
+  it('renders nothing, without throwing, for an entry with no message field at all', () => {
+    // An entry written against an earlier block version may lack the field entirely (not just
+    // hold an empty string); server rendering of the page must not crash on it.
+    const { message: _omitted, ...withoutMessage } = mock;
+    const wrapper = mountAnnouncement(withoutMessage);
+    expect(wrapper.find('section').exists()).toBe(false);
+    expect(wrapper.text()).toBe('');
+  });
+
   it('renders the editor placeholder for an empty message only inside the editor', async () => {
     const wrapper = mountAnnouncement({ ...mock, message: '' }, { editing: true });
     expect(wrapper.text()).toContain('Add a short message');
