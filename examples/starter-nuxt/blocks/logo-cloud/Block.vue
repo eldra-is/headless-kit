@@ -36,7 +36,8 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
-import { safeHref } from '../../app/utils/links';
+import { isInternalHref, safeHref } from '../../app/utils/links';
+import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'logo-cloud'> }>();
 const { data } = useBlockData(props, 'logo-cloud');
@@ -88,13 +89,30 @@ function hrefFor(item: LogoCloudItem): string | null {
   return safeHref(item.href);
 }
 
+/** A same-site logo destination is routed like every other link in the starter. */
+function asFor(item: LogoCloudItem) {
+  const href = hrefFor(item);
+  return href !== null && isInternalHref(href) ? EldraRouterLink : undefined;
+}
+
+/** Live, a block without its required heading or without a single named logo renders nothing
+ *  (Global Constraints, "Editor vs live"); editing, it renders so the hints can show. */
+const hasLogos = computed(() => renderedItems.value.length > 0);
+const showBlock = computed(() => isEditing.value || (hasHeading.value && hasLogos.value));
+
 /** Fills the hairline cell (see the module doc comment) and gives a linked cell the full-cell tab
  *  target the `grid` variant's spec requires; `row` draws no rules and needs neither override. */
 const GRID_ITEM_CLASSES = { root: 'h-full w-full bg-background' } as const;
 </script>
 
 <template>
-  <Section :background="sectionBackground" spacing="md" as="section" :labelled-by="headingId">
+  <Section
+    v-if="showBlock"
+    :background="sectionBackground"
+    spacing="md"
+    as="section"
+    :labelled-by="headingId"
+  >
     <Container :width="containerWidth">
       <template v-if="isGrid">
         <h2
@@ -131,6 +149,7 @@ const GRID_ITEM_CLASSES = { root: 'h-full w-full bg-background' } as const;
               :name="item.name!"
               :logo="mapLogo(item.image)"
               :href="hrefFor(item)"
+              :as="asFor(item)"
               :link-context="t('logoCloud.linkContext')"
               :classes="GRID_ITEM_CLASSES"
             />
@@ -174,6 +193,7 @@ const GRID_ITEM_CLASSES = { root: 'h-full w-full bg-background' } as const;
               :name="item.name!"
               :logo="mapLogo(item.image)"
               :href="hrefFor(item)"
+              :as="asFor(item)"
               :link-context="t('logoCloud.linkContext')"
             />
           </template>

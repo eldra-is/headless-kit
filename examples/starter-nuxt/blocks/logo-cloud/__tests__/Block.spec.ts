@@ -4,6 +4,7 @@ import { ELDRA_KEY } from '@eldrajs/theme-vue';
 import { axe } from '../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
+import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
@@ -153,5 +154,40 @@ describe('logo-cloud block', () => {
     const wrapper = mountBlock(rest);
     expect(wrapper.get('section').attributes('data-section-bg')).toBe('none');
     expect(wrapper.get('ul').classes()).toContain('grid');
+  });
+
+  it('routes a same-site logo destination through the router link and leaves external ones as plain anchors', () => {
+    const logos = [
+      { name: 'Journal', href: '/journal/stockists' },
+      { name: 'Hearth & Co.', href: 'https://hearthandco.example' },
+    ];
+    const wrapper = mountBlock({ ...mock, logos });
+    const routed = wrapper.findAllComponents(EldraRouterLink);
+    expect(routed).toHaveLength(1);
+    expect(routed[0]!.find('a').attributes('href')).toBe('/journal/stockists');
+    expect(wrapper.find('a[href="https://hearthandco.example"]').exists()).toBe(true);
+  });
+
+  it('renders nothing live without its required heading or without a single named logo, but still renders in the editor', () => {
+    expect(
+      mountBlock({ ...mock, logos: [] })
+        .find('section')
+        .exists()
+    ).toBe(false);
+    expect(
+      mountBlock({ ...mock, logos: [{ name: '' }] })
+        .find('section')
+        .exists()
+    ).toBe(false);
+    expect(
+      mountBlock({ ...mock, heading: '' })
+        .find('section')
+        .exists()
+    ).toBe(false);
+    expect(
+      mountBlock({ ...mock, logos: [] }, { editing: true })
+        .find('section')
+        .exists()
+    ).toBe(true);
   });
 });
