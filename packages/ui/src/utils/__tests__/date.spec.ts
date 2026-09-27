@@ -195,4 +195,11 @@ describe('formatDate — options', () => {
     expect(formatDate('2026-09-12', 'not a locale', { month: 'long' })).not.toBeNull();
     warn.mockRestore();
   });
+
+  it('keeps a default part when an option is passed as an explicit undefined', () => {
+    const full = formatDate('2026-09-12', 'en-US');
+    expect(formatDate('2026-09-12', 'en-US', { month: undefined })).toBe(full);
+    expect(full).toContain('2026');
+    expect(full).toContain('12');
+  });
 });

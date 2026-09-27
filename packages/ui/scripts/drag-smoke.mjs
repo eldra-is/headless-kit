@@ -135,7 +135,7 @@ async function selectionText(page) {
  *  drag must also start ON a card, not only in the gap between cards). Two shapes of track exist in
  *  this package: `Carousel`'s own "peek" tracks (several partial slides visible, `ProductCard`'s
  *  whole card is a stretched link) need the *gap* between two slides; `Lightbox`'s track is always
- *  one 100%-width slide per view (`carouselPerViewClasses({ base: 1 })` — every image `<div>`
+ *  one 100%-width slide per view (`carouselPerViewStyle({ base: 1 })` — every image `<div>`
  *  wrapper stays mounted per that component's own comment, so `children.length` is the image
  *  *count*, not the per-view count, and slide 1's real position is off-screen, not beside slide 0)
  *  with no interactive element of its own inside the track (the prev/next arrows and thumbnails sit

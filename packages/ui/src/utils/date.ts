@@ -113,7 +113,12 @@ export function formatDate(
   // saw) makes `Intl.DateTimeFormat` throw a `RangeError`, and a formatter throwing from inside a
   // `computed` takes the whole render down. A bad style is a strictly smaller problem than a blank
   // page, so it falls back to the default style and says so once in dev.
-  const requested: Intl.DateTimeFormatOptions = { ...DEFAULT_PARTS, ...options };
+  // An explicitly `undefined` key keeps its default too (a spread would let `{ month: undefined }`
+  // drop the month from the output entirely).
+  const overrides = Object.fromEntries(
+    Object.entries(options ?? {}).filter(([, value]) => value !== undefined)
+  );
+  const requested: Intl.DateTimeFormatOptions = { ...DEFAULT_PARTS, ...overrides };
   try {
     return new Intl.DateTimeFormat(locale, requested).format(date);
   } catch {
