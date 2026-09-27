@@ -164,17 +164,17 @@ describe('article sample page', () => {
     expect(articleLinks.at(-1)).toBe(authorLink);
     expect(articleLinks.length).toBeGreaterThan(1);
 
-    // Within the related list, "View all stories" and the three story cards are both reachable.
-    const viewAllLink = Array.from(articleListEl!.querySelectorAll('a[href]')).find(
-      (a) => a.textContent?.trim() === 'View all stories'
+    // Within the related list, "View all stories" sits in the block's head row, so it is reached
+    // before the three story cards: the article-list block's own layout (heading + standalone link
+    // in one row, then the grid) decides this order, and the cards follow it in reading order.
+    const listLinks = Array.from(articleListEl!.querySelectorAll('a[href]'));
+    const viewAllIndex = listLinks.findIndex((a) => a.textContent?.trim() === 'View all stories');
+    expect(viewAllIndex).toBeGreaterThanOrEqual(0);
+    const cardIndexes = RELATED_TITLES.map((title) =>
+      listLinks.findIndex((a) => a.textContent?.includes(title))
     );
-    expect(viewAllLink).toBeDefined();
-    const cardLinks = RELATED_TITLES.map((title) =>
-      Array.from(articleListEl!.querySelectorAll('a[href]')).find((a) =>
-        a.textContent?.includes(title)
-      )
-    );
-    expect(cardLinks.every((link) => link !== undefined)).toBe(true);
+    expect(cardIndexes.every((index) => index > viewAllIndex)).toBe(true);
+    expect(cardIndexes).toEqual([...cardIndexes].sort((a, b) => a - b));
   });
 
   it('reads Portland everywhere the studio is named, and never Bergen', async () => {
