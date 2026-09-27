@@ -21,7 +21,13 @@ function line(overrides: Partial<StorefrontCartLine> = {}): StorefrontCartLine {
 
 function totalsFor(lines: StorefrontCartLine[]): StorefrontCartTotals {
   const subtotal = lines.reduce((sum, l) => sum + l.lineTotal, 0);
-  return { subtotal, discount: null, shipping: subtotal > 0 ? 0 : null, tax: null, total: subtotal };
+  return {
+    subtotal,
+    discount: null,
+    shipping: subtotal > 0 ? 0 : null,
+    tax: null,
+    total: subtotal,
+  };
 }
 
 function emptySnapshot(): CartSnapshot {
@@ -80,7 +86,9 @@ describe('createCartStore', () => {
 
   it('setQuantity() replaces lines/totals from the resolved snapshot', async () => {
     const updated = line({ quantity: 3, lineTotal: 28800 });
-    const store = createCartStore(fakeOps({ setQuantity: async () => ({ lines: [updated], totals: totalsFor([updated]) }) }));
+    const store = createCartStore(
+      fakeOps({ setQuantity: async () => ({ lines: [updated], totals: totalsFor([updated]) }) })
+    );
     await settle();
     await store.setQuantity('line-1', 3);
     expect(store.lines.value).toEqual([updated]);

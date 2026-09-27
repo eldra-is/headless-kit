@@ -104,7 +104,13 @@ describe('createDemoStorefront', () => {
     expect(order!.carrier).toBe('UPS Standard');
     expect(order!.eta).toBe('Thursday 26 September');
     expect(order!.trackingNumber).toBe('1Z 999 AA1 01 2345 6784');
-    expect(order!.totals).toEqual({ subtotal: 24400, discount: null, shipping: 0, tax: 1952, total: 26352 });
+    expect(order!.totals).toEqual({
+      subtotal: 24400,
+      discount: null,
+      shipping: 0,
+      tax: 1952,
+      total: 26352,
+    });
     expect(order!.shippingAddress).toEqual([
       'Maren Holt',
       '214 Linden Street, Apt 3B',

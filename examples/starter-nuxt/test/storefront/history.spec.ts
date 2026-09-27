@@ -23,7 +23,14 @@ function throwingStorage(): Storage {
   const explode = () => {
     throw new Error('localStorage is blocked');
   };
-  return { getItem: explode, setItem: explode, removeItem: explode, clear: explode, key: explode, length: 0 } as Storage;
+  return {
+    getItem: explode,
+    setItem: explode,
+    removeItem: explode,
+    clear: explode,
+    key: explode,
+    length: 0,
+  } as Storage;
 }
 
 function setLocalStorage(value: Storage | undefined): void {

@@ -104,7 +104,12 @@ export interface StorefrontCartTotals {
   total: number;
 }
 
-export type StorefrontOrderStatus = 'processing' | 'shipped' | 'delivered' | 'delayed' | 'cancelled';
+export type StorefrontOrderStatus =
+  | 'processing'
+  | 'shipped'
+  | 'delivered'
+  | 'delayed'
+  | 'cancelled';
 
 export interface StorefrontOrder {
   number: string;
@@ -173,7 +178,11 @@ export interface StorefrontCatalog {
   collectionProducts(
     handle: Ref<string | null>,
     opts: Ref<{ page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }>
-  ): StorefrontResult<{ items: StorefrontProductListItem[]; total: number; facets: StorefrontFacet[] }>;
+  ): StorefrontResult<{
+    items: StorefrontProductListItem[];
+    total: number;
+    facets: StorefrontFacet[];
+  }>;
   related(handle: Ref<string | null>, limit: number): StorefrontResult<StorefrontProductListItem[]>;
   byHandles(handles: Ref<string[]>): StorefrontResult<StorefrontProductListItem[]>;
   notifyBackInStock(input: { email: string; variantId: string }): Promise<StorefrontAck>;
@@ -218,7 +227,9 @@ export interface StorefrontSource {
   history: HistoryStore;
 }
 
-export const STOREFRONT_KEY: InjectionKey<StorefrontSource> = Symbol.for('eldra.starter.storefront');
+export const STOREFRONT_KEY: InjectionKey<StorefrontSource> = Symbol.for(
+  'eldra.starter.storefront'
+);
 
 // Re-exported so a consumer only needs `EldraClient` for `createGatewayStorefront` — `gateway.ts`
 // re-exports it too, but importing it from here keeps a caller who only touched `types.ts` honest

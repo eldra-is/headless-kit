@@ -24,7 +24,9 @@ function readStringList(key: string): string[] {
     const raw = safeStorage()?.getItem(key);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === 'string')
+      : [];
   } catch {
     return [];
   }
@@ -57,7 +59,9 @@ export function hashMessage(message: string): string {
  * variant reads) and dismissed announcement bars — both `localStorage`-backed, both theme state
  * the SDK has no concept of (design doc §"Storefront source").
  */
-export function createHistoryStore(options: { initialRecentlyViewed?: string[] } = {}): HistoryStore {
+export function createHistoryStore(
+  options: { initialRecentlyViewed?: string[] } = {}
+): HistoryStore {
   const recentlyViewed = ref<string[]>(
     options.initialRecentlyViewed ?? readStringList(RECENTLY_VIEWED_KEY)
   ) as Ref<string[]>;
@@ -66,10 +70,10 @@ export function createHistoryStore(options: { initialRecentlyViewed?: string[] }
   return {
     recentlyViewed,
     recordView(handle) {
-      const next = [handle, ...recentlyViewed.value.filter((existing) => existing !== handle)].slice(
-        0,
-        MAX_RECENTLY_VIEWED
-      );
+      const next = [
+        handle,
+        ...recentlyViewed.value.filter((existing) => existing !== handle),
+      ].slice(0, MAX_RECENTLY_VIEWED);
       recentlyViewed.value = next;
       writeStringList(RECENTLY_VIEWED_KEY, next);
     },

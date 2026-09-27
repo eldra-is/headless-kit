@@ -97,7 +97,12 @@ interface RawProductVariant {
   compareAtPrice?: number;
   status: string;
   media?: RawMediaItem[] | null;
-  optionValues?: Array<{ id: string; name: string; optionId: string; optionValueId: string }> | null;
+  optionValues?: Array<{
+    id: string;
+    name: string;
+    optionId: string;
+    optionValueId: string;
+  }> | null;
 }
 
 interface RawProductDetails {
@@ -212,7 +217,10 @@ interface RawOrder {
 // Mapping — raw gateway JSON → this theme's view types (all money in minor units already)
 // ---------------------------------------------------------------------------------------------
 
-function toMedia(item: RawThumbnail | RawMediaItem | undefined, fallbackAlt: string): StorefrontMedia | null {
+function toMedia(
+  item: RawThumbnail | RawMediaItem | undefined,
+  fallbackAlt: string
+): StorefrontMedia | null {
   if (!item) return null;
   return { src: item.url, alt: item.altText ?? fallbackAlt };
 }
@@ -223,7 +231,11 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
     title: raw.title,
     url: `/products/${raw.slug}`,
     featuredImage: toMedia(raw.thumbnail, raw.title),
-    price: { amount: raw.minPrice, compareAt: raw.compareAtPrice ?? null, from: raw.minPrice !== raw.maxPrice },
+    price: {
+      amount: raw.minPrice,
+      compareAt: raw.compareAtPrice ?? null,
+      from: raw.minPrice !== raw.maxPrice,
+    },
     stock: raw.status === 'ACTIVE' ? 'in' : 'out',
     available: raw.status === 'ACTIVE',
     variantId: raw.id,
@@ -309,7 +321,8 @@ function mapCartLine(raw: RawCartItem): StorefrontCartLine {
 function mapCartTotals(raw: RawCartTotals, discountCode: string | undefined): StorefrontCartTotals {
   return {
     subtotal: raw.subtotal,
-    discount: discountCode && raw.discount > 0 ? { code: discountCode, amount: raw.discount } : null,
+    discount:
+      discountCode && raw.discount > 0 ? { code: discountCode, amount: raw.discount } : null,
     shipping: null,
     tax: raw.taxAmount,
     total: raw.total,
@@ -355,12 +368,22 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
     status,
     steps: [
       { key: 'ordered', label: 'Ordered', date: raw.createdAt, state: 'done' },
-      { key: 'packed', label: 'Packed', date: null, state: status === 'processing' ? 'current' : 'done' },
+      {
+        key: 'packed',
+        label: 'Packed',
+        date: null,
+        state: status === 'processing' ? 'current' : 'done',
+      },
       {
         key: 'shipped',
         label: 'Shipped',
         date: null,
-        state: status === 'shipped' ? 'current' : status === 'delivered' || status === 'delayed' ? 'done' : 'upcoming',
+        state:
+          status === 'shipped'
+            ? 'current'
+            : status === 'delivered' || status === 'delayed'
+              ? 'done'
+              : 'upcoming',
       },
       {
         key: 'delivered',
@@ -372,7 +395,10 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
     lines,
     totals: {
       subtotal: raw.subtotalAmount,
-      discount: raw.discountCode && raw.discountAmount > 0 ? { code: raw.discountCode, amount: raw.discountAmount } : null,
+      discount:
+        raw.discountCode && raw.discountAmount > 0
+          ? { code: raw.discountCode, amount: raw.discountAmount }
+          : null,
       shipping: raw.shippingAmount,
       tax: raw.taxAmount,
       total: raw.totalAmount,
@@ -478,7 +504,11 @@ function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | und
 
   return {
     async init() {
-      if (!cartId) return { lines: [], totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 } };
+      if (!cartId)
+        return {
+          lines: [],
+          totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+        };
       try {
         const raw = (await client.cart.get(cartId)) as unknown as RawCart;
         return mapCart(raw);
@@ -486,7 +516,10 @@ function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | und
         // A remembered cart id the gateway no longer recognises (expired, cleared server-side).
         session.forget();
         cartId = null;
-        return { lines: [], totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 } };
+        return {
+          lines: [],
+          totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+        };
       }
     },
     async add({ variantId, quantity }) {
@@ -501,7 +534,9 @@ function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | und
     },
     async setQuantity(lineId, quantity) {
       if (!cartId) throw new Error('No cart to update yet.');
-      const raw = (await client.cart.updateItem(cartId, lineId, { quantity })) as unknown as RawCart;
+      const raw = (await client.cart.updateItem(cartId, lineId, {
+        quantity,
+      })) as unknown as RawCart;
       return mapCart(raw);
     },
     async remove(lineId) {
@@ -522,7 +557,11 @@ function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | und
       }
     },
     async removeDiscount() {
-      if (!cartId) return { lines: [], totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 } };
+      if (!cartId)
+        return {
+          lines: [],
+          totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+        };
       const raw = (await client.cart.removeDiscount(cartId)) as unknown as RawCart;
       return mapCart(raw);
     },
@@ -534,7 +573,10 @@ function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | und
 // Forms / back-in-stock — no gateway endpoint today; post to the plugin-configured endpoint.
 // ---------------------------------------------------------------------------------------------
 
-async function postToEndpoint(endpoint: string | undefined, body: Record<string, unknown>): Promise<StorefrontAck> {
+async function postToEndpoint(
+  endpoint: string | undefined,
+  body: Record<string, unknown>
+): Promise<StorefrontAck> {
   if (!endpoint) return { ok: false, reason: 'unsupported' };
   try {
     const response = await fetch(endpoint, {
@@ -558,18 +600,29 @@ export interface GatewayStorefrontOptions {
   checkoutUrl?: string;
 }
 
-export function createGatewayStorefront(client: EldraClient, options: GatewayStorefrontOptions): StorefrontSource {
+export function createGatewayStorefront(
+  client: EldraClient,
+  options: GatewayStorefrontOptions
+): StorefrontSource {
   const catalog: StorefrontCatalog = {
     product: (handle) =>
       createGatewayResult([handle], async (signal) => {
         if (!handle.value) return null;
-        const raw = (await client.catalog.getProduct(handle.value, {}, { signal })) as unknown as RawProductDetails;
+        const raw = (await client.catalog.getProduct(
+          handle.value,
+          {},
+          { signal }
+        )) as unknown as RawProductDetails;
         return mapProductDetails(raw);
       }),
     collection: (handle) =>
       createGatewayResult([handle], async (signal) => {
         if (!handle.value) return null;
-        const raw = (await client.catalog.getCollection(handle.value, {}, { signal })) as unknown as RawCollectionItem;
+        const raw = (await client.catalog.getCollection(
+          handle.value,
+          {},
+          { signal }
+        )) as unknown as RawCollectionItem;
         return mapCollectionItem(raw);
       }),
     collectionProducts: (handle, opts) =>
@@ -578,7 +631,14 @@ export function createGatewayStorefront(client: EldraClient, options: GatewaySto
         const { page, pageSize, sort, filters } = opts.value;
         const raw = (await client.catalog.listCollectionProducts(
           handle.value,
-          { page, pageSize, sort: sort ? [sort] : undefined, filter: filters ? Object.entries(filters).map(([key, values]) => `${key}:${values.join(',')}`) : undefined },
+          {
+            page,
+            pageSize,
+            sort: sort ? [sort] : undefined,
+            filter: filters
+              ? Object.entries(filters).map(([key, values]) => `${key}:${values.join(',')}`)
+              : undefined,
+          },
           { signal }
         )) as unknown as RawProductList;
         const facets: StorefrontFacet[] = [];
@@ -602,14 +662,27 @@ export function createGatewayStorefront(client: EldraClient, options: GatewaySto
         )) as unknown as RawProductList;
         return (raw.data ?? []).map(mapProductListItem);
       }),
-    notifyBackInStock: (input) => postToEndpoint(options.formsEndpoint, { kind: 'notifyBackInStock', ...input }),
+    notifyBackInStock: (input) =>
+      postToEndpoint(options.formsEndpoint, { kind: 'notifyBackInStock', ...input }),
   };
 
   const search: StorefrontSearch = {
     run: (query) =>
       createGatewayResult([query], async (signal) => {
-        if (!query.value) return { query: query.value, total: 0, products: [], articles: [], pages: [], suggestion: null };
-        const raw = (await client.catalog.search(query.value, {}, { signal })) as unknown as RawSearchResponse;
+        if (!query.value)
+          return {
+            query: query.value,
+            total: 0,
+            products: [],
+            articles: [],
+            pages: [],
+            suggestion: null,
+          };
+        const raw = (await client.catalog.search(
+          query.value,
+          {},
+          { signal }
+        )) as unknown as RawSearchResponse;
         return mapSearchResponse(raw, query.value);
       }),
   };
@@ -625,7 +698,8 @@ export function createGatewayStorefront(client: EldraClient, options: GatewaySto
 
   const forms: StorefrontForms = {
     subscribe: (input) => postToEndpoint(options.formsEndpoint, { kind: 'subscribe', ...input }),
-    sendMessage: (input) => postToEndpoint(options.formsEndpoint, { kind: 'sendMessage', ...input }),
+    sendMessage: (input) =>
+      postToEndpoint(options.formsEndpoint, { kind: 'sendMessage', ...input }),
   };
 
   return {

@@ -247,8 +247,8 @@ const RELATED_HANDLES = [
   'hand-thrown-serving-bowl',
   'walnut-serving-board',
 ];
-const RELATED_ITEMS = RELATED_HANDLES.map(
-  (handle) => PRODUCTS.find((product) => product.handle === handle)!
+const RELATED_ITEMS = RELATED_HANDLES.map((handle) =>
+  PRODUCTS.find((product) => product.handle === handle)!
 );
 
 /** `product-carousel`'s `recently-viewed` variant default content. */
@@ -269,14 +269,16 @@ const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
   'winter-knitwear': {
     handle: 'winter-knitwear',
     title: 'Winter knitwear',
-    description: 'Heavy-gauge knits for the coldest months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
+    description:
+      'Heavy-gauge knits for the coldest months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
     image: demoImage(1, 'Winter knitwear'),
     productCount: 48,
   },
   'the-winter-edit': {
     handle: 'the-winter-edit',
     title: 'The winter edit',
-    description: 'Heavy-gauge knits, stoneware for slow breakfasts and kitchen goods for the cold months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
+    description:
+      'Heavy-gauge knits, stoneware for slow breakfasts and kitchen goods for the cold months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
     image: demoImage(2, 'The winter edit'),
     productCount: 48,
   },
@@ -617,7 +619,10 @@ function createDemoCartOps(): CartOps {
 // `pending` transition instead of already-resolved data, matching the gateway's own async shape.
 // ---------------------------------------------------------------------------------------------
 
-function createDemoResult<T>(sources: Ref<unknown>[], resolve: () => T | null): StorefrontResult<T> {
+function createDemoResult<T>(
+  sources: Ref<unknown>[],
+  resolve: () => T | null
+): StorefrontResult<T> {
   const data = ref<T | null>(null) as Ref<T | null>;
   const pending = ref(true);
   const error = ref<string | null>(null);
@@ -680,7 +685,9 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
 
   const catalog: StorefrontCatalog = {
     product: (handle) =>
-      createDemoResult([handle], () => (handle.value ? (PRODUCTS_FULL[handle.value] ?? null) : null)),
+      createDemoResult([handle], () =>
+        handle.value ? (PRODUCTS_FULL[handle.value] ?? null) : null
+      ),
     collection: (handle) =>
       createDemoResult([handle], () => (handle.value ? (COLLECTIONS[handle.value] ?? null) : null)),
     collectionProducts: (handle, opts) =>
@@ -691,9 +698,14 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
         const all = buildCollectionItems(info.productCount);
         const { page, pageSize } = opts.value;
         const start = (page - 1) * pageSize;
-        return { items: all.slice(start, start + pageSize), total: info.productCount, facets: WINTER_KNITWEAR_FACETS };
+        return {
+          items: all.slice(start, start + pageSize),
+          total: info.productCount,
+          facets: WINTER_KNITWEAR_FACETS,
+        };
       }),
-    related: (handle, limit) => createDemoResult([handle], () => (handle.value ? RELATED_ITEMS.slice(0, limit) : [])),
+    related: (handle, limit) =>
+      createDemoResult([handle], () => (handle.value ? RELATED_ITEMS.slice(0, limit) : [])),
     byHandles: (handles) =>
       createDemoResult([handles], () =>
         handles.value
@@ -725,6 +737,8 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
     orders,
     forms,
     wishlist: createWishlistStore(),
-    history: createHistoryStore({ initialRecentlyViewed: options.recentlyViewed ?? DEFAULT_RECENTLY_VIEWED }),
+    history: createHistoryStore({
+      initialRecentlyViewed: options.recentlyViewed ?? DEFAULT_RECENTLY_VIEWED,
+    }),
   };
 }
