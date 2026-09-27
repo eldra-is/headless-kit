@@ -33,6 +33,7 @@ const expectedBlocks = [
   'hero',
   'image',
   'navigation',
+  'newsletter',
   'pricing-table',
   'split-content',
   'stats',

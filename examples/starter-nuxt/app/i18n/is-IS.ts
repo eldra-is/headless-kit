@@ -148,4 +148,18 @@ export const isIS = {
     planHintLabel: 'Bættu við áskriftarleið',
     planHintHelp: 'Nafn, verð, greiðslutímabil, hnapp og eiginleika.',
   },
+  newsletter: {
+    emailLabel: 'Netfang',
+    emailPlaceholder: 'nafn@dæmi.is',
+    subscribe: 'Skrá mig',
+    subscribing: 'Skrái mig…',
+    successTitle: 'Skráning tókst',
+    consentCheckboxLabel: 'Ég vil fá tölvupóst frá Northwind Goods',
+    invalidEmail: 'Sláðu inn fullt netfang, t.d. nafn@dæmi.is',
+    failed: 'Skráning tókst ekki núna. Reyndu aftur eftir smástund.',
+    consentRequired: 'Hakaðu í reitinn til að skrá þig á listann',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    textHintLabel: 'Valfrjáls texti, t.d. tilboðið',
+    richTextTableLabel: 'Tafla',
+  },
 } satisfies Messages;

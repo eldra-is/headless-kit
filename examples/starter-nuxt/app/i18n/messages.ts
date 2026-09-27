@@ -272,6 +272,28 @@ export interface Messages {
     planHintLabel: string;
     planHintHelp: string;
   };
+  /**
+   * The newsletter block's own strings (spec `02-blocks.md` "Newsletter"): fallback copy for the
+   * optional field label/placeholder/button/success-title fields (shown even before an editor
+   * fills them in, per that section's "Empty (freshly inserted)" state), the two validation
+   * messages (invalid email, backend failure) and the required-consent-checkbox message, plus the
+   * heading/text editor-only hints and the `useRichTextScrollRegions` fallback table label for the
+   * consent field, matching `splitContent.richTextTableLabel`/`faq.richTextTableLabel`.
+   */
+  newsletter: {
+    emailLabel: string;
+    emailPlaceholder: string;
+    subscribe: string;
+    subscribing: string;
+    successTitle: string;
+    consentCheckboxLabel: string;
+    invalidEmail: string;
+    failed: string;
+    consentRequired: string;
+    headingHintLabel: string;
+    textHintLabel: string;
+    richTextTableLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

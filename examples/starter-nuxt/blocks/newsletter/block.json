@@ -1,0 +1,105 @@
+{
+  "apiId": "newsletter",
+  "name": "Newsletter",
+  "description": "An email sign-up with a clear promise, one field and visible error/success states. Use it once per page.",
+  "icon": "mail",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "centered is the default.",
+      "metadata": { "options": ["centered", "split"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "text",
+      "name": "Text",
+      "type": "text",
+      "localized": true,
+      "helpText": "What subscribers get and how often. Include the offer if there is one."
+    },
+    {
+      "fieldId": "fieldLabel",
+      "name": "Field label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Always visible above the input. Defaults to \"Email address\" when unset."
+    },
+    {
+      "fieldId": "placeholder",
+      "name": "Placeholder",
+      "type": "string",
+      "localized": true,
+      "helpText": "An example, never an instruction. Defaults to \"name@example.com\" when unset."
+    },
+    {
+      "fieldId": "buttonLabel",
+      "name": "Button label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Defaults to \"Subscribe\" when unset."
+    },
+    {
+      "fieldId": "consent",
+      "name": "Consent",
+      "type": "rich-text",
+      "localized": true,
+      "helpText": "One line with a privacy link. Inline links only.",
+      "validators": { "required": true },
+      "metadata": { "toolbar": ["bold", "italic", "link", "undo", "redo"] }
+    },
+    {
+      "fieldId": "requireConsentCheckbox",
+      "name": "Require a consent checkbox",
+      "type": "bool",
+      "default": false,
+      "helpText": "Adds a checkbox that must be ticked before submitting. Never pre-ticked."
+    },
+    {
+      "fieldId": "consentCheckboxLabel",
+      "name": "Consent checkbox label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Shown only when the checkbox above is on."
+    },
+    {
+      "fieldId": "successTitle",
+      "name": "Success title",
+      "type": "string",
+      "localized": true,
+      "helpText": "Defaults to \"You're on the list\" when unset."
+    },
+    {
+      "fieldId": "successText",
+      "name": "Success text",
+      "type": "text",
+      "localized": true,
+      "helpText": "For example the confirmation step and the welcome code."
+    },
+    {
+      "fieldId": "list",
+      "name": "List",
+      "type": "string",
+      "validators": { "required": true },
+      "helpText": "The marketing list or audience id in the connected email app."
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "Defaults to \"surface\" when unset.",
+      "metadata": { "options": ["none", "surface", "surface-strong", "primary", "accent"] }
+    }
+  ]
+}

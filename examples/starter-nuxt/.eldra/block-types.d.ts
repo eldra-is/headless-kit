@@ -122,6 +122,21 @@ declare global {
       sticky?: boolean;
       transparentOverHero?: boolean;
     };
+    newsletter: {
+      variant: 'centered' | 'split';
+      heading: string;
+      text?: string;
+      fieldLabel?: string;
+      placeholder?: string;
+      buttonLabel?: string;
+      consent: RichTextNode;
+      requireConsentCheckbox?: boolean;
+      consentCheckboxLabel?: string;
+      successTitle?: string;
+      successText?: string;
+      list: string;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
+    };
     'pricing-table': {
       heading: string;
       intro?: string;

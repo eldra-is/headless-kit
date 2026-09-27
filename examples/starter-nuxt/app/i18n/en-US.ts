@@ -148,4 +148,18 @@ export const enUS = {
     planHintLabel: 'Add a plan',
     planHintHelp: 'Name, price, billing period, button and feature rows.',
   },
+  newsletter: {
+    emailLabel: 'Email address',
+    emailPlaceholder: 'name@example.com',
+    subscribe: 'Subscribe',
+    subscribing: 'Subscribing…',
+    successTitle: "You're on the list",
+    consentCheckboxLabel: "I'd like to receive emails from Northwind Goods",
+    invalidEmail: 'Enter a full email address, like name@example.com',
+    failed: "We couldn't sign you up just now. Please try again in a minute.",
+    consentRequired: 'Tick the box to join the list',
+    headingHintLabel: 'Add a heading',
+    textHintLabel: 'Optional text, e.g. the welcome offer',
+    richTextTableLabel: 'Table',
+  },
 } satisfies Messages;
