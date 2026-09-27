@@ -69,7 +69,8 @@ describe('breadcrumbs block', () => {
     'renders the %s container option with no axe violations',
     async (container) => {
       const wrapper = mountBlock({ ...mock, container });
-      const wideOrContent = container === 'wide' ? 'max-w-wide' : 'max-w-content';
+      const wideOrContent =
+        container === 'wide' ? 'eldra-container-wide' : 'eldra-container-content';
       expect(wrapper.getComponent(Container).classes()).toContain(wideOrContent);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }

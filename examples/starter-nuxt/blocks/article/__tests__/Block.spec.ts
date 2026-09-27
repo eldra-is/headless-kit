@@ -42,7 +42,7 @@ describe('article block', () => {
     'renders the %s width container with no axe violations',
     async (width) => {
       const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: { ...mock, width } } }));
-      expect(wrapper.find(`.max-w-${width}`).exists()).toBe(true);
+      expect(wrapper.find(`.eldra-container-${width}`).exists()).toBe(true);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   );

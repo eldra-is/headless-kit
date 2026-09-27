@@ -79,15 +79,15 @@ describe('main.css', () => {
 
   // `Container`/`Section` (task 6) replaced this file's own `.eldra-container[data-size]` rules
   // and the `--spacing-section`/`-lg` `@theme` keys: max-width and gutters now come from the
-  // package's `max-w-*` scale and `--eldra-gutter-*`, and padding-block from `--eldra-section-*`
+  // package's `eldra-container-*` utilities and `--eldra-gutter-*`, and padding-block from `--eldra-section-*`
   // directly on `Section`'s own `pt-*`/`pb-*` classes — nothing left for `main.css` to declare.
   // This proves the classes those two components emit still compile through this file's own
   // import chain, the same way the assertion above proves the rest of the package's utilities do.
   it('emits the layout primitives Container and Section use, through this file', async () => {
     const css = await build([
-      'max-w-narrow',
-      'max-w-content',
-      'max-w-wide',
+      'eldra-container-narrow',
+      'eldra-container-content',
+      'eldra-container-wide',
       'pt-[var(--eldra-section-md)]',
     ]);
     expect(css).toContain('var(--eldra-container-narrow)');
