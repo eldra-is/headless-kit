@@ -220,4 +220,16 @@ export const isIS = {
     itemHintLabel: 'Bættu við skrefi',
     itemHintHelp: 'Titill og stutt lýsing',
   },
+  team: {
+    portraitOf: 'Mynd af {name}',
+    onInstagram: '{name} á Instagram',
+    emailPerson: 'Senda tölvupóst á {name}',
+    website: 'Vefsíða {name}',
+    onTiktok: '{name} á TikTok',
+    onPinterest: '{name} á Pinterest',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Valfrjáls inngangur og tengill',
+    itemHintLabel: 'Bættu við einstaklingi',
+    itemHintHelp: 'Nafn, starf, stutt æviágrip og tenglar',
+  },
 } satisfies Messages;

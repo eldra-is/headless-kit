@@ -1,0 +1,39 @@
+{
+  "heading": "The people behind the parcels",
+  "intro": "Eleven of us in Portland, and 38 makers we work with directly.",
+  "linkLabel": "Meet our makers",
+  "linkHref": "/pages/makers",
+  "people": [
+    {
+      "name": "Ingrid Solberg",
+      "role": "Founder and buyer",
+      "bio": "Started Northwind on a market stall in 2014 and still chooses every piece we stock.",
+      "links": [
+        { "type": "instagram", "href": "https://instagram.com/ingrid.northwind" },
+        { "type": "email", "href": "mailto:ingrid@northwind.example" }
+      ]
+    },
+    {
+      "name": "Tomás Ferreira",
+      "role": "Head potter",
+      "bio": "Throws about sixty mugs a day. Found our speckled glaze by accident in 2016.",
+      "links": [{ "type": "instagram", "href": "https://instagram.com/tomas.throws" }]
+    },
+    {
+      "name": "Aiko Mori",
+      "role": "Weaver",
+      "bio": "Runs the 1960s Dobcross loom and teaches the Saturday weaving class.",
+      "links": [
+        { "type": "instagram", "href": "https://instagram.com/aiko.weaves" },
+        { "type": "website", "href": "https://aikomori.example" }
+      ]
+    },
+    {
+      "name": "Dele Okafor",
+      "role": "Customer care lead",
+      "bio": "Answers your emails, sorts your returns and knows where every parcel is.",
+      "links": [{ "type": "email", "href": "mailto:dele@northwind.example" }]
+    }
+  ],
+  "sectionBackground": "none"
+}

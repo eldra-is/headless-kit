@@ -220,4 +220,16 @@ export const enUS = {
     itemHintLabel: 'Add a step',
     itemHintHelp: 'Title and short description',
   },
+  team: {
+    portraitOf: 'Portrait of {name}',
+    onInstagram: '{name} on Instagram',
+    emailPerson: 'Email {name}',
+    website: "{name}'s website",
+    onTiktok: '{name} on TikTok',
+    onPinterest: '{name} on Pinterest',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'Optional intro and link',
+    itemHintLabel: 'Add a person',
+    itemHintHelp: 'Name, role, short bio, links',
+  },
 } satisfies Messages;

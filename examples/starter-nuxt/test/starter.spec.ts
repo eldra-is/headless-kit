@@ -38,6 +38,7 @@ const expectedBlocks = [
   'pricing-table',
   'split-content',
   'stats',
+  'team',
   'testimonials',
   'timeline',
   'video-embed',
@@ -230,6 +231,7 @@ describe('starter theme', () => {
         'columns',
         'sectionBackground',
       ],
+      team: ['heading', 'intro', 'linkLabel', 'linkHref', 'people', 'sectionBackground'],
     });
 
     // Starter mocks cannot carry organization-specific asset IDs. Keep media

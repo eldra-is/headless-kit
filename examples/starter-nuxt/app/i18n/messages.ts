@@ -379,6 +379,28 @@ export interface Messages {
     itemHintLabel: string;
     itemHintHelp: string;
   };
+  /**
+   * The team block's own strings (spec `02-blocks.md` "Team"): each icon link's accessible-name
+   * template (`{name}` interpolated, matching `footer.socialLinkName`'s own pattern), the photo
+   * alt-text default, and the two editor-only hints (`EditorPlaceholder`, gated by `useEditing()`)
+   * for a freshly inserted block's empty heading/intro/link and its first, still-empty person
+   * (spec → States, "Empty (freshly inserted)").
+   */
+  team: {
+    /** Default `alt` text for a person's photo, e.g. "Portrait of Ingrid Solberg". */
+    portraitOf: string;
+    /** Each icon link's accessible name, `{name}` interpolated — see `blocks/team/Block.vue`'s
+     *  `NAME_KEYS`. The icons themselves stay `aria-hidden`. */
+    onInstagram: string;
+    emailPerson: string;
+    website: string;
+    onTiktok: string;
+    onPinterest: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

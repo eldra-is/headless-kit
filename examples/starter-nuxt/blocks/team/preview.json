@@ -1,0 +1,62 @@
+{
+  "people": [
+    {
+      "name": "Ingrid Solberg",
+      "role": "Founder and buyer",
+      "bio": "Started Northwind on a market stall in 2014 and still chooses every piece we stock.",
+      "links": [
+        { "type": "instagram", "href": "https://instagram.com/ingrid.northwind" },
+        { "type": "email", "href": "mailto:ingrid@northwind.example" }
+      ],
+      "photo": {
+        "assetId": "demo-team-1",
+        "url": "/demo/team-1.svg",
+        "altText": "",
+        "width": 1000,
+        "height": 1250
+      }
+    },
+    {
+      "name": "Tomás Ferreira",
+      "role": "Head potter",
+      "bio": "Throws about sixty mugs a day. Found our speckled glaze by accident in 2016.",
+      "links": [{ "type": "instagram", "href": "https://instagram.com/tomas.throws" }],
+      "photo": {
+        "assetId": "demo-team-2",
+        "url": "/demo/team-2.svg",
+        "altText": "",
+        "width": 1000,
+        "height": 1250
+      }
+    },
+    {
+      "name": "Aiko Mori",
+      "role": "Weaver",
+      "bio": "Runs the 1960s Dobcross loom and teaches the Saturday weaving class.",
+      "links": [
+        { "type": "instagram", "href": "https://instagram.com/aiko.weaves" },
+        { "type": "website", "href": "https://aikomori.example" }
+      ],
+      "photo": {
+        "assetId": "demo-team-3",
+        "url": "/demo/team-3.svg",
+        "altText": "",
+        "width": 1000,
+        "height": 1250
+      }
+    },
+    {
+      "name": "Dele Okafor",
+      "role": "Customer care lead",
+      "bio": "Answers your emails, sorts your returns and knows where every parcel is.",
+      "links": [{ "type": "email", "href": "mailto:dele@northwind.example" }],
+      "photo": {
+        "assetId": "demo-team-4",
+        "url": "/demo/team-4.svg",
+        "altText": "",
+        "width": 1000,
+        "height": 1250
+      }
+    }
+  ]
+}

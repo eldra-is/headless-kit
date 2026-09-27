@@ -178,6 +178,14 @@ declare global {
       items: Array<{ value: string; label: string }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
     };
+    team: {
+      heading: string;
+      intro?: string;
+      linkLabel?: string;
+      linkHref?: string;
+      people: Array<{ photo?: EldraMedia; name: string; role: string; bio?: string; links?: Array<{ type: 'instagram' | 'email' | 'website' | 'tiktok' | 'pinterest'; href: string }> }>;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong';
+    };
     testimonials: {
       variant: 'grid' | 'carousel' | 'single-large';
       heading: string;
