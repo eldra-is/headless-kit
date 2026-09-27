@@ -895,7 +895,18 @@ function declarations(
     if (margin !== undefined) result[`margin-${side}`] = margin;
     if (padding !== undefined) result[`padding-${side}`] = padding;
   }
-  if (style.width !== undefined) Object.assign(result, widthDeclarations(style.width, parent));
+  const isBlock = node.type === 'block';
+  if (style.width !== undefined) {
+    Object.assign(result, widthDeclarations(style.width, parent, isBlock));
+  } else if (isBlock && parent.type === 'flex' && parent.direction === 'row') {
+    // Every block root is a `container-type: inline-size` query container
+    // (size containment), so it has no intrinsic inline size: an `auto`
+    // flex-item basis resolves to 0 and the block collapses. Sizing it like
+    // `fill` gives it a real basis. A block in a flex column already
+    // stretches to the cross-axis width by default, so nothing is needed
+    // there; container (flex/grid) nodes are never affected by this branch.
+    Object.assign(result, widthDeclarations('fill', parent, true));
+  }
   if (style.minWidth !== undefined) result['min-width'] = style.minWidth;
   if (style.maxWidth !== undefined) result['max-width'] = style.maxWidth;
   if (style.minHeight !== undefined) result['min-height'] = style.minHeight;
@@ -918,14 +929,29 @@ function declarations(
  *   parent flex column or no flex parent -> `width:fit-content`; parent grid
  *   -> `justify-self:start; width:fit-content`.
  *
+ * Every block root is a `container-type: inline-size` query container, so a
+ * block node has no intrinsic inline size under CSS size containment: it
+ * contributes 0 to `fit-content` and to a flex item's `auto` basis. For
+ * `node.type === 'block'` only, this is worked around by treating
+ * `fit-content` as an alias for `fill` — a block never actually shrinks to
+ * its content width, in any parent context — and by the caller
+ * additionally synthesizing a `fill` in the one context where an *absent*
+ * `width` would otherwise leave the block with no rule at all: a flex row
+ * parent. Container nodes (`flex`/`grid`) are never affected by either
+ * behaviour; their `fit-content` and unset-`width` output is unchanged.
+ *
  * An explicit `minWidth`/`maxWidth`/`minHeight` on the same node is applied
  * by the caller after this (unconditionally, from `style`), so it always
  * wins over the implicit `min-width:0` a flex-row `fill` sets here.
  */
-function widthDeclarations(width: WidthLength, parent: ParentContext): Record<string, string> {
+function widthDeclarations(
+  width: WidthLength,
+  parent: ParentContext,
+  isBlock: boolean
+): Record<string, string> {
   if (width !== 'fill' && width !== 'fit-content') return { width };
   const flexRow = parent.type === 'flex' && parent.direction === 'row';
-  if (width === 'fill') {
+  if (width === 'fill' || isBlock) {
     if (flexRow) return { flex: '1 1 0%', 'min-width': '0' };
     if (parent.type === 'grid') return { 'justify-self': 'stretch', width: '100%' };
     return { width: '100%' };

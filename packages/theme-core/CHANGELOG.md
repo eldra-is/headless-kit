@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fix: a `block` layout node's generated CSS no longer collapses it to 0px width. Every block
+  root is a `container-type: inline-size` query container, so under CSS size containment it has
+  no intrinsic inline size — a `width: 'fit-content'` block, or a `width`-less block inside a flex
+  row, could render at 0px wide. A block now sizes like `fill` in both of those cases; container
+  (`flex`/`grid`) nodes are unaffected.
 - **`buildRichTextTree` takes a `minHeadingLevel` render option**: a floor for every `heading`
   node's rendered tag (`h{max(minHeadingLevel, level)}`, still capped at 6; default `1`, i.e. the
   document's own levels). A page owns its heading outline and a rich-text field does not, so one
