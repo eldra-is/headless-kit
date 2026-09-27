@@ -121,6 +121,13 @@ declare global {
       startWith: 'image-left' | 'image-right';
       rows: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;
     };
+    stats: {
+      variant: 'row' | 'split';
+      heading: string;
+      intro?: string;
+      items: Array<{ value: string; label: string }>;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
+    };
     testimonials: {
       heading: string;
       variant?: 'grid' | 'carousel';

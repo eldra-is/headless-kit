@@ -2048,6 +2048,131 @@
       "previewImage": ".eldra/previews/split-content.png"
     },
     {
+      "apiId": "stats",
+      "name": "Stats",
+      "description": "Two to four real, checkable figures with short labels that back up the brand story.",
+      "icon": "chart-bar",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "row is the default.",
+          "metadata": {
+            "options": [
+              "row",
+              "split"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Rendered as an h2. Up to about 60 characters.",
+          "validators": {
+            "required": true,
+            "maxLength": 60
+          }
+        },
+        {
+          "fieldId": "intro",
+          "name": "Intro",
+          "type": "text",
+          "localized": true,
+          "helpText": "One or two sentences. Hidden when empty."
+        },
+        {
+          "fieldId": "items",
+          "name": "Items",
+          "type": "list",
+          "helpText": "2-4 recommended; 1-8 supported.",
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Figure",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "value",
+                    "name": "Value",
+                    "type": "string",
+                    "helpText": "The figure as it should read: 38, 4.8, 140k, 96%. Units belong in the value, not the label.",
+                    "validators": {
+                      "required": true,
+                      "maxLength": 6
+                    }
+                  },
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "What the figure counts and where it comes from.",
+                    "validators": {
+                      "required": true,
+                      "maxLength": 60
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default. surface works well for split.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong",
+              "primary",
+              "accent"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "variant": "row",
+        "heading": "Small workshop, long memory",
+        "intro": "We started with one loom and a folding table. Everything we sell is still made by people we know by name, and we still read every review.",
+        "items": [
+          {
+            "value": "38",
+            "label": "Independent makers, from Shetland to the Kyoto hills"
+          },
+          {
+            "value": "12",
+            "label": "Years since our first market stall"
+          },
+          {
+            "value": "4.8",
+            "label": "Average rating across 9,214 verified reviews"
+          },
+          {
+            "value": "140k",
+            "label": "Mugs, bowls and blankets sent out since 2014"
+          }
+        ],
+        "sectionBackground": "none"
+      },
+      "previewImage": ".eldra/previews/stats.png"
+    },
+    {
       "apiId": "testimonials",
       "name": "Testimonials",
       "description": "Customer quotes with name, role, avatar and an optional rating.",

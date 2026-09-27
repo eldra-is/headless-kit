@@ -215,6 +215,17 @@ export interface Messages {
     headingHintHelp: string;
     richTextTableLabel: string;
   };
+  /**
+   * The stats block's own editor-only hints (spec `02-blocks.md` "Stats" → States, "Empty
+   * (freshly inserted)"): the required heading, the optional intro, and a per-figure hint shown
+   * for any item whose value and label are both still empty (see `blocks/stats/Block.vue`).
+   */
+  stats: {
+    headingHintLabel: string;
+    introHintLabel: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

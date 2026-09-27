@@ -34,6 +34,7 @@ const expectedBlocks = [
   'image',
   'navigation',
   'split-content',
+  'stats',
   'testimonials',
 ];
 
@@ -61,7 +62,7 @@ describe('starter theme', () => {
     expect(safeHref(encodeStega('//evil.example/path', meta))).toBeNull();
   });
 
-  it('validates all eleven contract blocks and includes design tokens', () => {
+  it('validates all thirteen contract blocks and includes design tokens', () => {
     const result = scanTheme({ themeDir: templateDir, framework: 'nuxt' });
     expect(result.errors).toEqual([]);
     expect(result.manifest?.blocks.map((block) => block.apiId).sort()).toEqual(expectedBlocks);
@@ -151,6 +152,7 @@ describe('starter theme', () => {
       faq: ['heading', 'intro', 'single', 'items'],
       breadcrumbs: ['showHome', 'homeLabel', 'trail', 'currentTitle', 'showCurrent', 'container'],
       'split-content': ['startWith', 'rows'],
+      stats: ['variant', 'heading', 'intro', 'items', 'sectionBackground'],
     });
 
     // Starter mocks cannot carry organization-specific asset IDs. Keep media

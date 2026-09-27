@@ -120,4 +120,10 @@ export const isIS = {
     headingHintHelp: 'Svo stutta málsgrein og valfrjálsan tengil',
     richTextTableLabel: 'Tafla',
   },
+  stats: {
+    headingHintLabel: 'Bættu við fyrirsögn',
+    introHintLabel: 'Bættu við inngangi (valfrjálst)',
+    itemHintLabel: 'Bættu við tölu',
+    itemHintHelp: 'Til dæmis 38.',
+  },
 } satisfies Messages;

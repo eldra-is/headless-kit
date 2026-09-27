@@ -120,4 +120,10 @@ export const enUS = {
     headingHintHelp: 'Then a short paragraph and an optional link',
     richTextTableLabel: 'Table',
   },
+  stats: {
+    headingHintLabel: 'Add a heading',
+    introHintLabel: 'Add an intro (optional)',
+    itemHintLabel: 'Add a figure',
+    itemHintHelp: 'For example, 38.',
+  },
 } satisfies Messages;
