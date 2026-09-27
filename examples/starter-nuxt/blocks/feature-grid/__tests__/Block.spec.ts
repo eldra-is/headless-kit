@@ -2,6 +2,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
+import { FeatureCard } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
@@ -13,9 +14,15 @@ import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 /**
  * `mock.json` is the seed Studio writes on insert — its items carry no `image` (Core's write-side
  * media validator rejects a fixture-shaped object there); `preview.json` is the demo-imagery
- * overlay `scripts/generate-stories.mjs`'s `Default` story merges onto it (a full `items`
- * replacement, since the overlay contract merges shallowly — `mock.json`'s own `mediaType: "icon"`
- * is therefore untouched by the merge, same as every other top-level field).
+ * overlay `scripts/generate-stories.mjs`'s `Default` story merges onto it.
+ *
+ * The merge is shallow — a list present in both files is *replaced*, not merged — so an overlay
+ * that supplies image-only items has to override every top-level field those items depend on too.
+ * It did not: `mediaType` stayed `mock.json`'s `"icon"` over three items with no `icon` key, so
+ * `Block.vue`'s `EMPTY_ICON` fallback won and the shipped `preview.png` (Studio's insert thumbnail)
+ * showed three *text-only* cards in a four-column grid — neither the mock's icons nor the overlay's
+ * images. `preview.json` now carries `mediaType: "image"` and `columns: "3"` for its three items,
+ * and the assertions below hold the overlay to actually rendering its images.
  */
 const withImages = { ...mock, ...preview };
 
@@ -58,6 +65,29 @@ describe('feature-grid block', () => {
     expect(wrapper.text()).toContain(withImages.heading);
     for (const featureItem of withImages.items) expect(wrapper.text()).toContain(featureItem.title);
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it("the preview overlay renders its own images — the shipped preview.png's content", () => {
+    // The overlay's three image items, actually shown as images (not the icon fallback) and in a
+    // three-column grid. This is exactly what `blocks/feature-grid/preview.png` captures, so a
+    // future overlay edit that forgets `mediaType`/`columns` fails here rather than only showing up
+    // as a wrong insert thumbnail in Studio.
+    expect(preview.mediaType).toBe('image');
+    expect(preview.columns).toBe(String(preview.items.length));
+
+    const wrapper = mountBlock(withImages);
+    const images = wrapper.findAll('img');
+    expect(images).toHaveLength(preview.items.length);
+    expect(images.map((img) => img.attributes('src'))).toEqual(
+      preview.items.map((previewItem) => previewItem.image.url)
+    );
+    // And no icon tile is *shown*: with `mediaType: "image"` every card hides it
+    // (`classes.iconTile: 'hidden'`), which is what proves the shipped preview is the overlay's
+    // images rather than `EMPTY_ICON`'s blank square — the state it used to capture.
+    expect(wrapper.findAllComponents(FeatureCard)).toHaveLength(preview.items.length);
+    for (const card of wrapper.findAllComponents(FeatureCard)) {
+      expect(card.props('classes')).toMatchObject({ iconTile: 'hidden' });
+    }
   });
 
   it('renders the bare mock.json content (freshly-inserted regression net) with no axe violations', async () => {

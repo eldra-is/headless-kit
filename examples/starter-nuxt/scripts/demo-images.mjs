@@ -301,15 +301,21 @@ function mapSvg(name, width, height) {
 // (`avatarSvg`) for bylines and reviews, abstract wordmarks (`wordmarkSvg`)
 // for the logo cloud, and one map (`mapSvg`) for the contact block.
 
+// One name per `avatar-N.svg`, in order, and each one is the name the mock that *uses* that avatar
+// prints beside it — `avatarSvg` draws the initials from this list, so a mismatch renders
+// "Hannah Reeve — AK" on the home and article sample pages, in Storybook and in the shipped
+// `preview.png`. Keep this list and the mocks in step: change a reviewer's name in
+// `blocks/testimonials/{mock,preview}.json` and change it here in the same edit, then rerun
+// `pnpm --filter starter-nuxt demo-images` and `previews`.
 const avatarNames = [
-  'Avery Kim',
-  'Priya Nair',
-  'Sam Osei',
-  'Jordan Lee',
-  'Riley Chen',
-  'Morgan Diaz',
-  'Jamie Okafor',
-  'Casey Novak',
+  'Hannah Reeve', // avatar-1 — blocks/testimonials items[0]
+  'Marcus Bell', // avatar-2 — blocks/testimonials items[1]
+  'Priya Nair', // avatar-3 — blocks/testimonials items[2]
+  'Sofia Lind', // avatar-4 — blocks/testimonials items[3]
+  'The Larder Journal', // avatar-5 — blocks/quote's attribution
+  'Ingrid Moe', // avatar-6 — blocks/article's byline
+  'Joel Mercer', // avatar-7 — blocks/testimonials items[4], which carries no avatar today
+  'Casey Novak', // avatar-8 — spare, used by no mock yet
 ];
 
 function seriesOf(prefix, count, width, height, render) {

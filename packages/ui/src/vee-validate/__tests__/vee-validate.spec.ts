@@ -209,6 +209,31 @@ describe('what a Field forwards', () => {
     wrapper.unmount();
   });
 
+  it('forwards `legend` as a declared prop, so a unique `name` keeps a human legend', async () => {
+    // `legend` is part of `VariantPickerProps`, so `defineProps<FieldVariantPickerProps>()` declares
+    // it and `useControlProps` forwards it like every other picker prop — it does not arrive as an
+    // untyped fall-through attribute. Both halves are asserted: it is a declared prop (not an attr),
+    // and it actually becomes the visible legend while `name` stays the radios' grouping key.
+    expect(Object.keys(FieldVariantPicker.props ?? {})).toContain('legend');
+
+    const wrapper = mountForm(() =>
+      h(FieldVariantPicker, {
+        name: 'size-sku-4471',
+        path: 'size',
+        legend: 'Size',
+        options: [{ value: 'small', label: 'Small', available: true }],
+      })
+    );
+    await settle();
+
+    expect(wrapper.find('legend').text()).toContain('Size');
+    expect(wrapper.find('legend').text()).not.toContain('sku-4471');
+    expect(wrapper.find('input[type="radio"]').attributes('name')).toBe('size-sku-4471');
+    // Not left on the fieldset as a stray attribute either.
+    expect(wrapper.find('fieldset').attributes('legend')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('attaches a server error to a field by its path, not its name', async () => {
     // A `VariantPicker` has neither an `invalid` nor an `error` prop, so the wrapper is the only
     // place its message can appear — which is also the pattern being asserted.

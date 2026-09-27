@@ -599,11 +599,16 @@ function tabValue(index: number): string {
                 />
               </template>
               <TabPanel v-for="(tab, index) in tabs" :key="index" :value="tabValue(index)">
+                <!-- A `Tab` label is a button, not a heading, so the nearest heading above a
+                     panel is this block's own `h1` (the product title) — the panel body's headings
+                     therefore start at `h2`. Floored at 2 rather than 3 on purpose: with no `h2`
+                     in between, an `h3` straight after the `h1` would be a level skip. -->
                 <EldraRichText
                   class="prose-eldra [&>*+*]:mt-3"
                   :entry-id="entryId"
                   :field="`tabs.${index}.body`"
                   :doc="tab.body"
+                  :min-heading-level="2"
                 />
               </TabPanel>
             </Tabs>

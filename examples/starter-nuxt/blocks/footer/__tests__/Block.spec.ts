@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
+import { ELDRA_KEY } from '@eldrajs/theme-vue';
+import { EditorPlaceholder } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
@@ -27,9 +29,21 @@ const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 function mountFooter(
   data: Record<string, unknown>,
-  options: { failForms?: boolean; subscribe?: StorefrontForms['subscribe'] } = {}
+  options: {
+    failForms?: boolean;
+    subscribe?: StorefrontForms['subscribe'];
+    /** Studio's edit mode — what `useEditing()` reads, and the only state that shows hints. */
+    editing?: boolean;
+  } = {}
 ) {
   const base = mountOptions({ entry: { id: 'e1', data } });
+  if (options.editing) {
+    const context = base.global.provide[ELDRA_KEY] as {
+      preview: { active: boolean; mode: string };
+    };
+    context.preview.active = true;
+    context.preview.mode = 'edit';
+  }
   const storefront = options.subscribe
     ? (() => {
         const demo = createDemoStorefront();
@@ -309,6 +323,61 @@ describe('footer block', () => {
     expect(focusable.indexOf(subscribeButton)).toBeLessThan(
       focusable.indexOf(firstSelectorTrigger)
     );
+  });
+
+  /**
+   * The spec's three Footer "States" rows. `footer` was the one block of 33 with no editor hints at
+   * all: a freshly inserted footer showed an almost-empty band with nothing telling the editor
+   * where the description, the link groups and the newsletter go, while every sibling block showed
+   * dashed placeholders.
+   */
+  describe('editor hints', () => {
+    const empty = {
+      variant: 'default',
+      brandText: mock.brandText,
+      showNewsletter: false,
+    };
+
+    it('shows the description, link-group and newsletter hints in edit mode', async () => {
+      const wrapper = mountFooter(empty, { editing: true });
+      await flushPromises();
+      const labels = wrapper.findAllComponents(EditorPlaceholder).map((p) => p.props('label'));
+      expect(labels).toEqual([
+        enUS.footer.descriptionHintLabel,
+        enUS.footer.groupsHintLabel,
+        enUS.footer.newsletterHintLabel,
+      ]);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders none of them on the live site', async () => {
+      const wrapper = mountFooter(empty);
+      await flushPromises();
+      expect(wrapper.findAllComponents(EditorPlaceholder)).toHaveLength(0);
+      expect(wrapper.text()).not.toContain(enUS.footer.groupsHintLabel);
+    });
+
+    it('replaces each hint with the real content as soon as the field is filled', async () => {
+      const wrapper = mountFooter(
+        {
+          ...empty,
+          description: mock.description,
+          groups: mock.groups,
+          showNewsletter: true,
+        },
+        { editing: true }
+      );
+      await flushPromises();
+      expect(wrapper.findAllComponents(EditorPlaceholder)).toHaveLength(0);
+      expect(wrapper.text()).toContain(mock.description);
+      expect(wrapper.find('input[type="email"]').exists()).toBe(true);
+    });
+
+    it('shows no hint on the minimal variant, which has none of those three parts', async () => {
+      const wrapper = mountFooter({ ...empty, variant: 'minimal' }, { editing: true });
+      await flushPromises();
+      expect(wrapper.findAllComponents(EditorPlaceholder)).toHaveLength(0);
+    });
   });
 
   it('social link names include the store name', () => {

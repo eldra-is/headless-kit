@@ -54,12 +54,12 @@ function previewContext(locale: string | null): unknown {
   };
 }
 
-function mountArticle(context?: unknown) {
+function mountArticle(context?: unknown, doc: unknown = body) {
   return mount(Article, {
     props: {
       entry: {
         id: 'article-1',
-        data: { heading: 'Announcing our new platform', body },
+        data: { title: 'Announcing our new platform', body: doc },
       },
     },
     ...(context === undefined ? {} : { global: { provide: { [ELDRA_KEY as symbol]: context } } }),
@@ -107,5 +107,38 @@ describe('article body renders through EldraRichText', () => {
     const wrapper = mountArticle();
 
     expect(wrapper.get('[data-eldra-rich-text]').attributes('data-eldra-locale')).toBeUndefined();
+  });
+});
+
+/**
+ * A rich-text field cannot declare its own heading outline: `metadata.toolbar`'s `heading` control
+ * is one level-agnostic id, so an editor can insert any level anywhere. The page owns the outline,
+ * so each block passes `EldraRichText`'s `minHeadingLevel` floor for the place its document sits in
+ * (`clampHeadingLevel` in `@eldrajs/theme-core` does the clamping). Group A5 added that prop and
+ * exactly one of the nine call sites used it, which meant an `h1` in an article body still produced
+ * a second `<h1>` on the article page — the very invariant `test/pages/article.spec.ts` asserts,
+ * passing only because the fixture happens to use levels 2/2/2/3.
+ */
+describe('heading floors', () => {
+  const OUTLINE_DOC = {
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Inserted h1' }] },
+      { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Already h3' }] },
+    ],
+  };
+
+  it("floors the article body at h2, so an inserted h1 can never rival the article's title", () => {
+    const wrapper = mountArticle(undefined, OUTLINE_DOC);
+
+    // The block's own `h1` is the article title; the body's own headings start below it.
+    expect(wrapper.findAll('h1')).toHaveLength(1);
+    expect(wrapper.get('h1').text()).toBe('Announcing our new platform');
+
+    const body = wrapper.get('[data-eldra-rich-text]');
+    expect(body.get('h2').text()).toBe('Inserted h1');
+    // A floor, never an offset: a level already at or below the floor is untouched.
+    expect(body.get('h3').text()).toBe('Already h3');
+    expect(body.findAll('h4')).toHaveLength(0);
   });
 });

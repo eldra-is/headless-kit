@@ -50,7 +50,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import type { StorefrontProductListItem } from '../../app/storefront/types';
-import { toProductCard } from '../../app/storefront/toProductCard';
+import { toProductCardEntries } from '../../app/storefront/toProductCard';
 
 const props = defineProps<{ entry: EldraBlockEntry<'product-carousel'> }>();
 const { data } = useBlockData(props, 'product-carousel');
@@ -113,14 +113,25 @@ const products = computed<StorefrontProductListItem[]>(() => {
   );
 });
 const cappedProducts = computed(() => products.value.slice(0, limit.value));
+/**
+ * The cards actually rendered. `toProductCardEntries` (`app/storefront/toProductCard.ts`) is the
+ * one place a storefront-derived URL is sanitised: it drops an item whose `url` is not a
+ * `safeHref` — the card's link is required, so there is no linkless card to fall back to — and
+ * reports per card whether the destination routes (`entry.internal`). That is why the counts below
+ * are taken off `cards`, not `cappedProducts`: a dropped item must not keep the block above its
+ * "fewer than 2 products" floor or leave the carousel controls claiming a slide that isn't there.
+ */
+const cards = computed(() =>
+  toProductCardEntries(cappedProducts.value, { ratio: cardRatio.value })
+);
 /** Spec States → "Minimal": "with fewer than 2 products the block doesn't render." */
-const hasEnoughProducts = computed(() => cappedProducts.value.length >= 2);
+const hasEnoughProducts = computed(() => cards.value.length >= 2);
 
 /** See the module doc comment: controls are dropped only when every product fits the view at
  *  EVERY width, i.e. the count is within the smallest (`base`) per-view step — the desktop step
  *  would hide them while a narrower container still has cards to scroll to. */
 const perViewBase = computed(() => (isRecentlyViewed.value ? 2.4 : 1.5));
-const showControls = computed(() => cappedProducts.value.length > perViewBase.value);
+const showControls = computed(() => cards.value.length > perViewBase.value);
 
 /** Spec → Layout: "the track bleeds to the block edge" below 48rem, so the peeking next card
  *  reaches the screen edge — negative gutter margin plus matching inline and scroll padding, reset
@@ -142,10 +153,22 @@ const perView = computed(() =>
  *  compact 1:1 cards with no swatches or rating for `recently-viewed`. */
 const cardRatio = computed(() => (isRecentlyViewed.value ? '1x1' : '4x5'));
 
-/** While pending, `Carousel`'s own accessible name announces the loading state instead of
- *  claiming to be the (not yet populated) product row — `storefront.loading` is the shared
- *  commerce-block vocabulary (`app/i18n/messages.ts`), not a string this block owns itself. */
-const carouselAriaLabel = computed(() => (pending.value ? t('storefront.loading') : heading.value));
+/**
+ * While pending, `Carousel`'s own accessible name announces the loading state instead of
+ * claiming to be the (not yet populated) product row — `storefront.loading` is the shared
+ * commerce-block vocabulary (`app/i18n/messages.ts`), not a string this block owns itself.
+ *
+ * Otherwise it describes what the carousel holds ("New this season products") rather than repeating
+ * the heading verbatim: the block's own `<section>` takes its name from the `<h2>` through
+ * `labelled-by` (like every other heading-bearing block), and two nested `region` landmarks sharing
+ * one accessible name are not distinguishable — axe's `landmark-unique`. Same shape as
+ * `collection-grid`'s `grid.sectionLabel`.
+ */
+const carouselAriaLabel = computed(() =>
+  pending.value
+    ? t('storefront.loading')
+    : t('productCarousel.carouselLabel', { heading: heading.value })
+);
 /** Bound below as `:ariaLabel` (camelCase), not `:aria-label` — see `blocks/hero/Block.vue`'s own
  *  `carouselAriaLabel` comment: `Carousel`'s `ariaLabel` is a *required* prop, and the kebab→camel
  *  prop match Vue applies to a bound attribute is a runtime-only behaviour, invisible to
@@ -166,10 +189,6 @@ function onClearHistory(): void {
   storefront.history.clearViews();
 }
 
-function cardFor(product: StorefrontProductListItem) {
-  return toProductCard(product, { ratio: cardRatio.value });
-}
-
 /** The Carousel (and everything inside it) renders only once there is a heading to name it by and
  *  either the outcome is still unknown (`pending`) or there is enough content to show. */
 const showCarousel = computed(() => hasHeading.value && (pending.value || hasEnoughProducts.value));
@@ -179,7 +198,18 @@ const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHe
 </script>
 
 <template>
-  <Section v-if="showBlock" as="section" :background="background" spacing="md">
+  <!-- `labelled-by`, like every other heading-bearing block: the `<section>` is only an exposed,
+       named landmark when it points at its own heading. `headingId` is on the `<h2>` in the normal
+       case and on the `EditorPlaceholder` in the freshly-inserted one, so the region is named in
+       both. Without it "You may also like" was the one region on the home and product pages that
+       landmark navigation could not reach by name. -->
+  <Section
+    v-if="showBlock"
+    as="section"
+    :background="background"
+    spacing="md"
+    :labelled-by="headingId"
+  >
     <Container width="wide">
       <EditorPlaceholder
         v-if="showHeadingHint"
@@ -229,15 +259,15 @@ const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHe
           </div>
         </template>
         <template v-else>
-          <div v-for="product in cappedProducts" :key="product.handle" class="h-full">
+          <div v-for="entry in cards" :key="entry.item.handle" class="h-full">
             <ProductCard
-              :product="cardFor(product)"
+              :product="entry.product"
               :ratio="cardRatio"
               :show-swatches="!isRecentlyViewed && showSwatchesField"
               :show-rating="!isRecentlyViewed"
               :quick-add="false"
               :heading-level="3"
-              :link-as="EldraRouterLink"
+              :link-as="entry.internal ? EldraRouterLink : undefined"
               :currency="currency"
               :locale="locale"
             />

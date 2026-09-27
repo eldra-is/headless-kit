@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
+import { EldraBlockZone, EldraLayout, getBlockSchemaApiId } from '@eldrajs/theme-vue';
 import { Button, Container, Section } from '@eldrajs/ui';
 import EldraRouterLink from '../components/EldraRouterLink.vue';
 import { useT } from '../composables/useT';
+import { partitionPageBlocks } from '../utils/pageStructure';
 
 const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
   useEldraPage();
@@ -35,9 +36,38 @@ useHead(() => ({
     ? t('notFound.title')
     : (((template.value ?? page.value)?.data.title as string | undefined) ?? 'Site'),
 }));
+
+/**
+ * The page's flat block list, cut into the three landmark regions — see
+ * `app/utils/pageStructure.ts` for the rule and for why rendering everything inside `<main>`
+ * (which is what this template used to do) costs every page its `banner`/`contentinfo` landmarks
+ * and makes `app/app.vue`'s "Skip to content" link land *above* the navigation it skips.
+ *
+ * Three sibling `EldraBlockZone`s, not one: the zone is a stateless renderer (it maps entries to
+ * their block component inside a `data-eldra-block` wrapper and holds no per-zone state or
+ * registration — see `@eldrajs/theme-vue`'s README and `EldraBlockZone.ts`), and Studio's
+ * preview/overlay addresses blocks by those `data-eldra-block` attributes document-wide rather
+ * than through a zone container. So editing, selection and live block updates behave exactly as
+ * they did with a single zone, whichever region a block ends up in.
+ *
+ * `EldraLayout` is the exception and stays wholly inside `<main>`: there the arrangement is an
+ * authored layout tree whose nodes reference block ids, so the flat list cannot be partitioned
+ * without breaking the layout. A layout-driven page therefore has its header/footer blocks inside
+ * `<main>` and no `banner`/`contentinfo` — documented in `docs/starter-kit.md` under "Page
+ * structure and landmarks"; closing it needs a layout-level region concept in the SDK, not a
+ * change here.
+ */
+const structure = computed(() =>
+  layout.value === null
+    ? partitionPageBlocks(blocks.value, getBlockSchemaApiId)
+    : // `EldraLayout` already renders every block in `blocks`; splitting any of them out here too
+      // would render the header and footer twice.
+      { header: [], main: blocks.value, footer: [] }
+);
 </script>
 
 <template>
+  <EldraBlockZone v-if="structure.header.length > 0" :blocks="structure.header" />
   <main id="main">
     <Section v-if="pending" spacing="lg">
       <Container width="content">
@@ -81,6 +111,7 @@ useHead(() => ({
       :reusable-component-projection="reusableComponentProjection"
       :template-entry="entry ?? undefined"
     />
-    <EldraBlockZone v-else :blocks="blocks" />
+    <EldraBlockZone v-else :blocks="structure.main" />
   </main>
+  <EldraBlockZone v-if="structure.footer.length > 0" :blocks="structure.footer" />
 </template>

@@ -13,11 +13,15 @@ export interface Messages {
   };
   loading: string;
   error: string;
+  /**
+   * Shell strings that belong to no single block: `skipToContent` is `app/app.vue`'s skip link and
+   * `menu` is the canary `test/i18n.spec.ts` keeps for the loader itself. The navigation rebuild
+   * moved every header string into its own `header.*` namespace, so `close`/`primary` used to live
+   * here as orphans nothing outside `app/i18n/**` read.
+   */
   nav: {
     menu: string;
-    close: string;
     skipToContent: string;
-    primary: string;
   };
   /**
    * The gallery block's own strings (spec `02-blocks.md` 2720–2845, "Gallery"). `viewer` is the
@@ -135,6 +139,17 @@ export interface Messages {
     };
     /** A social icon link's accessible name, e.g. "Northwind Goods on Instagram". */
     socialLinkName: string;
+    /**
+     * The footer's editor-only hints (`EditorPlaceholder`, gated by `useEditing()`) — the spec's
+     * own three Footer "States" entries. A freshly inserted footer has no description, no link
+     * groups and (on a page that already carries a Newsletter block) no newsletter form, so
+     * without these it renders an almost-empty band with nothing telling the editor what goes
+     * where, while every sibling block shows dashed placeholders.
+     */
+    descriptionHintLabel: string;
+    groupsHintLabel: string;
+    groupsHintHelp: string;
+    newsletterHintLabel: string;
     /** The country/language selector's fixed option set (spec example locales, not CMS content). */
     localeOptions: {
       usEnglish: string;
@@ -584,9 +599,16 @@ export interface Messages {
    * instead. `clearHistory` is the `recently-viewed` variant's own button, replacing the View all
    * link. The last two are the editor-only hint (`EditorPlaceholder`, gated by `useEditing()`) for
    * a freshly inserted block's empty required heading (spec → States, "Empty (freshly inserted)").
+   *
+   * `carouselLabel` names the `Carousel`'s own region, and exists because the block's `<section>`
+   * now takes its accessible name from the block's own `<h2>` (`labelled-by`, like every other
+   * heading-bearing block). Two nested `region` landmarks with the *same* name are not
+   * distinguishable — axe's `landmark-unique` — so the inner one describes what it contains
+   * instead, in the same shape as `grid.sectionLabel`'s "{collection} products".
    */
   productCarousel: {
     viewAllContext: string;
+    carouselLabel: string;
     clearHistory: string;
     headingHintLabel: string;
     headingHintHelp: string;

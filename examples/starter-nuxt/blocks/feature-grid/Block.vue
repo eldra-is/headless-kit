@@ -43,7 +43,7 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { EMPTY_ICON, iconComponent } from '../../app/composables/iconComponent';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -96,49 +96,14 @@ const gridClass = computed(() => [
   isCards.value ? 'gap-4 @content:gap-6' : 'gap-8 @content:gap-x-8 @content:gap-y-12',
 ]);
 
-/**
- * Resolves a Tabler icon name to a bare, already-bound icon component — the same body-only
- * `<svg>` shape `app/components/EldraIcon.vue`'s own internal adapter builds around
- * `useEldraIcon`'s fetched markup, reused here because `FeatureCard`'s `icon` prop takes a
- * component with no props of its own (see `Icon.vue`'s `<component :is="icon">`), not a name —
- * `EldraIcon` itself cannot be handed straight through, it still needs a `name` bound. Cached per
- * name (module scope, shared by every mounted grid) so a reactive re-render of `data` never
- * creates a new component identity for the same icon, which would otherwise remount — and
- * re-fetch — it on every keystroke in the Studio editor.
- */
-const iconCache = new Map<string, Component>();
-function resolveIconComponent(name: string): Component {
-  const cached = iconCache.get(name);
-  if (cached) return cached;
-  const component = defineComponent({
-    name: 'FeatureGridIcon',
-    setup() {
-      const svg = useEldraIcon(computed(() => name));
-      return () => {
-        const markup = svg.value;
-        if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-        const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-        return h('svg', {
-          viewBox: '0 0 24 24',
-          fill: 'none',
-          stroke: 'currentColor',
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          innerHTML: body,
-        });
-      };
-    },
-  });
-  iconCache.set(name, component);
-  return component;
-}
-/** Fed to `FeatureCard` whenever there is no icon to show (image media, or an icon item with none
- * chosen yet) — the prop is required, and the tile itself is hidden via `classes.iconTile`, so an
- * inert empty `<svg>` is all it ever needs to render. */
-const EMPTY_ICON: Component = defineComponent({
-  name: 'FeatureGridEmptyIcon',
-  setup: () => () => h('svg', { viewBox: '0 0 24 24' }),
-});
+// `FeatureCard`'s `icon` prop takes a component with no props of its own (see `Icon.vue`'s
+// `<component :is="icon">`), not a name, so `EldraIcon` cannot be handed straight through — the
+// theme's shared name→component adapter (`app/composables/iconComponent.ts`) is what builds one,
+// cached per name at module scope so a reactive re-render of `data` never creates a new identity
+// for the same icon (which would remount, and re-fetch, it on every keystroke in the Studio
+// editor). `EMPTY_ICON` from the same module is the inert stand-in for an item with no icon to
+// show (image media, or an icon item nobody has chosen yet): the prop is required and the tile
+// itself is hidden through `classes.iconTile`.
 
 /** `@eldrajs/ui`'s `Link` gives this exact recipe to its own `underline: false` opt-out
  * (`Link.vue`'s `UNDERLINE_OPT_OUT`): no underline at rest, appearing on hover and held through
@@ -177,7 +142,7 @@ const items = computed(() =>
     const hasIcon = !isImageMedia.value && Boolean(item.icon);
     return {
       isEmpty: isEditing.value && isItemEmpty(item),
-      icon: hasIcon && item.icon ? resolveIconComponent(item.icon) : EMPTY_ICON,
+      icon: hasIcon && item.icon ? iconComponent(item.icon) : EMPTY_ICON,
       showIconTile: hasIcon,
       hasImage: Boolean(item.image),
       image: item.image,

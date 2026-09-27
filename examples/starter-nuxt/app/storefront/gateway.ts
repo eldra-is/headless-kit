@@ -1,5 +1,6 @@
 import { onWatcherCleanup, ref, watch, type Ref } from 'vue';
 import { createCartSession, EldraHttpError, type EldraClient } from '@eldrajs/sdk';
+import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import type {
@@ -410,35 +411,49 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
   };
 }
 
+/**
+ * Every URL in this response is gateway-supplied, so each one goes through `safeHref` here and a
+ * result whose `targetUrl` does not survive it is **dropped**, not carried with a placeholder.
+ *
+ * This used to be `result.targetUrl ?? '#'`, which turned a result with no destination into a card
+ * or row linking to nowhere (a link to the current page), and — worse — let any URL the gateway
+ * returned reach the DOM unchecked while every CMS-authored href in the theme was gated. This is the
+ * one place the search response crosses that trust boundary, so it is the one place that decides:
+ * a result without a usable link is not a result the shopper can act on.
+ */
 function mapSearchResponse(raw: RawSearchResponse, query: string): StorefrontSearchResponse {
   const results = raw.results ?? [];
-  const products: StorefrontProductListItem[] = results
-    .filter((result) => result.kind === 'PRODUCT')
-    .map((result) => ({
+  const linkedResults = results.flatMap((result) => {
+    const href = safeHref(result.targetUrl);
+    return href === null ? [] : [{ result, href }];
+  });
+  const products: StorefrontProductListItem[] = linkedResults
+    .filter(({ result }) => result.kind === 'PRODUCT')
+    .map(({ result, href }) => ({
       handle: result.id,
       title: result.title,
-      url: result.targetUrl ?? '#',
+      url: href,
       featuredImage: null,
       price: { amount: 0 },
       stock: 'in',
       available: true,
       variantId: result.id,
     }));
-  const articles = results
-    .filter((result) => result.kind === 'CMS_ENTRY')
-    .map((result) => ({
+  const articles = linkedResults
+    .filter(({ result }) => result.kind === 'CMS_ENTRY')
+    .map(({ result, href }) => ({
       title: result.title,
-      href: result.targetUrl ?? '#',
+      href,
       category: result.breadcrumb ?? '',
       readingTime: '',
       image: null,
     }));
-  const pages = results
-    .filter((result) => result.kind === 'CMS_SCHEMA')
-    .map((result) => ({
+  const pages = linkedResults
+    .filter(({ result }) => result.kind === 'CMS_SCHEMA')
+    .map(({ result, href }) => ({
       title: result.title,
-      href: result.targetUrl ?? '#',
-      path: result.targetUrl ?? '',
+      href,
+      path: href,
       snippet: result.snippet ?? result.summary ?? '',
     }));
   return { query, total: raw.total, products, articles, pages, suggestion: null };

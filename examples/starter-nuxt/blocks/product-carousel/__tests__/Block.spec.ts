@@ -15,6 +15,7 @@ import type {
   StorefrontSource,
 } from '../../../app/storefront/types';
 import { createDemoStorefront, PRODUCTS } from '../../../app/storefront/demo';
+import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { enUS } from '../../../app/i18n/en-US';
 
 /** The genuinely minimal fixture: only the fields the block requires. */
@@ -110,11 +111,23 @@ describe('product-carousel block', () => {
     );
   });
 
-  it('the carousel region is named by the heading, slides carry "n of N" labels, and the counter is aria-hidden', async () => {
+  it('names the block\u2019s own section and the carousel distinguishably, labels slides "n of N", hides the counter', async () => {
     const wrapper = mountBlock(mock);
     await flushPromises();
+
+    // The block's `<section>` is named by its own `<h2>`, like every other heading-bearing block —
+    // without it "You may also like" was the one region on the home and product pages that
+    // landmark navigation could not reach by name.
+    const section = wrapper.get('section[data-part="root"]');
+    const headingId = section.attributes('aria-labelledby')!;
+    expect(headingId).toBeTruthy();
+    expect(section.get(`#${headingId}`).text()).toBe(mock.heading);
+
+    // The nested carousel region therefore cannot carry the same name (axe `landmark-unique`): it
+    // describes what it holds instead.
     const region = wrapper.get('[aria-roledescription="carousel"]');
-    expect(region.attributes('aria-label')).toBe(mock.heading);
+    expect(region.attributes('aria-label')).toBe(`${mock.heading} products`);
+    expect(region.attributes('aria-label')).not.toBe(mock.heading);
 
     const slides = wrapper.findAll('[aria-roledescription="slide"]');
     expect(slides.length).toBeGreaterThan(1);
@@ -146,6 +159,43 @@ describe('product-carousel block', () => {
       expect(wrapper.text()).not.toContain(current.title);
       expect(wrapper.text()).not.toContain(soldOut.title);
       expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /**
+     * A product's `url` is storefront-derived, not CMS-authored, and used to reach `ProductCard`
+     * without passing `safeHref` — the one class of URL in the theme that did. Sanitising now
+     * happens once, in `toProductCardEntries` (`app/storefront/toProductCard.ts`): the card's link
+     * is required, so an item whose URL does not survive `safeHref` is dropped outright rather than
+     * rendered with a link to nowhere. A same-site URL still routes (`link-as` =
+     * `EldraRouterLink`); an off-site one stays a plain `<a>`.
+     */
+    it('drops a product whose url is not a safe href, and only routes same-site ones', async () => {
+      const safe = PRODUCTS.find((p) => p.handle === 'ribbed-lambswool-beanie')!;
+      const external = { ...PRODUCTS.find((p) => p.handle === 'speckled-latte-mug')! };
+      external.url = 'https://elsewhere.example/p/mug';
+      const unsafe = { ...PRODUCTS.find((p) => p.handle === 'merino-crew-sweater')! };
+      // The exact shape the guard exists for: a scheme `safeHref` rejects.
+      unsafe.url = 'javascript:alert(1)';
+
+      const storefront = withRelated([safe, external, unsafe], {
+        productHandle: 'not-a-real-product',
+      });
+      const wrapper = mountBlock({ ...mock, variant: 'related' }, { storefront });
+      await flushPromises();
+
+      expect(wrapper.text()).toContain(safe.title);
+      expect(wrapper.text()).toContain(external.title);
+      expect(wrapper.text()).not.toContain(unsafe.title);
+
+      const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'));
+      expect(hrefs).toContain(safe.url);
+      expect(hrefs).toContain(external.url);
+      expect(wrapper.html()).not.toContain('javascript:');
+
+      const cards = wrapper.findAllComponents(ProductCard);
+      expect(cards).toHaveLength(2);
+      expect(cards[0]!.props('linkAs')).toBe(EldraRouterLink);
+      expect(cards[1]!.props('linkAs')).toBeUndefined();
     });
   });
 

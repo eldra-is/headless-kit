@@ -727,21 +727,21 @@ and `FieldQuantityStepper` — and those draw their message themselves **only ou
 
 ### The components
 
-| Component              | Wraps             | Field value                                          |
-| ---------------------- | ----------------- | ---------------------------------------------------- |
-| `FieldInput`           | `Input`           | `string`                                             |
-| `FieldTextarea`        | `Textarea`        | `string`                                             |
-| `FieldUnitInput`       | `UnitInput`       | `number \| null` (`null` is an empty field)          |
-| `FieldCurrencyInput`   | `CurrencyInput`   | `number \| null` (`null` is an empty field)          |
-| `FieldCheckbox`        | `Checkbox`        | `boolean` (one consent box)                          |
-| `FieldCheckboxGroup`   | `CheckboxGroup`   | `string[]` (one question, several answers)           |
-| `FieldRadioGroup`      | `RadioGroup`      | `string`                                             |
-| `FieldSwitch`          | `Switch`          | `boolean`                                            |
-| `FieldSelect`          | `Select`          | `string`                                             |
-| `FieldMultiSelect`     | `MultiSelect`     | `string[]`                                           |
-| `FieldQuantityStepper` | `QuantityStepper` | `number`                                             |
-| `FieldVariantPicker`   | `VariantPicker`   | `string` (`name` is the visible legend — see `path`) |
-| `FieldSearchBar`       | `SearchBar`       | `string`                                             |
+| Component              | Wraps             | Field value                                                                   |
+| ---------------------- | ----------------- | ----------------------------------------------------------------------------- |
+| `FieldInput`           | `Input`           | `string`                                                                      |
+| `FieldTextarea`        | `Textarea`        | `string`                                                                      |
+| `FieldUnitInput`       | `UnitInput`       | `number \| null` (`null` is an empty field)                                   |
+| `FieldCurrencyInput`   | `CurrencyInput`   | `number \| null` (`null` is an empty field)                                   |
+| `FieldCheckbox`        | `Checkbox`        | `boolean` (one consent box)                                                   |
+| `FieldCheckboxGroup`   | `CheckboxGroup`   | `string[]` (one question, several answers)                                    |
+| `FieldRadioGroup`      | `RadioGroup`      | `string`                                                                      |
+| `FieldSwitch`          | `Switch`          | `boolean`                                                                     |
+| `FieldSelect`          | `Select`          | `string`                                                                      |
+| `FieldMultiSelect`     | `MultiSelect`     | `string[]`                                                                    |
+| `FieldQuantityStepper` | `QuantityStepper` | `number`                                                                      |
+| `FieldVariantPicker`   | `VariantPicker`   | `string` (`name` is the visible legend unless `legend` is given — see `path`) |
+| `FieldSearchBar`       | `SearchBar`       | `string`                                                                      |
 
 Each takes `name` (the control's native `name`, and by default the field's path too), optional
 `path`, optional `rules` (vee-validate's own `RuleExpression`: a rule string, an object, a function,
@@ -750,14 +750,24 @@ label. Everything else its component takes is forwarded untouched, slots, `class
 included; the props it keeps back are `modelValue`, `invalid` and `error`, which are `Omit`ted from
 the type so passing one is a compile error rather than a prop that silently does nothing.
 
-**`path` is for the one control whose `name` is visible.** A `VariantPicker`'s `name` is the option
-name — "Size", "Colour" — drawn in the legend as well as used as the radios' shared native name, so
-without `path` the field would be called `Size` in `initialValues`, `validationSchema`, `apiErrors`
-and the `errors` slot prop, and either the legend or the key would have to be wrong:
+**`path` is for the one control whose `name` can be visible.** A `VariantPicker`'s `name` is drawn
+in the legend as well as used as the radios' shared native name, so with `name="Size"` and no `path`
+the field would be called `Size` in `initialValues`, `validationSchema`, `apiErrors` and the `errors`
+slot prop, and either the legend or the key would have to be wrong:
 
 ```vue
 <!-- the legend reads "Size"; values.size holds the choice -->
 <FieldVariantPicker name="Size" path="size" :options="sizes" />
+```
+
+A page with more than one picker sharing an option name needs a _unique_ `name` per picker, which
+is what `legend` is for — it separates the two jobs, so `name` is only the radios' grouping key and
+`legend` is the visible (and accessible) name of the group. `FieldVariantPicker` forwards it like
+every other `VariantPicker` prop:
+
+```vue
+<!-- the legend still reads "Size"; the radios group by a per-product name -->
+<FieldVariantPicker :name="`size-${sku}`" path="size" legend="Size" :options="sizes" />
 ```
 
 `path` defaults to `name`, so every other control needs nothing extra: a `RadioGroup`'s or
@@ -1569,7 +1579,8 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   required and always caller-supplied, per the spec's own Properties table ("Used in the legend and
   as the radio group name"). A page rendering more than one picker sharing an option name (two
   product cards each with their own "Size") must give each its own `name`
-  (`"size-<productId>"`) — this component does not namespace it.
+  (`"size-<productId>"`) — this component does not namespace it — and pass `legend` so the visible
+  (and accessible) name stays "Size" rather than the grouping key.
 - **`SearchBar`'s panel holds a `listbox` rather than being one.** The spec's Accessibility notes
   say "The panel is `role="listbox"` named 'Search suggestions'" — but the same section's `none`
   view puts a title and a line of advice inside that panel, above chips that _are_ options, and a
@@ -1666,9 +1677,9 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   lists it as text rather than linking to an id that would not exist.
 - **`path` on every `Field*`, for the one control that needs it.** The design spec's contract says
   a `Field*` "takes `name` and `rules`". That holds wherever `name` is the native form field name,
-  but a `VariantPicker`'s `name` is also its **visible** legend, so one `name` would have had to be
-  both the option name a customer reads and the key in `values`. `path` separates them and defaults
-  to `name`, so nothing else in the entry changes shape.
+  but a `VariantPicker`'s `name` is also its **visible** legend (unless `legend` overrides it), so
+  one `name` would have had to be both the option name a customer reads and the key in `values`.
+  `path` separates them and defaults to `name`, so nothing else in the entry changes shape.
 - **A `Form` never posts without scripting; `FormLayout` still does.** vee-validate's
   `handleSubmit` calls `preventDefault()` on the event it is given, so the spec's "The form still
   posts without scripting" acceptance criterion cannot hold for a form whose whole purpose is to

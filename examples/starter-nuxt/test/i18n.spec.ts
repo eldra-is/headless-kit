@@ -69,12 +69,47 @@ describe('useT', () => {
     expect(t('nav.menu')).toBe('Menu');
   });
 
-  // `{param}` interpolation has no shipped message left that uses it — every string with a
-  // placeholder (`gallery.imageOf`, `carousel.slideOf`) belonged to the hand-rolled primitives
-  // plan 3 replaced with `@eldrajs/ui`'s `Lightbox`/`Carousel`, which carry their own equivalent
-  // vocabulary through their own `useMessages` instead. `interpolate()` itself is exercised
-  // indirectly (a no-params call is still a call) by every other test in this file; a future
-  // block that needs `{param}` text back is what re-earns a dedicated test here.
+  // `{param}` interpolation is load-bearing again: 87 placeholders across the two locales, read by
+  // 56 block call sites. `interpolate()` used to have no direct test at all (only the indirect
+  // coverage a no-params call gives it), which the comment here claimed was fine because "no
+  // shipped message uses a placeholder" — true when the hand-rolled primitives owned those strings,
+  // long since not. These are its own assertions.
+  describe('{param} interpolation', () => {
+    it('substitutes a named parameter, in both locales', () => {
+      expect(
+        mountWithLocale('en-US')('footer.socialLinkName', {
+          brand: 'Northwind',
+          network: 'Instagram',
+        })
+      ).toBe('Northwind on Instagram');
+      expect(
+        mountWithLocale('is-IS')('footer.socialLinkName', {
+          brand: 'Northwind',
+          network: 'Instagram',
+        })
+      ).toBe('Northwind á Instagram');
+    });
+
+    it('substitutes every occurrence of the same parameter', () => {
+      // `gallery.viewLarger` carries `{index}`, `{count}` and `{alt}` — three distinct params in
+      // one string, which is what a single-pass replace over the wrong regex gets wrong.
+      expect(
+        mountWithLocale('en-US')('gallery.viewLarger', { index: 2, count: 9, alt: 'A glazed jug' })
+      ).toBe('View larger, image 2 of 9: A glazed jug');
+    });
+
+    it('accepts numbers as well as strings', () => {
+      expect(mountWithLocale('en-US')('header.cartMany', { count: 3 })).toContain('3');
+    });
+
+    it('leaves a placeholder in place when no matching param is given', () => {
+      // Better a visible `{network}` than a silently truncated sentence: the missing param is the
+      // caller's bug, and hiding it would make it invisible in every locale at once.
+      expect(mountWithLocale('en-US')('footer.socialLinkName', { brand: 'Northwind' })).toBe(
+        'Northwind on {network}'
+      );
+    });
+  });
 
   it('returns the key itself when it does not resolve to a message', () => {
     const t = mountWithLocale('en-US');

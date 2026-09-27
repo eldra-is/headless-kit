@@ -3,24 +3,20 @@ import { defineComponent, h } from 'vue';
 import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useT } from '../../app/composables/useT';
-import { pageBlockComponents } from '../support/pageBlocks';
-import fixture from '../../pages/home.page.json';
+import homePage from '../../pages/home.page.json';
+import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
 
-interface HomePageFixtureBlock {
-  apiId: string;
-  id: string;
-  data: Record<string, unknown>;
-}
-
-const blocks = fixture.blocks as HomePageFixtureBlock[];
+const fixture = homePage as unknown as PageFixture;
 
 /**
  * Renders the `pages/home.page.json` fixture the same way a real page does: the skip link
  * (`app/app.vue`'s own markup, copied here — `app.vue` itself is Nuxt-only and cannot be mounted
- * under Storybook's plain Vite build) followed by every listed block, in order, inside one
- * `<main id="main">`. `pageBlockComponents` (`stories/support/pageBlocks.ts`) is the same static apiId →
- * `Block.vue` map `test/support/mountPage.ts` renders a page fixture through, so this story shows
- * exactly what the page-level spec (`test/pages/home.spec.ts`) exercises.
+ * under Storybook's plain Vite build) followed by the fixture's three landmark regions —
+ * `announcement-bar` + `navigation` (the `banner`), then every remaining block inside
+ * `<main id="main">`, then the `footer` (the `contentinfo`). `renderPageFixtureRegions`
+ * (`stories/support/pageBlocks.ts`) is the same renderer `test/support/mountPage.ts` and
+ * `app/pages/[...slug].vue` split a page with, so this story shows exactly what the page-level
+ * spec (`test/pages/home.spec.ts`) exercises.
  */
 const HomePage = defineComponent({
   name: 'HomePageStory',
@@ -39,23 +35,7 @@ const HomePage = defineComponent({
         },
         () => t('nav.skipToContent')
       ),
-      h(
-        'main',
-        { id: 'main' },
-        blocks.map((block) => {
-          const component = pageBlockComponents[block.apiId];
-          if (component === undefined) {
-            throw new Error(
-              `Pages/Home story: no Block.vue registered for apiId "${block.apiId}" — add an ` +
-                'import and a map entry to stories/support/pageBlocks.ts.'
-            );
-          }
-          return h(component, {
-            key: block.id,
-            entry: { id: block.id, data: block.data },
-          });
-        })
-      ),
+      ...renderPageFixtureRegions(fixture, 'Pages/Home story'),
     ];
   },
 });

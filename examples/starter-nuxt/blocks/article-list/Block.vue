@@ -13,14 +13,23 @@
  * grid and hides the excerpt below 48rem of block width (`@max-tablet:hidden`, the same variant
  * `Breadcrumb`'s own collapsing trail uses).
  *
- * **Two documented package limits.** (1) `ContentCard`'s own contract renders no media slot at
+ * **Three documented package limits.** (1) `ContentCard`'s own contract renders no media slot at
  * all with no image — a plain card "renders as the surface variant" instead (its own acceptance
  * criteria) — so a missing cover image here becomes a padded, image-less card rather than the
  * design's literal striped placeholder; `Image`'s own live placeholder is real but only reachable
  * when `ContentCard` actually mounts an `<Image>`, which it never does with no `image`. (2)
  * `ContentCard`'s `ratio` has no `1x1`, so `list`'s below-48rem thumbnail stays the same 3:2 frame,
- * narrowed by the grid track rather than a true square. Neither is a fork of the component — both
- * follow its published contract as given.
+ * narrowed by the grid track rather than a true square. (3) **No image framing.** `ContentCard`
+ * takes its media as an `image` *prop* (`{src, alt, width, height}`) and exposes no media slot, so
+ * a card's image can only be rendered by the component itself — never through this theme's
+ * `UiImage`, which is what emits the `data-eldra-framing*` markers Studio's framing controls key
+ * off and applies the focal point/zoom. `items[].image` therefore declares no `metadata.framing`:
+ * offering an editor a framing control whose result the render ignores is worse than not offering
+ * it, and the alternative — forking `ContentCard` to add a media slot — is exactly what the
+ * starter's "never fork a package component" rule forbids (a media slot on `ContentCard` is a
+ * sub-project 1 addition to raise, not something to work around here). The 3:2 crop is taken from
+ * the top, as `block.json`'s own `helpText` says. None of the three is a fork — all follow the
+ * component's published contract as given.
  *
  * **No route reading.** Blocks may not read the URL — `StorefrontRoute` carries `page`, never a
  * path. So both the active chip and `hrefForPage` key off
@@ -61,7 +70,7 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -161,27 +170,9 @@ const paginationLinkAs = computed(() =>
 );
 
 /** `EmptyState.icon` (like `Badge.icon`/`FeatureCard.icon`) takes a bare, already-bound icon
- *  component with no props of its own — the same module-scope `useEldraIcon` adapter
- *  `pricing-table`'s own `StarIcon` builds, fixed to the one icon this block ever needs. */
-const FileTextIcon: Component = defineComponent({
-  name: 'ArticleListEmptyIcon',
-  setup() {
-    const svg = useEldraIcon('file-text');
-    return () => {
-      const markup = svg.value;
-      if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-      const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-      return h('svg', {
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-        innerHTML: body,
-      });
-    };
-  },
-});
+ *  component with no props of its own, so this goes through the theme's shared name→component
+ *  adapter (`app/composables/iconComponent.ts`). */
+const FileTextIcon: Component = iconComponent('file-text');
 
 interface CardView {
   key: number;

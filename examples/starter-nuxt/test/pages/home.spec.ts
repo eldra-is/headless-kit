@@ -1,16 +1,15 @@
 // @vitest-environment jsdom
-import { defineComponent, h } from 'vue';
-import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { Link } from '@eldrajs/ui';
-import { mountPage, type PageFixture } from '../support/mountPage';
-import { mountOptions } from '../support/mountBlock';
+import {
+  FOCUSABLE_SELECTOR,
+  expectPageLandmarks,
+  expectSkipLinkLandsAfterTheHeader,
+  mountPage,
+  mountPageWithSkipLink,
+  pageBlockRoots,
+  type PageFixture,
+} from '../support/mountPage';
 import { axe } from '../support/axe';
-import { pageBlockComponents } from '../../stories/support/pageBlocks';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../server/utils/tablerIcon';
-import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { useT } from '../../app/composables/useT';
 import fixture from '../../pages/home.page.json';
 
 // `pages/home.page.json` is a plain, literal JSON fixture — its block data is never imported from
@@ -55,67 +54,14 @@ const EXPECTED_SECTION_BACKGROUNDS = [
   'surface-strong', // footer
 ];
 
-// A focusable element by the same rule the package's own components rely on (no positive
-// `tabindex` appears anywhere in this starter — see `global-constraints.md` "Focus" — so DOM order
-// among these is tab order).
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
-  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-/**
- * The skip link is `app/app.vue`'s own markup (Nuxt-only, so it is never rendered by `mountPage`,
- * which only renders the `<main id="main">` a real page's `<NuxtPage />` fills) — copied here,
- * verbatim, the same way `stories/pages/home.stories.ts` copies it for the same reason, so the one
- * "skip link is the first focusable element" assertion sees the real combined landmark structure a
- * visitor tabs through on the actual page.
- */
-function mountHomeWithSkipLink() {
-  const SkipLinkAndPage = defineComponent({
-    name: 'SkipLinkAndHomePage',
-    setup() {
-      const t = useT();
-      return () => [
-        h(
-          Link,
-          {
-            href: '#main',
-            as: EldraRouterLink,
-            variant: 'standalone',
-            classes: {
-              root: 'bg-primary text-primary-contrast rounded-md sr-only px-4 py-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50',
-            },
-          },
-          () => t('nav.skipToContent')
-        ),
-        h(
-          'main',
-          { id: 'main' },
-          homeFixture.blocks.map((block) =>
-            h(pageBlockComponents[block.apiId]!, {
-              key: block.id,
-              entry: { id: block.id, data: block.data },
-            })
-          )
-        ),
-      ];
-    },
-  });
-
-  const { global } = mountOptions({ entry: { id: '', data: {} } });
-  const stubIconFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-  global.provide[ICON_FETCHER_KEY] = stubIconFetcher;
-  return mount(SkipLinkAndPage, { global, attachTo: document.body });
-}
-
 describe('home page (pages/home.page.json)', () => {
   it('lists the nine blocks in the spec’s order', () => {
     expect(homeFixture.blocks.map((block) => block.apiId)).toEqual(EXPECTED_APIID_ORDER);
   });
 
-  it('renders every block, in order, as a direct sibling inside <main id="main">', async () => {
+  it('renders every block, in order, across the page’s three landmark regions', async () => {
     const wrapper = await mountPage(homeFixture);
-    const main = wrapper.get('main#main');
-    const roots = [...main.element.children];
+    const roots = pageBlockRoots(wrapper);
     expect(roots).toHaveLength(9);
 
     // Each root identified by a stable marker that block already emits itself: the section's own
@@ -161,8 +107,7 @@ describe('home page (pages/home.page.json)', () => {
 
   it("keeps the hero's full top padding after the header (header takes no part in the adjacent-background collapse rule)", async () => {
     const wrapper = await mountPage(homeFixture);
-    const main = wrapper.get('main#main');
-    const [, header, hero] = [...main.element.children];
+    const [, header, hero] = pageBlockRoots(wrapper);
 
     expect(header!.hasAttribute('data-section-bg')).toBe(false);
     expect(header!.hasAttribute('data-section')).toBe(false);
@@ -172,7 +117,7 @@ describe('home page (pages/home.page.json)', () => {
   it('applies the page’s own overrides on top of each block’s merged mock + preview data', async () => {
     const wrapper = await mountPage(homeFixture);
     const main = wrapper.get('main#main');
-    const roots = [...main.element.children];
+    const roots = pageBlockRoots(wrapper);
 
     // trust-strip `columns` (not `inline`): the per-item body line only renders in `columns`.
     expect(main.text()).toContain('Delivered in 2–4 business days, carbon-neutral.');
@@ -226,28 +171,22 @@ describe('home page (pages/home.page.json)', () => {
     }
   });
 
-  it('has exactly one main, one header block and one footer block', async () => {
-    // The page harness (like `app/pages/[...slug].vue`) renders every block inside `<main>`, where
-    // a `<header>`/`<footer>` is not a banner/contentinfo landmark — so this asserts the page
-    // structure (one of each, no duplicates), not landmark roles. Rendering the header and footer
-    // blocks outside `<main>` is a route-template concern, not a block concern.
+  it('exposes exactly one banner, one main and one contentinfo landmark', async () => {
+    // `app/pages/[...slug].vue` renders the leading structure blocks before `<main>` and the
+    // trailing `footer` after it (`app/utils/pageStructure.ts`), so `navigation`'s `<header>` and
+    // `footer`'s `<footer>` are siblings of `<main>` and therefore really are the `banner` and
+    // `contentinfo` landmarks — inside `<main>` they would carry no landmark role at all.
     const wrapper = await mountPage(homeFixture);
-    const main = wrapper.get('main#main');
-
-    expect(wrapper.findAll('main#main')).toHaveLength(1);
-    expect(main.element.querySelectorAll('header')).toHaveLength(1);
-    expect(main.element.querySelectorAll('footer')).toHaveLength(1);
+    expectPageLandmarks(wrapper);
   });
 
-  it('puts the skip link first among the page’s focusable elements', () => {
-    const wrapper = mountHomeWithSkipLink();
-    const focusable = [...wrapper.element.querySelectorAll(FOCUSABLE_SELECTOR)];
-    expect(focusable.length).toBeGreaterThan(1);
+  it('puts the skip link first among the page’s focusable elements, landing after the header', async () => {
+    const wrapper = await mountPageWithSkipLink(homeFixture);
+    expectSkipLinkLandsAfterTheHeader(wrapper);
 
-    const skipLink = wrapper.get('a').element;
-    expect(skipLink.textContent).toBe('Skip to content');
-    expect(skipLink.getAttribute('href')).toBe('#main');
-    expect(focusable[0]).toBe(skipLink);
+    // Concretely, for this page: the header's menu/search/cart controls all come before `#main`.
+    const focusable = [...wrapper.element.querySelectorAll(FOCUSABLE_SELECTOR)];
+    expect(focusable[0]!.getAttribute('href')).toBe('#main');
 
     wrapper.unmount();
   });
@@ -266,20 +205,20 @@ describe('home page (pages/home.page.json)', () => {
 
   it('opens the mobile menu as a dialog from the menu button, and Esc returns focus to it', async () => {
     const wrapper = await mountPage(homeFixture, { attachTo: document.body });
-    const main = wrapper.get('main#main');
-
-    const menuButton = main.get('button[aria-haspopup="dialog"][aria-controls]');
+    // The menu button lives in the header, which is a sibling of `<main>` now — so this reads off
+    // the whole page rather than `main`.
+    const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
     menuButton.element.focus();
     await menuButton.trigger('click');
 
-    const dialog = main.get('dialog');
+    const dialog = wrapper.get('dialog');
     expect(dialog.attributes('open')).toBe('');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await new Promise((resolve) => setTimeout(resolve));
     await wrapper.vm.$nextTick();
 
-    expect(main.get('dialog').attributes('open')).toBeUndefined();
+    expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
     expect(document.activeElement).toBe(menuButton.element);
 
     wrapper.unmount();
@@ -287,10 +226,13 @@ describe('home page (pages/home.page.json)', () => {
 
   it('resolves every aria-labelledby / aria-describedby / for target, and every id is unique', async () => {
     const wrapper = await mountPage(homeFixture);
-    const main = wrapper.get('main#main');
+    // The whole page, not just `<main>`: the header and footer are siblings of it now, and a
+    // duplicate id between the header's search field and a block's own is exactly the kind of
+    // collision this guards.
+    const page = wrapper.element;
 
     const ids = new Map<string, number>();
-    main.element.querySelectorAll('[id]').forEach((el) => {
+    page.querySelectorAll('[id]').forEach((el) => {
       ids.set(el.id, (ids.get(el.id) ?? 0) + 1);
     });
     const duplicates = [...ids.entries()].filter(([, count]) => count > 1);
@@ -302,10 +244,10 @@ describe('home page (pages/home.page.json)', () => {
     // require `aria-controls` targets to resolve; every other reference type always must.
     const dangling: string[] = [];
     for (const attr of ['aria-labelledby', 'aria-controls', 'aria-describedby', 'for']) {
-      main.element.querySelectorAll(`[${attr}]`).forEach((el) => {
+      page.querySelectorAll(`[${attr}]`).forEach((el) => {
         if (attr === 'aria-controls' && el.getAttribute('aria-expanded') === 'false') return;
         for (const id of el.getAttribute(attr)!.split(/\s+/)) {
-          if (id && !main.element.querySelector(`#${CSS.escape(id)}`)) {
+          if (id && !page.querySelector(`#${CSS.escape(id)}`)) {
             dangling.push(`${attr}="${id}" on <${el.tagName.toLowerCase()}>`);
           }
         }

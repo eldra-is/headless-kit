@@ -99,8 +99,8 @@
                 "fieldId": "image",
                 "name": "Image",
                 "type": "media",
-                "helpText": "3:2 crop. Decorative; the title carries the meaning.",
-                "metadata": { "multiple": false, "framing": true, "framingAspectRatio": "3/2" }
+                "helpText": "3:2 crop, taken from the top. Decorative; the title carries the meaning.",
+                "metadata": { "multiple": false }
               }
             ]
           }

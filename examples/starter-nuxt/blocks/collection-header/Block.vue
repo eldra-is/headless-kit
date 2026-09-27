@@ -363,6 +363,9 @@ const textColumnClass = computed(() =>
               :class="descriptionClass"
               @keydown="onDescriptionKeydown"
             >
+              <!-- Under this block's own `h1` (the collection title), so the description's own
+                   headings start at `h2` — an inserted `h1` can never become a second one on the
+                   collection page. A floor, never an offset: h2/h3 in the document stay put. -->
               <EldraRichText
                 v-if="hasFieldDescription"
                 class="prose-eldra text-muted"
@@ -370,6 +373,7 @@ const textColumnClass = computed(() =>
                 field="description"
                 api-id="collection-header"
                 :doc="fieldDescription"
+                :min-heading-level="2"
               />
               <p v-else>{{ storeDescription }}</p>
             </div>

@@ -3,7 +3,8 @@
 // The product sample page (`pages/product.page.json`): announcement bar, header, breadcrumbs,
 // the product-detail buy box for "Merino crew sweater", a related-products carousel, an FAQ and
 // the footer, rendered together through `mountPage` exactly as `app/pages/[...slug].vue` renders
-// a real page (every block, in order, inside one `<main id="main">`).
+// a real page: the leading structure blocks (announcement bar + header) before `<main id="main">`,
+// everything else inside it, the footer after it — see `app/utils/pageStructure.ts`.
 //
 // Carousel counts are read off the real demo storefront (`app/storefront/demo.ts`), not assumed:
 // `RELATED_HANDLES` lists 7 handles including "merino-crew-sweater" itself; `product-carousel`'s
@@ -15,7 +16,13 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { axe } from '../support/axe';
-import { mountPage } from '../support/mountPage';
+import {
+  expectPageLandmarks,
+  expectSkipLinkLandsAfterTheHeader,
+  mountPage,
+  mountPageWithSkipLink,
+  pageBlockRoots,
+} from '../support/mountPage';
 import productPage from '../../pages/product.page.json';
 import type { PageFixture } from '../support/mountPage';
 
@@ -45,15 +52,14 @@ describe('product sample page', () => {
     ]);
   });
 
-  it('renders every block as a direct child of <main>, in DOM order', async () => {
+  it('renders every block once, in DOM order, across the page’s three landmark regions', async () => {
     const wrapper = await mountProductPage();
-    const main = wrapper.get('main#main');
-    const children = [...main.element.children];
+    const children = pageBlockRoots(wrapper);
     expect(children).toHaveLength(fixture.blocks.length);
 
     // Order, by a stable marker each block already renders (mirrors
     // `test/support/mountPage.spec.ts`'s own html.indexOf pattern).
-    const html = main.html();
+    const html = wrapper.html();
     const markers = [
       'Free shipping on orders over $80', // announcement-bar
       'aria-label="Primary navigation"', // navigation
@@ -145,9 +151,7 @@ describe('product sample page', () => {
 
   it('shares the same ground across product-detail, the carousel and the FAQ, with only the footer changing it', async () => {
     const wrapper = await mountProductPage();
-    const main = wrapper.get('main#main');
-    const children = [...main.element.children];
-    const [, , , productDetail, carousel, faq, footer] = children;
+    const [, , , productDetail, carousel, faq, footer] = pageBlockRoots(wrapper);
     expect(productDetail!.getAttribute('data-section-bg')).toBe('none');
     expect(carousel!.getAttribute('data-section-bg')).toBe('none');
     expect(faq!.getAttribute('data-section-bg')).toBe('none');
@@ -282,6 +286,21 @@ describe('product sample page', () => {
     expect(text).toContain('$80');
     expect(text).toContain('US returns are free');
     expect(text).toContain('400°F');
+    wrapper.unmount();
+  });
+
+  it('exposes exactly one banner, one main and one contentinfo landmark', async () => {
+    // The announcement bar and header render before `<main id="main">` and the footer after it
+    // (`app/utils/pageStructure.ts`), which is the only way `<header>`/`<footer>` map to the
+    // `banner`/`contentinfo` roles at all.
+    const wrapper = await mountProductPage();
+    expectPageLandmarks(wrapper);
+    wrapper.unmount();
+  });
+
+  it('puts the skip link first, landing the visitor after the header', async () => {
+    const wrapper = await mountPageWithSkipLink(fixture);
+    expectSkipLinkLandsAfterTheHeader(wrapper);
     wrapper.unmount();
   });
 

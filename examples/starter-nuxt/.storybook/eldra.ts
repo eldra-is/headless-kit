@@ -16,7 +16,7 @@ import { STOREFRONT_KEY } from '../app/storefront/types';
  * default — there is no Studio bridge in Storybook), and a fixed content
  * locale. `provideEldra` builds the rest of the context
  * (`@eldrajs/theme-vue`'s own `EldraContext`) with its own safe defaults,
- * which is all a block needs: none of the ten starter blocks read
+ * which is all a block needs: none of the 33 starter blocks read
  * `designTokens` directly, only the CSS custom properties
  * `virtual:eldra/tokens.css` sets (imported once in `preview.ts`).
  *

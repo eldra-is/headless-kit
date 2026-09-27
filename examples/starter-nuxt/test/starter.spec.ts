@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -99,7 +99,26 @@ describe('starter theme', () => {
         block.fields.map((field) => field.fieldId),
       ])
     );
-    expect(fields).toMatchObject({
+    const expectedFields: Record<string, string[]> = {
+      // Every one of the 33 blocks has its field list here — the map used to cover 31, leaving
+      // `announcement-bar` and `newsletter` with only the manifest version rule behind a field
+      // rename or reorder, not the explicit list every sibling block has.
+      'announcement-bar': ['variant', 'message', 'linkLabel', 'linkHref', 'dismissable'],
+      newsletter: [
+        'variant',
+        'heading',
+        'text',
+        'fieldLabel',
+        'placeholder',
+        'buttonLabel',
+        'consent',
+        'requireConsentCheckbox',
+        'consentCheckboxLabel',
+        'successTitle',
+        'successText',
+        'list',
+        'sectionBackground',
+      ],
       hero: [
         'variant',
         'eyebrow',
@@ -392,7 +411,10 @@ describe('starter theme', () => {
         'shopAgainLinkHref',
         'helpLinks',
       ],
-    });
+    };
+    expect(fields).toMatchObject(expectedFields);
+    // And the map covers every block, so a new one cannot land without its field list.
+    expect(Object.keys(expectedFields).sort()).toEqual([...expectedBlocks].sort());
 
     // Starter mocks cannot carry organization-specific asset IDs. Keep media
     // fields with asset-free mock values optional so a freshly inserted block
@@ -526,4 +548,215 @@ describe('starter theme', () => {
       rmSync(scratchRoot, { recursive: true, force: true });
     }
   }, 360_000);
+  /**
+   * The name→icon-component adapter lives in exactly one place
+   * (`app/composables/iconComponent.ts`). It used to be copy-pasted into eight blocks — nine copies
+   * of one fragile regex over Tabler's markup, in a codebase the customer is expected to edit — and
+   * the copies also dropped what routing through `@eldrajs/ui`'s `Icon` adds: the spec's stroke
+   * width, the four sizes and the decorative/labelled ARIA state. This keeps it at one.
+   */
+  it('no block re-implements the Tabler markup transform or hand-rolls an icon <svg>', () => {
+    const blocksDir = join(templateDir, 'blocks');
+    const reimplemented: string[] = [];
+    const handRolled: string[] = [];
+
+    for (const apiId of expectedBlocks) {
+      for (const file of blockSourceFiles(join(blocksDir, apiId))) {
+        const source = readFileSync(file, 'utf8');
+        const where = file.slice(blocksDir.length + 1);
+        // The transform: the `<svg …>` head strip that `tablerSvgBody` owns.
+        if (source.includes('<svg\\b[^>]*>')) reimplemented.push(where);
+        // A hand-written icon element in a template: an `<svg` with a `viewBox`, which is what a
+        // copied Tabler path looks like. `EldraIcon`/`iconComponent` is the only way icons render.
+        if (/<svg[\s\n][^>]*viewBox/.test(source)) handRolled.push(where);
+      }
+    }
+
+    expect(
+      reimplemented,
+      'use `tablerSvgBody`/`renderTablerSvg` from `app/composables/iconComponent.ts` instead of ' +
+        "re-implementing Tabler's markup transform"
+    ).toEqual([]);
+    expect(
+      handRolled,
+      'render icons through `EldraIcon` (a template) or `iconComponent()` (a package prop that ' +
+        'takes a component) — never a hand-written `<svg>` with a copied path'
+    ).toEqual([]);
+  });
+
+  /**
+   * The constraint every customer block is judged by — "no Nuxt globals, no `@eldrajs/sdk`, no
+   * auto-imports in `blocks/**`" (`docs/starter-kit.md`) — had nothing guarding it:
+   * `test/deps.spec.ts` only checks that bare specifiers resolve to this package's own
+   * `package.json`, which a Nuxt auto-import never appears in at all. A block that reaches for
+   * `useRoute()` still renders in the Nuxt app and only breaks in Storybook, so this is exactly the
+   * kind of drift review catches late or not at all.
+   */
+  it('no block uses a Nuxt global, an auto-import or @eldrajs/sdk', () => {
+    const blocksDir = join(templateDir, 'blocks');
+    // `useStorefront()` is deliberately not here: it is a plain `inject()` off `STOREFRONT_KEY`
+    // (`app/composables/useStorefront.ts`), imported explicitly like every other `app/**` helper.
+    const FORBIDDEN = [
+      'useRoute(',
+      'useRouter(',
+      'useHead(',
+      'useSeoMeta(',
+      'useFetch(',
+      'useAsyncData(',
+      'useState(',
+      'useRuntimeConfig(',
+      'useNuxtApp(',
+      '$fetch(',
+      '<NuxtLink',
+      "from '@eldrajs/sdk'",
+      "from '#imports'",
+      "from '#app'",
+    ];
+    const offenders: string[] = [];
+
+    for (const apiId of expectedBlocks) {
+      for (const file of blockSourceFiles(join(blocksDir, apiId))) {
+        const source = readFileSync(file, 'utf8');
+        for (const needle of FORBIDDEN) {
+          // Only real code, never prose: every one of these blocks documents the rule in its own
+          // comments, so a bare substring scan would flag the documentation.
+          const inCode = source
+            .split('\n')
+            .filter((line) => !/^\s*(\*|\/\/|<!--)/.test(line))
+            .join('\n');
+          if (inCode.includes(needle)) {
+            offenders.push(`${file.slice(blocksDir.length + 1)} uses ${needle}`);
+          }
+        }
+      }
+    }
+
+    expect(
+      offenders,
+      'blocks/** may not use a Nuxt global, a Nuxt auto-import or `@eldrajs/sdk` — every `vue`/' +
+        '`@eldrajs/*` import is explicit, which is what lets a block render in Storybook with no ' +
+        'Nuxt build step. Route a same-site link through `app/components/EldraRouterLink.vue`, and ' +
+        'commerce data through `useStorefront()`.'
+    ).toEqual([]);
+  });
+
+  /**
+   * `metadata.framing` is a promise to the editor: Studio shows framing controls for that field, and
+   * the render honours them only if it goes through this theme's `UiImage`, which is what emits the
+   * `data-eldra-framing*` markers and applies the focal point/zoom. `article-list` declared framing
+   * on `items[].image` and then mapped the media into `ContentCard`'s `image` *prop* — a component
+   * that exposes no media slot, so the theme can never render that image itself — leaving an editor
+   * with controls the page ignored. The metadata is gone from that field now (see
+   * `blocks/article-list/Block.vue`'s "Three documented package limits"), and this keeps the
+   * promise honest for every block: declare framing only where `UiImage` does the rendering.
+   */
+  it('every block declaring metadata.framing renders through UiImage', () => {
+    const blocksDir = join(templateDir, 'blocks');
+    const offenders: string[] = [];
+    let framingFields = 0;
+
+    for (const apiId of expectedBlocks) {
+      const manifest = JSON.parse(
+        readFileSync(join(blocksDir, apiId, 'block.json'), 'utf8')
+      ) as ThemeBlockManifest;
+      const declared = framingFieldIds(manifest.fields ?? []);
+      framingFields += declared.length;
+      if (declared.length === 0) continue;
+      const source = blockSourceFiles(join(blocksDir, apiId))
+        .map((file) => readFileSync(file, 'utf8'))
+        .join('\n');
+      if (!source.includes('UiImage')) {
+        offenders.push(`${apiId} (${declared.join(', ')})`);
+      }
+    }
+
+    // Guards the scan itself: fourteen media fields opt into framing across the block set.
+    expect(framingFields).toBeGreaterThanOrEqual(14);
+    expect(
+      offenders,
+      'a field with `metadata.framing` must be rendered through `app/components/ui/UiImage.vue` — ' +
+        'it is what emits the `data-eldra-framing*` markers Studio keys off; otherwise drop the ' +
+        'metadata rather than offering a control the render ignores'
+    ).toEqual([]);
+  });
+
+  /**
+   * A rich-text field cannot declare its own heading outline: `metadata.toolbar`'s `heading` control
+   * is one level-agnostic id, so an editor can insert any level anywhere. The page owns the outline,
+   * so each block passes `EldraRichText`'s `minHeadingLevel` floor for the place its own document
+   * sits in (the clamping itself lives in `@eldrajs/theme-core`'s `clampHeadingLevel`). That prop
+   * landed with exactly one of the nine call sites using it, which left an `h1` typed into an
+   * article body producing a second `<h1>` on the article page — the very invariant
+   * `test/pages/article.spec.ts` asserts, passing only because the fixture happens to use levels
+   * 2/2/2/3. The floor is a per-call-site decision, so it cannot be enforced inside the component;
+   * this scans the source instead, the same shape as `packages/ui`'s own hygiene spec. Each floor's
+   * *value* is argued in a comment next to the call site it belongs to, and
+   * `test/richText.spec.ts` asserts the behaviour for `article`.
+   */
+  it('every EldraRichText call site in blocks/** passes a min-heading-level', () => {
+    const blocksDir = join(templateDir, 'blocks');
+    const offenders: string[] = [];
+    let callSites = 0;
+
+    for (const apiId of expectedBlocks) {
+      for (const file of blockSourceFiles(join(blocksDir, apiId))) {
+        const source = readFileSync(file, 'utf8');
+        // Each `<EldraRichText …>` element up to its closing `/>` — the theme never writes it with
+        // a separate closing tag.
+        for (const match of source.matchAll(/<EldraRichText\b[\s\S]*?\/>/g)) {
+          callSites += 1;
+          if (!match[0].includes('min-heading-level')) {
+            offenders.push(file.slice(blocksDir.length + 1));
+          }
+        }
+      }
+    }
+
+    // Guards the scan itself: the starter renders rich text in nine places today.
+    expect(callSites).toBeGreaterThanOrEqual(9);
+    expect(
+      offenders,
+      'a rich-text document has no heading outline of its own — pass `:min-heading-level` for the ' +
+        'level the document sits under in this block, and say why in a comment next to it'
+    ).toEqual([]);
+  });
 });
+
+/** Every shipped `.vue` under one block directory (never its `__tests__/`). */
+function blockSourceFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === '__tests__') continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...blockSourceFiles(full));
+    else if (entry.name.endsWith('.vue')) out.push(full);
+  }
+  return out;
+}
+
+interface ThemeBlockManifestField {
+  fieldId: string;
+  type: string;
+  metadata?: {
+    framing?: boolean;
+    item?: ThemeBlockManifestField;
+    fields?: ThemeBlockManifestField[];
+  };
+}
+interface ThemeBlockManifest {
+  fields?: ThemeBlockManifestField[];
+}
+
+/** Every `media` field id under one block that opts into framing, nested fields included. */
+function framingFieldIds(fields: ThemeBlockManifestField[], prefix = ''): string[] {
+  const out: string[] = [];
+  for (const field of fields) {
+    const path = prefix === '' ? field.fieldId : `${prefix}.${field.fieldId}`;
+    if (field.type === 'media' && field.metadata?.framing === true) out.push(path);
+    const item = field.metadata?.item;
+    if (item !== undefined) out.push(...framingFieldIds([item], path));
+    const nested = field.metadata?.fields;
+    if (nested !== undefined) out.push(...framingFieldIds(nested, path));
+  }
+  return out;
+}

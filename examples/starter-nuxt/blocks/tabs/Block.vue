@@ -234,11 +234,15 @@ useRichTextScrollRegions(panelsRoot, (caption) => caption ?? t('tabsBlock.richTe
               />
               <div class="flex flex-col gap-4" :class="tabHasImage(tab) ? '' : 'max-w-[40rem]'">
                 <h3 :class="panelHeadingClass">{{ tab.heading }}</h3>
+                <!-- The panel's own `tab.heading` above is an `h3` (under the block's `h2`), so
+                     the body's headings start at `h4`. Floored at 4, not 3: an `h3` here would sit
+                     level with the panel's own title rather than under it. -->
                 <EldraRichText
                   class="prose-eldra [&>*+*]:mt-3"
                   :entry-id="entryId"
                   :field="`tabs.${index}.body`"
                   :doc="tab.body"
+                  :min-heading-level="4"
                 />
                 <Link
                   v-if="tabHasLink(tab)"

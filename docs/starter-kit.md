@@ -195,10 +195,28 @@ which is what keeps an icon library out of its dependencies. Most blocks with a 
 labelled icon field (`navigation`'s mega-menu triggers, `footer`'s social links, `trust-strip`'s
 payment marks and delivery promises, `feature-grid`'s per-item icon, `faq`'s disclosure chevrons,
 `product-detail`'s stock/perk rows, and more) render it through `EldraIcon`, never a hand-rolled
-`<svg>` or a direct `Icon` call with a hard-coded component. Every media-bearing block —
+`<svg>` or a direct `Icon` call with a hard-coded component.
+
+Some `@eldrajs/ui` props take the icon _component_ rather than a name — `FeatureCard.icon`,
+`Badge.icon`, `EmptyState.icon`, `EditorPlaceholder.icon`, `Select.leadingIcon`, `Button.iconLeft` —
+and `EldraIcon` is a template, so it cannot be handed straight through. **`iconComponent(name)`**
+from `app/composables/iconComponent.ts` is the one helper that builds one, caching per name at module
+scope so a re-render never remounts (and re-fetches) the same icon; `EMPTY_ICON` from the same module
+is the inert stand-in for a required `icon` prop with nothing to show. `EldraIcon` is built on the
+same module's `tablerSvgBody`/`renderTablerSvg`, so the markup transform exists once. Import it
+explicitly, like every other `app/**` helper a block uses; `test/starter.spec.ts` fails if a block
+re-implements the transform or hand-rolls an icon `<svg>`. Every media-bearing block —
 `hero`, `gallery`, `testimonials`, `product-carousel`, `article`, `team`, `logo-cloud`, the
 commerce cards, and the rest — renders its images through `UiImage`, never `Image` directly, so
 Studio's framing overlay works the same way across all of them.
+
+`metadata.framing` on a media field is a promise to the editor — Studio shows framing controls for it
+— and only `UiImage` can keep that promise, because it is what emits the `data-eldra-framing*`
+markers and applies the focal point and zoom. So declare it **only** on a field the block renders
+through `UiImage`: `test/starter.spec.ts` fails otherwise. A field whose media reaches the DOM some
+other way (a package component that takes its image as a prop and exposes no media slot, like
+`ContentCard`) declares no framing rather than offering a control the render ignores — that is
+`article-list`'s case, documented in its own `Block.vue`.
 
 ## 3. The block contract
 
@@ -241,7 +259,7 @@ assertion in the block's test.
 palette, so it must be a write-valid shape for every field type — most importantly, **media fields
 are absent** (never `null`, never a fixture object): Core's write-side media validator only accepts
 `{ "assetId": "<uuid>", "framing"?: {...} }`, and a block whose `mock.json` populated a media field
-with a Storybook fixture used to 400 on every fresh insert (task-9b-live-report.md, Finding 2). Every
+with a Storybook fixture is rejected with a 400 on every fresh insert. Every
 other field is still the canonical demo content, not filler — write copy like a real store would, no
 lorem ipsum; the starter's fictional store is "Northwind Goods" (home and lifestyle goods). Because
 `mock.json` carries no media, `Block.vue` must render a sensible empty state with none (no crash,
@@ -277,6 +295,17 @@ returns `null`; a same-site `href` (`isInternalHref`) is routed by passing
 `app/components/EldraRouterLink.vue` as the destination component's `as`/`linkAs` prop
 (`Link`, `Button`, `Breadcrumb`, `Pagination`, and the card components all take it).
 
+**The same rule applies to storefront-derived URLs, and it is applied centrally.** A product's `url`,
+a search result's `targetUrl`, a cart line's or an order line's link come off a gateway response, not
+out of the CMS, and they used to be the one class of URL in the theme that reached the DOM
+unchecked. They are sanitised in exactly two places now: `app/storefront/gateway.ts`'s
+`mapSearchResponse` (a result whose `targetUrl` does not survive `safeHref` is dropped, rather than
+becoming a card that links to `#`), and `toProductCardEntries` in `app/storefront/toProductCard.ts` —
+the one function `collection-grid`, `product-carousel` and `search` build their card lists through. It
+returns per card the sanitised item, the `ProductCard` data and whether the destination is same-site,
+so `link-as` follows `isInternalHref` exactly as a CMS-authored link does. `ProductCard`'s `url` is
+required — a card always renders a link — so an item with an unusable URL is dropped outright.
+
 **Versions and migrations.** `.eldra/manifest.json` is committed, and `eldra-theme validate` diffs
 every block's current schema against it. Dropping a field, changing its `type`/`localized`/
 cardinality, or removing it without bumping `block.json`'s `version` is a validation error — Core
@@ -301,11 +330,39 @@ shape: the rule only ever compares a schema against its own prior manifest entry
 page rather than one block in isolation. Each is `{ template, title, blocks: [{ apiId, id, data }] }`,
 the same shape a real CMS page document has, hand-authored with the same Northwind content
 convention as `mock.json`. They feed three things: `stories/pages/*.stories.ts` (a Storybook page
-story rendering every listed block in order inside one `<main id="main">`, sharing
-`stories/support/pageBlocks.ts`'s apiId → `Block.vue` map with the tests below), `test/pages/*.spec.ts`
+story rendering the fixture's blocks in the same three landmark regions the route does — see
+"Page structure and landmarks" below — sharing `stories/support/pageBlocks.ts`'s apiId → `Block.vue`
+map and its `renderPageFixtureRegions` renderer with the tests below), `test/pages/*.spec.ts`
 (the page-level gate — see "Testing and accessibility gates"), and `test/support/mountPage.ts`,
 which both of those build on. A page fixture is not a schema Core validates on its own — it is
 proven correct by rendering it through both channels.
+
+**Page structure and landmarks.** A CMS page is one flat, author-ordered block list, but a document
+needs three outer landmarks, and `<header>`/`<footer>` only carry the `banner`/`contentinfo` role
+while they are **not** inside a sectioning element. So `app/pages/[...slug].vue` partitions that list
+(`app/utils/pageStructure.ts`) and renders three sibling `EldraBlockZone`s: the leading run of
+`announcement-bar`/`navigation` blocks first, then everything else inside `<main id="main">`, then a
+trailing `footer` block. Without the split, every scaffolded page had neither landmark and
+`app/app.vue`'s "Skip to content" link — which targets `#main` — landed the visitor _above_ the
+navigation it exists to skip.
+
+The rule is positional on purpose: only a _leading_ run counts as the header (a second announcement
+bar halfway down the page stays where the author put it) and only a _trailing_ `footer` counts as the
+contentinfo (a `footer` block elsewhere stays in `<main>`, where `<footer>` is legal markup for a
+section's own footer and carries no landmark role). `breadcrumbs` deliberately stays inside `<main>`:
+the spec places it below the header as page content, and it renders a `<nav>`, which is a landmark
+wherever it sits. Three zones rather than one is safe because `EldraBlockZone` is a stateless
+renderer — it maps entries to their block component inside a `data-eldra-block` wrapper and holds no
+per-zone state or registration — and Studio's preview overlay addresses blocks by those attributes
+document-wide, so editing, selection and live block updates behave exactly as they did with one zone.
+
+**One documented exception: a layout-driven page.** When a page (or its template) carries a layout,
+`EldraLayout` renders the same flat block list through an authored layout tree whose nodes reference
+block ids — nothing can be partitioned out of it without breaking the layout. Such a page therefore
+keeps its header and footer blocks inside `<main>` and has no `banner`/`contentinfo`. Closing that
+needs a layout-level region concept in the SDK, not a change in the route; the route template says so
+at the `structure` computed, and `test/slugPage.spec.ts` asserts that the layout branch renders each
+block exactly once (no double render from the header/footer zones).
 
 **The storefront source, and its demo fallback.** Every commerce block (`product-detail`,
 `product-carousel`, `collection-grid`, `collection-header`, `cart`, `search`, `order-status`,
@@ -320,6 +377,14 @@ module already resolved and mapping live gateway responses into the theme's own 
 instead provide `createDemoStorefront` (`app/storefront/demo.ts`) — the hand-built Northwind
 fixture data every block spec, story and page fixture renders against, with no network at all.
 A block never knows which one it got.
+
+The demo source answers the _whole_ request, not just the paging part: `search.run` honours the query
+text, and `catalog.collectionProducts` honours `sort` and `filters` (category, size, colour,
+availability and a price range in whole dollars) and returns the filtered `total`, with facet counts
+computed over the collection's own items so the filter UI never offers a value that returns nothing.
+That matters beyond tidiness — the scaffolded site and the collection sample page are both
+demo-backed, so a demo that ignored `filters` would show a shopper their filter changing the URL, the
+chips and the active-filter row while the grid and the count stayed exactly as they were.
 
 `forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
 back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts
@@ -350,11 +415,14 @@ boilerplate. Generation re-runs on every `storybook dev`/`build-storybook` (`.st
 `viteFinal`), so `stories/generated/` is disposable — never hand-edit it.
 
 **Page stories.** `stories/pages/*.stories.ts` — one per `pages/*.page.json` fixture (§3) — render
-that fixture's full block list, in order, inside one `<main id="main">`, the same skip-link markup
+that fixture's full block list in the same three landmark regions the route renders it in (§3, "Page
+structure and landmarks"), preceded by the same skip-link markup
 `app/app.vue` renders on a real page (`app.vue` itself can't be mounted under Storybook's plain
 Vite build, since it's Nuxt-only, so the story copies that one snippet). Each imports its fixture
 directly and maps `apiId` → `Block.vue` through `stories/support/pageBlocks.ts`, the same static map
-`test/support/mountPage.ts` renders through, so a page story shows exactly what its matching
+`test/support/mountPage.ts` renders through — including `renderPageFixtureRegions`, the one function
+that performs the header/`<main>`/footer split for the stories, the page specs and (through
+`app/utils/pageStructure.ts`) the route itself — so a page story shows exactly what its matching
 `test/pages/*.spec.ts` exercises. `pageBlocks.ts` lives under `stories/` rather than `app/utils/` on
 purpose: an `app/**` file importing every block would pull each `Block.vue`'s template into
 `nuxi typecheck`'s program (blocks are otherwise only reached through the code-split
@@ -370,12 +438,17 @@ pnpm --filter starter-nuxt previews           # regenerate blocks/<id>/preview.p
 **Previews are generated, and checked for staleness.** `scripts/previews.mjs` builds Storybook,
 serves the static output, and screenshots each block's `Default` story at 1280×auto with Playwright
 Chromium into `blocks/<id>/preview.png` (the theme plugin copies these into `.eldra/previews/` for
-Studio's block picker). `.eldra/previews.json` records a content hash per block — the hash of that
-block's `Block.vue` + `mock.json` **plus `preview.json` (when present) plus `main.css`**, since a
-shared style change can change every block's rendered pixels. `test/previewsFresh.spec.ts` fails with
+Studio's block picker). `.eldra/previews.json` records a content hash per block — the hash of
+**every file under `blocks/<id>/`** except `__tests__/` and `preview.png` itself, **plus
+`main.css`**, **plus the resolved `@eldrajs/ui` version**. The whole block directory rather than a
+named file list, because a block's rendered output is more than `Block.vue`: `parts/*.vue`, a helper
+module, `block.json`'s own `variant` options and `preview.json` all change what the screenshot shows,
+and a named list silently goes stale the first time a block grows a new file. `main.css` and the
+package version are in it because a shared style or a component change can repaint every block with
+nothing in the theme touched. `test/previewsFresh.spec.ts` fails with
 "run pnpm previews" if any hash is
-out of date, so **run `pnpm --filter starter-nuxt previews` after any block or `main.css` change and
-commit the result** — `preview.png`, `.eldra/previews/*.png`, and `.eldra/previews.json` are all
+out of date, so **run `pnpm --filter starter-nuxt previews` after any block, `main.css` or
+`@eldrajs/ui` change and commit the result** — `preview.png`, `.eldra/previews/*.png`, and `.eldra/previews.json` are all
 tracked. The starter declares its own `@playwright/test` devDependency for this, so `pnpm previews`
 works in a standalone copy too; run `pnpm exec playwright install chromium` once locally before the
 first use.
@@ -423,7 +496,10 @@ axe(wrapper.element)).toHaveNoViolations()` over the **whole rendered page**, no
 exactly one `<h1>` with no skipped heading level across every block's headings combined; every
 `aria-labelledby`/`aria-describedby`/`for` target resolves and every `id` on the page is unique
 (two block instances that both generate an id must never collide — this is what `useUiId()`
-guards); the skip link is the first focusable element; and the adjacent-same-background-padding
+guards); exactly one `banner`, one `main` and one `contentinfo` landmark, in that document order,
+with neither the `<header>` nor the `<footer>` inside `<main>`; the skip link is the first focusable
+element **and every focusable element in the header precedes `#main`**, so following it really does
+skip the navigation; and the adjacent-same-background-padding
 collapse rule (§1, "two adjacent same-background sections drop the second's top padding") behaves
 correctly across real block boundaries — including that a non-`Section` block like `breadcrumbs`
 (no `data-section`/`data-section-bg` at all) takes no part in it, so the block after it keeps its

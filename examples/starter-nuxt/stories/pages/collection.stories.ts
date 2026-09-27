@@ -4,15 +4,16 @@ import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useT } from '../../app/composables/useT';
 import fixture from '../../pages/collection.page.json';
-import { pageBlockComponents, type PageFixture } from '../support/pageBlocks';
+import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
 
 const page = fixture as unknown as PageFixture;
 
 /**
  * Renders the collection sample page fixture (`pages/collection.page.json`) the same way a real
  * route would: the skip link from `app/app.vue` (copied here — stories cannot mount `app.vue`,
- * which is Nuxt-only) followed by every fixture block, in order, as a sibling inside
- * `<main id="main">`. The blocks read the same `EldraContext`/messages/locale/currency/icon
+ * which is Nuxt-only) followed by the fixture's three landmark regions — the leading structure
+ * blocks (`announcement-bar`/`navigation`) as the `banner`, every remaining block inside
+ * `<main id="main">`, and the trailing `footer` as the `contentinfo`. The blocks read the same `EldraContext`/messages/locale/currency/icon
  * fetcher/demo storefront every other story gets from `.storybook/preview.ts`'s global
  * `withEldraContext` decorator (`.storybook/eldra.ts`).
  */
@@ -34,20 +35,7 @@ const CollectionPage = defineComponent({
           },
           { default: () => t('nav.skipToContent') }
         ),
-        h(
-          'main',
-          { id: 'main' },
-          page.blocks.map((block) => {
-            const component = pageBlockComponents[block.apiId];
-            if (component === undefined) {
-              throw new Error(
-                `Pages/Collection story: no Block.vue registered for apiId "${block.apiId}" — add ` +
-                  'an import and a map entry to stories/support/pageBlocks.ts.'
-              );
-            }
-            return h(component, { key: block.id, entry: { id: block.id, data: block.data } });
-          })
-        ),
+        ...renderPageFixtureRegions(page, 'Pages/Collection story'),
       ]);
   },
 });

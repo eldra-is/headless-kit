@@ -109,6 +109,27 @@ function moveFocusAfterDismiss(): void {
   if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
   main.focus();
 }
+
+/**
+ * Why this bar keeps `Section` while the other two "thin bar" blocks
+ * (`navigation`, `breadcrumbs`) are plain `@container` roots.
+ *
+ * `Section` marks every ground, `none` included, with `data-section-bg`, which is what its own
+ * adjacent-same-background CSS rule keys off to drop the *next* sibling's top padding — the reason
+ * `breadcrumbs` deliberately avoids it (see that block's own comment). This bar needs `Section`
+ * anyway: `background` is `primary` or `accent`, and `Section` is what marks `group/section` +
+ * `data-section` so the `Link` inside the bar inverts itself against an inverted ground.
+ * Hand-rolling that marker would be re-implementing `Section`, which the starter's rules forbid
+ * outright.
+ *
+ * The padding-collapse risk is real but narrow: it needs a *same-ground* `Section` immediately
+ * after this bar, and `primary`/`accent` are the two grounds no content block uses (`hero`, `cta`
+ * and the rest sit on `none`/`surface`/`surface-strong`). In both sample pages that carry it the
+ * next block is the header, which emits no `data-section-bg` at all. A page that did put a
+ * `primary` section directly under a `primary` bar would lose that section's top padding — an
+ * accepted, documented trade for keeping the invert marker the bar's own link depends on, not an
+ * oversight.
+ */
 </script>
 
 <template>

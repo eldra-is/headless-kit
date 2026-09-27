@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { computed, ref, watch, type Ref } from 'vue';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
-import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, type UiMessages } from '@eldrajs/ui';
+import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, ProductCard, type UiMessages } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
@@ -11,6 +11,7 @@ import mock from '../mock.json';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
 import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import { createDemoStorefront, PRODUCTS } from '../../../app/storefront/demo';
+import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
   StorefrontCatalog,
@@ -550,6 +551,36 @@ describe('collection-grid block', () => {
       expect(soldOut.text()).toContain('Sold out');
       expect(soldOut.get('img').classes()).toContain('opacity-60');
     });
+
+    /**
+     * A product's `url` is storefront-derived, not CMS-authored, and used to reach `ProductCard`
+     * without passing `safeHref` — the one class of URL in the theme that did. It is sanitised once
+     * now, in `toProductCardEntries` (`app/storefront/toProductCard.ts`): the card's link is
+     * required, so an item whose URL does not survive `safeHref` is dropped outright rather than
+     * rendered with a link to nowhere. A same-site URL still routes; an off-site one stays a plain
+     * `<a>`.
+     */
+    it('drops a product whose url is not a safe href, and only routes same-site ones', async () => {
+      const safe = PRODUCTS[0]!;
+      // The exact shape the guard exists for: a scheme `safeHref` rejects.
+      const unsafe = { ...PRODUCTS[1]!, url: 'javascript:alert(1)' };
+      const external = { ...PRODUCTS[2]!, url: 'https://elsewhere.example/p/x' };
+      const wrapper = mountGrid(mock, {
+        source: createStub([safe, unsafe, external]).source,
+      });
+      await wrapper.vm.$nextTick();
+
+      const rendered = cards(wrapper);
+      expect(rendered).toHaveLength(2);
+      expect(wrapper.text()).toContain(safe.title);
+      expect(wrapper.text()).not.toContain(unsafe.title);
+      expect(wrapper.text()).toContain(external.title);
+      expect(wrapper.html()).not.toContain('javascript:');
+
+      const products = wrapper.findAllComponents(ProductCard);
+      expect(products[0]!.props('linkAs')).toBe(EldraRouterLink);
+      expect(products[1]!.props('linkAs')).toBeUndefined();
+    });
   });
 
   describe('paging', () => {
@@ -670,8 +701,12 @@ describe('collection-grid block', () => {
     it('follows the spec tab order: filters, sort, chips, Clear all, cards, Load more', async () => {
       const wrapper = mountGrid(mock, { attachTo: document.body });
       await wrapper.vm.$nextTick();
-      const sizes = panelFor(wrapper, enUS.grid.legendSize).panel;
-      await sizes.findAll('input[type="checkbox"]')[2]!.setValue(true);
+      // Availability → In stock, not Size → M: the demo source honours `filters` now, and 44 of the
+      // 48 demo items are in stock, so this leaves more than one page and keeps a real Load more
+      // button in the tab order (Size → M leaves 12, i.e. everything already shown).
+      const availability = panelFor(wrapper, enUS.grid.legendAvailability).panel;
+      await availability.findAll('input[type="checkbox"]')[0]!.setValue(true);
+      await flushPromises();
 
       const focusable = Array.from(
         wrapper.element.querySelectorAll<HTMLElement>('a, button, input, [tabindex]')
@@ -876,16 +911,20 @@ describe('collection-grid block', () => {
       // A package string the block never writes itself: `LoadMore`'s own "Showing N of M" line.
       const loadMoreLine = () => wrapper.get('[data-part="status"]').text();
 
+      // 12 of the demo collection's 48 items are made in size M (the three apparel products, each
+      // appearing four times — `app/storefront/demo.ts`), and the demo source honours `filters`
+      // now, so both the package's "Showing N of M" line and the block's own count read the
+      // *filtered* set. Before that, ticking a filter left these at 24 of 48 / 48 products.
       expect(removeLabel()).toBe('Remove filter Size: M');
-      expect(loadMoreLine()).toContain('Showing 24 of 48');
-      expect(countLine(wrapper).text()).toBe('48 products');
+      expect(loadMoreLine()).toContain('Showing 12 of 12');
+      expect(countLine(wrapper).text()).toBe('12 products');
 
       context.preview.locale = 'is-IS';
       await wrapper.vm.$nextTick();
 
       expect(removeLabel()).toBe('Fjarlægja síuna Size: M');
-      expect(loadMoreLine()).toContain('Sýni 24 af 48');
-      expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '48'));
+      expect(loadMoreLine()).toContain('Sýni 12 af 12');
+      expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '12'));
     });
   });
 

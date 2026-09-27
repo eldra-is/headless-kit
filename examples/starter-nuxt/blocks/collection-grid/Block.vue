@@ -70,12 +70,12 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { toProductCard } from '../../app/storefront/toProductCard';
+import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { safeHref } from '../../app/utils/links';
 import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
 import FilterGroups from './parts/FilterGroups.vue';
@@ -91,36 +91,15 @@ import {
 
 /**
  * `Button.iconLeft`, `Select.leadingIcon` and `EmptyState.icon` each take an already-bound icon
- * component, while `EldraIcon` needs a `name` prop bound first — the same adapter
- * `blocks/image/Block.vue` builds for `EditorPlaceholder.icon`, at module scope so a re-render
- * never remounts (and re-fetches) it.
+ * component, while `EldraIcon` needs a `name` prop bound first. The theme's shared name→component
+ * adapter (`app/composables/iconComponent.ts`) builds one and caches it per name at module scope,
+ * so a re-render never remounts (and re-fetches) it.
  */
-function tablerIcon(name: string, displayName: string): Component {
-  return defineComponent({
-    name: displayName,
-    setup() {
-      const svg = useEldraIcon(name);
-      return () => {
-        const markup = svg.value;
-        if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-        const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-        return h('svg', {
-          viewBox: '0 0 24 24',
-          fill: 'none',
-          stroke: 'currentColor',
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          innerHTML: body,
-        });
-      };
-    },
-  });
-}
 /** The filter icon (Filter button and the no-results empty state) and the mobile sort trigger's. */
-const AdjustmentsIcon = tablerIcon('adjustments', 'CollectionGridAdjustmentsIcon');
-const SortIcon = tablerIcon('arrows-sort', 'CollectionGridSortIcon');
+const AdjustmentsIcon = iconComponent('adjustments');
+const SortIcon = iconComponent('arrows-sort');
 /** The freshly-inserted editor hint's box icon (spec States, "Empty (freshly inserted)"). */
-const BoxIcon = tablerIcon('box', 'CollectionGridBoxIcon');
+const BoxIcon = iconComponent('box');
 
 interface SortOptionField {
   option?: string;
@@ -333,6 +312,14 @@ const requestOptions = computed(() => ({
 const products = storefront.catalog.collectionProducts(collectionHandle, requestOptions);
 
 const items = computed(() => products.data.value?.items ?? []);
+/**
+ * The cards actually rendered. `toProductCardEntries` (`app/storefront/toProductCard.ts`) is the
+ * one place a storefront-derived URL is sanitised: it drops an item whose `url` is not a
+ * `safeHref` — `ProductCard`'s link is required, so a linkless card does not exist — and reports
+ * per card whether the destination routes (`entry.internal`). `items` stays the raw response for
+ * the skeleton count and the "shown N of total" line, which are about the request, not the DOM.
+ */
+const cards = computed(() => toProductCardEntries(items.value, { ratio: '4x5' }));
 const total = computed(() => products.data.value?.total ?? 0);
 const facets = computed(() => products.data.value?.facets ?? []);
 const pending = products.pending;
@@ -714,7 +701,7 @@ const topBarClass = computed(() =>
 const TOP_BAR_SORT = '@content:hidden';
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
-const showPaging = computed(() => !showSkeletons.value && items.value.length > 0);
+const showPaging = computed(() => !showSkeletons.value && cards.value.length > 0);
 function hrefForPage(page: number): string {
   const base = `/collections/${collectionHandle.value ?? ''}`;
   return safeHref(page > 1 ? `${base}?page=${page}` : base) ?? base;
@@ -874,20 +861,20 @@ function hrefForPage(page: number): string {
               </ul>
 
               <ul
-                v-else-if="items.length > 0"
+                v-else-if="cards.length > 0"
                 role="list"
                 :aria-labelledby="productsHeadingId"
                 :class="gridClass"
               >
-                <li v-for="item in items" :key="item.handle">
+                <li v-for="entry in cards" :key="entry.item.handle">
                   <!-- No quick add: the spec's tab order for this block runs straight from the
                        cards to Load more, and a cart action is `product-detail`'s own. -->
                   <ProductCard
-                    :product="toProductCard(item, { ratio: '4x5' })"
+                    :product="entry.product"
                     ratio="4x5"
                     :heading-level="3"
                     :quick-add="false"
-                    :link-as="EldraRouterLink"
+                    :link-as="entry.internal ? EldraRouterLink : undefined"
                   />
                 </li>
               </ul>
@@ -912,7 +899,7 @@ function hrefForPage(page: number): string {
             <div v-if="showPaging" class="mt-12">
               <LoadMore
                 v-if="isLoadMore"
-                :shown="items.length"
+                :shown="cards.length"
                 :total="total"
                 :noun="t('grid.productsNoun')"
                 :pending="loadingMore"

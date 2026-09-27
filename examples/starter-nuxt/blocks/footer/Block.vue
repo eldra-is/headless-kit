@@ -5,6 +5,10 @@
  *    sign-up. Legal row below a hairline, with the locale/currency selectors.
  *  - `minimal`: brand, a flat row of links, social. Then the same legal row.
  *
+ * Editor hints (`EditorPlaceholder`, gated by `useEditing()`) cover the spec's three Footer
+ * "States" rows — description, link groups, newsletter — on the `default` variant; see `editing`
+ * below.
+ *
  * Landmark naming follows the spec literally per variant (line 549): `default`'s `<footer>` is
  * `aria-labelledby` a visually hidden `<h2>` ("Site footer"); `minimal` has no heading of its own
  * (no groups, no newsletter title), so it names the landmark directly with `aria-label` instead —
@@ -51,6 +55,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import {
   Button,
   Container,
+  EditorPlaceholder,
   FieldWrapper,
   FormLayout,
   Input,
@@ -62,6 +67,7 @@ import {
   type SelectOption,
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { useEditing } from '../../app/composables/useEditing';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import { useStorefront } from '../../app/composables/useStorefront';
@@ -76,6 +82,18 @@ type ResolvedLink = { label: string; href: string; as: typeof EldraRouterLink | 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
 const t = useT();
+/**
+ * The spec's three Footer "States" hints (`eldra-starter-spec/02-blocks.md`): a freshly inserted
+ * footer has no description, no link groups and — on a page that already carries a Newsletter
+ * block — no newsletter form, so on the live site that band renders almost empty and in the editor
+ * there was nothing at all telling an editor what goes where, while all 32 sibling blocks show
+ * dashed placeholders. Editor-only, like every other hint in the theme: `useEditing()` is true
+ * only in Studio's edit mode, never on the live site and never in read-only preview.
+ *
+ * Only on the `default` variant — `minimal` has no description, groups or newsletter zone at all,
+ * so a hint there would point at fields that variant ignores.
+ */
+const editing = useEditing();
 const storefront = useStorefront();
 
 const headingId = `footer-heading-${useUiId()}`;
@@ -284,6 +302,12 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           <p v-if="data.description" class="text-muted mt-4 text-base leading-relaxed">
             {{ data.description }}
           </p>
+          <EditorPlaceholder
+            v-else-if="editing"
+            inline
+            class="mt-4"
+            :label="t('footer.descriptionHintLabel')"
+          />
 
           <ul v-if="socialLinks.length > 0" class="mt-6 -ml-3 flex flex-wrap gap-1" role="list">
             <li v-for="social in socialLinks" :key="social.network">
@@ -305,8 +329,14 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           </ul>
         </div>
 
+        <EditorPlaceholder
+          v-if="groups.length === 0 && editing"
+          class="@tablet:col-span-2 @content:col-span-1"
+          :label="t('footer.groupsHintLabel')"
+          :help="t('footer.groupsHintHelp')"
+        />
         <nav
-          v-if="groups.length > 0"
+          v-else-if="groups.length > 0"
           :aria-label="t('footer.nav')"
           class="@tablet:col-span-2 @content:col-span-1"
         >
@@ -329,7 +359,12 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           </div>
         </nav>
 
-        <div v-if="showNewsletter" class="@tablet:col-span-2 @content:col-span-1">
+        <EditorPlaceholder
+          v-if="!showNewsletter && editing"
+          class="@tablet:col-span-2 @content:col-span-1"
+          :label="t('footer.newsletterHintLabel')"
+        />
+        <div v-else-if="showNewsletter" class="@tablet:col-span-2 @content:col-span-1">
           <template v-if="newsletterState !== 'success'">
             <FormLayout
               layout="inline"

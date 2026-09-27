@@ -326,6 +326,46 @@ describe('search block', () => {
       expect(titles.some((title) => title.startsWith(enUS.search.typeJournal))).toBe(true);
     });
 
+    /**
+     * Every URL in a search response is storefront-derived: a product's `url`, a journal row's
+     * `href`, a page row's `href` all come straight off the gateway. They used to reach
+     * `ProductCard`/`ContentCard`/`Link` unchecked (and a result with no `targetUrl` arrived as
+     * `'#'`, a link to nowhere). `toProductCardEntries` and `safeHref` now gate all three inside
+     * `TypeSection.vue`: a row whose URL does not survive `safeHref` is dropped, and `link-as`
+     * follows `isInternalHref` per row instead of being `EldraRouterLink` unconditionally.
+     */
+    it('drops products, journal rows and page rows whose href is not a safe href', async () => {
+      const wrapper = mountSearch(
+        { ...mock, resultTypes: ['products', 'journal', 'pages'] },
+        {
+          storefront: withSearch({
+            query: 'linen',
+            total: 6,
+            products: [
+              PRODUCTS[0]!,
+              // The exact shape the guard exists for: a scheme `safeHref` rejects.
+              { ...PRODUCTS[1]!, url: 'javascript:alert(1)' },
+            ],
+            articles: [ARTICLE_A, { ...ARTICLE_A, title: 'Unsafe story', href: 'javascript:1' }],
+            pages: [
+              { title: 'Shipping', href: '/pages/shipping', path: '/pages/shipping', snippet: '' },
+              { title: 'Unsafe page', href: 'javascript:2', path: 'javascript:2', snippet: '' },
+            ],
+            suggestion: null,
+          }),
+        }
+      );
+      await nextTick();
+
+      expect(wrapper.text()).toContain(PRODUCTS[0]!.title);
+      expect(wrapper.text()).not.toContain(PRODUCTS[1]!.title);
+      expect(wrapper.text()).toContain(ARTICLE_A.title);
+      expect(wrapper.text()).not.toContain('Unsafe story');
+      expect(wrapper.text()).toContain('Shipping');
+      expect(wrapper.text()).not.toContain('Unsafe page');
+      expect(wrapper.html()).not.toContain('javascript:');
+    });
+
     it('a single result type hides the Tabs widget altogether', () => {
       const wrapper = mountSearch(mock, {
         storefront: withSearch({

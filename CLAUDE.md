@@ -195,11 +195,14 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   per block from `mock.json`, one per declared `variant` option; `pnpm --filter starter-nuxt
 build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/previews/*.png`,
   `.eldra/previews.json`) are Playwright screenshots of those generated stories
-  (`scripts/previews.mjs`) keyed by a content hash of that block's `Block.vue` + `mock.json` +
-  `preview.json` (when present) **plus `main.css`** (a shared style change invalidates every block's
-  hash) — `test/previewsFresh.spec.ts`
+  (`scripts/previews.mjs`) keyed by a content hash of **every file under `blocks/<id>/`** except
+  `__tests__/` and `preview.png` itself (so a block's `parts/*.vue`, its `block.json` and any helper
+  module all count — a named file list silently went stale as blocks grew part files), **plus
+  `main.css`** (a shared style change invalidates every block's hash) **plus the resolved
+  `@eldrajs/ui` version** (a package change can repaint every preview with nothing in the theme
+  touched) — `test/previewsFresh.spec.ts`
   fails "run pnpm previews" when a hash is stale, so run `pnpm --filter starter-nuxt previews` after
-  any block or `main.css` change and commit the regenerated files. See `docs/starter-kit.md` for
+  any block, `main.css` or package change and commit the regenerated files. See `docs/starter-kit.md` for
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in
   consumer terms.
 - `docs/` — plain markdown: `getting-started.md`, `rich-text.md`, `frameworks.md` (the contract a

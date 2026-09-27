@@ -18,8 +18,8 @@ import 'virtual:eldra/tailwind-theme.css';
 through Vite's plugin chain.
 
 **A CSS-level `@import` of the same id does not work, and this is not theme-specific.** Verified
-with a real `nuxi generate` against `examples/starter-nuxt` (see the starter-kit foundations
-project's Task 1 report): `@tailwindcss/vite` resolves every `@import` inside a CSS file with its
+with a real `nuxi generate` against `examples/starter-nuxt`: `@tailwindcss/vite` resolves every
+`@import` inside a CSS file with its
 own filesystem resolver (`enhanced-resolve`), not through Vite's `resolveId` plugin chain, so it
 never reaches `vite-plugin-theme`'s hook that maps the bare id to the resolved virtual module. A
 theme whose CSS entry starts with

@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { axe } from '../support/axe';
-import { mountPage, type PageFixture } from '../support/mountPage';
+import {
+  expectPageLandmarks,
+  expectSkipLinkLandsAfterTheHeader,
+  mountPage,
+  mountPageWithSkipLink,
+  pageBlockRoots,
+  type PageFixture,
+} from '../support/mountPage';
 import fixture from '../../pages/article.page.json';
 
 const page = fixture as unknown as PageFixture;
@@ -16,8 +23,9 @@ const RELATED_TITLES = [
 describe('article sample page', () => {
   it('renders the six blocks, in order, on their documented grounds and containers', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const children = Array.from(main.element.children);
+    // Every block root in document order across the page's three landmark regions (the header
+    // before `<main>`, the footer after it — see `app/utils/pageStructure.ts`).
+    const children = pageBlockRoots(wrapper);
     expect(children).toHaveLength(6);
     const [headerEl, breadcrumbsEl, articleEl, articleListEl, newsletterEl, footerEl] = children;
 
@@ -41,8 +49,7 @@ describe('article sample page', () => {
 
   it("keeps the article's full top padding after breadcrumbs (breadcrumbs takes no part in the adjacent-background collapse rule)", async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const [, breadcrumbsEl, articleEl] = Array.from(main.element.children);
+    const [, breadcrumbsEl, articleEl] = pageBlockRoots(wrapper);
 
     // Breadcrumbs renders no `data-section`/`data-section-bg` at all, so the package's
     // `[data-section-bg='x'] + [data-section-bg='x']` CSS rule has nothing to match against and
@@ -54,13 +61,13 @@ describe('article sample page', () => {
 
   it('has exactly one h1 (the article title); the related list heading is h2 and its cards are h3', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
+    const roots = pageBlockRoots(wrapper);
 
-    const h1s = main.findAll('h1');
+    const h1s = wrapper.findAll('h1');
     expect(h1s).toHaveLength(1);
     expect(h1s[0]!.text()).toBe(ARTICLE_TITLE);
 
-    const articleListEl = main.element.children[3]!;
+    const articleListEl = roots[3]!;
     const relatedHeading = articleListEl.querySelector('h2');
     expect(relatedHeading?.textContent).toBe('More from the journal');
 
@@ -70,10 +77,7 @@ describe('article sample page', () => {
 
   it("sits the related list on the article block's own ground so its top padding collapses, while the newsletter and footer change ground and keep full padding", async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const [, , articleEl, articleListEl, newsletterEl, footerEl] = Array.from(
-      main.element.children
-    );
+    const [, , articleEl, articleListEl, newsletterEl, footerEl] = pageBlockRoots(wrapper);
 
     // Same background as the immediately preceding sibling: the package's adjacent-background
     // CSS rule (`[data-section-bg='x'] + [data-section-bg='x']`) drops the second one's own top
@@ -94,27 +98,27 @@ describe('article sample page', () => {
 
   it('leaves the current post out of the related list and renders exactly one newsletter sign-up', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
+    const roots = pageBlockRoots(wrapper);
 
-    const articleListEl = main.element.children[3]!;
+    const articleListEl = roots[3]!;
     const cardTitles = Array.from(articleListEl.querySelectorAll('h3')).map((h) => h.textContent);
     expect(cardTitles).not.toContain(ARTICLE_TITLE);
     expect(cardTitles).toHaveLength(3);
 
     // One newsletter sign-up on the whole page: exactly one email field (the footer's own is
     // switched off — `showNewsletter: false` — and the header's search form has no email input).
-    const emailFields = main.element.querySelectorAll('input[type="email"]');
+    const emailFields = wrapper.element.querySelectorAll('input[type="email"]');
     expect(emailFields).toHaveLength(1);
-    expect(main.element.children[4]!.contains(emailFields[0]!)).toBe(true);
+    expect(roots[4]!.contains(emailFields[0]!)).toBe(true);
 
     // The footer itself renders no `<form>` at all with its newsletter off.
-    expect(main.element.children[5]!.querySelectorAll('form')).toHaveLength(0);
+    expect(roots[5]!.querySelectorAll('form')).toHaveLength(0);
   });
 
   it('keeps the article header and cover in the 64rem content container and the body/author card in the 40rem narrow container', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const articleEl = main.element.children[2]!;
+    const roots = pageBlockRoots(wrapper);
+    const articleEl = roots[2]!;
 
     const contentContainers = articleEl.querySelectorAll('.eldra-container-content');
     const narrowContainers = articleEl.querySelectorAll('.eldra-container-narrow');
@@ -130,14 +134,13 @@ describe('article sample page', () => {
     ).toBeTruthy();
 
     // The header/breadcrumbs stay on the 80rem wide container.
-    expect(main.element.children[0]!.querySelector('.eldra-container-wide')).not.toBeNull();
-    expect(main.element.children[1]!.querySelector('.eldra-container-wide')).not.toBeNull();
+    expect(roots[0]!.querySelector('.eldra-container-wide')).not.toBeNull();
+    expect(roots[1]!.querySelector('.eldra-container-wide')).not.toBeNull();
   });
 
   it('wraps the body table in a named, focusable region and marks its code block focusable', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const articleEl = main.element.children[2]!;
+    const articleEl = pageBlockRoots(wrapper)[2]!;
 
     const region = articleEl.querySelector('[role="region"]');
     expect(region).not.toBeNull();
@@ -160,10 +163,8 @@ describe('article sample page', () => {
 
   it('follows the visual order header → breadcrumbs → article (links, then the author link) → related list → newsletter → footer', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const [headerEl, breadcrumbsEl, articleEl, articleListEl, newsletterEl, footerEl] = Array.from(
-      main.element.children
-    );
+    const [headerEl, breadcrumbsEl, articleEl, articleListEl, newsletterEl, footerEl] =
+      pageBlockRoots(wrapper);
 
     // Every block contributes at least one focusable element, and each one sits inside its own
     // block's root — proving the page's tab order runs through the blocks in fixture order.
@@ -195,9 +196,9 @@ describe('article sample page', () => {
 
   it('reads Portland everywhere the studio is named, and never Bergen', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const articleEl = main.element.children[2]!;
-    const footerEl = main.element.children[5]!;
+    const roots = pageBlockRoots(wrapper);
+    const articleEl = roots[2]!;
+    const footerEl = roots[5]!;
 
     expect(articleEl.textContent).toContain(
       'Bisqueware waiting for its glaze bath in the Portland studio.'
@@ -206,7 +207,21 @@ describe('article sample page', () => {
       'Ingrid has thrown pots in Portland for eighteen years'
     );
     expect(footerEl.textContent).toContain('Studio and shop in Portland, Oregon.');
-    expect(main.text()).not.toContain('Bergen');
+    expect(wrapper.text()).not.toContain('Bergen');
+  });
+
+  it('exposes exactly one banner, one main and one contentinfo landmark', async () => {
+    // The route renders `navigation` before `<main id="main">` and `footer` after it
+    // (`app/utils/pageStructure.ts`), which is what gives those two elements their landmark roles
+    // at all — inside `<main>` a `<header>`/`<footer>` carries none.
+    const wrapper = await mountPage(page);
+    expectPageLandmarks(wrapper);
+  });
+
+  it('puts the skip link first, landing the visitor after the header', async () => {
+    const wrapper = await mountPageWithSkipLink(page);
+    expectSkipLinkLandsAfterTheHeader(wrapper);
+    wrapper.unmount();
   });
 
   it('has no axe violations over the whole rendered page', async () => {

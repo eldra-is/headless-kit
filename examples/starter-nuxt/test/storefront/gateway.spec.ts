@@ -91,6 +91,62 @@ describe('createGatewayStorefront', () => {
     });
   });
 
+  /**
+   * Every URL in a search response is gateway-supplied. `mapSearchResponse` used to write
+   * `result.targetUrl ?? '#'` into the product/journal/page rows, so a result with no destination
+   * became a card linking to nowhere (M10) and any URL the gateway returned reached the DOM
+   * unchecked while every CMS-authored href in the theme was gated by `safeHref` (I1). It now
+   * drops a result whose `targetUrl` does not survive `safeHref`.
+   */
+  it('search drops results whose targetUrl is missing or unsafe, and never emits a "#" link', async () => {
+    const client = {
+      catalog: {
+        search: async () => ({
+          total: 5,
+          results: [
+            { id: 'p1', kind: 'PRODUCT', title: 'Good product', targetUrl: '/products/good' },
+            { id: 'p2', kind: 'PRODUCT', title: 'No link product' },
+            {
+              id: 'p3',
+              kind: 'PRODUCT',
+              title: 'Unsafe product',
+              targetUrl: 'javascript:alert(1)',
+            },
+            {
+              id: 'e1',
+              kind: 'CMS_ENTRY',
+              title: 'Good story',
+              targetUrl: '/journal/good',
+              breadcrumb: 'Journal',
+            },
+            { id: 'e2', kind: 'CMS_ENTRY', title: 'No link story' },
+            { id: 's1', kind: 'CMS_SCHEMA', title: 'Good page', targetUrl: '/pages/good' },
+            { id: 's2', kind: 'CMS_SCHEMA', title: 'Unsafe page', targetUrl: '//evil.example/x' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('linen'));
+    await settle();
+
+    const response = result.data.value!;
+    expect(response.products.map((product) => product.title)).toEqual(['Good product']);
+    expect(response.products[0]!.url).toBe('/products/good');
+    expect(response.articles.map((article) => article.title)).toEqual(['Good story']);
+    expect(response.pages.map((page) => page.title)).toEqual(['Good page']);
+    expect(response.pages[0]!.path).toBe('/pages/good');
+
+    const everyHref = [
+      ...response.products.map((product) => product.url),
+      ...response.articles.map((article) => article.href),
+      ...response.pages.map((page) => page.href),
+    ];
+    expect(everyHref).not.toContain('#');
+    expect(everyHref.some((href) => href.startsWith('javascript:'))).toBe(false);
+  });
+
   it('collectionProducts resolves null for no collection handle, without calling the client', async () => {
     const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
     const handle = ref<string | null>(null);

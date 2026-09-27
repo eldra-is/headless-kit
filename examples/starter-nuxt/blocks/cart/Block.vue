@@ -57,7 +57,7 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -140,27 +140,9 @@ const checkoutAs = computed(() =>
  *  when no drawer is mounted, so the drawer's View cart and that fallback agree. */
 const CART_PATH = '/cart';
 
-/** `EmptyState.icon` takes an already-bound icon component with no props of its own — the same
- *  module-scope `useEldraIcon` adapter `article-list`/`pricing-table` build for theirs. */
-const ShoppingBagIcon: Component = defineComponent({
-  name: 'CartEmptyIcon',
-  setup() {
-    const svg = useEldraIcon('shopping-bag');
-    return () => {
-      const markup = svg.value;
-      if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-      const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-      return h('svg', {
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-        innerHTML: body,
-      });
-    };
-  },
-});
+/** `EmptyState.icon` takes an already-bound icon component with no props of its own, so this goes
+ *  through the theme's shared name→component adapter (`app/composables/iconComponent.ts`). */
+const ShoppingBagIcon: Component = iconComponent('shopping-bag');
 
 const emptyRoot = ref<HTMLElement | null>(null);
 

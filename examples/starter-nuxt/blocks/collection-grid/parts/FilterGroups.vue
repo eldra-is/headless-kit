@@ -38,6 +38,7 @@
  */
 import { computed, ref, watch } from 'vue';
 import { Badge, Button, Checkbox, FieldWrapper, Input, VisuallyHidden } from '@eldrajs/ui';
+import EldraIcon from '../../../app/components/EldraIcon.vue';
 import { useT } from '../../../app/composables/useT';
 import { focusRingProxy } from '../../../app/utils/classes';
 import {
@@ -158,8 +159,10 @@ const slug = (source: FilterSource): string => source.replace(':', '-');
 const TRIGGER =
   'flex min-h-12 w-full cursor-pointer items-center gap-2 py-2 text-start eldra-focus';
 
+/** `EldraIcon` (through `@eldrajs/ui`'s `Icon`) owns the size and the 1.75 stroke, so this carries
+ *  only the rotation this component adds. */
 const CHEVRON =
-  'size-5 shrink-0 text-text transition-[rotate] duration-base ease-out motion-reduce:transition-none';
+  'shrink-0 text-text transition-[rotate] duration-base ease-out motion-reduce:transition-none';
 
 /** Spec Layout, Size row: 2.5rem tall, at least 2.75rem wide, 0 0.75rem padding — 2.5rem × 2.5rem
  *  minimum with 0 0.5rem padding in the desktop sidebar. */
@@ -245,20 +248,15 @@ const COUNT = 'text-muted tabular-nums';
           >
             <span aria-hidden="true">{{ selectedCount(group) }}</span>
           </Badge>
-          <!-- Tabler's `chevron-down`, decorative; turns 180° over `duration-base` when open. -->
-          <svg
+          <!-- Tabler's `chevron-down`, decorative; turns 180° over `duration-base` when open.
+               Through `EldraIcon` like every other icon in the theme, not a hand-written `<svg>`:
+               the package's `Icon` owns the size, the spec's stroke weight and the decorative ARIA
+               state, and the icon name stays the one source of the path data. -->
+          <EldraIcon
+            name="chevron-down"
+            size="md"
             :class="[CHEVRON, isOpen(group) ? 'rotate-180' : '']"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M6 9l6 6l6 -6" />
-          </svg>
+          />
         </button>
       </h3>
 

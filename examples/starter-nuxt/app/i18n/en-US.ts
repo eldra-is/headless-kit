@@ -11,9 +11,7 @@ export const enUS = {
   error: 'Something went wrong',
   nav: {
     menu: 'Menu',
-    close: 'Close',
     skipToContent: 'Skip to content',
-    primary: 'Primary navigation',
   },
   gallery: {
     viewer: 'Image viewer',
@@ -78,6 +76,10 @@ export const enUS = {
       youtube: 'YouTube',
     },
     socialLinkName: '{brand} on {network}',
+    descriptionHintLabel: 'Add a short description (optional)',
+    groupsHintLabel: 'Add a link group',
+    groupsHintHelp: 'Up to four groups of up to eight links each',
+    newsletterHintLabel: 'Turn on the newsletter form',
     localeOptions: {
       usEnglish: 'United States · English',
       caEnglish: 'Canada · English',
@@ -318,6 +320,7 @@ export const enUS = {
   },
   productCarousel: {
     viewAllContext: ' products',
+    carouselLabel: '{heading} products',
     clearHistory: 'Clear history',
     headingHintLabel: 'Add a heading',
     headingHintHelp: 'e.g. "You may also like"',

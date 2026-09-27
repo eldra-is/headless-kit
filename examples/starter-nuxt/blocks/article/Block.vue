@@ -242,6 +242,11 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
 
       <Container width="narrow" class="@tablet:mt-12 mt-8">
         <div ref="richTextRoot">
+          <!-- The body sits under this block's own `h1` (the article title), and `metadata.toolbar`'s
+               `heading` control is level-agnostic — an editor can insert any level anywhere. The
+               floor makes an inserted `h1` render as `h2`, so an article page keeps exactly one
+               `h1` (`test/pages/article.spec.ts`) whatever the document carries; a document that
+               already uses h2/h3 is untouched (a floor, never an offset). -->
           <EldraRichText
             v-if="hasBody"
             class="prose-eldra"
@@ -249,6 +254,7 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
             field="body"
             :doc="data.body"
             api-id="article"
+            :min-heading-level="2"
           />
           <EditorPlaceholder
             v-else-if="showBodyHint"

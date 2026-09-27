@@ -355,6 +355,7 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
             </Button>
 
             <div ref="consentRoot" class="@two-col:col-span-2 order-3">
+              <!-- Under this block's own `h2`, so any heading in the consent copy starts at `h3`. -->
               <EldraRichText
                 v-if="hasConsent"
                 class="prose-eldra text-body-sm"
@@ -363,6 +364,7 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
                 field="consent"
                 :doc="data.consent"
                 api-id="newsletter"
+                :min-heading-level="3"
               />
             </div>
           </FormLayout>

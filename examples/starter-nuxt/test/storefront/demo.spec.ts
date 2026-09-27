@@ -218,6 +218,157 @@ describe('createDemoStorefront', () => {
     ]);
   });
 
+  /**
+   * D1 made `search.run(query)` honour the query text; `collectionProducts` was left behind and
+   * destructured only `{ page, pageSize }`, so in the scaffolded site and the collection sample page
+   * — both demo-backed — a filter or a sort changed the URL, the chips and the active-filter row
+   * while the grid and the `total` stayed exactly as they were, and the filter drawer's
+   * "Show N products" button always quoted the unfiltered count. These are the assertions for it,
+   * in the same shape as the `search.run` ones above: drive the real request, read the real answer.
+   */
+  describe('collectionProducts honours sort and filters', () => {
+    async function collection(opts: {
+      page?: number;
+      pageSize?: number;
+      sort?: string;
+      filters?: Record<string, string[]>;
+    }) {
+      const storefront = createDemoStorefront();
+      const handle = ref<string | null>('winter-knitwear');
+      const options = ref({ page: 1, pageSize: 48, ...opts });
+      const result = storefront.catalog.collectionProducts(handle, options);
+      await settle();
+      return result.data.value!;
+    }
+
+    it('returns the whole 48-item collection unfiltered', async () => {
+      const response = await collection({});
+      expect(response.items).toHaveLength(48);
+      expect(response.total).toBe(48);
+    });
+
+    it('narrows both the items and the total for a category filter', async () => {
+      // 5 of the 12 products are knitwear, each appearing 4 times in the 48-item collection.
+      const response = await collection({ filters: { category: ['knitwear'] } });
+      expect(response.items).toHaveLength(20);
+      expect(response.total).toBe(20);
+    });
+
+    it('ORs values inside one source and ANDs across sources', async () => {
+      const knitwear = await collection({ filters: { category: ['knitwear'] } });
+      const ceramics = await collection({ filters: { category: ['ceramics'] } });
+      const both = await collection({ filters: { category: ['knitwear', 'ceramics'] } });
+      expect(both.total).toBe(knitwear.total + ceramics.total);
+
+      const andACross = await collection({
+        filters: { category: ['knitwear'], 'option:size': ['m'] },
+      });
+      // Only the three apparel products are made in M, and all three are knitwear.
+      expect(andACross.total).toBe(12);
+    });
+
+    it('filters by size, colour and availability', async () => {
+      expect((await collection({ filters: { 'option:size': ['m'] } })).total).toBe(12);
+      // Oat is only the merino crew sweater's colour, four times over.
+      expect((await collection({ filters: { 'option:colour': ['oat'] } })).total).toBe(4);
+      // Everything but the sold-out linen tea towels.
+      expect((await collection({ filters: { availability: ['in-stock'] } })).total).toBe(44);
+    });
+
+    it('filters by a price range in whole dollars, with either end open', async () => {
+      const upTo40 = await collection({ filters: { price: ['-40'] } });
+      expect(upTo40.items.every((item) => item.price.amount <= 4000)).toBe(true);
+      const from100 = await collection({ filters: { price: ['100-'] } });
+      expect(from100.items.every((item) => item.price.amount >= 10000)).toBe(true);
+      const band = await collection({ filters: { price: ['30-60'] } });
+      expect(
+        band.items.every((item) => item.price.amount >= 3000 && item.price.amount <= 6000)
+      ).toBe(true);
+      expect(band.total).toBeGreaterThan(0);
+      expect(band.total).toBeLessThan(48);
+    });
+
+    it('ignores a filter source it does not know rather than emptying the grid', async () => {
+      expect((await collection({ filters: { 'option:fabric': ['linen'] } })).total).toBe(48);
+    });
+
+    it('sorts by price ascending and descending', async () => {
+      const asc = await collection({ sort: 'price-asc' });
+      const desc = await collection({ sort: 'price-desc' });
+      expect(asc.items[0]!.price.amount).toBe(2400);
+      expect(asc.items.at(-1)!.price.amount).toBe(16400);
+      expect(desc.items[0]!.price.amount).toBe(16400);
+      expect(asc.items.map((item) => item.price.amount)).toEqual(
+        [...desc.items.map((item) => item.price.amount)].reverse()
+      );
+    });
+
+    it('leaves `featured` in the collection\u2019s own order and reverses it for `newest`', async () => {
+      const featured = await collection({ sort: 'featured' });
+      const newest = await collection({ sort: 'newest' });
+      const unsorted = await collection({});
+      expect(featured.items.map((item) => item.handle)).toEqual(
+        unsorted.items.map((item) => item.handle)
+      );
+      expect(newest.items.map((item) => item.handle)).toEqual(
+        [...unsorted.items.map((item) => item.handle)].reverse()
+      );
+    });
+
+    it('leads `best-selling` with the best-seller list, clones included', async () => {
+      const response = await collection({ sort: 'best-selling' });
+      // The demo's best-seller list names 6 products; each appears 4 times in the 48-item
+      // collection, so the first 24 items are exactly those six (identified by title — a clone
+      // carries a suffixed handle but the same title), and the merino crew sweater leads.
+      expect(response.items[0]!.title).toBe('Merino crew sweater');
+      const leading = new Set(response.items.slice(0, 24).map((item) => item.title));
+      expect([...leading].sort()).toEqual(
+        [
+          'Hand-thrown serving bowl',
+          'Merino crew sweater',
+          'Ribbed lambswool beanie',
+          'Speckled latte mug',
+          'Stoneware dinner plates, set of 4',
+          'Walnut serving board',
+        ].sort()
+      );
+    });
+
+    it('sorts and filters together, and pages the filtered result', async () => {
+      const response = await collection({
+        page: 2,
+        pageSize: 8,
+        sort: 'price-asc',
+        filters: { category: ['knitwear'] },
+      });
+      expect(response.total).toBe(20);
+      expect(response.items).toHaveLength(8);
+      const prices = response.items.map((item) => item.price.amount);
+      expect(prices).toEqual([...prices].sort((a, b) => a - b));
+    });
+
+    it('counts every facet value over the collection, so the grid never offers an empty filter', async () => {
+      const response = await collection({});
+      for (const facet of response.facets) {
+        for (const value of facet.values) {
+          const filtered = await collection({
+            filters: {
+              [facet.source === 'size'
+                ? 'option:size'
+                : facet.source === 'colour'
+                  ? 'option:colour'
+                  : facet.source]: [value.value],
+            },
+          });
+          expect(
+            value.count,
+            `facet ${facet.source}=${value.value} claims ${value.count} but returns ${filtered.total}`
+          ).toBe(filtered.total);
+        }
+      }
+    });
+  });
+
   describe('StorefrontRoute readers', () => {
     it('seeds sort, columns and filters from DemoStorefrontOptions — a shared URL restored', () => {
       const storefront = createDemoStorefront({

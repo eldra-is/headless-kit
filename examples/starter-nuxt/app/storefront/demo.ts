@@ -48,6 +48,9 @@ function demoImage(index: number, alt: string): StorefrontMedia {
 // Catalogue
 // ---------------------------------------------------------------------------------------------
 
+/** The `category` facet's own values (`WINTER_KNITWEAR_FACETS`). */
+type DemoCategory = 'knitwear' | 'ceramics' | 'kitchen';
+
 interface DemoProductDef {
   handle: string;
   title: string;
@@ -58,11 +61,21 @@ interface DemoProductDef {
   variantId: string;
   rating?: { value: number; count: number } | null;
   colours?: Array<{ name: string; swatch: string }>;
+  /**
+   * Which `category` facet value this product sits under, and which `size` values it is made in
+   * (apparel only). Neither is part of `StorefrontProductListItem` — a product *card* never shows
+   * them — but `collectionProducts` needs them to answer a filtered request, which is what a real
+   * backend does from the same underlying product data. `PRODUCT_ATTRIBUTES` below is the lookup.
+   */
+  category: DemoCategory;
+  sizes?: string[];
 }
 
 const PRODUCT_DEFS: DemoProductDef[] = [
   {
     handle: 'merino-crew-sweater',
+    category: 'knitwear',
+    sizes: ['xs', 's', 'm', 'l', 'xl'],
     title: 'Merino crew sweater',
     amount: 9600,
     compareAt: 12800,
@@ -79,6 +92,8 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'fisherman-rib-cardigan',
+    category: 'knitwear',
+    sizes: ['xs', 's', 'm', 'l', 'xl'],
     title: 'Fisherman rib cardigan',
     amount: 16400,
     stock: 'in',
@@ -87,6 +102,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'lambswool-throw-blanket',
+    category: 'knitwear',
     title: 'Lambswool throw blanket',
     amount: 14800,
     stock: 'in',
@@ -95,6 +111,8 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'ribbed-lambswool-beanie',
+    category: 'knitwear',
+    sizes: ['s', 'm', 'l'],
     title: 'Ribbed lambswool beanie',
     amount: 3800,
     stock: 'in',
@@ -103,6 +121,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'linen-tea-towels-pair',
+    category: 'kitchen',
     title: 'Linen tea towels, pair',
     amount: 2400,
     stock: 'out',
@@ -111,6 +130,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'speckled-latte-mug',
+    category: 'ceramics',
     title: 'Speckled latte mug',
     amount: 2800,
     stock: 'in',
@@ -120,6 +140,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'stoneware-dinner-plates-set-of-4',
+    category: 'ceramics',
     title: 'Stoneware dinner plates, set of 4',
     amount: 7200,
     stock: 'in',
@@ -128,6 +149,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'walnut-serving-board',
+    category: 'kitchen',
     title: 'Walnut serving board',
     amount: 5800,
     stock: 'in',
@@ -136,6 +158,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'hand-thrown-serving-bowl',
+    category: 'ceramics',
     title: 'Hand-thrown serving bowl',
     amount: 6400,
     stock: 'in',
@@ -144,6 +167,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'glazed-milk-jug',
+    category: 'ceramics',
     title: 'Glazed milk jug',
     amount: 3400,
     stock: 'in',
@@ -152,6 +176,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'linen-napkins-set-of-4',
+    category: 'kitchen',
     title: 'Linen napkins, set of 4',
     amount: 4000,
     stock: 'in',
@@ -160,6 +185,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'stonewashed-linen-throw',
+    category: 'knitwear',
     title: 'Stonewashed linen throw',
     amount: 11800,
     stock: 'in',
@@ -168,7 +194,33 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
 ];
 
+/**
+ * The filterable/sortable attributes of one product, keyed by the *item* handle — including the
+ * suffixed clones `buildCollectionItems` makes (`merino-crew-sweater-2`), whose handles cannot be
+ * mapped back to a def by string surgery (`stoneware-dinner-plates-set-of-4` already ends in a
+ * number). Populated as items are built, which is why every item is created through
+ * `buildListItem`/`buildCollectionItems` and never by hand.
+ */
+interface DemoProductAttributes {
+  category: DemoCategory;
+  /** The `size` facet values, or `[]` for a product with no sizes (everything but apparel). */
+  sizes: readonly string[];
+  /** The `colour` facet values (lower-cased colour names), or `[]`. */
+  colours: readonly string[];
+}
+const NO_ATTRIBUTES: DemoProductAttributes = { category: 'knitwear', sizes: [], colours: [] };
+const PRODUCT_ATTRIBUTES = new Map<string, DemoProductAttributes>();
+
+function registerAttributes(handle: string, def: DemoProductDef): void {
+  PRODUCT_ATTRIBUTES.set(handle, {
+    category: def.category,
+    sizes: def.sizes ?? [],
+    colours: (def.colours ?? []).map((colour) => colour.name.toLowerCase()),
+  });
+}
+
 function buildListItem(def: DemoProductDef, index: number): StorefrontProductListItem {
+  registerAttributes(def.handle, def);
   return {
     handle: def.handle,
     title: def.title,
@@ -370,11 +422,140 @@ function buildCollectionItems(total: number): StorefrontProductListItem[] {
     const cycle = Math.floor(i / PRODUCTS.length);
     if (cycle === 0) return base;
     const suffix = `-${cycle + 1}`;
+    const handle = `${base.handle}${suffix}`;
+    // A clone is the same product in the shopper's eyes, so it filters and sorts identically.
+    registerAttributes(handle, PRODUCT_DEFS[i % PRODUCTS.length]!);
     return {
       ...base,
-      handle: `${base.handle}${suffix}`,
+      handle,
       url: `${base.url}${suffix}`,
       variantId: `${base.variantId}${suffix}`,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Filtering and sorting a collection — what a real backend does for `collectionProducts`
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * `collection-grid` sends `filters` keyed by its own `filters[].source` ids (see that block's
+ * `requestFiltersFor`): `category`, `option:size`, `option:colour`, `availability`, and `price` as
+ * a single `"<min>-<max>"` string in whole dollars with either end allowed to be empty. This is
+ * the demo's answer to that request — without it the shopper's filter changed the URL, the chips
+ * and the active-filter row while the grid and the count stayed exactly as they were, which is
+ * worse than not offering filters at all.
+ *
+ * Every clause is AND-ed across sources and OR-ed within one source, the ordinary faceted-search
+ * semantics the block's own UI implies (ticking two colours widens, ticking a colour and a size
+ * narrows).
+ */
+function matchesFilters(
+  item: StorefrontProductListItem,
+  filters: Record<string, string[]> | undefined
+): boolean {
+  if (filters === undefined) return true;
+  const attributes = PRODUCT_ATTRIBUTES.get(item.handle) ?? NO_ATTRIBUTES;
+
+  for (const [source, selected] of Object.entries(filters)) {
+    if (selected.length === 0) continue;
+    if (source === 'category') {
+      if (!selected.includes(attributes.category)) return false;
+    } else if (source === 'option:size') {
+      if (!selected.some((value) => attributes.sizes.includes(value))) return false;
+    } else if (source === 'option:colour') {
+      if (!selected.some((value) => attributes.colours.includes(value))) return false;
+    } else if (source === 'availability') {
+      // "In stock" means orderable now; "Include back-order" additionally admits pre-orders. A
+      // sold-out product matches neither, which is why ticking either one drops it.
+      const admits = selected.some((value) =>
+        value === 'backorder' ? item.stock === 'preorder' : item.available && item.stock !== 'out'
+      );
+      if (!admits) return false;
+    } else if (source === 'price') {
+      if (!matchesPrice(item, selected[0])) return false;
+    }
+    // An unknown source is ignored rather than treated as "matches nothing": a backend that does
+    // not know a filter has no business emptying the grid because of it.
+  }
+  return true;
+}
+
+/** `"<min>-<max>"` in whole dollars, either end empty for "no bound" (`grid.pricePrefix` is `$`). */
+function matchesPrice(item: StorefrontProductListItem, range: string | undefined): boolean {
+  if (range === undefined) return true;
+  const [rawMin = '', rawMax = ''] = range.split('-');
+  const dollars = item.price.amount / 100;
+  if (rawMin !== '' && dollars < Number(rawMin)) return false;
+  if (rawMax !== '' && dollars > Number(rawMax)) return false;
+  return true;
+}
+
+/**
+ * The `sortOptions` values `collection-grid` offers. `featured` is the fixture's own curated order,
+ * `newest` its reverse (the list is written oldest-first), and `best-selling` follows
+ * `BEST_SELLER_HANDLES` with everything it does not name keeping its relative order behind them —
+ * the demo has no per-product sales figures, and inventing some would be a fake statistic.
+ *
+ * Returns a new array; `Array.prototype.sort` is stable in every supported runtime, so equal keys
+ * keep the collection's own order.
+ */
+function sortCollectionItems(
+  items: readonly StorefrontProductListItem[],
+  sort: string | undefined
+): StorefrontProductListItem[] {
+  const list = [...items];
+  if (sort === undefined || sort === '' || sort === 'featured') return list;
+  if (sort === 'newest') return list.reverse();
+  if (sort === 'price-asc') return list.sort((a, b) => a.price.amount - b.price.amount);
+  if (sort === 'price-desc') return list.sort((a, b) => b.price.amount - a.price.amount);
+  if (sort === 'best-selling') {
+    const rank = (item: StorefrontProductListItem): number => {
+      const index = BEST_SELLER_HANDLES.indexOf(baseHandleOf(item));
+      return index === -1 ? BEST_SELLER_HANDLES.length : index;
+    };
+    return list.sort((a, b) => rank(a) - rank(b));
+  }
+  return list;
+}
+
+/** A collection clone (`merino-crew-sweater-2`) ranks as the product it is a copy of. */
+function baseHandleOf(item: StorefrontProductListItem): string {
+  return PRODUCTS.some((product) => product.handle === item.handle)
+    ? item.handle
+    : item.handle.replace(/-\d+$/, '');
+}
+
+/**
+ * The facet counts, recomputed over the collection's own items rather than hand-written.
+ *
+ * `WINTER_KNITWEAR_FACETS` supplies the vocabulary — which sources exist, in which order, with
+ * which labels and swatches — and this supplies the numbers, so a count the filter UI shows is
+ * always the number of products that value actually returns. It matters because the block hides a
+ * value it counts zero of (`blocks/collection-grid/parts/groups.ts`): a hand-written count offers
+ * the shopper a filter that empties the grid, which is precisely the mismatch this demo exists to
+ * avoid showing. Counts are per single value (what a facet count means), so they are computed
+ * against the *unfiltered* collection, like a backend that facets the whole collection.
+ */
+function countedFacets(
+  facets: readonly StorefrontFacet[],
+  items: readonly StorefrontProductListItem[]
+): StorefrontFacet[] {
+  const FACET_TO_FILTER_SOURCE: Record<string, string> = {
+    category: 'category',
+    size: 'option:size',
+    colour: 'option:colour',
+    availability: 'availability',
+  };
+  return facets.map((facet) => {
+    const source = FACET_TO_FILTER_SOURCE[facet.source];
+    if (source === undefined) return facet;
+    return {
+      ...facet,
+      values: facet.values.map((value) => ({
+        ...value,
+        count: items.filter((item) => matchesFilters(item, { [source]: [value.value] })).length,
+      })),
     };
   });
 }
@@ -886,18 +1067,28 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
       ),
     collection: (handle) =>
       createDemoResult([handle], () => (handle.value ? (COLLECTIONS[handle.value] ?? null) : null)),
+    /**
+     * Honours `sort` and `filters`, not just `page`/`pageSize`. It used to destructure only the
+     * paging pair, so in the scaffolded site and the collection sample page — both demo-backed —
+     * choosing a filter or a sort updated the URL, the chips and the active-filter row while the
+     * grid and the `total` never moved, and the drawer's "Show N products" button always quoted the
+     * unfiltered count. `total` is now the size of the *filtered* set, which is what the grid's
+     * count line and its paging both read.
+     */
     collectionProducts: (handle, opts) =>
       createDemoResult([handle, opts], () => {
         if (!handle.value) return null;
         const info = COLLECTIONS[handle.value];
         if (!info) return null;
         const all = COLLECTION_ITEMS[handle.value] ?? buildCollectionItems(info.productCount);
-        const { page, pageSize } = opts.value;
+        const { page, pageSize, sort, filters } = opts.value;
+        const matching = all.filter((item) => matchesFilters(item, filters));
+        const ordered = sortCollectionItems(matching, sort);
         const start = (page - 1) * pageSize;
         return {
-          items: all.slice(start, start + pageSize),
-          total: info.productCount,
-          facets: COLLECTION_FACETS[handle.value] ?? WINTER_KNITWEAR_FACETS,
+          items: ordered.slice(start, start + pageSize),
+          total: ordered.length,
+          facets: countedFacets(COLLECTION_FACETS[handle.value] ?? WINTER_KNITWEAR_FACETS, all),
         };
       }),
     related: (handle, limit) =>

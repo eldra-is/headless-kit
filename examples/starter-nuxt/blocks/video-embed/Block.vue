@@ -52,7 +52,7 @@ import type { SectionBackground } from '@eldrajs/ui';
 import { DEFAULT_IMAGE_FRAMING } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { iconComponent } from '../../app/composables/iconComponent';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
@@ -187,28 +187,10 @@ const playLabel = computed(() =>
 );
 
 /** `EditorPlaceholder.icon` (like `FeatureCard.icon`/`Badge.icon` elsewhere in this starter) takes
- * a bare, already-bound icon component, not a name — `EldraIcon` itself needs a `name` bound and
- * so can't be handed straight through. Built once at module scope, the same shape `pricing-table`'s
- * own `StarIcon` uses, fixed to the one icon the empty-`videoUrl` hint ever needs. */
-const UrlHintIcon: Component = defineComponent({
-  name: 'VideoEmbedUrlHintIcon',
-  setup() {
-    const svg = useEldraIcon('player-play');
-    return () => {
-      const markup = svg.value;
-      if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-      const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-      return h('svg', {
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-        innerHTML: body,
-      });
-    };
-  },
-});
+ * a bare, already-bound icon component, not a name, so this goes through the theme's shared
+ * name→component adapter (`app/composables/iconComponent.ts`), fixed to the one icon the
+ * empty-`videoUrl` hint ever needs. */
+const UrlHintIcon: Component = iconComponent('player-play');
 
 const outerClass = computed(() =>
   isSplit.value

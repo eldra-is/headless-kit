@@ -165,12 +165,16 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
               :help="t('splitContent.headingHintHelp')"
             />
 
+            <!-- Each row's own heading above is an `h2`, so the row text's headings start at
+                 `h3`. (`rows[].text`'s `metadata.toolbar` offers no heading control today, but the
+                 floor costs nothing and survives a toolbar change.) -->
             <EldraRichText
               v-if="rowHasText(row)"
               class="prose-eldra text-body-lg text-muted [&>*+*]:mt-3"
               :entry-id="entryId"
               :field="`rows.${index}.text`"
               :doc="row.text"
+              :min-heading-level="3"
             />
 
             <Link

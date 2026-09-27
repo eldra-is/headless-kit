@@ -11,9 +11,7 @@ export const isIS = {
   error: 'Eitthvað fór úrskeiðis',
   nav: {
     menu: 'Valmynd',
-    close: 'Loka',
     skipToContent: 'Fara í efni',
-    primary: 'Aðalvalmynd',
   },
   gallery: {
     viewer: 'Myndaskoðari',
@@ -79,6 +77,10 @@ export const isIS = {
       youtube: 'YouTube',
     },
     socialLinkName: '{brand} á {network}',
+    descriptionHintLabel: 'Bættu við stuttri lýsingu (valfrjálst)',
+    groupsHintLabel: 'Bættu við tenglahópi',
+    groupsHintHelp: 'Að hámarki fjórir hópar með átta tenglum hver',
+    newsletterHintLabel: 'Kveiktu á póstlistaforminu',
     localeOptions: {
       usEnglish: 'Bandaríkin · enska',
       caEnglish: 'Kanada · enska',
@@ -319,6 +321,7 @@ export const isIS = {
   },
   productCarousel: {
     viewAllContext: ' vörur',
+    carouselLabel: 'Vörur í {heading}',
     clearHistory: 'Hreinsa feril',
     headingHintLabel: 'Bættu við fyrirsögn',
     headingHintHelp: 't.d. „Þér gæti einnig líkað við“',

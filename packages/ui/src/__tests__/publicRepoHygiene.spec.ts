@@ -23,9 +23,8 @@ import { describe, expect, it } from 'vitest';
  * deliberately not scanned here.
  *
  * This file's own source deliberately never spells the private scope out as one contiguous string:
- * doing so would trip the very hygiene grep this spec backs up (see the fix report for the exact
- * command), the same way the docs pass's original mistake would have tripped this spec had it
- * existed then. The pattern is assembled from parts instead — a `RegExp` matches the *contents
+ * doing so would trip the very hygiene grep this spec backs up, the same way the docs pass's
+ * original mistake would have tripped this spec had it existed then. The pattern is assembled from parts instead — a `RegExp` matches the *contents
  * being scanned*, not its own construction, so this weakens nothing.
  */
 
@@ -69,12 +68,18 @@ const files = [
   join(packageRoot, 'CHANGELOG.md'),
   // The starter ships in the same public repository (and `theme-cli`'s `prepack` copies it
   // verbatim into what `eldra-theme init` scaffolds), so a dangling internal reference there is
-  // exactly as visible to an external reader as one in this package itself — see I3's own worst
-  // offender, `examples/starter-nuxt/app/components/ui/UiImage.vue`, which named this plan's own
-  // private planning artifact by its full path. Scanned as one tree (not just `app/`/`blocks/`)
-  // so `test/`, `scripts/`, `.storybook/`, `stories/`, `nuxt.config.ts` and the starter's own
-  // `README.md` get exactly the same guard.
+  // exactly as visible to an external reader as one in this package itself — the worst offender a
+  // 2026-09 sweep found was a starter component naming a private planning artifact by its full
+  // path. Scanned as one tree (not just `app/`/`blocks/`) so `test/`, `scripts/`, `.storybook/`,
+  // `stories/`, `nuxt.config.ts` and the starter's own `README.md` get exactly the same guard.
   ...collectFiles(join(monorepoRoot, 'examples/starter-nuxt'), []),
+  // The repository's own `docs/` tree, for the same reason: it is the public documentation this
+  // kit links from every README, and it is the *only* tree the two checks above did not reach.
+  // Being outside the guard is exactly how two internal references survived in it — a private
+  // report filename cited as the evidence for a Studio 400, and "the … project's Task 1 report"
+  // cited as the evidence for a Tailwind resolution finding — both dangling pointers for every
+  // external reader, both in files this branch was editing heavily.
+  ...collectFiles(join(monorepoRoot, 'docs'), []),
 ];
 
 const privateNpmScope = ['@eldra', 'is/'].join('-'); // never write this contiguously above
@@ -84,9 +89,9 @@ const forbidden: { label: string; pattern: RegExp }[] = [
   { label: `the private npm scope (${privateNpmScope}…)`, pattern: new RegExp(privateNpmScope) },
   { label: 'an internal-only preview hostname', pattern: /local\.eldra\.app/ },
   { label: 'an internal-only gateway service name', pattern: /studio-gateway/ },
-  // This plan's own private SDD planning artifacts (`.superpowers/sdd/...`, `task-7-fix-1.md`,
+  // Private planning artifacts (`.superpowers/sdd/...`, `task-7-fix-1.md`,
   // `review-t7-fix1-report.md`) are dangling pointers for every external reader — a name in a
-  // comment that resolves to nothing at all outside the private planning repo. See I3.
+  // comment that resolves to nothing at all outside the private planning repo.
   {
     label: 'an internal SDD planning artifact reference',
     pattern: /\.superpowers|\btask-\d+-|fix-\d\b|review-t\d/i,
@@ -94,7 +99,7 @@ const forbidden: { label: string; pattern: RegExp }[] = [
 ];
 
 /**
- * Final review I5: a second, wider pattern for a bare plan/task *reference* in prose — "Task 11",
+ * A second, wider pattern for a bare plan/task *reference* in prose — "Task 11",
  * "plan-3 Task 3" — as opposed to the artifact-*filename*-shaped patterns above. The original
  * single pattern needed a trailing hyphen after the task number (`\btask-\d+-`) and was
  * case-sensitive, so this slipped through untouched, along with `task-9b-live-report.md` in the
@@ -147,20 +152,23 @@ describe('public-repo hygiene: no private scope or internal hostname in shipped 
  * it — "the task brief", "see task-1-report.md", "design doc §…" — none of which resolve to
  * anything a customer has. This is the regression guard: `planTaskReference` above already blocks
  * a bare `task-N`/`plan-N`, but not the prose forms ("task brief", "task report", "design doc")
- * that sweep actually found, so this checks for those too, across the whole starter tree (unlike
- * the two checks above, this one is not limited to `app/`/`blocks/`).
+ * that sweep actually found, so this checks for those too — across the whole starter tree and the
+ * repository's `docs/` tree, the two trees an external reader actually reads (unlike the two checks
+ * above, this one is not limited to `app/`/`blocks/`).
  */
 const starterProcessWording = {
   label: 'internal task/design-doc process wording',
   pattern: /task report|task brief|task[ -]?\d+|superpowers|design doc/i,
 };
 
-describe('public-repo hygiene: the starter names no internal task/design-doc process wording', () => {
-  const starterFiles = files.filter((file) =>
-    file.startsWith(join(monorepoRoot, 'examples/starter-nuxt'))
+describe('public-repo hygiene: the starter and docs name no internal process wording', () => {
+  const starterFiles = files.filter(
+    (file) =>
+      file.startsWith(join(monorepoRoot, 'examples/starter-nuxt')) ||
+      file.startsWith(join(monorepoRoot, 'docs'))
   );
 
-  it('finds starter files to scan', () => {
+  it('finds starter and docs files to scan', () => {
     expect(starterFiles.length).toBeGreaterThan(50);
   });
 

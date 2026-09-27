@@ -49,7 +49,7 @@ import { Container, EditorPlaceholder, Link, Section } from '@eldrajs/ui';
 import type { ImagePart } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { iconComponent } from '../../app/composables/iconComponent';
 import { useT } from '../../app/composables/useT';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
@@ -63,32 +63,12 @@ const { data, entryId } = useBlockData(props, 'image');
 const editing = useEditing();
 const t = useT();
 
-/**
- * The freshly-inserted editor hint's photo icon (spec States, "Empty (freshly inserted)"). Same
- * shape as `pricing-table`'s own `StarIcon` / `video-embed`'s `UrlHintIcon`:
- * `EditorPlaceholder.icon` takes a bare, already-bound icon component, and `EldraIcon` needs a
- * `name` bound first. Built once at module scope so a reactive re-render never remounts — and
- * re-fetches — it.
- */
-const PhotoIcon: Component = defineComponent({
-  name: 'ImageHintIcon',
-  setup() {
-    const svg = useEldraIcon('photo');
-    return () => {
-      const markup = svg.value;
-      if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-      const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-      return h('svg', {
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-        innerHTML: body,
-      });
-    };
-  },
-});
+/** The freshly-inserted editor hint's photo icon (spec States, "Empty (freshly inserted)").
+ *  `EditorPlaceholder.icon` takes a bare, already-bound icon component, not a name, so this goes
+ *  through the theme's shared name→component adapter (`app/composables/iconComponent.ts`), which
+ *  caches per name at module scope — a new identity per render would remount and re-fetch the icon
+ *  on every keystroke in the Studio editor. */
+const PhotoIcon: Component = iconComponent('photo');
 
 const hasImage = computed(() => Boolean(data.value.image));
 const framing = computed(() => data.value.image?.framing ?? DEFAULT_IMAGE_FRAMING);

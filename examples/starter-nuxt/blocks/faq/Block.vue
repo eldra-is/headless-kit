@@ -173,11 +173,15 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
               :title="item.question ?? ''"
               :model-value="itemOpen(item, index)"
             >
+              <!-- `AccordionItem`'s question is a `<span>`, not a heading (no `headingLevel`), so
+                   the nearest heading above an answer is this block's own `h2` — answers' headings
+                   start at `h3`. -->
               <EldraRichText
                 class="prose-eldra"
                 :entry-id="entryId"
                 :field="`items.${index}.answer`"
                 :doc="item.answer"
+                :min-heading-level="3"
               />
             </AccordionItem>
           </Accordion>
@@ -213,11 +217,15 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
               :title="item.question ?? ''"
               :model-value="itemOpen(item, index)"
             >
+              <!-- `AccordionItem`'s question is a `<span>`, not a heading (no `headingLevel`), so
+                   the nearest heading above an answer is this block's own `h2` — answers' headings
+                   start at `h3`. -->
               <EldraRichText
                 class="prose-eldra"
                 :entry-id="entryId"
                 :field="`items.${index}.answer`"
                 :doc="item.answer"
+                :min-heading-level="3"
               />
             </AccordionItem>
           </Accordion>

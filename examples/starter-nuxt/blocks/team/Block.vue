@@ -256,8 +256,8 @@ function itemClass(person: Person): string {
             />
             <div class="flex min-w-0 flex-col gap-1">
               <h3 class="font-heading text-[1.125rem] font-semibold">{{ person.name }}</h3>
-              <p class="text-muted text-[0.875rem] font-semibold">{{ person.role }}</p>
-              <p v-if="person.bio" class="text-muted mt-1 text-[0.875rem]">{{ person.bio }}</p>
+              <p class="text-muted text-body-sm font-semibold">{{ person.role }}</p>
+              <p v-if="person.bio" class="text-muted text-body-sm mt-1">{{ person.bio }}</p>
               <ul
                 v-if="person.resolvedLinks.length > 0"
                 role="list"

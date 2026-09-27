@@ -7,11 +7,11 @@
  * colocated component, the same idea `blocks/article-list/Block.vue`'s own inline
  * `ArticleListEmptyIcon` follows for a smaller reusable piece.
  */
-import type { Component } from 'vue';
+import { computed, type Component } from 'vue';
 import { ContentCard, Link, ProductCard } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { isInternalHref } from '../../app/utils/links';
-import { toProductCard } from '../../app/storefront/toProductCard';
+import { isInternalHref, safeHref } from '../../app/utils/links';
+import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import type {
   StorefrontProductListItem,
   StorefrontSearchResponse,
@@ -19,10 +19,15 @@ import type {
 
 type ResultTypeId = 'products' | 'journal' | 'pages';
 
-defineProps<{
+const props = defineProps<{
   type: ResultTypeId;
-  /** Storefront-provided rows — always internal paths, the same assumption
-   *  `product-carousel`/`article-list`'s own Block.vue makes for their own product/story links. */
+  /**
+   * Storefront-provided rows. Their URLs are *not* assumed safe or internal: they come off a
+   * gateway response, so each one is sanitised here (`toProductCardEntries` for products,
+   * `safeHref` for the journal/page rows) and a row whose URL does not survive is dropped rather
+   * than rendered with a link to nowhere. `link-as` then follows `isInternalHref` per row, exactly
+   * as every CMS-authored link in the theme does.
+   */
   products: StorefrontProductListItem[];
   articles: StorefrontSearchResponse['articles'];
   pages: StorefrontSearchResponse['pages'];
@@ -43,6 +48,25 @@ defineProps<{
   viewAllLinkAs?: Component;
 }>();
 
+/** See the `products` prop: sanitised, unusable rows dropped, `internal` per card. */
+const productCards = computed(() => toProductCardEntries(props.products, { ratio: '4x5' }));
+
+/** The journal rows that have a usable link, with the sanitised href and whether it routes. */
+const articleRows = computed(() =>
+  props.articles.flatMap((article) => {
+    const href = safeHref(article.href);
+    return href === null ? [] : [{ article, href, internal: isInternalHref(href) }];
+  })
+);
+
+/** The page rows that have a usable link, same rule. */
+const pageRows = computed(() =>
+  props.pages.flatMap((page) => {
+    const href = safeHref(page.href);
+    return href === null ? [] : [{ page, href, internal: isInternalHref(href) }];
+  })
+);
+
 const PRODUCTS_GRID_CLASS =
   'grid grid-cols-2 gap-x-4 gap-y-8 @tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-10 ' +
   '@content:grid-cols-4 @content:gap-x-8';
@@ -62,12 +86,12 @@ const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:g
 
     <div v-if="type === 'products'" :class="PRODUCTS_GRID_CLASS">
       <ProductCard
-        v-for="product in products"
-        :key="product.handle"
-        :product="toProductCard(product)"
+        v-for="entry in productCards"
+        :key="entry.item.handle"
+        :product="entry.product"
         ratio="4x5"
         :heading-level="3"
-        :link-as="EldraRouterLink"
+        :link-as="entry.internal ? EldraRouterLink : undefined"
         :currency="currency"
         :locale="locale"
       />
@@ -75,44 +99,44 @@ const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:g
 
     <div v-else-if="type === 'journal'" :class="JOURNAL_GRID_CLASS">
       <ContentCard
-        v-for="(article, index) in articles"
+        v-for="(row, index) in articleRows"
         :key="index"
-        :title="article.title"
-        :href="article.href"
-        :link-as="EldraRouterLink"
+        :title="row.article.title"
+        :href="row.href"
+        :link-as="row.internal ? EldraRouterLink : undefined"
         :image="
-          article.image
+          row.article.image
             ? {
-                src: article.image.src,
+                src: row.article.image.src,
                 alt: '',
-                width: article.image.width,
-                height: article.image.height,
+                width: row.article.image.width,
+                height: row.article.image.height,
               }
             : null
         "
         ratio="3x2"
-        :eyebrow="article.category"
-        :meta="article.readingTime"
+        :eyebrow="row.article.category"
+        :meta="row.article.readingTime"
         :heading-level="3"
       />
     </div>
 
     <ul v-else role="list" class="border-border flex flex-col border-t">
       <li
-        v-for="(page, index) in pages"
+        v-for="(row, index) in pageRows"
         :key="index"
         class="border-border border-b py-4 first:pt-0"
       >
         <Link
           variant="inline"
-          :href="page.href"
-          :as="isInternalHref(page.href) ? EldraRouterLink : undefined"
+          :href="row.href"
+          :as="row.internal ? EldraRouterLink : undefined"
           class="font-semibold"
         >
-          {{ page.title }}
+          {{ row.page.title }}
         </Link>
-        <p class="text-body-sm text-muted">{{ page.path }}</p>
-        <p class="text-body-sm text-muted">{{ page.snippet }}</p>
+        <p class="text-body-sm text-muted">{{ row.page.path }}</p>
+        <p class="text-body-sm text-muted">{{ row.page.snippet }}</p>
       </li>
     </ul>
   </section>

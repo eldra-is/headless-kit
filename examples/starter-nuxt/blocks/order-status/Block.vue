@@ -33,10 +33,10 @@
  *
  * **Icons.** `Badge.icon`/`Button.iconLeft`/`iconRight` each take an already-bound `IconComponent`
  * (see `feature-grid`'s/`pricing-table`'s own doc comments for the same constraint) — `EldraIcon`
- * itself cannot be handed straight through, it still needs a `name` bound. `resolveIconComponent`
- * below is the same name→component adapter those two blocks each build locally, generalised to
- * runtime-determined names (badge/step icons change with `order.status`) rather than one name
- * fixed at compile time. Payment and help-link icons go through `EldraIcon` directly instead —
+ * itself cannot be handed straight through, it still needs a `name` bound. `iconComponent`
+ * (`app/composables/iconComponent.ts`) is the theme's one shared name→component adapter, used here
+ * with runtime-determined names (badge/step icons change with `order.status`) as well as fixed
+ * ones. Payment and help-link icons go through `EldraIcon` directly instead —
  * `Link` has no icon prop of its own, so those sit beside it as a plain decorative icon.
  *
  * **Dates.** `formatDate` (`@eldrajs/ui`, the package's one frozen formatter — see `article`'s own
@@ -100,7 +100,7 @@ import {
 import { useEldra } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -167,37 +167,13 @@ const showStatus = computed(
 /* Icon name → bound component adapter (see the module doc comment's "Icons" section)             */
 /* ------------------------------------------------------------------------------------------- */
 
-const iconCache = new Map<string, Component>();
-function resolveIconComponent(name: string): Component {
-  const cached = iconCache.get(name);
-  if (cached) return cached;
-  const component = defineComponent({
-    name: 'OrderStatusIcon',
-    setup() {
-      const svg = useEldraIcon(computed(() => name));
-      return () => {
-        const markup = svg.value;
-        if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-        const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-        return h('svg', {
-          viewBox: '0 0 24 24',
-          fill: 'none',
-          stroke: 'currentColor',
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          innerHTML: body,
-        });
-      };
-    },
-  });
-  iconCache.set(name, component);
-  return component;
-}
+// The theme's shared name→component adapter (`app/composables/iconComponent.ts`) caches per name at
+// module scope, so a re-render never remounts (and re-fetches) an icon.
 
-const TrackIcon = resolveIconComponent('external-link');
-const ReturnIcon = resolveIconComponent('arrow-back-up');
-const ShopAgainIcon = resolveIconComponent('arrow-right');
-const CheckIcon = resolveIconComponent('check');
+const TrackIcon = iconComponent('external-link');
+const ReturnIcon = iconComponent('arrow-back-up');
+const ShopAgainIcon = iconComponent('arrow-right');
+const CheckIcon = iconComponent('check');
 
 /* ------------------------------------------------------------------------------------------- */
 /* Head: order number, placed line, status badge                                                 */
@@ -246,7 +222,7 @@ const STATUS_BADGE_TONE_CLASS: Partial<Record<StorefrontOrderStatus, string>> = 
 };
 
 const statusIcon = computed(() =>
-  order.value ? resolveIconComponent(STATUS_ICON_NAME[order.value.status]) : null
+  order.value ? iconComponent(STATUS_ICON_NAME[order.value.status]) : null
 );
 const statusTone = computed<BadgeTone>(() =>
   order.value ? STATUS_TONE[order.value.status] : 'neutral'
@@ -293,7 +269,7 @@ const alertText = computed(() => order.value?.delayNote || order.value?.cancelNo
 const hasAlert = computed(() => alertText.value !== '');
 const alertIsDanger = computed(() => order.value?.status === 'cancelled');
 const alertIcon = computed(() =>
-  resolveIconComponent(alertIsDanger.value ? 'circle-x' : 'alert-triangle')
+  iconComponent(alertIsDanger.value ? 'circle-x' : 'alert-triangle')
 );
 
 type CtaKind = 'track' | 'return' | 'shopAgain' | null;
@@ -376,7 +352,7 @@ const steps = computed<StepView[]>(() => {
       isWarning,
       icon: isDone
         ? CheckIcon
-        : resolveIconComponent(isWarning ? 'alert-triangle' : STEP_ICON_NAME[step.key]),
+        : iconComponent(isWarning ? 'alert-triangle' : STEP_ICON_NAME[step.key]),
     };
   });
 });

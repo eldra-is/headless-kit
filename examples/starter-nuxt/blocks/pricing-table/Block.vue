@@ -38,8 +38,8 @@
  * own icon doc comment makes explicit for exactly this reason. The badge's star icon can't go
  * through `EldraIcon` at all: `Badge.icon` takes a bare, already-bound `IconComponent` it renders
  * directly (`<component :is="icon" :stroke-width="…" aria-hidden focusable="false">`), the same
- * contract `FeatureCard.icon` has — so `StarIcon` below is the same module-scope
- * name→component adapter `feature-grid`'s own `resolveIconComponent` builds, fixed to one name.
+ * contract `FeatureCard.icon` has — so `StarIcon` below comes from the theme's one shared
+ * name→component adapter (`app/composables/iconComponent.ts`), fixed to one name.
  *
  * **Buttons.** The spec's own literal "2.75rem below 48rem" for the call-to-action `Button md` is
  * the same in-between control height the package doesn't have (`tailwind.css`'s own comment:
@@ -61,7 +61,7 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useEldraIcon } from '../../app/composables/useEldraIcon';
+import { iconComponent } from '../../app/composables/iconComponent';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
@@ -147,31 +147,12 @@ function hasCta(plan: Plan): boolean {
 
 /**
  * `Badge.icon` (like `FeatureCard.icon`) takes a bare, already-bound icon component with no props
- * of its own — `EldraIcon` needs a `name` bound and so can't be handed straight through. Built
- * once at module scope (shared by every mounted table) so a reactive re-render never creates a
- * new component identity for the same icon, which would otherwise remount — and re-fetch — it on
- * every keystroke in the Studio editor. Same shape as `feature-grid`'s own
- * `resolveIconComponent`, fixed to the one icon this block ever needs.
+ * of its own — `EldraIcon` needs a `name` bound and so can't be handed straight through. The
+ * theme's shared name→component adapter (`app/composables/iconComponent.ts`) caches per name at
+ * module scope, so a reactive re-render never creates a new identity for the same icon, which would
+ * otherwise remount — and re-fetch — it on every keystroke in the Studio editor.
  */
-const StarIcon: Component = defineComponent({
-  name: 'PricingTableStarIcon',
-  setup() {
-    const svg = useEldraIcon('star');
-    return () => {
-      const markup = svg.value;
-      if (markup === null) return h('svg', { viewBox: '0 0 24 24' });
-      const body = markup.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-      return h('svg', {
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-        innerHTML: body,
-      });
-    };
-  },
-});
+const StarIcon: Component = iconComponent('star');
 
 /** Spec → Layout, plan card padding at each width: 1.5rem below `@tablet`, 1.25rem `@tablet`–
  *  `@content`, 2rem from `@content`. The highlighted card keeps the same three numbers minus the
@@ -250,7 +231,7 @@ function cardClass(highlighted: boolean, singleItem: boolean): (string | boolean
                   {{ highlightLabel }}
                 </Badge>
               </div>
-              <p v-if="plan.description" class="text-muted text-[0.875rem] leading-[1.5]">
+              <p v-if="plan.description" class="text-muted text-body-sm">
                 {{ plan.description }}
               </p>
             </div>
@@ -262,9 +243,9 @@ function cardClass(highlighted: boolean, singleItem: boolean): (string | boolean
                   class="font-heading text-[2rem] leading-[1.1] font-bold tracking-[-0.02em] tabular-nums"
                   >{{ plan.price }}</span
                 >
-                <span class="text-muted text-[0.875rem]">{{ plan.period }}</span>
+                <span class="text-muted text-body-sm">{{ plan.period }}</span>
               </p>
-              <p v-if="plan.note" class="text-muted text-[0.875rem]">{{ plan.note }}</p>
+              <p v-if="plan.note" class="text-muted text-body-sm">{{ plan.note }}</p>
             </div>
 
             <!-- call to action -->
@@ -310,7 +291,7 @@ function cardClass(highlighted: boolean, singleItem: boolean): (string | boolean
         </li>
       </ul>
 
-      <p v-if="footnote" class="text-muted mt-6 text-center text-[0.875rem]">{{ footnote }}</p>
+      <p v-if="footnote" class="text-muted text-body-sm mt-6 text-center">{{ footnote }}</p>
     </Container>
   </Section>
 </template>

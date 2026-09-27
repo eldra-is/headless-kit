@@ -287,9 +287,18 @@ function onCartClick(): void {
  * `Link`/`Button` click elsewhere on the page (pushed via the router, not a full reload) does not
  * fire it, so the highlighted link can go stale until the next popstate/reload — a known
  * limitation of staying router-free, not something this block can close without one.
+ *
+ * Every `watchEffect` below opens with `if (typeof window === 'undefined') return;`. That is not
+ * defensive padding: a `flush: 'pre'` effect with no callback runs its body *immediately*, during
+ * `setup()`, and `setup()` runs on the server too — so an unguarded `window.addEventListener`
+ * here throws `ReferenceError: window is not defined` on every server render of any page that
+ * carries the header (i.e. every page), which `nuxi generate` turns into a failed prerender when
+ * `nitro.prerender.failOnError` is on. `__tests__/ssr.spec.ts` server-renders this block to keep
+ * the guards honest.
  */
 const currentPath = ref(typeof window === 'undefined' ? '' : window.location.pathname);
 watchEffect((onCleanup) => {
+  if (typeof window === 'undefined') return;
   const onPopState = (): void => {
     currentPath.value = window.location.pathname;
   };
@@ -308,12 +317,14 @@ function onScroll(): void {
   scrolled.value = window.scrollY > 0;
 }
 watchEffect((onCleanup) => {
+  if (typeof window === 'undefined') return;
   window.addEventListener('scroll', onScroll, { passive: true });
   onCleanup(() => window.removeEventListener('scroll', onScroll));
 });
 /** Spec "Header" → Accessibility, "Sticky header and focus": scroll padding equal to the sticky
  *  bar's height (2.4.11), so a focused/anchored target is never hidden under it. */
 watchEffect((onCleanup) => {
+  if (typeof document === 'undefined') return;
   if (!sticky.value) return;
   document.documentElement.style.setProperty('scroll-padding-top', '5rem');
   onCleanup(() => document.documentElement.style.removeProperty('scroll-padding-top'));

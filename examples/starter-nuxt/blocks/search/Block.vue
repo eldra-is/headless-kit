@@ -63,7 +63,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref } from '../../app/utils/links';
-import { toProductCard } from '../../app/storefront/toProductCard';
+import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { toSearchBarResults } from './results';
 import TypeSection from './TypeSection.vue';
 
@@ -244,7 +244,14 @@ const noResultsHandle = computed(() =>
 );
 const noResultsOpts = ref({ page: 1, pageSize: 4 });
 const noResultsCollection = storefront.catalog.collectionProducts(noResultsHandle, noResultsOpts);
-const noResultsProducts = computed(() => (noResultsCollection.data.value?.items ?? []).slice(0, 4));
+/**
+ * `toProductCardEntries` (`app/storefront/toProductCard.ts`) sanitises each storefront-derived
+ * `url` and drops an item whose URL is not a `safeHref` (`ProductCard`'s link is required, so a
+ * linkless card does not exist), reporting per card whether the destination routes.
+ */
+const noResultsProducts = computed(() =>
+  toProductCardEntries((noResultsCollection.data.value?.items ?? []).slice(0, 4), { ratio: '4x5' })
+);
 const hasNoResultsProducts = computed(() => noResultsProducts.value.length > 0);
 
 // --- section accessible name (results-page uses the heading; field-only names itself) --------
@@ -359,12 +366,12 @@ const CHIP_CLASS =
           <p class="text-body-sm text-text font-semibold">{{ t('search.customersLove') }}</p>
           <div class="grid grid-cols-2 gap-4">
             <ProductCard
-              v-for="product in noResultsProducts"
-              :key="product.handle"
-              :product="toProductCard(product)"
+              v-for="entry in noResultsProducts"
+              :key="entry.item.handle"
+              :product="entry.product"
               ratio="4x5"
               :heading-level="2"
-              :link-as="EldraRouterLink"
+              :link-as="entry.internal ? EldraRouterLink : undefined"
               :currency="currency"
               :locale="locale"
             />

@@ -8,7 +8,7 @@
     {
       "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
       "name": "Hannah Reeve",
-      "meta": "Sheffield · Speckled latte mug",
+      "meta": "Portland, OR · Speckled latte mug",
       "rating": "5",
       "productLabel": "Speckled latte mug",
       "productHref": "/products/latte-mug"
@@ -16,7 +16,7 @@
     {
       "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
       "name": "Marcus Bell",
-      "meta": "Bristol · Lambswool throw",
+      "meta": "Austin, TX · Lambswool throw",
       "rating": "5",
       "productLabel": "Lambswool throw blanket",
       "productHref": "/products/lambswool-throw"
@@ -24,7 +24,7 @@
     {
       "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
       "name": "Priya Nair",
-      "meta": "Edinburgh · Stoneware dinner plates",
+      "meta": "Minneapolis, MN · Stoneware dinner plates",
       "rating": "4",
       "productLabel": "Stoneware dinner plates",
       "productHref": "/products/dinner-plates"
@@ -32,13 +32,13 @@
     {
       "quote": "Customer care swapped my cardigan for a size up in two days, no forms, no fuss. It is the one I reach for first.",
       "name": "Sofia Lind",
-      "meta": "Stockholm · Fisherman rib cardigan",
+      "meta": "Asheville, NC · Fisherman rib cardigan",
       "rating": "none"
     },
     {
       "quote": "You can tell the walnut board was finished by hand. It has already outlived two cheaper ones.",
       "name": "Joel Mercer",
-      "meta": "Dublin · Walnut serving board",
+      "meta": "Seattle, WA · Walnut serving board",
       "rating": "none"
     }
   ],

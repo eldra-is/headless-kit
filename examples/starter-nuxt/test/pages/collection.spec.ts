@@ -2,7 +2,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { flushPromises, type VueWrapper } from '@vue/test-utils';
 import { axe } from '../support/axe';
-import { mountPage, type PageFixture } from '../support/mountPage';
+import {
+  expectPageLandmarks,
+  expectSkipLinkLandsAfterTheHeader,
+  mountPage,
+  mountPageWithSkipLink,
+  pageBlockRoots,
+  type PageFixture,
+} from '../support/mountPage';
 import fixture from '../../pages/collection.page.json';
 
 const page = fixture as unknown as PageFixture;
@@ -39,8 +46,12 @@ function stubOverflow(scrollHeight: number, clientHeight: number): void {
 const wrappers: VueWrapper[] = [];
 afterEach(() => {
   for (const wrapper of wrappers.splice(0)) {
+    // Read the container before unmounting: the page harness has three root nodes (banner, main,
+    // contentinfo), so `wrapper.element` is the mount container — and `@vue/test-utils` reports it
+    // as `null` once the component is gone.
+    const container = wrapper.element;
     wrapper.unmount();
-    wrapper.element.remove();
+    container?.remove();
   }
   restoreOverflowStub?.();
   restoreOverflowStub = null;
@@ -91,8 +102,9 @@ function checkBox(input: HTMLInputElement): void {
 describe('collection sample page', () => {
   it('renders the six blocks, in order, on their documented grounds and containers', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const children = Array.from(main.element.children);
+    // Every block root in document order across the page's three landmark regions: `navigation`
+    // renders before `<main id="main">` and `footer` after it (`app/utils/pageStructure.ts`).
+    const children = pageBlockRoots(wrapper);
     expect(children).toHaveLength(6);
     const [navEl, breadcrumbsEl, headerEl, gridEl, ctaEl, footerEl] = children;
 
@@ -125,31 +137,29 @@ describe('collection sample page', () => {
     const wrapper = await mountPage(page);
     const main = wrapper.get('main#main');
 
-    const h1s = main.findAll('h1');
+    const h1s = wrapper.findAll('h1');
     expect(h1s).toHaveLength(1);
     expect(h1s[0]!.text()).toBe(COLLECTION_TITLE);
 
     // `showBreadcrumb: false` on the collection-header block: its own breadcrumb never renders, so
     // the standalone Breadcrumbs block's own trail is the only one on the page.
-    const crumbs = main.findAll('nav[aria-label="Breadcrumb"]');
+    const crumbs = wrapper.findAll('nav[aria-label="Breadcrumb"]');
     expect(crumbs).toHaveLength(1);
     expect(crumbs[0]!.text()).toContain('Shop');
     expect(crumbs[0]!.text()).toContain(COLLECTION_TITLE);
 
-    const headerEl = main.element.children[2]!;
+    const headerEl = pageBlockRoots(wrapper)[2]!;
     expect(headerEl.querySelector('nav[aria-label="Breadcrumb"]')).toBeNull();
   });
 
   it("names the grid section, and keeps the header's own count non-live while the grid's is a polite status", async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const headerEl = main.element.children[2]!;
-    const gridEl = main.element.children[3]!;
+    const [, , headerEl, gridEl] = pageBlockRoots(wrapper);
 
-    expect(gridEl.getAttribute('aria-label')).toBe('The winter edit products');
+    expect(gridEl!.getAttribute('aria-label')).toBe('The winter edit products');
 
     // The collection header's own "N products" line is a plain `<p>` — never announced live.
-    const headerCount = Array.from(headerEl.querySelectorAll('p')).find((p) =>
+    const headerCount = Array.from(headerEl!.querySelectorAll('p')).find((p) =>
       p.textContent?.includes('products')
     );
     expect(headerCount).toBeDefined();
@@ -157,7 +167,7 @@ describe('collection sample page', () => {
     expect(headerCount!.hasAttribute('aria-live')).toBe(false);
 
     // The grid's own count is the block's polite status line.
-    const gridCount = gridEl.querySelector('[role="status"]');
+    const gridCount = gridEl!.querySelector('[role="status"]');
     expect(gridCount).not.toBeNull();
     expect(gridCount!.getAttribute('aria-live')).toBe('polite');
     expect(gridCount!.textContent).toContain('48 products');
@@ -166,7 +176,7 @@ describe('collection sample page', () => {
   it('opens the filter drawer as a dialog from the Filter button, returns focus on Esc, and applies nothing until "Show 48 products" is pressed', async () => {
     const wrapper = await mountAttached();
     const main = wrapper.get('main#main');
-    const gridEl = main.element.children[3]!;
+    const gridEl = pageBlockRoots(wrapper)[3]!;
 
     const filterButton = gridEl.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!;
     filterButton.focus();
@@ -224,7 +234,7 @@ describe('collection sample page', () => {
   it('live-applies exactly the three chips Size: M, Colour: Oat and Availability: In stock, in that order, from the sidebar', async () => {
     const wrapper = await mountPage(page);
     const main = wrapper.get('main#main');
-    const gridEl = main.element.children[3]!;
+    const gridEl = pageBlockRoots(wrapper)[3]!;
     // The sidebar's own copies of the groups — excluding the drawer's duplicate set, which sits
     // inside a `<dialog>` the same page also renders.
     const sidebar = Array.from(gridEl.querySelectorAll('aside')).find(
@@ -253,17 +263,20 @@ describe('collection sample page', () => {
     stubOverflow(200, 100);
     const wrapper = await mountPage(page);
     const main = wrapper.get('main#main');
-    const [navEl, breadcrumbsEl, headerEl, gridEl, ctaEl, footerEl] = Array.from(
-      main.element.children
-    );
+    const [navEl, breadcrumbsEl, headerEl, gridEl, ctaEl, footerEl] = pageBlockRoots(wrapper);
 
     const sidebar = Array.from(gridEl!.querySelectorAll('aside')).find(
       (el) => el.closest('dialog') === null
     )!;
-    const sizeCheckbox = panelFor(sidebar, 'Size').querySelectorAll<HTMLInputElement>(
-      'input[type="checkbox"]'
-    )[2]!;
-    checkBox(sizeCheckbox);
+    // Availability → In stock rather than Size → M: the demo source honours `filters` now
+    // (`app/storefront/demo.ts`), and 44 of this collection's 48 items are in stock, so the grid
+    // still has more than one page and a real Load more button in the tab order — Size → M leaves
+    // 12, i.e. everything already shown, and no Load more at all.
+    const availabilityCheckbox = panelFor(
+      sidebar,
+      'Availability'
+    ).querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!;
+    checkBox(availabilityCheckbox);
     // Ticking a sidebar filter starts a new (demo-async) `collectionProducts` request — the grid
     // shows skeletons (an `aria-hidden` list) until it resolves, so this waits for the real card
     // list to come back rather than a single `nextTick`.
@@ -286,8 +299,10 @@ describe('collection sample page', () => {
     )!;
     const footerFirstLink = footerEl!.querySelector('a[href]')!;
 
+    // Whole page, not just `<main>`: the header block is a sibling of it now, and its own controls
+    // are the first stop in the page's tab order.
     const focusable = Array.from(
-      main.element.querySelectorAll<HTMLElement>('a[href], button, input, [tabindex]')
+      wrapper.element.querySelectorAll<HTMLElement>('a[href], button, input, [tabindex]')
     ).filter((el) => el.getAttribute('tabindex') !== '-1' && el.closest('dialog') === null);
     const indexOf = (el: Element | null) => focusable.indexOf(el as HTMLElement);
 
@@ -299,8 +314,8 @@ describe('collection sample page', () => {
     expect(indexOf(navFirst)).toBeGreaterThanOrEqual(0);
     expect(indexOf(navFirst)).toBeLessThan(indexOf(breadcrumbShopLink));
     expect(indexOf(breadcrumbShopLink)).toBeLessThan(indexOf(readMore));
-    expect(indexOf(readMore)).toBeLessThan(indexOf(sizeCheckbox));
-    expect(indexOf(sizeCheckbox)).toBeLessThan(indexOf(chipRemove));
+    expect(indexOf(readMore)).toBeLessThan(indexOf(availabilityCheckbox));
+    expect(indexOf(availabilityCheckbox)).toBeLessThan(indexOf(chipRemove));
     expect(indexOf(chipRemove)).toBeLessThan(indexOf(firstCardLink));
     expect(indexOf(firstCardLink)).toBeLessThan(indexOf(loadMoreButton));
     expect(indexOf(loadMoreButton)).toBeLessThan(indexOf(ctaButton));
@@ -309,8 +324,7 @@ describe('collection sample page', () => {
 
   it('keeps exactly one promotion between the grid and the footer', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
-    const children = Array.from(main.element.children);
+    const children = pageBlockRoots(wrapper);
     const between = children.slice(4, children.length - 1);
     expect(between).toHaveLength(1);
 
@@ -320,6 +334,21 @@ describe('collection sample page', () => {
       (el) => el.textContent?.trim() === 'Send a gift card'
     );
     expect(button).toBeDefined();
+  });
+
+  it('exposes exactly one banner, one main and one contentinfo landmark', async () => {
+    // Two `<header>` elements render on this page — `navigation`'s and `collection-header`'s — but
+    // only the first is a `banner`: the route renders it before `<main id="main">`, while
+    // `collection-header`'s sits inside `<main>` and so carries no landmark role at all
+    // (`app/utils/pageStructure.ts`).
+    const wrapper = await mountPage(page);
+    expectPageLandmarks(wrapper);
+  });
+
+  it('puts the skip link first, landing the visitor after the header', async () => {
+    const wrapper = await mountPageWithSkipLink(page);
+    expectSkipLinkLandsAfterTheHeader(wrapper);
+    wrapper.unmount();
   });
 
   it('has no axe violations over the whole rendered page', async () => {

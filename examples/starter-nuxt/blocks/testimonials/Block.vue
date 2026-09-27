@@ -230,7 +230,7 @@ const cardBackgroundClass = computed(() =>
         <h2
           v-if="hasHeading"
           :id="headingId"
-          class="text-[0.875rem] font-semibold"
+          class="text-body-sm font-semibold"
           :class="isInverted ? '' : 'text-muted'"
         >
           {{ heading }}
@@ -268,13 +268,13 @@ const cardBackgroundClass = computed(() =>
                 v-if="firstItem!.meta && metaHref(firstItem!) !== null"
                 :href="metaHref(firstItem!)!"
                 :as="metaLinkAs(firstItem!)"
-                class="text-[0.875rem]"
+                class="text-body-sm"
               >
                 {{ firstItem!.meta }}
               </Link>
               <span
                 v-else-if="firstItem!.meta"
-                class="block text-[0.875rem]"
+                class="text-body-sm block"
                 :class="isInverted ? '' : 'text-muted'"
               >
                 {{ firstItem!.meta }}
@@ -333,6 +333,11 @@ const cardBackgroundClass = computed(() =>
               <blockquote class="text-text flex-1 text-[1.125rem] leading-[1.55]">
                 {{ item.quote }}
               </blockquote>
+              <!-- 0.875rem / 1.4 (the spec's own literal recipe for the attribution row) — the
+                   `text-body-sm` token is 0.875rem / 1.5, so no token pairs this size with this
+                   line-height, the same "no matching token" exception `announcement-bar` documents
+                   for its own bar copy. The block's other 0.875rem sites, which *are* 1.5, use the
+                   token. -->
               <figcaption class="flex items-center gap-3 text-[0.875rem] leading-[1.4]">
                 <Avatar :src="item.avatar?.url" :name="item.name" size="md" />
                 <div class="min-w-0">
@@ -380,6 +385,7 @@ const cardBackgroundClass = computed(() =>
             <blockquote class="text-text flex-1 text-[1.125rem] leading-[1.55]">
               {{ item.quote }}
             </blockquote>
+            <!-- Same 0.875rem / 1.4 exception as the grid variant above. -->
             <figcaption class="flex items-center gap-3 text-[0.875rem] leading-[1.4]">
               <Avatar :src="item.avatar?.url" :name="item.name" size="md" />
               <div class="min-w-0">
