@@ -168,6 +168,23 @@ export interface StorefrontRoute {
   orderToken: string | null;
   query: string | null;
   page: number;
+  /**
+   * The current `?sort=` value, or `null` when absent — read back the same generic way `page`
+   * already is, so `collection-grid` can seed its own sort choice from a shared URL instead of
+   * always starting from its field's default (design doc §"Storefront source").
+   */
+  sort: string | null;
+  /** The current `?columns=` value, or `null` when absent — `collection-grid`'s column count. */
+  columns: string | null;
+  /**
+   * Every other query key — not `q`, `page`, `token`, `sort` or `columns`, which already have
+   * their own typed field above — as flat string arrays, keyed by query key. A block owns its own
+   * filter vocabulary (`collection-grid`'s `category`/`size`/`colour`/`availability`/`minPrice`/
+   * `maxPrice`), so `StorefrontRoute` only hands back the raw bag rather than declaring every
+   * block's filter keys itself; a value is always an array (even a single-valued one like
+   * `minPrice`) so a block never has to branch on whether the URL repeated a key.
+   */
+  filters: Record<string, string[]>;
   /** The one writer a block may call — the plugin routes it through `useRouter()`. */
   setQuery(patch: Record<string, string | string[] | null>): void;
 }

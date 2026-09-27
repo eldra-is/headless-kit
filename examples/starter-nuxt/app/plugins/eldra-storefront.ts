@@ -37,6 +37,9 @@ export default defineNuxtPlugin({
       orderToken: null,
       query: null,
       page: 1,
+      sort: null,
+      columns: null,
+      filters: {},
       setQuery(patch: Record<string, string | string[] | null>) {
         const nextQuery: Record<string, string | string[]> = {};
         for (const [key, value] of Object.entries(activeRoute.query)) {
@@ -50,6 +53,10 @@ export default defineNuxtPlugin({
       },
     });
 
+    // Query keys with their own typed `StorefrontRoute` field — everything else lands in
+    // `route.filters` (see that field's own doc comment in `types.ts`).
+    const RESERVED_QUERY_KEYS = new Set(['q', 'page', 'token', 'sort', 'columns']);
+
     // Resolved generically off the current path/query until this starter's own commerce page
     // routes land (plan tasks 36–39): `/products/:handle`, `/collections/:handle` and an order
     // status page reading `?token=`/`?q=`/`?page=` — a page can still override `productHandle`/
@@ -62,6 +69,15 @@ export default defineNuxtPlugin({
       route.query = firstOf(activeRoute.query.q as string | string[] | undefined);
       const page = Number(firstOf(activeRoute.query.page as string | string[] | undefined));
       route.page = Number.isFinite(page) && page > 0 ? page : 1;
+      route.sort = firstOf(activeRoute.query.sort as string | string[] | undefined);
+      route.columns = firstOf(activeRoute.query.columns as string | string[] | undefined);
+
+      const filters: Record<string, string[]> = {};
+      for (const [key, value] of Object.entries(activeRoute.query)) {
+        if (RESERVED_QUERY_KEYS.has(key) || value === null || value === undefined) continue;
+        filters[key] = Array.isArray(value) ? (value as string[]) : [value as string];
+      }
+      route.filters = filters;
     });
 
     const publicConfig = useRuntimeConfig().public as unknown as {

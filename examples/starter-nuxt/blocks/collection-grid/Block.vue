@@ -217,9 +217,29 @@ const sectionLabel = computed(() => t('grid.sectionLabel', { collection: collect
 // Applied state (sidebar: live) and the drawer's pending copy
 // ---------------------------------------------------------------------------------------------
 
-const selection = ref<FilterSelection>({});
-const priceMin = ref('');
-const priceMax = ref('');
+/**
+ * Seeded once from `route.filters`/`route.sort`/`route.columns` — "a shared URL restores the
+ * whole grid state" (spec Do/Don't) — the same one-time initial read `search`'s own `searchQuery`
+ * does from `route.query`. From here the block, not the URL, owns this state: every further
+ * change still round-trips through `publishState()` below, which is what keeps the URL in sync
+ * going forward.
+ */
+function initialFilterSelection(): FilterSelection {
+  const out: FilterSelection = {};
+  const category = route.filters.category;
+  if (category && category.length > 0) out.category = category;
+  const size = route.filters.size;
+  if (size && size.length > 0) out['option:size'] = size;
+  const colour = route.filters.colour;
+  if (colour && colour.length > 0) out['option:colour'] = colour;
+  const availability = route.filters.availability;
+  if (availability && availability.length > 0) out.availability = availability;
+  return out;
+}
+
+const selection = ref<FilterSelection>(initialFilterSelection());
+const priceMin = ref(route.filters.minPrice?.[0] ?? '');
+const priceMax = ref(route.filters.maxPrice?.[0] ?? '');
 
 const sortOptions = computed<SelectOption[]>(() => {
   const SORT_LABEL: Record<string, string> = {
@@ -239,7 +259,11 @@ const sortOptions = computed<SelectOption[]>(() => {
       label: (row.label ?? '').trim() || SORT_LABEL[row.option]!,
     }));
 });
-const sort = ref('');
+const sort = ref(
+  route.sort !== null && sortOptions.value.some((option) => option.value === route.sort)
+    ? route.sort
+    : ''
+);
 watch(
   sortOptions,
   (options) => {
@@ -252,8 +276,13 @@ watch(
   { immediate: true }
 );
 
-/** The shopper's own column choice, seeded from the field and reset whenever the field changes. */
-const columnsChoice = ref(columnsField.value);
+/** The shopper's own column choice, seeded from `route.columns` (a shared URL) when it names a
+ *  valid option, else the field's own default — and reset whenever the field's default changes. */
+const columnsChoice = ref(
+  route.columns !== null && ['2', '3', '4'].includes(route.columns)
+    ? route.columns
+    : columnsField.value
+);
 watch(columnsField, (value) => {
   columnsChoice.value = value;
 });
@@ -714,6 +743,10 @@ function hrefForPage(page: number): string {
             :aria-label="t('grid.filters')"
             class="@content:block @content:sticky @content:top-[calc(1.5rem_+_var(--eldra-header-height,0px))] hidden"
           >
+            <!-- A whole-page axe run sees this aside's `h3` group triggers right after the page's
+                 own `h1` (`heading-order`): this hidden `h2` (the aside's own accessible name) gives
+                 them a level to nest under without changing anything sighted users see. -->
+            <VisuallyHidden as="h2">{{ t('grid.filters') }}</VisuallyHidden>
             <FilterGroups
               dense
               :groups="groups"
@@ -905,6 +938,9 @@ function hrefForPage(page: number): string {
           :title="t('grid.filter')"
           width="min(24rem, 100%)"
         >
+          <!-- Same reasoning as the sidebar's own hidden `h2` above — a heading for the group
+               triggers to nest under, independent of the Drawer's own visible title. -->
+          <VisuallyHidden as="h2">{{ t('grid.filters') }}</VisuallyHidden>
           <FilterGroups
             :groups="groups"
             :selection="pendingSelection"

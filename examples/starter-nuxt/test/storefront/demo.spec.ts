@@ -129,7 +129,7 @@ describe('createDemoStorefront', () => {
     expect(result.data.value?.cancelNote).toContain('Cancelled at your request on 19 September');
   });
 
-  it('the "linen" search response has 12 products, 3 journal articles and 2 pages', async () => {
+  it('the "linen" search response matches only the products, journal articles and pages that mention it', async () => {
     const storefront = createDemoStorefront();
     const query = ref('linen');
     const result = storefront.search.run(query);
@@ -139,8 +139,124 @@ describe('createDemoStorefront', () => {
     const response = result.data.value;
     expect(response).not.toBeNull();
     expect(response!.query).toBe('linen');
-    expect(response!.products).toHaveLength(12);
-    expect(response!.articles).toHaveLength(3);
+    // Linen tea towels, pair · Linen napkins, set of 4 · Stonewashed linen throw.
+    expect(response!.products.map((p) => p.title)).toEqual([
+      'Linen tea towels, pair',
+      'Linen napkins, set of 4',
+      'Stonewashed linen throw',
+    ]);
+    // "A visit to the Kortrijk flax mill" mentions neither "linen" nor its own category.
+    expect(response!.articles).toHaveLength(2);
+    // Both pages mention linen, one in its title and one only in its snippet.
     expect(response!.pages).toHaveLength(2);
+    expect(response!.total).toBe(
+      response!.products.length + response!.articles.length + response!.pages.length
+    );
+    expect(response!.suggestion).toBeNull();
+  });
+
+  it('matches case-insensitively on a product title', async () => {
+    const storefront = createDemoStorefront();
+    const query = ref('MERINO');
+    const result = storefront.search.run(query);
+    await settle();
+    const response = result.data.value!;
+    expect(response.products.map((p) => p.handle)).toEqual(['merino-crew-sweater']);
+    expect(response.articles).toHaveLength(0);
+    expect(response.pages).toHaveLength(0);
+    expect(response.total).toBe(1);
+  });
+
+  it('an empty query returns an empty response', async () => {
+    const storefront = createDemoStorefront();
+    const query = ref('');
+    const result = storefront.search.run(query);
+    await settle();
+    expect(result.data.value).toEqual({
+      query: '',
+      total: 0,
+      products: [],
+      articles: [],
+      pages: [],
+      suggestion: null,
+    });
+  });
+
+  it('a near-miss query with no results gets a "did you mean" suggestion', async () => {
+    const storefront = createDemoStorefront();
+    const query = ref('linnen napkns');
+    const result = storefront.search.run(query);
+    await settle();
+    const response = result.data.value!;
+    expect(response.total).toBe(0);
+    expect(response.suggestion).toBe('linen napkins');
+  });
+
+  it('a query that matches nothing at all in the catalogue gets no suggestion', async () => {
+    const storefront = createDemoStorefront();
+    const query = ref('xyzxyzxyz');
+    const result = storefront.search.run(query);
+    await settle();
+    const response = result.data.value!;
+    expect(response.total).toBe(0);
+    expect(response.suggestion).toBeNull();
+  });
+
+  it('the "best-sellers" collection satisfies catalog.collectionProducts, leading with the spec\'s named products', async () => {
+    const storefront = createDemoStorefront();
+    const handle = ref<string | null>('best-sellers');
+    const opts = ref({ page: 1, pageSize: 4 });
+    const result = storefront.catalog.collectionProducts(handle, opts);
+    await settle();
+    const response = result.data.value;
+    expect(response).not.toBeNull();
+    expect(response!.total).toBeGreaterThanOrEqual(4);
+    expect(response!.items.length).toBe(4);
+    expect(response!.items.map((item) => item.title).slice(0, 2)).toEqual([
+      'Merino crew sweater',
+      'Speckled latte mug',
+    ]);
+  });
+
+  describe('StorefrontRoute readers', () => {
+    it('seeds sort, columns and filters from DemoStorefrontOptions — a shared URL restored', () => {
+      const storefront = createDemoStorefront({
+        sort: 'price-asc',
+        columns: '2',
+        filters: { category: ['knitwear'], minPrice: ['20'] },
+      });
+      expect(storefront.route.sort).toBe('price-asc');
+      expect(storefront.route.columns).toBe('2');
+      expect(storefront.route.filters).toEqual({ category: ['knitwear'], minPrice: ['20'] });
+    });
+
+    it('defaults sort/columns to null and filters to an empty bag, like page defaults to 1', () => {
+      const storefront = createDemoStorefront();
+      expect(storefront.route.sort).toBeNull();
+      expect(storefront.route.columns).toBeNull();
+      expect(storefront.route.filters).toEqual({});
+      expect(storefront.route.page).toBe(1);
+    });
+
+    it('setQuery writes sort/columns/filters back the same generic way it writes q/page', () => {
+      const storefront = createDemoStorefront();
+      storefront.route.setQuery({
+        sort: 'newest',
+        columns: '4',
+        category: ['knitwear', 'ceramics'],
+        minPrice: '10',
+      });
+      expect(storefront.route.sort).toBe('newest');
+      expect(storefront.route.columns).toBe('4');
+      expect(storefront.route.filters).toEqual({
+        category: ['knitwear', 'ceramics'],
+        minPrice: ['10'],
+      });
+
+      // `null` clears a key, the same as it does for `q`.
+      storefront.route.setQuery({ sort: null, category: null });
+      expect(storefront.route.sort).toBeNull();
+      expect(storefront.route.filters).toEqual({ minPrice: ['10'] });
+    });
   });
 });

@@ -265,6 +265,19 @@ const DEFAULT_RECENTLY_VIEWED = [
 // Collections
 // ---------------------------------------------------------------------------------------------
 
+/** A curated subset of `PRODUCTS`, not a slice by position — see the `best-sellers` entry below. */
+const BEST_SELLER_HANDLES = [
+  'merino-crew-sweater',
+  'speckled-latte-mug',
+  'walnut-serving-board',
+  'hand-thrown-serving-bowl',
+  'stoneware-dinner-plates-set-of-4',
+  'ribbed-lambswool-beanie',
+];
+const BEST_SELLER_ITEMS: StorefrontProductListItem[] = BEST_SELLER_HANDLES.map((handle) =>
+  PRODUCTS.find((product) => product.handle === handle)!
+);
+
 const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
   'winter-knitwear': {
     handle: 'winter-knitwear',
@@ -282,6 +295,30 @@ const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
     image: demoImage(2, 'The winter edit'),
     productCount: 48,
   },
+  /**
+   * `search`'s own `noResultsCollection` mock value (`blocks/search/mock.json`) — "Customers love
+   * these" on the no-results page (spec `02-blocks.md` "Search results page" → Default content:
+   * "Merino crew sweater, Speckled latte mug"), those two first so a `.slice(0, 4)` still leads
+   * with them.
+   */
+  'best-sellers': {
+    handle: 'best-sellers',
+    title: 'Best sellers',
+    description: 'The Northwind pieces shoppers reach for again and again.',
+    image: demoImage(6, 'Best sellers'),
+    productCount: BEST_SELLER_HANDLES.length,
+  },
+};
+
+/** Collections whose items are a curated list rather than `buildCollectionItems`'s generic cycle
+ *  through `PRODUCTS` by position — currently only `best-sellers`. */
+const COLLECTION_ITEMS: Record<string, StorefrontProductListItem[]> = {
+  'best-sellers': BEST_SELLER_ITEMS,
+};
+/** `best-sellers` has no facets — it is surfaced only by `search`'s no-results state, never
+ *  browsed through `collection-grid`'s filter UI in this demo, so there is nothing to facet by. */
+const COLLECTION_FACETS: Record<string, StorefrontFacet[]> = {
+  'best-sellers': [],
 };
 
 const WINTER_KNITWEAR_FACETS: StorefrontFacet[] = [
@@ -492,52 +529,134 @@ export function buildOrder(status: StorefrontOrderStatus = 'shipped'): Storefron
 }
 
 // ---------------------------------------------------------------------------------------------
-// Search — the "linen" query (spec lines ~3692–3694)
+// Search — case-insensitive match on title, category and journal titles/deks; an empty query has
+// nothing to search for, and a near miss gets a "did you mean" suggestion (design doc
+// §"Storefront source"; spec `02-blocks.md` "Search results page" → Default content, the "linen"
+// query and the "linnen napkns" no-results example).
 // ---------------------------------------------------------------------------------------------
 
+const JOURNAL_ARTICLES: StorefrontSearchResponse['articles'] = [
+  {
+    title: 'How to wash and store linen',
+    href: '/journal/how-to-wash-and-store-linen',
+    category: 'Care guide',
+    readingTime: '4 min read',
+    image: demoImage(1, 'How to wash and store linen'),
+  },
+  {
+    title: 'Linen vs. cotton for the kitchen',
+    href: '/journal/linen-vs-cotton-for-the-kitchen',
+    category: 'Journal',
+    readingTime: '6 min read',
+    image: demoImage(2, 'Linen vs. cotton for the kitchen'),
+  },
+  {
+    title: 'A visit to the Kortrijk flax mill',
+    href: '/journal/a-visit-to-the-kortrijk-flax-mill',
+    category: 'Journal',
+    readingTime: '8 min read',
+    image: demoImage(3, 'A visit to the Kortrijk flax mill'),
+  },
+];
+
+const JOURNAL_PAGES: StorefrontSearchResponse['pages'] = [
+  {
+    title: 'Care guide: linen & wool',
+    href: '/pages/care',
+    path: 'northwindgoods.com/pages/care',
+    snippet: 'How to wash, dry and store our linen and wool pieces.',
+  },
+  {
+    title: 'Materials',
+    href: '/pages/materials',
+    path: 'northwindgoods.com/pages/materials',
+    snippet: 'Where our linen, wool and stoneware come from.',
+  },
+];
+
+/**
+ * Search-friendly aliases for `PRODUCT_DEFS`, in the same order — shorter than some titles
+ * ("Linen napkins, set of 4" → "linen napkins") so a "did you mean" suggestion reads the way a
+ * shopper would type it, not the full merchandising title.
+ */
+const SEARCH_TERMS: string[] = [
+  'merino crew sweater',
+  'fisherman rib cardigan',
+  'lambswool throw blanket',
+  'ribbed lambswool beanie',
+  'linen tea towels',
+  'speckled latte mug',
+  'stoneware dinner plates',
+  'walnut serving board',
+  'hand-thrown serving bowl',
+  'glazed milk jug',
+  'linen napkins',
+  'stonewashed linen throw',
+];
+
+function normalise(text: string): string {
+  return text.trim().toLowerCase();
+}
+
+function includesQuery(haystack: string, query: string): boolean {
+  return normalise(haystack).includes(query);
+}
+
+/** Plain Levenshtein edit distance — short search terms only, never a document. */
+function editDistance(a: string, b: string): number {
+  const rows: number[][] = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0)
+  );
+  for (let i = 0; i <= a.length; i += 1) rows[i]![0] = i;
+  for (let j = 0; j <= b.length; j += 1) rows[0]![j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      rows[i]![j] = Math.min(
+        rows[i - 1]![j]! + 1,
+        rows[i]![j - 1]! + 1,
+        rows[i - 1]![j - 1]! + cost
+      );
+    }
+  }
+  return rows[a.length]![b.length]!;
+}
+
+/**
+ * The closest `SEARCH_TERMS` entry within a quarter of its own length (at least 2 edits of
+ * slack) — a real "did you mean" for a near miss ("linnen napkns" → "linen napkins"), not a guess
+ * for a query that shares nothing with the catalogue.
+ */
+function suggestionFor(query: string): string | null {
+  let best: { term: string; distance: number } | null = null;
+  for (const term of SEARCH_TERMS) {
+    const distance = editDistance(query, term);
+    if (best === null || distance < best.distance) best = { term, distance };
+  }
+  if (best === null || best.distance === 0) return null;
+  return best.distance <= Math.max(2, Math.ceil(best.term.length / 4)) ? best.term : null;
+}
+
 function buildSearchResponse(query: string): StorefrontSearchResponse {
+  const q = normalise(query);
+  if (q === '') {
+    return { query, total: 0, products: [], articles: [], pages: [], suggestion: null };
+  }
+  const products = PRODUCTS.filter((product) => includesQuery(product.title, q));
+  const articles = JOURNAL_ARTICLES.filter(
+    (article) => includesQuery(article.title, q) || includesQuery(article.category, q)
+  );
+  const pages = JOURNAL_PAGES.filter(
+    (page) => includesQuery(page.title, q) || includesQuery(page.snippet, q)
+  );
+  const total = products.length + articles.length + pages.length;
   return {
     query,
-    total: 17,
-    products: PRODUCTS,
-    articles: [
-      {
-        title: 'How to wash and store linen',
-        href: '/journal/how-to-wash-and-store-linen',
-        category: 'Care guide',
-        readingTime: '4 min read',
-        image: demoImage(1, 'How to wash and store linen'),
-      },
-      {
-        title: 'Linen vs. cotton for the kitchen',
-        href: '/journal/linen-vs-cotton-for-the-kitchen',
-        category: 'Journal',
-        readingTime: '6 min read',
-        image: demoImage(2, 'Linen vs. cotton for the kitchen'),
-      },
-      {
-        title: 'A visit to the Kortrijk flax mill',
-        href: '/journal/a-visit-to-the-kortrijk-flax-mill',
-        category: 'Journal',
-        readingTime: '8 min read',
-        image: demoImage(3, 'A visit to the Kortrijk flax mill'),
-      },
-    ],
-    pages: [
-      {
-        title: 'Care guide: linen & wool',
-        href: '/pages/care',
-        path: 'northwindgoods.com/pages/care',
-        snippet: 'How to wash, dry and store our linen and wool pieces.',
-      },
-      {
-        title: 'Materials',
-        href: '/pages/materials',
-        path: 'northwindgoods.com/pages/materials',
-        snippet: 'Where our linen, wool and stoneware come from.',
-      },
-    ],
-    suggestion: null,
+    total,
+    products,
+    articles,
+    pages,
+    suggestion: total === 0 ? suggestionFor(q) : null,
   };
 }
 
@@ -706,6 +825,12 @@ export interface DemoStorefrontOptions {
   failForms?: boolean;
   /** Seeds the cart with these lines, e.g. `DEMO_CART_LINES` — the demo cart is empty otherwise. */
   cartLines?: StorefrontCartLine[];
+  /** Seeds `route.sort` — restores `collection-grid`'s sort choice the way a shared URL would. */
+  sort?: string;
+  /** Seeds `route.columns`. */
+  columns?: string;
+  /** Seeds `route.filters` — restores `collection-grid`'s filter selection and price range. */
+  filters?: Record<string, string[]>;
 }
 
 /** Northwind fixtures in the theme's own view types — the "knobs" are exactly what a block spec
@@ -719,6 +844,9 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
     orderToken: 'demo-order-token',
     query: options.query ?? null,
     page: 1,
+    sort: options.sort ?? null,
+    columns: options.columns ?? null,
+    filters: options.filters ?? {},
     setQuery(patch: Record<string, string | string[] | null>) {
       for (const [key, value] of Object.entries(patch)) {
         if (key === 'q') {
@@ -728,6 +856,19 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
           const first = Array.isArray(value) ? value[0] : value;
           const page = Number(first);
           route.page = Number.isFinite(page) && page > 0 ? page : 1;
+        } else if (key === 'sort') {
+          const first = Array.isArray(value) ? (value[0] ?? null) : value;
+          route.sort = first || null;
+        } else if (key === 'columns') {
+          const first = Array.isArray(value) ? (value[0] ?? null) : value;
+          route.columns = first || null;
+        } else {
+          // Every other key is a `collection-grid` filter or its price range — kept generically
+          // (see `types.ts`'s own doc comment on `StorefrontRoute.filters`) rather than named here.
+          const next = { ...route.filters };
+          if (value === null) delete next[key];
+          else next[key] = Array.isArray(value) ? value : [value];
+          route.filters = next;
         }
       }
     },
@@ -750,13 +891,13 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
         if (!handle.value) return null;
         const info = COLLECTIONS[handle.value];
         if (!info) return null;
-        const all = buildCollectionItems(info.productCount);
+        const all = COLLECTION_ITEMS[handle.value] ?? buildCollectionItems(info.productCount);
         const { page, pageSize } = opts.value;
         const start = (page - 1) * pageSize;
         return {
           items: all.slice(start, start + pageSize),
           total: info.productCount,
-          facets: WINTER_KNITWEAR_FACETS,
+          facets: COLLECTION_FACETS[handle.value] ?? WINTER_KNITWEAR_FACETS,
         };
       }),
     related: (handle, limit) =>

@@ -260,9 +260,12 @@ describe('collection-grid block', () => {
       const section = wrapper.get('section');
       expect(section.attributes('aria-label')).toBe('Winter knitwear products');
 
-      const h2 = wrapper.get('h2');
+      // Not `wrapper.get('h2')`: the sidebar's own hidden "Filters" h2 (added so the filter
+      // group triggers below it have a heading to nest under) precedes this one in DOM order.
+      const h2 = wrapper
+        .findAll('h2')
+        .find((candidate) => candidate.text() === enUS.grid.products)!;
       expect(h2.classes()).toContain('sr-only');
-      expect(h2.text()).toBe(enUS.grid.products);
 
       const titles = wrapper.findAll('h3');
       expect(titles.some((title) => title.text() === 'Merino crew sweater')).toBe(true);
@@ -292,6 +295,24 @@ describe('collection-grid block', () => {
         expect(trigger.attributes('aria-expanded')).toBe('true');
         expect(panel.element.tagName).toBe('FIELDSET');
         expect(panel.get('legend').classes()).toContain('sr-only');
+      }
+    });
+
+    it('gives the sidebar and the drawer a heading before their filter-group triggers, so headings never skip a level', async () => {
+      const wrapper = mountGrid(mock);
+      await wrapper.vm.$nextTick();
+
+      const headings = wrapper.findAll('h2').filter((el) => el.text() === enUS.grid.filters);
+      // One in the sidebar `<aside>`, one in the drawer.
+      expect(headings).toHaveLength(2);
+
+      const triggers = groupTriggers(wrapper);
+      for (const [heading, trigger] of [
+        [headings[0]!, triggers[0]!],
+        [headings[1]!, triggers[mock.filters.length]!], // the drawer's own first trigger
+      ] as const) {
+        const relation = heading.element.compareDocumentPosition(trigger.element);
+        expect(relation & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       }
     });
 
@@ -745,6 +766,33 @@ describe('collection-grid block', () => {
       const wrapper = mountGrid({ ...mock, paginationStyle: 'pages', pageSize: '12' }, { source });
       await wrapper.vm.$nextTick();
       expect(wrapper.get('[aria-current="page"]').text()).toBe('3');
+    });
+
+    it('restores filters, sort and columns from a seeded route — a shared URL restores the whole grid state', async () => {
+      const source = createDemoStorefront();
+      source.route.filters = { category: ['knitwear'], size: ['m'] };
+      source.route.sort = 'price-asc';
+      source.route.columns = '2';
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+
+      const chips = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
+      expect(chips.text()).toContain('Category: Knitwear');
+      expect(chips.text()).toContain('Size: M');
+
+      const [topBarSort, toolbarSort, columnsSelect] = comboboxes(wrapper);
+      expect(topBarSort!.text()).toContain('Price low to high');
+      expect(toolbarSort!.text()).toContain('Price low to high');
+      expect(columnsSelect!.text()).toContain('2');
+    });
+
+    it('ignores a seeded route sort that is not one of the block’s own sort options', async () => {
+      const source = createDemoStorefront();
+      source.route.sort = 'not-a-real-option';
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      // Falls back to the first configured option, same as no seed at all.
+      expect(comboboxes(wrapper)[1]!.text()).toContain('Featured');
     });
   });
 

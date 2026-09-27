@@ -131,7 +131,10 @@ describe('search block', () => {
     });
 
     it('renders the bare, required-fields-only content (every fallback default) with no axe violations', async () => {
-      const wrapper = mountSearch(bare);
+      // A real, non-empty query — `bare` has no `types`/heading/popular fields of its own, and
+      // this is what proves every one of those falls back correctly, which needs actual results
+      // on screen (the default demo's own `route.query` is empty, so this seeds one explicitly).
+      const wrapper = mountSearch(bare, { storefront: createDemoStorefront({ query: 'linen' }) });
       await nextTick();
       expect(wrapper.find('input[type="search"]').attributes('placeholder')).toBe(
         enUS.search.searchLabel
@@ -299,7 +302,9 @@ describe('search block', () => {
 
     vi.advanceTimersByTime(1);
     await nextTick();
-    expect(live()?.textContent).toContain('17');
+    // "li" matches 3 products (Linen tea towels/napkins, Stonewashed linen throw) plus 2 journal
+    // articles and 2 pages via the real demo's own case-insensitive title/category/snippet match.
+    expect(live()?.textContent).toContain('7');
   });
 
   describe('result tabs', () => {
@@ -337,7 +342,12 @@ describe('search block', () => {
     });
 
     it('←/→ move between tabs, wrapping, and Home/End jump to the ends', async () => {
-      const wrapper = mountSearch(mock, { attach: true });
+      // A real, non-empty query — the default demo's own `route.query` is empty, which now (the
+      // real demo honours the query text) means no results and no tabs at all.
+      const wrapper = mountSearch(mock, {
+        attach: true,
+        storefront: createDemoStorefront({ query: 'linen' }),
+      });
       await nextTick();
       const tabs = wrapper.findAll('[role="tab"]');
       expect(tabs.length).toBeGreaterThan(2);

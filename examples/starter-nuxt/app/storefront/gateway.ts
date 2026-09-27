@@ -641,6 +641,12 @@ export function createGatewayStorefront(
           },
           { signal }
         )) as unknown as RawProductList;
+        // `dto_ProductListResult` — the contract type behind `GET
+        // /catalog/v1/collections/{slug}/products` (checked against
+        // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
+        // declares only `data`/`meta`. No facets/aggregations field exists on this response today,
+        // so there is nothing to map; `facets` stays `[]` until the gateway's contract adds one
+        // (recorded in the wave's report rather than left as a silent, unexplained empty array).
         const facets: StorefrontFacet[] = [];
         return { items: (raw.data ?? []).map(mapProductListItem), total: raw.meta.total, facets };
       }),
