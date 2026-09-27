@@ -32,6 +32,15 @@ async function build(candidates: string[]): Promise<string> {
 }
 
 describe('main.css', () => {
+  it('names blocks/ as a Tailwind source — Nuxt scans only app/ on its own', () => {
+    // Nuxt 4's Vite root is `app/`, and Tailwind v4's automatic source detection starts there, so
+    // `blocks/` (a sibling of `app/`) is never scanned by the site build unless this file names it.
+    // Without the directive no block-authored class ships — every `@tablet:`/`@content:`
+    // container-query variant included — while Storybook, whose root is the theme root, looks
+    // right. The path is relative to this stylesheet.
+    expect(mainCss).toMatch(/^@source\s+'\.\.\/\.\.\/blocks';/m);
+  });
+
   it('emits the dialog backdrop from the overlay token', async () => {
     const css = await build(['backdrop:bg-overlay']);
     expect(css).toContain('::backdrop');
