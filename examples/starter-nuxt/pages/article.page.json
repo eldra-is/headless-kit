@@ -1,0 +1,969 @@
+{
+  "template": "article",
+  "title": "How we glaze our stoneware",
+  "blocks": [
+    {
+      "apiId": "navigation",
+      "id": "article-navigation",
+      "data": {
+        "variant": "default",
+        "brandText": "Northwind Goods",
+        "links": [
+          {
+            "label": "Knitwear",
+            "href": "/collections/knitwear",
+            "menuLinks": [
+              {
+                "group": "Women",
+                "label": "Sweaters",
+                "href": "/collections/womens-sweaters"
+              },
+              {
+                "group": "Women",
+                "label": "Cardigans",
+                "href": "/collections/womens-cardigans"
+              },
+              {
+                "group": "Women",
+                "label": "Scarves & wraps",
+                "href": "/collections/scarves-wraps"
+              },
+              {
+                "group": "Women",
+                "label": "Hats & gloves",
+                "href": "/collections/hats-gloves"
+              },
+              {
+                "group": "Men",
+                "label": "Sweaters",
+                "href": "/collections/mens-sweaters"
+              },
+              {
+                "group": "Men",
+                "label": "Cardigans",
+                "href": "/collections/mens-cardigans"
+              },
+              {
+                "group": "Men",
+                "label": "Scarves",
+                "href": "/collections/mens-scarves"
+              },
+              {
+                "group": "Men",
+                "label": "Socks",
+                "href": "/collections/socks"
+              },
+              {
+                "group": "Collections",
+                "label": "Merino essentials",
+                "href": "/collections/merino-essentials"
+              },
+              {
+                "group": "Collections",
+                "label": "Heavy winter knits",
+                "href": "/collections/heavy-winter-knits"
+              },
+              {
+                "group": "Collections",
+                "label": "Undyed wool",
+                "href": "/collections/undyed-wool"
+              },
+              {
+                "group": "Collections",
+                "label": "Shop all knitwear",
+                "href": "/collections/knitwear"
+              }
+            ],
+            "features": [
+              {
+                "image": {
+                  "assetId": "demo-feature-1",
+                  "url": "/demo/feature-1.svg",
+                  "altText": "Folded walnut merino cardigan",
+                  "width": 800,
+                  "height": 600
+                },
+                "label": "New season knitwear",
+                "href": "/collections/knitwear"
+              },
+              {
+                "image": {
+                  "assetId": "demo-feature-2",
+                  "url": "/demo/feature-2.svg",
+                  "altText": "Darning kit with sage wool",
+                  "width": 800,
+                  "height": 600
+                },
+                "label": "Care & repair guide",
+                "href": "/pages/care"
+              }
+            ]
+          },
+          {
+            "label": "Ceramics",
+            "href": "/collections/ceramics",
+            "menuLinks": [
+              {
+                "group": "Tableware",
+                "label": "Plates",
+                "href": "/collections/plates"
+              },
+              {
+                "group": "Tableware",
+                "label": "Bowls",
+                "href": "/collections/bowls"
+              },
+              {
+                "group": "Tableware",
+                "label": "Mugs & cups",
+                "href": "/collections/mugs-cups"
+              }
+            ]
+          },
+          {
+            "label": "Kitchen",
+            "href": "/collections/kitchen"
+          },
+          {
+            "label": "Journal",
+            "href": "/journal"
+          },
+          {
+            "label": "Visit the studio",
+            "href": "/pages/visit"
+          }
+        ],
+        "showSearch": true,
+        "searchStyle": "icon",
+        "showAccount": true,
+        "ctaLabel": "Shop gifts",
+        "ctaHref": "/collections/gifts",
+        "sticky": true,
+        "transparentOverHero": false
+      }
+    },
+    {
+      "apiId": "breadcrumbs",
+      "id": "article-breadcrumbs",
+      "data": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [
+          {
+            "label": "Journal",
+            "href": "/journal"
+          },
+          {
+            "label": "Ceramics",
+            "href": "/journal/ceramics"
+          }
+        ],
+        "currentTitle": "How we glaze our stoneware",
+        "showCurrent": true,
+        "container": "wide"
+      }
+    },
+    {
+      "apiId": "article",
+      "id": "article-body",
+      "data": {
+        "title": "How we glaze our stoneware",
+        "dek": "Every Northwind mug and bowl passes through two firings and three pairs of hands. Here is what happens between the wheel and your kitchen shelf.",
+        "categoryLabel": "Ceramics",
+        "categoryHref": "/journal/ceramics",
+        "publishedAt": "2026-09-18",
+        "readingTime": "6 min read",
+        "coverCaption": "Bisqueware waiting for its glaze bath in the Portland studio.",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Glazing is the step people ask us about most, and the one we rush least. A glaze is a thin layer of glass fused to the clay at 2,264 °F. Get it right and the surface stays food-safe and dishwasher-proof for decades."
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "level": 2
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Two firings, not one"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Every piece is bisque fired first, to 1,832 °F. That leaves the clay hard enough to handle but porous enough to drink up glaze evenly. Then comes the part that takes practice:"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "content": [
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Wax the foot so the glaze stops 5 mm above the base."
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Dip for a slow count of three. Thicker coats pool in the curve of a bowl and turn glossy."
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Wipe, dry overnight, then load the glaze kiln shelf by shelf."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "blockquote",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "The kiln always has the last word. We just try to give it a good argument."
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Ingrid Moe, studio lead"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Our "
+                },
+                {
+                  "type": "text",
+                  "text": "Fjord glaze",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "/collections/fjord"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " is reactive, so no two mugs match exactly. That is why we stamp the batch code, such as "
+                },
+                {
+                  "type": "text",
+                  "text": "FJ-26-09",
+                  "marks": [
+                    {
+                      "type": "code"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": ", on every foot."
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "level": 2
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Why every mug looks slightly different"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "The same glaze bucket can give three different results depending on where a piece sits in the kiln. Hotter shelves near the burners melt the glaze further, so the speckle spreads and the rim darkens."
+                }
+              ]
+            },
+            {
+              "type": "image",
+              "attrs": {
+                "src": "/demo/article-figure.svg",
+                "alt": "Three glazed mugs in blue-grey, oat and slate on a linen cloth",
+                "title": "Left to right: Fjord, Oat and Slate, all from kiln batch FJ-26-09."
+              }
+            },
+            {
+              "type": "horizontalRule"
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "level": 2
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Glaze recipes, by dry weight"
+                }
+              ]
+            },
+            {
+              "type": "table",
+              "content": [
+                {
+                  "type": "tableRow",
+                  "content": [
+                    {
+                      "type": "tableHeader",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Glaze"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableHeader",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Finish"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableHeader",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Base"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableHeader",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Colourant"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Fjord"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Satin"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Feldspar, silica, whiting"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Iron oxide 4%"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Oat"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Matte"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Dolomite, kaolin"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Rutile 3%"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Slate"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Gloss"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Frit, silica"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Cobalt 0.5%"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "level": 3
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Our glaze firing schedule"
+                }
+              ]
+            },
+            {
+              "type": "orderedList",
+              "content": [
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Climb slowly to 1,112 °F so trapped water can escape."
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Hold at 2,264 °F for 15 minutes to heal pinholes."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "codeBlock",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Segment  Rate (°F/h)  Target (°F)  Hold (min)\n1  180  1,112  0\n2  270  2,012  0\n3  110  2,264  15"
+                }
+              ]
+            },
+            {
+              "type": "embed",
+              "attrs": {
+                "src": "https://www.youtube-nocookie.com/embed/northwind-fjord-bowl",
+                "title": "Watch: dipping a Fjord bowl, start to finish (2:14)."
+              }
+            }
+          ]
+        },
+        "authorName": "Ingrid Moe",
+        "authorRole": "Studio lead, Northwind ceramics",
+        "authorBio": "Ingrid has thrown pots in Portland for eighteen years and mixes every Northwind glaze by hand. She still signs the first mug out of each new batch.",
+        "authorLinkLabel": "More from Ingrid",
+        "authorLinkHref": "/journal/authors/ingrid-moe",
+        "showByline": true,
+        "coverImage": {
+          "assetId": "demo-article-cover",
+          "url": "/demo/article-cover.svg",
+          "altText": "Unglazed stoneware bowls stacked on a wooden studio shelf",
+          "width": 1920,
+          "height": 1080
+        },
+        "authorAvatar": {
+          "assetId": "demo-avatar-6",
+          "url": "/demo/avatar-6.svg",
+          "altText": "",
+          "width": 256,
+          "height": 256
+        }
+      }
+    },
+    {
+      "apiId": "article-list",
+      "id": "article-related",
+      "data": {
+        "variant": "grid",
+        "heading": "More from the journal",
+        "viewAllLabel": "View all stories",
+        "viewAllHref": "/journal",
+        "source": "manual",
+        "perPage": "6",
+        "showFilters": false,
+        "filters": [
+          {
+            "label": "All",
+            "href": "/journal"
+          },
+          {
+            "label": "Ceramics",
+            "href": "/journal/ceramics"
+          },
+          {
+            "label": "Care",
+            "href": "/journal/care"
+          },
+          {
+            "label": "Recipes",
+            "href": "/journal/recipes"
+          },
+          {
+            "label": "Makers",
+            "href": "/journal/makers"
+          },
+          {
+            "label": "Home",
+            "href": "/journal/home"
+          }
+        ],
+        "showPagination": false,
+        "showExcerpt": true,
+        "emptyTitle": "No stories yet",
+        "emptyText": "Our kitchen team is testing a few. Until then, browse every story from the journal.",
+        "items": [
+          {
+            "title": "Inside the Porto linen mill",
+            "dek": "Three generations, one loom room and the reason our tea towels soften with every wash.",
+            "href": "/journal/porto-linen-mill",
+            "categoryLabel": "Makers",
+            "categoryHref": "/journal/makers",
+            "publishedAt": "2026-08-14",
+            "readingTime": "7 min read",
+            "image": {
+              "assetId": "demo-gallery-4",
+              "url": "/demo/gallery-4.svg",
+              "altText": "",
+              "width": 1600,
+              "height": 1000
+            }
+          },
+          {
+            "title": "Caring for merino: a winter guide",
+            "dek": "Wash less, air more. How to keep a knit soft and shape-true for a decade, pills and all.",
+            "href": "/journal/caring-for-merino",
+            "categoryLabel": "Care",
+            "categoryHref": "/journal/care",
+            "publishedAt": "2026-09-09",
+            "readingTime": "4 min read",
+            "image": {
+              "assetId": "demo-gallery-2",
+              "url": "/demo/gallery-2.svg",
+              "altText": "",
+              "width": 1600,
+              "height": 1000
+            }
+          },
+          {
+            "title": "Five-minute brown butter oats",
+            "dek": "Our kitchen team's weekday breakfast, made in one Everyday saucepan with whatever fruit is in the bowl.",
+            "href": "/journal/brown-butter-oats",
+            "categoryLabel": "Recipes",
+            "categoryHref": "/journal/recipes",
+            "publishedAt": "2026-08-28",
+            "readingTime": "3 min read",
+            "image": {
+              "assetId": "demo-gallery-3",
+              "url": "/demo/gallery-3.svg",
+              "altText": "",
+              "width": 1600,
+              "height": 1000
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiId": "newsletter",
+      "id": "article-newsletter",
+      "data": {
+        "variant": "centered",
+        "heading": "Letters from the workshop",
+        "text": "New makers, restocks and first pick of our seconds sales, once a month. Take 10% off your first order when you join.",
+        "fieldLabel": "Email address",
+        "placeholder": "name@example.com",
+        "buttonLabel": "Subscribe",
+        "consent": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "One email a month, never shared. Read our "
+                },
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "/pages/privacy"
+                      }
+                    }
+                  ],
+                  "text": "privacy policy"
+                },
+                {
+                  "type": "text",
+                  "text": "; unsubscribe with one click."
+                }
+              ]
+            }
+          ]
+        },
+        "requireConsentCheckbox": false,
+        "consentCheckboxLabel": "I'd like to receive emails from Northwind Goods",
+        "successTitle": "You're on the list",
+        "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
+        "list": "letters-from-the-workshop",
+        "sectionBackground": "surface"
+      }
+    },
+    {
+      "apiId": "footer",
+      "id": "article-footer",
+      "data": {
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "groups": [
+          {
+            "title": "Shop",
+            "links": [
+              {
+                "label": "Knitwear",
+                "href": "/collections/knitwear"
+              },
+              {
+                "label": "Ceramics",
+                "href": "/collections/ceramics"
+              },
+              {
+                "label": "Kitchen",
+                "href": "/collections/kitchen"
+              },
+              {
+                "label": "Gift cards",
+                "href": "/products/gift-card"
+              }
+            ]
+          },
+          {
+            "title": "Help",
+            "links": [
+              {
+                "label": "Shipping",
+                "href": "/pages/shipping"
+              },
+              {
+                "label": "Returns",
+                "href": "/pages/returns"
+              },
+              {
+                "label": "Care guides",
+                "href": "/journal/care"
+              },
+              {
+                "label": "Contact us",
+                "href": "/pages/contact"
+              }
+            ]
+          },
+          {
+            "title": "Company",
+            "links": [
+              {
+                "label": "Our story",
+                "href": "/pages/about"
+              },
+              {
+                "label": "Makers",
+                "href": "/pages/makers"
+              },
+              {
+                "label": "Journal",
+                "href": "/journal"
+              },
+              {
+                "label": "Visit the studio",
+                "href": "/pages/visit"
+              }
+            ]
+          }
+        ],
+        "links": [
+          {
+            "label": "Shipping",
+            "href": "/pages/shipping"
+          },
+          {
+            "label": "Returns",
+            "href": "/pages/returns"
+          },
+          {
+            "label": "Contact us",
+            "href": "/pages/contact"
+          },
+          {
+            "label": "Our story",
+            "href": "/pages/about"
+          }
+        ],
+        "showNewsletter": false,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [
+          {
+            "network": "instagram",
+            "href": "https://instagram.com/northwindgoods"
+          },
+          {
+            "network": "pinterest",
+            "href": "https://pinterest.com/northwindgoods"
+          },
+          {
+            "network": "tiktok",
+            "href": "https://tiktok.com/@northwindgoods"
+          },
+          {
+            "network": "youtube",
+            "href": "https://youtube.com/@northwindgoods"
+          }
+        ],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [
+          {
+            "label": "Privacy",
+            "href": "/pages/privacy"
+          },
+          {
+            "label": "Terms",
+            "href": "/pages/terms"
+          },
+          {
+            "label": "Accessibility",
+            "href": "/pages/accessibility"
+          }
+        ],
+        "showLocale": true,
+        "showCurrency": true
+      }
+    }
+  ]
+}

@@ -16,6 +16,8 @@ import { tablerIconSvg } from '../../server/utils/tablerIcon';
 // introduces (`test/support/mountPage.ts` is a Task 2 + 36–39 shared file,
 // see the design doc's file-structure table).
 import Article from '../../blocks/article/Block.vue';
+import ArticleList from '../../blocks/article-list/Block.vue';
+import Breadcrumbs from '../../blocks/breadcrumbs/Block.vue';
 import Cta from '../../blocks/cta/Block.vue';
 import Faq from '../../blocks/faq/Block.vue';
 import FeatureGrid from '../../blocks/feature-grid/Block.vue';
@@ -24,10 +26,13 @@ import Gallery from '../../blocks/gallery/Block.vue';
 import Hero from '../../blocks/hero/Block.vue';
 import ImageBlock from '../../blocks/image/Block.vue';
 import Navigation from '../../blocks/navigation/Block.vue';
+import Newsletter from '../../blocks/newsletter/Block.vue';
 import Testimonials from '../../blocks/testimonials/Block.vue';
 
 const blockComponents: Record<string, Component> = {
   article: Article,
+  'article-list': ArticleList,
+  breadcrumbs: Breadcrumbs,
   cta: Cta,
   faq: Faq,
   'feature-grid': FeatureGrid,
@@ -36,6 +41,7 @@ const blockComponents: Record<string, Component> = {
   hero: Hero,
   image: ImageBlock,
   navigation: Navigation,
+  newsletter: Newsletter,
   testimonials: Testimonials,
 };
 
