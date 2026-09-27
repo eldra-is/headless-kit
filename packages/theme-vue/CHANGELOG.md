@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fix: `EldraLayout`'s template-block catalog now carries each manifest block's declared field
+  renames (built from its `migrations` array via `@eldrajs/theme-core`'s `buildTemplateBlockRenames`),
+  so a route template's `template-block` node still keyed by a field's pre-migration name resolves
+  and renders instead of falling back to the hidden invalid-layout placeholder.
 - **`EldraRichText` takes a `minHeadingLevel` prop**: a floor applied to every heading node at
   render time (`h{max(minHeadingLevel, level)}`, still capped at 6; default `1`, i.e. the document's
   own levels). A page owns its heading outline and a rich-text field does not — the same stored

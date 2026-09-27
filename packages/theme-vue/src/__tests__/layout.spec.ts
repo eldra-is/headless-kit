@@ -164,6 +164,41 @@ describe('EldraLayout', () => {
     expect(wrapper.find('[data-eldra-template-block]').exists()).toBe(false);
   });
 
+  it('resolves a template-block binding keyed by a renamed field through the manifest catalog', async () => {
+    // The mock manifest's `hero` block declares `migrations: [{ version: 2,
+    // renames: [{ from: 'title', to: 'heading' }] }]`. This route template
+    // node is still keyed by the pre-migration `title` name, the way an
+    // un-migrated stored template would be — buildTemplateBlockCatalog must
+    // carry that rename into the catalog it hands theme-core so the block
+    // keeps rendering instead of failing closed.
+    const wrapper = mount(EldraLayout, {
+      props: {
+        layout: {
+          version: 1,
+          root: {
+            id: 'TemplateRoot',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: [
+              {
+                id: 'TemplateHero',
+                type: 'template-block',
+                apiId: 'hero',
+                bindings: { title: 'title' },
+              },
+            ],
+          },
+        },
+        blocks: [],
+        templateEntry: { id: 'article-1', data: { title: 'Renamed-field heading' } },
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-eldra-invalid-layout]').exists()).toBe(false);
+    expect(wrapper.get('h1').text()).toBe('Renamed-field heading');
+  });
+
   it('renders repeated reusable placements with distinct DOM identity and shared selection identity', async () => {
     const siteId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     const componentId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';

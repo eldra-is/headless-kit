@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decodeStega, encodeStega } from '../stega';
-import { createTemplateLayoutRenderModel } from '../templateLayout';
+import { buildTemplateBlockRenames, createTemplateLayoutRenderModel } from '../templateLayout';
 
 const entry = {
   id: 'entry-1',
@@ -162,5 +162,156 @@ describe('template layout render model', () => {
     expect(() =>
       createTemplateLayoutRenderModel(layout(node), { entry, blockCatalog: catalog })
     ).toThrow(expect.objectContaining({ issue: expect.objectContaining({ code }) }));
+  });
+});
+
+describe('template-block bindings/templates through declared field renames', () => {
+  // A block that bumped its version and renamed `brand` -> `brandText`; the
+  // route template node below is deliberately still keyed by the old name,
+  // as an un-migrated stored document would be.
+  const renamedCatalog = {
+    navigation: {
+      apiId: 'navigation',
+      fields: [{ fieldId: 'brandText' }, { fieldId: 'links' }],
+      renames: { brand: 'brandText' },
+    },
+    chained: {
+      apiId: 'chained',
+      fields: [{ fieldId: 'c' }],
+      // a -> b -> c, already flattened the way buildTemplateBlockRenames would.
+      renames: { a: 'c', b: 'c' },
+    },
+  };
+
+  it('rewrites a bindings key whose head was renamed into the current field', () => {
+    const model = createTemplateLayoutRenderModel(
+      layout({
+        id: 'nav',
+        type: 'template-block',
+        apiId: 'navigation',
+        bindings: { brand: 'slug' },
+      }),
+      { entry, blockCatalog: renamedCatalog }
+    );
+    const block = model.root.children[0];
+    if (block?.type !== 'template-block') throw new Error('expected template block');
+    expect(block.entry.data.brandText).toBe('hello');
+    expect(block.entry.data.brand).toBeUndefined();
+  });
+
+  it('rewrites a templates key whose head was renamed into the current field', () => {
+    const model = createTemplateLayoutRenderModel(
+      layout({
+        id: 'nav',
+        type: 'template-block',
+        apiId: 'navigation',
+        templates: { brand: 'Brand: {{ slug }}' },
+      }),
+      { entry, blockCatalog: renamedCatalog }
+    );
+    const block = model.root.children[0];
+    if (block?.type !== 'template-block') throw new Error('expected template block');
+    expect(block.entry.data.brandText).toBe('Brand: hello');
+    expect(block.entry.data.brand).toBeUndefined();
+  });
+
+  it.each([['a'], ['b']])(
+    'resolves a chained rename (%s -> ... -> c) to the final field',
+    (head) => {
+      const model = createTemplateLayoutRenderModel(
+        layout({
+          id: 'chained',
+          type: 'template-block',
+          apiId: 'chained',
+          bindings: { [head]: 'slug' },
+        }),
+        { entry, blockCatalog: renamedCatalog }
+      );
+      const block = model.root.children[0];
+      if (block?.type !== 'template-block') throw new Error('expected template block');
+      expect(block.entry.data.c).toBe('hello');
+    }
+  );
+
+  it('still fails closed for an undeclared head with no matching rename', () => {
+    expect(() =>
+      createTemplateLayoutRenderModel(
+        layout({
+          id: 'nav',
+          type: 'template-block',
+          apiId: 'navigation',
+          bindings: { ghost: 'slug' },
+        }),
+        { entry, blockCatalog: renamedCatalog }
+      )
+    ).toThrow(
+      expect.objectContaining({ issue: expect.objectContaining({ code: 'INVALID_VALUE' }) })
+    );
+  });
+
+  it('fails closed when a rewritten key collides with an already-declared key', () => {
+    expect(() =>
+      createTemplateLayoutRenderModel(
+        layout({
+          id: 'nav',
+          type: 'template-block',
+          apiId: 'navigation',
+          bindings: { brand: 'slug', brandText: 'slug' },
+        }),
+        { entry, blockCatalog: renamedCatalog }
+      )
+    ).toThrow(
+      expect.objectContaining({ issue: expect.objectContaining({ code: 'INVALID_VALUE' }) })
+    );
+  });
+
+  it('never mutates the caller-supplied node', () => {
+    const node = {
+      id: 'nav',
+      type: 'template-block',
+      apiId: 'navigation',
+      bindings: { brand: 'slug' },
+    };
+    const before = JSON.parse(JSON.stringify(node));
+    createTemplateLayoutRenderModel(layout(node), { entry, blockCatalog: renamedCatalog });
+    expect(node).toEqual(before);
+  });
+});
+
+describe('buildTemplateBlockRenames', () => {
+  it('flattens a single rename step', () => {
+    expect(
+      buildTemplateBlockRenames([{ version: 2, renames: [{ from: 'brand', to: 'brandText' }] }])
+    ).toEqual({
+      brand: 'brandText',
+    });
+  });
+
+  it('chain-resolves renames across steps in ascending version order, regardless of input order', () => {
+    const migrations = [
+      { version: 3, renames: [{ from: 'b', to: 'c' }] },
+      { version: 2, renames: [{ from: 'a', to: 'b' }] },
+    ];
+    expect(buildTemplateBlockRenames(migrations)).toEqual({ a: 'c', b: 'c' });
+  });
+
+  it('tolerates a malformed migrations value and malformed steps within it', () => {
+    expect(buildTemplateBlockRenames(undefined)).toEqual({});
+    expect(buildTemplateBlockRenames(null)).toEqual({});
+    expect(buildTemplateBlockRenames('nope')).toEqual({});
+    expect(buildTemplateBlockRenames({})).toEqual({});
+    expect(
+      buildTemplateBlockRenames([
+        null,
+        { version: 'not-a-number', renames: [{ from: 'a', to: 'b' }] },
+        { version: 1, renames: 'not-an-array' },
+        { version: 1 },
+        {
+          version: 2,
+          renames: [null, { from: 'a' }, { to: 'b' }, { from: '', to: 'b' }, { from: 'a', to: '' }],
+        },
+        { version: 3, renames: [{ from: 'ok', to: 'fine' }] },
+      ])
+    ).toEqual({ ok: 'fine' });
   });
 });

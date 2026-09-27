@@ -18,6 +18,47 @@ export interface TemplateBlockFieldDefinition {
 export interface TemplateBlockDefinition {
   apiId: string;
   fields: readonly TemplateBlockFieldDefinition[];
+  // Historical top-level field renames (from -> to), already flattened across
+  // every `migrations[].renames` step and chain-resolved (a->b then b->c
+  // yields { a: 'c', b: 'c' }). Built by `buildTemplateBlockRenames` from a
+  // block's raw `migrations` array so a template-block node written against a
+  // field's old name still resolves — Core rewrites the stored bindings
+  // separately, but an un-migrated route template must keep rendering too.
+  renames?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Flattens a block's `migrations` array (each step's `renames: [{ from, to
+ * }]`) into one `from -> to` map, applied in ascending `version` order with
+ * chains resolved: a step renaming `a -> b` followed by one renaming `b -> c`
+ * yields `{ a: 'c', b: 'c' }`, so every historical name for a field resolves
+ * straight to its current one. `migrations` is untrusted input (a manifest
+ * read at runtime) — any entry that is not a well-formed `{ version: number,
+ * renames: Array<{ from: string, to: string }> }` step is ignored rather than
+ * thrown on, and malformed rename pairs within an otherwise valid step are
+ * skipped the same way.
+ */
+export function buildTemplateBlockRenames(migrations: unknown): Readonly<Record<string, string>> {
+  const renames: Record<string, string> = {};
+  if (!Array.isArray(migrations)) return renames;
+  const steps = migrations
+    .filter(
+      (step): step is { version: number; renames: unknown[] } =>
+        isRecord(step) && typeof step.version === 'number' && Array.isArray(step.renames)
+    )
+    .sort((a, b) => a.version - b.version);
+  for (const step of steps) {
+    for (const entry of step.renames) {
+      if (!isRecord(entry)) continue;
+      const { from, to } = entry as { from?: unknown; to?: unknown };
+      if (typeof from !== 'string' || typeof to !== 'string' || from === '' || to === '') continue;
+      for (const key of Object.keys(renames)) {
+        if (renames[key] === from) renames[key] = to;
+      }
+      renames[from] = to;
+    }
+  }
+  return renames;
 }
 
 export type TemplateBlockNode = {
@@ -135,9 +176,16 @@ function transformNode(
       fail(`${path}/apiId`, 'INVALID_VALUE');
     const definition = context.blockCatalog[value.apiId];
     if (definition === undefined) fail(`${path}/apiId`, 'BLOCK_NOT_FOUND');
-    const bindings = normalizeBindings(value.bindings, path, definition, context.entry);
+    const declared = new Set(definition.fields.map((field) => field.fieldId));
+    const renames = definition.renames ?? {};
+    const bindings = normalizeBindings(
+      resolveRenamedKeys(value.bindings, path, 'bindings', declared, renames),
+      path,
+      definition,
+      context.entry
+    );
     const templates = normalizeTemplates(
-      value.templates,
+      resolveRenamedKeys(value.templates, path, 'templates', declared, renames),
       path,
       definition,
       context.entry,
@@ -197,6 +245,45 @@ function transformNode(
       transformNode(child, `${path}/children/${index}`, context, placements, nextEntryId)
     ),
   } as LayoutContainerNode;
+}
+
+// Rewrites the keys of a raw `bindings`/`templates` object so a key written
+// against a field's historical name resolves to its current one before
+// validation — an un-migrated route template (Core rewrites the stored
+// document separately, but not synchronously with a block's own redeploy)
+// must keep rendering rather than fail closed on a since-renamed field.
+// Works on a copy; never mutates the caller's document. Only the head (the
+// segment before the first `.`) is ever renamed — a nested field itself is
+// never a top-level migration target. A key that is already declared is left
+// alone even if it also happens to be a rename source (a redeclared field
+// wins). Two source keys resolving to the same target key is a collision:
+// left for `normalizeBindings`/`normalizeTemplates` to reject, since both
+// still enforce `validTargetPath` and dedupe against the sibling bindings.
+function resolveRenamedKeys(
+  value: unknown,
+  path: string,
+  container: 'bindings' | 'templates',
+  declared: ReadonlySet<string>,
+  renames: Readonly<Record<string, string>>
+): unknown {
+  if (!isRecord(value)) return value;
+  const rewritten: Record<string, unknown> = {};
+  const sourcesByTarget = new Map<string, string[]>();
+  for (const key of Object.keys(value)) {
+    const dot = key.indexOf('.');
+    const head = dot === -1 ? key : key.slice(0, dot);
+    const rest = dot === -1 ? '' : key.slice(dot);
+    const renamed = !declared.has(head) && Object.hasOwn(renames, head) ? renames[head] : undefined;
+    const newKey = renamed === undefined ? key : renamed + rest;
+    rewritten[newKey] = value[key];
+    const sources = sourcesByTarget.get(newKey);
+    if (sources === undefined) sourcesByTarget.set(newKey, [key]);
+    else sources.push(key);
+  }
+  for (const [newKey, sources] of sourcesByTarget) {
+    if (sources.length > 1) fail(`${path}/${container}/${pointerToken(newKey)}`, 'INVALID_VALUE');
+  }
+  return rewritten;
 }
 
 function normalizeTemplates(

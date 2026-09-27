@@ -6,6 +6,11 @@
  * scanner would reject a self-host allowlist, but this fixture is test data)
  * and a no-allowlist `footer` slot (any block except the host itself).
  * `cta` declares no slots.
+ *
+ * `hero` also carries a `migrations` step (its `heading` field used to be
+ * called `title`) purely so `buildTemplateBlockCatalog`'s `renames` wiring
+ * has a manifest block to read — see EldraLayout's template-block renames
+ * test, which is the only spec that depends on it.
  */
 export default {
   manifestVersion: 1,
@@ -19,11 +24,12 @@ export default {
     {
       apiId: 'hero',
       name: 'Hero',
-      version: 1,
+      version: 2,
       fields: [
         { fieldId: 'heading', name: 'Heading', type: 'string', default: 'Default heading' },
         { fieldId: 'byline', name: 'Byline', type: 'string' },
       ],
+      migrations: [{ version: 2, renames: [{ from: 'title', to: 'heading' }] }],
       mock: {},
       previewImage: null,
       slots: [

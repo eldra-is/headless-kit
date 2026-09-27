@@ -40,3 +40,13 @@ The third wording covers a `storageCompatible` refusal where the top-level `type
 A field that is the source of a declared rename (`migrations[].renames[].from`) is exempt from the "was removed" diagnostic — its compatibility is governed by the rename check above instead. This check runs wherever local history is available: during `pnpm dev`/`build` (the Vite plugin always passes `previousManifest` when `.eldra/manifest.json` exists) and from `eldra-theme validate`, which now reads that same file when present.
 
 The scanner cannot see installed entries, so it cannot tell whether a field actually holds content — it requires the bump unconditionally, the same way the rest of this advisory check works. Core performs the authoritative, content-aware retirement at deploy time and reports what it retired; `eldra-theme deploy` prints one line per retired field, for example `retired hero.subtitle → subtitle__v1 (type-changed, 12 entries) — previous content is read-only in Studio`.
+
+## Route templates and declared renames
+
+A route template's own `template-block` bindings and text templates are stored separately from a
+block's entry data, so a rename Core has already migrated on every entry can still leave a
+template pointing at the field's old name. Rather than failing that placement closed until Core
+rewrites the stored template, the theme resolves a `bindings`/`templates` key written against a
+block's pre-migration name from its declared `migrations` at render time — the same rename map the
+scanner validates — so an un-migrated route template keeps rendering. Core still rewrites the
+stored bindings on deploy; this is the render-time fallback for the window before that happens.

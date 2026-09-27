@@ -11,6 +11,7 @@ import {
   type VNode,
 } from 'vue';
 import {
+  buildTemplateBlockRenames,
   createLayoutRenderModel,
   createReusableLayoutRenderModel,
   createTemplateLayoutRenderModel,
@@ -83,12 +84,17 @@ function buildTemplateBlockCatalog(): Record<string, TemplateBlockDefinition> {
   const blocks =
     (
       themeManifest as {
-        blocks?: Array<{ apiId?: string; fields?: Array<{ fieldId?: string; default?: unknown }> }>;
+        blocks?: Array<{
+          apiId?: string;
+          fields?: Array<{ fieldId?: string; default?: unknown }>;
+          migrations?: unknown;
+        }>;
       }
     ).blocks ?? [];
   const out: Record<string, TemplateBlockDefinition> = {};
   for (const block of blocks) {
     if (typeof block.apiId !== 'string' || getBlockComponent(block.apiId) === null) continue;
+    const renames = buildTemplateBlockRenames(block.migrations);
     out[block.apiId] = {
       apiId: block.apiId,
       fields: (block.fields ?? [])
@@ -100,6 +106,7 @@ function buildTemplateBlockCatalog(): Record<string, TemplateBlockDefinition> {
           fieldId: field.fieldId,
           ...(Object.hasOwn(field, 'default') ? { default: field.default } : {}),
         })),
+      ...(Object.keys(renames).length === 0 ? {} : { renames }),
     };
   }
   return out;

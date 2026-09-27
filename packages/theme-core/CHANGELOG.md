@@ -10,6 +10,14 @@ Release-please writes the generated notes from commit messages and does not repl
   no intrinsic inline size — a `width: 'fit-content'` block, or a `width`-less block inside a flex
   row, could render at 0px wide. A block now sizes like `fill` in both of those cases; container
   (`flex`/`grid`) nodes are unaffected.
+- Fix: a route template's `template-block` node whose `bindings`/`templates` keys were written
+  against a field's pre-migration name (before a block bumped its version and renamed that field)
+  no longer fails closed with `INVALID_VALUE`. `createTemplateLayoutRenderModel` now resolves such
+  a key through the block's declared `renames` — a new, optional `TemplateBlockDefinition.renames`
+  map, and the exported `buildTemplateBlockRenames` helper that flattens a block's `migrations`
+  array into it — before validating the node, so an un-migrated stored template keeps rendering.
+  Core still rewrites the stored bindings on deploy; this is the theme's own tolerance for the
+  window before that happens.
 - **`buildRichTextTree` takes a `minHeadingLevel` render option**: a floor for every `heading`
   node's rendered tag (`h{max(minHeadingLevel, level)}`, still capped at 6; default `1`, i.e. the
   document's own levels). A page owns its heading outline and a rich-text field does not, so one
