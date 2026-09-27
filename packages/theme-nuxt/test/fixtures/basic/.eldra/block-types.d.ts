@@ -12,6 +12,19 @@ declare global {
     framing?: ImageFraming;
   }
 
+  /** A catalog collection a `reference` field points at. Only `id` and
+   *  `_type` are guaranteed: the public read returns the stub at depth 0, for
+   *  an archived collection, and for a draft overlay in the page builder. */
+  interface EldraCollectionReference {
+    id: string;
+    _type: 'collection';
+    slug?: string;
+    status?: string;
+    type?: string;
+    productCount?: number;
+    translations?: unknown;
+  }
+
   interface EldraBlockData {
     cta: {
       label?: string;

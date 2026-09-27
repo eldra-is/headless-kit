@@ -49,8 +49,8 @@ declare global {
   }
 
   /** A catalog collection a \`reference\` field points at. Only \`id\` and
-   *  \`_type\` are guaranteed: the public read returns the stub at depth 0, and
-   *  a draft overlay in the page builder carries nothing more either. */
+   *  \`_type\` are guaranteed: the public read returns the stub at depth 0, for
+   *  an archived collection, and for a draft overlay in the page builder. */
   interface EldraCollectionReference {
     id: string;
     _type: 'collection';
