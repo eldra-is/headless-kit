@@ -6,6 +6,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/testimonials/Block.vue';
 import mock from '../../blocks/testimonials/mock.json';
+import preview from '../../blocks/testimonials/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/testimonials",
@@ -15,7 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = mock;
+const base = { ...mock, ...preview };
 
 export const Default: Story = {
   args: { entry: { id: "testimonials", data: base } },
@@ -34,5 +35,35 @@ export const VariantGrid: Story = {
 export const VariantCarousel: Story = {
   args: {
     entry: { id: "testimonials", data: { ...base, "variant": "carousel" } },
+  },
+};
+
+export const VariantSingleLarge: Story = {
+  args: {
+    entry: { id: "testimonials", data: { ...base, "variant": "single-large" } },
+  },
+};
+
+export const SectionBackgroundNone: Story = {
+  args: {
+    entry: { id: "testimonials", data: { ...base, "sectionBackground": "none" } },
+  },
+};
+
+export const SectionBackgroundSurface: Story = {
+  args: {
+    entry: { id: "testimonials", data: { ...base, "sectionBackground": "surface" } },
+  },
+};
+
+export const SectionBackgroundSurfaceStrong: Story = {
+  args: {
+    entry: { id: "testimonials", data: { ...base, "sectionBackground": "surface-strong" } },
+  },
+};
+
+export const SectionBackgroundPrimary: Story = {
+  args: {
+    entry: { id: "testimonials", data: { ...base, "sectionBackground": "primary" } },
   },
 };

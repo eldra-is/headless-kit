@@ -1,33 +1,58 @@
 {
   "apiId": "testimonials",
   "name": "Testimonials",
-  "description": "Customer quotes with name, role, avatar and an optional rating.",
+  "description": "Customer reviews as a grid, a swipeable carousel or one large featured quote, each with an optional star rating and the product it refers to.",
   "icon": "quote",
   "category": "marketing",
-  "version": 1,
+  "version": 2,
   "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "grid is the default.",
+      "metadata": { "options": ["grid", "carousel", "single-large"] },
+      "validators": { "required": true }
+    },
     {
       "fieldId": "heading",
       "name": "Heading",
       "type": "string",
       "isTitle": true,
       "localized": true,
+      "helpText": "Rendered as an h2 (a small label in single-large).",
       "validators": { "required": true }
     },
     {
-      "fieldId": "variant",
-      "name": "Variant",
-      "type": "select",
-      "metadata": { "options": ["grid", "carousel"] }
+      "fieldId": "summary",
+      "name": "Summary",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"4.8 out of 5 from 9,214 verified reviews\". Not shown in single-large."
+    },
+    {
+      "fieldId": "linkLabel",
+      "name": "Link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"Read all reviews\". Not shown in single-large."
+    },
+    {
+      "fieldId": "linkHref",
+      "name": "Link",
+      "type": "string",
+      "helpText": "Not shown in single-large."
     },
     {
       "fieldId": "items",
-      "name": "Testimonials",
+      "name": "Reviews",
       "type": "list",
+      "helpText": "grid: 1-6 (3 is ideal); carousel: 3-12; single-large uses the first.",
+      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",
-          "name": "Testimonial",
+          "name": "Review",
           "type": "composite",
           "metadata": {
             "fields": [
@@ -36,26 +61,62 @@
                 "name": "Quote",
                 "type": "text",
                 "localized": true,
+                "helpText": "1 to 3 sentences, about 240 characters maximum.",
+                "validators": { "required": true, "maxLength": 240 }
+              },
+              {
+                "fieldId": "name",
+                "name": "Name",
+                "type": "string",
+                "localized": true,
+                "helpText": "The customer's name as they agreed to be shown, e.g. \"Hannah Reeve\".",
                 "validators": { "required": true }
               },
               {
-                "fieldId": "author",
-                "name": "Author",
+                "fieldId": "meta",
+                "name": "Meta",
                 "type": "string",
-                "validators": { "required": true }
+                "localized": true,
+                "helpText": "Location and/or product, e.g. \"Sheffield · Speckled latte mug\"."
               },
-              { "fieldId": "role", "name": "Role", "type": "string", "localized": true },
               {
                 "fieldId": "avatar",
                 "name": "Avatar",
                 "type": "media",
+                "helpText": "Square photo. Shows initials when missing.",
                 "metadata": { "multiple": false }
               },
-              { "fieldId": "rating", "name": "Rating", "type": "int" }
+              {
+                "fieldId": "rating",
+                "name": "Rating",
+                "type": "select",
+                "helpText": "none is the default.",
+                "metadata": { "options": ["none", "1", "2", "3", "4", "5"] }
+              },
+              {
+                "fieldId": "productLabel",
+                "name": "Product label",
+                "type": "string",
+                "localized": true,
+                "helpText": "The product this review refers to."
+              },
+              {
+                "fieldId": "productHref",
+                "name": "Product link",
+                "type": "string",
+                "helpText": "Links the meta line to the product."
+              }
             ]
           }
         }
       }
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default (surface for single-large).",
+      "metadata": { "options": ["none", "surface", "surface-strong", "primary"] }
     }
   ]
 }

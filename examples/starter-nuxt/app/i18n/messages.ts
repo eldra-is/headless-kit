@@ -29,10 +29,19 @@ export interface Messages {
   gallery: {
     viewer: string;
   };
-  /** The testimonials block's own fallback accessible name for its `carousel` variant, only when
-   *  the block has no `heading` (see `gallery.viewer` above for the same pattern). */
+  /**
+   * The testimonials block's own strings: `carousel` is its fallback accessible name for the
+   * `carousel` variant's `Carousel`, only while `heading` — a required field — is still empty
+   * (see `gallery.viewer` above for the same pattern); the other four are its two editor-only
+   * hints (`EditorPlaceholder`, gated by `useEditing()`) for the heading and for an empty review
+   * (spec `02-blocks.md` "Testimonials" → States, "Empty (freshly inserted)").
+   */
   testimonials: {
     carousel: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
   };
   /** The announcement-bar block's own strings: the region's accessible name, the dismiss
    *  button's accessible name, and the two-part editor hint shown when `message` is empty. */

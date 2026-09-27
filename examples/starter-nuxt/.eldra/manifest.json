@@ -2175,40 +2175,70 @@
     {
       "apiId": "testimonials",
       "name": "Testimonials",
-      "description": "Customer quotes with name, role, avatar and an optional rating.",
+      "description": "Customer reviews as a grid, a swipeable carousel or one large featured quote, each with an optional star rating and the product it refers to.",
       "icon": "quote",
       "category": "marketing",
-      "version": 1,
+      "version": 2,
       "fields": [
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "grid is the default.",
+          "metadata": {
+            "options": [
+              "grid",
+              "carousel",
+              "single-large"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
         {
           "fieldId": "heading",
           "name": "Heading",
           "type": "string",
           "isTitle": true,
           "localized": true,
+          "helpText": "Rendered as an h2 (a small label in single-large).",
           "validators": {
             "required": true
           }
         },
         {
-          "fieldId": "variant",
-          "name": "Variant",
-          "type": "select",
-          "metadata": {
-            "options": [
-              "grid",
-              "carousel"
-            ]
-          }
+          "fieldId": "summary",
+          "name": "Summary",
+          "type": "string",
+          "localized": true,
+          "helpText": "For example \"4.8 out of 5 from 9,214 verified reviews\". Not shown in single-large."
+        },
+        {
+          "fieldId": "linkLabel",
+          "name": "Link label",
+          "type": "string",
+          "localized": true,
+          "helpText": "For example \"Read all reviews\". Not shown in single-large."
+        },
+        {
+          "fieldId": "linkHref",
+          "name": "Link",
+          "type": "string",
+          "helpText": "Not shown in single-large."
         },
         {
           "fieldId": "items",
-          "name": "Testimonials",
+          "name": "Reviews",
           "type": "list",
+          "helpText": "grid: 1-6 (3 is ideal); carousel: 3-12; single-large uses the first.",
+          "validators": {
+            "required": true
+          },
           "metadata": {
             "item": {
               "fieldId": "item",
-              "name": "Testimonial",
+              "name": "Review",
               "type": "composite",
               "metadata": {
                 "fields": [
@@ -2217,28 +2247,34 @@
                     "name": "Quote",
                     "type": "text",
                     "localized": true,
+                    "helpText": "1 to 3 sentences, about 240 characters maximum.",
+                    "validators": {
+                      "required": true,
+                      "maxLength": 240
+                    }
+                  },
+                  {
+                    "fieldId": "name",
+                    "name": "Name",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "The customer's name as they agreed to be shown, e.g. \"Hannah Reeve\".",
                     "validators": {
                       "required": true
                     }
                   },
                   {
-                    "fieldId": "author",
-                    "name": "Author",
+                    "fieldId": "meta",
+                    "name": "Meta",
                     "type": "string",
-                    "validators": {
-                      "required": true
-                    }
-                  },
-                  {
-                    "fieldId": "role",
-                    "name": "Role",
-                    "type": "string",
-                    "localized": true
+                    "localized": true,
+                    "helpText": "Location and/or product, e.g. \"Sheffield · Speckled latte mug\"."
                   },
                   {
                     "fieldId": "avatar",
                     "name": "Avatar",
                     "type": "media",
+                    "helpText": "Square photo. Shows initials when missing.",
                     "metadata": {
                       "multiple": false
                     }
@@ -2246,37 +2282,97 @@
                   {
                     "fieldId": "rating",
                     "name": "Rating",
-                    "type": "int"
+                    "type": "select",
+                    "helpText": "none is the default.",
+                    "metadata": {
+                      "options": [
+                        "none",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5"
+                      ]
+                    }
+                  },
+                  {
+                    "fieldId": "productLabel",
+                    "name": "Product label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "The product this review refers to."
+                  },
+                  {
+                    "fieldId": "productHref",
+                    "name": "Product link",
+                    "type": "string",
+                    "helpText": "Links the meta line to the product."
                   }
                 ]
               }
             }
           }
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default (surface for single-large).",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong",
+              "primary"
+            ]
+          }
         }
       ],
       "mock": {
-        "heading": "Loved by slow-morning people",
         "variant": "grid",
+        "heading": "Used every day, reviewed honestly",
+        "summary": "4.8 out of 5 from 9,214 verified reviews",
+        "linkLabel": "Read all reviews",
+        "linkHref": "/pages/reviews",
         "items": [
           {
-            "quote": "The wool throw is even better in person. It's the first thing I reach for on cold mornings.",
-            "author": "Freyja B.",
-            "role": "Reykjavík",
-            "rating": 5
+            "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
+            "name": "Hannah Reeve",
+            "meta": "Sheffield · Speckled latte mug",
+            "rating": "5",
+            "productLabel": "Speckled latte mug",
+            "productHref": "/products/latte-mug"
           },
           {
-            "quote": "Shipping was fast and the packaging alone made it feel like a gift.",
-            "author": "Marcus T.",
-            "role": "Portland, OR",
-            "rating": 5
+            "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
+            "name": "Marcus Bell",
+            "meta": "Bristol · Lambswool throw",
+            "rating": "5",
+            "productLabel": "Lambswool throw blanket",
+            "productHref": "/products/lambswool-throw"
           },
           {
-            "quote": "Three years on, our ceramics still look brand new. Worth every penny.",
-            "author": "Ingrid H.",
-            "role": "Akureyri",
-            "rating": 4
+            "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
+            "name": "Priya Nair",
+            "meta": "Edinburgh · Stoneware dinner plates",
+            "rating": "4",
+            "productLabel": "Stoneware dinner plates",
+            "productHref": "/products/dinner-plates"
+          },
+          {
+            "quote": "Customer care swapped my cardigan for a size up in two days, no forms, no fuss. It is the one I reach for first.",
+            "name": "Sofia Lind",
+            "meta": "Stockholm · Fisherman rib cardigan",
+            "rating": "none"
+          },
+          {
+            "quote": "You can tell the walnut board was finished by hand. It has already outlived two cheaper ones.",
+            "name": "Joel Mercer",
+            "meta": "Dublin · Walnut serving board",
+            "rating": "none"
           }
-        ]
+        ],
+        "sectionBackground": "none"
       },
       "previewImage": ".eldra/previews/testimonials.png"
     }

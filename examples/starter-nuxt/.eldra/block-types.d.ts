@@ -129,9 +129,13 @@ declare global {
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
     };
     testimonials: {
+      variant: 'grid' | 'carousel' | 'single-large';
       heading: string;
-      variant?: 'grid' | 'carousel';
-      items?: Array<{ quote: string; author: string; role?: string; avatar?: EldraMedia; rating?: number }>;
+      summary?: string;
+      linkLabel?: string;
+      linkHref?: string;
+      items: Array<{ quote: string; name: string; meta?: string; avatar?: EldraMedia; rating?: 'none' | '1' | '2' | '3' | '4' | '5'; productLabel?: string; productHref?: string }>;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary';
     };
   }
 

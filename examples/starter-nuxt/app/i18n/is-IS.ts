@@ -20,6 +20,11 @@ export const isIS = {
   },
   testimonials: {
     carousel: 'Umsagnir viðskiptavina',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Valfrjáls einkunnasamantekt og tengill á allar umsagnir fara hér líka.',
+    itemHintLabel: 'Bættu við umsögn',
+    itemHintHelp:
+      'Tilvitnun, nafn viðskiptavinar og staðsetning, eða veldu umsagnir úr vörulistanum.',
   },
   breadcrumbs: {
     hintLabel: 'Leiðarslóðin fyllist út sjálfkrafa.',

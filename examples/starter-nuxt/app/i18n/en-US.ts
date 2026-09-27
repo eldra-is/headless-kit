@@ -20,6 +20,11 @@ export const enUS = {
   },
   testimonials: {
     carousel: 'Customer testimonials',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'An optional rating summary and a link to all reviews go here too.',
+    itemHintLabel: 'Add a testimonial',
+    itemHintHelp:
+      "A quote, the customer's name and location, or pick reviews from the product catalogue.",
   },
   breadcrumbs: {
     hintLabel: 'Breadcrumbs fill in automatically.',

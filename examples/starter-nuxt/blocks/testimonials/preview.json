@@ -1,9 +1,4 @@
 {
-  "variant": "grid",
-  "heading": "Used every day, reviewed honestly",
-  "summary": "4.8 out of 5 from 9,214 verified reviews",
-  "linkLabel": "Read all reviews",
-  "linkHref": "/pages/reviews",
   "items": [
     {
       "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
@@ -11,7 +6,14 @@
       "meta": "Sheffield · Speckled latte mug",
       "rating": "5",
       "productLabel": "Speckled latte mug",
-      "productHref": "/products/latte-mug"
+      "productHref": "/products/latte-mug",
+      "avatar": {
+        "assetId": "demo-avatar-1",
+        "url": "/demo/avatar-1.svg",
+        "altText": "",
+        "width": 256,
+        "height": 256
+      }
     },
     {
       "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
@@ -19,7 +21,14 @@
       "meta": "Bristol · Lambswool throw",
       "rating": "5",
       "productLabel": "Lambswool throw blanket",
-      "productHref": "/products/lambswool-throw"
+      "productHref": "/products/lambswool-throw",
+      "avatar": {
+        "assetId": "demo-avatar-2",
+        "url": "/demo/avatar-2.svg",
+        "altText": "",
+        "width": 256,
+        "height": 256
+      }
     },
     {
       "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
@@ -27,13 +36,27 @@
       "meta": "Edinburgh · Stoneware dinner plates",
       "rating": "4",
       "productLabel": "Stoneware dinner plates",
-      "productHref": "/products/dinner-plates"
+      "productHref": "/products/dinner-plates",
+      "avatar": {
+        "assetId": "demo-avatar-3",
+        "url": "/demo/avatar-3.svg",
+        "altText": "",
+        "width": 256,
+        "height": 256
+      }
     },
     {
       "quote": "Customer care swapped my cardigan for a size up in two days, no forms, no fuss. It is the one I reach for first.",
       "name": "Sofia Lind",
       "meta": "Stockholm · Fisherman rib cardigan",
-      "rating": "none"
+      "rating": "none",
+      "avatar": {
+        "assetId": "demo-avatar-4",
+        "url": "/demo/avatar-4.svg",
+        "altText": "",
+        "width": 256,
+        "height": 256
+      }
     },
     {
       "quote": "You can tell the walnut board was finished by hand. It has already outlived two cheaper ones.",
@@ -41,6 +64,5 @@
       "meta": "Dublin · Walnut serving board",
       "rating": "none"
     }
-  ],
-  "sectionBackground": "none"
+  ]
 }
