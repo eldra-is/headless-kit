@@ -79,7 +79,11 @@ async function screenshotBlock(page, baseUrl, id) {
     () => (document.getElementById('storybook-root')?.childElementCount ?? 0) > 0
   );
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForFunction(() => Array.from(document.images).every((img) => img.complete));
+  // A lazy image inside a closed panel (a mega-menu, a drawer) never loads while it is off
+  // screen, so only eager images gate the screenshot.
+  await page.waitForFunction(() =>
+    Array.from(document.images).every((img) => img.complete || img.loading === 'lazy')
+  );
 
   const root = page.locator('#storybook-root');
   const box = await root.boundingBox();
