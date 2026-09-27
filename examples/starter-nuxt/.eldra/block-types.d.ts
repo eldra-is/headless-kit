@@ -47,10 +47,15 @@ declare global {
       image?: EldraMedia;
     };
     faq: {
+      variant: 'one-column' | 'two-column';
       heading: string;
       intro?: string;
-      single?: boolean;
-      items?: Array<{ question: string; answer: RichTextNode }>;
+      exclusive?: boolean;
+      items: Array<{ question: string; answer: RichTextNode; open?: boolean }>;
+      contactText?: string;
+      contactLinkLabel?: string;
+      contactLinkHref?: string;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
     'feature-grid': {
       variant: 'cards' | 'plain';

@@ -24,3 +24,33 @@ export const Default: Story = {
 export const Inserted: Story = {
   args: { entry: { id: "faq", data: mock } },
 };
+
+export const VariantOneColumn: Story = {
+  args: {
+    entry: { id: "faq", data: { ...base, "variant": "one-column" } },
+  },
+};
+
+export const VariantTwoColumn: Story = {
+  args: {
+    entry: { id: "faq", data: { ...base, "variant": "two-column" } },
+  },
+};
+
+export const SectionBackgroundNone: Story = {
+  args: {
+    entry: { id: "faq", data: { ...base, "sectionBackground": "none" } },
+  },
+};
+
+export const SectionBackgroundSurface: Story = {
+  args: {
+    entry: { id: "faq", data: { ...base, "sectionBackground": "surface" } },
+  },
+};
+
+export const SectionBackgroundSurfaceStrong: Story = {
+  args: {
+    entry: { id: "faq", data: { ...base, "sectionBackground": "surface-strong" } },
+  },
+};

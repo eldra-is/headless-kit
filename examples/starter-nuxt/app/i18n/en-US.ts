@@ -131,4 +131,11 @@ export const enUS = {
     itemHintLabel: 'Add a figure',
     itemHintHelp: 'For example, 38.',
   },
+  faq: {
+    headingHintLabel: 'Add a heading',
+    introHintLabel: 'Add an intro (optional)',
+    itemHintLabel: 'Add a question',
+    itemHintHelp: 'Question and answer. Add as many as you need.',
+    richTextTableLabel: 'Table',
+  },
 } satisfies Messages;

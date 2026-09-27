@@ -235,6 +235,21 @@ export interface Messages {
     itemHintLabel: string;
     itemHintHelp: string;
   };
+  /**
+   * The faq block's own strings (spec `02-blocks.md` "FAQ" → States, "Empty (freshly inserted)"):
+   * the required heading, the optional intro, and a combined hint shown in place of the whole
+   * accordion when `items` is empty (see `blocks/faq/Block.vue`). `richTextTableLabel` is the
+   * fallback `useRichTextScrollRegions` label for an uncaptioned table, should an answer's rich
+   * text ever contain one (the field's own toolbar has no table control today) — same pattern as
+   * `splitContent.richTextTableLabel`.
+   */
+  faq: {
+    headingHintLabel: string;
+    introHintLabel: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
+    richTextTableLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

@@ -131,4 +131,11 @@ export const isIS = {
     itemHintLabel: 'Bættu við tölu',
     itemHintHelp: 'Til dæmis 38.',
   },
+  faq: {
+    headingHintLabel: 'Bættu við fyrirsögn',
+    introHintLabel: 'Bættu við inngangi (valfrjálst)',
+    itemHintLabel: 'Bættu við spurningu',
+    itemHintHelp: 'Spurning og svar. Bættu við eins mörgum og þú þarft.',
+    richTextTableLabel: 'Tafla',
+  },
 } satisfies Messages;

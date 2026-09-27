@@ -491,11 +491,26 @@
     {
       "apiId": "faq",
       "name": "FAQ",
-      "description": "Frequently asked questions as disclosure widgets.",
+      "description": "Frequently asked questions as a native accordion, with an optional intro and a link to customer care.",
       "icon": "help-circle",
-      "category": "content",
-      "version": 1,
+      "category": "marketing",
+      "version": 2,
       "fields": [
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "one-column is the default.",
+          "metadata": {
+            "options": [
+              "one-column",
+              "two-column"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
         {
           "fieldId": "heading",
           "name": "Heading",
@@ -510,17 +525,23 @@
           "fieldId": "intro",
           "name": "Intro",
           "type": "text",
-          "localized": true
+          "localized": true,
+          "helpText": "One sentence."
         },
         {
-          "fieldId": "single",
+          "fieldId": "exclusive",
           "name": "Only one open at a time",
-          "type": "bool"
+          "type": "bool",
+          "default": true
         },
         {
           "fieldId": "items",
           "name": "Questions",
           "type": "list",
+          "description": "3-10 recommended.",
+          "validators": {
+            "required": true
+          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -533,8 +554,10 @@
                     "name": "Question",
                     "type": "string",
                     "localized": true,
+                    "helpText": "Written the way a customer would ask it.",
                     "validators": {
-                      "required": true
+                      "required": true,
+                      "maxLength": 120
                     }
                   },
                   {
@@ -542,23 +565,86 @@
                     "name": "Answer",
                     "type": "rich-text",
                     "localized": true,
+                    "helpText": "Paragraphs, lists and links only.",
+                    "metadata": {
+                      "toolbar": [
+                        "bold",
+                        "italic",
+                        "link",
+                        "bulletList",
+                        "orderedList",
+                        "undo",
+                        "redo"
+                      ]
+                    },
                     "validators": {
                       "required": true
                     }
+                  },
+                  {
+                    "fieldId": "open",
+                    "name": "Open on load",
+                    "type": "bool",
+                    "helpText": "Default: only the first question is open."
                   }
                 ]
               }
             }
           }
+        },
+        {
+          "fieldId": "contactText",
+          "name": "Contact text",
+          "type": "string",
+          "localized": true,
+          "helpText": "For example \"Still wondering about something?\""
+        },
+        {
+          "fieldId": "contactLinkLabel",
+          "name": "Contact link label",
+          "type": "string",
+          "localized": true,
+          "helpText": "Hidden together with the link when either is empty."
+        },
+        {
+          "fieldId": "contactLinkHref",
+          "name": "Contact link",
+          "type": "string"
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong"
+            ]
+          }
+        }
+      ],
+      "migrations": [
+        {
+          "version": 2,
+          "renames": [
+            {
+              "from": "single",
+              "to": "exclusive"
+            }
+          ]
         }
       ],
       "mock": {
-        "heading": "Frequently asked questions",
-        "intro": "Can't find what you're looking for? Reach out and a real person will get back to you within a day.",
-        "single": true,
+        "variant": "one-column",
+        "heading": "Questions, answered",
+        "intro": "Delivery, returns and looking after the things you buy from us.",
+        "exclusive": true,
         "items": [
           {
-            "question": "How long does shipping take?",
+            "question": "How long does delivery take?",
+            "open": true,
             "answer": {
               "type": "doc",
               "content": [
@@ -567,7 +653,7 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "Orders ship within two business days and arrive in 3–5 days for most of the country. You'll get a tracking link by email the moment it leaves our workshop."
+                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Canadian and EU orders take 5 to 9 business days. Made-to-order knitwear ships in about 3 weeks, and the product page always says so."
                     }
                   ]
                 }
@@ -575,7 +661,7 @@
             }
           },
           {
-            "question": "What's your returns policy?",
+            "question": "Can I return something that isn't right?",
             "answer": {
               "type": "doc",
               "content": [
@@ -584,7 +670,7 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "We accept returns within 30 days of delivery, no questions asked. Items should be unused and in their original packaging."
+                      "text": "Yes. You have 30 days to send back anything unused, in its original packaging. US returns are free with the prepaid label in your parcel. Seconds and personalised pieces can't be returned unless they arrive damaged."
                     }
                   ]
                 }
@@ -592,7 +678,7 @@
             }
           },
           {
-            "question": "Do you ship internationally?",
+            "question": "Why does my mug look different from the photo?",
             "answer": {
               "type": "doc",
               "content": [
@@ -601,14 +687,69 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "Yes — we currently ship to Canada, the UK and the EU. Rates and delivery times are calculated at checkout."
+                      "text": "Every piece is glazed by hand and fired in small batches, so colour and speckle vary from kiln to kiln. We photograph a typical piece, and the card in your box tells you which batch yours came from."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "How should I wash wool and lambswool?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Air it more, wash it less. When it does need a wash, hand wash cool with a wool detergent, press out the water in a towel and dry flat away from the radiator."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "Are your ceramics dishwasher and microwave safe?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Our stoneware is dishwasher, microwave and oven safe up to 400°F. Pieces with a gold rim or raw clay base are hand wash only, which is noted on the product page."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "Do you offer gift wrapping?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for $4, and we leave prices off the packing slip."
                     }
                   ]
                 }
               ]
             }
           }
-        ]
+        ],
+        "contactText": "Still wondering about something?",
+        "contactLinkLabel": "Ask our customer care team",
+        "contactLinkHref": "/pages/contact",
+        "sectionBackground": "none"
       },
       "previewImage": ".eldra/previews/faq.png"
     },

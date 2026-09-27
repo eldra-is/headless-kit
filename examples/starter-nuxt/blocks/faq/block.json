@@ -1,11 +1,19 @@
 {
   "apiId": "faq",
   "name": "FAQ",
-  "description": "Frequently asked questions as disclosure widgets.",
+  "description": "Frequently asked questions as a native accordion, with an optional intro and a link to customer care.",
   "icon": "help-circle",
-  "category": "content",
-  "version": 1,
+  "category": "marketing",
+  "version": 2,
   "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "one-column is the default.",
+      "metadata": { "options": ["one-column", "two-column"] },
+      "validators": { "required": true }
+    },
     {
       "fieldId": "heading",
       "name": "Heading",
@@ -14,12 +22,25 @@
       "localized": true,
       "validators": { "required": true }
     },
-    { "fieldId": "intro", "name": "Intro", "type": "text", "localized": true },
-    { "fieldId": "single", "name": "Only one open at a time", "type": "bool" },
+    {
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true,
+      "helpText": "One sentence."
+    },
+    {
+      "fieldId": "exclusive",
+      "name": "Only one open at a time",
+      "type": "bool",
+      "default": true
+    },
     {
       "fieldId": "items",
       "name": "Questions",
       "type": "list",
+      "description": "3-10 recommended.",
+      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",
@@ -32,19 +53,62 @@
                 "name": "Question",
                 "type": "string",
                 "localized": true,
-                "validators": { "required": true }
+                "helpText": "Written the way a customer would ask it.",
+                "validators": { "required": true, "maxLength": 120 }
               },
               {
                 "fieldId": "answer",
                 "name": "Answer",
                 "type": "rich-text",
                 "localized": true,
+                "helpText": "Paragraphs, lists and links only.",
+                "metadata": {
+                  "toolbar": ["bold", "italic", "link", "bulletList", "orderedList", "undo", "redo"]
+                },
                 "validators": { "required": true }
+              },
+              {
+                "fieldId": "open",
+                "name": "Open on load",
+                "type": "bool",
+                "helpText": "Default: only the first question is open."
               }
             ]
           }
         }
       }
+    },
+    {
+      "fieldId": "contactText",
+      "name": "Contact text",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"Still wondering about something?\""
+    },
+    {
+      "fieldId": "contactLinkLabel",
+      "name": "Contact link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Hidden together with the link when either is empty."
+    },
+    {
+      "fieldId": "contactLinkHref",
+      "name": "Contact link",
+      "type": "string"
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default.",
+      "metadata": { "options": ["none", "surface", "surface-strong"] }
+    }
+  ],
+  "migrations": [
+    {
+      "version": 2,
+      "renames": [{ "from": "single", "to": "exclusive" }]
     }
   ]
 }
