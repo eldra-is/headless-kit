@@ -202,6 +202,7 @@
       "fieldId": "legalLinks",
       "name": "Legal links",
       "type": "list",
+      "helpText": "For example Privacy, Terms, Accessibility.",
       "metadata": {
         "item": {
           "fieldId": "legalLink",

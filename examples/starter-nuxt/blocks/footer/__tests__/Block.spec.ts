@@ -83,16 +83,39 @@ describe('footer block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('has a contentinfo <footer> landmark labelled by a visually hidden <h2>', () => {
+  it('has a contentinfo <footer> landmark labelled by a visually hidden <h2> (default variant)', () => {
     const wrapper = mountFooter(mock);
     const footer = wrapper.find('footer');
     expect(footer.exists()).toBe(true);
     const labelledBy = footer.attributes('aria-labelledby');
     expect(labelledBy).toBeTruthy();
+    expect(footer.attributes('aria-label')).toBeUndefined();
     const heading = wrapper.find(`#${labelledBy}`);
     expect(heading.element.tagName).toBe('H2');
     expect(heading.text()).toBe(enUS.footer.title);
     expect(heading.classes()).toContain('sr-only');
+  });
+
+  it('names the <footer> landmark with aria-label directly in the minimal variant (no hidden <h2>)', () => {
+    const wrapper = mountFooter({ ...mock, variant: 'minimal' });
+    const footer = wrapper.find('footer');
+    expect(footer.exists()).toBe(true);
+    expect(footer.attributes('aria-label')).toBe(enUS.footer.title);
+    expect(footer.attributes('aria-labelledby')).toBeUndefined();
+    expect(wrapper.find('h2').exists()).toBe(false);
+  });
+
+  it('the block root is the Section component, a width container for its own @content:/@tablet: breakpoints', () => {
+    // Structural guard, not a layout one: happy-dom/jsdom compute no layout, so this only proves
+    // the `@container` utility Section's own root always carries (see Section.vue) survives onto
+    // the rendered <footer> — it cannot prove container queries actually resolve in a real
+    // browser. (A known `@eldrajs/ui` package issue currently keeps `@content:` utilities from
+    // compiling — its `@theme` container-query breakpoints are `var()` references, which Tailwind
+    // cannot use as a query threshold — tracked and fixed at the package, not worked around here.)
+    const wrapper = mountFooter(mock);
+    const footer = wrapper.find('footer');
+    expect(footer.exists()).toBe(true);
+    expect(footer.classes()).toContain('@container');
   });
 
   it('labels the link-groups nav', () => {

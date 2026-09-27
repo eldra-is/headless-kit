@@ -5,6 +5,19 @@
  *    sign-up. Legal row below a hairline, with the locale/currency selectors.
  *  - `minimal`: brand, a flat row of links, social. Then the same legal row.
  *
+ * Landmark naming follows the spec literally per variant (line 549): `default`'s `<footer>` is
+ * `aria-labelledby` a visually hidden `<h2>` ("Site footer"); `minimal` has no heading of its own
+ * (no groups, no newsletter title), so it names the landmark directly with `aria-label` instead —
+ * both are real, valid accessible names, this is just which mechanism supplies it.
+ *
+ * The locale/currency `Select`s render with no `leadingIcon` (spec: decorative "world"/
+ * "credit-card" icons). `Select.leadingIcon` needs a synchronous `IconComponent`; this theme's
+ * only icon resolution path (`EldraIcon`/`useEldraIcon`) is name-based and asynchronous (an HTTP
+ * fetch under Nuxt, with no client-side raw-SVG source to resolve one synchronously from). Wiring
+ * one in would mean either forking `@eldrajs/ui`'s `Select` or hand-rolling a second, parallel
+ * icon-loading path outside `useEldraIcon` for a purely decorative detail with no acceptance
+ * criterion or test coverage — left out rather than doing either.
+ *
  * Every group/flat/legal link is resolved once through `resolveLinks` below: `safeHref` drops an
  * unsafe destination (the link is then not rendered at all) and a same-site path routes through
  * `EldraRouterLink` (see `app/utils/links.ts`). `tone="muted"` + `:underline="false"` is the
@@ -191,11 +204,14 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
     as="footer"
     :background="background"
     spacing="none"
-    :labelled-by="headingId"
+    :labelled-by="variant === 'default' ? headingId : undefined"
+    :aria-label="variant === 'minimal' ? t('footer.title') : undefined"
     :classes="{ root: paddingClass }"
   >
     <Container width="wide">
-      <VisuallyHidden :id="headingId" as="h2">{{ t('footer.title') }}</VisuallyHidden>
+      <VisuallyHidden v-if="variant === 'default'" :id="headingId" as="h2">{{
+        t('footer.title')
+      }}</VisuallyHidden>
 
       <!-- Default variant: brand · link groups · newsletter -->
       <div
