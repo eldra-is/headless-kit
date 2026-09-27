@@ -282,4 +282,20 @@ describe('trust-strip block', () => {
       }
     }
   });
+
+  it('re-measures overflow when the rendered items change, not only when the list box resizes', async () => {
+    const wrapper = mountBlock({ ...mock, mobileLayout: 'scroll', items: mock.items.slice(0, 1) });
+    const list = wrapper.get('ul').element as HTMLUListElement;
+    Object.defineProperty(list, 'clientWidth', { configurable: true, value: 300 });
+    Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 300 });
+    expect(wrapper.get('ul').attributes('tabindex')).toBeUndefined();
+
+    Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 900 });
+    await wrapper.setProps({
+      entry: { ...(wrapper.props('entry') as object), data: { ...mock, mobileLayout: 'scroll' } },
+    });
+    await nextTick();
+    await nextTick();
+    expect(wrapper.get('ul').attributes('tabindex')).toBe('0');
+  });
 });

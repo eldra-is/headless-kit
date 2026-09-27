@@ -51,7 +51,7 @@
  * for a still-empty one — the same "hint tile in place of empty content" shape `stats`'s and
  * `team`'s own per-item hints use.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Container, EditorPlaceholder, Link, Section, VisuallyHidden } from '@eldrajs/ui';
 import type { SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
@@ -119,6 +119,16 @@ const isFocusableScrollRegion = computed(() => isScrollMobile.value && overflows
 /** At most four (spec States → "Many items: at most 4."); a fifth never reaches the DOM at all,
  *  editor included, so there is nothing for the editor's own item count to disagree with. */
 const cappedItems = computed<TrustItem[]>(() => (data.value.items ?? []).slice(0, 4));
+
+/** A `ResizeObserver` only reports the list's own box changing; the list growing or shrinking
+ *  its *content* (an editor adding a third item) changes `scrollWidth` without any resize, so
+ *  the measurement is re-run after the DOM settles whenever the rendered items change. */
+watch(
+  () => [cappedItems.value.length, mobileLayout.value],
+  () => {
+    void nextTick(measureListOverflow);
+  }
+);
 
 function hasTitle(item: TrustItem): boolean {
   return (item.title ?? '').trim() !== '';
