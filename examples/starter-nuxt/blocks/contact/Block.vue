@@ -126,11 +126,11 @@ const hasHours = computed(() => hours.value.length > 0);
 
 const phone = computed(() => (data.value.phone ?? '').trim());
 const hasPhone = computed(() => phone.value !== '');
-const telHref = computed(() => `tel:${phone.value.replace(/[^\d+]/g, '')}`);
+const telHref = computed(() => safeHref(`tel:${phone.value.replace(/[^\d+]/g, '')}`));
 
 const email = computed(() => (data.value.email ?? '').trim());
 const hasEmail = computed(() => email.value !== '');
-const mailtoHref = computed(() => `mailto:${email.value}`);
+const mailtoHref = computed(() => safeHref(`mailto:${email.value}`));
 
 const hasDetails = computed(
   () => hasAddress.value || hasHours.value || hasPhone.value || hasEmail.value
@@ -418,12 +418,20 @@ const successText = computed(() =>
                       <span>{{ item.time }}</span>
                     </template>
                   </div>
-                  <Link v-else-if="row.kind === 'phone'" :href="telHref" variant="inline">{{
-                    phone
-                  }}</Link>
-                  <Link v-else-if="row.kind === 'email'" :href="mailtoHref" variant="inline">{{
-                    email
-                  }}</Link>
+                  <Link
+                    v-else-if="row.kind === 'phone' && telHref"
+                    :href="telHref"
+                    variant="inline"
+                    >{{ phone }}</Link
+                  >
+                  <span v-else-if="row.kind === 'phone'">{{ phone }}</span>
+                  <Link
+                    v-else-if="row.kind === 'email' && mailtoHref"
+                    :href="mailtoHref"
+                    variant="inline"
+                    >{{ email }}</Link
+                  >
+                  <span v-else-if="row.kind === 'email'">{{ email }}</span>
                 </div>
               </li>
             </ul>

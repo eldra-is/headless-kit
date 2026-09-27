@@ -224,6 +224,28 @@ describe('contact block', () => {
     expect(wrapper.find('[role="alert"]').text()).toContain(mock.recipient);
   });
 
+  it.each(['Enter', ' ', 'ArrowDown'])(
+    'the Topic Select opens from the keyboard with %j',
+    async (key) => {
+      const wrapper = mountContact(mock);
+      const trigger = selectTrigger(wrapper);
+      trigger.element.focus();
+      expect(trigger.attributes('aria-expanded')).toBe('false');
+
+      await trigger.trigger('keydown', { key });
+      expect(trigger.attributes('aria-expanded')).toBe('true');
+      expect(document.querySelector('[role="listbox"]')).toBeTruthy();
+    }
+  );
+
+  it('phone and email detail rows render as tel: and mailto: links built from the field values', () => {
+    const wrapper = mountContact(mock);
+    const tel = wrapper.find('a[href^="tel:"]');
+    expect(tel.exists()).toBe(true);
+    expect(tel.attributes('href')).toBe(`tel:${mock.phone.replace(/[^\d+]/g, '')}`);
+    expect(wrapper.find(`a[href="mailto:${mock.email}"]`).exists()).toBe(true);
+  });
+
   it('the Topic Select opens with ArrowDown, moves with arrows, commits with Enter, and closes on Esc returning focus to the trigger', async () => {
     const wrapper = mountContact(mock);
     const trigger = selectTrigger(wrapper);
