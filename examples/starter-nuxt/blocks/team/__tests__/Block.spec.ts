@@ -205,4 +205,20 @@ describe('team block', () => {
       expect(wrapper.findAll('[tabindex]')).toHaveLength(0);
     });
   });
+
+  it('skips a link whose type is outside the option set instead of failing the render', async () => {
+    const people = [
+      {
+        ...mock.people[0]!,
+        links: [
+          { type: 'myspace', href: 'https://myspace.example/ingrid' },
+          { type: 'email', href: 'mailto:ingrid@northwind.example' },
+        ],
+      },
+    ];
+    const wrapper = mountBlock({ ...mock, people });
+    expect(wrapper.findAll('li a')).toHaveLength(1);
+    expect(wrapper.find('li a').attributes('href')).toBe('mailto:ingrid@northwind.example');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
 });

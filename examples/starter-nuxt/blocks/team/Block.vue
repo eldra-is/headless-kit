@@ -151,7 +151,10 @@ function resolveLinks(person: Person): ResolvedLink[] {
   return (person.links ?? []).flatMap((link) => {
     const type = link.type;
     const href = safeHref(link.href);
-    if (type === undefined || href === null) return [];
+    // A `type` outside the field's own option set (stale content after an option is removed, or
+    // a hand-edited entry) has no icon and no name template, so the link is skipped rather than
+    // crashing the whole block on a missing message key.
+    if (type === undefined || !(type in ICON_NAMES) || href === null) return [];
     return [
       {
         type,
