@@ -30,6 +30,12 @@ export const isIS = {
     headingHintLabel: 'Bættu við fyrirsögn (valfrjálst)',
     imageHintLabel: 'Veldu mynd',
   },
+  cta: {
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Ein skýr beiðni, t.d. „Bókaðu vinnustofuheimsókn".',
+    textHintLabel: 'Bættu við stuðningstexta (valfrjálst)',
+    buttonHintLabel: 'Bættu við hnappi',
+  },
   announcement: {
     region: 'Tilkynning',
     dismiss: 'Loka tilkynningu',

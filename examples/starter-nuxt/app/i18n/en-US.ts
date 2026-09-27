@@ -30,6 +30,12 @@ export const enUS = {
     headingHintLabel: 'Add a heading (optional)',
     imageHintLabel: 'Choose an image',
   },
+  cta: {
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'One clear ask, e.g. "Book a studio visit".',
+    textHintLabel: 'Add supporting text (optional)',
+    buttonHintLabel: 'Add a button',
+  },
   announcement: {
     region: 'Announcement',
     dismiss: 'Dismiss announcement',

@@ -36,13 +36,15 @@ declare global {
       container?: 'wide' | 'content';
     };
     cta: {
+      variant: 'primary' | 'subtle' | 'split' | 'banner';
+      eyebrow?: string;
       heading: string;
-      body?: string;
-      buttonLabel: string;
-      buttonHref: string;
-      secondaryButtonLabel?: string;
-      secondaryButtonHref?: string;
-      variant?: 'primary' | 'subtle' | 'split';
+      text?: string;
+      primaryCtaLabel: string;
+      primaryCtaHref: string;
+      secondaryCtaLabel?: string;
+      secondaryCtaHref?: string;
+      image?: EldraMedia;
     };
     faq: {
       heading: string;

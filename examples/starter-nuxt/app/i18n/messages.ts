@@ -133,6 +133,17 @@ export interface Messages {
     imageHintLabel: string;
   };
   /**
+   * The `cta` block's three per-field editor hints (spec `02-blocks.md` line 815, "Empty (freshly
+   * inserted)"): each replaces just the one empty part it names, only via `useEditing()` — the
+   * live site simply omits an empty optional part instead (see `blocks/cta/Block.vue`).
+   */
+  cta: {
+    headingHintLabel: string;
+    headingHintHelp: string;
+    textHintLabel: string;
+    buttonHintLabel: string;
+  };
+  /**
    * Shared vocabulary for the commerce blocks built on `app/storefront/*` (design doc
    * §"Storefront source") — a `StorefrontResult.pending`/`error` state or an order's delivery
    * step is the same kind of thing across `collection-grid`, `product-detail`, `search`,

@@ -1,45 +1,86 @@
 {
   "apiId": "cta",
   "name": "Call to action",
-  "description": "Banner with heading, supporting copy and one or two buttons.",
-  "icon": "hand-click",
+  "description": "A focused band that asks the visitor to do one thing, in four weights from loud to quiet.",
+  "icon": "cursor-text",
   "category": "marketing",
-  "version": 1,
+  "version": 2,
   "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "primary is the default.",
+      "metadata": { "options": ["primary", "subtle", "split", "banner"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "eyebrow",
+      "name": "Eyebrow",
+      "type": "string",
+      "localized": true,
+      "helpText": "Not shown in banner."
+    },
     {
       "fieldId": "heading",
       "name": "Heading",
       "type": "string",
       "isTitle": true,
       "localized": true,
-      "validators": { "required": true }
+      "helpText": "One line if possible, under 8 words.",
+      "validators": { "required": true, "maxLength": 120 }
     },
-    { "fieldId": "body", "name": "Body", "type": "text", "localized": true },
     {
-      "fieldId": "buttonLabel",
-      "name": "Button label",
+      "fieldId": "text",
+      "name": "Text",
+      "type": "text",
+      "localized": true,
+      "helpText": "1-2 sentences."
+    },
+    {
+      "fieldId": "primaryCtaLabel",
+      "name": "Primary button label",
       "type": "string",
       "localized": true,
       "validators": { "required": true }
     },
     {
-      "fieldId": "buttonHref",
-      "name": "Button link",
+      "fieldId": "primaryCtaHref",
+      "name": "Primary button link",
       "type": "string",
       "validators": { "required": true }
     },
     {
-      "fieldId": "secondaryButtonLabel",
+      "fieldId": "secondaryCtaLabel",
       "name": "Secondary button label",
       "type": "string",
-      "localized": true
+      "localized": true,
+      "helpText": "Not shown in banner."
     },
-    { "fieldId": "secondaryButtonHref", "name": "Secondary button link", "type": "string" },
     {
-      "fieldId": "variant",
-      "name": "Variant",
-      "type": "select",
-      "metadata": { "options": ["primary", "subtle", "split"] }
+      "fieldId": "secondaryCtaHref",
+      "name": "Secondary button link",
+      "type": "string",
+      "helpText": "Not shown in banner."
+    },
+    {
+      "fieldId": "image",
+      "name": "Image",
+      "type": "media",
+      "metadata": { "multiple": false, "framing": true },
+      "helpText": "split only; fills its half of the panel."
+    }
+  ],
+  "migrations": [
+    {
+      "version": 2,
+      "renames": [
+        { "from": "body", "to": "text" },
+        { "from": "buttonLabel", "to": "primaryCtaLabel" },
+        { "from": "buttonHref", "to": "primaryCtaHref" },
+        { "from": "secondaryButtonLabel", "to": "secondaryCtaLabel" },
+        { "from": "secondaryButtonHref", "to": "secondaryCtaHref" }
+      ]
     }
   ]
 }

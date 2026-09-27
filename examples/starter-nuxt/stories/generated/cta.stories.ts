@@ -6,6 +6,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/cta/Block.vue';
 import mock from '../../blocks/cta/mock.json';
+import preview from '../../blocks/cta/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/cta",
@@ -15,7 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = mock;
+const base = { ...mock, ...preview };
 
 export const Default: Story = {
   args: { entry: { id: "cta", data: base } },
@@ -40,5 +41,11 @@ export const VariantSubtle: Story = {
 export const VariantSplit: Story = {
   args: {
     entry: { id: "cta", data: { ...base, "variant": "split" } },
+  },
+};
+
+export const VariantBanner: Story = {
+  args: {
+    entry: { id: "cta", data: { ...base, "variant": "banner" } },
   },
 };
