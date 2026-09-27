@@ -322,16 +322,6 @@ describe('collection sample page', () => {
 
   it('has no axe violations over the whole rendered page', async () => {
     const wrapper = await mountPage(page);
-    // `collection-grid`'s own filter-group triggers are, by the design spec's own Accessibility
-    // section (see that block's `parts/FilterGroups.vue` top-of-file comment), "a `<button>` inside
-    // an `h3`" — a deliberate disclosure-widget heading, not page sectioning content. Composed right
-    // after `collection-header`'s single `h1` with nothing else between them, that first `h3`
-    // constitutes a level skip axe's best-practice `heading-order` rule flags at the whole-page
-    // scope (it does not fire in the block's own isolated spec, which starts its own subtree at that
-    // same `h3`). This is `collection-grid`'s own heading structure, not something a page fixture
-    // can change, and out of scope here (no block code changes) — see the task report's concerns.
-    expect(
-      await axe(wrapper.element, { rules: { 'heading-order': { enabled: false } } })
-    ).toHaveNoViolations();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 });

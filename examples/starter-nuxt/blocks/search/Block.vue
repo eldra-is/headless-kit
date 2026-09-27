@@ -35,11 +35,10 @@
  * `suggestion`, the popular-search chips again, and up to four `ProductCard`s from
  * `noResultsCollection` via `useStorefront().catalog.collectionProducts()`.
  *
- * **Known demo limitation.** `app/storefront/demo.ts`'s `search.run()` ignores the query text
- * entirely (always the same fixture, per its own comment) and the `noResultsCollection` mock value
- * has no matching entry in the demo's collection catalogue either, so neither the empty-query nor
- * the no-results branch of this block is reachable against the shared demo storefront — this
- * block's own spec provides a stub `search`/`catalog` for both instead.
+ * The demo storefront's `search.run()` matches the query text against the catalogue and journal,
+ * and its `best-sellers` collection feeds the no-results "Customers love these" row; the block's
+ * own spec still provides a stub `search`/`catalog` where a test needs a pending or empty result on
+ * demand.
  */
 import { computed, inject, ref, toValue, watch } from 'vue';
 import {
