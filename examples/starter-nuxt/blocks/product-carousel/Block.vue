@@ -63,7 +63,7 @@ const storefront = useStorefront();
 /** `CURRENCY_KEY`/`LOCALE_KEY` (`@eldrajs/ui`) carry a `MaybeRefOrGetter`, the same shape
  *  `provideEldraUiCurrency`/`provideEldraUiLocale` accept — unwrapped once here rather than left
  *  for `ProductCard`'s own internal default, so every card in this block reads the same resolved
- *  value explicitly (design doc §"Storefront source"). */
+ *  value explicitly. */
 const injectedCurrency = inject(CURRENCY_KEY, undefined);
 const injectedLocale = inject(LOCALE_KEY, undefined);
 const currency = computed(() => toValue(injectedCurrency));

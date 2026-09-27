@@ -71,9 +71,10 @@ const files = [
   // verbatim into what `eldra-theme init` scaffolds), so a dangling internal reference there is
   // exactly as visible to an external reader as one in this package itself — see I3's own worst
   // offender, `examples/starter-nuxt/app/components/ui/UiImage.vue`, which named this plan's own
-  // private planning artifact by its full path.
-  ...collectFiles(join(monorepoRoot, 'examples/starter-nuxt/app'), []),
-  ...collectFiles(join(monorepoRoot, 'examples/starter-nuxt/blocks'), []),
+  // private planning artifact by its full path. Scanned as one tree (not just `app/`/`blocks/`)
+  // so `test/`, `scripts/`, `.storybook/`, `stories/`, `nuxt.config.ts` and the starter's own
+  // `README.md` get exactly the same guard.
+  ...collectFiles(join(monorepoRoot, 'examples/starter-nuxt'), []),
 ];
 
 const privateNpmScope = ['@eldra', 'is/'].join('-'); // never write this contiguously above
@@ -137,6 +138,38 @@ describe('public-repo hygiene: no private scope or internal hostname in shipped 
       );
     }
   );
+});
+
+/**
+ * The starter is `eldra-theme init`'s scaffold: a customer reads every comment in it as if it were
+ * their own project's history, not this monorepo's. A 2026-09 sweep found doc comments across the
+ * starter naming the internal task/design-doc process this kit's own delivery plan used to build
+ * it — "the task brief", "see task-1-report.md", "design doc §…" — none of which resolve to
+ * anything a customer has. This is the regression guard: `planTaskReference` above already blocks
+ * a bare `task-N`/`plan-N`, but not the prose forms ("task brief", "task report", "design doc")
+ * that sweep actually found, so this checks for those too, across the whole starter tree (unlike
+ * the two checks above, this one is not limited to `app/`/`blocks/`).
+ */
+const starterProcessWording = {
+  label: 'internal task/design-doc process wording',
+  pattern: /task report|task brief|task[ -]?\d+|superpowers|design doc/i,
+};
+
+describe('public-repo hygiene: the starter names no internal task/design-doc process wording', () => {
+  const starterFiles = files.filter((file) =>
+    file.startsWith(join(monorepoRoot, 'examples/starter-nuxt'))
+  );
+
+  it('finds starter files to scan', () => {
+    expect(starterFiles.length).toBeGreaterThan(50);
+  });
+
+  it.each(starterFiles)('%s carries none of it', (file) => {
+    const contents = readFileSync(file, 'utf8');
+    expect(contents, `${file} contains ${starterProcessWording.label}`).not.toMatch(
+      starterProcessWording.pattern
+    );
+  });
 });
 
 /**

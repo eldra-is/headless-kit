@@ -3,7 +3,7 @@ import type { EldraClient } from '@eldrajs/sdk';
 import type { CartStore } from './cart';
 
 /**
- * The theme's own view types for commerce data (design doc §"Storefront source"). `@eldrajs/sdk`'s
+ * The theme's own view types for commerce data. `@eldrajs/sdk`'s
  * response types (`EldraContractResponse<...>`) are contract-derived and resolve to `unknown`
  * without the Vite plugin's generated `contract.ts` augmentation (headless-kit `CLAUDE.md`
  * invariant: "the SDK ships no response types"), so a block never consumes them directly —
@@ -171,7 +171,7 @@ export interface StorefrontRoute {
   /**
    * The current `?sort=` value, or `null` when absent — read back the same generic way `page`
    * already is, so `collection-grid` can seed its own sort choice from a shared URL instead of
-   * always starting from its field's default (design doc §"Storefront source").
+   * always starting from its field's default.
    */
   sort: string | null;
   /** The current `?columns=` value, or `null` when absent — `collection-grid`'s column count. */

@@ -3,7 +3,7 @@
  * Collection header: opens a collection page with a breadcrumb, the collection title, an optional
  * clamped description with Read more, the live product count, and an optional image or
  * sub-collection links (spec `02-blocks.md` 3400–3500, "Collection header"). Consumes the
- * storefront source (design doc §"Storefront source"): `title`/`description`/`image` fall back to
+ * storefront source: `title`/`description`/`image` fall back to
  * `useStorefront().catalog.collection(handle)` when their own field is empty, and the product
  * count always comes from the store — never a field, per the spec's own "Don't fake the count"
  * rule.

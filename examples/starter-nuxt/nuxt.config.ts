@@ -48,8 +48,8 @@ export default defineNuxtConfig({
     // `@import` inside a Vite-processed CSS file (the Tailwind v4 Vite plugin
     // uses its own CSS resolver, not Vite's resolveId chain), and a second CSS
     // entry's `@theme` block is not merged into the Tailwind root defined by
-    // the first — both verified with a real `nuxi generate` (see
-    // task-1-report.md). main.css is `@import 'tailwindcss'` followed by
+    // the first — both verified with a real `nuxi generate` run.
+    // main.css is `@import 'tailwindcss'` followed by
     // `@import '@eldrajs/ui/tailwind.css'` instead, which that same resolver
     // finds in node_modules like any other package file, and which carries the
     // whole `--color-<role>: var(--eldra-color-<role>)` mapping — so no colour

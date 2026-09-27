@@ -175,8 +175,8 @@ export interface Messages {
     buttonHintLabel: string;
   };
   /**
-   * Shared vocabulary for the commerce blocks built on `app/storefront/*` (design doc
-   * §"Storefront source") — a `StorefrontResult.pending`/`error` state or an order's delivery
+   * Shared vocabulary for the commerce blocks built on `app/storefront/*` —
+   * a `StorefrontResult.pending`/`error` state or an order's delivery
    * step is the same kind of thing across `collection-grid`, `product-detail`, `search`,
    * `cart` and `order-status`, so it lives here once instead of once per block namespace.
    */
@@ -199,7 +199,7 @@ export interface Messages {
       delivered: string;
     };
   };
-  /** The header block's own strings (design doc §"Strings and i18n": one namespace per block). */
+  /** The header block's own strings (one namespace per block). */
   header: {
     /** The bar's `<nav aria-label>`. */
     primary: string;
@@ -222,7 +222,7 @@ export interface Messages {
     cartMany: string;
   };
   /**
-   * Editor-only hint strings (design doc contract addition #4): shown only when `useEditing()` is
+   * Editor-only hint strings: shown only when `useEditing()` is
    * true, shared across every block that can render an `EditorPlaceholder` for an empty optional
    * part, rather than duplicated per block namespace.
    */

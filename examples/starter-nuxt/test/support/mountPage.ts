@@ -29,8 +29,8 @@ const stubIconFetcher: IconFetcher = async (name) => tablerIconSvg(name);
  * Renders a `pages/<name>.page.json`-shaped fixture as `EldraLayout` would
  * on a real page: each listed block, in order, as a sibling inside one
  * `<main id="main">` — the landmark the blocks spec's skip link ("Skip to
- * content") and page-level accessibility gate (`test/pages/*.spec.ts` in
- * Tasks 36–39) both target. Every block gets the same `EldraContext`/UI
+ * content") and page-level accessibility gate (`test/pages/*.spec.ts`)
+ * both target. Every block gets the same `EldraContext`/UI
  * messages/locale/currency a real page and `mountBlock.ts`'s `mountOptions`
  * already provide, so a page-level spec sees exactly what a single-block
  * spec does, just with several blocks rendered together.

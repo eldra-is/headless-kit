@@ -293,7 +293,7 @@ function mapSvg(name, width, height) {
 // --- image manifest -----------------------------------------------------------
 //
 // Every name here is a `mock.json`/`preview.json` media source across the 33
-// blocks (see task-2-brief.md step 5): generic photographic backdrops
+// blocks: generic photographic backdrops
 // (`heroOrGallerySvg`) for hero/gallery/collection/split/article/poster/cta
 // imagery, product silhouettes (`productSvg`) at both the portrait and
 // square crops product cards use, person placeholders (`personSvg`) for

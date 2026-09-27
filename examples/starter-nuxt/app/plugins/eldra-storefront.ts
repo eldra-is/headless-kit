@@ -7,7 +7,7 @@ import { createGatewayStorefront } from '../storefront/gateway';
 /**
  * The only file under `app/storefront/*`'s orbit that touches Nuxt globals (`useRoute`,
  * `useRouter`, `useRuntimeConfig`) — every block reads `useStorefront()` instead, which never
- * does (design doc §"Storefront source": "the route context ... a block may not read the URL").
+ * does: the route context it exposes is read-only data, and a block may not read the URL itself.
  *
  * Builds the `@eldrajs/sdk` commerce client the theme-nuxt module does not create for you — that
  * module only creates `@eldrajs/theme-core`'s CMS/Studio-bridge client (`ELDRA_KEY`'s
@@ -57,8 +57,8 @@ export default defineNuxtPlugin({
     // `route.filters` (see that field's own doc comment in `types.ts`).
     const RESERVED_QUERY_KEYS = new Set(['q', 'page', 'token', 'sort', 'columns']);
 
-    // Resolved generically off the current path/query until this starter's own commerce page
-    // routes land (plan tasks 36–39): `/products/:handle`, `/collections/:handle` and an order
+    // Resolved generically off the current path/query since this starter's own commerce page
+    // routes are just `/products/:handle`, `/collections/:handle` and an order
     // status page reading `?token=`/`?q=`/`?page=` — a page can still override `productHandle`/
     // `collectionHandle` with its own field before falling back to this.
     watchEffect(() => {

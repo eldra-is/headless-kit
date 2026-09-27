@@ -15,7 +15,7 @@ import type { Component } from 'vue';
 // that program — an `app/**` file importing every block here would pull each `Block.vue`'s
 // internals into `nuxi typecheck` (blocks are otherwise reached only through the code-split
 // `virtual:eldra/blocks` glob, never a static import from `app/**`), surfacing template type
-// errors that belong to those blocks' own tasks. `stories/**` is separately type-checked by plain
+// errors that belong to those blocks' own templates. `stories/**` is separately type-checked by plain
 // `tsc` (`pnpm typecheck:storybook`), which resolves `*.vue` imports through `.storybook/
 // shims-vue.d.ts`'s opaque shim rather than parsing template internals, so it never hits this.
 //

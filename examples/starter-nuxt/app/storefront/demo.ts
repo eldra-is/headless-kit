@@ -37,9 +37,9 @@ const FREE_SHIPPING_THRESHOLD = 8000; // $80.00
 const FLAT_SHIPPING = 600; // $6.00, below the free-shipping threshold
 
 function demoImage(index: number, alt: string): StorefrontMedia {
-  // Only `product-1`..`product-6` exist in `public/demo/` today (scripts/demo-images.mjs) — later
-  // commerce block tasks are what actually render these, and can extend that manifest then. Cents
-  // don't apply to indices, this just cycles through what already exists.
+  // Only `product-1`..`product-6` exist in `public/demo/` today (scripts/demo-images.mjs) — a
+  // commerce block that needs more can extend that manifest. Cents don't apply to indices, this
+  // just cycles through what already exists.
   const name = `product-${((index - 1) % 6) + 1}`;
   return { src: `/demo/${name}.svg`, alt };
 }
@@ -530,9 +530,9 @@ export function buildOrder(status: StorefrontOrderStatus = 'shipped'): Storefron
 
 // ---------------------------------------------------------------------------------------------
 // Search — case-insensitive match on title, category and journal titles/deks; an empty query has
-// nothing to search for, and a near miss gets a "did you mean" suggestion (design doc
-// §"Storefront source"; spec `02-blocks.md` "Search results page" → Default content, the "linen"
-// query and the "linnen napkns" no-results example).
+// nothing to search for, and a near miss gets a "did you mean" suggestion (spec `02-blocks.md`
+// "Search results page" → Default content, the "linen" query and the "linnen napkns" no-results
+// example).
 // ---------------------------------------------------------------------------------------------
 
 const JOURNAL_ARTICLES: StorefrontSearchResponse['articles'] = [
@@ -834,7 +834,7 @@ export interface DemoStorefrontOptions {
 }
 
 /** Northwind fixtures in the theme's own view types — the "knobs" are exactly what a block spec
- * needs to demonstrate its states (design doc §"Storefront source"). */
+ * needs to demonstrate its states. */
 export function createDemoStorefront(options: DemoStorefrontOptions = {}): StorefrontSource {
   const order = buildOrder(options.orderStatus ?? 'shipped');
 

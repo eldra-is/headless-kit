@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Header (design spec 2, lines 76-238). apiId stays `navigation` (controller ruling: renaming it
+ * Header (design spec 2, lines 76-238). apiId stays `navigation` (renaming it
  * would orphan every Studio page that uses it); `Header` is only the display name.
  *
  * Layout: a 4-column grid (`auto minmax(0,1fr) auto auto`) whose DOM order is always
@@ -366,7 +366,7 @@ watchEffect((onCleanup) => {
  * own effect (2.4.11) is unconditional; the "only when the next block really is a Hero
  * `image-background`" half of the spec's rule is a page-composition concern outside a single
  * block's own `__tests__/Block.spec.ts` — proven at the page level once a page fixture pairs the
- * two (design doc §"Sample-page templates"). `data-eldra-transparent` is the hook that pairing
+ * two. `data-eldra-transparent` is the hook that pairing
  * reads/sets; this block turns the visual state on whenever `transparentOverHero` is on and the
  * bar hasn't already turned solid on its own (scrolled, or a menu open).
  */

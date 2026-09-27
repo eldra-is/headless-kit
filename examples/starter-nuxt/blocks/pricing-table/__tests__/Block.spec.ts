@@ -10,9 +10,9 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
 import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
-/** No media fields, so — like `stats` — there is no `preview.json` to merge onto `mock.json`
- *  (task brief: "No media, so no preview.json"). `mock.json` is the block's one full content
- *  fixture; `bare` below is the genuinely minimal one, only the fields the block requires. */
+/** No media fields, so — like `stats` — there is no `preview.json` to merge onto `mock.json`.
+ *  `mock.json` is the block's one full content fixture; `bare` below is the genuinely minimal one,
+ *  only the fields the block requires. */
 const bare = {
   heading: 'Membership plans',
   featureRows: [{ label: 'Free shipping' }],
@@ -148,7 +148,7 @@ describe('pricing-table block', () => {
   });
 
   /**
-   * Field `helpText` (and the task brief): "a short list is treated as 'not included' for the
+   * Field `helpText`: "a short list is treated as 'not included' for the
    * missing rows." Mutation check (manual): changing `isIncluded` to
    * `return plan.included?.[index] !== false;` (treating a missing/`undefined` entry as included
    * rather than not) leaves every earlier test passing — the mock fixture's `included` arrays are

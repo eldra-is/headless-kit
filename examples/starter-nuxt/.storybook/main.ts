@@ -23,17 +23,17 @@ const config: StorybookConfig = {
       // (storybookVuePlugin); it does not register @vitejs/plugin-vue for
       // the theme's own `.vue` SFCs, so this config adds it explicitly.
       //
-      // Task 1 wired Tailwind via the fallback route (nuxt.config.ts:
-      // `eldra.tailwind: false`, `app/assets/main.css` starts with
+      // `nuxt.config.ts` wires Tailwind via the fallback route
+      // (`eldra.tailwind: false`, `app/assets/main.css` starts with
       // `@import 'tailwindcss'`) because the plugin's own
       // `virtual:eldra/tailwind-theme.css` entry cannot be resolved through
       // Vite's `@import` resolver. Mirror that here: register Tailwind's own
       // Vite plugin and disable the adapter's Tailwind entry.
       tailwindcss(),
-      // Every block under `blocks/**` now imports `vue`/`@eldrajs/*`
-      // explicitly (Tasks 6-7 rebuilt all ten; see the block contract rule
-      // in the design spec §3), so Storybook — which has no Nuxt build step
-      // to auto-import from — needs no auto-import shim any more.
+      // Every block under `blocks/**` imports `vue`/`@eldrajs/*`
+      // explicitly (see the block contract rule in `docs/starter-kit.md`),
+      // so Storybook — which has no Nuxt build step to auto-import from —
+      // needs no auto-import shim any more.
       eldraTheme({ themeDir, framework: 'nuxt', tailwind: false }),
     ];
     config.resolve = {

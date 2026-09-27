@@ -9,15 +9,14 @@
  * same centre line even though only one of them is capped at 40rem (spec → Layout: "the body and
  * author card follow the 40rem narrow container, centred on the same axis as the header").
  *
- * **The date.** `formatDate` (`@eldrajs/ui`) is the package's one, frozen date formatter —
- * `{ day: 'numeric', month: 'short', year: 'numeric' }`, with no options parameter to ask for a
- * different month style. The design calls for two renderings at this block's own width (a long
- * month from 48rem, a short one below), but there is no way to get a second, longer-month string
- * out of this function without either hand-formatting the date locally (bypassing the package's
- * own never-throws date handling) or patching a published, frozen component — both against this
- * project's rules. So the block renders the one, real string `formatDate` produces for the
- * content locale, once, at every width, rather than two copies of dead identical markup toggled
- * by a container query that would have nothing to actually toggle.
+ * **The date.** `formatDate` (`@eldrajs/ui`) takes an options parameter for its month style
+ * (`FormatDateOptions`, on top of its default `{ day: 'numeric', month: 'short', year: 'numeric' }`).
+ * The design calls for two renderings at this block's own width — a long month from 48rem, a short
+ * one below — so `<time>` renders both as sibling `<span>`s, each built from the same
+ * never-throwing call with a different `month` option, and toggled with the block's own
+ * `@tablet:` container variant (`@tablet:hidden` / `hidden @tablet:inline`) rather than a `v-if`:
+ * both strings exist in the DOM at once, and only one is ever painted, so there is nothing to
+ * recompute or flash when the block's width crosses 48rem.
  *
  * **The byline's embedded link.** `article.byline` is one template string ("By {name}"), the same
  * shape as `footer.socialLinkName`, but the name inside it has to be its own `<Link>` — the
@@ -78,12 +77,18 @@ const categoryLinkAs = computed(() =>
 );
 
 /** Never throws (`@eldrajs/ui`'s own `formatDate`); a malformed/empty `publishedAt` renders no
- *  `<time>` at all rather than a fabricated date — see the module doc comment for why there is
- *  only ever the one rendering, not two. */
-const formattedDate = computed(() =>
+ *  `<time>` at all rather than a fabricated date. The short form is `formatDate`'s own default
+ *  style; the long form asks for `month: 'long'` — see the module doc comment for how the two
+ *  are toggled. */
+const formattedDateShort = computed(() =>
   data.value.publishedAt ? formatDate(data.value.publishedAt, locale.value) : null
 );
-const hasDate = computed(() => formattedDate.value !== null);
+const formattedDateLong = computed(() =>
+  data.value.publishedAt
+    ? formatDate(data.value.publishedAt, locale.value, { month: 'long' })
+    : null
+);
+const hasDate = computed(() => formattedDateShort.value !== null);
 
 const readingTime = computed(() => (data.value.readingTime ?? '').trim());
 const hasReadingTime = computed(() => readingTime.value !== '');
@@ -166,7 +171,10 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
               {{ categoryLabel }}
             </Link>
             <span v-if="hasCategory && (hasDate || hasReadingTime)" aria-hidden="true">·</span>
-            <time v-if="hasDate" :datetime="data.publishedAt">{{ formattedDate }}</time>
+            <time v-if="hasDate" :datetime="data.publishedAt">
+              <span class="@tablet:hidden">{{ formattedDateShort }}</span>
+              <span class="@tablet:inline hidden">{{ formattedDateLong }}</span>
+            </time>
             <span v-if="hasDate && hasReadingTime" aria-hidden="true">·</span>
             <span v-if="hasReadingTime">{{ readingTime }}</span>
           </div>

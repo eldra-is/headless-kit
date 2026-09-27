@@ -14,7 +14,7 @@
  *    row"); from `@content` the outer wrapper becomes a two-column grid (`5fr`/`7fr`, 4rem gap) and
  *    the head switches from a row to heading-above-intro. `@content:` is one of the two container
  *    query variants the package currently compiles to nothing for (a fix is in flight) — written
- *    here exactly as the spec requires regardless, per the task's known-issue note.
+ *    here exactly as the spec requires regardless.
  *
  * Colour: `Section` already sets the ground's plain-text colour on its own root (`text-text` on
  * `none`/`surface`/`surface-strong`, `text-primary-contrast`/`text-accent-contrast` on the two

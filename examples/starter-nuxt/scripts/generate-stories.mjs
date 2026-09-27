@@ -9,8 +9,8 @@
 // `Blocks/<apiId>` — a single shared file (one `Blocks` title for every
 // block) cannot produce a per-block id namespace without either duplicate
 // default exports (invalid CSF) or per-story id overrides Storybook does not
-// support. This is the one deliberate deviation from the brief's literal
-// `stories/blocks.generated.stories.ts` filename; see task-2-report.md.
+// support. This is why generation writes one file per block under
+// `stories/generated/` rather than a single shared stories file.
 //
 // Re-run by `storybook dev`/`build-storybook` (via `.storybook/main.ts`'s
 // `viteFinal`) so the generated files are always current; also runnable

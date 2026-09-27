@@ -4,8 +4,8 @@
  *
  * The design spec (`02-blocks.md` "Breadcrumbs") builds the trail from the page tree, but a block
  * cannot read the route (no Nuxt globals here, and `useEldraPage()` is page-level, not
- * block-level — see the design doc's "Contract additions" note and `block.json`'s own
- * `description`). `trail` is this theme's stand-in: a flat list of `{label, href}` levels the page
+ * block-level — see `block.json`'s own `description`). `trail` is this theme's stand-in: a flat
+ * list of `{label, href}` levels the page
  * author fills by hand, root first, with `currentTitle` standing in for "the page title" the spec
  * assumes is always available.
  *

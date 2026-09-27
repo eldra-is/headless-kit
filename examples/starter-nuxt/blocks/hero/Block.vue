@@ -72,7 +72,7 @@ const sectionLabelledBy = computed(() =>
   data.value.heading && !isSplitCarousel.value ? headingId : undefined
 );
 
-/** Section background (brief, controller ruling): `none` normally, `primary` for
+/** Section background: `none` normally, `primary` for
  *  `image-background` with an image (so the package's own section-inversion mechanism takes over
  *  the copy and buttons), `surface-strong` for `image-background` with no image yet. */
 const sectionBackground = computed<SectionBackground>(() => {

@@ -13,7 +13,7 @@ import { createDemoStorefront } from '../../../app/storefront/demo';
 import { enUS } from '../../../app/i18n/en-US';
 
 /**
- * `footer` has no `preview.json` (brief: the spec's default story is the wordmark, so demo media
+ * `footer` has no `preview.json` (the spec's default story is the wordmark, so demo media
  * is not used) — so the "merged data" and "bare `mock.json`" mounts every block spec is expected
  * to cover (`docs/starter-kit.md` §3) are, for this block, the same seed. Both are still mounted
  * and asserted axe-clean below as their own tests, matching that convention.

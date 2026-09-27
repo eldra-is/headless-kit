@@ -37,7 +37,7 @@
  * environment with no `ResizeObserver` such as jsdom under Vitest) and is only ever true once the
  * list is both in `scroll` mode and actually wider than its own box.
  *
- * **Payment marks never use brand colour** (controller ruling): `apple-pay` has no Tabler icon, so
+ * **Payment marks never use brand colour.** `apple-pay` has no Tabler icon, so
  * it renders `brand-apple` while its hidden name still reads "Apple Pay"; the other three map onto
  * their own Tabler brand icon. Every mark is a fixed-size chip with a `text`-toned icon plus a
  * `VisuallyHidden` name, inside a `<ul aria-label="…">` the same way `payments` items name
@@ -223,7 +223,7 @@ const hasPaymentsLabel = computed(() => paymentsLabelText.value !== '');
 
 const DEFAULT_PAYMENT_BRANDS = ['visa', 'mastercard', 'paypal', 'apple-pay'];
 
-/** Spec ruling (controller): Tabler ships no `brand-apple-pay` icon, so `apple-pay` renders
+/** Tabler ships no `brand-apple-pay` icon, so `apple-pay` renders
  *  `brand-apple` — the visually hidden name still says "Apple Pay". */
 function paymentIcon(brand: string): string | null {
   switch (brand) {

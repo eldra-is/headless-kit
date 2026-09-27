@@ -7,8 +7,8 @@
  * `Button` for the two coloured grounds.
  *
  * Layout is a 2-/3-column grid so the message stays optically centred
- * whether or not the dismiss button is present (design doc "Contract
- * additions" #3, block-width breakpoints only): below `@tablet` (48rem) it is
+ * whether or not the dismiss button is present (block-width breakpoints
+ * only): below `@tablet` (48rem) it is
  * `minmax(0,1fr) auto`, the dismiss column collapsing to nothing when there
  * is no button; from `@tablet` a hidden spacer becomes a real grid item so
  * the template reads `2rem minmax(0,1fr) 2rem`, keeping the message centred
@@ -19,9 +19,9 @@
  * `variant="inline"` — the package's own `arrow` prop only draws for
  * `standalone` (`Link.vue`'s `showArrow`), and standalone's weight-600 +
  * arrow + `inline-flex` box is exactly what the design spec's "inline link
- * with an arrow, weight 600, never wraps internally" line describes ("the
- * package wins" — design doc's own resolution rule for a spec 2 vs. package
- * disagreement). It is placed as a normal inline sibling straight after the
+ * with an arrow, weight 600, never wraps internally" line describes — the
+ * package's own presentation wins over the spec's literal styling where the
+ * two disagree. It is placed as a normal inline sibling straight after the
  * message text, which is what reads as "inline" in the rendered sentence.
  *
  * Dismissal is `useStorefront().history` (`app/storefront/history.ts`): `dismissAnnouncement`/

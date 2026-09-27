@@ -158,20 +158,23 @@ describe('product sample page', () => {
     wrapper.unmount();
   });
 
-  it('gives Colour and Size page-unique radio names, with no two radio groups sharing one', async () => {
+  it('gives Colour and Size page-unique radio group names, with legends still reading the human names', async () => {
     const wrapper = await mountProductPage();
     const radios = wrapper.findAll('input[type="radio"]');
     // 4 colour values + 5 size values (app/storefront/demo.ts MERINO_OPTIONS) — the only radio
     // groups on this page, both scoped to product-detail's own `<form>`.
     expect(radios).toHaveLength(9);
+    // `VariantPicker`'s `name` is a `useUiId()`-unique key (`<option.name>-<instanceId>`), not the
+    // human label, so this page has exactly two distinct, non-empty group names — never reused by
+    // a different radio group elsewhere on the page, since there is no other radio input on the
+    // page at all outside these two groups.
     const names = new Set(radios.map((r) => r.attributes('name')));
-    expect(names).toEqual(new Set(['Colour', 'Size']));
-    // Neither name is reused by a different radio group elsewhere on the page — there is no other
-    // radio input on the page at all outside these two groups.
-    const nonVariantRadios = radios.filter(
-      (r) => r.attributes('name') !== 'Colour' && r.attributes('name') !== 'Size'
-    );
-    expect(nonVariantRadios).toHaveLength(0);
+    expect(names.size).toBe(2);
+    for (const name of names) expect(name).not.toBe('');
+    // `legend` is what keeps the visible/accessible text reading "Colour"/"Size" regardless.
+    const legends = wrapper.findAll('legend').map((l) => l.text());
+    expect(legends[0]).toContain('Colour');
+    expect(legends[1]).toContain('Size');
     wrapper.unmount();
   });
 

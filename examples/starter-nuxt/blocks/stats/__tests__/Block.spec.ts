@@ -8,9 +8,8 @@ import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 
 /** Stats has no media fields, so — unlike most rebuilt blocks — there is no `preview.json` to
- * merge on top of `mock.json` (see the task brief: "No media, so no preview.json"). `mock.json`
- * itself is therefore the block's one full ("merged") content fixture; `bare` below is the
- * genuinely minimal one, only the fields the block requires. */
+ * merge on top of `mock.json`. `mock.json` itself is therefore the block's one full ("merged")
+ * content fixture; `bare` below is the genuinely minimal one, only the fields the block requires. */
 const bare = {
   heading: 'What customers say',
   items: [

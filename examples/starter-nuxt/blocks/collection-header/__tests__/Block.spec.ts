@@ -23,7 +23,7 @@ const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 const bare = { variant: 'image' as const };
 
 /** jsdom reports `scrollHeight`/`clientHeight` as `0`/`0` for every element, so the clamp never
- *  "overflows" on its own — the same limitation the task notes for this block. Stubbing both on
+ *  "overflows" on its own — a known jsdom limitation. Stubbing both on
  *  the element prototype (restored after each test) is what lets a test drive the Read more
  *  disclosure's own overflow check deterministically. */
 let restoreOverflowStub: (() => void) | null = null;

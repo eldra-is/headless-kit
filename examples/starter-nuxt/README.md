@@ -1,11 +1,12 @@
 # Eldra Nuxt starter
 
 This is the base every Eldra theme starts from: Tailwind v4 bound to the Eldra design tokens,
-`@eldrajs/ui` for the accessible core components (buttons, links, form controls), the copied (not
-installed) primitives still under `app/components/ui/`, ten rebuilt content blocks, `en-US`/`is-IS`
-UI strings, Storybook with generated block previews, and an accessibility test harness. Running
-`eldra-theme init my-site` copies this directory — everything in it is source you own from day one,
-apart from `@eldrajs/ui`, which is an ordinary versioned dependency you restyle through tokens.
+`@eldrajs/ui` for the accessible core components (buttons, links, form controls), the one copied
+(not installed) primitive left under `app/components/ui/` (`UiImage`), 33 content and commerce
+blocks, four sample pages, a demo storefront, `en-US`/`is-IS` UI strings, Storybook with generated
+block previews, and an accessibility test harness. Running `eldra-theme init my-site` copies this
+directory — everything in it is source you own from day one, apart from `@eldrajs/ui`, which is an
+ordinary versioned dependency you restyle through tokens.
 
 For the conventions behind the copied source (the block contract, why the primitives look the way
 they do, the Tailwind CSS route this starter uses), see
@@ -82,6 +83,56 @@ option automatically; add an axe assertion for each variant in the block's spec,
 the merged (mock + preview) data and the bare `mock.json`. Run `pnpm previews` once the block
 renders, and commit the generated `preview.png` / `.eldra/previews/*.png` / `.eldra/previews.json`
 alongside it.
+
+## The 33 blocks
+
+`blocks/` groups by `block.json`'s `category`, the same grouping Studio's insert palette uses:
+
+- **structure** — `navigation` ("Header"), `announcement-bar`, `breadcrumbs`, `footer`.
+- **marketing** — `hero`, `cta` ("Call to action"), `feature-grid`, `split-content`, `stats`,
+  `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact`
+  ("Contact and map"), `video-embed`, `team`, `timeline`.
+- **content** — `article`, `article-list`, `rich-text`, `gallery`, `image`, `quote`, `tabs`.
+- **commerce** — `collection-header`, `product-carousel`, `collection-grid`, `product-detail`,
+  `cart`, `search`, `order-status`, `trust-strip`.
+
+Commerce blocks read product, cart, search and order data through `useStorefront()`
+(`app/storefront/`), never `@eldrajs/sdk` directly — see [`docs/starter-kit.md`](../../docs/starter-kit.md)
+for the full block contract, the `link`-pair field convention, and the version/migration rule for
+changing a shipped block's schema.
+
+## Sample pages
+
+`pages/home.page.json`, `pages/product.page.json`, `pages/collection.page.json` and
+`pages/article.page.json` are hand-authored fixtures — `{ template, title, blocks: [{ apiId, id,
+data }] }`, the same shape a real CMS page document has — showing a realistic page rather than one
+block in isolation. Each renders as a Storybook story (`stories/pages/*.stories.ts`) and is proven
+by its own page-level test (`test/pages/*.spec.ts`): a whole-page axe pass, one `<h1>` with no
+skipped heading level, unique ids across every block instance on the page, and the rest of the
+page-level gate `docs/starter-kit.md`'s testing section describes. Use them as a starting point for
+your own site's pages, or as a reference for how a set of blocks composes.
+
+## Storefront forms
+
+The newsletter (`forms.subscribe`), contact (`forms.sendMessage`) and back-in-stock
+(`catalog.notifyBackInStock`) forms have no gateway endpoint by default: without one configured,
+they resolve `{ ok: false, reason: 'unsupported' }` and the block renders its own "isn't set up
+yet" copy rather than crashing. Wire a real endpoint by adding it to `nuxt.config.ts`:
+
+```ts
+export default defineNuxtConfig({
+  runtimeConfig: {
+    public: {
+      formsEndpoint: '', // e.g. https://forms.example.com/submit
+    },
+  },
+});
+```
+
+or by setting the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable at build/deploy time.
+Once set, `app/storefront/gateway.ts` posts `{ kind: 'subscribe' | 'sendMessage' |
+'notifyBackInStock', ...input }` as JSON to that endpoint and treats a non-2xx response as a
+recoverable failure (the same retry-on-resubmit path each form's own spec proves).
 
 ## Restyling
 

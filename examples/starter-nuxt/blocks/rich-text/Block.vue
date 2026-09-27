@@ -24,14 +24,11 @@
  * doc comment) — this block only ever passes `labelledBy`, never `ariaLabel`, and lets it fall
  * through to a `<div>` when there is no heading, the same as `gallery`'s own `sectionLabelledBy`.
  *
- * **Body headings start at h3.** `EldraRichText` renders a `heading` node at whatever level its
- * TipTap `attrs.level` carries, clamped only to the generic 1-6 range — there is no
- * `headingOffset`/`minHeadingLevel`-style prop on the component, and the toolbar's `heading`
- * control id is level-agnostic, so nothing in `block.json` can restrict which level an editor
- * inserts. `floorRichTextHeadingLevels` (`./headingLevels.ts`) floors every heading in the TipTap
- * document itself — never the rendered HTML — at h3 before it reaches `EldraRichText`; see that
- * module's own doc comment for the full reasoning and the `minHeadingLevel`-on-the-package
- * follow-up it names.
+ * **Body headings start at h3.** `EldraRichText`'s `minHeadingLevel` prop floors every heading
+ * node's rendered tag at `h{max(minHeadingLevel, level)}`, capped at 6, without rewriting the
+ * document: this block passes `:min-heading-level="3"`, so an editor can insert any level from the
+ * level-agnostic `heading` toolbar control and still never see an `h1`/`h2` in the body — only the
+ * rendered tag moves, the stored TipTap document (and `data.body` itself) is untouched.
  *
  * `body` is required, but — like `quote`'s `quote` and `faq`'s `items` — a freshly inserted block
  * still has an empty one: the whole `Section` is gated on `hasBody || editing`, the same "no
@@ -45,7 +42,6 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
-import { floorRichTextHeadingLevels } from './headingLevels';
 
 type Alignment = 'left' | 'center';
 type ContainerOption = 'narrow' | 'content';
@@ -69,8 +65,9 @@ const isSplit = computed(
   () => alignment.value === 'left' && containerWidth.value === 'content' && hasHeadingSlot.value
 );
 
-const body = computed(() => floorRichTextHeadingLevels(data.value.body));
-const hasBody = computed(() => Array.isArray(body.value?.content) && body.value.content.length > 0);
+const hasBody = computed(
+  () => Array.isArray(data.value.body?.content) && data.value.body.content.length > 0
+);
 const showBodyHint = computed(() => editing.value && !hasBody.value);
 const showBlock = computed(() => hasBody.value || editing.value);
 
@@ -129,8 +126,9 @@ useRichTextScrollRegions(
             :class="richTextClass"
             :entry-id="entryId"
             field="body"
-            :doc="body"
+            :doc="data.body"
             api-id="rich-text"
+            :min-heading-level="3"
           />
           <EditorPlaceholder
             v-else-if="showBodyHint"

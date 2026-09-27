@@ -5,8 +5,8 @@ import type {
 } from '../../app/storefront/types';
 
 /**
- * `search.run()` responses are always USD (design doc §"Shared page facts": Northwind Goods
- * prices in USD) — the same fixed formatter `blocks/navigation/Block.vue` builds for its own
+ * `search.run()` responses are always USD (Northwind Goods prices in USD) — the same fixed
+ * formatter `blocks/navigation/Block.vue` builds for its own
  * header `SearchBar` mapping, duplicated here rather than shared: neither block imports the
  * other, and a future currency-aware storefront would replace both call sites independently.
  */

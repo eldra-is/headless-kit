@@ -144,6 +144,24 @@ two-locale mapping `uiMessagesFor` already used for strings). No block calls `Pr
 no product data source this early in the theme — so this is wired ahead of the first one that
 will; `.storybook/eldra.ts` and `test/support/mountBlock.ts` do the same for their environments.
 
+### The starter's own blocks
+
+`blocks/` ships 33 blocks, `block.json`'s `category` grouping them the same way Studio's insert
+palette does:
+
+- **structure** (4) — `navigation` (display name "Header"), `announcement-bar`, `breadcrumbs`,
+  `footer`.
+- **marketing** (14) — `hero`, `cta` ("Call to action"), `feature-grid`, `split-content`, `stats`,
+  `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact` ("Contact and
+  map"), `video-embed`, `team`, `timeline`.
+- **content** (7) — `article`, `article-list`, `rich-text`, `gallery`, `image`, `quote`, `tabs`.
+- **commerce** (8) — `collection-header`, `product-carousel`, `collection-grid`, `product-detail`,
+  `cart`, `search`, `order-status`, `trust-strip`.
+
+The ten pre-existing blocks (`navigation`, `footer`, `hero`, `cta`, `feature-grid`, `faq`,
+`testimonials`, `gallery`, `image`, `article`) were rebuilt in place, not renamed; every other
+block is new. Each is a self-contained `blocks/<apiId>/` directory — see §3 for the contract.
+
 ### The one primitive left in `app/components/ui/`: `UiImage`
 
 Every other hand-rolled primitive that used to live here — `UiDialog`, `UiDrawer`, `UiAccordion`/
@@ -173,7 +191,14 @@ renders no interactive control of its own).
 One component sits outside both groups: `app/components/EldraIcon.vue` resolves a Tabler icon
 _name_ — what a CMS field holds — to markup through `useEldraIcon` and hands it to `@eldrajs/ui`'s
 `Icon`, which owns the size, stroke weight and ARIA state. The package takes an icon _component_,
-which is what keeps an icon library out of its dependencies.
+which is what keeps an icon library out of its dependencies. Most blocks with a decorative or
+labelled icon field (`navigation`'s mega-menu triggers, `footer`'s social links, `trust-strip`'s
+payment marks and delivery promises, `feature-grid`'s per-item icon, `faq`'s disclosure chevrons,
+`product-detail`'s stock/perk rows, and more) render it through `EldraIcon`, never a hand-rolled
+`<svg>` or a direct `Icon` call with a hard-coded component. Every media-bearing block —
+`hero`, `gallery`, `testimonials`, `product-carousel`, `article`, `team`, `logo-cloud`, the
+commerce cards, and the rest — renders its images through `UiImage`, never `Image` directly, so
+Studio's framing overlay works the same way across all of them.
 
 ## 3. The block contract
 
@@ -243,6 +268,69 @@ this starter). Editing only `mock.json`'s copy silently has no effect on the gen
 regenerated `preview.png` — keep both copies in sync by hand, or move the field out of the list
 shape if that drift becomes a real problem for a block you add.
 
+**The `link` pair.** Core has no `link` field type, so a link is always two `string` fields: a
+top-level link is `<name>Label` + `<name>Href` (`announcement-bar`'s `linkLabel`/`linkHref`,
+`hero`'s `ctaLabel`/`ctaHref`), and a link inside a `list` is a `composite` item with `label` +
+`href` children (`navigation`'s `menuLinks`, `footer`'s `columns[].links`). Every `href` a block
+reads is passed through `safeHref` (`app/utils/links.ts`) first and renders nothing when that
+returns `null`; a same-site `href` (`isInternalHref`) is routed by passing
+`app/components/EldraRouterLink.vue` as the destination component's `as`/`linkAs` prop
+(`Link`, `Button`, `Breadcrumb`, `Pagination`, and the card components all take it).
+
+**Versions and migrations.** `.eldra/manifest.json` is committed, and `eldra-theme validate` diffs
+every block's current schema against it. Dropping a field, changing its `type`/`localized`/
+cardinality, or removing it without bumping `block.json`'s `version` is a validation error — Core
+has no other way to know the change is deliberate. A field kept under a new id bumps `version` and
+adds a `migrations` entry pairing the old and new ids, e.g. `faq`'s rename of `single` to
+`exclusive`:
+
+```json
+{
+  "version": 2,
+  "migrations": [{ "version": 2, "renames": [{ "from": "single", "to": "exclusive" }] }]
+}
+```
+
+The renamed pair must stay storage-compatible (same `type`, same `localized`, same cardinality) —
+a migration moves stored data forward, it never converts it. A brand-new `apiId` starts at
+`version: 1` with no `migrations`, even in the same change that retires an old block of a similar
+shape: the rule only ever compares a schema against its own prior manifest entry.
+
+**Sample pages (`pages/*.page.json`).** Four fixtures — `home.page.json`, `product.page.json`,
+`collection.page.json`, `article.page.json` — are this starter's channel for showing a realistic
+page rather than one block in isolation. Each is `{ template, title, blocks: [{ apiId, id, data }] }`,
+the same shape a real CMS page document has, hand-authored with the same Northwind content
+convention as `mock.json`. They feed three things: `stories/pages/*.stories.ts` (a Storybook page
+story rendering every listed block in order inside one `<main id="main">`, sharing
+`stories/support/pageBlocks.ts`'s apiId → `Block.vue` map with the tests below), `test/pages/*.spec.ts`
+(the page-level gate — see "Testing and accessibility gates"), and `test/support/mountPage.ts`,
+which both of those build on. A page fixture is not a schema Core validates on its own — it is
+proven correct by rendering it through both channels.
+
+**The storefront source, and its demo fallback.** Every commerce block (`product-detail`,
+`product-carousel`, `collection-grid`, `collection-header`, `cart`, `search`, `order-status`,
+`trust-strip`'s delivery estimate) reads product, cart, search and order data through
+`useStorefront()` (`app/storefront/types.ts#STOREFRONT_KEY`) rather than calling `@eldrajs/sdk`
+directly — the same "no block reads the network or the route itself" rule §3's Nuxt-globals
+paragraph states, now for commerce data. Two implementations provide it:
+`app/plugins/eldra-storefront.ts` wires up `createGatewayStorefront` (`app/storefront/gateway.ts`)
+for the real Nuxt app, building an `@eldrajs/sdk` client from the same gateway URL/org id the theme
+module already resolved and mapping live gateway responses into the theme's own view types
+(`app/storefront/types.ts`); `.storybook/eldra.ts` and `test/support/mountBlock.ts`/`mountPage.ts`
+instead provide `createDemoStorefront` (`app/storefront/demo.ts`) — the hand-built Northwind
+fixture data every block spec, story and page fixture renders against, with no network at all.
+A block never knows which one it got.
+
+`forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
+back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts
+`{ kind: 'subscribe' | 'sendMessage' | 'notifyBackInStock', ...input }` as JSON to
+`runtimeConfig.public.formsEndpoint` when a site has configured one, and resolves
+`{ ok: false, reason: 'unsupported' }` (rendered as the form's own "isn't set up yet" copy, not a
+crash) when it hasn't. Wire a real endpoint by adding it to `nuxt.config.ts`'s `runtimeConfig.public`
+(or the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable) — see
+[`examples/starter-nuxt/README.md`](../examples/starter-nuxt/README.md#storefront-forms) for the
+exact snippet.
+
 ## 4. Storybook and generated previews
 
 Storybook 10 (`@storybook/vue3-vite`) lives in `examples/starter-nuxt/.storybook/`, with
@@ -252,12 +340,26 @@ real theme Vite plugin, `eldraTheme({ themeDir, framework: 'nuxt', tailwind: fal
 `virtual:eldra/*` modules and token CSS that the real site uses are what stories render against —
 plus Tailwind's own Vite plugin directly, mirroring the fallback route from §1.
 
-`stories/blocks.stories.ts` and each primitive's own `.stories.ts` are the only hand-written entry
-points; **block** stories are generated from `virtual:eldra/manifest` + `virtual:eldra/blocks` — one
-`Default` story (`mock.json` merged with `preview.json`, when the block has one), one `Inserted`
-story (bare `mock.json` — what Studio seeds on insert), plus one story per declared `variant` option
-(from the same merged base as `Default`) — so adding a block or a variant never means writing
-Storybook boilerplate.
+Each primitive's own `.stories.ts` and `stories/pages/*.stories.ts` (below) are hand-written;
+**block** stories are generated by `scripts/generate-stories.mjs` from `virtual:eldra/manifest` +
+`virtual:eldra/blocks` into one file per block under `stories/generated/` — one `Default` story
+(`mock.json` merged with `preview.json`, when the block has one), one `Inserted` story (bare
+`mock.json` — what Studio seeds on insert), plus one story per declared `variant` option (from the
+same merged base as `Default`) — so adding a block or a variant never means writing Storybook
+boilerplate. Generation re-runs on every `storybook dev`/`build-storybook` (`.storybook/main.ts`'s
+`viteFinal`), so `stories/generated/` is disposable — never hand-edit it.
+
+**Page stories.** `stories/pages/*.stories.ts` — one per `pages/*.page.json` fixture (§3) — render
+that fixture's full block list, in order, inside one `<main id="main">`, the same skip-link markup
+`app/app.vue` renders on a real page (`app.vue` itself can't be mounted under Storybook's plain
+Vite build, since it's Nuxt-only, so the story copies that one snippet). Each imports its fixture
+directly and maps `apiId` → `Block.vue` through `stories/support/pageBlocks.ts`, the same static map
+`test/support/mountPage.ts` renders through, so a page story shows exactly what its matching
+`test/pages/*.spec.ts` exercises. `pageBlocks.ts` lives under `stories/` rather than `app/utils/` on
+purpose: an `app/**` file importing every block would pull each `Block.vue`'s template into
+`nuxi typecheck`'s program (blocks are otherwise only reached through the code-split
+`virtual:eldra/blocks` glob), so page-story block imports are typechecked separately by
+`pnpm typecheck:storybook` instead.
 
 ```bash
 pnpm --filter starter-nuxt storybook          # dev server, port 6007
@@ -292,6 +394,18 @@ No hard-coded UI copy in primitives, blocks, or pages — every visible string, 
 and stays out of the locale files. Add a new key to **both** locale files in the same change; the
 Icelandic string should be a real translation, not a placeholder.
 
+**Namespaces.** `Messages` (`app/i18n/messages.ts`) is one object with one nested namespace per
+block, named for the block's own strings (`header` for `navigation`, `cta`, `grid` for
+`collection-grid`, `product` for `product-detail`, `trust` for `trust-strip`, and so on — most
+match the `apiId` directly, a few are shortened for readability) — a block's own spec only ever
+reads its own namespace, so two blocks can never collide on a key. Two namespaces are shared rather
+than per-block: `storefront` is vocabulary every commerce block needs in common — a
+`StorefrontResult.pending`/`error` state, an order's delivery step — so it lives once instead of
+once per commerce block namespace; `editor` holds the hint strings every block's empty-state
+`EditorPlaceholder` reads (shown only under `useEditing()`), also shared rather than duplicated.
+`nav`, `notFound`, `loading` and `error` are the page-chrome strings `app/app.vue` and the 404 page
+use directly.
+
 ## Testing and accessibility gates
 
 Every primitive and block spec mounts from its mock/story data and asserts
@@ -301,6 +415,21 @@ a keyboard test — arrow keys, Escape, Tab order, whatever the control's native
 requires. Every interactive element carries a focus ring — the package's `eldra-focus` on its own
 components, `app/utils/classes.ts`'s `focusRing` on everything the theme draws itself — and any
 animation is gated behind `motion-safe:`.
+
+**The page-level gate.** A block spec proves the block; `test/pages/*.spec.ts` (one per
+`pages/*.page.json` fixture, mounted through `test/support/mountPage.ts` — see §3/§4) proves what
+only shows up once several blocks share a page: `expect(await
+axe(wrapper.element)).toHaveNoViolations()` over the **whole rendered page**, not just one block;
+exactly one `<h1>` with no skipped heading level across every block's headings combined; every
+`aria-labelledby`/`aria-describedby`/`for` target resolves and every `id` on the page is unique
+(two block instances that both generate an id must never collide — this is what `useUiId()`
+guards); the skip link is the first focusable element; and the adjacent-same-background-padding
+collapse rule (§1, "two adjacent same-background sections drop the second's top padding") behaves
+correctly across real block boundaries — including that a non-`Section` block like `breadcrumbs`
+(no `data-section`/`data-section-bg` at all) takes no part in it, so the block after it keeps its
+own top padding. Each fixture's own spec adds page-specific assertions on top (the home page's
+"matches the shared page facts, and only those", the product page's page-unique radio group names
+across a real product-detail instance, and so on).
 
 ```bash
 pnpm --filter starter-nuxt typecheck          # nuxi typecheck + the Storybook config/stories

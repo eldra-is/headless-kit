@@ -2,8 +2,7 @@ import { onMounted, watch, type Ref } from 'vue';
 import { useEldra } from '@eldrajs/theme-vue';
 
 /**
- * Contract addition #6 (design doc "Contract additions this sub-project
- * makes"): the spec wants every rich-text `<table>` wrapped in a
+ * The spec wants every rich-text `<table>` wrapped in a
  * `<div role="region" tabindex="0" aria-label="…">` that scrolls
  * horizontally (blocks spec "Table" → Wrapper) and every `<pre>` focusable
  * so keyboard users can scroll it (blocks spec "Code block" → `<pre>`).

@@ -2,8 +2,7 @@ import { computed, type ComputedRef } from 'vue';
 import { useEldra } from '@eldrajs/theme-vue';
 
 /**
- * Contract addition #4 (design doc "Contract additions this sub-project
- * makes"): `true` only inside the Studio page editor's edit mode
+ * `true` only inside the Studio page editor's edit mode
  * (`preview.active && preview.mode === 'edit'`) — never merely because a
  * preview bridge is connected (`preview.active` alone also covers read-only
  * "preview" mode, spec 2's Empty state row: "In the editor, dashed

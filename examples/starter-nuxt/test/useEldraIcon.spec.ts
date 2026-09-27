@@ -7,7 +7,7 @@
 //    file — that's how Nuxt's unimport makes it available at build time).
 //    Outside a Nuxt build, plain Vitest has no such global, so these tests
 //    install one with `vi.stubGlobal('useFetch', ...)` before invoking the
-//    composable, same as before this task.
+//    composable.
 //  - an injected fetcher (Storybook, or a test like this one): resolved
 //    asynchronously through a plain `Promise`-returning function instead.
 //

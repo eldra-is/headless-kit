@@ -156,9 +156,20 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `prepack` script copies this directory into `packages/theme-cli/template/` (git-ignored, rebuilt
   on every pack/publish) rather than the CLI depending on it at runtime. Buttons, links and form
   controls come from `@eldrajs/ui` (a real dependency, restyled through the `--eldra-*` tokens,
-  never forked); everything else is copied source the customer owns — `app/components/ui/` is what
-  is left of the primitive layer (Tailwind classes, no scoped CSS, no `@apply`), replaced component
-  by component as the package's later sub-projects land,
+  never forked); everything else is copied source the customer owns — `app/components/ui/` is down
+  to just `UiImage` now (every other hand-rolled primitive was replaced, block by block, by the
+  matching `@eldrajs/ui` component). **33 blocks** ship under `blocks/`, `block.json`'s `category`
+  grouping them `structure`/`marketing`/`content`/`commerce` (see `docs/starter-kit.md` for the
+  full set); four hand-authored sample pages, `pages/*.page.json`
+  (`{template,title,blocks:[{apiId,id,data}]}`, the same shape a real CMS page document has),
+  render every block in a fixture in one place and back both a Storybook page story
+  (`stories/pages/*.stories.ts`) and a page-level test (`test/pages/*.spec.ts` — whole-page axe,
+  one `<h1>`, unique ids across block instances). Commerce blocks (`product-detail`,
+  `collection-grid`, `cart`, `search`, `order-status`, and the rest) read product/cart/search/order
+  data through `useStorefront()` (`app/storefront/**`'s own view types, `STOREFRONT_KEY`) — a real
+  gateway-backed implementation in the Nuxt app (`app/plugins/eldra-storefront.ts`), a demo Northwind
+  fixture (`app/storefront/demo.ts`) in Storybook and tests — rather than calling `@eldrajs/sdk`
+  directly.
   `blocks/<apiId>/{block.json,Block.vue,mock.json,preview.json?,preview.png,__tests__/}`
   is the block contract — `mock.json` is exactly the seed Studio writes when an author inserts the
   block, so a media field is absent there (never a fixture object; `eldra-theme validate` enforces
@@ -167,7 +178,10 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `app/components/ui/**` may call Nuxt globals
   (`useRoute`, `useHead`, `NuxtLink`, `$fetch`, `useAsyncData`) or rely on Nuxt auto-imports — every
   `vue`/`@eldrajs/*` import is explicit, which is what lets a block render in Storybook with no
-  Nuxt build step; `app/components/EldraRouterLink.vue` is the single carve-out that writes the
+  Nuxt build step. `useStorefront()` is not a Nuxt global (it is a plain `inject()` off
+  `STOREFRONT_KEY`, resolved outside the block either way), so `blocks/**` may call it freely; the
+  rule above is still absolute for `useRoute`/`useHead`/`NuxtLink`/`$fetch`/`useAsyncData` and
+  auto-imports. `app/components/EldraRouterLink.vue` is the single carve-out that writes the
   `<NuxtLink>` tag, and blocks hand it to `@eldrajs/ui`'s `Link` as `as` for a same-site
   destination (always after `safeHref`). Tailwind v4 is wired through the fallback route, not the
   plugin's `virtual:eldra/tailwind-theme.css` CSS-level `@import` (that import only resolves at the

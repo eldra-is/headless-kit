@@ -78,16 +78,23 @@ describe('article block', () => {
     expect(richText.findAll('h1')).toHaveLength(0);
   });
 
-  it('renders a single, real <time> from the never-throwing formatDate — not a hand-formatted string', () => {
+  it('renders two real, never-hand-formatted <time> spans — a short month below @tablet, a long one from it', () => {
     const wrapper = mountBlock(mock);
     const time = wrapper.get('time');
     expect(time.attributes('datetime')).toBe(mock.publishedAt);
-    expect(time.text()).toBe(formatDate(mock.publishedAt, 'en-US'));
+    const spans = time.findAll('span');
+    expect(spans).toHaveLength(2);
+    expect(spans[0]!.classes()).toContain('@tablet:hidden');
+    expect(spans[0]!.text()).toBe(formatDate(mock.publishedAt, 'en-US'));
+    expect(spans[1]!.classes()).toEqual(expect.arrayContaining(['hidden', '@tablet:inline']));
+    expect(spans[1]!.text()).toBe(formatDate(mock.publishedAt, 'en-US', { month: 'long' }));
   });
 
-  it('formats the date in the active content locale', () => {
+  it('formats both spans in the active content locale', () => {
     const wrapper = mountBlock(mock, { locale: 'is-IS' });
-    expect(wrapper.get('time').text()).toBe(formatDate(mock.publishedAt, 'is-IS'));
+    const spans = wrapper.get('time').findAll('span');
+    expect(spans[0]!.text()).toBe(formatDate(mock.publishedAt, 'is-IS'));
+    expect(spans[1]!.text()).toBe(formatDate(mock.publishedAt, 'is-IS', { month: 'long' }));
   });
 
   it('wraps the body table in a named, focusable region and marks the code block focusable', () => {

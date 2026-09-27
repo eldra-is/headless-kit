@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 //
-// `mountPage` has no dedicated spec of its own in task-2-brief.md's file
-// list (its first real exercise is Tasks 36–39's `test/pages/*.spec.ts`),
-// but it is a foundation contract other tasks depend on verbatim — this
-// proves the harness itself renders a fixture correctly and fails loudly on
-// an unknown apiId, using two of the starter's existing blocks as a stand-in
-// fixture (this file does not assert anything about `hero`/`footer` beyond
-// "they rendered where expected").
+// `mountPage` is exercised for real by `test/pages/*.spec.ts`, but it is a
+// foundation contract other tests depend on verbatim — this proves the
+// harness itself renders a fixture correctly and fails loudly on an unknown
+// apiId, using two of the starter's existing blocks as a stand-in fixture
+// (this file does not assert anything about `hero`/`footer` beyond "they
+// rendered where expected").
 import { describe, expect, it } from 'vitest';
 import heroMock from '../../blocks/hero/mock.json';
 import footerMock from '../../blocks/footer/mock.json';

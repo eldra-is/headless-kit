@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { computed, nextTick } from 'vue';
+import { computed, defineComponent, h, nextTick } from 'vue';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
@@ -24,7 +24,7 @@ const VARIANTS = ['gallery-left', 'gallery-right'] as const;
 
 /**
  * A demo storefront whose product is patched on the way out. The Northwind catalogue
- * (`app/storefront/demo.ts`, owned by the storefront task) has no low-stock and no made-to-order
+ * (`app/storefront/demo.ts`) has no low-stock and no made-to-order
  * product, so the two states that need one are reached by overlaying the fields on the demo product
  * rather than by editing that shared fixture: the block reads exactly the same shape either way.
  */
@@ -108,9 +108,6 @@ function statusLine(wrapper: Wrapper) {
 }
 function addToCart(wrapper: Wrapper) {
   return wrapper.get('button[type="submit"]');
-}
-function radios(wrapper: Wrapper) {
-  return wrapper.findAll<HTMLInputElement>('input[type="radio"]');
 }
 function optionByLabel(wrapper: Wrapper, label: string) {
   return wrapper
@@ -260,22 +257,53 @@ describe('product-detail block', () => {
 
   describe('variant pickers', () => {
     it('gives each block instance its own radio groups, so two on a page never collide', async () => {
-      const first = await mountReady(mock);
-      const second = await mountReady(mock);
+      // Two separate `mount()` calls each get their own Vue app, so `useId()` — scoped per app —
+      // would trivially "differ" for the wrong reason (both would actually start again at `v-1`).
+      // Mounting both blocks as siblings under one app is what proves real-page uniqueness: one
+      // `useId()` sequence, shared, the way a real page's single app renders every block.
+      const storefront = storefrontWith();
+      const Host = defineComponent({
+        render: () =>
+          h('div', [
+            h(Block, { entry: { id: 'e1', data: mock } }),
+            h(Block, { entry: { id: 'e2', data: mock } }),
+          ]),
+      });
+      const base = mountOptions({ entry: { id: 'e1', data: mock } });
+      const wrapper = mount(Host, {
+        ...base,
+        attachTo: document.body,
+        global: {
+          ...base.global,
+          provide: {
+            ...base.global.provide,
+            [ICON_FETCHER_KEY]: stubFetcher,
+            [STOREFRONT_KEY]: storefront,
+          },
+        },
+      });
+      await flushPromises();
+      await nextTick();
 
-      const firstColour = radios(first)[0]!;
-      const secondColour = radios(second)[0]!;
+      // Scoped by component instance, not `<form>`: the block also renders a second, unrelated
+      // `FormLayout`-backed form for its back-in-stock notice, so counting `<form>` elements would
+      // count that too.
+      const blocks = wrapper.findAllComponents(Block);
+      expect(blocks).toHaveLength(2);
+      const firstColour = blocks[0]!.get<HTMLInputElement>('input[type="radio"]');
+      const secondColour = blocks[1]!.get<HTMLInputElement>('input[type="radio"]');
       expect(firstColour.element.checked).toBe(true);
       expect(secondColour.element.checked).toBe(true);
-      // Distinct form owners are what isolate the groups — the legend still reads "Colour: Oat",
-      // which a per-instance `name` would have replaced with an id.
-      expect(firstColour.element.form).not.toBe(secondColour.element.form);
-      expect(firstColour.element.form).not.toBeNull();
-      expect(first.get('legend').text()).toContain('Colour');
+      // A unique native `name` (via `useUiId()`) is what isolates the groups — `legend` is what
+      // keeps the visible/accessible text reading "Colour", never the id.
+      expect(firstColour.element.name).not.toBe(secondColour.element.name);
+      expect(firstColour.element.name).not.toBe('');
+      expect(blocks[0]!.get('legend').text()).toContain('Colour');
 
       // Choosing in the second block leaves the first block's selection checked.
-      await radios(second)[1]!.setValue();
-      expect(radios(second)[1]!.element.checked).toBe(true);
+      const secondBlockRadios = blocks[1]!.findAll<HTMLInputElement>('input[type="radio"]');
+      await secondBlockRadios[1]!.setValue();
+      expect(secondBlockRadios[1]!.element.checked).toBe(true);
       expect(firstColour.element.checked).toBe(true);
     });
 

@@ -57,7 +57,7 @@ export function hashMessage(message: string): string {
 /**
  * Recently-viewed products (`product-detail` records, `product-carousel`'s `recently-viewed`
  * variant reads) and dismissed announcement bars — both `localStorage`-backed, both theme state
- * the SDK has no concept of (design doc §"Storefront source").
+ * the SDK has no concept of.
  */
 export function createHistoryStore(
   options: { initialRecentlyViewed?: string[] } = {}

@@ -22,8 +22,8 @@
  * narrowed by the grid track rather than a true square. Neither is a fork of the component — both
  * follow its published contract as given.
  *
- * **No route reading.** Design doc §"Storefront source": "a block may not read the URL" —
- * `StorefrontRoute` carries `page`, never a path. So both the active chip and `hrefForPage` key off
+ * **No route reading.** Blocks may not read the URL — `StorefrontRoute` carries `page`, never a
+ * path. So both the active chip and `hrefForPage` key off
  * this block's *own* fields instead of the address bar: `selfPath` is `categoryHref` (the field
  * documenting "this instance is the category page for X") falling back to `viewAllHref` (the
  * journal index) — the one the mock ships, and the one every default chip's own `href` equals, so

@@ -77,7 +77,7 @@ describe('main.css', () => {
     expect(css).toContain('var(--eldra-color-primary)');
   });
 
-  // `Container`/`Section` (task 6) replaced this file's own `.eldra-container[data-size]` rules
+  // `Container`/`Section` replaced this file's own `.eldra-container[data-size]` rules
   // and the `--spacing-section`/`-lg` `@theme` keys: max-width and gutters now come from the
   // package's `eldra-container-*` utilities and `--eldra-gutter-*`, and padding-block from `--eldra-section-*`
   // directly on `Section`'s own `pt-*`/`pb-*` classes — nothing left for `main.css` to declare.

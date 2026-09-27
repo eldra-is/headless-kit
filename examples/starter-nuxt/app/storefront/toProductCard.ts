@@ -4,8 +4,8 @@ import type { StorefrontProductListItem } from './types';
 /**
  * `StorefrontProductListItem` → `@eldrajs/ui`'s `ProductCardProduct` — the one mapping
  * `collection-grid`, `product-carousel` and `search` all build their cards through, so the three
- * agree pixel for pixel (design doc §"Storefront source": "`ProductCard` is the shared cell ...,
- * always built by `toProductCard()`").
+ * agree pixel for pixel — `ProductCard` is the shared cell every commerce block renders a product
+ * with, always built by `toProductCard()`.
  *
  * `badge` is never read off the input — `ProductCardProduct.badge` is deliberately the caller's
  * own sale/new *decision*, not something the card re-derives, so this is the one place that

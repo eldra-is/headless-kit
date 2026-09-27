@@ -32,9 +32,9 @@ import type {
  * generated *test* fixture never imported here) — the same thing a real customer theme has to do
  * before its own `eldra()` Vite plugin has generated a contract against their tenant.
  *
- * `forms.subscribe`/`forms.sendMessage`/`catalog.notifyBackInStock` have no gateway endpoint today
- * (design doc §"Storefront source"): this posts to `options.formsEndpoint` when the plugin
- * configured one, and resolves `{ ok: false, reason: 'unsupported' }` otherwise.
+ * `forms.subscribe`/`forms.sendMessage`/`catalog.notifyBackInStock` have no gateway endpoint
+ * today: this posts to `options.formsEndpoint` when the plugin configured one, and resolves
+ * `{ ok: false, reason: 'unsupported' }` otherwise.
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -645,8 +645,8 @@ export function createGatewayStorefront(
         // /catalog/v1/collections/{slug}/products` (checked against
         // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
         // declares only `data`/`meta`. No facets/aggregations field exists on this response today,
-        // so there is nothing to map; `facets` stays `[]` until the gateway's contract adds one
-        // (recorded in the wave's report rather than left as a silent, unexplained empty array).
+        // so there is nothing to map; `facets` stays `[]` until the gateway's contract adds one —
+        // documented here rather than left as a silent, unexplained empty array.
         const facets: StorefrontFacet[] = [];
         return { items: (raw.data ?? []).map(mapProductListItem), total: raw.meta.total, facets };
       }),

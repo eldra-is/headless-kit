@@ -4,8 +4,7 @@
  * call to action and a checklist of feature rows compared across every plan (spec `02-blocks.md`
  * 1524–1641, "Pricing table"). No `variant` field — one layout; the highlighted plan is a state
  * driven by `highlightedPlan` (a plain `string` matched against `plans[].name`, since the spec's
- * own "`none` or a plan name" `select` cannot be a static one — see the task brief and Global
- * Constraints).
+ * own "`none` or a plan name" `select` cannot be a static one — see Global Constraints).
  *
  * **Layout.** Below `@tablet` (48rem of the block's own width) plans stack in one column and each
  * card is a plain `flex flex-col` — no need for a shared grid since there is only one column.
@@ -25,8 +24,8 @@
  * shift its content out of alignment with the other cards' (spec → Layout, "Highlighted plan").
  *
  * **Feature rows.** `featureRows` is the shared, ordered list of comparison rows; each plan's own
- * `included` is a bare `bool[]` (Core's `list` of a plain `bool` item, not a composite — see the
- * brief), one entry per `featureRows` index in the same order. A short `included` array (or a
+ * `included` is a bare `bool[]` (Core's `list` of a plain `bool` item, not a composite),
+ * one entry per `featureRows` index in the same order. A short `included` array (or a
  * plan with none at all) is read as "not included" for the missing rows (`isIncluded` below), per
  * the field's own `helpText`. Every row carries the state three ways at once (spec Acceptance,
  * 1.4.1): a check/minus icon shape, visually hidden "Included:"/"Not included:" text before the

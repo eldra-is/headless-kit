@@ -11,9 +11,10 @@
  *    only exist at 48/64/80rem (`--container-tablet`/`-content`/`-wide` in `tailwind.css`). A
  *    single rendered card is centred and capped at 36rem instead of stretching a lone grid cell.
  *  - `carousel`: the same cards inside `@eldrajs/ui`'s `Carousel`. Its own `perView` breakpoints
- *    (`md`/`lg`) are hard-coded to exactly those two package breakpoints
- *    (`useCarousel.ts#carouselPerViewClasses`), so — unlike the grid above — there is no way to
- *    honour the spec's literal 40rem/60rem here; `{ base: 1.16, md: 2, lg: 3 }` is the task's own
+ *    (`md`/`lg`) are hard-coded to exactly those two package breakpoints — 48rem/64rem, resolved
+ *    into inline `--eldra-carousel-per-view-*` custom properties by `useCarousel.ts`'s
+ *    `carouselPerViewStyle()` — so, unlike the grid above, there is no way to
+ *    honour the spec's literal 40rem/60rem here; `{ base: 1.16, md: 2, lg: 3 }` is this block's own
  *    resolution, deliberately using the component's real 48rem/64rem edges instead.
  *  - `single-large`: the first review only, centred, with a larger quote in the heading font and
  *    the heading itself shrunk to a small label ("Customer review" in the default content).
@@ -156,8 +157,8 @@ function ratingValue(item: TestimonialItem): number | null {
 }
 
 /** Spec "Testimonials" → Field → layout mapping: "meta → the meta line (a link when product is
- *  set)" — gated on `productHref` alone (the task brief's own test), not on `productLabel`, which
- *  is stored for Studio's own product picker and never rendered directly. */
+ *  set)" — gated on `productHref` alone, not on `productLabel`, which is stored for Studio's own
+ *  product picker and never rendered directly. */
 function metaHref(item: TestimonialItem): string | null {
   return safeHref(item.productHref);
 }

@@ -17,13 +17,14 @@
  *
  * **The buy area is a real `<form>`**, the way a storefront's add-to-cart form always is: the
  * pickers are its radio groups, the stepper its quantity field and Add to cart its submit button,
- * so `Enter` inside the form buys and every radio group is scoped to *this* block's form owner. That
- * scoping is what keeps two product-detail blocks on one page from sharing a radio group:
- * `VariantPicker`'s `name` prop is both the radios' native `name` **and** the visible legend text
- * (see `packages/ui/src/components/variant-picker/VariantPicker.vue`), so a `useUiId()`-unique name
- * would put the id into the legend a shopper reads ("Colour v-3: Oat"). Form ownership gives the
- * same isolation with the legend the spec asks for; the package would need a `legend`/`label` prop
- * separate from `name` for the two to be independent.
+ * so `Enter` inside the form buys.
+ *
+ * **Each radio group gets a unique native `name`.** `VariantPicker`'s `legend` prop (separate from
+ * `name`, see `packages/ui/src/components/variant-picker/VariantPicker.vue`) is what makes this
+ * possible without also changing the visible/accessible legend text: `instanceId` (`useUiId()`)
+ * combines with `option.name` into the radios' `name` attribute, so two product-detail blocks on
+ * one page — or a repeated option name within one — never share a group, while `legend`
+ * (`option.label`) keeps reading "Colour", never "Colour v-3".
  *
  * **Stock is derived, never stored** — `stock.ts` owns the four-state rule so the template branches
  * once and the whole matrix is provable without mounting anything. `role="status"`/`aria-live`
@@ -90,6 +91,11 @@ const editing = useEditing();
 const storefront = useStorefront();
 
 const titleId = `product-detail-title-${useUiId()}`;
+/** Every `VariantPicker` radio group on the page needs a unique native `name`, or two
+ *  product-detail blocks (or a repeated `option.name` within one) would join the same group — see
+ *  the module doc comment for why `legend` is what keeps the human-readable text ("Colour") out of
+ *  that name. */
+const instanceId = useUiId();
 
 /* ------------------------------------------------------------------------- */
 /* The product                                                               */
@@ -494,7 +500,8 @@ function tabValue(index: number): string {
             >
               <VariantPicker
                 v-model="selection[option.name]"
-                :name="option.label"
+                :name="`${option.name}-${instanceId}`"
+                :legend="option.label"
                 :type="option.type"
                 :options="option.values"
               />

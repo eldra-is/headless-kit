@@ -24,7 +24,7 @@ import { STOREFRONT_KEY } from '../../app/storefront/types';
 
 /**
  * The single place a block's test environment mimics the site — mirrors
- * `.storybook/eldra.ts` + `.storybook/nuxt-link-stub.ts` (Task 2's Storybook
+ * `.storybook/eldra.ts` + `.storybook/nuxt-link-stub.ts` (the Storybook
  * decorator), so a block sees the same shape of `EldraContext` under
  * `mount()` as it does as a story or on a real page: a client (never
  * called — tests pass `entry` data directly), read mode (`preview.active`
