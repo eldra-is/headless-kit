@@ -16,9 +16,10 @@ export const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 /**
- * The same ring drawn inside the element's box, for a control whose parent clips its overflow
- * (the `video-embed` block's play button fills a rounded, `overflow-hidden` 16:9 frame, so an
- * offset ring outside its edge would be cut away entirely and keyboard focus would be invisible).
+ * The ring drawn inside the element's box, for a control whose parent clips its overflow (the
+ * `video-embed` block's play button fills a rounded, `overflow-hidden` 16:9 frame, so an offset
+ * ring outside its edge would be cut away entirely and keyboard focus would be invisible). This is
+ * the package's own two-tone inset utility rather than a `ring-*` recipe: the button sits over
+ * arbitrary poster imagery, and a single-colour ring has no guaranteed contrast against a photo.
  */
-export const focusRingInset =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary';
+export const focusRingInset = 'eldra-focus-inset';

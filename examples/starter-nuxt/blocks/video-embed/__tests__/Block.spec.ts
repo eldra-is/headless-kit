@@ -223,7 +223,7 @@ describe('video-embed block', () => {
   it('the play button draws its focus ring inside the clipped frame (an offset ring would be cut off)', () => {
     const wrapper = mountVideoEmbed(withPoster);
     const button = wrapper.find('button[type="button"]');
-    expect(button.classes()).toContain('focus-visible:ring-inset');
+    expect(button.classes()).toContain('eldra-focus-inset');
     expect(button.classes().some((c) => c.includes('ring-offset'))).toBe(false);
     expect(button.element.closest('.overflow-hidden')).toBeTruthy();
   });
