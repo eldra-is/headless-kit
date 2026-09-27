@@ -26,7 +26,16 @@ export interface BlockField {
   helpText?: string;
   validators?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
-  relation?: { allowedTagIds: string[]; multiple?: boolean };
+  /** `reference` fields only. A relation must name at least one target
+   * (`allowedTagIds`, `allowProducts` or `allowCollections`); `allowedSchemaIds`
+   * stays refused, because schema ids are not portable across organizations
+   * while products and collections are catalog objects every organization has. */
+  relation?: {
+    allowedTagIds?: string[];
+    allowProducts?: boolean;
+    allowCollections?: boolean;
+    multiple?: boolean;
+  };
 }
 
 export interface BlockSlotDefinition {

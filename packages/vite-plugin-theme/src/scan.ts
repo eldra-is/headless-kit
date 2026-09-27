@@ -399,8 +399,11 @@ function formatAjvError(file: string, error: ErrorObject): string {
   }
   if (error.keyword === 'additionalProperties') {
     const property = params.additionalProperty ?? '';
-    if (property === 'allowedSchemaIds' || property === 'allowProducts') {
-      return `${file}: ${where}.${property} — relation.${property} is forbidden in themes (use allowedTagIds)`;
+    // Schema ids are not portable across organizations, so a theme may never
+    // name one; catalog products and collections are (`allowProducts` /
+    // `allowCollections` are part of the relation schema).
+    if (property === 'allowedSchemaIds') {
+      return `${file}: ${where}.${property} — themes may use only relation.allowedTagIds, relation.allowProducts and relation.allowCollections`;
     }
     return `${file}: ${where} — unknown property "${property}"`;
   }
@@ -431,6 +434,15 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
     if (field.relation !== undefined && field.type !== 'reference') {
       errors.push(
         `${file}: fields[${index}].relation — only allowed on type "reference" (got "${String(field.type)}")`
+      );
+    }
+    // A relation with no target would let Studio offer nothing to pick and
+    // leave Core with no rule to validate against on publish — a relation
+    // carrying only `multiple` included. Core's manifest ingest refuses the
+    // same shape with the same wording.
+    if (isRecord(field.relation) && !namesARelationTarget(field.relation)) {
+      errors.push(
+        `${file}: fields[${index}] — relation requires one of allowedTagIds, allowProducts or allowCollections`
       );
     }
     if (field.groupId !== undefined && !groupIds.has(String(field.groupId))) {
@@ -732,6 +744,19 @@ function sanitizeThemeName(name: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Whether a `relation` names something an editor can actually pick: at least
+ *  one semantic tag, catalog products, or catalog collections. Only values the
+ *  closed AJV schema already accepted reach here, so a non-empty
+ *  `allowedTagIds` array and boolean flags are the only shapes to weigh. */
+function namesARelationTarget(relation: Record<string, unknown>): boolean {
+  const tags = relation.allowedTagIds;
+  return (
+    (Array.isArray(tags) && tags.length > 0) ||
+    relation.allowProducts === true ||
+    relation.allowCollections === true
+  );
 }
 
 function toRelative(themeDir: string, path: string): string {

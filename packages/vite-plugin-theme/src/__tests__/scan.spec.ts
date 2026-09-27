@@ -140,7 +140,7 @@ describe('scanTheme', () => {
     expect(joined).toContain('duplicate fieldId "a"');
     expect(joined).toContain('at most one field may set isTitle');
     expect(joined).toContain(
-      'relation.allowedSchemaIds is forbidden in themes (use allowedTagIds)'
+      'themes may use only relation.allowedTagIds, relation.allowProducts and relation.allowCollections'
     );
   });
 
@@ -738,6 +738,73 @@ describe("scanTheme mock.json media contract (Studio seeds an inserted block's e
     );
     expect(scanTheme({ themeDir: dir }).errors).toEqual([
       'blocks/widget/mock.json: items[1].image: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+});
+
+describe('scanTheme reference relation targets', () => {
+  const NO_TARGET =
+    'blocks/hero/block.json: fields[0] — relation requires one of allowedTagIds, allowProducts or allowCollections';
+
+  function heroRelation(relation: unknown): string {
+    return withHeroField({ fieldId: 'source', name: 'Source', type: 'reference', relation });
+  }
+
+  it.each([
+    ['catalog collections only', { allowCollections: true }],
+    ['catalog products only', { allowProducts: true }],
+    ['semantic tags only', { allowedTagIds: ['article'] }],
+    [
+      'every target at once, multiple',
+      { allowedTagIds: ['article'], allowProducts: true, allowCollections: true, multiple: true },
+    ],
+  ])('accepts a relation naming %s', (_label, relation) => {
+    const { manifest, errors } = scanTheme({ themeDir: heroRelation(relation), framework: 'nuxt' });
+    expect(errors).toEqual([]);
+    // The relation reaches the manifest verbatim — it is what Studio's picker
+    // and Core's publish-time validation both read.
+    const fields = manifest!.blocks[0]!.fields as Array<Record<string, unknown>>;
+    expect(fields[0]!.relation).toEqual(relation);
+  });
+
+  it.each([
+    ['an empty relation', {}],
+    ['cardinality with no target', { multiple: true }],
+    ['both catalog flags turned off', { allowProducts: false, allowCollections: false }],
+  ])('rejects %s with the shared no-target wording', (_label, relation) => {
+    const { manifest, errors } = scanTheme({ themeDir: heroRelation(relation), framework: 'nuxt' });
+    expect(errors).toEqual([NO_TARGET]);
+    expect(manifest).toBeNull();
+  });
+
+  it('still refuses allowedSchemaIds — schema ids are not portable across organizations', () => {
+    const { errors } = scanTheme({
+      themeDir: heroRelation({ allowedSchemaIds: ['hero'], allowCollections: true }),
+      framework: 'nuxt',
+    });
+    expect(errors.join('\n')).toContain(
+      'themes may use only relation.allowedTagIds, relation.allowProducts and relation.allowCollections'
+    );
+  });
+
+  it('keeps an empty allowedTagIds array a schema error as well as a no-target one', () => {
+    const { errors } = scanTheme({
+      themeDir: heroRelation({ allowedTagIds: [] }),
+      framework: 'nuxt',
+    });
+    expect(errors.join('\n')).toContain('fields[0].relation.allowedTagIds');
+    expect(errors).toContain(NO_TARGET);
+  });
+
+  it('keeps relation itself a reference-only key', () => {
+    const dir = withHeroField({
+      fieldId: 'title',
+      name: 'Title',
+      type: 'string',
+      relation: { allowCollections: true },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      'blocks/hero/block.json: fields[0].relation — only allowed on type "reference" (got "string")',
     ]);
   });
 });

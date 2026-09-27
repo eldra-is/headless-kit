@@ -75,12 +75,19 @@ export const blockJsonSchema = {
         helpText: { type: 'string' },
         validators: { type: 'object' },
         metadata: { type: 'object' },
+        // A relation names its targets: semantic tag names, catalog products,
+        // catalog collections, in any combination with at least one of them
+        // (`semanticChecks` in scan.ts enforces the "at least one" rule, which
+        // JSON Schema cannot express across three optional keys readably).
+        // `allowedSchemaIds` stays absent on purpose: schema ids are not
+        // portable across organizations, products and collections are.
         relation: {
           type: 'object',
           additionalProperties: false,
-          required: ['allowedTagIds'],
           properties: {
             allowedTagIds: { type: 'array', minItems: 1, items: { type: 'string' } },
+            allowProducts: { type: 'boolean' },
+            allowCollections: { type: 'boolean' },
             multiple: { type: 'boolean' },
           },
         },

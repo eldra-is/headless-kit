@@ -40,7 +40,13 @@ const STORED_FIELD_KEYS = [
   'metadata',
   'relation',
 ];
-const STORED_RELATION_KEYS = ['multiple', 'allowProducts', 'allowedTagIds', 'allowedSchemaIds'];
+const STORED_RELATION_KEYS = [
+  'multiple',
+  'allowProducts',
+  'allowCollections',
+  'allowedTagIds',
+  'allowedSchemaIds',
+];
 
 // Called only after the closed AJV schema accepts the declaration. Without
 // local history, Core alone can decide which source schemas and steps apply.
@@ -255,7 +261,7 @@ function validStoredRelation(value: unknown): boolean {
   if (value == null) return true;
   if (!isRecord(value)) return false;
   return (
-    ['multiple', 'allowProducts'].every(
+    ['multiple', 'allowProducts', 'allowCollections'].every(
       (key) => value[key] == null || typeof value[key] === 'boolean'
     ) &&
     ['allowedTagIds', 'allowedSchemaIds'].every(

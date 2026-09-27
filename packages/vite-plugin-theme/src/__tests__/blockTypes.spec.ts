@@ -241,4 +241,73 @@ describe('generateBlockTypes', () => {
     const output = generateBlockTypes([]);
     expect(output).toContain('interface EldraBlockData {}');
   });
+
+  describe('reference fields', () => {
+    function referenceField(relation: BlockField['relation']): BlockField {
+      return { fieldId: 'source', name: 'Source', type: 'reference', relation };
+    }
+
+    it('declares EldraCollectionReference with only id and _type guaranteed', () => {
+      const output = generateBlockTypes([]);
+      expect(output).toContain('interface EldraCollectionReference {');
+      expect(output).toContain('id: string;');
+      expect(output).toContain("_type: 'collection';");
+      for (const optional of [
+        'slug?: string;',
+        'status?: string;',
+        'type?: string;',
+        'productCount?: number;',
+        'translations?: unknown;',
+      ]) {
+        expect(output).toContain(optional);
+      }
+      // No `publishedAt`: the resolved read carries exactly the fields Core's
+      // internal collection lookup returns, and that is not one of them.
+      expect(output).not.toContain('publishedAt');
+    });
+
+    it('types a collections-only single reference as EldraCollectionReference | null', () => {
+      const output = generateBlockTypes([
+        block('product-carousel', [referenceField({ allowCollections: true })]),
+      ]);
+      expect(output).toContain('source?: EldraCollectionReference | null;');
+    });
+
+    it('types a collections-only multiple reference as an array', () => {
+      const output = generateBlockTypes([
+        block('product-carousel', [referenceField({ allowCollections: true, multiple: true })]),
+      ]);
+      expect(output).toContain('source?: EldraCollectionReference[];');
+    });
+
+    it('makes a required collection reference non-optional', () => {
+      const output = generateBlockTypes([
+        block('product-carousel', [
+          {
+            ...referenceField({ allowCollections: true }),
+            validators: { required: true },
+          },
+        ]),
+      ]);
+      expect(output).toContain('source: EldraCollectionReference | null;');
+    });
+
+    it.each([
+      ['products as well', { allowCollections: true, allowProducts: true }],
+      ['entries as well', { allowCollections: true, allowedTagIds: ['article'] }],
+      ['products only', { allowProducts: true }],
+      ['entries only', { allowedTagIds: ['article'] }],
+    ])('keeps Record<string, unknown> for a relation allowing %s', (_label, relation) => {
+      const output = generateBlockTypes([block('product-carousel', [referenceField(relation)])]);
+      expect(output).toContain('source?: Record<string, unknown>;');
+      expect(output).not.toContain('source?: EldraCollectionReference');
+    });
+
+    it('keeps Record<string, unknown> for a reference with no relation at all', () => {
+      const output = generateBlockTypes([
+        block('product-carousel', [{ fieldId: 'source', name: 'Source', type: 'reference' }]),
+      ]);
+      expect(output).toContain('source?: Record<string, unknown>;');
+    });
+  });
 });

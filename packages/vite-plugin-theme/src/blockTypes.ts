@@ -16,6 +16,13 @@ import type { BlockDefinition, BlockField } from './types';
  * field is a `list`'s item shape, where its declared `metadata.fields` are
  * expanded into an inline object type so `list` produces a real
  * `Array<{ … }>` rather than `Array<Record<string, unknown>>`.
+ *
+ * The one `reference` shape that is typed is a relation targeting catalog
+ * collections and nothing else (`relation.allowCollections` with no
+ * `allowedTagIds` and no `allowProducts`): `EldraCollectionReference | null`,
+ * or `EldraCollectionReference[]` when the relation is `multiple`. A relation
+ * mixing targets keeps `Record<string, unknown>`, because the value's shape
+ * then depends on which kind of thing the author picked.
  */
 export function generateBlockTypes(blocks: BlockDefinition[]): string {
   const sorted = [...blocks].sort((a, b) => a.apiId.localeCompare(b.apiId));
@@ -39,6 +46,19 @@ declare global {
     width?: number;
     height?: number;
     framing?: ImageFraming;
+  }
+
+  /** A catalog collection a \`reference\` field points at. Only \`id\` and
+   *  \`_type\` are guaranteed: the public read returns the stub at depth 0, and
+   *  a draft overlay in the page builder carries nothing more either. */
+  interface EldraCollectionReference {
+    id: string;
+    _type: 'collection';
+    slug?: string;
+    status?: string;
+    type?: string;
+    productCount?: number;
+    translations?: unknown;
   }
 
   interface EldraBlockData {${blockDataBody}}
@@ -88,9 +108,29 @@ function fieldTypeExpr(field: BlockField): string {
       return selectUnion(field);
     case 'list':
       return listType(field);
+    case 'reference':
+      return referenceType(field);
     default:
       return 'Record<string, unknown>';
   }
+}
+
+/** A `reference` field's type. Collections-only relations are the one shape
+ *  whose resolved value is known here — see the module doc comment. */
+function referenceType(field: BlockField): string {
+  const relation = field.relation;
+  if (relation === undefined || !isCollectionsOnly(relation)) return 'Record<string, unknown>';
+  return relation.multiple === true
+    ? 'EldraCollectionReference[]'
+    : 'EldraCollectionReference | null';
+}
+
+function isCollectionsOnly(relation: NonNullable<BlockField['relation']>): boolean {
+  return (
+    relation.allowCollections === true &&
+    relation.allowProducts !== true &&
+    (relation.allowedTagIds === undefined || relation.allowedTagIds.length === 0)
+  );
 }
 
 function isMultipleMedia(field: BlockField): boolean {
