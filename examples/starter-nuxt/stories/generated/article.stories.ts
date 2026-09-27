@@ -6,6 +6,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/article/Block.vue';
 import mock from '../../blocks/article/mock.json';
+import preview from '../../blocks/article/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/article",
@@ -15,7 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = mock;
+const base = { ...mock, ...preview };
 
 export const Default: Story = {
   args: { entry: { id: "article", data: base } },
@@ -23,16 +24,4 @@ export const Default: Story = {
 
 export const Inserted: Story = {
   args: { entry: { id: "article", data: mock } },
-};
-
-export const WidthNarrow: Story = {
-  args: {
-    entry: { id: "article", data: { ...base, "width": "narrow" } },
-  },
-};
-
-export const WidthContent: Story = {
-  args: {
-    entry: { id: "article", data: { ...base, "width": "content" } },
-  },
 };

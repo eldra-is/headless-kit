@@ -253,4 +253,17 @@ export const isIS = {
     quoteHintHelp: 'Bættu svo við nafni og starfsheiti eða heimild.',
     nameHintLabel: 'Bættu við nafni',
   },
+  article: {
+    byline: 'Eftir {name}',
+    metaHintLabel: 'Flokkur · Dagsetning · Lestrartími',
+    titleHintLabel: 'Bættu við fyrirsögn',
+    dekHintLabel: 'Valfrjálst: ein setning í samantekt',
+    coverHintLabel: 'Veldu forsíðumynd',
+    coverHintHelp: 'Valfrjálst · birt í 16:9',
+    bodyHintLabel: 'Byrjaðu að skrifa',
+    bodyHintHelp: 'Sláðu inn / fyrir fyrirsagnir, lista, tilvitnanir, töflur, myndir og ívafsefni.',
+    authorHintLabel: 'Veldu höfund',
+    authorHintHelp: 'Úr Studio › Höfundar',
+    richTextTableLabel: 'Tafla',
+  },
 } satisfies Messages;

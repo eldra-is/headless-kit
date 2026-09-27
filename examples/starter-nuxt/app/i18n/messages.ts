@@ -447,6 +447,28 @@ export interface Messages {
     quoteHintHelp: string;
     nameHintLabel: string;
   };
+  /**
+   * The article block's own strings (spec `02-blocks.md` "Article"): `byline` is the header's "By
+   * {name}" template — the same interpolation shape as `footer.socialLinkName` — with the name
+   * split back out of the interpolated result so it can render inside its own `<Link>` (see
+   * `blocks/article/Block.vue`'s own comment). `richTextTableLabel` is the fallback
+   * `useRichTextScrollRegions` label for an uncaptioned table, same pattern as
+   * `faq.richTextTableLabel`. The rest are the editor-only hints (`EditorPlaceholder`, gated by
+   * `useEditing()`) named in spec → States, "Empty (freshly inserted)".
+   */
+  article: {
+    byline: string;
+    metaHintLabel: string;
+    titleHintLabel: string;
+    dekHintLabel: string;
+    coverHintLabel: string;
+    coverHintHelp: string;
+    bodyHintLabel: string;
+    bodyHintHelp: string;
+    authorHintLabel: string;
+    authorHintHelp: string;
+    richTextTableLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

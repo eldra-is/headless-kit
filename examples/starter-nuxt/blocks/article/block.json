@@ -1,21 +1,68 @@
 {
   "apiId": "article",
   "name": "Article",
-  "description": "Long-form rich text with a heading, meta line and lead paragraph.",
+  "description": "A journal post: a centred header, a cover image, a rich-text body and an author card.",
   "icon": "article",
   "category": "content",
-  "version": 1,
+  "version": 2,
   "fields": [
     {
-      "fieldId": "heading",
-      "name": "Heading",
+      "fieldId": "title",
+      "name": "Title",
       "type": "string",
       "isTitle": true,
       "localized": true,
+      "helpText": "Rendered as the page's only h1. Aim for under 70 characters.",
+      "validators": { "required": true, "maxLength": 70 }
+    },
+    {
+      "fieldId": "dek",
+      "name": "Dek",
+      "type": "text",
+      "localized": true,
+      "helpText": "One- or two-sentence summary under the title."
+    },
+    {
+      "fieldId": "categoryLabel",
+      "name": "Category label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Journal category, e.g. \"Ceramics\"."
+    },
+    {
+      "fieldId": "categoryHref",
+      "name": "Category link",
+      "type": "string",
+      "helpText": "URL of the filtered Article list."
+    },
+    {
+      "fieldId": "publishedAt",
+      "name": "Published at",
+      "type": "datetime",
+      "helpText": "Rendered in a <time datetime>.",
       "validators": { "required": true }
     },
-    { "fieldId": "meta", "name": "Meta line", "type": "string", "localized": true },
-    { "fieldId": "lead", "name": "Lead paragraph", "type": "text", "localized": true },
+    {
+      "fieldId": "readingTime",
+      "name": "Reading time",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"6 min read\"."
+    },
+    {
+      "fieldId": "coverImage",
+      "name": "Cover image",
+      "type": "media",
+      "helpText": "16:9 from 48rem, 4:3 below. Alt text is required unless marked decorative.",
+      "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "coverCaption",
+      "name": "Cover caption",
+      "type": "string",
+      "localized": true,
+      "helpText": "Shown under the cover image."
+    },
     {
       "fieldId": "body",
       "name": "Body",
@@ -31,16 +78,71 @@
           "bulletList",
           "orderedList",
           "blockquote",
+          "code",
           "codeBlock",
-          "image"
+          "horizontalRule",
+          "image",
+          "embed",
+          "table",
+          "undo",
+          "redo"
         ]
       }
     },
     {
-      "fieldId": "width",
-      "name": "Width",
-      "type": "select",
-      "metadata": { "options": ["narrow", "content"] }
+      "fieldId": "authorName",
+      "name": "Author name",
+      "type": "string",
+      "localized": true
+    },
+    {
+      "fieldId": "authorRole",
+      "name": "Author role",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"Studio lead, Northwind ceramics\"."
+    },
+    {
+      "fieldId": "authorAvatar",
+      "name": "Author avatar",
+      "type": "media",
+      "helpText": "Falls back to the author's initials.",
+      "metadata": { "multiple": false }
+    },
+    {
+      "fieldId": "authorBio",
+      "name": "Author bio",
+      "type": "text",
+      "localized": true,
+      "validators": { "maxLength": 280 }
+    },
+    {
+      "fieldId": "authorLinkLabel",
+      "name": "Author link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"More from Ingrid\"."
+    },
+    {
+      "fieldId": "authorLinkHref",
+      "name": "Author link",
+      "type": "string"
+    },
+    {
+      "fieldId": "showByline",
+      "name": "Show byline",
+      "type": "bool",
+      "default": true,
+      "helpText": "Adds the small byline to the header."
+    }
+  ],
+  "migrations": [
+    {
+      "version": 2,
+      "renames": [
+        { "from": "heading", "to": "title" },
+        { "from": "lead", "to": "dek" }
+      ]
     }
   ]
 }

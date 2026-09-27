@@ -253,4 +253,17 @@ export const enUS = {
     quoteHintHelp: 'Then the name and role or source.',
     nameHintLabel: 'Add a name',
   },
+  article: {
+    byline: 'By {name}',
+    metaHintLabel: 'Category · Date · Reading time',
+    titleHintLabel: 'Add a title',
+    dekHintLabel: 'Optional: a one-line summary (dek)',
+    coverHintLabel: 'Choose a cover image',
+    coverHintHelp: 'Optional · shown 16:9',
+    bodyHintLabel: 'Start writing',
+    bodyHintHelp: 'Type / for headings, lists, quotes, tables, images and embeds.',
+    authorHintLabel: 'Pick an author',
+    authorHintHelp: 'From Studio › Authors',
+    richTextTableLabel: 'Table',
+  },
 } satisfies Messages;

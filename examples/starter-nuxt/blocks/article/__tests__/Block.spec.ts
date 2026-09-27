@@ -1,49 +1,165 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
-import { axe } from '../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
+import { formatDate } from '@eldrajs/ui';
+import { ELDRA_KEY } from '@eldrajs/theme-vue';
+import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 
+/** `mock.json` is Studio's insert seed (no media); `preview.json` is the demo-imagery overlay a
+ *  story/preview merges on top of it — same shallow-merge shape `hero`'s/`testimonials`' own
+ *  tests use. */
+const withMedia = { ...mock, ...preview };
+
+/** The genuinely minimal fixture: only the fields the block requires (spec → States, "Minimal
+ *  content": title, date and body only — no byline, cover or author card). */
+const minimal = {
+  title: mock.title,
+  publishedAt: mock.publishedAt,
+  body: mock.body,
+};
+
+function mountBlock(
+  data: Record<string, unknown>,
+  options: { editing?: boolean; locale?: string } = {}
+) {
+  const opts = mountOptions({ entry: { id: 'e1', data } }, { locale: options.locale });
+  if (options.editing) {
+    const context = opts.global.provide[ELDRA_KEY] as {
+      preview: { active: boolean; mode: string };
+    };
+    context.preview.active = true;
+    context.preview.mode = 'edit';
+  }
+  return mount(Block, opts);
+}
+
 describe('article block', () => {
-  it('renders the mock content', async () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    expect(wrapper.text()).toContain(mock.heading);
-    expect(wrapper.text()).toContain(mock.meta);
-    expect(wrapper.text()).toContain(mock.lead);
+  it('renders the full (mock + preview) content with no axe violations', async () => {
+    const wrapper = mountBlock(withMedia);
+    expect(wrapper.text()).toContain(withMedia.title);
+    expect(wrapper.text()).toContain(withMedia.dek);
+    expect(wrapper.text()).toContain(withMedia.categoryLabel);
+    expect(wrapper.text()).toContain(withMedia.readingTime);
+    expect(wrapper.text()).toContain(withMedia.authorName);
+    expect(wrapper.text()).toContain(withMedia.authorBio);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('renders exactly one h1 with the heading', () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    expect(wrapper.findAll('h1')).toHaveLength(1);
-    expect(wrapper.get('h1').text()).toBe(mock.heading);
-  });
-
-  it('omits the meta and lead lines when unset', () => {
-    const wrapper = mount(
-      Block,
-      mountOptions({ entry: { id: 'e1', data: { ...mock, meta: undefined, lead: undefined } } })
+  it('renders the bare mock.json (no preview overlay) with no cover or author avatar, body intact, no axe violations', async () => {
+    const wrapper = mountBlock(mock);
+    // The only <img> left with no media fields set is the rich-text body's own inline figure —
+    // the cover figure does not render at all (no coverImage), and both avatars fall back to
+    // initials (Avatar's own image -> initials -> icon order, no <img>).
+    expect(wrapper.findAll('img')).toHaveLength(1);
+    expect(wrapper.get('img').attributes('alt')).toBe(
+      'Three glazed mugs in blue-grey, oat and slate on a linen cloth'
     );
-    expect(wrapper.text()).not.toContain(mock.meta);
-    expect(wrapper.text()).not.toContain(mock.lead);
+    expect(wrapper.text()).toContain(mock.title);
+    expect(wrapper.text()).toContain('Two firings, not one');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('renders the body through EldraRichText with the prose-eldra typography class', () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    const root = wrapper.get('[data-eldra-rich-text]');
-    expect(root.classes()).toContain('prose-eldra');
-    expect(root.attributes('data-eldra-field')).toBe('body');
-    expect(root.attributes('data-eldra-entry')).toBe('e1');
+  it('renders exactly one h1, the title', () => {
+    const wrapper = mountBlock(mock);
+    const h1s = wrapper.findAll('h1');
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]!.text()).toBe(mock.title);
   });
 
-  it.each(['narrow', 'content'] as const)(
-    'renders the %s width container with no axe violations',
-    async (width) => {
-      const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: { ...mock, width } } }));
-      expect(wrapper.find(`.eldra-container-${width}`).exists()).toBe(true);
-      expect(await axe(wrapper.element)).toHaveNoViolations();
-    }
-  );
+  it('runs the body headings h2-h4 in the order the doc declares, with no h1/h5/h6 inside it', () => {
+    const wrapper = mountBlock(mock);
+    const richText = wrapper.get('[data-eldra-rich-text]');
+    const tags = richText.findAll('h2, h3, h4, h5, h6').map((node) => node.element.tagName);
+    expect(tags).toEqual(['H2', 'H2', 'H2', 'H3']);
+    expect(richText.findAll('h1')).toHaveLength(0);
+  });
+
+  it('renders a single, real <time> from the never-throwing formatDate — not a hand-formatted string', () => {
+    const wrapper = mountBlock(mock);
+    const time = wrapper.get('time');
+    expect(time.attributes('datetime')).toBe(mock.publishedAt);
+    expect(time.text()).toBe(formatDate(mock.publishedAt, 'en-US'));
+  });
+
+  it('formats the date in the active content locale', () => {
+    const wrapper = mountBlock(mock, { locale: 'is-IS' });
+    expect(wrapper.get('time').text()).toBe(formatDate(mock.publishedAt, 'is-IS'));
+  });
+
+  it('wraps the body table in a named, focusable region and marks the code block focusable', () => {
+    const wrapper = mountBlock(mock);
+    const region = wrapper.get('[role="region"]');
+    expect(region.attributes('aria-label')).toBe('Table');
+    expect(region.attributes('tabindex')).toBe('0');
+    expect(region.find('table').exists()).toBe(true);
+    expect(wrapper.get('pre').attributes('tabindex')).toBe('0');
+  });
+
+  it('renders the inline body image with its alt text and caption (as the title attribute the renderer carries)', () => {
+    const wrapper = mountBlock(mock);
+    const img = wrapper.get('img');
+    expect(img.attributes('title')).toBe(
+      'Left to right: Fjord, Oat and Slate, all from kiln batch FJ-26-09.'
+    );
+  });
+
+  it('renders the embed with a title and no autoplay parameter, never as a live iframe', () => {
+    const wrapper = mountBlock(mock);
+    const embed = wrapper.get('.eldra-embed');
+    expect(embed.attributes('title')).toBe('Watch: dipping a Fjord bowl, start to finish (2:14).');
+    expect(embed.attributes('data-src')).not.toContain('autoplay');
+    expect(embed.find('iframe').exists()).toBe(false);
+  });
+
+  it('routes the category and author links internally through the router', () => {
+    const wrapper = mountBlock(withMedia);
+    const internalTargets = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    expect(internalTargets).toContain(withMedia.categoryHref);
+    expect(internalTargets).toContain(withMedia.authorLinkHref);
+  });
+
+  it('the category link is natively focusable (no tabindex override)', () => {
+    const wrapper = mountBlock(mock);
+    const categoryLink = wrapper.get(`a[href="${mock.categoryHref}"]`);
+    expect(categoryLink.attributes('tabindex')).toBeUndefined();
+  });
+
+  it('the author card is absent when every author field is empty', () => {
+    const wrapper = mountBlock({
+      ...mock,
+      authorName: '',
+      authorRole: '',
+      authorBio: '',
+      authorLinkLabel: '',
+      authorLinkHref: '',
+      showByline: false,
+    });
+    expect(wrapper.find('footer').exists()).toBe(false);
+  });
+
+  it('renders the minimal-content state (title, date, body only) with no byline, cover or author card', async () => {
+    const wrapper = mountBlock(minimal);
+    expect(wrapper.find('figure').exists()).toBe(false);
+    expect(wrapper.find('footer').exists()).toBe(false);
+    // Only the meta line's date and the body remain.
+    expect(wrapper.text()).toContain(minimal.title);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('shows editor-only hints for empty required parts, never on the live site', () => {
+    const empty = { title: '', publishedAt: '', body: { type: 'doc', content: [] } };
+    const live = mountBlock(empty);
+    expect(live.text()).not.toContain('Add a title');
+    expect(live.text()).not.toContain('Start writing');
+
+    const editing = mountBlock(empty, { editing: true });
+    expect(editing.text()).toContain('Add a title');
+    expect(editing.text()).toContain('Start writing');
+  });
 });

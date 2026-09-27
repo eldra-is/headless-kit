@@ -21,11 +21,22 @@ declare global {
       dismissable?: boolean;
     };
     article: {
-      heading: string;
-      meta?: string;
-      lead?: string;
+      title: string;
+      dek?: string;
+      categoryLabel?: string;
+      categoryHref?: string;
+      publishedAt: string;
+      readingTime?: string;
+      coverImage?: EldraMedia;
+      coverCaption?: string;
       body: RichTextNode;
-      width?: 'narrow' | 'content';
+      authorName?: string;
+      authorRole?: string;
+      authorAvatar?: EldraMedia;
+      authorBio?: string;
+      authorLinkLabel?: string;
+      authorLinkHref?: string;
+      showByline?: boolean;
     };
     breadcrumbs: {
       showHome?: boolean;
