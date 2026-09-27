@@ -77,13 +77,17 @@ export function isFilterSource(value: unknown): value is FilterSource {
  * The values a group offers: the facet's own, minus anything the store counts zero of — "Do show
  * real counts next to filter values and hide values with 0 results, **unless they are selected**"
  * (spec Do/Don't), so a selected value stays removable even once nothing matches it.
+ *
+ * A selected value the facet no longer *lists at all* is appended rather than dropped. Most
+ * backends compute facets over the current result set, so a narrowing filter can remove a value the
+ * shopper has already ticked; dropping it would leave the filter applied to every request with no
+ * control left to untick it. Labelled by its raw value, since the facet no longer describes it.
  */
 export function visibleFacetValues(
   facet: StorefrontFacet | undefined,
   selected: readonly string[]
 ): FilterGroupValue[] {
-  if (!facet) return [];
-  return facet.values
+  const out: FilterGroupValue[] = (facet?.values ?? [])
     .filter((value) => value.count > 0 || selected.includes(value.value))
     .map((value) => ({
       value: value.value,
@@ -91,6 +95,11 @@ export function visibleFacetValues(
       count: value.count,
       swatch: value.swatch,
     }));
+  const listed = new Set(out.map((value) => value.value));
+  for (const value of selected) {
+    if (!listed.has(value)) out.push({ value, label: value, count: 0 });
+  }
+  return out;
 }
 
 /**

@@ -63,8 +63,10 @@ import {
   Select,
   Skeleton,
   VisuallyHidden,
+  enUS as uiEnUS,
   provideEldraUiMessages,
   type SelectOption,
+  type UiMessages,
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
@@ -141,13 +143,29 @@ const route = storefront.route;
  * A chip's remove button is named by the package's own `removeTag` message ("Remove Size: M") — it
  * has no `messages` prop of its own to override, and `aria-label` on a `Chip` lands on its root. The
  * spec names it "Remove filter Size: M", so the block re-provides the message set for its own
- * subtree with that one entry replaced, merged onto whatever the app provided
- * (`app/plugins/eldra-ui-messages.ts`) so every other localised package string is kept.
+ * subtree with that one entry replaced, delegating every other key to whatever the app provided
+ * (`app/plugins/eldra-ui-messages.ts`).
+ *
+ * **Getters, not a spread.** That plugin deliberately provides an object of getters over
+ * `preview.locale` rather than a snapshot, because `useMessages` spreads the injected object
+ * *inside a `computed`* — reading a key through a getter there is what makes a Studio locale switch
+ * reach the package's own strings. A spread here would invoke every one of those getters once, at
+ * setup, and freeze every package string in this block's subtree (ProductCard, Drawer, Pagination,
+ * Select, LoadMore, Chip) at the mount-time locale while the block's own `useT()` strings kept
+ * switching. So this mirrors the plugin's own `Object.defineProperty` loop and reads through.
  */
-provideEldraUiMessages({
-  ...inject(MESSAGES_KEY, undefined),
-  removeTag: (label: string) => t('grid.removeFilter', { label }),
-});
+const inheritedMessages = inject(MESSAGES_KEY, undefined);
+const blockMessages = {} as Partial<UiMessages>;
+for (const key of Object.keys(uiEnUS) as Array<keyof UiMessages>) {
+  Object.defineProperty(blockMessages, key, {
+    enumerable: true,
+    get: () =>
+      key === 'removeTag'
+        ? (label: string) => t('grid.removeFilter', { label })
+        : inheritedMessages?.[key],
+  });
+}
+provideEldraUiMessages(blockMessages);
 
 const uid = useUiId();
 const drawerId = `collection-grid-drawer-${uid}`;
@@ -321,14 +339,21 @@ const skeletonCount = computed(() =>
 // Filter groups
 // ---------------------------------------------------------------------------------------------
 
+const legends = computed<Record<FilterSource, string>>(() => ({
+  category: t('grid.legendCategory'),
+  'option:size': t('grid.legendSize'),
+  'option:colour': t('grid.legendColour'),
+  price: t('grid.legendPrice'),
+  availability: t('grid.legendAvailability'),
+}));
+
+/** A group's title when the author set none and the store offers no facet label of its own — the
+ *  legend, which is already the source's own name (`price`'s legend is a sentence, so not that). */
+function defaultGroupLabel(source: FilterSource): string {
+  return source === 'price' ? t('grid.price') : legends.value[source];
+}
+
 const groups = computed<FilterGroup[]>(() => {
-  const LEGEND: Record<FilterSource, string> = {
-    category: t('grid.legendCategory'),
-    'option:size': t('grid.legendSize'),
-    'option:colour': t('grid.legendColour'),
-    price: t('grid.legendPrice'),
-    availability: t('grid.legendAvailability'),
-  };
   const rows = (data.value.filters ?? []) as FilterField[];
   const out: FilterGroup[] = [];
   for (const row of rows) {
@@ -340,17 +365,41 @@ const groups = computed<FilterGroup[]>(() => {
     const values =
       source === 'price' ? [] : visibleFacetValues(facet, selection.value[source] ?? []);
     // A group whose store has nothing to offer is not a group. Price is the exception: its two
-    // inputs exist whether or not the store reports a range.
+    // inputs exist whether or not the store reports a range. A group that still carries a selection
+    // always has values — `visibleFacetValues` keeps them — so it can never be dropped out from
+    // under an applied filter.
     if (source !== 'price' && values.length === 0) continue;
     out.push({
       source,
-      label: (row.label ?? '').trim() || facet?.label || t('grid.price'),
+      label: (row.label ?? '').trim() || facet?.label || defaultGroupLabel(source),
       kind: GROUP_KIND[source],
       collapsed: row.collapsed === true,
-      legend: LEGEND[source],
+      legend: legends.value[source],
       values,
     });
   }
+  return out;
+});
+
+/** The groups by source, for labelling a chip whose group is rendered. */
+const groupBySource = computed(
+  () => new Map(groups.value.map((group) => [group.source, group] as const))
+);
+
+/**
+ * The order active filters are listed in: the author's own `filters[]` order first, then any source
+ * that carries a selection without a group of its own — a filter seeded from the URL, or one whose
+ * group the author has since removed. Nothing selected is ever left out of this list.
+ */
+const activeSources = computed<FilterSource[]>(() => {
+  const out: FilterSource[] = [];
+  for (const row of (data.value.filters ?? []) as FilterField[]) {
+    if (isFilterSource(row.source) && !out.includes(row.source)) out.push(row.source);
+  }
+  for (const source of Object.keys(selection.value) as FilterSource[]) {
+    if (isFilterSource(source) && !out.includes(source)) out.push(source);
+  }
+  if (!out.includes('price')) out.push('price');
   return out;
 });
 
@@ -358,26 +407,32 @@ const groups = computed<FilterGroup[]>(() => {
 // Active filters
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * The active filters, derived from **the selection**, never from the response's facets. A facet is
+ * computed over the current result set on most backends, so a value can stop being listed the
+ * moment a narrowing filter is applied — and a chip derived from the facets would then vanish while
+ * the filter stayed in every request, leaving the shopper no way to remove it. The facets are used
+ * only to *label* a value; an unlabelled one falls back to its raw value, which is still removable.
+ */
 const chips = computed<ActiveFilterChip[]>(() => {
   const out: ActiveFilterChip[] = [];
-  for (const group of groups.value) {
-    if (group.source === 'price') {
+  for (const source of activeSources.value) {
+    const group = groupBySource.value.get(source);
+    const label = group?.label ?? defaultGroupLabel(source);
+    if (source === 'price') {
       if (priceMin.value === '' && priceMax.value === '') continue;
       const prefix = t('grid.pricePrefix');
       const from = priceMin.value === '' ? '' : `${prefix}${priceMin.value}`;
       const to = priceMax.value === '' ? '' : `${prefix}${priceMax.value}`;
       out.push({
         key: 'price',
-        label: `${group.label}: ${from} ${t('grid.to')} ${to}`.replace(/\s+/g, ' ').trim(),
+        label: `${label}: ${from} ${t('grid.to')} ${to}`.replace(/\s+/g, ' ').trim(),
       });
       continue;
     }
-    for (const value of selection.value[group.source] ?? []) {
-      const match = group.values.find((candidate) => candidate.value === value);
-      out.push({
-        key: `${group.source}:${value}`,
-        label: `${group.label}: ${match?.label ?? value}`,
-      });
+    for (const value of selection.value[source] ?? []) {
+      const match = group?.values.find((candidate) => candidate.value === value);
+      out.push({ key: `${source}:${value}`, label: `${label}: ${match?.label ?? value}` });
     }
   }
   return out;
@@ -391,10 +446,11 @@ const activeCount = computed(() => chips.value.length);
  */
 const activeValueLabels = computed(() => {
   const out: string[] = [];
-  for (const group of groups.value) {
-    if (group.source === 'price') continue;
-    for (const value of selection.value[group.source] ?? []) {
-      const match = group.values.find((candidate) => candidate.value === value);
+  for (const source of activeSources.value) {
+    if (source === 'price') continue;
+    const group = groupBySource.value.get(source);
+    for (const value of selection.value[source] ?? []) {
+      const match = group?.values.find((candidate) => candidate.value === value);
       out.push(match?.label ?? value);
     }
   }
@@ -605,11 +661,18 @@ const layoutClass = computed(() =>
     : ''
 );
 /**
- * The top bar is the below-64rem control row: the Filter button beside the sort select. It is
- * hidden from 64rem in the `sidebar` variant — where the sidebar and the toolbar's own selects take
- * over — and stays at every width in `drawer-only`, which has no other way in. Whether it is hidden
- * follows the *variant*, not whether the block has filters: with none, this is still the only sort
- * control a narrow layout has.
+ * The top bar is the below-64rem control row: the Filter button beside the sort select. From 64rem
+ * the spec hides it outright ("The mobile top bar is hidden") and the toolbar carries Sort by and
+ * Columns instead — which is what the `sidebar` variant does. `drawer-only` has no sidebar, so its
+ * Filter button is the only way into the filters and has to survive at every width; its **sort**
+ * does not, because the toolbar's own sort select is shown from exactly the same 64rem.
+ *
+ * So the two halves are hidden separately rather than the whole bar being kept: the bar itself goes
+ * from 64rem only in `sidebar` (`topBarClass`), and the sort inside it goes from 64rem in **both**
+ * variants (`topBarSortClass`). Exactly one sort control is visible at every width in either
+ * variant — the defect this replaced rendered two of them in `drawer-only` at desktop width, one
+ * piece of state behind two comboboxes both named "Sort by". Container queries are invisible to
+ * jsdom, so these two class strings are what the spec asserts.
  */
 const topBarClass = computed(() =>
   [
@@ -618,6 +681,8 @@ const topBarClass = computed(() =>
     hasSidebar.value ? '@content:hidden' : '',
   ].join(' ')
 );
+/** The top bar's own sort select: never shown from 64rem, where the toolbar's is. */
+const TOP_BAR_SORT = '@content:hidden';
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 const showPaging = computed(() => !showSkeletons.value && items.value.length > 0);
@@ -689,7 +754,7 @@ function hrefForPage(page: number): string {
               <FieldWrapper
                 v-if="hasSort"
                 :label="t('grid.sortBy')"
-                :classes="{ label: 'sr-only' }"
+                :classes="{ root: TOP_BAR_SORT, label: 'sr-only' }"
               >
                 <Select
                   :model-value="sort"

@@ -3,6 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { computed, ref, watch, type Ref } from 'vue';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
+import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, type UiMessages } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
@@ -19,6 +20,8 @@ import type {
   StorefrontSource,
 } from '../../../app/storefront/types';
 import { enUS } from '../../../app/i18n/en-US';
+import { isIS } from '../../../app/i18n/is-IS';
+import { currencyFor, uiEnUS, uiMessagesFor } from '../../../app/i18n/uiMessages';
 
 /** The block draws three Tabler icons (the Filter button's and the empty state's `adjustments`, the
  *  mobile sort trigger's `arrows-sort`, the editor hint's `box`) through `useEldraIcon`, which
@@ -87,21 +90,31 @@ interface Stub {
  * "the drawer changes nothing until Show N products" real assertions rather than restatements of a
  * fixture — the demo source (`app/storefront/demo.ts`) ignores `filters` by design.
  */
-function createStub(items: StorefrontProductListItem[] = PRODUCTS): Stub {
+function createStub(
+  items: StorefrontProductListItem[] = PRODUCTS,
+  options: {
+    /** How many items a filtered request answers with. `0` (the default) drives the empty state. */
+    filteredCount?: number;
+    /** The facets a *filtered* request answers with — most backends compute them over the result
+     *  set, so a value the shopper has ticked can stop being listed. */
+    filteredFacets?: StorefrontFacet[];
+  } = {}
+): Stub {
   const base = createDemoStorefront();
   const pending = ref(false);
   const requests: Stub['requests'] = [];
+  const filteredCount = options.filteredCount ?? 0;
   const catalog: StorefrontCatalog = {
     ...base.catalog,
-    collectionProducts(handle, options) {
-      watch(options, (value) => requests.push({ ...value }), { deep: true });
+    collectionProducts(handle, opts) {
+      watch(opts, (value) => requests.push({ ...value }), { deep: true });
       const data = computed(() => {
         if (handle.value === null || handle.value === '') return null;
-        const filtered = options.value.filters !== undefined;
+        const filtered = opts.value.filters !== undefined;
         return {
-          items: filtered ? [] : items.slice(0, options.value.pageSize),
-          total: filtered ? 0 : items.length,
-          facets: FACETS,
+          items: filtered ? items.slice(0, filteredCount) : items.slice(0, opts.value.pageSize),
+          total: filtered ? filteredCount : items.length,
+          facets: filtered ? (options.filteredFacets ?? FACETS) : FACETS,
         };
       });
       return {
@@ -732,6 +745,161 @@ describe('collection-grid block', () => {
       const wrapper = mountGrid({ ...mock, paginationStyle: 'pages', pageSize: '12' }, { source });
       await wrapper.vm.$nextTick();
       expect(wrapper.get('[aria-current="page"]').text()).toBe('3');
+    });
+  });
+
+  describe('one sort control per width', () => {
+    // Container queries are invisible to jsdom, so this is a class assertion — the same shape the
+    // Columns one above uses. Both bands render a sort `Select` (they differ in size, placement and
+    // whether the label is visible), and exactly one of the two is ever displayed: the top bar's is
+    // hidden from 64rem in *both* variants, and the toolbar's only appears from 64rem.
+    it.each(['sidebar', 'drawer-only'])(
+      'shows the top bar sort below 64rem and the toolbar sort from 64rem, never both (%s)',
+      async (variant) => {
+        const wrapper = mountGrid({ ...mock, variant });
+        await wrapper.vm.$nextTick();
+
+        const sortLabels = wrapper
+          .findAll('label')
+          .filter((label) => label.text() === enUS.grid.sortBy);
+        expect(sortLabels).toHaveLength(2);
+        expect(comboboxes(wrapper)).toHaveLength(3); // two sorts, one Columns
+
+        const topBarSort = sortLabels[0]!.element.closest('[data-part="root"]') as HTMLElement;
+        expect(topBarSort.className).toContain('@content:hidden');
+
+        const toolbarSort = sortLabels[1]!.element.closest('div.hidden') as HTMLElement;
+        expect(toolbarSort.className).toContain('@content:flex');
+
+        // The Filter button's own bar goes from 64rem only where a sidebar takes over.
+        const topBar = filterButton(wrapper).element.parentElement!;
+        if (variant === 'sidebar') expect(topBar.className).toContain('@content:hidden');
+        else expect(topBar.className).not.toContain('@content:hidden');
+      }
+    );
+  });
+
+  describe('package messages', () => {
+    /**
+     * The app provides `@eldrajs/ui`'s messages as an object of *getters* over `preview.locale`
+     * (`app/plugins/eldra-ui-messages.ts`), which is what makes a Studio locale switch reach the
+     * package's own strings. The block re-provides that set with `removeTag` replaced, so it has to
+     * read through rather than snapshot — a spread would freeze every package string in the block's
+     * subtree at the mount-time locale while the block's own `useT()` strings kept switching.
+     */
+    it('follows a locale switch for both package strings and the block’s own', async () => {
+      const context = {
+        client: {},
+        designTokens: { colors: {} },
+        preview: createEldraPreviewState(),
+      };
+      context.preview.locale = 'en-US';
+      const messages = {} as UiMessages;
+      for (const key of Object.keys(uiEnUS) as Array<keyof UiMessages>) {
+        Object.defineProperty(messages, key, {
+          enumerable: true,
+          get: () => uiMessagesFor(context.preview.locale)[key],
+        });
+      }
+
+      const base = mountOptions({ entry: { id: 'e1', data: mock } });
+      const wrapper = mount(Block, {
+        ...base,
+        global: {
+          ...base.global,
+          provide: {
+            ...base.global.provide,
+            [ICON_FETCHER_KEY]: stubFetcher,
+            [ELDRA_KEY]: context,
+            [MESSAGES_KEY]: messages,
+            [LOCALE_KEY]: () => context.preview.locale ?? undefined,
+            [CURRENCY_KEY]: () => currencyFor(context.preview.locale),
+          },
+        },
+      });
+      wrappers.push(wrapper);
+      await wrapper.vm.$nextTick();
+
+      const sizes = panelFor(wrapper, enUS.grid.legendSize).panel;
+      await sizes.findAll('input[type="checkbox"]')[2]!.setValue(true);
+
+      const removeLabel = () =>
+        wrapper.get('[data-part="removeButton"]').attributes('aria-label') ?? '';
+      // A package string the block never writes itself: `LoadMore`'s own "Showing N of M" line.
+      const loadMoreLine = () => wrapper.get('[data-part="status"]').text();
+
+      expect(removeLabel()).toBe('Remove filter Size: M');
+      expect(loadMoreLine()).toContain('Showing 24 of 48');
+      expect(countLine(wrapper).text()).toBe('48 products');
+
+      context.preview.locale = 'is-IS';
+      await wrapper.vm.$nextTick();
+
+      expect(removeLabel()).toBe('Fjarlægja síuna Size: M');
+      expect(loadMoreLine()).toContain('Sýni 24 af 48');
+      expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '48'));
+    });
+  });
+
+  describe('a selected value the facets stop listing', () => {
+    /**
+     * Facets are normally computed over the current result set, so ticking one value can remove
+     * another from the response. The chips are derived from the selection, never from the facets,
+     * so an applied filter is always visible and always removable — otherwise it would keep
+     * narrowing every request with no control left to undo it (and with results still non-empty
+     * there is no empty-state "Clear filters" button to fall back on either).
+     */
+    const withoutColour = FACETS.filter((facet) => facet.source !== 'colour');
+
+    it('still renders its chip, and the chip removes it', async () => {
+      const stub = createStub(PRODUCTS, { filteredCount: 4, filteredFacets: withoutColour });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      const { panel } = panelFor(wrapper, enUS.grid.legendColour);
+      await panel.get('input[type="checkbox"]').setValue(true);
+
+      // Results are non-empty, so there is no empty state to escape through.
+      expect(cards(wrapper)).toHaveLength(4);
+      expect(countLine(wrapper).text()).toBe('4 products');
+
+      // The facets no longer describe the value, so it is labelled by its raw value — and it is
+      // still a chip, still in the group, and still counted on the Filter button.
+      const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
+      expect(list.text()).toContain('Colour: oat');
+      expect(filterButton(wrapper).get('[data-part="hiddenSuffix"]').text()).toBe('1 active');
+      expect(
+        panelFor(wrapper, enUS.grid.legendColour).panel.findAll('input[type="checkbox"]')
+      ).toHaveLength(1);
+
+      await list.get('[data-part="removeButton"]').trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(stub.requests.at(-1)?.filters).toBeUndefined();
+    });
+
+    it('Clear all clears it too', async () => {
+      const stub = createStub(PRODUCTS, { filteredCount: 4, filteredFacets: withoutColour });
+      const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
+      await wrapper.vm.$nextTick();
+
+      const { panel } = panelFor(wrapper, enUS.grid.legendColour);
+      await panel.get('input[type="checkbox"]').setValue(true);
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
+        'Colour: oat'
+      );
+
+      const clearAll = wrapper
+        .findAll('button')
+        .find((button) => button.text() === enUS.grid.clearAll)!;
+      await clearAll.trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(document.activeElement).toBe(countLine(wrapper).element);
     });
   });
 
