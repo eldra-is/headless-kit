@@ -58,11 +58,21 @@ declare global {
       items?: Array<{ icon?: string; image?: EldraMedia; title: string; body?: string; href?: string }>;
     };
     footer: {
-      brand: string;
+      variant: 'default' | 'minimal';
+      background?: 'surface-strong' | 'primary';
+      brandText: string;
+      brandLogo?: EldraMedia;
       description?: string;
-      groups?: Array<{ title: string; links?: Array<{ label: string; href: string }> }>;
-      legal?: string;
-      variant?: 'default' | 'minimal';
+      groups?: Array<{ title: string; links: Array<{ label: string; href: string }> }>;
+      links?: Array<{ label: string; href: string }>;
+      showNewsletter?: boolean;
+      newsletterTitle?: string;
+      newsletterText?: string;
+      social?: Array<{ network: 'instagram' | 'facebook' | 'pinterest' | 'tiktok' | 'youtube'; href: string }>;
+      legalText?: string;
+      legalLinks?: Array<{ label: string; href: string }>;
+      showLocale?: boolean;
+      showCurrency?: boolean;
     };
     gallery: {
       heading?: string;

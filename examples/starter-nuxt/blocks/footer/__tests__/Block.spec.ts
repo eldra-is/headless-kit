@@ -1,37 +1,243 @@
 // @vitest-environment jsdom
-import { mount } from '@vue/test-utils';
-import { h } from 'vue';
-import { axe } from '../../../test/support/axe';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
+import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
+import { tablerIconSvg } from '../../../server/utils/tablerIcon';
+import { STOREFRONT_KEY } from '../../../app/storefront/types';
+import { createDemoStorefront } from '../../../app/storefront/demo';
+import { enUS } from '../../../app/i18n/en-US';
+
+/**
+ * `footer` has no `preview.json` (brief: the spec's default story is the wordmark, so demo media
+ * is not used) — so the "merged data" and "bare `mock.json`" mounts every block spec is expected
+ * to cover (`docs/starter-kit.md` §3) are, for this block, the same seed. Both are still mounted
+ * and asserted axe-clean below as their own tests, matching that convention.
+ *
+ * Social icons resolve through `EldraIcon` (Tabler-by-name), which under Nuxt calls
+ * `/api/eldra-icon`; outside Nuxt this needs an injected `ICON_FETCHER_KEY` (see
+ * `feature-grid`'s own spec for the same pattern) — `stubFetcher` reads the real SVGs
+ * synchronously via `tablerIconSvg`, network-free.
+ */
+const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
+
+function mountFooter(data: Record<string, unknown>, options: { failForms?: boolean } = {}) {
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  return mount(Block, {
+    ...base,
+    // Real focus tracking (`document.activeElement`, and `Select`'s own focus-return behaviour)
+    // needs the tree connected to the document — jsdom does not reliably track focus on a
+    // detached mount. Auto-unmount (`test/setup.ts`) removes this from `document.body` again
+    // after every test.
+    attachTo: document.body,
+    global: {
+      ...base.global,
+      provide: {
+        ...base.global.provide,
+        [ICON_FETCHER_KEY]: stubFetcher,
+        ...(options.failForms
+          ? { [STOREFRONT_KEY]: createDemoStorefront({ failForms: true }) }
+          : {}),
+      },
+    },
+  });
+}
+
+/** Both `Select` triggers, in DOM order (locale, then currency — see `Block.vue`'s legal row). */
+function selectTriggers(wrapper: ReturnType<typeof mountFooter>) {
+  return wrapper.findAll('[role="combobox"]').filter((c) => c.element.tagName === 'BUTTON');
+}
 
 describe('footer block', () => {
-  it('renders the mock content', async () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    expect(wrapper.text()).toContain(mock.brand);
-    expect(wrapper.text()).toContain(mock.legal);
+  it('renders the default variant (merged data — no preview.json exists for this block) with no axe violations', async () => {
+    const wrapper = mountFooter(mock);
+    expect(wrapper.text()).toContain(mock.brandText);
+    expect(wrapper.text()).toContain(mock.description);
     for (const group of mock.groups) expect(wrapper.text()).toContain(group.title);
+    expect(wrapper.text()).toContain(mock.legalText);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('minimal variant renders only the brand and legal line, no groups', async () => {
-    const wrapper = mount(
-      Block,
-      mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'minimal' } } })
-    );
-    expect(wrapper.text()).toContain(mock.brand);
-    expect(wrapper.text()).toContain(mock.legal);
+  it('renders the bare mock.json content (freshly-inserted regression net) with no axe violations', async () => {
+    const wrapper = mountFooter({ ...mock });
+    expect(wrapper.find('footer').exists()).toBe(true);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('minimal variant renders the flat links row and no groups or newsletter, with no axe violations', async () => {
+    const wrapper = mountFooter({ ...mock, variant: 'minimal' });
+    expect(wrapper.text()).toContain(mock.brandText);
+    for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
     expect(wrapper.text()).not.toContain(mock.groups[0]!.title);
+    expect(wrapper.findAll('h3')).toHaveLength(0);
+    expect(wrapper.find('input[type="email"]').exists()).toBe(false);
+    expect(wrapper.find('form').exists()).toBe(false);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('renders a placed newsletter slot child', () => {
-    const wrapper = mount(Block, {
-      ...mountOptions({ entry: { id: 'e1', data: mock } }),
-      slots: { newsletter: () => h('p', 'Sign up for 10% off') },
-    });
-    expect(wrapper.text()).toContain('Sign up for 10% off');
+  it('background primary renders with no axe violations', async () => {
+    const wrapper = mountFooter({ ...mock, background: 'primary' });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('has a contentinfo <footer> landmark labelled by a visually hidden <h2>', () => {
+    const wrapper = mountFooter(mock);
+    const footer = wrapper.find('footer');
+    expect(footer.exists()).toBe(true);
+    const labelledBy = footer.attributes('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    const heading = wrapper.find(`#${labelledBy}`);
+    expect(heading.element.tagName).toBe('H2');
+    expect(heading.text()).toBe(enUS.footer.title);
+    expect(heading.classes()).toContain('sr-only');
+  });
+
+  it('labels the link-groups nav', () => {
+    const wrapper = mountFooter(mock);
+    const nav = wrapper.find('nav');
+    expect(nav.exists()).toBe(true);
+    expect(nav.attributes('aria-label')).toBe(enUS.footer.nav);
+  });
+
+  it('the newsletter email input has type="email", autocomplete="email" and a programmatic label', () => {
+    const wrapper = mountFooter(mock);
+    const input = wrapper.find('input[type="email"]');
+    expect(input.exists()).toBe(true);
+    expect(input.attributes('autocomplete')).toBe('email');
+    const id = input.attributes('id');
+    expect(id).toBeTruthy();
+    const label = wrapper.find(`label[for="${id}"]`);
+    expect(label.exists()).toBe(true);
+    expect(label.text()).toBe(enUS.footer.emailLabel);
+    expect(label.classes()).toContain('sr-only');
+  });
+
+  it('an invalid (malformed) email submit sets aria-invalid, shows the error linked by aria-describedby, and keeps focus in the field', async () => {
+    const wrapper = mountFooter(mock);
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('not-an-email');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
+    const describedBy = input.attributes('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(wrapper.find(`#${describedBy?.split(' ')[0]}`).text()).toContain(
+      enUS.footer.emailInvalid
+    );
+    expect(document.activeElement).toBe(input.element);
+  });
+
+  it('an empty submit is invalid too', async () => {
+    const wrapper = mountFooter(mock);
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    const input = wrapper.find('input[type="email"]');
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
+  });
+
+  it('a valid submit calls forms.subscribe and announces success through role="status"', async () => {
+    const wrapper = mountFooter(mock);
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    const status = wrapper.find('[role="status"]');
+    expect(status.exists()).toBe(true);
+    expect(status.text()).toContain(enUS.footer.subscribed);
+    // The form is replaced, not merely supplemented, by the success line (spec: "the form is
+    // replaced by a status line").
+    expect(wrapper.find('form').exists()).toBe(false);
+  });
+
+  it('a subscribe failure (backend ok:false) shows an error and keeps focus in the field', async () => {
+    const wrapper = mountFooter(mock, { failForms: true });
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailError);
+    expect(document.activeElement).toBe(input.element);
+    // The form stays (retryable), unlike the success path.
+    expect(wrapper.find('form').exists()).toBe(true);
+  });
+
+  it('both selectors expose combobox/listbox roles with aria-expanded, closed by default', () => {
+    const wrapper = mountFooter(mock);
+    const triggers = selectTriggers(wrapper);
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) {
+      expect(trigger.attributes('aria-haspopup')).toBe('listbox');
+      expect(trigger.attributes('aria-expanded')).toBe('false');
+    }
+    expect(triggers[0]!.text()).toContain(enUS.footer.localeOptions.usEnglish);
+    expect(triggers[1]!.text()).toContain(enUS.footer.currencyOptions.usd);
+  });
+
+  it('the currency selector commits only on Enter — arrow keys alone leave the value unchanged', async () => {
+    const wrapper = mountFooter(mock);
+    const currencyTrigger = selectTriggers(wrapper)[1]!;
+    currencyTrigger.element.focus();
+
+    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
+    expect(currencyTrigger.attributes('aria-expanded')).toBe('true');
+    expect(document.querySelector('[role="listbox"]')).toBeTruthy();
+
+    // Moves the active option (USD -> CAD) without committing.
+    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
+    expect(currencyTrigger.text()).toContain(enUS.footer.currencyOptions.usd);
+
+    await currencyTrigger.trigger('keydown', { key: 'Enter' });
+    expect(currencyTrigger.attributes('aria-expanded')).toBe('false');
+    expect(currencyTrigger.text()).toContain(enUS.footer.currencyOptions.cad);
+  });
+
+  it('Esc closes a selector without changing its value', async () => {
+    const wrapper = mountFooter(mock);
+    const currencyTrigger = selectTriggers(wrapper)[1]!;
+    const before = currencyTrigger.text();
+    currencyTrigger.element.focus();
+
+    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
+    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
+    await currencyTrigger.trigger('keydown', { key: 'Escape' });
+
+    expect(currencyTrigger.attributes('aria-expanded')).toBe('false');
+    expect(currencyTrigger.text()).toBe(before);
+  });
+
+  it('keyboard order: a link precedes the email field, which precedes the subscribe button, which precedes the selectors', () => {
+    const wrapper = mountFooter(mock);
+    const focusable = Array.from(
+      wrapper.element.querySelectorAll('a, input, button, select, [tabindex]')
+    );
+    const firstLink = wrapper.find('a').element;
+    const emailInput = wrapper.find('input[type="email"]').element;
+    const subscribeButton = wrapper.find('button[type="submit"]').element;
+    const firstSelectorTrigger = selectTriggers(wrapper)[0]!.element;
+
+    expect(focusable.indexOf(firstLink)).toBeLessThan(focusable.indexOf(emailInput));
+    expect(focusable.indexOf(emailInput)).toBeLessThan(focusable.indexOf(subscribeButton));
+    expect(focusable.indexOf(subscribeButton)).toBeLessThan(
+      focusable.indexOf(firstSelectorTrigger)
+    );
+  });
+
+  it('social link names include the store name', () => {
+    const wrapper = mountFooter(mock);
+    const instagramLink = wrapper
+      .findAll('a[target="_blank"]')
+      .find((a) => a.attributes('href')?.includes('instagram'));
+    expect(instagramLink).toBeTruthy();
+    expect(instagramLink!.attributes('aria-label')).toBe(`${mock.brandText} on Instagram`);
   });
 });

@@ -36,3 +36,15 @@ export const VariantMinimal: Story = {
     entry: { id: "footer", data: { ...base, "variant": "minimal" } },
   },
 };
+
+export const BackgroundSurfaceStrong: Story = {
+  args: {
+    entry: { id: "footer", data: { ...base, "background": "surface-strong" } },
+  },
+};
+
+export const BackgroundPrimary: Story = {
+  args: {
+    entry: { id: "footer", data: { ...base, "background": "primary" } },
+  },
+};

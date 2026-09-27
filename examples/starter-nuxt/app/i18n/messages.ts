@@ -53,6 +53,61 @@ export interface Messages {
     hintHelp: string;
   };
   /**
+   * The footer block's own UI chrome — everything it writes itself rather than reads from
+   * `mock.json` (see `blocks/footer/Block.vue`): the landmark labels, the newsletter form's
+   * visually hidden label and status copy, the two selectors' labels and their theme-constant
+   * option sets (not CMS content — the spec's own example locales/currencies), and the social
+   * link name template ("{brand} on {network}").
+   */
+  footer: {
+    /** Visually hidden `<h2>` naming the `<footer>` landmark. */
+    title: string;
+    /** `aria-label` on the link-groups (or flat-links) `<nav>`. */
+    nav: string;
+    /** Visually hidden `<label>` and placeholder for the newsletter email field. */
+    emailLabel: string;
+    /** The newsletter form's accessible name when `newsletterTitle` is empty. */
+    newsletterAriaLabel: string;
+    /** Newsletter submit button label. */
+    subscribe: string;
+    /** Newsletter submit button's accessible name while the request is in flight. */
+    subscribing: string;
+    /** Shown when the email is empty or not a valid address. */
+    emailInvalid: string;
+    /** Shown when `forms.subscribe` resolves with `ok: false`. */
+    emailError: string;
+    /** The newsletter success status line. */
+    subscribed: string;
+    /** Visually hidden label for the country/language selector. */
+    localeLabel: string;
+    /** Placeholder and accessible name of the country/language selector's search field. */
+    localeSearchPlaceholder: string;
+    /** Visually hidden label for the currency selector. */
+    currencyLabel: string;
+    /** Display names for `social[].network`, used in the icon button's accessible name. */
+    social: {
+      instagram: string;
+      facebook: string;
+      pinterest: string;
+      tiktok: string;
+      youtube: string;
+    };
+    /** A social icon link's accessible name, e.g. "Northwind Goods on Instagram". */
+    socialLinkName: string;
+    /** The country/language selector's fixed option set (spec example locales, not CMS content). */
+    localeOptions: {
+      usEnglish: string;
+      caEnglish: string;
+      caFrench: string;
+    };
+    /** The currency selector's fixed option set (spec example currencies, not CMS content). */
+    currencyOptions: {
+      usd: string;
+      cad: string;
+      eur: string;
+    };
+  };
+  /**
    * Shared vocabulary for the commerce blocks built on `app/storefront/*` (design doc
    * §"Storefront source") — a `StorefrontResult.pending`/`error` state or an order's delivery
    * step is the same kind of thing across `collection-grid`, `product-detail`, `search`,

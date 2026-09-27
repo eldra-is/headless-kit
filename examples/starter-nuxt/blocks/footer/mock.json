@@ -1,42 +1,58 @@
 {
-  "brand": "Northwind Goods",
-  "description": "Thoughtfully made home and lifestyle goods, built to last and easy to love.",
+  "variant": "default",
+  "background": "surface-strong",
+  "brandText": "Northwind Goods",
+  "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
   "groups": [
     {
       "title": "Shop",
       "links": [
-        { "label": "New arrivals", "href": "/shop/new" },
-        { "label": "Kitchen", "href": "/shop/kitchen" },
-        { "label": "Living room", "href": "/shop/living-room" },
-        { "label": "Gift cards", "href": "/shop/gift-cards" }
+        { "label": "Knitwear", "href": "/collections/knitwear" },
+        { "label": "Ceramics", "href": "/collections/ceramics" },
+        { "label": "Kitchen", "href": "/collections/kitchen" },
+        { "label": "Gift cards", "href": "/products/gift-card" }
+      ]
+    },
+    {
+      "title": "Help",
+      "links": [
+        { "label": "Shipping", "href": "/pages/shipping" },
+        { "label": "Returns", "href": "/pages/returns" },
+        { "label": "Care guides", "href": "/journal/care" },
+        { "label": "Contact us", "href": "/pages/contact" }
       ]
     },
     {
       "title": "Company",
       "links": [
-        { "label": "Our story", "href": "/about" },
+        { "label": "Our story", "href": "/pages/about" },
+        { "label": "Makers", "href": "/pages/makers" },
         { "label": "Journal", "href": "/journal" },
-        { "label": "Sustainability", "href": "/sustainability" },
-        { "label": "Careers", "href": "/careers" }
-      ]
-    },
-    {
-      "title": "Support",
-      "links": [
-        { "label": "Contact us", "href": "/contact" },
-        { "label": "Shipping & returns", "href": "/shipping-returns" },
-        { "label": "FAQ", "href": "/faq" },
-        { "label": "Track an order", "href": "/orders/track" }
-      ]
-    },
-    {
-      "title": "Follow",
-      "links": [
-        { "label": "Instagram", "href": "https://instagram.com/northwindgoods" },
-        { "label": "Pinterest", "href": "https://pinterest.com/northwindgoods" }
+        { "label": "Visit the studio", "href": "/pages/visit" }
       ]
     }
   ],
-  "legal": "© 2026 Northwind Goods. All rights reserved.",
-  "variant": "default"
+  "links": [
+    { "label": "Shipping", "href": "/pages/shipping" },
+    { "label": "Returns", "href": "/pages/returns" },
+    { "label": "Contact us", "href": "/pages/contact" },
+    { "label": "Our story", "href": "/pages/about" }
+  ],
+  "showNewsletter": true,
+  "newsletterTitle": "Letters from the workshop",
+  "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+  "social": [
+    { "network": "instagram", "href": "https://instagram.com/northwindgoods" },
+    { "network": "pinterest", "href": "https://pinterest.com/northwindgoods" },
+    { "network": "tiktok", "href": "https://tiktok.com/@northwindgoods" },
+    { "network": "youtube", "href": "https://youtube.com/@northwindgoods" }
+  ],
+  "legalText": "© 2026 Northwind Goods",
+  "legalLinks": [
+    { "label": "Privacy", "href": "/pages/privacy" },
+    { "label": "Terms", "href": "/pages/terms" },
+    { "label": "Accessibility", "href": "/pages/accessibility" }
+  ],
+  "showLocale": true,
+  "showCurrency": true
 }

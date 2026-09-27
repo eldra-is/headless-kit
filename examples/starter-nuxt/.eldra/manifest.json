@@ -687,31 +687,88 @@
     {
       "apiId": "footer",
       "name": "Footer",
-      "description": "Site footer with brand, link groups, a newsletter zone and a legal line.",
+      "description": "Site footer with brand, link groups, a newsletter sign-up, social links, a legal line and locale/currency selectors.",
       "icon": "layout-bottombar",
       "category": "structure",
-      "version": 1,
+      "version": 2,
+      "migrations": [
+        {
+          "version": 2,
+          "renames": [
+            {
+              "from": "brand",
+              "to": "brandText"
+            },
+            {
+              "from": "legal",
+              "to": "legalText"
+            }
+          ]
+        }
+      ],
       "fields": [
         {
-          "fieldId": "brand",
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "Defaults to \"default\" when unset.",
+          "metadata": {
+            "options": [
+              "default",
+              "minimal"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "background",
+          "name": "Background",
+          "type": "select",
+          "helpText": "Defaults to \"surface-strong\" when unset.",
+          "metadata": {
+            "options": [
+              "surface-strong",
+              "primary"
+            ]
+          }
+        },
+        {
+          "fieldId": "brandText",
           "name": "Brand",
           "type": "string",
           "isTitle": true,
           "localized": true,
           "validators": {
-            "required": true
+            "required": true,
+            "maxLength": 80
+          }
+        },
+        {
+          "fieldId": "brandLogo",
+          "name": "Logo",
+          "type": "media",
+          "helpText": "Optional. Replaces the brand text wordmark. Max 2.5rem tall.",
+          "metadata": {
+            "multiple": false
           }
         },
         {
           "fieldId": "description",
           "name": "Description",
           "type": "text",
-          "localized": true
+          "localized": true,
+          "helpText": "1–3 sentences. Shown on the default variant only.",
+          "validators": {
+            "maxLength": 300
+          }
         },
         {
           "fieldId": "groups",
           "name": "Link groups",
           "type": "list",
+          "helpText": "Up to 4 groups. Shown on the default variant only.",
           "metadata": {
             "item": {
               "fieldId": "group",
@@ -725,13 +782,18 @@
                     "type": "string",
                     "localized": true,
                     "validators": {
-                      "required": true
+                      "required": true,
+                      "maxLength": 40
                     }
                   },
                   {
                     "fieldId": "links",
                     "name": "Links",
                     "type": "list",
+                    "helpText": "Up to 8 links.",
+                    "validators": {
+                      "required": true
+                    },
                     "metadata": {
                       "item": {
                         "fieldId": "link",
@@ -745,7 +807,8 @@
                               "type": "string",
                               "localized": true,
                               "validators": {
-                                "required": true
+                                "required": true,
+                                "maxLength": 60
                               }
                             },
                             {
@@ -767,53 +830,208 @@
           }
         },
         {
-          "fieldId": "legal",
-          "name": "Legal line",
-          "type": "string",
-          "localized": true
+          "fieldId": "links",
+          "name": "Links",
+          "type": "list",
+          "helpText": "Up to 5 links. Shown on the minimal variant only.",
+          "metadata": {
+            "item": {
+              "fieldId": "link",
+              "name": "Link",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true,
+                      "maxLength": 60
+                    }
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "URL",
+                    "type": "string",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
         },
         {
-          "fieldId": "variant",
-          "name": "Variant",
-          "type": "select",
-          "metadata": {
-            "options": [
-              "default",
-              "minimal"
-            ]
-          }
-        }
-      ],
-      "slots": [
+          "fieldId": "showNewsletter",
+          "name": "Show newsletter",
+          "type": "bool",
+          "default": true,
+          "helpText": "Shown on the default variant only. Turn off on pages that already carry a Newsletter block."
+        },
         {
-          "id": "newsletter",
-          "label": "Newsletter signup",
-          "description": "Optional signup form rendered above the legal line.",
-          "maxItems": 1
+          "fieldId": "newsletterTitle",
+          "name": "Newsletter title",
+          "type": "string",
+          "localized": true,
+          "validators": {
+            "maxLength": 80
+          }
+        },
+        {
+          "fieldId": "newsletterText",
+          "name": "Newsletter text",
+          "type": "text",
+          "localized": true,
+          "helpText": "One sentence on what is sent and how often.",
+          "validators": {
+            "maxLength": 200
+          }
+        },
+        {
+          "fieldId": "social",
+          "name": "Social links",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "socialLink",
+              "name": "Social link",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "network",
+                    "name": "Network",
+                    "type": "select",
+                    "metadata": {
+                      "options": [
+                        "instagram",
+                        "facebook",
+                        "pinterest",
+                        "tiktok",
+                        "youtube"
+                      ]
+                    },
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "URL",
+                    "type": "string",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "legalText",
+          "name": "Legal line",
+          "type": "string",
+          "localized": true,
+          "validators": {
+            "maxLength": 120
+          }
+        },
+        {
+          "fieldId": "legalLinks",
+          "name": "Legal links",
+          "type": "list",
+          "metadata": {
+            "item": {
+              "fieldId": "legalLink",
+              "name": "Legal link",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true,
+                      "maxLength": 40
+                    }
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "URL",
+                    "type": "string",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "showLocale",
+          "name": "Show country/language selector",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "fieldId": "showCurrency",
+          "name": "Show currency selector",
+          "type": "bool",
+          "default": true
         }
       ],
       "mock": {
-        "brand": "Northwind Goods",
-        "description": "Thoughtfully made home and lifestyle goods, built to last and easy to love.",
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [
           {
             "title": "Shop",
             "links": [
               {
-                "label": "New arrivals",
-                "href": "/shop/new"
+                "label": "Knitwear",
+                "href": "/collections/knitwear"
+              },
+              {
+                "label": "Ceramics",
+                "href": "/collections/ceramics"
               },
               {
                 "label": "Kitchen",
-                "href": "/shop/kitchen"
-              },
-              {
-                "label": "Living room",
-                "href": "/shop/living-room"
+                "href": "/collections/kitchen"
               },
               {
                 "label": "Gift cards",
-                "href": "/shop/gift-cards"
+                "href": "/products/gift-card"
+              }
+            ]
+          },
+          {
+            "title": "Help",
+            "links": [
+              {
+                "label": "Shipping",
+                "href": "/pages/shipping"
+              },
+              {
+                "label": "Returns",
+                "href": "/pages/returns"
+              },
+              {
+                "label": "Care guides",
+                "href": "/journal/care"
+              },
+              {
+                "label": "Contact us",
+                "href": "/pages/contact"
               }
             ]
           },
@@ -822,59 +1040,79 @@
             "links": [
               {
                 "label": "Our story",
-                "href": "/about"
+                "href": "/pages/about"
+              },
+              {
+                "label": "Makers",
+                "href": "/pages/makers"
               },
               {
                 "label": "Journal",
                 "href": "/journal"
               },
               {
-                "label": "Sustainability",
-                "href": "/sustainability"
-              },
-              {
-                "label": "Careers",
-                "href": "/careers"
-              }
-            ]
-          },
-          {
-            "title": "Support",
-            "links": [
-              {
-                "label": "Contact us",
-                "href": "/contact"
-              },
-              {
-                "label": "Shipping & returns",
-                "href": "/shipping-returns"
-              },
-              {
-                "label": "FAQ",
-                "href": "/faq"
-              },
-              {
-                "label": "Track an order",
-                "href": "/orders/track"
-              }
-            ]
-          },
-          {
-            "title": "Follow",
-            "links": [
-              {
-                "label": "Instagram",
-                "href": "https://instagram.com/northwindgoods"
-              },
-              {
-                "label": "Pinterest",
-                "href": "https://pinterest.com/northwindgoods"
+                "label": "Visit the studio",
+                "href": "/pages/visit"
               }
             ]
           }
         ],
-        "legal": "© 2026 Northwind Goods. All rights reserved.",
-        "variant": "default"
+        "links": [
+          {
+            "label": "Shipping",
+            "href": "/pages/shipping"
+          },
+          {
+            "label": "Returns",
+            "href": "/pages/returns"
+          },
+          {
+            "label": "Contact us",
+            "href": "/pages/contact"
+          },
+          {
+            "label": "Our story",
+            "href": "/pages/about"
+          }
+        ],
+        "showNewsletter": true,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [
+          {
+            "network": "instagram",
+            "href": "https://instagram.com/northwindgoods"
+          },
+          {
+            "network": "pinterest",
+            "href": "https://pinterest.com/northwindgoods"
+          },
+          {
+            "network": "tiktok",
+            "href": "https://tiktok.com/@northwindgoods"
+          },
+          {
+            "network": "youtube",
+            "href": "https://youtube.com/@northwindgoods"
+          }
+        ],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [
+          {
+            "label": "Privacy",
+            "href": "/pages/privacy"
+          },
+          {
+            "label": "Terms",
+            "href": "/pages/terms"
+          },
+          {
+            "label": "Accessibility",
+            "href": "/pages/accessibility"
+          }
+        ],
+        "showLocale": true,
+        "showCurrency": true
       },
       "previewImage": ".eldra/previews/footer.png"
     },

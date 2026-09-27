@@ -1,6 +1,8 @@
 import { defineComponent, h, nextTick, type Component } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { mountOptions } from './mountBlock';
+import { ICON_FETCHER_KEY, type IconFetcher } from '../../app/composables/iconFetcher';
+import { tablerIconSvg } from '../../server/utils/tablerIcon';
 
 // A static map, not `import.meta.glob`/dynamic `import()`: a sample-page
 // fixture's blocks must be available synchronously at `mount()` time (no
@@ -48,6 +50,16 @@ export interface PageFixture {
 }
 
 /**
+ * `EldraIcon` (`app/components/EldraIcon.vue`) resolves a Tabler icon name through
+ * `useEldraIcon`, which calls Nuxt's `useFetch` outside an injected `ICON_FETCHER_KEY` — see
+ * `feature-grid`'s own block spec for the same pattern. A page fixture is not run inside a real
+ * Nuxt app, so any registered block that renders an icon by name (the footer's social links, for
+ * one) needs this same synchronous, network-free stub; wiring it in here once means a future
+ * page fixture never has to remember it per block.
+ */
+const stubIconFetcher: IconFetcher = async (name) => tablerIconSvg(name);
+
+/**
  * Renders a `pages/<name>.page.json`-shaped fixture as `EldraLayout` would
  * on a real page: each listed block, in order, as a sibling inside one
  * `<main id="main">` — the landmark the blocks spec's skip link ("Skip to
@@ -83,6 +95,7 @@ export async function mountPage(fixture: PageFixture): Promise<VueWrapper> {
   });
 
   const { global } = mountOptions({ entry: { id: '', data: {} } });
+  global.provide[ICON_FETCHER_KEY] = stubIconFetcher;
   const wrapper = mount(Page, { global });
   await nextTick();
   return wrapper;

@@ -1,88 +1,425 @@
 <script setup lang="ts">
 /**
- * Site footer. `variant`: `default` (brand + description, link groups, an
- * optional `newsletter` slot, legal line) or `minimal` (brand + legal line
- * only — no groups, no newsletter zone). The `newsletter` slot is declared
- * in `block.json` for a future newsletter-signup block (project 2); this
- * block only renders the zone when a child is actually placed in it.
+ * Site footer (spec `eldra-starter-spec/02-blocks.md` lines 440–597). `variant`:
+ *  - `default`: brand (wordmark, description, social), link groups, an optional newsletter
+ *    sign-up. Legal row below a hairline, with the locale/currency selectors.
+ *  - `minimal`: brand, a flat row of links, social. Then the same legal row.
  *
- * Every group link is resolved once in `groups` below: `safeHref` drops an
- * unsafe destination (the link is then not rendered at all — the component no
- * longer sanitises for us), and a same-site path takes Nuxt's router through
- * `Link`'s `as` (see `EldraRouterLink`). `tone="muted"` is the spec's tertiary
- * link — `muted` turning `text` on hover — which is what this footer used to
- * write out by hand.
+ * Every group/flat/legal link is resolved once through `resolveLinks` below: `safeHref` drops an
+ * unsafe destination (the link is then not rendered at all) and a same-site path routes through
+ * `EldraRouterLink` (see `app/utils/links.ts`). `tone="muted"` + `:underline="false"` is the
+ * spec's tertiary link, turning `text` with an underline only on hover; legal links keep the
+ * package's own underline-at-rest default (spec: "always underlined").
+ *
+ * The two selectors (country/language, currency) are **not** CMS content — the spec calls their
+ * options "mock-independent theme constants" (a handful of example locales/currencies), so they
+ * are local constants translated through `useT()` rather than `mock.json` fields. `Select` commits
+ * only on `Enter` or a click (its own contract; arrow keys alone only move the active option), so
+ * nothing extra is needed here to satisfy "prices reload only after Enter or a click" (3.2.2).
+ *
+ * The newsletter zone posts through `useStorefront().forms.subscribe`. Email format is validated
+ * locally (empty/malformed never reaches the storefront); a backend `{ ok: false }` shows the same
+ * error slot. Both failure paths return focus to the email field — `FormLayout`'s own submit
+ * handler only refuses a *second* submit while a field is already marked invalid, so the first
+ * invalid attempt's error + refocus is this block's own job.
  */
-import { computed, useSlots } from 'vue';
-import { Container, Link, Section } from '@eldrajs/ui';
+import { computed, nextTick, ref } from 'vue';
+import {
+  Button,
+  Container,
+  FieldWrapper,
+  FormLayout,
+  Input,
+  Link,
+  Section,
+  Select,
+  VisuallyHidden,
+  type FormLayoutSubmitPayload,
+  type SelectOption,
+} from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { useT } from '../../app/composables/useT';
+import { useUiId } from '../../app/composables/useUiId';
+import { useStorefront } from '../../app/composables/useStorefront';
+import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
+import type { MessageKey } from '../../app/i18n/messages';
+
+type FooterLinkField = { label: string; href: string };
+type ResolvedLink = { label: string; href: string; as: typeof EldraRouterLink | undefined };
 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
+const t = useT();
+const storefront = useStorefront();
 
-const slots = useSlots();
+const headingId = `footer-heading-${useUiId()}`;
+
 const variant = computed(() => data.value.variant ?? 'default');
+const background = computed(() => data.value.background ?? 'surface-strong');
+
+/** Section spacing (spec "Footer" → Container/spacing): the shared `sm`/`md`/`lg` scale doesn't
+ * carry these exact steps, so `spacing="none"` on `Section` and the padding is written here. */
+const paddingClass = computed(() =>
+  variant.value === 'minimal' ? 'py-8' : 'pt-12 pb-6 @tablet:pt-16 @tablet:pb-8'
+);
+
+/** Drops an unsafe destination and resolves a same-site one through the router (see file doc). */
+function resolveLinks(links: FooterLinkField[] | undefined): ResolvedLink[] {
+  return (links ?? []).flatMap((link) => {
+    const href = safeHref(link.href);
+    if (href === null) return [];
+    return [{ label: link.label, href, as: isInternalHref(href) ? EldraRouterLink : undefined }];
+  });
+}
 
 const groups = computed(() =>
   (data.value.groups ?? []).map((group) => ({
     title: group.title,
-    links: (group.links ?? []).flatMap((link) => {
-      const href = safeHref(link.href);
-      if (href === null) return [];
-      return [{ label: link.label, href, as: isInternalHref(href) ? EldraRouterLink : undefined }];
-    }),
+    links: resolveLinks(group.links),
   }))
 );
+const minimalLinks = computed(() => resolveLinks(data.value.links));
+const legalLinks = computed(() => resolveLinks(data.value.legalLinks));
+
+const SOCIAL_ICON_NAMES: Record<string, string> = {
+  instagram: 'brand-instagram',
+  facebook: 'brand-facebook',
+  pinterest: 'brand-pinterest',
+  tiktok: 'brand-tiktok',
+  youtube: 'brand-youtube',
+};
+
+const SOCIAL_NAME_KEYS: Record<string, MessageKey> = {
+  instagram: 'footer.social.instagram',
+  facebook: 'footer.social.facebook',
+  pinterest: 'footer.social.pinterest',
+  tiktok: 'footer.social.tiktok',
+  youtube: 'footer.social.youtube',
+};
+
+const socialLinks = computed(() =>
+  (data.value.social ?? []).flatMap((item) => {
+    const href = safeHref(item.href);
+    if (href === null) return [];
+    return [
+      {
+        network: item.network,
+        href,
+        as: isInternalHref(href) ? EldraRouterLink : undefined,
+        icon: SOCIAL_ICON_NAMES[item.network] ?? 'link',
+      },
+    ];
+  })
+);
+
+function socialLinkName(network: string): string {
+  const key = SOCIAL_NAME_KEYS[network] ?? 'footer.social.instagram';
+  return t('footer.socialLinkName', { brand: data.value.brandText, network: t(key) });
+}
+
+const showLocale = computed(() => data.value.showLocale ?? true);
+const showCurrency = computed(() => data.value.showCurrency ?? true);
+const hasSelectors = computed(() => showLocale.value || showCurrency.value);
+
+/** The spec's own example locales/currencies (not CMS content — see file doc). */
+const LOCALE_VALUES = ['us-en', 'ca-en', 'ca-fr'] as const;
+const CURRENCY_VALUES = ['USD', 'CAD', 'EUR'] as const;
+
+const localeOptions = computed<SelectOption[]>(() => [
+  { value: 'us-en', label: t('footer.localeOptions.usEnglish') },
+  { value: 'ca-en', label: t('footer.localeOptions.caEnglish') },
+  { value: 'ca-fr', label: t('footer.localeOptions.caFrench') },
+]);
+const currencyOptions = computed<SelectOption[]>(() => [
+  { value: 'USD', label: t('footer.currencyOptions.usd') },
+  { value: 'CAD', label: t('footer.currencyOptions.cad') },
+  { value: 'EUR', label: t('footer.currencyOptions.eur') },
+]);
+
+const locale = ref<string>(LOCALE_VALUES[0]);
+const currency = ref<string>(CURRENCY_VALUES[0]);
+
+/* ---------------------------------------------------------------------- */
+/* Newsletter                                                              */
+/* ---------------------------------------------------------------------- */
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const email = ref('');
+const emailError = ref<string | null>(null);
+const newsletterState = ref<'idle' | 'submitting' | 'success'>('idle');
+const emailFieldRoot = ref<HTMLElement | null>(null);
+
+const showNewsletter = computed(
+  () => variant.value === 'default' && (data.value.showNewsletter ?? true)
+);
+
+async function focusEmailField(): Promise<void> {
+  await nextTick();
+  emailFieldRoot.value?.querySelector<HTMLInputElement>('input')?.focus();
+}
+
+async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
+  payload.event.preventDefault();
+  const value = String(payload.data.get('email') ?? '').trim();
+
+  if (!EMAIL_PATTERN.test(value)) {
+    emailError.value = t('footer.emailInvalid');
+    await focusEmailField();
+    return;
+  }
+
+  emailError.value = null;
+  newsletterState.value = 'submitting';
+  const result = await storefront.forms.subscribe({ email: value, list: 'footer-newsletter' });
+
+  if (result.ok) {
+    newsletterState.value = 'success';
+    return;
+  }
+
+  newsletterState.value = 'idle';
+  emailError.value = t('footer.emailError');
+  await focusEmailField();
+}
 </script>
 
 <template>
   <Section
     as="footer"
-    background="surface"
-    spacing="md"
-    :classes="{ root: 'border-border border-t' }"
+    :background="background"
+    spacing="none"
+    :labelled-by="headingId"
+    :classes="{ root: paddingClass }"
   >
     <Container width="wide">
+      <VisuallyHidden :id="headingId" as="h2">{{ t('footer.title') }}</VisuallyHidden>
+
+      <!-- Default variant: brand · link groups · newsletter -->
       <div
         v-if="variant === 'default'"
-        class="grid gap-10 md:grid-cols-[2fr_repeat(4,minmax(0,1fr))]"
+        class="@tablet:grid-cols-2 @content:grid-cols-[minmax(0,4fr)_minmax(0,5fr)_minmax(0,3.5fr)] @content:gap-12 grid gap-10"
       >
-        <div>
-          <p class="font-heading text-text text-lg font-semibold">{{ data.brand }}</p>
-          <p v-if="data.description" class="text-muted mt-2 max-w-sm text-sm">
+        <div class="max-w-[22rem]">
+          <Link
+            href="/"
+            :as="EldraRouterLink"
+            variant="standalone"
+            :underline="false"
+            :classes="{
+              root: 'inline-flex items-center hover:no-underline active:no-underline',
+              label: 'font-heading text-text text-xl leading-[1.2] font-bold tracking-[-0.015em]',
+            }"
+          >
+            <img
+              v-if="data.brandLogo"
+              :src="data.brandLogo.url"
+              :alt="data.brandText"
+              class="h-10 w-auto max-w-none"
+              loading="eager"
+              decoding="async"
+            />
+            <template v-else>{{ data.brandText }}</template>
+          </Link>
+          <p v-if="data.description" class="text-muted mt-4 text-base leading-relaxed">
             {{ data.description }}
           </p>
-        </div>
-        <div v-for="(group, index) in groups" :key="index">
-          <h2 class="text-text text-sm font-semibold">{{ group.title }}</h2>
-          <ul class="mt-3 space-y-2">
-            <li v-for="(link, linkIndex) in group.links" :key="linkIndex">
-              <Link :href="link.href" :as="link.as" tone="muted" :classes="{ root: 'text-sm' }">{{
-                link.label
-              }}</Link>
+
+          <ul v-if="socialLinks.length > 0" class="mt-6 -ml-3 flex flex-wrap gap-1" role="list">
+            <li v-for="social in socialLinks" :key="social.network">
+              <Button
+                icon-only
+                variant="ghost"
+                :href="social.href"
+                :as="social.as"
+                target="_blank"
+                rel="noopener"
+                :label="socialLinkName(social.network)"
+                :classes="{ container: 'size-11' }"
+              >
+                <template #leadingIcon>
+                  <EldraIcon :name="social.icon" size="md" />
+                </template>
+              </Button>
             </li>
           </ul>
         </div>
-      </div>
-      <div v-else class="text-center">
-        <p class="font-heading text-text text-lg font-semibold">{{ data.brand }}</p>
+
+        <nav
+          v-if="groups.length > 0"
+          :aria-label="t('footer.nav')"
+          class="@tablet:col-span-2 @content:col-span-1"
+        >
+          <div class="@content:grid-cols-3 grid grid-cols-2 gap-x-6 gap-y-8">
+            <div v-for="(group, index) in groups" :key="index">
+              <h3 class="text-text text-base font-semibold">{{ group.title }}</h3>
+              <ul class="mt-2 space-y-1">
+                <li v-for="(link, linkIndex) in group.links" :key="linkIndex">
+                  <Link
+                    :href="link.href"
+                    :as="link.as"
+                    tone="muted"
+                    :underline="false"
+                    :classes="{ root: 'inline-flex min-h-9 items-center text-base' }"
+                    >{{ link.label }}</Link
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </nav>
+
+        <div v-if="showNewsletter" class="@tablet:col-span-2 @content:col-span-1">
+          <template v-if="newsletterState !== 'success'">
+            <FormLayout
+              layout="inline"
+              :heading="data.newsletterTitle || undefined"
+              :heading-level="3"
+              :aria-label="data.newsletterTitle ? undefined : t('footer.newsletterAriaLabel')"
+              :submitting="newsletterState === 'submitting'"
+              @submit="onNewsletterSubmit"
+            >
+              <p
+                v-if="data.newsletterText"
+                class="text-muted mb-1 w-full text-base leading-relaxed"
+              >
+                {{ data.newsletterText }}
+              </p>
+              <div ref="emailFieldRoot" class="contents">
+                <FieldWrapper
+                  :label="t('footer.emailLabel')"
+                  :error="emailError ?? undefined"
+                  :classes="{ label: 'sr-only' }"
+                >
+                  <Input
+                    v-model="email"
+                    type="email"
+                    name="email"
+                    autocomplete="email"
+                    :placeholder="t('footer.emailLabel')"
+                  />
+                </FieldWrapper>
+              </div>
+              <template #actions>
+                <Button type="submit" variant="primary" :label="t('footer.subscribing')">{{
+                  t('footer.subscribe')
+                }}</Button>
+              </template>
+            </FormLayout>
+          </template>
+          <p v-else role="status" class="text-text flex items-center gap-2 text-base">
+            <EldraIcon name="circle-check" size="md" class="text-success" />
+            {{ t('footer.subscribed') }}
+          </p>
+        </div>
       </div>
 
-      <div v-if="slots.newsletter" class="border-border mt-10 border-t pt-8">
-        <slot name="newsletter" />
+      <!-- Minimal variant: brand · flat links · social -->
+      <div v-else class="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+        <Link
+          href="/"
+          :as="EldraRouterLink"
+          variant="standalone"
+          :underline="false"
+          :classes="{
+            root: 'inline-flex items-center hover:no-underline active:no-underline',
+            label: 'font-heading text-text text-xl leading-[1.2] font-bold tracking-[-0.015em]',
+          }"
+        >
+          <img
+            v-if="data.brandLogo"
+            :src="data.brandLogo.url"
+            :alt="data.brandText"
+            class="h-10 w-auto max-w-none"
+            loading="eager"
+            decoding="async"
+          />
+          <template v-else>{{ data.brandText }}</template>
+        </Link>
+
+        <nav v-if="minimalLinks.length > 0" :aria-label="t('footer.nav')">
+          <ul class="flex flex-wrap items-center gap-x-6 gap-y-2" role="list">
+            <li v-for="(link, index) in minimalLinks" :key="index">
+              <Link
+                :href="link.href"
+                :as="link.as"
+                tone="muted"
+                :underline="false"
+                :classes="{ root: 'inline-flex min-h-9 items-center text-base' }"
+                >{{ link.label }}</Link
+              >
+            </li>
+          </ul>
+        </nav>
+
+        <ul v-if="socialLinks.length > 0" class="flex flex-wrap gap-1" role="list">
+          <li v-for="social in socialLinks" :key="social.network">
+            <Button
+              icon-only
+              variant="ghost"
+              :href="social.href"
+              :as="social.as"
+              target="_blank"
+              rel="noopener"
+              :label="socialLinkName(social.network)"
+              :classes="{ container: 'size-11' }"
+            >
+              <template #leadingIcon>
+                <EldraIcon :name="social.icon" size="md" />
+              </template>
+            </Button>
+          </li>
+        </ul>
       </div>
 
+      <!-- Legal row -->
       <div
-        class="border-border text-muted mt-10 flex flex-col gap-4 border-t pt-6 text-sm"
-        :class="
-          variant === 'default'
-            ? 'md:flex-row md:items-center md:justify-between'
-            : 'items-center text-center'
-        "
+        class="border-border text-muted @tablet:flex-row @tablet:items-center @tablet:justify-between mt-12 flex flex-col gap-4 border-t pt-6 text-[0.8125rem] leading-[1.4]"
       >
-        <p>{{ data.legal }}</p>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p v-if="data.legalText">{{ data.legalText }}</p>
+          <ul v-if="legalLinks.length > 0" class="flex flex-wrap gap-x-4 gap-y-2" role="list">
+            <li v-for="(link, index) in legalLinks" :key="index">
+              <Link
+                :href="link.href"
+                :as="link.as"
+                tone="muted"
+                :classes="{ root: 'inline-flex min-h-6 items-center' }"
+                >{{ link.label }}</Link
+              >
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="hasSelectors" class="@tablet:flex-row @tablet:items-center flex flex-col gap-2">
+          <FieldWrapper
+            v-if="showLocale"
+            :label="t('footer.localeLabel')"
+            :classes="{ root: 'w-full @tablet:w-auto', label: 'sr-only' }"
+          >
+            <Select
+              v-model="locale"
+              :options="localeOptions"
+              placement="above"
+              searchable
+              :search-placeholder="t('footer.localeSearchPlaceholder')"
+            />
+          </FieldWrapper>
+          <FieldWrapper
+            v-if="showCurrency"
+            :label="t('footer.currencyLabel')"
+            :classes="{ root: 'w-full @tablet:w-auto', label: 'sr-only' }"
+          >
+            <Select
+              v-model="currency"
+              :options="currencyOptions"
+              placement="above"
+              :searchable="false"
+            />
+          </FieldWrapper>
+        </div>
       </div>
     </Container>
   </Section>
