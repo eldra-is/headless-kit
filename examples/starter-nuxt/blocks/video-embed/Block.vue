@@ -35,11 +35,9 @@
  * trade `cta`'s banner button size and `EmptyState`'s own icon circle already document — with the
  * 0.2rem nudge kept as a literal (no matching spacing token, like `EmptyState`'s `max-w-[36ch]`).
  *
- * **Focus ring.** The spec asks for an inset ring; `app/utils/classes.ts` exports exactly one
- * `focusRing` (an outside ring, `ring-offset-background`) — see that file's own doc comment: every
- * package component now carries its own `eldra-focus`, and the one thing left for a theme to draw
- * itself (this button) gets that single recipe. Used as-is rather than reached around, documented
- * here and in the task report as the resulting visual deviation from the spec's literal geometry.
+ * **Focus ring.** The button fills a rounded, `overflow-hidden` frame, so an outside ring would be
+ * clipped away; it uses `focusRingInset` from `app/utils/classes.ts` — the package's two-tone
+ * `eldra-focus-inset` utility, which stays visible over arbitrary poster imagery.
  */
 import { computed, defineComponent, h, nextTick, ref, watch, type Component } from 'vue';
 import {
