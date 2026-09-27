@@ -334,7 +334,6 @@ const TILE_MEDIA_CLASS =
           v-else
           :ariaLabel="carouselAriaLabel"
           controls="header"
-          counter
           :dots="false"
           draggable
           :per-view="{ base: 1.28, md: 2.25, lg: 3 }"

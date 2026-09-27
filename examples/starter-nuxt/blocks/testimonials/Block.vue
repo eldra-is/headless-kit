@@ -295,7 +295,6 @@ const cardBackgroundClass = computed(() =>
         v-else-if="isCarousel"
         :ariaLabel="carouselAriaLabel"
         controls="below"
-        counter
         :dots="false"
         draggable
         :per-view="{ base: 1.16, md: 2, lg: 3 }"

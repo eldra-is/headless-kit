@@ -208,12 +208,15 @@ describe('testimonials block', () => {
   });
 
   describe('carousel', () => {
-    it('labels the carousel region with the heading and shows the initial slide counter', async () => {
+    it('labels the carousel region with the heading and renders no slide counter', async () => {
       const wrapper = mountBlock({ ...mock, variant: 'carousel' });
       const region = wrapper.get('section[aria-roledescription="carousel"]');
       expect(region.attributes('aria-label')).toBe(mock.heading);
       await nextTick();
-      expect(wrapper.text()).toContain(`1 / ${mock.items.length}`);
+      // Several cards show at once, so a "n / total" counter would read wrong at the track's end
+      // (spec "Carousel" → Product row: no dots and no counter); each slide still carries its own
+      // "n of N" label for assistive technology.
+      expect(wrapper.find('[data-part="counter"]').exists()).toBe(false);
     });
 
     it('renders 12 items as 12 slides', async () => {

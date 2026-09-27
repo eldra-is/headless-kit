@@ -135,7 +135,7 @@ describe('product sample page', () => {
       wrapper.unmount();
     });
 
-    it(`labels slides "n of ${RELATED_COUNT}" and shows a "1 / ${RELATED_COUNT}" counter`, async () => {
+    it(`labels slides "n of ${RELATED_COUNT}" and renders no counter`, async () => {
       const wrapper = await mountProductPage();
       const carousel = wrapper.get('section[aria-roledescription="carousel"]');
       const slides = carousel.findAll('[data-part="slide"]');
@@ -143,8 +143,9 @@ describe('product sample page', () => {
       expect(slides[RELATED_COUNT - 1]!.attributes('aria-label')).toBe(
         `${RELATED_COUNT} of ${RELATED_COUNT}`
       );
-      const counter = carousel.get('[data-part="counter"]');
-      expect(counter.text()).toBe(`1 / ${RELATED_COUNT}`);
+      // A product row shows several cards at once, so no "n / total" counter (spec "Carousel" →
+      // Product row); the slides' own labels carry the position for assistive technology.
+      expect(carousel.find('[data-part="counter"]').exists()).toBe(false);
       wrapper.unmount();
     });
   });

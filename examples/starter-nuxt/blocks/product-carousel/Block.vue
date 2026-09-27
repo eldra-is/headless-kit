@@ -18,7 +18,7 @@
  * view — only the individual prev/next buttons disable at the ends. This block approximates the
  * spec's "when every product fits the view the controls are not rendered" from the resolved
  * product count against the smallest (`base`) `perView` step (`showControls` below, hiding the
- * arrows/counter through the package's own `classes` override), not from real scroll geometry
+ * arrows through the package's own `classes` override), not from real scroll geometry
  * at every width — so a short row keeps its controls at desktop even when nothing scrolls there,
  * which is the safe side of the approximation, kept rather than patching the package component.
  *
@@ -146,7 +146,7 @@ const TRACK_BLEED_CLASSES =
   'scroll-px-[var(--eldra-gutter-mobile)] @tablet:mx-0 @tablet:px-0 @tablet:scroll-px-0';
 const carouselClasses = computed<Partial<Record<CarouselPart, string>>>(() => ({
   track: TRACK_BLEED_CLASSES,
-  ...(showControls.value ? {} : { prev: 'hidden', next: 'hidden', counter: 'hidden' }),
+  ...(showControls.value ? {} : { prev: 'hidden', next: 'hidden' }),
 }));
 
 const perView = computed(() =>
@@ -226,7 +226,6 @@ const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHe
         v-else-if="showCarousel"
         :ariaLabel="carouselAriaLabel"
         controls="header"
-        counter
         :dots="false"
         draggable
         :per-view="perView"
@@ -238,8 +237,10 @@ const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHe
               <!-- The heading itself is the "view all" link: its visible text stays the heading (so
                    the Section this `<h2>` labels keeps that exact name) and the link's own
                    accessible name starts with it and adds `viewAllLabel` + context ("You may also
-                   like — View all products"). A separate link in the same row as the counter and
-                   arrows read as a fourth control. -->
+                   like — View all products"). A separate link in the same row as the arrows read
+                   as a third control. No counter: a product row shows several cards at once, so
+                   "3 / 6" while the track sits at its end reads wrong (spec "Carousel" → Product
+                   row: no dots and no counter). -->
               <Link
                 v-if="hasViewAll && !isRecentlyViewed"
                 :href="viewAllHref!"

@@ -199,7 +199,11 @@ describe('gallery block', () => {
     expect(nextArrow.attributes('disabled')).toBeUndefined();
 
     await track.trigger('keydown', { key: 'ArrowRight' });
-    expect(wrapper.text()).toContain(`2 / ${withImages.items.length}`);
+    // Several tiles show at once, so the row renders no "n / total" counter (spec "Carousel" →
+    // Product row) — the Lightbox further down keeps its own; the move shows through the arrows'
+    // state instead.
+    const carouselRegion = wrapper.get('section[aria-roledescription="carousel"]');
+    expect(carouselRegion.find('[data-part="counter"]').exists()).toBe(false);
     expect(prevArrow.attributes('disabled')).toBeUndefined();
   });
 
