@@ -232,4 +232,11 @@ export const isIS = {
     itemHintLabel: 'Bættu við einstaklingi',
     itemHintHelp: 'Nafn, starf, stutt æviágrip og tenglar',
   },
+  logoCloud: {
+    linkContext: ' (opnar vefsíðu verslunar)',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Til dæmis „Selt hjá“.',
+    itemHintLabel: 'Bættu við merki',
+    itemHintHelp: 'SVG eða PNG, birt í grátónum.',
+  },
 } satisfies Messages;

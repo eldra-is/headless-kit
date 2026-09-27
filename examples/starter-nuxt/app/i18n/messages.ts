@@ -401,6 +401,21 @@ export interface Messages {
     itemHintLabel: string;
     itemHintHelp: string;
   };
+  /**
+   * The logo-cloud block's own strings (spec `02-blocks.md` "Logo cloud"): `linkContext` is the
+   * accessible-name suffix appended to a linked logo's name (`LogoItem`'s own `linkContext` prop —
+   * see `blocks/logo-cloud/Block.vue`), read verbatim so it carries its own leading space; the
+   * other two are the editor-only hints (`EditorPlaceholder`, gated by `useEditing()`) for a
+   * freshly inserted block's empty heading and an empty logo cell (spec → States, "Empty (freshly
+   * inserted)").
+   */
+  logoCloud: {
+    linkContext: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

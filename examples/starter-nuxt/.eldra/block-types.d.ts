@@ -129,6 +129,12 @@ declare global {
       aspect?: 'auto' | '16/9' | '4/3' | '1/1' | '3/4';
       width?: 'narrow' | 'content' | 'wide' | 'full';
     };
+    'logo-cloud': {
+      variant: 'grid' | 'row';
+      heading: string;
+      logos: Array<{ image?: EldraMedia; name: string; linkLabel?: string; href?: string }>;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong';
+    };
     navigation: {
       variant: 'default' | 'centered' | 'minimal';
       brandText: string;

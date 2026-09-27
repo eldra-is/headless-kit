@@ -1,0 +1,15 @@
+{
+  "variant": "grid",
+  "heading": "Stocked by 60 independent shops across the US and Europe",
+  "logos": [
+    { "name": "Hearth & Co.", "href": "https://hearthandco.example" },
+    { "name": "Maple Row", "href": "https://maplerow.example" },
+    { "name": "The Larder", "href": "https://thelarder.example" },
+    { "name": "Fernhill", "href": "https://fernhill.example" },
+    { "name": "kiln & kettle", "href": "https://kilnandkettle.example" },
+    { "name": "Common Room", "href": "https://commonroom.example" },
+    { "name": "Tidewater", "href": "https://tidewater.example" },
+    { "name": "oak/ash", "href": "https://oakash.example" }
+  ],
+  "sectionBackground": "none"
+}

@@ -1,0 +1,80 @@
+{
+  "apiId": "logo-cloud",
+  "name": "Logo cloud",
+  "description": "A quiet, monochrome strip of stockist or press logos that adds credibility without competing with products.",
+  "icon": "building-store",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "grid is the default.",
+      "metadata": { "options": ["grid", "row"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "A short label rendered as an h2, for example \"As featured in\".",
+      "validators": { "required": true, "maxLength": 80 }
+    },
+    {
+      "fieldId": "logos",
+      "name": "Logos",
+      "type": "list",
+      "helpText": "4 to 12. grid looks best with multiples of 4; row with 4 to 6.",
+      "validators": { "required": true },
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Logo",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "image",
+                "name": "Logo image",
+                "type": "media",
+                "helpText": "SVG or transparent PNG. Shown greyscale; the wordmark shows instead when empty.",
+                "metadata": { "multiple": false }
+              },
+              {
+                "fieldId": "name",
+                "name": "Name",
+                "type": "string",
+                "localized": true,
+                "helpText": "Used as the image alt text, and as the wordmark fallback when there is no image.",
+                "validators": { "required": true, "maxLength": 16 }
+              },
+              {
+                "fieldId": "linkLabel",
+                "name": "Link label",
+                "type": "string",
+                "localized": true,
+                "helpText": "Studio-only label for the link below; not shown on the page."
+              },
+              {
+                "fieldId": "href",
+                "name": "Link",
+                "type": "string",
+                "helpText": "Stockist page or article. When set, the logo becomes a link."
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default.",
+      "metadata": { "options": ["none", "surface", "surface-strong"] }
+    }
+  ]
+}

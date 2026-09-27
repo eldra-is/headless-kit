@@ -232,4 +232,11 @@ export const enUS = {
     itemHintLabel: 'Add a person',
     itemHintHelp: 'Name, role, short bio, links',
   },
+  logoCloud: {
+    linkContext: ' (opens shop website)',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'For example, "As stocked by".',
+    itemHintLabel: 'Add a logo',
+    itemHintHelp: 'SVG or PNG, shown in greyscale.',
+  },
 } satisfies Messages;
