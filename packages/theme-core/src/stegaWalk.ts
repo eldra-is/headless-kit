@@ -68,6 +68,7 @@ export function projectEntryDataLocale(
     }
     if (typeof value !== 'object' || value === null) return value;
     if (looksLikeSelectValue(value) && isBlockFieldSelect(currentApiId, path)) return value.value;
+    if (looksLikeCatalogReference(value)) return value;
 
     if (looksLikeEntryDoc(value)) {
       const nestedApiId =
@@ -107,6 +108,31 @@ function looksLikeEntryDoc(v: unknown): v is { id: string; data: Record<string, 
     typeof (v as Record<string, unknown>).data === 'object' &&
     (v as Record<string, unknown>).data !== null &&
     !Array.isArray((v as Record<string, unknown>).data)
+  );
+}
+
+/**
+ * A catalog reference — a product or a collection a `reference` field points at
+ * (`{ id, _type: 'collection', slug, status, productCount, … }`, resolved, or
+ * just `{ id, _type }` at depth 0, for an archived collection, and in a
+ * page-builder draft overlay). It
+ * carries no `data`, so it is never an entry doc, and every field on it is
+ * catalog control data a block looks the thing up by — `slug` above all, which
+ * a theme block hands straight to the storefront. Encoding it would send that
+ * request after a collection nobody has, exactly like an encoded media URL
+ * (`looksLikeMediaAsset`) requests an asset nobody has. `translations` is also
+ * locale-keyed without being one of the theme's own localized fields, so the
+ * locale projection has to leave it whole too.
+ */
+function looksLikeCatalogReference(
+  v: unknown
+): v is { id: string; _type: 'product' | 'collection' } {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  const record = v as Record<string, unknown>;
+  return (
+    typeof record.id === 'string' &&
+    (record._type === 'collection' || record._type === 'product') &&
+    record.data === undefined
   );
 }
 
@@ -238,6 +264,9 @@ export function encodeEntryDataStega(
           ? ((value as Record<string, unknown>).schemaApiId as string)
           : undefined;
       return { ...value, data: encodeEntryDataStega(value.id, value.data, locale, nestedApiId) };
+    }
+    if (looksLikeCatalogReference(value)) {
+      return cloneStructural(value);
     }
     if (looksLikeEntryReference(value)) {
       // Reference identity is structural: encoding it breaks resolved-entry lookup.

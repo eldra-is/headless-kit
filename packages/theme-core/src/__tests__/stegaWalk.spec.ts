@@ -276,6 +276,73 @@ describe('localized preview draft projection', () => {
     expect(decodeStega((encoded.blocks as Array<typeof reference>)[0]!.value).meta).toBeNull();
   });
 
+  /** A resolved catalog reference is an opaque leaf: the theme block looks the
+   *  collection up by its `slug`, and stega's invisible characters inside that
+   *  string would send the storefront after a collection that does not exist —
+   *  exactly the reason hydrated media above is left alone. */
+  it('keeps a resolved collection reference free of stega, single and multiple', () => {
+    const collection = {
+      id: 'c0ffee00-0000-4000-8000-000000000001',
+      _type: 'collection' as const,
+      slug: 'winter-knitwear',
+      status: 'PUBLISHED',
+      type: 'manual',
+      productCount: 48,
+      translations: { 'en-US': { title: 'Winter knitwear' } },
+    };
+
+    const encoded = encodeEntryDataStega(
+      'block-1',
+      { heading: 'Shop the edit', sourceCollection: collection, collections: [collection] },
+      'en-US'
+    );
+
+    expect(encoded.sourceCollection).toEqual(collection);
+    expect(encoded.collections).toEqual([collection]);
+    expect(decodeStega((encoded.sourceCollection as typeof collection).slug).meta).toBeNull();
+    expect((encoded.sourceCollection as typeof collection).slug).toBe('winter-knitwear');
+    // The surrounding editable text is still encoded, so the leaf is opaque
+    // rather than the whole walk having been skipped.
+    expect(decodeStega(encoded.heading as string).meta?.fieldPath).toBe('heading');
+  });
+
+  /** The stub is what depth 0, an archived collection and a page builder draft
+   *  overlay all read as. */
+  it('keeps the depth-0 collection stub and a product reference opaque too', () => {
+    const stub = { id: 'c0ffee00-0000-4000-8000-000000000002', _type: 'collection' as const };
+    const product = {
+      id: 'c0ffee00-0000-4000-8000-000000000003',
+      _type: 'product' as const,
+      slug: 'merino-crew-sweater',
+    };
+
+    const encoded = encodeEntryDataStega('block-1', { stub, product }, 'en-US');
+
+    expect(encoded.stub).toEqual(stub);
+    expect(encoded.product).toEqual(product);
+    expect(decodeStega((encoded.product as typeof product).slug).meta).toBeNull();
+  });
+
+  it('leaves a resolved collection reference whole when projecting a locale', () => {
+    const collection = {
+      id: 'c0ffee00-0000-4000-8000-000000000004',
+      _type: 'collection' as const,
+      slug: 'winter-knitwear',
+      // Locale-keyed, like every other translation map — but this one belongs
+      // to the catalog, not to the theme's own localized fields, so the
+      // projection must not flatten it to the active locale.
+      translations: { 'en-US': { title: 'Winter knitwear' }, 'is-IS': { title: 'Vetrarprjón' } },
+    };
+
+    const projected = projectEntryDataLocale(
+      { heading: { 'en-US': 'Shop the edit' }, sourceCollection: collection },
+      'en-US'
+    );
+
+    expect(projected.sourceCollection).toEqual(collection);
+    expect(projected.heading).toBe('Shop the edit');
+  });
+
   it('keeps hydrated single and multiple media metadata free of stega', () => {
     const cover = {
       assetId: '411ed16c-acd9-449c-84a0-37aa4c0f68a5',

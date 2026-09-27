@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fix: a resolved catalog reference — a product or a collection a `reference` field points at
+  (`{ id, _type: 'collection', slug, … }`, or the depth-0 stub `{ id, _type }`) — is now an opaque
+  leaf in both preview walks. `encodeEntryDataStega` no longer stega-encodes the strings inside it
+  (a theme block hands that `slug` straight to the storefront, and the invisible characters sent
+  the request after a collection nobody has), and `projectEntryDataLocale` no longer mistakes its
+  locale-keyed `translations` map for one of the theme's own localized fields and flattens it to
+  the active locale.
 - Fix: a `block` layout node whose width is measured from its content — `fit-content`, or an
   unset/`auto` width as a flex-row item, or anything but a fixed length inside such a node — no
   longer collapses to 0px. A block's own `@container` root applies inline-size containment, under
