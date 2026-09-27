@@ -6,7 +6,7 @@ import type { Component } from 'vue';
 // `import()` (`test/mocks/blocks.ts`, the `virtual:eldra/blocks` mock `EldraBlockZone` consumes,
 // globs lazily on purpose — a different job, code-split loading for a real site).
 //
-// Shared by `test/support/mountPage.ts` (page-level specs, Tasks 36-39) and
+// Shared by `test/support/mountPage.ts` (the page-level specs) and
 // `stories/pages/*.stories.ts` (the same fixtures rendered as Storybook stories).
 //
 // Lives under `stories/support/` rather than `test/support/` (keeps `test/**` out of the shipped

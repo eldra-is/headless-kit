@@ -10,15 +10,8 @@ import { tablerIconSvg } from '../../server/utils/tablerIcon';
 // type errors out of `nuxi typecheck`).
 import { pageBlockComponents } from '../../stories/support/pageBlocks';
 
-export interface PageFixtureBlock {
-  apiId: string;
-  id: string;
-  data: Record<string, unknown>;
-}
-
-export interface PageFixture {
-  blocks: PageFixtureBlock[];
-}
+// One definition of the fixture shape, shared with the page stories (see `pageBlocks.ts`).
+export type { PageFixture, PageFixtureBlock } from '../../stories/support/pageBlocks';
 
 /**
  * `EldraIcon` (`app/components/EldraIcon.vue`) resolves a Tabler icon name through

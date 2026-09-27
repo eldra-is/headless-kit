@@ -210,7 +210,11 @@ describe('home page (pages/home.page.json)', () => {
     }
   });
 
-  it('has exactly one banner, one main and one contentinfo landmark', async () => {
+  it('has exactly one main, one header block and one footer block', async () => {
+    // The page harness (like `app/pages/[...slug].vue`) renders every block inside `<main>`, where
+    // a `<header>`/`<footer>` is not a banner/contentinfo landmark — so this asserts the page
+    // structure (one of each, no duplicates), not landmark roles. Rendering the header and footer
+    // blocks outside `<main>` is a route-template concern, not a block concern.
     const wrapper = await mountPage(homeFixture);
     const main = wrapper.get('main#main');
 
