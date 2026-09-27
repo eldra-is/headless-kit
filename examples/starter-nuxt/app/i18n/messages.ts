@@ -294,6 +294,51 @@ export interface Messages {
     textHintLabel: string;
     richTextTableLabel: string;
   };
+  /**
+   * The contact block's own strings (spec `02-blocks.md` "Contact and map"): the four editor-only
+   * hints for a freshly inserted block's empty parts (heading, intro, the whole details column,
+   * the whole map area — see `blocks/contact/Block.vue`); the four detail-row labels
+   * (`addressLabel`/`hoursLabel`/`phoneLabel`/`emailLabel`);
+   * the map's fallback `<iframe title>` (with and without a known address); the form's own field
+   * labels, validation messages, submit/help copy and the error summary's count-aware title; the
+   * server-failure and success copy (`serverError`/`successTitle` take `{email}`/`{name}`); and the
+   * two optional-field content defaults (`formTitleDefault`/`successTextDefault`, the design spec's
+   * own fallback text for when an editor leaves those fields empty).
+   */
+  contact: {
+    headingHintLabel: string;
+    headingHintHelp: string;
+    introHintLabel: string;
+    detailsHintLabel: string;
+    detailsHintHelp: string;
+    mapHintLabel: string;
+    mapHintHelp: string;
+    addressLabel: string;
+    hoursLabel: string;
+    phoneLabel: string;
+    emailLabel: string;
+    mapTitle: string;
+    mapTitleWithAddress: string;
+    formTitleDefault: string;
+    nameLabel: string;
+    nameRequiredError: string;
+    emailFieldLabel: string;
+    emailInvalidError: string;
+    orderNumberLabel: string;
+    orderNumberPlaceholder: string;
+    topicLabel: string;
+    messageLabel: string;
+    messageRequiredError: string;
+    sendMessage: string;
+    sending: string;
+    replyTime: string;
+    summaryTitleOne: string;
+    summaryTitleMany: string;
+    serverError: string;
+    successTitle: string;
+    successTextDefault: string;
+    sendAnother: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

@@ -211,10 +211,7 @@ describe('newsletter block', () => {
     });
 
     it('after a backend failure, resubmitting the unchanged email reaches the service again and can succeed', async () => {
-      const results = [
-        { ok: false as const, reason: 'failed' },
-        { ok: true as const },
-      ];
+      const results = [{ ok: false as const, reason: 'failed' }, { ok: true as const }];
       const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const });
       const wrapper = mountNewsletter(mock, { subscribe });
       await submitValidEmail(wrapper, 'reader@example.com');

@@ -35,6 +35,26 @@ declare global {
       showCurrent?: boolean;
       container?: 'wide' | 'content';
     };
+    contact: {
+      variant: 'split' | 'details-only' | 'form-only';
+      heading: string;
+      hideHeading?: boolean;
+      intro?: string;
+      address?: string;
+      hours?: Array<{ days: string; time: string }>;
+      phone?: string;
+      email?: string;
+      mapLinkLabel?: string;
+      mapLinkHref?: string;
+      mapEmbed?: string;
+      mapImage?: EldraMedia;
+      mapNote?: string;
+      formTitle?: string;
+      topics?: Array<{ label: string }>;
+      showOrderNumber?: boolean;
+      recipient: string;
+      successText?: string;
+    };
     cta: {
       variant: 'primary' | 'subtle' | 'split' | 'banner';
       eyebrow?: string;
