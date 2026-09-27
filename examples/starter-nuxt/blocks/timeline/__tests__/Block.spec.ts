@@ -8,9 +8,8 @@ import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 
 /** Timeline has no media fields, so — like `stats`/`faq` — there is no `preview.json` to merge on
- * top of `mock.json`. `mock.json` itself is
- * therefore the block's one full ("merged") content fixture; `bare` below is the genuinely minimal
- * one, only the fields the block requires. */
+ * top of `mock.json`. `mock.json` itself is therefore the block's one full ("merged") content
+ * fixture; `bare` below is the genuinely minimal one, only the fields the block requires. */
 const bare = {
   variant: 'steps',
   heading: 'How it is made',
@@ -18,9 +17,10 @@ const bare = {
 };
 
 /** The auto-generated "VariantHistory" Storybook story is `mock.json` with only `variant`
- * swapped, so its items carry no `year` (spec normalises the copy for Northwind Goods/Portland;
- * see the task report). This fixture is the block's own realistic `history` content, used here to
- * actually exercise the year/marker/axe behaviour that empty years never would. */
+ * swapped, so its items carry no `year` (the Northwind/Portland-normalised copy for this variant
+ * lives in the design spec, not `mock.json`). This fixture is the block's own realistic `history`
+ * content, used here to actually exercise the year/marker/axe behaviour that empty years never
+ * would. */
 const historyItems = [
   {
     year: '2014',
@@ -147,6 +147,74 @@ describe('timeline block', () => {
     const wrapper = mountBlock({ ...mock, items: [mock.items[0]!] });
     expect(wrapper.findAll('li')).toHaveLength(1);
     expect(wrapper.findAll('[data-part="connector"]')).toHaveLength(0);
+  });
+
+  it('sizes the marker to itself, not the full item width, so the connectors anchor correctly', () => {
+    // Regression guard: an earlier version wrapped the marker in an unconstrained <div
+    // class="relative">, which stretched to the item's full single-column track from `@content`
+    // (grid's default `justify-self: stretch`) and became the connectors' own positioning context
+    // — under-reaching the next item below `@content` and drawing a near-full-column-width line
+    // from `@content`. The marker itself must stay pinned to its own box (`justify-self-start`)
+    // and the `<li>` — not the marker — is what the connectors are positioned against.
+    const wrapper = mountBlock({ ...mock, items: [mock.items[0]!, mock.items[1]!] });
+    const li = wrapper.findAll('li')[0]!;
+    const marker = li.element.firstElementChild as HTMLElement;
+    expect(marker.className).toContain('justify-self-start');
+    expect(marker.className).toContain('size-10');
+    // The 1.5px `steps` ring: the spec's own measurement, via the same literal arbitrary-value
+    // utility the package's own CSS uses for this width (no Tailwind border-width scale step is
+    // that fine).
+    expect(marker.className).toContain('border-[1.5px]');
+    // The connectors are the marker's own next siblings on the <li> — never nested inside it.
+    expect(marker.nextElementSibling?.getAttribute('data-part')).toBe('connector');
+  });
+
+  it("pins the connector stub's extent classes at both breakpoints", () => {
+    const wrapper = mountBlock({ ...mock, items: [mock.items[0]!, mock.items[1]!] });
+    const li = wrapper.findAll('li')[0]!;
+    const connectors = li.findAll('[data-part="connector"]');
+    expect(connectors).toHaveLength(2);
+    const [vertical, horizontal] = connectors;
+    // Below `@content`: a line from under the marker (`top-10` = 2.5rem, the `steps` marker's own
+    // height) reaching `bottom-[-2rem]` past the item's own bottom edge into the 2rem item gap —
+    // never a fixed short segment that only reaches as far as the marker's own box.
+    expect(vertical!.classes()).toEqual(
+      expect.arrayContaining([
+        'absolute',
+        'w-px',
+        'bg-border-strong',
+        'top-10',
+        'left-5',
+        'bottom-[-2rem]',
+      ])
+    );
+    expect(vertical!.classes()).toContain('@content:hidden');
+    // From `@content`: a short stub starting 0.75rem after the marker (`@content:left-13` =
+    // 3.25rem = the 2.5rem marker + 0.75rem) and reaching 0.75rem past the item's own right edge
+    // (`@content:-right-3`), into the column gap.
+    expect(horizontal!.classes()).toEqual(
+      expect.arrayContaining(['@content:left-13', '@content:top-5', '@content:-right-3', 'h-px'])
+    );
+    expect(horizontal!.classes()).toContain('hidden');
+    expect(horizontal!.classes()).toContain('@content:block');
+  });
+
+  it('history markers keep the same connector anchoring, sized and offset for the smaller dot', () => {
+    const wrapper = mountBlock({ ...historyMock, items: [historyItems[0]!, historyItems[1]!] });
+    const li = wrapper.findAll('li')[0]!;
+    const marker = li.element.firstElementChild as HTMLElement;
+    expect(marker.className).toContain('justify-self-start');
+    expect(marker.className).toContain('size-4');
+    expect(marker.className).toContain('border-2');
+    const connectors = li.findAll('[data-part="connector"]');
+    const [vertical, horizontal] = connectors;
+    // 1.75rem (the `history` dot's own height) below `@content`; 1rem after the dot from `@content`.
+    expect(vertical!.classes()).toEqual(
+      expect.arrayContaining(['top-7', 'left-2', 'bottom-[-2rem]'])
+    );
+    expect(horizontal!.classes()).toEqual(
+      expect.arrayContaining(['@content:left-7', '@content:top-2', '@content:-right-3'])
+    );
   });
 
   it('renders 12 items as 12, and the last item of a full row keeps its connector stub', () => {

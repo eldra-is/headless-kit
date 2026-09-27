@@ -11,28 +11,40 @@
  *    a bold `accent` year line above each title. `items[].year` is `history`-only — never shown
  *    for `steps`, whatever value it holds.
  *
- * Ring width: the spec calls for a 1.5px ring on the `steps` marker (2px on `history`'s). Neither
- * `@eldrajs/ui`'s `tailwind.css` `@theme` nor its tokens expose a 1.5px border-width scale value —
- * only per-component custom properties inside the package itself, which blocks may not reach into
- * (global constraint: blocks never fork/patch the package). The nearest real Tailwind border
- * utility is the default `border` (1px), used here for `steps`'s ring so it stays visibly thinner
- * than `history`'s `border-2` (2px) — the two are meant to read as different weights, and 1px vs
- * 2px preserves that distinction closer than rounding both to 2px would.
+ * Ring width: the spec calls for a 1.5px ring on the `steps` marker (2px on `history`'s). No
+ * Tailwind border-width scale step is that fine, so — the same recipe `@eldrajs/ui`'s own CSS uses
+ * for this exact 1.5px measurement (see `eldra-checkbox-border`/`eldra-switch-track-border` in
+ * `tailwind.css`) — the marker uses the literal arbitrary-value utility `border-[1.5px]` rather
+ * than rounding to a different number.
  *
  * Layout: below `@content` (64rem) each item is its own 2-column grid, marker beside body — the
  * `grid-cols-1` override from `@content` collapses that to one column, so the *same* two grid
  * children (marker, then body) simply stack via ordinary row auto-placement with no separate
  * "horizontal" template needed. The outer `<ol>` mirrors this: a plain `flex-col` list below
- * `@content`, an N-column grid (from `columns`) above it.
+ * `@content`, an N-column grid (from `columns`) above it. The marker itself carries
+ * `justify-self-start` and its own fixed size (`size-10`/`size-4`) so it never stretches to fill
+ * the item's full-width single-column track from `@content` — only its own small box.
  *
  * Connectors are two separate decorative, `aria-hidden` `<span>`s per item (one for the vertical
  * line used below `@content`, one for the short horizontal stub used from `@content`) rather than
  * one element reused for both: the two geometries share no positioning logic (a full-height line
  * down the marker column vs. a short stub reaching into the column gap at the marker's own
- * mid-height), and each is simply hidden at the breakpoint it doesn't apply to. Neither renders
- * for the last item (spec → Layout, States: "the last item has no connector" in both layouts); a
- * mid-sequence item that happens to sit last in a wrapped row keeps its stub with no extra logic,
- * since only the *overall* last item is excluded.
+ * mid-height), and each is simply hidden at the breakpoint it doesn't apply to. Both are direct
+ * children of the `<li>` itself (which already carries `position: relative`, see `itemClass`) —
+ * not the marker's own small box — precisely so their `top`/`left`/`right`/`bottom` offsets read
+ * against the *item's* full box, not the marker's: the vertical line's `bottom-[-2rem]` needs the
+ * item's real (content-dependent) height to actually reach the 2rem gap before the next item,
+ * whatever the body's height turns out to be, and the horizontal stub's `right` offset needs the
+ * item's own right edge (the column's edge), not a box that happens to be marker-sized. Anchoring
+ * both to the small marker box instead — the bug an earlier version of this file had — left the
+ * vertical line stopping a fixed ~2rem below the marker regardless of body height (under-reaching
+ * the next item whenever a title/text made the row taller, which is nearly always) while leaving
+ * the horizontal stub's endpoint only numerically fine by coincidence — that box happened to also
+ * be stretched to the item's full width by grid's default `justify-self: stretch`, since it was
+ * the single item in a `@content:grid-cols-1` row. Neither connector renders for the last item
+ * (spec → Layout, States: "the last item has no connector" in both layouts); a mid-sequence item
+ * that happens to sit last in a wrapped row keeps its stub with no extra logic, since only the
+ * *overall* last item is excluded.
  *
  * Empty items (spec → States, "Empty (freshly inserted)"): the whole section renders nothing live
  * (same "no required content, no render" rule `faq`/`newsletter` use) and, in the editor, shows the
@@ -124,7 +136,9 @@ const listClass = computed(() => [
 ]);
 
 /** Marker column width below `@content`: 2.5rem (`steps`) or 1rem (`history`); a single column
- *  from `@content`, where marker and body simply stack in DOM order instead. */
+ *  from `@content`, where marker and body simply stack in DOM order instead. `relative` here is
+ *  what the two connector `<span>`s (direct children of the `<li>`, see the template) position
+ *  themselves against — see the module doc comment. */
 const itemClass = computed(() => [
   'relative grid items-start gap-x-4 gap-y-4 @content:grid-cols-1',
   isSteps.value ? 'grid-cols-[2.5rem_1fr]' : 'grid-cols-[1rem_1fr]',
@@ -140,18 +154,26 @@ const bodyClass = computed(() => [
 ]);
 const historyDotClass = computed(() => (isSteps.value ? '' : 'mt-[0.4rem] @content:mt-0'));
 
-/** Vertical connector (below `@content`): a 1px line down the centre of the marker column,
- *  starting under the marker and reaching past the item's own bottom edge into the 2rem gap that
- *  separates it from the next item (spec's own numbers: from 2.5rem for `steps`, 1.75rem for
- *  `history`). */
+/** The marker's own box (a direct grid child of the `<li>`, sized to just itself —
+ * `justify-self-start` so it never stretches to the item's full-width single-column track from
+ * `@content`; see the module doc comment). */
+const markerSelfClass = 'justify-self-start';
+
+/** Vertical connector (below `@content`, positioned against the `<li>` — see the module doc
+ *  comment): a 1px line down the centre of the marker column, starting under the marker
+ *  (`top-10`/`top-7`, spec's own 2.5rem for `steps`, 1.75rem for `history`) and reaching
+ *  `bottom-[-2rem]` past the *item's own* bottom edge — whatever its real height turns out to be —
+ *  into the 2rem gap that separates it from the next item. */
 const verticalConnectorClass = computed(() => [
   'absolute w-px bg-border-strong @content:hidden',
   'bottom-[-2rem]',
   isSteps.value ? 'left-5 top-10' : 'left-2 top-7',
 ]);
 
-/** Horizontal connector (from `@content`): a short 1px stub level with the marker's centre,
- *  starting 0.75rem after the marker and reaching 0.75rem into the column gap. */
+/** Horizontal connector (from `@content`, positioned against the `<li>` — see the module doc
+ *  comment): a short 1px stub level with the marker's centre, starting 0.75rem after the marker
+ *  and reaching `@content:-right-3` (0.75rem) past the *item's own* right edge, into the column
+ *  gap. */
 const horizontalConnectorClass = computed(() => [
   'absolute hidden h-px bg-border-strong @content:block',
   '@content:-right-3',
@@ -187,34 +209,31 @@ const horizontalConnectorClass = computed(() => [
 
       <ol v-if="hasItems" role="list" :class="listClass">
         <li v-for="(item, index) in items" :key="index" :class="itemClass">
-          <div class="relative">
-            <div
-              v-if="isSteps"
-              class="border-text bg-background text-text flex size-10 items-center justify-center rounded-full border"
-            >
-              <span aria-hidden="true" class="text-base font-bold tabular-nums">{{
-                index + 1
-              }}</span>
-            </div>
-            <div
-              v-else
-              aria-hidden="true"
-              class="border-accent bg-background size-4 rounded-full border-2"
-              :class="historyDotClass"
-            />
-            <span
-              v-if="!isLastItem(index)"
-              aria-hidden="true"
-              data-part="connector"
-              :class="verticalConnectorClass"
-            />
-            <span
-              v-if="!isLastItem(index)"
-              aria-hidden="true"
-              data-part="connector"
-              :class="horizontalConnectorClass"
-            />
+          <div
+            v-if="isSteps"
+            :class="markerSelfClass"
+            class="border-text bg-background text-text flex size-10 items-center justify-center rounded-full border-[1.5px]"
+          >
+            <span aria-hidden="true" class="text-base font-bold tabular-nums">{{ index + 1 }}</span>
           </div>
+          <div
+            v-else
+            aria-hidden="true"
+            :class="[markerSelfClass, historyDotClass]"
+            class="border-accent bg-background size-4 rounded-full border-2"
+          />
+          <span
+            v-if="!isLastItem(index)"
+            aria-hidden="true"
+            data-part="connector"
+            :class="verticalConnectorClass"
+          />
+          <span
+            v-if="!isLastItem(index)"
+            aria-hidden="true"
+            data-part="connector"
+            :class="horizontalConnectorClass"
+          />
 
           <div :class="bodyClass">
             <p v-if="hasYear(item)" class="text-accent text-base font-bold tabular-nums">
@@ -230,20 +249,19 @@ const horizontalConnectorClass = computed(() => [
       </ol>
       <ol v-else-if="editing" role="list" :class="listClass">
         <li :class="itemClass">
-          <div class="relative">
-            <div
-              v-if="isSteps"
-              class="border-text bg-background text-text flex size-10 items-center justify-center rounded-full border"
-            >
-              <span aria-hidden="true" class="text-base font-bold tabular-nums">1</span>
-            </div>
-            <div
-              v-else
-              aria-hidden="true"
-              class="border-accent bg-background size-4 rounded-full border-2"
-              :class="historyDotClass"
-            />
+          <div
+            v-if="isSteps"
+            :class="markerSelfClass"
+            class="border-text bg-background text-text flex size-10 items-center justify-center rounded-full border-[1.5px]"
+          >
+            <span aria-hidden="true" class="text-base font-bold tabular-nums">1</span>
           </div>
+          <div
+            v-else
+            aria-hidden="true"
+            :class="[markerSelfClass, historyDotClass]"
+            class="border-accent bg-background size-4 rounded-full border-2"
+          />
           <EditorPlaceholder
             inline
             :label="t('timeline.itemHintLabel')"
