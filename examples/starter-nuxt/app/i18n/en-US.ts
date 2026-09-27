@@ -63,6 +63,14 @@ export const enUS = {
       eur: 'EUR €',
     },
   },
+  hero: {
+    carouselFallback: 'Featured collection',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'Keep it under eight words',
+    subheadingHintLabel: 'Add a subheading (optional)',
+    buttonHintLabel: 'Add a button',
+    imageHintLabel: 'Choose an image',
+  },
   storefront: {
     loading: 'Loading…',
     error: "We couldn't load this right now.",

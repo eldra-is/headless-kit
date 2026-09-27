@@ -80,13 +80,15 @@ describe('starter theme', () => {
     );
     expect(fields).toMatchObject({
       hero: [
+        'variant',
         'eyebrow',
         'heading',
         'subheading',
         'image',
-        'variant',
-        'ctaLabel',
-        'ctaHref',
+        'slides',
+        'spacing',
+        'primaryCtaLabel',
+        'primaryCtaHref',
         'secondaryCtaLabel',
         'secondaryCtaHref',
       ],

@@ -1,10 +1,11 @@
 {
-  "eyebrow": "New season",
-  "heading": "Warm layers for cold mornings",
-  "subheading": "Hand-finished knitwear and everyday essentials, designed for slow mornings at home.",
   "variant": "image-right",
-  "ctaLabel": "Shop the collection",
-  "ctaHref": "/shop/new",
+  "eyebrow": "New season",
+  "heading": "Made slowly, used daily",
+  "subheading": "Merino knits, hand-thrown stoneware and kitchen goods from small workshops. Made to be used every day and kept for years.",
+  "primaryCtaLabel": "Shop new arrivals",
+  "primaryCtaHref": "/collections/new",
   "secondaryCtaLabel": "Our story",
-  "secondaryCtaHref": "/about"
+  "secondaryCtaHref": "/pages/about",
+  "spacing": "md"
 }

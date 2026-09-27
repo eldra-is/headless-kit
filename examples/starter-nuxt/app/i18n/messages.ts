@@ -108,6 +108,21 @@ export interface Messages {
     };
   };
   /**
+   * The hero block's own strings: a fallback accessible name for its `split-carousel` variant's
+   * `Carousel` (used only while `heading` — a required field — is still empty, the same pattern as
+   * `gallery.viewer`/`testimonials.carousel`), and the editor-only hints (`EditorPlaceholder`,
+   * gated by `useEditing()`) for each part of the block that can be empty on a freshly-inserted
+   * page (spec "Hero" → States, "Empty (freshly inserted)" row).
+   */
+  hero: {
+    carouselFallback: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    subheadingHintLabel: string;
+    buttonHintLabel: string;
+    imageHintLabel: string;
+  };
+  /**
    * Shared vocabulary for the commerce blocks built on `app/storefront/*` (design doc
    * §"Storefront source") — a `StorefrontResult.pending`/`error` state or an order's delivery
    * step is the same kind of thing across `collection-grid`, `product-detail`, `search`,

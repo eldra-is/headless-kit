@@ -81,13 +81,15 @@ declare global {
       lightbox?: boolean;
     };
     hero: {
+      variant: 'image-right' | 'image-left' | 'image-background' | 'centered' | 'split-carousel';
       eyebrow?: string;
       heading: string;
       subheading?: string;
       image?: EldraMedia;
-      variant?: 'image-right' | 'image-background' | 'centered';
-      ctaLabel?: string;
-      ctaHref?: string;
+      slides?: Array<{ image: EldraMedia; alt: string; linkLabel?: string; href?: string }>;
+      spacing?: 'md' | 'sm' | 'lg';
+      primaryCtaLabel?: string;
+      primaryCtaHref?: string;
       secondaryCtaLabel?: string;
       secondaryCtaHref?: string;
     };

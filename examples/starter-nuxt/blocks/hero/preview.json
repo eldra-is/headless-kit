@@ -2,6 +2,54 @@
   "image": {
     "assetId": "demo-hero",
     "url": "/demo/hero.svg",
-    "altText": "A cup of coffee beside a folded wool throw"
-  }
+    "altText": "Speckled stoneware serving bowl on a linen cloth",
+    "width": 1600,
+    "height": 1000
+  },
+  "slides": [
+    {
+      "image": {
+        "assetId": "demo-hero-slide-1",
+        "url": "/demo/hero-slide-1.svg",
+        "altText": "Terracotta serving bowl",
+        "width": 1200,
+        "height": 1500
+      },
+      "alt": "Terracotta serving bowl",
+      "href": "/products/serving-bowl"
+    },
+    {
+      "image": {
+        "assetId": "demo-hero-slide-2",
+        "url": "/demo/hero-slide-2.svg",
+        "altText": "Sage glazed mug",
+        "width": 1200,
+        "height": 1500
+      },
+      "alt": "Sage glazed mug",
+      "href": "/products/latte-mug"
+    },
+    {
+      "image": {
+        "assetId": "demo-hero-slide-3",
+        "url": "/demo/hero-slide-3.svg",
+        "altText": "Folded linen napkins",
+        "width": 1200,
+        "height": 1500
+      },
+      "alt": "Folded linen napkins",
+      "href": "/products/linen-napkins"
+    },
+    {
+      "image": {
+        "assetId": "demo-hero-slide-4",
+        "url": "/demo/hero-slide-4.svg",
+        "altText": "Grey stoneware plates",
+        "width": 1200,
+        "height": 1500
+      },
+      "alt": "Grey stoneware plates",
+      "href": "/products/dinner-plates"
+    }
+  ]
 }

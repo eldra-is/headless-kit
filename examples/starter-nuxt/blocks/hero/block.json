@@ -4,12 +4,31 @@
   "description": "Top-of-page banner with heading, supporting text, image and calls to action.",
   "icon": "layout-dashboard",
   "category": "marketing",
-  "version": 1,
+  "version": 2,
+  "migrations": [
+    {
+      "version": 2,
+      "renames": [
+        { "from": "ctaLabel", "to": "primaryCtaLabel" },
+        { "from": "ctaHref", "to": "primaryCtaHref" }
+      ]
+    }
+  ],
   "groups": [
     { "groupId": "content", "name": "Content", "defaultOpen": true },
     { "groupId": "action", "name": "Calls to action" }
   ],
   "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "groupId": "content",
+      "validators": { "required": true },
+      "metadata": {
+        "options": ["image-right", "image-left", "image-background", "centered", "split-carousel"]
+      }
+    },
     {
       "fieldId": "eyebrow",
       "name": "Eyebrow",
@@ -43,20 +62,64 @@
       "metadata": { "multiple": false, "framing": true }
     },
     {
-      "fieldId": "variant",
-      "name": "Variant",
-      "type": "select",
+      "fieldId": "slides",
+      "name": "Slides",
+      "type": "list",
       "groupId": "content",
-      "metadata": { "options": ["image-right", "image-background", "centered"] }
+      "description": "Used by the split-carousel variant only.",
+      "metadata": {
+        "item": {
+          "fieldId": "slide",
+          "name": "Slide",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "image",
+                "name": "Image",
+                "type": "media",
+                "validators": { "required": true },
+                "metadata": { "multiple": false, "framing": true }
+              },
+              {
+                "fieldId": "alt",
+                "name": "Alt text",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "linkLabel",
+                "name": "Link label",
+                "type": "string",
+                "localized": true
+              },
+              { "fieldId": "href", "name": "Link", "type": "string" }
+            ]
+          }
+        }
+      }
     },
     {
-      "fieldId": "ctaLabel",
+      "fieldId": "spacing",
+      "name": "Spacing",
+      "type": "select",
+      "groupId": "content",
+      "metadata": { "options": ["md", "sm", "lg"] }
+    },
+    {
+      "fieldId": "primaryCtaLabel",
       "name": "Button label",
       "type": "string",
       "groupId": "action",
       "localized": true
     },
-    { "fieldId": "ctaHref", "name": "Button link", "type": "string", "groupId": "action" },
+    {
+      "fieldId": "primaryCtaHref",
+      "name": "Button link",
+      "type": "string",
+      "groupId": "action"
+    },
     {
       "fieldId": "secondaryCtaLabel",
       "name": "Secondary button label",

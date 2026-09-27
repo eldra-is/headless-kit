@@ -32,6 +32,12 @@ export const VariantImageRight: Story = {
   },
 };
 
+export const VariantImageLeft: Story = {
+  args: {
+    entry: { id: "hero", data: { ...base, "variant": "image-left" } },
+  },
+};
+
 export const VariantImageBackground: Story = {
   args: {
     entry: { id: "hero", data: { ...base, "variant": "image-background" } },
@@ -41,5 +47,29 @@ export const VariantImageBackground: Story = {
 export const VariantCentered: Story = {
   args: {
     entry: { id: "hero", data: { ...base, "variant": "centered" } },
+  },
+};
+
+export const VariantSplitCarousel: Story = {
+  args: {
+    entry: { id: "hero", data: { ...base, "variant": "split-carousel" } },
+  },
+};
+
+export const SpacingMd: Story = {
+  args: {
+    entry: { id: "hero", data: { ...base, "spacing": "md" } },
+  },
+};
+
+export const SpacingSm: Story = {
+  args: {
+    entry: { id: "hero", data: { ...base, "spacing": "sm" } },
+  },
+};
+
+export const SpacingLg: Story = {
+  args: {
+    entry: { id: "hero", data: { ...base, "spacing": "lg" } },
   },
 };

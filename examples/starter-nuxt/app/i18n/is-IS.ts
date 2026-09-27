@@ -63,6 +63,14 @@ export const isIS = {
       eur: 'EUR €',
     },
   },
+  hero: {
+    carouselFallback: 'Úrval í verslun',
+    headingHintLabel: 'Bæta við fyrirsögn',
+    headingHintHelp: 'Hafðu hana undir átta orðum',
+    subheadingHintLabel: 'Bæta við undirfyrirsögn (valfrjálst)',
+    buttonHintLabel: 'Bæta við hnappi',
+    imageHintLabel: 'Veldu mynd',
+  },
   storefront: {
     loading: 'Hleð…',
     error: 'Ekki tókst að sækja þetta núna.',
