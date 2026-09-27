@@ -644,6 +644,87 @@ export interface Messages {
     noCollectionLabel: string;
     noCollectionHelp: string;
   };
+  /**
+   * The product-detail block's own strings (spec `02-blocks.md` "Product detail"). Everything the
+   * block *writes* lives here; the product's own title, price, options and images are storefront
+   * data, and the picker legends, stepper button names, sale/regular price labels and the
+   * lightbox's arrows/counter/close are `@eldrajs/ui`'s own vocabulary (`useMessages`).
+   *
+   * The four stock states are `inStock`, `lowStock*`, `soldOut*` and `backorder*`: each of the
+   * last three comes in a plain and an `…In` form (Icelandic inflects around the variant name, so
+   * "in {variant}" cannot be appended to one template), and low stock is pluralised the way
+   * `header.cartOne`/`cartMany` are. `restockNote`/`backorderNote` are the explanatory lines under
+   * the sold-out and back-order states. `hintLabel`/`hintHelp` are the editor-only placeholder
+   * (`useEditing()`) for a block inserted outside a product template with no product picked.
+   */
+  product: {
+    /** The category trail's `<nav aria-label>`. */
+    breadcrumb: string;
+    /** The gallery group's accessible name. */
+    images: string;
+    /** The information column's accessible name. */
+    information: string;
+    /** The tab list's accessible name. */
+    tabsLabel: string;
+    /** The zoom button's accessible name ("Zoom image 1 of 5"). */
+    zoom: string;
+    /** The `Lightbox`'s accessible name ("Merino crew sweater, images"). */
+    viewer: string;
+    /** A thumbnail button's accessible name ("Show image 2 of 5: …"). */
+    showImage: string;
+    /** The `aria-hidden` index pill over the main image ("1 / 5"). */
+    imageIndex: string;
+    /** The sale flag over the main image. */
+    saleBadge: string;
+    /** The computed saving badge ("Save $32") — the amount is never typed in. */
+    saving: string;
+    /** The tax and shipping line under the price. */
+    taxNote: string;
+    /** Fallback text for the size-guide link when the author left the label empty. */
+    sizeGuide: string;
+    /** The quantity field's visible label. */
+    quantity: string;
+    /** The main button, with the current price ("Add to cart · $96.00"). */
+    addToCart: string;
+    /** The main button when the selected variant is sold out. */
+    notifyMe: string;
+    /** The main button for a made-to-order product. */
+    backorder: string;
+    /** The wishlist toggle's accessible name while the product is not saved. */
+    saveToWishlist: string;
+    /** The wishlist toggle's accessible name while it is saved. */
+    removeFromWishlist: string;
+    inStock: string;
+    lowStockOne: string;
+    lowStockMany: string;
+    lowStockOneIn: string;
+    lowStockManyIn: string;
+    soldOut: string;
+    soldOutIn: string;
+    backorderShips: string;
+    /** Back-order with no ship date from the store yet. */
+    backorderPending: string;
+    restockNote: string;
+    backorderNote: string;
+    /** The back-in-stock dialog's title. */
+    notifyTitle: string;
+    /** The dialog's one field. */
+    notifyEmail: string;
+    /** The dialog's submit button. */
+    notifySubmit: string;
+    /** Shown for a malformed address, before anything is sent. */
+    notifyInvalid: string;
+    /** `catalog.notifyBackInStock` answered `{ok: false, reason: 'unsupported'}`. */
+    notifyUnsupported: string;
+    /** The dialog's confirmation. */
+    notifySuccess: string;
+    /** The quick-add bar's `role="region"` name. */
+    quickAdd: string;
+    /** The quick-add bar's second line ("Oat / M · $96.00"). */
+    quickAddMeta: string;
+    hintLabel: string;
+    hintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

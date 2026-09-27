@@ -241,6 +241,20 @@ declare global {
       showSwatches?: boolean;
       background?: 'none' | 'surface';
     };
+    'product-detail': {
+      productHandle?: string;
+      variant: 'gallery-left' | 'gallery-right';
+      showRating?: boolean;
+      showQuantity?: boolean;
+      showWishlist?: boolean;
+      lowStockThreshold?: 'off' | '3' | '5' | '10';
+      perks?: Array<{ icon: 'truck' | 'arrow-back-up' | 'leaf' | 'shield-check' | 'gift'; title: string; text?: string }>;
+      tabs?: Array<{ label: string; body: RichTextNode }>;
+      sizeGuideLabel?: string;
+      sizeGuideHref?: string;
+      stickyBar?: boolean;
+      showCategory?: boolean;
+    };
     quote: {
       variant: 'centered' | 'with-image';
       quote: string;

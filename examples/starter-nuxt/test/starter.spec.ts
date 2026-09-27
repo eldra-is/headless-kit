@@ -41,6 +41,7 @@ const expectedBlocks = [
   'newsletter',
   'pricing-table',
   'product-carousel',
+  'product-detail',
   'quote',
   'rich-text',
   'split-content',
@@ -339,6 +340,20 @@ describe('starter theme', () => {
         'showColumnSelect',
         'emptyTitle',
         'emptyText',
+      ],
+      'product-detail': [
+        'productHandle',
+        'variant',
+        'showRating',
+        'showQuantity',
+        'showWishlist',
+        'lowStockThreshold',
+        'perks',
+        'tabs',
+        'sizeGuideLabel',
+        'sizeGuideHref',
+        'stickyBar',
+        'showCategory',
       ],
     });
 

@@ -4383,6 +4383,323 @@
       "previewImage": ".eldra/previews/product-carousel.png"
     },
     {
+      "apiId": "product-detail",
+      "name": "Product detail",
+      "description": "The product page's buy box: gallery, title, price, rating, variant pickers, quantity, add to cart, honest stock status, delivery notes and description tabs, plus a quick-add bar on narrow widths.",
+      "icon": "shirt",
+      "category": "commerce",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "productHandle",
+          "name": "Product",
+          "type": "string",
+          "helpText": "Leave empty on a product template — the route supplies it.",
+          "description": "Pick one by hand for a featured-product landing section."
+        },
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "gallery-left is the default. gallery-right mirrors the two columns visually; the reading order stays gallery then information.",
+          "metadata": {
+            "options": [
+              "gallery-left",
+              "gallery-right"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "showRating",
+          "name": "Show rating",
+          "type": "bool",
+          "default": true,
+          "helpText": "Hidden anyway when the product has fewer than 3 reviews."
+        },
+        {
+          "fieldId": "showQuantity",
+          "name": "Show quantity",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "fieldId": "showWishlist",
+          "name": "Show wishlist",
+          "type": "bool",
+          "default": true,
+          "helpText": "Off: Add to cart fills the row alone."
+        },
+        {
+          "fieldId": "lowStockThreshold",
+          "name": "Low stock threshold",
+          "type": "select",
+          "helpText": "\"Only N left\" shows only when real inventory is at or below this number. off never shows it.",
+          "metadata": {
+            "options": [
+              "off",
+              "3",
+              "5",
+              "10"
+            ]
+          }
+        },
+        {
+          "fieldId": "perks",
+          "name": "Perks",
+          "type": "list",
+          "helpText": "Delivery and returns notes under the buy button. 2 work best.",
+          "metadata": {
+            "item": {
+              "fieldId": "perk",
+              "name": "Perk",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "icon",
+                    "name": "Icon",
+                    "type": "select",
+                    "metadata": {
+                      "options": [
+                        "truck",
+                        "arrow-back-up",
+                        "leaf",
+                        "shield-check",
+                        "gift"
+                      ]
+                    },
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "title",
+                    "name": "Title",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "For example \"Free delivery over $80.\"",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "text",
+                    "name": "Text",
+                    "type": "text",
+                    "localized": true,
+                    "helpText": "One line. Delivery dates come from the shipping API, so keep this general."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "tabs",
+          "name": "Tabs",
+          "type": "list",
+          "helpText": "Details, Shipping and Returns by default.",
+          "metadata": {
+            "item": {
+              "fieldId": "tab",
+              "name": "Tab",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Tab text, 1 to 3 words.",
+                    "validators": {
+                      "required": true,
+                      "maxLength": 24
+                    }
+                  },
+                  {
+                    "fieldId": "body",
+                    "name": "Body",
+                    "type": "rich-text",
+                    "localized": true,
+                    "helpText": "Paragraphs, lists, bold and links. The Details tab usually repeats the product description.",
+                    "metadata": {
+                      "toolbar": [
+                        "bold",
+                        "italic",
+                        "link",
+                        "bulletList",
+                        "orderedList",
+                        "undo",
+                        "redo"
+                      ]
+                    },
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "sizeGuideLabel",
+          "name": "Size guide label",
+          "type": "string",
+          "localized": true,
+          "helpText": "Shows the link next to the Size legend. Needs a link URL too."
+        },
+        {
+          "fieldId": "sizeGuideHref",
+          "name": "Size guide URL",
+          "type": "string"
+        },
+        {
+          "fieldId": "stickyBar",
+          "name": "Quick add bar",
+          "type": "bool",
+          "default": true,
+          "helpText": "Shows the quick-add bar below 48rem once the main button has scrolled away."
+        },
+        {
+          "fieldId": "showCategory",
+          "name": "Show category trail",
+          "type": "bool",
+          "default": true,
+          "helpText": "Turn it off when the page already has a Breadcrumbs block, so the trail never shows twice."
+        }
+      ],
+      "mock": {
+        "productHandle": "merino-crew-sweater",
+        "variant": "gallery-left",
+        "showRating": true,
+        "showQuantity": true,
+        "showWishlist": true,
+        "lowStockThreshold": "3",
+        "perks": [
+          {
+            "icon": "truck",
+            "title": "Free delivery over $80.",
+            "text": "Order today, arrives Tue 29 Sep to Thu 1 Oct."
+          },
+          {
+            "icon": "arrow-back-up",
+            "title": "Free 30-day returns.",
+            "text": "Unworn, with tags, no questions asked."
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Details",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk."
+                    }
+                  ]
+                },
+                {
+                  "type": "bulletList",
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "100% extra-fine Merino wool, 17.5 micron"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Hand wash cold or wool cycle, dry flat"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Model is 180 cm and wears size M"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "label": "Shipping",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Free over $80."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "label": "Returns",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "30 days to send anything back unworn, with the prepaid label in your parcel. US returns are free."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "sizeGuideLabel": "Size guide",
+        "sizeGuideHref": "/pages/size-guide",
+        "stickyBar": true,
+        "showCategory": true
+      },
+      "previewImage": ".eldra/previews/product-detail.png"
+    },
+    {
       "apiId": "quote",
       "name": "Quote",
       "description": "One large pull quote from the founder, a maker or the press, with attribution and an optional portrait. For several customer reviews, use Testimonials.",
