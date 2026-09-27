@@ -24,7 +24,7 @@ const fixture = productPage as unknown as PageFixture;
 /** From `app/storefront/demo.ts` — see the module comment above. */
 const RELATED_COUNT = 6;
 
-/** The Task 32 "no fake urgency" guard (`blocks/product-detail/__tests__/Block.spec.ts`), applied
+/** The product-detail block's own "no fake urgency" guard (`blocks/product-detail/__tests__/Block.spec.ts`), applied
  *  here over the whole rendered page rather than one block. */
 const URGENCY_PATTERN = /\d+ (people|viewing)|only today|hurry/i;
 
