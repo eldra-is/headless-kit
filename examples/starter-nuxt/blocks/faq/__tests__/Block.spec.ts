@@ -78,6 +78,8 @@ describe('faq block', () => {
     for (const item of mock.items) expect(wrapper.text()).toContain(item.question);
     expect(wrapper.text()).toContain(mock.contactText);
     expect(wrapper.text()).toContain(mock.contactLinkLabel);
+    // The lead-in and the link are one sentence: a space must separate them.
+    expect(wrapper.text()).toContain(`${mock.contactText} ${mock.contactLinkLabel}`);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 

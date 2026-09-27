@@ -146,7 +146,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
           <p v-if="hasIntro" class="text-muted text-body-lg">{{ intro }}</p>
           <EditorPlaceholder v-else-if="showIntroHint" inline :label="t('faq.introHintLabel')" />
           <p v-if="hasContactLink" class="text-muted text-base">
-            <template v-if="contactText">{{ contactText }} </template>
+            {{ contactText }}
             <Link
               :href="contactHref!"
               :as="contactLinkAs"
@@ -223,7 +223,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
         </div>
 
         <p v-if="hasContactLink" class="text-muted mt-8 text-center text-base">
-          <template v-if="contactText">{{ contactText }} </template>
+          {{ contactText }}
           <Link
             :href="contactHref!"
             :as="contactLinkAs"
