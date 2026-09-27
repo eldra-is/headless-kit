@@ -1,49 +1,14 @@
-import { defineComponent, h, nextTick, type Component } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { mountOptions } from './mountBlock';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../app/composables/iconFetcher';
 import { tablerIconSvg } from '../../server/utils/tablerIcon';
-
-// A static map, not `import.meta.glob`/dynamic `import()`: a sample-page
-// fixture's blocks must be available synchronously at `mount()` time (no
-// `await` between resolving each apiId and rendering it), and
-// `test/deps.spec.ts` scans this file's import specifiers statically — see
-// task-2-brief.md step 6. `test/mocks/blocks.ts` (the `virtual:eldra/blocks`
-// mock `EldraBlockZone` consumes) globs lazily on purpose, mirroring a real
-// site's code-split block loading; this map exists for a different job —
-// rendering a fixed, known page fixture — so it stays a plain object a
-// later page task extends by adding one import + one entry per block it
-// introduces (`test/support/mountPage.ts` is a Task 2 + 36–39 shared file,
-// see the design doc's file-structure table).
-import Article from '../../blocks/article/Block.vue';
-import ArticleList from '../../blocks/article-list/Block.vue';
-import Breadcrumbs from '../../blocks/breadcrumbs/Block.vue';
-import Cta from '../../blocks/cta/Block.vue';
-import Faq from '../../blocks/faq/Block.vue';
-import FeatureGrid from '../../blocks/feature-grid/Block.vue';
-import Footer from '../../blocks/footer/Block.vue';
-import Gallery from '../../blocks/gallery/Block.vue';
-import Hero from '../../blocks/hero/Block.vue';
-import ImageBlock from '../../blocks/image/Block.vue';
-import Navigation from '../../blocks/navigation/Block.vue';
-import Newsletter from '../../blocks/newsletter/Block.vue';
-import Testimonials from '../../blocks/testimonials/Block.vue';
-
-const blockComponents: Record<string, Component> = {
-  article: Article,
-  'article-list': ArticleList,
-  breadcrumbs: Breadcrumbs,
-  cta: Cta,
-  faq: Faq,
-  'feature-grid': FeatureGrid,
-  footer: Footer,
-  gallery: Gallery,
-  hero: Hero,
-  image: ImageBlock,
-  navigation: Navigation,
-  newsletter: Newsletter,
-  testimonials: Testimonials,
-};
+// The apiId → Block.vue map lives in `stories/support/pageBlocks.ts`, shared with
+// `stories/pages/*.stories.ts` — see that file's own doc comment for why it
+// is not declared here directly (keeping `test/**` out of the shipped
+// Storybook build) and not under `app/utils/` (keeping blocks' own template
+// type errors out of `nuxi typecheck`).
+import { pageBlockComponents } from '../../stories/support/pageBlocks';
 
 export interface PageFixtureBlock {
   apiId: string;
@@ -74,8 +39,14 @@ const stubIconFetcher: IconFetcher = async (name) => tablerIconSvg(name);
  * messages/locale/currency a real page and `mountBlock.ts`'s `mountOptions`
  * already provide, so a page-level spec sees exactly what a single-block
  * spec does, just with several blocks rendered together.
+ *
+ * `options.attachTo` forwards to `mount()` — needed by any spec that asserts real focus movement
+ * (`document.activeElement`), which jsdom only tracks for elements connected to `document`.
  */
-export async function mountPage(fixture: PageFixture): Promise<VueWrapper> {
+export async function mountPage(
+  fixture: PageFixture,
+  options: { attachTo?: Element } = {}
+): Promise<VueWrapper> {
   const Page = defineComponent({
     name: 'MountPageHarness',
     setup() {
@@ -84,11 +55,11 @@ export async function mountPage(fixture: PageFixture): Promise<VueWrapper> {
           'main',
           { id: 'main' },
           fixture.blocks.map((block) => {
-            const component = blockComponents[block.apiId];
+            const component = pageBlockComponents[block.apiId];
             if (component === undefined) {
               throw new Error(
                 `mountPage: no Block.vue registered for apiId "${block.apiId}" — add an import ` +
-                  'and a map entry to test/support/mountPage.ts.'
+                  'and a map entry to stories/support/pageBlocks.ts.'
               );
             }
             return h(component, {
@@ -102,7 +73,7 @@ export async function mountPage(fixture: PageFixture): Promise<VueWrapper> {
 
   const { global } = mountOptions({ entry: { id: '', data: {} } });
   global.provide[ICON_FETCHER_KEY] = stubIconFetcher;
-  const wrapper = mount(Page, { global });
+  const wrapper = mount(Page, { global, ...options });
   await nextTick();
   return wrapper;
 }
