@@ -63,6 +63,12 @@ describe('product-detail stock line', () => {
     });
   });
 
+  it('stays a back-order for a made-to-order product that tracks zero units on hand', () => {
+    const line = deriveStockLine({ ...base, stock: 'preorder', inventory: 0 });
+    expect(line.state).toBe('backorder');
+    expect(line.level).toBe('preorder');
+  });
+
   it('falls back to the undated back-order wording with no ship date', () => {
     const line = deriveStockLine({ ...base, stock: 'preorder', shipsBy: null });
     expect(line.key).toBe('product.backorderPending');

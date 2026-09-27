@@ -90,7 +90,9 @@ export function deriveStockLine(input: StockLineInput): StockLine {
   const named = variantLabel !== NO_VARIANT;
   const max = inventory !== null && inventory > 0 ? inventory : UNTRACKED_MAX;
 
-  if (!variantAvailable || stock === 'out' || inventory === 0) {
+  // A made-to-order product legitimately tracks zero units on hand: `preorder` is decided before
+  // the zero-inventory rule so it never reads as sold out.
+  if (!variantAvailable || stock === 'out' || (inventory === 0 && stock !== 'preorder')) {
     return {
       state: 'out',
       tone: 'danger',

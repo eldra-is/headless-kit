@@ -87,6 +87,7 @@ onBeforeUnmount(() => {
     <Button
       type="button"
       variant="primary"
+      size="lg"
       :loading="pending"
       :label="actionLabel"
       class="shrink-0"
