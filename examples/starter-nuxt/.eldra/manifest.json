@@ -6309,7 +6309,7 @@
                     "name": "Meta",
                     "type": "string",
                     "localized": true,
-                    "helpText": "Location and/or product, e.g. \"Sheffield · Speckled latte mug\"."
+                    "helpText": "Location and/or product, e.g. \"Portland, OR · Speckled latte mug\"."
                   },
                   {
                     "fieldId": "avatar",

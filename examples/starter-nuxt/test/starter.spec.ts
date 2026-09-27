@@ -722,14 +722,14 @@ describe('starter theme', () => {
   });
 });
 
-/** Every shipped `.vue` under one block directory (never its `__tests__/`). */
+/** Every shipped `.vue` and `.ts` module under one block directory (never its `__tests__/`). */
 function blockSourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === '__tests__') continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...blockSourceFiles(full));
-    else if (entry.name.endsWith('.vue')) out.push(full);
+    else if (entry.name.endsWith('.vue') || entry.name.endsWith('.ts')) out.push(full);
   }
   return out;
 }
