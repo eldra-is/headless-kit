@@ -305,4 +305,13 @@ export const enUS = {
     itemsHintLabel: 'Showing your latest stories',
     itemsHintHelp: 'Choose a source: all stories, one category or a hand-picked list.',
   },
+  collection: {
+    readMore: 'Read more',
+    readLess: 'Read less',
+    countOne: '1 product',
+    countMany: '{count} products',
+    subcollections: 'Sub-collections',
+    titleHintLabel: 'Add a title',
+    titleHintHelp: 'Falls back to the collection title from the store',
+  },
 } satisfies Messages;

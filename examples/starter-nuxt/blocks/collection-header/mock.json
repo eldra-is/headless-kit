@@ -1,0 +1,29 @@
+{
+  "variant": "image",
+  "collectionHandle": "the-winter-edit",
+  "title": "Winter knitwear",
+  "showCount": true,
+  "showBreadcrumb": true,
+  "trail": [{ "label": "Shop", "href": "/collections" }],
+  "description": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Heavy-gauge knits for the cold months, spun from Merino and lambswool in two family mills in Biella and the Scottish Borders. Every piece is knitted to order in small runs, finished by hand and washed once before it ships so it arrives soft. We keep the colours earthy and the shapes simple, so a sweater you buy this winter still looks right in ten years. Mending is free for the first two years."
+          }
+        ]
+      }
+    ]
+  },
+  "subcollections": [
+    { "label": "All", "href": "/collections/winter-knitwear", "current": true },
+    { "label": "Sweaters", "href": "/collections/sweaters" },
+    { "label": "Cardigans", "href": "/collections/cardigans" },
+    { "label": "Hats & scarves", "href": "/collections/hats-scarves" },
+    { "label": "Throws", "href": "/collections/throws" }
+  ]
+}

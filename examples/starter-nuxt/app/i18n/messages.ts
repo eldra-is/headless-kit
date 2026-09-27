@@ -550,6 +550,26 @@ export interface Messages {
     itemsHintLabel: string;
     itemsHintHelp: string;
   };
+  /**
+   * The collection header block's own strings (spec `02-blocks.md` "Collection header"):
+   * `readMore`/`readLess` label the description's disclosure button; `countOne`/`countMany`
+   * follow the same pluralisation shape as `header.cartOne`/`cartMany` for the store's live
+   * product count ("1 product" / "{count} products" — the count itself always comes from
+   * `useStorefront().catalog.collection()`, never a field); `subcollections` is the accessible
+   * name of the sub-collection pill list. `titleHintLabel`/`titleHintHelp` are the one editor-only
+   * hint this block needs (`EditorPlaceholder`, gated by `useEditing()`): the title otherwise
+   * always resolves from the field or the store, so this only shows when neither has anything at
+   * all (e.g. a block with no bound collection and no title of its own).
+   */
+  collection: {
+    readMore: string;
+    readLess: string;
+    countOne: string;
+    countMany: string;
+    subcollections: string;
+    titleHintLabel: string;
+    titleHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

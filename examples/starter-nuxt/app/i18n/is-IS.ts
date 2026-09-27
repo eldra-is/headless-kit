@@ -306,4 +306,13 @@ export const isIS = {
     itemsHintLabel: 'Sýnir nýjustu sögurnar',
     itemsHintHelp: 'Veldu heimild: allar sögur, einn flokk eða handvalinn lista.',
   },
+  collection: {
+    readMore: 'Sjá meira',
+    readLess: 'Sjá minna',
+    countOne: '1 vara',
+    countMany: '{count} vörur',
+    subcollections: 'Undirflokkar',
+    titleHintLabel: 'Bættu við titli',
+    titleHintHelp: 'Fellur sjálfgefið til baka í titil safnsins',
+  },
 } satisfies Messages;

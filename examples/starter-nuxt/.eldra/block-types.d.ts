@@ -63,6 +63,17 @@ declare global {
       showCurrent?: boolean;
       container?: 'wide' | 'content';
     };
+    'collection-header': {
+      collectionHandle?: string;
+      variant: 'image' | 'text-only';
+      title?: string;
+      description?: RichTextNode;
+      image?: EldraMedia;
+      showCount?: boolean;
+      showBreadcrumb?: boolean;
+      trail?: Array<{ label: string; href: string }>;
+      subcollections?: Array<{ label: string; href: string; current?: boolean }>;
+    };
     contact: {
       variant: 'split' | 'details-only' | 'form-only';
       heading: string;
