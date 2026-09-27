@@ -4112,6 +4112,200 @@
       "previewImage": ".eldra/previews/newsletter.png"
     },
     {
+      "apiId": "order-status",
+      "name": "Order status",
+      "description": "The order confirmation and tracking page: order number and date, a status badge, a delivery tracker, the items and totals, the delivery address, payment and help links. Order data is bound at runtime; editors fill in only the copy.",
+      "icon": "package",
+      "category": "commerce",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "Reserved. The state comes from the order, not from a field.",
+          "metadata": {
+            "options": [
+              "default"
+            ]
+          }
+        },
+        {
+          "fieldId": "processingTitle",
+          "name": "Processing title",
+          "type": "string",
+          "localized": true,
+          "default": "We're packing your order",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "processingText",
+          "name": "Processing text",
+          "type": "text",
+          "localized": true,
+          "default": "Most orders leave our Portland studio within 2 business days. We'll email your tracking link as soon as it ships."
+        },
+        {
+          "fieldId": "shippedTitle",
+          "name": "Shipped title",
+          "type": "string",
+          "localized": true,
+          "default": "On its way",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "deliveredTitle",
+          "name": "Delivered title",
+          "type": "string",
+          "localized": true,
+          "default": "Delivered on {date}",
+          "helpText": "{date} is replaced with the delivery date.",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "deliveredText",
+          "name": "Delivered text",
+          "type": "text",
+          "localized": true,
+          "default": "Something not right? You have 30 days to start a return."
+        },
+        {
+          "fieldId": "delayedTitle",
+          "name": "Delayed title",
+          "type": "string",
+          "localized": true,
+          "default": "Running a little late",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "cancelledTitle",
+          "name": "Cancelled title",
+          "type": "string",
+          "localized": true,
+          "default": "This order was cancelled",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "returnLinkLabel",
+          "name": "Return link label",
+          "type": "string",
+          "localized": true,
+          "default": "Start a return",
+          "helpText": "The Delivered call to action, and a help link."
+        },
+        {
+          "fieldId": "returnLinkHref",
+          "name": "Return link URL",
+          "type": "string",
+          "default": "/pages/returns"
+        },
+        {
+          "fieldId": "shopAgainLinkLabel",
+          "name": "Shop again link label",
+          "type": "string",
+          "localized": true,
+          "default": "Shop again",
+          "helpText": "The Cancelled call to action."
+        },
+        {
+          "fieldId": "shopAgainLinkHref",
+          "name": "Shop again link URL",
+          "type": "string",
+          "default": "/collections/all"
+        },
+        {
+          "fieldId": "helpLinks",
+          "name": "Help links",
+          "type": "list",
+          "helpText": "Up to 4.",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Help link",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Link URL",
+                    "type": "string",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "icon",
+                    "name": "Icon",
+                    "type": "select",
+                    "metadata": {
+                      "options": [
+                        "mail",
+                        "arrow-back-up",
+                        "info-circle",
+                        "phone",
+                        "truck"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "variant": "default",
+        "processingTitle": "We're packing your order",
+        "processingText": "Most orders leave our Portland studio within 2 business days. We'll email your tracking link as soon as it ships.",
+        "shippedTitle": "On its way",
+        "deliveredTitle": "Delivered on {date}",
+        "deliveredText": "Something not right? You have 30 days to start a return.",
+        "delayedTitle": "Running a little late",
+        "cancelledTitle": "This order was cancelled",
+        "returnLinkLabel": "Start a return",
+        "returnLinkHref": "/pages/returns",
+        "shopAgainLinkLabel": "Shop again",
+        "shopAgainLinkHref": "/collections/all",
+        "helpLinks": [
+          {
+            "label": "Contact us",
+            "href": "/pages/contact",
+            "icon": "mail"
+          },
+          {
+            "label": "Start a return",
+            "href": "/pages/returns",
+            "icon": "arrow-back-up"
+          },
+          {
+            "label": "Shipping & delivery FAQ",
+            "href": "/pages/shipping",
+            "icon": "info-circle"
+          }
+        ]
+      },
+      "previewImage": ".eldra/previews/order-status.png"
+    },
+    {
       "apiId": "pricing-table",
       "name": "Pricing table",
       "description": "Side-by-side subscription or service plans, each with a price, billing note, a call to action and a checklist of feature rows. One plan can be highlighted.",

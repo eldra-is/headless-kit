@@ -446,7 +446,14 @@ function buildOrderSteps(status: StorefrontOrderStatus): StorefrontOrder['steps'
   }
 }
 
-function buildOrder(status: StorefrontOrderStatus): StorefrontOrder {
+/**
+ * Exported so `order-status` can fall back to the same sample order the demo
+ * storefront itself serves (`createDemoStorefront().orders.current`, `status` defaulting to
+ * `'shipped'`) for its own "freshly inserted in the editor, no order token yet" case (spec →
+ * States, "no empty layout") — without constructing a whole second `StorefrontSource` just to
+ * reach one order.
+ */
+export function buildOrder(status: StorefrontOrderStatus = 'shipped'): StorefrontOrder {
   const base: StorefrontOrder = {
     number: 'NW-10482',
     placedAt: '2026-09-18',

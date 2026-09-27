@@ -232,6 +232,21 @@ declare global {
       list: string;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
     };
+    'order-status': {
+      variant?: 'default';
+      processingTitle: string;
+      processingText?: string;
+      shippedTitle: string;
+      deliveredTitle: string;
+      deliveredText?: string;
+      delayedTitle: string;
+      cancelledTitle: string;
+      returnLinkLabel?: string;
+      returnLinkHref?: string;
+      shopAgainLinkLabel?: string;
+      shopAgainLinkHref?: string;
+      helpLinks?: Array<{ label: string; href: string; icon?: 'mail' | 'arrow-back-up' | 'info-circle' | 'phone' | 'truck' }>;
+    };
     'pricing-table': {
       heading: string;
       intro?: string;

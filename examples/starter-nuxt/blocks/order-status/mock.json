@@ -1,0 +1,19 @@
+{
+  "variant": "default",
+  "processingTitle": "We're packing your order",
+  "processingText": "Most orders leave our Portland studio within 2 business days. We'll email your tracking link as soon as it ships.",
+  "shippedTitle": "On its way",
+  "deliveredTitle": "Delivered on {date}",
+  "deliveredText": "Something not right? You have 30 days to start a return.",
+  "delayedTitle": "Running a little late",
+  "cancelledTitle": "This order was cancelled",
+  "returnLinkLabel": "Start a return",
+  "returnLinkHref": "/pages/returns",
+  "shopAgainLinkLabel": "Shop again",
+  "shopAgainLinkHref": "/collections/all",
+  "helpLinks": [
+    { "label": "Contact us", "href": "/pages/contact", "icon": "mail" },
+    { "label": "Start a return", "href": "/pages/returns", "icon": "arrow-back-up" },
+    { "label": "Shipping & delivery FAQ", "href": "/pages/shipping", "icon": "info-circle" }
+  ]
+}

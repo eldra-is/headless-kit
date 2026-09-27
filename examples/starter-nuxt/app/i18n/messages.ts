@@ -826,6 +826,48 @@ export interface Messages {
     drawerHintLabel: string;
     drawerHintHelp: string;
   };
+  /**
+   * The order-status block's own strings (spec `02-blocks.md` 3719–3835, "Order status") — the
+   * fixed UI chrome around the bound order (`app/storefront/types.ts#StorefrontOrder`), never the
+   * editable copy fields (`processingTitle` and its siblings), which stay in `mock.json` like
+   * every other block's content. `statusPrefix` is the badge's hidden "Status:" lead-in;
+   * `placedOne`/`placedMany` pluralise the placed line the same way `header.cartOne`/`cartMany`
+   * do; `progress`/`completed`/`notYet` name the tracker `<ol>` and each step's hidden state;
+   * `inProgress` is the `processing` state's current-step date text (there is no real date yet);
+   * `trackOpens` is appended, visually hidden, after Track package's visible label so its
+   * accessible name says where the link goes; `qty`/`showAllItems` cover the item rows and the
+   * 10-line collapse; `shippingFree` covers a `totals.shipping` of `0`; the rest name the totals,
+   * delivery-address, payment and help-links regions. The order's own state words ("Processing",
+   * "Shipped", …) and step names ("Ordered", "Packed", …) are `storefront.orderStatus`/
+   * `storefront.orderSteps` above, shared with every other commerce block that reads an order.
+   */
+  order: {
+    number: string;
+    placedOne: string;
+    placedMany: string;
+    statusPrefix: string;
+    detailsLabel: string;
+    trackPackage: string;
+    trackOpens: string;
+    progress: string;
+    completed: string;
+    notYet: string;
+    inProgress: string;
+    items: string;
+    showAllItems: string;
+    qty: string;
+    subtotal: string;
+    shipping: string;
+    shippingFree: string;
+    tax: string;
+    total: string;
+    deliveryAddress: string;
+    payment: string;
+    cardEnding: string;
+    needHelp: string;
+    trackingNumber: string;
+    carrierEta: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */
