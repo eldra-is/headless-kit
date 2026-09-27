@@ -101,6 +101,46 @@ describe('eldra-theme CLI', () => {
     expect(result.stderr).toContain('blocks/broken/block.json: fields');
   });
 
+  // `validate` runs the same scanner the Vite plugin does
+  // (`@eldrajs/vite-plugin-theme/scan`), so these two only prove the relation
+  // rule reaches the CLI — the rule's own cases live in that package's tests.
+  it('validate accepts a reference field targeting catalog collections', async () => {
+    writeThemePackage(dir);
+    scaffoldBlock({
+      themeDir: dir,
+      apiId: 'product-carousel',
+      fields: [
+        {
+          fieldId: 'sourceCollection',
+          name: 'Collection',
+          type: 'reference',
+          relation: { allowCollections: true },
+        },
+      ],
+    });
+
+    const result = await run(['validate'], dir);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('1 block valid');
+  });
+
+  it('validate rejects a relation that names no target', async () => {
+    writeThemePackage(dir);
+    scaffoldBlock({
+      themeDir: dir,
+      apiId: 'product-carousel',
+      fields: [
+        { fieldId: 'sourceCollection', name: 'Collection', type: 'reference', relation: {} },
+      ],
+    });
+
+    const result = await run(['validate'], dir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      'relation requires one of allowedTagIds, allowProducts or allowCollections'
+    );
+  });
+
   it('validate rejects defaults on field types that CMS does not support', async () => {
     writeThemePackage(dir);
     scaffoldBlock({
