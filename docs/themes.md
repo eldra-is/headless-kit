@@ -70,6 +70,27 @@ build/deploy and CI wiring examples, and [Starter kit conventions](starter-kit.m
 primitive layer, the block contract, Storybook, and the accessibility/testing harness a customer
 inherits from `eldra-theme init`.
 
+## Layout sizing and container queries
+
+Blocks adapt to the width they are given with container queries: every block root is a
+`@container` (`container-type: inline-size`) and the block's own `@tablet:`/`@content:` styles
+measure it. That works for any block whose width is set by its parent — `fill`, `100%`, a fixed
+length, a stretched flex-column or grid item — but `container-type: inline-size` also applies
+inline-size _containment_, and a contained element has no intrinsic inline size at all. A block
+whose width must be measured from its content (`fit-content`, or an unset width as a flex-row
+item, or anything but a fixed length inside such a node) would therefore collapse to 0px.
+
+The layout CSS `@eldrajs/theme-core` generates handles this per node and per breakpoint. For an
+intrinsically sized block it turns containment off on the block root (`.<node>>*{container-type:
+normal}`), and it makes every determinately sized container node — the document root always
+among them — a query container. The block then sizes to its content, and its container queries
+resolve against the nearest determinate ancestor: the width of the region it sits in, which is
+the closest thing to "its own width" a content-sized box can be measured by (a `fit-content`
+call-to-action in a 400px column renders its narrow layout; the same block in a 1200px row
+renders its wide one, shrunk to its content). A determinate block keeps its own root as the query
+container, exactly as a block rendered outside a layout does. Nothing in a block has to change
+for this; a block that nests its own `@container` deeper than the root keeps it.
+
 ## More
 
 - [Starter kit conventions](starter-kit.md) — the primitive layer (`app/components/ui/`), the block

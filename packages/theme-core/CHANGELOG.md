@@ -5,11 +5,15 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
-- Fix: a `block` layout node's generated CSS no longer collapses it to 0px width. Every block
-  root is a `container-type: inline-size` query container, so under CSS size containment it has
-  no intrinsic inline size — a `width: 'fit-content'` block, or a `width`-less block inside a flex
-  row, could render at 0px wide. A block now sizes like `fill` in both of those cases; container
-  (`flex`/`grid`) nodes are unaffected.
+- Fix: a `block` layout node whose width is measured from its content — `fit-content`, or an
+  unset/`auto` width as a flex-row item, or anything but a fixed length inside such a node — no
+  longer collapses to 0px. A block's own `@container` root applies inline-size containment, under
+  which it has no intrinsic inline size; the generated CSS now turns containment off on that
+  block's root (`.<node>>*{container-type:normal}`) and makes every determinately sized container
+  node, the document root included, a query container (`container-type:inline-size`), so the
+  block measures its content and its container queries resolve against the width of the region
+  it sits in. `fit-content`, `fill`, `100%` and fixed lengths all keep their literal meaning; a
+  determinate block keeps its own root as the query container exactly as before.
 - Fix: a route template's `template-block` node whose `bindings`/`templates` keys were written
   against a field's pre-migration name (before a block bumped its version and renamed that field)
   no longer fails closed with `INVALID_VALUE`. `createTemplateLayoutRenderModel` now resolves such

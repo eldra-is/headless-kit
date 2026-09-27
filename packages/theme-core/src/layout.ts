@@ -817,22 +817,48 @@ function renderNode(node: LayoutNode): LayoutRenderNode {
 
 function cssForDocument(document: LayoutDocument, breakpoints?: LayoutBreakpoints): string {
   const { tablet, normal } = resolveLayoutBreakpoints(breakpoints);
-  const entries: Array<{ node: LayoutNode; parent: LayoutContainerNode | null }> = [];
-  walk(document.root, null, (node, parent) => entries.push({ node, parent }));
+  const entries: Array<{
+    node: LayoutNode;
+    parent: LayoutContainerNode | null;
+    host: LayoutNode | null;
+  }> = [];
+  walk(document.root, null, null, (node, parent, host) => entries.push({ node, parent, host }));
   const nodes = entries.map(({ node }) => node);
-  const resolved = BREAKPOINT_KEYS.map((breakpoint) =>
-    entries.map(({ node, parent }) =>
-      declarations(
-        resolveNode(node, breakpoint),
-        node,
-        breakpoint,
-        parentContext(parent, breakpoint)
+  // Walk order is parent-first, so a node's own intrinsic-size verdict is
+  // known before any of its children (or slot children) ask for it.
+  const resolved = BREAKPOINT_KEYS.map((breakpoint) => {
+    const intrinsicById = new Map<string, boolean>();
+    return entries.map(({ node, parent, host }) => {
+      const resolvedNode = resolveNode(node, breakpoint);
+      const parentCtx = parentContext(parent, breakpoint);
+      const enclosing = parent ?? host;
+      const enclosingIntrinsic =
+        enclosing === null ? false : (intrinsicById.get(enclosing.id) ?? false);
+      const intrinsic = intrinsicInlineSize(resolvedNode.style, parentCtx, enclosingIntrinsic);
+      intrinsicById.set(node.id, intrinsic);
+      return {
+        own: {
+          ...declarations(resolvedNode, node, breakpoint, parentCtx),
+          ...containerTypeDeclarations(node, intrinsic),
+        },
+        child: (node.type === 'block' && intrinsic ? { 'container-type': 'normal' } : {}) as Record<
+          string,
+          string
+        >,
+      };
+    });
+  });
+  const rulesAt = (index: number) =>
+    nodes
+      .map(
+        (node, position) =>
+          rule(node, resolved[index]![position]!.own) +
+          childRule(node, resolved[index]![position]!.child)
       )
-    )
-  );
-  const normalRules = nodes.map((node, index) => rule(node, resolved[0]![index]!)).join('');
-  const tabletRules = nodes.map((node, index) => rule(node, resolved[1]![index]!)).join('');
-  const mobileRules = nodes.map((node, index) => rule(node, resolved[2]![index]!)).join('');
+      .join('');
+  const normalRules = rulesAt(0);
+  const tabletRules = rulesAt(1);
+  const mobileRules = rulesAt(2);
   return `${normalRules ? `@media (min-width:${normal}px){${normalRules}}` : ''}${tabletRules ? `@media (min-width:${tablet}px) and (max-width:${normal - 1}px){${tabletRules}}` : ''}${mobileRules ? `@media (max-width:${tablet - 1}px){${mobileRules}}` : ''}`;
 }
 
@@ -895,18 +921,7 @@ function declarations(
     if (margin !== undefined) result[`margin-${side}`] = margin;
     if (padding !== undefined) result[`padding-${side}`] = padding;
   }
-  const isBlock = node.type === 'block';
-  if (style.width !== undefined) {
-    Object.assign(result, widthDeclarations(style.width, parent, isBlock));
-  } else if (isBlock && parent.type === 'flex' && parent.direction === 'row') {
-    // Every block root is a `container-type: inline-size` query container
-    // (size containment), so it has no intrinsic inline size: an `auto`
-    // flex-item basis resolves to 0 and the block collapses. Sizing it like
-    // `fill` gives it a real basis. A block in a flex column already
-    // stretches to the cross-axis width by default, so nothing is needed
-    // there; container (flex/grid) nodes are never affected by this branch.
-    Object.assign(result, widthDeclarations('fill', parent, true));
-  }
+  if (style.width !== undefined) Object.assign(result, widthDeclarations(style.width, parent));
   if (style.minWidth !== undefined) result['min-width'] = style.minWidth;
   if (style.maxWidth !== undefined) result['max-width'] = style.maxWidth;
   if (style.minHeight !== undefined) result['min-height'] = style.minHeight;
@@ -929,29 +944,20 @@ function declarations(
  *   parent flex column or no flex parent -> `width:fit-content`; parent grid
  *   -> `justify-self:start; width:fit-content`.
  *
- * Every block root is a `container-type: inline-size` query container, so a
- * block node has no intrinsic inline size under CSS size containment: it
- * contributes 0 to `fit-content` and to a flex item's `auto` basis. For
- * `node.type === 'block'` only, this is worked around by treating
- * `fit-content` as an alias for `fill` — a block never actually shrinks to
- * its content width, in any parent context — and by the caller
- * additionally synthesizing a `fill` in the one context where an *absent*
- * `width` would otherwise leave the block with no rule at all: a flex row
- * parent. Container nodes (`flex`/`grid`) are never affected by either
- * behaviour; their `fit-content` and unset-`width` output is unchanged.
+ * A node whose inline size is *intrinsic* (`fit-content`, or `auto`/unset in
+ * a flex row, or anything but a fixed length inside such a node) can only
+ * measure its content if nothing in it applies inline-size containment — see
+ * `intrinsicInlineSize` and `containerTypeDeclarations`, which move the
+ * container-query root off such a block.
  *
  * An explicit `minWidth`/`maxWidth`/`minHeight` on the same node is applied
  * by the caller after this (unconditionally, from `style`), so it always
  * wins over the implicit `min-width:0` a flex-row `fill` sets here.
  */
-function widthDeclarations(
-  width: WidthLength,
-  parent: ParentContext,
-  isBlock: boolean
-): Record<string, string> {
+function widthDeclarations(width: WidthLength, parent: ParentContext): Record<string, string> {
   if (width !== 'fill' && width !== 'fit-content') return { width };
   const flexRow = parent.type === 'flex' && parent.direction === 'row';
-  if (width === 'fill' || isBlock) {
+  if (width === 'fill') {
     if (flexRow) return { flex: '1 1 0%', 'min-width': '0' };
     if (parent.type === 'grid') return { 'justify-self': 'stretch', width: '100%' };
     return { width: '100%' };
@@ -959,6 +965,65 @@ function widthDeclarations(
   if (flexRow) return { flex: '0 0 auto', width: 'fit-content' };
   if (parent.type === 'grid') return { 'justify-self': 'start', width: 'fit-content' };
   return { width: 'fit-content' };
+}
+
+const FIXED_LENGTH = /^\d+(?:\.\d+)?(?:px|rem)$/;
+
+/**
+ * Whether a node's inline size is *intrinsic* — measured from its content —
+ * at this breakpoint. That is the case for `fit-content`; for an unset or
+ * `auto` width when the node is an item of a flex row (an `auto` basis is
+ * max-content); and for anything but a fixed `px`/`rem` length inside a node
+ * that is itself intrinsically sized (a percentage, `fill`, a container
+ * preset or an unset width all resolve against the enclosing box, which has
+ * no size of its own until its content is measured). A determinate node —
+ * a fixed length, a `fill`, a percentage, a stretched flex-column or grid
+ * item — is sized by its parent and never needs to measure its content.
+ */
+function intrinsicInlineSize(
+  style: ResolvedLayoutStyle,
+  parent: ParentContext,
+  enclosingIntrinsic: boolean
+): boolean {
+  const width = style.width;
+  if (width !== undefined && FIXED_LENGTH.test(width)) return false;
+  if (width === 'fit-content') return true;
+  if (enclosingIntrinsic) return true;
+  if (style.container !== undefined) return false;
+  if (width === undefined || width === 'auto') {
+    return parent.type === 'flex' && parent.direction === 'row';
+  }
+  return false;
+}
+
+/**
+ * Container queries are how a block adapts to the width it is given, and a
+ * query container is what a block's own `@container` root establishes — but
+ * `container-type: inline-size` also applies inline-size *containment*, under
+ * which an element has no intrinsic inline size at all: it contributes 0 to a
+ * `fit-content` width and to a flex item's `auto` basis. A block whose width
+ * is intrinsic therefore cannot be its own query container, or it collapses
+ * to 0px. For such a block the generated CSS turns containment off on the
+ * block root (`.<node>>*{container-type:normal}`, emitted by the caller) and
+ * the block's queries resolve against the nearest determinate ancestor
+ * instead: every determinately sized container node is made a query
+ * container here, the document root included, so there always is one — the
+ * block then responds to the width of the region it sits in, which is the
+ * closest thing to "its own width" a content-sized box can be measured by.
+ * A determinate block keeps its own root as the query container, exactly as
+ * before; an intrinsically sized container node stays a plain box for the
+ * same reason its blocks do.
+ */
+function containerTypeDeclarations(node: LayoutNode, intrinsic: boolean): Record<string, string> {
+  if (node.type === 'block' || intrinsic) return {};
+  return { 'container-type': 'inline-size' };
+}
+
+function childRule(node: LayoutNode, values: Record<string, string>): string {
+  const body = Object.entries(values)
+    .map(([property, value]) => `${property}:${value};`)
+    .join('');
+  return body ? `.${layoutNodeClass(node.id)}>*{${body}}` : '';
 }
 
 function rule(node: LayoutNode, values: Record<string, string>): string {
@@ -971,21 +1036,24 @@ function rule(node: LayoutNode, values: Record<string, string>): string {
 function walk(
   node: LayoutNode,
   parent: LayoutContainerNode | null,
-  visit: (node: LayoutNode, parent: LayoutContainerNode | null) => void
+  host: LayoutNode | null,
+  visit: (node: LayoutNode, parent: LayoutContainerNode | null, host: LayoutNode | null) => void
 ): void {
-  visit(node, parent);
+  visit(node, parent, host);
   if (node.type === 'block') {
     // Slot children share the block style surface with top-level nodes, so
     // CSS rules must descend into slots too (normalized slot order is
     // catalog order) — but a block is never itself a flex/grid parent, so
     // its slot children get the same "no flex parent" width treatment as
-    // the document root, not the outer block's own parent container.
+    // the document root, not the outer block's own parent container. The
+    // host block is still passed along: a slot child inside an intrinsically
+    // sized host contributes to that host's measured width.
     Object.values(node.slots ?? {})
       .flat()
-      .forEach((child) => walk(child, null, visit));
+      .forEach((child) => walk(child, null, node, visit));
     return;
   }
-  node.children.forEach((child) => walk(child, node, visit));
+  node.children.forEach((child) => walk(child, node, null, visit));
 }
 
 function has(object: JsonObject, key: string): boolean {

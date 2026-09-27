@@ -310,7 +310,10 @@ describe('responsive layout contract', () => {
     expect(css).toContain('grid-template-columns:repeat(1,minmax(0,1fr));');
     expect(css).toContain('padding-right:12px;');
     expect(css).toContain('display:none;');
-    expect(css).not.toMatch(/calc|var\(|url\(|<|>|javascript|position:/);
+    // `>*` is the child combinator of the block-root containment rule (see
+    // `containerTypeDeclarations`); nothing else may put an angle bracket in
+    // the output.
+    expect(css.replaceAll('>*{', '{')).not.toMatch(/calc|var\(|url\(|<|>|javascript|position:/);
   });
 });
 
@@ -561,89 +564,138 @@ describe('width keywords (fill / fit-content)', () => {
     expect(rule).not.toContain('flex:');
   });
 
-  // Every block root is a `container-type: inline-size` query container, so
-  // a block node has no intrinsic inline size under CSS size containment —
-  // it collapses to 0px wherever the generated CSS would otherwise leave it
-  // sized by its own content (see `widthDeclarations`'s doc comment).
-  // Container (flex/grid) nodes are never affected; the cases above stay
-  // green unchanged.
+  // Container queries versus intrinsic sizing. A block's own `@container`
+  // root applies inline-size containment, under which it has no intrinsic
+  // inline size — so a block whose width is measured from its content
+  // (`fit-content`, an unset/`auto` width as a flex-row item, or anything but
+  // a fixed length inside such a node) would collapse to 0px. The generator
+  // therefore turns containment off on that block's root (`.<node>>*`) and
+  // makes every determinately sized container node — the root included — a
+  // query container for it to resolve against. See `intrinsicInlineSize` and
+  // `containerTypeDeclarations` in layout.ts.
 
-  it('a block with no width under a flex-row parent gets flex:1 1 0%;min-width:0 — and nothing extra where that parent is a column', () => {
-    // root direction is {normal:'row', mobile:'column'}; tablet falls back
-    // to normal ('row'). A bare block, second child of the root itself (not
-    // the Grid), so its parent context flips row->column exactly where the
-    // root's own direction does.
-    const layout = validLayout();
-    layout.root.children.push({ id: 'BlockRoot', type: 'block', entryId: ENTRY_A });
-    const css = generateLayoutCss(layout);
-    const [normalSection, tabletSection, mobileSection] = mediaSections(css);
-    const className = layoutNodeClass('BlockRoot');
-    for (const section of [normalSection!, tabletSection!]) {
-      const rule = ruleBody(section, className);
-      expect(rule).toContain('flex:1 1 0%;');
-      expect(rule).toContain('min-width:0;');
-    }
-    const mobileRule = ruleBody(mobileSection!, className);
-    expect(mobileRule).not.toContain('flex:');
-    expect(mobileRule).not.toContain('min-width:');
+  function childRuleBody(section: string, className: string): string {
+    return new RegExp(`\\.${className}>\\*\\{([^}]*)\\}`).exec(section)?.[1] ?? '';
+  }
+
+  const rowOfBlocks = (): LayoutDocument => ({
+    version: 1,
+    root: {
+      id: 'Row',
+      type: 'flex',
+      layout: { direction: { normal: 'row', mobile: 'column' } },
+      children: [
+        { id: 'Unset', type: 'block', entryId: ENTRY_A },
+        { id: 'Fit', type: 'block', entryId: ENTRY_B, style: { width: { normal: 'fit-content' } } },
+        { id: 'Fill', type: 'block', entryId: ENTRY_A, style: { width: { normal: 'fill' } } },
+        { id: 'Fixed', type: 'block', entryId: ENTRY_B, style: { width: { normal: '20rem' } } },
+      ],
+    },
   });
 
-  it('a block with fit-content under a flex-row parent gets fill declarations, never width:fit-content', () => {
-    const layout = validLayout();
-    layout.root.children.push({
-      id: 'BlockRoot',
-      type: 'block',
-      entryId: ENTRY_A,
-      style: { width: { normal: 'fit-content' } },
-    });
-    const css = generateLayoutCss(layout);
-    const [normalSection, tabletSection] = mediaSections(css);
-    const className = layoutNodeClass('BlockRoot');
-    for (const section of [normalSection!, tabletSection!]) {
-      const rule = ruleBody(section, className);
-      expect(rule).toContain('flex:1 1 0%;');
-      expect(rule).toContain('min-width:0;');
-      expect(rule).not.toContain('fit-content');
+  it('a block keeps a real fit-content width and loses containment on its root, so it can measure its content', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    const [normalSection] = mediaSections(css);
+    const fit = layoutNodeClass('Fit');
+    expect(ruleBody(normalSection!, fit)).toBe('flex:0 0 auto;width:fit-content;');
+    expect(childRuleBody(normalSection!, fit)).toBe('container-type:normal;');
+  });
+
+  it('a block with no width as a flex-row item is intrinsically sized too: no width rule, containment off', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    const [normalSection, , mobileSection] = mediaSections(css);
+    const unset = layoutNodeClass('Unset');
+    expect(ruleBody(normalSection!, unset)).toBe('');
+    expect(childRuleBody(normalSection!, unset)).toBe('container-type:normal;');
+    // In the mobile column the same block stretches, so it is determinate
+    // again and stays its own query container.
+    expect(childRuleBody(mobileSection!, unset)).toBe('');
+  });
+
+  it('a fill or fixed-length block is determinate: sized by its parent, its own root stays the query container', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    const [normalSection] = mediaSections(css);
+    expect(ruleBody(normalSection!, layoutNodeClass('Fill'))).toBe('flex:1 1 0%;min-width:0;');
+    expect(childRuleBody(normalSection!, layoutNodeClass('Fill'))).toBe('');
+    expect(ruleBody(normalSection!, layoutNodeClass('Fixed'))).toBe('width:20rem;');
+    expect(childRuleBody(normalSection!, layoutNodeClass('Fixed'))).toBe('');
+  });
+
+  it('the document root, and every other determinately sized container node, is a query container', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    for (const section of mediaSections(css)) {
+      expect(ruleBody(section, layoutNodeClass('Row'))).toContain('container-type:inline-size;');
+    }
+    // A block node never gets `container-type` on its wrapper: a determinate
+    // block's own root is its query container, an intrinsic one's ancestor is.
+    for (const id of ['Unset', 'Fit', 'Fill', 'Fixed']) {
+      expect(ruleBody(mediaSections(css)[0]!, layoutNodeClass(id))).not.toContain('container-type');
     }
   });
 
-  it('a block with fit-content under a grid parent gets justify-self:stretch;width:100%', () => {
-    const layout = validLayout();
-    const grid = layout.root.children[0];
-    if (grid?.type !== 'grid') throw new Error('fixture');
-    const blockA = grid.children[0];
-    if (blockA?.type !== 'block') throw new Error('fixture');
-    blockA.style = { width: { normal: 'fit-content' } };
+  it('an intrinsically sized container node is not a query container, and everything inside it but a fixed length is intrinsic too', () => {
+    const layout: LayoutDocument = {
+      version: 1,
+      root: {
+        id: 'Col',
+        type: 'flex',
+        layout: { direction: { normal: 'column' } },
+        children: [
+          {
+            id: 'FitGrid',
+            type: 'grid',
+            layout: { columns: { normal: 2 } },
+            style: { width: { normal: 'fit-content' } },
+            children: [
+              { id: 'InUnset', type: 'block', entryId: ENTRY_A },
+              {
+                id: 'InPercent',
+                type: 'block',
+                entryId: ENTRY_B,
+                style: { width: { normal: '50%' } },
+              },
+              {
+                id: 'InFill',
+                type: 'block',
+                entryId: ENTRY_A,
+                style: { width: { normal: 'fill' } },
+              },
+              {
+                id: 'InFixed',
+                type: 'block',
+                entryId: ENTRY_B,
+                style: { width: { normal: '10rem' } },
+              },
+            ],
+          },
+          {
+            id: 'Grid',
+            type: 'grid',
+            layout: { columns: { normal: 2 } },
+            children: [{ id: 'Cell', type: 'block', entryId: ENTRY_A }],
+          },
+        ],
+      },
+    };
     const css = generateLayoutCss(layout);
     const [normalSection] = mediaSections(css);
-    const rule = ruleBody(normalSection!, layoutNodeClass(blockA.id));
-    expect(rule).toContain('justify-self:stretch;');
-    expect(rule).toContain('width:100%;');
-    expect(rule).not.toContain('fit-content');
-    expect(rule).not.toContain('flex:');
+    expect(ruleBody(normalSection!, layoutNodeClass('Col'))).toContain(
+      'container-type:inline-size;'
+    );
+    expect(ruleBody(normalSection!, layoutNodeClass('FitGrid'))).toContain('width:fit-content;');
+    expect(ruleBody(normalSection!, layoutNodeClass('FitGrid'))).not.toContain('container-type');
+    for (const id of ['InUnset', 'InPercent', 'InFill']) {
+      expect(childRuleBody(normalSection!, layoutNodeClass(id))).toBe('container-type:normal;');
+    }
+    expect(childRuleBody(normalSection!, layoutNodeClass('InFixed'))).toBe('');
+    // A stretched grid item of a determinate grid is determinate.
+    expect(ruleBody(normalSection!, layoutNodeClass('Grid'))).toContain(
+      'container-type:inline-size;'
+    );
+    expect(childRuleBody(normalSection!, layoutNodeClass('Cell'))).toBe('');
   });
 
-  it('a block with fit-content under a flex-column parent, or with no flex/grid parent at all, gets width:100%', () => {
-    // Column: root direction at mobile is 'column' — same BlockRoot node as
-    // above, reused with fit-content instead of no width.
-    const layout = validLayout();
-    layout.root.children.push({
-      id: 'BlockRoot',
-      type: 'block',
-      entryId: ENTRY_A,
-      style: { width: { normal: 'fit-content' } },
-    });
-    const columnCss = generateLayoutCss(layout);
-    const [, , mobileSection] = mediaSections(columnCss);
-    const columnRule = ruleBody(mobileSection!, layoutNodeClass('BlockRoot'));
-    expect(columnRule).toContain('width:100%;');
-    expect(columnRule).not.toContain('fit-content');
-    expect(columnRule).not.toContain('flex:');
-    expect(columnRule).not.toContain('justify-self');
-
-    // No flex/grid parent at all: a block's slot child (parent is always
-    // `null`/'none', regardless of what the outer block sits in — see the
-    // slot test above).
+  it('a slot child of an intrinsically sized host block is intrinsic through the host, not through a flex/grid parent', () => {
     const hostEntry = '123e4567-e89b-42d3-a456-426614174000';
     const childEntry = '223e4567-e89b-42d3-a456-426614174000';
     const apiHost = 'hero-block';
@@ -655,7 +707,7 @@ describe('width keywords (fill / fit-content)', () => {
       entryApiId: (entryId) =>
         entryId === hostEntry ? apiHost : entryId === childEntry ? apiChild : undefined,
     };
-    const doc = {
+    const doc = (hostWidth: 'fit-content' | 'fill') => ({
       version: 3 as const,
       root: {
         id: 'Root',
@@ -666,29 +718,32 @@ describe('width keywords (fill / fit-content)', () => {
             id: 'Host',
             type: 'block' as const,
             entryId: hostEntry,
-            slots: {
-              body: [
-                {
-                  id: 'Child',
-                  type: 'block' as const,
-                  entryId: childEntry,
-                  style: { width: { normal: 'fit-content' as const } },
-                },
-              ],
-            },
+            style: { width: { normal: hostWidth } },
+            slots: { body: [{ id: 'Child', type: 'block' as const, entryId: childEntry }] },
           },
         ],
       },
-    };
-    const model = createLayoutRenderModel(doc, undefined, undefined, slotContext);
-    const [normalSection] = mediaSections(model.css);
-    const rule = ruleBody(normalSection!, layoutNodeClass('Child'));
-    expect(rule).toContain('width:100%;');
-    expect(rule).not.toContain('fit-content');
-    expect(rule).not.toContain('flex:');
+    });
+    const intrinsic = createLayoutRenderModel(
+      doc('fit-content'),
+      undefined,
+      undefined,
+      slotContext
+    );
+    const [intrinsicSection] = mediaSections(intrinsic.css);
+    expect(childRuleBody(intrinsicSection!, layoutNodeClass('Host'))).toBe(
+      'container-type:normal;'
+    );
+    expect(childRuleBody(intrinsicSection!, layoutNodeClass('Child'))).toBe(
+      'container-type:normal;'
+    );
+    const determinate = createLayoutRenderModel(doc('fill'), undefined, undefined, slotContext);
+    const [determinateSection] = mediaSections(determinate.css);
+    expect(childRuleBody(determinateSection!, layoutNodeClass('Host'))).toBe('');
+    expect(childRuleBody(determinateSection!, layoutNodeClass('Child'))).toBe('');
   });
 
-  it('templateLayout route templates route through the same fix: a template-block with no width under a flex-row root gets flex:1 1 0%;min-width:0', async () => {
+  it('templateLayout route templates get the same treatment: a template-block with no width as a flex-row item measures its content', async () => {
     const { createTemplateLayoutRenderModel } = await import('../templateLayout');
     const model = createTemplateLayoutRenderModel(
       {
@@ -706,9 +761,13 @@ describe('width keywords (fill / fit-content)', () => {
       }
     );
     const [normalSection] = mediaSections(model.css);
-    const rule = ruleBody(normalSection!, layoutNodeClass('hero-placement'));
-    expect(rule).toContain('flex:1 1 0%;');
-    expect(rule).toContain('min-width:0;');
+    expect(ruleBody(normalSection!, layoutNodeClass('root'))).toContain(
+      'container-type:inline-size;'
+    );
+    expect(ruleBody(normalSection!, layoutNodeClass('hero-placement'))).toBe('');
+    expect(childRuleBody(normalSection!, layoutNodeClass('hero-placement'))).toBe(
+      'container-type:normal;'
+    );
   });
 });
 
