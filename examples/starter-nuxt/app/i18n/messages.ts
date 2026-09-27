@@ -199,6 +199,22 @@ export interface Messages {
     /** Shown where a block's link list has no items yet. */
     addLink: string;
   };
+  /**
+   * The split-content block's own strings. There is no block-level heading field to name the
+   * section from (each row carries its own `h2`), so `label` is a fixed accessible name for the
+   * `<section>` (spec "Split content" → Keyboard & accessibility: "labelled by the block's name in
+   * the editor"). `imageHintLabel`/`headingHintLabel`/`headingHintHelp` are the editor-only hints
+   * for a freshly inserted row's empty parts (spec → States, "Empty (freshly inserted)").
+   * `richTextTableLabel` is the fallback `useRichTextScrollRegions` label for an uncaptioned table,
+   * should a row's rich text ever contain one (the field's own toolbar has no table control today).
+   */
+  splitContent: {
+    label: string;
+    imageHintLabel: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    richTextTableLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

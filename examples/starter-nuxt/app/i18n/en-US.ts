@@ -113,4 +113,11 @@ export const enUS = {
   editor: {
     addLink: 'Add a link',
   },
+  splitContent: {
+    label: 'Our story',
+    imageHintLabel: 'Choose an image',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'Then a short paragraph and an optional link',
+    richTextTableLabel: 'Table',
+  },
 } satisfies Messages;

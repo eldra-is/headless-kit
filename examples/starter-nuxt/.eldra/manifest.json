@@ -1907,6 +1907,147 @@
       "previewImage": ".eldra/previews/navigation.png"
     },
     {
+      "apiId": "split-content",
+      "name": "Split content",
+      "description": "Rows of image and text that alternate sides, for an \"our process\" or \"about the materials\" story.",
+      "icon": "layout-columns",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "startWith",
+          "name": "Start with",
+          "type": "select",
+          "helpText": "image-left is the default. Only the first row's image side — rows then alternate.",
+          "metadata": {
+            "options": [
+              "image-left",
+              "image-right"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "rows",
+          "name": "Rows",
+          "type": "list",
+          "description": "1–6 rows (the editor warns above 6).",
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "row",
+              "name": "Row",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "image",
+                    "name": "Image",
+                    "type": "media",
+                    "metadata": {
+                      "multiple": false,
+                      "framing": true
+                    }
+                  },
+                  {
+                    "fieldId": "eyebrow",
+                    "name": "Eyebrow",
+                    "type": "string",
+                    "localized": true
+                  },
+                  {
+                    "fieldId": "heading",
+                    "name": "Heading",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "text",
+                    "name": "Text",
+                    "type": "rich-text",
+                    "localized": true,
+                    "metadata": {
+                      "toolbar": [
+                        "bold",
+                        "italic",
+                        "link",
+                        "undo",
+                        "redo"
+                      ]
+                    }
+                  },
+                  {
+                    "fieldId": "linkLabel",
+                    "name": "Link label",
+                    "type": "string",
+                    "localized": true
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Link",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mock": {
+        "startWith": "image-left",
+        "rows": [
+          {
+            "eyebrow": "The studio",
+            "heading": "Every bowl passes through six pairs of hands",
+            "text": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Our Portland potters throw, trim, glaze and fire in small batches of forty. Slight differences in speckle and rim are the mark of that process, not a flaw."
+                    }
+                  ]
+                }
+              ]
+            },
+            "linkLabel": "Inside the studio",
+            "href": "/pages/studio"
+          },
+          {
+            "eyebrow": "The mill",
+            "heading": "Knitted slowly, so it lasts",
+            "text": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Our sweaters are knitted on vintage frames at a third of the usual speed. The tighter stitch holds its shape through ten winters or more."
+                    }
+                  ]
+                }
+              ]
+            },
+            "linkLabel": "Visit the mill",
+            "href": "/pages/mill"
+          }
+        ]
+      },
+      "previewImage": ".eldra/previews/split-content.png"
+    },
+    {
       "apiId": "testimonials",
       "name": "Testimonials",
       "description": "Customer quotes with name, role, avatar and an optional rating.",

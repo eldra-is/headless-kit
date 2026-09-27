@@ -1,0 +1,45 @@
+{
+  "startWith": "image-left",
+  "rows": [
+    {
+      "eyebrow": "The studio",
+      "heading": "Every bowl passes through six pairs of hands",
+      "text": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Our Portland potters throw, trim, glaze and fire in small batches of forty. Slight differences in speckle and rim are the mark of that process, not a flaw."
+              }
+            ]
+          }
+        ]
+      },
+      "linkLabel": "Inside the studio",
+      "href": "/pages/studio"
+    },
+    {
+      "eyebrow": "The mill",
+      "heading": "Knitted slowly, so it lasts",
+      "text": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Our sweaters are knitted on vintage frames at a third of the usual speed. The tighter stitch holds its shape through ten winters or more."
+              }
+            ]
+          }
+        ]
+      },
+      "linkLabel": "Visit the mill",
+      "href": "/pages/mill"
+    }
+  ]
+}

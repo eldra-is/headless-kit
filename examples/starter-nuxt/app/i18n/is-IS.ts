@@ -113,4 +113,11 @@ export const isIS = {
   editor: {
     addLink: 'Bæta við tengli',
   },
+  splitContent: {
+    label: 'Sagan okkar',
+    imageHintLabel: 'Veldu mynd',
+    headingHintLabel: 'Bæta við fyrirsögn',
+    headingHintHelp: 'Svo stutta málsgrein og valfrjálsan tengil',
+    richTextTableLabel: 'Tafla',
+  },
 } satisfies Messages;

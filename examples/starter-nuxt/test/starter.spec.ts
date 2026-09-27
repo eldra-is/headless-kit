@@ -33,6 +33,7 @@ const expectedBlocks = [
   'hero',
   'image',
   'navigation',
+  'split-content',
   'testimonials',
 ];
 
@@ -149,6 +150,7 @@ describe('starter theme', () => {
       testimonials: ['heading', 'variant', 'items'],
       faq: ['heading', 'intro', 'single', 'items'],
       breadcrumbs: ['showHome', 'homeLabel', 'trail', 'currentTitle', 'showCurrent', 'container'],
+      'split-content': ['startWith', 'rows'],
     });
 
     // Starter mocks cannot carry organization-specific asset IDs. Keep media

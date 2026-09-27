@@ -117,6 +117,10 @@ declare global {
       sticky?: boolean;
       transparentOverHero?: boolean;
     };
+    'split-content': {
+      startWith: 'image-left' | 'image-right';
+      rows: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;
+    };
     testimonials: {
       heading: string;
       variant?: 'grid' | 'carousel';
