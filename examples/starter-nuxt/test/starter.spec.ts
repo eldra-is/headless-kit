@@ -62,7 +62,7 @@ describe('starter theme', () => {
     expect(safeHref(encodeStega('//evil.example/path', meta))).toBeNull();
   });
 
-  it('validates all thirteen contract blocks and includes design tokens', () => {
+  it('validates every contract block and includes design tokens', () => {
     const result = scanTheme({ themeDir: templateDir, framework: 'nuxt' });
     expect(result.errors).toEqual([]);
     expect(result.manifest?.blocks.map((block) => block.apiId).sort()).toEqual(expectedBlocks);
