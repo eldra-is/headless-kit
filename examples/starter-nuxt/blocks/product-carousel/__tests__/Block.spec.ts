@@ -86,7 +86,14 @@ describe('product-carousel block', () => {
       const wrapper = mountBlock(mock);
       await flushPromises();
       expect(wrapper.text()).toContain(mock.heading);
-      expect(wrapper.text()).toContain('View all');
+      // The heading is the "view all" link: its visible text is the heading, the label and its
+      // context follow visually hidden, and the anchor points at `viewAllHref`.
+      const headingLink = wrapper.get('h2 a');
+      expect(headingLink.attributes('href')).toBe(mock.viewAllHref);
+      expect(headingLink.text()).toBe(mock.heading);
+      expect(headingLink.attributes('aria-label')).toBe(`${mock.heading} — View all products`);
+      expect(wrapper.get('h2').text()).toBe(mock.heading);
+      expect(wrapper.findAll('a').filter((a) => a.text().includes('View all'))).toHaveLength(0);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 

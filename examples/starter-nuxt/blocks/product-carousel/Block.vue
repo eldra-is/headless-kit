@@ -39,7 +39,6 @@ import {
   ProductCard,
   Section,
   Skeleton,
-  VisuallyHidden,
 } from '@eldrajs/ui';
 import type { CarouselPart, SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
@@ -57,6 +56,10 @@ const { data } = useBlockData(props, 'product-carousel');
 const t = useT();
 const isEditing = useEditing();
 const headingId = `product-carousel-heading-${useUiId()}`;
+/** The h2 recipe, also applied to the heading's own link so `Link`'s standalone size and weight do
+ *  not shrink the title (tailwind-merge keeps the later font-size/weight). */
+const HEADING_CLASSES =
+  'font-heading @tablet:text-h2 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]';
 
 const storefront = useStorefront();
 
@@ -231,25 +234,28 @@ const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHe
       >
         <template #header>
           <div class="flex flex-1 flex-wrap items-end justify-between gap-x-8 gap-y-4">
-            <h2
-              :id="headingId"
-              class="font-heading @tablet:text-h2 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]"
-            >
-              {{ heading }}
+            <h2 :id="headingId" :class="HEADING_CLASSES">
+              <!-- The heading itself is the "view all" link: its visible text stays the heading (so
+                   the Section this `<h2>` labels keeps that exact name) and the link's own
+                   accessible name starts with it and adds `viewAllLabel` + context ("You may also
+                   like — View all products"). A separate link in the same row as the counter and
+                   arrows read as a fourth control. -->
+              <Link
+                v-if="hasViewAll && !isRecentlyViewed"
+                :href="viewAllHref!"
+                :as="viewAllLinkAs"
+                variant="standalone"
+                arrow
+                :aria-label="`${heading} — ${data.viewAllLabel}${t('productCarousel.viewAllContext')}`"
+                :classes="{ root: `${HEADING_CLASSES} text-inherit` }"
+              >
+                {{ heading }}
+              </Link>
+              <template v-else>{{ heading }}</template>
             </h2>
             <Button v-if="isRecentlyViewed" variant="link" type="button" @click="onClearHistory">
               {{ t('productCarousel.clearHistory') }}
             </Button>
-            <Link
-              v-else-if="hasViewAll"
-              :href="viewAllHref!"
-              :as="viewAllLinkAs"
-              variant="standalone"
-              arrow
-            >
-              {{ data.viewAllLabel
-              }}<VisuallyHidden>{{ t('productCarousel.viewAllContext') }}</VisuallyHidden>
-            </Link>
           </div>
         </template>
 

@@ -122,7 +122,7 @@ const headerClass = computed(() =>
 const trackClass = computed(() =>
   partClass(
     cx(
-      'flex touch-pan-x touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
+      'relative flex touch-pan-x touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
       'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
       props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
       'data-[dragging=true]:snap-none data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',

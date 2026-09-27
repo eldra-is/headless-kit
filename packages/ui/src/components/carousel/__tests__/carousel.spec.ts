@@ -602,6 +602,49 @@ describe('Carousel — keyboard', () => {
   });
 });
 
+describe('Carousel — slide geometry measured from an outer offsetParent', () => {
+  it('scrolls to and re-syncs against the slide start relative to the track, not the page', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers', counter: true },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const trackEl = track(wrapper);
+    // A consumer's `classes.track` dropped the track's own positioning: every slide now reports its
+    // `offsetLeft` from an ancestor 200px further left, and so does the track.
+    Object.defineProperty(trackEl, 'offsetLeft', { value: 200, configurable: true });
+    slidesOf(wrapper).forEach((slide, i) => {
+      Object.defineProperty(slide, 'offsetLeft', { value: 200 + i * 100, configurable: true });
+      Object.defineProperty(slide, 'offsetParent', { value: document.body, configurable: true });
+    });
+    stubOverflow(trackEl, { scrollWidth: 300, clientWidth: 100, scrollLeft: 0 });
+    trackEl.scrollTo = vi.fn();
+
+    await wrapper.find('[data-part="next"]').trigger('click');
+    await settle();
+    expect(trackEl.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ left: 100 }));
+    expect(wrapper.find('[data-part="counter"]').text()).toContain('2');
+
+    // The snap settles the track on slide 2 (scrollLeft 100): the settle sync must keep index 1
+    // rather than falling back to slide 1 (whose page offset of 200 is nearer to 100 than 300 is).
+    Object.defineProperty(trackEl, 'scrollLeft', {
+      value: 100,
+      configurable: true,
+      writable: true,
+    });
+    vi.useFakeTimers();
+    try {
+      trackEl.dispatchEvent(new Event('scroll'));
+      vi.advanceTimersByTime(100);
+    } finally {
+      vi.useRealTimers();
+    }
+    await settle();
+    expect(wrapper.find('[data-part="counter"]').text()).toContain('2');
+    wrapper.unmount();
+  });
+});
+
 describe('Carousel — reduced motion', () => {
   it('scrolls instantly instead of smoothly', async () => {
     const original = window.matchMedia;

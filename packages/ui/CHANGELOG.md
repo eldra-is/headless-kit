@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+### Fixed
+
+- `Carousel`: slide positions are measured relative to the track (the track is now positioned, and
+  the slide-start math subtracts the track's own offset when a `classes.track` override removes
+  that positioning). Previously `offsetLeft` was measured from the page, so on any page where the
+  track sat away from the left edge the counter snapped back to the previous slide after each
+  `next` while the track stayed where it was, and `goTo` overshot by the same offset.
+
 - **Fix (2026-09-27, package bug): `Carousel`'s `perView` now actually reaches a consumer's CSS.**
   The track set `--eldra-carousel-per-view` through interpolated Tailwind arbitrary-property classes
   (`` `[--eldra-carousel-per-view:${n}]` ``, plus `@tablet:`/`@content:` steps), and Tailwind scans

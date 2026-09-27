@@ -179,6 +179,19 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   }
 
   /**
+   * A slide's start as a scroll position of the track. `offsetLeft` is measured from the
+   * `offsetParent`, which is the track itself (it is positioned) — but a consumer's `classes.track`
+   * override can drop that positioning, and then every slide reports its distance from some outer
+   * ancestor instead, shifted by the track's own offset. Comparing such values with `scrollLeft`
+   * made "closest slide" pick the previous one after every snap (the counter read 1 / 6 while the
+   * track sat on slide 2) and `scrollTo` overshoot by the same amount, so the offset is removed here
+   * whenever the slide's `offsetParent` is not the track.
+   */
+  function slideStart(child: HTMLElement, track: HTMLElement): number {
+    return child.offsetParent === track ? child.offsetLeft : child.offsetLeft - track.offsetLeft;
+  }
+
+  /**
    * Spec "Carousel" → Accessibility: "Gallery slides: `role="group" aria-roledescription="slide"
    * aria-label="2 of 4"`." Applied to every slide uniformly rather than only in the spec's own
    * "gallery" variant (recorded under Deviations in the README): `CarouselProps` carries nothing
@@ -257,7 +270,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     const child = children()[target];
     if (!track || !child || typeof track.scrollTo !== 'function') return;
     track.scrollTo({
-      left: child.offsetLeft,
+      left: slideStart(child, track),
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     });
   }
@@ -310,11 +323,12 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
    */
   function closestChildIndex(scrollLeft: number): number {
     const kids = children();
-    if (kids.length === 0) return 0;
+    const track = trackRef.value;
+    if (kids.length === 0 || !track) return 0;
     let closest = 0;
     let closestDistance = Number.POSITIVE_INFINITY;
     kids.forEach((child, i) => {
-      const distance = Math.abs(child.offsetLeft - scrollLeft);
+      const distance = Math.abs(slideStart(child, track) - scrollLeft);
       if (distance < closestDistance) {
         closestDistance = distance;
         closest = i;

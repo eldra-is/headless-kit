@@ -130,8 +130,10 @@ describe('home page (pages/home.page.json)', () => {
     // override href regardless of which collection actually backs the row.
     const carouselRoot = roots[4];
     expect(carouselRoot.querySelectorAll('h3')).toHaveLength(8);
+    // The carousel's heading is its "view all" link: the label lives in the anchor's accessible
+    // name, not its visible text.
     const viewAllLink = [...main.element.querySelectorAll('a')].find((a) =>
-      a.textContent?.includes('View all')
+      a.getAttribute('aria-label')?.includes('View all')
     );
     expect(viewAllLink?.getAttribute('href')).toBe('/collections/new');
 
