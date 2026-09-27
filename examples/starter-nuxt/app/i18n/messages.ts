@@ -339,6 +339,30 @@ export interface Messages {
     successTextDefault: string;
     sendAnother: string;
   };
+  /**
+   * The video-embed block's own strings (spec `02-blocks.md` "Video embed"): the play button's
+   * accessible name (`play`/`playWithDuration`, the latter used once `duration` parses), the
+   * spoken duration built from `minuteOne`/`minuteMany`/`secondOne`/`secondMany` (never an English
+   * literal like "minutes" written directly in the block), the privacy note's fallback copy, the
+   * load-failure `EmptyState` title/text/link, and the editor-only hints for an empty heading,
+   * intro and `videoUrl` (the last per that section's "Empty (freshly inserted)" state).
+   */
+  video: {
+    play: string;
+    playWithDuration: string;
+    minuteOne: string;
+    minuteMany: string;
+    secondOne: string;
+    secondMany: string;
+    privacyNoteDefault: string;
+    errorTitle: string;
+    errorText: string;
+    errorLink: string;
+    headingHintLabel: string;
+    introHintLabel: string;
+    urlHintLabel: string;
+    urlHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

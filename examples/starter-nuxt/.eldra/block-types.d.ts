@@ -187,6 +187,20 @@ declare global {
       items: Array<{ quote: string; name: string; meta?: string; avatar?: EldraMedia; rating?: 'none' | '1' | '2' | '3' | '4' | '5'; productLabel?: string; productHref?: string }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary';
     };
+    'video-embed': {
+      variant: 'contained' | 'split';
+      heading?: string;
+      intro?: string;
+      videoUrl: string;
+      videoTitle: string;
+      duration?: string;
+      poster?: EldraMedia;
+      caption?: string;
+      transcriptLabel?: string;
+      transcriptHref?: string;
+      privacyNote?: string;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary';
+    };
   }
 
   type EldraBlockEntry<K extends keyof EldraBlockData> = {

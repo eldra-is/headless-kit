@@ -39,6 +39,7 @@ const expectedBlocks = [
   'split-content',
   'stats',
   'testimonials',
+  'video-embed',
 ];
 
 describe('starter theme', () => {
@@ -203,6 +204,20 @@ describe('starter theme', () => {
         'showOrderNumber',
         'recipient',
         'successText',
+      ],
+      'video-embed': [
+        'variant',
+        'heading',
+        'intro',
+        'videoUrl',
+        'videoTitle',
+        'duration',
+        'poster',
+        'caption',
+        'transcriptLabel',
+        'transcriptHref',
+        'privacyNote',
+        'sectionBackground',
       ],
     });
 
