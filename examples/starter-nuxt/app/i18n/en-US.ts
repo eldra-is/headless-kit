@@ -239,4 +239,12 @@ export const enUS = {
     itemHintLabel: 'Add a logo',
     itemHintHelp: 'SVG or PNG, shown in greyscale.',
   },
+  tabsBlock: {
+    headingHintLabel: 'Add a heading',
+    introHintLabel: 'Optional intro',
+    tabPlaceholderLabel: 'Tab 1',
+    itemHintLabel: 'Add tab content',
+    itemHintHelp: 'Label, heading, text, image and link',
+    richTextTableLabel: 'Table',
+  },
 } satisfies Messages;

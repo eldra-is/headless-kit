@@ -184,6 +184,13 @@ declare global {
       items: Array<{ value: string; label: string }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
     };
+    tabs: {
+      heading: string;
+      intro?: string;
+      tabs: Array<{ label: string; heading: string; body: RichTextNode; image?: EldraMedia; linkLabel?: string; href?: string }>;
+      defaultTab?: number;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong';
+    };
     team: {
       heading: string;
       intro?: string;

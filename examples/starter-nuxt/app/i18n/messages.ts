@@ -416,6 +416,22 @@ export interface Messages {
     itemHintLabel: string;
     itemHintHelp: string;
   };
+  /**
+   * The tabs block's own strings (spec `02-blocks.md` "Tabs" → States, "Empty (freshly inserted)",
+   * line 2251): the required heading and optional intro's editor-only hints, the non-interactive
+   * placeholder tab label ("Tab 1") shown with the placeholder panel when the whole `tabs` list is
+   * empty, and `richTextTableLabel` — the `useRichTextScrollRegions` fallback label for an
+   * uncaptioned table inside a tab's body, matching `faq.richTextTableLabel` (see
+   * `blocks/tabs/Block.vue`).
+   */
+  tabsBlock: {
+    headingHintLabel: string;
+    introHintLabel: string;
+    tabPlaceholderLabel: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
+    richTextTableLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

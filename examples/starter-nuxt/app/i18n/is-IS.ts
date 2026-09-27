@@ -239,4 +239,12 @@ export const isIS = {
     itemHintLabel: 'Bættu við merki',
     itemHintHelp: 'SVG eða PNG, birt í grátónum.',
   },
+  tabsBlock: {
+    headingHintLabel: 'Bættu við fyrirsögn',
+    introHintLabel: 'Valfrjáls inngangur',
+    tabPlaceholderLabel: 'Flipi 1',
+    itemHintLabel: 'Bættu við efni í flipa',
+    itemHintHelp: 'Heiti, fyrirsögn, texti, mynd og tengill',
+    richTextTableLabel: 'Tafla',
+  },
 } satisfies Messages;

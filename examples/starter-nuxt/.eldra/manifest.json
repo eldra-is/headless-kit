@@ -3143,6 +3143,298 @@
       "previewImage": ".eldra/previews/stats.png"
     },
     {
+      "apiId": "tabs",
+      "name": "Tabs",
+      "description": "Related content — care guides, materials, \"how it works\" by product type — grouped into tabs, each with a heading, rich text, an optional image and a link.",
+      "icon": "layout-navbar-collapse",
+      "category": "content",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Rendered as the h2. It also labels the tab list.",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "intro",
+          "name": "Intro",
+          "type": "text",
+          "localized": true
+        },
+        {
+          "fieldId": "tabs",
+          "name": "Tabs",
+          "type": "list",
+          "description": "2-6 tabs.",
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "tab",
+              "name": "Tab",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Tab text, 1 to 3 words.",
+                    "validators": {
+                      "required": true,
+                      "maxLength": 24
+                    }
+                  },
+                  {
+                    "fieldId": "heading",
+                    "name": "Heading",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Rendered as an h3 inside the panel.",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "body",
+                    "name": "Body",
+                    "type": "rich-text",
+                    "localized": true,
+                    "helpText": "Paragraphs, bulleted lists, bold and links.",
+                    "metadata": {
+                      "toolbar": [
+                        "bold",
+                        "italic",
+                        "link",
+                        "bulletList",
+                        "undo",
+                        "redo"
+                      ]
+                    },
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "image",
+                    "name": "Image",
+                    "type": "media",
+                    "helpText": "4:3 with a focal point. When missing, the panel is text-only.",
+                    "metadata": {
+                      "multiple": false,
+                      "framing": true
+                    }
+                  },
+                  {
+                    "fieldId": "linkLabel",
+                    "name": "Link label",
+                    "type": "string",
+                    "localized": true
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Link",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "defaultTab",
+          "name": "Default tab",
+          "type": "int",
+          "default": 1,
+          "helpText": "1-based index of the tab selected on load."
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "heading": "Looking after your things",
+        "intro": "Everything we sell is made to be used for years. A little care keeps it that way.",
+        "tabs": [
+          {
+            "label": "Knitwear",
+            "heading": "Wash less, air more",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Wool resists odour on its own. Most of the time, a night on a hanger by an open window is all a jumper needs."
+                    }
+                  ]
+                },
+                {
+                  "type": "bulletList",
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Hand wash cool"
+                            },
+                            {
+                              "type": "text",
+                              "text": " with a wool detergent"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Dry flat"
+                            },
+                            {
+                              "type": "text",
+                              "text": ", away from the radiator"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Fold, never hang"
+                            },
+                            {
+                              "type": "text",
+                              "text": ", to keep the shape"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "linkLabel": "Shop wool wash and cedar blocks",
+            "href": "/collections/care"
+          },
+          {
+            "label": "Stoneware",
+            "heading": "Made for the dishwasher",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Our stoneware is fired to 2,264°F, so it is dishwasher, microwave and oven safe to 400°F. Pieces with a gold rim or raw clay foot are hand wash only."
+                    }
+                  ]
+                }
+              ]
+            },
+            "linkLabel": "Shop stoneware",
+            "href": "/collections/ceramics"
+          },
+          {
+            "label": "Wood & boards",
+            "heading": "Oil it when it looks thirsty",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Wash with warm soapy water, dry upright and never soak. Every few weeks, rub in a little board oil and leave it overnight."
+                    }
+                  ]
+                }
+              ]
+            },
+            "linkLabel": "Shop board oil",
+            "href": "/collections/kitchen"
+          },
+          {
+            "label": "Linen",
+            "heading": "Softer with every wash",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Wash at 105°F with like colours, skip the fabric softener and line dry. Iron while slightly damp if you like it crisp."
+                    }
+                  ]
+                }
+              ]
+            },
+            "linkLabel": "Shop linen",
+            "href": "/collections/linen"
+          }
+        ],
+        "defaultTab": 1,
+        "sectionBackground": "none"
+      },
+      "previewImage": ".eldra/previews/tabs.png"
+    },
+    {
       "apiId": "team",
       "name": "Team",
       "description": "A grid of the people behind the shop, each with a photo, name, role, short bio and optional links.",
