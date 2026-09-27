@@ -35,6 +35,11 @@ setup((app) => {
 const preview: Preview = {
   decorators: [withEldraContext],
   parameters: {
+    // Storybook pads `#storybook-root` by 1rem unless a story is `fullscreen`. Every block here is
+    // a full-width page section (a sticky header, a hero, a footer), so it renders edge to edge the
+    // way it does on a real page — and the preview screenshots, which clip to the story root,
+    // stay true to the page too.
+    layout: 'fullscreen',
     controls: {
       matchers: {
         color: /(background|color)$/i,
