@@ -725,6 +725,54 @@ export interface Messages {
     hintLabel: string;
     hintHelp: string;
   };
+  /**
+   * The search block's own strings (spec `02-blocks.md` "Search results page"): `searchLabel`
+   * is the field's own visually hidden `<label>` text (spec → Keyboard & accessibility: "a
+   * visually hidden label 'Search the shop'"), passed to `@eldrajs/ui`'s `SearchBar` as `label`
+   * rather than left to its own default, so it tracks this starter's own locale files like every
+   * other block string; `typeProducts`/`typeJournal`/`typePages` are the default group names used
+   * when a `types[]` entry's own `label` is empty. `all`/`resultTabs` name the results-page tabs
+   * (see `blocks/search/Block.vue`'s own `Tabs`). The summary line (`role="status"`, "17 results:
+   * 12 products, 3 journal stories, 2 pages") is built from `resultOne`/`resultMany` and one
+   * pluralised pair per type, the same `header.cartOne`/`cartMany` shape; `viewAllProducts`/
+   * `viewAllJournal`/`viewAllPages` are the "All" tab's own per-section links, each already
+   * carrying its own plural noun so no separate one/many pair is needed for them.
+   * `noResultsTitle`/`noResultsAdvice`/`didYouMean` are the no-results page's own copy;
+   * `popularSearches`/`customersLove` label its two chip/card sections (also reused, alongside
+   * `searching`, on the ordinary results page). `headingHintLabel`/`headingHintHelp` and
+   * `popularHintLabel`/`popularHintHelp` are the two editor-only hints (`EditorPlaceholder`,
+   * gated by `useEditing()`) spec → States, "Empty (freshly inserted)" names — "the field works
+   * straight away" either way.
+   */
+  search: {
+    searchLabel: string;
+    typeProducts: string;
+    typeJournal: string;
+    typePages: string;
+    all: string;
+    resultTabs: string;
+    searching: string;
+    resultOne: string;
+    resultMany: string;
+    productOne: string;
+    productMany: string;
+    storyOne: string;
+    storyMany: string;
+    pageOne: string;
+    pageMany: string;
+    viewAllProducts: string;
+    viewAllJournal: string;
+    viewAllPages: string;
+    noResultsTitle: string;
+    noResultsAdvice: string;
+    didYouMean: string;
+    popularSearches: string;
+    customersLove: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    popularHintLabel: string;
+    popularHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

@@ -5001,6 +5001,167 @@
       "previewImage": ".eldra/previews/rich-text.png"
     },
     {
+      "apiId": "search",
+      "name": "Search",
+      "description": "The search results page: a field with live suggestions, a results page mixing products and content, and a helpful no-results state.",
+      "icon": "search",
+      "category": "commerce",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "results-page is the full page. field-only is just the field and its panel, for the header search overlay and the 404 page.",
+          "metadata": {
+            "options": [
+              "results-page",
+              "field-only"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Optional, e.g. \"Search the shop\". Use {query} for the shopper's search text. Hidden in field-only."
+        },
+        {
+          "fieldId": "placeholder",
+          "name": "Placeholder",
+          "type": "string",
+          "localized": true,
+          "helpText": "The field's placeholder text."
+        },
+        {
+          "fieldId": "types",
+          "name": "Result types",
+          "type": "list",
+          "helpText": "Which result groups show, in what order. Products, Journal and Pages by default.",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Type",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "type",
+                    "name": "Type",
+                    "type": "select",
+                    "metadata": {
+                      "options": [
+                        "products",
+                        "journal",
+                        "pages"
+                      ]
+                    },
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Overrides the group name."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "suggestionsPerGroup",
+          "name": "Suggestions per group",
+          "type": "select",
+          "helpText": "3 is the default.",
+          "metadata": {
+            "options": [
+              "2",
+              "3",
+              "4"
+            ]
+          }
+        },
+        {
+          "fieldId": "popularSearches",
+          "name": "Popular searches",
+          "type": "list",
+          "helpText": "Chips shown when the field is focused but empty, and on the no-results page.",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Popular search",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "e.g. \"Merino\".",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "noResultsCollection",
+          "name": "No-results collection",
+          "type": "string",
+          "helpText": "Collection handle shown under \"Customers love these\"."
+        }
+      ],
+      "mock": {
+        "variant": "results-page",
+        "heading": "Results for “{query}”",
+        "placeholder": "Search knitwear, ceramics, journal…",
+        "types": [
+          {
+            "type": "products",
+            "label": "Products"
+          },
+          {
+            "type": "journal",
+            "label": "Journal"
+          },
+          {
+            "type": "pages",
+            "label": "Pages"
+          }
+        ],
+        "suggestionsPerGroup": "3",
+        "popularSearches": [
+          {
+            "label": "Merino"
+          },
+          {
+            "label": "Mugs"
+          },
+          {
+            "label": "Tea towels"
+          },
+          {
+            "label": "Gift cards"
+          }
+        ],
+        "noResultsCollection": "best-sellers"
+      },
+      "previewImage": ".eldra/previews/search.png"
+    },
+    {
       "apiId": "split-content",
       "name": "Split content",
       "description": "Rows of image and text that alternate sides, for an \"our process\" or \"about the materials\" story.",

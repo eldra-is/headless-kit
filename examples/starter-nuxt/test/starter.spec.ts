@@ -44,6 +44,7 @@ const expectedBlocks = [
   'product-detail',
   'quote',
   'rich-text',
+  'search',
   'split-content',
   'stats',
   'tabs',
@@ -354,6 +355,15 @@ describe('starter theme', () => {
         'sizeGuideHref',
         'stickyBar',
         'showCategory',
+      ],
+      search: [
+        'variant',
+        'heading',
+        'placeholder',
+        'types',
+        'suggestionsPerGroup',
+        'popularSearches',
+        'noResultsCollection',
       ],
     });
 

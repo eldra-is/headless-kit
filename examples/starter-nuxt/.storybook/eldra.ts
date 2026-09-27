@@ -24,6 +24,11 @@ import { STOREFRONT_KEY } from '../app/storefront/types';
  * the same wiring `app/plugins/eldra-storefront.ts` does on a real page — so a commerce block
  * story (and the Playwright preview screenshot taken from it) renders real-looking catalogue,
  * cart and order data with no gateway, exactly like `test/support/mountBlock.ts` does for specs.
+ *
+ * `query: 'linen'` seeds `route.query` with the design spec's own example search (spec
+ * `02-blocks.md` "Search results page" → "Default content"), so the `search` block's own
+ * `results-page` story renders its heading as "Results for “linen”" rather than an empty pair of
+ * quotes — the only block that reads `route.query` today, so this is inert for every other one.
  */
 export const withEldraContext: Decorator = (story) => ({
   components: { story },
@@ -38,7 +43,7 @@ export const withEldraContext: Decorator = (story) => ({
     provideEldraUiMessages(uiMessagesFor(context.preview.locale));
     provideEldraUiLocale(context.preview.locale);
     provideEldraUiCurrency(currencyFor(context.preview.locale));
-    provide(STOREFRONT_KEY, createDemoStorefront());
+    provide(STOREFRONT_KEY, createDemoStorefront({ query: 'linen' }));
     return {};
   },
   template: '<story />',

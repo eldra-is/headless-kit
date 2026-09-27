@@ -272,6 +272,15 @@ declare global {
       alignment: 'left' | 'center';
       container: 'narrow' | 'content';
     };
+    search: {
+      variant: 'results-page' | 'field-only';
+      heading?: string;
+      placeholder?: string;
+      types?: Array<{ type: 'products' | 'journal' | 'pages'; label?: string }>;
+      suggestionsPerGroup?: '2' | '3' | '4';
+      popularSearches?: Array<{ label: string }>;
+      noResultsCollection?: string;
+    };
     'split-content': {
       startWith: 'image-left' | 'image-right';
       rows: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;
