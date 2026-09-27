@@ -34,6 +34,7 @@ import ImageBlock from '../../blocks/image/Block.vue';
 import Navigation from '../../blocks/navigation/Block.vue';
 import Newsletter from '../../blocks/newsletter/Block.vue';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
+import ProductDetail from '../../blocks/product-detail/Block.vue';
 import SplitContent from '../../blocks/split-content/Block.vue';
 import Testimonials from '../../blocks/testimonials/Block.vue';
 import TrustStrip from '../../blocks/trust-strip/Block.vue';
@@ -53,6 +54,7 @@ export const pageBlockComponents: Record<string, Component> = {
   navigation: Navigation,
   newsletter: Newsletter,
   'product-carousel': ProductCarousel,
+  'product-detail': ProductDetail,
   'split-content': SplitContent,
   testimonials: Testimonials,
   'trust-strip': TrustStrip,
