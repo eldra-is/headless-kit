@@ -32,27 +32,33 @@ export const AspectAuto: Story = {
   },
 };
 
-export const Aspect169: Story = {
+export const Aspect1x1: Story = {
   args: {
-    entry: { id: "image", data: { ...base, "aspect": "16/9" } },
+    entry: { id: "image", data: { ...base, "aspect": "1x1" } },
   },
 };
 
-export const Aspect43: Story = {
+export const Aspect4x3: Story = {
   args: {
-    entry: { id: "image", data: { ...base, "aspect": "4/3" } },
+    entry: { id: "image", data: { ...base, "aspect": "4x3" } },
   },
 };
 
-export const Aspect11: Story = {
+export const Aspect3x2: Story = {
   args: {
-    entry: { id: "image", data: { ...base, "aspect": "1/1" } },
+    entry: { id: "image", data: { ...base, "aspect": "3x2" } },
   },
 };
 
-export const Aspect34: Story = {
+export const Aspect16x9: Story = {
   args: {
-    entry: { id: "image", data: { ...base, "aspect": "3/4" } },
+    entry: { id: "image", data: { ...base, "aspect": "16x9" } },
+  },
+};
+
+export const Aspect3x4: Story = {
+  args: {
+    entry: { id: "image", data: { ...base, "aspect": "3x4" } },
   },
 };
 
@@ -77,5 +83,17 @@ export const WidthWide: Story = {
 export const WidthFull: Story = {
   args: {
     entry: { id: "image", data: { ...base, "width": "full" } },
+  },
+};
+
+export const CaptionAlignStart: Story = {
+  args: {
+    entry: { id: "image", data: { ...base, "captionAlign": "start" } },
+  },
+};
+
+export const CaptionAlignCenter: Story = {
+  args: {
+    entry: { id: "image", data: { ...base, "captionAlign": "center" } },
   },
 };

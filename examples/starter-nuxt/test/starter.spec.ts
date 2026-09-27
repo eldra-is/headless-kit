@@ -151,7 +151,16 @@ describe('starter theme', () => {
         'authorLinkHref',
         'showByline',
       ],
-      image: ['image', 'caption', 'aspect', 'width'],
+      image: [
+        'image',
+        'decorative',
+        'aspect',
+        'width',
+        'caption',
+        'captionAlign',
+        'linkLabel',
+        'linkHref',
+      ],
       gallery: ['heading', 'variant', 'images', 'lightbox'],
       cta: [
         'variant',

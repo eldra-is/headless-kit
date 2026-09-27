@@ -1,5 +1,7 @@
 {
-  "caption": "Linen table settings, woven in small batches.",
-  "aspect": "16/9",
-  "width": "content"
+  "aspect": "3x2",
+  "width": "content",
+  "caption": "Every tea towel is washed twice before it ships, so it arrives soft and already shrunk.",
+  "captionAlign": "start",
+  "decorative": false
 }

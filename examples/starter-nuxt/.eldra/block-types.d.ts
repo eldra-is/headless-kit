@@ -136,9 +136,13 @@ declare global {
     };
     image: {
       image?: EldraMedia;
+      decorative?: boolean;
+      aspect: 'auto' | '1x1' | '4x3' | '3x2' | '16x9' | '3x4';
+      width: 'narrow' | 'content' | 'wide' | 'full';
       caption?: string;
-      aspect?: 'auto' | '16/9' | '4/3' | '1/1' | '3/4';
-      width?: 'narrow' | 'content' | 'wide' | 'full';
+      captionAlign?: 'start' | 'center';
+      linkLabel?: string;
+      linkHref?: string;
     };
     'logo-cloud': {
       variant: 'grid' | 'row';

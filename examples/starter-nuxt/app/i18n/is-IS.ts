@@ -266,4 +266,9 @@ export const isIS = {
     authorHintHelp: 'Úr Studio › Höfundar',
     richTextTableLabel: 'Tafla',
   },
+  imageBlock: {
+    hintLabel: 'Veldu mynd',
+    hintHelp: 'JPG, PNG eða WebP · a.m.k. 2400px á breidd fyrir fulla breidd',
+    captionHintLabel: 'Bættu við myndatexta (valfrjálst)',
+  },
 } satisfies Messages;

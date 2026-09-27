@@ -266,4 +266,9 @@ export const enUS = {
     authorHintHelp: 'From Studio › Authors',
     richTextTableLabel: 'Table',
   },
+  imageBlock: {
+    hintLabel: 'Choose an image',
+    hintHelp: 'JPG, PNG or WebP · at least 2400px wide for full width',
+    captionHintLabel: 'Add a caption (optional)',
+  },
 } satisfies Messages;

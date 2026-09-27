@@ -469,6 +469,18 @@ export interface Messages {
     authorHintHelp: string;
     richTextTableLabel: string;
   };
+  /**
+   * The image block's own editor-only hints (spec `02-blocks.md` "Image" → States, "Empty
+   * (freshly inserted)"), gated by `useEditing()` like every other block's own hints: `hintLabel`/
+   * `hintHelp` for the photo-icon placeholder shown with no image chosen yet, and
+   * `captionHintLabel` for the muted caption placeholder shown beside it (see
+   * `blocks/image/Block.vue`).
+   */
+  imageBlock: {
+    hintLabel: string;
+    hintHelp: string;
+    captionHintLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */
