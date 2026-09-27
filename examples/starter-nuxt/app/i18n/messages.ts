@@ -532,6 +532,24 @@ export interface Messages {
     itemHintLabel: string;
     itemHintHelp: string;
   };
+  /**
+   * The article-list block's own strings (spec `02-blocks.md` "Article list" → Field → layout
+   * mapping, Keyboard & accessibility): `filterNav` labels the category-chip `<nav>` and `pages`
+   * labels `@eldrajs/ui`'s `Pagination`. `headingHintLabel`/`headingHintHelp` are the editor-only
+   * hint for an empty heading (`EditorPlaceholder`, gated by `useEditing()`), the same shape as
+   * every other rebuilt block's own heading hint; `itemsHintLabel`/`itemsHintHelp` are the spec's
+   * "Empty (freshly inserted)" source hint, shown instead while `items` is empty (see
+   * `blocks/article-list/Block.vue`'s own comment for why the live site falls to `emptyTitle`
+   * instead of the spec's literal "shows the latest stories straight away").
+   */
+  articleList: {
+    filterNav: string;
+    pages: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    itemsHintLabel: string;
+    itemsHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

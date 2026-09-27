@@ -38,6 +38,23 @@ declare global {
       authorLinkHref?: string;
       showByline?: boolean;
     };
+    'article-list': {
+      variant: 'grid' | 'featured-first' | 'list';
+      heading?: string;
+      viewAllLabel?: string;
+      viewAllHref?: string;
+      source: 'latest' | 'category' | 'manual';
+      categoryLabel?: string;
+      categoryHref?: string;
+      items?: Array<{ title: string; dek?: string; href: string; categoryLabel?: string; categoryHref?: string; publishedAt?: string; readingTime?: string; image?: EldraMedia }>;
+      perPage?: '3' | '6' | '9' | '12';
+      showFilters?: boolean;
+      filters?: Array<{ label: string; href: string }>;
+      showPagination?: boolean;
+      showExcerpt?: boolean;
+      emptyTitle?: string;
+      emptyText?: string;
+    };
     breadcrumbs: {
       showHome?: boolean;
       homeLabel?: string;

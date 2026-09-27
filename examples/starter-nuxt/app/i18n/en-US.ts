@@ -297,4 +297,12 @@ export const enUS = {
     itemHintLabel: 'Add a promise',
     itemHintHelp: 'Icon, title, one line · 3–4 work best',
   },
+  articleList: {
+    filterNav: 'Filter stories by category',
+    pages: 'Journal pages',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'Optional',
+    itemsHintLabel: 'Showing your latest stories',
+    itemsHintHelp: 'Choose a source: all stories, one category or a hand-picked list.',
+  },
 } satisfies Messages;

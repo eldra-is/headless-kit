@@ -298,4 +298,12 @@ export const isIS = {
     itemHintLabel: 'Bættu við loforði',
     itemHintHelp: 'Tákn, fyrirsögn, ein lína · 3–4 henta best',
   },
+  articleList: {
+    filterNav: 'Sía sögur eftir flokki',
+    pages: 'Síður tímaritsins',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Valfrjálst',
+    itemsHintLabel: 'Sýnir nýjustu sögurnar',
+    itemsHintHelp: 'Veldu heimild: allar sögur, einn flokk eða handvalinn lista.',
+  },
 } satisfies Messages;

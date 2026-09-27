@@ -1,0 +1,68 @@
+{
+  "variant": "grid",
+  "heading": "From the journal",
+  "viewAllLabel": "View all stories",
+  "viewAllHref": "/journal",
+  "source": "manual",
+  "perPage": "6",
+  "showFilters": true,
+  "filters": [
+    { "label": "All", "href": "/journal" },
+    { "label": "Ceramics", "href": "/journal/ceramics" },
+    { "label": "Care", "href": "/journal/care" },
+    { "label": "Recipes", "href": "/journal/recipes" },
+    { "label": "Makers", "href": "/journal/makers" },
+    { "label": "Home", "href": "/journal/home" }
+  ],
+  "showPagination": true,
+  "showExcerpt": true,
+  "emptyTitle": "No stories yet",
+  "emptyText": "Our kitchen team is testing a few. Until then, browse every story from the journal.",
+  "items": [
+    {
+      "title": "How we glaze our stoneware",
+      "dek": "Two firings, three pairs of hands and a kiln that always has the last word. A morning in the Portland studio.",
+      "href": "/journal/how-we-glaze-our-stoneware",
+      "categoryLabel": "Ceramics",
+      "categoryHref": "/journal/ceramics",
+      "publishedAt": "2026-09-18",
+      "readingTime": "6 min read"
+    },
+    {
+      "title": "Caring for merino: a winter guide",
+      "dek": "Wash less, air more. How to keep a knit soft and shape-true for a decade, pills and all.",
+      "href": "/journal/caring-for-merino",
+      "categoryLabel": "Care",
+      "categoryHref": "/journal/care",
+      "publishedAt": "2026-09-09",
+      "readingTime": "4 min read"
+    },
+    {
+      "title": "Five-minute brown butter oats",
+      "dek": "Our kitchen team's weekday breakfast, made in one Everyday saucepan with whatever fruit is in the bowl.",
+      "href": "/journal/brown-butter-oats",
+      "categoryLabel": "Recipes",
+      "categoryHref": "/journal/recipes",
+      "publishedAt": "2026-08-28",
+      "readingTime": "3 min read"
+    },
+    {
+      "title": "Inside the Porto linen mill",
+      "dek": "Three generations, one loom room and the reason our tea towels soften with every wash.",
+      "href": "/journal/porto-linen-mill",
+      "categoryLabel": "Makers",
+      "categoryHref": "/journal/makers",
+      "publishedAt": "2026-08-14",
+      "readingTime": "7 min read"
+    },
+    {
+      "title": "Setting a slow table for six",
+      "dek": "Mismatched plates, one good candle and a menu you can make the day before.",
+      "href": "/journal/slow-table-for-six",
+      "categoryLabel": "Home",
+      "categoryHref": "/journal/home",
+      "publishedAt": "2026-07-30",
+      "readingTime": "5 min read"
+    }
+  ]
+}

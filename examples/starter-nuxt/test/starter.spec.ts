@@ -24,6 +24,7 @@ const nuxi = join(templateDir, 'node_modules', '.bin', 'nuxi');
 const expectedBlocks = [
   'announcement-bar',
   'article',
+  'article-list',
   'breadcrumbs',
   'contact',
   'cta',
@@ -285,6 +286,23 @@ describe('starter theme', () => {
         'paymentsLabel',
         'payments',
         'background',
+      ],
+      'article-list': [
+        'variant',
+        'heading',
+        'viewAllLabel',
+        'viewAllHref',
+        'source',
+        'categoryLabel',
+        'categoryHref',
+        'items',
+        'perPage',
+        'showFilters',
+        'filters',
+        'showPagination',
+        'showExcerpt',
+        'emptyTitle',
+        'emptyText',
       ],
     });
 
