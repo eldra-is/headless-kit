@@ -277,8 +277,9 @@ function itemWrapperClass(card: CardView): string {
               :aria-current="filter.active ? 'true' : undefined"
               :classes="{
                 root: filter.active
-                  ? 'inline-flex min-h-10 items-center gap-1 rounded-full border border-primary bg-primary px-4 text-control font-semibold text-primary-contrast'
-                  : 'inline-flex min-h-10 items-center gap-1 rounded-full border border-border-strong px-4 text-control font-medium text-text hover:border-text',
+                  ? 'inline-flex min-h-10 items-center rounded-full border border-primary bg-primary px-4 text-control font-semibold text-primary-contrast'
+                  : 'inline-flex min-h-10 items-center rounded-full border border-border-strong px-4 text-control font-medium text-text hover:border-text',
+                label: 'inline-flex items-center gap-1',
               }"
             >
               <EldraIcon v-if="filter.active" name="check" size="sm" />

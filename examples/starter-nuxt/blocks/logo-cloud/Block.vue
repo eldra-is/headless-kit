@@ -102,7 +102,9 @@ const showBlock = computed(() => isEditing.value || (hasHeading.value && hasLogo
 
 /** Fills the hairline cell (see the module doc comment) and gives a linked cell the full-cell tab
  *  target the `grid` variant's spec requires; `row` draws no rules and needs neither override. */
-const GRID_ITEM_CLASSES = { root: 'h-full w-full bg-background' } as const;
+// `rounded-none` overrides `LogoItem`'s own `rounded-md`: a rounded cell lets the `<ul>`'s hairline
+// colour show through at every corner as a small cross-shaped spur where four cells meet.
+const GRID_ITEM_CLASSES = { root: 'h-full w-full rounded-none bg-background' } as const;
 </script>
 
 <template>
@@ -133,7 +135,7 @@ const GRID_ITEM_CLASSES = { root: 'h-full w-full bg-background' } as const;
 
         <ul
           role="list"
-          class="bg-border @tablet:auto-rows-[7rem] @tablet:grid-cols-4 grid auto-rows-[6rem] grid-cols-2 gap-px"
+          class="bg-border @tablet:auto-rows-[7rem] @tablet:grid-cols-4 grid auto-rows-[6rem] grid-cols-2 gap-px p-px"
         >
           <template v-for="(item, index) in renderedItems" :key="index">
             <li v-if="isEditing && isItemEmpty(item)" class="bg-background">
