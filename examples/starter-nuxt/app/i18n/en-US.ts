@@ -247,4 +247,10 @@ export const enUS = {
     itemHintHelp: 'Label, heading, text, image and link',
     richTextTableLabel: 'Table',
   },
+  quote: {
+    headingFor: 'Quote from {name}',
+    quoteHintLabel: 'Add a quote',
+    quoteHintHelp: 'Then the name and role or source.',
+    nameHintLabel: 'Add a name',
+  },
 } satisfies Messages;

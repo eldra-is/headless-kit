@@ -2877,6 +2877,117 @@
       "previewImage": ".eldra/previews/pricing-table.png"
     },
     {
+      "apiId": "quote",
+      "name": "Quote",
+      "description": "One large pull quote from the founder, a maker or the press, with attribution and an optional portrait. For several customer reviews, use Testimonials.",
+      "icon": "quote",
+      "category": "content",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "centered is the default.",
+          "metadata": {
+            "options": [
+              "centered",
+              "with-image"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "quote",
+          "name": "Quote",
+          "type": "text",
+          "localized": true,
+          "helpText": "1 to 3 sentences, up to about 240 characters. No quotation marks: the icon supplies them.",
+          "validators": {
+            "required": true,
+            "maxLength": 240
+          }
+        },
+        {
+          "fieldId": "name",
+          "name": "Name",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Person or publication.",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "role",
+          "name": "Role",
+          "type": "string",
+          "localized": true,
+          "helpText": "For example \"Founder, Northwind Goods\" or \"Winter gift guide, 2025\"."
+        },
+        {
+          "fieldId": "avatar",
+          "name": "Avatar",
+          "type": "media",
+          "helpText": "Small round portrait next to the name (either variant). Shows initials when missing.",
+          "metadata": {
+            "multiple": false
+          }
+        },
+        {
+          "fieldId": "image",
+          "name": "Image",
+          "type": "media",
+          "helpText": "4:5 portrait or product photo with a focal point. Only shown in with-image.",
+          "metadata": {
+            "multiple": false,
+            "framing": true
+          }
+        },
+        {
+          "fieldId": "sourceLinkLabel",
+          "name": "Source link label",
+          "type": "string",
+          "localized": true,
+          "helpText": "Wraps the role line and links to the article, e.g. \"Read the guide\"."
+        },
+        {
+          "fieldId": "sourceLinkHref",
+          "name": "Source link",
+          "type": "string",
+          "helpText": "The article or page the role line links to."
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong",
+              "primary",
+              "accent"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "variant": "centered",
+        "quote": "The rare homeware shop where every piece has a name behind it, and a reason to be on your table.",
+        "name": "The Larder Journal",
+        "role": "Winter gift guide, 2025",
+        "sourceLinkLabel": "Read the guide",
+        "sourceLinkHref": "https://thelarder.example/winter-gift-guide",
+        "sectionBackground": "none"
+      },
+      "previewImage": ".eldra/previews/quote.png"
+    },
+    {
       "apiId": "split-content",
       "name": "Split content",
       "description": "Rows of image and text that alternate sides, for an \"our process\" or \"about the materials\" story.",

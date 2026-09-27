@@ -1,0 +1,16 @@
+{
+  "image": {
+    "assetId": "demo-quote-portrait",
+    "url": "/demo/quote-portrait.svg",
+    "altText": "Ingrid Solberg at the loom in the Tannery Lane workshop",
+    "width": 1000,
+    "height": 1250
+  },
+  "avatar": {
+    "assetId": "demo-avatar-5",
+    "url": "/demo/avatar-5.svg",
+    "altText": "",
+    "width": 256,
+    "height": 256
+  }
+}

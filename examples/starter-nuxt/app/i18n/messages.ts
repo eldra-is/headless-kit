@@ -432,6 +432,21 @@ export interface Messages {
     itemHintHelp: string;
     richTextTableLabel: string;
   };
+  /**
+   * The quote block's own strings (spec `02-blocks.md` "Quote" → Field → layout mapping, States):
+   * `headingFor` names the visually hidden `h2` that labels the section ("Quote from {name}",
+   * interpolated the same way `footer.socialLinkName` is), and the other three are its editor-only
+   * hints (`EditorPlaceholder`, gated by `useEditing()`) — `quoteHintLabel`/`quoteHintHelp` for a
+   * freshly inserted, still-empty quote (spec States → "Empty (freshly inserted)": "Add a quote" /
+   * "Then the name and role or source"), and `nameHintLabel` for the name once the quote itself has
+   * been filled in (see `blocks/quote/Block.vue`).
+   */
+  quote: {
+    headingFor: string;
+    quoteHintLabel: string;
+    quoteHintHelp: string;
+    nameHintLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

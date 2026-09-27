@@ -247,4 +247,10 @@ export const isIS = {
     itemHintHelp: 'Heiti, fyrirsögn, texti, mynd og tengill',
     richTextTableLabel: 'Tafla',
   },
+  quote: {
+    headingFor: 'Tilvitnun frá {name}',
+    quoteHintLabel: 'Bættu við tilvitnun',
+    quoteHintHelp: 'Bættu svo við nafni og starfsheiti eða heimild.',
+    nameHintLabel: 'Bættu við nafni',
+  },
 } satisfies Messages;

@@ -173,6 +173,17 @@ declare global {
       footnote?: string;
       sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
+    quote: {
+      variant: 'centered' | 'with-image';
+      quote: string;
+      name: string;
+      role?: string;
+      avatar?: EldraMedia;
+      image?: EldraMedia;
+      sourceLinkLabel?: string;
+      sourceLinkHref?: string;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
+    };
     'split-content': {
       startWith: 'image-left' | 'image-right';
       rows: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;
