@@ -42,6 +42,8 @@ export const enUS = {
     fallbackLabel: 'Feature grid',
     headingHintLabel: 'Add a heading (optional)',
     imageHintLabel: 'Choose an image',
+    itemHintLabel: 'Add a feature',
+    itemHintHelp: 'Pick an icon or image, then a title and a sentence.',
   },
   cta: {
     headingHintLabel: 'Add a heading',

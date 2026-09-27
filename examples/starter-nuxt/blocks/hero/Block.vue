@@ -149,6 +149,14 @@ const buttonsRowClass = computed(() =>
     : 'flex flex-col gap-3 @tablet:flex-row @tablet:items-center'
 );
 const carouselAriaLabel = computed(() => data.value.heading || t('hero.carouselFallback'));
+/** Bound below as `:ariaLabel` (camelCase), not this file's usual `:aria-label`: Vue's template
+ *  compiler passes a bound attribute's name through unchanged (the kebab→camel prop match is a
+ *  *runtime* behaviour, `packages/runtime-core`'s own prop resolution), so under `nuxi typecheck`
+ *  the literal `'aria-label'` key never satisfies a *required* `ariaLabel: string` prop like
+ *  `Carousel`'s own — only surfacing when this block is statically imported and type-checked
+ *  with the real generated block types. An *optional* `ariaLabel` (`Section`'s own, used
+ *  elsewhere in this codebase) has no such problem: a "missing" optional prop is not a type
+ *  error, so `:aria-label` still passes there. */
 
 /** Eyebrow/subheading invert onto the scrim (spec: "eyebrow ... accent (inverted on the scrim)");
  *  the heading needs no override — it already inherits `Section`'s own `text-primary-contrast`
@@ -320,7 +328,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
         <template v-else-if="isSplitCarousel">
           <Carousel
             v-if="hasSlides"
-            :aria-label="carouselAriaLabel"
+            :ariaLabel="carouselAriaLabel"
             controls="below"
             dots
             :counter="false"

@@ -249,4 +249,47 @@ describe('feature-grid block', () => {
     expect(editing.text()).toContain('Add a heading (optional)');
     expect(await axe(editing.element)).toHaveNoViolations();
   });
+
+  describe('empty item hint (spec: "two \'Add a feature\' items" on a freshly inserted block)', () => {
+    it('synthesizes two blank items with the "Add a feature" hint when items is empty, only while editing', async () => {
+      const data = { ...mock, items: [] };
+
+      const live = mountBlock(data);
+      expect(live.text()).not.toContain('Add a feature');
+      expect(live.find('section').exists()).toBe(false);
+
+      const editing = mountBlock(data, { editing: true });
+      expect(editing.findAll('li')).toHaveLength(2);
+      const hints = editing.findAll('li').map((li) => li.text());
+      expect(hints).toEqual([
+        'Add a featurePick an icon or image, then a title and a sentence.',
+        'Add a featurePick an icon or image, then a title and a sentence.',
+      ]);
+      expect(await axe(editing.element)).toHaveNoViolations();
+    });
+
+    it('shows the hint on one still-empty item while leaving real items alone, and drops it live', async () => {
+      const items = [item({ title: 'Fast checkout' }), {}];
+      const data = { ...mock, items };
+
+      const live = mountBlock(data);
+      expect(live.text()).not.toContain('Add a feature');
+      expect(live.findAll('li')).toHaveLength(1);
+      expect(live.findAll('h3').map((h) => h.text())).toEqual(['Fast checkout']);
+
+      const editing = mountBlock(data, { editing: true });
+      expect(editing.findAll('li')).toHaveLength(2);
+      expect(editing.findAll('h3').map((h) => h.text())).toEqual(['Fast checkout']);
+      expect(editing.text()).toContain('Add a feature');
+      expect(await axe(editing.element)).toHaveNoViolations();
+    });
+
+    it('an item with only an icon (no title yet) is not treated as empty', () => {
+      // `isItemEmpty` requires neither icon, image nor title — an icon alone (chosen first, before
+      // the title) already counts as "started", so it renders as a normal (title-less) card rather
+      // than being swallowed by the item hint.
+      const wrapper = mountBlock({ ...mock, items: [{ icon: 'bolt' }] }, { editing: true });
+      expect(wrapper.text()).not.toContain('Add a feature');
+    });
+  });
 });

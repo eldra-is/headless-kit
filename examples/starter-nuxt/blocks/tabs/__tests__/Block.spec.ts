@@ -200,6 +200,46 @@ describe('tabs block', () => {
     for (const tab of tabs.slice(0, -1)) expect(tab.attributes('aria-selected')).toBe('false');
   });
 
+  it('re-clamps selectedTab when the tabs list shrinks below it, keeping exactly one tab selected', async () => {
+    // Mutation check (manual): removing the `watch(() => tabs.value.length, …)` block in
+    // `Block.vue` leaves `selectedTab` pointing at an index no longer in the (shrunk) list —
+    // confirmed by temporarily deleting it and observing every tab read `aria-selected="false"`.
+    const wrapper = mountBlock({ ...mock, defaultTab: mock.tabs.length });
+    const before = wrapper.findAll('[role="tab"]');
+    expect(before[before.length - 1]!.attributes('aria-selected')).toBe('true');
+
+    const shrunk = { ...mock, tabs: mock.tabs.slice(0, mock.tabs.length - 2) };
+    await wrapper.setProps({ entry: { ...(wrapper.props('entry') as object), data: shrunk } });
+    await nextTick();
+
+    const after = wrapper.findAll('[role="tab"]');
+    expect(after).toHaveLength(shrunk.tabs.length);
+    const selected = after.filter((tab) => tab.attributes('aria-selected') === 'true');
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.element).toBe(after[after.length - 1]!.element);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('leaves selectedTab untouched when the tabs list shrinks but the selected index still fits', async () => {
+    const wrapper = mountBlock({ ...mock, defaultTab: 1 });
+    const shrunk = { ...mock, tabs: mock.tabs.slice(0, mock.tabs.length - 1) };
+    await wrapper.setProps({ entry: { ...(wrapper.props('entry') as object), data: shrunk } });
+    await nextTick();
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true');
+  });
+
+  it('panel headings use the leading-tight (1.25) line-height token, not a literal 1.3', () => {
+    // `--eldra-text-h3-line` (`packages/ui/src/styles/tokens.css`) is `1.25`, not `1.3` — the
+    // rich-text typography table's `h3` line height (a different, unrelated scale) is 1.3, and the
+    // panel heading previously copied that number by mistake.
+    const wrapper = mountBlock(mock);
+    const panelHeading = wrapper.get('h3');
+    expect(panelHeading.classes()).toContain('leading-tight');
+    expect(panelHeading.classes()).not.toContain('leading-[1.3]');
+  });
+
   it('caps a text-only panel copy at 40rem (mock.json has no tab images)', () => {
     const wrapper = mountBlock(mock);
     const richTextRoots = wrapper.findAll('[data-eldra-rich-text]');

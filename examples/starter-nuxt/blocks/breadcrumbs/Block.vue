@@ -15,7 +15,7 @@
  * resolved items nothing renders live at all — only the editor sees a hint explaining why.
  */
 import { computed, ref, watchEffect } from 'vue';
-import { Breadcrumb, Container, EditorPlaceholder, Section } from '@eldrajs/ui';
+import { Breadcrumb, Container, EditorPlaceholder } from '@eldrajs/ui';
 import type { BreadcrumbItem } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
@@ -107,10 +107,21 @@ watchEffect(() => {
   const currentEl = breadcrumbRoot.value?.querySelector('[data-part="current"]');
   currentEl?.setAttribute('title', lastItemLabel.value);
 });
+/**
+ * Spec "Breadcrumbs" → Container/Section line: "Section background none (inherits the page
+ * ground) · Section spacing none". This root is a plain `@container` wrapper, never `@eldrajs/ui`'s
+ * `Section` — `Section` marks every ground, including `none`, with `data-section-bg` so its own
+ * adjacent-same-background CSS rule can drop the *next* sibling's top padding. Breadcrumbs sits
+ * directly under the header on product/collection/article pages and must never trigger that rule
+ * against the block that follows it: the spec's page narrative treats it as a thin trail, not a
+ * section the following block's padding collapses against. Omitting `data-section`/`data-section-bg`
+ * here (while still giving `Container` a `@container` ancestor for its own gutter breakpoints) is
+ * what keeps the next block's full top padding intact.
+ */
 </script>
 
 <template>
-  <Section v-if="hasTrail" spacing="none">
+  <div v-if="hasTrail" class="bg-background text-text @container">
     <Container :width="containerWidth" :classes="{ root: 'py-3' }">
       <div ref="breadcrumbRoot" class="contents">
         <Breadcrumb
@@ -122,7 +133,7 @@ watchEffect(() => {
         />
       </div>
     </Container>
-  </Section>
+  </div>
   <EditorPlaceholder
     v-else-if="editing"
     :label="t('breadcrumbs.hintLabel')"

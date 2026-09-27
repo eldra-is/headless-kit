@@ -246,6 +246,24 @@ describe('contact block', () => {
     expect(wrapper.find(`a[href="mailto:${mock.email}"]`).exists()).toBe(true);
   });
 
+  it('renders the phone as plain text, not an inert href="tel:", when it strips down to no digits', () => {
+    // `new URL('tel:')` parses without throwing (an empty path is valid for a non-special
+    // scheme), so `safeHref` alone would still accept it — a phone value with no digits at all
+    // (or only a bare "+") must never reach `Link`/`safeHref` as `tel:${...}` in the first place.
+    // Mutation check (manual): reverting `telHref` to `safeHref(\`tel:${phone.replace(...)}\`)`
+    // with no digit guard makes this test fail with a clickable, dead `href="tel:"` link.
+    const wrapper = mountContact({ ...mock, phone: 'Call the studio' });
+    expect(wrapper.find('a[href^="tel:"]').exists()).toBe(false);
+    expect(wrapper.find('a[href="tel:"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Call the studio');
+  });
+
+  it('renders the phone as plain text when stripping leaves only a bare "+" with no digit', () => {
+    const wrapper = mountContact({ ...mock, phone: '+' });
+    expect(wrapper.find('a[href^="tel:"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('+');
+  });
+
   it('the Topic Select opens with ArrowDown, moves with arrows, commits with Enter, and closes on Esc returning focus to the trigger', async () => {
     const wrapper = mountContact(mock);
     const trigger = selectTrigger(wrapper);

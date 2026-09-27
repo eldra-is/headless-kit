@@ -43,6 +43,8 @@ export const isIS = {
     fallbackLabel: 'Eiginleikatafla',
     headingHintLabel: 'Bættu við fyrirsögn (valfrjálst)',
     imageHintLabel: 'Veldu mynd',
+    itemHintLabel: 'Bættu við eiginleika',
+    itemHintHelp: 'Veldu tákn eða mynd, síðan fyrirsögn og setningu.',
   },
   cta: {
     headingHintLabel: 'Bættu við fyrirsögn',

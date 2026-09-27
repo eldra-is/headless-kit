@@ -69,6 +69,13 @@ interface FaqItem {
   open?: boolean;
 }
 
+/** `AccordionItem.title` is a required `string`; `question` is optional here (block.json's own
+ *  `required: true` only guards published content, not a still-empty draft item mid-edit) — `??
+ *  ''` is the same "coerce to the empty string, never `undefined`" default every other required
+ *  text field in this file already applies via `.trim()`. Only surfaces under `nuxi typecheck`
+ *  when this block is statically imported (real generated block types, not the loose ones a bare
+ *  `pnpm test` run resolves to). */
+
 const props = defineProps<{ entry: EldraBlockEntry<'faq'> }>();
 const { data, entryId } = useBlockData(props, 'faq');
 const editing = useEditing();
@@ -163,7 +170,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
             <AccordionItem
               v-for="(item, index) in items"
               :key="index"
-              :title="item.question"
+              :title="item.question ?? ''"
               :model-value="itemOpen(item, index)"
             >
               <EldraRichText
@@ -203,7 +210,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
             <AccordionItem
               v-for="(item, index) in items"
               :key="index"
-              :title="item.question"
+              :title="item.question ?? ''"
               :model-value="itemOpen(item, index)"
             >
               <EldraRichText

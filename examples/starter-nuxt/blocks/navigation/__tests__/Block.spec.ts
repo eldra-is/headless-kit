@@ -8,9 +8,11 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
+import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
+import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 // `mock.json` is the seed Studio writes when an author inserts the block —
 // media fields (`brandLogo`, `links[].features[].image`) are absent.
@@ -19,8 +21,29 @@ import { createDemoStorefront } from '../../../app/storefront/demo';
 // its two feature cards.
 const merged = { ...mock, ...preview };
 
+/** Every hand-rolled `<svg>` in this block (menu, chevrons, arrow, search, account, cart) now
+ *  resolves through `EldraIcon` (Tabler-by-name), which under Nuxt calls `/api/eldra-icon`;
+ *  outside Nuxt that needs an injected `ICON_FETCHER_KEY` (the same pattern `gallery`'s and
+ *  `trust-strip`'s own specs use) — `stubFetcher` reads the real SVG synchronously via
+ *  `tablerIconSvg`, network-free. */
+const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
+
+/** The injected fetcher still resolves through a promise; flush one microtask/macrotask turn
+ *  before asserting on icon markup — the same wait `trust-strip`'s/`team`'s own specs use. */
+async function flushIcons(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve));
+}
+
 function mountBlock(data: Record<string, unknown>, opts?: { attachTo?: Element }) {
-  return mount(Block, { ...mountOptions({ entry: { id: 'e1', data } }), ...opts });
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  return mount(Block, {
+    ...base,
+    ...opts,
+    global: {
+      ...base.global,
+      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
+    },
+  });
 }
 
 /** Overrides the Eldra preview context's `active`/`mode` — the same shape `useEditing.spec.ts`
@@ -33,6 +56,7 @@ function mountWithEditing(data: Record<string, unknown>, editing: boolean) {
       ...base.global,
       provide: {
         ...base.global.provide,
+        [ICON_FETCHER_KEY]: stubFetcher,
         [ELDRA_KEY]: {
           client: {},
           designTokens: { colors: {} },
@@ -56,7 +80,11 @@ function mountWithCartCount(data: Record<string, unknown>, count: number) {
     ...base,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [STOREFRONT_KEY]: { ...storefront, cart } },
+      provide: {
+        ...base.global.provide,
+        [ICON_FETCHER_KEY]: stubFetcher,
+        [STOREFRONT_KEY]: { ...storefront, cart },
+      },
     },
   });
 }
@@ -110,12 +138,21 @@ describe('header block (navigation apiId)', () => {
   });
 
   it('establishes its own @container context on the root, so @tablet:/@content: classes measure the block’s own width', () => {
-    // `Section` (the block root, `as="header"`) is what puts `@container` on the DOM — `Container`
-    // does not establish one of its own. Losing this silently strands every `@tablet:`/`@content:`
-    // class at its mobile value regardless of the block's real width (the footer review's own
+    // The block root — a plain `<header>`, not `@eldrajs/ui`'s `Section` (see `barRootClasses`'s
+    // own comment: the header must never emit `data-section-bg` and take part in the
+    // adjacent-background padding-collapse rule) — carries `@container` itself. `Container` does
+    // not establish one of its own. Losing this silently strands every `@tablet:`/`@content:` class
+    // at its mobile value regardless of the block's real width (the footer review's own
     // regression: it shipped its mobile layout at 1280px).
     const wrapper = mountBlock(mock);
     expect(wrapper.get('header').classes()).toContain('@container');
+  });
+
+  it('never emits data-section/data-section-bg (it is not a Section, so a following Hero keeps its own top padding)', () => {
+    const wrapper = mountBlock(mock);
+    const header = wrapper.get('header').element;
+    expect(header.hasAttribute('data-section')).toBe(false);
+    expect(header.hasAttribute('data-section-bg')).toBe(false);
   });
 
   it('marks the brand link as the header’s announced focus target for announcement-bar dismissal', () => {
@@ -341,6 +378,120 @@ describe('header block (navigation apiId)', () => {
     it('field on sets the transparent attribute (the block only reads its own field)', () => {
       const wrapper = mountBlock({ ...mock, transparentOverHero: true });
       expect(wrapper.find('header').attributes('data-eldra-transparent')).toBe('true');
+    });
+  });
+
+  describe('icons', () => {
+    /** `EldraIcon` strips the fetched SVG's own outer `<svg>` tag (see that component's own doc
+     *  comment) and keeps only its inner markup, so a resolved icon is identified by a path `d`
+     *  unique to it, not by a wrapper class name. Each string below is copied from the real Tabler
+     *  outline SVG (`node_modules/@tabler/icons/icons/outline/<name>.svg`). */
+    const PATHS = {
+      'menu-2': 'M4 6l16 0',
+      'chevron-down': 'M6 9l6 6l6 -6',
+      'arrow-right': 'M13 6l6 6',
+      search: 'M21 21l-6 -6',
+      user: 'M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2',
+      'shopping-bag': 'M9 11v-5a3 3 0 0 1 6 0v5',
+    };
+
+    it('replaces every hand-rolled <svg> with EldraIcon, resolving each Tabler icon by name', async () => {
+      const wrapper = mountBlock(merged, { attachTo: document.body });
+      await flushIcons();
+      await nextTick();
+      const html = wrapper.html();
+      for (const [name, path] of Object.entries(PATHS)) {
+        expect(
+          html,
+          `expected the resolved "${name}" icon's own path in the rendered markup`
+        ).toContain(path);
+      }
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    });
+  });
+
+  describe('--eldra-header-height', () => {
+    /** Mirrors `trust-strip`'s own `ResizeObserver` stub: jsdom has none at all, so this replaces
+     *  `globalThis.ResizeObserver` with a fake that only captures the callback the block passes,
+     *  letting a test call `trigger()` after changing the header's measured height. */
+    function stubResizeObserver(): { trigger: () => void; restore: () => void } {
+      let captured: ResizeObserverCallback | null = null;
+      class FakeResizeObserver {
+        constructor(callback: ResizeObserverCallback) {
+          captured = callback;
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      const original = (globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
+      (globalThis as { ResizeObserver?: unknown }).ResizeObserver = FakeResizeObserver;
+      return {
+        trigger: () => captured?.([] as unknown as ResizeObserverEntry[], {} as ResizeObserver),
+        restore: () => {
+          (globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver = original;
+        },
+      };
+    }
+
+    function stubHeaderHeight(el: HTMLElement, height: number): void {
+      Object.defineProperty(el, 'getBoundingClientRect', {
+        value: () => ({
+          height,
+          width: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON() {},
+        }),
+        configurable: true,
+      });
+    }
+
+    afterEach(() => {
+      document.documentElement.style.removeProperty('--eldra-header-height');
+    });
+
+    it('publishes the sticky header’s rendered height on document.documentElement, tracks a resize, and clears it on unmount', async () => {
+      const stub = stubResizeObserver();
+      try {
+        const wrapper = mountBlock({ ...mock, sticky: true }, { attachTo: document.body });
+        const header = wrapper.get('header').element as HTMLElement;
+        stubHeaderHeight(header, 64);
+        await nextTick();
+        expect(document.documentElement.style.getPropertyValue('--eldra-header-height')).toBe(
+          '64px'
+        );
+
+        // A real resize (breakpoint change, search style switching in) — the observer's own
+        // callback re-reads the header's height and republishes it.
+        stubHeaderHeight(header, 96);
+        stub.trigger();
+        expect(document.documentElement.style.getPropertyValue('--eldra-header-height')).toBe(
+          '96px'
+        );
+
+        wrapper.unmount();
+        expect(document.documentElement.style.getPropertyValue('--eldra-header-height')).toBe('');
+      } finally {
+        stub.restore();
+      }
+    });
+
+    it('never publishes the variable for a non-sticky header', async () => {
+      const stub = stubResizeObserver();
+      try {
+        const wrapper = mountBlock({ ...mock, sticky: false }, { attachTo: document.body });
+        await nextTick();
+        expect(document.documentElement.style.getPropertyValue('--eldra-header-height')).toBe('');
+        wrapper.unmount();
+      } finally {
+        stub.restore();
+      }
     });
   });
 });

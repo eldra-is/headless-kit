@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
@@ -8,6 +8,7 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
 import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
+import type { StorefrontForms } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { enUS } from '../../../app/i18n/en-US';
 
@@ -24,8 +25,17 @@ import { enUS } from '../../../app/i18n/en-US';
  */
 const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
-function mountFooter(data: Record<string, unknown>, options: { failForms?: boolean } = {}) {
+function mountFooter(
+  data: Record<string, unknown>,
+  options: { failForms?: boolean; subscribe?: StorefrontForms['subscribe'] } = {}
+) {
   const base = mountOptions({ entry: { id: 'e1', data } });
+  const storefront = options.subscribe
+    ? (() => {
+        const demo = createDemoStorefront();
+        return { ...demo, forms: { ...demo.forms, subscribe: options.subscribe! } };
+      })()
+    : undefined;
   return mount(Block, {
     ...base,
     // Real focus tracking (`document.activeElement`, and `Select`'s own focus-return behaviour)
@@ -41,6 +51,7 @@ function mountFooter(data: Record<string, unknown>, options: { failForms?: boole
         ...(options.failForms
           ? { [STOREFRONT_KEY]: createDemoStorefront({ failForms: true }) }
           : {}),
+        ...(storefront ? { [STOREFRONT_KEY]: storefront } : {}),
       },
     },
   });
@@ -192,6 +203,51 @@ describe('footer block', () => {
     expect(document.activeElement).toBe(input.element);
     // The form stays (retryable), unlike the success path.
     expect(wrapper.find('form').exists()).toBe(true);
+  });
+
+  it('after a backend failure, resubmitting the unchanged email reaches the service again and can succeed', async () => {
+    // The gap `blocks/newsletter/Block.vue` fixed first: `FormLayout`'s own submit handler
+    // refuses to emit `submit` at all while a field still carries `aria-invalid="true"`, so an
+    // unchanged resubmit right after a backend failure needs the block's own `retryable` +
+    // `@invalid` handling to ever reach the service a second time. Mutation check (manual):
+    // removing `@invalid="onNewsletterInvalid"` (or `retryable.value = serviceFailed` in
+    // `onNewsletterSubmit`) makes `subscribe` stay called once and the field stay marked invalid
+    // forever — confirmed by temporarily reverting each change and observing this test fail.
+    const results = [{ ok: false as const, reason: 'failed' as const }, { ok: true as const }];
+    const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const });
+    const wrapper = mountFooter(mock, { subscribe });
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    expect(input.attributes('aria-invalid')).toBe('true');
+
+    // Same value, no edit in between: the form's own invalid gate must not swallow this.
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    await flushPromises();
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenLastCalledWith({
+      email: 'reader@example.com',
+      list: 'footer-newsletter',
+    });
+    expect(wrapper.find('form').exists()).toBe(false);
+    expect(wrapper.find('[role="status"]').text()).toContain(enUS.footer.subscribed);
+  });
+
+  it('a backend {ok:false, reason:"invalid"} shows the exact same invalid-email message (not the retryable one)', async () => {
+    const wrapper = mountFooter(mock, {
+      subscribe: async () => ({ ok: false, reason: 'invalid' }),
+    });
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
   });
 
   it('both selectors expose combobox/listbox roles with aria-expanded, closed by default', () => {

@@ -117,6 +117,10 @@ const carouselAriaLabel = computed(() => heading.value || t('gallery.carouselFal
 const viewerAriaLabel = computed(() =>
   hasHeading.value ? t('gallery.viewerHeading', { heading: heading.value }) : t('gallery.viewer')
 );
+/** Both bound below as `:ariaLabel` (camelCase), not `:aria-label` — see `blocks/hero/Block.vue`'s
+ *  own `carouselAriaLabel` comment: `Carousel.ariaLabel` and `Lightbox.ariaLabel` are both
+ *  *required* props, and the kebab→camel prop match Vue applies to a bound attribute is a
+ *  runtime-only behaviour, invisible to `nuxi typecheck`'s template type-checking. */
 
 const columns = computed<'2' | '3' | '4'>(() => data.value.columns ?? '3');
 const showCaptions = computed(() => data.value.showCaptions !== false);
@@ -328,7 +332,7 @@ const TILE_MEDIA_CLASS =
 
         <Carousel
           v-else
-          :aria-label="carouselAriaLabel"
+          :ariaLabel="carouselAriaLabel"
           controls="header"
           counter
           :dots="false"
@@ -405,7 +409,7 @@ const TILE_MEDIA_CLASS =
         v-model="lightboxOpen"
         v-model:index="lightboxIndex"
         :images="lightboxImages"
-        :aria-label="viewerAriaLabel"
+        :ariaLabel="viewerAriaLabel"
         thumbnails
       />
     </Container>

@@ -37,10 +37,16 @@ const EXPECTED_APIID_ORDER = [
 // (`packages/ui/src/__tests__/sectionAdjacentBackground.spec.ts`) — so this exact sequence is both
 // "which ground each block sits on" and "where the padding collapses" (index 4→5 and 5→6, the only
 // repeated neighbours, are Product carousel→Split content and Split content→Testimonials).
+//
+// `navigation` (the header) is `null`, not `'none'`: it is fixed chrome, not a `Section` (spec
+// "Header": it must never take part in the adjacent-background collapse rule, so the Hero right
+// after it always keeps its own full top padding — see `blocks/navigation/Block.vue`'s own
+// comment on `barRootClasses`). Because it carries no `data-section-bg` at all, it can never match
+// the Hero's `'none'` even though both sit on the same visual ground.
 const EXPECTED_SECTION_BACKGROUNDS = [
   'primary', // announcement-bar
-  'none', // navigation (header)
-  'none', // hero
+  null, // navigation (header) — not a Section; never collapses the Hero's top padding
+  'none', // hero — keeps its own full top padding after the header
   'surface', // trust-strip
   'none', // product-carousel
   'none', // split-content — same ground as product-carousel: top padding collapses
@@ -151,6 +157,16 @@ describe('home page (pages/home.page.json)', () => {
     expect(roots.map((el) => el.getAttribute('data-section-bg'))).toEqual(
       EXPECTED_SECTION_BACKGROUNDS
     );
+  });
+
+  it("keeps the hero's full top padding after the header (header takes no part in the adjacent-background collapse rule)", async () => {
+    const wrapper = await mountPage(homeFixture);
+    const main = wrapper.get('main#main');
+    const [, header, hero] = [...main.element.children];
+
+    expect(header!.hasAttribute('data-section-bg')).toBe(false);
+    expect(header!.hasAttribute('data-section')).toBe(false);
+    expect(hero!.getAttribute('data-section-bg')).toBe('none');
   });
 
   it('applies the page’s own overrides on top of each block’s merged mock + preview data', async () => {

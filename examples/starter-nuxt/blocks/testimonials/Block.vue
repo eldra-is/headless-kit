@@ -93,6 +93,10 @@ const showHeadingHint = computed(() => isEditing.value && !hasHeading.value);
  */
 const sectionLabelledBy = computed(() => (isCarousel.value ? undefined : headingId));
 const carouselAriaLabel = computed(() => heading.value || t('testimonials.carousel'));
+/** Bound below as `:ariaLabel` (camelCase), not `:aria-label` — see `blocks/hero/Block.vue`'s own
+ *  `carouselAriaLabel` comment: `Carousel`'s `ariaLabel` is a *required* prop, and the kebab→camel
+ *  prop match Vue applies to a bound attribute is a runtime-only behaviour, invisible to
+ *  `nuxi typecheck`'s template type-checking. */
 
 /** `summary`/`linkLabel`/`linkHref` are not shown in `single-large` (spec's field table, both
  *  rows: "Not shown in single-large"). */
@@ -288,7 +292,7 @@ const cardBackgroundClass = computed(() =>
       <!-- carousel: the same cards inside Carousel -->
       <Carousel
         v-else-if="isCarousel"
-        :aria-label="carouselAriaLabel"
+        :ariaLabel="carouselAriaLabel"
         controls="below"
         counter
         :dots="false"

@@ -106,9 +106,11 @@ describe('collection sample page', () => {
     expect(ctaEl!.tagName).toBe('SECTION');
     expect(footerEl!.tagName).toBe('FOOTER');
 
-    // The ground each block sits on (Section's `data-section-bg`), in order.
+    // The ground each block sits on (Section's `data-section-bg`), in order. The header and the
+    // breadcrumbs are not Sections, so they carry no ground at all and never take part in the
+    // adjacent-section padding collapse.
     const grounds = children.map((el) => el.getAttribute('data-section-bg'));
-    expect(grounds).toEqual(['none', 'none', 'none', 'none', 'surface', 'surface-strong']);
+    expect(grounds).toEqual([null, null, 'none', 'none', 'surface', 'surface-strong']);
 
     // The grid starts directly under the collection header with its own short 1.5rem top padding
     // (`pt-6`) rather than the shared spacing scale, and the call to action keeps a full band of

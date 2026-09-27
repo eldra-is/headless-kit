@@ -311,7 +311,6 @@ describe('starter theme', () => {
         'viewAllLabel',
         'viewAllHref',
         'source',
-        'categoryLabel',
         'categoryHref',
         'items',
         'perPage',

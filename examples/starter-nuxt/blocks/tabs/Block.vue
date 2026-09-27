@@ -40,7 +40,7 @@
  * to move between — so that branch is plain, `aria-hidden` decorative markup, never the package
  * component fed an empty list.
  */
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Container, EditorPlaceholder, Link, Section, Tab, TabPanel, Tabs } from '@eldrajs/ui';
 import type { SectionBackground } from '@eldrajs/ui';
 import { DEFAULT_IMAGE_FRAMING, EldraRichText, type ImageFraming } from '@eldrajs/theme-vue';
@@ -100,6 +100,27 @@ function clampedDefaultIndex(): number {
 }
 const selectedTab = ref(tabValue(clampedDefaultIndex()));
 
+/**
+ * `selectedTab` only ever *seeds* `Tabs`' `v-model` at setup (see the module doc comment on
+ * `clampedDefaultIndex`) — it is never re-derived from `tabs` afterwards, so an editor removing
+ * tabs (Studio's live preview re-renders this block with a shorter `tabs` list on every edit)
+ * could leave it pointing at an index that no longer exists: no `Tab`/`TabPanel` renders for it,
+ * nothing is marked `aria-selected`, and the tablist briefly has no selection at all. This watches
+ * the tab *count* (not the list identity, which changes on every keystroke inside an existing
+ * tab's own fields) and clamps `selectedTab` back into range the moment it shrinks below it,
+ * keeping the same relative position rather than jumping to a fixed tab.
+ */
+watch(
+  () => tabs.value.length,
+  (count) => {
+    if (count === 0) return;
+    const currentIndex = Number(selectedTab.value);
+    if (!Number.isFinite(currentIndex) || currentIndex > count - 1) {
+      selectedTab.value = tabValue(Math.min(Math.max(currentIndex, 0), count - 1));
+    }
+  }
+);
+
 function tabHasImage(tab: TabItem): boolean {
   return Boolean(tab.image);
 }
@@ -121,9 +142,13 @@ function tabLinkAs(tab: TabItem): typeof EldraRouterLink | undefined {
 /** Spec → Layout: "panel heading 1.5rem (1.25rem below 48rem)" — the block-heading bracket-value
  *  pattern every rebuilt block already uses for its own `h2` (see `headingClass` above), stepped
  *  down to `text-h3`'s own numbers (`--eldra-text-h3-*`, `packages/ui/src/styles/tokens.css`) at
- *  48rem instead of `text-h2`'s. */
+ *  48rem instead of `text-h2`'s. Line height is `leading-tight` (Tailwind's `1.25`), matching
+ *  `--eldra-text-h3-line: 1.25` exactly — `text-h3`'s own token, not the rich-text typography
+ *  table's unrelated 1.3 for an in-body `h3` (a different scale, spec "Rich-text typography
+ *  (shared)"); the same `leading-tight` convention every other rebuilt block's bracket-value
+ *  heading already uses (`cta`, `cart`, `newsletter`). */
 const panelHeadingClass =
-  'font-heading text-[1.25rem] leading-[1.3] font-semibold tracking-[-0.01em] @tablet:text-h3';
+  'font-heading text-[1.25rem] leading-tight font-semibold tracking-[-0.01em] @tablet:text-h3';
 
 /** Spec → Layout: "the tab row bleeds to the container edges" below 48rem — negative gutter
  *  margin plus matching inline and scroll padding, reset once the row sits inside the container

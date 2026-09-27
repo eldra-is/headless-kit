@@ -126,7 +126,18 @@ const hasHours = computed(() => hours.value.length > 0);
 
 const phone = computed(() => (data.value.phone ?? '').trim());
 const hasPhone = computed(() => phone.value !== '');
-const telHref = computed(() => safeHref(`tel:${phone.value.replace(/[^\d+]/g, '')}`));
+/**
+ * `safeHref` alone isn't enough to guard against an empty `tel:` destination: `new URL('tel:')`
+ * parses without throwing (an empty path is a valid opaque one for a non-special scheme), so a
+ * `phone` value with no digits at all (nothing left after stripping everything but digits/`+`, or
+ * only a bare `+`) would still pass `safeHref` and render an inert `href="tel:"` link — clickable,
+ * announced as a link, and going nowhere. `strippedPhoneDigits` requires at least one real digit;
+ * `telHref` is `null` without one, and the template falls back to plain text for the phone row.
+ */
+const strippedPhoneDigits = computed(() => phone.value.replace(/[^\d+]/g, ''));
+const telHref = computed(() =>
+  /\d/.test(strippedPhoneDigits.value) ? safeHref(`tel:${strippedPhoneDigits.value}`) : null
+);
 
 const email = computed(() => (data.value.email ?? '').trim());
 const hasEmail = computed(() => email.value !== '');

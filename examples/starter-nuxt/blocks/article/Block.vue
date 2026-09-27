@@ -175,7 +175,7 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
           <h1
             v-if="hasTitle"
             :id="titleId"
-            class="@tablet:text-[2.75rem] text-[2.125rem] font-bold text-balance"
+            class="@tablet:text-[2.75rem] text-[2.125rem] leading-[1.1] font-bold text-balance"
           >
             {{ title }}
           </h1>
@@ -255,22 +255,39 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
           class="border-border mt-12 flex items-start gap-4 border-t pt-8 text-sm leading-[1.6]"
         >
           <Avatar :src="authorAvatarUrl" :name="authorName" size="lg" decorative />
-          <div class="flex flex-col gap-1">
-            <p v-if="hasAuthorName" class="font-heading text-text text-lg font-semibold">
-              {{ authorName }}
-            </p>
-            <p v-if="authorRole" class="text-muted">{{ authorRole }}</p>
-            <p v-if="authorBio" class="text-text mt-2">{{ authorBio }}</p>
-            <Link
-              v-if="hasAuthorLink"
-              :href="authorLinkHref!"
-              :as="authorLinkAs"
-              variant="standalone"
-              arrow
-              class="mt-1"
-            >
-              {{ authorLinkLabel }}
-            </Link>
+          <!--
+            Spec → Layout, "Author card": "Text at 0.875rem, line height 1.6, 0.25rem apart:
+            name …, role …, bio (0.5rem above), link …" — every pair is 0.25rem apart except bio,
+            which sits 0.5rem below whatever precedes it. A single flex column with one uniform
+            `gap-*` cannot express that one exception without an extra `margin-top` stacked on top
+            of the gap (the previous shape here: a `gap-1` container plus `mt-2` on `bio` and
+            `mt-1` on the link — margin and `gap` both contribute space in a flex layout, so they
+            summed to 0.75rem before `bio` and 0.5rem before the link, both wrong). Two nested
+            `flex-col` groups reproduce the exact numbers with `gap` alone and no margin: the outer
+            `gap-2` (0.5rem) is the space between the name/role group and the bio/link group — the
+            one exceptional boundary — and each inner `gap-1` (0.25rem) covers the two ordinary
+            pairs (name↔role, bio↔link). Either group is only rendered when it has content, so an
+            absent name+role (or bio+link) never contributes an empty, gap-consuming box.
+          -->
+          <div class="flex flex-col gap-2">
+            <div v-if="hasAuthorName || authorRole" class="flex flex-col gap-1">
+              <p v-if="hasAuthorName" class="font-heading text-text text-lg font-semibold">
+                {{ authorName }}
+              </p>
+              <p v-if="authorRole" class="text-muted">{{ authorRole }}</p>
+            </div>
+            <div v-if="authorBio || hasAuthorLink" class="flex flex-col gap-1">
+              <p v-if="authorBio" class="text-text">{{ authorBio }}</p>
+              <Link
+                v-if="hasAuthorLink"
+                :href="authorLinkHref!"
+                :as="authorLinkAs"
+                variant="standalone"
+                arrow
+              >
+                {{ authorLinkLabel }}
+              </Link>
+            </div>
           </div>
         </footer>
         <EditorPlaceholder

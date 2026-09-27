@@ -181,6 +181,40 @@ describe('article-list block', () => {
     expect(onePage.find('nav[aria-label="Journal pages"]').exists()).toBe(false);
   });
 
+  it('perPage larger than the list renders every item on the one page, with no padding or duplication', async () => {
+    const wrapper = mountBlock({ ...withImages, perPage: '12' }); // withImages has 5 items
+    await flushPromises();
+    const titles = wrapper.findAll('h3').map((h) => h.text());
+    expect(titles).toEqual(withImages.items.map((item) => item.title));
+    expect(wrapper.findAll('li[class]').length).toBeGreaterThanOrEqual(titles.length);
+  });
+
+  it('a page number beyond totalPages clamps to the last real page instead of rendering blank', async () => {
+    const wrapper = mountBlock({ ...withImages, perPage: '3' }, { page: 99 });
+    await flushPromises();
+    // withImages has 5 items at perPage 3, so totalPages is 2 — page 99 clamps to it.
+    const nav = wrapper.get('nav[aria-label="Journal pages"]');
+    expect(nav.get('[aria-current="page"]').text()).toBe('2');
+    const titles = wrapper.findAll('h3').map((h) => h.text());
+    expect(titles).toEqual(withImages.items.slice(3, 5).map((item) => item.title));
+  });
+
+  it('drops a card with an unsafe href instead of rendering a broken link', async () => {
+    const wrapper = mountBlock({
+      ...mock,
+      items: [
+        { title: 'Bad story', href: 'javascript:alert(1)' },
+        { title: 'Good story', href: '/journal/good-story' },
+      ],
+    });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('Bad story');
+    expect(wrapper.text()).toContain('Good story');
+    expect(
+      wrapper.findAll('a').some((a) => (a.attributes('href') ?? '').startsWith('javascript'))
+    ).toBe(false);
+  });
+
   it('list variant hides the excerpt below 48rem of block width', async () => {
     const wrapper = mountBlock({ ...withImages, variant: 'list' });
     await flushPromises();

@@ -80,13 +80,18 @@ export interface Messages {
   };
   /**
    * The feature-grid block's own strings: the block's fallback accessible name (used only when
-   * `heading` is empty, the same pattern as `gallery.viewer`/`testimonials.carousel`) and its two
-   * editor-only hints — an unfilled heading, and an image-media item with no image chosen yet.
+   * `heading` is empty, the same pattern as `gallery.viewer`/`testimonials.carousel`) and its
+   * editor-only hints — an unfilled heading, an image-media item with no image chosen yet, and a
+   * whole item with neither icon/image nor title yet (spec States → Empty (freshly inserted):
+   * "two 'Add a feature' items ('Pick an icon or image, then a title and a sentence')"), the same
+   * per-item hint shape `team.itemHintLabel`/`stats.itemHintLabel` use for their own repeaters.
    */
   featureGrid: {
     fallbackLabel: string;
     headingHintLabel: string;
     imageHintLabel: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
   };
   /**
    * The footer block's own UI chrome — everything it writes itself rather than reads from

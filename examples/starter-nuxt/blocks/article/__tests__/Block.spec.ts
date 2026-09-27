@@ -152,6 +152,42 @@ describe('article block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  it('h1 uses the spec’s 1.1 line height', () => {
+    const wrapper = mountBlock(mock);
+    expect(wrapper.get('h1').classes()).toContain('leading-[1.1]');
+  });
+
+  it('showByline: false hides the byline even though every author field is present (author card still renders)', () => {
+    const wrapper = mountBlock({ ...mock, showByline: false });
+    // No byline avatar/"By {name}" line above the body…
+    expect(wrapper.text()).not.toContain(`By ${mock.authorName}`);
+    // …but the author card at the end of the body is unaffected — it has its own gate
+    // (`hasAuthorCard`), not `showByline`.
+    expect(wrapper.find('footer').exists()).toBe(true);
+    expect(wrapper.get('footer').text()).toContain(mock.authorName);
+  });
+
+  it('author-card spacing comes from nested flex `gap`, not a margin stacked on top of one', () => {
+    // Spec → Layout, "Author card": every pair 0.25rem apart except bio, "0.5rem above". A single
+    // `gap-1` container plus `mt-2` on bio / `mt-1` on the link (the previous shape) sums margin
+    // and gap, overshooting both to 0.75rem and 0.5rem respectively — this asserts neither the
+    // bio paragraph nor the link carries its own top margin any more.
+    const wrapper = mountBlock(mock);
+    const footer = wrapper.get('footer');
+    const bio = footer.findAll('p').find((p) => p.text() === mock.authorBio)!;
+    expect(bio.classes().some((c) => /^mt-/.test(c))).toBe(false);
+    const link = footer.get('a');
+    expect(link.classes().some((c) => /^mt-/.test(c))).toBe(false);
+  });
+
+  it('an invalid publishedAt renders no <time> element and does not crash', async () => {
+    const wrapper = mountBlock({ ...mock, publishedAt: 'not-a-date' });
+    expect(wrapper.find('time').exists()).toBe(false);
+    // The rest of the meta line (category, reading time) still renders — only the date drops.
+    expect(wrapper.text()).toContain(mock.categoryLabel);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
   it('shows editor-only hints for empty required parts, never on the live site', () => {
     const empty = { title: '', publishedAt: '', body: { type: 'doc', content: [] } };
     const live = mountBlock(empty);

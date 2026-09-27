@@ -23,6 +23,14 @@
  * `FeatureCard`'s own cue does not have (unlike `ContentCard`'s) — restoring it here is what pins
  * the link to the bottom of a stretched card so links line up across a row (spec → Sizes,
  * "pushed to the bottom of the item").
+ *
+ * Spec States → Empty (freshly inserted): "two 'Add a feature' items ('Pick an icon or image,
+ * then a title and a sentence')" — the same per-item editor hint shape `team`'s/`stats`' own
+ * repeaters use. `isItemEmpty` treats an item with neither icon nor image nor title as empty;
+ * `editorItems` synthesizes two blank items when the whole `items` list is still empty, so the
+ * hint has somewhere to render even before Studio's repeater has seeded anything; `renderedItems`
+ * shows every item while editing (a still-empty row renders its own hint instead of vanishing) but
+ * filters empty ones out live (Global Constraints, "Editor vs live").
  */
 import { computed, defineComponent, h, type Component } from 'vue';
 import {
@@ -140,11 +148,35 @@ const NO_UNDERLINE_UNTIL_HOVER =
   'no-underline hover:underline hover:decoration-1 hover:decoration-current ' +
   'hover:underline-offset-[0.2em] active:underline active:decoration-2 active:underline-offset-[0.2em]';
 
+type FeatureGridItem = NonNullable<EldraBlockData['feature-grid']['items']>[number];
+
+/** No icon/image and no title yet — a repeater row Studio has created but the editor hasn't
+ *  filled in (spec States → Empty (freshly inserted): "two 'Add a feature' items"). */
+function isItemEmpty(item: Partial<FeatureGridItem>): boolean {
+  return !item.icon && !item.image && (item.title ?? '').trim() === '';
+}
+
+const allItems = computed<FeatureGridItem[]>(() => data.value.items ?? []);
+/** Editing always shows at least two items: a genuinely empty `items` list (a block just dragged
+ *  onto the page, before Studio's own repeater has seeded anything) still gets two synthetic
+ *  blank items so the "Add a feature" hint has somewhere to render — the same synthesis
+ *  `team.editorPeople`'s own comment explains, sized to match this block's own spec text. */
+const editorItems = computed<Partial<FeatureGridItem>[]>(() =>
+  allItems.value.length > 0 ? allItems.value : [{}, {}]
+);
+/** Live: only items with real content render (Global Constraints, "Editor vs live"); editing:
+ *  every item renders, so a still-empty repeater row shows its own hint instead of vanishing. */
+const renderedItems = computed(() =>
+  isEditing.value ? editorItems.value : allItems.value.filter((item) => !isItemEmpty(item))
+);
+const hasItems = computed(() => renderedItems.value.length > 0);
+
 const items = computed(() =>
-  (data.value.items ?? []).map((item) => {
+  renderedItems.value.map((item) => {
     const href = safeHref(item.href);
     const hasIcon = !isImageMedia.value && Boolean(item.icon);
     return {
+      isEmpty: isEditing.value && isItemEmpty(item),
       icon: hasIcon && item.icon ? resolveIconComponent(item.icon) : EMPTY_ICON,
       showIconTile: hasIcon,
       hasImage: Boolean(item.image),
@@ -160,7 +192,12 @@ const items = computed(() =>
 </script>
 
 <template>
-  <Section spacing="md" :labelled-by="sectionLabelledBy" :aria-label="sectionAriaLabel">
+  <Section
+    v-if="hasItems || isEditing"
+    spacing="md"
+    :labelled-by="sectionLabelledBy"
+    :aria-label="sectionAriaLabel"
+  >
     <Container width="wide">
       <div v-if="hasHead" class="mb-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div class="max-w-[40rem]">
@@ -192,37 +229,46 @@ const items = computed(() =>
 
       <ul role="list" :class="gridClass">
         <li v-for="(item, index) in items" :key="index" class="h-full">
-          <UiImage
-            v-if="isImageMedia && item.hasImage"
-            :src="item.image!.url"
-            :alt="item.image!.altText ?? ''"
-            :framing="item.image!.framing ?? null"
-            aspect="3/2"
-            rounded="lg"
-            class="mb-2"
-          />
           <EditorPlaceholder
-            v-else-if="isImageMedia && !item.hasImage && isEditing"
+            v-if="item.isEmpty"
             inline
-            class="mb-2"
-            :label="t('featureGrid.imageHintLabel')"
+            class="h-full"
+            :label="t('featureGrid.itemHintLabel')"
+            :help="t('featureGrid.itemHintHelp')"
           />
-          <FeatureCard
-            :icon="item.icon"
-            :title="item.title"
-            :body="item.text"
-            :href="item.href"
-            :cue="item.cue"
-            :link-as="item.linkAs"
-            :variant="featureCardVariant"
-            :heading-level="3"
-            :classes="{
-              root: 'h-full',
-              iconTile: item.showIconTile ? undefined : 'hidden',
-              titleLink: NO_UNDERLINE_UNTIL_HOVER,
-              cue: 'mt-auto',
-            }"
-          />
+          <template v-else>
+            <UiImage
+              v-if="isImageMedia && item.hasImage"
+              :src="item.image!.url"
+              :alt="item.image!.altText ?? ''"
+              :framing="item.image!.framing ?? null"
+              aspect="3/2"
+              rounded="lg"
+              class="mb-2"
+            />
+            <EditorPlaceholder
+              v-else-if="isImageMedia && !item.hasImage && isEditing"
+              inline
+              class="mb-2"
+              :label="t('featureGrid.imageHintLabel')"
+            />
+            <FeatureCard
+              :icon="item.icon"
+              :title="item.title"
+              :body="item.text"
+              :href="item.href"
+              :cue="item.cue"
+              :link-as="item.linkAs"
+              :variant="featureCardVariant"
+              :heading-level="3"
+              :classes="{
+                root: 'h-full',
+                iconTile: item.showIconTile ? undefined : 'hidden',
+                titleLink: NO_UNDERLINE_UNTIL_HOVER,
+                cue: 'mt-auto',
+              }"
+            />
+          </template>
         </li>
       </ul>
     </Container>

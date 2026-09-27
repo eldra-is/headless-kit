@@ -118,6 +118,25 @@ describe('cta block', () => {
     expect(wrapper.text()).not.toContain(mock.secondaryCtaLabel);
   });
 
+  it('the banner button is a smaller control below 48rem, and the package’s own lg from 48rem (spec: 2.75rem, then 3rem)', () => {
+    const wrapper = mountBlock({ ...mock, variant: 'banner' });
+    const button = wrapper.get('a, button');
+    const classes = button.classes();
+    // `control-h` (the package's regular control height, closest token-backed step to the spec's
+    // 2.75rem) below `@tablet` (48rem of the block's own width); `@tablet:control-h-lg` (3rem)
+    // from 48rem on — see `Block.vue`'s own doc comment on the banner Button's `classes.container`.
+    expect(classes).toContain('control-h');
+    expect(classes).toContain('@tablet:control-h-lg');
+    // `size="lg"`'s own *unprefixed* `control-h-lg` must be gone — `cx`'s custom `twMerge` config
+    // treats `control-h`/`control-h-lg` as one conflicting group, so the override replaces it
+    // rather than sitting beside it (which would let the bare `control-h-lg` win the cascade at
+    // every width, silently keeping the button at 3rem below 48rem too). Its `lg` padding/text
+    // sizing (`px-6`, `text-button-lg`) stay untouched — a different, non-conflicting class group.
+    expect(classes).not.toContain('control-h-lg');
+    expect(classes).toContain('px-6');
+    expect(classes).toContain('text-button-lg');
+  });
+
   it('marks the banner panel data-section="accent" — the attribute that inverts the button, not a colour class', () => {
     const wrapper = mountBlock({ ...mock, variant: 'banner' });
     const panel = wrapper.get('[data-section="accent"]');

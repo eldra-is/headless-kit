@@ -44,7 +44,6 @@ declare global {
       viewAllLabel?: string;
       viewAllHref?: string;
       source: 'latest' | 'category' | 'manual';
-      categoryLabel?: string;
       categoryHref?: string;
       items?: Array<{ title: string; dek?: string; href: string; categoryLabel?: string; categoryHref?: string; publishedAt?: string; readingTime?: string; image?: EldraMedia }>;
       perPage?: '3' | '6' | '9' | '12';

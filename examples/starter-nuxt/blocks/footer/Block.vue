@@ -35,8 +35,19 @@
  * error slot. Both failure paths return focus to the email field — `FormLayout`'s own submit
  * handler only refuses a *second* submit while a field is already marked invalid, so the first
  * invalid attempt's error + refocus is this block's own job.
+ *
+ * A backend failure (`{ ok: false }` for a reason other than the address itself) marks the field
+ * invalid the same way a malformed address does, but nothing about the *value* is wrong — the
+ * visitor's natural next move is pressing Subscribe again, unchanged. `FormLayout`'s own submit
+ * handler refuses to emit `submit` at all while any field still carries `aria-invalid="true"` (see
+ * that component's own doc comment), so an unchanged resubmit after a backend failure would
+ * otherwise be silently swallowed forever — the exact gap `blocks/newsletter/Block.vue` fixed
+ * first (`retryable` + `@invalid`, ported here verbatim): `retryable` remembers that the current
+ * error came from the service, not the address, and `onNewsletterInvalid` (wired to `FormLayout`'s
+ * `@invalid`) clears the stale mark and re-dispatches the same submit once, the moment the gate
+ * actually fires.
  */
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import {
   Button,
   Container,
@@ -169,6 +180,31 @@ const showNewsletter = computed(
   () => variant.value === 'default' && (data.value.showNewsletter ?? true)
 );
 
+/** Mirrors `blocks/newsletter/Block.vue`'s own comment: an error has to clear itself the moment
+ *  its own condition is fixed (the visitor edits the address), not only inside a later successful
+ *  `onNewsletterSubmit` — otherwise a corrected but still-marked field wedges every future submit
+ *  behind `FormLayout`'s own invalid gate before this handler ever runs. */
+watch(email, () => {
+  emailError.value = null;
+  retryable.value = false;
+});
+
+/** See the module doc comment: a sign-up-service failure is retryable — nothing about the value
+ *  itself is wrong — so the field is remembered as such and, when `FormLayout`'s invalid gate
+ *  fires on the unchanged resubmit, the stale mark is cleared and the same submit is re-dispatched. */
+const retryable = ref(false);
+
+function onNewsletterInvalid(): void {
+  if (!retryable.value) return;
+  retryable.value = false;
+  emailError.value = null;
+  const form = emailFieldRoot.value?.closest('form');
+  if (!form) return;
+  void nextTick(() => {
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+}
+
 async function focusEmailField(): Promise<void> {
   await nextTick();
   emailFieldRoot.value?.querySelector<HTMLInputElement>('input')?.focus();
@@ -176,6 +212,10 @@ async function focusEmailField(): Promise<void> {
 
 async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
   payload.event.preventDefault();
+  // Spec "Newsletter submitting": repeat submits are ignored while one is already in flight (the
+  // submit Button stays clickable while loading — see `Button.vue`'s own comment on that).
+  if (newsletterState.value === 'submitting') return;
+
   const value = String(payload.data.get('email') ?? '').trim();
 
   if (!EMAIL_PATTERN.test(value)) {
@@ -194,7 +234,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
   }
 
   newsletterState.value = 'idle';
-  emailError.value = t('footer.emailError');
+  const serviceFailed = result.reason !== 'invalid';
+  retryable.value = serviceFailed;
+  emailError.value = serviceFailed ? t('footer.emailError') : t('footer.emailInvalid');
   await focusEmailField();
 }
 </script>
@@ -296,6 +338,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               :aria-label="data.newsletterTitle ? undefined : t('footer.newsletterAriaLabel')"
               :submitting="newsletterState === 'submitting'"
               @submit="onNewsletterSubmit"
+              @invalid="onNewsletterInvalid"
             >
               <p
                 v-if="data.newsletterText"

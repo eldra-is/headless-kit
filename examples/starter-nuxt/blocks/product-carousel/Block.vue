@@ -146,6 +146,10 @@ const cardRatio = computed(() => (isRecentlyViewed.value ? '1x1' : '4x5'));
  *  claiming to be the (not yet populated) product row — `storefront.loading` is the shared
  *  commerce-block vocabulary (`app/i18n/messages.ts`), not a string this block owns itself. */
 const carouselAriaLabel = computed(() => (pending.value ? t('storefront.loading') : heading.value));
+/** Bound below as `:ariaLabel` (camelCase), not `:aria-label` — see `blocks/hero/Block.vue`'s own
+ *  `carouselAriaLabel` comment: `Carousel`'s `ariaLabel` is a *required* prop, and the kebab→camel
+ *  prop match Vue applies to a bound attribute is a runtime-only behaviour, invisible to
+ *  `nuxi typecheck`'s template type-checking. */
 
 const viewAllHref = computed(() => safeHref(data.value.viewAllHref));
 const hasViewAll = computed(
@@ -187,7 +191,7 @@ const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHe
 
       <Carousel
         v-else-if="showCarousel"
-        :aria-label="carouselAriaLabel"
+        :ariaLabel="carouselAriaLabel"
         controls="header"
         counter
         :dots="false"

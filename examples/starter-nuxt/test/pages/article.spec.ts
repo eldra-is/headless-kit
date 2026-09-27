@@ -31,9 +31,25 @@ describe('article sample page', () => {
     expect(newsletterEl!.tagName).toBe('SECTION');
     expect(footerEl!.tagName).toBe('FOOTER');
 
-    // The ground each block sits on (Section's data-section-bg), in order.
+    // The ground each block sits on (Section's data-section-bg), in order. The header and
+    // breadcrumbs are not Sections (spec "Header" / "Breadcrumbs": neither takes part in the
+    // adjacent-background collapse rule, so the block after each one keeps its own top padding),
+    // so both carry no attribute at all.
     const grounds = children.map((el) => el.getAttribute('data-section-bg'));
-    expect(grounds).toEqual(['none', 'none', 'none', 'none', 'surface', 'surface-strong']);
+    expect(grounds).toEqual([null, null, 'none', 'none', 'surface', 'surface-strong']);
+  });
+
+  it("keeps the article's full top padding after breadcrumbs (breadcrumbs takes no part in the adjacent-background collapse rule)", async () => {
+    const wrapper = await mountPage(page);
+    const main = wrapper.get('main#main');
+    const [, breadcrumbsEl, articleEl] = Array.from(main.element.children);
+
+    // Breadcrumbs renders no `data-section`/`data-section-bg` at all, so the package's
+    // `[data-section-bg='x'] + [data-section-bg='x']` CSS rule has nothing to match against and
+    // the article keeps its normal `section-md` top padding instead of having it dropped to 0.
+    expect(breadcrumbsEl!.hasAttribute('data-section-bg')).toBe(false);
+    expect(breadcrumbsEl!.hasAttribute('data-section')).toBe(false);
+    expect(articleEl!.getAttribute('data-section-bg')).toBe('none');
   });
 
   it('has exactly one h1 (the article title); the related list heading is h2 and its cards are h3', async () => {

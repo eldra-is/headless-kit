@@ -20,13 +20,18 @@
  *    `h3` scale.
  *
  * Both actions are `@eldrajs/ui`'s `Button` (`primary` + `outline`, both `lg`) — the design spec's
- * own "Uses" line names `Button`, not `Link`, for this block. The design spec asks the `banner`
- * button for a third, in-between size below `@tablet` ("md, 2.75rem"); the package has only three
- * fixed presets (2/2.5/3rem) and forking `Button` for a one-block in-between height is out of scope
- * (Global Constraints), so `banner` renders the same single `lg` `Button` every other variant does
- * — one real element, one tab stop, matching this block's own acceptance test that `banner` renders
- * exactly one button. A deliberate deviation from the spec's literal 2.75rem, the same kind of
- * package-wins call `announcement-bar`'s own `Link`/`arrow` doc comment documents.
+ * own "Uses" line names `Button`, not `Link`, for this block. The `banner` button additionally
+ * switches its own control height with the block's width (spec: "Buttons are 3rem tall (the
+ * `banner` button is 2.75rem below 48rem)"): `size="lg"` keeps its `lg` padding/gap/text sizing at
+ * every width — the package has no separate size preset for one block's own in-between height, and
+ * forking `Button` for it is out of scope (Global Constraints) — while `classes.container:
+ * 'control-h @tablet:control-h-lg'` swaps only the height utility itself: `control-h` (the
+ * package's own `md`, 2.5rem — the closest token-backed height to the spec's 2.75rem, since there
+ * is no `--eldra-control-height-*` step at exactly 2.75rem either) below `@tablet` (48rem of the
+ * block's own width), `control-h-lg` (3rem) from `@tablet` on. `cx`'s custom `twMerge` config
+ * registers `control-h`/`control-h-sm`/`control-h-lg` as one conflicting group
+ * (`packages/ui/src/utils/cx.ts`), so the override cleanly replaces `size="lg"`'s own base
+ * `control-h-lg` at the unprefixed (mobile) level without touching its `@tablet:`-scoped one.
  *
  * Full-width-below-`@tablet` buttons elsewhere use the same base/`@tablet:` class pair every other
  * rebuilt block's own container-query classes use (`w-full @tablet:w-auto` on `Button`'s own
@@ -163,7 +168,7 @@ const showButtonHint = computed(() => isEditing.value && !hasPrimaryCta.value);
             size="lg"
             :href="primaryHref!"
             :as="primaryAs"
-            :classes="{ container: 'w-full @tablet:w-auto' }"
+            :classes="{ container: 'control-h @tablet:control-h-lg w-full @tablet:w-auto' }"
           >
             {{ data.primaryCtaLabel }}
           </Button>

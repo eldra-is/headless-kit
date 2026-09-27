@@ -30,7 +30,6 @@ import {
   Drawer,
   EditorPlaceholder,
   Link,
-  Section,
   SearchBar,
   SearchModal,
 } from '@eldrajs/ui';
@@ -40,6 +39,7 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
+import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -319,6 +319,43 @@ watchEffect((onCleanup) => {
   onCleanup(() => document.documentElement.style.removeProperty('scroll-padding-top'));
 });
 
+// --- published header height (--eldra-header-height) ------------------------------------------
+
+/**
+ * `faq`'s two-column sticky head column and `collection-grid`'s sticky filter rail both read
+ * `var(--eldra-header-height,0px)` for the extra offset a *sticky* header needs added to their own
+ * "N rem from the top" value (see either block's own module doc comment) — otherwise their sticky
+ * content would settle directly under the viewport edge and slide underneath this bar. This is the
+ * one place that variable is ever written: a `ResizeObserver` (guarded for an environment with
+ * none, e.g. jsdom under Vitest — the same guard `trust-strip`'s own list-overflow measurement
+ * uses) keeps the published value equal to the bar's real rendered height, which changes with
+ * `sticky`/`variant`/`searchStyle` and the mobile/tablet/desktop breakpoint. The property is
+ * removed — not just left stale — the moment `sticky` turns off, so a non-sticky header never
+ * claims space it doesn't occupy in the page's fixed flow, and on unmount (`onCleanup`), so it
+ * never survives past this instance of the block.
+ */
+const barRoot = ref<HTMLElement | null>(null);
+watchEffect((onCleanup) => {
+  if (!sticky.value || typeof ResizeObserver === 'undefined' || barRoot.value === null) {
+    document.documentElement.style.removeProperty('--eldra-header-height');
+    return;
+  }
+  const el = barRoot.value;
+  const publish = (): void => {
+    document.documentElement.style.setProperty(
+      '--eldra-header-height',
+      `${el.getBoundingClientRect().height}px`
+    );
+  };
+  const observer = new ResizeObserver(publish);
+  observer.observe(el);
+  publish();
+  onCleanup(() => {
+    observer.disconnect();
+    document.documentElement.style.removeProperty('--eldra-header-height');
+  });
+});
+
 // --- transparent-over-hero -----------------------------------------------------------------------
 
 /**
@@ -349,6 +386,19 @@ const isTransparent = computed(
  * `"0 1 2"` — every real utility class silently lost. Every conditional class list handed to a
  * `classes` prop in this file is therefore joined into one string with `[...].filter(Boolean).join(' ')`,
  * never left as an array.
+ */
+/**
+ * Spec "Header" → Container/Section line: "Section background default `background` … Section
+ * spacing none (the bar sets its own height)". This root is a plain `<header>`, never
+ * `@eldrajs/ui`'s `Section`: `Section` marks every ground (including `none`) with
+ * `data-section-bg` so its own adjacent-same-background CSS rule can drop the *next* sibling's
+ * top padding, and the header must never trigger that rule against the block that follows it (a
+ * Hero, most often) — the header is fixed chrome that always sits at the page's own ground, not a
+ * coloured band the padding-collapse rule is meant to read as one continuous band with its
+ * neighbour. It also never needs `Section`'s `group/section` colour-inversion machinery: `background`
+ * is always `none` here, and transparent-over-hero mode is handled entirely by `barRootClasses`
+ * above, not by `Section`'s `primary`/`accent` invert. `@container` is kept directly on this root so
+ * `Container` and every `@content:`/`@tablet:` variant below still measure the header's own width.
  */
 const barRootClasses = computed(() =>
   [
@@ -393,12 +443,10 @@ const actionsPositionClass = computed(() =>
 </script>
 
 <template>
-  <Section
-    as="header"
-    background="none"
-    spacing="none"
+  <header
+    ref="barRoot"
     :data-eldra-transparent="isTransparent ? 'true' : undefined"
-    :classes="{ root: barRootClasses }"
+    :class="barRootClasses"
   >
     <Container width="wide">
       <nav
@@ -417,19 +465,7 @@ const actionsPositionClass = computed(() =>
           @click="onMenuButtonClick"
         >
           <template #leadingIcon>
-            <svg
-              class="size-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.75"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <EldraIcon name="menu-2" size="md" />
           </template>
           <template v-if="variant === 'minimal'">{{ t('header.menu') }}</template>
         </Button>
@@ -481,20 +517,12 @@ const actionsPositionClass = computed(() =>
               @mouseleave="onTriggerMouseLeave"
             >
               {{ link.label }}
-              <svg
-                class="size-3.5 transition-transform motion-reduce:transition-none"
+              <EldraIcon
+                name="chevron-down"
+                size="sm"
+                class="transition-transform motion-reduce:transition-none"
                 :class="openMenuIndex === index ? 'rotate-180' : ''"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path d="M6 9l6 6l6 -6" />
-              </svg>
+              />
             </button>
             <Link
               v-else
@@ -564,19 +592,7 @@ const actionsPositionClass = computed(() =>
                   />
                   <span class="mt-3 flex items-center gap-1 text-sm font-semibold">
                     {{ feature.label }}
-                    <svg
-                      class="size-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.75"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path d="M5 12h14M13 6l6 6l-6 6" />
-                    </svg>
+                    <EldraIcon name="arrow-right" size="sm" />
                   </span>
                 </Link>
               </div>
@@ -602,20 +618,7 @@ const actionsPositionClass = computed(() =>
               @click="openSearch"
             >
               <template #leadingIcon>
-                <svg
-                  class="size-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-                  <path d="M21 21l-6 -6" />
-                </svg>
+                <EldraIcon name="search" size="md" />
               </template>
             </Button>
             <template v-else-if="searchStyle === 'field'">
@@ -639,20 +642,7 @@ const actionsPositionClass = computed(() =>
                 @click="openSearch"
               >
                 <template #leadingIcon>
-                  <svg
-                    class="size-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.75"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
-                    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-                    <path d="M21 21l-6 -6" />
-                  </svg>
+                  <EldraIcon name="search" size="md" />
                 </template>
               </Button>
             </template>
@@ -676,20 +666,7 @@ const actionsPositionClass = computed(() =>
                 @click="openSearch"
               >
                 <template #leadingIcon>
-                  <svg
-                    class="size-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.75"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
-                    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-                    <path d="M21 21l-6 -6" />
-                  </svg>
+                  <EldraIcon name="search" size="md" />
                 </template>
               </Button>
             </template>
@@ -708,20 +685,7 @@ const actionsPositionClass = computed(() =>
             :as="EldraRouterLink"
           >
             <template #leadingIcon>
-              <svg
-                class="size-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
-                <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-              </svg>
+              <EldraIcon name="user" size="md" />
             </template>
           </Button>
 
@@ -736,22 +700,7 @@ const actionsPositionClass = computed(() =>
               @click="onCartClick"
             >
               <template #leadingIcon>
-                <svg
-                  class="size-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d="M6.331 8h11.339a2 2 0 0 1 1.977 2.304l-1.255 8.152a3 3 0 0 1 -2.966 2.544h-6.852a3 3 0 0 1 -2.965 -2.544l-1.255 -8.152a2 2 0 0 1 1.977 -2.304z"
-                  />
-                  <path d="M9 11v-5a3 3 0 0 1 6 0v5" />
-                </svg>
+                <EldraIcon name="shopping-bag" size="md" />
               </template>
             </Button>
             <Badge
@@ -797,20 +746,12 @@ const actionsPositionClass = computed(() =>
               @click="toggleDrawerGroup(index)"
             >
               {{ link.label }}
-              <svg
-                class="size-4 transition-transform motion-reduce:transition-none"
+              <EldraIcon
+                name="chevron-down"
+                size="sm"
+                class="transition-transform motion-reduce:transition-none"
                 :class="drawerExpanded.has(index) ? 'rotate-180' : ''"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path d="M6 9l6 6l6 -6" />
-              </svg>
+              />
             </button>
             <Link
               v-else
@@ -888,5 +829,5 @@ const actionsPositionClass = computed(() =>
       :results="searchResults"
       :loading="searchResult.pending.value"
     />
-  </Section>
+  </header>
 </template>

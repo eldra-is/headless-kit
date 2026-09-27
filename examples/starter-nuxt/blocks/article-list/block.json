@@ -44,13 +44,6 @@
       "validators": { "required": true }
     },
     {
-      "fieldId": "categoryLabel",
-      "name": "Category label",
-      "type": "string",
-      "localized": true,
-      "helpText": "Used when source is category. Also matched against each chip to mark the active one."
-    },
-    {
       "fieldId": "categoryHref",
       "name": "Category URL",
       "type": "string",
