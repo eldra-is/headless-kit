@@ -1350,34 +1350,87 @@
     },
     {
       "apiId": "navigation",
-      "name": "Navigation",
-      "description": "Site header with brand, primary links and an optional call to action. Reused across pages via Add existing.",
-      "icon": "menu-2",
+      "name": "Header",
+      "description": "The store's top bar: brand, primary links with optional mega-menus, search, account, cart and one call to action.",
+      "icon": "layout-navbar",
       "category": "structure",
-      "version": 1,
+      "version": 2,
+      "groups": [
+        {
+          "groupId": "brand",
+          "name": "Brand"
+        },
+        {
+          "groupId": "navigation",
+          "name": "Navigation"
+        },
+        {
+          "groupId": "actions",
+          "name": "Actions"
+        }
+      ],
+      "migrations": [
+        {
+          "version": 2,
+          "renames": [
+            {
+              "from": "brand",
+              "to": "brandText"
+            },
+            {
+              "from": "logo",
+              "to": "brandLogo"
+            }
+          ]
+        }
+      ],
       "fields": [
         {
-          "fieldId": "brand",
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "groupId": "navigation",
+          "metadata": {
+            "options": [
+              "default",
+              "centered",
+              "minimal"
+            ]
+          },
+          "validators": {
+            "required": true
+          },
+          "helpText": "default: brand, inline links and actions. centered: brand centred with links on a second row. minimal: brand, search, cart and a Menu button at every width."
+        },
+        {
+          "fieldId": "brandText",
           "name": "Brand",
           "type": "string",
+          "groupId": "brand",
           "isTitle": true,
           "localized": true,
           "validators": {
-            "required": true
-          }
+            "required": true,
+            "maxLength": 20
+          },
+          "helpText": "Shown as the wordmark when no logo is set. Keep it under 20 characters — it never wraps."
         },
         {
-          "fieldId": "logo",
+          "fieldId": "brandLogo",
           "name": "Logo",
           "type": "media",
+          "groupId": "brand",
           "metadata": {
             "multiple": false
-          }
+          },
+          "helpText": "SVG or PNG. Replaces the wordmark. Shown 2rem tall, max 10rem wide."
         },
         {
           "fieldId": "links",
           "name": "Links",
           "type": "list",
+          "groupId": "navigation",
+          "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64–80rem.",
           "metadata": {
             "item": {
               "fieldId": "link",
@@ -1392,14 +1445,98 @@
                     "localized": true,
                     "validators": {
                       "required": true
-                    }
+                    },
+                    "helpText": "Two words max. Stays on one line."
                   },
                   {
                     "fieldId": "href",
                     "name": "URL",
                     "type": "string",
-                    "validators": {
-                      "required": true
+                    "helpText": "Destination when the item has no mega-menu links below."
+                  },
+                  {
+                    "fieldId": "menuLinks",
+                    "name": "Mega-menu links",
+                    "type": "list",
+                    "helpText": "Filling this turns the item into a mega-menu disclosure. Consecutive items that share the same Group form one column, in order — up to 4 groups × 8 links.",
+                    "metadata": {
+                      "item": {
+                        "fieldId": "menuLink",
+                        "name": "Mega-menu link",
+                        "type": "composite",
+                        "metadata": {
+                          "fields": [
+                            {
+                              "fieldId": "group",
+                              "name": "Group",
+                              "type": "string",
+                              "localized": true,
+                              "helpText": "Column heading. Consecutive links sharing the same group form one column."
+                            },
+                            {
+                              "fieldId": "label",
+                              "name": "Label",
+                              "type": "string",
+                              "localized": true,
+                              "validators": {
+                                "required": true
+                              }
+                            },
+                            {
+                              "fieldId": "href",
+                              "name": "URL",
+                              "type": "string",
+                              "validators": {
+                                "required": true
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "fieldId": "features",
+                    "name": "Feature cards",
+                    "type": "list",
+                    "helpText": "Up to 2 image cards on the right of the mega-menu.",
+                    "metadata": {
+                      "item": {
+                        "fieldId": "feature",
+                        "name": "Feature card",
+                        "type": "composite",
+                        "metadata": {
+                          "fields": [
+                            {
+                              "fieldId": "image",
+                              "name": "Image",
+                              "type": "media",
+                              "metadata": {
+                                "multiple": false,
+                                "framing": true,
+                                "framingAspectRatio": "4/3"
+                              }
+                            },
+                            {
+                              "fieldId": "label",
+                              "name": "Label",
+                              "type": "string",
+                              "localized": true,
+                              "validators": {
+                                "required": true
+                              }
+                            },
+                            {
+                              "fieldId": "href",
+                              "name": "URL",
+                              "type": "string",
+                              "validators": {
+                                "required": true
+                              }
+                            }
+                          ]
+                        }
+                      }
                     }
                   }
                 ]
@@ -1408,63 +1545,175 @@
           }
         },
         {
+          "fieldId": "showSearch",
+          "name": "Show search",
+          "type": "bool",
+          "groupId": "actions",
+          "default": true,
+          "helpText": "Opens Search (also on / and ⌘K / Ctrl+K)."
+        },
+        {
+          "fieldId": "searchStyle",
+          "name": "Search style",
+          "type": "select",
+          "groupId": "actions",
+          "metadata": {
+            "options": [
+              "icon",
+              "field",
+              "inline"
+            ]
+          },
+          "helpText": "icon: a ghost icon button. field: a pill field-like trigger, from 64rem only. inline: a live search bar in the bar, centered variant only, from 64rem only."
+        },
+        {
+          "fieldId": "showAccount",
+          "name": "Show account",
+          "type": "bool",
+          "groupId": "actions",
+          "default": true,
+          "helpText": "Shown in the bar from 64rem, and always in the drawer."
+        },
+        {
           "fieldId": "ctaLabel",
           "name": "Button label",
           "type": "string",
+          "groupId": "actions",
           "localized": true
         },
         {
           "fieldId": "ctaHref",
           "name": "Button link",
-          "type": "string"
+          "type": "string",
+          "groupId": "actions"
         },
         {
           "fieldId": "sticky",
           "name": "Stick to top on scroll",
           "type": "bool",
-          "default": false
+          "groupId": "actions",
+          "default": true
         },
         {
-          "fieldId": "variant",
-          "name": "Variant",
-          "type": "select",
-          "metadata": {
-            "options": [
-              "default",
-              "centered",
-              "minimal"
-            ]
-          }
+          "fieldId": "transparentOverHero",
+          "name": "Transparent over hero",
+          "type": "bool",
+          "groupId": "actions",
+          "default": false,
+          "helpText": "Only takes effect when the next block is a Hero with the image-background variant."
         }
       ],
       "mock": {
-        "brand": "Northwind Goods",
+        "variant": "default",
+        "brandText": "Northwind Goods",
         "links": [
           {
-            "label": "Home",
-            "href": "/"
+            "label": "Knitwear",
+            "href": "/collections/knitwear",
+            "menuLinks": [
+              {
+                "group": "Women",
+                "label": "Sweaters",
+                "href": "/collections/womens-sweaters"
+              },
+              {
+                "group": "Women",
+                "label": "Cardigans",
+                "href": "/collections/womens-cardigans"
+              },
+              {
+                "group": "Women",
+                "label": "Scarves & wraps",
+                "href": "/collections/scarves-wraps"
+              },
+              {
+                "group": "Women",
+                "label": "Hats & gloves",
+                "href": "/collections/hats-gloves"
+              },
+              {
+                "group": "Men",
+                "label": "Sweaters",
+                "href": "/collections/mens-sweaters"
+              },
+              {
+                "group": "Men",
+                "label": "Cardigans",
+                "href": "/collections/mens-cardigans"
+              },
+              {
+                "group": "Men",
+                "label": "Scarves",
+                "href": "/collections/mens-scarves"
+              },
+              {
+                "group": "Men",
+                "label": "Socks",
+                "href": "/collections/socks"
+              },
+              {
+                "group": "Collections",
+                "label": "Merino essentials",
+                "href": "/collections/merino-essentials"
+              },
+              {
+                "group": "Collections",
+                "label": "Heavy winter knits",
+                "href": "/collections/heavy-winter-knits"
+              },
+              {
+                "group": "Collections",
+                "label": "Undyed wool",
+                "href": "/collections/undyed-wool"
+              },
+              {
+                "group": "Collections",
+                "label": "Shop all knitwear",
+                "href": "/collections/knitwear"
+              }
+            ]
           },
           {
-            "label": "Shop",
-            "href": "/shop"
+            "label": "Ceramics",
+            "href": "/collections/ceramics",
+            "menuLinks": [
+              {
+                "group": "Tableware",
+                "label": "Plates",
+                "href": "/collections/plates"
+              },
+              {
+                "group": "Tableware",
+                "label": "Bowls",
+                "href": "/collections/bowls"
+              },
+              {
+                "group": "Tableware",
+                "label": "Mugs & cups",
+                "href": "/collections/mugs-cups"
+              }
+            ]
+          },
+          {
+            "label": "Kitchen",
+            "href": "/collections/kitchen"
           },
           {
             "label": "Journal",
             "href": "/journal"
           },
           {
-            "label": "About",
-            "href": "/about"
-          },
-          {
-            "label": "Contact",
-            "href": "/contact"
+            "label": "Visit the studio",
+            "href": "/pages/visit"
           }
         ],
-        "ctaLabel": "Shop new arrivals",
-        "ctaHref": "/shop",
+        "showSearch": true,
+        "searchStyle": "icon",
+        "showAccount": true,
+        "ctaLabel": "Shop gifts",
+        "ctaHref": "/collections/gifts",
         "sticky": true,
-        "variant": "default"
+        "transparentOverHero": false
       },
       "previewImage": ".eldra/previews/navigation.png"
     },

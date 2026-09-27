@@ -1,29 +1,82 @@
 {
   "apiId": "navigation",
-  "name": "Navigation",
-  "description": "Site header with brand, primary links and an optional call to action. Reused across pages via Add existing.",
-  "icon": "menu-2",
+  "name": "Header",
+  "description": "The store's top bar: brand, primary links with optional mega-menus, search, account, cart and one call to action.",
+  "icon": "layout-navbar",
   "category": "structure",
-  "version": 1,
-  "fields": [
+  "version": 2,
+  "groups": [
     {
-      "fieldId": "brand",
-      "name": "Brand",
-      "type": "string",
-      "isTitle": true,
-      "localized": true,
-      "validators": { "required": true }
+      "groupId": "brand",
+      "name": "Brand"
     },
     {
-      "fieldId": "logo",
+      "groupId": "navigation",
+      "name": "Navigation"
+    },
+    {
+      "groupId": "actions",
+      "name": "Actions"
+    }
+  ],
+  "migrations": [
+    {
+      "version": 2,
+      "renames": [
+        {
+          "from": "brand",
+          "to": "brandText"
+        },
+        {
+          "from": "logo",
+          "to": "brandLogo"
+        }
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "groupId": "navigation",
+      "metadata": {
+        "options": ["default", "centered", "minimal"]
+      },
+      "validators": {
+        "required": true
+      },
+      "helpText": "default: brand, inline links and actions. centered: brand centred with links on a second row. minimal: brand, search, cart and a Menu button at every width."
+    },
+    {
+      "fieldId": "brandText",
+      "name": "Brand",
+      "type": "string",
+      "groupId": "brand",
+      "isTitle": true,
+      "localized": true,
+      "validators": {
+        "required": true,
+        "maxLength": 20
+      },
+      "helpText": "Shown as the wordmark when no logo is set. Keep it under 20 characters \u2014 it never wraps."
+    },
+    {
+      "fieldId": "brandLogo",
       "name": "Logo",
       "type": "media",
-      "metadata": { "multiple": false }
+      "groupId": "brand",
+      "metadata": {
+        "multiple": false
+      },
+      "helpText": "SVG or PNG. Replaces the wordmark. Shown 2rem tall, max 10rem wide."
     },
     {
       "fieldId": "links",
       "name": "Links",
       "type": "list",
+      "groupId": "navigation",
+      "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64\u201380rem.",
       "metadata": {
         "item": {
           "fieldId": "link",
@@ -36,13 +89,101 @@
                 "name": "Label",
                 "type": "string",
                 "localized": true,
-                "validators": { "required": true }
+                "validators": {
+                  "required": true
+                },
+                "helpText": "Two words max. Stays on one line."
               },
               {
                 "fieldId": "href",
                 "name": "URL",
                 "type": "string",
-                "validators": { "required": true }
+                "helpText": "Destination when the item has no mega-menu links below."
+              },
+              {
+                "fieldId": "menuLinks",
+                "name": "Mega-menu links",
+                "type": "list",
+                "helpText": "Filling this turns the item into a mega-menu disclosure. Consecutive items that share the same Group form one column, in order \u2014 up to 4 groups \u00d7 8 links.",
+                "metadata": {
+                  "item": {
+                    "fieldId": "menuLink",
+                    "name": "Mega-menu link",
+                    "type": "composite",
+                    "metadata": {
+                      "fields": [
+                        {
+                          "fieldId": "group",
+                          "name": "Group",
+                          "type": "string",
+                          "localized": true,
+                          "helpText": "Column heading. Consecutive links sharing the same group form one column."
+                        },
+                        {
+                          "fieldId": "label",
+                          "name": "Label",
+                          "type": "string",
+                          "localized": true,
+                          "validators": {
+                            "required": true
+                          }
+                        },
+                        {
+                          "fieldId": "href",
+                          "name": "URL",
+                          "type": "string",
+                          "validators": {
+                            "required": true
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "fieldId": "features",
+                "name": "Feature cards",
+                "type": "list",
+                "helpText": "Up to 2 image cards on the right of the mega-menu.",
+                "metadata": {
+                  "item": {
+                    "fieldId": "feature",
+                    "name": "Feature card",
+                    "type": "composite",
+                    "metadata": {
+                      "fields": [
+                        {
+                          "fieldId": "image",
+                          "name": "Image",
+                          "type": "media",
+                          "metadata": {
+                            "multiple": false,
+                            "framing": true,
+                            "framingAspectRatio": "4/3"
+                          }
+                        },
+                        {
+                          "fieldId": "label",
+                          "name": "Label",
+                          "type": "string",
+                          "localized": true,
+                          "validators": {
+                            "required": true
+                          }
+                        },
+                        {
+                          "fieldId": "href",
+                          "name": "URL",
+                          "type": "string",
+                          "validators": {
+                            "required": true
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
               }
             ]
           }
@@ -50,18 +191,58 @@
       }
     },
     {
+      "fieldId": "showSearch",
+      "name": "Show search",
+      "type": "bool",
+      "groupId": "actions",
+      "default": true,
+      "helpText": "Opens Search (also on / and \u2318K / Ctrl+K)."
+    },
+    {
+      "fieldId": "searchStyle",
+      "name": "Search style",
+      "type": "select",
+      "groupId": "actions",
+      "metadata": {
+        "options": ["icon", "field", "inline"]
+      },
+      "helpText": "icon: a ghost icon button. field: a pill field-like trigger, from 64rem only. inline: a live search bar in the bar, centered variant only, from 64rem only."
+    },
+    {
+      "fieldId": "showAccount",
+      "name": "Show account",
+      "type": "bool",
+      "groupId": "actions",
+      "default": true,
+      "helpText": "Shown in the bar from 64rem, and always in the drawer."
+    },
+    {
       "fieldId": "ctaLabel",
       "name": "Button label",
       "type": "string",
+      "groupId": "actions",
       "localized": true
     },
-    { "fieldId": "ctaHref", "name": "Button link", "type": "string" },
-    { "fieldId": "sticky", "name": "Stick to top on scroll", "type": "bool", "default": false },
     {
-      "fieldId": "variant",
-      "name": "Variant",
-      "type": "select",
-      "metadata": { "options": ["default", "centered", "minimal"] }
+      "fieldId": "ctaHref",
+      "name": "Button link",
+      "type": "string",
+      "groupId": "actions"
+    },
+    {
+      "fieldId": "sticky",
+      "name": "Stick to top on scroll",
+      "type": "bool",
+      "groupId": "actions",
+      "default": true
+    },
+    {
+      "fieldId": "transparentOverHero",
+      "name": "Transparent over hero",
+      "type": "bool",
+      "groupId": "actions",
+      "default": false,
+      "helpText": "Only takes effect when the next block is a Hero with the image-background variant."
     }
   ]
 }

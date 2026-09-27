@@ -98,13 +98,17 @@ declare global {
       width?: 'narrow' | 'content' | 'wide' | 'full';
     };
     navigation: {
-      brand: string;
-      logo?: EldraMedia;
-      links?: Array<{ label: string; href: string }>;
+      variant: 'default' | 'centered' | 'minimal';
+      brandText: string;
+      brandLogo?: EldraMedia;
+      links?: Array<{ label: string; href?: string; menuLinks?: Array<{ group?: string; label: string; href: string }>; features?: Array<{ image?: EldraMedia; label: string; href: string }> }>;
+      showSearch?: boolean;
+      searchStyle?: 'icon' | 'field' | 'inline';
+      showAccount?: boolean;
       ctaLabel?: string;
       ctaHref?: string;
       sticky?: boolean;
-      variant?: 'default' | 'centered' | 'minimal';
+      transparentOverHero?: boolean;
     };
     testimonials: {
       heading: string;

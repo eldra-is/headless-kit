@@ -80,4 +80,18 @@ export const enUS = {
       delivered: 'Delivered',
     },
   },
+  header: {
+    primary: 'Primary navigation',
+    menu: 'Menu',
+    openMenu: 'Open menu',
+    search: 'Search',
+    searchField: 'Search the shop',
+    account: 'Account',
+    cartEmpty: 'Cart, empty',
+    cartOne: 'Cart, 1 item',
+    cartMany: 'Cart, {count} items',
+  },
+  editor: {
+    addLink: 'Add a link',
+  },
 } satisfies Messages;

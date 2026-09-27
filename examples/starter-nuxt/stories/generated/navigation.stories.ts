@@ -43,3 +43,21 @@ export const VariantMinimal: Story = {
     entry: { id: "navigation", data: { ...base, "variant": "minimal" } },
   },
 };
+
+export const SearchStyleIcon: Story = {
+  args: {
+    entry: { id: "navigation", data: { ...base, "searchStyle": "icon" } },
+  },
+};
+
+export const SearchStyleField: Story = {
+  args: {
+    entry: { id: "navigation", data: { ...base, "searchStyle": "field" } },
+  },
+};
+
+export const SearchStyleInline: Story = {
+  args: {
+    entry: { id: "navigation", data: { ...base, "searchStyle": "inline" } },
+  },
+};

@@ -80,4 +80,18 @@ export const isIS = {
       delivered: 'Afhent',
     },
   },
+  header: {
+    primary: 'Aðalvalmynd',
+    menu: 'Valmynd',
+    openMenu: 'Opna valmynd',
+    search: 'Leita',
+    searchField: 'Leita í versluninni',
+    account: 'Mín síða',
+    cartEmpty: 'Karfa, tóm',
+    cartOne: 'Karfa, 1 vara',
+    cartMany: 'Karfa, {count} vörur',
+  },
+  editor: {
+    addLink: 'Bæta við tengli',
+  },
 } satisfies Messages;

@@ -132,6 +132,37 @@ export interface Messages {
       delivered: string;
     };
   };
+  /** The header block's own strings (design doc §"Strings and i18n": one namespace per block). */
+  header: {
+    /** The bar's `<nav aria-label>`. */
+    primary: string;
+    /** The mobile menu drawer's `ariaLabel`, and the visible text of the "Menu" button in the
+     *  `minimal` variant. */
+    menu: string;
+    /** The hamburger button's accessible name in `default`/`centered`, where it is icon-only. */
+    openMenu: string;
+    /** The search control's accessible name in the `icon` style. */
+    search: string;
+    /** The `field` style trigger's visible text, and the search field's placeholder. */
+    searchField: string;
+    /** The account icon button's accessible name, and the drawer's Account utility link text. */
+    account: string;
+    /** The cart button's accessible name with no items ("Cart, empty"). */
+    cartEmpty: string;
+    /** The cart button's accessible name with exactly one item ("Cart, 1 item"). */
+    cartOne: string;
+    /** The cart button's accessible name with more than one item ("Cart, {count} items"). */
+    cartMany: string;
+  };
+  /**
+   * Editor-only hint strings (design doc contract addition #4): shown only when `useEditing()` is
+   * true, shared across every block that can render an `EditorPlaceholder` for an empty optional
+   * part, rather than duplicated per block namespace.
+   */
+  editor: {
+    /** Shown where a block's link list has no items yet. */
+    addLink: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

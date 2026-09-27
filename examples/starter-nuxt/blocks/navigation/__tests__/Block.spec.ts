@@ -1,192 +1,346 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
+import { describe, expect, it, afterEach } from 'vitest';
+import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
+import { Badge } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
-import { describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { computed } from 'vue';
+import { STOREFRONT_KEY } from '../../../app/storefront/types';
+import { createDemoStorefront } from '../../../app/storefront/demo';
 
 // `mock.json` is the seed Studio writes when an author inserts the block —
-// it never carries a logo (Core's write-side media validator rejects the
-// old Storybook-fixture shape).
-// `preview.json` is the story/preview-only demo-imagery overlay, merged the
-// same way `scripts/generate-stories.mjs`'s `Default` story merges it.
-const withLogo = { ...mock, ...preview };
+// media fields (`brandLogo`, `links[].features[].image`) are absent.
+// `preview.json` (shallow-merged, `links` replaced wholesale) is the
+// story/preview-only demo-imagery overlay: same links, Knitwear also gets
+// its two feature cards.
+const merged = { ...mock, ...preview };
 
-describe('navigation block', () => {
-  it('renders the bare mock.json content — the freshly-inserted state, brand as text since there is no logo yet', async () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
+function mountBlock(data: Record<string, unknown>, opts?: { attachTo?: Element }) {
+  return mount(Block, { ...mountOptions({ entry: { id: 'e1', data } }), ...opts });
+}
+
+/** Overrides the Eldra preview context's `active`/`mode` — the same shape `useEditing.spec.ts`
+ *  builds directly, since `mountOptions()` always provides a read-only, inactive preview. */
+function mountWithEditing(data: Record<string, unknown>, editing: boolean) {
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  return mount(Block, {
+    ...base,
+    global: {
+      ...base.global,
+      provide: {
+        ...base.global.provide,
+        [ELDRA_KEY]: {
+          client: {},
+          designTokens: { colors: {} },
+          preview: Object.assign(createEldraPreviewState(), {
+            active: editing,
+            mode: editing ? 'edit' : 'preview',
+          }),
+        },
+      },
+    },
+  });
+}
+
+/** A demo storefront whose cart reports a fixed `count`, so the three "Cart, …" phrasings and the
+ *  99+ ceiling can each be exercised without driving the real cart store through `add()`. */
+function mountWithCartCount(data: Record<string, unknown>, count: number) {
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  const storefront = createDemoStorefront();
+  const cart = { ...storefront.cart, count: computed(() => count) };
+  return mount(Block, {
+    ...base,
+    global: {
+      ...base.global,
+      provide: { ...base.global.provide, [STOREFRONT_KEY]: { ...storefront, cart } },
+    },
+  });
+}
+
+describe('header block (navigation apiId)', () => {
+  afterEach(() => {
+    window.history.pushState({}, '', '/');
+  });
+
+  it('renders the bare mock.json content — the freshly-inserted state, no images, axe-clean', async () => {
+    const wrapper = mountBlock(mock);
     expect(wrapper.find('img').exists()).toBe(false);
-    expect(wrapper.text()).toContain(mock.brand);
+    expect(wrapper.text()).toContain(mock.brandText);
     for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
     expect(wrapper.text()).toContain(mock.ctaLabel);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('renders the brand via the logo image once preview.json overlays one', async () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withLogo } }));
-    expect(wrapper.find('img').attributes('alt')).toBe(withLogo.brand);
+  it('renders the merged preview.json content with the Knitwear feature cards, axe-clean', async () => {
+    const wrapper = mountBlock(merged, { attachTo: document.body });
     expect(await axe(wrapper.element)).toHaveNoViolations();
-  });
-
-  /**
-   * Fix round 2 ruling 1: the logo is not a CMS-framed image (no `framing`, no `entryId`/
-   * `fieldPath`), so it renders as a plain `<img>` rather than through `UiImage` — routing it
-   * through `UiImage` put the `h-8 w-auto` height cap on `Image`'s root instead of the `<img>`
-   * itself, and with no `aspect`/`fill` the frame had no definite height for it to reach, so a
-   * real logo would render at its own scaled height instead of the fixed 2rem brand slot.
-   * Asserting the class lands directly on the `<img>`, with no `[data-part]` wrapper around it, is
-   * what would have caught that.
-   */
-  it('renders the logo as a plain <img> with the height cap directly on it, no [data-part] wrapper', () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withLogo } }));
-    const img = wrapper.get('img');
-    expect(img.classes()).toEqual(expect.arrayContaining(['h-8', 'w-auto']));
-    expect(img.attributes('loading')).toBe('eager');
-    expect(img.attributes('decoding')).toBe('async');
-    // Not `Image`'s own media element (which would carry `data-part="media"` and sit inside a
-    // `data-part="frame"` wrapper) — `[data-part]` elsewhere in the tree (`Link`'s own root/label)
-    // is unrelated and expected.
-    expect(img.attributes('data-part')).toBeUndefined();
-    expect(wrapper.find('[data-part="frame"]').exists()).toBe(false);
-  });
-
-  it('routes the header call to action through the router, not a document navigation', () => {
-    // Every same-site destination in this block goes through `EldraRouterLink` -> `NuxtLink`; the
-    // CTA is a `Button`, which reaches it through the same `as` prop `Link` uses and hands it the
-    // destination as `to`. Asserting the component's prop rather than the rendered `href` is what
-    // tells a routed action from an unrouted one — the stub renders an `<a href>` either way.
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    const destinations = wrapper
-      .findAllComponents({ name: 'NuxtLink' })
-      .map((link) => link.props('to'));
-    // In order: the brand link, the five header nav links, the header CTA, then the drawer's own
-    // copy of the five links and of the CTA. Both CTAs are the ones this closes — they were plain
-    // document navigations while every link around them routed.
-    const brand = '/';
-    const navLinks = ['/', '/shop', '/journal', '/about', '/contact'];
-    const cta = '/shop';
-    expect(destinations).toEqual([brand, ...navLinks, cta, ...navLinks, cta]);
-  });
-
-  it('leaves an off-site call to action a plain document navigation', () => {
-    const wrapper = mount(
-      Block,
-      mountOptions({ entry: { id: 'e1', data: { ...mock, ctaHref: 'https://example.com/shop' } } })
-    );
-    const destinations = wrapper
-      .findAllComponents({ name: 'NuxtLink' })
-      .map((link) => link.props('to'));
-    expect(destinations).not.toContain('https://example.com/shop');
-    expect(wrapper.findAll('a[href="https://example.com/shop"]').length).toBeGreaterThan(0);
-  });
-
-  it('opens the mobile drawer from the toggle button and sets aria-expanded', async () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    const toggle = wrapper.get('button[aria-controls]');
-    expect(toggle.attributes('aria-expanded')).toBe('false');
-
-    await toggle.trigger('click');
-
-    expect(toggle.attributes('aria-expanded')).toBe('true');
-    const dialog = wrapper.get('dialog');
-    expect(dialog.attributes('open')).toBe('');
-    expect(dialog.attributes('id')).toBe(toggle.attributes('aria-controls'));
-  });
-
-  it('closes the drawer on Escape', async () => {
-    // The dialog polyfill's Escape handler queries `document` for the
-    // topmost open `<dialog>` (see test/support/dialog.ts), so the wrapper
-    // must actually be attached to the document, not just rendered into a
-    // detached fragment — mirrors UiDialog.spec.ts's own Escape test.
-    const wrapper = mount(Block, {
-      ...mountOptions({ entry: { id: 'e1', data: mock } }),
-      attachTo: document.body,
-    });
-    const toggle = wrapper.get('button[aria-controls]');
-    await toggle.trigger('click');
-    expect(wrapper.get('dialog').attributes('open')).toBe('');
-
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    await new Promise((resolve) => setTimeout(resolve));
-    await wrapper.vm.$nextTick();
-
-    expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
-    expect(toggle.attributes('aria-expanded')).toBe('false');
+    const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+    await knitwear.trigger('click');
+    const panelId = knitwear.attributes('aria-controls')!;
+    const panel = wrapper.get(`#${panelId}`);
+    expect(panel.findAll('img')).toHaveLength(2);
+    expect(panel.text()).toContain('New season knitwear');
     wrapper.unmount();
   });
 
-  it('renders each declared variant with a logo', async () => {
+  it('renders each declared variant with the merged content, axe-clean', async () => {
     for (const variant of ['default', 'centered', 'minimal']) {
-      const wrapper = mount(
-        Block,
-        mountOptions({ entry: { id: 'e1', data: { ...withLogo, variant } } })
-      );
-      expect(wrapper.find('img').attributes('alt')).toBe(withLogo.brand);
+      const wrapper = mountBlock({ ...merged, variant });
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   });
 
-  it('renders each declared variant from the bare mock.json, no crash and axe-clean (regression net for a freshly-inserted block)', async () => {
-    for (const variant of ['default', 'centered', 'minimal']) {
-      const wrapper = mount(
-        Block,
-        mountOptions({ entry: { id: 'e1', data: { ...mock, variant } } })
-      );
-      expect(wrapper.find('img').exists()).toBe(false);
-      expect(await axe(wrapper.element)).toHaveNoViolations();
+  it('has no h1 anywhere in the header (block headings are never h1)', () => {
+    const wrapper = mountBlock(merged);
+    expect(wrapper.find('h1').exists()).toBe(false);
+  });
+
+  it('labels the primary navigation landmark', () => {
+    // Exactly one `<nav>` — the bar's own row. The drawer's copy of the link list is a plain
+    // `<div>`/`<ul>` with no `nav` landmark of its own: with no real stylesheet loaded, jsdom/axe
+    // cannot tell "hidden below 64rem" from "visible", so a second identically-labelled `nav`
+    // would trip axe's `landmark-unique` rule the moment both exist in the same render.
+    const wrapper = mountBlock(mock);
+    const navs = wrapper.findAll('nav[aria-label="Primary navigation"]');
+    expect(navs).toHaveLength(1);
+  });
+
+  it('establishes its own @container context on the root, so @tablet:/@content: classes measure the block’s own width', () => {
+    // `Section` (the block root, `as="header"`) is what puts `@container` on the DOM — `Container`
+    // does not establish one of its own. Losing this silently strands every `@tablet:`/`@content:`
+    // class at its mobile value regardless of the block's real width (the footer review's own
+    // regression: it shipped its mobile layout at 1280px).
+    const wrapper = mountBlock(mock);
+    expect(wrapper.get('header').classes()).toContain('@container');
+  });
+
+  it('marks the brand link as the header’s announced focus target for announcement-bar dismissal', () => {
+    // Cross-block contract (the announcement-bar block): after dismissing itself, it moves focus to
+    // `[data-eldra-header-focus]` in the header, falling back to `#main`. The brand link is the
+    // first focusable element in DOM order ahead of the primary links list.
+    const wrapper = mountBlock(mock);
+    const marked = wrapper.get('[data-eldra-header-focus]');
+    expect(marked.element.tagName).toBe('A');
+    expect(marked.attributes('href')).toBe('/');
+    // It's the brand — ahead of every nav link in DOM order.
+    const allFocusTargets = wrapper.findAll('a, button');
+    expect(allFocusTargets.findIndex((el) => el.element === marked.element)).toBeLessThan(
+      allFocusTargets.findIndex((el) => el.text() === mock.links[0]!.label)
+    );
+  });
+
+  describe('mega-menu keyboard', () => {
+    it('Enter/Space toggles the trigger; hover alone never opens it; opening one closes the other', async () => {
+      const wrapper = mountBlock(mock, { attachTo: document.body });
+      // Locate the two mega-menu triggers by their accessible label text.
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      const ceramics = wrapper.findAll('button').find((b) => b.text().includes('Ceramics'))!;
+
+      expect(knitwear.attributes('aria-expanded')).toBe('false');
+      await knitwear.trigger('mouseenter');
+      expect(knitwear.attributes('aria-expanded')).toBe('false'); // nothing opens on hover alone (no wait)
+      await knitwear.trigger('mouseleave');
+
+      await knitwear.trigger('keydown', { key: 'Enter' });
+      expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+      // Opening the other one closes the first.
+      await ceramics.trigger('keydown', { key: ' ' });
+      expect(ceramics.attributes('aria-expanded')).toBe('true');
+      expect(knitwear.attributes('aria-expanded')).toBe('false');
+
+      // Toggling the same trigger again closes it.
+      await ceramics.trigger('keydown', { key: 'Enter' });
+      expect(ceramics.attributes('aria-expanded')).toBe('false');
+
+      wrapper.unmount();
+    });
+
+    it('Esc on the trigger closes the panel and returns focus to the trigger', async () => {
+      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      await knitwear.trigger('click');
+      expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+      knitwear.element.focus();
+      await knitwear.trigger('keydown', { key: 'Escape' });
+      await wrapper.vm.$nextTick();
+
+      expect(knitwear.attributes('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(knitwear.element);
+      wrapper.unmount();
+    });
+
+    it('Esc from inside the panel closes it and returns focus to the trigger', async () => {
+      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      await knitwear.trigger('click');
+      const panelId = knitwear.attributes('aria-controls')!;
+      const panel = wrapper.get(`#${panelId}`);
+      const firstLinkInPanel = panel.findAll('a')[0]!;
+
+      firstLinkInPanel.element.focus();
+      await firstLinkInPanel.trigger('keydown', { key: 'Escape' });
+      await wrapper.vm.$nextTick();
+
+      expect(knitwear.attributes('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(knitwear.element);
+      wrapper.unmount();
+    });
+  });
+
+  describe('drawer keyboard', () => {
+    it('opens as a dialog with the first focusable row focused', async () => {
+      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
+      await menuButton.trigger('click');
+
+      const dialog = wrapper.get('dialog');
+      expect(dialog.attributes('open')).toBe('');
+      // The first row of the drawer's own list — a disclosure button (Knitwear has a mega-menu).
+      const firstRow = wrapper.get('dialog ul li:first-child button, dialog ul li:first-child a');
+      expect(document.activeElement).toBe(firstRow.element);
+      wrapper.unmount();
+    });
+
+    it('Esc closes the drawer and returns focus to the menu button', async () => {
+      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
+      // A real click focuses the button before it fires; `trigger('click')` only dispatches the
+      // event, so the opener has to be focused explicitly for `useDialog`'s "return focus to
+      // whatever had it before the dialog opened" to have anything correct to return it to.
+      menuButton.element.focus();
+      await menuButton.trigger('click');
+      expect(wrapper.get('dialog').attributes('open')).toBe('');
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await new Promise((resolve) => setTimeout(resolve));
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
+      expect(document.activeElement).toBe(menuButton.element);
+      wrapper.unmount();
+    });
+  });
+
+  describe('cart button', () => {
+    // The demo storefront's `drawerAvailable` is off, so the cart control renders as an `<a
+    // href="/cart">` (Button's own link form), not a `<button>` — search both tags.
+    function findCartButton(wrapper: ReturnType<typeof mountBlock>) {
+      return wrapper
+        .findAll('a, button')
+        .find((b) => b.attributes('aria-label')?.startsWith('Cart'))!;
     }
+
+    it('reads "Cart, empty" with nothing in the cart, and shows no badge', () => {
+      const wrapper = mountBlock(mock); // demo storefront's cart starts empty
+      expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, empty');
+      expect(wrapper.findComponent(Badge).exists()).toBe(false);
+    });
+
+    it('reads "Cart, 1 item" for a single item', () => {
+      const wrapper = mountWithCartCount(mock, 1);
+      expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 1 item');
+    });
+
+    it('reads "Cart, {n} items" for more than one, with an aria-hidden badge carrying the count', () => {
+      const wrapper = mountWithCartCount(mock, 2);
+      expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 2 items');
+      const badge = wrapper.findComponent(Badge);
+      expect(badge.attributes('aria-hidden')).toBe('true');
+      expect(badge.text()).toBe('2');
+    });
+
+    it('reads "99+" above 99', () => {
+      const wrapper = mountWithCartCount(mock, 120);
+      expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 120 items');
+      expect(wrapper.findComponent(Badge).text()).toBe('99+');
+    });
   });
 
-  it('centered variant pins brand, links and actions to row 1 at md+', () => {
-    // Regression for a CSS Grid auto-placement bug: the DOM order is
-    // brand -> links -> actions, but the visual column order is links(1) ->
-    // brand(2) -> actions(3). A `grid-column` alone (no `grid-row`) lets the
-    // sparse auto-placement cursor — which only ever advances forward
-    // through DOM order — strand the out-of-order children on a second row.
-    // jsdom does not lay out grid, so this asserts the class set that pins
-    // every child to `md:row-start-1` instead of a rendered bounding box;
-    // the actual single-row rendering is confirmed with a Storybook/Chromium
-    // screenshot.
-    const wrapper = mount(
-      Block,
-      mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'centered' } } })
-    );
-    const headerNav = wrapper.findAll('nav')[0]!; // the header's own <nav>, not the drawer's
-
-    const brandLink = headerNav.find('a');
-    expect(brandLink.classes()).toEqual(
-      expect.arrayContaining(['md:col-start-2', 'md:row-start-1', 'md:justify-self-center'])
-    );
-
-    const desktopList = headerNav.find('ul');
-    expect(desktopList.classes()).toEqual(
-      expect.arrayContaining(['md:col-start-1', 'md:row-start-1', 'md:justify-self-start'])
-    );
-
-    const toggle = wrapper.get('button[aria-controls]');
-    const actions = toggle.element.parentElement!;
-    expect(Array.from(actions.classList)).toEqual(
-      expect.arrayContaining(['md:col-start-3', 'md:row-start-1', 'md:justify-self-end'])
-    );
+  it('marks the current link with aria-current="page"', async () => {
+    window.history.pushState({}, '', '/collections/kitchen');
+    const wrapper = mountBlock(mock);
+    const current = wrapper
+      .findAll('a')
+      .find((a) => a.attributes('href') === '/collections/kitchen')!;
+    expect(current.attributes('aria-current')).toBe('page');
+    const other = wrapper.findAll('a').find((a) => a.attributes('href') === '/journal')!;
+    expect(other.attributes('aria-current')).toBeUndefined();
   });
 
-  it('minimal variant hides the desktop links list, keeping only the drawer list and the toggle', () => {
-    const withLinks = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    expect(withLinks.findAll('ul')).toHaveLength(2); // desktop nav + drawer
-
-    const minimal = mount(
-      Block,
-      mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'minimal' } } })
-    );
-    expect(minimal.findAll('ul')).toHaveLength(1); // drawer only
-    expect(minimal.find('button[aria-controls]').exists()).toBe(true);
-  });
-
-  it('has no axe violations with the drawer open', async () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    await wrapper.get('button[aria-controls]').trigger('click');
+  it('renders 8 links with no overflow markup errors', async () => {
+    const eightLinks = [
+      ...mock.links,
+      { label: 'Sale', href: '/collections/sale' },
+      { label: 'Gifts', href: '/collections/gifts' },
+      { label: 'About', href: '/pages/about' },
+    ];
+    const wrapper = mountBlock({ ...mock, links: eightLinks });
+    expect(wrapper.findAll('nav ul li, ul.list-none > li').length).toBeGreaterThan(0);
+    for (const link of eightLinks) expect(wrapper.text()).toContain(link.label);
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('bare mock (no features) spreads mega-menu groups across the full width', async () => {
+    const wrapper = mountBlock(mock, { attachTo: document.body });
+    const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+    await knitwear.trigger('click');
+    const panelId = knitwear.attributes('aria-controls')!;
+    const panel = wrapper.get(`#${panelId}`);
+    expect(panel.find('img').exists()).toBe(false);
+    expect(panel.text()).toContain('Women');
+    expect(panel.text()).toContain('Merino essentials');
+    wrapper.unmount();
+  });
+
+  it('the search control has aria-haspopup="dialog" and opens SearchModal', async () => {
+    const wrapper = mountBlock(mock, { attachTo: document.body });
+    const searchButton = wrapper.get('button[aria-label="Search"]');
+    expect(searchButton.attributes('aria-haspopup')).toBe('dialog');
+    await searchButton.trigger('click');
+    const dialogs = wrapper.findAll('dialog');
+    expect(dialogs.some((d) => d.attributes('open') === '')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('minimal variant keeps links, account and the call to action only in the drawer', () => {
+    const wrapper = mountBlock({ ...mock, variant: 'minimal' });
+    expect(wrapper.find('ul.list-none.items-center').exists()).toBe(false);
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Menu')).toBe(true);
+    // The bar itself shows no call to action in `minimal` — only the drawer's own copy of it,
+    // inside the (closed, but always-rendered) dialog.
+    expect(wrapper.findAll('a, button').filter((el) => el.text() === mock.ctaLabel)).toHaveLength(
+      1
+    );
+    // The drawer's own list still carries every link (rendered regardless of `open`).
+    for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
+  });
+
+  describe('empty / editor state', () => {
+    it('shows the "Add a link" editor hint only while editing, with no links', () => {
+      const empty = { ...mock, links: [] };
+      const editing = mountWithEditing(empty, true);
+      expect(editing.text()).toContain('Add a link');
+
+      const live = mountWithEditing(empty, false);
+      expect(live.text()).not.toContain('Add a link');
+    });
+  });
+
+  describe('transparentOverHero', () => {
+    it('field off renders solid, with no data-eldra-transparent attribute', () => {
+      const wrapper = mountBlock({ ...mock, transparentOverHero: false });
+      expect(wrapper.find('header').attributes('data-eldra-transparent')).toBeUndefined();
+    });
+
+    it('field on sets the transparent attribute (the block only reads its own field)', () => {
+      const wrapper = mountBlock({ ...mock, transparentOverHero: true });
+      expect(wrapper.find('header').attributes('data-eldra-transparent')).toBe('true');
+    });
   });
 });
