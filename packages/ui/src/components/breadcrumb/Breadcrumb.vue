@@ -106,19 +106,62 @@ const expanded = ref(false);
  * that last item is never part of `middleItems`. The ref is only ever attached to that one
  * element (see the template's `v-for` below), so no index bookkeeping is needed here.
  */
-const firstRevealedLink = ref<HTMLElement | null>(null);
+const firstRevealedLink = ref<Element | ComponentPublicInstance | null>(null);
 
 /** The template only ever binds this to `middleItems[0]`'s rendered link (see the `v-for` below),
  *  so `index === 0` is the whole check — no separate index ref to keep in sync. */
 function setFirstRevealedLink(el: Element | ComponentPublicInstance | null, index: number): void {
   if (index !== 0) return;
-  firstRevealedLink.value = (el as HTMLElement | null) ?? null;
+  firstRevealedLink.value = el;
+}
+
+/**
+ * Focuses whatever a `:ref` callback handed us — an element *or* a component instance (bug, fixed
+ * 2026-09-27; see the README's Deviations entry and the CHANGELOG).
+ *
+ * `linkAs` may be a component (the starter's `EldraRouterLink` wrapping `NuxtLink`, which every
+ * internal trail level uses), and Vue then gives a `:ref` callback that component's **public
+ * instance**, not its root element. The previous version cast the callback's argument straight to
+ * `HTMLElement` and called `.focus()` on it, which only ever worked by luck: it reached a
+ * component's `focus` solely when that component had exposed one itself (Vue's exposed proxy
+ * forwards it), and did nothing at all — `undefined?.()` — for a component `linkAs` that exposes
+ * nothing, which is every plain `<NuxtLink>`/`<RouterLink>` handed straight to the prop. So the
+ * spec's "moves focus to the first revealed link" was silently conditional on a contract the
+ * package neither documented nor checked, while every test using the default `<a>` tag passed.
+ * Resolving the shape here is what makes the guarantee the package's rather than the consumer's.
+ *
+ * Two shapes are accepted, in this order:
+ *
+ * 1. **A `focus()` of its own.** True of every real DOM element, and of a component that exposes
+ *    one through `defineExpose({ focus })` — the contract the starter's `EldraRouterLink` documents
+ *    and this package now guarantees is used. A component that exposes its own `focus` is
+ *    preferred over its `$el` deliberately: it may well have a more specific target in mind than
+ *    its own root (a wrapper whose real anchor is a child).
+ * 2. **`$el`**, the root element Vue puts on every component instance regardless of
+ *    `defineExpose` — the fallback for a component `linkAs` that exposes nothing, which is the
+ *    common case for a plain `<NuxtLink>`/`<RouterLink>` passed directly. Guarded by its own
+ *    `focus` check, because `$el` is a comment or text node for a component whose root is not a
+ *    single element (a fragment), and neither of those can take focus.
+ *
+ * Anything else is a no-op rather than a throw: this runs from a click handler on a component
+ * whose `linkAs` a consumer chose, and an un-focusable trail is a far smaller failure than an
+ * exception escaping the ellipsis button.
+ */
+function focusRevealedLink(target: Element | ComponentPublicInstance | null): void {
+  if (target === null) return;
+  const candidate = target as { focus?: unknown; $el?: unknown };
+  if (typeof candidate.focus === 'function') {
+    (candidate.focus as () => void)();
+    return;
+  }
+  const root = candidate.$el as { focus?: unknown } | null | undefined;
+  if (root != null && typeof root.focus === 'function') (root.focus as () => void)();
 }
 
 async function expand(): Promise<void> {
   expanded.value = true;
   await nextTick();
-  firstRevealedLink.value?.focus();
+  focusRevealedLink(firstRevealedLink.value);
 }
 
 /**

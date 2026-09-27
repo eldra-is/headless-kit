@@ -5,6 +5,43 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Fix (2026-09-27, package bug): `Carousel`'s `perView` now actually reaches a consumer's CSS.**
+  The track set `--eldra-carousel-per-view` through interpolated Tailwind arbitrary-property classes
+  (`` `[--eldra-carousel-per-view:${n}]` ``, plus `@tablet:`/`@content:` steps), and Tailwind scans
+  source *text* for class names — an interpolated value is never in it. A consumer's build emitted no
+  rule for any of the three, the slide width formula fell back to `1`, and every carousel rendered
+  one full-width slide (the starter's testimonials, product row, `split-carousel` hero and
+  `carousel` gallery at once). The three numbers now arrive as an inline style on the track
+  (`--eldra-carousel-per-view-base`/`-md`/`-lg`) and the breakpoints are static CSS: the new
+  `eldra-carousel-track` utility. **Breaking for a direct caller of the composable's helper:**
+  `carouselPerViewClasses` is replaced by `carouselPerViewStyle`, which returns the style object
+  instead of a class string, and a track built by hand needs the `eldra-carousel-track` class.
+  `Lightbox` moved with it. Consumers of `<Carousel>`/`<Lightbox>` themselves need no change, and
+  `--eldra-carousel-per-view`/`--eldra-carousel-gap` are still the variables to override.
+- **Fix (2026-09-27): `Breadcrumb`'s expand focus move works with a component `linkAs`.** After the
+  ellipsis is activated, focus moves to the first revealed link; with a component `linkAs` (a
+  `NuxtLink`/`RouterLink` wrapper) Vue's `:ref` gives a component instance rather than an element, so
+  the previous `HTMLElement` cast reached a `focus()` only when the component happened to expose one
+  and did nothing at all otherwise. The package now prefers a component's own exposed `focus()` and
+  falls back to its `$el`, so the guarantee is the package's rather than the consumer's.
+- **`classes` parts given an array are flattened, and warned about in dev.** `classes: { root: [...] }`
+  used to render an array's *indices* as class names (`class="0 1"`), silently replacing the classes
+  that were written with two that style nothing. `cx` now flattens one the way Vue's `:class` array
+  syntax does, and `partClass` emits a single `console.warn` naming the component and the part under
+  `import.meta.env.DEV` (production carries neither the message nor the check). One class string per
+  part is still the contract — the type is unchanged.
+- **`formatDate` takes an options argument** (`FormatDateOptions`, also exported): the
+  `Intl.DateTimeFormatOptions` subset `day`/`month`/`year`/`weekday`, where an omitted key keeps the
+  default `12 Sep 2026` style rather than dropping that part — so `{ month: 'long' }` is a one-key
+  change to the long form. Never-throwing as before, now including the options themselves: a value
+  outside `Intl`'s own enums falls back to the default style and warns once in dev instead of
+  throwing a `RangeError` out of a `computed`.
+- **`VariantPicker` takes a `legend` prop separate from `name`.** A page rendering more than one
+  picker has to give each a unique radio-group `name`, which until now also became the visible
+  legend — and, since a `<fieldset>`'s `<legend>` is the group's accessible name, what a screen
+  reader announced. `legend` is the human label, `name` stays the grouping key, and `name`'s own
+  behaviour is unchanged whenever `legend` is absent.
+
 - **Fix (2026-09-27, package bug): `@content:`/`@wide:`/`@narrow:` container-query variants now
   actually compile.** `tailwind.css`'s `@theme` block declared `--container-narrow`/`-content`/
   `-wide` as `var(--eldra-container-*)`, but a `@container` condition cannot reference a custom

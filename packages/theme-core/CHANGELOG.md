@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`buildRichTextTree` takes a `minHeadingLevel` render option**: a floor for every `heading`
+  node's rendered tag (`h{max(minHeadingLevel, level)}`, still capped at 6; default `1`, i.e. the
+  document's own levels). A page owns its heading outline and a rich-text field does not, so one
+  stored document has to be able to render as an h2-and-down section in one block and an h3-and-down
+  one in another. Applying it at render time leaves the document untouched — the position stamps and
+  every other attribute are identical with and without it. `@eldrajs/theme-vue`'s `EldraRichText`
+  exposes it as a prop.
 - First release under the `@eldrajs` scope, moved from the private `@eldra/theme-core` package.
 - `@eldra/bridge` is now the `@eldrajs/theme-core/bridge` subpath.
 - Fix: a `select` field's value from the public/preview read path now arrives as its plain

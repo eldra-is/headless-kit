@@ -1,6 +1,6 @@
 import type { VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { defineComponent, h, nextTick } from 'vue';
+import { defineComponent, h, nextTick, ref } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Breadcrumb from '../Breadcrumb.vue';
@@ -403,6 +403,73 @@ describe('Breadcrumb — expand', () => {
 
     const firstRevealed = links[1]!; // Ceramics — the first item middleItems reveals.
     expect(document.activeElement).toBe(firstRevealed.element);
+  });
+
+  /**
+   * The same focus move with a **component** `linkAs` (bug, fixed 2026-09-27 — see
+   * `focusRevealedLink`'s own comment in `Breadcrumb.vue`). Vue hands a `:ref` callback a
+   * component's public instance rather than its root element, so the old `el as HTMLElement`
+   * `.focus()` call was `undefined()` on exactly the shape the starter passes (`EldraRouterLink`
+   * around `NuxtLink`, every internal trail level) — a silent no-op that every test using the
+   * default `<a>` tag still passed.
+   *
+   * Two components, because the package accepts two shapes: one exposing its own `focus()` (the
+   * contract `EldraRouterLink` documents), one exposing nothing at all, where only Vue's always-on
+   * `$el` is available.
+   */
+  const ExposingLink = defineComponent({
+    props: { to: { type: String, required: true } },
+    setup(props, { slots, expose }) {
+      const anchor = ref<HTMLElement | null>(null);
+      // Deliberately *not* the root: a component that exposes its own `focus` is trusted over its
+      // `$el`, and pointing it at a child is what proves the package calls the exposed one.
+      expose({ focus: () => anchor.value?.focus() });
+      return () =>
+        h('span', { 'data-exposing-wrapper': props.to }, [
+          h(
+            'a',
+            { ref: anchor, href: props.to, 'data-exposing-link': props.to },
+            slots.default?.()
+          ),
+        ]);
+    },
+  });
+
+  const BareLink = defineComponent({
+    props: { to: { type: String, required: true } },
+    setup:
+      (props, { slots }) =>
+      () =>
+        h('a', { href: props.to, 'data-bare-link': props.to }, slots.default?.()),
+  });
+
+  it('calls a component linkAs own exposed focus() for the first revealed link', async () => {
+    const wrapper = mountWith(Breadcrumb, {
+      props: { items: CERAMICS_TRAIL, linkAs: ExposingLink },
+    });
+
+    await wrapper.get('[data-part="ellipsis"]').trigger('click');
+    await nextTick();
+    await nextTick();
+
+    // The exposed `focus` targets the inner `<a>`, not the component's own `<span>` root, so this
+    // fails both for the old `HTMLElement` cast (nothing focused at all) and for a `$el`-only
+    // implementation (the `<span>`, which cannot take focus).
+    expect(document.activeElement).toBe(wrapper.get('[data-exposing-link="/ceramics"]').element);
+    wrapper.unmount();
+  });
+
+  it('falls back to a component linkAs $el when it exposes no focus of its own', async () => {
+    const wrapper = mountWith(Breadcrumb, {
+      props: { items: CERAMICS_TRAIL, linkAs: BareLink },
+    });
+
+    await wrapper.get('[data-part="ellipsis"]').trigger('click');
+    await nextTick();
+    await nextTick();
+
+    expect(document.activeElement).toBe(wrapper.get('[data-bare-link="/ceramics"]').element);
+    wrapper.unmount();
   });
 
   it('stays expanded even if resized narrow again — there is no way back to collapsed', async () => {

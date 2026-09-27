@@ -7,6 +7,7 @@ import type { VariantPickerOption, VariantPickerProps } from './types';
 
 const props = withDefaults(defineProps<VariantPickerProps>(), {
   modelValue: undefined,
+  legend: undefined,
   type: 'pills',
   classes: undefined,
 });
@@ -51,6 +52,15 @@ const selectedOption = computed(() => props.options.find((option) => option.valu
  * (e.g. `soldOutSuffix`) rather than a transform of `soldOut`.
  */
 const soldOutSuffix = computed(() => m.value.soldOut.toLowerCase());
+
+/**
+ * What the `<legend>` prints: `legend` when the caller gave one, otherwise `name` — the spec's own
+ * single-prop shape (see `legend`'s own comment in `types.ts`). This is deliberately the only place
+ * the two props diverge: `name` still reaches the radios' native `name` attribute unchanged, so a
+ * caller can give each picker on a page a unique group key without that key becoming the visible —
+ * and accessible — name of the group.
+ */
+const legendText = computed(() => props.legend ?? props.name);
 
 const legendValueText = computed(() => {
   const option = selectedOption.value;
@@ -263,7 +273,7 @@ const soldOutPillLineClass = computed(() =>
 <template>
   <fieldset data-part="root" :class="rootClass">
     <legend data-part="legend" :class="legendClass">
-      <span>{{ name }}: </span>
+      <span>{{ legendText }}: </span>
       <span data-part="legendValue" :class="legendValueClass">{{ legendValueText }}</span>
     </legend>
 

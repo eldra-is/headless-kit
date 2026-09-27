@@ -25,7 +25,7 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
-import { carouselPerViewClasses, useCarousel } from '../carousel/useCarousel';
+import { carouselPerViewStyle, useCarousel } from '../carousel/useCarousel';
 import Image from '../image/Image.vue';
 import type { LightboxProps } from './types';
 
@@ -74,9 +74,9 @@ const {
   rootRef,
   trackRef,
   // Every slide is full width — a Lightbox stage never shows more than one image at a time,
-  // unlike Carousel's own default peek. `carouselPerViewClasses`/`eldra-carousel-slide` (shared
-  // with Carousel, see that utility's own comment) turn `{ base: 1 }` into "100% of the track,
-  // no gap" for free (spec "Sizes", Track row).
+  // unlike Carousel's own default peek. `carouselPerViewStyle`/`eldra-carousel-track`/
+  // `eldra-carousel-slide` (all three shared with Carousel, see those own comments) turn
+  // `{ base: 1 }` into "100% of the track, no gap" for free (spec "Sizes", Track row).
   slideLabel: () => m.value.imageOf,
   // Always on — unlike `Carousel`, this component has no `draggable` prop of its own (operator
   // ruling: "Lightbox inherits it through `useCarousel`"). Dragging on the stage moves
@@ -286,10 +286,15 @@ const stageClass = 'relative min-h-0 flex-1';
 
 /**
  * No padding here, deliberately — see `slideClass` below for where the 4rem inset actually lives
- * and why. One slide is always the full track width (`carouselPerViewClasses({ base: 1 })`, shared
- * with `Carousel` — see `eldra-carousel-slide`'s own comment in `tailwind.css`), which needs the
- * track's own content box to be exactly the track's own visible width, no more and no less.
+ * and why. One slide is always the full track width (`carouselPerViewStyle({ base: 1 })` +
+ * `eldra-carousel-track`, shared with `Carousel` — see `eldra-carousel-slide`'s own comment in
+ * `tailwind.css`), which needs the track's own content box to be exactly the track's own visible
+ * width, no more and no less. The three per-view numbers reach the CSS as an inline style rather
+ * than as classes for the reason `carouselPerViewStyle`'s own comment gives; constant here, so the
+ * object is hoisted out of the render rather than recomputed per patch.
  */
+const TRACK_STYLE = carouselPerViewStyle({ base: 1 });
+
 /**
  * `touch-pan-x touch-pan-y`, `cursor-grab`/`-grabbing` and
  * `data-[dragging=true]:snap-none:scroll-auto:select-none`: the same pointer-drag affordance and
@@ -306,7 +311,7 @@ const trackClass = computed(() =>
       'scroll-smooth motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus',
       '[--eldra-focus-offset:4px] data-[dragging=true]:cursor-grabbing data-[dragging=true]:snap-none',
       'data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
-      carouselPerViewClasses({ base: 1 })
+      'eldra-carousel-track'
     ),
     props.classes,
     'track'
@@ -468,6 +473,7 @@ const thumbnailClass = computed(() =>
           :aria-label="m.lightboxImages"
           aria-live="off"
           :class="trackClass"
+          :style="TRACK_STYLE"
         >
           <!-- The wrapper is always rendered — `useCarousel`'s own index/count math reads
                `trackRef.value.children.length`, and keeping that count constant across open/close

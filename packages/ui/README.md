@@ -91,7 +91,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Breadcrumb`        | none — the collapse threshold reads `--container-tablet` (`Container`'s own 48rem gutter breakpoint), and the link/ellipsis boxes reuse `target-min`/`eldra-link-radius`/`radius-sm`, no per-component variable of its own                                                                                                                                                                                                                                                                                                                                                                                           |
    | `Button`            | `--eldra-button-radius` (default `var(--eldra-radius-md)`), `--eldra-button-line-height` (default `1.2`), `--eldra-button-font-size-lg` (default `1.0625rem`, the one button size with no type token of its own)                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `ButtonGroup`       | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-   | `Carousel`          | `--eldra-carousel-per-view` (set per container-query breakpoint by `carouselPerViewClasses`, no default of its own — a slide with none set stays full width) and `--eldra-carousel-gap` (default `var(--eldra-space-4)`), both read by the `eldra-carousel-slide` utility's width formula; `--eldra-carousel-dot-size` (default `0.5rem`) and `--eldra-carousel-dot-ring` (default `1.5px`), read by `eldra-carousel-dot`                                                                                                                                                                                            |
+   | `Carousel`          | `--eldra-carousel-per-view-base`/`-md`/`-lg` (bound as an inline style on the track by `carouselPerViewStyle`, resolved into `--eldra-carousel-per-view` per container-query breakpoint by the `eldra-carousel-track` utility, no default of its own — a slide with none set stays full width) and `--eldra-carousel-gap` (default `var(--eldra-space-4)`), both read by the `eldra-carousel-slide` utility's width formula; `--eldra-carousel-dot-size` (default `0.5rem`) and `--eldra-carousel-dot-ring` (default `1.5px`), read by `eldra-carousel-dot`                                                          |
    | `Checkbox`          | `--eldra-checkbox-radius` (default `var(--eldra-radius-sm)`), `--eldra-checkbox-border-width` (default `1.5px`), `--eldra-checkbox-border-width-invalid` (default `2px`)                                                                                                                                                                                                                                                                                                                                                                                                                                             |
    | `CheckboxGroup`     | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `Chip`              | none — the selected/hover fills are `color-mix()` over shared `--eldra-color-*` tokens, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -528,9 +528,11 @@ agree with what is really on screen however the slide markup got there. Every sl
 place — `data-part="slide"`, `role="group"`, `aria-roledescription="slide"`, the `slideLabel`
 result as `aria-label`, and the `eldra-carousel-slide` sizing class — through a `MutationObserver`
 on the track, so a consumer's own `<li>`/`<figure>`/component root becomes the slide with no
-wrapper element added around it. `resolveCarouselPerView` and `carouselPerViewClasses` turn
-`CarouselProps['perView']` into the container-query classes `--eldra-carousel-per-view` reads, so
-`Carousel` and `Lightbox` share one reading of the prop. `prefersReducedMotion` is the one
+wrapper element added around it. `resolveCarouselPerView` and `carouselPerViewStyle` turn
+`CarouselProps['perView']` into the three inline custom properties (`--eldra-carousel-per-view-base`
+/`-md`/`-lg`) the `eldra-carousel-track` utility resolves into `--eldra-carousel-per-view` per
+container-query breakpoint, so `Carousel` and `Lightbox` share one reading of the prop. An inline
+style rather than classes, deliberately — see the Deviations entry. `prefersReducedMotion` is the one
 JavaScript check CSS's own `motion-reduce:` cannot make on its own — whether autoplay may start at
 all.
 
@@ -2722,3 +2724,57 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   the accessibility tree and the tab order, so exactly one of the two is ever reachable at a time
   with no JavaScript viewport tracking required. `classes.close` restyles both, since a consumer
   restyling "the close control" almost always means both of its sizes.
+- **`Carousel`'s `perView` reaches the CSS as three inline custom properties on the track, not as
+  Tailwind classes** (`--eldra-carousel-per-view-base`/`-md`/`-lg`, written by
+  `carouselPerViewStyle`; the `eldra-carousel-track` utility resolves them into
+  `--eldra-carousel-per-view` per container-query breakpoint). This is a _fix_, not a preference
+  (2026-09-27). The component used to build interpolated arbitrary-property classes
+  (`` `[--eldra-carousel-per-view:${n}]` ``, plus `@tablet:`/`@content:` steps), and Tailwind has no
+  runtime: it scans source _text_ for class names, and an interpolated value is never in that text.
+  A consumer's build (`@import '@eldrajs/ui/tailwind.css'`, whose `@source './'` scans `dist/*.js`)
+  therefore emitted no rule for any of the three, `eldra-carousel-slide`'s width formula fell back
+  to its own `1`, and every carousel rendered one full-width slide — the starter's testimonials,
+  product row, `split-carousel` hero and `carousel` gallery all at once. The package's own Storybook
+  hid it, because its `@source '../src'` happens to scan the very `.vue` file whose template literal
+  holds the pattern. An inline style needs no scanner, so the numbers stay fully dynamic while the
+  compiled CSS stays entirely static; `src/__tests__/source-scan.spec.ts` compiles what a consumer's
+  own stylesheet says, against `dist`, and asserts both container-query steps reach it. The
+  guarantee generalises: **no class name in this package is ever built by interpolating a value.**
+- **`Breadcrumb` resolves a component `linkAs` to something focusable itself, rather than requiring
+  the component to expose a `focus`.** The spec's "activating the ellipsis moves focus to the first
+  revealed link" has to hold for a component `linkAs` (a `NuxtLink`/`RouterLink` wrapper — the shape
+  most consumers pass), where Vue hands a `:ref` callback the component's _public instance_, not its
+  root element. The component now prefers an exposed `focus()` when there is one — a wrapper may
+  have a better target in mind than its own root — and otherwise falls back to the instance's `$el`,
+  guarded by its own `focus` check so a fragment root (whose `$el` is a comment node) is a no-op
+  rather than a throw. Before this (fixed 2026-09-27) the ref was cast straight to `HTMLElement`,
+  which reached a component's `focus` only when that component happened to expose one and did
+  nothing at all otherwise: the guarantee was silently the consumer's, not the package's.
+- **A `classes` part given an array is flattened, and warned about once per component and part in
+  dev.** `classes` is one class string per part, and TypeScript says so — but a JavaScript consumer,
+  a `v-bind` of an untyped object and a value out of JSON all reach `partClass` anyway, and
+  `Object.entries(['flex', 'gap-4'])` reads an array's _indices_, so an array used to render
+  `class="0 1"`: two classes that style nothing, in place of the two that were written. `cx` now
+  flattens one the way Vue's own `:class` array syntax does, and `partClass` names the component and
+  the part in a single dev `console.warn` (`import.meta.env.DEV`, so production carries neither the
+  message nor the check). The component name comes from `getCurrentInstance()`, which is set while a
+  component renders — where every `classes` computed is first evaluated — so no call site had to
+  change.
+- **`formatDate` takes an `Intl.DateTimeFormatOptions` subset as a third argument**
+  (`FormatDateOptions`: `day`, `month`, `year`, `weekday`), with every omitted key keeping the
+  spec's own `12 Sep 2026` default rather than dropping that part from the output — so
+  `{ month: 'long' }` is a one-key change to the long form. The spec describes one rendering of one
+  date; a block that needs two (the starter's `article` renders the long form for a wide block and
+  the short one for a narrow, switched by a container query) would otherwise have to reach for
+  `Intl.DateTimeFormat` directly and lose the ISO-parsing, invalid-date and never-throw guards this
+  helper exists for. The never-throw contract extends to the options themselves: `Intl` throws a
+  `RangeError` for a value outside its own enums, and this runs inside a `computed`, so a bogus
+  value falls back to the default style and warns once in dev instead.
+- **`VariantPicker` takes a `legend` prop separate from `name`.** The spec's Properties table gives
+  `name` two jobs — the radios' shared native `name` _and_ the visible legend — which a page
+  rendering more than one picker cannot satisfy at once: giving each picker a unique group key
+  (`size-<sku>`, a `useUiId()` value) so their radios don't join one group also printed that key
+  above the pills and, because a `<fieldset>`'s `<legend>` is the group's accessible name, read it
+  out to a screen reader. `legend` is what a shopper reads, `name` stays the grouping key, and
+  `name`'s own behaviour is unchanged whenever `legend` is absent — so every caller written against
+  the spec's single-prop shape keeps working.

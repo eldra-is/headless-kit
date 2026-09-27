@@ -1,8 +1,18 @@
+import { getCurrentInstance } from 'vue';
 import { extendTailwindMerge } from 'tailwind-merge';
 
 /**
  * Anything `cx` accepts: a class string, a falsy placeholder for a branch that
  * did not apply, or an object whose truthy keys are class names.
+ *
+ * An **array is deliberately not in this union**, and neither is it in a
+ * `classes` prop's own `Partial<Record<Part, string>>` type: this package's
+ * `classes` contract is one string per part, so a TypeScript consumer writing
+ * `classes: { root: ['a', 'b'] }` gets a type error where it belongs — at the
+ * call. `cx` still *flattens* one at runtime (see `flattenClassValue` below),
+ * and `partClass` warns about it in dev, because the type cannot help a
+ * JavaScript consumer, a `v-bind` of an untyped object, or a value that arrived
+ * from JSON.
  */
 export type ClassValue = string | false | null | undefined | Record<string, boolean>;
 
@@ -49,6 +59,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-accordion-panel'
   | 'eldra-tooltip-arrow'
   | 'eldra-carousel-slide'
+  | 'eldra-carousel-track'
   | 'eldra-carousel-dot'
 >({
   extend: {
@@ -280,6 +291,11 @@ const twMerge = extendTailwindMerge<
       // bundle with no stock Tailwind equivalent, so it gets its own group, the same shape as
       // `eldra-skeleton`. A Carousel dot's visible ring/pill shape is the same shape again.
       'eldra-carousel-slide': ['eldra-carousel-slide'],
+      // The track's own per-view switch (`eldra-carousel-track`): three container-query steps that
+      // resolve `--eldra-carousel-per-view` from the inline properties `carouselPerViewStyle` binds
+      // (see its own comment) — a custom-property declaration bundle with no stock Tailwind group,
+      // so it gets its own, the same shape as `eldra-carousel-slide` above.
+      'eldra-carousel-track': ['eldra-carousel-track'],
       'eldra-carousel-dot': ['eldra-carousel-dot'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
@@ -299,6 +315,35 @@ const twMerge = extendTailwindMerge<
 });
 
 /**
+ * Flattens one `cx` input into the class names it contributes.
+ *
+ * The array branch is the one that is not in `ClassValue`, and it exists
+ * because the alternative is silent nonsense rather than an error. `Object.
+ * entries(['flex', 'gap-4'])` yields `[['0', 'flex'], ['1', 'gap-4']]`, so the
+ * object branch below used to read an array's *indices* as class names and emit
+ * `"0 1"` — two classes that style nothing, in place of the two the consumer
+ * wrote. Flattening (recursively, so a nested array works the way Vue's own
+ * `:class` array syntax does) is what a caller passing one always meant;
+ * `partClass` is where it also gets told, in dev, that this package's `classes`
+ * prop takes a string per part.
+ */
+function flattenClassValue(input: unknown, out: string[]): void {
+  if (!input) return;
+  if (typeof input === 'string') {
+    out.push(input);
+    return;
+  }
+  if (Array.isArray(input)) {
+    for (const item of input) flattenClassValue(item, out);
+    return;
+  }
+  if (typeof input !== 'object') return;
+  for (const [name, enabled] of Object.entries(input)) {
+    if (enabled) out.push(name);
+  }
+}
+
+/**
  * Join class values, then resolve Tailwind conflicts so the last one wins.
  *
  * Every component builds its classes with this, which is what makes the
@@ -307,17 +352,59 @@ const twMerge = extendTailwindMerge<
  */
 export function cx(...inputs: ClassValue[]): string {
   const parts: string[] = [];
-  for (const input of inputs) {
-    if (!input) continue;
-    if (typeof input === 'string') {
-      parts.push(input);
-      continue;
-    }
-    for (const [name, enabled] of Object.entries(input)) {
-      if (enabled) parts.push(name);
-    }
-  }
+  for (const input of inputs) flattenClassValue(input, parts);
   return twMerge(parts.join(' '));
+}
+
+/**
+ * The name of the component whose render is currently running, for a dev
+ * warning's sake only.
+ *
+ * `partClass` is called from a `computed` in every component, and a component's
+ * class computeds are first evaluated while that component renders — which is
+ * exactly when Vue has a current instance (`getCurrentInstance()` reads the
+ * rendering instance as well as the setup one). So the name is available
+ * without every one of the ~60 call sites passing it, and a call from outside a
+ * render (a consumer composing classes in a plain function) still degrades to a
+ * readable label rather than throwing.
+ *
+ * `name` before `__name`: `name` is what a component sets explicitly, `__name`
+ * what the SFC compiler derives from the filename.
+ */
+function currentComponentName(): string {
+  const type = getCurrentInstance()?.type as { name?: string; __name?: string } | undefined;
+  return type?.name ?? type?.__name ?? 'an @eldrajs/ui component';
+}
+
+/**
+ * Parts already warned about, keyed by component **and** part: one warning per
+ * component/part pair, not one per render — `partClass` runs on every render of
+ * every component, so an unkeyed `console.warn` would flood a dev console with
+ * the same line hundreds of times, which is how a warning stops being read.
+ */
+const warnedArrayParts = new Set<string>();
+
+/**
+ * Warns, once, that a `classes` part was given an array (see
+ * `flattenClassValue` for what happens to it).
+ *
+ * Dev only (`import.meta.env?.DEV`, the same guard `formatDate`,
+ * `Section`, `Chip`, `Image`, `Drawer`, `Popover` and `Tooltip` use for their
+ * own warnings), so a production bundle carries no message text and does
+ * nothing at runtime: this is a wrong-shape-of-prop mistake a developer fixes
+ * once, never a condition a visitor's browser should spend anything on.
+ */
+function warnArrayClassesValue(part: string): void {
+  if (!import.meta.env?.DEV) return;
+  const component = currentComponentName();
+  const key = `${component}.${part}`;
+  if (warnedArrayParts.has(key)) return;
+  warnedArrayParts.add(key);
+  console.warn(
+    `[@eldrajs/ui] ${component} received an array for \`classes.${part}\`. Every \`classes\` ` +
+      'part takes a single class string — the array is flattened for you, but pass ' +
+      `\`classes: { ${part}: 'a b' }\` (or a template literal) instead.`
+  );
 }
 
 /**
@@ -333,5 +420,15 @@ export function partClass<P extends string>(
   classes: Partial<Record<P, string>> | undefined,
   part: P
 ): string {
-  return cx(base, classes?.[part]);
+  const override = classes?.[part] as unknown;
+  // `Partial<Record<P, string>>` says this is a string, so the `Array.isArray`
+  // check is about the callers TypeScript cannot reach: a JavaScript consumer, a
+  // `v-bind` of an untyped object, a `classes` value that came out of JSON. The
+  // array is flattened by `cx` either way (`flattenClassValue`); this is only
+  // where the developer is told, once, that the prop takes a string per part.
+  if (Array.isArray(override)) {
+    warnArrayClassesValue(part);
+    return cx(base, ...(override as ClassValue[]));
+  }
+  return cx(base, override as ClassValue);
 }

@@ -209,14 +209,33 @@ describe('Carousel — slide labelling', () => {
   });
 });
 
+/**
+ * `perView` reaches the CSS as an **inline style** on the track, never as a class (bug, fixed
+ * 2026-09-27 — see `carouselPerViewStyle`'s own comment in `useCarousel.ts`): an interpolated
+ * arbitrary-property class name is never in the text Tailwind's scanner reads, so a consumer's
+ * build emitted no rule for it and every carousel in the built starter rendered one full-width
+ * slide. Each assertion below therefore reads the resolved custom properties off `track.style` —
+ * the same three the static `eldra-carousel-track` utility reads — and the last one pins that no
+ * class-shaped spelling of the variable comes back.
+ */
+function perView(wrapper: ReturnType<typeof mountWith>): Record<string, string> {
+  const style = track(wrapper).style;
+  return {
+    base: style.getPropertyValue('--eldra-carousel-per-view-base'),
+    md: style.getPropertyValue('--eldra-carousel-per-view-md'),
+    lg: style.getPropertyValue('--eldra-carousel-per-view-lg'),
+  };
+}
+
 describe('Carousel — perView CSS variables', () => {
-  it('sets the base per-view variable for a plain number', async () => {
+  it('sets all three per-view properties for a plain number', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Gallery', perView: 1 },
       slots: { default: THREE_SLIDES },
     });
     await settle();
-    expect(track(wrapper).className).toContain('[--eldra-carousel-per-view:1]');
+    expect(perView(wrapper)).toEqual({ base: '1', md: '1', lg: '1' });
+    expect(track(wrapper).className).toContain('eldra-carousel-track');
     wrapper.unmount();
   });
 
@@ -226,20 +245,39 @@ describe('Carousel — perView CSS variables', () => {
       slots: { default: THREE_SLIDES },
     });
     await settle();
-    expect(track(wrapper).className).toContain('[--eldra-carousel-per-view:1.25]');
+    expect(perView(wrapper)).toEqual({ base: '1.25', md: '1.25', lg: '1.25' });
     wrapper.unmount();
   });
 
-  it('sets @tablet/@content variants for a per-breakpoint object', async () => {
+  it('resolves each breakpoint step narrowest-first for a per-breakpoint object', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers', perView: { base: 1.25, md: 3, lg: 4 } },
       slots: { default: THREE_SLIDES },
     });
     await settle();
-    const className = track(wrapper).className;
-    expect(className).toContain('[--eldra-carousel-per-view:1.25]');
-    expect(className).toContain('@tablet:[--eldra-carousel-per-view:3]');
-    expect(className).toContain('@content:[--eldra-carousel-per-view:4]');
+    expect(perView(wrapper)).toEqual({ base: '1.25', md: '3', lg: '4' });
+    wrapper.unmount();
+  });
+
+  it('carries md forward to lg when only md is given, and base forward when neither is', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers', perView: { base: 1.25, md: 3 } },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    expect(perView(wrapper)).toEqual({ base: '1.25', md: '3', lg: '3' });
+    wrapper.unmount();
+  });
+
+  it('never emits the interpolated arbitrary-property class Tailwind could not scan', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers', perView: { base: 1.25, md: 3, lg: 4 } },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    // The pattern, not a literal class name: writing one here would put it back into the text the
+    // package's own Storybook build scans, which is exactly how the bug stayed invisible.
+    expect(track(wrapper).className).not.toMatch(/--eldra-carousel-per-view\s*:/);
     wrapper.unmount();
   });
 });
@@ -592,7 +630,7 @@ describe('Carousel — narrow (peek)', () => {
       slots: { default: THREE_SLIDES },
     });
     await settle();
-    expect(track(wrapper).className).toContain('[--eldra-carousel-per-view:1.25]');
+    expect(track(wrapper).style.getPropertyValue('--eldra-carousel-per-view-base')).toBe('1.25');
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });

@@ -323,3 +323,70 @@ describe('EldraRichText padEmptyBlocks (§18 v3 floating toolbar follow-up)', ()
     expect(wrapper.get('p').element.innerHTML).toBe('');
   });
 });
+
+/**
+ * `minHeadingLevel` (added 2026-09-27). The floor itself, with all its normalisation, is
+ * theme-core's `clampHeadingLevel` (covered by that package's own suite); what is this component's
+ * is the wiring: the prop's default, that it is read *inside* the render (so a block can bind it to
+ * reactive state and see the tags follow with no remount), and that nothing else about the render —
+ * the position stamps native editing depends on, the marking attributes — moves with it.
+ *
+ * The starter's `rich-text` block shipped a `floorRichTextHeadingLevels` transform over the TipTap
+ * JSON instead, because there was no prop; that copied and rewrote the whole document to change a
+ * tag name.
+ */
+describe('EldraRichText — minHeadingLevel', () => {
+  const headings = doc([
+    { type: 'heading', attrs: { level: 1 }, content: [textNode('One')] },
+    { type: 'heading', attrs: { level: 2 }, content: [textNode('Two')] },
+    { type: 'heading', attrs: { level: 3 }, content: [textNode('Three')] },
+  ]);
+
+  function tags(wrapper: ReturnType<typeof mountDoc>): string[] {
+    return [...wrapper.get('[data-eldra-rich-text]').element.children].map((el) =>
+      el.tagName.toLowerCase()
+    );
+  }
+
+  it('renders the document own levels when the prop is omitted', () => {
+    expect(tags(mountDoc(headings))).toEqual(['h1', 'h2', 'h3']);
+  });
+
+  it('floors every heading above it, leaving deeper ones alone', () => {
+    expect(tags(mountDoc(headings, { minHeadingLevel: 3 }))).toEqual(['h3', 'h3', 'h3']);
+    expect(tags(mountDoc(headings, { minHeadingLevel: 2 }))).toEqual(['h2', 'h2', 'h3']);
+  });
+
+  it('follows a reactive value with no remount', async () => {
+    const wrapper = mountDoc(headings, { minHeadingLevel: 1 });
+    expect(tags(wrapper)).toEqual(['h1', 'h2', 'h3']);
+    await wrapper.setProps({ minHeadingLevel: 4 });
+    expect(tags(wrapper)).toEqual(['h4', 'h4', 'h4']);
+  });
+
+  it('leaves the position stamps and the marking attributes untouched', () => {
+    const plain = mountDoc(headings);
+    const floored = mountDoc(headings, { minHeadingLevel: 3 });
+
+    // Only the tag name moves: `data-eldra-pos`/`data-eldra-node` are the *document's* numbering,
+    // which native editing, selection reporting and `restampRichTextPositions` all read.
+    const stamps = (wrapper: ReturnType<typeof mountDoc>) =>
+      [...wrapper.get('[data-eldra-rich-text]').element.children].map((el) => [
+        el.getAttribute('data-eldra-node'),
+        el.getAttribute('data-eldra-pos'),
+      ]);
+    expect(stamps(floored)).toEqual(stamps(plain));
+
+    const root = floored.get('[data-eldra-rich-text]').element;
+    expect(root.getAttribute('data-eldra-field')).toBe('body');
+    expect(root.getAttribute('data-eldra-entry')).toBe('entry-1');
+  });
+
+  it('renders no h0/h7 for an out-of-range floor, and keeps the document text', () => {
+    for (const minHeadingLevel of [0, -1, 9, 2.5]) {
+      const rendered = tags(mountDoc(headings, { minHeadingLevel }));
+      for (const tag of rendered) expect(tag).toMatch(/^h[1-6]$/);
+      expect(mountDoc(headings, { minHeadingLevel }).text()).toContain('One');
+    }
+  });
+});

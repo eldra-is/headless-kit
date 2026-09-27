@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatDate } from '../date';
 
 afterEach(() => {
@@ -102,5 +102,97 @@ describe('formatDate', () => {
     expect(() => formatDate('not-a-date', 'en-US')).not.toThrow();
     expect(() => formatDate('', 'en-US')).not.toThrow();
     expect(() => formatDate('2026-02-30', 'en-US')).not.toThrow();
+  });
+});
+
+/**
+ * The `options` parameter (added 2026-09-27). The starter's `article` block renders a date twice —
+ * the spelled-out month for a wide block, the short one for a narrow — and picks between them with
+ * a container query, which is only possible with a formatter that takes the style as an argument.
+ *
+ * Every assertion compares against `Intl.DateTimeFormat` with the same options rather than a
+ * literal string, for the same reason the default-style tests above do: ICU's own rendering of a
+ * locale is not this package's to pin ("Sep 12, 2026" vs "12 Sep 2026" is a CLDR detail that can
+ * change between Node versions).
+ */
+describe('formatDate — options', () => {
+  const SEPTEMBER_12 = new Date(2026, 8, 12);
+  const intl = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-US', options).format(SEPTEMBER_12);
+
+  it('spells the month out for { month: "long" }, keeping day and year', () => {
+    expect(formatDate('2026-09-12', 'en-US', { month: 'long' })).toBe(
+      intl({ day: 'numeric', month: 'long', year: 'numeric' })
+    );
+    // Not the default style — the whole point of the parameter.
+    expect(formatDate('2026-09-12', 'en-US', { month: 'long' })).not.toBe(
+      formatDate('2026-09-12', 'en-US')
+    );
+  });
+
+  it('keeps every unmentioned part at its default rather than dropping it', () => {
+    // `{ month: 'long' }` alone would mean "month only" to `Intl.DateTimeFormat`; here it means
+    // "the default style, with a long month", which is what a one-key override should do.
+    const long = formatDate('2026-09-12', 'en-US', { month: 'long' }) ?? '';
+    expect(long).toContain('12');
+    expect(long).toContain('2026');
+  });
+
+  it('accepts a numeric month, two-digit parts and a weekday', () => {
+    expect(formatDate('2026-09-12', 'en-US', { month: 'numeric' })).toBe(
+      intl({ day: 'numeric', month: 'numeric', year: 'numeric' })
+    );
+    expect(
+      formatDate('2026-05-05', 'en-US', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    ).toBe(
+      new Intl.DateTimeFormat('en-US', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+      }).format(new Date(2026, 4, 5))
+    );
+    expect(formatDate('2026-09-12', 'en-US', { weekday: 'long' })).toBe(
+      intl({ day: 'numeric', month: 'short', year: 'numeric', weekday: 'long' })
+    );
+  });
+
+  it('formats the same calendar day whatever the style, in a zone west of UTC', () => {
+    process.env.TZ = 'America/Los_Angeles';
+    const result = formatDate('2026-01-01', 'en-US', { month: 'long' }) ?? '';
+    expect(result).toContain('January');
+    expect(result).not.toContain('December');
+  });
+
+  it('still returns null for an invalid date, whatever the options', () => {
+    expect(formatDate('2026-02-30', 'en-US', { month: 'long' })).toBeNull();
+    expect(formatDate('', 'en-US', { weekday: 'short' })).toBeNull();
+  });
+
+  /**
+   * The never-throw contract now has a second way in: `Intl.DateTimeFormat` throws a `RangeError`
+   * for an option *value* outside its own enum, and this runs inside a `computed` (`ContentCard`'s
+   * `formattedDate`), where a throw takes the whole render down. TypeScript rejects the value at
+   * the call, so this is about the callers it cannot reach — a JavaScript consumer, a style that
+   * came out of a CMS field.
+   */
+  it('falls back to the default style instead of throwing for a bogus option value', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => formatDate('2026-09-12', 'en-US', { month: 'enormous' } as never)).not.toThrow();
+    expect(formatDate('2026-09-13', 'en-US', { month: 'enormous' } as never)).toBe(
+      new Intl.DateTimeFormat('en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(2026, 8, 13))
+    );
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('never throws for a malformed locale tag either', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => formatDate('2026-09-12', 'not a locale', { month: 'long' })).not.toThrow();
+    expect(formatDate('2026-09-12', 'not a locale', { month: 'long' })).not.toBeNull();
+    warn.mockRestore();
   });
 });

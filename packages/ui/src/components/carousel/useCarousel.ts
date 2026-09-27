@@ -42,22 +42,45 @@ export function resolveCarouselPerView(
 }
 
 /**
- * The Tailwind classes that turn a resolved `perView` into the `--eldra-carousel-per-view`
- * variable `eldra-carousel-slide` reads (see `tailwind.css`'s own comment on that utility) — one
- * class for `base`, and one per breakpoint actually given. `@tablet`/`@content` are the package's
- * own 48rem/64rem container-query breakpoints (`Container`'s own gutter step reads the same two),
- * measured against the nearest `@container` ancestor, never the viewport — a `Carousel` inside a
- * narrow page-builder column keeps its mobile `perView` even on a wide screen.
+ * The three custom properties that carry a resolved `perView` to the CSS, bound as an **inline
+ * style** on the track: `--eldra-carousel-per-view-base`, `-md` and `-lg`. The `eldra-carousel-
+ * track` utility (`tailwind.css`, "Carousel") is what reads them and picks one per container-query
+ * breakpoint into `--eldra-carousel-per-view`, which `eldra-carousel-slide`'s width formula reads.
+ *
+ * **Why a style and not a class (bug, fixed 2026-09-27 — see the README's Deviations entry and the
+ * CHANGELOG).** This used to return interpolated Tailwind arbitrary-property classes
+ * (`` `[--eldra-carousel-per-view:${resolved.base}]` ``, plus `@tablet:`/`@content:` steps). Those
+ * work in this package's own Storybook only by accident: Tailwind has no runtime: it *scans source
+ * text* for class names, and a template literal's interpolated value is never in the text it
+ * scans. A consumer's build (`@import '@eldrajs/ui/tailwind.css'`, whose `@source './'` scans
+ * `dist/*.js`) therefore emitted no rule for any of them, so `--eldra-carousel-per-view` was never
+ * set at all, `eldra-carousel-slide` fell back to its own `1`, and every carousel in the built
+ * starter rendered one full-width slide — testimonials, product-carousel, the `split-carousel` hero
+ * and the `carousel` gallery all at once. An inline style needs no scanner, so the compiled CSS
+ * stays entirely static (three literal container-query rules in `tailwind.css`) while the numbers
+ * stay fully dynamic.
+ *
+ * Every slot is always written, resolved narrowest-first (`md` falls back to `base`, `lg` to `md`),
+ * so the breakpoint steps hold even for a caller that gives only some of them — the `var()`
+ * fallback chain in `eldra-carousel-track` says the same thing a second time, for a consumer who
+ * sets one of these properties by hand.
+ *
+ * The breakpoints themselves are the package's own 48rem/64rem container-query edges
+ * (`Container`'s own gutter step reads the same two), measured against the nearest `@container`
+ * ancestor — the `Carousel` root — never the viewport, so a `Carousel` inside a narrow
+ * page-builder column keeps its mobile `perView` even on a wide screen.
  */
-export function carouselPerViewClasses(
+export function carouselPerViewStyle(
   perView: number | CarouselPerViewBreakpoints | undefined
-): string {
+): Record<string, string> {
   const resolved = resolveCarouselPerView(perView);
-  const classes = [`[--eldra-carousel-per-view:${resolved.base}]`];
-  if (resolved.md !== undefined) classes.push(`@tablet:[--eldra-carousel-per-view:${resolved.md}]`);
-  if (resolved.lg !== undefined)
-    classes.push(`@content:[--eldra-carousel-per-view:${resolved.lg}]`);
-  return classes.join(' ');
+  const md = resolved.md ?? resolved.base;
+  const lg = resolved.lg ?? md;
+  return {
+    '--eldra-carousel-per-view-base': String(resolved.base),
+    '--eldra-carousel-per-view-md': String(md),
+    '--eldra-carousel-per-view-lg': String(lg),
+  };
 }
 
 export interface UseCarouselOptions {

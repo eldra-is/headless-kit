@@ -116,6 +116,65 @@ describe('consumer Tailwind build', () => {
   );
 
   /**
+   * A `Carousel`'s slides-per-view has to survive a *consumer's* Tailwind build, which is a
+   * stronger requirement than surviving this package's own Storybook (bug, fixed 2026-09-27 — see
+   * `carouselPerViewStyle`'s own comment in `useCarousel.ts`, the README's Deviations entry and the
+   * CHANGELOG).
+   *
+   * `Carousel.vue` used to set `--eldra-carousel-per-view` through interpolated Tailwind
+   * arbitrary-property classes (`` `[--eldra-carousel-per-view:${n}]` ``, plus `@tablet:`/
+   * `@content:` steps). Tailwind has no runtime — it scans source *text* for class names — and an
+   * interpolated value is never in that text, so a consumer's build emitted no rule for any of the
+   * three, `eldra-carousel-slide`'s width formula fell back to its own `1`, and every carousel in
+   * the built starter rendered one full-width slide (testimonials, product-carousel, the
+   * `split-carousel` hero and the `carousel` gallery, all at once). Nothing caught it: the numbers
+   * appear in the package's own Storybook because its `@source '../src'` happens to scan the very
+   * `.vue` file whose *template literal* holds the pattern, so the fixed-number classes it also
+   * mentions get emitted there.
+   *
+   * The values now arrive as an inline style (asserted per breakpoint in the component's own
+   * spec), and the *breakpoints* are static CSS: the `eldra-carousel-track` utility. This is the
+   * consumer-side half — a real compile of what a consumer's stylesheet says, against `dist` —
+   * proving both container-query steps reach the stylesheet. Against the old code the two
+   * `--eldra-carousel-per-view:` declarations below are simply absent, so this fails.
+   */
+  it.runIf(built)('emits the carousel per-view container-query steps for a consumer', async () => {
+    const { compile } = await import('@tailwindcss/node');
+    const compiler = await compile(`@import 'tailwindcss';\n@import '@eldrajs/ui/tailwind.css';`, {
+      base: packageRoot,
+      onDependency() {},
+    });
+    const css = compiler.build(['eldra-carousel-track', 'eldra-carousel-slide']);
+
+    // The compiler keeps the source's own line breaks, so every comparison here is on collapsed
+    // whitespace — the same shape the field-border assertions above use.
+    const flat = (value: string) => value.replace(/\s+/g, ' ');
+
+    // The base step, outside any query.
+    const base = flat(css.slice(css.indexOf('.eldra-carousel-track {')).slice(0, 200));
+    expect(base).toContain('--eldra-carousel-per-view: var(--eldra-carousel-per-view-base, 1)');
+
+    // ...and one step per breakpoint, each inside a real `@container` rule with a literal length
+    // (a `@container` condition may not hold a `var()`; see `tailwind.css`'s own header).
+    for (const [width, property] of [
+      ['48rem', '--eldra-carousel-per-view-md'],
+      ['64rem', '--eldra-carousel-per-view-lg'],
+    ] as const) {
+      const start = css.indexOf(`@container (width >= ${width})`);
+      expect(
+        start,
+        `@container (width >= ${width}) is not in the compiled stylesheet`
+      ).toBeGreaterThan(-1);
+      const block = flat(css.slice(start, css.indexOf('\n}\n', start)));
+      expect(block).toContain(`--eldra-carousel-per-view: var( ${property}`);
+    }
+
+    // The slide's own width formula still reads the one resolved variable, not the three inputs.
+    const slide = flat(css.slice(css.indexOf('.eldra-carousel-slide {')).slice(0, 300));
+    expect(slide).toContain('var(--eldra-carousel-per-view, 1)');
+  });
+
+  /**
    * The shipped stylesheet must hold no rule for a class nothing renders.
    *
    * `dist/style.css` is compiled from `src/` by Tailwind's own source scan, which reads the files

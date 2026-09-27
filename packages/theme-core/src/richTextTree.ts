@@ -65,6 +65,29 @@ export interface BuildRichTextTreeOptions {
    * the document rather than the DOM, needs no changes at all.
    */
   padEmptyBlocks?: boolean;
+  /**
+   * A floor for every `heading` node's level: the rendered tag is
+   * `h{max(minHeadingLevel, level)}`, still capped at 6. Defaults to 1 — the
+   * generic clamp, i.e. whatever level the document carries.
+   *
+   * A page owns its heading outline; a rich-text field does not. The same body
+   * document is legitimately an `h2`-and-down section in one block and an
+   * `h3`-and-down one in another (the starter's `article` body starts at h2,
+   * its `rich-text` block at h3), and nothing in the document or in a block's
+   * toolbar metadata can express that — the toolbar's `heading` control id is
+   * level-agnostic, so an editor can insert any level anywhere. Applying the
+   * floor at *render* time is what lets one stored document sit correctly under
+   * two different page outlines, and is why this is a render option rather than
+   * a document transform: the document is never rewritten, so an editor's own
+   * level survives a round trip through Studio untouched.
+   *
+   * A floor, never an offset: an author who already wrote h3 under
+   * `minHeadingLevel: 3` keeps h3, and one who wrote h4 keeps h4 — only the
+   * levels *above* the floor move. Out-of-range and non-integer values are
+   * clamped into 1-6 the same way a node's own level is, so this never produces
+   * an `<h0>`/`<h7>` whatever a caller passes.
+   */
+  minHeadingLevel?: number;
 }
 
 const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
@@ -218,7 +241,7 @@ function buildNode(
     case 'paragraph':
       return textblockElement('p');
     case 'heading':
-      return textblockElement(`h${clampHeadingLevel(node.attrs?.level)}`);
+      return textblockElement(`h${clampHeadingLevel(node.attrs?.level, options.minHeadingLevel)}`);
     case 'bulletList':
       return element('ul');
     case 'orderedList':
@@ -328,9 +351,21 @@ function buildEmbed(
   return [{ tag: 'div', attrs: stamp(attrs), children: [] }];
 }
 
-function clampHeadingLevel(value: unknown): number {
+/**
+ * A heading node's level as a real `h1`-`h6` number, with `minHeadingLevel`
+ * (see `BuildRichTextTreeOptions`) applied as a floor.
+ *
+ * Both arguments are `unknown`-ish input: `value` comes from a document's own
+ * `attrs`, and the floor from a caller's prop, so neither may be trusted to be
+ * an integer in range. Each is normalised on its own before `Math.max` sees
+ * them — a `minHeadingLevel` of `2.5`, `0`, `9` or `'3'` must never turn into
+ * an `<h2.5>`/`<h0>`/`<h9>` — and the result is capped at 6 last, so a floor of
+ * 6 against a level of 6 still reads `h6` rather than overflowing.
+ */
+function clampHeadingLevel(value: unknown, minimum?: unknown): number {
   const level = typeof value === 'number' && Number.isInteger(value) ? value : 1;
-  return Math.min(6, Math.max(1, level));
+  const floor = typeof minimum === 'number' && Number.isInteger(minimum) ? minimum : 1;
+  return Math.min(6, Math.max(1, level, floor));
 }
 
 function colorStyle(property: 'color' | 'background-color', value: unknown): string | null {

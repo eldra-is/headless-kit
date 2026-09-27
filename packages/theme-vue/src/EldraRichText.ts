@@ -40,6 +40,10 @@ import { useEldraBlockField } from './useEldraBlockField';
  * locale when the manifest marks the field `localized`, and to `null`
  * otherwise. That resolved locale is what `data-eldra-locale` carries, so
  * Studio edits the locale the render actually used.
+ *
+ * Heading outline: `minHeadingLevel` floors every heading tag at render time,
+ * so one stored document fits under two different page outlines without being
+ * rewritten (see that prop's own comment).
  */
 export const EldraRichText = defineComponent({
   name: 'EldraRichText',
@@ -55,6 +59,35 @@ export const EldraRichText = defineComponent({
       required: false,
       default: undefined,
     },
+    /**
+     * A floor for every heading in the document: a `heading` node renders as
+     * `h{max(minHeadingLevel, level)}`, still capped at 6. Defaults to 1 — the
+     * generic clamp, i.e. whatever level the document carries.
+     *
+     * A page owns its heading outline; a rich-text field does not. The same body
+     * document is legitimately an h2-and-down section in one block and an
+     * h3-and-down one in another (the starter's `article` body starts at h2, its
+     * `rich-text` block at h3), and nothing in the document or in `block.json`
+     * can say so — `metadata.toolbar`'s `heading` control id is one
+     * level-agnostic entry, so an editor can insert any level anywhere. Without
+     * this prop the only place to enforce it was a per-block transform over the
+     * TipTap JSON before handing it in (the starter shipped one); doing it here
+     * instead means the **document is never rewritten** — no copy, no
+     * reactive-state surgery, and an editor's own level survives a round trip
+     * through Studio untouched, because only the rendered tag moves.
+     *
+     * A floor, never an offset: an author who already wrote h3 under
+     * `minHeadingLevel: 3` keeps h3, and h4 stays h4 — only levels above the
+     * floor move. Every guard is in `@eldrajs/theme-core`'s own
+     * `clampHeadingLevel`, so an out-of-range or non-integer value can never
+     * produce an `<h0>`/`<h7>`.
+     *
+     * Rendering-only, deliberately: the value takes no part in position
+     * stamping (`data-eldra-pos` is the document's own numbering, which a
+     * rendered tag name cannot change), so native editing, selection reporting
+     * and `restampRichTextPositions` all behave exactly as they do without it.
+     */
+    minHeadingLevel: { type: Number, required: false, default: 1 },
   },
   setup(props, { expose }) {
     const context = inject(ELDRA_KEY, null);
@@ -153,7 +186,16 @@ export const EldraRichText = defineComponent({
           // render and only becomes real once `editor:init` arrives, with no
           // remount to re-evaluate a one-shot check. Static/published output
           // (no context, or a context outside edit mode) is unaffected.
-          { safeHref, padEmptyBlocks: context?.preview.mode === 'edit' },
+          //
+          // `minHeadingLevel` is read here for the same reason rather than
+          // captured in setup: a block may bind it to its own reactive state (an
+          // editable "heading level" field), and a render-time read is what
+          // makes the tags follow it with no remount.
+          {
+            safeHref,
+            padEmptyBlocks: context?.preview.mode === 'edit',
+            minHeadingLevel: props.minHeadingLevel,
+          },
           renderKey.value
         )
       );

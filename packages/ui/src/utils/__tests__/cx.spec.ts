@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h } from 'vue';
+import { mount } from '@vue/test-utils';
 import { cx, partClass } from '../cx';
 
 describe('cx', () => {
@@ -140,5 +142,101 @@ describe('partClass', () => {
     expect(partClass('rounded-md', { container: 'shadow-md' }, 'container')).toBe(
       'rounded-md shadow-md'
     );
+  });
+});
+
+/**
+ * An array `classes` value (bug, fixed 2026-09-27 — see `flattenClassValue`'s and
+ * `warnArrayClassesValue`'s own comments in `cx.ts`). `classes: { root: ['flex', 'gap-4'] }` used
+ * to reach `Object.entries` on an array, which reads its **indices** as class names: the element
+ * got `class="0 1"` — two classes that style nothing — in place of the two the consumer wrote, with
+ * nothing said about it. TypeScript rejects the shape at the call, but a JavaScript consumer, a
+ * `v-bind` of an untyped object and a value out of JSON all reach it anyway.
+ *
+ * Each test below uses a part name of its own: the warning is deduped per component+part for the
+ * process's lifetime (that is the point of it — `partClass` runs on every render), so a shared
+ * name would make the second test's assertion depend on the first test's order.
+ */
+describe('partClass — array classes value (dev warning)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  /** A component, because the warning names the component whose render is running — which is how a
+   *  developer finds the `classes` prop to fix. `defineComponent({ name })` rather than an SFC, so
+   *  the name under test is explicit rather than derived from this file's own name. */
+  function mountWithArrayPart(name: string, part: string): { class: string | undefined } {
+    const captured: { class: string | undefined } = { class: undefined };
+    const component = defineComponent({
+      name,
+      setup() {
+        return () => {
+          captured.class = partClass(
+            'rounded-md px-4',
+            { [part]: ['px-6', 'shadow-md'] } as never,
+            part
+          );
+          return h('div', { class: captured.class });
+        };
+      },
+    });
+    mount(component).unmount();
+    return captured;
+  }
+
+  it('flattens the array into real class names instead of its indices', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const captured = mountWithArrayPart('ProductCard', 'flattenPart');
+    // `px-6` replaces the base `px-4` through the ordinary merge, and `shadow-md` lands beside it —
+    // exactly what a single `'px-6 shadow-md'` string would have done.
+    expect(captured.class).toBe('rounded-md px-6 shadow-md');
+    expect(captured.class).not.toMatch(/\b[01]\b/);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it('names the component and the part, once per pair however many renders happen', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mountWithArrayPart('Carousel', 'namedPart');
+    mountWithArrayPart('Carousel', 'namedPart');
+    mountWithArrayPart('Carousel', 'namedPart');
+
+    expect(warn).toHaveBeenCalledOnce();
+    const message = String(warn.mock.calls[0]?.[0]);
+    expect(message).toContain('[@eldrajs/ui]');
+    expect(message).toContain('Carousel');
+    expect(message).toContain('classes.namedPart');
+  });
+
+  it('warns again for a different component or a different part', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mountWithArrayPart('Breadcrumb', 'pairPartA');
+    mountWithArrayPart('Breadcrumb', 'pairPartB');
+    mountWithArrayPart('Tabs', 'pairPartA');
+    expect(warn).toHaveBeenCalledTimes(3);
+  });
+
+  it('falls back to a readable label outside a component render', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(partClass('rounded-md', { loosePart: ['px-6'] } as never, 'loosePart')).toBe(
+      'rounded-md px-6'
+    );
+    expect(String(warn.mock.calls[0]?.[0])).toContain('an @eldrajs/ui component');
+  });
+
+  it('stays silent in production, while still flattening the array', () => {
+    vi.stubEnv('DEV', false);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const captured = mountWithArrayPart('Chip', 'productionPart');
+    expect(captured.class).toBe('rounded-md px-6 shadow-md');
+    expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('cx — array argument', () => {
+  it('flattens a nested array the way Vue own :class array syntax does', () => {
+    // Not a documented `ClassValue` (an array is deliberately outside that union — see its own
+    // comment), but the runtime behaviour has to be "the classes in it", never their indices.
+    expect(cx(['rounded-md', ['px-4', false], undefined] as never)).toBe('rounded-md px-4');
   });
 });

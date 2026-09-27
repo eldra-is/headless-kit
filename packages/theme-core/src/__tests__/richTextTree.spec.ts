@@ -94,6 +94,90 @@ describe('buildRichTextTree', () => {
     expect(findAll(tree, 'h6').map(textOf)).toEqual(['H6', 'High']);
   });
 
+  /**
+   * `minHeadingLevel` (added 2026-09-27; `BuildRichTextTreeOptions`). A page owns its heading
+   * outline and a rich-text field does not, so the same stored document has to be able to render
+   * as an h2-and-down section in one block and an h3-and-down one in another. Applying it here, at
+   * render time, is what keeps the document itself untouched — the starter's `rich-text` block used
+   * to copy and rewrite the whole TipTap tree to get this.
+   */
+  describe('minHeadingLevel', () => {
+    function buildWith(content: RichTextNode[], minHeadingLevel: unknown): RichTextRenderNode[] {
+      return buildRichTextTree(doc(content), {
+        ...options,
+        minHeadingLevel: minHeadingLevel as number,
+      });
+    }
+
+    const LEVELS: RichTextNode[] = [
+      { type: 'heading', attrs: { level: 1 }, content: [textNode('One')] },
+      { type: 'heading', attrs: { level: 2 }, content: [textNode('Two')] },
+      { type: 'heading', attrs: { level: 3 }, content: [textNode('Three')] },
+      { type: 'heading', attrs: { level: 4 }, content: [textNode('Four')] },
+    ];
+
+    it('raises every heading above the floor and leaves the rest alone', () => {
+      const tree = buildWith(LEVELS, 3);
+      // A floor, not an offset: h1 and h2 become h3, h3 stays h3, h4 stays h4.
+      expect(findAll(tree, 'h1')).toHaveLength(0);
+      expect(findAll(tree, 'h2')).toHaveLength(0);
+      expect(findAll(tree, 'h3').map(textOf)).toEqual(['One', 'Two', 'Three']);
+      expect(findAll(tree, 'h4').map(textOf)).toEqual(['Four']);
+    });
+
+    it('defaults to the generic 1-6 clamp when it is not given', () => {
+      const tree = build(LEVELS);
+      expect(findAll(tree, 'h1').map(textOf)).toEqual(['One']);
+      expect(findAll(tree, 'h4').map(textOf)).toEqual(['Four']);
+    });
+
+    it('still caps at 6, so a floor of 6 never produces an h7', () => {
+      const tree = buildWith(
+        [...LEVELS, { type: 'heading', attrs: { level: 12 }, content: [textNode('Twelve')] }],
+        6
+      );
+      expect(findAll(tree, 'h6').map(textOf)).toEqual(['One', 'Two', 'Three', 'Four', 'Twelve']);
+      expect(findAll(tree, 'h7')).toHaveLength(0);
+    });
+
+    it('ignores an out-of-range, fractional or non-numeric floor rather than rendering it', () => {
+      for (const floor of [0, -3, 2.5, '3', null, Number.NaN, Number.POSITIVE_INFINITY]) {
+        const tree = buildWith(LEVELS, floor);
+        // Every one of these falls back to the generic floor of 1, so the document's own levels
+        // render unchanged — and no `<h0>`/`<h2.5>`/`<hNaN>` tag is ever produced.
+        expect(findAll(tree, 'h1').map(textOf), `floor ${String(floor)}`).toEqual(['One']);
+        expect(findAll(tree, 'h2').map(textOf), `floor ${String(floor)}`).toEqual(['Two']);
+      }
+    });
+
+    it('applies to a heading nested inside another node, not just a top-level one', () => {
+      const tree = buildWith(
+        [
+          {
+            type: 'blockquote',
+            content: [{ type: 'heading', attrs: { level: 2 }, content: [textNode('Quoted')] }],
+          },
+        ],
+        4
+      );
+      expect(findAll(tree, 'h4').map(textOf)).toEqual(['Quoted']);
+      expect(findAll(tree, 'h2')).toHaveLength(0);
+    });
+
+    it('leaves the document position stamps untouched — only the tag name moves', () => {
+      const content: RichTextNode[] = [
+        { type: 'heading', attrs: { level: 1 }, content: [textNode('One')] },
+      ];
+      const floored = buildWith(content, 3);
+      const plain = build(content);
+      expect(floored[0]?.tag).toBe('h3');
+      expect(plain[0]?.tag).toBe('h1');
+      // `data-eldra-pos`/`data-eldra-node` are the document's own numbering, which a rendered tag
+      // name cannot change — native editing and selection reporting depend on that.
+      expect(floored[0]?.attrs).toEqual(plain[0]?.attrs);
+    });
+  });
+
   it('builds lists', () => {
     const tree = build([
       {

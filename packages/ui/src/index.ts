@@ -336,11 +336,13 @@ export { useSlotPresence } from './composables/useSlotPresence';
 // The scroll-snap carousel's own behaviour — index tracking, previous/next/goTo, edge detection
 // for the arrows, autoplay with the spec's pause rules — with no rendering of its own, so `Task
 // 11`'s `Lightbox` reuses it unchanged for its own track. `resolveCarouselPerView` and
-// `carouselPerViewClasses` turn `CarouselProps['perView']` into the same container-query classes
-// `Carousel` and a future `Lightbox` both read; `prefersReducedMotion` is the one JavaScript check
-// `motion-reduce:` CSS cannot make on its own (whether autoplay may start at all).
+// `carouselPerViewStyle` turn `CarouselProps['perView']` into the three inline custom properties
+// the `eldra-carousel-track` utility resolves per container-query breakpoint — an inline style, not
+// classes, because a class name built by interpolating a number is never in the text Tailwind
+// scans (see `carouselPerViewStyle`'s own comment); `prefersReducedMotion` is the one JavaScript
+// check `motion-reduce:` CSS cannot make on its own (whether autoplay may start at all).
 export {
-  carouselPerViewClasses,
+  carouselPerViewStyle,
   prefersReducedMotion,
   resolveCarouselPerView,
   useCarousel,
@@ -394,7 +396,10 @@ export { filterNumericBeforeInput, type NumericInputFilterOptions } from './util
 export { frameAspectRatio } from './utils/ratio';
 // Never throws (see its own comment) — a consumer rendering its own `<time>` from a CMS date gets
 // the same guard `ContentCard` uses, rather than reimplementing the ISO-parsing/invalid-date rules.
-export { formatDate } from './utils/date';
+// `FormatDateOptions` is the `Intl.DateTimeFormatOptions` subset its third argument accepts (a
+// spelled-out month, a weekday, two-digit parts), so a caller can restyle the output without
+// reaching for `Intl.DateTimeFormat` itself and losing those guards.
+export { formatDate, type FormatDateOptions } from './utils/date';
 // `Rating`'s own rounding/star-fill rules, pulled out for a consumer building a rating display of
 // their own (or a custom `Rating` slot) that still rounds to the nearest half star the same way.
 export { ratingStarStates, roundRatingToHalf, type RatingStarState } from './utils/rating';

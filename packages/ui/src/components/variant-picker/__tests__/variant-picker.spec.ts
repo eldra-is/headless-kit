@@ -240,6 +240,76 @@ describe('VariantPicker — legend', () => {
     expect(wrapper.find('[data-part="legendValue"]').text()).toBe('Clay, sold out');
     wrapper.unmount();
   });
+
+  /**
+   * The `legend` prop (added 2026-09-27 — see its own comment in `types.ts`). `name` does two jobs
+   * at once, and a page rendering more than one picker has to give each a unique radio-group `name`
+   * or their radios join one group; before `legend` that unique key was also what a shopper read
+   * ("size-sku-4471: M") and what a screen reader announced as the group's accessible name. The
+   * starter's `product-detail` block is the consumer.
+   */
+  it('prints legend instead of name when given, while name stays the radios group key', () => {
+    const wrapper = mountWith(VariantPicker, {
+      props: { name: 'size-sku-4471', legend: 'Size', options: SIZES, modelValue: 'm' },
+    });
+    expect(wrapper.find('legend').text()).toBe('Size: M');
+    expect(wrapper.find('legend').text()).not.toContain('sku-4471');
+    for (const input of radios(wrapper as never)) {
+      expect(input.name).toBe('size-sku-4471');
+    }
+    wrapper.unmount();
+  });
+
+  it('keeps the sold-out suffix and live updates on the legend override', async () => {
+    const wrapper = mountWith(VariantPicker, {
+      props: { name: 'colour-sku-4471', legend: 'Colour', type: 'swatches', options: COLOURS },
+    });
+    expect(wrapper.find('legend').text()).toBe('Colour: Oatmeal');
+    radio(wrapper, 3).click();
+    await nextTick();
+    expect(wrapper.find('legend').text()).toBe('Colour: Clay, sold out');
+    wrapper.unmount();
+  });
+
+  it('falls back to name when legend is absent or explicitly undefined', () => {
+    const withoutProp = mountWith(VariantPicker, {
+      props: { name: 'Size', options: SIZES, modelValue: 'm' },
+    });
+    expect(withoutProp.find('legend').text()).toBe('Size: M');
+    withoutProp.unmount();
+
+    const explicitUndefined = mountWith(VariantPicker, {
+      props: { name: 'Size', legend: undefined, options: SIZES, modelValue: 'm' },
+    });
+    expect(explicitUndefined.find('legend').text()).toBe('Size: M');
+    explicitUndefined.unmount();
+  });
+
+  /** Two pickers on one page, the shape the prop exists for: separate radio groups, both readable. */
+  it('lets two pickers share a legend while their radios stay in separate groups', () => {
+    const first = mountWith(VariantPicker, {
+      props: { name: 'size-a', legend: 'Size', options: SIZES, modelValue: 'm' },
+    });
+    const second = mountWith(VariantPicker, {
+      props: { name: 'size-b', legend: 'Size', options: SIZES, modelValue: 's' },
+    });
+    expect(first.find('legend').text()).toBe('Size: M');
+    expect(second.find('legend').text()).toBe('Size: S');
+    expect(radio(first).name).not.toBe(radio(second).name);
+    first.unmount();
+    second.unmount();
+  });
+
+  it('names the radio group by the legend for a screen reader, not by the grouping key', async () => {
+    const wrapper = mountWith(VariantPicker, {
+      props: { name: 'size-sku-4471', legend: 'Size', options: SIZES, modelValue: 'm' },
+    });
+    // The `<legend>` of a `<fieldset>` *is* the group's accessible name, so the assertion above on
+    // its text is the accessibility assertion too; axe is what proves the fieldset/legend pairing
+    // still holds with the override in place.
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
 });
 
 describe('VariantPicker — sold out', () => {

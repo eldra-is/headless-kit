@@ -20,7 +20,39 @@
  * of `Number('')` defaulting every component to `0`/`NaN` and formatting anyway). Warns once per
  * distinct bad value in dev, the same "never throw from a computed" rule `Price.vue` documents for
  * an invalid currency code.
+ *
+ * `options` (added 2026-09-27) widens the *style* without widening the contract: a caller that
+ * needs a spelled-out month ("12 September 2026" beside a `Section`'s wide layout, the short form
+ * in a narrow one — the starter's `article` block renders both and picks one with a container
+ * query) passes `{ month: 'long' }` rather than reaching for `Intl.DateTimeFormat` itself and
+ * losing every guarantee above. Only the four date parts are exposed, deliberately: this is a
+ * *date* formatter, the `<time datetime>` attribute it pairs with carries a date-only value, and
+ * there is no time in the parsed input to format.
  */
+
+/**
+ * The `Intl.DateTimeFormatOptions` subset `formatDate` accepts. Each key defaults to what the
+ * spec's own "12 Sep 2026" needs (`day: 'numeric'`, `month: 'short'`, `year: 'numeric'`), and
+ * `weekday` is off unless asked for — omitting a key keeps its default rather than dropping that
+ * part from the output, so `{ month: 'long' }` is a one-key change to the long form and nothing
+ * else moves.
+ */
+export interface FormatDateOptions {
+  /** `'numeric'` (default) → "12"; `'2-digit'` → "05" for May's 5th. */
+  day?: 'numeric' | '2-digit';
+  /** `'short'` (default) → "Sep"; `'long'` → "September"; `'numeric'`/`'2-digit'`/`'narrow'` too. */
+  month?: 'numeric' | '2-digit' | 'short' | 'long' | 'narrow';
+  /** `'numeric'` (default) → "2026"; `'2-digit'` → "26". */
+  year?: 'numeric' | '2-digit';
+  /** Off by default. `'long'` → "Saturday", `'short'` → "Sat", `'narrow'` → "S". */
+  weekday?: 'long' | 'short' | 'narrow';
+}
+
+const DEFAULT_PARTS = {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+} as const satisfies Intl.DateTimeFormatOptions;
 
 const warnedInvalidDates = new Set<string>();
 
@@ -33,7 +65,26 @@ function warnInvalidDate(iso: string): void {
   );
 }
 
-export function formatDate(iso: string, locale?: string): string | null {
+/** Option values already warned about, so a bad `month` in a component's `computed` says so once
+ *  rather than on every render. Keyed by the whole option object's JSON, which is stable for the
+ *  literal a caller writes. */
+const warnedInvalidOptions = new Set<string>();
+
+function warnInvalidOptions(key: string): void {
+  if (!import.meta.env?.DEV || warnedInvalidOptions.has(key)) return;
+  warnedInvalidOptions.add(key);
+  console.warn(
+    `[@eldrajs/ui] formatDate received an option value Intl.DateTimeFormat rejects (${key}); ` +
+      'falling back to the default day/month/year style. See FormatDateOptions for the accepted ' +
+      'values.'
+  );
+}
+
+export function formatDate(
+  iso: string,
+  locale?: string,
+  options?: FormatDateOptions
+): string | null {
   const datePart = iso.split('T')[0] ?? iso;
   const segments = datePart.split('-').map(Number);
   if (segments.length !== 3 || segments.some((n) => !Number.isFinite(n))) {
@@ -57,9 +108,22 @@ export function formatDate(iso: string, locale?: string): string | null {
     return null;
   }
 
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
+  // The same never-throw rule the date itself gets, now applied to the *options*: a `month` value
+  // outside the union (a JavaScript consumer, a value out of a CMS field, a typo TypeScript never
+  // saw) makes `Intl.DateTimeFormat` throw a `RangeError`, and a formatter throwing from inside a
+  // `computed` takes the whole render down. A bad style is a strictly smaller problem than a blank
+  // page, so it falls back to the default style and says so once in dev.
+  const requested: Intl.DateTimeFormatOptions = { ...DEFAULT_PARTS, ...options };
+  try {
+    return new Intl.DateTimeFormat(locale, requested).format(date);
+  } catch {
+    warnInvalidOptions(JSON.stringify(options ?? {}));
+    // `locale` itself can be the invalid one (`Intl` rejects a malformed language tag), so the
+    // retry drops it too rather than re-throwing — the runtime default locale still formats.
+    try {
+      return new Intl.DateTimeFormat(locale, DEFAULT_PARTS).format(date);
+    } catch {
+      return new Intl.DateTimeFormat(undefined, DEFAULT_PARTS).format(date);
+    }
+  }
 }

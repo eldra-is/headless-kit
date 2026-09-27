@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { useMessages } from '../../composables/useMessages';
-import { carouselPerViewClasses, useCarousel } from './useCarousel';
+import { carouselPerViewStyle, useCarousel } from './useCarousel';
 import type { CarouselProps } from './types';
 
 const props = withDefaults(defineProps<CarouselProps>(), {
@@ -126,12 +126,24 @@ const trackClass = computed(() =>
       'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
       props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
       'data-[dragging=true]:snap-none data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
-      carouselPerViewClasses(props.perView)
+      'eldra-carousel-track'
     ),
     props.classes,
     'track'
   )
 );
+
+/**
+ * `perView` reaches the CSS as three inline custom properties, not as classes — see
+ * `carouselPerViewStyle`'s own comment in `useCarousel.ts` for the bug that forced that (a class
+ * name built by interpolating a number is never in the text Tailwind scans, so a consumer's build
+ * emitted no rule and every carousel rendered one full-width slide). `eldra-carousel-track` in
+ * `trackClass` above is the static CSS that reads them per container-query breakpoint.
+ *
+ * A `style` attribute on the consumer's side still wins: Vue merges a fallthrough `style` over a
+ * bound one, and this is not on the root element anyway.
+ */
+const trackStyle = computed(() => carouselPerViewStyle(props.perView));
 
 /** The arrow recipe (spec "Carousel" → Sizes/States): a 2.75rem (`size-11`) circle, 1px
  *  `border-strong`, `text` chevron, hovering to a `text` border and `surface` fill, 45% opacity
@@ -260,6 +272,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       :aria-label="messages.slides"
       aria-live="off"
       :class="trackClass"
+      :style="trackStyle"
       @keydown="onTrackKeydown"
     >
       <slot />
