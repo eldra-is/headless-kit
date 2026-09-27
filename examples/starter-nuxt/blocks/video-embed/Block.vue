@@ -60,7 +60,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
-import { focusRing } from '../../app/utils/classes';
+import { focusRingInset } from '../../app/utils/classes';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { resolveVideoEmbed, type VideoEmbed } from './embed';
 
@@ -302,7 +302,7 @@ const emptyStateClasses = { root: 'absolute inset-0 h-full w-full justify-center
                 v-if="!activated"
                 type="button"
                 class="group absolute inset-0 flex h-full w-full items-center justify-center"
-                :class="focusRing"
+                :class="focusRingInset"
                 :aria-label="playLabel"
                 @click="activate"
                 @keydown.enter.prevent="activate"

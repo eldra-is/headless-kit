@@ -14,3 +14,11 @@
  */
 export const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+
+/**
+ * The same ring drawn inside the element's box, for a control whose parent clips its overflow
+ * (the `video-embed` block's play button fills a rounded, `overflow-hidden` 16:9 frame, so an
+ * offset ring outside its edge would be cut away entirely and keyboard focus would be invisible).
+ */
+export const focusRingInset =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary';

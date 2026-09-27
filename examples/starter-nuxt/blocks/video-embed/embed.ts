@@ -30,8 +30,11 @@ function youtubeEmbedSrc(id: string): string {
   return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1`;
 }
 
-function vimeoEmbedSrc(id: string): string {
-  return `https://player.vimeo.com/video/${id}?autoplay=1`;
+function vimeoEmbedSrc(id: string, hash?: string): string {
+  // An unlisted/private Vimeo video is shared as `vimeo.com/<id>/<hash>`; the player needs the
+  // hash as `h=` or it refuses to load the video at all.
+  const params = hash ? `h=${hash}&autoplay=1` : 'autoplay=1';
+  return `https://player.vimeo.com/video/${id}?${params}`;
 }
 
 /**
@@ -72,8 +75,8 @@ export function resolveVideoEmbed(url: string): VideoEmbed | null {
   }
 
   if (VIMEO_HOSTS.has(host)) {
-    const match = /^\/(?:video\/)?(\d+)/.exec(path);
-    if (match?.[1]) return { kind: 'vimeo', src: vimeoEmbedSrc(match[1]) };
+    const match = /^\/(?:video\/)?(\d+)(?:\/([a-z0-9]+))?/i.exec(path);
+    if (match?.[1]) return { kind: 'vimeo', src: vimeoEmbedSrc(match[1], match[2]) };
     return null;
   }
 

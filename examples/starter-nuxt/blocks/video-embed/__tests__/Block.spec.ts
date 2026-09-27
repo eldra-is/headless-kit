@@ -219,4 +219,12 @@ describe('video-embed block', () => {
     expect(privacyNote.classes()).toContain('text-primary-contrast');
     expect(privacyNote.classes()).not.toContain('text-muted');
   });
+
+  it('the play button draws its focus ring inside the clipped frame (an offset ring would be cut off)', () => {
+    const wrapper = mountVideoEmbed(withPoster);
+    const button = wrapper.find('button[type="button"]');
+    expect(button.classes()).toContain('focus-visible:ring-inset');
+    expect(button.classes().some((c) => c.includes('ring-offset'))).toBe(false);
+    expect(button.element.closest('.overflow-hidden')).toBeTruthy();
+  });
 });

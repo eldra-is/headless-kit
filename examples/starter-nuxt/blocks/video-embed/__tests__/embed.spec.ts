@@ -55,6 +55,13 @@ describe('resolveVideoEmbed', () => {
     expect(resolveVideoEmbed('https://www.youtube.com/watch')).toBeNull();
   });
 
+  it('keeps the unlisted-video hash of a vimeo.com/<id>/<hash> url as the player h= parameter', () => {
+    expect(resolveVideoEmbed('https://vimeo.com/76979871/9a2b3c4d5e')).toEqual({
+      kind: 'vimeo',
+      src: 'https://player.vimeo.com/video/76979871?h=9a2b3c4d5e&autoplay=1',
+    });
+  });
+
   it('returns null for a vimeo url with no numeric id', () => {
     expect(resolveVideoEmbed('https://vimeo.com/')).toBeNull();
   });
