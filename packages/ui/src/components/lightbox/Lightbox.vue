@@ -378,13 +378,17 @@ const nextClass = computed(() => partClass(cx(ARROW_BASE, 'right-3'), props.clas
 
 const thumbnailsClass = computed(() =>
   partClass(
-    'flex shrink-0 items-center justify-center gap-2 overflow-x-auto px-4 pb-4',
+    'flex shrink-0 items-center justify-center gap-2 overflow-x-auto px-4 pt-2 pb-4',
     props.classes,
     'thumbnails'
   )
 );
 
-/** Spec "Variants" → "With thumbnails": "Carousel dots styled as small images … 'Go to slide n'
+/** The strip is a scroll container, so it clips anything drawn outside a tile's box: `pt-2` above
+ *  gives the current tile's 2px outline + 2px offset room at the top (`pb-4` already covers the
+ *  bottom).
+ *
+ *  Spec "Variants" → "With thumbnails": "Carousel dots styled as small images … 'Go to slide n'
  *  with `aria-current="true"` on the current one" — the selection ring is this package's own
  *  visual choice (the spec names no size/state table for thumbnails), a light `outline` that reads
  *  against the dark ground the same way the focus ring does. */

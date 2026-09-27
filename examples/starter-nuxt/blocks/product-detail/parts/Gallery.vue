@@ -138,7 +138,14 @@ const THUMBNAIL_IDLE =
       </div>
     </div>
 
-    <ul v-if="hasStrip" role="list" class="eldra-scrollbar-hide flex gap-2 overflow-x-auto">
+    <!-- The current tile's ring + offset reach 4px outside its box; a scroll container clips what
+         hangs outside it, so the strip carries that much padding (and pulls itself back out by the
+         same amount sideways so the tiles still line up with the stage). -->
+    <ul
+      v-if="hasStrip"
+      role="list"
+      class="eldra-scrollbar-hide -mx-1 flex gap-2 overflow-x-auto px-1 py-1"
+    >
       <li v-for="(image, index) in images" :key="image.src + index" :class="THUMBNAIL_BASIS">
         <button
           type="button"

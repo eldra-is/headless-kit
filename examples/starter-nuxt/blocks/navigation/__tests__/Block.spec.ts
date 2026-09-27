@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { Badge } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
@@ -195,6 +195,46 @@ describe('header block (navigation apiId)', () => {
       expect(ceramics.attributes('aria-expanded')).toBe('false');
 
       wrapper.unmount();
+    });
+
+    it('hover opens a panel after 150ms, leaving it closes it after 150ms, and a click-opened panel stays', async () => {
+      vi.useFakeTimers();
+      try {
+        const wrapper = mountBlock(mock, { attachTo: document.body });
+        const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+        const panel = () => wrapper.find(`#${knitwear.attributes('aria-controls')}`);
+
+        await knitwear.trigger('mouseenter');
+        vi.advanceTimersByTime(160);
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+        // Crossing from the trigger into the panel keeps it open.
+        await knitwear.trigger('mouseleave');
+        await panel().trigger('mouseenter');
+        vi.advanceTimersByTime(300);
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+        // Leaving the panel closes what hover opened.
+        await panel().trigger('mouseleave');
+        vi.advanceTimersByTime(160);
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('false');
+
+        // A panel opened by Enter is not hover-owned: the pointer leaving does not close it.
+        await knitwear.trigger('keydown', { key: 'Enter' });
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+        await knitwear.trigger('mouseenter');
+        await knitwear.trigger('mouseleave');
+        vi.advanceTimersByTime(300);
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+        wrapper.unmount();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('Esc on the trigger closes the panel and returns focus to the trigger', async () => {

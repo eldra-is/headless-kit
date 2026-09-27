@@ -136,29 +136,45 @@ const menuIds = computed(() =>
 const uid = useUiId();
 
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
+/** Whether the open panel was opened by hover (then leaving it closes it) rather than by a click,
+ *  Enter or Space (then only Esc, another trigger or an outside interaction closes it). */
+let openedByHover = false;
 function clearHoverTimer(): void {
   if (hoverTimer !== undefined) clearTimeout(hoverTimer);
   hoverTimer = undefined;
 }
 function toggleMenu(index: number): void {
   clearHoverTimer();
+  openedByHover = false;
   openMenuIndex.value = openMenuIndex.value === index ? null : index;
 }
 function closeMenu(): void {
   clearHoverTimer();
+  openedByHover = false;
   openMenuIndex.value = null;
 }
 /** "Hover may open a panel after 150ms" — never immediately, so a bare pointer pass-over never
  *  opens anything (spec: "nothing opens on hover alone"). */
 function onTriggerMouseEnter(index: number): void {
   clearHoverTimer();
+  if (openMenuIndex.value === index) return;
   hoverTimer = setTimeout(() => {
     openMenuIndex.value = index;
+    openedByHover = true;
     hoverTimer = undefined;
   }, 150);
 }
+/** Leaving the trigger or its panel: a pending hover-open is dropped, and a panel that hover opened
+ *  closes after the same 150ms grace — long enough to cross the gap from the trigger into the
+ *  panel (entering either clears the timer) but short enough that the panel never lingers once the
+ *  pointer has moved on. */
 function onTriggerMouseLeave(): void {
   clearHoverTimer();
+  if (openMenuIndex.value === null || !openedByHover) return;
+  hoverTimer = setTimeout(() => {
+    hoverTimer = undefined;
+    if (openedByHover) closeMenu();
+  }, 150);
 }
 function onTriggerKeydown(index: number, event: KeyboardEvent): void {
   if (event.key === 'Enter' || event.key === ' ') {

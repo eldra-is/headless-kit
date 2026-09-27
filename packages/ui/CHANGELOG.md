@@ -7,6 +7,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ### Fixed
 
+- `Lightbox`: the thumbnail strip has room above the tiles for the current tile's outline, which the strip's own scroll container used to clip.
 - `Carousel`: slide positions are measured relative to the track (the track is now positioned, and
   the slide-start math subtracts the track's own offset when a `classes.track` override removes
   that positioning). Previously `offsetLeft` was measured from the page, so on any page where the
