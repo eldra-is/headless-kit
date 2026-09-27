@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { enUS } from '../../../app/i18n/en-US';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
@@ -87,6 +88,14 @@ describe('collection-header block', () => {
       const wrapper = await mountHeader(mock);
       expect(wrapper.text()).toContain(mock.title);
       expect(wrapper.text()).toContain('48');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders the merged mock + preview content (the field-provided image) with no axe violations', async () => {
+      const wrapper = await mountHeader({ ...mock, ...preview });
+      const img = wrapper.get('img');
+      expect(img.attributes('alt')).toBe(preview.image.altText);
+      expect(img.attributes('src')).toContain(preview.image.url);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
