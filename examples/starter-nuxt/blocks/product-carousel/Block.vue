@@ -17,11 +17,10 @@
  * `@eldrajs/ui`'s `Carousel` never hides its own header controls once every slide already fits the
  * view — only the individual prev/next buttons disable at the ends. This block approximates the
  * spec's "when every product fits the view the controls are not rendered" from the resolved
- * product count against the desktop (`@content`, 64rem) `perView` step alone (`showControls`
- * below, hiding the arrows/counter through the package's own `classes` override), not from real
- * scroll geometry at every width — a row that exactly fills the desktop view hides its controls
- * even though a narrower container would still have room to scroll — a known approximation,
- * kept rather than patching the package component.
+ * product count against the smallest (`base`) `perView` step (`showControls` below, hiding the
+ * arrows/counter through the package's own `classes` override), not from real scroll geometry
+ * at every width — so a short row keeps its controls at desktop even when nothing scrolls there,
+ * which is the safe side of the approximation, kept rather than patching the package component.
  *
  * `quickAdd` is left off every card: this block's own "Uses" list in the design spec names Badge,
  * Price and the swatch summary but never quick add, and turning it on would give each card two
@@ -117,9 +116,11 @@ const cappedProducts = computed(() => products.value.slice(0, limit.value));
 /** Spec States → "Minimal": "with fewer than 2 products the block doesn't render." */
 const hasEnoughProducts = computed(() => cappedProducts.value.length >= 2);
 
-/** See the module doc comment's note on this being an approximation of real scroll geometry. */
-const perViewLg = computed(() => (isRecentlyViewed.value ? 6 : 4));
-const showControls = computed(() => cappedProducts.value.length > perViewLg.value);
+/** See the module doc comment: controls are dropped only when every product fits the view at
+ *  EVERY width, i.e. the count is within the smallest (`base`) per-view step — the desktop step
+ *  would hide them while a narrower container still has cards to scroll to. */
+const perViewBase = computed(() => (isRecentlyViewed.value ? 2.4 : 1.5));
+const showControls = computed(() => cappedProducts.value.length > perViewBase.value);
 
 /** Spec → Layout: "the track bleeds to the block edge" below 48rem, so the peeking next card
  *  reaches the screen edge — negative gutter margin plus matching inline and scroll padding, reset

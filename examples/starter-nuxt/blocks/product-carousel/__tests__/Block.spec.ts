@@ -262,15 +262,23 @@ describe('product-carousel block', () => {
     });
   });
 
-  it('hides the arrows and counter once the product count no longer exceeds the desktop perView step', async () => {
-    // recently-viewed's default 6 products exactly match its desktop perView (6): controls hidden.
-    const compact = mountBlock({ ...mock, variant: 'recently-viewed' });
+  it('hides the arrows and counter only when the products fit the view at every width (the smallest perView step)', async () => {
+    // recently-viewed with two products fits its base step of 2.4 everywhere: controls hidden.
+    const two = createDemoStorefront({ recentlyViewed: PRODUCTS.slice(0, 2).map((p) => p.handle) });
+    const compact = mountBlock({ ...mock, variant: 'recently-viewed' }, { storefront: two });
     await flushPromises();
     expect(compact.get('[data-part="prev"]').classes()).toContain('hidden');
     expect(compact.get('[data-part="next"]').classes()).toContain('hidden');
     expect(compact.get('[data-part="counter"]').classes()).toContain('hidden');
 
-    // related's default (6 products) still exceeds its own desktop perView (4): controls stay.
+    // recently-viewed's default six products fit the desktop step (6) but not the mobile one:
+    // the controls stay, because a narrower container still has cards to scroll to.
+    const six = mountBlock({ ...mock, variant: 'recently-viewed' });
+    await flushPromises();
+    expect(six.get('[data-part="prev"]').classes()).not.toContain('hidden');
+    expect(six.get('[data-part="counter"]').classes()).not.toContain('hidden');
+
+    // related's default (6 products) exceeds every step: controls stay.
     const related = mountBlock(mock);
     await flushPromises();
     expect(related.get('[data-part="prev"]').classes()).not.toContain('hidden');
