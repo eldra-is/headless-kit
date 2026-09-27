@@ -1,5 +1,16 @@
 {
-  "heading": "In the workshop",
   "variant": "grid",
-  "lightbox": true
+  "heading": "From the studio",
+  "intro": "A look inside the Portland studio and the homes our goods end up in.",
+  "columns": "3",
+  "aspect": "1x1",
+  "showCaptions": true,
+  "items": [
+    { "caption": "Bowls drying before their first firing" },
+    { "caption": "The Fell crew in oatmeal merino" },
+    { "caption": "Fjord mug, kiln batch FJ-26-09" },
+    { "caption": "Sage linen napkins, woven in Porto" },
+    { "caption": "Glaze buckets, mixed by hand each Monday" },
+    { "caption": "Slate plates on a winter table" }
+  ]
 }

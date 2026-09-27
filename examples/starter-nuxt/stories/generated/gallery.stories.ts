@@ -43,3 +43,39 @@ export const VariantCarousel: Story = {
     entry: { id: "gallery", data: { ...base, "variant": "carousel" } },
   },
 };
+
+export const Columns2: Story = {
+  args: {
+    entry: { id: "gallery", data: { ...base, "columns": "2" } },
+  },
+};
+
+export const Columns3: Story = {
+  args: {
+    entry: { id: "gallery", data: { ...base, "columns": "3" } },
+  },
+};
+
+export const Columns4: Story = {
+  args: {
+    entry: { id: "gallery", data: { ...base, "columns": "4" } },
+  },
+};
+
+export const Aspect1x1: Story = {
+  args: {
+    entry: { id: "gallery", data: { ...base, "aspect": "1x1" } },
+  },
+};
+
+export const Aspect4x5: Story = {
+  args: {
+    entry: { id: "gallery", data: { ...base, "aspect": "4x5" } },
+  },
+};
+
+export const Aspect3x2: Story = {
+  args: {
+    entry: { id: "gallery", data: { ...base, "aspect": "3x2" } },
+  },
+};

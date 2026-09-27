@@ -116,10 +116,13 @@ declare global {
       showCurrency?: boolean;
     };
     gallery: {
+      variant: 'grid' | 'masonry' | 'carousel';
       heading?: string;
-      variant?: 'grid' | 'masonry' | 'carousel';
-      images?: EldraMedia[];
-      lightbox?: boolean;
+      intro?: string;
+      columns?: '2' | '3' | '4';
+      aspect?: '1x1' | '4x5' | '3x2';
+      showCaptions?: boolean;
+      items: Array<{ image: EldraMedia; caption?: string }>;
     };
     hero: {
       variant: 'image-right' | 'image-left' | 'image-background' | 'centered' | 'split-carousel';

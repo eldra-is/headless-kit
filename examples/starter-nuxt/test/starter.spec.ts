@@ -161,7 +161,7 @@ describe('starter theme', () => {
         'linkLabel',
         'linkHref',
       ],
-      gallery: ['heading', 'variant', 'images', 'lightbox'],
+      gallery: ['variant', 'heading', 'intro', 'columns', 'aspect', 'showCaptions', 'items'],
       cta: [
         'variant',
         'eyebrow',
@@ -284,9 +284,14 @@ describe('starter theme', () => {
     expect(imageField?.validators?.required).not.toBe(true);
     expect(imageField?.metadata?.multiple).toBe(false);
     const galleryBlock = result.manifest!.blocks.find((block) => block.apiId === 'gallery')!;
-    const galleryImages = galleryBlock.fields.find((field) => field.fieldId === 'images');
-    expect(galleryImages?.validators?.required).not.toBe(true);
-    expect(galleryImages?.metadata?.multiple).toBe(true);
+    const galleryItems = galleryBlock.fields.find((field) => field.fieldId === 'items');
+    expect(galleryItems?.validators?.required).toBe(true);
+    const galleryItemImage = galleryItems?.metadata?.item?.metadata?.fields?.find(
+      (field) => field.fieldId === 'image'
+    );
+    expect(galleryItemImage?.validators?.required).toBe(true);
+    expect(galleryItemImage?.metadata?.multiple).toBe(false);
+    expect(galleryItemImage?.metadata?.framing).toBe(true);
 
     const heroBlock = result.manifest!.blocks.find((block) => block.apiId === 'hero')!;
     expect(heroBlock.fields.find((field) => field.fieldId === 'image')?.metadata?.multiple).toBe(

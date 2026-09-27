@@ -17,6 +17,14 @@ export const enUS = {
   },
   gallery: {
     viewer: 'Image viewer',
+    viewerHeading: '{heading}, image viewer',
+    carouselFallback: 'Gallery',
+    viewLarger: 'View larger, image {index} of {count}: {alt}',
+    imageHintLabel: 'Choose an image',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'Optional, with a short intro.',
+    itemsHintLabel: 'Add images',
+    itemsHintHelp: 'Drop in 2–24 photos. Every image needs alt text; captions are optional.',
   },
   testimonials: {
     carousel: 'Customer testimonials',

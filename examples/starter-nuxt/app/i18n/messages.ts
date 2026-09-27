@@ -20,14 +20,31 @@ export interface Messages {
     primary: string;
   };
   /**
-   * The gallery block's own fallback accessible name — used for its `Carousel` variant and its
-   * `Lightbox`, only when the block has no `heading` to use instead (a heading is content, not UI
-   * copy, so it is used directly when present; see `blocks/gallery/Block.vue`). Every other
-   * gallery/lightbox string (arrows, counter, close button, "Go to image n") is
-   * `@eldrajs/ui`'s own `Lightbox`/`Carousel` vocabulary now (`useMessages`), not this starter's.
+   * The gallery block's own strings (spec `02-blocks.md` 2720–2845, "Gallery"). `viewer` is the
+   * `Lightbox`'s fallback accessible name, used only while `heading` is empty (the same pattern as
+   * `testimonials.carousel`); `viewerHeading` is the templated form once a heading exists ("From
+   * the studio, image viewer") — kept as a second key rather than adding a `{heading}` placeholder
+   * to `viewer` itself, which other call sites already read as a plain string.
+   * `carouselFallback` is the same kind of fallback, for the `carousel` variant's own `Carousel`.
+   * `viewLarger` names each tile ("View larger, image 2 of 6: {alt}") and `imageHintLabel` is the
+   * per-tile editor hint for an item with no image chosen yet (the same "Missing image" state
+   * `featureGrid.imageHintLabel` covers for its own media field). The remaining four are the
+   * block-level editor-only hints (`EditorPlaceholder`, gated by `useEditing()`) for an empty
+   * heading and for a freshly-inserted gallery with no images at all yet (spec States, "Empty
+   * (freshly inserted)"). Every other gallery/lightbox string (arrows, counter, close button, "Go
+   * to image n") is `@eldrajs/ui`'s own `Lightbox`/`Carousel` vocabulary (`useMessages`), not this
+   * starter's.
    */
   gallery: {
     viewer: string;
+    viewerHeading: string;
+    carouselFallback: string;
+    viewLarger: string;
+    imageHintLabel: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    itemsHintLabel: string;
+    itemsHintHelp: string;
   };
   /**
    * The testimonials block's own strings: `carousel` is its fallback accessible name for the

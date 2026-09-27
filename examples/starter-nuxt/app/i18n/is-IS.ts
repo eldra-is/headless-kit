@@ -17,6 +17,15 @@ export const isIS = {
   },
   gallery: {
     viewer: 'Myndaskoðari',
+    viewerHeading: '{heading}, myndaskoðari',
+    carouselFallback: 'Myndasafn',
+    viewLarger: 'Skoða stærra, mynd {index} af {count}: {alt}',
+    imageHintLabel: 'Veldu mynd',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Valfrjálst, með stuttum inngangi.',
+    itemsHintLabel: 'Bættu við myndum',
+    itemsHintHelp:
+      'Settu inn 2–24 myndir. Allar myndir þurfa alt-texta; myndatextar eru valfrjálsir.',
   },
   testimonials: {
     carousel: 'Umsagnir viðskiptavina',

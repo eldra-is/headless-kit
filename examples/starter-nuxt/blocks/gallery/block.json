@@ -1,25 +1,88 @@
 {
   "apiId": "gallery",
   "name": "Gallery",
-  "description": "Responsive image gallery with an optional lightbox.",
+  "description": "A set of photos as a grid, masonry columns or a carousel, each opening the Lightbox at that image.",
   "icon": "layout-grid",
   "category": "content",
-  "version": 1,
+  "version": 2,
   "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "grid is the default.",
+      "metadata": { "options": ["grid", "masonry", "carousel"] },
+      "validators": { "required": true }
+    },
     {
       "fieldId": "heading",
       "name": "Heading",
       "type": "string",
       "isTitle": true,
-      "localized": true
+      "localized": true,
+      "helpText": "Rendered as an h2."
     },
     {
-      "fieldId": "variant",
-      "name": "Variant",
-      "type": "select",
-      "metadata": { "options": ["grid", "masonry", "carousel"] }
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true,
+      "helpText": "One sentence under the heading."
     },
-    { "fieldId": "images", "name": "Images", "type": "media", "metadata": { "multiple": true } },
-    { "fieldId": "lightbox", "name": "Open images in a lightbox", "type": "bool" }
+    {
+      "fieldId": "columns",
+      "name": "Columns",
+      "type": "select",
+      "helpText": "3 is the default. Applies from 64rem of block width to grid and masonry.",
+      "metadata": { "options": ["2", "3", "4"] }
+    },
+    {
+      "fieldId": "aspect",
+      "name": "Aspect ratio",
+      "type": "select",
+      "helpText": "1x1 for grid, 4x5 for carousel by default. Masonry ignores it and keeps each image's own ratio.",
+      "metadata": { "options": ["1x1", "4x5", "3x2"] }
+    },
+    {
+      "fieldId": "showCaptions",
+      "name": "Show captions",
+      "type": "bool",
+      "default": true,
+      "helpText": "Captions always show in the Lightbox regardless."
+    },
+    {
+      "fieldId": "items",
+      "name": "Images",
+      "type": "list",
+      "helpText": "2-24 images.",
+      "validators": { "required": true },
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Image",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "image",
+                "name": "Image",
+                "type": "media",
+                "helpText": "Alt text required. The focal point is used when cropping.",
+                "validators": { "required": true },
+                "metadata": { "multiple": false, "framing": true }
+              },
+              {
+                "fieldId": "caption",
+                "name": "Caption",
+                "type": "string",
+                "localized": true,
+                "helpText": "Up to about 80 characters.",
+                "validators": { "maxLength": 80 }
+              }
+            ]
+          }
+        }
+      }
+    }
   ]
 }
