@@ -20,13 +20,22 @@
  * recipe `tabs`'s own tab row set as the starter's precedent (`--eldra-gutter-mobile`, the same
  * variable `Container.vue` reads for its own mobile gutter), and hides its scrollbar with
  * `eldra-scrollbar-hide` (`@eldrajs/ui`'s own utility, already emitted by this build since the
- * theme's Tailwind entry imports the package's `tailwind.css`). The list itself carries
- * `tabindex="0"`/`aria-label`/`focusRing` only in that mode (spec → Keyboard & accessibility). No
- * explicit `role="region"`: axe's `aria-allowed-role` rejects that role on a `<ul>` (it would also
- * strip the list's own implicit role, failing `listitem` for every child) — a focusable, named
- * `<ul>` is the valid shape for a labelled, keyboard-scrollable list, and arrow-key scrolling is the
- * browser's own native behaviour for a focused scrollable element — no script needed, the same
- * shape `useRichTextScrollRegions`' table wrapper relies on.
+ * theme's Tailwind entry imports the package's `tailwind.css`). No explicit `role="region"`:
+ * axe's `aria-allowed-role` rejects that role on a `<ul>` (it would also strip the list's own
+ * implicit role, failing `listitem` for every child) — a focusable, named `<ul>` is the valid shape
+ * for a labelled, keyboard-scrollable list, and arrow-key scrolling is the browser's own native
+ * behaviour for a focused scrollable element — no script needed, the same shape
+ * `useRichTextScrollRegions`' table wrapper relies on.
+ *
+ * **The extra tab stop exists only while the list is actually scrollable** (spec → Keyboard table:
+ * "the scrolling region (**scroll layout only**)"). `mobileLayout: "scroll"` alone is not enough:
+ * from `@tablet:` (48rem) the very same list becomes the plain, non-scrolling equal-width row (see
+ * above), so `tabindex`/`aria-label`/`focusRing` cannot be tied to `isScrollMobile` alone without
+ * leaving an inert tab stop above 48rem — a Vue attribute has no way to read a CSS container query.
+ * `isFocusableScrollRegion` instead measures the list's own `scrollWidth`/`clientWidth` (a
+ * `ResizeObserver`, set up in `onMounted`/torn down in `onBeforeUnmount`, guarded for an
+ * environment with no `ResizeObserver` such as jsdom under Vitest) and is only ever true once the
+ * list is both in `scroll` mode and actually wider than its own box.
  *
  * **Payment marks never use brand colour** (controller ruling): `apple-pay` has no Tabler icon, so
  * it renders `brand-apple` while its hidden name still reads "Apple Pay"; the other three map onto
@@ -42,7 +51,7 @@
  * for a still-empty one — the same "hint tile in place of empty content" shape `stats`'s and
  * `team`'s own per-item hints use.
  */
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Container, EditorPlaceholder, Link, Section, VisuallyHidden } from '@eldrajs/ui';
 import type { SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
@@ -79,6 +88,33 @@ const mobileLayout = computed(() => data.value.mobileLayout ?? 'grid');
 const isScrollMobile = computed(() => mobileLayout.value === 'scroll');
 
 const sectionBackground = computed<SectionBackground>(() => data.value.background ?? 'surface');
+
+const listEl = ref<HTMLUListElement | null>(null);
+const overflowsHorizontally = ref(false);
+
+function measureListOverflow(): void {
+  const el = listEl.value;
+  overflowsHorizontally.value = el !== null && el.scrollWidth > el.clientWidth;
+}
+
+let listResizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  measureListOverflow();
+  if (typeof ResizeObserver === 'undefined' || listEl.value === null) return;
+  listResizeObserver = new ResizeObserver(() => measureListOverflow());
+  listResizeObserver.observe(listEl.value);
+});
+
+onBeforeUnmount(() => {
+  listResizeObserver?.disconnect();
+  listResizeObserver = null;
+});
+
+/** See the module doc comment: the extra tab stop exists only while `mobileLayout` is `scroll`
+ *  AND the list is actually wider than its own box (i.e. below 48rem — from 48rem the same list
+ *  becomes the non-scrolling row and this goes back to `false`). */
+const isFocusableScrollRegion = computed(() => isScrollMobile.value && overflowsHorizontally.value);
 
 /** At most four (spec States → "Many items: at most 4."); a fifth never reaches the DOM at all,
  *  editor included, so there is nothing for the editor's own item count to disagree with. */
@@ -123,17 +159,21 @@ const itemTextClass = 'text-body-sm leading-[1.5] text-muted';
 
 /** Spec → Layout, mobile `grid`: "each item stacks the icon … then 0.5rem lower the title, then
  *  the text"; 48rem+: "icon to the left of the title and text (0.75rem gap)". Both shapes are the
- *  same `[icon, div]` flex pair, just flipped between column and row — see the module doc comment. */
+ *  same `[icon, div]` flex pair, just flipped between column and row — see the module doc comment.
+ *  Mobile gaps: `grid` is "gaps 1.5rem × 1rem" (`gap-x-6 gap-y-4`); `scroll` is "1.5rem apart" in
+ *  `inline` (`gap-6`) and 1rem in `columns` (`gap-4`, unspecified by the spec's `scroll` bullet —
+ *  kept at the same step as `grid`'s own row gap). */
 const listClass = computed(() => {
   const mobile = isScrollMobile.value
     ? [
-        'flex gap-4 overflow-x-auto',
+        'flex overflow-x-auto',
+        isColumns.value ? 'gap-4' : 'gap-6',
         '-mx-[var(--eldra-gutter-mobile)] px-[var(--eldra-gutter-mobile)]',
         'scroll-px-[var(--eldra-gutter-mobile)]',
         'snap-x snap-mandatory eldra-scrollbar-hide',
       ]
     : isColumns.value
-      ? ['grid grid-cols-2 gap-x-6 gap-y-6']
+      ? ['grid grid-cols-2 gap-x-6 gap-y-4']
       : ['flex flex-wrap justify-center gap-x-6 gap-y-3'];
   const desktop = [
     '@tablet:mx-0 @tablet:px-0 @tablet:scroll-px-0 @tablet:overflow-visible @tablet:snap-none',
@@ -141,8 +181,7 @@ const listClass = computed(() => {
     isColumns.value ? '@tablet:gap-6' : '@tablet:justify-center @tablet:gap-8',
     '@content:flex-nowrap @content:gap-0',
   ];
-  const focus = isScrollMobile.value ? [focusRing] : [];
-  return [...mobile, ...desktop, ...focus].join(' ');
+  return [...mobile, ...desktop].join(' ');
 });
 
 /** From 64rem, 1px `border` dividers with padding each side, none on the outer edges (spec →
@@ -225,9 +264,10 @@ const showPaymentsRow = computed(() => showPayments.value && paymentMarks.value.
       <VisuallyHidden as="h2" :id="headingId">{{ t('trust.title') }}</VisuallyHidden>
 
       <ul
-        :class="listClass"
-        :tabindex="isScrollMobile ? 0 : undefined"
-        :aria-label="isScrollMobile ? t('trust.scrollRegion') : undefined"
+        ref="listEl"
+        :class="[listClass, isFocusableScrollRegion ? focusRing : '']"
+        :tabindex="isFocusableScrollRegion ? 0 : undefined"
+        :aria-label="isFocusableScrollRegion ? t('trust.scrollRegion') : undefined"
       >
         <li v-for="(item, index) in renderedItems" :key="index" :class="itemClass">
           <template v-if="isEditing && !hasTitle(item)">
