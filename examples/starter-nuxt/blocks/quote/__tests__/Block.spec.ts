@@ -257,4 +257,12 @@ describe('quote block', () => {
     const wrapper = mountBlock({ ...bare });
     expect(wrapper.text()).not.toContain(mock.role);
   });
+
+  it('the role-line link is inline inside its own line box, never a shrunken block target', () => {
+    const wrapper = mountBlock(mock);
+    const link = wrapper.get('figcaption a');
+    expect(link.classes()).not.toContain('block');
+    expect(link.element.parentElement?.tagName).toBe('P');
+    expect(link.text()).toBe(mock.role);
+  });
 });

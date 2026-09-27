@@ -57,7 +57,7 @@
       "name": "Source link label",
       "type": "string",
       "localized": true,
-      "helpText": "Wraps the role line and links to the article, e.g. \"Read the guide\"."
+      "helpText": "Accessible name of the link on the role line, e.g. \"Read the guide\". The visible text stays the role."
     },
     {
       "fieldId": "sourceLinkHref",

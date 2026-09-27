@@ -182,16 +182,18 @@ const quoteClass = computed(() => [
               }}</cite>
               <EditorPlaceholder v-else-if="isEditing" inline :label="t('quote.nameHintLabel')" />
 
-              <Link
-                v-if="hasSourceLink"
-                :href="sourceHref!"
-                :as="sourceLinkAs"
-                tone="muted"
-                class="block text-sm"
-                :aria-label="sourceLinkAriaLabel"
-              >
-                {{ roleText }}
-              </Link>
+              <!-- The role line stays a block, but the link inside it is inline so its target is
+                   the line box the text sits in (spec: "at least 1.5rem tall or inline"). -->
+              <p v-if="hasSourceLink" class="text-sm">
+                <Link
+                  :href="sourceHref!"
+                  :as="sourceLinkAs"
+                  tone="muted"
+                  :aria-label="sourceLinkAriaLabel"
+                >
+                  {{ roleText }}
+                </Link>
+              </p>
               <span v-else-if="hasRole" class="block text-sm" :class="roleToneClass">{{
                 roleText
               }}</span>
