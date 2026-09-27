@@ -460,6 +460,9 @@ export const isIS = {
     applied: 'Virkjað:',
     removeCode: 'Fjarlægja afsláttarkóðann {code}',
     invalidCode: '{code} er ekki gildur kóði. Athugaðu stafsetninguna og prófaðu aftur.',
+    applyFailed:
+      'Ekki náðist samband við verslunina til að athuga kóðann. Reyndu aftur eftir augnablik.',
+    applyUnsupported: 'Afsláttarkóðar eru ekki í boði í þessari verslun.',
     subtotal: 'Vörur samtals',
     discount: 'Afsláttur ({code})',
     shipping: 'Sending',

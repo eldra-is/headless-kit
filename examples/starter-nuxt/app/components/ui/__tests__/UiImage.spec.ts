@@ -26,6 +26,23 @@ describe('UiImage', () => {
     expect(wrapper.get('[data-part="media"]').attributes('alt')).toBe('Alt text');
   });
 
+  it('renders the placeholder, never an empty <img>, when there is no src', async () => {
+    const wrapper = mount(UiImage, { props: { src: '', alt: '' } });
+    expect(wrapper.find('[data-part="media"]').exists()).toBe(false);
+    expect(wrapper.findAll('img')).toEqual([]);
+    const placeholder = wrapper.get('[data-part="placeholder"]');
+    // An empty alt is the decorative case: hidden rather than announced as "No image available".
+    expect(placeholder.attributes('aria-hidden')).toBe('true');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('names the placeholder when the missing image was not decorative', () => {
+    const wrapper = mount(UiImage, { props: { src: '', alt: 'A cozy living room' } });
+    const placeholder = wrapper.get('[data-part="placeholder"]');
+    expect(placeholder.attributes('role')).toBe('img');
+    expect(placeholder.attributes('aria-label')).toBeTruthy();
+  });
+
   it('renders eager loading and fetchpriority="high" when priority is set', () => {
     const wrapper = mount(UiImage, {
       props: { src: '/demo/hero.svg', alt: 'Hero', priority: true },

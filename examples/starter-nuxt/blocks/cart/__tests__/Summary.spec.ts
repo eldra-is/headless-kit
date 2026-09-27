@@ -139,6 +139,35 @@ describe('cart summary', () => {
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
+    it('does not blame the shopper\u2019s spelling when the request itself failed', async () => {
+      const { wrapper, storefront } = await mountSummary();
+      // The cart store answers this for anything that threw on the way to the backend
+      // (`app/storefront/cart.ts`), with the underlying message left in `cart.error`.
+      storefront.cart.applyDiscount = async () => ({ ok: false, reason: 'failed' });
+      await applyCode(wrapper, 'WINTER15');
+
+      const alert = wrapper.get('[role="alert"]');
+      expect(alert.text()).toBe(
+        "We couldn't reach the store to check that code. Try again in a moment."
+      );
+      expect(alert.text()).not.toContain('spelling');
+      // The code itself was never refused, so the field is not marked invalid.
+      const input = wrapper.get('input[name="discountCode"]');
+      expect(input.attributes('aria-invalid')).toBeUndefined();
+      expect(input.attributes('aria-describedby')).toBe(alert.attributes('id'));
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('says so plainly when the store takes no discount codes at all', async () => {
+      const { wrapper, storefront } = await mountSummary();
+      storefront.cart.applyDiscount = async () => ({ ok: false, reason: 'unsupported' });
+      await applyCode(wrapper, 'WINTER15');
+
+      const alert = wrapper.get('[role="alert"]');
+      expect(alert.text()).toBe('Discount codes are not available in this store.');
+      expect(wrapper.get('input[name="discountCode"]').attributes('aria-invalid')).toBeUndefined();
+    });
+
     it('clears the alert as soon as the code is edited', async () => {
       const { wrapper } = await mountSummary();
       await applyCode(wrapper, 'WINTER51');

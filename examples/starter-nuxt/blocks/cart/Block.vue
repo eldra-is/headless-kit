@@ -92,15 +92,20 @@ const countLabel = computed(() =>
   count.value === 1 ? t('cart.itemCountOne') : t('cart.itemCountMany', { count: count.value })
 );
 
-/** Spec Variants: only the drawer makes the header's bag a button, and only while it is mounted. */
+/**
+ * Spec Variants: only the drawer makes the header's bag a button, and only while it is mounted.
+ * A `page`-variant block never *clears* the flag either — a cart page can carry both a page cart and
+ * a drawer mounted by the layout, and whichever mounted last must not silently turn the other one's
+ * drawer off.
+ */
 onMounted(() => {
-  cart.drawerAvailable.value = isDrawer.value;
+  if (isDrawer.value) cart.drawerAvailable.value = true;
 });
 watch(isDrawer, (drawer) => {
   cart.drawerAvailable.value = drawer;
 });
 onBeforeUnmount(() => {
-  cart.drawerAvailable.value = false;
+  if (isDrawer.value) cart.drawerAvailable.value = false;
 });
 
 const note = computed(() => (data.value.note ?? '').trim());
@@ -113,9 +118,14 @@ const emptyLinkAs = computed(() =>
   emptyLinkHref.value !== null && isInternalHref(emptyLinkHref.value) ? EldraRouterLink : undefined
 );
 
-/** The page's own Continue shopping link reuses the empty state's destination — the block has one
- *  "back to shopping" target, and the spec gives it no second field. */
+/**
+ * The page's own Continue shopping link reuses the empty state's destination — the block has one
+ * "back to shopping" target, and the spec gives it no second field. Its visible text is the theme's
+ * own `cart.continueShopping`, never `emptyLinkLabel`, so it needs only a usable `href`: a site that
+ * filled in the destination but left the empty state's button label blank still gets the link.
+ */
 const continueAs = emptyLinkAs;
+const hasContinueLink = computed(() => emptyLinkHref.value !== null);
 
 const showDiscountField = computed(() => data.value.showDiscountField ?? true);
 const showPaymentIcons = computed(() => data.value.showPaymentIcons ?? true);
@@ -168,8 +178,11 @@ function onRemoving(): void {
 }
 
 watch(isEmpty, async (empty) => {
-  if (!empty || !removalPending) return;
+  // Cleared either way: a removal that left items behind must not arm the focus move for some
+  // later, unrelated emptying (an Undo of a different line, a cart cleared by the backend).
+  const pending = removalPending;
   removalPending = false;
+  if (!empty || !pending) return;
   await nextTick();
   const heading = emptyRoot.value?.querySelector<HTMLElement>('[data-part="title"]');
   if (!heading) return;
@@ -269,13 +282,15 @@ const DRAWER_CLASSES = {
       <div class="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
         <h1
           :id="headingId"
-          class="text-text @tablet:text-[2rem] flex flex-wrap items-baseline gap-3 text-[1.625rem] leading-tight font-semibold"
+          class="font-heading text-text @tablet:text-h2 flex flex-wrap items-baseline gap-3 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]"
         >
           {{ t('cart.title') }}
-          <span class="text-muted text-base font-normal">{{ countLabel }}</span>
+          <span class="font-body text-muted text-base font-normal tracking-normal">
+            {{ countLabel }}
+          </span>
         </h1>
         <Link
-          v-if="hasEmptyLink"
+          v-if="hasContinueLink"
           variant="standalone"
           :href="emptyLinkHref ?? undefined"
           :as="continueAs"

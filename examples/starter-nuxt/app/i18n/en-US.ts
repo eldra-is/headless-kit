@@ -459,6 +459,8 @@ export const enUS = {
     applied: 'Applied:',
     removeCode: 'Remove discount code {code}',
     invalidCode: "{code} isn't a valid code. Check the spelling and try again.",
+    applyFailed: "We couldn't reach the store to check that code. Try again in a moment.",
+    applyUnsupported: 'Discount codes are not available in this store.',
     subtotal: 'Subtotal',
     discount: 'Discount ({code})',
     shipping: 'Shipping',

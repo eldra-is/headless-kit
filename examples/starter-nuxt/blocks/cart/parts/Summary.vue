@@ -8,7 +8,9 @@
  * `Chip` whose remove button is renamed through the package's own `messages.removeTag` so it reads
  * "Remove discount code WINTER15" rather than the generic "Remove WINTER15" — plus a
  * "Discount (WINTER15) −$21.00" row in `success` among the totals. A refused code marks the `Input`
- * invalid and shows a `role="alert"` message linked by `aria-describedby`: the error is the block's
+ * invalid — but only when the backend actually refused the *code*; a request that failed or a
+ * backend with no discount support gets its own message and leaves the field alone (see
+ * `DiscountRefusal`). Either way it is a `role="alert"` linked by `aria-describedby`: the error is the block's
  * own element rather than `FieldWrapper`'s `error` prop, because the wrapper's error row is a plain
  * `<p>` (correct for a field the shopper is still filling in, but the spec asks for an alert here) —
  * the same "hand-written row reusing `FieldError`'s recipe" the `newsletter` block already uses for
@@ -79,11 +81,31 @@ const totals = computed(() => cart.totals.value);
 const discount = computed(() => totals.value?.discount ?? null);
 
 const code = ref('');
-const rejectedCode = ref<string | null>(null);
 const applying = ref(false);
 
+/**
+ * Why the code was refused, never just "it was". `StorefrontAck.reason` (`app/storefront/types.ts`)
+ * separates a code the backend does not recognise from a request that never got an answer, and the
+ * cart store answers `{ ok: false, reason: 'failed' }` for anything that threw — so reporting every
+ * refusal as a misspelling tells a shopper whose connection dropped to check their spelling. Only
+ * `invalid` is the field's fault, so only `invalid` marks the `Input`; the other two are about the
+ * request and say so. (The store also keeps the underlying message in `cart.error`, which stays out
+ * of the UI: it is a backend string, not one of this theme's translated sentences.)
+ */
+type DiscountRefusal = { reason: 'invalid'; code: string } | { reason: 'failed' | 'unsupported' };
+
+const refusal = ref<DiscountRefusal | null>(null);
+const isInvalidCode = computed(() => refusal.value?.reason === 'invalid');
+
+const refusalMessage = computed(() => {
+  const current = refusal.value;
+  if (current === null) return '';
+  if (current.reason === 'invalid') return t('cart.invalidCode', { code: current.code });
+  return current.reason === 'unsupported' ? t('cart.applyUnsupported') : t('cart.applyFailed');
+});
+
 watch(code, () => {
-  rejectedCode.value = null;
+  refusal.value = null;
 });
 
 async function onApply(payload: FormLayoutSubmitPayload): Promise<void> {
@@ -96,9 +118,11 @@ async function onApply(payload: FormLayoutSubmitPayload): Promise<void> {
     const ack = await cart.applyDiscount(entered);
     if (ack.ok) {
       code.value = '';
-      rejectedCode.value = null;
+      refusal.value = null;
+    } else if (ack.reason === 'unsupported' || ack.reason === 'failed') {
+      refusal.value = { reason: ack.reason };
     } else {
-      rejectedCode.value = entered;
+      refusal.value = { reason: 'invalid', code: entered };
     }
   } finally {
     applying.value = false;
@@ -158,19 +182,19 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
             name="discountCode"
             autocomplete="off"
             :placeholder="t('cart.discountPlaceholder')"
-            :invalid="rejectedCode !== null"
-            :described-by="rejectedCode !== null ? errorId : undefined"
+            :invalid="isInvalidCode"
+            :described-by="refusal !== null ? errorId : undefined"
             :classes="{ control: 'uppercase' }"
           />
         </FieldWrapper>
         <p
-          v-if="rejectedCode !== null"
+          v-if="refusal !== null"
           :id="errorId"
           role="alert"
           class="text-field-note text-danger flex basis-full items-start gap-1.5 font-medium"
         >
           <EldraIcon name="alert-circle" size="sm" class="shrink-0" />
-          <span>{{ t('cart.invalidCode', { code: rejectedCode }) }}</span>
+          <span>{{ refusalMessage }}</span>
         </p>
         <template #actions>
           <Button type="submit" variant="outline">{{ t('cart.apply') }}</Button>

@@ -290,6 +290,20 @@ describe('cart block', () => {
       }
     });
 
+    it('draws the image placeholder for a line with no photo, never an empty <img>', async () => {
+      const { wrapper } = await mountCart(mock, {
+        cartLines: [{ ...DEMO_CART_LINES[0]!, image: null }],
+      });
+      await openDrawer(wrapper);
+
+      const row = wrapper.get('dialog li');
+      expect(row.findAll('img')).toEqual([]);
+      // The title beside it already names the row, so the placeholder stays decorative.
+      const placeholder = row.get('[data-part="placeholder"]');
+      expect(placeholder.attributes('aria-hidden')).toBe('true');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
     it('moves focus to the next line and offers an Undo toast that restores the removed line', async () => {
       const { wrapper, storefront } = await mountCart(mock);
       await openDrawer(wrapper);

@@ -173,7 +173,15 @@ const mergedClasses = computed<Partial<Record<ImagePart, string>>>(() => {
   return result;
 });
 
-const media = computed(() => ({ src: props.src, alt: props.alt }));
+/**
+ * An empty `src` is "there is no image", not "load the current document as one": `Image` draws its
+ * own placeholder (spec "Image" → States, "No image") whenever `media` is falsy, and that branch is
+ * unreachable while this always builds an object — which is how a missing image used to render an
+ * `<img src="">`. A caller with an optional image (a cart line whose product has no photo) can
+ * therefore pass the media through as-is and get the placeholder, decorative or labelled according
+ * to `alt` exactly like a real image.
+ */
+const media = computed(() => (props.src === '' ? null : { src: props.src, alt: props.alt }));
 
 /** `Image`'s own decorative toggle, driven the same way the old component's `role="presentation"`
  * was: an explicitly empty `alt`. */

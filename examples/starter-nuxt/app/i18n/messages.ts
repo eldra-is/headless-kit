@@ -782,7 +782,9 @@ export interface Messages {
    * takes (a line with a variant label names it too, per the spec's "Remove Speckled latte mug,
    * Clay"); `columnProduct`/`columnQuantity`/`columnTotal` are the `page` variant's `aria-hidden`
    * column headings, and `lineTotal` the visually hidden label every line total carries instead.
-   * `emptyFallbackTitle` is the functional fallback for an empty-cart heading with no `emptyTitle`
+   * `invalidCode` is only for a code the backend refused as a code; `applyFailed`/`applyUnsupported`
+   * cover the other two `StorefrontAck` reasons, so a request that never got an answer never tells a
+   * shopper to check their spelling. `emptyFallbackTitle` is the functional fallback for an empty-cart heading with no `emptyTitle`
    * filled in (the same shape as `gallery.carouselFallback`): `EmptyState` needs a title, and the
    * field's own copy lives in `mock.json`. `drawerHintLabel`/`drawerHintHelp` are the one editor-only hint (`EditorPlaceholder`, gated by
    * `useEditing()`): a closed drawer draws nothing at all, so the editor needs to be told where the
@@ -814,6 +816,8 @@ export interface Messages {
     applied: string;
     removeCode: string;
     invalidCode: string;
+    applyFailed: string;
+    applyUnsupported: string;
     subtotal: string;
     discount: string;
     shipping: string;

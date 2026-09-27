@@ -34,6 +34,10 @@
  * newest removal could be undone anyway. Nothing here focuses the toast: `useToast` only queues it,
  * and the mounted `Toaster` renders it without moving focus.
  *
+ * A line whose product has no photo passes an empty `src`, which `UiImage` turns into `Image`'s own
+ * "No image" placeholder (spec States, "No image") rather than an `<img>` pointing at nothing; the
+ * empty `alt` keeps it decorative, since the title beside it already names the row.
+ *
  * The leave transition is a fade rather than a height collapse: a grid row's height is `auto`, and
  * `auto → 0` is not interpolable without inventing a literal max-height, so this animates what can
  * be animated honestly and stays instant under reduced motion (`motion-safe:` only).
@@ -112,18 +116,11 @@ async function onRemove(line: StorefrontCartLine, index: number): Promise<void> 
     title: t('cart.removed', { title: line.title }),
     action: { label: t('cart.undo'), onActivate: () => void cart.undoRemove() },
   });
-  // What is left is read from the store, not from `lines`: this prop only catches up with the
-  // store on the host's next render, which is exactly the render being waited for below.
+  // What is left is read from the store, not from `lines`: that prop only catches up with the
+  // store on the host's next render, which is the render being waited for below. With nothing left
+  // there is no row to move focus to — the host's own empty state took over, and `removing` (above)
+  // is what told it to put focus in its heading.
   const remaining = cart.lines.value;
-  // Emitted *before* that render: an empty cart unmounts this component along with its own last
-  // row, and an event emitted from an unmounted instance reaches nobody. The host waits for the
-  // render itself, since it is its own empty state that focus has to land in.
-  console.log('DBG remaining', remaining.length, 'err', cart.error.value);
-  if (remaining.length === 0) {
-    console.log('DBG emit emptied');
-    emit('emptied');
-    return;
-  }
   await nextTick();
   if (!focusLine(remaining[index]?.id)) focusLine(remaining[index - 1]?.id);
 }

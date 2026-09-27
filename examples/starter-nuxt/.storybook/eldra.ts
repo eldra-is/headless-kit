@@ -29,8 +29,18 @@ import { STOREFRONT_KEY } from '../app/storefront/types';
  * `02-blocks.md` "Search results page" → "Default content"), so the `search` block's own
  * `results-page` story renders its heading as "Results for “linen”" rather than an empty pair of
  * quotes — the only block that reads `route.query` today, so this is inert for every other one.
+ *
+ * The cart seed is **not** inert, so unlike the query it is scoped to one block's stories: a cart
+ * with items changes the header's bag badge and its accessible name (`blocks/navigation/Block.vue`
+ * renders the badge under `v-if="cartCount > 0"`), which would quietly change every other block's
+ * story and screenshot. `CART_STORY_TITLE` is the title `scripts/generate-stories.mjs` gives the
+ * cart block's generated file, and Storybook hands every decorator the story's own context
+ * (`storyContext` — the local `context` below is the Eldra one), so the seed applies there and
+ * nowhere else.
  */
-export const withEldraContext: Decorator = (story) => ({
+const CART_STORY_TITLE = 'Blocks/cart';
+
+export const withEldraContext: Decorator = (story, storyContext) => ({
   components: { story },
   setup() {
     const context = provideEldra({
@@ -44,13 +54,17 @@ export const withEldraContext: Decorator = (story) => ({
     provideEldraUiLocale(context.preview.locale);
     provideEldraUiCurrency(currencyFor(context.preview.locale));
     // The demo cart starts empty (a real shopper's first visit), which would leave the `cart`
-    // block's stories showing only its empty state — and its `drawer` story showing nothing at all,
-    // since a closed `<dialog>` draws nothing. Seeding the spec's own cart content and opening the
-    // drawer is what makes both stories (and the screenshots taken from them) show the real thing;
-    // no other block renders that drawer, so nothing else is affected by it being open. The demo
-    // search query gives the `search` block's stories something to show for the same reason.
-    const storefront = createDemoStorefront({ query: 'linen', cartLines: DEMO_CART_LINES });
-    storefront.cart.drawerOpen.value = true;
+    // block's own stories showing only its empty state — and its `drawer` story showing nothing at
+    // all, since a closed `<dialog>` draws nothing. Seeding the spec's own cart content and opening
+    // the drawer is what makes both stories (and the screenshots taken from them) show the real
+    // thing; every other story keeps the empty cart it had before, badge and all. The demo search
+    // query is global by contrast — see the comment above.
+    const isCartStory = storyContext.title === CART_STORY_TITLE;
+    const storefront = createDemoStorefront({
+      query: 'linen',
+      cartLines: isCartStory ? DEMO_CART_LINES : undefined,
+    });
+    if (isCartStory) storefront.cart.drawerOpen.value = true;
     provide(STOREFRONT_KEY, storefront);
     return {};
   },
