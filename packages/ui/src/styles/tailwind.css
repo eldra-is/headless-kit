@@ -57,6 +57,7 @@
   --shadow-*: initial;
   --shadow-sm: var(--eldra-shadow-sm);
   --shadow-md: var(--eldra-shadow-md);
+  --shadow-float: var(--eldra-shadow-float);
 
   --ease-out: var(--eldra-ease-out);
   --ease-in: var(--eldra-ease-in);

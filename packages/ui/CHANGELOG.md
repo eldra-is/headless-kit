@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+### Added
+
+- `--eldra-shadow-float` / `shadow-float`: a wider, softer shadow than `shadow-sm` for a sticky header once the page has scrolled (from `tokens.json`).
+
 ### Fixed
 
 - `Lightbox`: the thumbnail strip has room above the tiles for the current tile's outline, which the strip's own scroll container used to clip.

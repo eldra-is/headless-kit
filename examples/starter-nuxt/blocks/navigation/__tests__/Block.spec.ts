@@ -237,6 +237,63 @@ describe('header block (navigation apiId)', () => {
       }
     });
 
+    it('a sticky bar hides on scroll-down, returns on scroll-up or at the top, and never hides while in use', async () => {
+      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const header = wrapper.get('header');
+      Object.defineProperty(header.element, 'offsetHeight', { value: 72, configurable: true });
+      const scrollTo = async (y: number) => {
+        Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+        window.dispatchEvent(new Event('scroll'));
+        await nextTick();
+      };
+
+      expect(header.classes()).not.toContain('-translate-y-full');
+      await scrollTo(40); // still within the bar's own height: never hides
+      expect(header.classes()).not.toContain('-translate-y-full');
+      await scrollTo(300); // down past the bar: hides
+      expect(header.classes()).toContain('-translate-y-full');
+      expect(header.classes()).toContain('shadow-float');
+      await scrollTo(302); // a 2px jitter changes nothing
+      expect(header.classes()).toContain('-translate-y-full');
+      await scrollTo(250); // up: returns
+      expect(header.classes()).not.toContain('-translate-y-full');
+      await scrollTo(600);
+      expect(header.classes()).toContain('-translate-y-full');
+      await scrollTo(0); // at the top: shown, no shadow
+      expect(header.classes()).not.toContain('-translate-y-full');
+      expect(header.classes()).not.toContain('shadow-float');
+
+      // In use: an open mega-menu keeps the bar on screen through a scroll-down …
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      await knitwear.trigger('keydown', { key: 'Enter' });
+      await scrollTo(900);
+      expect(header.classes()).not.toContain('-translate-y-full');
+      await knitwear.trigger('keydown', { key: 'Escape' });
+      await nextTick();
+      // … and so does keyboard focus inside the bar.
+      await header.trigger('focusin');
+      await scrollTo(1200);
+      expect(header.classes()).not.toContain('-translate-y-full');
+      await header.trigger('focusout', { relatedTarget: document.body });
+      await scrollTo(1500);
+      expect(header.classes()).toContain('-translate-y-full');
+
+      await scrollTo(0);
+      wrapper.unmount();
+    });
+
+    it('a non-sticky bar scrolls away with the page and never hides itself', async () => {
+      const wrapper = mountBlock({ ...mock, sticky: false }, { attachTo: document.body });
+      const header = wrapper.get('header');
+      Object.defineProperty(window, 'scrollY', { value: 800, configurable: true });
+      window.dispatchEvent(new Event('scroll'));
+      await nextTick();
+      expect(header.classes()).not.toContain('sticky');
+      expect(header.classes()).not.toContain('-translate-y-full');
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      wrapper.unmount();
+    });
+
     it('Esc on the trigger closes the panel and returns focus to the trigger', async () => {
       const wrapper = mountBlock(mock, { attachTo: document.body });
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;

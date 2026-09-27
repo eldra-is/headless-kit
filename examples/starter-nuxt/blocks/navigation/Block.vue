@@ -329,14 +329,55 @@ function isCurrent(href: string | undefined): boolean {
 
 const sticky = computed(() => data.value.sticky !== false);
 const scrolled = ref(false);
+/**
+ * A sticky bar that stayed pinned would cover the top of every screen for the whole visit; instead
+ * it slides away while the visitor scrolls down and comes back the moment they scroll up (or reach
+ * the top), the way most storefront headers behave. Small jitters (under 4px, a trackpad settling)
+ * never toggle it, and it stays put while the visitor is *using* it: an open mega-menu, the mobile
+ * drawer, the search overlay, or keyboard focus anywhere inside the bar (a hidden bar would strand
+ * a focused control off-screen — 2.4.7). Non-sticky headers scroll away with the page and never
+ * hide.
+ */
+const hiddenByScroll = ref(false);
+const focusWithinBar = ref(false);
+let lastScrollY = 0;
+const SCROLL_JITTER = 4;
 function onScroll(): void {
-  scrolled.value = window.scrollY > 0;
+  const y = window.scrollY;
+  scrolled.value = y > 0;
+  const delta = y - lastScrollY;
+  lastScrollY = y;
+  if (!sticky.value) return;
+  const barHeight = barRoot.value?.offsetHeight ?? 0;
+  if (y <= barHeight) {
+    hiddenByScroll.value = false;
+  } else if (delta > SCROLL_JITTER) {
+    hiddenByScroll.value = true;
+  } else if (delta < -SCROLL_JITTER) {
+    hiddenByScroll.value = false;
+  }
 }
+const barHidden = computed(
+  () =>
+    sticky.value &&
+    hiddenByScroll.value &&
+    openMenuIndex.value === null &&
+    !drawerOpen.value &&
+    !searchOpen.value &&
+    !focusWithinBar.value
+);
 watchEffect((onCleanup) => {
   if (typeof window === 'undefined') return;
   window.addEventListener('scroll', onScroll, { passive: true });
   onCleanup(() => window.removeEventListener('scroll', onScroll));
 });
+function onBarFocusIn(): void {
+  focusWithinBar.value = true;
+}
+function onBarFocusOut(event: FocusEvent): void {
+  const next = event.relatedTarget;
+  focusWithinBar.value = next instanceof Node && (barRoot.value?.contains(next) ?? false);
+}
 /** Spec "Header" → Accessibility, "Sticky header and focus": scroll padding equal to the sticky
  *  bar's height (2.4.11), so a focused/anchored target is never hidden under it. */
 watchEffect((onCleanup) => {
@@ -432,11 +473,14 @@ const isTransparent = computed(
 const barRootClasses = computed(() =>
   [
     '@container',
-    sticky.value ? 'sticky top-0 z-40' : '',
+    sticky.value
+      ? 'sticky top-0 z-40 motion-safe:transition-transform motion-safe:duration-base'
+      : '',
+    barHidden.value ? '-translate-y-full' : '',
     isTransparent.value
       ? 'bg-transparent text-primary-contrast'
       : 'bg-background text-text border-b border-border',
-    scrolled.value && !isTransparent.value ? 'shadow-sm' : '',
+    scrolled.value && !isTransparent.value ? 'shadow-float' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -476,6 +520,8 @@ const actionsPositionClass = computed(() =>
     ref="barRoot"
     :data-eldra-transparent="isTransparent ? 'true' : undefined"
     :class="barRootClasses"
+    @focusin="onBarFocusIn"
+    @focusout="onBarFocusOut"
   >
     <Container width="wide">
       <nav
