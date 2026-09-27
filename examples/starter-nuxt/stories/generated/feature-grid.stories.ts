@@ -26,6 +26,18 @@ export const Inserted: Story = {
   args: { entry: { id: "feature-grid", data: mock } },
 };
 
+export const VariantCards: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...base, "variant": "cards" } },
+  },
+};
+
+export const VariantPlain: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...base, "variant": "plain" } },
+  },
+};
+
 export const Columns2: Story = {
   args: {
     entry: { id: "feature-grid", data: { ...base, "columns": "2" } },
@@ -44,14 +56,14 @@ export const Columns4: Story = {
   },
 };
 
-export const VariantCards: Story = {
+export const MediaTypeIcon: Story = {
   args: {
-    entry: { id: "feature-grid", data: { ...base, "variant": "cards" } },
+    entry: { id: "feature-grid", data: { ...base, "mediaType": "icon" } },
   },
 };
 
-export const VariantPlain: Story = {
+export const MediaTypeImage: Story = {
   args: {
-    entry: { id: "feature-grid", data: { ...base, "variant": "plain" } },
+    entry: { id: "feature-grid", data: { ...base, "mediaType": "image" } },
   },
 };

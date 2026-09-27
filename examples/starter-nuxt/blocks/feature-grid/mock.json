@@ -1,28 +1,29 @@
 {
-  "heading": "Why shop with Northwind Goods",
-  "intro": "Everything we make is built to be used, mended and passed on — not replaced every season.",
-  "columns": "4",
   "variant": "cards",
+  "heading": "Why shop with Northwind",
+  "intro": "Small workshops, honest materials and service that outlasts the order.",
+  "columns": "4",
+  "mediaType": "icon",
   "items": [
     {
-      "title": "Free shipping over $75",
-      "body": "Every order over $75 ships free, no code needed.",
-      "href": "/shipping-returns"
+      "icon": "truck",
+      "title": "Free shipping over $80",
+      "text": "Carbon-neutral delivery across the US in 2 to 4 business days."
     },
     {
-      "title": "Responsibly sourced",
-      "body": "Natural fibres and reclaimed materials, traced back to the mill.",
-      "href": "/about"
+      "icon": "arrow-back-up",
+      "title": "60-day returns",
+      "text": "Changed your mind? Send it back unworn or unused for a full refund."
     },
     {
-      "title": "Made to last",
-      "body": "Hand-finished details and a lifetime repair promise.",
-      "href": "/craft"
+      "icon": "needle-thread",
+      "title": "Repairs for life",
+      "text": "We darn, re-glaze and re-handle anything we make, free of charge."
     },
     {
-      "title": "Easy 30-day returns",
-      "body": "Free returns on anything that isn't quite right.",
-      "href": "/shipping-returns"
+      "icon": "leaf",
+      "title": "Traceable materials",
+      "text": "Every product page names the farm, mill or clay pit it came from."
     }
   ]
 }

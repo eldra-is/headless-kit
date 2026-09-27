@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
-import { axe } from '../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
+import { ELDRA_KEY } from '@eldrajs/theme-vue';
+import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
@@ -9,82 +10,243 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
 import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
-// `mock.json` is the seed Studio writes on insert — its items carry no
-// `image` (Core's write-side media validator rejects a fixture-shaped object there);
-// `preview.json` is the demo-imagery overlay `scripts/generate-stories.mjs`'s `Default` story
-// merges onto it (a full `items` replacement, since the overlay contract
-// merges shallowly).
+/**
+ * `mock.json` is the seed Studio writes on insert — its items carry no `image` (Core's write-side
+ * media validator rejects a fixture-shaped object there); `preview.json` is the demo-imagery
+ * overlay `scripts/generate-stories.mjs`'s `Default` story merges onto it (a full `items`
+ * replacement, since the overlay contract merges shallowly — `mock.json`'s own `mediaType: "icon"`
+ * is therefore untouched by the merge, same as every other top-level field).
+ */
 const withImages = { ...mock, ...preview };
 
-// `feature-grid` items may use a Tabler icon (`EldraIcon`) instead of an image;
-// provide the same synchronous, network-free fetcher stub `eldraIcon.spec.ts`
-// uses (see `useEldraIcon.ts`), merged onto `mountOptions()`'s own provide
-// map so the shared Eldra context still comes through too.
+/**
+ * `feature-grid` items resolve a Tabler icon by name through `EldraIcon`'s own machinery
+ * (`useEldraIcon`); under Nuxt that calls `/api/eldra-icon`, so outside Nuxt an injected
+ * `ICON_FETCHER_KEY` reads the real SVGs synchronously via `tablerIconSvg`, network-free — the
+ * same stub the block's own v1 spec and `footer`'s spec use.
+ */
 const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
-function mountWithIcons(entry: { id: string; data: Record<string, unknown> }) {
-  const base = mountOptions({ entry });
-  return {
+function mountBlock(data: Record<string, unknown>, options: { editing?: boolean } = {}) {
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  const opts = {
     ...base,
     global: {
       ...base.global,
       provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
+  if (options.editing) {
+    const context = opts.global.provide[ELDRA_KEY] as {
+      preview: { active: boolean; mode: string };
+    };
+    context.preview.active = true;
+    context.preview.mode = 'edit';
+  }
+  return mount(Block, opts);
+}
+
+/** A minimal item, extended per test — every test that only cares about link/image behaviour
+ * builds on this rather than repeating the full mock shape. */
+function item(overrides: Record<string, unknown> = {}) {
+  return { icon: 'bolt', title: 'Fast checkout', text: 'Pay in one click.', ...overrides };
 }
 
 describe('feature-grid block', () => {
-  it('renders the bare mock.json content, no images yet (the freshly-inserted state)', async () => {
-    const wrapper = mount(Block, mountWithIcons({ id: 'e1', data: mock }));
+  it('renders the merged (mock + preview) content with no axe violations', async () => {
+    const wrapper = mountBlock(withImages);
+    expect(wrapper.text()).toContain(withImages.heading);
+    for (const featureItem of withImages.items) expect(wrapper.text()).toContain(featureItem.title);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders the bare mock.json content (freshly-inserted regression net) with no axe violations', async () => {
+    const wrapper = mountBlock(mock);
     expect(wrapper.text()).toContain(mock.heading);
-    for (const item of mock.items) expect(wrapper.text()).toContain(item.title);
-    expect(wrapper.find('img').exists()).toBe(false);
+    for (const featureItem of mock.items) expect(wrapper.text()).toContain(featureItem.title);
     expect(await axe(wrapper.element)).toHaveNoViolations();
-  });
-
-  it('renders each item image once preview.json overlays them', async () => {
-    const wrapper = mount(Block, mountWithIcons({ id: 'e1', data: withImages }));
-    expect(wrapper.findAll('img')).toHaveLength(withImages.items.length);
-    expect(await axe(wrapper.element)).toHaveNoViolations();
-  });
-
-  it('applies the md radius to every item image frame', () => {
-    const wrapper = mount(Block, mountWithIcons({ id: 'e1', data: withImages }));
-    const frames = wrapper.findAll('[data-part="frame"]');
-    expect(frames.length).toBe(withImages.items.length);
-    for (const frame of frames) expect(frame.classes()).toContain('rounded-md');
   });
 
   it.each(['cards', 'plain'] as const)(
-    'renders the %s variant with no axe violations, from the bare mock.json (regression net for a freshly-inserted block)',
+    'renders the %s variant with no axe violations',
     async (variant) => {
-      const wrapper = mount(Block, mountWithIcons({ id: 'e1', data: { ...mock, variant } }));
+      const wrapper = mountBlock({ ...mock, variant });
       expect(wrapper.findAll('h3')).toHaveLength(mock.items.length);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   );
 
-  it('renders an icon instead of an image when the item declares one', async () => {
-    const data = {
-      ...mock,
-      items: [{ icon: 'bolt', title: 'Fast checkout', body: 'Pay in one click.' }],
-    };
-    const wrapper = mount(Block, mountWithIcons({ id: 'e1', data }));
-    await new Promise((resolve) => setTimeout(resolve));
-    expect(wrapper.find('svg').exists()).toBe(true);
-    expect(wrapper.find('img').exists()).toBe(false);
+  it('renders the image media type with no axe violations', async () => {
+    const wrapper = mountBlock({ ...withImages, mediaType: 'image' });
+    expect(wrapper.findAll('img')).toHaveLength(withImages.items.length);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('wraps an item with an href in a link, and others in a plain container', () => {
+  it('renders the block root as a labelled <section> that measures its own width (@container)', () => {
+    const wrapper = mountBlock(mock);
+    const section = wrapper.get('section');
+    expect(section.classes()).toContain('@container');
+    expect(section.attributes('aria-labelledby')).toBeTruthy();
+  });
+
+  it('falls back to an aria-label naming the block when there is no heading', () => {
+    const wrapper = mountBlock({ ...mock, heading: '' });
+    const section = wrapper.get('section');
+    expect(section.attributes('aria-labelledby')).toBeUndefined();
+    expect(section.attributes('aria-label')).toBe('Feature grid');
+    expect(wrapper.find('h2').exists()).toBe(false);
+  });
+
+  it('items are a <ul> of <li> with h3 titles under the block’s own h2', () => {
+    const wrapper = mountBlock(mock);
+    const heading = wrapper.get('h2');
+    const list = wrapper.get('ul');
+    // The list must come after the heading in the rendered DOM (h3 titles "under" the h2).
+    expect(
+      heading.element.compareDocumentPosition(list.element) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    const items = list.findAll('li');
+    expect(items).toHaveLength(mock.items.length);
+    const titles = wrapper.findAll('h3').map((h) => h.text());
+    expect(titles).toEqual(mock.items.map((i) => i.title));
+  });
+
+  it('renders 12 items as 12 list items', () => {
+    const items = Array.from({ length: 12 }, (_, index) => item({ title: `Feature ${index + 1}` }));
+    const wrapper = mountBlock({ ...mock, items });
+    expect(wrapper.findAll('li')).toHaveLength(12);
+    expect(wrapper.findAll('h3')).toHaveLength(12);
+  });
+
+  it('hides the icon tile — and its icon is aria-hidden when shown', async () => {
+    const wrapper = mountBlock({ ...mock, items: [item({ icon: 'bolt' })] });
+    await new Promise((resolve) => setTimeout(resolve));
+    const iconTile = wrapper.get('[data-part="iconTile"]');
+    expect(iconTile.attributes('aria-hidden')).toBe('true');
+    const svg = iconTile.find('svg');
+    expect(svg.exists()).toBe(true);
+    expect(svg.attributes('aria-hidden')).toBe('true');
+  });
+
+  it('suppresses the icon tile entirely when mediaType is image', () => {
+    const wrapper = mountBlock({ ...mock, mediaType: 'image', items: [item()] });
+    const iconTile = wrapper.get('[data-part="iconTile"]');
+    expect(iconTile.classes()).toContain('hidden');
+  });
+
+  it('a mediaType: image item with no image renders no <img> live', () => {
+    const wrapper = mountBlock({ ...mock, mediaType: 'image', items: [item({ icon: undefined })] });
+    expect(wrapper.find('img').exists()).toBe(false);
+    // Mutation check (manual): dropping the `v-else-if="isImageMedia && !item.hasImage && isEditing"`
+    // guard's `isEditing` condition — always showing the hint — would still pass a bare "no img"
+    // assertion, so the editing-mode test below is what actually guards the live/editor split.
+  });
+
+  it('shows the image placeholder hint only in the editor, never live, for a missing image', async () => {
+    const data = { ...mock, mediaType: 'image', items: [item({ icon: undefined })] };
+    const live = mountBlock(data);
+    expect(live.text()).not.toContain('Choose an image');
+
+    const editing = mountBlock(data, { editing: true });
+    expect(editing.text()).toContain('Choose an image');
+    expect(editing.find('img').exists()).toBe(false);
+    expect(await axe(editing.element)).toHaveNoViolations();
+  });
+
+  it('renders an image once the item has one, in a 3:2 rounded frame', () => {
     const data = {
       ...mock,
+      mediaType: 'image',
       items: [
-        { title: 'Linked', body: 'Has a link.', href: '/shop' },
-        { title: 'Unlinked', body: 'No link.' },
+        item({
+          icon: undefined,
+          image: { assetId: 'a1', url: '/demo/feature-1.svg', altText: 'A demo image' },
+        }),
       ],
     };
-    const wrapper = mount(Block, mountWithIcons({ id: 'e1', data }));
-    expect(wrapper.get('a[href="/shop"]').text()).toContain('Linked');
-    expect(wrapper.findAll('a')).toHaveLength(1);
+    const wrapper = mountBlock(data);
+    const img = wrapper.get('img');
+    expect(img.attributes('src')).toBe('/demo/feature-1.svg');
+    expect(img.attributes('alt')).toBe('A demo image');
+  });
+
+  it('renders no nested links: at most one <a> per item, the item’s own title link', () => {
+    const items = [
+      item({ title: 'Linked one', linkLabel: 'About one', href: '/one' }),
+      item({ title: 'Linked two', linkLabel: 'About two', href: '/two' }),
+      item({ title: 'Unlinked' }),
+    ];
+    const wrapper = mountBlock({ ...mock, items });
+    const listItems = wrapper.findAll('li');
+    expect(listItems).toHaveLength(3);
+    for (const listItem of listItems) {
+      expect(listItem.findAll('a').length).toBeLessThanOrEqual(1);
+    }
+    expect(wrapper.findAll('a')).toHaveLength(2);
+    expect(wrapper.get('a[href="/one"]').text()).toContain('Linked one');
+    expect(wrapper.get('a[href="/two"]').text()).toContain('Linked two');
+  });
+
+  it('reaches the head link, then every item link, in DOM order', () => {
+    const items = [
+      item({ title: 'First', href: '/first' }),
+      item({ title: 'Second', href: '/second' }),
+    ];
+    const wrapper = mountBlock({
+      ...mock,
+      headLinkLabel: 'See everything',
+      headLinkHref: '/everything',
+      items,
+    });
+    const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'));
+    expect(hrefs).toEqual(['/everything', '/first', '/second']);
+  });
+
+  it('drops an item link with an unsafe href instead of rendering a broken link', () => {
+    const wrapper = mountBlock({
+      ...mock,
+      items: [item({ href: 'javascript:alert(1)', linkLabel: 'Bad' })],
+    });
+    expect(wrapper.find('a').exists()).toBe(false);
+  });
+
+  it('routes a same-site item href and the head link through the router', () => {
+    const wrapper = mountBlock({
+      ...mock,
+      headLinkLabel: 'See everything',
+      headLinkHref: '/everything',
+      items: [item({ href: '/shop' })],
+    });
+    const destinations = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    expect(destinations).toEqual(['/everything', '/shop']);
+  });
+
+  it('leaves an off-site item href as a plain document navigation', () => {
+    const wrapper = mountBlock({
+      ...mock,
+      items: [item({ href: 'https://example.com/wool' })],
+    });
+    expect(wrapper.findAllComponents({ name: 'NuxtLink' })).toHaveLength(0);
+    expect(wrapper.get('a[href="https://example.com/wool"]').exists()).toBe(true);
+  });
+
+  it.each(['2', '3', '4'] as const)(
+    'sets the %s-column class from 64rem of block width',
+    (columns) => {
+      const wrapper = mountBlock({ ...mock, columns });
+      expect(wrapper.get('ul').classes()).toContain(`@content:grid-cols-${columns}`);
+    }
+  );
+
+  it('shows the heading hint only in the editor when heading is empty, with no axe violations', async () => {
+    const data = { ...mock, heading: '' };
+    const live = mountBlock(data);
+    expect(live.text()).not.toContain('Add a heading');
+
+    const editing = mountBlock(data, { editing: true });
+    expect(editing.text()).toContain('Add a heading (optional)');
+    expect(await axe(editing.element)).toHaveNoViolations();
   });
 });

@@ -25,6 +25,11 @@ export const isIS = {
     hintLabel: 'Leiðarslóðin fyllist út sjálfkrafa.',
     hintHelp: 'Hún birtist þegar þessi síða er undir annarri síðu.',
   },
+  featureGrid: {
+    fallbackLabel: 'Eiginleikatafla',
+    headingHintLabel: 'Bættu við fyrirsögn (valfrjálst)',
+    imageHintLabel: 'Veldu mynd',
+  },
   announcement: {
     region: 'Tilkynning',
     dismiss: 'Loka tilkynningu',

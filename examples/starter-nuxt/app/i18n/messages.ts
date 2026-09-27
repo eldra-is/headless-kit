@@ -53,6 +53,16 @@ export interface Messages {
     hintHelp: string;
   };
   /**
+   * The feature-grid block's own strings: the block's fallback accessible name (used only when
+   * `heading` is empty, the same pattern as `gallery.viewer`/`testimonials.carousel`) and its two
+   * editor-only hints — an unfilled heading, and an image-media item with no image chosen yet.
+   */
+  featureGrid: {
+    fallbackLabel: string;
+    headingHintLabel: string;
+    imageHintLabel: string;
+  };
+  /**
    * The footer block's own UI chrome — everything it writes itself rather than reads from
    * `mock.json` (see `blocks/footer/Block.vue`): the landmark labels, the newsletter form's
    * visually hidden label and status copy, the two selectors' labels and their theme-constant

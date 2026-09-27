@@ -1,36 +1,68 @@
 {
   "apiId": "feature-grid",
   "name": "Feature grid",
-  "description": "Grid of icon or image features with a title and supporting copy.",
+  "description": "A grid of short benefits or facts, each with an icon or image, a title and a sentence.",
   "icon": "grid-dots",
   "category": "marketing",
-  "version": 1,
+  "version": 2,
   "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "cards is the default.",
+      "metadata": { "options": ["cards", "plain"] },
+      "validators": { "required": true }
+    },
     {
       "fieldId": "heading",
       "name": "Heading",
       "type": "string",
       "isTitle": true,
       "localized": true,
-      "validators": { "required": true }
+      "helpText": "Optional block heading."
     },
-    { "fieldId": "intro", "name": "Intro", "type": "text", "localized": true },
+    {
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true,
+      "helpText": "One sentence under the heading."
+    },
+    {
+      "fieldId": "headLinkLabel",
+      "name": "Head link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Standalone link shown to the right of the heading."
+    },
+    {
+      "fieldId": "headLinkHref",
+      "name": "Head link URL",
+      "type": "string"
+    },
     {
       "fieldId": "columns",
       "name": "Columns",
       "type": "select",
-      "metadata": { "options": ["2", "3", "4"] }
+      "helpText": "4 is the default. Column count from 64rem of block width.",
+      "metadata": { "options": ["2", "3", "4"] },
+      "validators": { "required": true }
     },
     {
-      "fieldId": "variant",
-      "name": "Variant",
+      "fieldId": "mediaType",
+      "name": "Media type",
       "type": "select",
-      "metadata": { "options": ["cards", "plain"] }
+      "helpText": "icon is the default.",
+      "metadata": { "options": ["icon", "image"] },
+      "validators": { "required": true }
     },
     {
       "fieldId": "items",
       "name": "Items",
       "type": "list",
+      "helpText": "1-12 items.",
+      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",
@@ -38,12 +70,18 @@
           "type": "composite",
           "metadata": {
             "fields": [
-              { "fieldId": "icon", "name": "Icon", "type": "tabler-icon" },
+              {
+                "fieldId": "icon",
+                "name": "Icon",
+                "type": "tabler-icon",
+                "helpText": "Used when the block's media type is icon."
+              },
               {
                 "fieldId": "image",
                 "name": "Image",
                 "type": "media",
-                "metadata": { "multiple": false }
+                "helpText": "3:2 crop. Used when the block's media type is image.",
+                "metadata": { "multiple": false, "framing": true, "framingAspectRatio": "3/2" }
               },
               {
                 "fieldId": "title",
@@ -52,8 +90,14 @@
                 "localized": true,
                 "validators": { "required": true }
               },
-              { "fieldId": "body", "name": "Body", "type": "text", "localized": true },
-              { "fieldId": "href", "name": "Link", "type": "string" }
+              { "fieldId": "text", "name": "Text", "type": "text", "localized": true },
+              {
+                "fieldId": "linkLabel",
+                "name": "Link label",
+                "type": "string",
+                "localized": true
+              },
+              { "fieldId": "href", "name": "Link URL", "type": "string" }
             ]
           }
         }

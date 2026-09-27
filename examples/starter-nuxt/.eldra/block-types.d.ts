@@ -51,11 +51,14 @@ declare global {
       items?: Array<{ question: string; answer: RichTextNode }>;
     };
     'feature-grid': {
-      heading: string;
+      variant: 'cards' | 'plain';
+      heading?: string;
       intro?: string;
-      columns?: '2' | '3' | '4';
-      variant?: 'cards' | 'plain';
-      items?: Array<{ icon?: string; image?: EldraMedia; title: string; body?: string; href?: string }>;
+      headLinkLabel?: string;
+      headLinkHref?: string;
+      columns: '2' | '3' | '4';
+      mediaType: 'icon' | 'image';
+      items: Array<{ icon?: string; image?: EldraMedia; title: string; text?: string; linkLabel?: string; href?: string }>;
     };
     footer: {
       variant: 'default' | 'minimal';

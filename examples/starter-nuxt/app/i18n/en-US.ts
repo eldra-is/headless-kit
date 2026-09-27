@@ -25,6 +25,11 @@ export const enUS = {
     hintLabel: 'Breadcrumbs fill in automatically.',
     hintHelp: 'They appear once this page sits under a parent page.',
   },
+  featureGrid: {
+    fallbackLabel: 'Feature grid',
+    headingHintLabel: 'Add a heading (optional)',
+    imageHintLabel: 'Choose an image',
+  },
   announcement: {
     region: 'Announcement',
     dismiss: 'Dismiss announcement',
