@@ -180,10 +180,32 @@ useRichTextScrollRegions(consentRoot, (caption) => caption ?? t('newsletter.rich
  */
 watch(email, () => {
   emailError.value = null;
+  retryable.value = false;
 });
 watch(consentChecked, (checked) => {
   if (checked) consentError.value = null;
 });
+
+/**
+ * A sign-up-service failure marks the field invalid too (spec "Error (sign-up service failed)":
+ * "Same treatment"), but unlike a malformed address nothing about the *value* is wrong, so the
+ * visitor's natural next move — pressing Subscribe again, unchanged — must reach the service
+ * again. `FormLayout`'s gate above would refuse that submit on the stale mark, so the block
+ * remembers that its current error is retryable and, when the gate fires, clears the mark and
+ * re-submits the form itself.
+ */
+const retryable = ref(false);
+
+function onInvalid(): void {
+  if (!retryable.value) return;
+  retryable.value = false;
+  emailError.value = null;
+  const form = emailFieldRoot.value?.closest('form');
+  if (!form) return;
+  void nextTick(() => {
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+}
 
 async function focusEmailField(): Promise<void> {
   await nextTick();
@@ -233,8 +255,9 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
     return;
   }
 
-  emailError.value =
-    result.reason === 'invalid' ? t('newsletter.invalidEmail') : t('newsletter.failed');
+  const serviceFailed = result.reason !== 'invalid';
+  retryable.value = serviceFailed;
+  emailError.value = serviceFailed ? t('newsletter.failed') : t('newsletter.invalidEmail');
   await focusEmailField();
 }
 </script>
@@ -272,6 +295,7 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
             :submitting="isSubmitting"
             :classes="{ fields: 'grid gap-3 @two-col:grid-cols-[1fr_auto] @two-col:items-end' }"
             @submit="onSubmit"
+            @invalid="onInvalid"
           >
             <div ref="emailFieldRoot" class="contents">
               <FieldWrapper

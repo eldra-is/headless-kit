@@ -209,6 +209,28 @@ describe('newsletter block', () => {
       expect(document.activeElement).toBe(input.element);
       expect(wrapper.find('form').exists()).toBe(true);
     });
+
+    it('after a backend failure, resubmitting the unchanged email reaches the service again and can succeed', async () => {
+      const results = [
+        { ok: false as const, reason: 'failed' },
+        { ok: true as const },
+      ];
+      const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const });
+      const wrapper = mountNewsletter(mock, { subscribe });
+      await submitValidEmail(wrapper, 'reader@example.com');
+      expect(subscribe).toHaveBeenCalledTimes(1);
+      expect(wrapper.find('input[type="email"]').attributes('aria-invalid')).toBe('true');
+
+      // Same value, no edit in between: the form's own invalid gate must not swallow this.
+      await wrapper.find('form').trigger('submit');
+      await flushPromises();
+      await flushPromises();
+
+      expect(subscribe).toHaveBeenCalledTimes(2);
+      expect(subscribe).toHaveBeenLastCalledWith({ email: 'reader@example.com', list: mock.list });
+      expect(wrapper.find('form').exists()).toBe(false);
+      expect(wrapper.find('[role="status"]').text()).toContain(enUS.newsletter.successTitle);
+    });
   });
 
   describe('success', () => {
