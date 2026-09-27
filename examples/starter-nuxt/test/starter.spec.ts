@@ -343,6 +343,7 @@ describe('starter theme', () => {
       'product-carousel': [
         'heading',
         'variant',
+        'sourceCollection',
         'sourceHandle',
         'limit',
         'viewAllLabel',
@@ -351,6 +352,7 @@ describe('starter theme', () => {
         'background',
       ],
       'collection-grid': [
+        'collection',
         'collectionHandle',
         'variant',
         'columns',

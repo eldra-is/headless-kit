@@ -1264,13 +1264,22 @@
       "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
       "icon": "layout-grid",
       "category": "commerce",
-      "version": 1,
+      "version": 2,
       "fields": [
         {
-          "fieldId": "collectionHandle",
+          "fieldId": "collection",
           "name": "Collection",
+          "type": "reference",
+          "relation": {
+            "allowCollections": true
+          },
+          "helpText": "Pick a collection. Overrides the handle below. Leave both empty on a collection template — the route supplies it."
+        },
+        {
+          "fieldId": "collectionHandle",
+          "name": "Collection handle (legacy)",
           "type": "string",
-          "helpText": "Leave empty on a collection template — the route supplies it."
+          "helpText": "Used when no collection is picked above. Picking one is preferred: it survives a renamed collection."
         },
         {
           "fieldId": "variant",
@@ -4542,7 +4551,7 @@
       "description": "A horizontally scrolling row of product cards, such as \"You may also like\" or \"Recently viewed\", with a heading, a view-all link, arrows and a counter.",
       "icon": "carousel-horizontal",
       "category": "commerce",
-      "version": 1,
+      "version": 2,
       "fields": [
         {
           "fieldId": "heading",
@@ -4572,10 +4581,19 @@
           }
         },
         {
+          "fieldId": "sourceCollection",
+          "name": "Collection",
+          "type": "reference",
+          "relation": {
+            "allowCollections": true
+          },
+          "helpText": "Pick a collection. Overrides the handle below."
+        },
+        {
           "fieldId": "sourceHandle",
-          "name": "Source handle",
+          "name": "Collection handle (legacy)",
           "type": "string",
-          "helpText": "For the collection variant: the collection handle."
+          "helpText": "For the collection variant, when no collection is picked above. Picking one is preferred: it survives a renamed collection."
         },
         {
           "fieldId": "limit",

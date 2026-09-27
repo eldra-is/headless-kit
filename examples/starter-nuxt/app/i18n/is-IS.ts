@@ -103,6 +103,9 @@ export const isIS = {
   storefront: {
     loading: 'Hleð…',
     error: 'Ekki tókst að sækja þetta núna.',
+    unresolvedCollectionLabel: 'Birtu síðuna til að hlaða vörum',
+    unresolvedCollectionHelp:
+      'Vörulistinn er valinn. Vörurnar úr honum birtast hér þegar síðan hefur verið birt.',
     orderStatus: {
       processing: 'Í vinnslu',
       shipped: 'Sent',

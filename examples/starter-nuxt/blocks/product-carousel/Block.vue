@@ -48,7 +48,11 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import type { StorefrontProductListItem } from '../../app/storefront/types';
+import type {
+  StorefrontCollectionSelector,
+  StorefrontProductListItem,
+} from '../../app/storefront/types';
+import { collectionSelector, selectorNeedsPublish } from '../../app/storefront/collectionSelector';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 
 const props = defineProps<{ entry: EldraBlockEntry<'product-carousel'> }>();
@@ -88,15 +92,30 @@ const limit = computed(() => {
 const background = computed<SectionBackground>(() => data.value.background ?? 'none');
 const showSwatchesField = computed(() => data.value.showSwatches ?? true);
 
-const sourceHandleRef = computed(() => {
-  const value = (data.value.sourceHandle ?? '').trim();
-  return isCollection.value && value !== '' ? value : null;
-});
+/**
+ * Which collection the `collection` variant shows. `sourceCollection` is the
+ * `reference` field an author picks in Studio; it stores the collection's id, so
+ * a renamed collection cannot silently empty this block. `sourceHandle` is the
+ * handle field this block shipped with — still honoured, so a merchant's
+ * existing carousel keeps working after the theme update, and it is what
+ * `mock.json` (Storybook, previews) still carries.
+ *
+ * `collectionSelector` prefers the reference's resolved `slug`, falls back to
+ * its bare id (a page builder draft overlay, or a depth-0 read — see
+ * `app/storefront/collectionSelector.ts`) and only then to the legacy handle: a
+ * picked collection overrides the handle in every case, which is what the
+ * field's own help text promises.
+ */
+const source = computed<StorefrontCollectionSelector | null>(() =>
+  isCollection.value
+    ? collectionSelector(data.value.sourceCollection, data.value.sourceHandle)
+    : null
+);
 const collectionOpts = computed(() => ({ page: 1, pageSize: limit.value }));
 const productHandleRef = computed(() => storefront.route.productHandle);
 
 const relatedResult = storefront.catalog.related(productHandleRef, limit.value);
-const collectionResult = storefront.catalog.collectionProducts(sourceHandleRef, collectionOpts);
+const collectionResult = storefront.catalog.collectionProducts(source, collectionOpts);
 const recentlyViewedResult = storefront.catalog.byHandles(storefront.history.recentlyViewed);
 
 const pending = computed(() => {
@@ -129,6 +148,17 @@ const cards = computed(() =>
 );
 /** Spec States → "Minimal": "with fewer than 2 products the block doesn't render." */
 const hasEnoughProducts = computed(() => cards.value.length >= 2);
+
+/** A collection the storefront could only have found by id, and did not: in the
+ *  editor say why rather than vanish, since publishing is what fixes it. A live
+ *  visitor still sees nothing at all. */
+const showUnresolvedCollectionHint = computed(
+  () =>
+    isEditing.value &&
+    selectorNeedsPublish(source.value) &&
+    !pending.value &&
+    !hasEnoughProducts.value
+);
 
 /** See the module doc comment: controls are dropped only when every product fits the view at
  *  EVERY width, i.e. the count is within the smallest (`base`) per-view step — the desktop step
@@ -197,7 +227,11 @@ function onClearHistory(): void {
 const showCarousel = computed(() => hasHeading.value && (pending.value || hasEnoughProducts.value));
 /** The whole block gates on having a heading — spec: a block with no required content renders
  *  nothing live; in the editor an empty heading gets its own hint instead of vanishing. */
-const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHeadingHint.value));
+const showBlock = computed(() =>
+  hasHeading.value
+    ? showCarousel.value || showUnresolvedCollectionHint.value
+    : showHeadingHint.value
+);
 </script>
 
 <template>
@@ -220,6 +254,16 @@ const showBlock = computed(() => (hasHeading.value ? showCarousel.value : showHe
         inline
         :label="t('productCarousel.headingHintLabel')"
         :help="t('productCarousel.headingHintHelp')"
+      />
+
+      <!-- `headingId` again: the `<h2>` lives inside the Carousel, which is not
+           rendered in this state, so without it the `<section>` would point
+           `aria-labelledby` at an id that is not in the document. -->
+      <EditorPlaceholder
+        v-else-if="showUnresolvedCollectionHint"
+        :id="headingId"
+        :label="t('storefront.unresolvedCollectionLabel')"
+        :help="t('storefront.unresolvedCollectionHelp')"
       />
 
       <Carousel

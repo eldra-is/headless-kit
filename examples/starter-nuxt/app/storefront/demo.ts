@@ -7,6 +7,7 @@ import type {
   StorefrontCartTotals,
   StorefrontCatalog,
   StorefrontCollectionInfo,
+  StorefrontCollectionSelector,
   StorefrontFacet,
   StorefrontForms,
   StorefrontMedia,
@@ -361,6 +362,27 @@ const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
     productCount: BEST_SELLER_HANDLES.length,
   },
 };
+
+/**
+ * The demo's catalog collection ids — what a CMS `reference` field stores when an
+ * author picks a collection in Studio, and all a page builder draft overlay or a
+ * depth-0 read hands a block. Keyed by id so `collectionProducts({ id })`
+ * resolves to the handle the rest of this fixture is keyed by, which is exactly
+ * what the real gateway does (`gateway.ts`'s `resolveCollectionSlug`). An id
+ * nobody here knows resolves to nothing, like any other unknown collection.
+ */
+const COLLECTION_HANDLES_BY_ID: Record<string, string> = {
+  '2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a01': 'winter-knitwear',
+  '2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a02': 'the-winter-edit',
+  '2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a03': 'best-sellers',
+};
+
+/** The id the demo fixture knows a collection by — the value a `reference` field
+ *  carries for it, so a story or a test can seed one without repeating a uuid. */
+export function demoCollectionId(handle: string): string | null {
+  const found = Object.entries(COLLECTION_HANDLES_BY_ID).find(([, slug]) => slug === handle);
+  return found?.[0] ?? null;
+}
 
 /** Collections whose items are a curated list rather than `buildCollectionItems`'s generic cycle
  *  through `PRODUCTS` by position — currently only `best-sellers`. */
@@ -972,6 +994,14 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
 // `pending` transition instead of already-resolved data, matching the gateway's own async shape.
 // ---------------------------------------------------------------------------------------------
 
+/** The handle behind a selector: a slug as given, an id through the fixture's own
+ *  id map — the demo's stand-in for the gateway's by-id lookup. */
+function demoCollectionHandle(selector: StorefrontCollectionSelector | null): string | null {
+  if (selector === null) return null;
+  if ('slug' in selector) return selector.slug || null;
+  return COLLECTION_HANDLES_BY_ID[selector.id] ?? null;
+}
+
 function createDemoResult<T>(
   sources: Ref<unknown>[],
   resolve: () => T | null
@@ -1075,12 +1105,13 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
      * unfiltered count. `total` is now the size of the *filtered* set, which is what the grid's
      * count line and its paging both read.
      */
-    collectionProducts: (handle, opts) =>
-      createDemoResult([handle, opts], () => {
-        if (!handle.value) return null;
-        const info = COLLECTIONS[handle.value];
+    collectionProducts: (collection, opts) =>
+      createDemoResult([collection, opts], () => {
+        const handle = demoCollectionHandle(collection.value);
+        if (handle === null) return null;
+        const info = COLLECTIONS[handle];
         if (!info) return null;
-        const all = COLLECTION_ITEMS[handle.value] ?? buildCollectionItems(info.productCount);
+        const all = COLLECTION_ITEMS[handle] ?? buildCollectionItems(info.productCount);
         const { page, pageSize, sort, filters } = opts.value;
         const matching = all.filter((item) => matchesFilters(item, filters));
         const ordered = sortCollectionItems(matching, sort);
@@ -1088,7 +1119,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
         return {
           items: ordered.slice(start, start + pageSize),
           total: ordered.length,
-          facets: countedFacets(COLLECTION_FACETS[handle.value] ?? WINTER_KNITWEAR_FACETS, all),
+          facets: countedFacets(COLLECTION_FACETS[handle] ?? WINTER_KNITWEAR_FACETS, all),
         };
       }),
     related: (handle, limit) =>

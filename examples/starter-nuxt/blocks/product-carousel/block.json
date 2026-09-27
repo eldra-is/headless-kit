@@ -4,7 +4,7 @@
   "description": "A horizontally scrolling row of product cards, such as \"You may also like\" or \"Recently viewed\", with a heading, a view-all link, arrows and a counter.",
   "icon": "carousel-horizontal",
   "category": "commerce",
-  "version": 1,
+  "version": 2,
   "fields": [
     {
       "fieldId": "heading",
@@ -24,10 +24,17 @@
       "validators": { "required": true }
     },
     {
+      "fieldId": "sourceCollection",
+      "name": "Collection",
+      "type": "reference",
+      "relation": { "allowCollections": true },
+      "helpText": "Pick a collection. Overrides the handle below."
+    },
+    {
       "fieldId": "sourceHandle",
-      "name": "Source handle",
+      "name": "Collection handle (legacy)",
       "type": "string",
-      "helpText": "For the collection variant: the collection handle."
+      "helpText": "For the collection variant, when no collection is picked above. Picking one is preferred: it survives a renamed collection."
     },
     {
       "fieldId": "limit",

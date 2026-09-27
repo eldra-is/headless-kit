@@ -259,6 +259,27 @@ rich text and slot zones go through `EldraRichText`/`EldraLayout`/`EldraBlockZon
 `@eldrajs/theme-vue`. Pages (`app/pages/**`, `app.vue`) are not under this rule — `useRoute` /
 `useHead` / Nuxt auto-imports are fine there, since they never run outside a real Nuxt build.
 
+**Field types, and the one `reference` shape that is typed.** `block.json`'s field `type` values are
+Core's (`string`, `text`, `rich-text`, `media`, `select`, `bool`, `int`, `list`, `composite`,
+`reference`, …). A `reference` field carries a `relation` naming what an editor may pick, as any
+combination of `allowedTagIds` (semantic tag names — never schema ids, which are not portable
+across organizations), `allowProducts` and `allowCollections`, with **at least one of them**:
+`eldra-theme validate` fails a relation that names none with `relation requires one of
+allowedTagIds, allowProducts or allowCollections`, and Core's manifest ingest refuses it the same
+way. Add `"multiple": true` for a list of picks.
+
+A relation targeting catalog **collections and nothing else** is the one reference shape
+`.eldra/block-types.d.ts` types: `EldraCollectionReference | null` (or an array when `multiple`),
+where only `id` and `_type` are guaranteed — `slug`, `status`, `type`, `productCount` and
+`translations` come with a resolved read, and a depth-0 read, an archived collection and an unsaved
+draft overlay in the page builder all arrive as the bare stub. Any other relation stays
+`Record<string, unknown>`, because the value's shape depends on what the author picked.
+`product-carousel`'s `sourceCollection` and `collection-grid`'s `collection` are the worked
+examples: each keeps its original handle field beside the picker (renamed "Collection handle
+(legacy)") so a merchant's existing block keeps working, and resolves the collection through
+`app/storefront/collectionSelector.ts` — the reference first (its `slug` when it has one, its id
+otherwise), then the legacy handle, then the route.
+
 **Variants.** A block with visual variants declares a `select` field named `variant` in
 `block.json`; every declared option value gets its own generated Storybook story and its own axe
 assertion in the block's test.
@@ -393,6 +414,15 @@ computed over the collection's own items so the filter UI never offers a value t
 That matters beyond tidiness — the scaffolded site and the collection sample page are both
 demo-backed, so a demo that ignored `filters` would show a shopper their filter changing the URL, the
 chips and the active-filter row while the grid and the count stayed exactly as they were.
+
+`catalog.collectionProducts` takes a `StorefrontCollectionSelector` — `{ slug }` or `{ id }` — not a
+bare handle, because a `reference` field stores the collection's id and may hand the block nothing
+else. `createGatewayStorefront` asks for a slug directly and resolves an id through the collection
+list's `filter` query (`id:eq:<uuid>`, matched back against the returned row, so a gateway that
+ignores the token cannot load the wrong collection); `createDemoStorefront` resolves an id from its
+own fixture. Either way an id nothing matches resolves to `null`, never an error: the block shows
+its empty state, plus an editor-only "Publish to load products" hint
+(`storefront.unresolvedCollection*`) explaining why.
 
 `forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
 back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts

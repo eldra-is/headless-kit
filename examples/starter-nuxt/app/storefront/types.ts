@@ -189,11 +189,23 @@ export interface StorefrontRoute {
   setQuery(patch: Record<string, string | string[] | null>): void;
 }
 
+/**
+ * How a block names the collection it wants products from. `{ slug }` is the
+ * storefront handle — a route segment, or a CMS field an author typed. `{ id }`
+ * is a catalog collection id, which is what a `reference` field stores: the
+ * public read resolves it to an object carrying the `slug` as well, but the
+ * depth-0 stub and the page builder's draft overlay carry only the id, and a
+ * block must still be able to ask for its products. A storefront implementation
+ * that cannot resolve an id answers `null`, like any other unknown collection —
+ * never an error.
+ */
+export type StorefrontCollectionSelector = { slug: string } | { id: string };
+
 export interface StorefrontCatalog {
   product(handle: Ref<string | null>): StorefrontResult<StorefrontProduct>;
   collection(handle: Ref<string | null>): StorefrontResult<StorefrontCollectionInfo>;
   collectionProducts(
-    handle: Ref<string | null>,
+    collection: Ref<StorefrontCollectionSelector | null>,
     opts: Ref<{ page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }>
   ): StorefrontResult<{
     items: StorefrontProductListItem[];

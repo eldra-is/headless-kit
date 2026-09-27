@@ -12,6 +12,19 @@ declare global {
     framing?: ImageFraming;
   }
 
+  /** A catalog collection a `reference` field points at. Only `id` and
+   *  `_type` are guaranteed: the public read returns the stub at depth 0, and
+   *  a draft overlay in the page builder carries nothing more either. */
+  interface EldraCollectionReference {
+    id: string;
+    _type: 'collection';
+    slug?: string;
+    status?: string;
+    type?: string;
+    productCount?: number;
+    translations?: unknown;
+  }
+
   interface EldraBlockData {
     'announcement-bar': {
       variant: 'primary' | 'accent' | 'subtle';
@@ -74,6 +87,7 @@ declare global {
       emptyLinkHref?: string;
     };
     'collection-grid': {
+      collection?: EldraCollectionReference | null;
       collectionHandle?: string;
       variant: 'sidebar' | 'drawer-only';
       columns: '2' | '3' | '4';
@@ -259,6 +273,7 @@ declare global {
     'product-carousel': {
       heading: string;
       variant: 'related' | 'recently-viewed' | 'collection';
+      sourceCollection?: EldraCollectionReference | null;
       sourceHandle?: string;
       limit?: '4' | '8' | '12';
       viewAllLabel?: string;

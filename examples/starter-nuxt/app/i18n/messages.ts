@@ -200,6 +200,17 @@ export interface Messages {
     loading: string;
     /** A `StorefrontResult.error` with no more specific, block-authored copy for it. */
     error: string;
+    /**
+     * The editor-only hint (`EditorPlaceholder`, gated by `useEditing()`) for a
+     * block whose collection was picked through a `reference` field but arrives
+     * as the bare stub `{ id, _type }` — an unsaved draft overlay in the page
+     * builder, or a depth-0 read — and whose storefront could not resolve that
+     * id. Shared by every block that can be pointed at a collection
+     * (`product-carousel`, `collection-grid`), like `loading` above; live
+     * visitors see the block's own empty state instead, never an error.
+     */
+    unresolvedCollectionLabel: string;
+    unresolvedCollectionHelp: string;
     orderStatus: {
       processing: string;
       shipped: string;

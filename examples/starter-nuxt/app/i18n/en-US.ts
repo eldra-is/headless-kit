@@ -102,6 +102,9 @@ export const enUS = {
   storefront: {
     loading: 'Loading…',
     error: "We couldn't load this right now.",
+    unresolvedCollectionLabel: 'Publish to load products',
+    unresolvedCollectionHelp:
+      'The collection is picked. Its products appear here once this page is published.',
     orderStatus: {
       processing: 'Processing',
       shipped: 'Shipped',

@@ -10,11 +10,12 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
 import { tablerIconSvg } from '../../../server/utils/tablerIcon';
-import { createDemoStorefront, PRODUCTS } from '../../../app/storefront/demo';
+import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
   StorefrontCatalog,
+  StorefrontCollectionSelector,
   StorefrontFacet,
   StorefrontProductListItem,
   StorefrontResult,
@@ -107,10 +108,10 @@ function createStub(
   const filteredCount = options.filteredCount ?? 0;
   const catalog: StorefrontCatalog = {
     ...base.catalog,
-    collectionProducts(handle, opts) {
+    collectionProducts(collection, opts) {
       watch(opts, (value) => requests.push({ ...value }), { deep: true });
       const data = computed(() => {
-        if (handle.value === null || handle.value === '') return null;
+        if (collection.value === null) return null;
         const filtered = opts.value.filters !== undefined;
         return {
           items: filtered ? items.slice(0, filteredCount) : items.slice(0, opts.value.pageSize),
@@ -150,7 +151,7 @@ afterEach(() => {
 
 function mountGrid(
   data: Record<string, unknown>,
-  options: { source?: StorefrontSource; attachTo?: Element } = {}
+  options: { source?: StorefrontSource; attachTo?: Element; editing?: boolean } = {}
 ) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const wrapper = mount(Block, {
@@ -161,6 +162,7 @@ function mountGrid(
         ...base.global.provide,
         [ICON_FETCHER_KEY]: stubFetcher,
         ...(options.source ? { [STOREFRONT_KEY]: options.source } : {}),
+        ...(options.editing ? { [ELDRA_KEY]: editingContext() } : {}),
       },
     },
     ...(options.attachTo ? { attachTo: options.attachTo } : {}),
@@ -990,7 +992,116 @@ describe('collection-grid block', () => {
     });
   });
 
+  /**
+   * Which collection the grid shows (spec `Starter blocks`): the `collection`
+   * `reference` field an author picks in Studio — which stores the collection's
+   * **id** — then the legacy `collectionHandle`, then the collection template's
+   * own route segment. A picked collection overrides both; its resolved `slug` is
+   * used when the value carries one, and its bare id otherwise (a page builder
+   * draft overlay, a depth-0 read, or an archived collection, all of which read
+   * as the bare stub).
+   */
+  describe('the collection source', () => {
+    const WINTER = demoCollectionId('winter-knitwear')!;
+
+    /** The collection the grid actually asked the storefront for. */
+    function requestedFor(data: Record<string, unknown>, routeHandle: string | null = null) {
+      const asked: Array<StorefrontCollectionSelector | null> = [];
+      const base = createDemoStorefront();
+      base.route.collectionHandle = routeHandle;
+      const source: StorefrontSource = {
+        ...base,
+        catalog: {
+          ...base.catalog,
+          collectionProducts(collection, opts) {
+            asked.push(collection.value);
+            return base.catalog.collectionProducts(collection, opts);
+          },
+        },
+      };
+      mountGrid(data, { source });
+      return asked;
+    }
+
+    it('uses the reference’s resolved slug', () => {
+      expect(
+        requestedFor({
+          ...mock,
+          collection: { id: WINTER, _type: 'collection', slug: 'best-sellers' },
+        })
+      ).toContainEqual({ slug: 'best-sellers' });
+    });
+
+    it('asks by id for a stub reference', () => {
+      expect(
+        requestedFor({ ...mock, collection: { id: WINTER, _type: 'collection' } })
+      ).toContainEqual({ id: WINTER });
+    });
+
+    it('falls back to the legacy handle, then to the route — the handle first when both are set', () => {
+      const bothSet = requestedFor({ ...mock, collection: null }, 'the-winter-edit');
+      expect(bothSet).toContainEqual({ slug: mock.collectionHandle });
+      expect(bothSet).not.toContainEqual({ slug: 'the-winter-edit' });
+      expect(
+        requestedFor({ ...mock, collection: null, collectionHandle: '' }, 'the-winter-edit')
+      ).toContainEqual({ slug: 'the-winter-edit' });
+    });
+
+    it('lets the picked collection override both the handle and the route', () => {
+      const asked = requestedFor(
+        {
+          ...mock,
+          collection: { id: WINTER, _type: 'collection' },
+          collectionHandle: 'best-sellers',
+        },
+        'the-winter-edit'
+      );
+      expect(asked).toContainEqual({ id: WINTER });
+      expect(asked).not.toContainEqual({ slug: 'best-sellers' });
+      expect(asked).not.toContainEqual({ slug: 'the-winter-edit' });
+    });
+
+    it('still renders a collection the storefront can only find by id', async () => {
+      const wrapper = mountGrid({ ...mock, collection: { id: WINTER, _type: 'collection' } });
+      await flushPromises();
+      expect(cards(wrapper).length).toBeGreaterThan(0);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
   describe('the editor', () => {
+    /** An id no storefront can resolve: a freshly picked collection before the
+     *  page is published, or one that has since been archived. */
+    const UNRESOLVABLE = { id: '00000000-0000-4000-8000-000000000000', _type: 'collection' };
+
+    it('shows the publish hint when only an unresolvable collection id is known', async () => {
+      const source = createDemoStorefront();
+      source.route.collectionHandle = null;
+      const wrapper = mountGrid(
+        { ...mock, collection: UNRESOLVABLE, collectionHandle: '' },
+        { source, editing: true }
+      );
+      await flushPromises();
+      expect(wrapper.text()).toContain(enUS.storefront.unresolvedCollectionLabel);
+      expect(wrapper.text()).toContain(enUS.storefront.unresolvedCollectionHelp);
+      expect(wrapper.text()).not.toContain(enUS.grid.noCollectionLabel);
+      expect(wrapper.find('ul').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('never shows that hint to a live visitor — the block renders its own empty grid instead', async () => {
+      const source = createDemoStorefront();
+      source.route.collectionHandle = null;
+      const wrapper = mountGrid(
+        { ...mock, collection: UNRESOLVABLE, collectionHandle: '' },
+        { source }
+      );
+      await flushPromises();
+      expect(wrapper.text()).not.toContain(enUS.storefront.unresolvedCollectionLabel);
+      expect(cards(wrapper)).toHaveLength(0);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
     it('shows the "Choose a collection" hint when no collection is bound', async () => {
       const source = createDemoStorefront();
       source.route.collectionHandle = null;

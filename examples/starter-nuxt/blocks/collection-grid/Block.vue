@@ -76,6 +76,12 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import {
+  collectionSelector,
+  selectorNeedsPublish,
+  selectorSlug,
+} from '../../app/storefront/collectionSelector';
+import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { safeHref } from '../../app/utils/links';
 import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
 import FilterGroups from './parts/FilterGroups.vue';
@@ -177,20 +183,43 @@ function normaliseChoice(value: unknown, allowed: string[], fallback: string): s
 // The collection
 // ---------------------------------------------------------------------------------------------
 
-const collectionHandle = computed<string | null>(() => {
-  const own = (data.value.collectionHandle ?? '').trim();
-  return own !== '' ? own : route.collectionHandle;
-});
-const hasCollection = computed(
-  () => collectionHandle.value !== null && collectionHandle.value !== ''
+/**
+ * Which collection this grid shows. `collection` is the `reference` field an
+ * author picks in Studio; it stores the collection's id, so a renamed collection
+ * cannot silently empty the block. `collectionHandle` is the handle field this
+ * block shipped with — still honoured, so a merchant's existing grid keeps
+ * working after the theme update, and it is what `mock.json` (Storybook,
+ * previews) still carries. `route.collectionHandle` is the collection template's
+ * own segment, the case the fields are both meant to be left empty for.
+ *
+ * `collectionSelector` prefers the reference's resolved `slug`, falls back to its
+ * bare id (a page builder draft overlay, or a depth-0 read — see
+ * `app/storefront/collectionSelector.ts`) and only then to the handle and the
+ * route: a picked collection overrides both, which is what its help text
+ * promises.
+ */
+const selected = computed<StorefrontCollectionSelector | null>(() =>
+  collectionSelector(data.value.collection, data.value.collectionHandle, route.collectionHandle)
 );
+/** The handle, when the collection is known by one. `collection()` below and the
+ *  `/collections/<slug>` paging links have no other key to work from; the grid
+ *  itself goes through `selected`, so an id-only collection still loads. */
+const collectionHandle = computed<string | null>(() => selectorSlug(selected.value));
+const hasCollection = computed(() => selected.value !== null);
 const showNoCollectionHint = computed(() => editing.value && !hasCollection.value);
 
 const collection = storefront.catalog.collection(collectionHandle);
 const collectionTitle = computed(
   () => collection.data.value?.title ?? collectionHandle.value ?? ''
 );
-const sectionLabel = computed(() => t('grid.sectionLabel', { collection: collectionTitle.value }));
+/** Falls back to the plain noun when nothing names the collection yet — an
+ *  id-only reference has no title and no handle to borrow one from, and an empty
+ *  `{collection}` would leave the landmark named " products". */
+const sectionLabel = computed(() =>
+  collectionTitle.value === ''
+    ? t('grid.products')
+    : t('grid.sectionLabel', { collection: collectionTitle.value })
+);
 
 // ---------------------------------------------------------------------------------------------
 // Applied state (sidebar: live) and the drawer's pending copy
@@ -309,7 +338,7 @@ const requestOptions = computed(() => ({
   sort: sort.value === '' ? undefined : sort.value,
   filters: appliedFilters.value,
 }));
-const products = storefront.catalog.collectionProducts(collectionHandle, requestOptions);
+const products = storefront.catalog.collectionProducts(selected, requestOptions);
 
 const items = computed(() => products.data.value?.items ?? []);
 /**
@@ -323,6 +352,19 @@ const cards = computed(() => toProductCardEntries(items.value, { ratio: '4x5' })
 const total = computed(() => products.data.value?.total ?? 0);
 const facets = computed(() => products.data.value?.facets ?? []);
 const pending = products.pending;
+
+/** A collection the storefront could only have found by id, and did not — a
+ *  picked collection whose draft overlay carries no `slug` yet (`null` data,
+ *  rather than a real response with no matching products). In the editor say why
+ *  rather than show an empty grid, since publishing is what fixes it; a live
+ *  visitor gets the block's own empty state as always. */
+const showUnresolvedCollectionHint = computed(
+  () =>
+    editing.value &&
+    selectorNeedsPublish(selected.value) &&
+    !pending.value &&
+    products.data.value === null
+);
 
 /**
  * Loading a *further* page is not the same state as filtering. "While filtering, the grid shows the
@@ -609,14 +651,14 @@ const pendingSelection = ref<FilterSelection>({});
 const pendingMin = ref('');
 const pendingMax = ref('');
 
-const pendingHandle = computed(() => (drawerUsed.value ? collectionHandle.value : null));
+const pendingSelected = computed(() => (drawerUsed.value ? selected.value : null));
 const pendingOptions = computed(() => ({
   page: 1,
   pageSize: 1,
   sort: sort.value === '' ? undefined : sort.value,
   filters: requestFiltersFor(pendingSelection.value, pendingMin.value, pendingMax.value),
 }));
-const pendingProducts = storefront.catalog.collectionProducts(pendingHandle, pendingOptions);
+const pendingProducts = storefront.catalog.collectionProducts(pendingSelected, pendingOptions);
 const pendingTotal = computed(() => pendingProducts.data.value?.total ?? total.value);
 
 function openDrawer(): void {
@@ -721,6 +763,13 @@ function hrefForPage(page: number): string {
         :icon="BoxIcon"
         :label="t('grid.noCollectionLabel')"
         :help="t('grid.noCollectionHelp')"
+      />
+
+      <EditorPlaceholder
+        v-else-if="showUnresolvedCollectionHint"
+        :icon="BoxIcon"
+        :label="t('storefront.unresolvedCollectionLabel')"
+        :help="t('storefront.unresolvedCollectionHelp')"
       />
 
       <template v-else>

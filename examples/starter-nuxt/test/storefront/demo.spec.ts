@@ -1,8 +1,9 @@
 import { nextTick, ref } from 'vue';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { createDemoStorefront, PRODUCTS } from '../../app/storefront/demo';
+import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../app/storefront/demo';
 import type {
   StorefrontCollectionInfo,
+  StorefrontCollectionSelector,
   StorefrontOrder,
   StorefrontProduct,
   StorefrontProductListItem,
@@ -204,9 +205,9 @@ describe('createDemoStorefront', () => {
 
   it('the "best-sellers" collection satisfies catalog.collectionProducts, leading with the spec\'s named products', async () => {
     const storefront = createDemoStorefront();
-    const handle = ref<string | null>('best-sellers');
+    const collection = ref<StorefrontCollectionSelector | null>({ slug: 'best-sellers' });
     const opts = ref({ page: 1, pageSize: 4 });
-    const result = storefront.catalog.collectionProducts(handle, opts);
+    const result = storefront.catalog.collectionProducts(collection, opts);
     await settle();
     const response = result.data.value;
     expect(response).not.toBeNull();
@@ -216,6 +217,35 @@ describe('createDemoStorefront', () => {
       'Merino crew sweater',
       'Speckled latte mug',
     ]);
+  });
+
+  /** A `reference` field stores the collection's id, so the demo fixture has to
+   *  answer an id the same way the gateway does — otherwise every builder preview
+   *  of a picked collection would render empty. */
+  it('resolves a collection id from its own fixture, like the gateway does', async () => {
+    const storefront = createDemoStorefront();
+    const id = demoCollectionId('best-sellers');
+    expect(id).not.toBeNull();
+    const collection = ref<StorefrontCollectionSelector | null>({ id: id! });
+    const opts = ref({ page: 1, pageSize: 2 });
+    const result = storefront.catalog.collectionProducts(collection, opts);
+    await settle();
+    expect(result.data.value!.items.map((item) => item.title)).toEqual([
+      'Merino crew sweater',
+      'Speckled latte mug',
+    ]);
+  });
+
+  it('resolves nothing for a collection id it does not know — never an error', async () => {
+    const storefront = createDemoStorefront();
+    const collection = ref<StorefrontCollectionSelector | null>({
+      id: '00000000-0000-4000-8000-000000000000',
+    });
+    const opts = ref({ page: 1, pageSize: 2 });
+    const result = storefront.catalog.collectionProducts(collection, opts);
+    await settle();
+    expect(result.data.value).toBeNull();
+    expect(result.error.value).toBeNull();
   });
 
   /**
@@ -234,9 +264,9 @@ describe('createDemoStorefront', () => {
       filters?: Record<string, string[]>;
     }) {
       const storefront = createDemoStorefront();
-      const handle = ref<string | null>('winter-knitwear');
+      const selected = ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' });
       const options = ref({ page: 1, pageSize: 48, ...opts });
-      const result = storefront.catalog.collectionProducts(handle, options);
+      const result = storefront.catalog.collectionProducts(selected, options);
       await settle();
       return result.data.value!;
     }

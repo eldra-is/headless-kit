@@ -64,6 +64,7 @@ import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { toSearchBarResults } from './results';
 import TypeSection from './TypeSection.vue';
 
@@ -239,11 +240,16 @@ const suggestion = computed(() => response.value?.suggestion?.trim() || null);
 const noResultsCollectionHandle = computed(
   () => (data.value.noResultsCollection ?? '').trim() || null
 );
-const noResultsHandle = computed(() =>
-  showNoResults.value ? noResultsCollectionHandle.value : null
+/** This block names its collection by handle — it is a theme-authored fallback
+ *  list, not a merchant's pick — so the selector `collectionProducts` takes is
+ *  always the `{ slug }` form. */
+const noResultsSelected = computed<StorefrontCollectionSelector | null>(() =>
+  showNoResults.value && noResultsCollectionHandle.value !== null
+    ? { slug: noResultsCollectionHandle.value }
+    : null
 );
 const noResultsOpts = ref({ page: 1, pageSize: 4 });
-const noResultsCollection = storefront.catalog.collectionProducts(noResultsHandle, noResultsOpts);
+const noResultsCollection = storefront.catalog.collectionProducts(noResultsSelected, noResultsOpts);
 /**
  * `toProductCardEntries` (`app/storefront/toProductCard.ts`) sanitises each storefront-derived
  * `url` and drops an item whose URL is not a `safeHref` (`ProductCard`'s link is required, so a

@@ -9,6 +9,7 @@ import type {
   StorefrontCartTotals,
   StorefrontCatalog,
   StorefrontCollectionInfo,
+  StorefrontCollectionSelector,
   StorefrontFacet,
   StorefrontForms,
   StorefrontMedia,
@@ -606,6 +607,38 @@ async function postToEndpoint(
 }
 
 // ---------------------------------------------------------------------------------------------
+// Collection selectors — a slug goes straight to the gateway, an id needs a lookup first
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The slug to ask `/catalog/v1/collections/{slug}/products` for, or `null` when
+ * there is nothing to ask about.
+ *
+ * `{ slug }` needs no lookup. `{ id }` — what a CMS `reference` field stores,
+ * and all a depth-0 read or a page builder draft overlay carries — is resolved
+ * through the collection list's `filter` query (`field:op:value` tokens, the
+ * same vocabulary `collectionProducts` uses for its own facet filters), because
+ * the gateway has no by-id collection route. A gateway that does not honour the
+ * token answers with some other collection or with nothing; either way an
+ * unmatched id resolves to `null`, so the block shows its empty state and, in
+ * the editor, its "publish to load products" hint — never an error.
+ */
+async function resolveCollectionSlug(
+  client: EldraClient,
+  selector: StorefrontCollectionSelector | null,
+  signal: AbortSignal
+): Promise<string | null> {
+  if (selector === null) return null;
+  if ('slug' in selector) return selector.slug || null;
+  const raw = (await client.catalog.listCollections(
+    { limit: 1, filter: [`id:eq:${selector.id}`] },
+    { signal }
+  )) as unknown as { data?: RawCollectionItem[] | null };
+  const match = (raw.data ?? []).find((item) => item.id === selector.id);
+  return match?.slug ?? null;
+}
+
+// ---------------------------------------------------------------------------------------------
 // createGatewayStorefront
 // ---------------------------------------------------------------------------------------------
 
@@ -640,12 +673,13 @@ export function createGatewayStorefront(
         )) as unknown as RawCollectionItem;
         return mapCollectionItem(raw);
       }),
-    collectionProducts: (handle, opts) =>
-      createGatewayResult([handle, opts], async (signal) => {
-        if (!handle.value) return null;
+    collectionProducts: (collection, opts) =>
+      createGatewayResult([collection, opts], async (signal) => {
+        const slug = await resolveCollectionSlug(client, collection.value, signal);
+        if (slug === null) return null;
         const { page, pageSize, sort, filters } = opts.value;
         const raw = (await client.catalog.listCollectionProducts(
-          handle.value,
+          slug,
           {
             page,
             pageSize,

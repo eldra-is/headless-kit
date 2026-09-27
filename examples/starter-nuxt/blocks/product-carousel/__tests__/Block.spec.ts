@@ -14,7 +14,7 @@ import type {
   StorefrontResult,
   StorefrontSource,
 } from '../../../app/storefront/types';
-import { createDemoStorefront, PRODUCTS } from '../../../app/storefront/demo';
+import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { enUS } from '../../../app/i18n/en-US';
 
@@ -366,5 +366,125 @@ describe('product-carousel block', () => {
     const live = mountBlock({ ...mock, heading: '' });
     await flushPromises();
     expect(live.find('section').exists()).toBe(false);
+  });
+
+  /**
+   * The `collection` variant's source (spec `Starter blocks`): `sourceCollection`
+   * is the `reference` field an author picks in Studio, which stores the
+   * collection's **id**; `sourceHandle` is the handle field this block shipped
+   * with, kept so an existing carousel keeps working after the theme update. A
+   * picked collection overrides the handle; its resolved `slug` is used when the
+   * value carries one, and its bare id otherwise (a page builder draft overlay,
+   * or a depth-0 read).
+   */
+  describe('the collection variant\u2019s source', () => {
+    const WINTER = demoCollectionId('winter-knitwear')!;
+    const BEST_SELLERS = demoCollectionId('best-sellers')!;
+
+    function titles(wrapper: VueWrapper): string[] {
+      return wrapper
+        .findAllComponents(ProductCard)
+        .map((card) => (card.props('product') as { title: string }).title);
+    }
+
+    async function mountCollection(data: Record<string, unknown>, editing = false) {
+      const wrapper = mountBlock(
+        { ...mock, variant: 'collection', limit: '4', ...data },
+        { editing }
+      );
+      await flushPromises();
+      return wrapper;
+    }
+
+    it('uses the reference\u2019s resolved slug', async () => {
+      const wrapper = await mountCollection({
+        sourceCollection: { id: BEST_SELLERS, _type: 'collection', slug: 'best-sellers' },
+      });
+      expect(titles(wrapper)).toEqual([
+        'Merino crew sweater',
+        'Speckled latte mug',
+        'Walnut serving board',
+        'Hand-thrown serving bowl',
+      ]);
+    });
+
+    it('resolves a stub reference through the storefront by id', async () => {
+      const wrapper = await mountCollection({
+        sourceCollection: { id: BEST_SELLERS, _type: 'collection' },
+      });
+      expect(titles(wrapper).slice(0, 2)).toEqual(['Merino crew sweater', 'Speckled latte mug']);
+    });
+
+    it('falls back to the legacy handle when nothing is picked', async () => {
+      const wrapper = await mountCollection({ sourceHandle: 'best-sellers' });
+      expect(titles(wrapper).slice(0, 2)).toEqual(['Merino crew sweater', 'Speckled latte mug']);
+    });
+
+    it('lets the picked collection override the legacy handle', async () => {
+      const wrapper = await mountCollection({
+        sourceCollection: { id: WINTER, _type: 'collection', slug: 'winter-knitwear' },
+        sourceHandle: 'best-sellers',
+      });
+      // winter-knitwear's second product, not best-sellers' — the reference won.
+      expect(titles(wrapper).slice(0, 2)).toEqual([
+        'Merino crew sweater',
+        'Fisherman rib cardigan',
+      ]);
+    });
+
+    it('lets a stub reference override the legacy handle too', async () => {
+      const wrapper = await mountCollection({
+        sourceCollection: { id: WINTER, _type: 'collection' },
+        sourceHandle: 'best-sellers',
+      });
+      expect(titles(wrapper).slice(0, 2)).toEqual([
+        'Merino crew sweater',
+        'Fisherman rib cardigan',
+      ]);
+    });
+
+    it('renders nothing with neither a reference nor a handle', async () => {
+      const wrapper = await mountCollection({});
+      expect(wrapper.find('section').exists()).toBe(false);
+    });
+
+    /** An id no storefront can resolve — what a freshly picked collection looks
+     *  like in the page builder before the page is published. */
+    const UNRESOLVABLE = { id: '00000000-0000-4000-8000-000000000000', _type: 'collection' };
+
+    it('shows the publish hint in the editor when only an unresolvable id is known', async () => {
+      const wrapper = await mountCollection({ sourceCollection: UNRESOLVABLE }, true);
+      expect(wrapper.text()).toContain(enUS.storefront.unresolvedCollectionLabel);
+      expect(wrapper.findAllComponents(ProductCard)).toHaveLength(0);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders nothing at all for a live visitor in that state — never an error', async () => {
+      const wrapper = await mountCollection({ sourceCollection: UNRESOLVABLE });
+      expect(wrapper.find('section').exists()).toBe(false);
+      expect(wrapper.text()).not.toContain(enUS.storefront.unresolvedCollectionLabel);
+    });
+
+    it('keeps the hint out of the way while the request is still pending', async () => {
+      const base = createDemoStorefront();
+      const wrapper = mountBlock(
+        {
+          ...mock,
+          variant: 'collection',
+          limit: '4',
+          sourceCollection: UNRESOLVABLE,
+        },
+        {
+          editing: true,
+          storefront: {
+            ...base,
+            catalog: { ...base.catalog, collectionProducts: () => pendingResult() },
+          },
+        }
+      );
+      await flushPromises();
+      expect(wrapper.text()).not.toContain(enUS.storefront.unresolvedCollectionLabel);
+      expect(wrapper.findAllComponents(Skeleton).length).toBeGreaterThan(0);
+    });
   });
 });
