@@ -61,9 +61,31 @@
   --ease-out: var(--eldra-ease-out);
   --ease-in: var(--eldra-ease-in);
 
-  --container-narrow: var(--eldra-container-narrow);
-  --container-content: var(--eldra-container-content);
-  --container-wide: var(--eldra-container-wide);
+  /* Container-query conditions cannot reference a custom property — `@container (width >=
+     var(--x))` is invalid CSS — so Tailwind requires a literal length in the `--container-*` theme
+     namespace before it emits `@narrow:`/`@content:`/`@wide:` variants at all. Shipping these three
+     as `var(--eldra-container-*)` (the tokens.css indirection every other value in this file uses)
+     compiled all three variants to nothing — no build error, no warning, just an absent rule — so
+     `Container`'s own `@content:px-[var(--eldra-gutter-desktop)]` desktop gutter, and every
+     starter block's own `@content:` layout, never engaged (bug, fixed 2026-09-27: see the README's
+     Deviations entry). The three literals below are `eldra-starter-spec/tokens.json`'s
+     `layout.container-{narrow,content,wide}` values, copied by hand — `scripts/build-tokens.mjs`
+     only ever emits a `var()`-holding `--eldra-*` custom property into `tokens.css`, never a
+     literal into this file, so it cannot generate this block for us —
+     `src/__tests__/containerQueryLiterals.spec.ts` asserts the two stay equal, catching the drift a
+     future token change could otherwise introduce silently.
+
+     This does not cost consumers runtime overridability of the three *widths*:
+     `--eldra-container-{narrow,content,wide}` in `tokens.css` are untouched, and `Container.vue`
+     reads them through its own `eldra-container-{narrow,content,wide}` utilities (declared further
+     down this file) rather than through Tailwind's auto-generated `max-w-narrow`/`-content`/
+     `-wide`. Those three still compile from the `--container-*` keys below — fine for an ad-hoc
+     `max-w-content` in a story or a consumer's own markup — but now to the *literal* number rather
+     than a `var()`, which would silently defeat `Container`'s own "a consumer restyles this by
+     setting a variable" contract were its width prop to keep reading them. */
+  --container-narrow: 40rem;
+  --container-content: 64rem;
+  --container-wide: 80rem;
 
   /* In Tailwind v4 the `--container-*` namespace is the container-query breakpoint scale as well
      as the width scale, so the three layout widths above already name the spec's `desktop`
@@ -84,6 +106,26 @@
      `@two-col:grid-cols-2` turns the pairs on, `@max-two-col:` is the spec's "narrow container
      (< 36rem)" state, where the actions stack full width with the primary first. */
   --container-two-col: 36rem;
+}
+
+/* `Container`'s own max-width utilities (spec "Container and section" → Sizes). `--eldra-
+   container-{narrow,content,wide}` (tokens.css, generated from `layout.container-*`) stay
+   `var()`-driven, unlike the `--container-*` breakpoint scale above whose values had to become
+   literals for the container-query engine — `max-width` accepts a `var()` just fine, so a consumer
+   still restyles a block's width by setting one of these three at runtime. `Container.vue` reads
+   these named utilities for its own width cap rather than Tailwind's auto-generated `max-w-narrow`/
+   `-content`/`-wide` (now literal numbers, from the `--container-*` keys above), which would
+   otherwise defeat that contract for the one place it actually matters. Each shares the stock
+   `max-w` merge group in `cx.ts`, alongside those three literal utilities, so a consumer's
+   `classes.root` override or `Container`'s own `full` (`max-w-none`) still replaces it outright. */
+@utility eldra-container-narrow {
+  max-width: var(--eldra-container-narrow);
+}
+@utility eldra-container-content {
+  max-width: var(--eldra-container-content);
+}
+@utility eldra-container-wide {
+  max-width: var(--eldra-container-wide);
 }
 
 /* Type styles: one utility per spec style, e.g. `text-body-sm`. */

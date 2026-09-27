@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Fix (2026-09-27, package bug): `@content:`/`@wide:`/`@narrow:` container-query variants now
+  actually compile.** `tailwind.css`'s `@theme` block declared `--container-narrow`/`-content`/
+  `-wide` as `var(--eldra-container-*)`, but a `@container` condition cannot reference a custom
+  property — Tailwind silently dropped all three variants instead of erroring, so `Container`'s own
+  `@content:` desktop gutter, and every starter block's `@content:` layout, never engaged (the
+  starter's footer, for example, shipped its mobile layout at any width). The three theme keys are
+  now literal lengths (40rem/64rem/80rem, matching `eldra-starter-spec/tokens.json`), and
+  `Container`'s own `width` prop reads three new dedicated `eldra-container-{narrow,content,wide}`
+  utilities instead of Tailwind's now-literal `max-w-narrow`/`-content`/`-wide`, so a consumer can
+  still restyle a block's width at runtime by setting `--eldra-container-{narrow,content,wide}`. See
+  the README's Deviations entry for the full mechanism.
 - **Fix (2026-09-26, operator report: "we are not able to drag on a card, we have to place the
   cursor between cards"): `Carousel`/`Lightbox` pointer drag now starts on any pointer press inside
   the track — a slide's own link or button included — not only the track's bare background.** The

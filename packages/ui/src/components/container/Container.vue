@@ -10,18 +10,25 @@ const props = withDefaults(defineProps<ContainerProps>(), {
 });
 
 /**
- * Spec "Container and section" → Sizes: the three finite widths cap the box at the token value
- * (`max-w-narrow`/`-content`/`-wide`, generated from the same `--container-*` theme keys the
- * gutter breakpoints below read — see `tailwind.css`'s `@theme` block). Every element in this
- * package keeps Tailwind's preflight `box-sizing: border-box`, so the gutter padding below is
- * *inside* that cap: "the gutter is added outside the maximum, so content never exceeds the token
- * width" falls out of border-box for free, with nothing extra to write. `full` gets neither: "100%,
- * no gutters".
+ * Spec "Container and section" → Sizes: the three finite widths cap the box at the token value —
+ * `eldra-container-narrow`/`-content`/`-wide` (`tailwind.css`, "Container's own max-width
+ * utilities"), each reading the matching `--eldra-container-*` variable, not Tailwind's
+ * auto-generated `max-w-narrow`/`-content`/`-wide`. Those two sets share the same three numbers,
+ * but the stock ones now compile from the *literal* lengths the `--container-*` theme namespace
+ * needs for its `@narrow:`/`@content:`/`@wide:` container-query variants (see that `@theme`
+ * block's own comment) — a `var()` there silently drops the variants entirely, which is why the
+ * breakpoint scale and the width scale had to split into two different utilities even though they
+ * name the same three numbers. `Container` reads the `var()`-driven ones, so a consumer still
+ * restyles a block's width at runtime by setting `--eldra-container-{narrow,content,wide}`. Every
+ * element in this package keeps Tailwind's preflight `box-sizing: border-box`, so the gutter
+ * padding below is *inside* that cap: "the gutter is added outside the maximum, so content never
+ * exceeds the token width" falls out of border-box for free, with nothing extra to write. `full`
+ * gets neither: "100%, no gutters".
  */
 const WIDTH: Record<ContainerWidth, string> = {
-  narrow: 'max-w-narrow',
-  content: 'max-w-content',
-  wide: 'max-w-wide',
+  narrow: 'eldra-container-narrow',
+  content: 'eldra-container-content',
+  wide: 'eldra-container-wide',
   full: 'max-w-none',
 };
 

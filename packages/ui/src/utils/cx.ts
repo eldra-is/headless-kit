@@ -196,7 +196,21 @@ const twMerge = extendTailwindMerge<
       // `@utility` names) cannot catch a missing entry here the way it does for the rest of this
       // file — proven by mutation: without this line, `cx('max-w-narrow', 'max-w-full')` keeps
       // both instead of letting `Container`'s own `full` (or a consumer's `classes.root`) win.
-      'max-w': ['eldra-select-panel-width', 'max-w-narrow', 'max-w-content', 'max-w-wide'],
+      // `eldra-container-narrow`/`-content`/`-wide` (tailwind.css, "Container's own max-width
+      // utilities") are `Container`'s actual width utilities — real `@utility` declarations, so
+      // `custom-utility-coverage.spec.ts` does catch a missing entry for these on its own — but they
+      // still belong in this same group: they are mutually exclusive with each other, with the
+      // three stock ones above, with `max-w-none` (`Container`'s own `full`), and with a consumer's
+      // `classes.root` override.
+      'max-w': [
+        'eldra-select-panel-width',
+        'max-w-narrow',
+        'max-w-content',
+        'max-w-wide',
+        'eldra-container-narrow',
+        'eldra-container-content',
+        'eldra-container-wide',
+      ],
       // A filtered option's matched run, and an option's swatch edge: a weight-plus-underline
       // bundle and an inset box-shadow, neither of which maps onto a stock group, so each gets its
       // own. (`font-weight` is stock, but this utility is not only a weight — folding it into that

@@ -26,9 +26,9 @@ describe('Container — element', () => {
 
 describe('Container — widths', () => {
   it.each<[ContainerWidth, string]>([
-    ['narrow', 'max-w-narrow'],
-    ['content', 'max-w-content'],
-    ['wide', 'max-w-wide'],
+    ['narrow', 'eldra-container-narrow'],
+    ['content', 'eldra-container-content'],
+    ['wide', 'eldra-container-wide'],
   ])('caps %s at its token max-width', (width, className) => {
     const wrapper = mountWith(Container, { props: { width } });
     expect(wrapper.classes()).toContain(className);
@@ -37,7 +37,7 @@ describe('Container — widths', () => {
 
   it('defaults to content', () => {
     const wrapper = mountWith(Container);
-    expect(wrapper.classes()).toContain('max-w-content');
+    expect(wrapper.classes()).toContain('eldra-container-content');
     wrapper.unmount();
   });
 
@@ -74,7 +74,7 @@ describe('Container — customisation', () => {
       props: { width: 'narrow', classes: { root: 'max-w-2xl' } },
     });
     expect(wrapper.classes()).toContain('max-w-2xl');
-    expect(wrapper.classes()).not.toContain('max-w-narrow');
+    expect(wrapper.classes()).not.toContain('eldra-container-narrow');
     wrapper.unmount();
   });
 });
