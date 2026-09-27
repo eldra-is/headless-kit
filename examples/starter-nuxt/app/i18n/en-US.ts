@@ -485,6 +485,7 @@ export const enUS = {
     completed: ', completed',
     notYet: ', not yet',
     inProgress: 'In progress',
+    estimated: 'Est. {date}',
     items: 'Items',
     showAllItems: 'Show all {count} items',
     qty: 'Qty {count}',

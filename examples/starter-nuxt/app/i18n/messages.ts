@@ -838,7 +838,10 @@ export interface Messages {
    * `placedOne`/`placedMany` pluralise the placed line the same way `header.cartOne`/`cartMany`
    * do; `progress`/`completed`/`notYet` name the tracker `<ol>` and each step's hidden state;
    * `inProgress` is the `processing` state's current-step date text (there is no real date yet);
-   * `trackOpens` is appended, visually hidden, after Track package's visible label so its
+   * `estimated` is a delayed order's warning-state step date ("Est. 30 Sept") — the tracker's own
+   * worked-example wording, never the literal word "Delayed" (`storefront.orderStatus.delayed`,
+   * which still names the badge and the alert); `trackOpens` is appended, visually hidden, after
+   * Track package's visible label so its
    * accessible name says where the link goes; `qty`/`showAllItems` cover the item rows and the
    * 10-line collapse; `shippingFree` covers a `totals.shipping` of `0`; the rest name the totals,
    * delivery-address, payment and help-links regions. The order's own state words ("Processing",
@@ -857,6 +860,7 @@ export interface Messages {
     completed: string;
     notYet: string;
     inProgress: string;
+    estimated: string;
     items: string;
     showAllItems: string;
     qty: string;

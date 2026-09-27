@@ -97,6 +97,39 @@ function storefrontWithNoOrder(): StorefrontSource {
   };
 }
 
+/** A real order token in the URL (`route.orderToken` stays the demo default), but the fetch it
+ *  drives never resolves — the loading state a real order page shows before the gateway answers. */
+function storefrontPendingForever(): StorefrontSource {
+  const base = createDemoStorefront();
+  return {
+    ...base,
+    orders: {
+      current: () => ({
+        data: ref(null),
+        pending: ref(true),
+        error: ref(null),
+        refresh: async () => {},
+      }),
+    },
+  };
+}
+
+/** A real order token, but the fetch failed — `StorefrontResult.error` set. */
+function storefrontWithError(message: string): StorefrontSource {
+  const base = createDemoStorefront();
+  return {
+    ...base,
+    orders: {
+      current: () => ({
+        data: ref(null),
+        pending: ref(false),
+        error: ref(message),
+        refresh: async () => {},
+      }),
+    },
+  };
+}
+
 const trackedWrappers: VueWrapper[] = [];
 afterEach(() => {
   for (const wrapper of trackedWrappers.splice(0)) wrapper.unmount();
@@ -168,6 +201,17 @@ describe('order-status block', () => {
   });
 
   describe('status badge', () => {
+    /** The badge is the first (outermost) `<span>` whose text names the state — scoped past the
+     *  status prefix so a future decorative element elsewhere carrying the same word can't be
+     *  picked up by accident. */
+    function badgeFor(wrapper: VueWrapper, word: string) {
+      return wrapper
+        .findAll('span')
+        .find(
+          (el) => el.text().includes(enUS.order.statusPrefix.trim()) && el.text().includes(word)
+        )!;
+    }
+
     it.each([
       ['processing', enUS.storefront.orderStatus.processing],
       ['shipped', enUS.storefront.orderStatus.shipped],
@@ -178,10 +222,43 @@ describe('order-status block', () => {
       'pairs an icon with the word for %s, behind a hidden "Status:" prefix',
       async (status, word) => {
         const wrapper = await mountStatus(status);
-        const badge = wrapper.findAll('span').find((el) => el.text().includes(word))!;
+        const badge = badgeFor(wrapper, word);
         expect(badge.exists()).toBe(true);
         expect(badge.text()).toContain(enUS.order.statusPrefix.trim());
         expect(badge.find('svg').exists()).toBe(true);
+      }
+    );
+
+    /** `Badge`'s own `outline` look ignores `tone` entirely (`bg-background text-text
+     *  border-border-strong` regardless of the prop), so without an explicit override every status
+     *  would render in the same neutral colour — this pins the per-state `classes.root` override
+     *  that recolours the icon/word/border for the three non-neutral states. */
+    it.each([
+      ['delivered', enUS.storefront.orderStatus.delivered, 'success'],
+      ['delayed', enUS.storefront.orderStatus.delayed, 'warning'],
+      ['cancelled', enUS.storefront.orderStatus.cancelled, 'danger'],
+    ] as const)(
+      'the %s badge carries its own %s tone, not the neutral outline default',
+      async (status, word, tone) => {
+        const wrapper = await mountStatus(status);
+        const badge = badgeFor(wrapper, word);
+        expect(badge.classes()).toContain(`text-${tone}`);
+        expect(badge.classes()).toContain(`border-${tone}`);
+        expect(badge.classes()).not.toContain('text-text');
+      }
+    );
+
+    it.each([
+      ['processing', enUS.storefront.orderStatus.processing],
+      ['shipped', enUS.storefront.orderStatus.shipped],
+    ] as const)(
+      'the %s badge keeps the neutral outline look (no tone override)',
+      async (status, word) => {
+        const wrapper = await mountStatus(status);
+        const badge = badgeFor(wrapper, word);
+        expect(badge.classes()).not.toContain('text-success');
+        expect(badge.classes()).not.toContain('text-warning');
+        expect(badge.classes()).not.toContain('text-danger');
       }
     );
   });
@@ -219,13 +296,15 @@ describe('order-status block', () => {
       expect(current.text()).toContain(enUS.order.inProgress);
     });
 
-    it('shows the word "Delayed" on the warning step\'s date, marks it aria-current, and keeps the tracker and tracking row', async () => {
+    it('shows the new estimate ("Est. 30 Sept") on the warning step\'s date — the spec\'s own worked example — not the literal word "Delayed", while the marker stays the warning/alert-triangle disc and the step is still aria-current', async () => {
       const wrapper = await mountStatus('delayed');
       const items = wrapper.get('ol').findAll('li');
       const current = items.filter((li) => li.attributes('aria-current') === 'step');
       expect(current).toHaveLength(1);
-      expect(current[0]!.text()).toContain(enUS.storefront.orderStatus.delayed);
       expect(current[0]!.text()).toContain('Delivered');
+      expect(current[0]!.text()).toContain('Sep 30, 2026');
+      expect(current[0]!.text()).toContain(enUS.order.estimated.replace('{date}', '').trim());
+      expect(current[0]!.text()).not.toContain(enUS.storefront.orderStatus.delayed);
       expect(wrapper.text()).toContain(enUS.order.trackingNumber);
     });
 
@@ -363,6 +442,48 @@ describe('order-status block', () => {
     await flushPromises();
     expect(wrapper.find('section').exists()).toBe(false);
     expect(wrapper.text()).toBe('');
+  });
+
+  describe('loading and error', () => {
+    it('shows a Skeleton placeholder, announced through a labelled busy region, while the order is still loading', async () => {
+      const wrapper = mountBlock(mock, { source: storefrontPendingForever() });
+      await flushPromises();
+      const busyRegion = wrapper.get('[role="status"][aria-busy="true"]');
+      expect(busyRegion.attributes('aria-label')).toBe(enUS.storefront.loading);
+      // The decorative shimmering shapes carry no accessible name of their own.
+      expect(wrapper.findAll('[aria-hidden="true"]').length).toBeGreaterThan(0);
+      // Nothing from the real content (title, panel, items) is rendered yet.
+      expect(wrapper.find('h1').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('shows an EmptyState variant="error" (role="alert") when the fetch fails', async () => {
+      const wrapper = mountBlock(mock, { source: storefrontWithError('failed') });
+      await flushPromises();
+      const alert = wrapper.get('[role="alert"]');
+      expect(alert.text()).toContain(enUS.storefront.error);
+      expect(wrapper.find('h1').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders nothing (not even a loading/error state) with no order token in the URL at all', async () => {
+      const wrapper = mountBlock(mock, { source: storefrontWithNoOrder() });
+      await flushPromises();
+      expect(wrapper.find('[role="status"]').exists()).toBe(false);
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+      expect(wrapper.text()).toBe('');
+    });
+  });
+
+  describe('status panel layout', () => {
+    it('the summary and the call-to-action sit in one row from @tablet: (stacked below it)', async () => {
+      const wrapper = await mountStatus('shipped');
+      const heading = wrapper.get('h2');
+      // The row wrapper is the heading's grandparent: h2 -> summary column -> row.
+      const row = heading.element.parentElement!.parentElement!;
+      expect(row.classList.contains('flex-col')).toBe(true);
+      expect(row.classList.contains('@tablet:flex-row')).toBe(true);
+    });
   });
 
   it('carries no motion class anywhere', async () => {

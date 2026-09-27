@@ -487,6 +487,7 @@ export const isIS = {
     completed: ', lokið',
     notYet: ', ekki enn',
     inProgress: 'Í vinnslu',
+    estimated: 'Áætl. {date}',
     items: 'Vörur',
     showAllItems: 'Sýna allar {count} vörur',
     qty: 'Fjöldi {count}',

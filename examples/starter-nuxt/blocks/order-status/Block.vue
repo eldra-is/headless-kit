@@ -45,16 +45,35 @@
  * per-block helper `contact`'s `successText` uses) — CMS content, not a `useT()` key.
  *
  * **Delayed step wording.** A `warning` step (`order.steps[].state`) is the tracker's active
- * position, the same as `current` (both get the ring and `aria-current="step"`), but its date text
- * reads the literal word "Delayed" (`storefront.orderStatus.delayed`, reused rather than a new
- * key) instead of a formatted date — spec → Variants, delayed row. A `current` step with no date
- * yet (`processing`'s `packed` step) reads `order.inProgress` instead.
+ * position, the same as `current` (both get the ring and `aria-current="step"`) and its marker
+ * stays the alert-triangle/warning disc the spec's Variants table describes ("The current step
+ * becomes a warning disc with alert-triangle"). Its *date* text is the new estimate
+ * (`order.estimated`, "Est. {date}") rather than the literal word "Delayed" — spec's own worked
+ * default content is explicit about this ("Delay note: … New estimate: Monday 30 September …
+ * (Delivered step: Est. 30 Sept)"), and the estimate is not otherwise lost: `delayNote`'s own alert
+ * and `carrierEtaLine` above the tracker both still carry it, but the tracker row itself now
+ * matches that worked example instead of restating the Variants table's more general "reads
+ * 'Delayed'" phrasing, which the demo fixture's `delivered`-is-the-only-warning-step shape turns
+ * into the same row. A `current` step with no date yet (`processing`'s `packed` step) reads
+ * `order.inProgress` instead.
+ *
+ * **Badge tone.** `Badge`'s `outline` prop replaces its tone-coloured fill with a fixed
+ * `background`/`text-text`/`border-strong` look, independent of `tone` (`Badge.vue`'s own
+ * `colorClass`) — so `pill outline` alone renders every status in the same neutral colour. Each
+ * non-neutral status (`delivered`/`delayed`/`cancelled`) therefore also passes `classes.root` with
+ * that state's own `text-*`/`border-*` utility pair (`STATUS_BADGE_TONE_CLASS`, always a
+ * `--eldra-*`-backed Tailwind colour name, never a literal value) to recolour the icon, word and
+ * border together — `neutral` (`processing`/`shipped`) needs no override, since the `outline`
+ * default already reads as neutral.
+ *
+ * **Loading / error.** `orderResult.pending`/`.error` (the same `StorefrontResult` shape
+ * `product-detail`/`search`/`collection-grid` read for their own async fetch) drive a `Skeleton`
+ * placeholder or an `EmptyState variant="error"` whenever there is a real order token in the URL
+ * but no order (yet, or ever) to show — `showStatus` below. With no token at all, the block still
+ * renders nothing live (no required content), the same as before.
  *
  * **Deviations resolved while implementing (visual detail the spec describes but the order data
- * contract does not carry, or that conflicts with the package's own frozen recipe):**
- *  - The badge's "1px border in the badge's own colour" is `Badge`'s own `outline` look (a
- *    `border-strong` boundary on `background`) rather than a hand-tinted border color the
- *    component has no prop for.
+ * contract does not carry):**
  *  - `deliveredText`'s "follows the carrier's delivery note ('Left at the front door.') when there
  *    is one" has no field on `StorefrontOrder` to read that note from — only `delayNote`/
  *    `cancelNote` exist — so `deliveredText` renders verbatim, with no such note prepended.
@@ -68,10 +87,12 @@ import {
   Badge,
   Button,
   Container,
+  EmptyState,
   Image,
   Link,
   Price,
   Section,
+  Skeleton,
   VisuallyHidden,
   formatDate,
   type BadgeTone,
@@ -131,6 +152,16 @@ const order = computed<StorefrontOrder | null>(() => {
   if (orderResult.data.value) return orderResult.data.value;
   return editing.value ? buildOrder('shipped') : null;
 });
+
+/** See the module doc comment's "Loading / error" section — a real token in the URL, but the
+ *  fetch it drives is still in flight or failed (never true while `order` already has a value,
+ *  which includes the editor's own demo-order fallback above). */
+const showStatus = computed(
+  () =>
+    orderTokenRef.value !== null &&
+    !order.value &&
+    (orderResult.pending.value || orderResult.error.value !== null)
+);
 
 /* ------------------------------------------------------------------------------------------- */
 /* Icon name → bound component adapter (see the module doc comment's "Icons" section)             */
@@ -204,6 +235,16 @@ const STATUS_WORD_KEY: Record<StorefrontOrderStatus, MessageKey> = {
   cancelled: 'storefront.orderStatus.cancelled',
 };
 
+/** See the module doc comment's "Badge tone" section: `Badge`'s `outline` look ignores `tone`
+ *  entirely, so every non-neutral status needs its own `text-*`/`border-*` override to actually
+ *  show its colour. `neutral` (`processing`/`shipped`) needs none — `outline`'s own default is
+ *  already the right look for it. */
+const STATUS_BADGE_TONE_CLASS: Partial<Record<StorefrontOrderStatus, string>> = {
+  delivered: 'text-success border-success',
+  delayed: 'text-warning border-warning',
+  cancelled: 'text-danger border-danger',
+};
+
 const statusIcon = computed(() =>
   order.value ? resolveIconComponent(STATUS_ICON_NAME[order.value.status]) : null
 );
@@ -211,6 +252,10 @@ const statusTone = computed<BadgeTone>(() =>
   order.value ? STATUS_TONE[order.value.status] : 'neutral'
 );
 const statusWord = computed(() => (order.value ? t(STATUS_WORD_KEY[order.value.status]) : ''));
+const statusBadgeClasses = computed(() => {
+  const override = order.value ? STATUS_BADGE_TONE_CLASS[order.value.status] : undefined;
+  return override ? { root: override } : undefined;
+});
 
 /* ------------------------------------------------------------------------------------------- */
 /* Status panel: title, text, carrier/ETA, alert, call to action                                 */
@@ -314,9 +359,14 @@ const steps = computed<StepView[]>(() => {
     const isDone = step.state === 'done';
     const isCurrent = step.state === 'current';
     let dateText = '';
-    if (isWarning) dateText = t('storefront.orderStatus.delayed');
-    else if (step.date) dateText = formatDate(step.date, locale.value) ?? '';
-    else if (isCurrent) dateText = t('order.inProgress');
+    if (isWarning) {
+      const formatted = step.date ? formatDate(step.date, locale.value) : null;
+      if (formatted) dateText = t('order.estimated', { date: formatted });
+    } else if (step.date) {
+      dateText = formatDate(step.date, locale.value) ?? '';
+    } else if (isCurrent) {
+      dateText = t('order.inProgress');
+    }
     return {
       key: step.key,
       label: t(STEP_LABEL_KEY[step.key]),
@@ -465,7 +515,14 @@ const helpLinks = computed<HelpLinkView[]>(() =>
           </h1>
           <p v-if="placedLine" class="text-muted mt-2 text-base">{{ placedLine }}</p>
         </div>
-        <Badge pill outline :tone="statusTone" :icon="statusIcon" class="shrink-0">
+        <Badge
+          pill
+          outline
+          :tone="statusTone"
+          :icon="statusIcon"
+          :classes="statusBadgeClasses"
+          class="shrink-0"
+        >
           <VisuallyHidden>{{ t('order.statusPrefix') }}</VisuallyHidden
           >{{ statusWord }}
         </Badge>
@@ -477,56 +534,60 @@ const helpLinks = computed<HelpLinkView[]>(() =>
           <div
             class="bg-surface @tablet:px-8 @tablet:pt-6 @tablet:pb-8 flex flex-col gap-6 rounded-lg p-5"
           >
-            <div class="flex flex-col gap-2">
-              <h2 class="text-h4">{{ panelTitle }}</h2>
-              <p v-if="hasPanelText" class="text-muted text-base">{{ panelText }}</p>
-              <p v-if="hasCarrierEta" class="text-muted text-base">{{ carrierEtaLine }}</p>
-              <div
-                v-if="hasAlert"
-                role="status"
-                class="bg-background mt-2 flex items-start gap-2 rounded-md p-3"
-                :class="alertIsDanger ? 'text-danger' : 'text-warning'"
-              >
-                <component
-                  :is="alertIcon"
-                  class="mt-0.5 size-5 shrink-0"
-                  aria-hidden="true"
-                  focusable="false"
-                />
-                <p class="text-base">{{ alertText }}</p>
+            <div
+              class="@tablet:flex-row @tablet:flex-wrap @tablet:items-start @tablet:justify-between flex flex-col gap-6"
+            >
+              <div class="@tablet:max-w-[34rem] @tablet:min-w-[18rem] flex flex-col gap-2">
+                <h2 class="text-h4">{{ panelTitle }}</h2>
+                <p v-if="hasPanelText" class="text-muted text-base">{{ panelText }}</p>
+                <p v-if="hasCarrierEta" class="text-muted text-base">{{ carrierEtaLine }}</p>
+                <div
+                  v-if="hasAlert"
+                  role="status"
+                  class="bg-background mt-2 flex items-start gap-2 rounded-md p-3"
+                  :class="alertIsDanger ? 'text-danger' : 'text-warning'"
+                >
+                  <component
+                    :is="alertIcon"
+                    class="mt-0.5 size-5 shrink-0"
+                    aria-hidden="true"
+                    focusable="false"
+                  />
+                  <p class="text-base">{{ alertText }}</p>
+                </div>
               </div>
-            </div>
 
-            <div v-if="ctaKind">
-              <Button
-                v-if="ctaKind === 'track'"
-                variant="outline"
-                :href="trackingHref!"
-                target="_blank"
-                rel="noopener noreferrer"
-                :icon-right="TrackIcon"
-              >
-                {{ t('order.trackPackage')
-                }}<VisuallyHidden>{{ t('order.trackOpens') }}</VisuallyHidden>
-              </Button>
-              <Button
-                v-else-if="ctaKind === 'return'"
-                variant="outline"
-                :href="returnHref!"
-                :as="returnLinkAs"
-                :icon-left="ReturnIcon"
-              >
-                {{ returnLabel }}
-              </Button>
-              <Button
-                v-else
-                variant="outline"
-                :href="shopAgainHref!"
-                :as="shopAgainLinkAs"
-                :icon-right="ShopAgainIcon"
-              >
-                {{ shopAgainLabel }}
-              </Button>
+              <div v-if="ctaKind">
+                <Button
+                  v-if="ctaKind === 'track'"
+                  variant="outline"
+                  :href="trackingHref!"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :icon-right="TrackIcon"
+                >
+                  {{ t('order.trackPackage')
+                  }}<VisuallyHidden>{{ t('order.trackOpens') }}</VisuallyHidden>
+                </Button>
+                <Button
+                  v-else-if="ctaKind === 'return'"
+                  variant="outline"
+                  :href="returnHref!"
+                  :as="returnLinkAs"
+                  :icon-left="ReturnIcon"
+                >
+                  {{ returnLabel }}
+                </Button>
+                <Button
+                  v-else
+                  variant="outline"
+                  :href="shopAgainHref!"
+                  :as="shopAgainLinkAs"
+                  :icon-right="ShopAgainIcon"
+                >
+                  {{ shopAgainLabel }}
+                </Button>
+              </div>
             </div>
 
             <ol
@@ -691,6 +752,20 @@ const helpLinks = computed<HelpLinkView[]>(() =>
           </div>
         </aside>
       </div>
+    </Container>
+  </Section>
+
+  <Section v-else-if="showStatus" background="none" spacing="md">
+    <Container width="content">
+      <div v-if="orderResult.pending.value" class="flex flex-col gap-6">
+        <div class="flex flex-col gap-2">
+          <Skeleton variant="title" width="14rem" :busy-label="t('storefront.loading')" />
+          <Skeleton variant="text" width="10rem" />
+        </div>
+        <Skeleton variant="media" ratio="16x9" />
+        <Skeleton variant="text" :lines="3" />
+      </div>
+      <EmptyState v-else variant="error" :title="t('storefront.error')" />
     </Container>
   </Section>
 </template>
