@@ -126,6 +126,15 @@ describe('image block', () => {
       expect(wrapper.find('figcaption a').exists()).toBe(false);
     });
 
+    it('names the link with linkLabel when the image is decorative, so the link is never nameless', async () => {
+      const wrapper = mountImage({ ...linked, decorative: true });
+      const link = wrapper.get('a');
+      expect(link.get('img').attributes('alt')).toBe('');
+      expect(link.attributes('aria-label')).toBe(linked.linkLabel);
+      expect(mountImage(linked).get('a').attributes('aria-label')).toBeUndefined();
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
     it("is a real <a href>, so Tab and Enter are the platform's own way to reach and activate it", () => {
       const wrapper = mount(Block, { ...mountOptions({ entry: { id: 'e1', data: linked } }) });
       trackedWrappers.push(wrapper);

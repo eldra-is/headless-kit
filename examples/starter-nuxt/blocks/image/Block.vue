@@ -27,7 +27,9 @@
  *
  * **Link.** A `link` wraps the image only, never the caption (global constraints: a top-level link
  * is the `linkLabel`/`linkHref` string pair). Its accessible name comes from the image's own `alt`
- * — `Link`'s slot holds nothing else — so `linkLabel` is never rendered as visible or audible text;
+ * — `Link`'s slot holds nothing else — so `linkLabel` is not rendered as visible text; it becomes
+ * the link's `aria-label` only when the image is `decorative` (an empty `alt` would otherwise leave
+ * the link nameless);
  * the spec's own instruction is to "write it \[the alt text\] as a destination" instead (default
  * content: "Shop the linen tea towels"-style copy lives in `alt`, not in a separate label). The
  * focus ring follows the image's own corners (`LINK_RADIUS_CLASS`, mirroring the frame's radius)
@@ -125,6 +127,11 @@ const captionClass = computed(() => (captionCentered.value ? 'mx-auto text-cente
 
 const linkHref = computed(() => safeHref(data.value.linkHref));
 const hasLink = computed(() => Boolean(data.value.linkLabel) && linkHref.value !== null);
+/** A decorative image has `alt=""`, which would leave a link around it with no accessible name at
+ *  all (WCAG 2.4.4); only then does `linkLabel` step in as the link's own name. */
+const linkAriaLabel = computed(() =>
+  hasLink.value && alt.value === '' ? data.value.linkLabel : undefined
+);
 const linkAs = computed(() =>
   linkHref.value !== null && isInternalHref(linkHref.value) ? EldraRouterLink : undefined
 );
@@ -151,6 +158,7 @@ const linkRootClass = computed(() =>
           :href="linkHref!"
           :as="linkAs"
           :underline="false"
+          :aria-label="linkAriaLabel"
           :classes="{ root: linkRootClass }"
         >
           <UiImage
@@ -199,6 +207,7 @@ const linkRootClass = computed(() =>
           :href="linkHref!"
           :as="linkAs"
           :underline="false"
+          :aria-label="linkAriaLabel"
           :classes="{ root: linkRootClass }"
         >
           <UiImage
