@@ -63,6 +63,17 @@ declare global {
       showCurrent?: boolean;
       container?: 'wide' | 'content';
     };
+    cart: {
+      variant: 'drawer' | 'page';
+      freeShippingThreshold?: string;
+      showDiscountField?: boolean;
+      showPaymentIcons?: boolean;
+      note?: string;
+      emptyTitle?: string;
+      emptyText?: string;
+      emptyLinkLabel?: string;
+      emptyLinkHref?: string;
+    };
     'collection-grid': {
       collectionHandle?: string;
       variant: 'sidebar' | 'drawer-only';

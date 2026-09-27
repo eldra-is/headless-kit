@@ -85,14 +85,32 @@ async function screenshotBlock(page, baseUrl, id) {
     Array.from(document.images).every((img) => img.complete || img.loading === 'lazy')
   );
 
+  // An entrance animation must finish before the frame is captured — the `cart` drawer slides in
+  // from the right, and a screenshot taken mid-slide shows the panel hanging off the edge. Capped,
+  // and failure is ignored on purpose: a deliberately endless animation (a spinner) must not stop a
+  // preview from being written.
+  await page
+    .waitForFunction(
+      () => document.getAnimations().every((animation) => animation.playState !== 'running'),
+      undefined,
+      { timeout: 2000 }
+    )
+    .catch(() => {});
+
   const root = page.locator('#storybook-root');
   const box = await root.boundingBox();
   if (box === null) throw new Error(`[eldra] blocks/${id}: #storybook-root has no layout box`);
 
-  await page.screenshot({
-    path: join(blocksDir, id, 'preview.png'),
-    clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 900) },
-  });
+  // A block whose only output is a top-layer modal (`cart`'s drawer variant is a `<dialog>`) leaves
+  // `#storybook-root` itself zero-height, because the dialog paints outside the normal flow — and a
+  // zero-sized clip is not a screenshot Playwright can take. Fall back to the viewport, which is
+  // where such a block actually renders.
+  const clip =
+    box.width > 0 && box.height > 0
+      ? { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 900) }
+      : undefined;
+
+  await page.screenshot({ path: join(blocksDir, id, 'preview.png'), clip });
 }
 
 async function main() {

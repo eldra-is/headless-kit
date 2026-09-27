@@ -4,7 +4,7 @@ import { createEldraClient } from '@eldrajs/theme-core';
 import { provideEldra } from '@eldrajs/theme-vue';
 import { provideEldraUiCurrency, provideEldraUiLocale, provideEldraUiMessages } from '@eldrajs/ui';
 import { currencyFor, uiMessagesFor } from '../app/i18n/uiMessages';
-import { createDemoStorefront } from '../app/storefront/demo';
+import { createDemoStorefront, DEMO_CART_LINES } from '../app/storefront/demo';
 import { STOREFRONT_KEY } from '../app/storefront/types';
 
 /**
@@ -43,7 +43,15 @@ export const withEldraContext: Decorator = (story) => ({
     provideEldraUiMessages(uiMessagesFor(context.preview.locale));
     provideEldraUiLocale(context.preview.locale);
     provideEldraUiCurrency(currencyFor(context.preview.locale));
-    provide(STOREFRONT_KEY, createDemoStorefront({ query: 'linen' }));
+    // The demo cart starts empty (a real shopper's first visit), which would leave the `cart`
+    // block's stories showing only its empty state — and its `drawer` story showing nothing at all,
+    // since a closed `<dialog>` draws nothing. Seeding the spec's own cart content and opening the
+    // drawer is what makes both stories (and the screenshots taken from them) show the real thing;
+    // no other block renders that drawer, so nothing else is affected by it being open. The demo
+    // search query gives the `search` block's stories something to show for the same reason.
+    const storefront = createDemoStorefront({ query: 'linen', cartLines: DEMO_CART_LINES });
+    storefront.cart.drawerOpen.value = true;
+    provide(STOREFRONT_KEY, storefront);
     return {};
   },
   template: '<story />',

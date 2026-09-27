@@ -26,6 +26,7 @@ const expectedBlocks = [
   'article',
   'article-list',
   'breadcrumbs',
+  'cart',
   'collection-grid',
   'collection-header',
   'contact',
@@ -364,6 +365,17 @@ describe('starter theme', () => {
         'suggestionsPerGroup',
         'popularSearches',
         'noResultsCollection',
+      ],
+      cart: [
+        'variant',
+        'freeShippingThreshold',
+        'showDiscountField',
+        'showPaymentIcons',
+        'note',
+        'emptyTitle',
+        'emptyText',
+        'emptyLinkLabel',
+        'emptyLinkHref',
       ],
     });
 

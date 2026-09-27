@@ -540,10 +540,56 @@ function buildSearchResponse(query: string): StorefrontSearchResponse {
 // items to).
 // ---------------------------------------------------------------------------------------------
 
-function createDemoCartOps(): CartOps {
-  let lines: StorefrontCartLine[] = [];
+/**
+ * The cart the `cart` block's own stories and specs render (spec `02-blocks.md` "Cart" →
+ * "Default content": Merino crew sweater · Oat / M · $96.00, Speckled latte mug · Clay · $28.00
+ * each × 2, Walnut serving board · Large, 45 cm · $58.00 — $210.00, over the $80 free-shipping
+ * threshold). Seeded through `createDemoStorefront({ cartLines })`: the demo cart is empty by
+ * default, the same as a real shopper's first visit, so nothing else changes by this existing.
+ */
+export const DEMO_CART_LINES: StorefrontCartLine[] = [
+  {
+    id: 'demo-cart-1',
+    variantId: 'merino-crew-sweater::oat::m',
+    title: 'Merino crew sweater',
+    url: '/products/merino-crew-sweater',
+    variantLabel: 'Oat / M',
+    quantity: 1,
+    unitPrice: 9600,
+    lineTotal: 9600,
+    image: demoImage(1, 'Merino crew sweater'),
+    max: null,
+  },
+  {
+    id: 'demo-cart-2',
+    variantId: 'speckled-latte-mug::clay',
+    title: 'Speckled latte mug',
+    url: '/products/speckled-latte-mug',
+    variantLabel: 'Clay',
+    quantity: 2,
+    unitPrice: 2800,
+    lineTotal: 5600,
+    image: demoImage(6, 'Speckled latte mug'),
+    max: null,
+  },
+  {
+    id: 'demo-cart-3',
+    variantId: 'walnut-serving-board::large',
+    title: 'Walnut serving board',
+    url: '/products/walnut-serving-board',
+    variantLabel: 'Large, 45 cm',
+    quantity: 1,
+    unitPrice: 5800,
+    lineTotal: 5800,
+    image: demoImage(8, 'Walnut serving board'),
+    max: null,
+  },
+];
+
+function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
+  let lines: StorefrontCartLine[] = seedLines.map((line) => ({ ...line }));
   let discount: { code: string; amount: number } | null = null;
-  let nextLineId = 1;
+  let nextLineId = lines.length + 1;
   const checkoutUrl = ref<string | null>(null);
 
   function computeTotals(): StorefrontCartTotals {
@@ -651,6 +697,8 @@ export interface DemoStorefrontOptions {
   collectionHandle?: string;
   productHandle?: string;
   failForms?: boolean;
+  /** Seeds the cart with these lines, e.g. `DEMO_CART_LINES` — the demo cart is empty otherwise. */
+  cartLines?: StorefrontCartLine[];
 }
 
 /** Northwind fixtures in the theme's own view types — the "knobs" are exactly what a block spec
@@ -732,7 +780,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
     ready: ref(true),
     route,
     catalog,
-    cart: createCartStore(createDemoCartOps()),
+    cart: createCartStore(createDemoCartOps(options.cartLines ?? [])),
     search,
     orders,
     forms,

@@ -1,0 +1,11 @@
+{
+  "variant": "drawer",
+  "freeShippingThreshold": "80.00",
+  "showDiscountField": true,
+  "showPaymentIcons": true,
+  "note": "Taxes and shipping calculated at checkout.",
+  "emptyTitle": "Your cart is empty",
+  "emptyText": "Winter knitwear is back in stock, and orders over $80 ship free.",
+  "emptyLinkLabel": "Continue shopping",
+  "emptyLinkHref": "/collections/all"
+}

@@ -1,0 +1,74 @@
+{
+  "apiId": "cart",
+  "name": "Cart",
+  "description": "The shopper's cart as a slide-in drawer or a full page: editable line items, a free-shipping progress note, discount codes, totals and checkout.",
+  "icon": "shopping-bag",
+  "category": "commerce",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "drawer opens from the header bag; page is the full cart page.",
+      "metadata": {
+        "options": ["drawer", "page"]
+      },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "freeShippingThreshold",
+      "name": "Free shipping threshold",
+      "type": "string",
+      "helpText": "Major units, e.g. 80.00. Empty hides the shipping bar. Must match the backend rules."
+    },
+    {
+      "fieldId": "showDiscountField",
+      "name": "Show discount field",
+      "type": "bool",
+      "default": true,
+      "helpText": "page variant only."
+    },
+    {
+      "fieldId": "showPaymentIcons",
+      "name": "Show payment icons",
+      "type": "bool",
+      "default": true,
+      "helpText": "page variant only."
+    },
+    {
+      "fieldId": "note",
+      "name": "Note",
+      "type": "text",
+      "localized": true,
+      "helpText": "Sits under the totals, e.g. what checkout still adds."
+    },
+    {
+      "fieldId": "emptyTitle",
+      "name": "Empty title",
+      "type": "string",
+      "localized": true,
+      "helpText": "Shown with a shopping-bag icon when the cart has no items."
+    },
+    {
+      "fieldId": "emptyText",
+      "name": "Empty text",
+      "type": "text",
+      "localized": true,
+      "helpText": "One or two sentences with the next step."
+    },
+    {
+      "fieldId": "emptyLinkLabel",
+      "name": "Empty link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "The empty state's primary button, e.g. Continue shopping."
+    },
+    {
+      "fieldId": "emptyLinkHref",
+      "name": "Empty link",
+      "type": "string",
+      "helpText": "Where the empty state's button goes, e.g. /collections/all."
+    }
+  ]
+}

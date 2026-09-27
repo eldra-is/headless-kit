@@ -773,6 +773,59 @@ export interface Messages {
     popularHintLabel: string;
     popularHintHelp: string;
   };
+  /**
+   * The cart block's own strings (spec `02-blocks.md` "Cart"). `itemCountOne`/`itemCountMany`
+   * pluralise the live cart count the same way `header.cartOne`/`cartMany` do — the count always
+   * comes from `useStorefront().cart`, never a field. `each` is the suffix after a line's unit
+   * price ("$28.00 each"), rendered next to a `Price`, so the amount itself is never a
+   * hand-built string; `removeItem`/`removeItemVariant` are the two shapes a remove button's name
+   * takes (a line with a variant label names it too, per the spec's "Remove Speckled latte mug,
+   * Clay"); `columnProduct`/`columnQuantity`/`columnTotal` are the `page` variant's `aria-hidden`
+   * column headings, and `lineTotal` the visually hidden label every line total carries instead.
+   * `emptyFallbackTitle` is the functional fallback for an empty-cart heading with no `emptyTitle`
+   * filled in (the same shape as `gallery.carouselFallback`): `EmptyState` needs a title, and the
+   * field's own copy lives in `mock.json`. `drawerHintLabel`/`drawerHintHelp` are the one editor-only hint (`EditorPlaceholder`, gated by
+   * `useEditing()`): a closed drawer draws nothing at all, so the editor needs to be told where the
+   * block is.
+   */
+  cart: {
+    title: string;
+    itemCountOne: string;
+    itemCountMany: string;
+    items: string;
+    viewCart: string;
+    continueShopping: string;
+    summary: string;
+    columnProduct: string;
+    columnQuantity: string;
+    columnTotal: string;
+    lineTotal: string;
+    each: string;
+    quantityFor: string;
+    removeItem: string;
+    removeItemVariant: string;
+    removed: string;
+    undo: string;
+    awayFromFree: string;
+    freeUnlocked: string;
+    discountCode: string;
+    discountPlaceholder: string;
+    apply: string;
+    applied: string;
+    removeCode: string;
+    invalidCode: string;
+    subtotal: string;
+    discount: string;
+    shipping: string;
+    shippingFree: string;
+    shippingPending: string;
+    total: string;
+    checkout: string;
+    paymentsAccepted: string;
+    emptyFallbackTitle: string;
+    drawerHintLabel: string;
+    drawerHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */
