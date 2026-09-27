@@ -39,6 +39,7 @@ const expectedBlocks = [
   'split-content',
   'stats',
   'testimonials',
+  'timeline',
   'video-embed',
 ];
 
@@ -217,6 +218,16 @@ describe('starter theme', () => {
         'transcriptLabel',
         'transcriptHref',
         'privacyNote',
+        'sectionBackground',
+      ],
+      timeline: [
+        'variant',
+        'heading',
+        'intro',
+        'linkLabel',
+        'linkHref',
+        'items',
+        'columns',
         'sectionBackground',
       ],
     });

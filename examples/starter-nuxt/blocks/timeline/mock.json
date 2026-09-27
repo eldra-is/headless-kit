@@ -1,0 +1,27 @@
+{
+  "variant": "steps",
+  "heading": "How a Northwind blanket is made",
+  "intro": "Four stages, one state, nothing rushed.",
+  "linkLabel": "Shop blankets",
+  "linkHref": "/collections/blankets",
+  "items": [
+    {
+      "title": "Fleece from two farms",
+      "text": "Wool from two Willamette Valley flocks, bought at a fair price each spring."
+    },
+    {
+      "title": "Spun in Oregon",
+      "text": "A family mill in Salem spins it into a soft two-ply yarn, undyed or dyed in small lots."
+    },
+    {
+      "title": "Woven on a 1960s loom",
+      "text": "Aiko weaves each throw on a restored Dobcross loom. About three hours a blanket."
+    },
+    {
+      "title": "Finished by hand",
+      "text": "Washed, brushed and checked twice before it is folded into tissue and boxed for you."
+    }
+  ],
+  "columns": "auto",
+  "sectionBackground": "none"
+}

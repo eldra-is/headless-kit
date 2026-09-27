@@ -213,4 +213,11 @@ export const enUS = {
     urlHintLabel: 'Paste a YouTube or Vimeo link',
     urlHintHelp: 'Or an MP4 from the media library.',
   },
+  timeline: {
+    step: 'Step {n}: ',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'Optional intro and link',
+    itemHintLabel: 'Add a step',
+    itemHintHelp: 'Title and short description',
+  },
 } satisfies Messages;

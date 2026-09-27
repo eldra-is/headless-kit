@@ -3204,6 +3204,160 @@
       "previewImage": ".eldra/previews/testimonials.png"
     },
     {
+      "apiId": "timeline",
+      "name": "Timeline",
+      "description": "Numbered process steps or dated milestones that read left to right on desktop and top to bottom on mobile.",
+      "icon": "timeline",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "steps is the default. history shows a year above each title instead of a number.",
+          "metadata": {
+            "options": [
+              "steps",
+              "history"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Rendered as an h2.",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "intro",
+          "name": "Intro",
+          "type": "text",
+          "localized": true,
+          "helpText": "One or two sentences. Hidden when empty."
+        },
+        {
+          "fieldId": "linkLabel",
+          "name": "Link label",
+          "type": "string",
+          "localized": true,
+          "helpText": "Standalone link at the right of the header, e.g. \"Shop blankets\"."
+        },
+        {
+          "fieldId": "linkHref",
+          "name": "Link URL",
+          "type": "string"
+        },
+        {
+          "fieldId": "items",
+          "name": "Items",
+          "type": "list",
+          "helpText": "3 to 6 recommended. 1 to 12 supported.",
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Item",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "year",
+                    "name": "Year",
+                    "type": "string",
+                    "helpText": "history only, e.g. \"2014\". Shown above the title in accent."
+                  },
+                  {
+                    "fieldId": "title",
+                    "name": "Title",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Rendered as an h3. Up to about 40 characters.",
+                    "validators": {
+                      "required": true,
+                      "maxLength": 40
+                    }
+                  },
+                  {
+                    "fieldId": "text",
+                    "name": "Text",
+                    "type": "text",
+                    "localized": true,
+                    "helpText": "One or two sentences."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "columns",
+          "name": "Columns",
+          "type": "select",
+          "helpText": "auto is the default (the number of items, max 4). Horizontal layout only.",
+          "metadata": {
+            "options": [
+              "auto",
+              "3",
+              "4",
+              "5"
+            ]
+          }
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "variant": "steps",
+        "heading": "How a Northwind blanket is made",
+        "intro": "Four stages, one state, nothing rushed.",
+        "linkLabel": "Shop blankets",
+        "linkHref": "/collections/blankets",
+        "items": [
+          {
+            "title": "Fleece from two farms",
+            "text": "Wool from two Willamette Valley flocks, bought at a fair price each spring."
+          },
+          {
+            "title": "Spun in Oregon",
+            "text": "A family mill in Salem spins it into a soft two-ply yarn, undyed or dyed in small lots."
+          },
+          {
+            "title": "Woven on a 1960s loom",
+            "text": "Aiko weaves each throw on a restored Dobcross loom. About three hours a blanket."
+          },
+          {
+            "title": "Finished by hand",
+            "text": "Washed, brushed and checked twice before it is folded into tissue and boxed for you."
+          }
+        ],
+        "columns": "auto",
+        "sectionBackground": "none"
+      },
+      "previewImage": ".eldra/previews/timeline.png"
+    },
+    {
       "apiId": "video-embed",
       "name": "Video embed",
       "description": "A 16:9 video behind a poster and a real play button. The provider's player loads only when the visitor activates play, never on page load. Comes with a caption, a transcript link and a privacy note.",

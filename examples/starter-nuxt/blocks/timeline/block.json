@@ -1,0 +1,99 @@
+{
+  "apiId": "timeline",
+  "name": "Timeline",
+  "description": "Numbered process steps or dated milestones that read left to right on desktop and top to bottom on mobile.",
+  "icon": "timeline",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "steps is the default. history shows a year above each title instead of a number.",
+      "metadata": { "options": ["steps", "history"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Rendered as an h2.",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true,
+      "helpText": "One or two sentences. Hidden when empty."
+    },
+    {
+      "fieldId": "linkLabel",
+      "name": "Link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Standalone link at the right of the header, e.g. \"Shop blankets\"."
+    },
+    {
+      "fieldId": "linkHref",
+      "name": "Link URL",
+      "type": "string"
+    },
+    {
+      "fieldId": "items",
+      "name": "Items",
+      "type": "list",
+      "helpText": "3 to 6 recommended. 1 to 12 supported.",
+      "validators": { "required": true },
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Item",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "year",
+                "name": "Year",
+                "type": "string",
+                "helpText": "history only, e.g. \"2014\". Shown above the title in accent."
+              },
+              {
+                "fieldId": "title",
+                "name": "Title",
+                "type": "string",
+                "localized": true,
+                "helpText": "Rendered as an h3. Up to about 40 characters.",
+                "validators": { "required": true, "maxLength": 40 }
+              },
+              {
+                "fieldId": "text",
+                "name": "Text",
+                "type": "text",
+                "localized": true,
+                "helpText": "One or two sentences."
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "columns",
+      "name": "Columns",
+      "type": "select",
+      "helpText": "auto is the default (the number of items, max 4). Horizontal layout only.",
+      "metadata": { "options": ["auto", "3", "4", "5"] }
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default.",
+      "metadata": { "options": ["none", "surface", "surface-strong"] }
+    }
+  ]
+}

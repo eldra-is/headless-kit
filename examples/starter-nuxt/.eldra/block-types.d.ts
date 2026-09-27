@@ -187,6 +187,16 @@ declare global {
       items: Array<{ quote: string; name: string; meta?: string; avatar?: EldraMedia; rating?: 'none' | '1' | '2' | '3' | '4' | '5'; productLabel?: string; productHref?: string }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary';
     };
+    timeline: {
+      variant: 'steps' | 'history';
+      heading: string;
+      intro?: string;
+      linkLabel?: string;
+      linkHref?: string;
+      items: Array<{ year?: string; title: string; text?: string }>;
+      columns?: 'auto' | '3' | '4' | '5';
+      sectionBackground?: 'none' | 'surface' | 'surface-strong';
+    };
     'video-embed': {
       variant: 'contained' | 'split';
       heading?: string;

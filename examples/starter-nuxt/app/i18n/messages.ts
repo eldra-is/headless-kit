@@ -363,6 +363,22 @@ export interface Messages {
     urlHintLabel: string;
     urlHintHelp: string;
   };
+  /**
+   * The timeline block's own strings (spec `02-blocks.md` "Timeline" → Keyboard & accessibility,
+   * States): `step` is read immediately before each `steps`-variant item's visible title (see
+   * `blocks/timeline/Block.vue`) — the same "bake the join into the hidden string" convention
+   * `pricing.included` uses, so it carries its own trailing space rather than relying on template
+   * whitespace to add one. The last four are the two editor-only hints (`EditorPlaceholder`, gated
+   * by `useEditing()`) for a freshly inserted block's empty heading and empty item list (spec →
+   * States, "Empty (freshly inserted)").
+   */
+  timeline: {
+    step: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

@@ -213,4 +213,11 @@ export const isIS = {
     urlHintLabel: 'Límdu inn YouTube- eða Vimeo-tengil',
     urlHintHelp: 'Eða MP4-skrá úr efnissafninu.',
   },
+  timeline: {
+    step: 'Skref {n}: ',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Valfrjáls inngangur og tengill',
+    itemHintLabel: 'Bættu við skrefi',
+    itemHintHelp: 'Titill og stutt lýsing',
+  },
 } satisfies Messages;
