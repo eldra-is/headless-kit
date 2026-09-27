@@ -138,4 +138,14 @@ export const isIS = {
     itemHintHelp: 'Spurning og svar. Bættu við eins mörgum og þú þarft.',
     richTextTableLabel: 'Tafla',
   },
+  pricing: {
+    mostPopular: 'Vinsælast',
+    included: 'Innifalið: ',
+    notIncluded: 'Ekki innifalið: ',
+    includedIn: 'Það sem er innifalið í {name}',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    introHintLabel: 'Bættu við inngangi (valfrjálst)',
+    planHintLabel: 'Bættu við áskriftarleið',
+    planHintHelp: 'Nafn, verð, greiðslutímabil, hnapp og eiginleika.',
+  },
 } satisfies Messages;

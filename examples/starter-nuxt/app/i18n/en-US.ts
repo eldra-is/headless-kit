@@ -138,4 +138,14 @@ export const enUS = {
     itemHintHelp: 'Question and answer. Add as many as you need.',
     richTextTableLabel: 'Table',
   },
+  pricing: {
+    mostPopular: 'Most popular',
+    included: 'Included: ',
+    notIncluded: 'Not included: ',
+    includedIn: "What's included in {name}",
+    headingHintLabel: 'Add a heading',
+    introHintLabel: 'Add an intro (optional)',
+    planHintLabel: 'Add a plan',
+    planHintHelp: 'Name, price, billing period, button and feature rows.',
+  },
 } satisfies Messages;

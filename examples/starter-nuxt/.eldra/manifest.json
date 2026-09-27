@@ -2048,6 +2048,270 @@
       "previewImage": ".eldra/previews/navigation.png"
     },
     {
+      "apiId": "pricing-table",
+      "name": "Pricing table",
+      "description": "Side-by-side subscription or service plans, each with a price, billing note, a call to action and a checklist of feature rows. One plan can be highlighted.",
+      "icon": "receipt",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Rendered as an h2, centred.",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "intro",
+          "name": "Intro",
+          "type": "text",
+          "localized": true,
+          "helpText": "One or two sentences. Hidden when empty."
+        },
+        {
+          "fieldId": "featureRows",
+          "name": "Feature rows",
+          "type": "list",
+          "helpText": "The shared rows every plan is compared on, in order. 3 to 8.",
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Feature row",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "For example \"Free US delivery\".",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "plans",
+          "name": "Plans",
+          "type": "list",
+          "helpText": "1 to 4 (3 is ideal).",
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Plan",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "name",
+                    "name": "Name",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Rendered as an h3, for example \"Seasonal\".",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "description",
+                    "name": "Description",
+                    "type": "text",
+                    "localized": true,
+                    "helpText": "One sentence."
+                  },
+                  {
+                    "fieldId": "price",
+                    "name": "Price",
+                    "type": "string",
+                    "helpText": "Pre-formatted with currency, e.g. \"$105\". Can bind to a subscription product price.",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "period",
+                    "name": "Period",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "For example \"/ month\", \"/ 3 months\", \"/ year\".",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "note",
+                    "name": "Note",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Billing detail, e.g. \"$35 a box, billed each season.\""
+                  },
+                  {
+                    "fieldId": "ctaLabel",
+                    "name": "Button label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "ctaHref",
+                    "name": "Button link",
+                    "type": "string",
+                    "helpText": "Selling plan or cart permalink.",
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "included",
+                    "name": "Included",
+                    "type": "list",
+                    "helpText": "One checkbox per feature row, in the same order. A short list treats the missing rows as not included.",
+                    "validators": {
+                      "required": true
+                    },
+                    "metadata": {
+                      "item": {
+                        "fieldId": "value",
+                        "name": "Included",
+                        "type": "bool"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "highlightedPlan",
+          "name": "Highlighted plan",
+          "type": "string",
+          "helpText": "Must match a plan name exactly; leave empty for no highlight."
+        },
+        {
+          "fieldId": "highlightLabel",
+          "name": "Highlight label",
+          "type": "string",
+          "localized": true,
+          "helpText": "\"Most popular\" is the default."
+        },
+        {
+          "fieldId": "footnote",
+          "name": "Footnote",
+          "type": "string",
+          "localized": true,
+          "helpText": "Tax, shipping or cancellation terms."
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "heading": "Join the Pantry Club",
+        "intro": "Small-batch coffee, preserves and a made-to-use ceramic, delivered each month. Pause or cancel from your account.",
+        "featureRows": [
+          {
+            "label": "A pantry box every month"
+          },
+          {
+            "label": "Free US delivery"
+          },
+          {
+            "label": "Members' prices on seconds sales"
+          },
+          {
+            "label": "Early access to new makers"
+          },
+          {
+            "label": "A hand-thrown mug each winter"
+          }
+        ],
+        "plans": [
+          {
+            "name": "Monthly",
+            "description": "Coffee, preserves and one small kitchen piece, delivered on the first Friday.",
+            "price": "$38",
+            "period": "/ month",
+            "note": "Billed monthly. Skip or cancel any time.",
+            "ctaLabel": "Start monthly",
+            "ctaHref": "/products/pantry-club-monthly",
+            "included": [
+              true,
+              false,
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "name": "Seasonal",
+            "description": "Three boxes a season, timed to what our makers are harvesting and firing.",
+            "price": "$105",
+            "period": "/ 3 months",
+            "note": "$35 a box, billed each season.",
+            "ctaLabel": "Start seasonal",
+            "ctaHref": "/products/pantry-club-seasonal",
+            "included": [
+              true,
+              true,
+              true,
+              true,
+              false
+            ]
+          },
+          {
+            "name": "Annual",
+            "description": "Twelve boxes and a thank-you from the workshop at the start of winter.",
+            "price": "$396",
+            "period": "/ year",
+            "note": "$33 a box, billed once a year.",
+            "ctaLabel": "Start annual",
+            "ctaHref": "/products/pantry-club-annual",
+            "included": [
+              true,
+              true,
+              true,
+              true,
+              true
+            ]
+          }
+        ],
+        "highlightedPlan": "Seasonal",
+        "highlightLabel": "Most popular",
+        "footnote": "Prices include tax. Delivery to Canada and the EU is $6 a box.",
+        "sectionBackground": "none"
+      },
+      "previewImage": ".eldra/previews/pricing-table.png"
+    },
+    {
       "apiId": "split-content",
       "name": "Split content",
       "description": "Rows of image and text that alternate sides, for an \"our process\" or \"about the materials\" story.",

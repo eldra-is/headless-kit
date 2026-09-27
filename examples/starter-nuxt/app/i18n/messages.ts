@@ -250,6 +250,28 @@ export interface Messages {
     itemHintHelp: string;
     richTextTableLabel: string;
   };
+  /**
+   * The pricing-table block's own strings (spec `02-blocks.md` "Pricing table" → Keyboard &
+   * accessibility): `mostPopular` is the `highlightLabel` field's own default, used only while
+   * that optional field is empty; `included`/`notIncluded` are each read immediately before a
+   * feature row's visible label (see `blocks/pricing-table/Block.vue`), so — the same "bake the
+   * join into the hidden string" convention `@eldrajs/ui`'s own `VisuallyHidden` story uses for
+   * its suffix example (`", 2 items"`) — both carry a trailing space of their own rather than
+   * relying on template whitespace to add one; `includedIn` names each plan's own feature list
+   * with the plan's name interpolated in; the last three are the two editor-only hints
+   * (`EditorPlaceholder`, gated by `useEditing()`) for a freshly inserted table's empty heading,
+   * intro and first plan (spec → States, "Empty (freshly inserted)").
+   */
+  pricing: {
+    mostPopular: string;
+    included: string;
+    notIncluded: string;
+    includedIn: string;
+    headingHintLabel: string;
+    introHintLabel: string;
+    planHintLabel: string;
+    planHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

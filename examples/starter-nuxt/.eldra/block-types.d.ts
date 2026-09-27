@@ -122,6 +122,16 @@ declare global {
       sticky?: boolean;
       transparentOverHero?: boolean;
     };
+    'pricing-table': {
+      heading: string;
+      intro?: string;
+      featureRows: Array<{ label: string }>;
+      plans: Array<{ name: string; description?: string; price: string; period: string; note?: string; ctaLabel: string; ctaHref: string; included: Array<boolean> }>;
+      highlightedPlan?: string;
+      highlightLabel?: string;
+      footnote?: string;
+      sectionBackground?: 'none' | 'surface' | 'surface-strong';
+    };
     'split-content': {
       startWith: 'image-left' | 'image-right';
       rows: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;
