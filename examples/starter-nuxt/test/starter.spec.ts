@@ -45,6 +45,7 @@ const expectedBlocks = [
   'team',
   'testimonials',
   'timeline',
+  'trust-strip',
   'video-embed',
 ];
 
@@ -276,6 +277,15 @@ describe('starter theme', () => {
       ],
       team: ['heading', 'intro', 'linkLabel', 'linkHref', 'people', 'sectionBackground'],
       tabs: ['heading', 'intro', 'tabs', 'defaultTab', 'sectionBackground'],
+      'trust-strip': [
+        'variant',
+        'items',
+        'mobileLayout',
+        'showPayments',
+        'paymentsLabel',
+        'payments',
+        'background',
+      ],
     });
 
     // Starter mocks cannot carry organization-specific asset IDs. Keep media

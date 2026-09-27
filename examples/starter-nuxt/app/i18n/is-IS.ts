@@ -287,4 +287,15 @@ export const isIS = {
     bodyHintHelp: 'Sláðu inn skástrik (/) til að fá fyrirsagnir, lista, tilvitnanir og tengla.',
     richTextTableLabel: 'Tafla',
   },
+  trust: {
+    title: 'Af hverju versla hjá Northwind',
+    scrollRegion: 'Af hverju versla hjá okkur, skrunar til hliðar',
+    payments: 'Samþykktar greiðsluleiðir',
+    visa: 'Visa',
+    mastercard: 'Mastercard',
+    paypal: 'PayPal',
+    applePay: 'Apple Pay',
+    itemHintLabel: 'Bættu við loforði',
+    itemHintHelp: 'Tákn, fyrirsögn, ein lína · 3–4 henta best',
+  },
 } satisfies Messages;

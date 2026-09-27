@@ -286,4 +286,15 @@ export const enUS = {
     bodyHintHelp: 'Type / for headings, lists, quotes and links.',
     richTextTableLabel: 'Table',
   },
+  trust: {
+    title: 'Why shop with Northwind',
+    scrollRegion: 'Why shop with us, scrolls sideways',
+    payments: 'Accepted payment methods',
+    visa: 'Visa',
+    mastercard: 'Mastercard',
+    paypal: 'PayPal',
+    applePay: 'Apple Pay',
+    itemHintLabel: 'Add a promise',
+    itemHintHelp: 'Icon, title, one line · 3–4 work best',
+  },
 } satisfies Messages;

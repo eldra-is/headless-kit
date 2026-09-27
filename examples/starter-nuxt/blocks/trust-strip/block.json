@@ -1,0 +1,118 @@
+{
+  "apiId": "trust-strip",
+  "name": "Trust strip",
+  "description": "A quiet strip of 3-4 store promises (shipping, returns, secure payment, handmade), each an icon with a short line, with an optional row of accepted payment marks.",
+  "icon": "shield-check",
+  "category": "commerce",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "columns is the default. columns shows icon, title and one line; inline shows icon and title only, in one centred row.",
+      "metadata": { "options": ["columns", "inline"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "items",
+      "name": "Items",
+      "type": "list",
+      "helpText": "3-4 items. A fifth is not shown.",
+      "validators": { "required": true },
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Promise",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "icon",
+                "name": "Icon",
+                "type": "tabler-icon",
+                "helpText": "For example truck, arrow-back-up, shield-check or needle-thread.",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "title",
+                "name": "Title",
+                "type": "string",
+                "localized": true,
+                "helpText": "2-5 words, e.g. \"30-day returns\".",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "text",
+                "name": "Text",
+                "type": "string",
+                "localized": true,
+                "helpText": "One line, up to about 60 characters. Only shown in the columns variant.",
+                "validators": { "maxLength": 60 }
+              },
+              {
+                "fieldId": "linkLabel",
+                "name": "Link label",
+                "type": "string",
+                "localized": true,
+                "helpText": "Makes the title a link. Used as its accessible name."
+              },
+              { "fieldId": "href", "name": "Link URL", "type": "string" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "mobileLayout",
+      "name": "Mobile layout",
+      "type": "select",
+      "helpText": "grid is the default: a 2x2 grid below 48rem. scroll is a single row that scrolls sideways.",
+      "metadata": { "options": ["grid", "scroll"] }
+    },
+    {
+      "fieldId": "showPayments",
+      "name": "Show payment marks",
+      "type": "bool",
+      "helpText": "On by default."
+    },
+    {
+      "fieldId": "paymentsLabel",
+      "name": "Payments label",
+      "type": "string",
+      "localized": true,
+      "helpText": "\"Secure checkout with\" is the usual choice."
+    },
+    {
+      "fieldId": "payments",
+      "name": "Payment marks",
+      "type": "list",
+      "helpText": "Visa, Mastercard, PayPal and Apple Pay by default. Each renders as a monochrome icon plus a hidden name.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Payment mark",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "brand",
+                "name": "Brand",
+                "type": "select",
+                "metadata": { "options": ["visa", "mastercard", "paypal", "apple-pay"] },
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "background",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "surface is the default.",
+      "metadata": { "options": ["surface", "none"] }
+    }
+  ]
+}

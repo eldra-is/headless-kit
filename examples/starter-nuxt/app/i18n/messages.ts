@@ -514,6 +514,24 @@ export interface Messages {
     bodyHintHelp: string;
     richTextTableLabel: string;
   };
+  /**
+   * The trust-strip block's own strings: the hidden `h2` labelling the section, the accessible
+   * name for the `mobileLayout: "scroll"` scrolling region and for the payment marks list, the
+   * four payment brand names (`apple-pay` renders the `brand-apple` icon but keeps this name — see
+   * `blocks/trust-strip/Block.vue`), and the editor-only hint for a still-empty item (spec
+   * `02-blocks.md` "Trust strip" → States, "Empty (freshly inserted)").
+   */
+  trust: {
+    title: string;
+    scrollRegion: string;
+    payments: string;
+    visa: string;
+    mastercard: string;
+    paypal: string;
+    applePay: string;
+    itemHintLabel: string;
+    itemHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

@@ -253,6 +253,15 @@ declare global {
       columns?: 'auto' | '3' | '4' | '5';
       sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
+    'trust-strip': {
+      variant: 'columns' | 'inline';
+      items: Array<{ icon: string; title: string; text?: string; linkLabel?: string; href?: string }>;
+      mobileLayout?: 'grid' | 'scroll';
+      showPayments?: boolean;
+      paymentsLabel?: string;
+      payments?: Array<{ brand: 'visa' | 'mastercard' | 'paypal' | 'apple-pay' }>;
+      background?: 'surface' | 'none';
+    };
     'video-embed': {
       variant: 'contained' | 'split';
       heading?: string;
