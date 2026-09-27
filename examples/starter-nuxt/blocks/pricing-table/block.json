@@ -27,7 +27,6 @@
       "name": "Feature rows",
       "type": "list",
       "helpText": "The shared rows every plan is compared on, in order. 3 to 8.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",
@@ -53,7 +52,6 @@
       "name": "Plans",
       "type": "list",
       "helpText": "1 to 4 (3 is ideal).",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",
@@ -117,7 +115,6 @@
                 "name": "Included",
                 "type": "list",
                 "helpText": "One checkbox per feature row, in the same order. A short list treats the missing rows as not included.",
-                "validators": { "required": true },
                 "metadata": {
                   "item": { "fieldId": "value", "name": "Included", "type": "bool" }
                 }

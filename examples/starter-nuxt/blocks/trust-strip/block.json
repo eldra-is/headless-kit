@@ -19,7 +19,6 @@
       "name": "Items",
       "type": "list",
       "helpText": "3-4 items. A fifth is not shown.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",

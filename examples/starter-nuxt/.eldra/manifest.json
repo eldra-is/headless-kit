@@ -2129,9 +2129,6 @@
           "name": "Questions",
           "type": "list",
           "description": "3-10 recommended.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -2429,9 +2426,6 @@
           "name": "Items",
           "type": "list",
           "helpText": "1-12 items.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -2626,9 +2620,6 @@
                     "name": "Links",
                     "type": "list",
                     "helpText": "Up to 8 links.",
-                    "validators": {
-                      "required": true
-                    },
                     "metadata": {
                       "item": {
                         "fieldId": "link",
@@ -3029,9 +3020,6 @@
           "name": "Images",
           "type": "list",
           "helpText": "2-24 images.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -3451,9 +3439,6 @@
           "name": "Logos",
           "type": "list",
           "helpText": "4 to 12. grid looks best with multiples of 4; row with 4 to 6.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -4327,9 +4312,6 @@
           "name": "Feature rows",
           "type": "list",
           "helpText": "The shared rows every plan is compared on, in order. 3 to 8.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -4357,9 +4339,6 @@
           "name": "Plans",
           "type": "list",
           "helpText": "1 to 4 (3 is ideal).",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -4433,9 +4412,6 @@
                     "name": "Included",
                     "type": "list",
                     "helpText": "One checkbox per feature row, in the same order. A short list treats the missing rows as not included.",
-                    "validators": {
-                      "required": true
-                    },
                     "metadata": {
                       "item": {
                         "fieldId": "value",
@@ -5465,9 +5441,6 @@
           "name": "Rows",
           "type": "list",
           "description": "1–6 rows (the editor warns above 6).",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "row",
@@ -5625,9 +5598,6 @@
           "name": "Items",
           "type": "list",
           "helpText": "2-4 recommended; 1-8 supported.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -5733,9 +5703,6 @@
           "name": "Tabs",
           "type": "list",
           "description": "2-6 tabs.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "tab",
@@ -6038,9 +6005,6 @@
           "name": "People",
           "type": "list",
           "helpText": "1-12 people. Multiples of 4 fill the desktop grid.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "person",
@@ -6273,9 +6237,6 @@
           "name": "Reviews",
           "type": "list",
           "helpText": "grid: 1-6 (3 is ideal); carousel: 3-12; single-large uses the first.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -6475,9 +6436,6 @@
           "name": "Items",
           "type": "list",
           "helpText": "3 to 6 recommended. 1 to 12 supported.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",
@@ -6599,9 +6557,6 @@
           "name": "Items",
           "type": "list",
           "helpText": "3-4 items. A fifth is not shown.",
-          "validators": {
-            "required": true
-          },
           "metadata": {
             "item": {
               "fieldId": "item",

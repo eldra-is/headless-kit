@@ -77,7 +77,6 @@
                 "name": "Links",
                 "type": "list",
                 "helpText": "Up to 8 links.",
-                "validators": { "required": true },
                 "metadata": {
                   "item": {
                     "fieldId": "link",

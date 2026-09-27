@@ -28,7 +28,6 @@
       "name": "Logos",
       "type": "list",
       "helpText": "4 to 12. grid looks best with multiples of 4; row with 4 to 6.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",

@@ -55,7 +55,6 @@
       "name": "Images",
       "type": "list",
       "helpText": "2-24 images.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",

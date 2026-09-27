@@ -40,7 +40,6 @@
       "name": "Questions",
       "type": "list",
       "description": "3-10 recommended.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",

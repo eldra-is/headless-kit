@@ -39,7 +39,6 @@
       "name": "People",
       "type": "list",
       "helpText": "1-12 people. Multiples of 4 fill the desktop grid.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "person",

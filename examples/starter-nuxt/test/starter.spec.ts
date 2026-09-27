@@ -425,7 +425,10 @@ describe('starter theme', () => {
     expect(imageField?.metadata?.multiple).toBe(false);
     const galleryBlock = result.manifest!.blocks.find((block) => block.apiId === 'gallery')!;
     const galleryItems = galleryBlock.fields.find((field) => field.fieldId === 'items');
-    expect(galleryItems?.validators?.required).toBe(true);
+    // Core's `list` field type accepts no validators at all — a manifest that declares even
+    // `required` on one is rejected at deploy ("list fields do not support the required
+    // validator"), so the "at least one" intent lives in the field's `helpText` instead.
+    expect(galleryItems?.validators).toBeUndefined();
     const galleryItemImage = galleryItems?.metadata?.item?.metadata?.fields?.find(
       (field) => field.fieldId === 'image'
     );
@@ -719,6 +722,23 @@ describe('starter theme', () => {
       'a rich-text document has no heading outline of its own — pass `:min-heading-level` for the ' +
         'level the document sits under in this block, and say why in a comment next to it'
     ).toEqual([]);
+  });
+  it('declares no validators on any list field, at any depth — Core rejects every one of them at deploy', () => {
+    const result = scanTheme({ themeDir: templateDir, framework: 'nuxt' });
+    const offenders: string[] = [];
+    const walk = (fields: ThemeBlockManifestField[], path: string) => {
+      for (const field of fields) {
+        const at = `${path}${field.fieldId}`;
+        if (field.type === 'list' && field.validators !== undefined) offenders.push(at);
+        const item = field.metadata?.item as ThemeBlockManifestField | undefined;
+        const nested = (field.metadata?.fields ?? item?.metadata?.fields) as
+          | ThemeBlockManifestField[]
+          | undefined;
+        if (nested !== undefined) walk(nested, `${at}.`);
+      }
+    };
+    for (const block of result.manifest!.blocks) walk(block.fields, `${block.apiId}.`);
+    expect(offenders).toEqual([]);
   });
 });
 

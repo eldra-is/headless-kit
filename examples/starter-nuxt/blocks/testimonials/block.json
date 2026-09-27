@@ -48,7 +48,6 @@
       "name": "Reviews",
       "type": "list",
       "helpText": "grid: 1-6 (3 is ideal); carousel: 3-12; single-large uses the first.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",

@@ -132,7 +132,7 @@ declare global {
       heading: string;
       intro?: string;
       exclusive?: boolean;
-      items: Array<{ question: string; answer: RichTextNode; open?: boolean }>;
+      items?: Array<{ question: string; answer: RichTextNode; open?: boolean }>;
       contactText?: string;
       contactLinkLabel?: string;
       contactLinkHref?: string;
@@ -146,7 +146,7 @@ declare global {
       headLinkHref?: string;
       columns: '2' | '3' | '4';
       mediaType: 'icon' | 'image';
-      items: Array<{ icon?: string; image?: EldraMedia; title: string; text?: string; linkLabel?: string; href?: string }>;
+      items?: Array<{ icon?: string; image?: EldraMedia; title: string; text?: string; linkLabel?: string; href?: string }>;
     };
     footer: {
       variant: 'default' | 'minimal';
@@ -154,7 +154,7 @@ declare global {
       brandText: string;
       brandLogo?: EldraMedia;
       description?: string;
-      groups?: Array<{ title: string; links: Array<{ label: string; href: string }> }>;
+      groups?: Array<{ title: string; links?: Array<{ label: string; href: string }> }>;
       links?: Array<{ label: string; href: string }>;
       showNewsletter?: boolean;
       newsletterTitle?: string;
@@ -172,7 +172,7 @@ declare global {
       columns?: '2' | '3' | '4';
       aspect?: '1x1' | '4x5' | '3x2';
       showCaptions?: boolean;
-      items: Array<{ image: EldraMedia; caption?: string }>;
+      items?: Array<{ image: EldraMedia; caption?: string }>;
     };
     hero: {
       variant: 'image-right' | 'image-left' | 'image-background' | 'centered' | 'split-carousel';
@@ -200,7 +200,7 @@ declare global {
     'logo-cloud': {
       variant: 'grid' | 'row';
       heading: string;
-      logos: Array<{ image?: EldraMedia; name: string; linkLabel?: string; href?: string }>;
+      logos?: Array<{ image?: EldraMedia; name: string; linkLabel?: string; href?: string }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
     navigation: {
@@ -249,8 +249,8 @@ declare global {
     'pricing-table': {
       heading: string;
       intro?: string;
-      featureRows: Array<{ label: string }>;
-      plans: Array<{ name: string; description?: string; price: string; period: string; note?: string; ctaLabel: string; ctaHref: string; included: Array<boolean> }>;
+      featureRows?: Array<{ label: string }>;
+      plans?: Array<{ name: string; description?: string; price: string; period: string; note?: string; ctaLabel: string; ctaHref: string; included?: Array<boolean> }>;
       highlightedPlan?: string;
       highlightLabel?: string;
       footnote?: string;
@@ -308,19 +308,19 @@ declare global {
     };
     'split-content': {
       startWith: 'image-left' | 'image-right';
-      rows: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;
+      rows?: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;
     };
     stats: {
       variant: 'row' | 'split';
       heading: string;
       intro?: string;
-      items: Array<{ value: string; label: string }>;
+      items?: Array<{ value: string; label: string }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
     };
     tabs: {
       heading: string;
       intro?: string;
-      tabs: Array<{ label: string; heading: string; body: RichTextNode; image?: EldraMedia; linkLabel?: string; href?: string }>;
+      tabs?: Array<{ label: string; heading: string; body: RichTextNode; image?: EldraMedia; linkLabel?: string; href?: string }>;
       defaultTab?: number;
       sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
@@ -329,7 +329,7 @@ declare global {
       intro?: string;
       linkLabel?: string;
       linkHref?: string;
-      people: Array<{ photo?: EldraMedia; name: string; role: string; bio?: string; links?: Array<{ type: 'instagram' | 'email' | 'website' | 'tiktok' | 'pinterest'; href: string }> }>;
+      people?: Array<{ photo?: EldraMedia; name: string; role: string; bio?: string; links?: Array<{ type: 'instagram' | 'email' | 'website' | 'tiktok' | 'pinterest'; href: string }> }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
     testimonials: {
@@ -338,7 +338,7 @@ declare global {
       summary?: string;
       linkLabel?: string;
       linkHref?: string;
-      items: Array<{ quote: string; name: string; meta?: string; avatar?: EldraMedia; rating?: 'none' | '1' | '2' | '3' | '4' | '5'; productLabel?: string; productHref?: string }>;
+      items?: Array<{ quote: string; name: string; meta?: string; avatar?: EldraMedia; rating?: 'none' | '1' | '2' | '3' | '4' | '5'; productLabel?: string; productHref?: string }>;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary';
     };
     timeline: {
@@ -347,13 +347,13 @@ declare global {
       intro?: string;
       linkLabel?: string;
       linkHref?: string;
-      items: Array<{ year?: string; title: string; text?: string }>;
+      items?: Array<{ year?: string; title: string; text?: string }>;
       columns?: 'auto' | '3' | '4' | '5';
       sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
     'trust-strip': {
       variant: 'columns' | 'inline';
-      items: Array<{ icon: string; title: string; text?: string; linkLabel?: string; href?: string }>;
+      items?: Array<{ icon: string; title: string; text?: string; linkLabel?: string; href?: string }>;
       mobileLayout?: 'grid' | 'scroll';
       showPayments?: boolean;
       paymentsLabel?: string;

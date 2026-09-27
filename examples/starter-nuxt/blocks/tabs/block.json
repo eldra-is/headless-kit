@@ -26,7 +26,6 @@
       "name": "Tabs",
       "type": "list",
       "description": "2-6 tabs.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "tab",

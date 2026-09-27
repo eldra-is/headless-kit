@@ -19,7 +19,6 @@
       "name": "Rows",
       "type": "list",
       "description": "1–6 rows (the editor warns above 6).",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "row",

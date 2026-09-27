@@ -35,7 +35,6 @@
       "name": "Items",
       "type": "list",
       "helpText": "2-4 recommended; 1-8 supported.",
-      "validators": { "required": true },
       "metadata": {
         "item": {
           "fieldId": "item",
