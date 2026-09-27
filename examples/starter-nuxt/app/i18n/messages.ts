@@ -570,6 +570,22 @@ export interface Messages {
     titleHintLabel: string;
     titleHintHelp: string;
   };
+  /**
+   * The product-carousel block's own strings (spec `02-blocks.md` "Product carousel"):
+   * `viewAllContext` is a visually hidden suffix appended right after the visible "View all" text
+   * (the same "bake the join into the hidden string" convention `pricing.included`/`timeline.step`
+   * use, so it carries its own leading space) — the block has no structured collection-name field
+   * to quote the spec's own illustrative "View all knitwear", so this names the content generically
+   * instead. `clearHistory` is the `recently-viewed` variant's own button, replacing the View all
+   * link. The last two are the editor-only hint (`EditorPlaceholder`, gated by `useEditing()`) for
+   * a freshly inserted block's empty required heading (spec → States, "Empty (freshly inserted)").
+   */
+  productCarousel: {
+    viewAllContext: string;
+    clearHistory: string;
+    headingHintLabel: string;
+    headingHintHelp: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

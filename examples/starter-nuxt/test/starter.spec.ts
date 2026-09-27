@@ -39,6 +39,7 @@ const expectedBlocks = [
   'navigation',
   'newsletter',
   'pricing-table',
+  'product-carousel',
   'quote',
   'rich-text',
   'split-content',
@@ -315,6 +316,16 @@ describe('starter theme', () => {
         'showExcerpt',
         'emptyTitle',
         'emptyText',
+      ],
+      'product-carousel': [
+        'heading',
+        'variant',
+        'sourceHandle',
+        'limit',
+        'viewAllLabel',
+        'viewAllHref',
+        'showSwatches',
+        'background',
       ],
     });
 

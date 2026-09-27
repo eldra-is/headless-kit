@@ -4044,6 +4044,104 @@
       "previewImage": ".eldra/previews/pricing-table.png"
     },
     {
+      "apiId": "product-carousel",
+      "name": "Product carousel",
+      "description": "A horizontally scrolling row of product cards, such as \"You may also like\" or \"Recently viewed\", with a heading, a view-all link, arrows and a counter.",
+      "icon": "carousel-horizontal",
+      "category": "commerce",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Rendered as an h2, e.g. \"You may also like\".",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "related is the default.",
+          "metadata": {
+            "options": [
+              "related",
+              "recently-viewed",
+              "collection"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "sourceHandle",
+          "name": "Source handle",
+          "type": "string",
+          "helpText": "For the collection variant: the collection handle."
+        },
+        {
+          "fieldId": "limit",
+          "name": "Limit",
+          "type": "select",
+          "helpText": "8 is the default.",
+          "metadata": {
+            "options": [
+              "4",
+              "8",
+              "12"
+            ]
+          }
+        },
+        {
+          "fieldId": "viewAllLabel",
+          "name": "View all label",
+          "type": "string",
+          "localized": true,
+          "helpText": "e.g. \"View all\". Hidden in recently-viewed."
+        },
+        {
+          "fieldId": "viewAllHref",
+          "name": "View all link",
+          "type": "string",
+          "helpText": "Hidden in recently-viewed."
+        },
+        {
+          "fieldId": "showSwatches",
+          "name": "Show swatches",
+          "type": "bool",
+          "default": true,
+          "helpText": "Off automatically in recently-viewed."
+        },
+        {
+          "fieldId": "background",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default (surface recommended for recently-viewed).",
+          "metadata": {
+            "options": [
+              "none",
+              "surface"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "heading": "You may also like",
+        "variant": "related",
+        "limit": "8",
+        "viewAllLabel": "View all",
+        "viewAllHref": "/collections/knitwear",
+        "showSwatches": true,
+        "background": "none"
+      },
+      "previewImage": ".eldra/previews/product-carousel.png"
+    },
+    {
       "apiId": "quote",
       "name": "Quote",
       "description": "One large pull quote from the founder, a maker or the press, with attribution and an optional portrait. For several customer reviews, use Testimonials.",

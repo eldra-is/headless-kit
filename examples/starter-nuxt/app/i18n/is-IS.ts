@@ -315,4 +315,10 @@ export const isIS = {
     titleHintLabel: 'Bættu við titli',
     titleHintHelp: 'Fellur sjálfgefið til baka í titil safnsins',
   },
+  productCarousel: {
+    viewAllContext: ' vörur',
+    clearHistory: 'Hreinsa feril',
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 't.d. „Þér gæti einnig líkað við“',
+  },
 } satisfies Messages;

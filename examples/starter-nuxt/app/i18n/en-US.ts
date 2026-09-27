@@ -314,4 +314,10 @@ export const enUS = {
     titleHintLabel: 'Add a title',
     titleHintHelp: 'Falls back to the collection title from the store',
   },
+  productCarousel: {
+    viewAllContext: ' products',
+    clearHistory: 'Clear history',
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'e.g. "You may also like"',
+  },
 } satisfies Messages;

@@ -219,6 +219,16 @@ declare global {
       footnote?: string;
       sectionBackground?: 'none' | 'surface' | 'surface-strong';
     };
+    'product-carousel': {
+      heading: string;
+      variant: 'related' | 'recently-viewed' | 'collection';
+      sourceHandle?: string;
+      limit?: '4' | '8' | '12';
+      viewAllLabel?: string;
+      viewAllHref?: string;
+      showSwatches?: boolean;
+      background?: 'none' | 'surface';
+    };
     quote: {
       variant: 'centered' | 'with-image';
       quote: string;
