@@ -279,4 +279,11 @@ export const enUS = {
     hintHelp: 'JPG, PNG or WebP · at least 2400px wide for full width',
     captionHintLabel: 'Add a caption (optional)',
   },
+  richTextBlock: {
+    headingHintLabel: 'Add a heading',
+    headingHintHelp: 'Optional',
+    bodyHintLabel: 'Start writing',
+    bodyHintHelp: 'Type / for headings, lists, quotes and links.',
+    richTextTableLabel: 'Table',
+  },
 } satisfies Messages;

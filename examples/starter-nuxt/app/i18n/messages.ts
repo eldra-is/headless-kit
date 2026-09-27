@@ -498,6 +498,22 @@ export interface Messages {
     hintHelp: string;
     captionHintLabel: string;
   };
+  /**
+   * The rich-text block's own strings (spec `02-blocks.md` "Rich text" → States, "Empty (freshly
+   * inserted)", line 2994): editor-only hints (`EditorPlaceholder`, gated by `useEditing()`) for
+   * the optional heading ("Add a heading" / "Optional") and the required body ("Start writing" /
+   * "Type / for headings, lists, quotes and links."). `richTextTableLabel` is the fallback
+   * `useRichTextScrollRegions` label for an uncaptioned table, should the body ever contain one
+   * (the field's own toolbar has no table control today) — same pattern as `faq.richTextTableLabel`
+   * (see `blocks/rich-text/Block.vue`).
+   */
+  richTextBlock: {
+    headingHintLabel: string;
+    headingHintHelp: string;
+    bodyHintLabel: string;
+    bodyHintHelp: string;
+    richTextTableLabel: string;
+  };
 }
 
 /** Every dotted leaf key of `Messages` — `'notFound.eyebrow'`, `'loading'`, … */

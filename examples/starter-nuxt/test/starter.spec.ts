@@ -38,6 +38,7 @@ const expectedBlocks = [
   'newsletter',
   'pricing-table',
   'quote',
+  'rich-text',
   'split-content',
   'stats',
   'tabs',
@@ -217,6 +218,7 @@ describe('starter theme', () => {
         'sourceLinkHref',
         'sectionBackground',
       ],
+      'rich-text': ['heading', 'body', 'alignment', 'container'],
       stats: ['variant', 'heading', 'intro', 'items', 'sectionBackground'],
       'pricing-table': [
         'heading',

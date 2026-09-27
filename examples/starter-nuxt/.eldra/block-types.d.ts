@@ -202,6 +202,12 @@ declare global {
       sourceLinkHref?: string;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary' | 'accent';
     };
+    'rich-text': {
+      heading?: string;
+      body: RichTextNode;
+      alignment: 'left' | 'center';
+      container: 'narrow' | 'content';
+    };
     'split-content': {
       startWith: 'image-left' | 'image-right';
       rows: Array<{ image?: EldraMedia; eyebrow?: string; heading: string; text?: RichTextNode; linkLabel?: string; href?: string }>;

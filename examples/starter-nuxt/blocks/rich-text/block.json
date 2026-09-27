@@ -1,0 +1,57 @@
+{
+  "apiId": "rich-text",
+  "name": "Rich text",
+  "description": "A standalone block of formatted text with an optional heading, for brand stories, policies and care notes. For dated stories with a byline, use Article.",
+  "icon": "text-caption",
+  "category": "content",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Rendered as the h2. Without one the block has no landmark."
+    },
+    {
+      "fieldId": "body",
+      "name": "Body",
+      "type": "rich-text",
+      "localized": true,
+      "helpText": "Paragraphs, headings, lists, a quote, inline code and links. No tables, images or embeds — use Article for those.",
+      "validators": { "required": true },
+      "metadata": {
+        "toolbar": [
+          "heading",
+          "bold",
+          "italic",
+          "link",
+          "bulletList",
+          "orderedList",
+          "blockquote",
+          "code",
+          "horizontalRule",
+          "undo",
+          "redo"
+        ]
+      }
+    },
+    {
+      "fieldId": "alignment",
+      "name": "Alignment",
+      "type": "select",
+      "helpText": "left is the default. content + left becomes a split from 64rem.",
+      "metadata": { "options": ["left", "center"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "container",
+      "name": "Container",
+      "type": "select",
+      "helpText": "narrow is the default.",
+      "metadata": { "options": ["narrow", "content"] },
+      "validators": { "required": true }
+    }
+  ]
+}

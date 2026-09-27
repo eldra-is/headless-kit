@@ -3631,6 +3631,196 @@
       "previewImage": ".eldra/previews/quote.png"
     },
     {
+      "apiId": "rich-text",
+      "name": "Rich text",
+      "description": "A standalone block of formatted text with an optional heading, for brand stories, policies and care notes. For dated stories with a byline, use Article.",
+      "icon": "text-caption",
+      "category": "content",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "helpText": "Rendered as the h2. Without one the block has no landmark."
+        },
+        {
+          "fieldId": "body",
+          "name": "Body",
+          "type": "rich-text",
+          "localized": true,
+          "helpText": "Paragraphs, headings, lists, a quote, inline code and links. No tables, images or embeds — use Article for those.",
+          "validators": {
+            "required": true
+          },
+          "metadata": {
+            "toolbar": [
+              "heading",
+              "bold",
+              "italic",
+              "link",
+              "bulletList",
+              "orderedList",
+              "blockquote",
+              "code",
+              "horizontalRule",
+              "undo",
+              "redo"
+            ]
+          }
+        },
+        {
+          "fieldId": "alignment",
+          "name": "Alignment",
+          "type": "select",
+          "helpText": "left is the default. content + left becomes a split from 64rem.",
+          "metadata": {
+            "options": [
+              "left",
+              "center"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "container",
+          "name": "Container",
+          "type": "select",
+          "helpText": "narrow is the default.",
+          "metadata": {
+            "options": [
+              "narrow",
+              "content"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        }
+      ],
+      "mock": {
+        "heading": "Made slowly, used daily",
+        "alignment": "left",
+        "container": "content",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Northwind started in 2014 with one wheel in a Portland garage and a simple rule: make fewer things, and make them to last. Today a team of twelve designs every piece in Oregon and works with four family-run workshops across Europe."
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "We never run seasonal sales. Instead we price fairly all year, and we repair what we sell."
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "content": [
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Free repairs on knitwear for the first two years"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Glaze batch and maker stamped on every ceramic piece"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Plastic-free packaging, from tissue to tape"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Read more about "
+                },
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "/pages/makers"
+                      }
+                    }
+                  ],
+                  "text": "our makers"
+                },
+                {
+                  "type": "text",
+                  "text": " or "
+                },
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "/pages/pricing"
+                      }
+                    }
+                  ],
+                  "text": "how we set our prices"
+                },
+                {
+                  "type": "text",
+                  "text": "."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "previewImage": ".eldra/previews/rich-text.png"
+    },
+    {
       "apiId": "split-content",
       "name": "Split content",
       "description": "Rows of image and text that alternate sides, for an \"our process\" or \"about the materials\" story.",

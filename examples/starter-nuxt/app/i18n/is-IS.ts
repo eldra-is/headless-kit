@@ -280,4 +280,11 @@ export const isIS = {
     hintHelp: 'JPG, PNG eða WebP · a.m.k. 2400px á breidd fyrir fulla breidd',
     captionHintLabel: 'Bættu við myndatexta (valfrjálst)',
   },
+  richTextBlock: {
+    headingHintLabel: 'Bættu við fyrirsögn',
+    headingHintHelp: 'Valfrjálst',
+    bodyHintLabel: 'Byrjaðu að skrifa',
+    bodyHintHelp: 'Sláðu inn skástrik (/) til að fá fyrirsagnir, lista, tilvitnanir og tengla.',
+    richTextTableLabel: 'Tafla',
+  },
 } satisfies Messages;
