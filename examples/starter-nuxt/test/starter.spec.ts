@@ -22,6 +22,7 @@ const cli = join(
 );
 const nuxi = join(templateDir, 'node_modules', '.bin', 'nuxi');
 const expectedBlocks = [
+  'announcement-bar',
   'article',
   'breadcrumbs',
   'cta',
@@ -221,7 +222,7 @@ describe('starter theme', () => {
       symlinkSync(join(templateDir, 'node_modules'), join(themeDir, 'node_modules'), 'dir');
       const validated = await execa('node', [cli, 'validate'], { cwd: themeDir, reject: false });
       expect(validated.exitCode, validated.stderr).toBe(0);
-      expect(validated.stdout).toContain('11 blocks valid');
+      expect(validated.stdout).toContain(`${expectedBlocks.length} blocks valid`);
 
       const generated = await execa(nuxi, ['generate'], {
         cwd: themeDir,

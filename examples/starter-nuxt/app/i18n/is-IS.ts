@@ -25,6 +25,12 @@ export const isIS = {
     hintLabel: 'Leiðarslóðin fyllist út sjálfkrafa.',
     hintHelp: 'Hún birtist þegar þessi síða er undir annarri síðu.',
   },
+  announcement: {
+    region: 'Tilkynning',
+    dismiss: 'Loka tilkynningu',
+    hintLabel: 'Bættu við stuttum skilaboðum',
+    hintHelp: 'Til dæmis um sendingartilboð eða verslunaruppfærslu.',
+  },
   storefront: {
     loading: 'Hleð…',
     error: 'Ekki tókst að sækja þetta núna.',

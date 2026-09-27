@@ -25,6 +25,12 @@ export const enUS = {
     hintLabel: 'Breadcrumbs fill in automatically.',
     hintHelp: 'They appear once this page sits under a parent page.',
   },
+  announcement: {
+    region: 'Announcement',
+    dismiss: 'Dismiss announcement',
+    hintLabel: 'Add a short message',
+    hintHelp: 'For example, a shipping offer or a store update.',
+  },
   storefront: {
     loading: 'Loading…',
     error: "We couldn't load this right now.",

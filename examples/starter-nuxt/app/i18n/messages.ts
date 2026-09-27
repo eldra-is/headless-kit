@@ -34,6 +34,14 @@ export interface Messages {
   testimonials: {
     carousel: string;
   };
+  /** The announcement-bar block's own strings: the region's accessible name, the dismiss
+   *  button's accessible name, and the two-part editor hint shown when `message` is empty. */
+  announcement: {
+    region: string;
+    dismiss: string;
+    hintLabel: string;
+    hintHelp: string;
+  };
   /**
    * The breadcrumbs block's own editor hint (`EditorPlaceholder`, shown only via `useEditing()`):
    * `trail` is not editable from a page tree the block cannot read (see `blocks/breadcrumbs/

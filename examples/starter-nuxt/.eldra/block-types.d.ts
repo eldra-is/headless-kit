@@ -13,6 +13,13 @@ declare global {
   }
 
   interface EldraBlockData {
+    'announcement-bar': {
+      variant: 'primary' | 'accent' | 'subtle';
+      message: string;
+      linkLabel?: string;
+      linkHref?: string;
+      dismissable?: boolean;
+    };
     article: {
       heading: string;
       meta?: string;
