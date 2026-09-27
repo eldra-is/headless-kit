@@ -1,0 +1,316 @@
+{
+  "template": "collection",
+  "title": "The winter edit",
+  "blocks": [
+    {
+      "apiId": "navigation",
+      "id": "collection-navigation",
+      "data": {
+        "variant": "default",
+        "brandText": "Northwind Goods",
+        "links": [
+          {
+            "label": "Knitwear",
+            "href": "/collections/knitwear",
+            "menuLinks": [
+              {
+                "group": "Women",
+                "label": "Sweaters",
+                "href": "/collections/womens-sweaters"
+              },
+              {
+                "group": "Women",
+                "label": "Cardigans",
+                "href": "/collections/womens-cardigans"
+              },
+              {
+                "group": "Women",
+                "label": "Scarves & wraps",
+                "href": "/collections/scarves-wraps"
+              },
+              {
+                "group": "Women",
+                "label": "Hats & gloves",
+                "href": "/collections/hats-gloves"
+              },
+              {
+                "group": "Men",
+                "label": "Sweaters",
+                "href": "/collections/mens-sweaters"
+              },
+              {
+                "group": "Men",
+                "label": "Cardigans",
+                "href": "/collections/mens-cardigans"
+              },
+              {
+                "group": "Men",
+                "label": "Scarves",
+                "href": "/collections/mens-scarves"
+              },
+              {
+                "group": "Men",
+                "label": "Socks",
+                "href": "/collections/socks"
+              },
+              {
+                "group": "Collections",
+                "label": "Merino essentials",
+                "href": "/collections/merino-essentials"
+              },
+              {
+                "group": "Collections",
+                "label": "Heavy winter knits",
+                "href": "/collections/heavy-winter-knits"
+              },
+              {
+                "group": "Collections",
+                "label": "Undyed wool",
+                "href": "/collections/undyed-wool"
+              },
+              {
+                "group": "Collections",
+                "label": "Shop all knitwear",
+                "href": "/collections/knitwear"
+              }
+            ],
+            "features": [
+              {
+                "image": {
+                  "assetId": "demo-feature-1",
+                  "url": "/demo/feature-1.svg",
+                  "altText": "Folded walnut merino cardigan",
+                  "width": 800,
+                  "height": 600
+                },
+                "label": "New season knitwear",
+                "href": "/collections/knitwear"
+              },
+              {
+                "image": {
+                  "assetId": "demo-feature-2",
+                  "url": "/demo/feature-2.svg",
+                  "altText": "Darning kit with sage wool",
+                  "width": 800,
+                  "height": 600
+                },
+                "label": "Care & repair guide",
+                "href": "/pages/care"
+              }
+            ]
+          },
+          {
+            "label": "Ceramics",
+            "href": "/collections/ceramics",
+            "menuLinks": [
+              {
+                "group": "Tableware",
+                "label": "Plates",
+                "href": "/collections/plates"
+              },
+              {
+                "group": "Tableware",
+                "label": "Bowls",
+                "href": "/collections/bowls"
+              },
+              {
+                "group": "Tableware",
+                "label": "Mugs & cups",
+                "href": "/collections/mugs-cups"
+              }
+            ]
+          },
+          {
+            "label": "Kitchen",
+            "href": "/collections/kitchen"
+          },
+          {
+            "label": "Journal",
+            "href": "/journal"
+          },
+          {
+            "label": "Visit the studio",
+            "href": "/pages/visit"
+          }
+        ],
+        "showSearch": true,
+        "searchStyle": "icon",
+        "showAccount": true,
+        "ctaLabel": "Shop gifts",
+        "ctaHref": "/collections/gifts",
+        "sticky": true,
+        "transparentOverHero": false
+      }
+    },
+    {
+      "apiId": "breadcrumbs",
+      "id": "collection-breadcrumbs",
+      "data": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [
+          {
+            "label": "Shop",
+            "href": "/collections"
+          }
+        ],
+        "currentTitle": "The winter edit",
+        "showCurrent": true,
+        "container": "wide"
+      }
+    },
+    {
+      "apiId": "collection-header",
+      "id": "collection-header",
+      "data": {
+        "variant": "image",
+        "collectionHandle": "the-winter-edit",
+        "title": "The winter edit",
+        "showCount": true,
+        "showBreadcrumb": false,
+        "trail": [
+          {
+            "label": "Shop",
+            "href": "/collections"
+          }
+        ],
+        "description": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Heavy-gauge knits, stoneware for slow breakfasts and kitchen goods for the cold months, from our Portland studio and two family mills in Biella and the Scottish Borders. Every piece is knitted to order in small runs, finished by hand and washed once before it ships so it arrives soft. We keep the colours earthy and the shapes simple, so a sweater you buy this winter still looks right in ten years. Mending is free for the first two years."
+                }
+              ]
+            }
+          ]
+        },
+        "subcollections": [
+          { "label": "All", "href": "/collections/winter-knitwear", "current": true },
+          { "label": "Sweaters", "href": "/collections/sweaters" },
+          { "label": "Cardigans", "href": "/collections/cardigans" },
+          { "label": "Hats & scarves", "href": "/collections/hats-scarves" },
+          { "label": "Throws", "href": "/collections/throws" }
+        ],
+        "image": {
+          "assetId": "demo-collection-1",
+          "url": "/demo/collection-1.svg",
+          "altText": "Folded winter knitwear in oat, charcoal and moss",
+          "width": 1600,
+          "height": 1067
+        }
+      }
+    },
+    {
+      "apiId": "collection-grid",
+      "id": "collection-grid",
+      "data": {
+        "collectionHandle": "the-winter-edit",
+        "variant": "sidebar",
+        "columns": "3",
+        "pageSize": "24",
+        "paginationStyle": "load-more",
+        "sortOptions": [
+          { "option": "featured", "label": "Featured" },
+          { "option": "best-selling", "label": "Best selling" },
+          { "option": "price-asc", "label": "Price low to high" },
+          { "option": "price-desc", "label": "Price high to low" },
+          { "option": "newest", "label": "Newest" }
+        ],
+        "filters": [
+          { "source": "category", "label": "Category" },
+          { "source": "option:size", "label": "Size" },
+          { "source": "option:colour", "label": "Colour" },
+          { "source": "price", "label": "Price" },
+          { "source": "availability", "label": "Availability" }
+        ],
+        "showColumnSelect": true,
+        "emptyTitle": "No products match these filters",
+        "emptyText": "Try removing a filter or widening the price range."
+      }
+    },
+    {
+      "apiId": "cta",
+      "id": "collection-cta",
+      "data": {
+        "variant": "subtle",
+        "heading": "Not sure what to give?",
+        "text": "A Northwind gift card never expires and arrives by email in minutes.",
+        "primaryCtaLabel": "Send a gift card",
+        "primaryCtaHref": "/products/gift-card",
+        "image": {
+          "assetId": "demo-cta-split",
+          "url": "/demo/cta-split.svg",
+          "altText": "Darned elbow of a sage wool sweater",
+          "width": 1200,
+          "height": 900
+        }
+      }
+    },
+    {
+      "apiId": "footer",
+      "id": "collection-footer",
+      "data": {
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "groups": [
+          {
+            "title": "Shop",
+            "links": [
+              { "label": "Knitwear", "href": "/collections/knitwear" },
+              { "label": "Ceramics", "href": "/collections/ceramics" },
+              { "label": "Kitchen", "href": "/collections/kitchen" },
+              { "label": "Gift cards", "href": "/products/gift-card" }
+            ]
+          },
+          {
+            "title": "Help",
+            "links": [
+              { "label": "Shipping", "href": "/pages/shipping" },
+              { "label": "Returns", "href": "/pages/returns" },
+              { "label": "Care guides", "href": "/journal/care" },
+              { "label": "Contact us", "href": "/pages/contact" }
+            ]
+          },
+          {
+            "title": "Company",
+            "links": [
+              { "label": "Our story", "href": "/pages/about" },
+              { "label": "Makers", "href": "/pages/makers" },
+              { "label": "Journal", "href": "/journal" },
+              { "label": "Visit the studio", "href": "/pages/visit" }
+            ]
+          }
+        ],
+        "links": [
+          { "label": "Shipping", "href": "/pages/shipping" },
+          { "label": "Returns", "href": "/pages/returns" },
+          { "label": "Contact us", "href": "/pages/contact" },
+          { "label": "Our story", "href": "/pages/about" }
+        ],
+        "showNewsletter": true,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [
+          { "network": "instagram", "href": "https://instagram.com/northwindgoods" },
+          { "network": "pinterest", "href": "https://pinterest.com/northwindgoods" },
+          { "network": "tiktok", "href": "https://tiktok.com/@northwindgoods" },
+          { "network": "youtube", "href": "https://youtube.com/@northwindgoods" }
+        ],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [
+          { "label": "Privacy", "href": "/pages/privacy" },
+          { "label": "Terms", "href": "/pages/terms" },
+          { "label": "Accessibility", "href": "/pages/accessibility" }
+        ],
+        "showLocale": true,
+        "showCurrency": true
+      }
+    }
+  ]
+}

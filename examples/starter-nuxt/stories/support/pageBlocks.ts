@@ -24,6 +24,8 @@ import Announcement from '../../blocks/announcement-bar/Block.vue';
 import Article from '../../blocks/article/Block.vue';
 import ArticleList from '../../blocks/article-list/Block.vue';
 import Breadcrumbs from '../../blocks/breadcrumbs/Block.vue';
+import CollectionGrid from '../../blocks/collection-grid/Block.vue';
+import CollectionHeader from '../../blocks/collection-header/Block.vue';
 import Cta from '../../blocks/cta/Block.vue';
 import Faq from '../../blocks/faq/Block.vue';
 import FeatureGrid from '../../blocks/feature-grid/Block.vue';
@@ -44,6 +46,8 @@ export const pageBlockComponents: Record<string, Component> = {
   article: Article,
   'article-list': ArticleList,
   breadcrumbs: Breadcrumbs,
+  'collection-grid': CollectionGrid,
+  'collection-header': CollectionHeader,
   cta: Cta,
   faq: Faq,
   'feature-grid': FeatureGrid,

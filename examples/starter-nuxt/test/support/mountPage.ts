@@ -3,6 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { mountOptions } from './mountBlock';
 import { ICON_FETCHER_KEY, type IconFetcher } from '../../app/composables/iconFetcher';
 import { tablerIconSvg } from '../../server/utils/tablerIcon';
+import { STOREFRONT_KEY, type StorefrontSource } from '../../app/storefront/types';
 // The apiId → Block.vue map lives in `stories/support/pageBlocks.ts`, shared with
 // `stories/pages/*.stories.ts` — see that file's own doc comment for why it
 // is not declared here directly (keeping `test/**` out of the shipped
@@ -12,6 +13,7 @@ import { pageBlockComponents } from '../../stories/support/pageBlocks';
 
 // One definition of the fixture shape, shared with the page stories (see `pageBlocks.ts`).
 export type { PageFixture, PageFixtureBlock } from '../../stories/support/pageBlocks';
+import type { PageFixture } from '../../stories/support/pageBlocks';
 
 /**
  * `EldraIcon` (`app/components/EldraIcon.vue`) resolves a Tabler icon name through
@@ -35,10 +37,17 @@ const stubIconFetcher: IconFetcher = async (name) => tablerIconSvg(name);
  *
  * `options.attachTo` forwards to `mount()` — needed by any spec that asserts real focus movement
  * (`document.activeElement`), which jsdom only tracks for elements connected to `document`.
+ *
+ * `options.storefront`, when given, replaces the default `createDemoStorefront()` a block reads
+ * through `useStorefront()` — for a page-level spec that needs a route/query seed
+ * `mountOptions()`'s own default does not carry (e.g. `collectionHandle`/`productHandle`/`query`
+ * seeded through `createDemoStorefront()`'s own options, or a hand-built stub). It only reaches a
+ * block through `storefront.route`/`storefront.catalog`, etc.: a shopper-selected filter is the
+ * block's own state, so a spec that needs an applied filter drives the real control instead.
  */
 export async function mountPage(
   fixture: PageFixture,
-  options: { attachTo?: Element } = {}
+  options: { attachTo?: Element; storefront?: StorefrontSource } = {}
 ): Promise<VueWrapper> {
   const Page = defineComponent({
     name: 'MountPageHarness',
@@ -66,7 +75,10 @@ export async function mountPage(
 
   const { global } = mountOptions({ entry: { id: '', data: {} } });
   global.provide[ICON_FETCHER_KEY] = stubIconFetcher;
-  const wrapper = mount(Page, { global, ...options });
+  if (options.storefront !== undefined) {
+    global.provide[STOREFRONT_KEY] = options.storefront;
+  }
+  const wrapper = mount(Page, { global, attachTo: options.attachTo });
   await nextTick();
   return wrapper;
 }
