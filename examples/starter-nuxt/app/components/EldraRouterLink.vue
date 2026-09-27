@@ -20,10 +20,30 @@
  *
  * Pair it with `safeHref` + `isInternalHref` (`app/utils/links.ts`): an
  * external or unsafe destination must never be routed through the router.
+ *
+ * `defineExpose({ focus })`: `@eldrajs/ui`'s `Breadcrumb` moves focus to the first link it reveals
+ * after its "…" is activated by calling `.focus()` straight on whatever its own `:ref` callback
+ * received (`Breadcrumb.vue`'s own `setFirstRevealedLink`/`expand` — see that component's source
+ * comment) — a real DOM `Element.focus` when `linkAs` is left as the default `<a>` tag, but a
+ * *component* public instance when `linkAs` is this component (`breadcrumbs` block, every internal
+ * trail level): a `<script setup>` instance calling `.focus()` on itself does nothing unless the
+ * component exposes one. `nuxtLink`'s own instance ref still carries Vue's always-on `$el` (that
+ * one is never gated by `defineExpose` — only user-defined bindings are), so this exposes a thin
+ * `focus` that forwards to it, giving this component the same `.focus()` contract a plain `<a>`
+ * already has. Harmless to every other caller (`Button`'s/`Link`'s own `as`, `Pagination`, …):
+ * `defineExpose` only affects what a parent's template `ref` sees, never props/slots/rendering.
  */
+import { ref } from 'vue';
+
 defineProps<{ to: string }>();
+
+const nuxtLink = ref<{ $el?: HTMLElement } | null>(null);
+
+defineExpose({
+  focus: () => nuxtLink.value?.$el?.focus(),
+});
 </script>
 
 <template>
-  <NuxtLink :to="to"><slot /></NuxtLink>
+  <NuxtLink ref="nuxtLink" :to="to"><slot /></NuxtLink>
 </template>

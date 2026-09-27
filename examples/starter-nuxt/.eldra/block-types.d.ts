@@ -20,6 +20,14 @@ declare global {
       body: RichTextNode;
       width?: 'narrow' | 'content';
     };
+    breadcrumbs: {
+      showHome?: boolean;
+      homeLabel?: string;
+      trail?: Array<{ label: string; href: string }>;
+      currentTitle?: string;
+      showCurrent?: boolean;
+      container?: 'wide' | 'content';
+    };
     cta: {
       heading: string;
       body?: string;

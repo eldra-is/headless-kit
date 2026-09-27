@@ -23,6 +23,7 @@ const cli = join(
 const nuxi = join(templateDir, 'node_modules', '.bin', 'nuxi');
 const expectedBlocks = [
   'article',
+  'breadcrumbs',
   'cta',
   'faq',
   'feature-grid',
@@ -58,7 +59,7 @@ describe('starter theme', () => {
     expect(safeHref(encodeStega('//evil.example/path', meta))).toBeNull();
   });
 
-  it('validates all ten contract blocks and includes design tokens', () => {
+  it('validates all eleven contract blocks and includes design tokens', () => {
     const result = scanTheme({ themeDir: templateDir, framework: 'nuxt' });
     expect(result.errors).toEqual([]);
     expect(result.manifest?.blocks.map((block) => block.apiId).sort()).toEqual(expectedBlocks);
@@ -105,6 +106,7 @@ describe('starter theme', () => {
       'feature-grid': ['heading', 'intro', 'columns', 'variant', 'items'],
       testimonials: ['heading', 'variant', 'items'],
       faq: ['heading', 'intro', 'single', 'items'],
+      breadcrumbs: ['showHome', 'homeLabel', 'trail', 'currentTitle', 'showCurrent', 'container'],
     });
 
     // Starter mocks cannot carry organization-specific asset IDs. Keep media
@@ -219,7 +221,7 @@ describe('starter theme', () => {
       symlinkSync(join(templateDir, 'node_modules'), join(themeDir, 'node_modules'), 'dir');
       const validated = await execa('node', [cli, 'validate'], { cwd: themeDir, reject: false });
       expect(validated.exitCode, validated.stderr).toBe(0);
-      expect(validated.stdout).toContain('10 blocks valid');
+      expect(validated.stdout).toContain('11 blocks valid');
 
       const generated = await execa(nuxi, ['generate'], {
         cwd: themeDir,

@@ -21,6 +21,10 @@ export const isIS = {
   testimonials: {
     carousel: 'Umsagnir viðskiptavina',
   },
+  breadcrumbs: {
+    hintLabel: 'Leiðarslóðin fyllist út sjálfkrafa.',
+    hintHelp: 'Hún birtist þegar þessi síða er undir annarri síðu.',
+  },
   storefront: {
     loading: 'Hleð…',
     error: 'Ekki tókst að sækja þetta núna.',

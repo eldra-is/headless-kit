@@ -35,6 +35,16 @@ export interface Messages {
     carousel: string;
   };
   /**
+   * The breadcrumbs block's own editor hint (`EditorPlaceholder`, shown only via `useEditing()`):
+   * `trail` is not editable from a page tree the block cannot read (see `blocks/breadcrumbs/
+   * block.json`'s own `description`), so a top-level page with an empty `trail` and no
+   * `currentTitle` renders nothing live and needs an explanation in the editor instead.
+   */
+  breadcrumbs: {
+    hintLabel: string;
+    hintHelp: string;
+  };
+  /**
    * Shared vocabulary for the commerce blocks built on `app/storefront/*` (design doc
    * §"Storefront source") — a `StorefrontResult.pending`/`error` state or an order's delivery
    * step is the same kind of thing across `collection-grid`, `product-detail`, `search`,

@@ -1,0 +1,11 @@
+{
+  "showHome": true,
+  "homeLabel": "Home",
+  "trail": [
+    { "label": "Knitwear", "href": "/collections/knitwear" },
+    { "label": "Sweaters", "href": "/collections/mens-sweaters" }
+  ],
+  "currentTitle": "Merino crew sweater",
+  "showCurrent": true,
+  "container": "wide"
+}

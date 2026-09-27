@@ -192,6 +192,108 @@
       "previewImage": ".eldra/previews/article.png"
     },
     {
+      "apiId": "breadcrumbs",
+      "name": "Breadcrumbs",
+      "description": "Trail from Home to the current page. The design spec builds this from the page tree, but a block cannot read the route (no Nuxt globals, and `useEldraPage()` is page-level) — `trail` is the theme's stand-in: fill it per page from the parent levels above this one.",
+      "icon": "chevrons-right",
+      "category": "structure",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "showHome",
+          "name": "Show home",
+          "type": "bool",
+          "default": true,
+          "description": "First crumb links to /."
+        },
+        {
+          "fieldId": "homeLabel",
+          "name": "Home label",
+          "type": "string",
+          "localized": true,
+          "default": "Home"
+        },
+        {
+          "fieldId": "trail",
+          "name": "Trail",
+          "type": "list",
+          "description": "The levels between Home and this page, root first. Not editable from the page tree — fill it by hand per page.",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Level",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Link",
+                    "type": "string",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "currentTitle",
+          "name": "Current page title",
+          "type": "string",
+          "localized": true,
+          "description": "Overrides the last crumb's text — use it for long product or article titles."
+        },
+        {
+          "fieldId": "showCurrent",
+          "name": "Show current page",
+          "type": "bool",
+          "default": true,
+          "description": "Off ends the trail at the parent."
+        },
+        {
+          "fieldId": "container",
+          "name": "Container",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "wide",
+              "content"
+            ]
+          },
+          "description": "Match the block below: use content above Product detail and Article so the trail lines up with the gallery or title edge."
+        }
+      ],
+      "mock": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [
+          {
+            "label": "Knitwear",
+            "href": "/collections/knitwear"
+          },
+          {
+            "label": "Sweaters",
+            "href": "/collections/mens-sweaters"
+          }
+        ],
+        "currentTitle": "Merino crew sweater",
+        "showCurrent": true,
+        "container": "wide"
+      },
+      "previewImage": ".eldra/previews/breadcrumbs.png"
+    },
+    {
       "apiId": "cta",
       "name": "Call to action",
       "description": "Banner with heading, supporting copy and one or two buttons.",

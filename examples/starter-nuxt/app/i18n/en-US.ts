@@ -21,6 +21,10 @@ export const enUS = {
   testimonials: {
     carousel: 'Customer testimonials',
   },
+  breadcrumbs: {
+    hintLabel: 'Breadcrumbs fill in automatically.',
+    hintHelp: 'They appear once this page sits under a parent page.',
+  },
   storefront: {
     loading: 'Loading…',
     error: "We couldn't load this right now.",
