@@ -336,6 +336,8 @@ watchEffect((onCleanup) => {
  */
 const barRoot = ref<HTMLElement | null>(null);
 watchEffect((onCleanup) => {
+  // Server render has no `document` at all; nothing to publish or clear there.
+  if (typeof document === 'undefined') return;
   if (!sticky.value || typeof ResizeObserver === 'undefined' || barRoot.value === null) {
     document.documentElement.style.removeProperty('--eldra-header-height');
     return;

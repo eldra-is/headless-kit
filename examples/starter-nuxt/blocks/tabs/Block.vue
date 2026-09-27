@@ -203,7 +203,7 @@ useRichTextScrollRegions(panelsRoot, (caption) => caption ?? t('tabsBlock.richTe
           v-if="hasTabs"
           v-model="selectedTab"
           variant="underline"
-          :aria-label="heading"
+          :ariaLabel="heading"
           activation="auto"
           :classes="tabListClasses"
         >

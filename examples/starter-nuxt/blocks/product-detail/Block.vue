@@ -582,7 +582,7 @@ function tabValue(index: number): string {
           </ul>
 
           <div v-if="tabs.length > 0" ref="tabsRoot">
-            <Tabs variant="underline" :aria-label="t('product.tabsLabel')">
+            <Tabs variant="underline" :ariaLabel="t('product.tabsLabel')">
               <template #tabs>
                 <Tab
                   v-for="(tab, index) in tabs"
