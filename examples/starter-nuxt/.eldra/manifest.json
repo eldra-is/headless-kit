@@ -1177,6 +1177,247 @@
       "previewImage": ".eldra/previews/breadcrumbs.png"
     },
     {
+      "apiId": "collection-grid",
+      "name": "Collection grid",
+      "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
+      "icon": "layout-grid",
+      "category": "commerce",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "collectionHandle",
+          "name": "Collection",
+          "type": "string",
+          "helpText": "Leave empty on a collection template — the route supplies it."
+        },
+        {
+          "fieldId": "variant",
+          "name": "Variant",
+          "type": "select",
+          "helpText": "sidebar is the default. drawer-only gives the grid the full width at every size.",
+          "metadata": {
+            "options": [
+              "sidebar",
+              "drawer-only"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "columns",
+          "name": "Columns",
+          "type": "select",
+          "helpText": "The default column count on wide layouts. Shoppers can change it.",
+          "metadata": {
+            "options": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "pageSize",
+          "name": "Products per page",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "12",
+              "24",
+              "48"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "paginationStyle",
+          "name": "Pagination style",
+          "type": "select",
+          "helpText": "load-more keeps the footer reachable; pages numbers the results.",
+          "metadata": {
+            "options": [
+              "load-more",
+              "pages"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "sortOptions",
+          "name": "Sort options",
+          "type": "list",
+          "helpText": "Which sort options to offer, in order.",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Sort option",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "option",
+                    "name": "Option",
+                    "type": "select",
+                    "metadata": {
+                      "options": [
+                        "featured",
+                        "best-selling",
+                        "price-asc",
+                        "price-desc",
+                        "newest"
+                      ]
+                    },
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Overrides the option's own name."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "filters",
+          "name": "Filter groups",
+          "type": "list",
+          "helpText": "Filter groups, in order. Values and counts come from the store.",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Filter group",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "source",
+                    "name": "Source",
+                    "type": "select",
+                    "metadata": {
+                      "options": [
+                        "category",
+                        "option:size",
+                        "option:colour",
+                        "price",
+                        "availability"
+                      ]
+                    },
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Overrides the group title."
+                  },
+                  {
+                    "fieldId": "collapsed",
+                    "name": "Start closed",
+                    "type": "bool",
+                    "helpText": "A group with an active value always starts open."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "showColumnSelect",
+          "name": "Show the Columns select",
+          "type": "bool",
+          "default": true,
+          "helpText": "Wide layouts only."
+        },
+        {
+          "fieldId": "emptyTitle",
+          "name": "Empty title",
+          "type": "string",
+          "localized": true,
+          "helpText": "Shown when no product matches the filters."
+        },
+        {
+          "fieldId": "emptyText",
+          "name": "Empty text",
+          "type": "text",
+          "localized": true,
+          "helpText": "The block appends a sentence naming the active filters."
+        }
+      ],
+      "mock": {
+        "collectionHandle": "winter-knitwear",
+        "variant": "sidebar",
+        "columns": "3",
+        "pageSize": "24",
+        "paginationStyle": "load-more",
+        "sortOptions": [
+          {
+            "option": "featured",
+            "label": "Featured"
+          },
+          {
+            "option": "best-selling",
+            "label": "Best selling"
+          },
+          {
+            "option": "price-asc",
+            "label": "Price low to high"
+          },
+          {
+            "option": "price-desc",
+            "label": "Price high to low"
+          },
+          {
+            "option": "newest",
+            "label": "Newest"
+          }
+        ],
+        "filters": [
+          {
+            "source": "category",
+            "label": "Category"
+          },
+          {
+            "source": "option:size",
+            "label": "Size"
+          },
+          {
+            "source": "option:colour",
+            "label": "Colour"
+          },
+          {
+            "source": "price",
+            "label": "Price"
+          },
+          {
+            "source": "availability",
+            "label": "Availability"
+          }
+        ],
+        "showColumnSelect": true,
+        "emptyTitle": "No products match these filters",
+        "emptyText": "Try removing a filter or widening the price range."
+      },
+      "previewImage": ".eldra/previews/collection-grid.png"
+    },
+    {
       "apiId": "collection-header",
       "name": "Collection header",
       "description": "Opens a collection page with a breadcrumb, the collection title, an optional clamped description with Read more, the live product count, and an optional image or sub-collection links.",

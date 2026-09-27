@@ -63,6 +63,18 @@ declare global {
       showCurrent?: boolean;
       container?: 'wide' | 'content';
     };
+    'collection-grid': {
+      collectionHandle?: string;
+      variant: 'sidebar' | 'drawer-only';
+      columns: '2' | '3' | '4';
+      pageSize: '12' | '24' | '48';
+      paginationStyle: 'load-more' | 'pages';
+      sortOptions?: Array<{ option: 'featured' | 'best-selling' | 'price-asc' | 'price-desc' | 'newest'; label?: string }>;
+      filters?: Array<{ source: 'category' | 'option:size' | 'option:colour' | 'price' | 'availability'; label?: string; collapsed?: boolean }>;
+      showColumnSelect?: boolean;
+      emptyTitle?: string;
+      emptyText?: string;
+    };
     'collection-header': {
       collectionHandle?: string;
       variant: 'image' | 'text-only';

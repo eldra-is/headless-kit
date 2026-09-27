@@ -23,3 +23,18 @@ export const focusRing =
  * arbitrary poster imagery, and a single-colour ring has no guaranteed contrast against a photo.
  */
 export const focusRingInset = 'eldra-focus-inset';
+
+/**
+ * The ring for a control the theme draws as a *shape with the real input inside it* — the
+ * `collection-grid` block's colour swatch, where a 1.5rem dot carries a native
+ * `<input type="checkbox">` stretched invisibly over it, so `focus-visible:` on the drawn shape
+ * would never match (the input has focus, the dot is what a keyboard user sees).
+ *
+ * This is the package's own pair rather than a `ring-*` recipe, for two reasons the swatch cannot
+ * work around: `eldra-focus-proxy` is `:has(:focus-visible)`, the only variant that moves the ring
+ * from the focused input onto the shape around it, and the input is `opacity-0` — which would take
+ * a ring drawn on the input itself down with it. Drawn outside the shape's border box, it also
+ * clears the swatch's own 2px checked ring for free (the same geometry `VariantPicker`'s swatches
+ * use in the package).
+ */
+export const focusRingProxy = 'eldra-focus eldra-focus-proxy';

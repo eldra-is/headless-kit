@@ -26,6 +26,7 @@ const expectedBlocks = [
   'article',
   'article-list',
   'breadcrumbs',
+  'collection-grid',
   'collection-header',
   'contact',
   'cta',
@@ -326,6 +327,18 @@ describe('starter theme', () => {
         'viewAllHref',
         'showSwatches',
         'background',
+      ],
+      'collection-grid': [
+        'collectionHandle',
+        'variant',
+        'columns',
+        'pageSize',
+        'paginationStyle',
+        'sortOptions',
+        'filters',
+        'showColumnSelect',
+        'emptyTitle',
+        'emptyText',
       ],
     });
 
