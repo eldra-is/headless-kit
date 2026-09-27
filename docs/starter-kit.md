@@ -38,7 +38,15 @@ Tailwind root:
 ```css
 @import 'tailwindcss';
 @import '@eldrajs/ui/tailwind.css';
+@source '../../blocks';
 ```
+
+The `@source` line is not optional. Nuxt 4's Vite root is `app/`, and Tailwind's automatic source
+detection starts at that root, so `blocks/` (a sibling of `app/`) is never scanned in the site
+build: without it, every class only a block uses — each `@tablet:`/`@content:` container-query
+variant, a block-only grid template — is missing from the deployed stylesheet, while Storybook
+(whose root is the theme root) scans `blocks/` on its own and looks right. Check a site build by
+grepping the emitted `_nuxt/entry.*.css` for a block-only class, not by looking at Storybook.
 
 with `@tailwindcss/vite` registered directly in `nuxt.config.ts` (`vite: { plugins: [tailwindcss()] }`
 — the adapter only asserts `tailwindcss@4.x` is installed, it never registers the transform plugin

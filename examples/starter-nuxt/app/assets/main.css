@@ -17,6 +17,14 @@
    names identical: that name match is the whole wiring. */
 @import '@eldrajs/ui/tailwind.css';
 
+/* Nuxt's Vite root is `app/`, and Tailwind's automatic source detection starts at that root, so
+   `blocks/` (a sibling of `app/`) is never scanned in the site build: every class only a block
+   uses — each `@tablet:`/`@content:` container-query variant, a block-only grid template — was
+   missing from the deployed stylesheet while Storybook (whose root is the theme root, so it
+   scans `blocks/` on its own) looked right. Name the directory explicitly; the path is relative
+   to this file. */
+@source '../../blocks';
+
 :root {
   color-scheme: light;
 }
