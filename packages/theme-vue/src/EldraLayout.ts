@@ -353,8 +353,22 @@ export const EldraLayout = defineComponent({
               blockCatalog: TEMPLATE_BLOCK_CATALOG,
               allowedContainerIds: new Set(Object.keys(tokens.containers)),
               breakpoints: MANIFEST_BREAKPOINTS,
+              // A route template may place reusable components too, and their
+              // identity/overlay behaviour is the page behaviour — Studio
+              // addresses a placement inside a template exactly as it does one
+              // inside a page. An absent projection is the empty projection, so
+              // a placement fails closed rather than rendering nothing.
+              reusableComponentProjection: props.reusableComponentProjection ?? {
+                bindings: [],
+                revisions: [],
+              },
             }),
-            entries: new Map(),
+            // The component's content expands into ordinary `block` nodes that
+            // resolve through this map. A template's own `template-block` nodes
+            // carry their entry inline and ignore it, which is why this used to
+            // be empty — an expanded placement would render every block as
+            // `data-eldra-missing-block` if it still were.
+            entries,
           };
         }
         const allowedEntryIds = new Set(entries.keys());

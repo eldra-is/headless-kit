@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Feat: `EldraLayout` renders reusable component placements inside a **route template**. The
+  `templateEntry` branch now passes `reusableComponentProjection` (an absent one is the empty
+  projection, so a placement fails closed exactly as it does on a page) and the resolved `blocks`
+  entry map into `@eldrajs/theme-core`'s `createTemplateLayoutRenderModel` — the expanded
+  component's blocks are ordinary block nodes and resolve through that map, where they previously
+  had none and rendered as the hidden `data-eldra-missing-block` placeholder. Identity is the page
+  behaviour byte for byte: each expanded node keeps its authored id, carries
+  `data-eldra-reusable-placement`, and gets the same deterministic render id and scoped class, so
+  Studio addresses a placement inside a template exactly as it addresses one inside a page. Pass
+  the **template read's own** projection: a projection carrying a binding the template does not
+  place fails the layout closed (`COMPONENT_STALE`).
 - Fix: `EldraLayout`'s template-block catalog now carries each manifest block's declared field
   renames (built from its `migrations` array via `@eldrajs/theme-core`'s `buildTemplateBlockRenames`),
   so a route template's `template-block` node still keyed by a field's pre-migration name resolves

@@ -4,6 +4,7 @@ import {
   encodeStega,
   layoutNodeClass,
   type ReusableComponentProjection,
+  type ReusableComponentRevision,
 } from '@eldrajs/theme-core';
 import { reactive } from 'vue';
 import { describe, expect, it } from 'vitest';
@@ -197,6 +198,168 @@ describe('EldraLayout', () => {
 
     expect(wrapper.find('[data-eldra-invalid-layout]').exists()).toBe(false);
     expect(wrapper.get('h1').text()).toBe('Renamed-field heading');
+  });
+
+  // A route template places reusable components exactly the way a page does:
+  // Studio addresses the expanded nodes by the same placement id, so the
+  // render must be byte-for-byte the page behaviour. Two things have to reach
+  // theme-core for that — the projection itself, and the real block entry map
+  // (the component's content is ordinary `block` nodes, which resolve through
+  // it; an empty map renders every one of them as `data-eldra-missing-block`).
+  it('renders a reusable placement inside a route template between its template blocks', async () => {
+    const siteId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const componentId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const reusableComponentProjection: ReusableComponentProjection = {
+      bindings: [{ placementId: 'SharedHeader', componentId, siteId, revision: 2 }],
+      revisions: [
+        {
+          componentId,
+          siteId,
+          revision: 2,
+          document: {
+            version: 1,
+            root: {
+              id: 'ComponentRoot',
+              type: 'flex',
+              layout: { direction: { normal: 'column' } },
+              children: [{ id: 'ComponentHero', type: 'block', entryId: heroId }],
+            },
+          },
+        },
+      ],
+    };
+    const wrapper = mount(EldraLayout, {
+      props: {
+        layout: {
+          version: 1,
+          root: {
+            id: 'TemplateRoot',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: [
+              {
+                id: 'TemplateLead',
+                type: 'template-block',
+                apiId: 'hero',
+                templates: { heading: 'Lead for {{ title }}' },
+              },
+              { id: 'SharedHeader', type: 'reusable', componentId },
+              {
+                id: 'TemplateBody',
+                type: 'template-block',
+                apiId: 'hero',
+                bindings: { heading: 'title' },
+              },
+            ],
+          },
+        },
+        blocks: [hero],
+        templateEntry: { id: 'guide-1', data: { title: 'Northern Lights' } },
+        reusableComponentProjection,
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-eldra-invalid-layout]').exists()).toBe(false);
+    expect(wrapper.find('[data-eldra-missing-block]').exists()).toBe(false);
+    const placed = wrapper.get('[data-eldra-layout-node="ComponentHero"]');
+    expect(placed.attributes('data-eldra-reusable-placement')).toBe('SharedHeader');
+    expect(placed.attributes('data-eldra-block')).toBe(heroId);
+    expect(wrapper.html()).not.toContain(componentId);
+    expect([...wrapper.element.querySelectorAll('h1')].map((node) => node.textContent)).toEqual([
+      'Lead for Northern Lights',
+      'First',
+      'Northern Lights',
+    ]);
+  });
+
+  it('fails a route-template reusable placement closed when no projection is passed', async () => {
+    const componentId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const wrapper = mount(EldraLayout, {
+      props: {
+        layout: {
+          version: 1,
+          root: {
+            id: 'TemplateRoot',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: [
+              {
+                id: 'TemplateLead',
+                type: 'template-block',
+                apiId: 'hero',
+                bindings: { heading: 'title' },
+              },
+              { id: 'SharedHeader', type: 'reusable', componentId },
+            ],
+          },
+        },
+        blocks: [hero],
+        templateEntry: { id: 'guide-1', data: { title: 'Northern Lights' } },
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-eldra-invalid-layout]').exists()).toBe(true);
+    expect(wrapper.find('[data-eldra-template-block]').exists()).toBe(false);
+  });
+
+  // The expansion refuses a projection carrying a binding the document does not
+  // consume (COMPONENT_STALE), and a template runs it unconditionally — so the
+  // route-template branch must be handed the *template read's own* projection.
+  // A page's, or a merged one, takes this branch down.
+  it('fails a route template closed when its projection carries a binding it does not place', async () => {
+    const siteId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const componentId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const revision: ReusableComponentRevision = {
+      componentId,
+      siteId,
+      revision: 2,
+      document: {
+        version: 1,
+        root: {
+          id: 'ComponentRoot',
+          type: 'flex',
+          layout: { direction: { normal: 'column' } },
+          children: [{ id: 'ComponentHero', type: 'block', entryId: heroId }],
+        },
+      },
+    };
+    const props = {
+      layout: {
+        version: 1,
+        root: {
+          id: 'TemplateRoot',
+          type: 'flex',
+          layout: { direction: { normal: 'column' } },
+          children: [{ id: 'SharedHeader', type: 'reusable', componentId }],
+        },
+      },
+      blocks: [hero],
+      templateEntry: { id: 'guide-1', data: { title: 'Northern Lights' } },
+    };
+    const own: ReusableComponentProjection = {
+      bindings: [{ placementId: 'SharedHeader', componentId, siteId, revision: 2 }],
+      revisions: [revision],
+    };
+    const foreign: ReusableComponentProjection = {
+      bindings: [
+        ...own.bindings,
+        // A placement that lives on some *page*, not in this template.
+        { placementId: 'PageOnlyFooter', componentId, siteId, revision: 2 },
+      ],
+      revisions: [revision],
+    };
+
+    const stale = mount(EldraLayout, { props: { ...props, reusableComponentProjection: foreign } });
+    await flushPromises();
+    expect(stale.find('[data-eldra-invalid-layout]').exists()).toBe(true);
+    expect(stale.find('[data-eldra-block]').exists()).toBe(false);
+
+    const good = mount(EldraLayout, { props: { ...props, reusableComponentProjection: own } });
+    await flushPromises();
+    expect(good.find('[data-eldra-invalid-layout]').exists()).toBe(false);
+    expect(good.get('[data-eldra-layout-node="ComponentHero"]').get('h1').text()).toBe('First');
   });
 
   it('renders repeated reusable placements with distinct DOM identity and shared selection identity', async () => {
