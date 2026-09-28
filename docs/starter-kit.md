@@ -420,7 +420,21 @@ bare handle, because a `reference` field stores the collection's id and may hand
 else. `createGatewayStorefront` asks for a slug directly and resolves an id through the collection
 list's `filter` query (`id:eq:<uuid>`, matched back against the returned row, so a gateway that
 ignores the token cannot load the wrong collection); `createDemoStorefront` resolves an id from its
-own fixture. Either way an id nothing matches resolves to `null`, never an error: the block shows
+own fixture.
+
+**Every gateway filter is a `[groupIndex:]field:op:value` token**, against one of the few fields a
+storefront list actually filters on (`id`, `slug`, `status`, `createdAt`) — a token that is neither
+is a 400, not an empty list, so the tokens this theme builds live in one place in
+`app/storefront/gateway.ts`. `byHandles` asks for its whole set in one `slug:in:a,b` token (bare
+tokens are AND'd, so one `eq` per handle would match nothing); `related` has no relatedness
+endpoint to call, so it reads the current product and lists the same `categoryId` (the documented
+query parameter on `GET /catalog/v1/products/list`), the product itself excluded, falling back to
+the newest active products when it has no category or the category holds nothing else. The
+collection grid's facet filters reach no `filter` token at all — `category`, `option:*`, `price`
+and `availability` are not fields that endpoint filters on — for the same reason its `facets` come
+back `[]`, and its sort ids map to the sort fields the endpoint knows (`featured` and
+`best-selling` to none: `featured` _is_ the collection's own order, and the contract exposes no
+sales figures). The demo source still answers all of it in full. Either way an id nothing matches resolves to `null`, never an error: the block shows
 its empty state, plus an editor-only "Publish to load products" hint
 (`storefront.unresolvedCollection*`) explaining why.
 
@@ -486,6 +500,18 @@ Four rules the file exists to keep:
 - **Ids come from the fixture.** A seed block keeps the fixture block's own `id`
   (`product-detail`, `home-hero`, …), which is what the generated layout's `block` nodes
   reference.
+- **A catalog seed pins no product or collection.** The sample pages name one — that is what makes
+  them a realistic page — but a template renders whatever its route resolved, and every commerce
+  block reads the route's own product/collection when its handle field is empty. So the seeds for
+  `/products/:slug` and `/collections/:slug` drop exactly those fields: `product-detail`'s
+  `productHandle`, `collection-header`'s and `collection-grid`'s `collectionHandle`, and
+  `product-carousel`'s `sourceHandle`/`sourceCollection` (its `related` variant reads the route).
+  The home seed keeps its carousel's handle — `/` has no route context to fall back to.
+  `breadcrumbs` carries the same pinning in its data rather than in a handle, so its seed keeps
+  the Home crumb and nothing below it (`trail: []`, `showHome` still true) and takes the page's
+  own title from the routed object through `templates: { currentTitle: '{{ title }}' }` on its
+  layout node — the seed-block `templates`/`bindings` the Vite plugin validates against the
+  block's declared fields.
 
 Editing a sample page fixture therefore edits the seeded template too — one copy of the starter's
 product page backs the Storybook story, the page-level test and the merchant's first deploy. The

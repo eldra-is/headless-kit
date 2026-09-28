@@ -112,6 +112,10 @@ interface RawProductDetails {
   slug: string;
   title: string;
   status: string;
+  /** Optional on purpose: the gateway's product detail response carries it for
+   * a product that has a category and omits it otherwise. `related` uses it to
+   * find products of the same kind — see `relatedProducts`. */
+  categoryId?: string;
   description?: Record<string, unknown>;
   mediaLinks?: RawMediaItem[] | null;
   options?: RawProductOption[] | null;
@@ -607,6 +611,55 @@ async function postToEndpoint(
 }
 
 // ---------------------------------------------------------------------------------------------
+// Gateway filter and sort tokens
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The gateway's list endpoints take repeatable `[groupIndex:]field:op:value`
+ * filter tokens (`packages/sdk/src/__tests__/fixtures/web-gateway.json`, the
+ * `filter` parameter of `GET /catalog/v1/products/list` and
+ * `/catalog/v1/collections`), and refuse — 400, not an empty list — a token
+ * whose field is not one the endpoint filters on or whose operator it does not
+ * know. Tokens sharing a `groupIndex` are OR'd; every other token is AND'd.
+ *
+ * Only a handful of fields are filterable on a storefront product list (`id`,
+ * `slug`, `status`, `createdAt`), so every token this file builds is written
+ * here, once, rather than at the call sites that used to hand-roll them.
+ */
+const STATUS_ACTIVE = 'status:eq:ACTIVE';
+
+/**
+ * `field:in:a,b,c` — the one token that asks for several values of the same
+ * field. The alternative (one `eq` per value) would need the OR-group prefix,
+ * since bare tokens are AND'd and `slug:eq:a` AND `slug:eq:b` matches nothing.
+ *
+ * A value containing a comma or a colon cannot survive the token grammar, so it
+ * is dropped rather than sent as something the gateway would read as a
+ * different filter. Product and collection handles are slugs; nothing legal is
+ * lost.
+ */
+function inFilter(field: string, values: readonly string[]): string[] {
+  const usable = values.filter(
+    (value) => value !== '' && !value.includes(',') && !value.includes(':')
+  );
+  return usable.length === 0 ? [] : [`${field}:in:${usable.join(',')}`];
+}
+
+/**
+ * The block's own sort ids mapped to the gateway's sort fields, which are the
+ * only ones `GET /catalog/v1/collections/{slug}/products` accepts (an unknown
+ * one is a 400, exactly like an unknown filter field). `featured` and
+ * `best-selling` map to nothing: `featured` *is* the collection's own sort
+ * mode, which is what the endpoint already orders by, and the storefront
+ * contract exposes no sales figures to sort by.
+ */
+const GATEWAY_SORT: Readonly<Record<string, string>> = {
+  newest: '-createdAt',
+  'price-asc': 'minPrice',
+  'price-desc': '-minPrice',
+};
+
+// ---------------------------------------------------------------------------------------------
 // Collection selectors — a slug goes straight to the gateway, an id needs a lookup first
 // ---------------------------------------------------------------------------------------------
 
@@ -636,6 +689,46 @@ async function resolveCollectionSlug(
   )) as unknown as { data?: RawCollectionItem[] | null };
   const match = (raw.data ?? []).find((item) => item.id === selector.id);
   return match?.slug ?? null;
+}
+
+/**
+ * "More like this", built from what the storefront contract actually offers.
+ *
+ * There is no relatedness endpoint and no `relatedTo` filter field — the token
+ * this used to send was refused outright — so the nearest honest answer is the
+ * product's own category: read the product, then ask the product list for that
+ * category through the documented `categoryId` query parameter (`GET
+ * /catalog/v1/products/list`), with the product itself dropped from the result.
+ * A product with no category, or a category with nothing else in it, falls back
+ * to the newest active products, which is what the carousel showed before any
+ * of this was filtered at all. One extra row is requested so removing the
+ * current product still leaves a full carousel.
+ */
+async function relatedProducts(
+  client: EldraClient,
+  handle: string | null,
+  limit: number,
+  signal: AbortSignal
+): Promise<StorefrontProductListItem[]> {
+  if (!handle) return [];
+  const current = (await client.catalog.getProduct(
+    handle,
+    {},
+    { signal }
+  )) as unknown as RawProductDetails;
+  const categoryId = typeof current.categoryId === 'string' ? current.categoryId : undefined;
+  const list = async (query: Record<string, unknown>): Promise<StorefrontProductListItem[]> => {
+    const raw = (await client.catalog.listProducts(
+      { pageSize: limit + 1, sort: ['-createdAt'], filter: [STATUS_ACTIVE], ...query },
+      { signal }
+    )) as unknown as RawProductList;
+    return (raw.data ?? [])
+      .filter((item) => item.slug !== handle)
+      .slice(0, limit)
+      .map(mapProductListItem);
+  };
+  const sameCategory = categoryId === undefined ? [] : await list({ categoryId });
+  return sameCategory.length > 0 ? sameCategory : await list({});
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -677,16 +770,21 @@ export function createGatewayStorefront(
       createGatewayResult([collection, opts], async (signal) => {
         const slug = await resolveCollectionSlug(client, collection.value, signal);
         if (slug === null) return null;
-        const { page, pageSize, sort, filters } = opts.value;
+        const { page, pageSize, sort } = opts.value;
+        // No `filter` token is built from `opts.filters`: the shopper's facets
+        // (`category`, `option:size`, `price`, `availability`) are not fields
+        // this endpoint filters on — it takes `id`, `slug`, `status` and
+        // `createdAt` — so every facet the block sent used to make the request
+        // a 400. They are dropped until the gateway grows a facet parameter,
+        // which is the same reason `facets` below is `[]`; the grid then shows
+        // the collection unfiltered rather than an error.
+        const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
         const raw = (await client.catalog.listCollectionProducts(
           slug,
           {
             page,
             pageSize,
-            sort: sort ? [sort] : undefined,
-            filter: filters
-              ? Object.entries(filters).map(([key, values]) => `${key}:${values.join(',')}`)
-              : undefined,
+            sort: gatewaySort === undefined ? undefined : [gatewaySort],
           },
           { signal }
         )) as unknown as RawProductList;
@@ -700,19 +798,15 @@ export function createGatewayStorefront(
         return { items: (raw.data ?? []).map(mapProductListItem), total: raw.meta.total, facets };
       }),
     related: (handle, limit) =>
-      createGatewayResult([handle], async (signal) => {
-        if (!handle.value) return [];
-        const raw = (await client.catalog.listProducts(
-          { limit, filter: [`relatedTo:${handle.value}`] },
-          { signal }
-        )) as unknown as RawProductList;
-        return (raw.data ?? []).slice(0, limit).map(mapProductListItem);
-      }),
+      createGatewayResult([handle], (signal) =>
+        relatedProducts(client, handle.value, limit, signal)
+      ),
     byHandles: (handles) =>
       createGatewayResult([handles], async (signal) => {
-        if (handles.value.length === 0) return [];
+        const filter = inFilter('slug', handles.value);
+        if (filter.length === 0) return [];
         const raw = (await client.catalog.listProducts(
-          { filter: [`slug:${handles.value.join(',')}`] },
+          { pageSize: handles.value.length, filter: [...filter, STATUS_ACTIVE] },
           { signal }
         )) as unknown as RawProductList;
         return (raw.data ?? []).map(mapProductListItem);

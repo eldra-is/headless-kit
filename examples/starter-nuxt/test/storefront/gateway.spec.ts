@@ -31,14 +31,25 @@ interface ClientCalls {
   client: EldraClient;
   productSlugs: string[];
   collectionQueries: Array<Record<string, unknown>>;
+  collectionProductQueries: Array<Record<string, unknown>>;
+  productListQueries: Array<Record<string, unknown>>;
 }
 
 /** A client whose collection list answers with `collections` — the by-id path's
  *  only source of a slug — and records every call, so a test can prove the
  *  products request was never made for an id nothing matched. */
-function recordingClient(collections: Array<{ id: string; slug: string }> = []): ClientCalls {
+function recordingClient(
+  collections: Array<{ id: string; slug: string }> = [],
+  options: {
+    product?: Record<string, unknown>;
+    products?: (query: Record<string, unknown>) => Array<Record<string, unknown>>;
+  } = {}
+): ClientCalls {
   const productSlugs: string[] = [];
   const collectionQueries: Array<Record<string, unknown>> = [];
+  const collectionProductQueries: Array<Record<string, unknown>> = [];
+  const productListQueries: Array<Record<string, unknown>> = [];
+  const meta = { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 };
   const client = {
     catalog: {
       listCollections: async (query: Record<string, unknown>) => {
@@ -47,13 +58,38 @@ function recordingClient(collections: Array<{ id: string; slug: string }> = []):
           data: collections.map((item) => ({ ...item, title: item.slug, productCount: 0 })),
         };
       },
-      listCollectionProducts: async (slug: string) => {
+      listCollectionProducts: async (slug: string, query: Record<string, unknown>) => {
         productSlugs.push(slug);
-        return { data: [], meta: { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 } };
+        collectionProductQueries.push(query);
+        return { data: [], meta };
+      },
+      getProduct: async () => options.product ?? { id: 'p1', slug: 'merino-crew-sweater' },
+      listProducts: async (query: Record<string, unknown>) => {
+        productListQueries.push(query);
+        return { data: options.products?.(query) ?? [], meta };
       },
     },
   } as unknown as EldraClient;
-  return { client, productSlugs, collectionQueries };
+  return {
+    client,
+    productSlugs,
+    collectionQueries,
+    collectionProductQueries,
+    productListQueries,
+  };
+}
+
+/** One product list row, in the gateway's own shape. */
+function listRow(slug: string): Record<string, unknown> {
+  return {
+    id: slug,
+    slug,
+    title: slug,
+    status: 'ACTIVE',
+    minPrice: 1000,
+    maxPrice: 1000,
+    totalVariants: 1,
+  };
 }
 
 function fakeClient(): EldraClient {
@@ -207,6 +243,130 @@ describe('createGatewayStorefront', () => {
     expect(calls.productSlugs).toEqual(['winter-knitwear']);
     expect(result.error.value).toBeNull();
     expect(result.data.value).toEqual({ items: [], total: 0, facets: [] });
+  });
+
+  /**
+   * Every token below is `[groupIndex:]field:op:value` against a field the
+   * endpoint filters on — the grammar and the field set the SDK's contract
+   * fixture documents. The two the theme used to send (`slug:a,b` and
+   * `relatedTo:<handle>`) were neither, and the gateway answered 400.
+   */
+  it('byHandles asks for the whole set in one `in` token, and only for active products', async () => {
+    const calls = recordingClient([], {
+      products: () => [listRow('merino-crew-sweater'), listRow('stoneware-mug')],
+    });
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+    const result = storefront.catalog.byHandles(ref(['merino-crew-sweater', 'stoneware-mug']));
+    await settle();
+
+    expect(calls.productListQueries).toEqual([
+      { pageSize: 2, filter: ['slug:in:merino-crew-sweater,stoneware-mug', 'status:eq:ACTIVE'] },
+    ]);
+    expect(result.data.value?.map((item) => item.handle)).toEqual([
+      'merino-crew-sweater',
+      'stoneware-mug',
+    ]);
+  });
+
+  it('byHandles drops a handle that cannot survive the token grammar, and asks for nothing at all when none can', async () => {
+    const calls = recordingClient([], { products: () => [listRow('stoneware-mug')] });
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+    storefront.catalog.byHandles(ref(['a,b', 'stoneware-mug']));
+    await settle();
+    expect(calls.productListQueries[0]?.filter).toEqual([
+      'slug:in:stoneware-mug',
+      'status:eq:ACTIVE',
+    ]);
+
+    const empty = recordingClient();
+    const emptyStore = createGatewayStorefront(empty.client, { route: fakeRoute() });
+    const result = emptyStore.catalog.byHandles(ref(['x:y']));
+    await settle();
+    expect(empty.productListQueries).toEqual([]);
+    expect(result.data.value).toEqual([]);
+  });
+
+  it('related asks for the current product’s category and leaves the product itself out', async () => {
+    const calls = recordingClient([], {
+      product: { id: 'p1', slug: 'merino-crew-sweater', categoryId: 'cat-knitwear' },
+      products: () => [listRow('merino-crew-sweater'), listRow('lambswool-scarf')],
+    });
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+    const result = storefront.catalog.related(ref('merino-crew-sweater'), 4);
+    await settle();
+
+    expect(calls.productListQueries).toEqual([
+      {
+        pageSize: 5,
+        sort: ['-createdAt'],
+        filter: ['status:eq:ACTIVE'],
+        categoryId: 'cat-knitwear',
+      },
+    ]);
+    expect(result.data.value?.map((item) => item.handle)).toEqual(['lambswool-scarf']);
+  });
+
+  it('related falls back to the newest active products when the product has no category', async () => {
+    const calls = recordingClient([], {
+      product: { id: 'p1', slug: 'merino-crew-sweater' },
+      products: () => [listRow('lambswool-scarf')],
+    });
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+    const result = storefront.catalog.related(ref('merino-crew-sweater'), 4);
+    await settle();
+
+    expect(calls.productListQueries).toEqual([
+      { pageSize: 5, sort: ['-createdAt'], filter: ['status:eq:ACTIVE'] },
+    ]);
+    expect(calls.productListQueries[0]).not.toHaveProperty('categoryId');
+    expect(result.data.value?.map((item) => item.handle)).toEqual(['lambswool-scarf']);
+  });
+
+  it('related falls back again when the category has nothing else in it', async () => {
+    const calls = recordingClient([], {
+      product: { id: 'p1', slug: 'merino-crew-sweater', categoryId: 'cat-knitwear' },
+      products: (query) =>
+        query.categoryId === undefined
+          ? [listRow('stoneware-mug')]
+          : [listRow('merino-crew-sweater')],
+    });
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+    const result = storefront.catalog.related(ref('merino-crew-sweater'), 4);
+    await settle();
+
+    expect(calls.productListQueries.map((query) => query.categoryId)).toEqual([
+      'cat-knitwear',
+      undefined,
+    ]);
+    expect(result.data.value?.map((item) => item.handle)).toEqual(['stoneware-mug']);
+  });
+
+  it('collectionProducts sends a sort field the endpoint knows, and no facet filter at all', async () => {
+    const calls = recordingClient();
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+    const collection = ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' });
+    const opts = ref({
+      page: 1,
+      pageSize: 24,
+      sort: 'price-asc',
+      filters: { category: ['knitwear'], price: ['20-80'] },
+    });
+    storefront.catalog.collectionProducts(collection, opts);
+    await settle();
+
+    expect(calls.collectionProductQueries).toEqual([{ page: 1, pageSize: 24, sort: ['minPrice'] }]);
+    expect(calls.collectionProductQueries[0]).not.toHaveProperty('filter');
+  });
+
+  it('collectionProducts sends no sort for the collection’s own order, or one it cannot express', async () => {
+    for (const sort of ['featured', 'best-selling']) {
+      const calls = recordingClient();
+      const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+      const collection = ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' });
+      storefront.catalog.collectionProducts(collection, ref({ page: 1, pageSize: 24, sort }));
+      await settle();
+      expect(calls.collectionProductQueries).toEqual([{ page: 1, pageSize: 24, sort: undefined }]);
+    }
   });
 
   it('collectionProducts resolves nothing — never an error — for an id the gateway cannot match', async () => {
