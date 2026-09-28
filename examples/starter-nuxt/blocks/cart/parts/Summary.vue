@@ -45,6 +45,7 @@ import { useUiId } from '../../../app/composables/useUiId';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../../app/utils/links';
+import { useMoney } from '../../../app/storefront/money';
 
 const props = withDefaults(
   defineProps<{
@@ -58,6 +59,8 @@ const props = withDefaults(
 );
 
 const t = useT();
+/** Totals are major units (`app/storefront/types.ts`); `<Price>` reads minor. */
+const money = useMoney();
 const cart = useStorefront().cart;
 
 /**
@@ -206,14 +209,14 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
       <div :class="ROW_CLASS">
         <dt :class="LABEL_CLASS">{{ t('cart.subtotal') }}</dt>
         <dd :class="VALUE_CLASS">
-          <Price :amount="totals.subtotal" size="sm" :classes="{ root: 'inline' }" />
+          <Price :amount="money.minor(totals.subtotal)" size="sm" :classes="{ root: 'inline' }" />
         </dd>
       </div>
       <div v-if="discount" :class="ROW_CLASS">
         <dt :class="LABEL_CLASS">{{ t('cart.discount', { code: discount.code }) }}</dt>
         <dd :class="VALUE_CLASS">
           <Price
-            :amount="-discount.amount"
+            :amount="money.minor(-discount.amount)"
             size="sm"
             :classes="{ root: 'inline', current: 'text-success' }"
           />
@@ -224,13 +227,18 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
         <dd :class="VALUE_CLASS">
           <span v-if="totals.shipping === null">{{ t('cart.shippingPending') }}</span>
           <span v-else-if="totals.shipping === 0">{{ t('cart.shippingFree') }}</span>
-          <Price v-else :amount="totals.shipping" size="sm" :classes="{ root: 'inline' }" />
+          <Price
+            v-else
+            :amount="money.minor(totals.shipping)"
+            size="sm"
+            :classes="{ root: 'inline' }"
+          />
         </dd>
       </div>
       <div class="border-border flex items-baseline justify-between gap-4 border-t pt-3">
         <dt class="text-text text-base font-semibold">{{ t('cart.total') }}</dt>
         <dd class="text-text text-base font-semibold tabular-nums">
-          <Price :amount="totals.total" :classes="{ root: 'inline' }" />
+          <Price :amount="money.minor(totals.total)" :classes="{ root: 'inline' }" />
         </dd>
       </div>
     </dl>

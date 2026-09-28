@@ -1,20 +1,9 @@
 import type { SearchResultItem, SearchResults } from '@eldrajs/ui';
+import { formatMoney } from '../../app/storefront/money';
 import type {
   StorefrontProductListItem,
   StorefrontSearchResponse,
 } from '../../app/storefront/types';
-
-/**
- * `search.run()` responses are always USD (Northwind Goods prices in USD) — the same fixed
- * formatter `blocks/navigation/Block.vue` builds for its own
- * header `SearchBar` mapping, duplicated here rather than shared: neither block imports the
- * other, and a future currency-aware storefront would replace both call sites independently.
- */
-const USD_FORMATTER = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-
-function formatPrice(cents: number): string {
-  return USD_FORMATTER.format(cents / 100);
-}
 
 /**
  * Spec "Search results page" → Do/Don't: "Don't show sold-out products at the top of suggestions.
@@ -61,7 +50,7 @@ export function toSearchBarResults(
       id: product.variantId,
       title: product.title,
       href: product.url,
-      price: formatPrice(product.price.amount),
+      price: formatMoney(product.price.amount),
       image: product.featuredImage?.src,
       imageAlt: product.featuredImage?.alt,
     }));

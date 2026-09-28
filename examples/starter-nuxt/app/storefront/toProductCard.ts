@@ -1,5 +1,6 @@
 import type { ProductCardProduct } from '@eldrajs/ui';
 import { isInternalHref, safeHref } from '../utils/links';
+import { toMinorUnits } from './money';
 import type { StorefrontProductListItem } from './types';
 
 /**
@@ -14,6 +15,12 @@ import type { StorefrontProductListItem } from './types';
  * `compareAt > amount`, matching `Price`'s own sale rule verbatim. A future "New" tag (the spec's
  * `dto_ProductListItem` carries no such flag today) is a decision for whoever adds it, not this
  * function.
+ *
+ * **Units.** Storefront money is major units (`types.ts`) and `ProductCardProduct.price` is minor
+ * units, like every other `@eldrajs/ui` money input, so the two prices are converted on the way in.
+ * `opts.minorUnits` exists so a block can hand in the conversion already bound to the currency and
+ * locale its `<ProductCard>` will resolve (`useMoney().minor`) — the fallback is the theme's own
+ * `USD`/`en-US` default, which is right until the store's settings say otherwise.
  *
  * `opts.ratio` is accepted, not consumed: it exists so a caller building a grid of cards has one
  * place to read the aspect ratio it is about to pass to `<ProductCard ratio="…">` alongside this
@@ -34,24 +41,35 @@ import type { StorefrontProductListItem } from './types';
  */
 export function toProductCard(
   item: StorefrontProductListItem,
-  opts?: { ratio?: '4x5' | '1x1' | '3x4' }
+  opts?: ToProductCardOptions
 ): ProductCardProduct | null {
-  void opts;
   const url = safeHref(item.url);
   if (url === null) return null;
+  const minor = opts?.minorUnits ?? toMinorUnits;
   const { amount, compareAt, from } = item.price;
   const isSale = compareAt != null && compareAt > amount;
   return {
     title: item.title,
     url,
     featuredImage: item.featuredImage ?? null,
-    price: { amount, compareAt, from },
+    price: {
+      amount: minor(amount),
+      compareAt: compareAt == null ? compareAt : minor(compareAt),
+      from,
+    },
     rating: item.rating,
     colours: item.colours,
     badge: isSale ? { variant: 'sale' } : null,
     stock: item.stock,
     available: item.available,
   };
+}
+
+/** What a block can tell the card builder beyond the item itself. */
+export interface ToProductCardOptions {
+  ratio?: '4x5' | '1x1' | '3x4';
+  /** Major → minor units, bound to the block's own currency/locale. Defaults to `toMinorUnits`. */
+  minorUnits?: (amount: number) => number;
 }
 
 /** One product's card data plus what the block needs to render its link correctly. */
@@ -79,7 +97,7 @@ export interface ProductCardEntry {
  */
 export function toProductCardEntries(
   items: readonly StorefrontProductListItem[] | null | undefined,
-  opts?: { ratio?: '4x5' | '1x1' | '3x4' }
+  opts?: ToProductCardOptions
 ): ProductCardEntry[] {
   const entries: ProductCardEntry[] = [];
   for (const item of items ?? []) {

@@ -178,6 +178,19 @@ describe('product-detail block', () => {
     expect(wrapper.text()).toContain('$128.00');
   });
 
+  it('renders a whole-unit price as itself, not as a hundredth of it', async () => {
+    // The catalog sends money in major units (`app/storefront/types.ts`), so a $28.00 product
+    // arrives as `28` — dividing it again rendered "$0.28" on a live store.
+    const wrapper = await mountReady(mock, {
+      storefront: storefrontWith({ price: { amount: 28, compareAt: null } }),
+    });
+    expect(wrapper.text()).toContain('$28.00');
+    expect(wrapper.text()).not.toContain('$0.28');
+    // The same amount inside the button's own label, which formats it rather than rendering
+    // `<Price>`: the two must agree.
+    expect(addToCart(wrapper).text()).toContain('Add to cart · $28.00');
+  });
+
   it('hides the rating below three reviews and when the field is off', async () => {
     const withRating = await mountReady(mock);
     expect(withRating.get('a[href="#reviews"]').exists()).toBe(true);

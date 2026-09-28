@@ -44,6 +44,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { focusRing } from '../../app/utils/classes';
+import { formatMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
@@ -236,17 +237,13 @@ const searchOpen = ref(false);
 const searchQuery = ref('');
 const searchResult = storefront.search.run(searchQuery);
 
-function formatSearchPrice(cents: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
-}
-
 function toSearchResults(response: StorefrontSearchResponse | null): SearchResults | undefined {
   if (response === null) return undefined;
   const products: SearchResultItem[] = response.products.map((product) => ({
     id: product.variantId,
     title: product.title,
     href: product.url,
-    price: formatSearchPrice(product.price.amount),
+    price: formatMoney(product.price.amount),
     image: product.featuredImage?.src,
     imageAlt: product.featuredImage?.alt,
   }));

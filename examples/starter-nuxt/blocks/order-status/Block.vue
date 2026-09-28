@@ -108,6 +108,7 @@ import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { buildOrder } from '../../app/storefront/demo';
+import { useMoney } from '../../app/storefront/money';
 import type { MessageKey } from '../../app/i18n/messages';
 import type {
   StorefrontCartLine,
@@ -123,6 +124,8 @@ const t = useT();
 const editing = useEditing();
 const storefront = useStorefront();
 const titleId = `order-status-title-${useUiId()}`;
+/** Order money is major units (`app/storefront/types.ts`); `<Price>` reads minor. */
+const money = useMoney();
 
 function tryUseEldra(): ReturnType<typeof useEldra> | undefined {
   try {
@@ -646,7 +649,7 @@ const helpLinks = computed<HelpLinkView[]>(() =>
                   </Link>
                   <p class="text-muted text-body-sm">{{ lineMeta(line) }}</p>
                 </div>
-                <Price :amount="line.lineTotal" size="sm" class="justify-self-end" />
+                <Price :amount="money.minor(line.lineTotal)" size="sm" class="justify-self-end" />
               </li>
             </ul>
             <Button
@@ -666,26 +669,30 @@ const helpLinks = computed<HelpLinkView[]>(() =>
               <div class="flex items-baseline justify-between gap-4">
                 <dt class="text-muted text-body-sm">{{ t('order.subtotal') }}</dt>
                 <dd class="text-text text-base tabular-nums">
-                  <Price :amount="totals.subtotal" size="sm" />
+                  <Price :amount="money.minor(totals.subtotal)" size="sm" />
                 </dd>
               </div>
               <div class="flex items-baseline justify-between gap-4">
                 <dt class="text-muted text-body-sm">{{ t('order.shipping') }}</dt>
                 <dd class="text-text text-base tabular-nums">
                   <span v-if="isShippingFree">{{ t('order.shippingFree') }}</span>
-                  <Price v-else-if="totals.shipping != null" :amount="totals.shipping" size="sm" />
+                  <Price
+                    v-else-if="totals.shipping != null"
+                    :amount="money.minor(totals.shipping)"
+                    size="sm"
+                  />
                 </dd>
               </div>
               <div v-if="hasTax" class="flex items-baseline justify-between gap-4">
                 <dt class="text-muted text-body-sm">{{ t('order.tax') }}</dt>
                 <dd class="text-text text-base tabular-nums">
-                  <Price :amount="totals.tax!" size="sm" />
+                  <Price :amount="money.minor(totals.tax!)" size="sm" />
                 </dd>
               </div>
               <div class="border-border flex items-baseline justify-between gap-4 border-t pt-3">
                 <dt class="text-h4 font-bold">{{ t('order.total') }}</dt>
                 <dd class="text-h4 font-bold tabular-nums">
-                  <Price :amount="totals.total" size="md" />
+                  <Price :amount="money.minor(totals.total)" size="md" />
                 </dd>
               </div>
             </dl>

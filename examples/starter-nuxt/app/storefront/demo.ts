@@ -1,6 +1,7 @@
 import { nextTick, reactive, ref, watch, type Ref } from 'vue';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
+import { roundMoney } from './money';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -31,15 +32,15 @@ import type {
  * catalogue named in `eldra-starter-spec/02-blocks.md` (lines 3140–3142, 3270–3272, 3373–3375,
  * 3581–3583, 3692–3694, 3806–3811).
  *
- * Money is minor units (cents) throughout — see `types.ts`.
+ * Money is major units throughout — see `types.ts`.
  */
 
-const FREE_SHIPPING_THRESHOLD = 8000; // $80.00
-const FLAT_SHIPPING = 600; // $6.00, below the free-shipping threshold
+const FREE_SHIPPING_THRESHOLD = 80; // $80.00
+const FLAT_SHIPPING = 6; // $6.00, below the free-shipping threshold
 
 function demoImage(index: number, alt: string): StorefrontMedia {
   // Only `product-1`..`product-6` exist in `public/demo/` today (scripts/demo-images.mjs) — a
-  // commerce block that needs more can extend that manifest. Cents don't apply to indices, this
+  // commerce block that needs more can extend that manifest. Money doesn't come into it, this
   // just cycles through what already exists.
   const name = `product-${((index - 1) % 6) + 1}`;
   return { src: `/demo/${name}.svg`, alt };
@@ -78,8 +79,8 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     category: 'knitwear',
     sizes: ['xs', 's', 'm', 'l', 'xl'],
     title: 'Merino crew sweater',
-    amount: 9600,
-    compareAt: 12800,
+    amount: 96,
+    compareAt: 128,
     stock: 'in',
     available: true,
     variantId: 'merino-crew-sweater::oat::m',
@@ -96,7 +97,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     category: 'knitwear',
     sizes: ['xs', 's', 'm', 'l', 'xl'],
     title: 'Fisherman rib cardigan',
-    amount: 16400,
+    amount: 164,
     stock: 'in',
     available: true,
     variantId: 'fisherman-rib-cardigan::natural::m',
@@ -105,7 +106,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'lambswool-throw-blanket',
     category: 'knitwear',
     title: 'Lambswool throw blanket',
-    amount: 14800,
+    amount: 148,
     stock: 'in',
     available: true,
     variantId: 'lambswool-throw-blanket::default',
@@ -115,7 +116,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     category: 'knitwear',
     sizes: ['s', 'm', 'l'],
     title: 'Ribbed lambswool beanie',
-    amount: 3800,
+    amount: 38,
     stock: 'in',
     available: true,
     variantId: 'ribbed-lambswool-beanie::default',
@@ -124,7 +125,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'linen-tea-towels-pair',
     category: 'kitchen',
     title: 'Linen tea towels, pair',
-    amount: 2400,
+    amount: 24,
     stock: 'out',
     available: false,
     variantId: 'linen-tea-towels-pair::natural',
@@ -133,7 +134,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'speckled-latte-mug',
     category: 'ceramics',
     title: 'Speckled latte mug',
-    amount: 2800,
+    amount: 28,
     stock: 'in',
     available: true,
     variantId: 'speckled-latte-mug::clay',
@@ -143,7 +144,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'stoneware-dinner-plates-set-of-4',
     category: 'ceramics',
     title: 'Stoneware dinner plates, set of 4',
-    amount: 7200,
+    amount: 72,
     stock: 'in',
     available: true,
     variantId: 'stoneware-dinner-plates-set-of-4::default',
@@ -152,7 +153,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'walnut-serving-board',
     category: 'kitchen',
     title: 'Walnut serving board',
-    amount: 5800,
+    amount: 58,
     stock: 'in',
     available: true,
     variantId: 'walnut-serving-board::large',
@@ -161,7 +162,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'hand-thrown-serving-bowl',
     category: 'ceramics',
     title: 'Hand-thrown serving bowl',
-    amount: 6400,
+    amount: 64,
     stock: 'in',
     available: true,
     variantId: 'hand-thrown-serving-bowl::default',
@@ -170,7 +171,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'glazed-milk-jug',
     category: 'ceramics',
     title: 'Glazed milk jug',
-    amount: 3400,
+    amount: 34,
     stock: 'in',
     available: true,
     variantId: 'glazed-milk-jug::default',
@@ -179,7 +180,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'linen-napkins-set-of-4',
     category: 'kitchen',
     title: 'Linen napkins, set of 4',
-    amount: 4000,
+    amount: 40,
     stock: 'in',
     available: true,
     variantId: 'linen-napkins-set-of-4::natural',
@@ -188,7 +189,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
     handle: 'stonewashed-linen-throw',
     category: 'knitwear',
     title: 'Stonewashed linen throw',
-    amount: 11800,
+    amount: 118,
     stock: 'in',
     available: true,
     variantId: 'stonewashed-linen-throw::default',
@@ -507,7 +508,7 @@ function matchesFilters(
 function matchesPrice(item: StorefrontProductListItem, range: string | undefined): boolean {
   if (range === undefined) return true;
   const [rawMin = '', rawMax = ''] = range.split('-');
-  const dollars = item.price.amount / 100;
+  const dollars = item.price.amount;
   if (rawMin !== '' && dollars < Number(rawMin)) return false;
   if (rawMax !== '' && dollars > Number(rawMax)) return false;
   return true;
@@ -594,8 +595,8 @@ const ORDER_LINES: StorefrontCartLine[] = [
     url: '/products/fell-crew-sweater',
     variantLabel: 'Oatmeal / M',
     quantity: 1,
-    unitPrice: 14800,
-    lineTotal: 14800,
+    unitPrice: 148,
+    lineTotal: 148,
     image: demoImage(1, 'Fell crew sweater'),
     max: null,
   },
@@ -606,8 +607,8 @@ const ORDER_LINES: StorefrontCartLine[] = [
     url: '/products/everyday-mug',
     variantLabel: 'Fjord / 350 ml',
     quantity: 2,
-    unitPrice: 3200,
-    lineTotal: 6400,
+    unitPrice: 32,
+    lineTotal: 64,
     image: demoImage(2, 'Everyday mug'),
     max: null,
   },
@@ -618,19 +619,19 @@ const ORDER_LINES: StorefrontCartLine[] = [
     url: '/products/linen-tea-towels-set-of-2',
     variantLabel: 'Sage',
     quantity: 1,
-    unitPrice: 3200,
-    lineTotal: 3200,
+    unitPrice: 32,
+    lineTotal: 32,
     image: demoImage(3, 'Linen tea towels, set of 2'),
     max: null,
   },
 ];
 
 const ORDER_TOTALS: StorefrontCartTotals = {
-  subtotal: 24400,
+  subtotal: 244,
   discount: null,
   shipping: 0,
-  tax: 1952,
-  total: 26352,
+  tax: 19.52,
+  total: 263.52,
 };
 
 const ORDER_SHIPPING_ADDRESS = [
@@ -884,8 +885,8 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
     url: '/products/merino-crew-sweater',
     variantLabel: 'Oat / M',
     quantity: 1,
-    unitPrice: 9600,
-    lineTotal: 9600,
+    unitPrice: 96,
+    lineTotal: 96,
     image: demoImage(1, 'Merino crew sweater'),
     max: null,
   },
@@ -896,8 +897,8 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
     url: '/products/speckled-latte-mug',
     variantLabel: 'Clay',
     quantity: 2,
-    unitPrice: 2800,
-    lineTotal: 5600,
+    unitPrice: 28,
+    lineTotal: 56,
     image: demoImage(6, 'Speckled latte mug'),
     max: null,
   },
@@ -908,8 +909,8 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
     url: '/products/walnut-serving-board',
     variantLabel: 'Large, 45 cm',
     quantity: 1,
-    unitPrice: 5800,
-    lineTotal: 5800,
+    unitPrice: 58,
+    lineTotal: 58,
     image: demoImage(8, 'Walnut serving board'),
     max: null,
   },
@@ -922,11 +923,11 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
   const checkoutUrl = ref<string | null>(null);
 
   function computeTotals(): StorefrontCartTotals {
-    const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+    const subtotal = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
     const shipping =
       subtotal === 0 ? null : subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING;
     const discountAmount = discount?.amount ?? 0;
-    const total = Math.max(0, subtotal - discountAmount + (shipping ?? 0));
+    const total = roundMoney(Math.max(0, subtotal - discountAmount + (shipping ?? 0)));
     return { subtotal, discount, shipping, tax: null, total };
   }
 
@@ -944,7 +945,7 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
       const existing = lines.find((line) => line.variantId === variantId);
       if (existing) {
         existing.quantity += quantity;
-        existing.lineTotal = existing.unitPrice * existing.quantity;
+        existing.lineTotal = roundMoney(existing.unitPrice * existing.quantity);
       } else {
         const unitPrice = product?.price.amount ?? 0;
         lines = [
@@ -957,7 +958,7 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
             variantLabel: product?.colours?.[0]?.name ?? '',
             quantity,
             unitPrice,
-            lineTotal: unitPrice * quantity,
+            lineTotal: roundMoney(unitPrice * quantity),
             image: product?.featuredImage ?? null,
             max: null,
           },
@@ -967,7 +968,9 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
     },
     async setQuantity(lineId, quantity) {
       lines = lines.map((line) =>
-        line.id === lineId ? { ...line, quantity, lineTotal: line.unitPrice * quantity } : line
+        line.id === lineId
+          ? { ...line, quantity, lineTotal: roundMoney(line.unitPrice * quantity) }
+          : line
       );
       return snapshot();
     },
@@ -978,7 +981,7 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
     async applyDiscount(code) {
       if (code !== 'WINTER15') return { ack: { ok: false, reason: 'invalid' } };
       const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
-      discount = { code, amount: Math.round(subtotal * 0.1) };
+      discount = { code, amount: roundMoney(subtotal * 0.1) };
       return { ack: { ok: true }, snapshot: snapshot() };
     },
     async removeDiscount() {

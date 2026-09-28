@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { toMinorUnits } from '../../app/storefront/money';
 import { toProductCard, toProductCardEntries } from '../../app/storefront/toProductCard';
 import type { StorefrontProductListItem } from '../../app/storefront/types';
 
@@ -8,7 +9,7 @@ function baseItem(overrides: Partial<StorefrontProductListItem> = {}): Storefron
     title: 'Merino crew sweater',
     url: '/products/merino-crew-sweater',
     featuredImage: { src: '/demo/product-1.svg', alt: 'Merino crew sweater' },
-    price: { amount: 9600, compareAt: null },
+    price: { amount: 96, compareAt: null },
     rating: { value: 4.5, count: 126 },
     colours: [{ name: 'Oat', swatch: '#d8cbb0' }],
     stock: 'in',
@@ -38,9 +39,25 @@ describe('toProductCard', () => {
     expect(card.available).toBe(true);
   });
 
-  it('maps price.amount, compareAt and from', () => {
-    const card = expectCard(baseItem({ price: { amount: 9600, compareAt: 12800, from: true } }));
+  it('converts price.amount and compareAt into the minor units the card reads', () => {
+    const card = expectCard(baseItem({ price: { amount: 96, compareAt: 128, from: true } }));
     expect(card.price).toEqual({ amount: 9600, compareAt: 12800, from: true });
+  });
+
+  it('leaves a missing compareAt missing rather than converting it to 0', () => {
+    expect(expectCard(baseItem({ price: { amount: 96 } })).price.compareAt).toBeUndefined();
+    expect(expectCard(baseItem({ price: { amount: 96, compareAt: null } })).price.compareAt).toBe(
+      null
+    );
+  });
+
+  it('converts with the currency a caller hands it, not a hard-coded hundred', () => {
+    // `ISK` has no minor unit, so 96 krónur stays 96 — the reason this is a conversion and not
+    // a `* 100`.
+    const card = expectCard(baseItem({ price: { amount: 96 } }), {
+      minorUnits: (amount) => toMinorUnits(amount, 'ISK'),
+    });
+    expect(card.price.amount).toBe(96);
   });
 
   it('renders no featuredImage as null, not undefined', () => {

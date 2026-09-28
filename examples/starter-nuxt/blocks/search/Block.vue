@@ -64,6 +64,7 @@ import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { useMoney } from '../../app/storefront/money';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { toSearchBarResults } from './results';
 import TypeSection from './TypeSection.vue';
@@ -255,8 +256,12 @@ const noResultsCollection = storefront.catalog.collectionProducts(noResultsSelec
  * `url` and drops an item whose URL is not a `safeHref` (`ProductCard`'s link is required, so a
  * linkless card does not exist), reporting per card whether the destination routes.
  */
+const money = useMoney();
 const noResultsProducts = computed(() =>
-  toProductCardEntries((noResultsCollection.data.value?.items ?? []).slice(0, 4), { ratio: '4x5' })
+  toProductCardEntries((noResultsCollection.data.value?.items ?? []).slice(0, 4), {
+    ratio: '4x5',
+    minorUnits: money.minor,
+  })
 );
 const hasNoResultsProducts = computed(() => noResultsProducts.value.length > 0);
 

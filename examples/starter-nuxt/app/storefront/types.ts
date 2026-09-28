@@ -13,9 +13,10 @@ import type { CartStore } from './cart';
  * `.spec.ts` proves it renders them; nothing here talks to a network).
  *
  * Money fields (`StorefrontPrice.amount`/`compareAt`, cart line/total amounts, order totals) are
- * always in **minor units** (cents) — the same convention `@eldrajs/ui`'s `Price` component reads
- * (see `packages/ui/src/components/price/types.ts`), so a value from here passes straight into
- * `Price`/`ProductCard` with no conversion at the point of use.
+ * always in **major units** — 28 is twenty-eight dollars, not twenty-eight cents — because that is
+ * what the gateway sends. `@eldrajs/ui`'s `Price`/`ProductCard` read minor units, so a value from
+ * here goes through `toMinorUnits()` (`app/storefront/money.ts`) on its way into one of those, and
+ * through `formatMoney()` when it has to appear inside a sentence.
  */
 
 export interface StorefrontMedia {
@@ -26,9 +27,9 @@ export interface StorefrontMedia {
 }
 
 export interface StorefrontPrice {
-  /** Minor units (cents). */
+  /** Major units. */
   amount: number;
-  /** Minor units (cents). Sale styling/badge only apply when this is greater than `amount`. */
+  /** Major units. Sale styling/badge only apply when this is greater than `amount`. */
   compareAt?: number | null;
   /** "From $X" for a product whose variants span more than one price. */
   from?: boolean;
@@ -84,23 +85,24 @@ export interface StorefrontCartLine {
   url: string;
   variantLabel: string;
   quantity: number;
-  /** Minor units (cents). */
+  /** Major units. */
   unitPrice: number;
-  /** Minor units (cents). */
+  /** Major units. */
   lineTotal: number;
   image?: StorefrontMedia | null;
   max: number | null;
 }
 
 export interface StorefrontCartTotals {
-  /** Minor units (cents). */
+  /** Major units. */
   subtotal: number;
+  /** `amount` in major units. */
   discount?: { code: string; amount: number } | null;
-  /** Minor units (cents). `null` renders "Calculated at checkout". */
+  /** Major units. `null` renders "Calculated at checkout". */
   shipping: number | null;
-  /** Minor units (cents). */
+  /** Major units. */
   tax?: number | null;
-  /** Minor units (cents). */
+  /** Major units. */
   total: number;
 }
 

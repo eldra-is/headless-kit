@@ -51,6 +51,7 @@ import EldraIcon from '../../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import UiImage from '../../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../../app/utils/links';
+import { useMoney } from '../../../app/storefront/money';
 
 const props = defineProps<{ lines: StorefrontCartLine[] }>();
 
@@ -66,6 +67,8 @@ const emit = defineEmits<{
 }>();
 
 const t = useT();
+/** Line money is major units (`app/storefront/types.ts`); `<Price>` reads minor. */
+const money = useMoney();
 const cart = useStorefront().cart;
 const toast = useToast();
 
@@ -174,7 +177,7 @@ const STEPPER_CLASSES = {
           <p v-if="line.variantLabel" class="text-muted text-body-sm">{{ line.variantLabel }}</p>
           <div v-if="line.quantity > 1" class="text-body-sm flex flex-wrap gap-x-1">
             <Price
-              :amount="line.unitPrice"
+              :amount="money.minor(line.unitPrice)"
               size="sm"
               :classes="{ root: 'inline', current: 'text-muted' }"
             />
@@ -187,7 +190,7 @@ const STEPPER_CLASSES = {
           :aria-busy="busy"
         >
           <VisuallyHidden>{{ t('cart.lineTotal') }}</VisuallyHidden>
-          <Price :amount="line.lineTotal" :classes="{ root: 'inline' }" />
+          <Price :amount="money.minor(line.lineTotal)" :classes="{ root: 'inline' }" />
         </div>
 
         <div

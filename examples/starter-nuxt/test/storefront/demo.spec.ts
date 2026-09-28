@@ -24,21 +24,21 @@ describe('createDemoStorefront', () => {
     expect(PRODUCTS).toHaveLength(12);
   });
 
-  it('contains the spec Northwind products with their prices, in minor units', () => {
+  it('contains the spec Northwind products with their prices, in major units', () => {
     const byTitle = new Map(PRODUCTS.map((product) => [product.title, product]));
 
-    expect(byTitle.get('Merino crew sweater')?.price).toEqual({ amount: 9600, compareAt: 12800 });
-    expect(byTitle.get('Fisherman rib cardigan')?.price.amount).toBe(16400);
-    expect(byTitle.get('Lambswool throw blanket')?.price.amount).toBe(14800);
-    expect(byTitle.get('Ribbed lambswool beanie')?.price.amount).toBe(3800);
-    expect(byTitle.get('Linen tea towels, pair')?.price.amount).toBe(2400);
-    expect(byTitle.get('Speckled latte mug')?.price.amount).toBe(2800);
-    expect(byTitle.get('Stoneware dinner plates, set of 4')?.price.amount).toBe(7200);
-    expect(byTitle.get('Walnut serving board')?.price.amount).toBe(5800);
-    expect(byTitle.get('Hand-thrown serving bowl')?.price.amount).toBe(6400);
-    expect(byTitle.get('Glazed milk jug')?.price.amount).toBe(3400);
-    expect(byTitle.get('Linen napkins, set of 4')?.price.amount).toBe(4000);
-    expect(byTitle.get('Stonewashed linen throw')?.price.amount).toBe(11800);
+    expect(byTitle.get('Merino crew sweater')?.price).toEqual({ amount: 96, compareAt: 128 });
+    expect(byTitle.get('Fisherman rib cardigan')?.price.amount).toBe(164);
+    expect(byTitle.get('Lambswool throw blanket')?.price.amount).toBe(148);
+    expect(byTitle.get('Ribbed lambswool beanie')?.price.amount).toBe(38);
+    expect(byTitle.get('Linen tea towels, pair')?.price.amount).toBe(24);
+    expect(byTitle.get('Speckled latte mug')?.price.amount).toBe(28);
+    expect(byTitle.get('Stoneware dinner plates, set of 4')?.price.amount).toBe(72);
+    expect(byTitle.get('Walnut serving board')?.price.amount).toBe(58);
+    expect(byTitle.get('Hand-thrown serving bowl')?.price.amount).toBe(64);
+    expect(byTitle.get('Glazed milk jug')?.price.amount).toBe(34);
+    expect(byTitle.get('Linen napkins, set of 4')?.price.amount).toBe(40);
+    expect(byTitle.get('Stonewashed linen throw')?.price.amount).toBe(118);
   });
 
   it('"Linen tea towels, pair" is sold out; everything else defaults to in stock', () => {
@@ -106,11 +106,11 @@ describe('createDemoStorefront', () => {
     expect(order!.eta).toBe('Thursday 26 September');
     expect(order!.trackingNumber).toBe('1Z 999 AA1 01 2345 6784');
     expect(order!.totals).toEqual({
-      subtotal: 24400,
+      subtotal: 244,
       discount: null,
       shipping: 0,
-      tax: 1952,
-      total: 26352,
+      tax: 19.52,
+      total: 263.52,
     });
     expect(order!.shippingAddress).toEqual([
       'Maren Holt',
@@ -307,13 +307,13 @@ describe('createDemoStorefront', () => {
 
     it('filters by a price range in whole dollars, with either end open', async () => {
       const upTo40 = await collection({ filters: { price: ['-40'] } });
-      expect(upTo40.items.every((item) => item.price.amount <= 4000)).toBe(true);
+      expect(upTo40.items.every((item) => item.price.amount <= 40)).toBe(true);
       const from100 = await collection({ filters: { price: ['100-'] } });
-      expect(from100.items.every((item) => item.price.amount >= 10000)).toBe(true);
+      expect(from100.items.every((item) => item.price.amount >= 100)).toBe(true);
       const band = await collection({ filters: { price: ['30-60'] } });
-      expect(
-        band.items.every((item) => item.price.amount >= 3000 && item.price.amount <= 6000)
-      ).toBe(true);
+      expect(band.items.every((item) => item.price.amount >= 30 && item.price.amount <= 60)).toBe(
+        true
+      );
       expect(band.total).toBeGreaterThan(0);
       expect(band.total).toBeLessThan(48);
     });
@@ -325,9 +325,9 @@ describe('createDemoStorefront', () => {
     it('sorts by price ascending and descending', async () => {
       const asc = await collection({ sort: 'price-asc' });
       const desc = await collection({ sort: 'price-desc' });
-      expect(asc.items[0]!.price.amount).toBe(2400);
-      expect(asc.items.at(-1)!.price.amount).toBe(16400);
-      expect(desc.items[0]!.price.amount).toBe(16400);
+      expect(asc.items[0]!.price.amount).toBe(24);
+      expect(asc.items.at(-1)!.price.amount).toBe(164);
+      expect(desc.items[0]!.price.amount).toBe(164);
       expect(asc.items.map((item) => item.price.amount)).toEqual(
         [...desc.items.map((item) => item.price.amount)].reverse()
       );

@@ -76,6 +76,7 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { useMoney } from '../../app/storefront/money';
 import {
   collectionSelector,
   selectorNeedsPublish,
@@ -348,7 +349,10 @@ const items = computed(() => products.data.value?.items ?? []);
  * per card whether the destination routes (`entry.internal`). `items` stays the raw response for
  * the skeleton count and the "shown N of total" line, which are about the request, not the DOM.
  */
-const cards = computed(() => toProductCardEntries(items.value, { ratio: '4x5' }));
+const money = useMoney();
+const cards = computed(() =>
+  toProductCardEntries(items.value, { ratio: '4x5', minorUnits: money.minor })
+);
 const total = computed(() => products.data.value?.total ?? 0);
 const facets = computed(() => products.data.value?.facets ?? []);
 const pending = products.pending;

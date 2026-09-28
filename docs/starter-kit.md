@@ -407,6 +407,17 @@ instead provide `createDemoStorefront` (`app/storefront/demo.ts`) — the hand-b
 fixture data every block spec, story and page fixture renders against, with no network at all.
 A block never knows which one it got.
 
+**Money is major units, everywhere in the storefront layer** — a price of `28` is twenty-eight
+dollars, because that is what the catalog sends. `app/storefront/money.ts` is the only place that
+converts anything: `formatMoney(amount, currency?, locale?)` for money inside a sentence (an "Add to
+cart · $28.00" label), `toMinorUnits` for `@eldrajs/ui`'s `Price`/`ProductCard`, whose own `amount`
+props read minor units, and `roundMoney` for any sum the theme computes itself. `useMoney()` binds
+the first two to the currency and locale the surrounding `@eldrajs/ui` components resolve, so a
+block's formatted text and its `<Price>` elements can never disagree. Both fall back to `USD`/`en-US`
+until a store's own settings are readable from `useStorefront()`. Because the digit count comes from
+the currency, a zero-decimal one (`ISK`) formats and converts correctly instead of growing two
+invented decimal places.
+
 The demo source answers the _whole_ request, not just the paging part: `search.run` honours the query
 text, and `catalog.collectionProducts` honours `sort` and `filters` (category, size, colour,
 availability and a price range in whole dollars) and returns the filtered `total`, with facet counts

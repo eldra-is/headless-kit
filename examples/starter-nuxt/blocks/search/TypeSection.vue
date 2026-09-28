@@ -12,6 +12,7 @@ import { ContentCard, Link, ProductCard } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { useMoney } from '../../app/storefront/money';
 import type {
   StorefrontProductListItem,
   StorefrontSearchResponse,
@@ -49,7 +50,10 @@ const props = defineProps<{
 }>();
 
 /** See the `products` prop: sanitised, unusable rows dropped, `internal` per card. */
-const productCards = computed(() => toProductCardEntries(props.products, { ratio: '4x5' }));
+const money = useMoney();
+const productCards = computed(() =>
+  toProductCardEntries(props.products, { ratio: '4x5', minorUnits: money.minor })
+);
 
 /** The journal rows that have a usable link, with the sanitised href and whether it routes. */
 const articleRows = computed(() =>

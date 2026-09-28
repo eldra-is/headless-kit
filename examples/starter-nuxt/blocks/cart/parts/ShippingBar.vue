@@ -4,10 +4,9 @@
  * `02-blocks.md` "Cart" → States, "Free shipping pending"/"Free shipping unlocked"; Accessibility:
  * "The shipping message is `role="status"` … The bar is `aria-hidden`").
  *
- * The threshold is a CMS string in **major** units ("80.00") while every cart amount is in minor
- * units (`app/storefront/types.ts`), so it is converted with the currency's own minor-unit count
- * (`currencyFractionDigits`, the same function `Price` uses for the opposite direction) rather than
- * a hard-coded ×100 — `ISK` has no minor unit, and "80" there means 80 krónur, not 0.80.
+ * The threshold is a CMS string in major units ("80.00") and so is every cart amount
+ * (`app/storefront/types.ts`), so the two compare directly and only the `<Price>` below converts
+ * (`money.minor`, because `@eldrajs/ui` money inputs read minor units).
  * An empty, non-numeric or non-positive threshold renders nothing at all (spec Fields table:
  * "Empty hides the shipping bar"), which is also what keeps a mistyped field from drawing a bar
  * that would claim the shopper is 0 away from anything.
@@ -20,15 +19,16 @@
  * it rather than a paragraph wrapping it — a `<p>` inside a `<p>` is not valid HTML.
  */
 import { computed } from 'vue';
-import { Price, currencyFractionDigits, useEldraUiCurrency, useEldraUiLocale } from '@eldrajs/ui';
+import { Price } from '@eldrajs/ui';
 import { useT } from '../../../app/composables/useT';
+import { roundMoney, useMoney } from '../../../app/storefront/money';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 
 const props = withDefaults(
   defineProps<{
     /** The `freeShippingThreshold` field, in major units. Empty/invalid renders nothing. */
     threshold?: string;
-    /** The cart subtotal, in minor units. */
+    /** The cart subtotal, in major units. */
     subtotal: number;
     /** `edge` spans the drawer edge to edge on `surface`; `card` is the page's rounded panel. */
     panel?: 'edge' | 'card';
@@ -37,23 +37,24 @@ const props = withDefaults(
 );
 
 const t = useT();
-const currency = useEldraUiCurrency();
-const locale = useEldraUiLocale();
+const money = useMoney();
 
-const thresholdMinor = computed<number | null>(() => {
+const thresholdAmount = computed<number | null>(() => {
   const raw = (props.threshold ?? '').trim();
   if (raw === '') return null;
-  const major = Number(raw);
-  if (!Number.isFinite(major) || major <= 0) return null;
-  return Math.round(major * 10 ** currencyFractionDigits(currency.value, locale.value));
+  const amount = Number(raw);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return amount;
 });
 
-const remaining = computed(() => Math.max(0, (thresholdMinor.value ?? 0) - props.subtotal));
-const unlocked = computed(() => thresholdMinor.value !== null && remaining.value === 0);
+const remaining = computed(() =>
+  roundMoney(Math.max(0, (thresholdAmount.value ?? 0) - props.subtotal))
+);
+const unlocked = computed(() => thresholdAmount.value !== null && remaining.value === 0);
 
 /** 0–100, so the bar is never wider than its track however large the subtotal grows. */
 const percent = computed(() => {
-  const threshold = thresholdMinor.value;
+  const threshold = thresholdAmount.value;
   if (threshold === null) return 0;
   return Math.min(100, Math.round((props.subtotal / threshold) * 100));
 });
@@ -77,7 +78,7 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <div v-if="thresholdMinor !== null" :class="rootClass">
+  <div v-if="thresholdAmount !== null" :class="rootClass">
     <div
       role="status"
       class="text-body-sm flex flex-wrap items-center gap-x-1 gap-y-1"
@@ -89,7 +90,7 @@ const rootClass = computed(() =>
       </template>
       <template v-else>
         <span>{{ awayParts.before }}</span>
-        <Price :amount="remaining" :classes="{ root: 'inline font-semibold' }" />
+        <Price :amount="money.minor(remaining)" :classes="{ root: 'inline font-semibold' }" />
         <span>{{ awayParts.after }}</span>
       </template>
     </div>

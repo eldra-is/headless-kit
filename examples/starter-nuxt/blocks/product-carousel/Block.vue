@@ -54,6 +54,7 @@ import type {
 } from '../../app/storefront/types';
 import { collectionSelector, selectorNeedsPublish } from '../../app/storefront/collectionSelector';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { useMoney } from '../../app/storefront/money';
 
 const props = defineProps<{ entry: EldraBlockEntry<'product-carousel'> }>();
 const { data } = useBlockData(props, 'product-carousel');
@@ -143,8 +144,9 @@ const cappedProducts = computed(() => products.value.slice(0, limit.value));
  * are taken off `cards`, not `cappedProducts`: a dropped item must not keep the block above its
  * "fewer than 2 products" floor or leave the carousel controls claiming a slide that isn't there.
  */
+const money = useMoney();
 const cards = computed(() =>
-  toProductCardEntries(cappedProducts.value, { ratio: cardRatio.value })
+  toProductCardEntries(cappedProducts.value, { ratio: cardRatio.value, minorUnits: money.minor })
 );
 /** Spec States → "Minimal": "with fewer than 2 products the block doesn't render." */
 const hasEnoughProducts = computed(() => cards.value.length >= 2);

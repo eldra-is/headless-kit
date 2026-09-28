@@ -54,10 +54,6 @@ import {
   TabPanel,
   Tabs,
   VariantPicker,
-  createNumberFormat,
-  currencyFractionDigits,
-  useEldraUiCurrency,
-  useEldraUiLocale,
   type FormLayoutSubmitPayload,
 } from '@eldrajs/ui';
 import { EldraRichText } from '@eldrajs/theme-vue';
@@ -65,6 +61,7 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useStorefront } from '../../app/composables/useStorefront';
+import { roundMoney, useMoney } from '../../app/storefront/money';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
@@ -167,33 +164,17 @@ const showRating = computed(
 /* Money                                                                     */
 /* ------------------------------------------------------------------------- */
 
-const locale = useEldraUiLocale();
-const currency = useEldraUiCurrency();
-
 /**
- * The same minor-units→text conversion `Price` does internally, for the two places a price has to
- * appear *inside* another string — the Add to cart label and the quick-add bar's meta line — where
- * a `<Price>` element cannot go. Both package helpers, so the button and the `<Price>` above it can
- * never disagree about the formatting. `createNumberFormat` throws `RangeError` on an unknown
- * currency code and this runs in a `computed`, where a throw would take the whole block down, so it
- * falls back to a plain decimal plus the raw code exactly as `Price` does.
+ * `money.format` is for the two places a price has to appear *inside* another string — the Add to
+ * cart label and the quick-add bar's meta line — where a `<Price>` element cannot go; `money.minor`
+ * converts a storefront amount (major units) into the minor units `<Price>` itself reads. Both are
+ * bound to the same currency and locale the `<Price>` above the button resolves, so the two can
+ * never disagree about the formatting.
  */
-function formatMoney(minorUnits: number): string {
-  const digits = currencyFractionDigits(currency.value, locale.value);
-  const major = minorUnits / 10 ** digits;
-  try {
-    return createNumberFormat({
-      locale: locale.value,
-      style: 'currency',
-      currency: currency.value,
-    }).format(major);
-  } catch {
-    return `${createNumberFormat({ locale: locale.value, style: 'decimal' }).format(major)} ${currency.value}`;
-  }
-}
+const money = useMoney();
 
 const formattedPrice = computed(() =>
-  product.value === null ? '' : formatMoney(product.value.price.amount)
+  product.value === null ? '' : money.format(product.value.price.amount)
 );
 
 /** Spec States, Sale row: 'The saving badge ("Save $32") is calculated from the two prices, never
@@ -204,7 +185,7 @@ const saving = computed<string | null>(() => {
   if (price === undefined) return null;
   const compareAt = price.compareAt ?? null;
   if (compareAt === null || compareAt <= price.amount) return null;
-  return formatMoney(compareAt - price.amount);
+  return money.format(roundMoney(compareAt - price.amount));
 });
 const onSale = computed(() => saving.value !== null);
 
@@ -464,7 +445,12 @@ function tabValue(index: number): string {
             <h1 :id="titleId" :class="TITLE_CLASS">{{ product.title }}</h1>
 
             <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <Price :amount="product.price.amount" :compare-at="product.price.compareAt" />
+              <Price
+                :amount="money.minor(product.price.amount)"
+                :compare-at="
+                  product.price.compareAt == null ? null : money.minor(product.price.compareAt)
+                "
+              />
               <Badge
                 v-if="saving"
                 variant="sale"

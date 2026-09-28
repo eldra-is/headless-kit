@@ -64,6 +64,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
+import { useMoney } from '../../app/storefront/money';
 import CartLines from './parts/CartLines.vue';
 import ShippingBar from './parts/ShippingBar.vue';
 import Summary from './parts/Summary.vue';
@@ -72,6 +73,8 @@ const props = defineProps<{ entry: EldraBlockEntry<'cart'> }>();
 const { data } = useBlockData(props, 'cart');
 const editing = useEditing();
 const t = useT();
+/** The cart subtotal is major units (`app/storefront/types.ts`); `<Price>` reads minor. */
+const money = useMoney();
 const cart = useStorefront().cart;
 
 const uid = useUiId();
@@ -230,7 +233,7 @@ const DRAWER_CLASSES = {
         <div class="flex items-baseline justify-between gap-4">
           <span class="text-text text-base font-semibold">{{ t('cart.subtotal') }}</span>
           <Price
-            :amount="subtotal"
+            :amount="money.minor(subtotal)"
             :classes="{ root: 'text-text text-base font-semibold tabular-nums' }"
           />
         </div>

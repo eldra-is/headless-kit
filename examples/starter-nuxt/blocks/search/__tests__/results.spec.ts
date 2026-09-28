@@ -11,7 +11,7 @@ function product(overrides: Partial<StorefrontProductListItem> = {}): Storefront
     title: 'Linen napkins, set of 4',
     url: '/products/linen-napkins',
     featuredImage: { src: '/demo/product-1.svg', alt: 'Linen napkins' },
-    price: { amount: 4000, compareAt: null },
+    price: { amount: 40, compareAt: null },
     stock: 'in',
     available: true,
     variantId: 'linen-napkins::natural',

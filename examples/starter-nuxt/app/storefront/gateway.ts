@@ -3,6 +3,7 @@ import { createCartSession, EldraHttpError, type EldraClient } from '@eldrajs/sd
 import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
+import { roundMoney } from './money';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -220,7 +221,8 @@ interface RawOrder {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Mapping — raw gateway JSON → this theme's view types (all money in minor units already)
+// Mapping — raw gateway JSON → this theme's view types (money is major units on both sides, so
+// every amount below is a pass-through; see `app/storefront/money.ts`)
 // ---------------------------------------------------------------------------------------------
 
 function toMedia(
@@ -318,7 +320,9 @@ function mapCartLine(raw: RawCartItem): StorefrontCartLine {
     variantLabel,
     quantity: raw.quantity,
     unitPrice: raw.price,
-    lineTotal: raw.price * raw.quantity,
+    // The one amount this mapping computes rather than copies, so it is the one that needs
+    // rounding back to two decimals (major-unit arithmetic is floating point).
+    lineTotal: roundMoney(raw.price * raw.quantity),
     image: raw.thumbnail ? { src: raw.thumbnail.url, alt: raw.title } : null,
     max: null,
   };
