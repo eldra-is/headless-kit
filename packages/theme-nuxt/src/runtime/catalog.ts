@@ -146,18 +146,6 @@ export function catalogDocRoutes(
   return paths;
 }
 
-/** List and map in one call: what a prerender pass wants for a single template. */
-export async function catalogTemplateRoutes(options: {
-  client: EldraClient;
-  kind: CatalogRouteKind;
-  pattern: string;
-  locale?: string;
-  warn?: (message: string) => void;
-}): Promise<string[]> {
-  const docs = await listCatalogDocs(options.client, options.kind, options.locale);
-  return catalogDocRoutes(docs, options.pattern, options.warn);
-}
-
 function isActive(doc: CatalogDoc): boolean {
   const status = doc.status;
   return typeof status !== 'string' || status.toUpperCase() === ACTIVE_STATUS;

@@ -6,8 +6,6 @@ import type { CatalogRouteRef } from '../catalog';
 import { overlayPreviewDrafts } from '../drafts';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 
-const EMPTY_ROUTE = EMPTY_ELDRA_ROUTE;
-
 export function useEldraPage(): {
   page: Ref<EntryDoc | null>;
   template: Ref<EntryDoc | null>;
@@ -41,14 +39,14 @@ export function useEldraPage(): {
       );
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : String(cause);
-      return EMPTY_ROUTE;
+      return EMPTY_ELDRA_ROUTE;
     }
   };
 
   const { data: resolvedRoute, pending } = useAsyncData<ResolvedEldraRoute>(
     () => `eldra-page:${canonicalRoutePath(route.path)}`,
     resolveCurrentRoute,
-    { watch: [() => route.path], default: () => EMPTY_ROUTE }
+    { watch: [() => route.path], default: () => EMPTY_ELDRA_ROUTE }
   );
 
   const previewResolvedRoute = ref<ResolvedEldraRoute | undefined>(undefined);
@@ -81,7 +79,9 @@ export function useEldraPage(): {
     }
   );
 
-  const active = computed(() => previewResolvedRoute.value ?? resolvedRoute.value ?? EMPTY_ROUTE);
+  const active = computed(
+    () => previewResolvedRoute.value ?? resolvedRoute.value ?? EMPTY_ELDRA_ROUTE
+  );
   const page = computed(() => {
     void ctx.preview.revision;
     return overlayPreviewDrafts(

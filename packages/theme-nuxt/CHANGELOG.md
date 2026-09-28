@@ -5,9 +5,15 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
-- New `eldra.templates` option, forwarded to `@eldrajs/vite-plugin-theme`: the default page
-  templates a site is seeded with on its first deploy. See that package's changelog for the seed
-  shape and its validation.
+- Removed the unused `catalogTemplateRoutes` helper from the runtime (never exported from the
+  module's public entry, and `prerender:routes` cannot use it: it lists the catalog once per
+  **kind** and maps once per template, so a list-and-map-in-one call would refetch the whole
+  catalog for every template). Compose `listCatalogDocs` + `catalogDocRoutes` instead.
+
+- New `eldra.templates` and `eldra.templateRoles` options, forwarded to
+  `@eldrajs/vite-plugin-theme`: the default page templates a site is seeded with on its first
+  deploy, and the block data behind the `header`/`footer` roles those seeds place. See that
+  package's changelog for the seed shape and its validation.
 
 - Feat: catalog-backed route templates render. A route template whose `schemaApiId` is
   `catalog:product` or `catalog:collection` now resolves its object **by slug** through the public

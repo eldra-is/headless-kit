@@ -151,6 +151,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         }
         const catalogKind = catalogRouteTarget(schemaApiId);
         if (catalogKind !== null) {
+          // NOTE: the two branches below disagree on purpose about a path two
+          // templates both generate — the catalog branch warns and skips it,
+          // the CMS branch throws. Which one a collision hits therefore
+          // depends on the order `templates` arrives in: a CMS template
+          // reaching a path a catalog template already added fails the build,
+          // while the reverse only warns. That asymmetry is deliberate (a
+          // merchant's catalog slug must not break a deploy, a theme's own
+          // duplicate route must), not an oversight.
           // Catalog records are merchant data the theme does not control, so a
           // single unusable or colliding slug is skipped with a warning naming
           // it — never a failed build for every other product on the site.

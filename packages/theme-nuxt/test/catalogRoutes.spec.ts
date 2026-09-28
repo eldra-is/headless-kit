@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { EldraClientError, type CatalogDoc, type EldraClient } from '@eldrajs/theme-core';
 import {
-  catalogTemplateRoutes,
+  catalogDocRoutes,
+  listCatalogDocs,
   projectCatalogEntry,
   type CatalogRouteKind,
 } from '../src/runtime/catalog';
@@ -290,12 +291,11 @@ describe('catalog prerender listing', () => {
     warnings: string[] = []
   ) => {
     const { client, calls } = stubClient(handlers);
-    const paths = await catalogTemplateRoutes({
-      client,
-      kind,
-      pattern,
-      warn: (message) => warnings.push(message),
-    });
+    // The same two calls `module.ts`'s `prerender:routes` makes, in the same
+    // order — it lists once per kind and maps per template, so there is no
+    // list-and-map helper to call instead.
+    const docs = await listCatalogDocs(client, kind);
+    const paths = catalogDocRoutes(docs, pattern, (message) => warnings.push(message));
     return { paths, calls };
   };
 
