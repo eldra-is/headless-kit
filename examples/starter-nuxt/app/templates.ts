@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { DeclaredTemplateSeed, ManifestTemplateRoles } from '@eldrajs/vite-plugin-theme';
+import type {
+  DeclaredTemplateSeed,
+  DeclaredTemplateSeedBlock,
+  ManifestTemplateRoles,
+} from '@eldrajs/vite-plugin-theme';
 
 /**
  * The default page templates this theme seeds a site with on its first deploy,
@@ -24,6 +28,9 @@ import type { DeclaredTemplateSeed, ManifestTemplateRoles } from '@eldrajs/vite-
  *   separately as roles (below) and the scanner's `header`/`footer` switches
  *   (default true) place them around every seed, so Core resolves them to the
  *   site's own reusable components rather than seeding a second copy per page.
+ *   A catalog seed also drops the fields that pin the fixture's own product or
+ *   collection (`ROUTE_PINNED_FIELDS`, and `breadcrumbs`' spelled-out trail),
+ *   so each page renders the object its route resolved.
  * - `starterTemplateRoles()` — the `navigation` and `footer` block data behind
  *   those roles, taken from the home page fixture (all three fixtures carry
  *   the same header and footer).
@@ -37,6 +44,37 @@ import type { DeclaredTemplateSeed, ManifestTemplateRoles } from '@eldrajs/vite-
 
 /** The block a role's data comes from, and the block a seed therefore drops. */
 const ROLE_BLOCKS = { header: 'navigation', footer: 'footer' } as const;
+
+/**
+ * Fields a **catalog** seed must not carry, per block.
+ *
+ * Each names one product or collection by hand, which is exactly what a sample
+ * page is for and exactly what a route template must not do: every commerce
+ * block reads the route's own product/collection when its handle field is
+ * empty (`storefront.route.productHandle` / `collectionHandle`, the "field
+ * wins, route is the fallback" contract each block's own `helpText`
+ * describes). Seeded with the fixture's handle, every product page rendered the
+ * fixture's product. `product-carousel`'s pair goes only on the product seed —
+ * its `related` variant reads the route — while the home seed keeps its handle,
+ * because a home page has no route context to fall back to.
+ */
+const ROUTE_PINNED_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  'product-detail': ['productHandle'],
+  'collection-header': ['collectionHandle'],
+  'collection-grid': ['collectionHandle'],
+  'product-carousel': ['sourceHandle', 'sourceCollection'],
+};
+
+/**
+ * `breadcrumbs` has the same problem in its data rather than in a handle: the
+ * fixture's `trail` and `currentTitle` spell out one product's ancestry ("
+ * Knitwear → Sweaters → Merino crew sweater"). A seeded template keeps the
+ * Home crumb (`showHome`, still true) and nothing below it — the block has no
+ * `items` field, its trail is `trail`, and there is no per-route level to
+ * invent — and takes the page's own title from the routed object through a
+ * template binding on its layout node instead.
+ */
+const BREADCRUMBS_TEMPLATES: Readonly<Record<string, string>> = { currentTitle: '{{ title }}' };
 
 /**
  * Title is the *template's* name in Studio's template list, not the sample
@@ -76,12 +114,33 @@ export function starterTemplates(): DeclaredTemplateSeed[] {
     // footer role.
     blocks: pageFixture(seed.fixture)
       .blocks.filter((block) => !isRoleBlock(block.apiId))
-      .map((block) => ({
-        id: block.id,
-        apiId: block.apiId,
-        data: stripSeedMedia(block.data, blockFields(block.apiId), block.apiId),
-      })),
+      .map((block) => seedBlock(block, seed.schemaApiId !== 'home')),
   }));
+}
+
+/**
+ * One fixture block as a seed block: its data with the fixture's own
+ * product/collection unpinned (catalog templates only — see
+ * `ROUTE_PINNED_FIELDS`), then the media strip every seed goes through, plus
+ * the template bindings its layout node carries.
+ */
+function seedBlock(block: PageFixtureBlock, catalogRoute: boolean): DeclaredTemplateSeedBlock {
+  const data = { ...block.data };
+  let templates: Record<string, string> | undefined;
+  if (catalogRoute) {
+    for (const fieldId of ROUTE_PINNED_FIELDS[block.apiId] ?? []) delete data[fieldId];
+    if (block.apiId === 'breadcrumbs') {
+      data.trail = [];
+      delete data.currentTitle;
+      templates = { ...BREADCRUMBS_TEMPLATES };
+    }
+  }
+  return {
+    id: block.id,
+    apiId: block.apiId,
+    data: stripSeedMedia(data, blockFields(block.apiId), block.apiId),
+    ...(templates === undefined ? {} : { templates }),
+  };
 }
 
 /** The `header`/`footer` block data every seed's layout places. */

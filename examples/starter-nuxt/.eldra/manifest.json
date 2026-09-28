@@ -6906,17 +6906,7 @@
           "data": {
             "showHome": true,
             "homeLabel": "Home",
-            "trail": [
-              {
-                "label": "Knitwear",
-                "href": "/collections/knitwear"
-              },
-              {
-                "label": "Sweaters",
-                "href": "/collections/mens-sweaters"
-              }
-            ],
-            "currentTitle": "Merino crew sweater",
+            "trail": [],
             "showCurrent": true,
             "container": "content"
           }
@@ -6925,7 +6915,6 @@
           "id": "product-detail",
           "apiId": "product-detail",
           "data": {
-            "productHandle": "merino-crew-sweater",
             "variant": "gallery-left",
             "showRating": true,
             "showQuantity": true,
@@ -7206,7 +7195,10 @@
             {
               "id": "product-breadcrumbs",
               "type": "block",
-              "entryId": "product-breadcrumbs"
+              "entryId": "product-breadcrumbs",
+              "templates": {
+                "currentTitle": "{{ title }}"
+              }
             },
             {
               "id": "product-detail",
@@ -7243,13 +7235,7 @@
           "data": {
             "showHome": true,
             "homeLabel": "Home",
-            "trail": [
-              {
-                "label": "Shop",
-                "href": "/collections"
-              }
-            ],
-            "currentTitle": "The winter edit",
+            "trail": [],
             "showCurrent": true,
             "container": "wide"
           }
@@ -7259,7 +7245,6 @@
           "apiId": "collection-header",
           "data": {
             "variant": "image",
-            "collectionHandle": "the-winter-edit",
             "title": "The winter edit",
             "showCount": true,
             "showBreadcrumb": false,
@@ -7312,7 +7297,6 @@
           "id": "collection-grid",
           "apiId": "collection-grid",
           "data": {
-            "collectionHandle": "the-winter-edit",
             "variant": "sidebar",
             "columns": "3",
             "pageSize": "24",
@@ -7397,7 +7381,10 @@
             {
               "id": "collection-breadcrumbs",
               "type": "block",
-              "entryId": "collection-breadcrumbs"
+              "entryId": "collection-breadcrumbs",
+              "templates": {
+                "currentTitle": "{{ title }}"
+              }
             },
             {
               "id": "collection-header",

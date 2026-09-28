@@ -857,6 +857,50 @@ describe('seeded templates (app/templates.ts)', () => {
     }
   });
 
+  it('pins no product or collection into a catalog seed, and takes the title from the route', () => {
+    // The live failure this guards: every seeded product page rendered the
+    // fixture's own product, because `product-detail.productHandle` (and the
+    // collection blocks' `collectionHandle`, and `product-carousel`'s source)
+    // won over the route the template was resolved by.
+    const templates = scanned.manifest!.templates!;
+    const catalogSeeds = templates.filter((template) => template.schemaApiId !== 'home');
+    expect(catalogSeeds).toHaveLength(2);
+
+    const pinned: Record<string, readonly string[]> = {
+      'product-detail': ['productHandle'],
+      'collection-header': ['collectionHandle'],
+      'collection-grid': ['collectionHandle'],
+      'product-carousel': ['sourceHandle', 'sourceCollection'],
+    };
+    for (const template of catalogSeeds) {
+      for (const block of template.blocks) {
+        for (const fieldId of pinned[block.apiId] ?? []) {
+          expect(`${block.apiId}.${fieldId}`).toBe(`${block.apiId}.${fieldId}`);
+          expect(Object.hasOwn(block.data, fieldId)).toBe(false);
+        }
+      }
+    }
+
+    // The home seed keeps its carousel's handle: there is no route context on
+    // `/` for the block to fall back to.
+    const home = templates.find((template) => template.schemaApiId === 'home')!;
+    const carousel = home.blocks.find((block) => block.apiId === 'product-carousel')!;
+    expect(carousel.data.sourceHandle).toBe('the-winter-edit');
+
+    // Breadcrumbs: Home and nothing else in the data, with the current page's
+    // own title bound on the layout node instead of the fixture's product name.
+    for (const template of catalogSeeds) {
+      const crumbs = template.blocks.find((block) => block.apiId === 'breadcrumbs')!;
+      expect(crumbs.data.trail).toEqual([]);
+      expect(crumbs.data.showHome).toBe(true);
+      expect(Object.hasOwn(crumbs.data, 'currentTitle')).toBe(false);
+      const node = template.layout.root.children.find(
+        (child) => child.type === 'block' && child.entryId === crumbs.id
+      );
+      expect(node).toMatchObject({ templates: { currentTitle: '{{ title }}' } });
+    }
+  });
+
   it('carries the navigation and footer role data the seeds place', () => {
     const roles = scanned.manifest!.templateRoles!;
     expect(roles.header?.apiId).toBe('navigation');
