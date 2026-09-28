@@ -989,26 +989,52 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   value is real but may be a moment old_ — and `loading` wins when both are set.
 
   While it is on, the value keeps its text and its place, dimmed to `--eldra-revalidating-opacity`
-  (a shared token, default `0.9`, applied through the `eldra-revalidating` utility); a `1em` spinner
-  — the same shape `Button` draws, from the package's own internal `Spinner.vue` — is drawn beside
-  it; the root carries `aria-busy="true"`; and a visually hidden `aria-live="polite"` region reads
-  `messages.updatingPrice` / `messages.updatingStock`. The spinner is positioned **outside** the
-  component's own box (`absolute` + `start-full` against a `relative` root that only exists while
-  the state is on), so turning the state on changes no width, no line break and no position of
-  anything on the page — a refreshing value never moves the layout around it. The live region is in
-  the DOM whether or not it has anything to say, and only its text changes: a region that arrives
-  already holding its message is announced unreliably, since a screen reader takes the region and
-  its content in one pass and has no change to report.
+  (a shared token, default `0.9`, applied through the `eldra-revalidating` utility — per value part,
+  never on the root, because CSS opacity composites and a dimmed root would take the spinner down
+  with it); a `1em` spinner — the same shape `Button` draws, from the package's own internal
+  `Spinner.vue` — is drawn beside it; the root carries `aria-busy="true"`; and a visually hidden
+  `aria-live="polite"` region reads `messages.updatingPrice` / `messages.updatingStock`.
 
-  The default dim is deliberately shallow. Opacity costs contrast, and these values are drawn in
-  `text`, `muted`, `success`, `warning`, `danger` and `accent`: `0.9` is the strongest dim at which
-  every one of them still clears 4.5:1 (1.4.3) on both `background` and `surface`. A store that
-  wants the state to read more loudly lowers `--eldra-revalidating-opacity` and takes that trade
-  knowingly — which is the point of it being a token rather than a number in a class.
+  **The spinner reserves no space at all.** It is a flex item of width `0` whose negative
+  inline-start margin cancels, exactly, the gap the root would otherwise put in front of it
+  (`-ms-2` against `Price`'s `gap-x-2`, `-ms-1.5` against `StockBadge`'s `gap-1.5`), with the
+  circle absolutely positioned inside that zero-width box and overflowing to the right of it. So
+  the component's width, its characters and its line breaks are identical with the state on and
+  off — a refreshing value never moves the layout around it — while the circle still lands
+  immediately after the last amount. (Anchoring it to the root's own box instead, `absolute` +
+  `start-full`, looks equivalent and is not: these roots are `inline-flex`, and a flex or grid
+  parent stretches that box to the column, which puts the spinner at the far edge of the column
+  rather than beside the value.) On `Price` it renders before the `unit` part, which is
+  `basis-full` and would otherwise push it onto a third line.
 
-  `ProductCard` draws none of this itself: it passes the flag to its `Price` and `StockBadge`, the
-  two values a refresh actually changes, and the rest of the card (media, title, badges, quick add)
-  stays exactly as it was and fully interactive.
+  The cost of that is real and worth stating: the circle is **drawn outside the component's own
+  box**, so an ancestor with `overflow: hidden` whose right edge hugs the text will clip it. The
+  escape hatch is `classes.spinner` — restyle that part (a static position, a different offset, or
+  a real width) for a layout that cannot let it overflow.
+
+  The live region is in the DOM whether or not it has anything to say, and only its text changes: a
+  region that arrives already holding its message is announced unreliably, since a screen reader
+  takes the region and its content in one pass and has no change to report. For the same reason, a
+  page that **hydrates with `revalidating` already `true`** should flip the flag on after mount
+  rather than render it on: a region that is already saying "Updating price" when the page first
+  paints is part of the initial content, not a change, and nothing announces it.
+
+  `announce` (default `true`) turns that region off per instance — no `aria-live` element is
+  rendered at all, while `aria-busy`, the dim and the spinner stay exactly as they are. That is
+  what a grid wants: twelve refreshing cards otherwise hold twenty-four polite regions all speaking
+  at once, so the page should pass `announce: false` and announce the refresh once itself.
+
+  The default dim is deliberately shallow — shallow enough to be nearly invisible, which is the
+  intended trade: the spinner is the signal, and the dim is a second, quieter cue. Opacity costs
+  contrast, and these values are drawn in `text`, `muted`, `success`, `warning`, `danger` and
+  `accent`: `0.9` is the strongest dim at which every one of them still clears 4.5:1 (1.4.3) on
+  both `background` and `surface` (at `0.7`, `muted` falls to 3.55:1 and `warning` to 3.25:1). A
+  store that wants the state to read more loudly lowers `--eldra-revalidating-opacity` and takes
+  that trade knowingly — which is the point of it being a token rather than a number in a class.
+
+  `ProductCard` draws none of this itself: it passes `revalidating` and `announce` to its `Price`
+  and `StockBadge`, the two values a refresh actually changes, and the rest of the card (media,
+  title, badges, quick add) stays exactly as it was and fully interactive.
 
   New parts: `spinner` and `srStatus` on `Price` and `StockBadge` — `srStatus`, not `status`,
   because `LoadMore` already owns a visible `status` part and a collection page renders both.

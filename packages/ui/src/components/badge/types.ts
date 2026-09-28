@@ -67,6 +67,12 @@ export interface StockBadgeProps {
    * `messages.updatingStock`.
    */
   revalidating?: boolean;
+  /**
+   * Whether this stock line announces its own refresh. `true` by default. Set it to `false` when
+   * the page announces the refresh once itself — a refreshing grid would otherwise hold one polite
+   * region per card. `aria-busy`, the dim and the spinner are unaffected; only the region goes.
+   */
+  announce?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<StockBadgePart, string>>;
 }

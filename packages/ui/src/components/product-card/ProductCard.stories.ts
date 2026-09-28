@@ -116,7 +116,9 @@ const meta = {
           '**Revalidating** is the other refresh state, and the card itself draws none of it: it',
           'passes `revalidating` to its `Price` and `StockBadge`, which keep their values on screen,',
           'dimmed, with a spinner beside each. The card stays fully interactive. `loading` wins when',
-          'both are set.',
+          'both are set. A grid should pass `announce: false` alongside it and announce the refresh',
+          'once at page level: the flag is forwarded to both values, dropping their own live regions',
+          'while leaving `aria-busy`, the dim and the spinners exactly as they are.',
         ].join('\n'),
       },
     },
@@ -231,6 +233,11 @@ export const Revalidating: Story = cardStory({ product: LOW_STOCK, revalidating:
  * A grid mid-refresh, mixing both states: the refreshing cards sit on exactly the same grid lines
  * as the settled ones, at the same height — the state changes what a card says about itself, never
  * how much room it takes.
+ *
+ * The cards also carry `:announce="false"`, which is what a grid should do: each card keeps its
+ * `aria-busy`, its dim and its spinner, but the sentence is left to one page-level live region
+ * instead of one per value — twelve refreshing cards would otherwise hold twenty-four polite
+ * regions, all speaking at once.
  */
 export const RevalidatingGrid: Story = {
   render: () => ({
@@ -238,9 +245,9 @@ export const RevalidatingGrid: Story = {
     setup: () => ({ lowStock: LOW_STOCK, inStock: IN_STOCK }),
     template: `
       <div class="grid max-w-3xl grid-cols-3 gap-6">
-        <ProductCard :product="lowStock" revalidating />
+        <ProductCard :product="lowStock" revalidating :announce="false" />
         <ProductCard :product="inStock" />
-        <ProductCard :product="inStock" revalidating />
+        <ProductCard :product="inStock" revalidating :announce="false" />
       </div>
     `,
   }),

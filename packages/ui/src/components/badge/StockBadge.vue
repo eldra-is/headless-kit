@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<StockBadgeProps>(), {
   quantity: undefined,
   message: undefined,
   revalidating: false,
+  announce: true,
   classes: undefined,
 });
 
@@ -107,7 +108,9 @@ const spinnerClass = computed(() =>
  *
  * Rendered whether or not there is anything to say, with only its text changing: a live region
  * that arrives in the DOM already holding its message is announced unreliably, because a screen
- * reader takes the region and its content in one pass and has no change to report.
+ * reader takes the region and its content in one pass and has no change to report. `announce:
+ * false` drops it outright for a page that says it once itself (see `Price.vue`); `aria-busy` and
+ * the visual state stay.
  */
 const srStatusClass = computed(() => partClass('sr-only', props.classes, 'srStatus'));
 const srStatusText = computed(() => (props.revalidating ? messages.value.updatingStock : ''));
@@ -133,6 +136,8 @@ const srStatusText = computed(() => (props.revalidating ? messages.value.updatin
     <span v-if="revalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true">
       <Spinner class="absolute start-[0.25em] top-0 size-[1em]" />
     </span>
-    <span data-part="srStatus" :class="srStatusClass" aria-live="polite">{{ srStatusText }}</span>
+    <span v-if="announce" data-part="srStatus" :class="srStatusClass" aria-live="polite">{{
+      srStatusText
+    }}</span>
   </span>
 </template>

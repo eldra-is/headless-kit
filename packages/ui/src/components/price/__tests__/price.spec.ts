@@ -675,6 +675,34 @@ describe('Price — revalidating', () => {
     wrapper.unmount();
   });
 
+  /**
+   * `announce: false` is for a page that says it once itself — a refreshing grid of 24 cards would
+   * otherwise hold 48 polite regions, each announcing separately. The visual state and `aria-busy`
+   * are unchanged; only the sentence goes.
+   */
+  it('renders no live region at all when announce is off, and stays busy', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 4800, revalidating: true, announce: false },
+    });
+    expect(wrapper.find('[data-part="srStatus"]').exists()).toBe(false);
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra-revalidating');
+    wrapper.unmount();
+  });
+
+  it('announces by default, with no announce prop given', () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true } });
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('Updating price');
+    wrapper.unmount();
+  });
+
+  it('drops the live region when announce is off even before there is anything to say', () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, announce: false } });
+    expect(wrapper.find('[data-part="srStatus"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('has no axe violations while revalidating', async () => {
     const wrapper = mountWith(Price, {
       props: { amount: 3840, compareAt: 4800, revalidating: true },

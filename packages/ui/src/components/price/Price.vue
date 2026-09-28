@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<PriceProps>(), {
   lang: undefined,
   loading: false,
   revalidating: false,
+  announce: true,
   classes: undefined,
 });
 
@@ -274,6 +275,11 @@ const spinnerClass = computed(() =>
  * a region that arrives in the DOM already holding its message is announced unreliably, because a
  * screen reader takes the region and its content in one pass and has no change to report. It is
  * `sr-only` — the refresh is visible to a sighted reader as the dim and the spinner.
+ *
+ * `announce: false` drops the region outright (not just its text) for a page that says it once
+ * itself: a grid of 24 refreshing cards otherwise holds 48 polite regions, each announcing
+ * separately. `aria-busy` and the visual state are unaffected — the value is still marked busy,
+ * the caller has simply taken over the sentence.
  */
 const srStatusClass = computed(() => partClass('sr-only', props.classes, 'srStatus'));
 const srStatusText = computed(() => (isRevalidating.value ? messages.value.updatingPrice : ''));
@@ -314,6 +320,8 @@ const srStatusText = computed(() => (isRevalidating.value ? messages.value.updat
         >{{ ' ' }}<span data-part="unit" :class="unitClass">{{ formattedUnitLine }}</span></template
       >
     </template>
-    <span data-part="srStatus" :class="srStatusClass" aria-live="polite">{{ srStatusText }}</span>
+    <span v-if="announce" data-part="srStatus" :class="srStatusClass" aria-live="polite">{{
+      srStatusText
+    }}</span>
   </p>
 </template>

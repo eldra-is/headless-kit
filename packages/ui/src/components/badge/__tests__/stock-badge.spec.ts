@@ -230,6 +230,24 @@ describe('StockBadge — revalidating', () => {
     wrapper.unmount();
   });
 
+  /** See `Price`'s own `announce` spec: one page-level announcement instead of one per value. */
+  it('renders no live region at all when announce is off, and stays busy', () => {
+    const wrapper = mountWith(StockBadge, {
+      props: { level: 'in', revalidating: true, announce: false },
+    });
+    expect(wrapper.find('[data-part="srStatus"]').exists()).toBe(false);
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+    expect(wrapper.get('[data-part="label"]').classes()).toContain('eldra-revalidating');
+    wrapper.unmount();
+  });
+
+  it('announces by default, with no announce prop given', () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('Updating stock');
+    wrapper.unmount();
+  });
+
   it.each(LEVELS)('has no axe violations while revalidating level %s', async (level) => {
     const wrapper = mountWith(StockBadge, { props: { level, quantity: 3, revalidating: true } });
     expect(await axe(wrapper.element)).toHaveNoViolations();

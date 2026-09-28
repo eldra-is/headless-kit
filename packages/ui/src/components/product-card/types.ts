@@ -103,6 +103,13 @@ export interface ProductCardProps {
    * stays interactive. Ignored while `loading`, which replaces the whole card with a skeleton.
    */
   revalidating?: boolean;
+  /**
+   * Whether the card's price and stock line announce their own refresh, passed straight through to
+   * both. `true` by default. A grid should set it to `false` and announce once at page level:
+   * 24 refreshing cards otherwise hold 48 polite live regions, all speaking at once. `aria-busy`
+   * on each value, the dim and the spinners are unaffected.
+   */
+  announce?: boolean;
   /** `Price`'s own `currency` prop, passed straight through. Defaults to `useEldraUiCurrency()`. */
   currency?: string;
   /** `Price`'s own `locale` prop, passed straight through. Defaults to `useEldraUiLocale()`. */

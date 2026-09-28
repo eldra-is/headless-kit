@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<ProductCardProps>(), {
   headingLevel: 3,
   loading: false,
   revalidating: false,
+  announce: true,
   currency: undefined,
   locale: undefined,
   linkAs: undefined,
@@ -344,13 +345,14 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
           :currency="currency"
           :locale="locale"
           :revalidating="revalidating"
+          :announce="announce"
         />
       </div>
       <div v-if="showRatingResolved" data-part="rating" :class="ratingClass">
         <Rating :value="ratingValue" :count="ratingCount" />
       </div>
       <div v-if="showStockLine" data-part="stockLine" :class="stockLineClass">
-        <StockBadge :level="stockLevel" :revalidating="revalidating" />
+        <StockBadge :level="stockLevel" :revalidating="revalidating" :announce="announce" />
       </div>
       <template v-if="showSwatchesResolved">
         <div data-part="swatches" :class="swatchesClass" aria-hidden="true">

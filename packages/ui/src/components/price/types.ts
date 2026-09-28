@@ -67,6 +67,14 @@ export interface PriceProps {
    * a skeleton instead — and `loading` wins when both are set.
    */
   revalidating?: boolean;
+  /**
+   * Whether this price announces its own refresh. `true` by default: while `revalidating`, the
+   * visually hidden `aria-live="polite"` region reads `messages.updatingPrice`. Set it to `false`
+   * when the page announces the refresh once itself — a grid of 24 refreshing cards would
+   * otherwise hold 48 polite regions, all speaking at once. `aria-busy`, the dim and the spinner
+   * are unaffected; only the region goes.
+   */
+  announce?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<PricePart, string>>;
 }

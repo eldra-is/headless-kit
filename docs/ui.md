@@ -125,7 +125,8 @@ the value exactly where it is, dim it to `--eldra-revalidating-opacity`, draw a 
 beside it — outside the component's own box, so nothing on the page moves — and mark the root
 `aria-busy="true"` with a hidden live region reading "Updating price" / "Updating stock". A refresh
 that fails simply turns the flag back off and leaves the value that was already there. `loading`
-wins when both are set.
+wins when both are set. A grid should pass `announce: false` alongside `revalidating` and announce
+the refresh once at page level — that drops each value's own live region and changes nothing else.
 
 ## Styles
 

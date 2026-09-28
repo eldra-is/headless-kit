@@ -678,6 +678,29 @@ describe('ProductCard — revalidating', () => {
     wrapper.unmount();
   });
 
+  it('forwards announce to both parts, so a grid can announce once at page level', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: REFRESHABLE, revalidating: true, announce: false },
+    });
+    expect(wrapper.findAll('[data-part="srStatus"]').length).toBe(0);
+    expect(wrapper.get('[data-part="price"] [data-part="root"]').attributes('aria-busy')).toBe(
+      'true'
+    );
+    expect(wrapper.get('[data-part="stockLine"] [data-part="root"]').attributes('aria-busy')).toBe(
+      'true'
+    );
+    expect(wrapper.findAll('[data-part="spinner"]').length).toBe(2);
+    wrapper.unmount();
+  });
+
+  it('announces from both parts by default', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: REFRESHABLE, revalidating: true },
+    });
+    expect(wrapper.findAll('[data-part="srStatus"]').length).toBe(2);
+    wrapper.unmount();
+  });
+
   it('has no axe violations while revalidating', async () => {
     const wrapper = mountWith(ProductCard, {
       props: { product: REFRESHABLE, revalidating: true },
