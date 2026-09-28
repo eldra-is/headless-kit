@@ -7,6 +7,7 @@ import {
   type EntryDoc,
 } from '@eldrajs/theme-core';
 import { loadCatalogEntry, type CatalogRouteRef } from './catalog';
+import { localeQuery } from './locale';
 
 export interface ResolvedEldraRoute {
   page: EntryDoc | null;
@@ -33,6 +34,10 @@ export interface EldraRouteSchemas {
 /**
  * Resolve one request path against the site's pages and route templates.
  *
+ * Every read below puts the locale through `localeQuery`, so a blank one — what
+ * a site that configured none actually carries — becomes no `locale` key at
+ * all rather than an empty `?locale=` the gateway answers with 400.
+ *
  * A miss — no match, a template without a usable slug, or a 404 from the
  * gateway for the matched page, entry or catalog object — resolves to the
  * empty route, which the theme renders as its not-found shell. Every other
@@ -53,7 +58,10 @@ export async function resolveEldraRoute(
     const match = resolveRoute(path, { pages, templates });
     if (match === null) return EMPTY_ELDRA_ROUTE;
     if (match.kind === 'static') {
-      const page = await client.getEntry(schemas.pageSchema, match.entry.id, { depth: 3, locale });
+      const page = await client.getEntry(schemas.pageSchema, match.entry.id, {
+        depth: 3,
+        ...localeQuery(locale),
+      });
       return { page, template: null, entry: null, catalog: null };
     }
     const schemaApiId = plainString(match.template.data.schemaApiId);
@@ -62,7 +70,7 @@ export async function resolveEldraRoute(
     if (schemaApiId === '' || slugField === '' || slugValue === undefined) return EMPTY_ELDRA_ROUTE;
     const loadTemplate = client.getEntry(schemas.routeTemplateSchema, match.template.id, {
       depth: 3,
-      locale,
+      ...localeQuery(locale),
     });
     const catalogKind = catalogRouteTarget(schemaApiId);
     if (catalogKind !== null) {
@@ -75,7 +83,10 @@ export async function resolveEldraRoute(
     }
     const [template, entry] = await Promise.all([
       loadTemplate,
-      client.getEntryByUniqueField(schemaApiId, slugField, slugValue, { depth: 3, locale }),
+      client.getEntryByUniqueField(schemaApiId, slugField, slugValue, {
+        depth: 3,
+        ...localeQuery(locale),
+      }),
     ]);
     return { page: null, template, entry, catalog: null };
   } catch (cause) {
@@ -96,7 +107,7 @@ export async function listAllEntries(
       page,
       pageSize: 100,
       depth: 0,
-      locale,
+      ...localeQuery(locale),
     });
     entries.push(...response.data);
     if (!response.meta.hasNext) return entries;

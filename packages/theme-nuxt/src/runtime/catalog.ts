@@ -4,6 +4,7 @@ import {
   type EldraClient,
   type EntryDoc,
 } from '@eldrajs/theme-core';
+import { localeQuery } from './locale';
 
 export type CatalogRouteKind = 'product' | 'collection';
 
@@ -85,7 +86,7 @@ export async function loadCatalogEntry(
   slug: string,
   locale?: string
 ): Promise<EntryDoc | null> {
-  const query = locale === undefined ? undefined : { locale };
+  const query = localeQuery(locale);
   const doc =
     kind === 'product'
       ? await client.catalog.getProduct(slug, query)
@@ -110,10 +111,14 @@ export async function listCatalogDocs(
         ? await client.catalog.listProducts({
             page,
             pageSize: CATALOG_PAGE_SIZE,
-            locale,
+            ...localeQuery(locale),
             filter: [`status:eq:${ACTIVE_STATUS}`],
           })
-        : await client.catalog.listCollections({ page, pageSize: CATALOG_PAGE_SIZE, locale });
+        : await client.catalog.listCollections({
+            page,
+            pageSize: CATALOG_PAGE_SIZE,
+            ...localeQuery(locale),
+          });
     docs.push(...list.data);
     // A page that claims a successor but serves nothing would loop forever.
     if (list.meta.hasNext !== true || list.data.length === 0) return docs;

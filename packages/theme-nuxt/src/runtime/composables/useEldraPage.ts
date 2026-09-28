@@ -4,6 +4,7 @@ import { clearNuxtData, useAsyncData, useRoute, useRuntimeConfig } from 'nuxt/ap
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
 import type { CatalogRouteRef } from '../catalog';
 import { overlayPreviewDrafts } from '../drafts';
+import { normalizeLocale } from '../locale';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 
 export function useEldraPage(): {
@@ -25,8 +26,11 @@ export function useEldraPage(): {
     locale: string | null;
   };
   const error = ref<string | null>(null);
+  // A site that configures no locale still carries `""` in the public runtime
+  // config, and an empty `?locale=` is a locale the gateway rejects rather than
+  // the absence of one — so a blank value on either side means "no locale".
   const runtimeLocale = (): string | undefined =>
-    (ctx.preview.active ? ctx.preview.locale : null) ?? cfg.locale ?? undefined;
+    normalizeLocale(ctx.preview.active ? ctx.preview.locale : null) ?? normalizeLocale(cfg.locale);
 
   const resolveCurrentRoute = async (): Promise<ResolvedEldraRoute> => {
     error.value = null;

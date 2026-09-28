@@ -22,6 +22,7 @@ import eldraTheme, {
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { normalizeLocale } from './runtime/locale';
 import { listAllEntries } from './runtime/resolveRoute';
 
 export interface ModuleOptions {
@@ -109,7 +110,9 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       studioOrigins: [...studioOrigins],
       pageSchema: options.pageSchema,
       routeTemplateSchema: options.routeTemplateSchema,
-      locale: options.locale ?? null,
+      // Normalised here too, so a blank `ELDRA_LOCALE` or `eldra.locale`
+      // reaches the client as "no locale" rather than an empty `?locale=`.
+      locale: normalizeLocale(options.locale) ?? null,
     };
 
     addPlugin(resolver.resolve('./runtime/plugin'));
@@ -128,9 +131,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       }
 
       const client = createEldraClient({ gatewayUrl: options.gatewayUrl, orgId: options.orgId });
+      const locale = normalizeLocale(options.locale);
       const [pages, templates] = await Promise.all([
-        listAllEntries(client, options.pageSchema, options.locale),
-        listRouteTemplateEntries(client, options.routeTemplateSchema, options.locale),
+        listAllEntries(client, options.pageSchema, locale),
+        listRouteTemplateEntries(client, options.routeTemplateSchema, locale),
       ]);
       const generated = new Set<string>();
       for (const page of pages) {
@@ -164,7 +168,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           // it — never a failed build for every other product on the site.
           let catalogPromise = catalogByKind.get(catalogKind);
           if (catalogPromise === undefined) {
-            catalogPromise = listCatalogDocs(client, catalogKind, options.locale);
+            catalogPromise = listCatalogDocs(client, catalogKind, locale);
             catalogByKind.set(catalogKind, catalogPromise);
           }
           for (const path of catalogDocRoutes(await catalogPromise, pattern)) {
@@ -180,7 +184,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         }
         let entriesPromise = entriesBySchema.get(schemaApiId);
         if (entriesPromise === undefined) {
-          entriesPromise = listAllEntries(client, schemaApiId, options.locale);
+          entriesPromise = listAllEntries(client, schemaApiId, locale);
           entriesBySchema.set(schemaApiId, entriesPromise);
         }
         for (const entry of await entriesPromise) {

@@ -5,6 +5,15 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fix: a blank locale is no longer forwarded to the gateway. A site that configures none carries
+  `""` — that is what `runtimeConfig.public.eldra.locale` holds, and what an unset `ELDRA_LOCALE`
+  becomes — which went out as `?locale=` on every read and came back a 400 from the collection
+  lookup. Every boundary that forwards a locale (`useEldraPage()`, route resolution, the catalog
+  reads, the module's `prerender:routes` pass and the public runtime config it writes) now treats
+  a blank or whitespace-only locale as no locale at all, so the request carries no `locale`
+  parameter and the gateway serves the site's default. A blank `locale` from the Studio preview
+  bridge falls back to the configured one instead of shadowing it.
+
 - Removed the unused `catalogTemplateRoutes` helper from the runtime (never exported from the
   module's public entry, and `prerender:routes` cannot use it: it lists the catalog once per
   **kind** and maps once per template, so a list-and-map-in-one call would refetch the whole
