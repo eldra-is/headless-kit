@@ -278,12 +278,18 @@ field — and the preview overlay turns the text node it survives into the field
 and type in. So a block displays the value it was handed: `{{ heading }}`, not
 `{{ heading.toUpperCase() }}`, not ``{{ `${label}: ${value}` }}``, not a copy put through
 `.replace(/\s+/g, ' ')` or `.slice()`. `value.trim()` is fine — `@eldrajs/theme-core` reads a
-payload whose delimiter trimming ate. Anything the value is _not_ displayed as — an emptiness check,
-a storage key, an `aria-label`, a lookup — derives from `stripStega(value)` instead
-(`@eldrajs/theme-core/stega`), and a value that genuinely has to be composed into another sentence
-is composed from that stripped copy, so the overlay does not offer an edit that would write the
-composed text back. `test/inlineEditable.spec.ts` mounts every block with an encoded copy of its
-`mock.json` and fails with the field paths whose payload the block destroyed.
+payload whose delimiter trimming ate. `test/inlineEditable.spec.ts` mounts every block with an
+encoded copy of its `mock.json` and fails with the field paths whose payload the block destroyed.
+
+Anything the value is _not_ displayed as derives from `stripStega(value)` (`@eldrajs/theme-core/stega`)
+instead, so that the preview and the static site agree: a storage key (`announcement-bar` hashes its
+dismissal off the stripped message), an `aria-label`, a lookup, and a sentence the value genuinely
+has to be composed into (`search`'s heading, where `{query}` is replaced with the shopper's query —
+composing from the stripped copy is what stops the overlay offering an edit that would write the
+composed sentence back over the author's template). **Emptiness checks are the same rule and are the
+convention for new blocks** — `stripStega(value).trim() !== ''`, because `trim()` alone leaves the
+payload's bit characters behind and reads a cleared field as filled. The 33 blocks here still write
+`(value ?? '').trim() !== ''` and are being migrated.
 
 **Field types, and the one `reference` shape that is typed.** `block.json`'s field `type` values are
 Core's (`string`, `text`, `rich-text`, `media`, `select`, `bool`, `int`, `list`, `composite`,
