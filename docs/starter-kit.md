@@ -469,7 +469,7 @@ template: it has no CMS schema behind it, and the theme resolves `:slug` against
 at render time (`useEldraPage().catalog`, see [themes.md](themes.md#seeding-default-templates)).
 `home` seeds the site's home page and applies only when the site has none.
 
-Four rules the file exists to keep:
+Five rules the file exists to keep:
 
 - **The header and footer are roles, not blocks.** Each seed's `blocks` are its fixture's blocks
   **minus** `navigation` and `footer`; those two travel once, as `eldra.templateRoles`
@@ -500,18 +500,23 @@ Four rules the file exists to keep:
 - **Ids come from the fixture.** A seed block keeps the fixture block's own `id`
   (`product-detail`, `home-hero`, …), which is what the generated layout's `block` nodes
   reference.
-- **A catalog seed pins no product or collection.** The sample pages name one — that is what makes
-  them a realistic page — but a template renders whatever its route resolved, and every commerce
-  block reads the route's own product/collection when its handle field is empty. So the seeds for
-  `/products/:slug` and `/collections/:slug` drop exactly those fields: `product-detail`'s
-  `productHandle`, `collection-header`'s and `collection-grid`'s `collectionHandle`, and
-  `product-carousel`'s `sourceHandle`/`sourceCollection` (its `related` variant reads the route).
-  The home seed keeps its carousel's handle — `/` has no route context to fall back to.
-  `breadcrumbs` carries the same pinning in its data rather than in a handle, so its seed keeps
-  the Home crumb and nothing below it (`trail: []`, `showHome` still true) and takes the page's
-  own title from the routed object through `templates: { currentTitle: '{{ title }}' }` on its
-  layout node — the seed-block `templates`/`bindings` the Vite plugin validates against the
-  block's declared fields.
+- **A catalog seed names no product or collection.** The sample pages name one — that is what
+  makes them a realistic page — but a template renders whatever its route resolved, so the seeds
+  for `/products/:slug` and `/collections/:slug` drop everything that names the fixture's own
+  object and bind the fields the routed object carries itself. Dropped: `product-detail`'s
+  `productHandle`; `collection-header`'s `collectionHandle`, `title` and `description`;
+  `collection-grid`'s `collectionHandle`; `product-carousel`'s `sourceHandle`/`sourceCollection`
+  and its `viewAllHref` (a link into the fixture product's category); the fixture's own levels and
+  links in `breadcrumbs`' `trail` and `collection-header`'s `subcollections` (emptied, a shape both
+  blocks render — `breadcrumbs` still shows the Home crumb from `showHome`); and
+  `product-detail`'s "Details" tab, which is the fixture product's own description, leaving the
+  store-wide Shipping and Returns tabs. Bound on the seed's layout node: `breadcrumbs`'
+  `currentTitle` and `collection-header`'s `title`, both `{{ title }}` against the catalog
+  projection. `collection-header`'s `description` is rich text and a text template renders a
+  string, so it is only dropped — the block falls back to the collection's own description, which
+  is the same value. The home seed keeps its carousel's handle: `/` has no route context to fall
+  back to. `test/starter.spec.ts` checks the per-field rules and, bluntly, that the fixture's
+  product and collection are named nowhere in a catalog seed.
 
 Editing a sample page fixture therefore edits the seeded template too — one copy of the starter's
 product page backs the Storybook story, the page-level test and the merchant's first deploy. The

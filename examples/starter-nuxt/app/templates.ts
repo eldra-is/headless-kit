@@ -28,9 +28,10 @@ import type {
  *   separately as roles (below) and the scanner's `header`/`footer` switches
  *   (default true) place them around every seed, so Core resolves them to the
  *   site's own reusable components rather than seeding a second copy per page.
- *   A catalog seed also drops the fields that pin the fixture's own product or
- *   collection (`ROUTE_PINNED_FIELDS`, and `breadcrumbs`' spelled-out trail),
- *   so each page renders the object its route resolved.
+ *   A catalog seed also drops everything that names the fixture's own product or
+ *   collection (`CATALOG_SEED_SHAPE`, `CATALOG_SEED_DROPPED_ITEMS`), binding the
+ *   fields the routed object carries itself, so each page renders the object its
+ *   route resolved.
  * - `starterTemplateRoles()` — the `navigation` and `footer` block data behind
  *   those roles, taken from the home page fixture (all three fixtures carry
  *   the same header and footer).
@@ -46,35 +47,81 @@ import type {
 const ROLE_BLOCKS = { header: 'navigation', footer: 'footer' } as const;
 
 /**
- * Fields a **catalog** seed must not carry, per block.
+ * How a **catalog** seed differs from the sample page it is built from, per
+ * block.
  *
- * Each names one product or collection by hand, which is exactly what a sample
- * page is for and exactly what a route template must not do: every commerce
- * block reads the route's own product/collection when its handle field is
- * empty (`storefront.route.productHandle` / `collectionHandle`, the "field
- * wins, route is the fallback" contract each block's own `helpText`
- * describes). Seeded with the fixture's handle, every product page rendered the
- * fixture's product. `product-carousel`'s pair goes only on the product seed —
- * its `related` variant reads the route — while the home seed keeps its handle,
- * because a home page has no route context to fall back to.
+ * A sample page names one product and one collection — that is what makes it a
+ * realistic page — and a route template must name none: it renders whatever
+ * object its `:slug` resolved to. Every field below either says which object to
+ * show (a handle), or repeats the fixture's own copy for it (a title, a
+ * description, a trail, a link into its category), so a seed drops it and, where
+ * the routed object carries the same thing, binds the field to it instead:
+ *
+ * - `strip` — dropped outright. The commerce blocks read the route when their
+ *   handle field is empty (`storefront.route.productHandle` /
+ *   `collectionHandle`, the "field wins, route is the fallback" contract each
+ *   block's own `helpText` describes), and the editorial fields fall back to the
+ *   storefront object the same way.
+ * - `emptyLists` — emptied rather than dropped, for a list whose items are the
+ *   fixture's own levels or links and where an empty list is a shape the block
+ *   already renders (`breadcrumbs`' `trail`, which still shows the Home crumb
+ *   from `showHome`; `collection-header`'s `subcollections`).
+ * - `templates` — the text templates the seed's layout node carries, so the
+ *   block shows the routed object's own value (`{{ title }}` resolves against
+ *   the catalog projection `@eldrajs/theme-nuxt` binds a catalog route to).
+ *
+ * `product-carousel` appears here for the **product** seed only — its `related`
+ * variant reads the route — while the home seed keeps its handle, because `/`
+ * has no route context to fall back to.
+ *
+ * Two fields are stripped without a binding on purpose. `collection-header`'s
+ * `description` is rich text and a text template renders a string, so there is
+ * nothing to bind it to; the block already falls back to the collection's own
+ * description, which is the same value. `product-carousel`'s `viewAllHref`
+ * points at the fixture product's category, and no projection path holds the
+ * routed product's category URL.
  */
-const ROUTE_PINNED_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  'product-detail': ['productHandle'],
-  'collection-header': ['collectionHandle'],
-  'collection-grid': ['collectionHandle'],
-  'product-carousel': ['sourceHandle', 'sourceCollection'],
+const CATALOG_SEED_SHAPE: Readonly<
+  Record<
+    string,
+    {
+      strip?: readonly string[];
+      emptyLists?: readonly string[];
+      templates?: Readonly<Record<string, string>>;
+    }
+  >
+> = {
+  breadcrumbs: {
+    strip: ['currentTitle'],
+    emptyLists: ['trail'],
+    templates: { currentTitle: '{{ title }}' },
+  },
+  'product-detail': { strip: ['productHandle'] },
+  'product-carousel': { strip: ['sourceHandle', 'sourceCollection', 'viewAllHref'] },
+  'collection-header': {
+    strip: ['collectionHandle', 'title', 'description'],
+    emptyLists: ['trail', 'subcollections'],
+    templates: { title: '{{ title }}' },
+  },
+  'collection-grid': { strip: ['collectionHandle'] },
 };
 
 /**
- * `breadcrumbs` has the same problem in its data rather than in a handle: the
- * fixture's `trail` and `currentTitle` spell out one product's ancestry ("
- * Knitwear → Sweaters → Merino crew sweater"). A seeded template keeps the
- * Home crumb (`showHome`, still true) and nothing below it — the block has no
- * `items` field, its trail is `trail`, and there is no per-route level to
- * invent — and takes the page's own title from the routed object through a
- * template binding on its layout node instead.
+ * List items a catalog seed drops, named by the item field a reader recognises
+ * them by. One case today: `product-detail`'s "Details" tab is the fixture
+ * product's own description ("extra-fine Merino…, 17.5 micron, model is 180 cm")
+ * — copy about one product, in a tab every product would show. The block has no
+ * other place for a product description, so the seeded template keeps only the
+ * store-wide tabs (Shipping, Returns). Binding `tabs.0.body` to the routed
+ * product's `description` was the alternative and was not taken: a binding into
+ * a list index fails the whole layout render once an editor reorders or removes
+ * that tab, which is not a failure mode to seed a merchant's product page with.
  */
-const BREADCRUMBS_TEMPLATES: Readonly<Record<string, string>> = { currentTitle: '{{ title }}' };
+const CATALOG_SEED_DROPPED_ITEMS: Readonly<
+  Record<string, { list: string; itemField: string; values: readonly string[] }>
+> = {
+  'product-detail': { list: 'tabs', itemField: 'label', values: ['Details'] },
+};
 
 /**
  * Title is the *template's* name in Studio's template list, not the sample
@@ -126,20 +173,22 @@ export function starterTemplates(): DeclaredTemplateSeed[] {
  */
 function seedBlock(block: PageFixtureBlock, catalogRoute: boolean): DeclaredTemplateSeedBlock {
   const data = { ...block.data };
-  let templates: Record<string, string> | undefined;
-  if (catalogRoute) {
-    for (const fieldId of ROUTE_PINNED_FIELDS[block.apiId] ?? []) delete data[fieldId];
-    if (block.apiId === 'breadcrumbs') {
-      data.trail = [];
-      delete data.currentTitle;
-      templates = { ...BREADCRUMBS_TEMPLATES };
-    }
+  const shape = catalogRoute ? CATALOG_SEED_SHAPE[block.apiId] : undefined;
+  for (const fieldId of shape?.strip ?? []) delete data[fieldId];
+  for (const fieldId of shape?.emptyLists ?? []) {
+    if (Array.isArray(data[fieldId])) data[fieldId] = [];
+  }
+  const dropped = catalogRoute ? CATALOG_SEED_DROPPED_ITEMS[block.apiId] : undefined;
+  if (dropped !== undefined && Array.isArray(data[dropped.list])) {
+    data[dropped.list] = (data[dropped.list] as unknown[]).filter(
+      (item) => !(isRecord(item) && dropped.values.includes(String(item[dropped.itemField])))
+    );
   }
   return {
     id: block.id,
     apiId: block.apiId,
     data: stripSeedMedia(data, blockFields(block.apiId), block.apiId),
-    ...(templates === undefined ? {} : { templates }),
+    ...(shape?.templates === undefined ? {} : { templates: { ...shape.templates } }),
   };
 }
 

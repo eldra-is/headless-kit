@@ -868,9 +868,9 @@ describe('seeded templates (app/templates.ts)', () => {
 
     const pinned: Record<string, readonly string[]> = {
       'product-detail': ['productHandle'],
-      'collection-header': ['collectionHandle'],
+      'collection-header': ['collectionHandle', 'title', 'description'],
       'collection-grid': ['collectionHandle'],
-      'product-carousel': ['sourceHandle', 'sourceCollection'],
+      'product-carousel': ['sourceHandle', 'sourceCollection', 'viewAllHref'],
     };
     for (const template of catalogSeeds) {
       for (const block of template.blocks) {
@@ -899,6 +899,45 @@ describe('seeded templates (app/templates.ts)', () => {
       );
       expect(node).toMatchObject({ templates: { currentTitle: '{{ title }}' } });
     }
+
+    // The collection header carries the same treatment for the fields that are
+    // the collection's own: emptied here, bound to the routed collection's
+    // title on the node. Its `description` is rich text, which a text template
+    // cannot render, so it is only emptied — the block falls back to the
+    // collection's own description anyway.
+    const collection = templates.find((template) => template.schemaApiId === 'catalog:collection')!;
+    const header = collection.blocks.find((block) => block.apiId === 'collection-header')!;
+    expect(Object.hasOwn(header.data, 'title')).toBe(false);
+    expect(Object.hasOwn(header.data, 'description')).toBe(false);
+    expect(header.data.trail).toEqual([]);
+    expect(header.data.subcollections).toEqual([]);
+    expect(
+      collection.layout.root.children.find(
+        (child) => child.type === 'block' && child.entryId === header.id
+      )
+    ).toMatchObject({ templates: { title: '{{ title }}' } });
+  });
+
+  it('names the sample pages’ own product and collection nowhere in a catalog seed', () => {
+    // The blunt guard behind the per-field assertions above: a catalog template
+    // renders whatever its `:slug` resolved to, so the fixture's product and
+    // collection must not survive anywhere in its blocks — not in a handle, a
+    // title, a trail, a link, or a paragraph of tab copy. The home seed is
+    // exempt: it names them the way any hand-authored home page does.
+    const templates = scanned.manifest!.templates!;
+    const named = /merino|winter edit|the-winter-edit/i;
+    for (const template of templates.filter((entry) => entry.schemaApiId !== 'home')) {
+      for (const block of template.blocks) {
+        expect({ block: block.apiId, named: named.test(JSON.stringify(block.data)) }).toEqual({
+          block: block.apiId,
+          named: false,
+        });
+      }
+    }
+    // And the guard guards something: the fixtures do name them, and the home
+    // seed still does.
+    const home = templates.find((template) => template.schemaApiId === 'home')!;
+    expect(named.test(JSON.stringify(home.blocks))).toBe(true);
   });
 
   it('carries the navigation and footer role data the seeds place', () => {

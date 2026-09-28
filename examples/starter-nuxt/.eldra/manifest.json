@@ -6934,70 +6934,6 @@
             ],
             "tabs": [
               {
-                "label": "Details",
-                "body": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk."
-                        }
-                      ]
-                    },
-                    {
-                      "type": "bulletList",
-                      "content": [
-                        {
-                          "type": "listItem",
-                          "content": [
-                            {
-                              "type": "paragraph",
-                              "content": [
-                                {
-                                  "type": "text",
-                                  "text": "100% extra-fine Merino wool, 17.5 micron"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "listItem",
-                          "content": [
-                            {
-                              "type": "paragraph",
-                              "content": [
-                                {
-                                  "type": "text",
-                                  "text": "Hand wash cold or wool cycle, dry flat"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "listItem",
-                          "content": [
-                            {
-                              "type": "paragraph",
-                              "content": [
-                                {
-                                  "type": "text",
-                                  "text": "Model is 180 cm and wears size M"
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              },
-              {
                 "label": "Shipping",
                 "body": {
                   "type": "doc",
@@ -7046,7 +6982,6 @@
             "variant": "related",
             "limit": "8",
             "viewAllLabel": "View all",
-            "viewAllHref": "/collections/knitwear",
             "showSwatches": true,
             "background": "none"
           }
@@ -7245,52 +7180,10 @@
           "apiId": "collection-header",
           "data": {
             "variant": "image",
-            "title": "The winter edit",
             "showCount": true,
             "showBreadcrumb": false,
-            "trail": [
-              {
-                "label": "Shop",
-                "href": "/collections"
-              }
-            ],
-            "description": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "Heavy-gauge knits, stoneware for slow breakfasts and kitchen goods for the cold months, from our Portland studio and two family mills in Biella and the Scottish Borders. Every piece is knitted to order in small runs, finished by hand and washed once before it ships so it arrives soft. We keep the colours earthy and the shapes simple, so a sweater you buy this winter still looks right in ten years. Mending is free for the first two years."
-                    }
-                  ]
-                }
-              ]
-            },
-            "subcollections": [
-              {
-                "label": "All",
-                "href": "/collections/winter-knitwear",
-                "current": true
-              },
-              {
-                "label": "Sweaters",
-                "href": "/collections/sweaters"
-              },
-              {
-                "label": "Cardigans",
-                "href": "/collections/cardigans"
-              },
-              {
-                "label": "Hats & scarves",
-                "href": "/collections/hats-scarves"
-              },
-              {
-                "label": "Throws",
-                "href": "/collections/throws"
-              }
-            ]
+            "trail": [],
+            "subcollections": []
           }
         },
         {
@@ -7389,7 +7282,10 @@
             {
               "id": "collection-header",
               "type": "block",
-              "entryId": "collection-header"
+              "entryId": "collection-header",
+              "templates": {
+                "title": "{{ title }}"
+              }
             },
             {
               "id": "collection-grid",
