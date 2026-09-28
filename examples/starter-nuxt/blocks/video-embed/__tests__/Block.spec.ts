@@ -5,16 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
-
-// `EldraIcon` (the play disc, the transcript's file-text icon) resolves through `useEldraIcon` ->
-// `inject(ICON_FETCHER_KEY)` outside a real Nuxt app — the same synchronous, network-free stub
-// `announcement-bar`'s/`feature-grid`'s own block specs use.
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 // `mock.json` is the seed Studio writes on insert (no media — see `docs/starter-kit.md`);
 // `preview.json` is the demo-imagery overlay a story merges on top of it.
@@ -35,7 +28,6 @@ function mountVideoEmbed(
     attachTo: options.attachTo,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing === true) {

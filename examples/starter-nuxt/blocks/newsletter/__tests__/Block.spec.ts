@@ -9,14 +9,6 @@ import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type { StorefrontAck, StorefrontForms } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { enUS } from '../../../app/i18n/en-US';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
-
-/** `EldraIcon` (success/alert icons) resolves through `useEldraIcon`, which under Nuxt calls
- *  `/api/eldra-icon`; outside Nuxt this needs an injected `ICON_FETCHER_KEY` (see `footer`'s and
- *  `feature-grid`'s own specs for the identical pattern) — reads the real SVGs synchronously,
- *  network-free. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** Only the fields the block requires (`variant`, `heading`, `consent`, `list`) — the "genuinely
  *  minimal" fixture every rebuilt block spec covers alongside the full `mock.json` (see
@@ -64,7 +56,6 @@ function mountNewsletter(
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         ...(options.subscribe ? { [STOREFRONT_KEY]: withForms(options.subscribe) } : {}),
       },
     },

@@ -5,17 +5,10 @@ import { ELDRA_KEY } from '@eldrajs/theme-vue';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontProduct } from '../../../app/storefront/types';
 import Block from '../Block.vue';
 import mock from '../mock.json';
-
-/** Every icon in this block (`zoom-in`, the stock icons, `mail`, `heart`, the perks) resolves
- *  through `EldraIcon`, which needs Nuxt's route or an injected fetcher — this reads the real Tabler
- *  SVG synchronously, network-free, the same stub the `gallery` block's spec uses. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** The genuinely minimal fixture: only the fields the block requires. */
 const bare = { variant: 'gallery-left' as const };
@@ -65,7 +58,6 @@ function mountBlock(
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         [STOREFRONT_KEY]: storefront,
       },
     },
@@ -290,7 +282,6 @@ describe('product-detail block', () => {
           ...base.global,
           provide: {
             ...base.global.provide,
-            [ICON_FETCHER_KEY]: stubFetcher,
             [STOREFRONT_KEY]: storefront,
           },
         },

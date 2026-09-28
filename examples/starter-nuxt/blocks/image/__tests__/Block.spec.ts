@@ -4,8 +4,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
@@ -18,11 +16,6 @@ const withImage = { ...mock, ...preview };
 const ASPECTS = ['auto', '1x1', '4x3', '3x2', '16x9', '3x4'] as const;
 const WIDTHS = ['narrow', 'content', 'wide', 'full'] as const;
 
-// `EditorPlaceholder`'s photo icon resolves a Tabler name through `useEldraIcon` ->
-// `inject(ICON_FETCHER_KEY)` outside a real Nuxt app — the same synchronous, network-free stub
-// `pricing-table`'s/`video-embed`'s own block specs use.
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-
 const trackedWrappers: VueWrapper[] = [];
 afterEach(() => {
   for (const wrapper of trackedWrappers.splice(0)) wrapper.unmount();
@@ -34,7 +27,6 @@ function mountImage(data: Record<string, unknown>, options: { editing?: boolean 
     ...base,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing) {

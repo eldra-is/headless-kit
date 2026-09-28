@@ -3,8 +3,6 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import FilterGroups from '../parts/FilterGroups.vue';
 import { sanitizeAmount, type FilterGroup } from '../parts/groups';
 
@@ -59,7 +57,6 @@ function mountGroups(
   // Each group trigger's chevron is an `EldraIcon`, which resolves through `useEldraIcon` — outside
   // Nuxt that needs an injected fetcher (the same synchronous, network-free stub every other spec
   // that renders an icon by name uses).
-  base.global.provide[ICON_FETCHER_KEY] = stubFetcher;
   return mount(FilterGroups, {
     props: {
       groups,
@@ -73,8 +70,6 @@ function mountGroups(
     ...mountExtras,
   });
 }
-
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 describe('collection-grid filter groups', () => {
   it('is axe-clean with all four kinds of group rendered', async () => {

@@ -1,16 +1,12 @@
 // @vitest-environment jsdom
 //
 // `EldraIcon` (the quote mark) resolves a Tabler icon by name through `useEldraIcon`, which reads
-// its fetcher from `inject(ICON_FETCHER_KEY, ...)` rather than calling Nuxt's `useFetch` directly —
-// so a plain `mount()` needs the same synchronous, network-free stub `feature-grid`'s and
-// `pricing-table`'s own specs use, or the block throws outside a Nuxt runtime.
+// it straight out of `app/icons.ts` — no server, no fetch, so a plain `mount()` renders it.
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
@@ -22,15 +18,12 @@ const withMedia = { ...mock, ...preview };
 /** The genuinely minimal fixture: only the fields the block requires. */
 const bare = { quote: 'Reliable, well made, arrived on time.', name: 'A. Customer' };
 
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-
 function mountBlock(data: Record<string, unknown>, options: { editing?: boolean } = {}) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const opts = {
     ...base,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing) {

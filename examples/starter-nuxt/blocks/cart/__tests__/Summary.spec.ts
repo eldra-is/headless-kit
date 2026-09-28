@@ -4,12 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import Summary from '../parts/Summary.vue';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
 import { createDemoStorefront, DEMO_CART_LINES } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
-
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** The Northwind cart the spec's page story shows: $210.00 over three lines, over the $80
  *  free-shipping threshold, so the demo backend charges nothing for shipping. */
@@ -33,7 +29,6 @@ async function mountSummary(
       provide: {
         ...base.global.provide,
         [STOREFRONT_KEY]: storefront,
-        [ICON_FETCHER_KEY]: stubFetcher,
       },
     },
   });

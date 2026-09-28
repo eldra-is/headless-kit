@@ -8,16 +8,6 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
-
-/**
- * The zoom badge's icon (`zoom-in`) resolves through `EldraIcon` (Tabler-by-name), which under
- * Nuxt calls `/api/eldra-icon`; outside Nuxt this needs an injected `ICON_FETCHER_KEY` (see
- * `feature-grid`/`contact`'s own specs for the same pattern) — `stubFetcher` reads the real SVG
- * synchronously via `tablerIconSvg`, network-free.
- */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** `mock.json` is Studio's insert seed — six captioned items, no images yet, since media is never
  *  present there (`scan.ts` only accepts `{assetId}` or absence); `preview.json` is the demo
@@ -36,7 +26,6 @@ function mountGallery(data: Record<string, unknown>, options: { editing?: boolea
     attachTo: document.body,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing) {

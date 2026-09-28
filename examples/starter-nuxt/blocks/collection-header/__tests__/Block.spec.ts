@@ -7,14 +7,6 @@ import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { enUS } from '../../../app/i18n/en-US';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
-
-/** `EldraIcon` (the Read more disclosure's chevron) resolves through `useEldraIcon`, which under
- *  Nuxt calls `/api/eldra-icon`; outside Nuxt this needs an injected `ICON_FETCHER_KEY` — the same
- *  pattern `newsletter`'s and `footer`'s own specs use, reading the real SVGs synchronously with no
- *  network. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** Only `variant` is required at the schema level — the "genuinely minimal" fixture every
  *  rebuilt block spec covers alongside the full `mock.json` (see `blocks/faq/__tests__/
@@ -74,7 +66,6 @@ async function mountHeader(data: Record<string, unknown>) {
     attachTo: document.body,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   });
   trackedWrappers.push(wrapper);

@@ -109,6 +109,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { buildOrder } from '../../app/storefront/demo';
 import { useMoney } from '../../app/storefront/money';
+import type { ThemeIconName } from '../../app/icons';
 import type { MessageKey } from '../../app/i18n/messages';
 import type {
   StorefrontCartLine,
@@ -444,7 +445,7 @@ const isShippingFree = computed(() => totals.value?.shipping === 0);
 const shippingAddress = computed(() => order.value?.shippingAddress ?? []);
 const payment = computed(() => order.value?.payment ?? null);
 
-function paymentIconName(brand: string): string {
+function paymentIconName(brand: string): ThemeIconName {
   switch (brand.toLowerCase().replace(/\s+/g, '-')) {
     case 'visa':
       return 'brand-visa';

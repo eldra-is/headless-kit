@@ -8,8 +8,6 @@ import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
 import mock from '../mock.json';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
@@ -24,11 +22,6 @@ import type {
 import { enUS } from '../../../app/i18n/en-US';
 import { isIS } from '../../../app/i18n/is-IS';
 import { currencyFor, uiEnUS, uiMessagesFor } from '../../../app/i18n/uiMessages';
-
-/** The block draws three Tabler icons (the Filter button's and the empty state's `adjustments`, the
- *  mobile sort trigger's `arrows-sort`, the editor hint's `box`) through `useEldraIcon`, which
- *  outside Nuxt needs an injected fetcher — the pattern `blocks/newsletter`'s spec uses. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** Only the four required fields: the freshly-inserted seed, exercising every fallback default
  *  (no collection of its own — the route supplies one — no filters, no sort, no empty copy). */
@@ -160,7 +153,6 @@ function mountGrid(
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         ...(options.source ? { [STOREFRONT_KEY]: options.source } : {}),
         ...(options.editing ? { [ELDRA_KEY]: editingContext() } : {}),
       },
@@ -894,7 +886,6 @@ describe('collection-grid block', () => {
           ...base.global,
           provide: {
             ...base.global.provide,
-            [ICON_FETCHER_KEY]: stubFetcher,
             [ELDRA_KEY]: context,
             [MESSAGES_KEY]: messages,
             [LOCALE_KEY]: () => context.preview.locale ?? undefined,
@@ -1112,7 +1103,6 @@ describe('collection-grid block', () => {
           ...base.global,
           provide: {
             ...base.global.provide,
-            [ICON_FETCHER_KEY]: stubFetcher,
             [STOREFRONT_KEY]: source,
             [ELDRA_KEY]: editingContext(),
           },

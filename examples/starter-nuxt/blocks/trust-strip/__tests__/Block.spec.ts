@@ -7,19 +7,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 /** The genuinely minimal fixture: only the fields the block requires. */
 const bare = {
   variant: 'columns',
   items: [{ icon: 'truck', title: 'Free shipping' }],
 };
-
-/** `trust-strip` resolves every icon (items and payment marks alike) through `EldraIcon`'s own
- *  machinery (`useEldraIcon`); outside Nuxt that means an injected `ICON_FETCHER_KEY` — the same
- *  stub `feature-grid`'s and `team`'s own specs use. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** The injected fetcher still resolves through a promise; flush one microtask/macrotask turn
  *  before asserting on icon markup — the same wait `feature-grid`'s own spec uses. */
@@ -33,7 +26,6 @@ function mountBlock(data: Record<string, unknown>, options: { editing?: boolean 
     ...base,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing) {

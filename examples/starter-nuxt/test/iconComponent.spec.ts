@@ -15,11 +15,7 @@ import {
   renderTablerSvg,
   tablerSvgBody,
 } from '../app/composables/iconComponent';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../app/composables/iconFetcher';
-import { tablerIconSvg } from '../server/utils/tablerIcon';
-
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-const provide = { global: { provide: { [ICON_FETCHER_KEY]: stubFetcher } } };
+import { THEME_ICONS } from '../app/icons';
 
 /** Renders whatever a package prop would render an icon component as: bare, with no props. */
 function host(icon: ReturnType<typeof iconComponent>) {
@@ -28,7 +24,7 @@ function host(icon: ReturnType<typeof iconComponent>) {
 
 describe('tablerSvgBody', () => {
   it("keeps only the body, so the caller owns the root's size, stroke and ARIA state", () => {
-    const markup = tablerIconSvg('bolt')!;
+    const markup = THEME_ICONS['lock'];
     // Tabler ships a complete document with its own class/width/height/stroke-width.
     expect(markup).toContain('<svg');
     expect(markup).toMatch(/stroke-width/);
@@ -63,7 +59,7 @@ describe('renderTablerSvg', () => {
 
 describe('iconComponent', () => {
   it('draws the named Tabler icon', async () => {
-    const wrapper = mount(host(iconComponent('bolt')), provide);
+    const wrapper = mount(host(iconComponent('lock')));
     await flushPromises();
     const svg = wrapper.get('svg');
     expect(svg.attributes('stroke')).toBe('currentColor');
@@ -71,14 +67,14 @@ describe('iconComponent', () => {
   });
 
   it('caches per name, so a re-render never remounts (and re-fetches) the same icon', () => {
-    expect(iconComponent('bolt')).toBe(iconComponent('bolt'));
-    expect(iconComponent('bolt')).not.toBe(iconComponent('star'));
+    expect(iconComponent('lock')).toBe(iconComponent('lock'));
+    expect(iconComponent('lock')).not.toBe(iconComponent('heart'));
   });
 
   it('renders an empty icon for an unknown name rather than nothing at all', async () => {
     // A package prop that requires an icon component gets one either way — the caller's layout is
     // holding a slot open for it. (`EldraIcon`, which is a template, renders nothing instead.)
-    const wrapper = mount(host(iconComponent('does-not-exist-xyz')), provide);
+    const wrapper = mount(host(iconComponent('does-not-exist-xyz')));
     await flushPromises();
     const svg = wrapper.get('svg');
     expect(svg.element.children).toHaveLength(0);
@@ -87,7 +83,7 @@ describe('iconComponent', () => {
 
 describe('EMPTY_ICON', () => {
   it('is an inert empty outline, for a required icon prop with nothing to show', () => {
-    const wrapper = mount(host(EMPTY_ICON), provide);
+    const wrapper = mount(host(EMPTY_ICON));
     const svg = wrapper.get('svg');
     expect(svg.attributes('viewBox')).toBe('0 0 24 24');
     expect(svg.element.children).toHaveLength(0);

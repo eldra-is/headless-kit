@@ -4,16 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import Block from '../Block.vue';
 import mock from '../mock.json';
-
-// The dismiss button renders its icon through `EldraIcon` (a Tabler name, "x"), which resolves
-// through `useEldraIcon` -> `inject(ICON_FETCHER_KEY)` outside a real Nuxt app — the same
-// synchronous, network-free stub `eldraIcon.spec.ts`/`feature-grid`'s own block spec use, merged
-// onto `mountOptions()`'s own provide map.
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 function mountAnnouncement(
   data: Record<string, unknown>,
@@ -25,7 +17,6 @@ function mountAnnouncement(
     attachTo: options.attachTo,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing === true) {

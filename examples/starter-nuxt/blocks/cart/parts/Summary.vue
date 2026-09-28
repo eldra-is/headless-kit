@@ -46,6 +46,7 @@ import EldraIcon from '../../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../../app/utils/links';
 import { useMoney } from '../../../app/storefront/money';
+import type { ThemeIconName } from '../../../app/icons';
 
 const props = withDefaults(
   defineProps<{
@@ -145,7 +146,13 @@ const checkoutAs = computed(() =>
  *  PayPal and Apple Pay'" — one `role="img"`, not four named marks. Tabler ships no
  *  `brand-apple-pay`, so Apple Pay is `brand-apple` (the same ruling the `trust-strip` block
  *  records); the name above is what says which methods these are. */
-const PAYMENT_ICONS = ['brand-visa', 'brand-mastercard', 'brand-paypal', 'brand-apple'];
+/** Typed against the theme's own icon set, so a name it does not bundle is a type error. */
+const PAYMENT_ICONS: ThemeIconName[] = [
+  'brand-visa',
+  'brand-mastercard',
+  'brand-paypal',
+  'brand-apple',
+];
 
 const ROW_CLASS = 'flex items-baseline justify-between gap-4';
 const LABEL_CLASS = 'text-muted text-body-sm';

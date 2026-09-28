@@ -5,8 +5,6 @@ import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useT } from '../../app/composables/useT';
 import { mountOptions } from './mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../server/utils/tablerIcon';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../app/storefront/types';
 // The apiId → Block.vue map lives in `stories/support/pageBlocks.ts`, shared with
 // `stories/pages/*.stories.ts` — see that file's own doc comment for why it
@@ -18,16 +16,6 @@ import { renderPageFixtureRegions } from '../../stories/support/pageBlocks';
 // One definition of the fixture shape, shared with the page stories (see `pageBlocks.ts`).
 export type { PageFixture, PageFixtureBlock } from '../../stories/support/pageBlocks';
 import type { PageFixture } from '../../stories/support/pageBlocks';
-
-/**
- * `EldraIcon` (`app/components/EldraIcon.vue`) resolves a Tabler icon name through
- * `useEldraIcon`, which calls Nuxt's `useFetch` outside an injected `ICON_FETCHER_KEY` — see
- * `feature-grid`'s own block spec for the same pattern. A page fixture is not run inside a real
- * Nuxt app, so any registered block that renders an icon by name (the footer's social links, for
- * one) needs this same synchronous, network-free stub; wiring it in here once means a future
- * page fixture never has to remember it per block.
- */
-const stubIconFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /**
  * Renders a `pages/<name>.page.json`-shaped fixture exactly as
@@ -67,7 +55,6 @@ export async function mountPage(
   });
 
   const { global } = mountOptions({ entry: { id: '', data: {} } });
-  global.provide[ICON_FETCHER_KEY] = stubIconFetcher;
   if (options.storefront !== undefined) {
     global.provide[STOREFRONT_KEY] = options.storefront;
   }
@@ -116,7 +103,6 @@ export async function mountPageWithSkipLink(
   });
 
   const { global } = mountOptions({ entry: { id: '', data: {} } });
-  global.provide[ICON_FETCHER_KEY] = stubIconFetcher;
   if (options.storefront !== undefined) {
     global.provide[STOREFRONT_KEY] = options.storefront;
   }

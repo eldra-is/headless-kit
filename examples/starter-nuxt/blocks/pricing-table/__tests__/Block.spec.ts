@@ -7,8 +7,6 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 /** No media fields, so — like `stats` — there is no `preview.json` to merge onto `mock.json`.
  *  `mock.json` is the block's one full content fixture; `bare` below is the genuinely minimal one,
@@ -28,18 +26,12 @@ const bare = {
   ],
 };
 
-/** The check/minus feature-row icons and the highlight badge's star icon all resolve a Tabler
- *  name through `EldraIcon`/`Badge.icon` → `useEldraIcon`, which calls Nuxt's `useFetch` outside
- *  an injected `ICON_FETCHER_KEY` — the same stub `feature-grid`/`footer`'s own specs use. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-
 function mountBlock(data: Record<string, unknown>, options: { editing?: boolean } = {}) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const opts = {
     ...base,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing) {
@@ -289,7 +281,6 @@ describe('pricing-table block', () => {
         ...base,
         global: {
           ...base.global,
-          provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
         },
         attachTo: document.body,
       });

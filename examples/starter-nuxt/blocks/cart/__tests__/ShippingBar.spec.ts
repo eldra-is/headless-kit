@@ -4,12 +4,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import ShippingBar from '../parts/ShippingBar.vue';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
-
-/** The truck icon resolves through `useEldraIcon`, which calls Nuxt's `/api/eldra-icon` route on a
- *  real page; outside Nuxt the specs inject the server helper directly instead. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 const trackedWrappers: ReturnType<typeof mount>[] = [];
 afterEach(() => {
@@ -24,7 +18,6 @@ function mountBar(props: { threshold?: string; subtotal: number; panel?: 'edge' 
     props,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   });
   trackedWrappers.push(wrapper);

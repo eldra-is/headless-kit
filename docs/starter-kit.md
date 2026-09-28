@@ -205,11 +205,24 @@ payment marks and delivery promises, `feature-grid`'s per-item icon, `faq`'s dis
 `product-detail`'s stock/perk rows, and more) render it through `EldraIcon`, never a hand-rolled
 `<svg>` or a direct `Icon` call with a hard-coded component.
 
+**The theme decides which Tabler icons exist.** `app/icons.ts` imports each one's SVG (`?raw`) and
+maps it by name; `useEldraIcon` is a synchronous lookup in that map, with no server route and no
+request. That is what makes an icon work everywhere the theme runs: a statically hosted page, a
+block that renders in the browser after its data arrives, and Studio's preview the moment an editor
+types a name — none of which can ask a server for a file. **To add an icon, add one import line and
+one entry to `app/icons.ts`**, using the Tabler outline icon's own name (<https://tabler.io/icons>).
+A name that is not in the map renders nothing — deliberately, because an icon name is a CMS field
+and an editor can type anything at all. `test/themeIcons.spec.ts` keeps the theme's own names
+honest: it scans `blocks/**`, `app/**` and every block's `mock.json`/`preview.json`/`block.json` for
+icon names and fails when one is missing from the map. A name a block _computes_ (a social network,
+a card brand) is beyond a scan, so type that lookup `ThemeIconName` — exported from the same module
+— and `pnpm typecheck` proves it instead.
+
 Some `@eldrajs/ui` props take the icon _component_ rather than a name — `FeatureCard.icon`,
 `Badge.icon`, `EmptyState.icon`, `EditorPlaceholder.icon`, `Select.leadingIcon`, `Button.iconLeft` —
 and `EldraIcon` is a template, so it cannot be handed straight through. **`iconComponent(name)`**
 from `app/composables/iconComponent.ts` is the one helper that builds one, caching per name at module
-scope so a re-render never remounts (and re-fetches) the same icon; `EMPTY_ICON` from the same module
+scope so a re-render never remounts the same icon; `EMPTY_ICON` from the same module
 is the inert stand-in for a required `icon` prop with nothing to show. `EldraIcon` is built on the
 same module's `tablerSvgBody`/`renderTablerSvg`, so the markup transform exists once. Import it
 explicitly, like every other `app/**` helper a block uses; `test/starter.spec.ts` fails if a block

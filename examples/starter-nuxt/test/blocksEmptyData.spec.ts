@@ -2,8 +2,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import type { Component } from 'vue';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../app/composables/iconFetcher';
-import { tablerIconSvg } from '../server/utils/tablerIcon';
 import manifest from '../.eldra/manifest.json';
 import { mountOptions } from './support/mountBlock';
 
@@ -22,7 +20,6 @@ import { mountOptions } from './support/mountBlock';
 const blockModules = import.meta.glob<{ default: Component }>('../blocks/*/Block.vue', {
   eager: true,
 });
-const stubIconFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 const blocks = Object.entries(blockModules)
   .map(([path, module]) => [path.split('/')[2]!, module.default] as const)
@@ -37,7 +34,6 @@ describe('every block renders an entry with no field data at all', () => {
 
   it.each(blocks)('%s mounts with `data: {}` without throwing', (apiId, Block) => {
     const options = mountOptions({ entry: { id: `${apiId}-empty`, data: {} } });
-    options.global.provide[ICON_FETCHER_KEY] = stubIconFetcher;
     let asyncError: unknown = null;
     const wrapper = mount(Block, {
       ...options,

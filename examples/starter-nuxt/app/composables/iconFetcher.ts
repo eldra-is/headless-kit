@@ -1,13 +1,13 @@
 import type { InjectionKey } from 'vue';
 
 /**
- * Split out of `useEldraIcon.ts` so Storybook config (`.storybook/preview.ts`,
- * `.storybook/iconFetcher.ts`) can import just the key/type without pulling
- * in `useEldraIcon.ts`'s default-path code, which references Nuxt's
- * auto-imported `useFetch` as a bare global — a name `tsconfig.storybook.json`'s
- * plain `tsc` (no Nuxt ambient types) cannot resolve, even though it is
- * never called under Storybook (an injected fetcher always takes over
- * before that branch runs).
+ * An optional override for `useEldraIcon`'s own resolution, kept in its own module so a consumer
+ * can import just the key and the type without pulling in `useEldraIcon.ts` (and, through it,
+ * every bundled icon in `app/icons.ts`).
+ *
+ * Nothing in the app or in Storybook provides one: icons resolve out of `app/icons.ts`. It exists
+ * for a spec that wants to drive resolution itself, and for a theme that resolves icons some other
+ * way entirely.
  */
 export type IconFetcher = (name: string) => Promise<string | null>;
 

@@ -7,16 +7,9 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
 import { createDemoStorefront, DEMO_CART_LINES } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
 import type { StorefrontCartLine } from '../../../app/storefront/types';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
-
-/** Every `EldraIcon` in the block (truck, trash, lock, arrow-left, the payment marks, the empty
- *  state's bag) resolves through `useEldraIcon`, which calls Nuxt's `/api/eldra-icon` route on a real
- *  page; outside Nuxt the specs inject the server helper directly, the same as `newsletter`'s own. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** Only `variant` is required at the schema level — the "genuinely minimal" fixture every rebuilt
  *  block spec covers alongside the full `mock.json`. With no `freeShippingThreshold` there is no
@@ -88,7 +81,6 @@ async function mountCart(
       provide: {
         ...base.global.provide,
         [STOREFRONT_KEY]: storefront,
-        [ICON_FETCHER_KEY]: stubFetcher,
       },
     },
   });

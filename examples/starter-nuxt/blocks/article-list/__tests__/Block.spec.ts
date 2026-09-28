@@ -9,8 +9,6 @@ import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 /** `mock.json`'s items carry no `image` (Core's write-side media validator rejects a
  *  fixture-shaped object there); `preview.json` is the demo-imagery overlay, a full `items`
@@ -26,11 +24,6 @@ const bare = {
   items: [{ title: 'Bare story', href: '/journal/bare-story' }],
 };
 
-/** The active chip's check mark and the empty state's `file-text` icon both resolve a Tabler name
- *  through `EldraIcon`/`EmptyState.icon` → `useEldraIcon`, which calls Nuxt's `useFetch` outside an
- *  injected `ICON_FETCHER_KEY` — the same stub `feature-grid`/`pricing-table`'s own specs use. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-
 function mountBlock(
   data: Record<string, unknown>,
   options: { editing?: boolean; page?: number } = {}
@@ -44,7 +37,6 @@ function mountBlock(
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         [STOREFRONT_KEY]: storefront,
       },
     },

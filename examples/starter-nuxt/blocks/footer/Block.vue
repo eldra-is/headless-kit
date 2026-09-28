@@ -73,6 +73,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import { useStorefront } from '../../app/composables/useStorefront';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import type { ThemeIconName } from '../../app/icons';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import type { MessageKey } from '../../app/i18n/messages';
 
@@ -125,7 +126,8 @@ const groups = computed(() =>
 const minimalLinks = computed(() => resolveLinks(data.value.links));
 const legalLinks = computed(() => resolveLinks(data.value.legalLinks));
 
-const SOCIAL_ICON_NAMES: Record<string, string> = {
+/** Typed against the theme's own icon set, so a name it does not bundle is a type error. */
+const SOCIAL_ICON_NAMES: Record<string, ThemeIconName> = {
   instagram: 'brand-instagram',
   facebook: 'brand-facebook',
   pinterest: 'brand-pinterest',

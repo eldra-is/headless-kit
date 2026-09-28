@@ -7,8 +7,6 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 /** `mock.json` is Studio's insert seed (no media); `preview.json` is the demo-imagery overlay a
  *  story/preview merges on top of it — same shallow-merge shape `testimonials`'s own test uses. */
@@ -22,12 +20,6 @@ const bare = {
 
 const SECTION_BACKGROUNDS = ['none', 'surface', 'surface-strong'] as const;
 
-/** `team` resolves each icon link's Tabler icon by name through `EldraIcon`'s own machinery
- *  (`useEldraIcon`); under Nuxt that calls `/api/eldra-icon`, so outside Nuxt an injected
- *  `ICON_FETCHER_KEY` reads the real SVGs synchronously via `tablerIconSvg`, network-free — the
- *  same stub `feature-grid`'s and `footer`'s own specs use. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-
 /** The injected fetcher still resolves through a promise; flush one microtask/macrotask turn
  *  before asserting on icon markup — the same wait `feature-grid`'s own spec uses. */
 async function flushIcons(): Promise<void> {
@@ -40,7 +32,6 @@ function mountBlock(data: Record<string, unknown>, options: { editing?: boolean 
     ...base,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing) {

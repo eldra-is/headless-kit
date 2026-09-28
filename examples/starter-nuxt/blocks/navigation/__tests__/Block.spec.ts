@@ -11,8 +11,6 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import { computed, nextTick } from 'vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 // `mock.json` is the seed Studio writes when an author inserts the block —
 // media fields (`brandLogo`, `links[].features[].image`) are absent.
@@ -20,13 +18,6 @@ import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 // story/preview-only demo-imagery overlay: same links, Knitwear also gets
 // its two feature cards.
 const merged = { ...mock, ...preview };
-
-/** Every hand-rolled `<svg>` in this block (menu, chevrons, arrow, search, account, cart) now
- *  resolves through `EldraIcon` (Tabler-by-name), which under Nuxt calls `/api/eldra-icon`;
- *  outside Nuxt that needs an injected `ICON_FETCHER_KEY` (the same pattern `gallery`'s and
- *  `trust-strip`'s own specs use) — `stubFetcher` reads the real SVG synchronously via
- *  `tablerIconSvg`, network-free. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** The injected fetcher still resolves through a promise; flush one microtask/macrotask turn
  *  before asserting on icon markup — the same wait `trust-strip`'s/`team`'s own specs use. */
@@ -41,7 +32,6 @@ function mountBlock(data: Record<string, unknown>, opts?: { attachTo?: Element }
     ...opts,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   });
 }
@@ -56,7 +46,6 @@ function mountWithEditing(data: Record<string, unknown>, editing: boolean) {
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         [ELDRA_KEY]: {
           client: {},
           designTokens: { colors: {} },
@@ -82,7 +71,6 @@ function mountWithCartCount(data: Record<string, unknown>, count: number) {
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         [STOREFRONT_KEY]: { ...storefront, cart },
       },
     },

@@ -7,8 +7,6 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import { createDemoStorefront, buildOrder } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
@@ -17,11 +15,6 @@ import type {
   StorefrontSource,
 } from '../../../app/storefront/types';
 import { enUS } from '../../../app/i18n/en-US';
-
-/** `EldraIcon` (badge/tracker/payment/help-link icons) resolves through `useEldraIcon`, which
- *  outside Nuxt needs an injected fetcher — the pattern `newsletter`'s/`collection-grid`'s own
- *  specs use. */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 /** Only the required fields (the freshly-inserted seed): every optional part (text, links,
  *  help links) is absent, exercising every "optional part renders nothing" branch at once. */
@@ -153,7 +146,6 @@ function mountBlock(
       ...opts.global,
       provide: {
         ...opts.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         ...(options.source ? { [STOREFRONT_KEY]: options.source } : {}),
       },
     },

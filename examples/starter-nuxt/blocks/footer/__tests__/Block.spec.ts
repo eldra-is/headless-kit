@@ -7,25 +7,10 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type { StorefrontForms } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { enUS } from '../../../app/i18n/en-US';
-
-/**
- * `footer` has no `preview.json` (the spec's default story is the wordmark, so demo media
- * is not used) — so the "merged data" and "bare `mock.json`" mounts every block spec is expected
- * to cover (`docs/starter-kit.md` §3) are, for this block, the same seed. Both are still mounted
- * and asserted axe-clean below as their own tests, matching that convention.
- *
- * Social icons resolve through `EldraIcon` (Tabler-by-name), which under Nuxt calls
- * `/api/eldra-icon`; outside Nuxt this needs an injected `ICON_FETCHER_KEY` (see
- * `feature-grid`'s own spec for the same pattern) — `stubFetcher` reads the real SVGs
- * synchronously via `tablerIconSvg`, network-free.
- */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 function mountFooter(
   data: Record<string, unknown>,
@@ -61,7 +46,6 @@ function mountFooter(
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         ...(options.failForms
           ? { [STOREFRONT_KEY]: createDemoStorefront({ failForms: true }) }
           : {}),

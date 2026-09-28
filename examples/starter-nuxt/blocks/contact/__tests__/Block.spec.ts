@@ -6,19 +6,9 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { enUS } from '../../../app/i18n/en-US';
-
-/**
- * Icons (`map-pin`/`clock`/`phone`/`mail`/`circle-check`) resolve through `EldraIcon`
- * (Tabler-by-name), which under Nuxt calls `/api/eldra-icon`; outside Nuxt this needs an injected
- * `ICON_FETCHER_KEY` (see `feature-grid`/`footer`'s own specs for the same pattern) — `stubFetcher`
- * reads the real SVGs synchronously via `tablerIconSvg`, network-free.
- */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
 
 const merged = { ...mock, ...preview };
 
@@ -34,7 +24,6 @@ function mountContact(data: Record<string, unknown>, options: { failForms?: bool
       ...base.global,
       provide: {
         ...base.global.provide,
-        [ICON_FETCHER_KEY]: stubFetcher,
         ...(options.failForms
           ? { [STOREFRONT_KEY]: createDemoStorefront({ failForms: true }) }
           : {}),

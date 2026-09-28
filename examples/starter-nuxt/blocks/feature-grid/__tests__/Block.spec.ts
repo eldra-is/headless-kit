@@ -8,8 +8,6 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { ICON_FETCHER_KEY, type IconFetcher } from '../../../app/composables/iconFetcher';
-import { tablerIconSvg } from '../../../server/utils/tablerIcon';
 
 /**
  * `mock.json` is the seed Studio writes on insert — its items carry no `image` (Core's write-side
@@ -26,21 +24,12 @@ import { tablerIconSvg } from '../../../server/utils/tablerIcon';
  */
 const withImages = { ...mock, ...preview };
 
-/**
- * `feature-grid` items resolve a Tabler icon by name through `EldraIcon`'s own machinery
- * (`useEldraIcon`); under Nuxt that calls `/api/eldra-icon`, so outside Nuxt an injected
- * `ICON_FETCHER_KEY` reads the real SVGs synchronously via `tablerIconSvg`, network-free — the
- * same stub the block's own v1 spec and `footer`'s spec use.
- */
-const stubFetcher: IconFetcher = async (name) => tablerIconSvg(name);
-
 function mountBlock(data: Record<string, unknown>, options: { editing?: boolean } = {}) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const opts = {
     ...base,
     global: {
       ...base.global,
-      provide: { ...base.global.provide, [ICON_FETCHER_KEY]: stubFetcher },
     },
   };
   if (options.editing) {

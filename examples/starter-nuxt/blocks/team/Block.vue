@@ -52,6 +52,7 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import type { ThemeIconName } from '../../app/icons';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import type { MessageKey } from '../../app/i18n/messages';
@@ -120,7 +121,8 @@ const gridClass = computed(() => [
   isSinglePerson.value ? 'mx-auto max-w-[18rem]' : '',
 ]);
 
-const ICON_NAMES: Record<NonNullable<PersonLink['type']>, string> = {
+/** Typed against the theme's own icon set, so a name it does not bundle is a type error. */
+const ICON_NAMES: Record<NonNullable<PersonLink['type']>, ThemeIconName> = {
   instagram: 'brand-instagram',
   email: 'mail',
   website: 'world',
