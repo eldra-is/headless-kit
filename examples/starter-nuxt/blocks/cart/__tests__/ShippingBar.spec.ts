@@ -16,9 +16,7 @@ function mountBar(props: { threshold?: string; subtotal: number; panel?: 'edge' 
   const base = mountOptions({ entry: { id: 'cart', data: {} } });
   const wrapper = mount(ShippingBar, {
     props,
-    global: {
-      ...base.global,
-    },
+    global: base.global,
   });
   trackedWrappers.push(wrapper);
   return wrapper;

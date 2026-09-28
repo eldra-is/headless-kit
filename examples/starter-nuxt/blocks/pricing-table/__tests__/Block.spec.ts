@@ -30,9 +30,6 @@ function mountBlock(data: Record<string, unknown>, options: { editing?: boolean 
   const base = mountOptions({ entry: { id: 'e1', data } });
   const opts = {
     ...base,
-    global: {
-      ...base.global,
-    },
   };
   if (options.editing) {
     const context = opts.global.provide[ELDRA_KEY] as {
@@ -279,9 +276,6 @@ describe('pricing-table block', () => {
       const base = mountOptions({ entry: { id: 'e1', data: mock } });
       const wrapper = mount(Block, {
         ...base,
-        global: {
-          ...base.global,
-        },
         attachTo: document.body,
       });
       const link = wrapper.get(`a[href="${mock.plans[0]!.ctaHref}"]`).element as HTMLAnchorElement;

@@ -30,9 +30,6 @@ function mountBlock(data: Record<string, unknown>, opts?: { attachTo?: Element }
   return mount(Block, {
     ...base,
     ...opts,
-    global: {
-      ...base.global,
-    },
   });
 }
 

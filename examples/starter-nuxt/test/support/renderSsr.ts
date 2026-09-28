@@ -3,6 +3,25 @@ import { renderToString } from 'vue/server-renderer';
 import { mountOptions } from './mountBlock';
 import { renderPageFixtureRegions, type PageFixture } from '../../stories/support/pageBlocks';
 
+/**
+ * Server rendering, with the same `EldraContext`/messages/locale/currency/storefront wiring
+ * `mountBlock.ts`'s `mountOptions` gives a client mount — the whole point being that this runs
+ * under Vitest's *node* environment, where there is no `window` and no `document` at all.
+ *
+ * `nuxi generate` and every SSR request render blocks exactly this way, and nothing in the test
+ * suite used to: `test/starter.spec.ts`'s `nuxi generate` run has no gateway credentials, so it only
+ * ever renders the not-found shell and no block is server-rendered by it. That is how three
+ * unguarded `watchEffect`s in `blocks/navigation/Block.vue` — the one block every page carries —
+ * could touch `window`/`document` with every gate green (a `flush: 'pre'` effect with no callback
+ * runs its body immediately, during `setup()`, on the server too). `test/pages/ssr.spec.ts` is the
+ * spec that closes it.
+ *
+ * A spec importing this must run in the node environment (no environment docblock at all — node is
+ * `vitest.config.ts`'s default), or the guards it exercises are trivially satisfied by jsdom's
+ * globals and it proves nothing. Note that Vitest reads that pragma out of a file's leading
+ * comments, so a spec must not even mention it in prose.
+ */
+
 function applyProvides(app: ReturnType<typeof createSSRApp>): void {
   const { global } = mountOptions({ entry: { id: '', data: {} } });
   for (const key of Reflect.ownKeys(global.provide) as symbol[]) {

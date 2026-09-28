@@ -24,9 +24,6 @@ function mountGallery(data: Record<string, unknown>, options: { editing?: boolea
     // jsdom does not reliably track focus on a detached mount (see the navigation/contact blocks'
     // own specs for the same note). Auto-unmount (`test/setup.ts`) detaches it again afterward.
     attachTo: document.body,
-    global: {
-      ...base.global,
-    },
   };
   if (options.editing) {
     const context = opts.global.provide[ELDRA_KEY] as {

@@ -24,9 +24,6 @@ function mountBlock(data: Record<string, unknown>, options: { editing?: boolean 
   const base = mountOptions({ entry: { id: 'e1', data } });
   const opts = {
     ...base,
-    global: {
-      ...base.global,
-    },
   };
   if (options.editing) {
     const context = opts.global.provide[ELDRA_KEY] as {

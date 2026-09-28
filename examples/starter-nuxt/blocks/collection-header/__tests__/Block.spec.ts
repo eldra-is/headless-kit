@@ -64,9 +64,6 @@ async function mountHeader(data: Record<string, unknown>) {
   const wrapper = mount(Block, {
     ...base,
     attachTo: document.body,
-    global: {
-      ...base.global,
-    },
   });
   trackedWrappers.push(wrapper);
   await flushPromises();

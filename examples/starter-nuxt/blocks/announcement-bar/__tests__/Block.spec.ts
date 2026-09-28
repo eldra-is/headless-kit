@@ -15,9 +15,6 @@ function mountAnnouncement(
   const opts = {
     ...base,
     attachTo: options.attachTo,
-    global: {
-      ...base.global,
-    },
   };
   if (options.editing === true) {
     const context = opts.global.provide[ELDRA_KEY] as EldraContext;
