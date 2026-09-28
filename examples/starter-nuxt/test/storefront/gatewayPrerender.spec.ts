@@ -6,6 +6,11 @@ import {
   type StorefrontPrerenderHandle,
 } from '../../app/storefront/gateway';
 import { createVolatileRefresher, type VolatileRefresher } from '../../app/storefront/refresh';
+import {
+  prerenderThroughAsyncData,
+  type KeyedAsyncData,
+  type KeyedAsyncDataOptions,
+} from '../../app/storefront/prerender';
 import type {
   StorefrontProduct,
   StorefrontRoute,
@@ -483,5 +488,263 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
     // Both results took the same answer: the grid's `p-1` and the row's `p-1` cannot disagree.
     expect(grid.data.value?.items[0]?.price.amount).toBe(11);
     expect(row.data.value?.[0]?.price.amount).toBe(11);
+  });
+});
+
+/**
+ * A stand-in for Nuxt 4.5's `useAsyncData` on a **hydrating client**, modelling the three
+ * behaviours `app/storefront/prerender.ts` exists to survive
+ * (`nuxt/dist/app/composables/asyncData.js`):
+ *
+ *   * hydration **short-circuits** — status goes straight to `success` and the handler never runs
+ *     — as soon as `data.value !== undefined`, which is exactly what an `options.default` makes
+ *     true before anything has loaded. The stub honours a `default` it is passed for that reason:
+ *     the adapter must not pass one, and this is what says so.
+ *   * on a payload miss the first fetch is **deferred to the component's `onBeforeMount`**
+ *     (`flushBeforeMount()` here — Vue runs it in the same synchronous mount pass, before any
+ *     microtask, so it always precedes the adapter's own recovery), and the handle's promise
+ *     resolves with the load not yet run and the status still `idle`.
+ *   * a second registration of the same key runs the handler **again** under Nuxt's default
+ *     `dedupe: 'cancel'`, and joins the request already in flight under `dedupe: 'defer'`.
+ */
+function nuxtAsyncDataStub(payload: Record<string, unknown> = {}) {
+  interface Entry {
+    data: { value: unknown };
+    error: { value: unknown };
+    status: { value: string };
+    inFlight: Promise<unknown> | null;
+  }
+  const entries = new Map<string, Entry>();
+  const beforeMount: Array<() => void> = [];
+  let handlerCalls = 0;
+
+  function run(entry: Entry, load: () => Promise<unknown>): Promise<unknown> {
+    handlerCalls += 1;
+    entry.status.value = 'pending';
+    const request = load().then(
+      (value) => {
+        entry.data.value = value;
+        entry.status.value = 'success';
+        entry.inFlight = null;
+      },
+      (caught: unknown) => {
+        entry.error.value = caught;
+        entry.status.value = 'error';
+        entry.inFlight = null;
+      }
+    );
+    entry.inFlight = request;
+    return request;
+  }
+
+  return {
+    handlerCalls: () => handlerCalls,
+    /** Vue's `onBeforeMount`, where Nuxt put the deferred first fetch. Synchronous, as it is. */
+    flushBeforeMount(): void {
+      for (const deferred of beforeMount.splice(0)) deferred();
+    },
+    asyncData<T>(
+      key: string,
+      load: () => Promise<T | null>,
+      options: KeyedAsyncDataOptions
+    ): KeyedAsyncData<T> {
+      const fallback = (options as { default?: () => unknown }).default;
+      let entry = entries.get(key);
+      if (entry === undefined) {
+        entry = {
+          data: { value: key in payload ? payload[key] : fallback?.() },
+          error: { value: null },
+          status: { value: 'idle' },
+          inFlight: null,
+        };
+        entries.set(key, entry);
+      }
+      const current = entry;
+      const execute = (): Promise<unknown> =>
+        current.inFlight !== null && options.dedupe === 'defer'
+          ? current.inFlight
+          : run(current, load);
+      let settled: Promise<unknown>;
+      if (current.data.value !== undefined) {
+        // Hydrating with a value in hand: nothing runs, ever.
+        current.status.value = 'success';
+        settled = Promise.resolve();
+      } else if (current.inFlight !== null) {
+        settled = execute();
+      } else {
+        beforeMount.push(() => void execute());
+        settled = Promise.resolve();
+      }
+      return {
+        data: current.data as { value: T | null | undefined },
+        error: current.error,
+        status: current.status,
+        execute,
+        settled,
+      };
+    },
+  };
+}
+
+describe('gateway storefront — prerendering through Nuxt’s keyed async data', () => {
+  it('fetches on the client when the payload has no value for the key', async () => {
+    const stub = nuxtAsyncDataStub();
+    const calls = fakeClient();
+    const { storefront } = wire(calls.client, (key, load) =>
+      prerenderThroughAsyncData(stub.asyncData, key, load)
+    );
+
+    const result = storefront.catalog.product(ref('merino-crew-sweater'));
+    stub.flushBeforeMount();
+    await settle();
+
+    // A `default` here would have made Nuxt call this a hydration hit before anything ran, and the
+    // page would sit at `pending` with no data and no request for the rest of its life.
+    expect(stub.handlerCalls()).toBe(1);
+    expect(calls.detailReads).toBe(1);
+    expect(result.data.value?.title).toBe('Merino crew sweater');
+    expect(result.pending.value).toBe(false);
+    expect(result.loading.value).toBe(false);
+  });
+
+  it('runs the deferred load itself when nothing else has', async () => {
+    const stub = nuxtAsyncDataStub();
+    const calls = fakeClient();
+    const { storefront } = wire(calls.client, (key, load) =>
+      prerenderThroughAsyncData(stub.asyncData, key, load)
+    );
+
+    // No `flushBeforeMount()`: the handle settles `idle`, with the load still waiting.
+    const result = storefront.catalog.product(ref('merino-crew-sweater'));
+    await settle();
+
+    expect(calls.detailReads).toBe(1);
+    expect(result.data.value?.title).toBe('Merino crew sweater');
+    expect(result.pending.value).toBe(false);
+  });
+
+  it('costs one request when two results read the same key', async () => {
+    const stub = nuxtAsyncDataStub();
+    const calls = fakeClient();
+    const { storefront } = wire(calls.client, (key, load) =>
+      prerenderThroughAsyncData(stub.asyncData, key, load)
+    );
+
+    const first = storefront.catalog.product(ref('merino-crew-sweater'));
+    const second = storefront.catalog.product(ref('merino-crew-sweater'));
+    stub.flushBeforeMount();
+    await settle();
+
+    expect(stub.handlerCalls()).toBe(1);
+    expect(calls.detailReads).toBe(1);
+    expect(first.data.value?.title).toBe('Merino crew sweater');
+    expect(second.data.value?.title).toBe('Merino crew sweater');
+  });
+
+  it('takes the payload’s value and runs nothing at all', async () => {
+    const stub = nuxtAsyncDataStub({
+      'storefront:catalog.product:["merino-crew-sweater"]': { title: 'From the payload' },
+    });
+    const calls = fakeClient();
+    const { storefront } = wire(calls.client, (key, load) =>
+      prerenderThroughAsyncData(stub.asyncData, key, load)
+    );
+
+    const result = storefront.catalog.product(ref('merino-crew-sweater'));
+    stub.flushBeforeMount();
+    await settle();
+
+    expect(stub.handlerCalls()).toBe(0);
+    expect(calls.detailReads).toBe(0);
+    expect(result.data.value?.title).toBe('From the payload');
+  });
+});
+
+describe('gateway storefront — `loading`, and who is allowed to write', () => {
+  it('is true for a reload over data the page already has, while `pending` stays false', async () => {
+    const answers = [[listRow('p-1', 10)], [listRow('p-1', 20)]];
+    const calls = fakeClient({ collectionProducts: () => answers.shift() ?? [] });
+    const ssr = asyncDataStub();
+    const { storefront } = wire(calls.client, ssr.prerender);
+
+    const opts = ref({ page: 1, pageSize: 24 });
+    const grid = storefront.catalog.collectionProducts(ref({ slug: 'winter-knitwear' }), opts);
+    expect(grid.loading.value).toBe(true);
+    await ssr.settleAll();
+    expect(grid.loading.value).toBe(false);
+    expect(grid.pending.value).toBe(false);
+
+    opts.value = { page: 2, pageSize: 24 };
+    await nextTick();
+    // A read is in flight over a value the page is already showing: a spinner, never a skeleton.
+    expect(grid.loading.value).toBe(true);
+    expect(grid.pending.value).toBe(false);
+    expect(grid.data.value?.items[0]?.price.amount).toBe(10);
+
+    await settle();
+    expect(grid.loading.value).toBe(false);
+    expect(grid.pending.value).toBe(false);
+    expect(grid.data.value?.items[0]?.price.amount).toBe(20);
+  });
+
+  it('stops being pending when the read answers nothing at all', async () => {
+    const ssr = asyncDataStub();
+    const calls = fakeClient();
+    const { storefront } = wire(calls.client, ssr.prerender);
+
+    // No handle: the read answers `null`, which is an answer — "no such product" — and a block
+    // that kept drawing a skeleton over it would never show its empty state.
+    const result = storefront.catalog.product(ref(null));
+    await ssr.settleAll();
+
+    expect(result.data.value).toBeNull();
+    expect(result.pending.value).toBe(false);
+    expect(result.loading.value).toBe(false);
+    expect(result.error.value).toBeNull();
+  });
+
+  /**
+   * `refresh()` is called from an event handler, outside any watcher, so nothing ever aborts its
+   * controller: without the generation guard its answer lands whenever the network returns it and
+   * overwrites the newer read the shopper actually asked for.
+   */
+  it('lets a slow manual refresh lose to the reload that overtook it', async () => {
+    const slow = deferred<Array<Record<string, unknown>>>();
+    // Answered in call order — the prerender, then the manual refresh, then the reload — so the
+    // slow one is pinned to the manual refresh whatever the two of them do afterwards.
+    const answers: Array<() => Promise<Array<Record<string, unknown>>>> = [
+      async () => [listRow('p-1', 10)],
+      () => slow.promise,
+      async () => [listRow('p-1', 120)],
+    ];
+    const client = {
+      catalog: {
+        listCollectionProducts: async () => ({
+          data: await (answers.shift() ?? (async () => []))(),
+          meta: META,
+        }),
+      },
+    } as unknown as EldraClient;
+    const ssr = asyncDataStub();
+    const { storefront } = wire(client, ssr.prerender);
+
+    const opts = ref({ page: 1, pageSize: 24 });
+    const grid = storefront.catalog.collectionProducts(ref({ slug: 'winter-knitwear' }), opts);
+    await ssr.settleAll();
+    expect(grid.data.value?.items[0]?.price.amount).toBe(10);
+
+    // A manual refresh that will take its time…
+    const manual = grid.refresh();
+    // …and, while it is out, the shopper pages the grid, which answers first.
+    opts.value = { page: 2, pageSize: 24 };
+    await settle();
+    expect(grid.data.value?.items[0]?.price.amount).toBe(120);
+
+    slow.resolve([listRow('p-1', 90)]);
+    await manual;
+    await settle();
+
+    expect(grid.data.value?.items[0]?.price.amount).toBe(120);
+    expect(grid.loading.value).toBe(false);
   });
 });

@@ -13,6 +13,11 @@ import {
   type StorefrontRuntime,
 } from '../storefront/gateway';
 import { createVolatileRefresher } from '../storefront/refresh';
+import {
+  prerenderThroughAsyncData,
+  type KeyedAsyncData,
+  type KeyedAsyncDataOptions,
+} from '../storefront/prerender';
 
 /**
  * The only file under `app/storefront/*`'s orbit that touches Nuxt globals (`useRoute`,
@@ -163,6 +168,28 @@ export default defineNuxtPlugin({
       }
     );
 
+    /**
+     * Nuxt's own keyed async data, narrowed to the shape `app/storefront/prerender.ts` works
+     * against — which is also where the two options that matter, and why, are written down. The
+     * cast is the one thing that needs saying here: `useAsyncData` re-describes its data as
+     * `PickFrom<T, KeysOf<T>>` for its `pick` option, which tells this caller nothing it does not
+     * already know — the value is whatever the load returned.
+     */
+    function keyedAsyncData<T>(
+      key: string,
+      load: () => Promise<T | null>,
+      options: KeyedAsyncDataOptions
+    ): KeyedAsyncData<T> {
+      const handle = useAsyncData<T | null>(key, load, options);
+      return {
+        data: handle.data as unknown as { value: T | null | undefined },
+        error: handle.error,
+        status: handle.status,
+        execute: () => handle.execute(),
+        settled: handle,
+      };
+    }
+
     const runtime: StorefrontRuntime = {
       prerender<T>(
         key: string,
@@ -173,18 +200,7 @@ export default defineNuxtPlugin({
         // register on either.
         if (import.meta.client && !nuxtApp.isHydrating) return null;
         if (getCurrentInstance() === null) return null;
-        const asyncData = useAsyncData<T | null>(key, load, { default: () => null });
-        // `useAsyncData` re-describes its own data type (`PickFrom<T, KeysOf<T>>`, for its `pick`
-        // option), which says nothing this caller does not already know: the value is whatever the
-        // load returned. Read it back as that, once, rather than spreading the cast.
-        const value = (): T | null => (asyncData.data.value ?? null) as T | null;
-        return {
-          hydrated: value(),
-          settled: asyncData.then(() => ({
-            data: value(),
-            error: asyncDataError(asyncData.error.value),
-          })),
-        };
+        return prerenderThroughAsyncData<T>(keyedAsyncData, key, load);
       },
       // Only the browser refreshes: on the server the read that just ran *is* the live value.
       register: import.meta.client ? (entry) => refresher.register(entry) : undefined,
@@ -200,9 +216,3 @@ export default defineNuxtPlugin({
     nuxtApp.vueApp.provide(STOREFRONT_KEY, source);
   },
 });
-
-/** `useAsyncData`'s own error, as the one string a `StorefrontResult` carries. */
-function asyncDataError(caught: unknown): string | null {
-  if (caught === null || caught === undefined) return null;
-  return caught instanceof Error ? caught.message : String(caught);
-}

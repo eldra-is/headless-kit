@@ -1040,6 +1040,7 @@ function createDemoResult<T>(
 ): StorefrontResult<T> {
   const data = ref<T | null>(null) as Ref<T | null>;
   const pending = ref(true);
+  const loading = ref(false);
   const error = ref<string | null>(null);
   // The fixture is synchronous and never goes stale, so nothing here ever revalidates — the field
   // exists because `StorefrontResult` has it, and a block must read the same shape from either
@@ -1047,16 +1048,24 @@ function createDemoResult<T>(
   const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
 
   async function load(): Promise<void> {
-    pending.value = true;
+    // The fixture answers on the next tick rather than instantly, so a block sees the same
+    // `loading` → settled sequence it sees from a real read; `pending` still only means "nothing
+    // to show yet", so a reload over existing fixture data never raises it.
+    loading.value = true;
+    // Same three flags as the gateway's (`types.ts`): `pending` is the skeleton state — a read in
+    // flight with nothing to show — so a reload over fixture data never raises it, and an answer
+    // of "nothing" clears it rather than leaving the block loading forever.
+    pending.value = data.value === null;
     error.value = null;
     await nextTick();
     data.value = resolve();
     pending.value = false;
+    loading.value = false;
   }
 
   watch(sources, load, { immediate: true, deep: true });
 
-  return { data, pending, error, revalidating, refresh: load };
+  return { data, pending, loading, error, revalidating, refresh: load };
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -185,9 +185,10 @@ export interface VolatileSnapshot {
 /**
  * **The prerender contract.** `data` is complete from the first paint: a page rendered at build
  * time carries its real title, images, options, description, price and stock line, and hydration
- * paints nothing new. `pending` is therefore about *having no data at all* — a client-only read
- * that has not answered yet — and a consumer must never show a skeleton for a value it already
- * has.
+ * paints nothing new. `pending` is therefore the skeleton state and nothing else — a read in
+ * flight with nothing to show yet — so a consumer must never show a skeleton for a value it
+ * already has, and a read that has answered is not pending even when its answer was `null`
+ * ("no such product", "no such collection"): that is a result, not a wait.
  *
  * After mount only the volatile values refresh (`VolatileKey`: money amounts and the stock line).
  * While a refresh is in flight the keys being refreshed appear in `revalidating`, and the
@@ -197,13 +198,23 @@ export interface VolatileSnapshot {
  * keeps the value: a page never regresses to an error state for something it can already show,
  * and `error` stays for the page that has nothing.
  *
- * Nothing in this task *sets* `revalidating` — the batched refresh that does is the storefront
- * plugin's job (see `volatile.ts` for the pure half it is built on).
+ * `loading` is the third flag and the broadest: any read in flight, including the manual
+ * `refresh()` and a reload for changed sources. It is what a block shows a spinner from while the
+ * value it already has stays on screen.
  */
 export interface StorefrontResult<T> {
   data: Ref<T | null>;
   pending: Ref<boolean>;
   error: Ref<string | null>;
+  /**
+   * True for the whole of *any* load — the first one, a reload because the sources changed, a
+   * manual `refresh()` — and false the rest of the time. The three flags answer three different
+   * questions and a block reads all of them: `pending` is "there is nothing to show yet" (draw the
+   * skeleton), `loading` is "a read is in flight" (draw a small spinner beside the value that is
+   * already on screen — `loading && data !== null`, never a skeleton over it), and `revalidating`
+   * is the narrower "only these fields are being refreshed" (below).
+   */
+  loading: Readonly<Ref<boolean>>;
   /** Empty = nothing refreshing. Written by the storefront implementation, read by a block. */
   revalidating: Readonly<Ref<ReadonlySet<VolatileKey>>>;
   refresh: () => Promise<void>;

@@ -557,22 +557,35 @@ function createGatewayResult<T>(
 ): StorefrontResult<T> {
   const data = ref<T | null>(null) as Ref<T | null>;
   const pending = ref(true);
+  const loading = ref(false);
   const error = ref<string | null>(null);
   // Written by the page's refresh (`refresh.ts`) through the entry registered below, and cleared
   // by every load: a reload supersedes a refresh of the values it is replacing.
   const revalidating = ref<ReadonlySet<VolatileKey>>(NOTHING_REVALIDATING);
-  // Bumped by every load. The refresh carries the value it saw and drops its answer if it has
-  // moved — see `VolatileRefreshEntry.token`.
+  /**
+   * Bumped by every load, and the one thing that decides which answer is allowed to write.
+   * A watcher-scoped `AbortController` cannot do it alone: `refresh()` is a public method a block
+   * calls from an event handler, outside any watcher, so nothing ever aborts its controller — a
+   * slow manual refresh and a fast reload for changed sources would both write, last one wins,
+   * and "last" is whichever request the network happened to answer second. The refresh
+   * (`VolatileRefreshEntry.token`) drops its stale answers on the same counter.
+   */
   let generation = 0;
   let prerenderable = true;
+
+  /** Only the newest load may write; an older one has already been superseded. */
+  const isCurrent = (mine: number): boolean => generation === mine;
 
   async function load(): Promise<void> {
     generation += 1;
     const mine = generation;
+    loading.value = true;
     revalidating.value = NOTHING_REVALIDATING;
-    // `pending` means *no data at all*, never "a value is being replaced": a page that already
-    // shows a prerendered product must not flash a skeleton over it (`types.ts`'s prerender
-    // contract), and neither must a manual `refresh()`.
+    // `pending` is the skeleton state and nothing else: a read in flight with nothing to show yet.
+    // A page that already shows a prerendered product must not flash a skeleton over it
+    // (`types.ts`'s prerender contract), and neither must a manual `refresh()` — and once a read
+    // has answered, `pending` is false even when the answer was "nothing", or a product that does
+    // not exist would leave the block loading for the life of the page.
     pending.value = data.value === null;
     error.value = null;
 
@@ -604,10 +617,11 @@ function createGatewayResult<T>(
         pending.value = false;
       }
       const outcome = await handle.settled;
-      if (generation !== mine) return;
+      if (!isCurrent(mine)) return;
       if (outcome.error === null) data.value = outcome.data;
       else if (data.value === null) error.value = outcome.error;
-      pending.value = data.value === null;
+      pending.value = false;
+      loading.value = false;
       return;
     }
 
@@ -615,13 +629,16 @@ function createGatewayResult<T>(
     onWatcherCleanup(() => controller.abort(), true);
     try {
       const result = await resolve(controller.signal);
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || !isCurrent(mine)) return;
       data.value = result;
     } catch (caught) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || !isCurrent(mine)) return;
       error.value = errorMessage(caught);
     } finally {
-      if (!controller.signal.aborted) pending.value = data.value === null;
+      if (!controller.signal.aborted && isCurrent(mine)) {
+        pending.value = false;
+        loading.value = false;
+      }
     }
   }
 
@@ -643,7 +660,7 @@ function createGatewayResult<T>(
     options.runtime.register(entry);
   }
 
-  return { data, pending, error, revalidating, refresh: load };
+  return { data, pending, loading, error, revalidating, refresh: load };
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -443,9 +443,15 @@ A block never knows which one it got.
 storefront result's first read runs inside a keyed `useAsyncData` (`storefront:<method>:<arguments>`),
 so `nuxi generate` waits for it: a product page's static HTML carries the real title, images,
 options, description, price and stock line, the values ride to the browser in the page payload, and
-hydration paints the same DOM without fetching anything again. `StorefrontResult.pending` therefore
-means _no data at all_ — never "a value is being replaced" — and a block must not draw a skeleton
-over a value it already has.
+hydration paints the same DOM without fetching anything again.
+
+A `StorefrontResult` carries three flags and they answer three different questions. `pending` is the
+**skeleton** state and nothing else — a read in flight with nothing to show yet; never true over a
+value the page already has, and never true once a read has answered, even when the answer was `null`
+("no such product" is a result, not a wait). `loading` is **any read in flight**, including a manual
+`refresh()` and a reload for changed sources — the flag a block draws a small spinner from while the
+value it already has stays on screen (`loading && data !== null`). `revalidating` is the narrowest:
+the volatile keys, and only those, are being refreshed.
 
 What can have moved since the build is money and the stock line, so after the app mounts the page
 does exactly one batched read for every product it is showing
