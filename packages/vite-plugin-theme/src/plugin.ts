@@ -43,6 +43,7 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
       framework: options.framework ?? 'vite',
       routes: options.routes,
       customPages: options.customPages,
+      templates: options.templates,
       breakpoints: options.breakpoints,
     });
     scan.errors.unshift(...historyErrors);

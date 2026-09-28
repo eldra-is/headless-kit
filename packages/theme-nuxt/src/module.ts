@@ -13,6 +13,7 @@ import {
   type EntryDoc,
 } from '@eldrajs/theme-core';
 import eldraTheme, {
+  type DeclaredTemplateSeed,
   type DeclaredThemeCodePage,
   type ManifestRoute,
 } from '@eldrajs/vite-plugin-theme';
@@ -27,6 +28,10 @@ export interface ModuleOptions {
   locale?: string;
   routes?: ManifestRoute[];
   customPages?: DeclaredThemeCodePage[];
+  /** Default templates to seed a site with on its first deploy, at most 8.
+   * A seed is ignored once the site has a template for its route pattern, so
+   * nothing a merchant has edited is overwritten by a later deploy. */
+  templates?: DeclaredTemplateSeed[];
   tailwind?: boolean;
   /** The theme's own tablet/normal layout breakpoints (min-width px), so
    * Studio's UI can react to the theme's actual ranges (its side panels
@@ -72,6 +77,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         framework: 'nuxt',
         routes: options.routes,
         customPages: options.customPages,
+        templates: options.templates,
         themeDir: nuxt.options.rootDir,
         tailwind: options.tailwind,
         breakpoints: options.breakpoints,

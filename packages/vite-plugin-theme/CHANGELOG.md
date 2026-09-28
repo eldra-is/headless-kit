@@ -5,6 +5,20 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Themes can declare `templates`: up to 8 default page templates a site is seeded with on its
+  first deploy, so a merchant gets working product and collection pages without building
+  anything. A seed is `{ routePattern, schemaApiId, title, blocks: [{ id, apiId, data }],
+  layout? }`, where `schemaApiId` is `catalog:product`, `catalog:collection` or `home`, and each
+  block's `data` is the same kind of seed as a block's `mock.json` — validated the same way, so a
+  media value must be `{assetId: uuid}` or absent (`templates[0].blocks[1].data — image: media
+  values must be {assetId: uuid} — use preview.json for demo imagery`). Every block `apiId` must
+  be one the theme ships, ids are unique and shaped `^[a-z][a-z0-9-]{0,47}$`, and route patterns
+  do not repeat. A seed without a `layout` gets one column of its blocks in order, framed by a
+  header and a footer node that name a *role* rather than a component id (the site's own reusable
+  components are resolved on deploy); `header: false` / `footer: false` leave the role out. Those
+  two switches steer the generated layout and are never written to the manifest. The key is
+  emitted only when a theme declares at least one seed.
+
 - A `reference` field's `relation` now names its targets as any combination of `allowedTagIds`
   (semantic tag names), `allowProducts` and `allowCollections`, with at least one of them —
   `allowedTagIds` is no longer required, and `allowProducts` is no longer refused. A relation that

@@ -14,6 +14,72 @@ export interface DeclaredThemeCodePage {
   description?: string;
 }
 
+/** The two catalog ids a route template may name instead of a CMS schema, plus
+ * the home seed. `catalog:product` / `catalog:collection` are reserved ids
+ * resolved against the catalog at render time, not CMS schemas. */
+export type TemplateSeedSchemaApiId = 'catalog:product' | 'catalog:collection' | 'home';
+
+export interface ManifestTemplateSeedBlock {
+  id: string;
+  apiId: string;
+  data: Record<string, unknown>;
+}
+
+/** A reusable component named by the role it fills rather than by id: the theme
+ * cannot know a site's component ids, so the role is resolved on deploy. */
+export interface TemplateSeedReusableNode {
+  id: string;
+  type: 'reusable';
+  role: 'header' | 'footer';
+}
+
+export interface TemplateSeedBlockNode {
+  id: string;
+  type: 'block';
+  /** The id of one of the seed's own `blocks[]`, not a CMS entry id. */
+  entryId: string;
+}
+
+export type TemplateSeedLayoutNode = TemplateSeedReusableNode | TemplateSeedBlockNode;
+
+/** A single column of role and block nodes — the only layout shape a seed may
+ * take, so what ships is exactly what the deploy decodes. */
+export interface TemplateSeedLayout {
+  version: 1;
+  root: {
+    id: string;
+    type: 'flex';
+    layout: { direction: { normal: 'column' } };
+    children: TemplateSeedLayoutNode[];
+  };
+}
+
+/** A template seed as it is emitted to the manifest: a layout is always
+ * present, and the declaration-only `header`/`footer` switches are gone. */
+export interface ManifestTemplateSeed {
+  routePattern: string;
+  schemaApiId: TemplateSeedSchemaApiId;
+  title: string;
+  blocks: ManifestTemplateSeedBlock[];
+  layout: TemplateSeedLayout;
+}
+
+/** A template seed as a theme declares it. */
+export interface DeclaredTemplateSeed {
+  routePattern: string;
+  schemaApiId: TemplateSeedSchemaApiId;
+  title: string;
+  blocks: ManifestTemplateSeedBlock[];
+  /** Omit to get a column of the blocks in order, framed by the roles below. */
+  layout?: TemplateSeedLayout;
+  /** Place the header role before the blocks (default true). Scanner input
+   * only — never emitted to the manifest. */
+  header?: boolean;
+  /** Place the footer role after the blocks (default true). Scanner input
+   * only — never emitted to the manifest. */
+  footer?: boolean;
+}
+
 export interface BlockField {
   fieldId: string;
   name: string;
@@ -81,6 +147,10 @@ export interface ThemeManifest {
   >;
   routes: ManifestRoute[];
   customPages: DeclaredThemeCodePage[];
+  /** Default templates the site is seeded with on its first deploy. Absent
+   * rather than empty when the theme declares none, so a theme that seeds
+   * nothing keeps emitting the manifest an older Core already accepts. */
+  templates?: ManifestTemplateSeed[];
   tokens: ThemeDesignTokens | LegacyThemeTokens;
   // No `breakpoints` field here: this type is exactly what is persisted to
   // disk and uploaded (`.eldra/manifest.json`), and Core's ingest validates
@@ -115,6 +185,8 @@ export interface ScanOptions {
   framework?: string;
   routes?: ManifestRoute[];
   customPages?: DeclaredThemeCodePage[];
+  /** Default templates to seed a site with, at most 8. */
+  templates?: DeclaredTemplateSeed[];
   /** The theme's raw, as-configured breakpoints — validated and defaulted
    * into the manifest's `breakpoints` by resolveLayoutBreakpoints (Core),
    * not here. */
@@ -125,6 +197,11 @@ export interface EldraThemeOptions {
   framework?: string;
   routes?: ManifestRoute[];
   customPages?: DeclaredThemeCodePage[];
+  /** Default templates to seed a site with on its first deploy, at most 8:
+   * the product and collection pages a merchant gets without building
+   * anything. A seed is ignored once the site has a template for its pattern,
+   * so a merchant's edits are never overwritten. */
+  templates?: DeclaredTemplateSeed[];
   /** Theme source root. Nuxt 4 sets Vite's root to app/, so adapters pass rootDir explicitly. */
   themeDir?: string;
   /** Opt in to the Tailwind v4 virtual theme module; false keeps Tailwind entirely optional. */

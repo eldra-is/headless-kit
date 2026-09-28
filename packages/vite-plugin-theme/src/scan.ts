@@ -10,6 +10,8 @@ import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { blockJsonSchema } from './blockSchema';
 import { migrationChecks, validMigrationFieldShape } from './migrations';
+import { checkSeedMedia } from './seedData';
+import { validateTemplateSeeds } from './templates';
 import type {
   BlockDefinition,
   ManifestRoute,
@@ -104,8 +106,9 @@ export function scanTheme(opts: ScanOptions): ScanResult {
       errors.push(`${toRelative(themeDir, mockFile)}: file is required`);
     }
     if (mock !== null && validBlock) {
-      checkMockMedia(
-        toRelative(themeDir, mockFile),
+      const mockPath = toRelative(themeDir, mockFile);
+      checkSeedMedia(
+        (path, message) => `${mockPath}: ${path}: ${message}`,
         Array.isArray(block.fields) ? (block.fields as Array<Record<string, unknown>>) : [],
         mock,
         errors
@@ -146,6 +149,8 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     }
   }
 
+  const templates = validateTemplateSeeds(opts.templates ?? [], blocks, errors);
+
   const manifest: ThemeManifest = {
     manifestVersion: 1,
     theme: {
@@ -160,6 +165,12 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     blocks,
     routes: opts.routes ?? DEFAULT_ROUTES,
     customPages: validateCustomPages(opts.customPages ?? [], errors),
+    // Seeds are validated against the blocks just scanned — every referenced
+    // apiId must be one the theme ships, and the data must be a write Core
+    // accepts. Omitted from the manifest entirely when the theme declares
+    // none, so a theme that seeds nothing keeps emitting the file shape it
+    // always has.
+    ...(templates.length === 0 ? {} : { templates }),
     tokens: readTokens(themeDir, errors),
   };
   // Resolved independently of the manifest object above: it must never be
@@ -540,103 +551,6 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
   }
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MEDIA_VALUE_KEYS = new Set(['assetId', 'framing']);
-
-/**
- * Studio seeds a freshly-inserted block's CMS entry from `mock.json`
- * verbatim, and the CMS's write-side media validator only accepts
- * `{ assetId: <uuid>, framing? }` — the starter's old convention of
- * embedding a Storybook fixture
- * (`{ assetId: "demo-<name>", url, altText }`) in a media field 400s every
- * such insert (task-9b-live-report.md, Finding 2). `mock.json` must
- * therefore either omit a media field entirely or carry a write-valid
- * value; demo imagery belongs in the sibling `preview.json` overlay
- * instead. Walks the block's field tree (including `list`/`composite`
- * nesting) alongside the parsed mock object so a media field buried inside
- * `feature-grid`'s `items` or `gallery`'s multi-value `images` is checked
- * too, not just top-level fields.
- */
-function checkMockMedia(
-  file: string,
-  fields: Array<Record<string, unknown>>,
-  mock: Record<string, unknown>,
-  errors: string[],
-  pathPrefix = ''
-): void {
-  for (const field of fields) {
-    const fieldId = String(field.fieldId ?? '');
-    if (fieldId === '' || !Object.hasOwn(mock, fieldId)) continue;
-    const value = mock[fieldId];
-    const path = pathPrefix === '' ? fieldId : `${pathPrefix}.${fieldId}`;
-    const metadata =
-      field.metadata !== null && typeof field.metadata === 'object'
-        ? (field.metadata as Record<string, unknown>)
-        : {};
-
-    if (field.type === 'media') {
-      if (metadata.multiple === true) {
-        if (Array.isArray(value)) {
-          value.forEach((item, index) => checkMediaValue(file, `${path}[${index}]`, item, errors));
-        } else {
-          checkMediaValue(file, path, value, errors);
-        }
-      } else {
-        checkMediaValue(file, path, value, errors);
-      }
-      continue;
-    }
-
-    if (field.type === 'composite') {
-      const nestedFields = Array.isArray(metadata.fields)
-        ? (metadata.fields as Array<Record<string, unknown>>)
-        : [];
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        checkMockMedia(file, nestedFields, value as Record<string, unknown>, errors, path);
-      }
-      continue;
-    }
-
-    if (field.type === 'list') {
-      const item = isRecord(metadata.item) ? metadata.item : null;
-      if (item === null || !Array.isArray(value)) continue;
-      const itemFields =
-        item.type === 'composite' &&
-        Array.isArray((item.metadata as Record<string, unknown>)?.fields)
-          ? ((item.metadata as Record<string, unknown>).fields as Array<Record<string, unknown>>)
-          : null;
-      value.forEach((entry, index) => {
-        if (item.type === 'media') {
-          checkMediaValue(file, `${path}[${index}]`, entry, errors);
-        } else if (itemFields !== null && entry !== null && typeof entry === 'object') {
-          checkMockMedia(
-            file,
-            itemFields,
-            entry as Record<string, unknown>,
-            errors,
-            `${path}[${index}]`
-          );
-        }
-      });
-    }
-  }
-}
-
-function checkMediaValue(file: string, path: string, value: unknown, errors: string[]): void {
-  const valid =
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).every((key) => MEDIA_VALUE_KEYS.has(key)) &&
-    typeof (value as Record<string, unknown>).assetId === 'string' &&
-    UUID_PATTERN.test((value as Record<string, unknown>).assetId as string);
-  if (!valid) {
-    errors.push(
-      `${file}: ${path}: media values must be {assetId: uuid} — use preview.json for demo imagery`
-    );
-  }
-}
-
 function compositeDepth(field: Record<string, unknown>, depth = 1): number {
   const metadata = field.metadata;
   if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) return depth;
@@ -763,7 +677,14 @@ function toRelative(themeDir: string, path: string): string {
   return relative(themeDir, path).split('\\').join('/');
 }
 
-export type { ManifestRoute, ScanOptions, ScanResult, ThemeManifest } from './types';
+export type {
+  DeclaredTemplateSeed,
+  ManifestRoute,
+  ManifestTemplateSeed,
+  ScanOptions,
+  ScanResult,
+  ThemeManifest,
+} from './types';
 
 function previousBlocks(
   manifest: ScanOptions['previousManifest'],
