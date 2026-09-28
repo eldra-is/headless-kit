@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fix: `decodeStega` and `stripStega` now read a payload whose closing delimiter is missing at the
+  end of the string. The delimiter is U+FEFF, which `String.prototype.trim()` counts as whitespace,
+  so a theme that renders `value.trim()` used to hand the overlay a run that no longer decoded — the
+  field stopped being editable in Studio's preview and the invisible characters stayed in the DOM.
+  A U+FEFF anywhere else in a value is still only a delimiter when a second one closes the run, so
+  text that contains one of its own is untouched. The encoder is unchanged.
 - Feat: a route template's `template-block` binding source may now name a list element by index —
   `images.0.url`, `variants.0.price` — alongside the field names it already accepted, so a block
   field can be bound to one item of a list on the route's entry (a product's first image or first

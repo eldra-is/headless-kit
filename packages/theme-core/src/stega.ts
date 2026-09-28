@@ -1,7 +1,19 @@
 const BIT_0 = '​'; // ZERO WIDTH SPACE
 const BIT_1 = '‌'; // ZERO WIDTH NON-JOINER
 const DELIM = '﻿'; // ZERO WIDTH NO-BREAK SPACE
-const STEGA_RUN = /﻿[​‌]*﻿/g;
+/**
+ * A payload run: U+FEFF, the bits, U+FEFF.
+ *
+ * The closing delimiter may be missing, because U+FEFF is whitespace to
+ * `String.prototype.trim()` while the bit characters U+200B/U+200C are not: a
+ * theme that renders `value.trim()` hands on a run that ends at its last bit.
+ * That form is only recognised when at least one bit is present and nothing
+ * but whitespace (or the end of the string) follows, which is exactly the
+ * shape trimming leaves behind. A lone U+FEFF is therefore never a run, so a
+ * merchant's own text keeps any U+FEFF it happens to contain instead of
+ * having it read as an empty payload and deleted.
+ */
+const STEGA_RUN = /﻿[​‌]*﻿|﻿[​‌]+(?=\s|$)/g;
 
 export interface StegaMeta {
   entryId: string;
@@ -22,7 +34,8 @@ export function encodeStega(value: string, meta: StegaMeta): string {
   return value + DELIM + bits + DELIM;
 }
 
-/** cleaned only, fast path — removes any U+FEFF…U+FEFF zero-width run. */
+/** cleaned only, fast path — removes any U+FEFF…U+FEFF zero-width run (the
+ * closing delimiter may be missing when the run ends the string). */
 export function stripStega(value: string): string {
   STEGA_RUN.lastIndex = 0;
   return value.replace(STEGA_RUN, '');
@@ -33,7 +46,8 @@ export function decodeStega(value: string): { cleaned: string; meta: StegaMeta |
   const match = STEGA_RUN.exec(value);
   if (match === null) return { cleaned: value, meta: null };
   const cleaned = stripStega(value);
-  const bits = match[0].slice(1, -1);
+  const run = match[0];
+  const bits = run.endsWith(DELIM) && run.length > 1 ? run.slice(1, -1) : run.slice(1);
   if (bits.length === 0 || bits.length % 8 !== 0) return { cleaned, meta: null };
   const bytes = new Uint8Array(bits.length / 8);
   for (let i = 0; i < bytes.length; i += 1) {
