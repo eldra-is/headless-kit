@@ -11,9 +11,19 @@ import type {
   StorefrontSearchResponse,
 } from '../../app/storefront/types';
 
-// Two ticks: the internal `StorefrontResult` resolves its own `await nextTick()` (registered
-// during the synchronous, `immediate: true` watcher this file's call already triggered), and the
-// second tick is slack for that microtask to have actually run before the assertion.
+/**
+ * The demo `StorefrontResult` takes one of two paths, decided by whether there is a browser
+ * (`createDemoResult`, `app/storefront/demo.ts`). Off a browser it answers inside the synchronous
+ * `immediate: true` watcher, because a server render gets one pass and a fixture that answers
+ * "later" would bake a skeleton into the prerendered HTML. In a browser it answers after its own
+ * `await nextTick()` instead, so a block sees the same `loading` → settled sequence a real read
+ * gives it.
+ *
+ * This file carries no environment docblock, so it runs in `vitest.config.ts`'s default `node`
+ * environment and takes the synchronous path: the data is already there when `createDemoResult`
+ * returns. The two ticks are kept anyway — they cost nothing, and they keep every assertion below
+ * correct under either path rather than silently depending on which one this file happens to take.
+ */
 async function settle(): Promise<void> {
   await nextTick();
   await nextTick();

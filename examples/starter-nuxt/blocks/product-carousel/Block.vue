@@ -140,22 +140,26 @@ const pending = computed(() => activeResult.value.pending.value);
  * - `showSkeletons` — `pending && no data`. Stated as both halves rather than trusting `pending` to
  *   imply the second: a storefront that raised `pending` over results the visitor can see would
  *   otherwise blank the row.
- * - `refreshing` — a read is in flight over data that is already on screen (a different product's
- *   recommendations, a changed collection). The cards stay put and take the same dimmed-value +
- *   spinner treatment the volatile refresh below uses, and the row is marked `aria-busy`.
+ * - `revalidating` — the two states in which a fresher value is on its way: the volatile refresh
+ *   (money and the stock line, re-read a moment after mount) and a whole read in flight over cards
+ *   that are already on screen (a different product's recommendations, a changed collection). Both
+ *   are drawn the same way — the cards stay put, their two values dimmed with a spinner — and
+ *   `useRevalidating` holds both at `false` until after mount, so the browser's first render is the
+ *   server's: a hydrating page's result is already `loading` with its payload data in place, so
+ *   reading the flag straight through would paint a busy row the server never wrote.
  */
 const hasData = computed(() => activeResult.value.data.value !== null);
 const showSkeletons = computed(() => pending.value && !hasData.value);
-const refreshing = computed(() => activeResult.value.loading.value && hasData.value);
+const { any: cardsRevalidating, refreshing } = useRevalidating({
+  keys: () => activeResult.value.revalidating.value,
+  refreshing: () => activeResult.value.loading.value && hasData.value,
+});
 
 /**
- * The volatile refresh: after mount the storefront re-reads every card's money amounts and stock
- * line and swaps them in. Each card dims its two values and draws a spinner beside them, but
- * `announce: false` — the row says it once, below, rather than letting eight cards hold sixteen
- * polite live regions all speaking at the same moment (`@eldrajs/ui`'s `announce` prop).
+ * Each card dims its two values and draws a spinner beside them, but `announce: false` — the row
+ * says it once, below, rather than letting eight cards hold sixteen polite live regions all
+ * speaking at the same moment (`@eldrajs/ui`'s `announce` prop).
  */
-const revalidating = useRevalidating(() => activeResult.value.revalidating.value);
-const cardsRevalidating = computed(() => revalidating.any.value || refreshing.value);
 const announcement = computed(() =>
   cardsRevalidating.value ? t('storefront.updatingValues') : ''
 );

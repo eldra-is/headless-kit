@@ -119,9 +119,14 @@ const product = computed(() => productResult.data.value);
  * - `notFound` — the read finished, answered nothing, and did not fail: the handle names a product
  *   this catalogue does not have. A prerendered page outlives its catalogue, so this is a real
  *   visitor state (a bookmarked link to a discontinued product), not only an author mistake.
- * - `refreshing` — a *different* product is loading over the one on screen (the handle changed).
- *   The old values stay, dimmed with a spinner, exactly like the volatile refresh below; the page
- *   never regresses to a skeleton for something it can already show.
+ * - `revalidating` — the two states in which a fresher value is on its way, both drawn the same
+ *   way: the volatile refresh (`StorefrontResult.revalidating`, money and the stock line), and a
+ *   *different* product loading over the one on screen (`loading && data !== null`, the handle
+ *   changed). The values stay, dimmed with a spinner; the page never regresses to a skeleton for
+ *   something it can already show. Both go through `useRevalidating`, which holds them at `false`
+ *   until after mount — a hydrating page's result is already `loading` with its payload data in
+ *   place, so reading either signal straight through would paint a busy state the server never
+ *   wrote (see that composable's own comment).
  */
 const showStatus = computed(
   () =>
@@ -137,18 +142,20 @@ const notFound = computed(
     !productResult.loading.value &&
     productResult.error.value === null
 );
-const refreshing = computed(() => productResult.loading.value && product.value !== null);
 
 /**
- * The volatile refresh (`app/storefront/refresh.ts`): after mount the storefront re-reads this
- * product's money amounts and stock line and swaps them in. While it does, `Price` and `StockBadge`
- * keep their prerendered value, dim it, draw a spinner beside it and announce the refresh
- * themselves — `announce` is left at its default here, unlike the card lists, because a product
- * page has exactly one price and one stock line to speak about.
+ * `Price` and `StockBadge` keep their prerendered value, dim it, draw a spinner beside it and
+ * announce the refresh themselves — `announce` is left at its default here, unlike the card lists,
+ * because a product page has exactly one price and one stock line to speak about.
  */
-const revalidating = useRevalidating(() => productResult.revalidating.value);
-const priceRevalidating = computed(() => revalidating.price.value || refreshing.value);
-const stockRevalidating = computed(() => revalidating.stock.value || refreshing.value);
+const {
+  price: priceRevalidating,
+  stock: stockRevalidating,
+  refreshing,
+} = useRevalidating({
+  keys: () => productResult.revalidating.value,
+  refreshing: () => productResult.loading.value && product.value !== null,
+});
 
 /** Spec Field → layout mapping: "Mounting records the product in `history.recordView`" — the
  *  `product-carousel` block's `recently-viewed` source is the other half of this. */

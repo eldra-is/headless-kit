@@ -343,21 +343,7 @@ const requestOptions = computed(() => ({
 const products = storefront.catalog.collectionProducts(selected, requestOptions);
 
 const items = computed(() => products.data.value?.items ?? []);
-/**
- * The cards actually rendered. `toProductCardEntries` (`app/storefront/toProductCard.ts`) is the
- * one place a storefront-derived URL is sanitised: it drops an item whose `url` is not a
- * `safeHref` — `ProductCard`'s link is required, so a linkless card does not exist — and reports
- * per card whether the destination routes (`entry.internal`). `items` stays the raw response for
- * the skeleton count and the "shown N of total" line, which are about the request, not the DOM.
- */
 const money = useMoney();
-const cards = computed(() =>
-  toProductCardEntries(items.value, {
-    ratio: '4x5',
-    minorUnits: money.minor,
-    revalidating: cardsRevalidating.value,
-  })
-);
 const total = computed(() => products.data.value?.total ?? 0);
 const facets = computed(() => products.data.value?.facets ?? []);
 const pending = products.pending;
@@ -382,10 +368,10 @@ const showUnresolvedCollectionHint = computed(
  * - `showSkeletons` — `pending && no data`: the first load of a grid with nothing on screen yet.
  *   Both halves are stated rather than trusting `pending` to imply the second, because a skeleton
  *   drawn over results the visitor can already see is precisely the flash this work removed.
- * - `refreshing` — a read in flight over results that *are* on screen: a filter, a sort, a page.
- *   The old cards stay exactly where they are and take the dimmed-value + spinner treatment
- *   (`cardsRevalidating` below), the grid is marked `aria-busy`, and the count reads "Updating…".
- *   This is what used to replace the whole grid with skeletons.
+ * - `refreshing` — a read in flight over results that *are* on screen: a filter, a
+ *   sort, a page. The old cards stay exactly where they are and take the dimmed-value + spinner
+ *   treatment, the grid is marked `aria-busy`, and the count reads "Updating…". This is what used
+ *   to replace the whole grid with skeletons.
  * - `loadingMore` — Load more, where "focus stays on the button" (spec Accessibility): every card
  *   stays put, undimmed, the count stays real, and only the button is busy (`LoadMore`'s own
  *   `pending`). It latches on the press and clears when the read answers — off `loading`, not
@@ -399,18 +385,40 @@ watch(loading, (value) => {
   if (!value) loadingMore.value = false;
 });
 const showSkeletons = computed(() => pending.value && !hasData.value);
-const refreshing = computed(() => loading.value && hasData.value && !loadingMore.value);
 
 /**
- * The volatile refresh: after mount the storefront re-reads every card's money amounts and stock
- * line and swaps them in. Each card dims its two values and draws a spinner beside them, but
- * `announce: false` — a 24-card grid would otherwise hold 48 polite live regions all speaking at
- * once (`@eldrajs/ui`'s `announce` prop); the grid says it once instead, in `announcement` below.
+ * Both "a fresher value is on its way" states, drawn identically and gated identically: the
+ * volatile refresh (money and the stock line, re-read a moment after mount) and a whole read in
+ * flight over cards already on screen. `useRevalidating` holds both at `false` until after mount,
+ * so the browser's first render is the server's — a hydrating page's result is already `loading`
+ * with its payload data in place, so reading the flag straight through would paint dimmed cards,
+ * spinners, `aria-busy` and "Updating…" that the server never wrote.
+ *
+ * Each card dims its two values and draws a spinner beside them, but `announce: false` — a 24-card
+ * grid would otherwise hold 48 polite live regions all speaking at once (`@eldrajs/ui`'s `announce`
+ * prop); the grid says it once instead, in `announcement` below.
  */
-const revalidating = useRevalidating(() => products.revalidating.value);
-const cardsRevalidating = computed(() => revalidating.any.value || refreshing.value);
+const { any: cardsRevalidating, refreshing } = useRevalidating({
+  keys: () => products.revalidating.value,
+  refreshing: () => loading.value && hasData.value && !loadingMore.value,
+});
 const announcement = computed(() =>
   cardsRevalidating.value ? t('storefront.updatingValues') : ''
+);
+
+/**
+ * The cards actually rendered. `toProductCardEntries` (`app/storefront/toProductCard.ts`) is the
+ * one place a storefront-derived URL is sanitised: it drops an item whose `url` is not a
+ * `safeHref` — `ProductCard`'s link is required, so a linkless card does not exist — and reports
+ * per card whether the destination routes (`entry.internal`). `items` stays the raw response for
+ * the skeleton count and the "shown N of total" line, which are about the request, not the DOM.
+ */
+const cards = computed(() =>
+  toProductCardEntries(items.value, {
+    ratio: '4x5',
+    minorUnits: money.minor,
+    revalidating: cardsRevalidating.value,
+  })
 );
 
 /** The count of skeleton cards: "the grid shows the same number of Skeleton cards" (spec States →
