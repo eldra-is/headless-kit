@@ -15,7 +15,9 @@ Release-please writes the generated notes from commit messages and does not repl
   `data-eldra-reusable-placement`, and gets the same deterministic render id and scoped class, so
   Studio addresses a placement inside a template exactly as it addresses one inside a page. Pass
   the **template read's own** projection: a projection carrying a binding the template does not
-  place fails the layout closed (`COMPONENT_STALE`).
+  place fails the layout closed (`COMPONENT_STALE`). The **public** (non-preview) template read
+  arrives already expanded and carries no projection at all — the resolved entry map is what makes
+  that shape render too, and it renders the same layout, minus the preview-only placement identity.
 - Fix: `EldraLayout`'s template-block catalog now carries each manifest block's declared field
   renames (built from its `migrations` array via `@eldrajs/theme-core`'s `buildTemplateBlockRenames`),
   so a route template's `template-block` node still keyed by a field's pre-migration name resolves

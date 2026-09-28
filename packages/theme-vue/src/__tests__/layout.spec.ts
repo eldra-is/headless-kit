@@ -3,6 +3,7 @@ import { createOverlayRuntime } from '@eldrajs/theme-core/overlay';
 import {
   encodeStega,
   layoutNodeClass,
+  layoutRenderNodeId,
   type ReusableComponentProjection,
   type ReusableComponentRevision,
 } from '@eldrajs/theme-core';
@@ -302,6 +303,57 @@ describe('EldraLayout', () => {
 
     expect(wrapper.find('[data-eldra-invalid-layout]').exists()).toBe(true);
     expect(wrapper.find('[data-eldra-template-block]').exists()).toBe(false);
+  });
+
+  // The public, non-preview route-template read is already expanded: Core has
+  // replaced the placement with the component's own container of `block` nodes
+  // (ids namespaced by the placement id) and stripped the projection entirely,
+  // exactly as it does for a page. That shape has no projection to pass and no
+  // placement identity to emit — it just has to render, through the same entry
+  // map the preview shape's expanded blocks resolve through.
+  it('renders a route template that arrived pre-expanded, with no projection', async () => {
+    const expandedBlockId = layoutRenderNodeId('SharedHeader\u0000ComponentHero');
+    const wrapper = mount(EldraLayout, {
+      props: {
+        layout: {
+          version: 1,
+          root: {
+            id: 'TemplateRoot',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: [
+              {
+                id: 'SharedHeader',
+                type: 'flex',
+                layout: { direction: { normal: 'column' } },
+                children: [{ id: expandedBlockId, type: 'block', entryId: heroId }],
+              },
+              {
+                id: 'TemplateBody',
+                type: 'template-block',
+                apiId: 'hero',
+                bindings: { heading: 'title' },
+              },
+            ],
+          },
+        },
+        blocks: [hero],
+        templateEntry: { id: 'guide-1', data: { title: 'Northern Lights' } },
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-eldra-invalid-layout]').exists()).toBe(false);
+    expect(wrapper.find('[data-eldra-missing-block]').exists()).toBe(false);
+    const placed = wrapper.get(`[data-eldra-layout-node="${expandedBlockId}"]`);
+    expect(placed.attributes('data-eldra-block')).toBe(heroId);
+    // A public read carries no placement identity — same as a public page.
+    expect(placed.attributes('data-eldra-reusable-placement')).toBeUndefined();
+    expect(placed.get('h1').text()).toBe('First');
+    expect([...wrapper.element.querySelectorAll('h1')].map((node) => node.textContent)).toEqual([
+      'First',
+      'Northern Lights',
+    ]);
   });
 
   // The expansion refuses a projection carrying a binding the document does not
