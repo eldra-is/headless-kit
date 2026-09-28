@@ -646,11 +646,43 @@ describe('reusable placements inside a route template', () => {
     );
   });
 
-  it('refuses a placement as the root, and an unknown key on one', () => {
+  it('refuses a placement, a block and a template-block as the root, and an unknown key on a placement', () => {
     expect(
       issue(() =>
         createTemplateLayoutRenderModel(
           { version: 1, root: placement() },
+          { entry, blockCatalog: catalog, reusableComponentProjection: projection() }
+        )
+      )
+    ).toEqual({ path: '/root/type', code: 'INVALID_VALUE' });
+    // A `block` is admitted inside a template now that the public read arrives
+    // pre-expanded into them — but a document is still a container at the root,
+    // exactly as a page is, so neither the expanded shape's block nor the
+    // `template-block` that becomes one may be the root.
+    expect(
+      issue(() =>
+        createTemplateLayoutRenderModel(
+          { version: 1, root: { id: 'root', type: 'block', entryId: COMPONENT_BLOCK } },
+          { entry, blockCatalog: catalog }
+        )
+      )
+    ).toEqual({ path: '/root/type', code: 'INVALID_VALUE' });
+    expect(
+      issue(() =>
+        createTemplateLayoutRenderModel(
+          { version: 1, root: { id: 'root', type: 'template-block', apiId: 'hero' } },
+          { entry, blockCatalog: catalog }
+        )
+      )
+    ).toEqual({ path: '/root/type', code: 'INVALID_VALUE' });
+    // And it is refused *first*, ahead of the expansion: a preview read whose
+    // root is a block is a malformed document, not a stale projection, so the
+    // issue must name the root rather than the bindings the expansion would
+    // then find unused.
+    expect(
+      issue(() =>
+        createTemplateLayoutRenderModel(
+          { version: 1, root: { id: 'root', type: 'block', entryId: COMPONENT_BLOCK } },
           { entry, blockCatalog: catalog, reusableComponentProjection: projection() }
         )
       )
