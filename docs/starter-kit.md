@@ -467,11 +467,22 @@ Three rules the file exists to keep:
 - **Seed data is Core-valid, exactly like `mock.json`.** A seed is the write Core makes on deploy,
   so it obeys the same media rule: a media field is either absent or `{ assetId: <uuid> }`. The
   sample pages carry demo imagery for Storybook (`{ assetId: "demo-hero", url, altText, … }`), so
-  `stripSeedMedia(data, fields)` walks each block's declared field types — nesting through
+  `stripSeedMedia(data, fields, apiId)` walks each block's declared field types — nesting through
   `composite` and `list` included, which is how it reaches `navigation`'s
   `links[].features[].image` and `hero`'s `slides[].image` — and drops every value the CMS would
   refuse, keeping any real asset id. `test/starter.spec.ts` proves it: the seeds go through the
   same scanner the build runs, and no `url` survives into one.
+- **And publishable, because Core creates a seed's entries published.** A published entry cannot
+  omit a value for a `required` field, and there is nothing to invent for media, so
+  `stripSeedMedia` resolves the two cases differently. A required media field inside a **list
+  item** costs the item: it is dropped whole, because the item is the smallest thing that can go
+  and a shorter list is a shape the block already renders — `hero`'s four demo `slides[]` all
+  require an image, so the seeded hero carries `slides: []`, which is what its `mock.json` carries
+  too. A required media field **anywhere else** (top level, or inside a non-list `composite`) has
+  nothing to drop, so the block is unseedable and the function **throws**, naming the block and
+  the field, failing the build rather than seeding an entry Core would refuse to publish. No
+  starter block has such a field today; the guard is there so adding one is a build error rather
+  than a broken first deploy.
 - **Ids come from the fixture.** A seed block keeps the fixture block's own `id`
   (`product-detail`, `home-hero`, …), which is what the generated layout's `block` nodes
   reference.

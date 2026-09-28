@@ -104,7 +104,12 @@ eldra: {
 - `blocks[].data` is a seed in the same shape as a block's `mock.json`, and is held to the same
   rule: a media field is either absent or `{ assetId: <uuid> }` (demo imagery belongs in
   `preview.json`). Every `apiId` must be a block the theme ships, ids must be unique and match
-  `^[a-z][a-z0-9-]{0,47}$`.
+  `^[a-z][a-z0-9-]{0,47}$`. Core creates a seed's entries **published**, so a seed also has to
+  satisfy publish validation — in particular it cannot leave a `required` field without a value.
+  The scanner does not check that (it validates the write-side media rule only), so a theme whose
+  block marks a media field required has to seed a real asset id for it, or leave that block out
+  of its seeds; see how the starter handles it in
+  [Seeded templates](starter-kit.md#seeded-templates).
 - `layout` is optional. Omitted, the scanner generates one flat column: the `header` role, the
   seed's blocks in order, the `footer` role — `header: false` / `footer: false` leave a role out.
   Declared, it is held to that same shape (one flex column of `reusable` and `block` nodes, every

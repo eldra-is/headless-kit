@@ -776,6 +776,7 @@ function blockSourceFiles(dir: string): string[] {
 interface ThemeBlockManifestField {
   fieldId: string;
   type: string;
+  validators?: { required?: boolean };
   metadata?: {
     framing?: boolean;
     item?: ThemeBlockManifestField;
@@ -934,7 +935,7 @@ describe('seeded templates (app/templates.ts)', () => {
       links: [{ label: 'Shop', features: [{ image: { assetId: 'demo-f', url: '/demo/f.svg' } }] }],
       untyped: { assetId: 'demo-x', url: '/demo/x.svg' },
     };
-    const stripped = stripSeedMedia(data, fields);
+    const stripped = stripSeedMedia(data, fields, 'demo-block');
 
     expect(stripped.heading).toBe('Kept');
     // A write-valid value is a real asset the theme meant to seed — kept, `framing` included.
@@ -951,4 +952,176 @@ describe('seeded templates (app/templates.ts)', () => {
     // Pure: the caller's fixture is never mutated.
     expect(data.image).toEqual({ assetId: 'demo-hero', url: '/demo/hero.svg', altText: 'Hero' });
   });
+
+  /**
+   * Core creates a seed's block entries **published**, so a seed has to satisfy publish
+   * validation as well as the write-side media rule — and a published entry cannot omit a value
+   * for a `required` field. There is nothing to invent for a media field, so the only honest
+   * moves are: drop the list item that carried it, or refuse to seed the block at all.
+   */
+  it('drops a list item whose required media cannot be seeded, and refuses a block whose own is', () => {
+    const required = { required: true };
+    const fields = [
+      {
+        fieldId: 'slides',
+        type: 'list',
+        metadata: {
+          item: {
+            fieldId: 'item',
+            type: 'composite',
+            metadata: {
+              fields: [
+                { fieldId: 'caption', type: 'string' },
+                { fieldId: 'image', type: 'media', validators: required },
+              ],
+            },
+          },
+        },
+      },
+      {
+        fieldId: 'people',
+        type: 'list',
+        metadata: {
+          item: {
+            fieldId: 'item',
+            type: 'composite',
+            metadata: {
+              fields: [
+                { fieldId: 'name', type: 'string' },
+                { fieldId: 'avatar', type: 'media' },
+              ],
+            },
+          },
+        },
+      },
+    ];
+    const stripped = stripSeedMedia(
+      {
+        slides: [
+          { caption: 'Demo', image: { assetId: 'demo-1', url: '/demo/1.svg' } },
+          { caption: 'Real', image: { assetId: '3f1c5a2e-9b4d-4c7a-8e21-0d6f4b9c1a55' } },
+          { caption: 'Missing' },
+        ],
+        people: [{ name: 'Ada', avatar: { assetId: 'demo-2', url: '/demo/2.svg' } }],
+      },
+      fields,
+      'demo-block'
+    );
+    // The item whose required image was stripped goes, and so does the one that never had it.
+    // The item carrying a real asset id stays, image and all.
+    expect(stripped.slides).toEqual([
+      { caption: 'Real', image: { assetId: '3f1c5a2e-9b4d-4c7a-8e21-0d6f4b9c1a55' } },
+    ]);
+    // An *optional* media field in a list item only costs the field, never the item.
+    expect(stripped.people).toEqual([{ name: 'Ada' }]);
+
+    // At the top level of a block there is no item to drop, so the block is unseedable and the
+    // build fails rather than seeding an entry Core refuses to publish. Same for a required media
+    // inside a non-list `composite`: a composite is one value, so it has nothing to drop either.
+    const topLevel = [{ fieldId: 'image', type: 'media', validators: required }];
+    expect(() =>
+      stripSeedMedia({ image: { assetId: 'demo-1', url: '/demo/1.svg' } }, topLevel, 'wallpaper')
+    ).toThrow(/wallpaper: cannot be seeded .* "image"/);
+    // Absent is just as unpublishable as stripped, so it is refused the same way.
+    expect(() => stripSeedMedia({}, topLevel, 'wallpaper')).toThrow(/"image"/);
+    expect(() =>
+      stripSeedMedia(
+        { seo: { share: { assetId: 'demo-1', url: '/demo/1.svg' } } },
+        [
+          {
+            fieldId: 'seo',
+            type: 'composite',
+            metadata: { fields: [{ fieldId: 'share', type: 'media', validators: required }] },
+          },
+        ],
+        'wallpaper'
+      )
+    ).toThrow(/"seo.share"/);
+  });
+
+  it('seeds no list item that is missing a required media field', () => {
+    // The `hero` seed is the live case: all four of the home fixture's slides require an image,
+    // and all four carry demo imagery, so the seeded hero renders with an empty slideshow rather
+    // than four entries Core would refuse to publish. (Its `mock.json` omits `slides` entirely,
+    // which is the same shape an author gets on insert.)
+    const home = scanned.manifest!.templates!.find((template) => template.schemaApiId === 'home')!;
+    const hero = home.blocks.find((block) => block.apiId === 'hero')!;
+    expect(hero.data.slides).toEqual([]);
+
+    // And the rule generally, walked against each block's own declared field types: no seed
+    // block (or role) may carry a list item without a value for a media field the block marks
+    // required, because Core creates these entries published.
+    const offenders: string[] = [];
+    const byApiId = new Map(scanned.manifest!.blocks.map((block) => [block.apiId, block.fields]));
+    const walk = (
+      fields: ThemeBlockManifestField[],
+      data: Record<string, unknown>,
+      at: string
+    ): void => {
+      for (const field of fields) {
+        const value = data[field.fieldId];
+        const path = `${at}.${field.fieldId}`;
+        if (
+          field.type === 'media' &&
+          field.validators?.required === true &&
+          !Object.hasOwn(data, field.fieldId)
+        ) {
+          offenders.push(path);
+        }
+        if (field.type === 'composite' && isPlainRecord(value)) {
+          walk(field.metadata?.fields ?? [], value, path);
+        }
+        if (field.type === 'list' && Array.isArray(value)) {
+          const item = field.metadata?.item;
+          if (item?.type !== 'composite') continue;
+          value.forEach((entry, index) => {
+            if (isPlainRecord(entry)) walk(item.metadata?.fields ?? [], entry, `${path}[${index}]`);
+          });
+        }
+      }
+    };
+    const seeded: Array<[string, string, Record<string, unknown>]> = [
+      ...scanned.manifest!.templates!.flatMap((template) =>
+        template.blocks.map(
+          (block) =>
+            [block.apiId, `${template.routePattern} ${block.id}`, block.data] as [
+              string,
+              string,
+              Record<string, unknown>,
+            ]
+        )
+      ),
+      ['navigation', 'templateRoles.header', scanned.manifest!.templateRoles!.header!.data],
+      ['footer', 'templateRoles.footer', scanned.manifest!.templateRoles!.footer!.data],
+    ];
+    for (const [apiId, where, data] of seeded) walk(byApiId.get(apiId) ?? [], data, where);
+
+    expect(offenders).toEqual([]);
+    // Guards the scan itself: the starter declares required media in two list items
+    // (`hero.slides[].image`, `gallery.items[].image`), and `hero` is seeded.
+    expect([...byApiId.values()].flatMap((fields) => requiredListMediaFieldIds(fields))).toContain(
+      'slides[].image'
+    );
+  });
 });
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Every `<list>[].<media>` path under one block whose media item is `required`. */
+function requiredListMediaFieldIds(fields: ThemeBlockManifestField[], prefix = ''): string[] {
+  const out: string[] = [];
+  for (const field of fields) {
+    const path = prefix === '' ? field.fieldId : `${prefix}.${field.fieldId}`;
+    if (field.type === 'media' && field.validators?.required === true) out.push(path);
+    const item = field.metadata?.item;
+    if (item?.type === 'composite') {
+      out.push(...requiredListMediaFieldIds(item.metadata?.fields ?? [], `${path}[]`));
+    }
+    if (field.type === 'composite') {
+      out.push(...requiredListMediaFieldIds(field.metadata?.fields ?? [], path));
+    }
+  }
+  return out;
+}

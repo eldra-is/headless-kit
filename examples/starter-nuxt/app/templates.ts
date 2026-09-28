@@ -79,7 +79,7 @@ export function starterTemplates(): DeclaredTemplateSeed[] {
       .map((block) => ({
         id: block.id,
         apiId: block.apiId,
-        data: stripSeedMedia(block.data, blockFields(block.apiId)),
+        data: stripSeedMedia(block.data, blockFields(block.apiId), block.apiId),
       })),
   }));
 }
@@ -92,7 +92,7 @@ export function starterTemplateRoles(): ManifestTemplateRoles {
     if (block === undefined) {
       throw new Error(`pages/home.page.json declares no "${apiId}" block to seed the role from`);
     }
-    return { apiId, data: stripSeedMedia(block.data, blockFields(apiId)) };
+    return { apiId, data: stripSeedMedia(block.data, blockFields(apiId), apiId) };
   };
   return { header: role(ROLE_BLOCKS.header), footer: role(ROLE_BLOCKS.footer) };
 }
@@ -109,13 +109,38 @@ export function starterTemplateRoles(): ManifestTemplateRoles {
  * seeds a real asset id keeps it. Everything else is dropped rather than
  * blanked, because absent is what the CMS accepts for a media field and what
  * every `mock.json` already does. The input is never mutated.
+ *
+ * **A seed block is created *published*, so it must satisfy publish validation
+ * too, not just the write-side media rule** — and a published entry cannot omit
+ * a value for a `required` field. So a required media field that has no
+ * write-valid value left after the strip is not something this can shrug at:
+ *
+ * - Inside a **list item**, the item is dropped. The list is the only unit that
+ *   can be removed without inventing data, and a shorter list is a shape the
+ *   block already renders (`hero`'s four demo `slides[]` all require an image,
+ *   so the seeded hero gets `slides: []` — which is what its `mock.json`
+ *   carries too).
+ * - Anywhere else — at the top level of the block, or inside a non-list
+ *   `composite` — there is nothing to drop, so the **block is unseedable** and
+ *   this throws, naming the block and the field. `starterTemplates()` therefore
+ *   cannot emit a seed Core would refuse to publish; it fails the build
+ *   instead. No block in this starter has such a field today, which is exactly
+ *   why the guard has to be here rather than in a reviewer's head.
  */
 export function stripSeedMedia(
   data: Record<string, unknown>,
-  fields: readonly ManifestField[]
+  fields: readonly ManifestField[],
+  apiId: string
 ): Record<string, unknown> {
   const copy = structuredClone(data);
-  stripInto(copy, fields);
+  const missing = stripInto(copy, fields);
+  if (missing !== null) {
+    throw new Error(
+      `${apiId}: cannot be seeded — the required media field "${missing}" has no write-valid ` +
+        `value, and a seed block is created published. Give it a real {assetId: <uuid>}, move ` +
+        `the field into a list item, or drop its "required" validator.`
+    );
+  }
   return copy;
 }
 
@@ -123,6 +148,7 @@ export function stripSeedMedia(
 export interface ManifestField {
   fieldId: string;
   type: string;
+  validators?: { required?: boolean; [key: string]: unknown };
   metadata?: {
     multiple?: boolean;
     fields?: ManifestField[];
@@ -151,21 +177,47 @@ function isRoleBlock(apiId: string): boolean {
   return apiId === ROLE_BLOCKS.header || apiId === ROLE_BLOCKS.footer;
 }
 
-function stripInto(data: Record<string, unknown>, fields: readonly ManifestField[]): void {
+/**
+ * Strips `data` in place and returns the path of the first **required** media
+ * field left without a write-valid value, or `null`. A list item that reports
+ * one is dropped here — that is the only place a missing required value can be
+ * resolved without inventing data — so a non-null return always means the
+ * caller has nothing left to drop.
+ */
+function stripInto(
+  data: Record<string, unknown>,
+  fields: readonly ManifestField[],
+  prefix = ''
+): string | null {
   for (const field of fields) {
     const fieldId = field.fieldId;
-    if (typeof fieldId !== 'string' || fieldId === '' || !Object.hasOwn(data, fieldId)) continue;
-    const value = data[fieldId];
+    if (typeof fieldId !== 'string' || fieldId === '') continue;
+    const path = prefix === '' ? fieldId : `${prefix}.${fieldId}`;
     const metadata = isRecord(field.metadata) ? field.metadata : {};
 
     if (field.type === 'media') {
-      if (metadata.multiple === true && Array.isArray(value)) keepValidMedia(data, fieldId, value);
-      else if (!isWriteValidMedia(value)) delete data[fieldId];
+      // Checked even when the key is absent: a required media field the
+      // fixture never set is just as unpublishable as one this strips.
+      if (Object.hasOwn(data, fieldId)) {
+        const value = data[fieldId];
+        if (metadata.multiple === true && Array.isArray(value))
+          keepValidMedia(data, fieldId, value);
+        else if (!isWriteValidMedia(value)) delete data[fieldId];
+      }
+      if (isRequired(field) && !Object.hasOwn(data, fieldId)) return path;
       continue;
     }
 
+    if (!Object.hasOwn(data, fieldId)) continue;
+    const value = data[fieldId];
+
     if (field.type === 'composite') {
-      if (isRecord(value)) stripInto(value, fieldList(metadata.fields));
+      // No unit to drop here — a composite is one value, so a missing required
+      // media inside it travels up to the nearest list item, or out of the block.
+      if (isRecord(value)) {
+        const missing = stripInto(value, fieldList(metadata.fields), path);
+        if (missing !== null) return missing;
+      }
       continue;
     }
 
@@ -173,6 +225,8 @@ function stripInto(data: Record<string, unknown>, fields: readonly ManifestField
       const item = isRecord(metadata.item) ? (metadata.item as ManifestField) : null;
       if (item === null || !Array.isArray(value)) continue;
       if (item.type === 'media') {
+        // A required media *item* means every member must be valid, and an
+        // invalid one is simply not kept — `keepValidMedia` already does that.
         keepValidMedia(data, fieldId, value);
         continue;
       }
@@ -181,9 +235,21 @@ function stripInto(data: Record<string, unknown>, fields: readonly ManifestField
           ? fieldList(isRecord(item.metadata) ? item.metadata.fields : undefined)
           : [];
       if (itemFields.length === 0) continue;
-      for (const entry of value) if (isRecord(entry)) stripInto(entry, itemFields);
+      const kept: unknown[] = [];
+      for (const entry of value) {
+        if (!isRecord(entry)) {
+          kept.push(entry);
+          continue;
+        }
+        // A list item whose required media cannot survive the strip is dropped
+        // whole: the item is the smallest thing that can go, and a shorter list
+        // is a shape the block already renders.
+        if (stripInto(entry, itemFields, `${path}[]`) === null) kept.push(entry);
+      }
+      data[fieldId] = kept;
     }
   }
+  return null;
 }
 
 /** Keep only the write-valid members of a multi-value media field; a field
@@ -193,6 +259,11 @@ function keepValidMedia(data: Record<string, unknown>, fieldId: string, value: u
   const kept = value.filter(isWriteValidMedia);
   if (kept.length === 0) delete data[fieldId];
   else data[fieldId] = kept;
+}
+
+function isRequired(field: ManifestField): boolean {
+  const validators = field.validators;
+  return isRecord(validators) && validators.required === true;
 }
 
 /** The one media shape the CMS accepts on write — the rule

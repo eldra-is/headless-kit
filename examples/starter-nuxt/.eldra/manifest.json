@@ -7452,24 +7452,7 @@
             "secondaryCtaLabel": "Our story",
             "secondaryCtaHref": "/pages/about",
             "spacing": "md",
-            "slides": [
-              {
-                "alt": "Terracotta serving bowl",
-                "href": "/products/serving-bowl"
-              },
-              {
-                "alt": "Sage glazed mug",
-                "href": "/products/latte-mug"
-              },
-              {
-                "alt": "Folded linen napkins",
-                "href": "/products/linen-napkins"
-              },
-              {
-                "alt": "Grey stoneware plates",
-                "href": "/products/dinner-plates"
-              }
-            ]
+            "slides": []
           }
         },
         {
