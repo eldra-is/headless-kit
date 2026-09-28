@@ -55,8 +55,30 @@ A route template's version-1 layout may hold the same
 `{ id, type: 'reusable', componentId }` placements beside its `template-block`
 leaves — that is how a seeded template's header and footer **roles** reach the
 site's own shared components (see [themes.md](themes.md#seeding-default-templates)).
-Core's route-template read carries a `reusableComponentProjection` of exactly the
-same shape as a Page's, and the runtime consumes it exactly the same way:
+
+A template, like a Page, reaches the theme in **two shapes**, and both render the
+same template:
+
+- The **preview** read (the builder, and the authenticated preview read) keeps
+  the `reusable` node and attaches a `reusableComponentProjection` of exactly the
+  same shape as a Page's. The runtime expands it.
+- The **public** read — the one `resolveRoute` performs, and therefore everything
+  a prerender or a visitor sees — is already expanded and redacted, exactly like a
+  public Page read: each placement has been replaced in place by the component's
+  own container (`flex`/`grid` of `block` children), keyed by the placement id
+  with descendant ids in the `r` + SHA-256 namespace above, and no `componentId`,
+  `siteId` or `reusableComponentProjection` exists anywhere in the payload. A
+  route-template document therefore legitimately contains `block` nodes, held to
+  the Page block-node rules (closed keys, a uuid `entryId` inside the allowlist,
+  never the root) and rendered like any Page block — no `template-block`
+  placement is registered for one.
+
+The two differ only in what the preview read can additionally tell Studio: the
+expanded nodes' `renderId`/`placementId`, which is how the overlay addresses a
+placement. The rendered document, its stylesheet and the DOM identity the CSS
+keys off are the same either way.
+
+How the runtime consumes the preview shape:
 
 - `useEldraPage()` (`@eldrajs/theme-nuxt`) returns the page document's projection
   when the route resolved a Page, and the **template document's** when it
@@ -74,5 +96,4 @@ same shape as a Page's, and the runtime consumes it exactly the same way:
   placement inside a template exactly as it addresses one inside a Page. Studio
   drafts for a shared component's entries overlay a template's placements the
   way they overlay a Page's.
-- A `block` node is still refused in a route-template document, and a placement
-  may not be the template layout's root.
+- A placement may not be the template layout's root.
