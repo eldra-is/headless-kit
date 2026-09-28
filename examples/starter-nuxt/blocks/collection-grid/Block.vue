@@ -71,6 +71,7 @@ import {
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
+import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -351,7 +352,11 @@ const items = computed(() => products.data.value?.items ?? []);
  */
 const money = useMoney();
 const cards = computed(() =>
-  toProductCardEntries(items.value, { ratio: '4x5', minorUnits: money.minor })
+  toProductCardEntries(items.value, {
+    ratio: '4x5',
+    minorUnits: money.minor,
+    revalidating: cardsRevalidating.value,
+  })
 );
 const total = computed(() => products.data.value?.total ?? 0);
 const facets = computed(() => products.data.value?.facets ?? []);
@@ -371,17 +376,42 @@ const showUnresolvedCollectionHint = computed(
 );
 
 /**
- * Loading a *further* page is not the same state as filtering. "While filtering, the grid shows the
- * same number of Skeleton cards and the count reads 'Updating…'" (spec States → Loading), but on
- * Load more "focus stays on the button" (spec Accessibility) — which it cannot if the button is
- * replaced by skeletons mid-press. So a load-more request keeps every card already on screen and
- * the real count, and marks only the button busy (`LoadMore`'s own `pending`).
+ * Loading a *further* page is not the same state as filtering, and neither of them is the same as
+ * having nothing at all. **The prerender contract** (`app/storefront/types.ts`) splits the three:
+ *
+ * - `showSkeletons` — `pending && no data`: the first load of a grid with nothing on screen yet.
+ *   Both halves are stated rather than trusting `pending` to imply the second, because a skeleton
+ *   drawn over results the visitor can already see is precisely the flash this work removed.
+ * - `refreshing` — a read in flight over results that *are* on screen: a filter, a sort, a page.
+ *   The old cards stay exactly where they are and take the dimmed-value + spinner treatment
+ *   (`cardsRevalidating` below), the grid is marked `aria-busy`, and the count reads "Updating…".
+ *   This is what used to replace the whole grid with skeletons.
+ * - `loadingMore` — Load more, where "focus stays on the button" (spec Accessibility): every card
+ *   stays put, undimmed, the count stays real, and only the button is busy (`LoadMore`'s own
+ *   `pending`). It latches on the press and clears when the read answers — off `loading`, not
+ *   `pending`, which no longer rises for a read over data the grid already has and would leave the
+ *   button spinning for the life of the page.
  */
+const loading = products.loading;
+const hasData = computed(() => products.data.value !== null);
 const loadingMore = ref(false);
-watch(pending, (value) => {
+watch(loading, (value) => {
   if (!value) loadingMore.value = false;
 });
-const showSkeletons = computed(() => pending.value && !loadingMore.value);
+const showSkeletons = computed(() => pending.value && !hasData.value);
+const refreshing = computed(() => loading.value && hasData.value && !loadingMore.value);
+
+/**
+ * The volatile refresh: after mount the storefront re-reads every card's money amounts and stock
+ * line and swaps them in. Each card dims its two values and draws a spinner beside them, but
+ * `announce: false` — a 24-card grid would otherwise hold 48 polite live regions all speaking at
+ * once (`@eldrajs/ui`'s `announce` prop); the grid says it once instead, in `announcement` below.
+ */
+const revalidating = useRevalidating(() => products.revalidating.value);
+const cardsRevalidating = computed(() => revalidating.any.value || refreshing.value);
+const announcement = computed(() =>
+  cardsRevalidating.value ? t('storefront.updatingValues') : ''
+);
 
 /** The count of skeleton cards: "the grid shows the same number of Skeleton cards" (spec States →
  *  Loading), which on the very first load — nothing on screen yet — is the page size. */
@@ -553,7 +583,7 @@ function publishState(): void {
 }
 
 const countText = computed(() => {
-  if (showSkeletons.value) return t('grid.updating');
+  if (showSkeletons.value || refreshing.value) return t('grid.updating');
   if (total.value === 1) return t('grid.oneProduct');
   return t('grid.nProducts', { count: total.value });
 });
@@ -900,6 +930,12 @@ function hrefForPage(page: number): string {
                 t('grid.products')
               }}</VisuallyHidden>
 
+              <!-- One region for the whole grid, always mounted and empty until there is
+                   something to say: a live region inserted with its message already in it is
+                   announced unreliably, and the cards deliberately do not announce for themselves
+                   (`:announce="false"` below). -->
+              <VisuallyHidden as="p" role="status">{{ announcement }}</VisuallyHidden>
+
               <ul
                 v-if="showSkeletons"
                 role="list"
@@ -917,6 +953,7 @@ function hrefForPage(page: number): string {
                 v-else-if="cards.length > 0"
                 role="list"
                 :aria-labelledby="productsHeadingId"
+                :aria-busy="refreshing ? 'true' : undefined"
                 :class="gridClass"
               >
                 <li v-for="entry in cards" :key="entry.item.handle">
@@ -927,6 +964,8 @@ function hrefForPage(page: number): string {
                     ratio="4x5"
                     :heading-level="3"
                     :quick-add="false"
+                    :revalidating="entry.revalidating"
+                    :announce="false"
                     :link-as="entry.internal ? EldraRouterLink : undefined"
                   />
                 </li>

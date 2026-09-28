@@ -60,6 +60,7 @@ import { EldraRichText } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
+import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { roundMoney, useMoney } from '../../app/storefront/money';
 import { useT } from '../../app/composables/useT';
@@ -105,9 +106,49 @@ const handle = computed<string | null>(() => {
 });
 const productResult = storefront.catalog.product(handle);
 const product = computed(() => productResult.data.value);
+
+/**
+ * **The prerender contract** (`app/storefront/types.ts`): this page's HTML was built with the
+ * product's real title, images, price and stock line, so the three states below are about what the
+ * page does *not* have, never about what it already shows.
+ *
+ * - `showStatus` — the skeleton/loading line, and the "we couldn't load this" line. Only ever with
+ *   no product at all: an error over a product the visitor can see keeps the product (the `v-if`
+ *   chain in the template puts `product` first, and this reads `product === null` as well so the
+ *   rule is stated rather than implied by template order).
+ * - `notFound` — the read finished, answered nothing, and did not fail: the handle names a product
+ *   this catalogue does not have. A prerendered page outlives its catalogue, so this is a real
+ *   visitor state (a bookmarked link to a discontinued product), not only an author mistake.
+ * - `refreshing` — a *different* product is loading over the one on screen (the handle changed).
+ *   The old values stay, dimmed with a spinner, exactly like the volatile refresh below; the page
+ *   never regresses to a skeleton for something it can already show.
+ */
 const showStatus = computed(
-  () => handle.value !== null && (productResult.pending.value || productResult.error.value !== null)
+  () =>
+    handle.value !== null &&
+    product.value === null &&
+    (productResult.pending.value || productResult.error.value !== null)
 );
+const notFound = computed(
+  () =>
+    handle.value !== null &&
+    product.value === null &&
+    !productResult.pending.value &&
+    !productResult.loading.value &&
+    productResult.error.value === null
+);
+const refreshing = computed(() => productResult.loading.value && product.value !== null);
+
+/**
+ * The volatile refresh (`app/storefront/refresh.ts`): after mount the storefront re-reads this
+ * product's money amounts and stock line and swaps them in. While it does, `Price` and `StockBadge`
+ * keep their prerendered value, dim it, draw a spinner beside it and announce the refresh
+ * themselves — `announce` is left at its default here, unlike the card lists, because a product
+ * page has exactly one price and one stock line to speak about.
+ */
+const revalidating = useRevalidating(() => productResult.revalidating.value);
+const priceRevalidating = computed(() => revalidating.price.value || refreshing.value);
+const stockRevalidating = computed(() => revalidating.stock.value || refreshing.value);
 
 /** Spec Field → layout mapping: "Mounting records the product in `history.recordView`" — the
  *  `product-carousel` block's `recently-viewed` source is the other half of this. */
@@ -395,6 +436,7 @@ function tabValue(index: number): string {
     v-if="product"
     spacing="none"
     :labelled-by="titleId"
+    :aria-busy="refreshing ? 'true' : undefined"
     :classes="{ root: SECTION_SPACING }"
   >
     <Container width="content">
@@ -450,6 +492,7 @@ function tabValue(index: number): string {
                 :compare-at="
                   product.price.compareAt == null ? null : money.minor(product.price.compareAt)
                 "
+                :revalidating="priceRevalidating"
               />
               <Badge
                 v-if="saving"
@@ -507,6 +550,7 @@ function tabValue(index: number): string {
               <StockBadge
                 :level="stockLine.level"
                 :message="t(stockLine.key, stockLine.params)"
+                :revalidating="stockRevalidating"
                 :classes="stockClasses"
               />
               <span v-if="stockLine.noteKey" class="text-muted mt-1 block pl-6 text-[0.875rem]">{{
@@ -647,6 +691,15 @@ function tabValue(index: number): string {
       <p role="status" class="text-muted">
         {{ productResult.error.value ? t('storefront.error') : t('storefront.loading') }}
       </p>
+    </Container>
+  </Section>
+
+  <!-- The read answered, and the answer was "there is no such product". Said plainly, before the
+       editor hint below, because on a live page this is what a visitor who followed an old link
+       sees and the hint is not for them. -->
+  <Section v-else-if="notFound" spacing="none" :classes="{ root: SECTION_SPACING }">
+    <Container width="content">
+      <p role="status" class="text-muted">{{ t('storefront.notFound') }}</p>
     </Container>
   </Section>
 

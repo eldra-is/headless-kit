@@ -18,6 +18,7 @@ import type {
   StorefrontProductListItem,
   StorefrontResult,
   StorefrontSource,
+  VolatileKey,
 } from '../../../app/storefront/types';
 import { enUS } from '../../../app/i18n/en-US';
 import { isIS } from '../../../app/i18n/is-IS';
@@ -72,8 +73,15 @@ const FACETS: StorefrontFacet[] = [
 
 interface Stub {
   source: StorefrontSource;
-  /** Flipped by a test to hold the block in its "while filtering" state. */
+  /** Flipped by a test to hold the block in its first-load state — nothing on screen yet. */
   pending: Ref<boolean>;
+  /** Flipped by a test to hold the block in its "while filtering" state: a read in flight over
+   *  results the visitor can still see. */
+  loading: Ref<boolean>;
+  /** Flipped by a test to put the grid's cards in the volatile-refresh state. */
+  revalidating: Ref<ReadonlySet<VolatileKey>>;
+  /** Set by a test to fail the read *after* it has already answered once. */
+  error: Ref<string | null>;
   /** Every `collectionProducts` request, newest last — the grid's and the drawer's pending count. */
   requests: Array<{ pageSize: number; filters?: Record<string, string[]> }>;
 }
@@ -97,6 +105,9 @@ function createStub(
 ): Stub {
   const base = createDemoStorefront();
   const pending = ref(false);
+  const loading = ref(false);
+  const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
+  const error = ref<string | null>(null);
   const requests: Stub['requests'] = [];
   const filteredCount = options.filteredCount ?? 0;
   const catalog: StorefrontCatalog = {
@@ -115,7 +126,9 @@ function createStub(
       return {
         data,
         pending,
-        error: ref(null),
+        loading,
+        revalidating,
+        error,
         refresh: async () => {},
       } as unknown as StorefrontResult<{
         items: StorefrontProductListItem[];
@@ -124,7 +137,28 @@ function createStub(
       }>;
     },
   };
-  return { source: { ...base, catalog }, pending, requests };
+  return { source: { ...base, catalog }, pending, loading, revalidating, error, requests };
+}
+
+/** A storefront whose collection read is still on its very first load: `pending`, and no data at
+ *  all. The one state the grid is allowed to draw skeletons in. */
+function firstLoadSource(): StorefrontSource {
+  const base = createDemoStorefront();
+  return {
+    ...base,
+    catalog: {
+      ...base.catalog,
+      collectionProducts: () =>
+        ({
+          data: ref(null),
+          pending: ref(true),
+          loading: ref(true),
+          revalidating: ref(new Set()),
+          error: ref(null),
+          refresh: async () => {},
+        }) as unknown as ReturnType<StorefrontCatalog['collectionProducts']>,
+    },
+  };
 }
 
 /** The Eldra context with edit-mode preview on, so `useEditing()` reads true — the same shape
@@ -165,6 +199,10 @@ function mountGrid(
 
 /** The result count — the block's polite status line. */
 const countLine = (wrapper: VueWrapper) => wrapper.get('p[role="status"][tabindex="-1"]');
+/** The grid's single visually hidden live region for the volatile refresh. The count line above
+ *  and `LoadMore`'s own "Showing N of M" are the block's other `role="status"` elements, and both
+ *  are visible — this is the only hidden one. */
+const liveRegion = (wrapper: VueWrapper) => wrapper.get('p.sr-only[role="status"]');
 /** The grid itself: the list of product cards (never the skeleton list, which is aria-hidden). */
 const cards = (wrapper: VueWrapper) =>
   wrapper.findAll('ul[aria-labelledby]:not([aria-hidden]) > li');
@@ -402,18 +440,41 @@ describe('collection-grid block', () => {
       expect(countLine(wrapper).attributes('tabindex')).toBe('-1');
     });
 
-    it('reads "Updating…" while filtering, over the same number of skeleton cards', async () => {
+    /**
+     * The prerender contract (`app/storefront/types.ts`): a grid the visitor can already see never
+     * goes back to skeletons. Filtering, sorting and paging all read over results that are on
+     * screen, so those results stay on screen — dimmed, each card's price and stock line carrying
+     * its own spinner — and the grid is marked busy while the count says so.
+     */
+    it('keeps the cards, dimmed and busy, while a filter loads over results already on screen', async () => {
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
       const shown = cards(wrapper).length;
+      expect(shown).toBeGreaterThan(0);
 
+      // `pending` as well as `loading`: the rule is "no data", not "not pending", so a storefront
+      // that raised the skeleton flag over results the visitor can see must still not blank them.
       stub.pending.value = true;
+      stub.loading.value = true;
+      await wrapper.vm.$nextTick();
+
+      expect(countLine(wrapper).text()).toBe(enUS.grid.updating);
+      expect(cards(wrapper)).toHaveLength(shown);
+      expect(wrapper.find('ul[aria-hidden="true"]').exists()).toBe(false);
+      expect(gridList(wrapper).attributes('aria-busy')).toBe('true');
+      expect(
+        wrapper.findAllComponents(ProductCard).every((card) => card.props('revalidating') === true)
+      ).toBe(true);
+    });
+
+    it('reads "Updating…" over skeleton cards only while there is nothing to show at all', async () => {
+      const wrapper = mountGrid(mock, { source: firstLoadSource() });
       await wrapper.vm.$nextTick();
 
       expect(countLine(wrapper).text()).toBe(enUS.grid.updating);
       const skeletons = wrapper.get('ul[aria-hidden="true"]');
-      expect(skeletons.findAll(':scope > li')).toHaveLength(shown);
+      expect(skeletons.findAll(':scope > li').length).toBeGreaterThan(0);
       expect(cards(wrapper)).toHaveLength(0);
     });
   });
@@ -596,6 +657,10 @@ describe('collection-grid block', () => {
 
       expect(cards(wrapper)).toHaveLength(24);
       expect(document.activeElement).toBe(loadMore.element);
+      // The button stops being busy once the read answers. It has to clear off `loading`, not
+      // `pending`: `pending` never rises for a read over cards the grid already has (the prerender
+      // contract), so a latch cleared by it would leave the button spinning for the page's life.
+      expect(loadMore.attributes('aria-busy')).toBeUndefined();
     });
 
     it('pages renders a labelled Pagination of routed page links', async () => {
@@ -1114,6 +1179,74 @@ describe('collection-grid block', () => {
       expect(wrapper.text()).toContain(enUS.grid.noCollectionHelp);
       expect(wrapper.find('ul').exists()).toBe(false);
       expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  /**
+   * The prerendered page's live refresh (`app/storefront/types.ts`, `app/storefront/refresh.ts`):
+   * the HTML shipped with real prices and stock lines, and a few hundred milliseconds after mount
+   * the storefront swaps in the backend's current ones. The grid never redraws for it — every card
+   * keeps its value, dims it and carries a spinner — and the whole grid says so once rather than
+   * letting 24 cards hold 48 live regions between them.
+   */
+  describe('the volatile refresh', () => {
+    it('keeps every card, marks its price and stock line busy, and draws no skeleton', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      const shown = cards(wrapper).length;
+      expect(shown).toBeGreaterThan(0);
+
+      stub.revalidating.value = new Set(['price', 'stock']);
+      await wrapper.vm.$nextTick();
+
+      expect(cards(wrapper)).toHaveLength(shown);
+      expect(wrapper.find('ul[aria-hidden="true"]').exists()).toBe(false);
+      expect(wrapper.text()).toContain(PRODUCTS[0]!.title);
+
+      const busy = wrapper.findAll('[data-part="root"][aria-busy="true"]');
+      expect(busy.length).toBeGreaterThanOrEqual(shown);
+      expect(wrapper.findAll('[data-part="spinner"]').length).toBeGreaterThanOrEqual(shown);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('announces once for the whole grid, after mount, and never per card', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      // Mounted and empty first: a live region that arrives already holding its message is
+      // announced unreliably, which is exactly what a prerendered page would produce if the block
+      // read `revalidating` straight through instead of flipping it after mount.
+      expect(liveRegion(wrapper).text()).toBe('');
+
+      stub.revalidating.value = new Set(['price']);
+      await wrapper.vm.$nextTick();
+
+      expect(liveRegion(wrapper).text()).toBe(enUS.storefront.updatingValues);
+      expect(wrapper.findAll('p.sr-only[role="status"]')).toHaveLength(1);
+      // `announce: false` on every card — the per-value regions are gone, not merely empty.
+      expect(wrapper.findAll('[data-part="srStatus"]')).toHaveLength(0);
+      expect(
+        wrapper.findAllComponents(ProductCard).every((card) => card.props('announce') === false)
+      ).toBe(true);
+
+      stub.revalidating.value = new Set();
+      await wrapper.vm.$nextTick();
+      expect(liveRegion(wrapper).text()).toBe('');
+    });
+
+    it('keeps the cards when the read fails over results the visitor can already see', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      const shown = cards(wrapper).length;
+
+      stub.error.value = 'gateway exploded';
+      await wrapper.vm.$nextTick();
+
+      expect(cards(wrapper)).toHaveLength(shown);
+      expect(wrapper.text()).not.toContain(enUS.storefront.error);
     });
   });
 });

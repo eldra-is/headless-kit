@@ -103,6 +103,8 @@ export const isIS = {
   storefront: {
     loading: 'Hleð…',
     error: 'Ekki tókst að sækja þetta núna.',
+    notFound: 'Þessi vara er ekki lengur í boði.',
+    updatingValues: 'Uppfæri verð og lagerstöðu',
     unresolvedCollectionLabel: 'Birtu síðuna til að hlaða vörum',
     unresolvedCollectionHelp:
       'Vörulistinn er valinn. Vörurnar úr honum birtast hér þegar síðan hefur verið birt.',

@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { computed, defineComponent, h, nextTick } from 'vue';
+import { computed, defineComponent, h, nextTick, ref } from 'vue';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront } from '../../../app/storefront/demo';
-import { STOREFRONT_KEY, type StorefrontProduct } from '../../../app/storefront/types';
+import {
+  STOREFRONT_KEY,
+  type StorefrontProduct,
+  type StorefrontResult,
+  type VolatileKey,
+} from '../../../app/storefront/types';
+import { enUS } from '../../../app/i18n/en-US';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 
@@ -655,5 +661,150 @@ describe('product-detail block', () => {
       const wrapper = await mountReady(data);
       expect(wrapper.html()).not.toMatch(/\d+ (people|viewing)|only today|hurry/i);
     }
+  });
+
+  /**
+   * The prerendered page's live refresh (`app/storefront/types.ts`): the HTML shipped with this
+   * product's real price and stock line, and a few hundred milliseconds after mount the storefront
+   * swaps in the backend's current ones. The buy box never redraws for it.
+   */
+  describe('the volatile refresh', () => {
+    /** The demo product, with the result's own flags under the test's control. */
+    function refreshable(patch: Partial<StorefrontProduct> = {}) {
+      const source = storefrontWith(patch);
+      const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
+      const loading = ref(false);
+      const pending = ref(false);
+      const error = ref<string | null>(null);
+      return {
+        revalidating,
+        loading,
+        pending,
+        error,
+        storefront: {
+          ...source,
+          catalog: {
+            ...source.catalog,
+            product: (handle: Parameters<typeof source.catalog.product>[0]) => {
+              const result = source.catalog.product(handle);
+              return {
+                ...result,
+                pending,
+                loading,
+                error,
+                revalidating,
+              } as unknown as StorefrontResult<StorefrontProduct>;
+            },
+          },
+        } as ReturnType<typeof storefrontWith>,
+      };
+    }
+
+    it('keeps the price and the stock line, marks both busy and draws a spinner beside each', async () => {
+      const { storefront, revalidating } = refreshable();
+      const wrapper = await mountReady(mock, { storefront });
+      expect(wrapper.text()).toContain('$96.00');
+
+      revalidating.value = new Set(['price', 'stock']);
+      await nextTick();
+
+      // The value itself is untouched — this state is a dim and a spinner, never a skeleton.
+      expect(wrapper.text()).toContain('$96.00');
+      expect(wrapper.text()).toContain('In stock, ready to ship');
+      expect(wrapper.find('.eldra-skeleton').exists()).toBe(false);
+
+      const price = wrapper.get('[data-part="root"][aria-busy="true"]');
+      expect(price.find('[data-part="spinner"]').exists()).toBe(true);
+      expect(wrapper.findAll('[data-part="root"][aria-busy="true"]')).toHaveLength(2);
+      // A product page has one price and one stock line, so each announces for itself — unlike a
+      // grid, which announces once for all of its cards (`announce: false` there).
+      expect(wrapper.findAll('[data-part="srStatus"]').length).toBeGreaterThanOrEqual(2);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('refreshes only the value the storefront named', async () => {
+      const { storefront, revalidating } = refreshable();
+      const wrapper = await mountReady(mock, { storefront });
+
+      revalidating.value = new Set(['price']);
+      await nextTick();
+
+      expect(wrapper.findAll('[data-part="root"][aria-busy="true"]')).toHaveLength(1);
+      expect(wrapper.findAll('[data-part="spinner"]')).toHaveLength(1);
+    });
+
+    it('draws no skeleton and no error over a product the visitor can already see', async () => {
+      const { storefront, pending, loading, error } = refreshable();
+      const wrapper = await mountReady(mock, { storefront });
+
+      // Every flag at once, all of them lying about a page that has its product: none of them may
+      // replace it. `pending` is the skeleton state and nothing else, and a failed read never
+      // regresses a page that already has something to show.
+      pending.value = true;
+      loading.value = true;
+      error.value = 'gateway exploded';
+      await nextTick();
+
+      expect(wrapper.text()).toContain('Merino crew sweater');
+      expect(wrapper.text()).toContain('$96.00');
+      expect(wrapper.text()).not.toContain(enUS.storefront.loading);
+      expect(wrapper.text()).not.toContain(enUS.storefront.error);
+      expect(wrapper.get('[data-part="root"]').attributes('aria-busy')).toBe('true');
+    });
+  });
+
+  /**
+   * A prerendered page outlives the catalogue it was built from: a visitor can follow a bookmark to
+   * a product that has since been deleted. The read answers `null` with no error, which is neither
+   * "still loading" nor "we couldn't ask".
+   */
+  describe('a product that no longer exists', () => {
+    it('says so, rather than rendering nothing at all', async () => {
+      const source = createDemoStorefront();
+      const storefront = {
+        ...source,
+        catalog: {
+          ...source.catalog,
+          product: () =>
+            ({
+              data: ref(null),
+              pending: ref(false),
+              loading: ref(false),
+              error: ref(null),
+              revalidating: ref(new Set()),
+              refresh: async () => {},
+            }) as unknown as StorefrontResult<StorefrontProduct>,
+        },
+      } as ReturnType<typeof storefrontWith>;
+      const wrapper = await mountReady(mock, { storefront });
+
+      expect(wrapper.text()).toContain(enUS.storefront.notFound);
+      expect(wrapper.text()).not.toContain(enUS.storefront.loading);
+      expect(wrapper.text()).not.toContain(enUS.storefront.error);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('stays on the loading line while the read has not answered', async () => {
+      const source = createDemoStorefront();
+      const storefront = {
+        ...source,
+        catalog: {
+          ...source.catalog,
+          product: () =>
+            ({
+              data: ref(null),
+              pending: ref(true),
+              loading: ref(true),
+              error: ref(null),
+              revalidating: ref(new Set()),
+              refresh: async () => {},
+            }) as unknown as StorefrontResult<StorefrontProduct>,
+        },
+      } as ReturnType<typeof storefrontWith>;
+      const wrapper = await mountReady(mock, { storefront });
+
+      expect(wrapper.text()).toContain(enUS.storefront.loading);
+      expect(wrapper.text()).not.toContain(enUS.storefront.notFound);
+    });
   });
 });

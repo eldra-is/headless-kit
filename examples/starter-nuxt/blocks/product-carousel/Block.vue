@@ -39,10 +39,12 @@ import {
   ProductCard,
   Section,
   Skeleton,
+  VisuallyHidden,
 } from '@eldrajs/ui';
 import type { CarouselPart, SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
+import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -119,11 +121,44 @@ const relatedResult = storefront.catalog.related(productHandleRef, limit.value);
 const collectionResult = storefront.catalog.collectionProducts(source, collectionOpts);
 const recentlyViewedResult = storefront.catalog.byHandles(storefront.history.recentlyViewed);
 
-const pending = computed(() => {
-  if (isCollection.value) return collectionResult.pending.value;
-  if (isRecentlyViewed.value) return recentlyViewedResult.pending.value;
-  return relatedResult.pending.value;
+/**
+ * The one result this variant is showing. Three are created (a block cannot conditionally call a
+ * composable), but only this one's state is ever read — and reading it in one place is what lets
+ * the prerender rules below be written once instead of three times.
+ */
+const activeResult = computed(() => {
+  if (isCollection.value) return collectionResult;
+  if (isRecentlyViewed.value) return recentlyViewedResult;
+  return relatedResult;
 });
+const pending = computed(() => activeResult.value.pending.value);
+
+/**
+ * **The prerender contract** (`app/storefront/types.ts`): this row's cards are in the page's HTML
+ * from the first paint, so a skeleton is only ever right when there is genuinely nothing to show.
+ *
+ * - `showSkeletons` — `pending && no data`. Stated as both halves rather than trusting `pending` to
+ *   imply the second: a storefront that raised `pending` over results the visitor can see would
+ *   otherwise blank the row.
+ * - `refreshing` — a read is in flight over data that is already on screen (a different product's
+ *   recommendations, a changed collection). The cards stay put and take the same dimmed-value +
+ *   spinner treatment the volatile refresh below uses, and the row is marked `aria-busy`.
+ */
+const hasData = computed(() => activeResult.value.data.value !== null);
+const showSkeletons = computed(() => pending.value && !hasData.value);
+const refreshing = computed(() => activeResult.value.loading.value && hasData.value);
+
+/**
+ * The volatile refresh: after mount the storefront re-reads every card's money amounts and stock
+ * line and swaps them in. Each card dims its two values and draws a spinner beside them, but
+ * `announce: false` — the row says it once, below, rather than letting eight cards hold sixteen
+ * polite live regions all speaking at the same moment (`@eldrajs/ui`'s `announce` prop).
+ */
+const revalidating = useRevalidating(() => activeResult.value.revalidating.value);
+const cardsRevalidating = computed(() => revalidating.any.value || refreshing.value);
+const announcement = computed(() =>
+  cardsRevalidating.value ? t('storefront.updatingValues') : ''
+);
 
 /** See the module doc comment: `related` filters out the product being viewed and sold-out items
  *  itself; `collection`/`recently-viewed` render whatever the storefront returns. */
@@ -146,7 +181,11 @@ const cappedProducts = computed(() => products.value.slice(0, limit.value));
  */
 const money = useMoney();
 const cards = computed(() =>
-  toProductCardEntries(cappedProducts.value, { ratio: cardRatio.value, minorUnits: money.minor })
+  toProductCardEntries(cappedProducts.value, {
+    ratio: cardRatio.value,
+    minorUnits: money.minor,
+    revalidating: cardsRevalidating.value,
+  })
 );
 /** Spec States → "Minimal": "with fewer than 2 products the block doesn't render." */
 const hasEnoughProducts = computed(() => cards.value.length >= 2);
@@ -248,8 +287,13 @@ const showBlock = computed(() =>
     :background="background"
     spacing="md"
     :labelled-by="headingId"
+    :aria-busy="refreshing ? 'true' : undefined"
   >
     <Container width="wide">
+      <!-- One region for the whole row, always mounted and empty until there is something to say:
+           a live region inserted with its message already in it is announced unreliably, and the
+           cards deliberately do not announce for themselves (`announce: false` above). -->
+      <VisuallyHidden as="p" role="status">{{ announcement }}</VisuallyHidden>
       <EditorPlaceholder
         v-if="showHeadingHint"
         :id="headingId"
@@ -306,7 +350,7 @@ const showBlock = computed(() =>
           </div>
         </template>
 
-        <template v-if="pending">
+        <template v-if="showSkeletons">
           <div v-for="n in 4" :key="n" class="h-full">
             <Skeleton variant="media" :ratio="cardRatio" />
           </div>
@@ -320,6 +364,8 @@ const showBlock = computed(() =>
               :show-rating="!isRecentlyViewed"
               :quick-add="false"
               :heading-level="3"
+              :revalidating="entry.revalidating"
+              :announce="false"
               :link-as="entry.internal ? EldraRouterLink : undefined"
               :currency="currency"
               :locale="locale"

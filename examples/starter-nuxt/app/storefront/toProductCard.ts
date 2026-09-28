@@ -22,6 +22,13 @@ import type { StorefrontProductListItem } from './types';
  * locale its `<ProductCard>` will resolve (`useMoney().minor`) — the fallback is the theme's own
  * `USD`/`en-US` default, which is right until the store's settings say otherwise.
  *
+ * `opts.revalidating` is accepted here and consumed by `toProductCardEntries()` below, the same
+ * shape `opts.ratio` has: it is a property of the *page's* refresh, not of one product, so it
+ * travels with the card data rather than being remembered separately by each of the three blocks
+ * that build cards. `ProductCardProduct` deliberately does not grow a field for it —
+ * `@eldrajs/ui` takes it as a prop on the card, beside `loading`, because it is a state the page
+ * is in, not a fact about the product.
+ *
  * `opts.ratio` is accepted, not consumed: it exists so a caller building a grid of cards has one
  * place to read the aspect ratio it is about to pass to `<ProductCard ratio="…">` alongside this
  * data (`collection-grid`'s 3/4-column grid vs. `product-carousel`'s single ratio), without that
@@ -70,6 +77,13 @@ export interface ToProductCardOptions {
   ratio?: '4x5' | '1x1' | '3x4';
   /** Major → minor units, bound to the block's own currency/locale. Defaults to `toMinorUnits`. */
   minorUnits?: (amount: number) => number;
+  /**
+   * The card's price and stock line are on screen but fresher ones are on their way — the
+   * prerendered page's volatile refresh (`StorefrontResult.revalidating`), or a reload of the list
+   * itself over results the visitor can still see. Surfaces as `ProductCardEntry.revalidating`,
+   * which the block binds to `<ProductCard :revalidating="…">`. Defaults to `false`.
+   */
+  revalidating?: boolean;
 }
 
 /** One product's card data plus what the block needs to render its link correctly. */
@@ -78,6 +92,8 @@ export interface ProductCardEntry {
   item: StorefrontProductListItem;
   /** Ready for `<ProductCard :product="…">`. */
   product: ProductCardProduct;
+  /** `opts.revalidating`, per card — `<ProductCard :revalidating="entry.revalidating">`. */
+  revalidating: boolean;
   /**
    * `true` when the destination is same-site, i.e. when the card's link should be routed by
    * passing `app/components/EldraRouterLink.vue` as `link-as`. An off-site product URL (a gateway
@@ -100,12 +116,14 @@ export function toProductCardEntries(
   opts?: ToProductCardOptions
 ): ProductCardEntry[] {
   const entries: ProductCardEntry[] = [];
+  const revalidating = opts?.revalidating === true;
   for (const item of items ?? []) {
     const product = toProductCard(item, opts);
     if (product === null) continue;
     entries.push({
       item: item.url === product.url ? item : { ...item, url: product.url },
       product,
+      revalidating,
       internal: isInternalHref(product.url),
     });
   }

@@ -1,12 +1,20 @@
 // @vitest-environment jsdom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
+import { ref, type Ref } from 'vue';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { enUS } from '../../../app/i18n/en-US';
+import { createDemoStorefront } from '../../../app/storefront/demo';
+import { STOREFRONT_KEY } from '../../../app/storefront/types';
+import type {
+  StorefrontCollectionInfo,
+  StorefrontResult,
+  StorefrontSource,
+} from '../../../app/storefront/types';
 
 /** Only `variant` is required at the schema level — the "genuinely minimal" fixture every
  *  rebuilt block spec covers alongside the full `mock.json` (see `blocks/faq/__tests__/
@@ -59,10 +67,17 @@ afterEach(() => {
  * consumer sees, so every assertion that reads the store's title/description/image/count needs a
  * `flushPromises()` first.
  */
-async function mountHeader(data: Record<string, unknown>) {
+async function mountHeader(data: Record<string, unknown>, source?: StorefrontSource) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const wrapper = mount(Block, {
     ...base,
+    global: {
+      ...base.global,
+      provide: {
+        ...base.global.provide,
+        ...(source ? { [STOREFRONT_KEY]: source } : {}),
+      },
+    },
     attachTo: document.body,
   });
   trackedWrappers.push(wrapper);
@@ -241,6 +256,62 @@ describe('collection-header block', () => {
     it("falls back to the collection's own image when the field is empty", async () => {
       const wrapper = await mountHeader(mock);
       expect(wrapper.find('img').exists()).toBe(true);
+    });
+  });
+
+  /**
+   * The header carries no volatile value of its own — a collection's title, description, image and
+   * product count are content, and content changes rebuild the site (`StorefrontResult`'s doc
+   * comment). What the prerender contract asks of it is the other half: never take away what the
+   * page already shows. It has no skeleton and no error branch at all, which is the whole of it —
+   * this is the test that keeps it that way.
+   */
+  describe('the prerender contract', () => {
+    function headerSource(): {
+      source: StorefrontSource;
+      loading: Ref<boolean>;
+      error: Ref<string | null>;
+    } {
+      const base = createDemoStorefront();
+      const loading = ref(false);
+      const error = ref<string | null>(null);
+      const info: StorefrontCollectionInfo = {
+        handle: 'winter-knitwear',
+        title: 'Winter knitwear',
+        description: 'Prerendered description.',
+        image: null,
+        productCount: 48,
+      };
+      const result = {
+        data: ref(info),
+        pending: ref(false),
+        loading,
+        error,
+        revalidating: ref(new Set()),
+        refresh: async () => {},
+      } as unknown as StorefrontResult<StorefrontCollectionInfo>;
+      return {
+        source: { ...base, catalog: { ...base.catalog, collection: () => result } },
+        loading,
+        error,
+      };
+    }
+
+    it('keeps the prerendered title, description and count while the read reloads or fails', async () => {
+      const { source, loading, error } = headerSource();
+      const wrapper = await mountHeader(bare, source);
+      expect(wrapper.text()).toContain('Winter knitwear');
+
+      loading.value = true;
+      error.value = 'gateway exploded';
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('Winter knitwear');
+      expect(wrapper.text()).toContain('Prerendered description.');
+      expect(wrapper.text()).toContain('48');
+      expect(wrapper.text()).not.toContain(enUS.storefront.loading);
+      expect(wrapper.text()).not.toContain(enUS.storefront.error);
+      expect(wrapper.find('.eldra-skeleton').exists()).toBe(false);
     });
   });
 });

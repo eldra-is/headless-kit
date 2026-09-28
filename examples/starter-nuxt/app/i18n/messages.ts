@@ -201,6 +201,23 @@ export interface Messages {
     /** A `StorefrontResult.error` with no more specific, block-authored copy for it. */
     error: string;
     /**
+     * A read that answered with nothing on a live page — `product-detail` pointed at a handle the
+     * catalogue does not have (a product deleted since the page was built). Distinct from
+     * `error`, which is "we could not ask"; this one is "we asked, and there is no such thing", and
+     * it is the only honest thing to say to a visitor who followed a link to a product that is
+     * gone. A block that has data never shows it: a refresh that fails keeps the prerendered
+     * value (`StorefrontResult`'s own doc comment).
+     */
+    notFound: string;
+    /**
+     * The one polite live region a card list announces its volatile refresh through
+     * (`collection-grid`, `product-carousel`). Each card's own `Price`/`StockBadge` can announce
+     * for itself — that is `@eldrajs/ui`'s default — but a grid of 24 refreshing cards would then
+     * hold 48 regions all speaking at once, so those blocks pass `announce: false` to every card
+     * and say this once instead.
+     */
+    updatingValues: string;
+    /**
      * The editor-only hint (`EditorPlaceholder`, gated by `useEditing()`) for a
      * block whose collection was picked through a `reference` field but arrives
      * as the bare stub `{ id, _type }` — an unsaved draft overlay in the page

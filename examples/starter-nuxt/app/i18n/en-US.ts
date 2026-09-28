@@ -102,6 +102,8 @@ export const enUS = {
   storefront: {
     loading: 'Loading…',
     error: "We couldn't load this right now.",
+    notFound: 'This product is no longer available.',
+    updatingValues: 'Updating prices and stock',
     unresolvedCollectionLabel: 'Publish to load products',
     unresolvedCollectionHelp:
       'The collection is picked. Its products appear here once this page is published.',

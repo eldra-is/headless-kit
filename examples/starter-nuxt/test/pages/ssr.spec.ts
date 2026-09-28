@@ -16,6 +16,11 @@ import { describe, expect, it } from 'vitest';
 import Navigation from '../../blocks/navigation/Block.vue';
 import navigationMock from '../../blocks/navigation/mock.json';
 import navigationPreview from '../../blocks/navigation/preview.json';
+import ProductDetail from '../../blocks/product-detail/Block.vue';
+import productDetailMock from '../../blocks/product-detail/mock.json';
+import ProductCarousel from '../../blocks/product-carousel/Block.vue';
+import productCarouselMock from '../../blocks/product-carousel/mock.json';
+import { enUS } from '../../app/i18n/en-US';
 import { renderBlockToString, renderPageToString } from '../support/renderSsr';
 import type { PageFixture } from '../support/mountPage';
 import homePage from '../../pages/home.page.json';
@@ -62,4 +67,52 @@ describe('server rendering', () => {
       expect(footer).toBeGreaterThan(mainEnd);
     }
   );
+
+  /**
+   * The prerender contract (`app/storefront/types.ts`): a commerce block's server render is the
+   * page a visitor sees, so it has to carry the real price and the real stock line — not a
+   * skeleton the client fills in afterwards — and it has to be the *same* markup the client's first
+   * render produces, or hydration mismatches and repaints the block.
+   *
+   * The refresh state is the trap on that second half: the page hydrates with the storefront about
+   * to revalidate, so a block that read `revalidating` straight through would paint spinners and
+   * `aria-busy` on the client that the server never wrote. `useRevalidating`
+   * (`app/composables/useRevalidating.ts`) is what holds the flag at `false` until after mount, and
+   * the absence of both below is what proves it — `onMounted` never runs here.
+   */
+  describe('the prerendered commerce blocks', () => {
+    it('server-renders product-detail with its price and stock line, and no skeleton', async () => {
+      const html = await renderBlockToString(ProductDetail, {
+        id: 'ssr-product-detail',
+        data: productDetailMock as unknown as Record<string, unknown>,
+      });
+
+      expect(html).toContain('Merino crew sweater');
+      expect(html).toContain('$96.00');
+      expect(html).toContain('In stock, ready to ship');
+      expect(html).not.toContain(enUS.storefront.loading);
+      expect(html).not.toContain(enUS.storefront.notFound);
+      expect(html).not.toContain('eldra-skeleton');
+      // `eldra-revalidating` is the dim utility `Price`/`StockBadge` apply to a value being
+      // refreshed, and nothing else in the package uses it — its absence is the refresh state's
+      // absence. (`aria-busy` on its own is not a usable signal here: the demo cart store starts a
+      // read of its own, so the Add to cart button is legitimately busy in this render.)
+      expect(html).not.toContain('eldra-revalidating');
+    });
+
+    it('server-renders product-carousel with real cards, and no skeleton', async () => {
+      const html = await renderBlockToString(ProductCarousel, {
+        id: 'ssr-product-carousel',
+        data: productCarouselMock as unknown as Record<string, unknown>,
+      });
+
+      expect(html).toContain('Fisherman rib cardigan');
+      expect(html).toContain('$164.00');
+      expect(html).toContain('In stock, ships in 1–2 days');
+      expect(html).not.toContain('eldra-skeleton');
+      expect(html).not.toContain('eldra-revalidating');
+      expect(html).not.toContain('aria-busy="true"');
+      expect(html).not.toContain('data-part="spinner"');
+    });
+  });
 });

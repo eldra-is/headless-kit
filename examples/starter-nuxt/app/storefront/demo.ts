@@ -1048,6 +1048,21 @@ function createDemoResult<T>(
   const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
 
   async function load(): Promise<void> {
+    // Server rendering gets one pass and no second chance: whatever the first render produced is
+    // the prerendered HTML, so a read that answers "later" bakes the skeleton into the page — the
+    // very defect this theme's gateway storefront was made prerender-aware to close
+    // (`app/storefront/prerender.ts`). The fixture is synchronous, so off a browser it answers
+    // inside the render rather than on the next tick. Nothing hydrates a demo-rendered page (the
+    // demo backs Storybook and the tests; a real site reads the gateway), so the browser keeps the
+    // asynchronous shape below, which is what lets a block spec observe a real pending transition.
+    if (typeof window === 'undefined') {
+      loading.value = true;
+      error.value = null;
+      data.value = resolve();
+      pending.value = false;
+      loading.value = false;
+      return;
+    }
     // The fixture answers on the next tick rather than instantly, so a block sees the same
     // `loading` → settled sequence it sees from a real read; `pending` still only means "nothing
     // to show yet", so a reload over existing fixture data never raises it.

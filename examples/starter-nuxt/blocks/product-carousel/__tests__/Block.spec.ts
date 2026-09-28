@@ -13,6 +13,7 @@ import type {
   StorefrontProductListItem,
   StorefrontResult,
   StorefrontSource,
+  VolatileKey,
 } from '../../../app/storefront/types';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
@@ -21,24 +22,27 @@ import { enUS } from '../../../app/i18n/en-US';
 /** The genuinely minimal fixture: only the fields the block requires. */
 const bare = { heading: mock.heading, variant: 'related' };
 
-function resolvedResult<T>(value: T | null): StorefrontResult<T> {
+function resolvedResult<T>(
+  value: T | null,
+  overrides: Partial<
+    Pick<StorefrontResult<T>, 'pending' | 'loading' | 'error' | 'revalidating'>
+  > = {}
+): StorefrontResult<T> {
   return {
     data: ref(value) as Ref<T | null>,
     pending: ref(false),
+    loading: ref(false),
     error: ref(null),
+    revalidating: ref(new Set()) as Ref<ReadonlySet<VolatileKey>>,
     refresh: async () => {},
+    ...overrides,
   };
 }
 
 /** A `related` catalogue that never resolves — for the loading-state test, which needs a
- *  storefront whose `related` stays pending. */
+ *  storefront whose `related` stays pending with nothing to show. */
 function pendingResult<T>(): StorefrontResult<T> {
-  return {
-    data: ref(null) as Ref<T | null>,
-    pending: ref(true),
-    error: ref(null),
-    refresh: async () => {},
-  };
+  return resolvedResult<T>(null, { pending: ref(true), loading: ref(true) });
 }
 
 const trackedWrappers: VueWrapper[] = [];
@@ -485,6 +489,118 @@ describe('product-carousel block', () => {
       await flushPromises();
       expect(wrapper.text()).not.toContain(enUS.storefront.unresolvedCollectionLabel);
       expect(wrapper.findAllComponents(Skeleton).length).toBeGreaterThan(0);
+    });
+  });
+
+  /**
+   * The prerendered page's live refresh (`app/storefront/types.ts`): the row's cards are in the
+   * HTML from the first paint, and a few hundred milliseconds after mount the storefront swaps in
+   * the backend's current prices and stock lines. The row never redraws for it, and it announces
+   * the refresh once rather than letting every card speak for itself.
+   */
+  describe('the volatile refresh', () => {
+    /** A `related` catalogue whose result a test can move through its states after mounting. */
+    function refreshableSource(): {
+      storefront: StorefrontSource;
+      revalidating: Ref<ReadonlySet<VolatileKey>>;
+      loading: Ref<boolean>;
+      pending: Ref<boolean>;
+    } {
+      const base = createDemoStorefront({ productHandle: 'not-a-real-product' });
+      const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
+      const loading = ref(false);
+      const pending = ref(false);
+      const result = resolvedResult(PRODUCTS.slice(0, 4), { revalidating, loading, pending });
+      return {
+        storefront: { ...base, catalog: { ...base.catalog, related: () => result } },
+        revalidating,
+        loading,
+        pending,
+      };
+    }
+
+    it('keeps every card, marks its price and stock line busy, and draws no skeleton', async () => {
+      const { storefront, revalidating } = refreshableSource();
+      const wrapper = mountBlock(mock, { storefront });
+      await flushPromises();
+      const shown = wrapper.findAllComponents(ProductCard).length;
+      expect(shown).toBe(4);
+
+      revalidating.value = new Set(['price', 'stock']);
+      await flushPromises();
+
+      expect(wrapper.findAllComponents(ProductCard)).toHaveLength(shown);
+      expect(wrapper.findAllComponents(Skeleton)).toHaveLength(0);
+      expect(wrapper.findAll('[data-part="root"][aria-busy="true"]').length).toBeGreaterThanOrEqual(
+        shown
+      );
+      expect(wrapper.findAll('[data-part="spinner"]').length).toBeGreaterThanOrEqual(shown);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('announces once for the whole row, after mount, and never per card', async () => {
+      const { storefront, revalidating } = refreshableSource();
+      const wrapper = mountBlock(mock, { storefront });
+      await flushPromises();
+      const region = () => wrapper.get('p.sr-only[role="status"]');
+
+      // Mounted and empty first: a live region that arrives already holding its message is
+      // announced unreliably, which is what a prerendered page would produce if the block read
+      // `revalidating` straight through instead of flipping it after mount.
+      expect(region().text()).toBe('');
+
+      revalidating.value = new Set(['stock']);
+      await flushPromises();
+
+      expect(region().text()).toBe(enUS.storefront.updatingValues);
+      expect(wrapper.findAll('p.sr-only[role="status"]')).toHaveLength(1);
+      // `announce: false` on every card — the per-value regions are gone, not merely empty.
+      expect(wrapper.findAll('[data-part="srStatus"]')).toHaveLength(0);
+      expect(
+        wrapper.findAllComponents(ProductCard).every((card) => card.props('announce') === false)
+      ).toBe(true);
+    });
+
+    /**
+     * The hydration case, and the reason `useRevalidating` exists
+     * (`app/composables/useRevalidating.ts`). A prerendered page's client-side storefront can
+     * already be revalidating by the time the block's first render runs, and that first render has
+     * to be byte-identical to the server's or Vue repaints the block — and a live region that
+     * arrives already holding its message is announced unreliably. Both are the same fix: the flag
+     * is false until after mount.
+     */
+    it('paints the server’s markup first, even when the storefront is already revalidating', async () => {
+      const { storefront, revalidating } = refreshableSource();
+      revalidating.value = new Set(['price', 'stock']);
+
+      const wrapper = mountBlock(mock, { storefront });
+
+      expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
+      expect(wrapper.get('p.sr-only[role="status"]').text()).toBe('');
+
+      await flushPromises();
+
+      expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+      expect(wrapper.get('p.sr-only[role="status"]').text()).toBe(enUS.storefront.updatingValues);
+    });
+
+    it('never draws a skeleton over cards the visitor can already see', async () => {
+      const { storefront, pending, loading } = refreshableSource();
+      const wrapper = mountBlock(mock, { storefront });
+      await flushPromises();
+
+      // Both halves of the rule at once: a storefront that raised `pending` over data the row has
+      // must not blank it, and a reload keeps the cards and marks the row busy instead.
+      pending.value = true;
+      loading.value = true;
+      await flushPromises();
+
+      expect(wrapper.findAllComponents(Skeleton)).toHaveLength(0);
+      expect(wrapper.findAllComponents(ProductCard)).toHaveLength(4);
+      expect(wrapper.get('section').attributes('aria-busy')).toBe('true');
+      expect(
+        wrapper.findAllComponents(ProductCard).every((card) => card.props('revalidating') === true)
+      ).toBe(true);
     });
   });
 });
