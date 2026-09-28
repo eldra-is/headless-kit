@@ -463,8 +463,44 @@ a product. While that is in flight the keys being refreshed sit in `StorefrontRe
 and clears the set — a page never regresses to an error state for something it can already show.
 A result created _after_ hydration (a client navigation, a search as the shopper types) just loads
 live, as it always did, and the demo storefront never refreshes at all, so stories and specs are
-unaffected. The wiring lives in `app/plugins/eldra-storefront.ts` (Nuxt's half) and
-`app/storefront/refresh.ts`/`volatile.ts` (the framework-free half).
+unaffected. (The demo does answer _synchronously_ off a browser, so a server render of a block
+against it carries the fixture's real values rather than a skeleton — the same thing the gateway
+storefront does for the real site.) The wiring lives in `app/plugins/eldra-storefront.ts` (Nuxt's
+half) and `app/storefront/refresh.ts`/`volatile.ts` (the framework-free half).
+
+**What the visitor actually sees.** Nothing moves. The price and the stock line the page was built
+with stay exactly where they are, at their own size and wording; while the refresh is in flight they
+are drawn slightly dimmed with a small spinner beside them, and each is marked `aria-busy`
+(`@eldrajs/ui`'s `revalidating` state on `Price`, `StockBadge` and `ProductCard` — a state distinct
+from `loading`, which is the skeleton). When the live value equals the prerendered one — the
+ordinary case — nothing visibly changes at all; when it differs, the number is simply different a
+moment later. A refresh that fails changes nothing: the value stays and the spinner goes. There is
+no flash, no layout shift, and no state in which the page has less than it started with.
+
+Announcements follow the same "say it once" rule. A product page has one price and one stock line,
+so each announces its own refresh through a visually hidden live region. A grid or a carousel passes
+`announce: false` to every card and renders **one** polite region for the whole block instead
+("Updating prices and stock") — 24 refreshing cards would otherwise hold 48 regions all speaking at
+the same moment. Blocks flip the flag on only _after_ mount (`app/composables/useRevalidating.ts`):
+the server renders with nothing refreshing, so the browser's first render has to match it, and a
+live region that arrives already holding its message is announced unreliably.
+
+**Skeletons are for pages with nothing, never for pages with something.** A block draws its skeleton
+only while `pending && data === null` — the genuine first load. A read over results the visitor can
+already see (a filter, a sort, a page, a different product) keeps those results on screen under the
+same dimmed-value + spinner treatment, with `aria-busy` on the block; an error over them keeps them
+too, and "We couldn't load this right now." is reserved for a page that has nothing to show. The one
+new state this adds is the honest opposite: a read that answers `null` without failing — a link to a
+product the catalogue no longer has — says so (`storefront.notFound`) instead of rendering nothing.
+
+**You do not rebuild the site to make a price correct.** Two mechanisms cover the gap from opposite
+ends. The refresh above covers the minutes after a visitor loads a page. Underneath it, a change to
+a variant's price or compare-at price, or a product's availability flipping, enqueues a site rebuild
+by itself — **coalesced**, at most one per site per window (5 minutes by default, a site setting),
+so a merchant repricing forty products causes one rebuild rather than forty. Stock _quantity_
+changes never rebuild; they are live-only, which is exactly what the volatile refresh is for. The
+prerendered HTML is therefore never more than one window behind, and what a visitor is looking at is
+never more than one page load behind.
 
 **Money is major units, everywhere in the storefront layer** — a price of `28` is twenty-eight
 dollars, because that is what the catalog sends. `app/storefront/money.ts` is the only place that
