@@ -1,3 +1,5 @@
+import { isRecord } from './util';
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MEDIA_VALUE_KEYS = new Set(['assetId', 'framing']);
 
@@ -105,8 +107,4 @@ function checkMediaValue(
       format(path, 'media values must be {assetId: uuid} — use preview.json for demo imagery')
     );
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

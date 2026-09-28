@@ -12,6 +12,7 @@ import { blockJsonSchema } from './blockSchema';
 import { migrationChecks, validMigrationFieldShape } from './migrations';
 import { checkSeedMedia } from './seedData';
 import { validateTemplateSeeds } from './templates';
+import { codePointLength, isRecord, stripPlainTextControls } from './util';
 import type {
   BlockDefinition,
   ManifestRoute,
@@ -249,14 +250,6 @@ function validCustomPagePath(value: unknown): value is string {
     !/[:?#*\\]/.test(value) &&
     (value === '/' || !value.endsWith('/'))
   );
-}
-
-function stripPlainTextControls(value: unknown): string {
-  return typeof value === 'string' ? value.replace(/[\p{Cc}\p{Cf}]/gu, '') : '';
-}
-
-function codePointLength(value: string): number {
-  return Array.from(value).length;
 }
 
 function directoryNames(blocksDir: string, errors: string[]): string[] {
@@ -654,10 +647,6 @@ function sanitizeThemeName(name: string): string {
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 49);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Whether a `relation` names something an editor can actually pick: at least

@@ -13,7 +13,8 @@ Release-please writes the generated notes from commit messages and does not repl
   media value must be `{assetId: uuid}` or absent (`templates[0].blocks[1].data — image: media
   values must be {assetId: uuid} — use preview.json for demo imagery`). Every block `apiId` must
   be one the theme ships, ids are unique and shaped `^[a-z][a-z0-9-]{0,47}$`, and route patterns
-  do not repeat. A seed without a `layout` gets one column of its blocks in order, framed by a
+  do not repeat. The pattern has to agree with what the seed is a template for: `home` owns `/`,
+  and a catalog seed needs a static prefix plus the one `:slug` parameter it is resolved by. A seed without a `layout` gets one column of its blocks in order, framed by a
   header and a footer node that name a *role* rather than a component id (the site's own reusable
   components are resolved on deploy); `header: false` / `footer: false` leave the role out. Those
   two switches steer the generated layout and are never written to the manifest. The key is

@@ -146,11 +146,67 @@ describe('validateTemplateSeeds', () => {
 
     expect(errors).toEqual([
       'templates[0].schemaApiId — must be "catalog:product", "catalog:collection" or "home"',
-      'templates[1].routePattern — invalid route pattern',
+      'templates[1].routePattern — a catalog template needs a static prefix and one ":slug" parameter (got "products/:slug")',
       'templates[2].routePattern — duplicate pattern "/products/:slug"',
       'templates[3].title — must contain 1..80 characters',
       'templates[3].routePattern — duplicate pattern "/products/:slug"',
     ]);
+  });
+
+  it('holds the home seed to the site root', () => {
+    const home = (routePattern: string): DeclaredTemplateSeed => ({
+      ...heroSeed(),
+      routePattern,
+      schemaApiId: 'home',
+      title: 'Home',
+    });
+
+    expect(validate([home('/')]).errors).toEqual([]);
+    expect(validate([home('/home')]).errors).toEqual([
+      'templates[0].routePattern — the home seed must be "/" (got "/home")',
+    ]);
+  });
+
+  it('holds a catalog seed to one ":slug" parameter', () => {
+    const catalog = (routePattern: string): DeclaredTemplateSeed => ({
+      ...heroSeed(),
+      routePattern,
+      schemaApiId: 'catalog:collection',
+    });
+
+    expect(validate([catalog('/collections/:slug')]).errors).toEqual([]);
+    expect(validate([catalog('/collections/:handle')]).errors).toEqual([
+      'templates[0].routePattern — a catalog template is resolved by slug, so its parameter must be ":slug" (got ":handle")',
+    ]);
+    expect(validate([catalog('/collections')]).errors).toEqual([
+      'templates[0].routePattern — a catalog template needs a static prefix and one ":slug" parameter (got "/collections")',
+    ]);
+    expect(validate([catalog('/')]).errors).toEqual([
+      'templates[0].routePattern — a catalog template needs a static prefix and one ":slug" parameter (got "/")',
+    ]);
+  });
+
+  it('names the index of a seed or a seed block that is not an object', () => {
+    const seed = heroSeed();
+    seed.blocks = [
+      null,
+      { id: 'hero-1', apiId: 'hero', data: { heading: 'Hi' } },
+    ] as unknown as DeclaredTemplateSeed['blocks'];
+    const { errors } = validate([null as unknown as DeclaredTemplateSeed, seed]);
+
+    expect(errors).toEqual([
+      'templates[0] — must be an object',
+      'templates[1].blocks[0] — must be an object',
+    ]);
+  });
+
+  it('errors on seed block data that is not an object', () => {
+    const seed = heroSeed();
+    seed.blocks = [
+      { id: 'hero-1', apiId: 'hero', data: 'Buy this' },
+    ] as unknown as DeclaredTemplateSeed['blocks'];
+
+    expect(validate([seed]).errors).toEqual(['templates[0].blocks[0].data — must be an object']);
   });
 
   it('errors on a seed with no blocks', () => {
@@ -234,6 +290,36 @@ describe('validateTemplateSeeds', () => {
       'templates[0].layout.root.children[1].entryId — no seed block with id "nope"',
       'templates[0].layout.root.children[2].id — duplicate node id "ghost"',
       'templates[0].layout.root.children[2].role — must be "header" or "footer"',
+    ]);
+  });
+
+  it('errors on a layout version other than 1', () => {
+    const seed = heroSeed();
+    seed.layout = { version: 2, root: {} } as unknown as DeclaredTemplateSeed['layout'];
+
+    expect(validate([seed]).errors).toEqual(['templates[0].layout.version — must be 1']);
+  });
+
+  it('errors on a duplicate role and on a child that is neither a reusable nor a block node', () => {
+    const seed = heroSeed();
+    seed.layout = {
+      version: 1,
+      root: {
+        id: 'root',
+        type: 'flex',
+        layout: { direction: { normal: 'column' } },
+        children: [
+          { id: 'top', type: 'reusable', role: 'header' },
+          { id: 'hero-node', type: 'block', entryId: 'hero-1' },
+          { id: 'second-header', type: 'reusable', role: 'header' },
+          { id: 'column', type: 'flex', children: [] },
+        ],
+      },
+    } as unknown as DeclaredTemplateSeed['layout'];
+
+    expect(validate([seed]).errors).toEqual([
+      'templates[0].layout.root.children[2].role — duplicate role "header"',
+      'templates[0].layout.root.children[3].type — must be "reusable" or "block" (got "flex")',
     ]);
   });
 

@@ -1,3 +1,4 @@
+import { parseDynamicRoutePattern } from '@eldrajs/theme-core';
 import { checkSeedMedia } from './seedData';
 import type {
   DeclaredTemplateSeed,
@@ -6,11 +7,13 @@ import type {
   TemplateSeedLayout,
   TemplateSeedLayoutNode,
 } from './types';
+import { codePointLength, isRecord, stripPlainTextControls } from './util';
 
 const MAX_TEMPLATES = 8;
 const MAX_TEMPLATE_BLOCKS = 50;
 const MAX_TITLE_LENGTH = 80;
-const MAX_ROUTE_PATTERN_BYTES = 255;
+const HOME_ROUTE_PATTERN = '/';
+const CATALOG_SLUG_PARAM = 'slug';
 /** The same id shape layout nodes take everywhere else in the kit. */
 const NODE_ID_PATTERN = /^[a-z][a-z0-9-]{0,47}$/;
 const SCHEMA_API_IDS = new Set(['catalog:product', 'catalog:collection', 'home']);
@@ -29,7 +32,7 @@ export function seedLayout(seed: DeclaredTemplateSeed): TemplateSeedLayout {
   if (seed.header !== false) {
     children.push({ id: ROLE_NODE_IDS.header, type: 'reusable', role: 'header' });
   }
-  for (const block of seed.blocks) {
+  for (const block of Array.isArray(seed.blocks) ? seed.blocks : []) {
     children.push({ id: block.id, type: 'block', entryId: block.id });
   }
   if (seed.footer !== false) {
@@ -52,6 +55,10 @@ export function validateTemplateSeeds(
   blocks: ReadonlyArray<Record<string, unknown>>,
   errors: string[]
 ): ManifestTemplateSeed[] {
+  if (!Array.isArray(seeds)) {
+    errors.push('templates — must be an array');
+    return [];
+  }
   if (seeds.length > MAX_TEMPLATES) {
     errors.push(`templates: contains ${seeds.length} templates — exceeds ${MAX_TEMPLATES}`);
   }
@@ -66,18 +73,27 @@ export function validateTemplateSeeds(
 
   const normalized: ManifestTemplateSeed[] = [];
   const patterns = new Set<string>();
-  for (const [index, seed] of seeds.slice(0, MAX_TEMPLATES).entries()) {
+  for (const [index, entry] of seeds.slice(0, MAX_TEMPLATES).entries()) {
     const at = `templates[${index}]`;
+    // A theme's options are plain JS: a stray null or a string in the array
+    // must read as a validation error against its own index, never as a crash
+    // deep inside the scan. Past this guard the declared type is assumed
+    // again — every field it promises is validated below.
+    if (!isRecord(entry)) {
+      errors.push(`${at} — must be an object`);
+      continue;
+    }
+    const seed = entry as unknown as DeclaredTemplateSeed;
     if (!SCHEMA_API_IDS.has(seed.schemaApiId)) {
       errors.push(`${at}.schemaApiId — must be "catalog:product", "catalog:collection" or "home"`);
+    } else {
+      checkRoutePattern(at, seed, errors);
     }
     const title = stripPlainTextControls(seed.title).trim();
     if (codePointLength(title) < 1 || codePointLength(title) > MAX_TITLE_LENGTH) {
       errors.push(`${at}.title — must contain 1..${MAX_TITLE_LENGTH} characters`);
     }
-    if (!validRoutePattern(seed.routePattern)) {
-      errors.push(`${at}.routePattern — invalid route pattern`);
-    } else if (patterns.has(seed.routePattern)) {
+    if (patterns.has(seed.routePattern)) {
       errors.push(`${at}.routePattern — duplicate pattern ${JSON.stringify(seed.routePattern)}`);
     }
     patterns.add(seed.routePattern);
@@ -88,8 +104,13 @@ export function validateTemplateSeeds(
     }
     const seedBlockIds = new Set<string>();
     const normalizedBlocks: ManifestTemplateSeedBlock[] = [];
-    for (const [blockIndex, block] of seedBlocks.slice(0, MAX_TEMPLATE_BLOCKS).entries()) {
+    for (const [blockIndex, blockEntry] of seedBlocks.slice(0, MAX_TEMPLATE_BLOCKS).entries()) {
       const blockAt = `${at}.blocks[${blockIndex}]`;
+      if (!isRecord(blockEntry)) {
+        errors.push(`${blockAt} — must be an object`);
+        continue;
+      }
+      const block = blockEntry as ManifestTemplateSeedBlock;
       const id = typeof block.id === 'string' ? block.id : '';
       if (!NODE_ID_PATTERN.test(id)) {
         errors.push(
@@ -236,29 +257,32 @@ function checkedLayout(
   };
 }
 
-/** A route pattern Core can parse: absolute, single-segment separators, and
- * free of the characters a static path may never carry. `:param` segments stay
- * legal — that is how a catalog template names its slug. */
-function validRoutePattern(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value !== '' &&
-    new TextEncoder().encode(value).byteLength <= MAX_ROUTE_PATTERN_BYTES &&
-    value.startsWith('/') &&
-    !value.includes('//') &&
-    !/[?#*\\\s]/.test(value) &&
-    (value === '/' || !value.endsWith('/'))
-  );
-}
-
-function stripPlainTextControls(value: unknown): string {
-  return typeof value === 'string' ? value.replace(/[\p{Cc}\p{Cf}]/gu, '') : '';
-}
-
-function codePointLength(value: string): number {
-  return Array.from(value).length;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+/**
+ * A seed's pattern has to agree with what it is a template for: the home seed
+ * owns the site root, and a catalog template is resolved by looking its slug up
+ * in the catalog, so its pattern must end in the `:slug` parameter Core reads.
+ * The parse is Core's own (`parseDynamicRoutePattern`): a static prefix plus one
+ * trailing parameter, nothing else.
+ */
+function checkRoutePattern(at: string, seed: DeclaredTemplateSeed, errors: string[]): void {
+  if (seed.schemaApiId === 'home') {
+    if (seed.routePattern !== HOME_ROUTE_PATTERN) {
+      errors.push(
+        `${at}.routePattern — the home seed must be "${HOME_ROUTE_PATTERN}" (got ${JSON.stringify(seed.routePattern)})`
+      );
+    }
+    return;
+  }
+  const parsed = parseDynamicRoutePattern(seed.routePattern);
+  if (parsed === null) {
+    errors.push(
+      `${at}.routePattern — a catalog template needs a static prefix and one ":${CATALOG_SLUG_PARAM}" parameter (got ${JSON.stringify(seed.routePattern)})`
+    );
+    return;
+  }
+  if (parsed.paramName !== CATALOG_SLUG_PARAM) {
+    errors.push(
+      `${at}.routePattern — a catalog template is resolved by slug, so its parameter must be ":${CATALOG_SLUG_PARAM}" (got ":${parsed.paramName}")`
+    );
+  }
 }
