@@ -439,6 +439,27 @@ instead provide `createDemoStorefront` (`app/storefront/demo.ts`) — the hand-b
 fixture data every block spec, story and page fixture renders against, with no network at all.
 A block never knows which one it got.
 
+**Commerce data is prerendered, and only price and stock refresh afterwards.** On the real site a
+storefront result's first read runs inside a keyed `useAsyncData` (`storefront:<method>:<arguments>`),
+so `nuxi generate` waits for it: a product page's static HTML carries the real title, images,
+options, description, price and stock line, the values ride to the browser in the page payload, and
+hydration paints the same DOM without fetching anything again. `StorefrontResult.pending` therefore
+means _no data at all_ — never "a value is being replaced" — and a block must not draw a skeleton
+over a value it already has.
+
+What can have moved since the build is money and the stock line, so after the app mounts the page
+does exactly one batched read for every product it is showing
+(`catalog.volatileByIds` → `filter=id:in:…`, chunked at 50) and swaps only
+`price.amount`/`price.compareAt`/`available`/`stock` in; the product **detail** page refreshes
+through its own `catalog.product` read instead, because its `variantId` names a variant rather than
+a product. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
+(`'price' | 'stock'`) and the prerendered value stays on screen; a failed refresh keeps the value
+and clears the set — a page never regresses to an error state for something it can already show.
+A result created _after_ hydration (a client navigation, a search as the shopper types) just loads
+live, as it always did, and the demo storefront never refreshes at all, so stories and specs are
+unaffected. The wiring lives in `app/plugins/eldra-storefront.ts` (Nuxt's half) and
+`app/storefront/refresh.ts`/`volatile.ts` (the framework-free half).
+
 **Money is major units, everywhere in the storefront layer** — a price of `28` is twenty-eight
 dollars, because that is what the catalog sends. `app/storefront/money.ts` is the only place that
 converts anything: `formatMoney(amount, currency?, locale?)` for money inside a sentence (an "Add to

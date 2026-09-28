@@ -1,8 +1,18 @@
-import { defineNuxtPlugin, useRoute, useRouter, useRuntimeConfig } from 'nuxt/app';
-import { reactive, watchEffect } from 'vue';
+import { defineNuxtPlugin, useAsyncData, useRoute, useRouter, useRuntimeConfig } from 'nuxt/app';
+import { getCurrentInstance, nextTick, reactive, watchEffect } from 'vue';
 import { createEldraClient } from '@eldrajs/sdk';
-import { STOREFRONT_KEY, type StorefrontRoute } from '../storefront/types';
-import { createGatewayStorefront } from '../storefront/gateway';
+import {
+  STOREFRONT_KEY,
+  type StorefrontRoute,
+  type StorefrontSource,
+  type VolatileSnapshot,
+} from '../storefront/types';
+import {
+  createGatewayStorefront,
+  type StorefrontPrerenderHandle,
+  type StorefrontRuntime,
+} from '../storefront/gateway';
+import { createVolatileRefresher } from '../storefront/refresh';
 
 /**
  * The only file under `app/storefront/*`'s orbit that touches Nuxt globals (`useRoute`,
@@ -20,6 +30,22 @@ import { createGatewayStorefront } from '../storefront/gateway';
  * value: `catalog`, the `{ kind, slug }` a catalog-backed route template resolved for this path.
  * It shares Nuxt's `useAsyncData` cache key with `app/pages/[...slug].vue`'s own call, so the page
  * is still resolved once per route.
+ *
+ * It is also where the storefront's **prerender/refresh runtime** is implemented, for the same
+ * reason: both halves are Nuxt's, and `app/storefront/*` may not import Nuxt.
+ *
+ *   * `prerender` runs a result's first load through `useAsyncData` under a stable key, so
+ *     `nuxi generate` awaits it and writes the value into `_payload.json`, and the hydrating
+ *     browser reads it back out instead of fetching it again. A result created *after* hydration —
+ *     a client navigation, a search as the shopper types — gets `null` and loads live, which is
+ *     what it always did.
+ *   * `register` collects the page's results into one batched volatile refresh
+ *     (`app/storefront/refresh.ts`), fired a tick after the app mounts. Not on the server: a
+ *     prerender's values are the freshest there are at the moment it runs.
+ *
+ * The refresh is scheduled off the app's mount rather than off the plugin, because the commerce
+ * blocks are lazily imported components: their `setup()` — and therefore the result they create —
+ * can run well after the plugin has finished.
  *
  * `formsEndpoint`/`checkoutUrl` are this starter's own optional config — `runtimeConfig.public` is
  * read defensively (not through the module's typed `eldra` key) since a customer may not have
@@ -115,12 +141,68 @@ export default defineNuxtPlugin({
       orgId: publicConfig.eldra?.orgId || undefined,
     });
 
-    const source = createGatewayStorefront(client, {
+    let source: StorefrontSource | null = null;
+
+    // The blocks' results are created while the app hydrates; the app is mounted once they all
+    // are. `nextTick` after that gives every result registered in the same render a seat in the
+    // one batch — the point of collecting them at all.
+    let mounted = false;
+    const afterMount: Array<() => void> = [];
+    nuxtApp.hook('app:mounted', () => {
+      mounted = true;
+      for (const run of afterMount.splice(0)) run();
+    });
+
+    const refresher = createVolatileRefresher(
+      (ids: string[]): Promise<VolatileSnapshot[]> =>
+        source === null ? Promise.resolve([]) : source.catalog.volatileByIds(ids),
+      (run) => {
+        const schedule = (): void => void nextTick(run);
+        if (mounted) schedule();
+        else afterMount.push(schedule);
+      }
+    );
+
+    const runtime: StorefrontRuntime = {
+      prerender<T>(
+        key: string,
+        load: () => Promise<T | null>
+      ): StorefrontPrerenderHandle<T> | null {
+        // Nothing to prerender once the page is the browser's: this result is being created by a
+        // navigation, and `useAsyncData` outside a component's `setup()` has no server-prefetch to
+        // register on either.
+        if (import.meta.client && !nuxtApp.isHydrating) return null;
+        if (getCurrentInstance() === null) return null;
+        const asyncData = useAsyncData<T | null>(key, load, { default: () => null });
+        // `useAsyncData` re-describes its own data type (`PickFrom<T, KeysOf<T>>`, for its `pick`
+        // option), which says nothing this caller does not already know: the value is whatever the
+        // load returned. Read it back as that, once, rather than spreading the cast.
+        const value = (): T | null => (asyncData.data.value ?? null) as T | null;
+        return {
+          hydrated: value(),
+          settled: asyncData.then(() => ({
+            data: value(),
+            error: asyncDataError(asyncData.error.value),
+          })),
+        };
+      },
+      // Only the browser refreshes: on the server the read that just ran *is* the live value.
+      register: import.meta.client ? (entry) => refresher.register(entry) : undefined,
+    };
+
+    source = createGatewayStorefront(client, {
       route,
       formsEndpoint: publicConfig.formsEndpoint,
       checkoutUrl: publicConfig.checkoutUrl,
+      runtime,
     });
 
     nuxtApp.vueApp.provide(STOREFRONT_KEY, source);
   },
 });
+
+/** `useAsyncData`'s own error, as the one string a `StorefrontResult` carries. */
+function asyncDataError(caught: unknown): string | null {
+  if (caught === null || caught === undefined) return null;
+  return caught instanceof Error ? caught.message : String(caught);
+}

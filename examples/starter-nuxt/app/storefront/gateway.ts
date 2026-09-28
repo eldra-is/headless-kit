@@ -4,7 +4,8 @@ import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
-import { chunkIds } from './volatile';
+import { chunkIds, collectVolatileTargets } from './volatile';
+import type { VolatileRefreshEntry } from './refresh';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -482,23 +483,136 @@ function errorMessage(caught: unknown): string {
   return 'Something went wrong.';
 }
 
+/**
+ * The two abilities the app layer lends this file, because both of them are its framework's and
+ * this file has none: a keyed fetch the framework awaits while it renders the page, and the page's
+ * one volatile refresh after hydration. `app/plugins/eldra-storefront.ts` implements them over
+ * Nuxt's `useAsyncData` and `app:mounted`; a spec implements them in a dozen lines; Storybook and
+ * the demo storefront pass none at all and every result behaves exactly as it did before any of
+ * this existed.
+ */
+export interface StorefrontRuntime {
+  /**
+   * Runs a result's *first* load under `key`, so the value is awaited during SSR/prerender, rides
+   * to the browser in the page payload, and is read back out of it during hydration without the
+   * gateway being called a second time. `null` means "nothing prerendered behind this one" — a
+   * result created after hydration — and the result then loads the ordinary way.
+   */
+  prerender?<T>(key: string, load: () => Promise<T | null>): StorefrontPrerenderHandle<T> | null;
+  /** Takes the result into the page's one batched volatile refresh (`refresh.ts`). */
+  register?(entry: VolatileRefreshEntry): void;
+}
+
+export interface StorefrontPrerenderHandle<T> {
+  /**
+   * The payload's own copy, known *synchronously* — hydration must paint the prerendered DOM in
+   * its first render, and a value that arrives a microtask later is a value that arrives after
+   * Vue has already matched the server's HTML against an empty page. `null` when the load behind
+   * the key is still running (every SSR/prerender render).
+   */
+  hydrated: T | null;
+  /** Settles when the keyed load has finished; already settled for a hydrated value. */
+  settled: Promise<{ data: T | null; error: string | null }>;
+}
+
+/** How a result refreshes its volatile values after hydration — see `refresh.ts`. */
+type VolatileRefresh = 'batch' | ((current: unknown) => Promise<VolatileSnapshot[]>);
+
+interface GatewayResultOptions {
+  /** The method half of the async-data key: `catalog.product`, `search.run`, … */
+  method: string;
+  runtime: StorefrontRuntime | undefined;
+  /** Arguments that are not reactive sources but still name a different read (`related`'s limit). */
+  keyArgs?: readonly unknown[];
+  /** Omitted for a result that is not about products (a collection's own info, an order). */
+  volatile?: VolatileRefresh;
+}
+
+const NOTHING_REVALIDATING: ReadonlySet<VolatileKey> = new Set<VolatileKey>();
+
+/**
+ * `storefront:<method>:<stable JSON of args>` — the key the framework caches a result's first load
+ * under, and therefore the key its value travels to the browser in. Object keys are sorted so a
+ * grid's `{page, pageSize, sort}` does not mint a second key (and a second prerendered copy of the
+ * same read) because two call sites happened to spell it in a different order.
+ */
+function resultKey(method: string, args: readonly unknown[]): string {
+  return `storefront:${method}:${stableJson(args)}`;
+}
+
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, raw: unknown) => {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+    const record = raw as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(record).sort()) sorted[key] = record[key];
+    return sorted;
+  });
+}
+
 function createGatewayResult<T>(
   sources: Ref<unknown>[],
-  resolve: (signal: AbortSignal) => Promise<T | null>
+  resolve: (signal: AbortSignal) => Promise<T | null>,
+  options: GatewayResultOptions
 ): StorefrontResult<T> {
   const data = ref<T | null>(null) as Ref<T | null>;
   const pending = ref(true);
   const error = ref<string | null>(null);
-  // Empty for now, and empty is the honest answer: the batched volatile refresh that fills it is
-  // the storefront plugin's job, not this file's. The ref exists here so every result a block
-  // reads has the field from the start rather than growing it under the block later.
-  const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
+  // Written by the page's refresh (`refresh.ts`) through the entry registered below, and cleared
+  // by every load: a reload supersedes a refresh of the values it is replacing.
+  const revalidating = ref<ReadonlySet<VolatileKey>>(NOTHING_REVALIDATING);
+  // Bumped by every load. The refresh carries the value it saw and drops its answer if it has
+  // moved — see `VolatileRefreshEntry.token`.
+  let generation = 0;
+  let prerenderable = true;
 
   async function load(): Promise<void> {
-    const controller = new AbortController();
-    onWatcherCleanup(() => controller.abort());
-    pending.value = true;
+    generation += 1;
+    const mine = generation;
+    revalidating.value = NOTHING_REVALIDATING;
+    // `pending` means *no data at all*, never "a value is being replaced": a page that already
+    // shows a prerendered product must not flash a skeleton over it (`types.ts`'s prerender
+    // contract), and neither must a manual `refresh()`.
+    pending.value = data.value === null;
     error.value = null;
+
+    const first = prerenderable;
+    prerenderable = false;
+    const handle =
+      first && options.runtime?.prerender !== undefined
+        ? options.runtime.prerender<T>(
+            resultKey(options.method, [
+              ...sources.map((source) => source.value),
+              ...(options.keyArgs ?? []),
+            ]),
+            // The framework owns this read — it is keyed, deduplicated and awaited by the render
+            // itself — so it is deliberately given a controller nothing aborts. A watcher-scoped
+            // one cannot work here: Vue runs an `immediate` watcher once during SSR and then stops
+            // it on the spot (`doWatch`, `watchHandle()` under `isInSSRComponentSetup`), which
+            // fires every `onWatcherCleanup` before the load has answered. That abort is exactly
+            // how a prerendered page used to end up with the skeleton in its HTML. A newer load
+            // supersedes this one through `generation` below instead.
+            () => resolve(new AbortController().signal)
+          )
+        : null;
+
+    if (handle !== null) {
+      // Hydration: the payload's value, in this same synchronous turn, so the block's first render
+      // is the server's render.
+      if (handle.hydrated !== null) {
+        data.value = handle.hydrated;
+        pending.value = false;
+      }
+      const outcome = await handle.settled;
+      if (generation !== mine) return;
+      if (outcome.error === null) data.value = outcome.data;
+      else if (data.value === null) error.value = outcome.error;
+      pending.value = data.value === null;
+      return;
+    }
+
+    const controller = new AbortController();
+    onWatcherCleanup(() => controller.abort(), true);
     try {
       const result = await resolve(controller.signal);
       if (controller.signal.aborted) return;
@@ -507,11 +621,27 @@ function createGatewayResult<T>(
       if (controller.signal.aborted) return;
       error.value = errorMessage(caught);
     } finally {
-      if (!controller.signal.aborted) pending.value = false;
+      if (!controller.signal.aborted) pending.value = data.value === null;
     }
   }
 
   watch(sources, load, { immediate: true, deep: true });
+
+  const volatile = options.volatile;
+  if (volatile !== undefined && options.runtime?.register !== undefined) {
+    const entry: VolatileRefreshEntry = {
+      read: () => data.value,
+      write: (next) => {
+        data.value = next as T | null;
+      },
+      setRevalidating: (keys) => {
+        revalidating.value = keys;
+      },
+      token: () => generation,
+    };
+    if (volatile !== 'batch') entry.own = volatile;
+    options.runtime.register(entry);
+  }
 
   return { data, pending, error, revalidating, refresh: load };
 }
@@ -794,6 +924,37 @@ async function volatileSnapshots(
   });
 }
 
+/**
+ * The product detail page's own volatile refresh — the one result that cannot go through the
+ * batched read. `mapProductDetails` fills `variantId` from the product's first buyable *variant*,
+ * and the products list's `id:in:` filter matches *product* ids, so the detail product would ask
+ * the batch about an id it can never answer (P1's hand-off note). It re-reads its own product
+ * instead, which is also the read that knows the variant-level `inventory` the list has none of.
+ *
+ * The snapshot is keyed by the id the page is *showing*, not by the fresh read's own `variantId`:
+ * those differ exactly when the first buyable variant has changed — the moment the refresh exists
+ * for — and keying by the fresh one would answer about a product the page cannot find.
+ */
+async function detailSnapshots(
+  client: EldraClient,
+  handle: string | null,
+  current: unknown
+): Promise<VolatileSnapshot[]> {
+  const [id] = collectVolatileTargets(current);
+  if (handle === null || handle === '' || id === undefined) return [];
+  const raw = (await client.catalog.getProduct(handle, {})) as unknown as RawProductDetails;
+  const fresh = mapProductDetails(raw);
+  return [
+    {
+      id,
+      price: fresh.price,
+      available: fresh.available,
+      stock: fresh.stock,
+      inventory: fresh.inventory,
+    },
+  ];
+}
+
 // ---------------------------------------------------------------------------------------------
 // createGatewayStorefront
 // ---------------------------------------------------------------------------------------------
@@ -802,78 +963,106 @@ export interface GatewayStorefrontOptions {
   route: StorefrontRoute;
   formsEndpoint?: string;
   checkoutUrl?: string;
+  /**
+   * The app layer's prerender/refresh abilities. Omitted — Storybook, a spec that only wants a
+   * mapping — every result loads client-side the way it always did, and nothing refreshes.
+   */
+  runtime?: StorefrontRuntime;
 }
 
 export function createGatewayStorefront(
   client: EldraClient,
   options: GatewayStorefrontOptions
 ): StorefrontSource {
+  const runtime = options.runtime;
   const catalog: StorefrontCatalog = {
     product: (handle) =>
-      createGatewayResult([handle], async (signal) => {
-        if (!handle.value) return null;
-        const raw = (await client.catalog.getProduct(
-          handle.value,
-          {},
-          { signal }
-        )) as unknown as RawProductDetails;
-        return mapProductDetails(raw);
-      }),
+      createGatewayResult(
+        [handle],
+        async (signal) => {
+          if (!handle.value) return null;
+          const raw = (await client.catalog.getProduct(
+            handle.value,
+            {},
+            { signal }
+          )) as unknown as RawProductDetails;
+          return mapProductDetails(raw);
+        },
+        {
+          method: 'catalog.product',
+          runtime,
+          volatile: (current) => detailSnapshots(client, handle.value, current),
+        }
+      ),
     collection: (handle) =>
-      createGatewayResult([handle], async (signal) => {
-        if (!handle.value) return null;
-        const raw = (await client.catalog.getCollection(
-          handle.value,
-          {},
-          { signal }
-        )) as unknown as RawCollectionItem;
-        return mapCollectionItem(raw);
-      }),
+      createGatewayResult(
+        [handle],
+        async (signal) => {
+          if (!handle.value) return null;
+          const raw = (await client.catalog.getCollection(
+            handle.value,
+            {},
+            { signal }
+          )) as unknown as RawCollectionItem;
+          return mapCollectionItem(raw);
+        },
+        { method: 'catalog.collection', runtime }
+      ),
     collectionProducts: (collection, opts) =>
-      createGatewayResult([collection, opts], async (signal) => {
-        const slug = await resolveCollectionSlug(client, collection.value, signal);
-        if (slug === null) return null;
-        const { page, pageSize, sort } = opts.value;
-        // No `filter` token is built from `opts.filters`: the shopper's facets
-        // (`category`, `option:size`, `price`, `availability`) are not fields
-        // this endpoint filters on — it takes `id`, `slug`, `status` and
-        // `createdAt` — so every facet the block sent used to make the request
-        // a 400. They are dropped until the gateway grows a facet parameter,
-        // which is the same reason `facets` below is `[]`; the grid then shows
-        // the collection unfiltered rather than an error.
-        const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
-        const raw = (await client.catalog.listCollectionProducts(
-          slug,
-          {
-            page,
-            pageSize,
-            sort: gatewaySort === undefined ? undefined : [gatewaySort],
-          },
-          { signal }
-        )) as unknown as RawProductList;
-        // `dto_ProductListResult` — the contract type behind `GET
-        // /catalog/v1/collections/{slug}/products` (checked against
-        // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
-        // declares only `data`/`meta`. No facets/aggregations field exists on this response today,
-        // so there is nothing to map; `facets` stays `[]` until the gateway's contract adds one —
-        // documented here rather than left as a silent, unexplained empty array.
-        const facets: StorefrontFacet[] = [];
-        return { items: (raw.data ?? []).map(mapProductListItem), total: raw.meta.total, facets };
-      }),
+      createGatewayResult(
+        [collection, opts],
+        async (signal) => {
+          const slug = await resolveCollectionSlug(client, collection.value, signal);
+          if (slug === null) return null;
+          const { page, pageSize, sort } = opts.value;
+          // No `filter` token is built from `opts.filters`: the shopper's facets
+          // (`category`, `option:size`, `price`, `availability`) are not fields
+          // this endpoint filters on — it takes `id`, `slug`, `status` and
+          // `createdAt` — so every facet the block sent used to make the request
+          // a 400. They are dropped until the gateway grows a facet parameter,
+          // which is the same reason `facets` below is `[]`; the grid then shows
+          // the collection unfiltered rather than an error.
+          const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
+          const raw = (await client.catalog.listCollectionProducts(
+            slug,
+            {
+              page,
+              pageSize,
+              sort: gatewaySort === undefined ? undefined : [gatewaySort],
+            },
+            { signal }
+          )) as unknown as RawProductList;
+          // `dto_ProductListResult` — the contract type behind `GET
+          // /catalog/v1/collections/{slug}/products` (checked against
+          // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
+          // declares only `data`/`meta`. No facets/aggregations field exists on this response today,
+          // so there is nothing to map; `facets` stays `[]` until the gateway's contract adds one —
+          // documented here rather than left as a silent, unexplained empty array.
+          const facets: StorefrontFacet[] = [];
+          return { items: (raw.data ?? []).map(mapProductListItem), total: raw.meta.total, facets };
+        },
+        { method: 'catalog.collectionProducts', runtime, volatile: 'batch' }
+      ),
     related: (handle, limit) =>
-      createGatewayResult([handle], (signal) =>
-        relatedProducts(client, handle.value, limit, signal)
+      createGatewayResult(
+        [handle],
+        (signal) => relatedProducts(client, handle.value, limit, signal),
+        { method: 'catalog.related', runtime, keyArgs: [limit], volatile: 'batch' }
       ),
     byHandles: (handles) =>
-      createGatewayResult([handles], async (signal) => {
-        const filter = inFilter('slug', handles.value);
-        if (filter.length === 0) return [];
-        const raw = (await client.catalog.listProducts(
-          { pageSize: handles.value.length, filter: [...filter, STATUS_ACTIVE] },
-          { signal }
-        )) as unknown as RawProductList;
-        return (raw.data ?? []).map(mapProductListItem);
-      }),
+      createGatewayResult(
+        [handles],
+        async (signal) => {
+          const filter = inFilter('slug', handles.value);
+          if (filter.length === 0) return [];
+          const raw = (await client.catalog.listProducts(
+            { pageSize: handles.value.length, filter: [...filter, STATUS_ACTIVE] },
+            { signal }
+          )) as unknown as RawProductList;
+          return (raw.data ?? []).map(mapProductListItem);
+        },
+        { method: 'catalog.byHandles', runtime, volatile: 'batch' }
+      ),
     volatileByIds: (ids) => volatileSnapshots(client, ids),
     notifyBackInStock: (input) =>
       postToEndpoint(options.formsEndpoint, { kind: 'notifyBackInStock', ...input }),
@@ -881,32 +1070,40 @@ export function createGatewayStorefront(
 
   const search: StorefrontSearch = {
     run: (query) =>
-      createGatewayResult([query], async (signal) => {
-        if (!query.value)
-          return {
-            query: query.value,
-            total: 0,
-            products: [],
-            articles: [],
-            pages: [],
-            suggestion: null,
-          };
-        const raw = (await client.catalog.search(
-          query.value,
-          {},
-          { signal }
-        )) as unknown as RawSearchResponse;
-        return mapSearchResponse(raw, query.value);
-      }),
+      createGatewayResult(
+        [query],
+        async (signal) => {
+          if (!query.value)
+            return {
+              query: query.value,
+              total: 0,
+              products: [],
+              articles: [],
+              pages: [],
+              suggestion: null,
+            };
+          const raw = (await client.catalog.search(
+            query.value,
+            {},
+            { signal }
+          )) as unknown as RawSearchResponse;
+          return mapSearchResponse(raw, query.value);
+        },
+        { method: 'search.run', runtime }
+      ),
   };
 
   const orders: StorefrontOrders = {
     current: (token) =>
-      createGatewayResult([token], async (signal) => {
-        if (!token.value) return null;
-        const raw = (await client.orders.get(token.value, {}, { signal })) as unknown as RawOrder;
-        return mapOrder(raw);
-      }),
+      createGatewayResult(
+        [token],
+        async (signal) => {
+          if (!token.value) return null;
+          const raw = (await client.orders.get(token.value, {}, { signal })) as unknown as RawOrder;
+          return mapOrder(raw);
+        },
+        { method: 'orders.current', runtime }
+      ),
   };
 
   const forms: StorefrontForms = {

@@ -22,10 +22,14 @@ import { renderPageFixtureRegions, type PageFixture } from '../../stories/suppor
  * comments, so a spec must not even mention it in prose.
  */
 
-function applyProvides(app: ReturnType<typeof createSSRApp>): void {
+function applyProvides(
+  app: ReturnType<typeof createSSRApp>,
+  overrides: Record<symbol, unknown> = {}
+): void {
   const { global } = mountOptions({ entry: { id: '', data: {} } });
-  for (const key of Reflect.ownKeys(global.provide) as symbol[]) {
-    app.provide(key, global.provide[key]);
+  const provide = { ...global.provide, ...overrides };
+  for (const key of Reflect.ownKeys(provide) as symbol[]) {
+    app.provide(key, provide[key]);
   }
   // Blocks hand `app/components/EldraRouterLink.vue` to `@eldrajs/ui` for same-site destinations,
   // and that component's template writes the `<NuxtLink>` tag — a name only a registered component
@@ -33,13 +37,20 @@ function applyProvides(app: ReturnType<typeof createSSRApp>): void {
   app.component('NuxtLink', (global.components as { NuxtLink: Component }).NuxtLink);
 }
 
-/** Server-renders one block with its merged mock data, the way a real page renders it. */
+/**
+ * Server-renders one block with its merged mock data, the way a real page renders it.
+ *
+ * `provides` replaces individual injections for a spec that needs one of them to be something
+ * else — `STOREFRONT_KEY`, for the gateway storefront a prerender actually runs against
+ * (`test/prerenderCommerce.spec.ts`), rather than the demo catalogue every other spec wants.
+ */
 export async function renderBlockToString(
   component: Component,
-  entry: { id: string; data: Record<string, unknown> }
+  entry: { id: string; data: Record<string, unknown> },
+  provides: Record<symbol, unknown> = {}
 ): Promise<string> {
   const app = createSSRApp(defineComponent({ setup: () => () => h(component, { entry }) }));
-  applyProvides(app);
+  applyProvides(app, provides);
   return renderToString(app);
 }
 
