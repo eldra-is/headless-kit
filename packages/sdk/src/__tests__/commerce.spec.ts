@@ -162,6 +162,35 @@ describe('eldra sdk inventory and catalog extras', () => {
     expect(await bodyOf(requests[0])).toEqual({ items: [{ variantId: 'v', locationId: 'l' }] });
   });
 
+  /**
+   * `filter` is the one query parameter the gateway declares repeatable
+   * (`explode: true` on every list endpoint in
+   * `src/__tests__/fixtures/web-gateway.json`); `sort` and `fields` are
+   * `explode: false`. Comma-joining filter tokens ran them into one parameter —
+   * a token's own value may contain commas (`slug:in:a,b`) — and everything
+   * after the first token was silently dropped by the gateway.
+   */
+  it('repeats the filter parameter per token and keeps sort comma-separated', async () => {
+    const { client, requests } = recording({ data: [], meta: {} });
+
+    await client.catalog.listProducts({
+      filter: ['slug:in:merino-crew,stoneware-mug', 'status:eq:ACTIVE'],
+      sort: ['-createdAt', 'slug'],
+      fields: ['id', 'slug'],
+      pageSize: 2,
+    });
+
+    const url = new URL(requests[0].url);
+    expect(url.searchParams.getAll('filter')).toEqual([
+      'slug:in:merino-crew,stoneware-mug',
+      'status:eq:ACTIVE',
+    ]);
+    expect(url.searchParams.getAll('sort')).toEqual(['-createdAt,slug']);
+    expect(url.searchParams.getAll('fields')).toEqual(['id,slug']);
+    expect(requests[0].url).toContain('filter=slug%3Ain%3Amerino-crew%2Cstoneware-mug');
+    expect(requests[0].url).toContain('filter=status%3Aeq%3AACTIVE');
+  });
+
   it('normalises a null category list and searches with q', async () => {
     const { client, requests } = recording(null);
 

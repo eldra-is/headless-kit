@@ -616,15 +616,20 @@ async function postToEndpoint(
 
 /**
  * The gateway's list endpoints take repeatable `[groupIndex:]field:op:value`
- * filter tokens (`packages/sdk/src/__tests__/fixtures/web-gateway.json`, the
+ * filter tokens: that shape, and the fact that `filter` is repeatable while
+ * `sort`/`fields` are comma-separated, is what
+ * `packages/sdk/src/__tests__/fixtures/web-gateway.json` documents for the
  * `filter` parameter of `GET /catalog/v1/products/list` and
- * `/catalog/v1/collections`), and refuse — 400, not an empty list — a token
- * whose field is not one the endpoint filters on or whose operator it does not
- * know. Tokens sharing a `groupIndex` are OR'd; every other token is AND'd.
+ * `/catalog/v1/collections`. Tokens sharing a `groupIndex` are OR'd; every
+ * other token is AND'd. A token the gateway does not accept is a 400, not an
+ * empty list.
  *
- * Only a handful of fields are filterable on a storefront product list (`id`,
- * `slug`, `status`, `createdAt`), so every token this file builds is written
- * here, once, rather than at the call sites that used to hand-roll them.
+ * The fixture does **not** document which fields or operators are accepted.
+ * The set below (`id`, `slug`, `status`, `createdAt` on a storefront product
+ * list, and the `in` operator) is what the gateway accepted when this was
+ * written, verified against the deployed service rather than the contract — so
+ * every token this file builds is written here, once, where a 400 can be traced
+ * to it, rather than at the call sites that used to hand-roll them.
  */
 const STATUS_ACTIVE = 'status:eq:ACTIVE';
 

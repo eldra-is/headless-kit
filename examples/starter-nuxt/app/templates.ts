@@ -166,10 +166,10 @@ export function starterTemplates(): DeclaredTemplateSeed[] {
 }
 
 /**
- * One fixture block as a seed block: its data with the fixture's own
- * product/collection unpinned (catalog templates only — see
- * `ROUTE_PINNED_FIELDS`), then the media strip every seed goes through, plus
- * the template bindings its layout node carries.
+ * One fixture block as a seed block: its data with everything that names the
+ * fixture's own product or collection removed (catalog templates only — see
+ * `CATALOG_SEED_SHAPE` and `CATALOG_SEED_DROPPED_ITEMS`), then the media strip
+ * every seed goes through, plus the template bindings its layout node carries.
  */
 function seedBlock(block: PageFixtureBlock, catalogRoute: boolean): DeclaredTemplateSeedBlock {
   const data = { ...block.data };

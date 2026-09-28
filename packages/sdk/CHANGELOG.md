@@ -9,6 +9,13 @@ platform repository.
 
 ## Unreleased
 
+- Fix: the `filter` query parameter is now sent as one `filter=` entry per token instead of a
+  single comma-joined one. It is the one list parameter the gateway declares repeatable
+  (`explode: true`), and a filter token's own value may contain commas (`slug:in:a,b`), so joining
+  several tokens ran them together and every token after the first was lost — a request that
+  filtered on less than it was asked to, with no error. `sort`, `fields` and every other array
+  parameter are declared `explode: false` and stay comma-separated.
+
 - Restore `previewToken` on the SDK client and Vite generator after the move from
   `vue-ui-components`. Accepts a string or callback and sends `X-Preview-Token`; the generator
   forwards it to both type endpoints without embedding it in generated files.

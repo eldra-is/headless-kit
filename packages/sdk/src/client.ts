@@ -550,11 +550,29 @@ function buildUrl(apiBaseUrl: string, path: string, query: object | undefined): 
   return url.toString();
 }
 
+/**
+ * Query parameters the gateway declares as repeatable (`explode: true`): one
+ * `key=` entry per value, never a comma-joined one. `filter` is the only one
+ * today, and it has to be — a filter token is `[groupIndex:]field:op:value`
+ * whose value may itself contain commas (`slug:in:a,b`), so joining several
+ * tokens into one parameter runs them together and every token after the first
+ * is lost. Every other array parameter (`sort`, `fields`) is declared
+ * `explode: false` and stays comma-separated.
+ */
+const REPEATED_QUERY_KEYS: ReadonlySet<string> = new Set(['filter']);
+
 function appendQueryValue(searchParams: URLSearchParams, key: string, value: unknown): void {
   if (value === undefined || value === null || value === '') {
     return;
   }
   if (Array.isArray(value)) {
+    if (REPEATED_QUERY_KEYS.has(key)) {
+      for (const entry of value) {
+        if (entry === undefined || entry === null || entry === '') continue;
+        searchParams.append(key, String(entry));
+      }
+      return;
+    }
     searchParams.set(key, value.map(String).join(','));
     return;
   }

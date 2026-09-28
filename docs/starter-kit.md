@@ -420,23 +420,27 @@ bare handle, because a `reference` field stores the collection's id and may hand
 else. `createGatewayStorefront` asks for a slug directly and resolves an id through the collection
 list's `filter` query (`id:eq:<uuid>`, matched back against the returned row, so a gateway that
 ignores the token cannot load the wrong collection); `createDemoStorefront` resolves an id from its
-own fixture.
-
-**Every gateway filter is a `[groupIndex:]field:op:value` token**, against one of the few fields a
-storefront list actually filters on (`id`, `slug`, `status`, `createdAt`) — a token that is neither
-is a 400, not an empty list, so the tokens this theme builds live in one place in
-`app/storefront/gateway.ts`. `byHandles` asks for its whole set in one `slug:in:a,b` token (bare
-tokens are AND'd, so one `eq` per handle would match nothing); `related` has no relatedness
-endpoint to call, so it reads the current product and lists the same `categoryId` (the documented
-query parameter on `GET /catalog/v1/products/list`), the product itself excluded, falling back to
-the newest active products when it has no category or the category holds nothing else. The
-collection grid's facet filters reach no `filter` token at all — `category`, `option:*`, `price`
-and `availability` are not fields that endpoint filters on — for the same reason its `facets` come
-back `[]`, and its sort ids map to the sort fields the endpoint knows (`featured` and
-`best-selling` to none: `featured` _is_ the collection's own order, and the contract exposes no
-sales figures). The demo source still answers all of it in full. Either way an id nothing matches resolves to `null`, never an error: the block shows
+own fixture. Either way an id nothing matches resolves to `null`, never an error: the block shows
 its empty state, plus an editor-only "Publish to load products" hint
 (`storefront.unresolvedCollection*`) explaining why.
+
+**Every gateway filter is a `[groupIndex:]field:op:value` token** — the shape the SDK's contract
+fixture documents for the `filter` parameter — against one of the few fields a storefront list
+actually filters on (`id`, `slug`, `status`, `createdAt`; the fixture documents the token shape, not
+the field or operator set, so treat this list as what the gateway accepted when it was written and
+check a 400 against it). A token the gateway does not accept is a 400, not an empty list, so the
+tokens this theme builds live in one place in `app/storefront/gateway.ts`. `byHandles` asks for its
+whole set in one `slug:in:a,b` token (bare tokens are AND'd, so one `eq` per handle would match
+nothing), and `filter` is the one query parameter the gateway declares repeatable
+(`explode: true`) — `@eldrajs/sdk` sends one `filter=` per token for it and keeps `sort`/`fields`
+comma-separated. `related` has no relatedness endpoint to call, so it reads the current product and
+lists the same `categoryId` (the documented query parameter on `GET /catalog/v1/products/list`), the
+product itself excluded, falling back to the newest active products when it has no category or the
+category holds nothing else. The collection grid's facet filters reach no `filter` token at all —
+`category`, `option:*`, `price` and `availability` are not fields that endpoint filters on — for the
+same reason its `facets` come back `[]`, and its sort ids map to the sort fields the endpoint knows
+(`featured` and `best-selling` to none: `featured` _is_ the collection's own order, and the contract
+exposes no sales figures). The demo source still answers all of it in full.
 
 `forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
 back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts

@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { describe, expect, it } from 'vitest';
-import type { EldraClient } from '@eldrajs/sdk';
+import { createEldraClient, type EldraClient, type EldraHttpRequest } from '@eldrajs/sdk';
 import { createGatewayStorefront } from '../../app/storefront/gateway';
 import type { StorefrontCollectionSelector, StorefrontRoute } from '../../app/storefront/types';
 
@@ -246,10 +246,11 @@ describe('createGatewayStorefront', () => {
   });
 
   /**
-   * Every token below is `[groupIndex:]field:op:value` against a field the
-   * endpoint filters on — the grammar and the field set the SDK's contract
-   * fixture documents. The two the theme used to send (`slug:a,b` and
-   * `relatedTo:<handle>`) were neither, and the gateway answered 400.
+   * Every token below is `[groupIndex:]field:op:value` — the shape the SDK's
+   * contract fixture documents — against a field the deployed gateway filters
+   * on (the fixture documents the shape only, not the field or operator set).
+   * The two the theme used to send (`slug:a,b` and `relatedTo:<handle>`) were
+   * neither, and the gateway answered 400.
    */
   it('byHandles asks for the whole set in one `in` token, and only for active products', async () => {
     const calls = recordingClient([], {
@@ -284,6 +285,35 @@ describe('createGatewayStorefront', () => {
     await settle();
     expect(empty.productListQueries).toEqual([]);
     expect(result.data.value).toEqual([]);
+  });
+
+  /**
+   * The tests above assert the query object the theme builds; this one asserts
+   * the URL the SDK turns it into, because that is where the tokens were being
+   * lost: `filter` is the gateway's one repeatable parameter, and a
+   * comma-joined `filter=a,b` ran two tokens into one that the gateway then
+   * read as a single, malformed filter.
+   */
+  it('reaches the gateway as one filter parameter per token', async () => {
+    const urls: string[] = [];
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+      httpClient: (async (request: EldraHttpRequest) => {
+        urls.push(request.url);
+        return { data: [], meta: { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 } };
+      }) as never,
+    });
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    storefront.catalog.byHandles(ref(['merino-crew-sweater', 'stoneware-mug']));
+    await settle();
+
+    expect(urls).toHaveLength(1);
+    expect(new URL(urls[0]!).searchParams.getAll('filter')).toEqual([
+      'slug:in:merino-crew-sweater,stoneware-mug',
+      'status:eq:ACTIVE',
+    ]);
+    expect(urls[0]!.match(/filter=/g)).toHaveLength(2);
   });
 
   it('related asks for the current product’s category and leaves the product itself out', async () => {
