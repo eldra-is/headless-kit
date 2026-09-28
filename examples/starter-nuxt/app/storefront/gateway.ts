@@ -505,13 +505,22 @@ export interface StorefrontRuntime {
 
 export interface StorefrontPrerenderHandle<T> {
   /**
-   * The payload's own copy, known *synchronously* — hydration must paint the prerendered DOM in
-   * its first render, and a value that arrives a microtask later is a value that arrives after
-   * Vue has already matched the server's HTML against an empty page. `null` when the load behind
-   * the key is still running (every SSR/prerender render).
+   * The framework's **settled answer**, known *synchronously* — the hydration payload's own copy.
+   * Hydration must paint the prerendered DOM in its first render, and a value that arrives a
+   * microtask later arrives after Vue has already matched the server's HTML against an empty page.
+   *
+   * It is a box rather than the value itself because `null` is an answer: a payload that carries
+   * `null` for this key is a read that ran on the server and found nothing — a discontinued
+   * product, a collection reference that no longer resolves — and the server painted its
+   * "no longer available" line with nothing pending. `{ data: null }` says that; a bare `null`
+   * could not be told apart from "no answer yet", which made the browser's first paint the
+   * *loading* line over the server's not-found line.
+   *
+   * `null` therefore means exactly one thing: the load behind the key is still running (every
+   * SSR/prerender render, and a hydrating client whose payload has no value for this key).
    */
-  hydrated: T | null;
-  /** Settles when the keyed load has finished; already settled for a hydrated value. */
+  answered: { data: T | null } | null;
+  /** Settles when the keyed load has finished; already settled for an answered handle. */
   settled: Promise<{ data: T | null; error: string | null }>;
 }
 
@@ -610,11 +619,14 @@ function createGatewayResult<T>(
         : null;
 
     if (handle !== null) {
-      // Hydration: the payload's value, in this same synchronous turn, so the block's first render
-      // is the server's render.
-      if (handle.hydrated !== null) {
-        data.value = handle.hydrated;
+      // Hydration: the payload's answer, in this same synchronous turn, so the block's first render
+      // is the server's render — including an answer of `null`, which leaves this result settled
+      // and empty exactly as the server left it (nothing pending, nothing in flight) rather than
+      // loading over a page that already says the product is gone.
+      if (handle.answered !== null) {
+        data.value = handle.answered.data;
         pending.value = false;
+        loading.value = false;
       }
       const outcome = await handle.settled;
       if (!isCurrent(mine)) return;

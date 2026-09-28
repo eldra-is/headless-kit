@@ -59,7 +59,7 @@ function serverRuntime(payload: Record<string, unknown>): StorefrontRuntime {
         (caught: unknown) => ({ data: null, error: (caught as Error).message })
       );
       onServerPrefetch(() => settled);
-      return { hydrated: null, settled };
+      return { answered: null, settled };
     },
   };
 }

@@ -138,7 +138,12 @@ function asyncDataStub(payload: Record<string, unknown> = {}) {
       keys.push(key);
       if (key in payload) {
         const value = payload[key] as T | null;
-        return { hydrated: value, settled: Promise.resolve({ data: value, error: null }) };
+        // Boxed: a payload that carries `null` is a read that answered "nothing", not one still
+        // running, and that is the whole difference the result's first render turns on.
+        return {
+          answered: { data: value },
+          settled: Promise.resolve({ data: value, error: null }),
+        };
       }
       const settled = load().then(
         (data) => {
@@ -148,7 +153,7 @@ function asyncDataStub(payload: Record<string, unknown> = {}) {
         (caught: unknown) => ({ data: null, error: (caught as Error).message })
       );
       inFlight.push(settled);
-      return { hydrated: null, settled };
+      return { answered: null, settled };
     },
   };
 }
@@ -639,6 +644,37 @@ describe('gateway storefront — prerendering through Nuxt’s keyed async data'
     expect(calls.detailReads).toBe(1);
     expect(first.data.value?.title).toBe('Merino crew sweater');
     expect(second.data.value?.title).toBe('Merino crew sweater');
+  });
+
+  /**
+   * The state a prerendered page for a discontinued product hydrates into. The server's read
+   * answered `null` and the page says so; the browser must start from that same answer, not from
+   * "still loading" — the block's not-found line and its loading line are different markup, and Vue
+   * would report the mismatch and repaint.
+   */
+  it('hydrates a payload’s settled empty answer as answered, not as pending', async () => {
+    const stub = nuxtAsyncDataStub({ 'storefront:catalog.product:["gone-for-good"]': null });
+    const calls = fakeClient();
+    const { storefront } = wire(calls.client, (key, load) =>
+      prerenderThroughAsyncData(stub.asyncData, key, load)
+    );
+
+    const result = storefront.catalog.product(ref('gone-for-good'));
+
+    // Synchronously, before any tick: settled, empty, and nothing in flight.
+    expect(result.data.value).toBeNull();
+    expect(result.pending.value).toBe(false);
+    expect(result.loading.value).toBe(false);
+
+    stub.flushBeforeMount();
+    await settle();
+
+    expect(stub.handlerCalls()).toBe(0);
+    expect(calls.detailReads).toBe(0);
+    expect(result.data.value).toBeNull();
+    expect(result.pending.value).toBe(false);
+    expect(result.loading.value).toBe(false);
+    expect(result.error.value).toBeNull();
   });
 
   it('takes the payload’s value and runs nothing at all', async () => {

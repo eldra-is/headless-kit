@@ -14,8 +14,9 @@
 // repaint on arrival. `app/composables/useRevalidating.ts` is the fix — every flag it returns is
 // false until `onMounted`, which never runs on the server and runs after the first client render.
 import { describe, expect, it, afterEach } from 'vitest';
-import { nextTick, ref, type Ref } from 'vue';
+import { nextTick, onServerPrefetch, ref, type Ref } from 'vue';
 import type { Component } from 'vue';
+import type { EldraClient } from '@eldrajs/sdk';
 import ProductDetail from '../../blocks/product-detail/Block.vue';
 import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
@@ -23,8 +24,14 @@ import productCarouselMock from '../../blocks/product-carousel/mock.json';
 import CollectionGrid from '../../blocks/collection-grid/Block.vue';
 import collectionGridMock from '../../blocks/collection-grid/mock.json';
 import { createDemoStorefront } from '../../app/storefront/demo';
+import { createGatewayStorefront, type StorefrontRuntime } from '../../app/storefront/gateway';
 import { STOREFRONT_KEY } from '../../app/storefront/types';
-import type { StorefrontResult, StorefrontSource, VolatileKey } from '../../app/storefront/types';
+import type {
+  StorefrontResult,
+  StorefrontRoute,
+  StorefrontSource,
+  VolatileKey,
+} from '../../app/storefront/types';
 import { enUS } from '../../app/i18n/en-US';
 import {
   hydrateBlock,
@@ -140,6 +147,49 @@ function withoutPackageEnhancement(html: string): string {
   return html.replace(CAROUSEL_ENHANCEMENT, '');
 }
 
+/** A route with a product handle on it, the way the slug page fills one in. */
+function routeFor(handle: string): StorefrontRoute {
+  return {
+    productHandle: handle,
+    collectionHandle: null,
+    orderToken: null,
+    query: null,
+    page: 1,
+    sort: null,
+    columns: null,
+    filters: {},
+    setQuery: () => {},
+  };
+}
+
+/**
+ * The **real** gateway storefront on both sides of a prerendered not-found page, with the storefront
+ * runtime standing in for the framework's keyed async data at the one boundary that differs between
+ * the two renders (`StorefrontPrerenderHandle`):
+ *
+ *   * the server's read ran and answered nothing — no value in hand yet, the render waits for it
+ *     (`onServerPrefetch`, which is what `useAsyncData` registers);
+ *   * the browser reads that same answer back out of the page payload, where it is a settled
+ *     `null` — `{ data: null }`, not "no answer yet".
+ *
+ * Every state the block then branches on is `createGatewayResult`'s own.
+ */
+function gatewayStorefront(handle: string, half: 'server' | 'client'): StorefrontSource {
+  const settled = Promise.resolve({ data: null, error: null });
+  const runtime: StorefrontRuntime = {
+    prerender: () => {
+      if (half === 'server') {
+        onServerPrefetch(() => settled);
+        return { answered: null, settled };
+      }
+      return { answered: { data: null }, settled };
+    },
+  };
+  // Never called: the read is answered by the runtime on both sides, which is the point.
+  const client = { catalog: {}, checkout: { handoffUrl: () => '' } } as unknown as EldraClient;
+  return createGatewayStorefront(client, { route: routeFor(handle), runtime });
+}
+
 describe('hydrating a prerendered commerce block', () => {
   /**
    * The general rule, and the regression guard the review asked for: server render and first client
@@ -249,5 +299,34 @@ describe('hydrating a prerendered commerce block', () => {
 
     await nextTick();
     expect(run.container.innerHTML).toContain('eldra-revalidating');
+  });
+  /**
+   * A prerendered page outlives its catalogue, so a read that answers *nothing* is a real
+   * prerendered state: the server writes "this product is no longer available" with nothing
+   * pending. The browser has to start from that same answer. It did not — the payload's `null` was
+   * indistinguishable from "no answer yet", so the hydrating result stayed `pending` and the first
+   * client paint was the loading line over the server's not-found line.
+   */
+  it('product-detail hydrates a prerendered not-found page as not found, not as loading', async () => {
+    const entry: BlockEntry = {
+      id: 'h-gone',
+      data: { ...(productDetailMock as unknown as Record<string, unknown>), productHandle: '' },
+    };
+
+    const html = await renderBlockHtml(ProductDetail, entry, {
+      [STOREFRONT_KEY]: gatewayStorefront('gone-for-good', 'server'),
+    });
+    expect(html).toContain(enUS.storefront.notFound);
+    expect(html).not.toContain(enUS.storefront.loading);
+
+    const run = hydrateBlock(ProductDetail, entry, html, {
+      [STOREFRONT_KEY]: gatewayStorefront('gone-for-good', 'client'),
+    });
+    runs.push(run);
+
+    expect(hydrationWarnings(run)).toEqual([]);
+    expect(run.firstPaint).toContain(enUS.storefront.notFound);
+    expect(run.firstPaint).not.toContain(enUS.storefront.loading);
+    expect(withoutPackageEnhancement(run.firstPaint)).toBe(withoutPackageEnhancement(run.expected));
   });
 });

@@ -49,8 +49,16 @@ export function prerenderThroughAsyncData<T>(
   load: () => Promise<T | null>
 ): StorefrontPrerenderHandle<T> {
   const handle = asyncData<T>(key, load, { dedupe: 'defer' });
+  // A value in hand before anything has run is the hydration payload's, and Nuxt has already called
+  // the key `success` for it (`asyncData.js`, the short-circuit branch). `null` counts: it is the
+  // answer the server rendered from, not the absence of one, and the status confirms it for a
+  // framework that spells an empty answer some other way.
+  const answered =
+    handle.data.value !== undefined || handle.status.value === 'success'
+      ? { data: handle.data.value ?? null }
+      : null;
   return {
-    hydrated: handle.data.value ?? null,
+    answered,
     settled: (async () => {
       await handle.settled;
       // Settled with no answer and no failure: the hydration miss above. Run the load.
