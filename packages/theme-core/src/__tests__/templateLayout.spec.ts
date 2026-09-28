@@ -278,6 +278,108 @@ describe('template-block bindings/templates through declared field renames', () 
   });
 });
 
+describe('template-block binding sources with list indices', () => {
+  // A catalog-backed route entry: the product's own lists are what a binding
+  // reaches into, so a source path has to be able to name one element of them.
+  const productEntry = {
+    id: 'product-1',
+    data: {
+      title: 'Kettle',
+      images: [
+        { url: '/img/kettle-front.jpg', alt: 'Front' },
+        { url: '/img/kettle-side.jpg', alt: 'Side' },
+      ],
+      variants: [{ price: '4.990 kr.' }, { price: '5.990 kr.' }],
+    },
+  };
+  const productCatalog = {
+    hero: {
+      apiId: 'hero',
+      fields: [{ fieldId: 'heading' }, { fieldId: 'byline' }, { fieldId: 'eyebrow' }],
+    },
+  };
+  const render = (bindings: Record<string, string>) =>
+    createTemplateLayoutRenderModel(
+      layout({ id: 'hero-placement', type: 'template-block', apiId: 'hero', bindings }),
+      { entry: productEntry, blockCatalog: productCatalog }
+    );
+  const blockOf = (model: ReturnType<typeof render>) => {
+    const block = model.root.children[0];
+    if (block?.type !== 'template-block') throw new Error('expected template block');
+    return block;
+  };
+
+  it('reads a list element through a numeric segment', () => {
+    const block = blockOf(render({ heading: 'images.0.url', byline: 'images.1.alt' }));
+    expect(block.entry.data.heading).toBe('/img/kettle-front.jpg');
+    expect(block.entry.data.byline).toBe('Side');
+  });
+
+  it('reads a variant price through a numeric segment', () => {
+    expect(blockOf(render({ heading: 'variants.0.price' })).entry.data.heading).toBe('4.990 kr.');
+    expect(blockOf(render({ heading: 'variants.1.price' })).entry.data.heading).toBe('5.990 kr.');
+  });
+
+  it('leaves an identifier-only binding exactly as it was', () => {
+    expect(blockOf(render({ heading: 'title' })).entry.data.heading).toBe('Kettle');
+  });
+
+  it.each([['images.2.url'], ['images.2'], ['variants.9.price']])(
+    'treats an out-of-range index (%s) as not found',
+    (source) => {
+      expect(() => render({ heading: source })).toThrow(
+        expect.objectContaining({
+          issue: { path: '/root/children/0/bindings/heading', code: 'INVALID_VALUE' },
+        })
+      );
+    }
+  );
+
+  it('reports an out-of-range index exactly like a missing key', () => {
+    const issueOf = (source: string) => {
+      try {
+        render({ heading: source });
+      } catch (error) {
+        return (error as { issue: unknown }).issue;
+      }
+      throw new Error('expected a validation failure');
+    };
+    expect(issueOf('images.2.url')).toEqual(issueOf('images.0.missing'));
+  });
+
+  it.each([
+    ['images.-1.url'],
+    ['images.-1'],
+    ['images.01.url'],
+    ['images.01'],
+    ['images.1a.url'],
+    ['images.x.url'],
+    ['title.0'],
+  ])('rejects a non-canonical or unusable index segment (%s)', (source) => {
+    expect(() => render({ heading: source })).toThrow(
+      expect.objectContaining({ issue: expect.objectContaining({ code: 'INVALID_VALUE' }) })
+    );
+  });
+
+  it('keeps the text-template grammar identifier-only', () => {
+    expect(() =>
+      createTemplateLayoutRenderModel(
+        layout({
+          id: 'hero-placement',
+          type: 'template-block',
+          apiId: 'hero',
+          templates: { heading: '{{ images.0.alt }}' },
+        }),
+        { entry: productEntry, blockCatalog: productCatalog }
+      )
+    ).toThrow(
+      expect.objectContaining({
+        issue: { path: '/root/children/0/templates/heading', code: 'INVALID_VALUE' },
+      })
+    );
+  });
+});
+
 describe('buildTemplateBlockRenames', () => {
   it('flattens a single rename step', () => {
     expect(

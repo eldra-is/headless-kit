@@ -119,6 +119,9 @@ export interface TemplateLayoutContext {
 
 const API_ID = /^[a-z][a-z0-9-]{1,48}$/;
 const FIELD_ID = /^[a-z][a-zA-Z0-9]{0,48}$/;
+// A canonical non-negative list index: `0`, or digits with no leading zero.
+// `-1`, `01` and `1a` are field names that happen to look numeric, not indices.
+const LIST_INDEX = /^(?:0|[1-9][0-9]*)$/;
 const TARGET_FIELD_PATH = /^[a-z][a-zA-Z0-9]{0,48}(?:\.(?:[a-z][a-zA-Z0-9]{0,48}|0|[1-9][0-9]*))*$/;
 const MAX_BINDINGS = 100;
 const MAX_TEMPLATE_BYTES = 2048;
@@ -408,12 +411,26 @@ function collectEntryIds(node: LayoutNode): string[] {
   return node.children.flatMap(collectEntryIds);
 }
 
+// Resolves a binding source path against the route entry's data. A segment is
+// either a field name or a list index: `images.0.url` reads the first item of
+// an `images` list, the same way the target side already writes into one. An
+// index against a non-array, a field name against an array, and an index past
+// the end of an array are all "not found" — indistinguishable from a missing
+// key, so a binding written against data this entry does not have fails closed
+// in exactly one way.
 function readBindingPath(
   root: Record<string, unknown>,
   path: string
 ): { found: boolean; value?: unknown } {
   let current: unknown = root;
   for (const segment of path.split('.')) {
+    if (LIST_INDEX.test(segment)) {
+      if (!Array.isArray(current)) return { found: false };
+      const index = Number(segment);
+      if (index >= current.length) return { found: false };
+      current = current[index];
+      continue;
+    }
     if (!isRecord(current)) return { found: false };
     if (!Object.hasOwn(current, segment) && isRecord(current.data)) current = current.data;
     if (!isRecord(current) || !Object.hasOwn(current, segment)) return { found: false };
@@ -426,7 +443,7 @@ function validBindingPath(path: string): boolean {
   return (
     path !== '' &&
     new TextEncoder().encode(path).byteLength <= 255 &&
-    path.split('.').every((segment) => FIELD_ID.test(segment))
+    path.split('.').every((segment) => FIELD_ID.test(segment) || LIST_INDEX.test(segment))
   );
 }
 

@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Feat: a route template's `template-block` binding source may now name a list element by index —
+  `images.0.url`, `variants.0.price` — alongside the field names it already accepted, so a block
+  field can be bound to one item of a list on the route's entry (a product's first image or first
+  variant price, or a CMS entry's own list field). A segment is an index only when it is a
+  canonical non-negative integer (`0`, `12`); `-1`, `01` and `1a` are field names, and an index
+  against a non-array or past the end of a list is not found — the same failure as a binding to a
+  key the entry does not have. The `{{ }}` text-template grammar is unchanged: its paths stay
+  identifier-only.
 - Feat: the gateway client gained `client.catalog` — `getProduct(idOrSlug)`, `listProducts()`,
   `getCollection(slug)` and `listCollections()` over the public catalog endpoints, so a theme can
   render and prerender a catalog-backed route template without a second HTTP client. Catalog
