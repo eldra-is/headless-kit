@@ -1,4 +1,11 @@
+import { createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
+
+/** The id Core gives a node inside an expanded reusable placement: lowercase
+ *  `r` plus SHA-256 of the placement id, a NUL, and the component-internal node
+ *  id (`docs/theme-reusable-components.md`). */
+const expandedNodeId = (placementId: string, nodeId: string): string =>
+  `r${createHash('sha256').update(`${placementId}\0${nodeId}`).digest('hex')}`;
 
 const HOME = {
   id: 'p-home',
@@ -228,6 +235,24 @@ const DYNAMIC_HERO = {
   data: { heading: 'Static dynamic-page heading', subheading: 'Static dynamic-page subheading' },
 };
 
+// The site's shared header, reached by the template through a `reusable` role
+// node. This fixture is the **public** read of that template — the one
+// `resolveRoute` performs and every prerendered route sees — so the placement is
+// already gone: Core replaced it with the component's own container, keyed by
+// the placement id, its block keyed by the namespaced id, and stripped
+// `componentId`/`siteId`/`reusableComponentProjection` from the payload
+// entirely. Only the preview read keeps the placement and the projection.
+const TEMPLATE_SHARED_HEADER = {
+  id: '99999999-9999-4999-8999-999999999999',
+  schemaApiId: 'hero',
+  data: { heading: 'Shared template header', subheading: 'From the site header component' },
+};
+const TEMPLATE_HEADER_PLACEMENT = 'article-shared-header';
+export const TEMPLATE_HEADER_NODE_ID = expandedNodeId(
+  TEMPLATE_HEADER_PLACEMENT,
+  'header-component-block'
+);
+
 const ROUTE_TEMPLATE = {
   id: 'rt-article',
   data: {
@@ -243,6 +268,18 @@ const ROUTE_TEMPLATE = {
         layout: { direction: { normal: 'column' } },
         children: [
           {
+            id: TEMPLATE_HEADER_PLACEMENT,
+            type: 'flex',
+            layout: { direction: { normal: 'column' }, gap: { normal: '8px' } },
+            children: [
+              {
+                id: TEMPLATE_HEADER_NODE_ID,
+                type: 'block',
+                entryId: TEMPLATE_SHARED_HEADER.id,
+              },
+            ],
+          },
+          {
             id: 'article-hero',
             type: 'template-block',
             apiId: 'hero',
@@ -252,7 +289,7 @@ const ROUTE_TEMPLATE = {
         ],
       },
     },
-    blocks: [DYNAMIC_HERO],
+    blocks: [TEMPLATE_SHARED_HEADER, DYNAMIC_HERO],
   },
 };
 

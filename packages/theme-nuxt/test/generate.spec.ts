@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { startMockGateway } from './mockGateway';
+import { startMockGateway, TEMPLATE_HEADER_NODE_ID } from './mockGateway';
 
 const fixtureDir = fileURLToPath(new URL('./fixtures/basic', import.meta.url));
 const nuxi = fileURLToPath(new URL('../node_modules/.bin/nuxi', import.meta.url));
@@ -84,6 +84,29 @@ describe('theme-nuxt nuxi generate', () => {
     expect(gateway.requests).not.toContain(
       '/cms/v1/schema/article/entry/unique/slug/code-owned?locale=is&depth=3'
     );
+  });
+
+  it('renders a route template whose reusable placement arrived pre-expanded, leaking nothing', () => {
+    // The public route-template read is expanded and redacted the way a public
+    // page read is: the placement is gone, the component's container and block
+    // are ordinary layout nodes, and no component/site identity exists to leak.
+    // So the header must render beside the template's own block, and the
+    // prerendered payload must carry no projection — the assertion the static
+    // pages above already make, now on a template route as well.
+    const dynamic = readFileSync(output('articles/hello-dynamic/index.html'), 'utf8');
+    expect(dynamic).toContain('Shared template header');
+    expect(dynamic).toContain('data-eldra-layout-node="article-shared-header"');
+    expect(dynamic).toContain(`data-eldra-layout-node="${TEMPLATE_HEADER_NODE_ID}"`);
+    expect(dynamic).toContain('data-eldra-block="99999999-9999-4999-8999-999999999999"');
+    // Public output carries no placement identity, exactly as a public page.
+    expect(dynamic).not.toContain('data-eldra-reusable-placement');
+    expect(dynamic).not.toContain('data-eldra-invalid-layout');
+    // …and the template's own bound block still renders beside it.
+    expect(dynamic).toContain('Article: Dynamic article heading');
+
+    const payload = readFileSync(output('articles/hello-dynamic/_payload.json'), 'utf8');
+    expect(payload).not.toContain('reusableComponentProjection');
+    expect(payload).not.toContain('componentId');
   });
 
   it('generates declared slot content with fallback, no markers, and fail-closed invalid layouts', () => {

@@ -11,7 +11,10 @@ Release-please writes the generated notes from commit messages and does not repl
   page's, else the template's. It is a fallback and never a merge: `@eldrajs/theme-core` refuses a
   projection carrying a binding the rendered document does not place, so a page's projection on a
   template route would fail the layout closed. Preview drafts already reach a placement inside a
-  template the same way they reach one inside a page; nothing there needed lifting.
+  template the same way they reach one inside a page; nothing there needed lifting. The public
+  route-template read carries no projection — it is pre-expanded and redacted like a public page
+  read — so a prerendered template route renders its header and footer with no component or site
+  identity anywhere in the HTML or the payload.
 - Fix: a blank locale is no longer forwarded to the gateway. A site that configures none carries
   `""` — that is what `runtimeConfig.public.eldra.locale` holds, and what an unset `ELDRA_LOCALE`
   becomes — which went out as `?locale=` on every read and came back a 400 from the collection
