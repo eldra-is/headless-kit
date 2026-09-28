@@ -1,6 +1,7 @@
 # Reusable page components
 
-The theme packages consume the exact reusable projection attached to a Core Page read:
+The theme packages consume the exact reusable projection attached to a Core Page read — and,
+since route templates place components too, to a Core **route-template** read:
 
 ```ts
 type ReusableComponentProjection = {
@@ -47,3 +48,31 @@ HTML or fetchable hydration payloads. An authenticated client-side Studio read
 retains its memory-only projection so attached block and field messages can
 send both `layoutNodeId` and the optional `reusablePlacementId` over the
 existing exact-origin bridge.
+
+## Route templates
+
+A route template's version-1 layout may hold the same
+`{ id, type: 'reusable', componentId }` placements beside its `template-block`
+leaves — that is how a seeded template's header and footer **roles** reach the
+site's own shared components (see [themes.md](themes.md#seeding-default-templates)).
+Core's route-template read carries a `reusableComponentProjection` of exactly the
+same shape as a Page's, and the runtime consumes it exactly the same way:
+
+- `useEldraPage()` (`@eldrajs/theme-nuxt`) returns the page document's projection
+  when the route resolved a Page, and the **template document's** when it
+  resolved a route template. A route resolves one or the other, so this is a
+  fallback and never a merge — the expansion refuses a projection carrying a
+  binding the rendered document does not place (`COMPONENT_STALE`), which is
+  what a merged projection would be.
+- `EldraLayout` passes it, together with the resolved `blocks`, into
+  `createTemplateLayoutRenderModel`. An absent projection is the empty
+  projection, so a placement fails closed with the same issue a Page reports.
+- Expansion, identity and overlay behaviour are byte-for-byte the Page
+  behaviour: the component's nodes keep their authored ids, take the
+  deterministic `renderId`/class namespace described above, and expose the
+  template-local `placementId` to the preview bridge — Studio addresses a
+  placement inside a template exactly as it addresses one inside a Page. Studio
+  drafts for a shared component's entries overlay a template's placements the
+  way they overlay a Page's.
+- A `block` node is still refused in a route-template document, and a placement
+  may not be the template layout's root.

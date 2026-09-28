@@ -524,7 +524,11 @@ Five rules the file exists to keep:
   scanner's `header`/`footer` switches — on by default — place a `reusable` role node before and
   after every seed's blocks. Core turns each role into one reusable component on the site and
   points all three templates at it, so editing the header edits it everywhere instead of on one
-  seeded page at a time.
+  seeded page at a time. The runtime renders that role-resolved placement from inside the
+  template: `useEldraPage()` hands `EldraLayout` the **template** read's own
+  `reusableComponentProjection`, which expands the header component where its node sits, between
+  the template's own blocks — see
+  [Reusable page components](theme-reusable-components.md#route-templates).
 - **Seed data is Core-valid, exactly like `mock.json`.** A seed is the write Core makes on deploy,
   so it obeys the same media rule: a media field is either absent or `{ assetId: <uuid> }`. The
   sample pages carry demo imagery for Storybook (`{ assetId: "demo-hero", url, altText, … }`), so

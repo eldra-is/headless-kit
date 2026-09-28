@@ -119,7 +119,12 @@ eldra: {
   seed's layout places, and its `data` is validated exactly like a seed block's. On deploy Core
   creates one reusable component per role ("Header"/"Footer"), publishes it, assigns it to the
   site's role and points every seeded template's role node at it — so one header is shared by all
-  of them rather than copied per page.
+  of them rather than copied per page. At render time the runtime consumes that role-resolved
+  placement inside the template: Core's route-template read carries a
+  `reusableComponentProjection` exactly as a page read does, `useEldraPage()` hands the template
+  document's projection to `EldraLayout`, and the component expands in place with the same
+  identity a placement on a page gets — see
+  [Reusable page components](theme-reusable-components.md#route-templates).
 - Both keys are omitted from the manifest when a theme declares nothing, so a theme that seeds
   nothing keeps emitting the file shape it always has.
 
