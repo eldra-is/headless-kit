@@ -430,4 +430,94 @@ describe('createGatewayStorefront', () => {
     expect(calls.collectionQueries).toEqual([]);
     expect(calls.productSlugs).toEqual(['winter-knitwear']);
   });
+  /**
+   * `volatileByIds` — the batched read the prerender/refresh contract is built on
+   * (`app/storefront/volatile.ts`, `types.ts`'s `StorefrontResult` doc comment). It is asserted at
+   * the URL the SDK actually sends, not just the query object, for the same reason `byHandles` is:
+   * `filter` is the gateway's one repeatable parameter, and a comma-joined pair of tokens is a
+   * single malformed filter rather than two.
+   */
+  it('volatileByIds asks for one chunk per 50 ids, one `id:in:` token each', async () => {
+    const urls: string[] = [];
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+      httpClient: (async (request: EldraHttpRequest) => {
+        urls.push(request.url);
+        return { data: [], meta: { page: 1, pageSize: 50, total: 0, totalPages: 0, rows: 0 } };
+      }) as never,
+    });
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const ids = Array.from({ length: 51 }, (_unused, index) => `id-${index + 1}`);
+    await storefront.catalog.volatileByIds(ids);
+
+    expect(urls).toHaveLength(2);
+    const filters = urls.map((url) => new URL(url).searchParams.getAll('filter'));
+    expect(filters[0]).toEqual([`id:in:${ids.slice(0, 50).join(',')}`]);
+    expect(filters[1]).toEqual(['id:in:id-51']);
+    // One `filter=` per chunk, and nothing else narrowing the read.
+    for (const url of urls) expect(url.match(/filter=/g)).toHaveLength(1);
+  });
+
+  /**
+   * Availability is one of the values being refreshed, so the read must *not* filter the
+   * catalogue down to what is buyable: a product that has just gone inactive has to come back
+   * saying so, not vanish from the answer the way a product the request could not see would.
+   */
+  it('volatileByIds does not filter by status, and maps price/availability like a card', async () => {
+    const calls = recordingClient([], {
+      products: () => [
+        {
+          ...listRow('merino-crew-sweater'),
+          id: 'p-1',
+          minPrice: 79,
+          maxPrice: 96,
+          compareAtPrice: 128,
+        },
+        { ...listRow('lambswool-scarf'), id: 'p-2', status: 'DRAFT' },
+      ],
+    });
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+    const snapshots = await storefront.catalog.volatileByIds(['p-1', 'p-2']);
+
+    expect(calls.productListQueries).toEqual([{ pageSize: 2, filter: ['id:in:p-1,p-2'] }]);
+    expect(snapshots).toEqual([
+      {
+        id: 'p-1',
+        price: { amount: 79, compareAt: 128, from: true },
+        available: true,
+        stock: 'in',
+      },
+      {
+        id: 'p-2',
+        price: { amount: 1000, compareAt: null, from: false },
+        available: false,
+        stock: 'out',
+      },
+    ]);
+    // No `inventory` key at all: the products list carries none, and absent means "unknown".
+    for (const snapshot of snapshots) expect('inventory' in snapshot).toBe(false);
+  });
+
+  it('volatileByIds makes no request for an empty page, or for ids the token grammar cannot carry', async () => {
+    const calls = recordingClient();
+    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+
+    expect(await storefront.catalog.volatileByIds([])).toEqual([]);
+    expect(calls.productListQueries).toEqual([]);
+
+    // Every id unusable: asking without the token would read the whole catalogue.
+    expect(await storefront.catalog.volatileByIds(['a,b', 'x:y'])).toEqual([]);
+    expect(calls.productListQueries).toEqual([]);
+  });
+
+  it('every result carries an empty `revalidating` set — the prerender contract’s resting state', async () => {
+    const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
+    const result = storefront.catalog.collectionProducts(
+      ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' }),
+      ref({ page: 1, pageSize: 24 })
+    );
+    await settle();
+    expect(result.revalidating.value.size).toBe(0);
+  });
 });

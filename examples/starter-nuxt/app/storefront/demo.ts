@@ -22,6 +22,8 @@ import type {
   StorefrontSearch,
   StorefrontSearchResponse,
   StorefrontSource,
+  VolatileKey,
+  VolatileSnapshot,
 } from './types';
 
 /**
@@ -290,6 +292,33 @@ function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct
 const PRODUCTS_FULL: Record<string, StorefrontProduct> = Object.fromEntries(
   PRODUCT_DEFS.map((def, index) => [def.handle, buildFullProduct(def, index)])
 );
+
+/** Every fixture product a volatile refresh could be asked about, by the id a card carries. */
+const PRODUCTS_BY_ID = new Map(PRODUCTS.map((product) => [product.variantId, product]));
+
+/**
+ * The demo half of `catalog.volatileByIds`. The fixture never changes, so this always answers with
+ * exactly the values the page already has — which is the point: it proves the refresh path end to
+ * end (ids out, snapshots back, `applyVolatileSnapshots` keeping every object at its identity)
+ * without a story or a spec ever seeing a price move under it.
+ *
+ * An id the catalogue does not know is simply absent from the answer, the same way the gateway's
+ * own `id:in:` read answers, and no `inventory` is reported — the products list carries none.
+ */
+function demoVolatileSnapshots(ids: readonly string[]): VolatileSnapshot[] {
+  const snapshots: VolatileSnapshot[] = [];
+  for (const id of ids) {
+    const product = PRODUCTS_BY_ID.get(id);
+    if (!product) continue;
+    snapshots.push({
+      id: product.variantId,
+      price: product.price,
+      available: product.available,
+      stock: product.stock,
+    });
+  }
+  return snapshots;
+}
 
 /** "You may also like" (`product-carousel`'s `related` variant default content). */
 const RELATED_HANDLES = [
@@ -1012,6 +1041,10 @@ function createDemoResult<T>(
   const data = ref<T | null>(null) as Ref<T | null>;
   const pending = ref(true);
   const error = ref<string | null>(null);
+  // The fixture is synchronous and never goes stale, so nothing here ever revalidates — the field
+  // exists because `StorefrontResult` has it, and a block must read the same shape from either
+  // source.
+  const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
 
   async function load(): Promise<void> {
     pending.value = true;
@@ -1023,7 +1056,7 @@ function createDemoResult<T>(
 
   watch(sources, load, { immediate: true, deep: true });
 
-  return { data, pending, error, refresh: load };
+  return { data, pending, error, revalidating, refresh: load };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1133,6 +1166,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
           .map((handle) => PRODUCTS.find((product) => product.handle === handle))
           .filter((product): product is StorefrontProductListItem => Boolean(product))
       ),
+    volatileByIds: (ids) => Promise.resolve(demoVolatileSnapshots(ids)),
     notifyBackInStock: () => ack(),
   };
 

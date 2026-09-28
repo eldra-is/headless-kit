@@ -1,6 +1,7 @@
 import { nextTick, ref } from 'vue';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../app/storefront/demo';
+import { applyVolatileSnapshots, collectVolatileTargets } from '../../app/storefront/volatile';
 import type {
   StorefrontCollectionInfo,
   StorefrontCollectionSelector,
@@ -439,5 +440,55 @@ describe('createDemoStorefront', () => {
       expect(storefront.route.sort).toBeNull();
       expect(storefront.route.filters).toEqual({ minPrice: ['10'] });
     });
+  });
+  /**
+   * The demo half of the prerender/refresh contract. The fixture never changes, so a refresh
+   * always answers with exactly what the page already has — which is what makes it usable in a
+   * story: the path runs end to end and nothing moves on screen.
+   */
+  describe('volatileByIds', () => {
+    it('answers with the card’s own price, availability and stock line, by the id it carries', async () => {
+      const storefront = createDemoStorefront();
+      const sweater = PRODUCTS[0]!;
+      const snapshots = await storefront.catalog.volatileByIds([sweater.variantId]);
+
+      expect(snapshots).toEqual([
+        {
+          id: sweater.variantId,
+          price: sweater.price,
+          available: sweater.available,
+          stock: sweater.stock,
+        },
+      ]);
+      // No `inventory`, exactly like the gateway's own list-backed read.
+      expect('inventory' in snapshots[0]!).toBe(false);
+    });
+
+    it('drops an id the catalogue does not know, and answers nothing for nothing', async () => {
+      const storefront = createDemoStorefront();
+      const sweater = PRODUCTS[0]!;
+
+      expect(await storefront.catalog.volatileByIds(['not-a-product'])).toEqual([]);
+      expect(await storefront.catalog.volatileByIds([])).toEqual([]);
+      expect(
+        (await storefront.catalog.volatileByIds(['not-a-product', sweater.variantId])).map(
+          (snapshot) => snapshot.id
+        )
+      ).toEqual([sweater.variantId]);
+    });
+
+    it('refreshing a card with its own snapshot changes nothing, object identity included', async () => {
+      const storefront = createDemoStorefront();
+      const items = PRODUCTS.slice(0, 3);
+      const snapshots = await storefront.catalog.volatileByIds(collectVolatileTargets(items));
+      expect(applyVolatileSnapshots(items, snapshots)).toBe(items);
+    });
+  });
+
+  it('every result carries an empty `revalidating` set — the prerender contract’s resting state', async () => {
+    const storefront = createDemoStorefront();
+    const result = storefront.catalog.product(ref('merino-crew-sweater'));
+    await settle();
+    expect(result.revalidating.value.size).toBe(0);
   });
 });

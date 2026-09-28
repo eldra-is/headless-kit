@@ -4,6 +4,7 @@ import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
+import { chunkIds } from './volatile';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -23,6 +24,8 @@ import type {
   StorefrontSearch,
   StorefrontSearchResponse,
   StorefrontSource,
+  VolatileKey,
+  VolatileSnapshot,
 } from './types';
 
 /**
@@ -486,6 +489,10 @@ function createGatewayResult<T>(
   const data = ref<T | null>(null) as Ref<T | null>;
   const pending = ref(true);
   const error = ref<string | null>(null);
+  // Empty for now, and empty is the honest answer: the batched volatile refresh that fills it is
+  // the storefront plugin's job, not this file's. The ref exists here so every result a block
+  // reads has the field from the start rather than growing it under the block later.
+  const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
 
   async function load(): Promise<void> {
     const controller = new AbortController();
@@ -506,7 +513,7 @@ function createGatewayResult<T>(
 
   watch(sources, load, { immediate: true, deep: true });
 
-  return { data, pending, error, refresh: load };
+  return { data, pending, error, revalidating, refresh: load };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -740,6 +747,53 @@ async function relatedProducts(
   return sameCategory.length > 0 ? sameCategory : await list({});
 }
 
+/**
+ * The batched volatile read behind `catalog.volatileByIds`: the live price, compare-at price,
+ * availability and stock line for the products a page is already showing.
+ *
+ * One products-list request per chunk of ids (`chunkIds`, 50 at a time), each asking for exactly
+ * that chunk through a single repeatable `id:in:a,b,c` token — the same `filter` grammar and the
+ * same `id` field every other read in this file uses. The rows come back through
+ * `mapProductListItem`, so a refreshed price is derived exactly the way the card's prerendered one
+ * was (`minPrice`/`compareAtPrice`/`status`) and the two can never disagree about what a price is.
+ *
+ * **No `status:eq:ACTIVE`.** Every other list read here filters the catalogue down to what a
+ * shopper may buy; this one must not. Availability is one of the values being refreshed, so a
+ * product that has just gone inactive has to come back *saying so* — filtered out, it would be
+ * indistinguishable from a product the refresh could not see, and the page would keep showing it
+ * in stock until the next rebuild.
+ *
+ * A chunk whose ids cannot survive the token grammar makes no request at all: asking without the
+ * token would read the whole catalogue and answer with somebody else's products.
+ */
+async function volatileSnapshots(
+  client: EldraClient,
+  ids: readonly string[]
+): Promise<VolatileSnapshot[]> {
+  const requests = chunkIds(ids)
+    .map((chunk) => ({ chunk, filter: inFilter('id', chunk) }))
+    .filter(({ filter }) => filter.length > 0)
+    .map(async ({ chunk, filter }) => {
+      const raw = (await client.catalog.listProducts({
+        pageSize: chunk.length,
+        filter,
+      })) as unknown as RawProductList;
+      return raw.data ?? [];
+    });
+  const pages = await Promise.all(requests);
+  return pages.flat().map((row) => {
+    const item = mapProductListItem(row);
+    // Deliberately no `inventory`: the products list carries none, and an absent key means
+    // "unknown, keep what the page already shows" rather than "nothing left".
+    return {
+      id: item.variantId,
+      price: item.price,
+      available: item.available,
+      stock: item.stock,
+    };
+  });
+}
+
 // ---------------------------------------------------------------------------------------------
 // createGatewayStorefront
 // ---------------------------------------------------------------------------------------------
@@ -820,6 +874,7 @@ export function createGatewayStorefront(
         )) as unknown as RawProductList;
         return (raw.data ?? []).map(mapProductListItem);
       }),
+    volatileByIds: (ids) => volatileSnapshots(client, ids),
     notifyBackInStock: (input) =>
       postToEndpoint(options.formsEndpoint, { kind: 'notifyBackInStock', ...input }),
   };

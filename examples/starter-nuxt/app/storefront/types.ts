@@ -156,10 +156,56 @@ export interface StorefrontAck {
   reason?: 'unsupported' | 'invalid' | 'failed';
 }
 
+/**
+ * The two classes of value that go stale between builds. Everything else on a product — title,
+ * images, options, description, category trail — is content, and content changes trigger a
+ * rebuild, so the prerendered copy is the truth until the next one.
+ */
+export type VolatileKey = 'price' | 'stock';
+
+/**
+ * One product's volatile values as the backend has them *now*, keyed by the same id the page's
+ * own data carries (`StorefrontProductListItem.variantId` — what the gateway's product list read
+ * fills from the product's `id`). `price` is the whole `StorefrontPrice` this theme already uses,
+ * not a second money shape: `amount` and `compareAt` are read off it, `from` is not (the price
+ * *spread* is a property of the product's variants, not a value that refreshes).
+ *
+ * `inventory` is optional and absent means "unknown, keep what the page already shows" — the
+ * products list read carries no inventory today (`StorefrontProduct.inventory` is `null` from the
+ * gateway), so only a source that genuinely knows sets it.
+ */
+export interface VolatileSnapshot {
+  id: string;
+  price: StorefrontPrice;
+  available: boolean;
+  stock: StorefrontProductListItem['stock'];
+  inventory?: number | null;
+}
+
+/**
+ * **The prerender contract.** `data` is complete from the first paint: a page rendered at build
+ * time carries its real title, images, options, description, price and stock line, and hydration
+ * paints nothing new. `pending` is therefore about *having no data at all* — a client-only read
+ * that has not answered yet — and a consumer must never show a skeleton for a value it already
+ * has.
+ *
+ * After mount only the volatile values refresh (`VolatileKey`: money amounts and the stock line).
+ * While a refresh is in flight the keys being refreshed appear in `revalidating`, and the
+ * prerendered value stays on screen — dimmed, with a small inline spinner beside it — so there is
+ * no layout shift and no flash. An empty set means nothing is refreshing, which is the whole of
+ * a page's life apart from those few hundred milliseconds. A failed refresh clears the set and
+ * keeps the value: a page never regresses to an error state for something it can already show,
+ * and `error` stays for the page that has nothing.
+ *
+ * Nothing in this task *sets* `revalidating` — the batched refresh that does is the storefront
+ * plugin's job (see `volatile.ts` for the pure half it is built on).
+ */
 export interface StorefrontResult<T> {
   data: Ref<T | null>;
   pending: Ref<boolean>;
   error: Ref<string | null>;
+  /** Empty = nothing refreshing. Written by the storefront implementation, read by a block. */
+  revalidating: Readonly<Ref<ReadonlySet<VolatileKey>>>;
   refresh: () => Promise<void>;
 }
 
@@ -216,6 +262,16 @@ export interface StorefrontCatalog {
   }>;
   related(handle: Ref<string | null>, limit: number): StorefrontResult<StorefrontProductListItem[]>;
   byHandles(handles: Ref<string[]>): StorefrontResult<StorefrontProductListItem[]>;
+  /**
+   * The live values for a page's products, in one batched read (chunked past the gateway's own
+   * comfortable filter size — see `volatile.ts`'s `chunkIds`). An id nothing matches is simply
+   * absent from the answer, never an error; an empty `ids` makes no request at all.
+   *
+   * Deliberately *not* a `StorefrontResult`: this is a one-shot read a caller folds into data it
+   * already has (`applyVolatileSnapshots`), not a piece of page state with its own
+   * pending/error/refresh life cycle.
+   */
+  volatileByIds(ids: string[]): Promise<VolatileSnapshot[]>;
   notifyBackInStock(input: { email: string; variantId: string }): Promise<StorefrontAck>;
 }
 
