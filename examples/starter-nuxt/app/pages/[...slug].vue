@@ -5,9 +5,19 @@ import { Button, Container, Section } from '@eldrajs/ui';
 import EldraRouterLink from '../components/EldraRouterLink.vue';
 import { useT } from '../composables/useT';
 import { partitionPageBlocks } from '../utils/pageStructure';
+import { pageTitle } from '../utils/pageTitle';
 
-const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
-  useEldraPage();
+const {
+  page,
+  template,
+  entry,
+  catalog,
+  layout,
+  blocks,
+  reusableComponentProjection,
+  pending,
+  error,
+} = useEldraPage();
 const t = useT();
 
 // `/404` is prerendered (see nitro.prerender.routes) so a styled not-found
@@ -32,9 +42,16 @@ const isNotFound = computed(
 );
 
 useHead(() => ({
-  title: isNotFound.value
-    ? t('notFound.title')
-    : (((template.value ?? page.value)?.data.title as string | undefined) ?? 'Site'),
+  title: pageTitle({
+    isNotFound: isNotFound.value,
+    notFoundTitle: t('notFound.title'),
+    // A catalog-backed route (a product, a collection) renders through a shared route template
+    // whose own title names the template — "Product" on every product page. The object's own
+    // title is on the resolved catalog `entry`, which is what the tab, the bookmark and the
+    // search result should say.
+    catalogTitle: catalog.value === null ? null : entry.value?.data.title,
+    documentTitle: (template.value ?? page.value)?.data.title,
+  }),
 }));
 
 /**

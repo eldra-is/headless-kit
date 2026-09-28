@@ -52,6 +52,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       page: ref(null),
       template: ref(null),
       entry: ref(null),
+      catalog: computed(() => null),
       layout: computed(() => null),
       blocks: computed(() => []),
       reusableComponentProjection: computed(() => undefined),
@@ -73,6 +74,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       page: ref(null),
       template: ref(null),
       entry: ref(null),
+      catalog: computed(() => null),
       layout: computed(() => null),
       blocks: computed(() => []),
       reusableComponentProjection: computed(() => undefined),
@@ -106,6 +108,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       page: ref({ data: { title: 'Home' } }),
       template: ref(null),
       entry: ref(null),
+      catalog: computed(() => null),
       layout: computed(() => null),
       blocks: computed(() => blocks),
       reusableComponentProjection: computed(() => undefined),
@@ -151,6 +154,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       page: ref({ data: { title: 'Home' } }),
       template: ref(null),
       entry: ref(null),
+      catalog: computed(() => null),
       layout: computed(() => ({ nodes: [] })),
       blocks: computed(() => [
         { id: 'b1', schemaApiId: 'navigation' },
@@ -166,5 +170,51 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
     expect(wrapper.element.querySelectorAll('.zone')).toHaveLength(0);
     expect(wrapper.find('[data-eldra-layout]').exists()).toBe(true);
     expect(wrapper.get('main#main').element.querySelector('[data-eldra-layout]')).not.toBeNull();
+  });
+});
+
+describe('[...slug].vue document title', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** `useHead` is called with a function, so the title is read back by calling it. */
+  function titleFor(page: Record<string, unknown>): string {
+    let head: (() => { title: string }) | undefined;
+    vi.stubGlobal('useRoute', () => ({ path: '/products/ash-glaze-mug' }));
+    vi.stubGlobal('useHead', (input: () => { title: string }) => {
+      head = input;
+    });
+    vi.stubGlobal('useEldraPage', () => ({
+      page: ref(null),
+      template: ref(null),
+      entry: ref(null),
+      catalog: computed(() => null),
+      layout: computed(() => null),
+      blocks: computed(() => []),
+      reusableComponentProjection: computed(() => undefined),
+      pending: ref(false),
+      error: ref(null),
+      ...page,
+    }));
+    mount(SlugPage, { global: { stubs: { NuxtLink: NuxtLinkStub } } });
+    return head!().title;
+  }
+
+  it('titles a catalog route with the product’s own name, not the template’s', () => {
+    // A product page renders through the shared "Product" route template, so its own document
+    // title names the template — every product page's tab read "Product" before this.
+    expect(
+      titleFor({
+        template: ref({ data: { title: 'Product' } }),
+        entry: ref({ data: { title: 'Ash glaze mug' } }),
+        catalog: computed(() => ({ kind: 'product', slug: 'ash-glaze-mug' })),
+        blocks: computed(() => [{ id: 'b1', schemaApiId: 'product-detail' }]),
+      })
+    ).toBe('Ash glaze mug');
+  });
+
+  it('titles an ordinary page with its own document title', () => {
+    expect(titleFor({ page: ref({ data: { title: 'About us' } }) })).toBe('About us');
   });
 });
