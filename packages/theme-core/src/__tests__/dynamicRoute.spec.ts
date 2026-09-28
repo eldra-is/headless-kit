@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDynamicRoutePath,
+  catalogRouteTarget,
   matchDynamicRoutePattern,
   parseDynamicRoutePattern,
   resolveRoute,
 } from '../dynamicRoute';
+import { encodeStega } from '../stega';
 
 const pages = [
   { id: 'home', data: { slug: 'home' } },
@@ -87,6 +89,31 @@ describe('resolveRoute', () => {
         templates: [{ id: 'bad', data: { routePattern: '/articles/:slug', slugField: 'handle' } }],
       })
     ).toBeNull();
+  });
+});
+
+describe('catalogRouteTarget', () => {
+  it('recognises catalog product and collection schema ids', () => {
+    expect(catalogRouteTarget('catalog:product')).toBe('product');
+    expect(catalogRouteTarget('catalog:collection')).toBe('collection');
+  });
+
+  it('returns null for unrelated or malformed schema ids', () => {
+    expect(catalogRouteTarget('guide')).toBeNull();
+    expect(catalogRouteTarget('catalog:products')).toBeNull();
+    expect(catalogRouteTarget('')).toBeNull();
+    expect(catalogRouteTarget(undefined)).toBeNull();
+    expect(catalogRouteTarget(null)).toBeNull();
+    expect(catalogRouteTarget(42)).toBeNull();
+  });
+
+  it('resolves a stega-wrapped schema id', () => {
+    const wrapped = encodeStega('catalog:product', {
+      entryId: 'template-1',
+      fieldPath: 'schemaApiId',
+      locale: null,
+    });
+    expect(catalogRouteTarget(wrapped)).toBe('product');
   });
 });
 

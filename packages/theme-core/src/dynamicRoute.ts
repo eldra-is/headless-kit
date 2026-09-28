@@ -88,6 +88,19 @@ export function buildDynamicRoutePath(pattern: unknown, slugValue: unknown): str
   return `/${[...parsed.prefixSegments, encodeURIComponent(value)].join('/')}`;
 }
 
+/**
+ * Recognises a catalog route template's schema id (e.g. a route template's
+ * `data.schemaApiId`) as a product or collection target, stega-stripped and
+ * matched exactly. Anything else — including a related but different id, or
+ * a non-string — returns null.
+ */
+export function catalogRouteTarget(schemaApiId: unknown): 'product' | 'collection' | null {
+  const value = stripTemplateString(schemaApiId);
+  if (value === 'catalog:product') return 'product';
+  if (value === 'catalog:collection') return 'collection';
+  return null;
+}
+
 function decodeRequestPath(path: unknown): string[] | null {
   if (
     typeof path !== 'string' ||

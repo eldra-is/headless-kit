@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Feat: `catalogRouteTarget(schemaApiId)` recognises a route template's `catalog:product` or
+  `catalog:collection` schema id (stega-stripped, exact match) and returns `'product'` /
+  `'collection'` / `null`, so a theme's catalog route template can tell which storefront view to
+  render without re-parsing the schema id itself.
 - Fix: a resolved catalog reference — a product or a collection a `reference` field points at
   (`{ id, _type: 'collection', slug, … }`, or the depth-0 stub `{ id, _type }`) — is now an opaque
   leaf in both preview walks. `encodeEntryDataStega` no longer stega-encodes the strings inside it
