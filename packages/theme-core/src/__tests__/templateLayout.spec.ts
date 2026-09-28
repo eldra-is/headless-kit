@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { LayoutValidationError, layoutNodeClass, layoutRenderNodeId } from '../layout';
+import { createReusableLayoutRenderModel, type ReusableComponentProjection } from '../reusable';
 import { decodeStega, encodeStega } from '../stega';
 import { buildTemplateBlockRenames, createTemplateLayoutRenderModel } from '../templateLayout';
 
@@ -415,5 +417,168 @@ describe('buildTemplateBlockRenames', () => {
         { version: 3, renames: [{ from: 'ok', to: 'fine' }] },
       ])
     ).toEqual({ ok: 'fine' });
+  });
+});
+
+describe('reusable placements inside a route template', () => {
+  const SITE = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const COMPONENT = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const OTHER_COMPONENT = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const COMPONENT_BLOCK = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+  const componentDocument = {
+    version: 1 as const,
+    root: {
+      id: 'FooterRoot',
+      type: 'flex' as const,
+      layout: { direction: { normal: 'column' as const } },
+      children: [{ id: 'FooterBlock', type: 'block' as const, entryId: COMPONENT_BLOCK }],
+    },
+  };
+
+  const placement = () => ({ id: 'FooterA', type: 'reusable', componentId: COMPONENT });
+
+  const templateOf = (...children: unknown[]) => ({
+    version: 1,
+    root: {
+      id: 'root',
+      type: 'flex',
+      layout: { direction: { normal: 'column' } },
+      children,
+    },
+  });
+
+  // The same placement, at the same pointer, in a page document — so a
+  // template's outcome can be compared against the page's rather than restated.
+  const pageOf = (node: unknown) => ({ ...templateOf(node), version: 2 });
+
+  function projection(): ReusableComponentProjection {
+    return {
+      bindings: [{ placementId: 'FooterA', componentId: COMPONENT, siteId: SITE, revision: 7 }],
+      revisions: [
+        { componentId: COMPONENT, siteId: SITE, revision: 7, document: componentDocument },
+      ],
+    };
+  }
+
+  function issue(run: () => unknown) {
+    try {
+      run();
+      return null;
+    } catch (error) {
+      expect(error).toBeInstanceOf(LayoutValidationError);
+      return (error as LayoutValidationError).issue;
+    }
+  }
+
+  it('expands a placement between template blocks without disturbing them', () => {
+    const model = createTemplateLayoutRenderModel(
+      templateOf(
+        {
+          id: 'HeroPlacement',
+          type: 'template-block',
+          apiId: 'hero',
+          bindings: { heading: 'title' },
+        },
+        placement(),
+        { id: 'TailPlacement', type: 'template-block', apiId: 'hero' }
+      ),
+      { entry, blockCatalog: catalog, reusableComponentProjection: projection() }
+    );
+
+    const [hero, footer, tail] = model.root.children;
+    if (hero?.type !== 'template-block' || tail?.type !== 'template-block')
+      throw new Error('expected template blocks around the placement');
+    if (footer?.type !== 'flex') throw new Error('expected the expanded component root');
+
+    // The component's own root, addressed by its authored id plus the
+    // placement that owns it — the pair the overlay reads off the DOM.
+    expect(footer.id).toBe('FooterRoot');
+    expect(footer.nodeId).toBe('FooterRoot');
+    expect(footer.renderId).toBe('FooterA');
+    expect(footer.placementId).toBe('FooterA');
+    const [block] = footer.children;
+    if (block?.type !== 'block') throw new Error('expected the component block');
+    expect(block.id).toBe('FooterBlock');
+    expect(block.entryId).toBe(COMPONENT_BLOCK);
+    expect(block.placementId).toBe('FooterA');
+    expect(block.renderId).toBe(layoutRenderNodeId('FooterA FooterBlock'));
+    expect(block.className).toBe(layoutNodeClass(block.renderId));
+    expect(model.css).toContain(layoutNodeClass('FooterA'));
+
+    // The template blocks either side are untouched: bindings still resolve,
+    // defaults still apply, and neither is owned by a placement.
+    expect(decodeStega(String(hero.entry.data.heading))).toMatchObject({ cleaned: 'Hello' });
+    expect(hero.placementId).toBeUndefined();
+    expect(hero.renderId).toBe('HeroPlacement');
+    expect(tail.entry.data.heading).toBe('Default heading');
+    expect(model.document.root.children.map((child) => child.type)).toEqual([
+      'template-block',
+      'flex',
+      'template-block',
+    ]);
+  });
+
+  it('treats an absent projection as an empty one, exactly as a page does', () => {
+    const templateIssue = issue(() =>
+      createTemplateLayoutRenderModel(templateOf(placement()), { entry, blockCatalog: catalog })
+    );
+    const pageIssue = issue(() =>
+      createReusableLayoutRenderModel(pageOf(placement()), {
+        projection: { bindings: [], revisions: [] },
+      })
+    );
+    expect(templateIssue).toEqual({ path: '/root/children/0', code: 'COMPONENT_NOT_FOUND' });
+    expect(templateIssue).toEqual(pageIssue);
+  });
+
+  it.each([
+    ['a missing revision', { bindings: projection().bindings, revisions: [] }],
+    [
+      'a revision mismatch',
+      { ...projection(), bindings: [{ ...projection().bindings[0]!, revision: 8 }] },
+    ],
+    [
+      'an unknown component',
+      {
+        ...projection(),
+        bindings: [{ ...projection().bindings[0]!, componentId: OTHER_COMPONENT }],
+      },
+    ],
+  ])('fails for %s exactly as the same placement does on a page', (_name, value) => {
+    const projectionValue = value as ReusableComponentProjection;
+    const templateIssue = issue(() =>
+      createTemplateLayoutRenderModel(templateOf(placement()), {
+        entry,
+        blockCatalog: catalog,
+        reusableComponentProjection: projectionValue,
+      })
+    );
+    expect(templateIssue).not.toBeNull();
+    expect(templateIssue).toEqual(
+      issue(() =>
+        createReusableLayoutRenderModel(pageOf(placement()), { projection: projectionValue })
+      )
+    );
+  });
+
+  it('refuses a placement as the root, and an unknown key on one', () => {
+    expect(
+      issue(() =>
+        createTemplateLayoutRenderModel(
+          { version: 1, root: placement() },
+          { entry, blockCatalog: catalog, reusableComponentProjection: projection() }
+        )
+      )
+    ).toEqual({ path: '/root/type', code: 'INVALID_VALUE' });
+    expect(
+      issue(() =>
+        createTemplateLayoutRenderModel(templateOf({ ...placement(), extra: true }), {
+          entry,
+          blockCatalog: catalog,
+          reusableComponentProjection: projection(),
+        })
+      )
+    ).toEqual({ path: '/root/children/0/extra', code: 'UNKNOWN_KEY' });
   });
 });

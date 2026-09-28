@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Feat: a route-template layout may now hold reusable component placements (`{ id, type: 'reusable', componentId }`) alongside its `template-block` leaves, and
+  `createTemplateLayoutRenderModel` takes a `reusableComponentProjection` to expand them with.
+  Expansion is the same implementation page layouts use, so a component renders identically
+  wherever it is placed: its nodes keep their authored ids and carry `renderId`/`placementId`, and
+  a missing, foreign or stale component fails closed with the code a page reports for it. An
+  absent projection is an empty one. `block` nodes are still refused in a template, and a
+  placement may not be the root.
 - Fix: `decodeStega` and `stripStega` now read a payload whose closing delimiter is missing at the
   end of the string. The delimiter is U+FEFF, which `String.prototype.trim()` counts as whitespace,
   so a theme that renders `value.trim()` used to hand the overlay a run that no longer decoded — the

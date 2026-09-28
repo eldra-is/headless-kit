@@ -7,8 +7,22 @@ import {
   type LayoutBreakpoints,
   type LayoutContainerNode,
   type LayoutNode,
+  type LayoutRenderNode,
   type LayoutStyle,
 } from './layout';
+import {
+  decorateReusableIdentity,
+  expandReusablePlacements,
+  type ReusableComponentPlacement,
+  type ReusableComponentProjection,
+  type ReusableRenderIdentity,
+} from './reusableExpansion';
+
+export type {
+  ReusableComponentPlacement,
+  ReusableComponentProjection,
+  ReusableRenderIdentity,
+} from './reusableExpansion';
 
 export interface TemplateBlockFieldDefinition {
   fieldId: string;
@@ -70,8 +84,13 @@ export type TemplateBlockNode = {
   templates?: Record<string, string>;
 };
 
+// A route template holds `template-block` leaves, reusable placements (the
+// same node a page carries) and, once those placements are expanded, the
+// ordinary blocks of the component behind each one.
 export type TemplateLayoutNode =
   | TemplateBlockNode
+  | ReusableComponentPlacement
+  | Extract<LayoutNode, { type: 'block' }>
   | {
       id: string;
       type: 'flex';
@@ -92,16 +111,28 @@ export type TemplateLayoutDocument = {
   root: Extract<TemplateLayoutNode, { type: 'flex' | 'grid' }>;
 };
 
+// Every rendered node carries the reusable render identity pages carry: its
+// authored `id`, the `renderId` the DOM and CSS are keyed by, and — for a node
+// that came out of an expanded component — the `placementId` that owns it.
 export type TemplateLayoutRenderNode =
-  | { id: string; type: 'template-block'; apiId: string; entry: EntryDoc; className: string }
-  | (Omit<Extract<TemplateLayoutNode, { type: 'flex' }>, 'children'> & {
+  | ({
+      id: string;
+      type: 'template-block';
+      apiId: string;
+      entry: EntryDoc;
       className: string;
-      children: TemplateLayoutRenderNode[];
-    })
-  | (Omit<Extract<TemplateLayoutNode, { type: 'grid' }>, 'children'> & {
-      className: string;
-      children: TemplateLayoutRenderNode[];
-    });
+    } & ReusableRenderIdentity)
+  | (Extract<LayoutRenderNode, { type: 'block' }> & ReusableRenderIdentity)
+  | (Omit<Extract<TemplateLayoutNode, { type: 'flex' }>, 'children'> &
+      ReusableRenderIdentity & {
+        className: string;
+        children: TemplateLayoutRenderNode[];
+      })
+  | (Omit<Extract<TemplateLayoutNode, { type: 'grid' }>, 'children'> &
+      ReusableRenderIdentity & {
+        className: string;
+        children: TemplateLayoutRenderNode[];
+      });
 
 export interface TemplateLayoutRenderModel {
   document: TemplateLayoutDocument;
@@ -115,6 +146,10 @@ export interface TemplateLayoutContext {
   blockCatalog: Readonly<Record<string, TemplateBlockDefinition>>;
   allowedContainerIds?: ReadonlySet<string>;
   breakpoints?: LayoutBreakpoints;
+  // The template read's projection of the components its placements bind to.
+  // Absent is an empty projection, so a placement fails closed the same way a
+  // page's does when its component is missing.
+  reusableComponentProjection?: ReusableComponentProjection;
 }
 
 const API_ID = /^[a-z][a-z0-9-]{1,48}$/;
@@ -148,18 +183,33 @@ export function createTemplateLayoutRenderModel(
     return `00000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`;
   });
   if (transformed.type === 'block') fail('/root/type', 'INVALID_VALUE');
+  // The placements left by `transformNode` are expanded against the projection
+  // by the same implementation page layouts use, so a component renders — and
+  // fails — identically wherever it is placed. The component's own blocks
+  // carry their real entry ids, which is why the allowlist is collected after
+  // expansion rather than before it.
+  const expansion = expandReusablePlacements({
+    root: transformed,
+    path: '/root',
+    projection: context.reusableComponentProjection ?? { bindings: [], revisions: [] },
+    allowReusable: true,
+    ...(context.allowedContainerIds === undefined
+      ? {}
+      : { allowedContainerIds: context.allowedContainerIds }),
+  });
+  const expanded = expansion.root as LayoutNode;
   const normalized = normalizeLayoutDocument(
-    { version: 1, root: transformed },
-    new Set(collectEntryIds(transformed)),
+    { version: 1, root: expanded },
+    new Set(collectEntryIds(expanded)),
     context.allowedContainerIds
   );
   const document = restoreTemplateDocument(normalized.document.root, placements);
   return {
     document: { version: 1, root: document },
-    root: renderTemplateNode(document, placements) as Extract<
-      TemplateLayoutRenderNode,
-      { type: 'flex' | 'grid' }
-    >,
+    root: decorateReusableIdentity(
+      renderTemplateNode(document, placements),
+      expansion.identities
+    ) as Extract<TemplateLayoutRenderNode, { type: 'flex' | 'grid' }>,
     css: generateLayoutCss(normalized.document, undefined, undefined, context.breakpoints),
   };
 }
@@ -170,7 +220,7 @@ function transformNode(
   context: TemplateLayoutContext,
   placements: Map<string, TemplatePlacement>,
   nextEntryId: () => string
-): LayoutNode {
+): LayoutNode | ReusableComponentPlacement {
   if (!isRecord(value)) fail(path, 'INVALID_TYPE');
   if (value.type === 'template-block') {
     exactKeys(value, ['id', 'type', 'apiId', 'entryId', 'bindings', 'templates'], path);
@@ -237,7 +287,16 @@ function transformNode(
     });
     return { id: value.id, type: 'block', entryId: nextEntryId() };
   }
-  if (value.type === 'block' || value.type === 'reusable') fail(`${path}/type`, 'INVALID_VALUE');
+  if (value.type === 'reusable') {
+    // Never the root, and closed to anything but the three keys a placement
+    // has. Everything else about it — the component id, the binding, the
+    // revision — is the shared expansion's to check, so a template and a page
+    // report the same issue for the same node.
+    if (path === '/root') fail(`${path}/type`, 'INVALID_VALUE');
+    exactKeys(value, ['id', 'type', 'componentId'], path);
+    return value as unknown as ReusableComponentPlacement;
+  }
+  if (value.type === 'block') fail(`${path}/type`, 'INVALID_VALUE');
   if (value.type !== 'flex' && value.type !== 'grid') {
     return value as unknown as LayoutNode;
   }
@@ -373,7 +432,9 @@ function restoreTemplateDocument(
   const restore = (current: LayoutNode): TemplateLayoutNode => {
     if (current.type === 'block') {
       const placement = placements.get(current.id);
-      if (placement === undefined) fail('', 'INVALID_VALUE');
+      // A block with no placement came out of an expanded reusable component:
+      // it is an ordinary block and stays one.
+      if (placement === undefined) return current;
       return {
         id: current.id,
         type: 'template-block',
@@ -397,13 +458,22 @@ function renderTemplateNode(
   if (node.type === 'template-block') {
     const placement = placements.get(node.id);
     if (placement === undefined) fail('', 'INVALID_VALUE');
-    return { ...node, entry: placement.entry, className: layoutNodeClass(node.id) };
+    return {
+      ...node,
+      entry: placement.entry,
+      className: layoutNodeClass(node.id),
+    } as TemplateLayoutRenderNode;
   }
-  return {
-    ...node,
-    className: layoutNodeClass(node.id),
-    children: node.children.map((child) => renderTemplateNode(child, placements)),
-  } as TemplateLayoutRenderNode;
+  if (node.type === 'flex' || node.type === 'grid') {
+    return {
+      ...node,
+      className: layoutNodeClass(node.id),
+      children: node.children.map((child) => renderTemplateNode(child, placements)),
+    } as TemplateLayoutRenderNode;
+  }
+  // A block of an expanded component. A placement itself never reaches here:
+  // expansion replaced every one of them before the document was restored.
+  return { ...node, className: layoutNodeClass(node.id) } as TemplateLayoutRenderNode;
 }
 
 function collectEntryIds(node: LayoutNode): string[] {
