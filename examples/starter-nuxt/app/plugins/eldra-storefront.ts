@@ -16,6 +16,11 @@ import { createGatewayStorefront } from '../storefront/gateway';
  * `runtimeConfig.public.eldra` (`@eldrajs/theme-nuxt`'s `module.ts`) rather than asking a customer
  * to configure the same two values twice.
  *
+ * `useEldraPage()` is the module's own auto-import (`@eldrajs/theme-nuxt`), called here for one
+ * value: `catalog`, the `{ kind, slug }` a catalog-backed route template resolved for this path.
+ * It shares Nuxt's `useAsyncData` cache key with `app/pages/[...slug].vue`'s own call, so the page
+ * is still resolved once per route.
+ *
  * `formsEndpoint`/`checkoutUrl` are this starter's own optional config — `runtimeConfig.public` is
  * read defensively (not through the module's typed `eldra` key) since a customer may not have
  * declared them in `nuxt.config.ts` yet; see `README.md` for where to add them.
@@ -25,6 +30,9 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     const router = useRouter();
     const activeRoute = useRoute();
+    // The catalog object a route template matched, when this path is served by one
+    // (`schemaApiId: 'catalog:product' | 'catalog:collection'`); `null` on every other route.
+    const { catalog } = useEldraPage();
 
     function firstOf(value: string | string[] | undefined | null): string | null {
       if (Array.isArray(value)) return value[0] ?? null;
@@ -61,10 +69,26 @@ export default defineNuxtPlugin({
     // routes are just `/products/:handle`, `/collections/:handle` and an order
     // status page reading `?token=`/`?q=`/`?page=` — a page can still override `productHandle`/
     // `collectionHandle` with its own field before falling back to this.
+    //
+    // The product/collection handle has two sources, in this order:
+    //
+    // 1. The catalog route template that matched (`useEldraPage().catalog`). This is the
+    //    authoritative one: the template owns its own `routePattern`, so a merchant who seeds or
+    //    edits it to `/shop/:slug` still gets `productHandle` set, and the pattern's parameter is
+    //    resolved by the same code that loaded the object.
+    // 2. The `/products/` / `/collections/` path prefix, for a path this theme serves without a
+    //    catalog template behind it — the storefront pages a site has before its first deploy
+    //    seeds the templates, and the demo/Storybook routes.
     watchEffect(() => {
       const handle = firstOf(activeRoute.params.handle as string | string[] | undefined);
-      route.productHandle = activeRoute.path.startsWith('/products/') ? handle : null;
-      route.collectionHandle = activeRoute.path.startsWith('/collections/') ? handle : null;
+      const match = catalog.value;
+      if (match === null) {
+        route.productHandle = activeRoute.path.startsWith('/products/') ? handle : null;
+        route.collectionHandle = activeRoute.path.startsWith('/collections/') ? handle : null;
+      } else {
+        route.productHandle = match.kind === 'product' ? match.slug : null;
+        route.collectionHandle = match.kind === 'collection' ? match.slug : null;
+      }
       route.orderToken = firstOf(activeRoute.query.token as string | string[] | undefined);
       route.query = firstOf(activeRoute.query.q as string | string[] | undefined);
       const page = Number(firstOf(activeRoute.query.page as string | string[] | undefined));

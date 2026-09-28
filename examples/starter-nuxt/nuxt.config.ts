@@ -2,6 +2,7 @@ import { existsSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
+import { starterTemplateRoles, starterTemplates } from './app/templates';
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +56,15 @@ export default defineNuxtConfig({
     // whole `--color-<role>: var(--eldra-color-<role>)` mapping — so no colour
     // block is generated into the theme any more.
     tailwind: false,
+    // The default product, collection and home templates Core seeds a site
+    // with on its first deploy, built from `pages/*.page.json` — see
+    // `app/templates.ts`, and `docs/starter-kit.md` ("Seeded templates").
+    // Each seed's blocks are the fixture's blocks minus `navigation`/`footer`:
+    // those two are the `header`/`footer` roles below, which Core resolves to
+    // the site's own reusable components so every seeded page shares one
+    // header and one footer.
+    templates: starterTemplates(),
+    templateRoles: starterTemplateRoles(),
   },
   typescript: {
     tsConfig: {

@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import eldraTheme from '@eldrajs/vite-plugin-theme';
 import { generateStories } from '../scripts/generate-stories.mjs';
+import { starterTemplateRoles, starterTemplates } from '../app/templates';
 
 const themeDir = fileURLToPath(new URL('..', import.meta.url));
 
@@ -34,7 +35,19 @@ const config: StorybookConfig = {
       // explicitly (see the block contract rule in `docs/starter-kit.md`),
       // so Storybook — which has no Nuxt build step to auto-import from —
       // needs no auto-import shim any more.
-      eldraTheme({ themeDir, framework: 'nuxt', tailwind: false }),
+      // `templates`/`templateRoles` are declared here as well as in
+      // `nuxt.config.ts` — not because Storybook renders a seeded template
+      // (it does not), but because this plugin instance writes the same
+      // `.eldra/manifest.json` the Nuxt build writes. Leaving them out here
+      // made the checked-in manifest flip between "with seeds" and "without"
+      // depending on which build ran last.
+      eldraTheme({
+        themeDir,
+        framework: 'nuxt',
+        tailwind: false,
+        templates: starterTemplates(),
+        templateRoles: starterTemplateRoles(),
+      }),
     ];
     config.resolve = {
       ...config.resolve,

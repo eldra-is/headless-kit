@@ -70,6 +70,61 @@ build/deploy and CI wiring examples, and [Starter kit conventions](starter-kit.m
 primitive layer, the block contract, Storybook, and the accessibility/testing harness a customer
 inherits from `eldra-theme init`.
 
+## Seeding default templates
+
+A theme can ship the pages a site starts with. `@eldrajs/theme-nuxt`'s `eldra.templates` (forwarded
+to `@eldrajs/vite-plugin-theme`, which validates it and writes it into `.eldra/manifest.json`)
+declares at most **8** route templates Core seeds a site with on its **first** deploy — a pattern
+that already has a template on the site is left alone, so a merchant's edits are never overwritten.
+
+```ts
+// nuxt.config.ts
+eldra: {
+  templates: [
+    {
+      routePattern: '/products/:slug',
+      schemaApiId: 'catalog:product',   // or 'catalog:collection', or 'home'
+      title: 'Product',
+      blocks: [{ id: 'product-detail', apiId: 'product-detail', data: { /* … */ } }],
+      // layout?: a one-column document, generated from `blocks` when omitted
+      // header?: false / footer?: false to leave a role out of that generated layout
+    },
+  ],
+  templateRoles: {
+    header: { apiId: 'navigation', data: { /* … */ } },
+    footer: { apiId: 'footer', data: { /* … */ } },
+  },
+}
+```
+
+- `schemaApiId` is one of `catalog:product`, `catalog:collection` or `home`. The two `catalog:*`
+  ids are **not** CMS schemas: the template is resolved by looking `:slug` up in the public
+  catalog, which is why a catalog seed's pattern must be a static prefix plus a trailing `:slug`.
+  A `home` seed's pattern is exactly `/`.
+- `blocks[].data` is a seed in the same shape as a block's `mock.json`, and is held to the same
+  rule: a media field is either absent or `{ assetId: <uuid> }` (demo imagery belongs in
+  `preview.json`). Every `apiId` must be a block the theme ships, ids must be unique and match
+  `^[a-z][a-z0-9-]{0,47}$`.
+- `layout` is optional. Omitted, the scanner generates one flat column: the `header` role, the
+  seed's blocks in order, the `footer` role — `header: false` / `footer: false` leave a role out.
+  Declared, it is held to that same shape (one flex column of `reusable` and `block` nodes, every
+  seed block placed, each role at most once) and rebuilt from its validated nodes, so nothing a
+  theme added to a node reaches the manifest.
+- `templateRoles` carries the block data behind those roles. It is **required** for any role a
+  seed's layout places, and its `data` is validated exactly like a seed block's. On deploy Core
+  creates one reusable component per role ("Header"/"Footer"), publishes it, assigns it to the
+  site's role and points every seeded template's role node at it — so one header is shared by all
+  of them rather than copied per page.
+- Both keys are omitted from the manifest when a theme declares nothing, so a theme that seeds
+  nothing keeps emitting the file shape it always has.
+
+`eldra-theme validate` does not see either option — it validates the theme directory without
+loading `nuxt.config.ts`. The build is what writes them, so check `.eldra/manifest.json` (or run
+the site's own tests) after changing a seed. The starter does all of this in
+`examples/starter-nuxt/app/templates.ts`; see
+[Seeded templates](starter-kit.md#seeded-templates) for how it builds its three seeds out of the
+sample page fixtures.
+
 ## Layout sizing and container queries
 
 Blocks adapt to the width they are given with container queries: every block root is a

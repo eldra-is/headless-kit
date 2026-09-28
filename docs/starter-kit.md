@@ -434,6 +434,58 @@ crash) when it hasn't. Wire a real endpoint by adding it to `nuxt.config.ts`'s `
 [`examples/starter-nuxt/README.md`](../examples/starter-nuxt/README.md#storefront-forms) for the
 exact snippet.
 
+## Seeded templates
+
+A site deployed from this theme is not empty: `nuxt.config.ts`'s `eldra.templates` and
+`eldra.templateRoles` declare the default **route templates** Core creates on the site's first
+deploy, so a merchant who installs the theme has working product, collection and home pages before
+touching the page builder — and can then edit them like any other page.
+
+`app/templates.ts` builds them, and there is nothing to hand-author: each seed is one of the sample
+page fixtures (§3) turned into the manifest's seed shape.
+
+| Seed       | `routePattern`       | `schemaApiId`        | Built from                   |
+| ---------- | -------------------- | -------------------- | ---------------------------- |
+| Product    | `/products/:slug`    | `catalog:product`    | `pages/product.page.json`    |
+| Collection | `/collections/:slug` | `catalog:collection` | `pages/collection.page.json` |
+| Home       | `/`                  | `home`               | `pages/home.page.json`       |
+
+`catalog:product` / `catalog:collection` are the two reserved schema ids for a **catalog-backed**
+template: it has no CMS schema behind it, and the theme resolves `:slug` against the public catalog
+at render time (`useEldraPage().catalog`, see [themes.md](themes.md#seeding-default-templates)).
+`home` seeds the site's home page and applies only when the site has none.
+
+Three rules the file exists to keep:
+
+- **The header and footer are roles, not blocks.** Each seed's `blocks` are its fixture's blocks
+  **minus** `navigation` and `footer`; those two travel once, as `eldra.templateRoles`
+  (`{ header: { apiId: 'navigation', data }, footer: { apiId: 'footer', data } }`), and the
+  scanner's `header`/`footer` switches — on by default — place a `reusable` role node before and
+  after every seed's blocks. Core turns each role into one reusable component on the site and
+  points all three templates at it, so editing the header edits it everywhere instead of on one
+  seeded page at a time.
+- **Seed data is Core-valid, exactly like `mock.json`.** A seed is the write Core makes on deploy,
+  so it obeys the same media rule: a media field is either absent or `{ assetId: <uuid> }`. The
+  sample pages carry demo imagery for Storybook (`{ assetId: "demo-hero", url, altText, … }`), so
+  `stripSeedMedia(data, fields)` walks each block's declared field types — nesting through
+  `composite` and `list` included, which is how it reaches `navigation`'s
+  `links[].features[].image` and `hero`'s `slides[].image` — and drops every value the CMS would
+  refuse, keeping any real asset id. `test/starter.spec.ts` proves it: the seeds go through the
+  same scanner the build runs, and no `url` survives into one.
+- **Ids come from the fixture.** A seed block keeps the fixture block's own `id`
+  (`product-detail`, `home-hero`, …), which is what the generated layout's `block` nodes
+  reference.
+
+Editing a sample page fixture therefore edits the seeded template too — one copy of the starter's
+product page backs the Storybook story, the page-level test and the merchant's first deploy. The
+manifest the build writes (`.eldra/manifest.json`) is where they land; `eldra-theme validate` does
+not see them, because it validates the theme directory without loading `nuxt.config.ts`.
+
+`.storybook/main.ts` declares the same two options on its own `eldraTheme(...)` instance. Storybook
+never renders a seeded template — it is there because that instance writes the same
+`.eldra/manifest.json` the Nuxt build writes, and without it the checked-in file flips between
+"with seeds" and "without" depending on which build ran last.
+
 ## 4. Storybook and generated previews
 
 Storybook 10 (`@storybook/vue3-vite`) lives in `examples/starter-nuxt/.storybook/`, with

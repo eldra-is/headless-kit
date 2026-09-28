@@ -8,6 +8,7 @@ import { execa } from 'execa';
 import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
 import { encodeStega } from '@eldrajs/theme-core/stega';
 import { safeHref } from '../app/utils/links';
+import { starterTemplateRoles, starterTemplates, stripSeedMedia } from '../app/templates';
 
 const templateDir = fileURLToPath(new URL('..', import.meta.url));
 // Resolved by package name (a real devDependency of this starter, like a
@@ -488,6 +489,22 @@ describe('starter theme', () => {
     expect(existsSync(output('index.html'))).toBe(true);
     expect(existsSync(output('200.html'))).toBe(true);
     expect(existsSync(output('.eldra/manifest.json'))).toBe(true);
+    // The seeds and roles `nuxt.config.ts` declares reach the manifest the build writes — the
+    // artifact `eldra-theme deploy` uploads and Core seeds a site from. The scan-level
+    // assertions live in "seeded templates" below; this one proves the config wiring.
+    const built = JSON.parse(readFileSync(output('.eldra/manifest.json'), 'utf8')) as {
+      templates?: Array<{ routePattern: string }>;
+      templateRoles?: { header?: { apiId: string }; footer?: { apiId: string } };
+    };
+    expect(built.templates?.map((template) => template.routePattern)).toEqual([
+      '/products/:slug',
+      '/collections/:slug',
+      '/',
+    ]);
+    expect([built.templateRoles?.header?.apiId, built.templateRoles?.footer?.apiId]).toEqual([
+      'navigation',
+      'footer',
+    ]);
     expect(readFileSync(output('_headers'), 'utf8')).toContain(
       "frame-ancestors 'self' https://localhost:4311"
     );
@@ -782,3 +799,156 @@ function framingFieldIds(fields: ThemeBlockManifestField[], prefix = ''): string
   }
   return out;
 }
+
+describe('seeded templates (app/templates.ts)', () => {
+  // The seeds and roles as the theme declares them in `nuxt.config.ts`, put through the very
+  // scanner the build runs — so every assertion below is about what lands in
+  // `.eldra/manifest.json` and, from there, in the deploy Core seeds a site from.
+  const scanned = scanTheme({
+    themeDir: templateDir,
+    framework: 'nuxt',
+    templates: starterTemplates(),
+    templateRoles: starterTemplateRoles(),
+  });
+
+  /** The blocks of one `pages/<name>.page.json` fixture in order, minus the two role blocks. */
+  const fixtureBlocks = (name: string): string[] =>
+    (
+      JSON.parse(readFileSync(join(templateDir, 'pages', `${name}.page.json`), 'utf8')) as {
+        blocks: Array<{ apiId: string; id: string }>;
+      }
+    ).blocks
+      .filter((block) => block.apiId !== 'navigation' && block.apiId !== 'footer')
+      .map((block) => `${block.apiId}#${block.id}`);
+
+  it('seeds exactly the product, collection and home templates', () => {
+    const templates = scanned.manifest!.templates!;
+    expect(
+      templates.map((template) => [template.routePattern, template.schemaApiId, template.title])
+    ).toEqual([
+      ['/products/:slug', 'catalog:product', 'Product'],
+      ['/collections/:slug', 'catalog:collection', 'Collection'],
+      ['/', 'home', 'Home'],
+    ]);
+  });
+
+  it('seeds each sample page’s blocks, in order, minus the two role blocks', () => {
+    const templates = scanned.manifest!.templates!;
+    const seeded = (index: number) =>
+      templates[index]!.blocks.map((block) => `${block.apiId}#${block.id}`);
+    expect(seeded(0)).toEqual(fixtureBlocks('product'));
+    expect(seeded(1)).toEqual(fixtureBlocks('collection'));
+    expect(seeded(2)).toEqual(fixtureBlocks('home'));
+    // Guards the filter itself: the fixtures do carry a navigation and a footer block, so an
+    // empty filter would still make the three assertions above pass.
+    expect(seeded(0)).not.toContain('navigation#product-navigation');
+    expect(seeded(0)).not.toContain('footer#product-footer');
+    // And each seed's generated layout frames those blocks with the two roles, in one column.
+    for (const [index, template] of templates.entries()) {
+      const placed = template.layout.root.children.map((child) =>
+        child.type === 'reusable' ? child.role : child.entryId
+      );
+      expect(placed).toEqual([
+        'header',
+        ...templates[index]!.blocks.map((block) => block.id),
+        'footer',
+      ]);
+    }
+  });
+
+  it('carries the navigation and footer role data the seeds place', () => {
+    const roles = scanned.manifest!.templateRoles!;
+    expect(roles.header?.apiId).toBe('navigation');
+    expect(roles.footer?.apiId).toBe('footer');
+    // Real data, not an empty stub: the home fixture's own header and footer.
+    expect(roles.header?.data.links).toBeInstanceOf(Array);
+    expect(roles.footer?.data.groups).toBeInstanceOf(Array);
+  });
+
+  it('seeds Core-valid data: every seed block and both roles pass the mock.json rules', () => {
+    // `scanTheme` runs `templates[].blocks[].data` and `templateRoles.*.data` through exactly the
+    // walk it applies to every block's `mock.json` — the rule `eldra-theme validate` enforces —
+    // so an error here is a seed the CMS would 400 on deploy.
+    expect(scanned.errors).toEqual([]);
+
+    // And proven directly, because an empty error list would also be what a scanner that never
+    // looked at the seeds returns: the sample pages carry demo imagery
+    // (`{assetId: "demo-hero", url, altText, width, height}`) in `hero.image`, `hero.slides[]`,
+    // `navigation.links[].features[]`, `split-content.rows[]`, `testimonials.items[]`,
+    // `collection-header.image` and `cta.image` — none of it may survive into a seed.
+    const seeded = JSON.stringify([scanned.manifest!.templates, scanned.manifest!.templateRoles]);
+    expect(seeded).not.toContain('"url"');
+    expect(seeded).not.toContain('demo-');
+    // The non-media copy of those same blocks is still there, so the strip took the media and
+    // not the block.
+    expect(scanned.manifest!.templateRoles!.header!.data.brandText).toBe('Northwind Goods');
+  });
+
+  it('strips exactly the media values the CMS refuses, at every nesting depth', () => {
+    const asset = '3f1c5a2e-9b4d-4c7a-8e21-0d6f4b9c1a55';
+    const fields = [
+      { fieldId: 'heading', type: 'string' },
+      { fieldId: 'image', type: 'media' },
+      { fieldId: 'logo', type: 'media' },
+      { fieldId: 'shots', type: 'media', metadata: { multiple: true } },
+      {
+        fieldId: 'seo',
+        type: 'composite',
+        metadata: { fields: [{ fieldId: 'share', type: 'media' }] },
+      },
+      { fieldId: 'photos', type: 'list', metadata: { item: { fieldId: 'item', type: 'media' } } },
+      {
+        fieldId: 'links',
+        type: 'list',
+        metadata: {
+          item: {
+            fieldId: 'item',
+            type: 'composite',
+            metadata: {
+              fields: [
+                { fieldId: 'label', type: 'string' },
+                {
+                  fieldId: 'features',
+                  type: 'list',
+                  metadata: {
+                    item: {
+                      fieldId: 'item',
+                      type: 'composite',
+                      metadata: { fields: [{ fieldId: 'image', type: 'media' }] },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    ];
+    const data = {
+      heading: 'Kept',
+      image: { assetId: 'demo-hero', url: '/demo/hero.svg', altText: 'Hero' },
+      logo: { assetId: asset, framing: { x: 0.5 } },
+      shots: [{ assetId: asset }, { assetId: 'demo-2', url: '/demo/2.svg' }],
+      seo: { share: { assetId: 'demo-share', url: '/demo/share.svg' } },
+      photos: [{ assetId: 'demo-a', url: '/demo/a.svg' }],
+      links: [{ label: 'Shop', features: [{ image: { assetId: 'demo-f', url: '/demo/f.svg' } }] }],
+      untyped: { assetId: 'demo-x', url: '/demo/x.svg' },
+    };
+    const stripped = stripSeedMedia(data, fields);
+
+    expect(stripped.heading).toBe('Kept');
+    // A write-valid value is a real asset the theme meant to seed — kept, `framing` included.
+    expect(stripped.logo).toEqual({ assetId: asset, framing: { x: 0.5 } });
+    expect(stripped.shots).toEqual([{ assetId: asset }]);
+    // Everything else is dropped rather than blanked: absent is what the CMS accepts.
+    expect(Object.hasOwn(stripped, 'image')).toBe(false);
+    expect(stripped.seo).toEqual({});
+    expect(Object.hasOwn(stripped, 'photos')).toBe(false);
+    expect(stripped.links).toEqual([{ label: 'Shop', features: [{}] }]);
+    // A key no field declares is data the walk never reaches, and is left alone — the block's
+    // field list is the only thing that decides what a media value is.
+    expect(stripped.untyped).toEqual({ assetId: 'demo-x', url: '/demo/x.svg' });
+    // Pure: the caller's fixture is never mutated.
+    expect(data.image).toEqual({ assetId: 'demo-hero', url: '/demo/hero.svg', altText: 'Hero' });
+  });
+});
