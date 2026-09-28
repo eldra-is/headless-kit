@@ -272,6 +272,19 @@ rich text and slot zones go through `EldraRichText`/`EldraLayout`/`EldraBlockZon
 `@eldrajs/theme-vue`. Pages (`app/pages/**`, `app.vue`) are not under this rule — `useRoute` /
 `useHead` / Nuxt auto-imports are fine there, since they never run outside a real Nuxt build.
 
+**Render a text value as it was given.** In Studio's preview every text field's value carries an
+invisible editing payload — a run of zero-width characters after the text, naming the entry and the
+field — and the preview overlay turns the text node it survives into the field an author can click
+and type in. So a block displays the value it was handed: `{{ heading }}`, not
+`{{ heading.toUpperCase() }}`, not ``{{ `${label}: ${value}` }}``, not a copy put through
+`.replace(/\s+/g, ' ')` or `.slice()`. `value.trim()` is fine — `@eldrajs/theme-core` reads a
+payload whose delimiter trimming ate. Anything the value is _not_ displayed as — an emptiness check,
+a storage key, an `aria-label`, a lookup — derives from `stripStega(value)` instead
+(`@eldrajs/theme-core/stega`), and a value that genuinely has to be composed into another sentence
+is composed from that stripped copy, so the overlay does not offer an edit that would write the
+composed text back. `test/inlineEditable.spec.ts` mounts every block with an encoded copy of its
+`mock.json` and fails with the field paths whose payload the block destroyed.
+
 **Field types, and the one `reference` shape that is typed.** `block.json`'s field `type` values are
 Core's (`string`, `text`, `rich-text`, `media`, `select`, `bool`, `int`, `list`, `composite`,
 `reference`, …). A `reference` field carries a `relation` naming what an editor may pick, as any
