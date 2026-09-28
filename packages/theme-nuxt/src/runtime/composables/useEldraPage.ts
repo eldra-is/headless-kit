@@ -106,8 +106,14 @@ export function useEldraPage(): {
     const raw = template.value?.data.blocks ?? page.value?.data.blocks;
     return Array.isArray(raw) ? raw.filter(isEntryDoc) : [];
   });
+  // Core attaches the projection to whichever document the read returned, and a
+  // route resolves exactly one of the two: a static route has a `page` and no
+  // `template`, a dynamic one a `template` and no `page`. So this is a fallback
+  // and never a merge — `@eldrajs/theme-core`'s expansion refuses a projection
+  // carrying a binding the rendered document does not place (`COMPONENT_STALE`),
+  // which is what a merged projection would be.
   const reusableComponentProjection = computed<unknown | undefined>(
-    () => page.value?.reusableComponentProjection
+    () => page.value?.reusableComponentProjection ?? template.value?.reusableComponentProjection
   );
 
   return {

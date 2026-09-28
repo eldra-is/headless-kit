@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Feat: `useEldraPage()` exposes `reusableComponentProjection` on a **route-template** route. Core
+  attaches the projection to whichever document the read returned, and a route resolves exactly one
+  of the two — a static route a `page`, a dynamic one a `template` — so the composable now reads the
+  page's, else the template's. It is a fallback and never a merge: `@eldrajs/theme-core` refuses a
+  projection carrying a binding the rendered document does not place, so a page's projection on a
+  template route would fail the layout closed. Preview drafts already reach a placement inside a
+  template the same way they reach one inside a page; nothing there needed lifting.
 - Fix: a blank locale is no longer forwarded to the gateway. A site that configures none carries
   `""` — that is what `runtimeConfig.public.eldra.locale` holds, and what an unset `ELDRA_LOCALE`
   becomes — which went out as `?locale=` on every read and came back a 400 from the collection

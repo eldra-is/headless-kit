@@ -85,6 +85,79 @@ describe('theme-nuxt runtime', () => {
     expect(result?.data.layout).toEqual(template.data.layout);
   });
 
+  it('overlays a shared block draft inside a reusable placement on a route template', () => {
+    // Ruling 3: a reusable component draft from Studio's bridge has to reach a
+    // placement inside a *template* the way it reaches one inside a page. It
+    // does — the projection and its component's block entries ride on the
+    // template document exactly as they ride on a page document, and nothing in
+    // this overlay is gated on which of the two it was handed.
+    const header = {
+      id: 'shared-header-entry',
+      schemaApiId: 'navigation',
+      data: { brand: 'Published brand' },
+    };
+    const projection = {
+      bindings: [
+        {
+          placementId: 'role-header',
+          componentId: 'component-1',
+          siteId: 'site-1',
+          revision: 2,
+        },
+      ],
+      revisions: [
+        {
+          componentId: 'component-1',
+          siteId: 'site-1',
+          revision: 2,
+          document: {
+            version: 1,
+            root: {
+              id: 'component-root',
+              type: 'flex',
+              layout: { direction: { normal: 'column' } },
+              children: [{ id: 'component-header', type: 'block', entryId: header.id }],
+            },
+          },
+        },
+      ],
+    };
+    const template = {
+      id: 'route-template-1',
+      schemaApiId: 'route-template',
+      data: {
+        blocks: [header],
+        layout: {
+          version: 1,
+          root: {
+            id: 'template-root',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: [
+              { id: 'role-header', type: 'reusable', componentId: 'component-1' },
+              {
+                id: 'product-hero',
+                type: 'template-block',
+                apiId: 'hero',
+                templates: { heading: '{{ title }}' },
+              },
+            ],
+          },
+        },
+      },
+      reusableComponentProjection: projection,
+    };
+
+    const result = overlayPreviewDrafts(template, {
+      [header.id]: { brand: 'Shared draft brand' },
+    });
+
+    expect(result?.data.blocks).toEqual([{ ...header, data: { brand: 'Shared draft brand' } }]);
+    // The projection travels with the document, so `useEldraPage` can hand the
+    // template read's own one to EldraLayout after the overlay.
+    expect(result?.reusableComponentProjection).toEqual(projection);
+  });
+
   it('preserves unresolved reference values for a later gateway refresh', () => {
     const page = { id: 'page-1', data: { blocks: [{ id: 'block-new', _type: 'reference' }] } };
     expect(overlayPreviewDrafts(page, { 'block-new': { heading: 'Draft' } })).toEqual(page);
