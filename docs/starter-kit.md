@@ -455,7 +455,7 @@ template: it has no CMS schema behind it, and the theme resolves `:slug` against
 at render time (`useEldraPage().catalog`, see [themes.md](themes.md#seeding-default-templates)).
 `home` seeds the site's home page and applies only when the site has none.
 
-Three rules the file exists to keep:
+Four rules the file exists to keep:
 
 - **The header and footer are roles, not blocks.** Each seed's `blocks` are its fixture's blocks
   **minus** `navigation` and `footer`; those two travel once, as `eldra.templateRoles`
