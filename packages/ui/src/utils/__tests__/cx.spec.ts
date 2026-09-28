@@ -78,6 +78,11 @@ describe('cx — custom @utility class groups', () => {
     expect(cx('animate-eldra-spin', 'animate-eldra-pulse')).toBe('animate-eldra-pulse');
   });
 
+  it("lets a consumer's own opacity replace the revalidating dim", () => {
+    expect(cx('eldra-revalidating', 'opacity-100')).toBe('opacity-100');
+    expect(cx('opacity-50', 'eldra-revalidating')).toBe('eldra-revalidating');
+  });
+
   it('keeps unrelated custom utilities that do not conflict', () => {
     expect(cx('control-h', 'text-button-md', 'eldra-focus')).toBe(
       'control-h text-button-md eldra-focus'

@@ -10,7 +10,16 @@ export type PriceSize = 'sm' | 'md' | 'lg';
  * before `compareAt`) — two elements sharing one part name, the same shape as a repeated part in
  * any list-like component. Named `srText`, not `srLabel`, to match the same visually-hidden part
  * on `Avatar`/`LogoItem` — see this package's README for the naming rule. */
-export type PricePart = 'root' | 'current' | 'compareAt' | 'from' | 'unit' | 'srText' | 'skeleton';
+export type PricePart =
+  | 'root'
+  | 'current'
+  | 'compareAt'
+  | 'from'
+  | 'unit'
+  | 'srText'
+  | 'skeleton'
+  | 'spinner'
+  | 'srStatus';
 
 export interface PriceProps {
   /**
@@ -49,6 +58,23 @@ export interface PriceProps {
   lang?: string | null;
   /** Renders a text skeleton at 35% width instead of the price (spec "Price" → Properties). */
   loading?: boolean;
+  /**
+   * The price is on screen but a fresher one is on its way — a prerendered amount being refreshed
+   * after load, say. The amount stays exactly where it is and keeps its text, dimmed to
+   * `--eldra-revalidating-opacity`, with a small spinner beside it (drawn outside the root's own
+   * box, so nothing moves) and `aria-busy="true"` on the root; a visually hidden live region says
+   * `messages.updatingPrice`. Distinct from `loading`, which means there is no price yet and shows
+   * a skeleton instead — and `loading` wins when both are set.
+   */
+  revalidating?: boolean;
+  /**
+   * Whether this price announces its own refresh. `true` by default: while `revalidating`, the
+   * visually hidden `aria-live="polite"` region reads `messages.updatingPrice`. Set it to `false`
+   * when the page announces the refresh once itself — a grid of 24 refreshing cards would
+   * otherwise hold 48 polite regions, all speaking at once. `aria-busy`, the dim and the spinner
+   * are unaffected; only the region goes.
+   */
+  announce?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<PricePart, string>>;
 }

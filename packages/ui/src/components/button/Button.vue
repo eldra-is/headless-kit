@@ -3,6 +3,7 @@ import { computed, inject, useSlots, watchEffect } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { FORM_SUBMITTING_KEY } from '../form-layout/context';
 import Icon from '../icon/Icon.vue';
+import Spinner from '../spinner/Spinner.vue';
 import type { ButtonProps, ButtonSize, ButtonVariant } from './types';
 
 const props = withDefaults(defineProps<ButtonProps>(), {
@@ -421,24 +422,10 @@ const linkTabindex = computed(() => (isLink.value && isDisabled.value ? '-1' : u
       </slot>
     </span>
     <span v-if="isLoading" data-part="spinner" :class="spinnerClass">
-      <!-- 1.125rem circle, 2px stroke in the label colour. The viewBox is 18 units wide so a
-           stroke of 2 user units renders as exactly 2px at that size. One turn every 700ms; with
-           reduced motion it pulses at 60-100% opacity instead (spec "Behaviour & motion"). -->
-      <svg
-        class="animate-eldra-spin motion-reduce:animate-eldra-pulse size-4.5"
-        viewBox="0 0 18 18"
-        fill="none"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <circle cx="9" cy="9" r="8" stroke="currentColor" stroke-width="2" stroke-opacity="0.3" />
-        <path
-          d="M17 9a8 8 0 0 0-8-8"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
-      </svg>
+      <!-- 1.125rem circle, 2px stroke in the label colour, one turn every 700ms; with reduced
+           motion it pulses at 60-100% opacity instead (spec "Behaviour & motion"). The shape
+           itself is `Spinner.vue`, shared with `LoadMore`, `Price` and `StockBadge`. -->
+      <Spinner class="size-4.5" />
     </span>
   </component>
 </template>

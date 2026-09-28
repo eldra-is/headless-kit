@@ -3,11 +3,14 @@ import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
+import Spinner from '../spinner/Spinner.vue';
 import type { StockBadgeProps, StockLevel } from './types';
 
 const props = withDefaults(defineProps<StockBadgeProps>(), {
   quantity: undefined,
   message: undefined,
+  revalidating: false,
+  announce: true,
   classes: undefined,
 });
 
@@ -59,6 +62,19 @@ const defaultMessage = computed<string>(() => {
 
 const text = computed(() => props.message ?? defaultMessage.value);
 
+/**
+ * The stock line is on screen but a fresher one is on its way — the same refresh state `Price`
+ * carries, and drawn the same way: the level keeps its icon, its colour and its words, dimmed to
+ * `--eldra-revalidating-opacity`, with a spinner beside it. `StockBadge` has no `loading` state of
+ * its own (a stock line a page does not know yet is simply not rendered), so there is no
+ * precedence rule here the way there is on `Price`.
+ *
+ * The dim goes on the icon and the label rather than on the root, because CSS opacity composites
+ * down the tree and a dimmed root would take the spinner with it — the spinner is the state's own
+ * signal and stays at full strength.
+ */
+const dim = computed(() => (props.revalidating ? 'eldra-revalidating' : ''));
+
 const rootClass = computed(() =>
   partClass(
     cx('inline-flex items-center gap-1.5 text-stock-status', LEVEL_TEXT_CLASS[props.level]),
@@ -66,12 +82,42 @@ const rootClass = computed(() =>
     'root'
   )
 );
-const iconClass = computed(() => partClass('size-4.5 shrink-0', props.classes, 'icon'));
-const labelClass = computed(() => partClass('', props.classes, 'label'));
+const iconClass = computed(() =>
+  partClass(cx('size-4.5 shrink-0', dim.value), props.classes, 'icon')
+);
+const labelClass = computed(() => partClass(dim.value, props.classes, 'label'));
+
+/**
+ * The same zero-width spinner `Price` draws, for the reason spelled out there: a flex item of
+ * width `0` whose `-ms-1.5` cancels exactly the `gap-1.5` the root would otherwise put in front of
+ * it, with the circle absolutely positioned inside that box and overflowing to the right of it —
+ * so the stock line's own width, and every character in it, are identical with the state on and
+ * off. `text-muted` keeps the circle furniture beside the status rather than part of it.
+ */
+const spinnerClass = computed(() =>
+  partClass(
+    'pointer-events-none relative -ms-1.5 flex h-[1em] w-0 shrink-0 items-center text-muted',
+    props.classes,
+    'spinner'
+  )
+);
+
+/**
+ * `srStatus`, not `status`, for the reason `Price.vue` spells out: `LoadMore`'s own visible
+ * `status` part would otherwise collide with it on a page holding both.
+ *
+ * Rendered whether or not there is anything to say, with only its text changing: a live region
+ * that arrives in the DOM already holding its message is announced unreliably, because a screen
+ * reader takes the region and its content in one pass and has no change to report. `announce:
+ * false` drops it outright for a page that says it once itself (see `Price.vue`); `aria-busy` and
+ * the visual state stay.
+ */
+const srStatusClass = computed(() => partClass('sr-only', props.classes, 'srStatus'));
+const srStatusText = computed(() => (props.revalidating ? messages.value.updatingStock : ''));
 </script>
 
 <template>
-  <span data-part="root" :class="rootClass">
+  <span data-part="root" :class="rootClass" :aria-busy="revalidating ? 'true' : undefined">
     <svg
       data-part="icon"
       :class="iconClass"
@@ -87,5 +133,11 @@ const labelClass = computed(() => partClass('', props.classes, 'label'));
       <path v-for="d in LEVEL_ICON_PATHS[level]" :key="d" :d="d" />
     </svg>
     <span data-part="label" :class="labelClass">{{ text }}</span>
+    <span v-if="revalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true">
+      <Spinner class="absolute start-[0.25em] top-0 size-[1em]" />
+    </span>
+    <span v-if="announce" data-part="srStatus" :class="srStatusClass" aria-live="polite">{{
+      srStatusText
+    }}</span>
   </span>
 </template>

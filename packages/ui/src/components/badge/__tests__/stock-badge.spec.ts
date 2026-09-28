@@ -146,3 +146,111 @@ describe('StockBadge — accessibility', () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * The same refresh state `Price` carries, for the stock line: the built-in level stays on screen,
+ * dimmed, with a small spinner beside it, while a live one is fetched.
+ */
+describe('StockBadge — revalidating', () => {
+  function visibleText(wrapper: { element: Element }): string {
+    const clone = wrapper.element.cloneNode(true) as HTMLElement;
+    clone.querySelector('[data-part="srStatus"]')?.remove();
+    return clone.textContent ?? '';
+  }
+
+  it('keeps the level, marks the root busy and draws a spinner', () => {
+    const wrapper = mountWith(StockBadge, {
+      props: { level: 'low', quantity: 3, revalidating: true },
+    });
+    expect(wrapper.get('[data-part="label"]').text()).toBe('Low stock: only 3 left');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('renders exactly the visible text a plain stock line renders, so nothing reflows', () => {
+    const plain = mountWith(StockBadge, { props: { level: 'in' } });
+    const busy = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
+    expect(visibleText(busy)).toBe(visibleText(plain));
+    const spinner = busy.get('[data-part="spinner"]');
+    expect(spinner.text()).toBe('');
+    expect(spinner.attributes('aria-hidden')).toBe('true');
+    // Zero width, with the negative inline-start margin that cancels the root's own gap: the
+    // spinner is drawn in the space after the value without reserving any of it.
+    expect(spinner.classes()).toContain('w-0');
+    expect(spinner.get('svg').classes()).toContain('absolute');
+    plain.unmount();
+    busy.unmount();
+  });
+
+  it('dims the icon and the label through the revalidating opacity token', () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
+    expect(wrapper.get('[data-part="icon"]').classes()).toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="label"]').classes()).toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="spinner"]').classes()).not.toContain('eldra-revalidating');
+    wrapper.unmount();
+  });
+
+  it('draws no spinner, no busy flag and no dimming when it is not revalidating', () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in' } });
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
+    expect(wrapper.attributes('aria-busy')).toBeUndefined();
+    expect(wrapper.get('[data-part="label"]').classes()).not.toContain('eldra-revalidating');
+    wrapper.unmount();
+  });
+
+  it('announces the refresh in a visually hidden polite live region', async () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in' } });
+    const status = wrapper.get('[data-part="srStatus"]');
+    expect(status.text()).toBe('');
+    expect(status.attributes('aria-live')).toBe('polite');
+    expect(status.classes()).toContain('sr-only');
+    await wrapper.setProps({ revalidating: true });
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('Updating stock');
+    wrapper.unmount();
+  });
+
+  it('reads the refresh message from the catalogue', () => {
+    const Wrapped = defineComponent({
+      setup() {
+        provideEldraUiMessages(isIS);
+        return () => h(StockBadge, { level: 'in', revalidating: true });
+      },
+    });
+    const wrapper = mountWith(Wrapped);
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe(isIS.updatingStock);
+    wrapper.unmount();
+  });
+
+  it('turns the spinner, and pulses it under reduced motion', () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
+    const svg = wrapper.get('[data-part="spinner"] svg');
+    expect(svg.classes()).toContain('animate-eldra-spin');
+    expect(svg.classes()).toContain('motion-reduce:animate-eldra-pulse');
+    wrapper.unmount();
+  });
+
+  /** See `Price`'s own `announce` spec: one page-level announcement instead of one per value. */
+  it('renders no live region at all when announce is off, and stays busy', () => {
+    const wrapper = mountWith(StockBadge, {
+      props: { level: 'in', revalidating: true, announce: false },
+    });
+    expect(wrapper.find('[data-part="srStatus"]').exists()).toBe(false);
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+    expect(wrapper.get('[data-part="label"]').classes()).toContain('eldra-revalidating');
+    wrapper.unmount();
+  });
+
+  it('announces by default, with no announce prop given', () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('Updating stock');
+    wrapper.unmount();
+  });
+
+  it.each(LEVELS)('has no axe violations while revalidating level %s', async (level) => {
+    const wrapper = mountWith(StockBadge, { props: { level, quantity: 3, revalidating: true } });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});

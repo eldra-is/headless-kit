@@ -44,6 +44,16 @@ const SWEATER: ProductCardProduct = {
   available: true,
 };
 
+/** The same product with a stock line, for the refresh stories. */
+const LOW_STOCK: ProductCardProduct = { ...SWEATER, stock: 'low' };
+/** A settled, full-price neighbour for the mixed refresh grid. */
+const IN_STOCK: ProductCardProduct = {
+  ...SWEATER,
+  badge: null,
+  price: { amount: 4800 },
+  stock: 'in',
+};
+
 const meta = {
   title: 'Commerce/ProductCard',
   component: ProductCard,
@@ -102,6 +112,13 @@ const meta = {
           '**Loading** renders a skeleton — media, three text lines, a button bar — as a',
           '`role="group"` `aria-busy="true"` region named "Loading product", in place of the whole',
           'card.',
+          '',
+          '**Revalidating** is the other refresh state, and the card itself draws none of it: it',
+          'passes `revalidating` to its `Price` and `StockBadge`, which keep their values on screen,',
+          'dimmed, with a spinner beside each. The card stays fully interactive. `loading` wins when',
+          'both are set. A grid should pass `announce: false` alongside it and announce the refresh',
+          'once at page level: the flag is forwarded to both values, dropping their own live regions',
+          'while leaving `aria-busy`, the dim and the spinners exactly as they are.',
         ].join('\n'),
       },
     },
@@ -204,6 +221,37 @@ export const Ratios: Story = {
 /** `loading`: a skeleton in place of the whole card — media, three text lines at 80/35/50%
  * width, and a button bar — `role="group"` `aria-busy="true"` named "Loading product". */
 export const Loading: Story = cardStory({ product: SWEATER, loading: true });
+
+/**
+ * `revalidating`: the card's two volatile values — the price and the stock line — kept on screen
+ * and dimmed, each with its own spinner, while live ones are fetched. Everything else (media,
+ * title, badges, quick add) is untouched and stays interactive.
+ */
+export const Revalidating: Story = cardStory({ product: LOW_STOCK, revalidating: true });
+
+/**
+ * A grid mid-refresh, mixing both states: the refreshing cards sit on exactly the same grid lines
+ * as the settled ones, at the same height — the state changes what a card says about itself, never
+ * how much room it takes.
+ *
+ * The cards also carry `:announce="false"`, which is what a grid should do: each card keeps its
+ * `aria-busy`, its dim and its spinner, but the sentence is left to one page-level live region
+ * instead of one per value — twelve refreshing cards would otherwise hold twenty-four polite
+ * regions, all speaking at once.
+ */
+export const RevalidatingGrid: Story = {
+  render: () => ({
+    components: { ProductCard },
+    setup: () => ({ lowStock: LOW_STOCK, inStock: IN_STOCK }),
+    template: `
+      <div class="grid max-w-3xl grid-cols-3 gap-6">
+        <ProductCard :product="lowStock" revalidating :announce="false" />
+        <ProductCard :product="inStock" />
+        <ProductCard :product="inStock" revalidating :announce="false" />
+      </div>
+    `,
+  }),
+};
 
 /** A long title (clamped to two lines, full text kept in the link's accessible name), a long
  * vendor name and every optional row on, to prove nothing overflows or misaligns. */

@@ -95,6 +95,21 @@ export interface ProductCardProps {
   /** Renders the loading skeleton (spec "Product card" → Variants, Loading row) instead of the
    * card. */
   loading?: boolean;
+  /**
+   * The card's volatile values — the price and the stock line — are on screen but fresher ones are
+   * on their way, which is what a prerendered grid does after load. Passed straight through to
+   * `Price` and `StockBadge`, each of which dims its own value, draws a spinner beside it and
+   * announces the refresh; the rest of the card (title, media, badges, quick add) is untouched and
+   * stays interactive. Ignored while `loading`, which replaces the whole card with a skeleton.
+   */
+  revalidating?: boolean;
+  /**
+   * Whether the card's price and stock line announce their own refresh, passed straight through to
+   * both. `true` by default. A grid should set it to `false` and announce once at page level:
+   * 24 refreshing cards otherwise hold 48 polite live regions, all speaking at once. `aria-busy`
+   * on each value, the dim and the spinners are unaffected.
+   */
+  announce?: boolean;
   /** `Price`'s own `currency` prop, passed straight through. Defaults to `useEldraUiCurrency()`. */
   currency?: string;
   /** `Price`'s own `locale` prop, passed straight through. Defaults to `useEldraUiLocale()`. */

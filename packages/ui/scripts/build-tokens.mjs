@@ -80,6 +80,9 @@ export function renderTokensCss(tokens) {
   plain('radius');
   plain('shadow');
   plain('layout');
+  // `opacity` carries its own name in the key (`revalidating-opacity`), the same shape as
+  // `space`/`radius`/`zIndex`, so it needs no prefix of its own.
+  plain('opacity');
   for (const [name, token] of Object.entries(tokens.duration ?? {})) {
     push(name, valueOf(token, `duration.${name}`));
     durations.push(name);
