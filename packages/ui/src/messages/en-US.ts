@@ -262,6 +262,19 @@ export const enUS = {
    */
   perUnit: (per: string) => `/ ${per}`,
   /**
+   * What a `Price` says in its live region while `revalidating` — a prerendered amount that is
+   * still on screen, dimmed, while a fresher one is fetched. Its own sentence rather than the
+   * generic `loading` above, because the two states are different news for a shopper: `loading`
+   * means there is no price yet, this means the price shown may be a moment out of date.
+   */
+  updatingPrice: 'Updating price',
+  /**
+   * The `StockBadge` half of `updatingPrice` — the same state on the stock line. Two keys, not one
+   * "Updating" with the noun spliced on: a locale's own wording for each need not share a stem,
+   * and the two are announced separately.
+   */
+  updatingStock: 'Updating stock',
+  /**
    * `Rating`'s one accessible sentence (spec "Rating" → Accessibility: "the wrapper has `role="img"`
    * and `aria-label="Rated 4.5 out of 5, 128 reviews"`"), reused verbatim as the linked variant's
    * `aria-label` too — see `Rating.vue`'s own comment for why both forms share one sentence rather

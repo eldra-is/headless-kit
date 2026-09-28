@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
+import Spinner from '../spinner/Spinner.vue';
 import type { LoadMoreProps } from './types';
 
 const props = withDefaults(defineProps<LoadMoreProps>(), {
@@ -89,24 +90,9 @@ const buttonClass = computed(() =>
       :aria-busy="pending ? 'true' : undefined"
       @click="emit('load')"
     >
-      <!-- Same spinner circle Button.vue draws: 1.125rem, 2px stroke, one turn every 700ms; with
-           reduced motion it pulses 60–100% opacity instead. -->
-      <svg
-        v-if="pending"
-        class="animate-eldra-spin motion-reduce:animate-eldra-pulse size-4.5"
-        viewBox="0 0 18 18"
-        fill="none"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <circle cx="9" cy="9" r="8" stroke="currentColor" stroke-width="2" stroke-opacity="0.3" />
-        <path
-          d="M17 9a8 8 0 0 0-8-8"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
-      </svg>
+      <!-- Same spinner circle Button draws, from the same `Spinner.vue`: 1.125rem, 2px stroke,
+           one turn every 700ms; with reduced motion it pulses 60–100% opacity instead. -->
+      <Spinner v-if="pending" class="size-4.5" />
       <span>{{ m.loadMore }}</span>
     </button>
   </div>

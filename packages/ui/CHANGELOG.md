@@ -7,6 +7,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ### Added
 
+- `revalidating` on `Price`, `ProductCard` and `StockBadge`: a value that is already on screen while a fresher one is fetched keeps its text and its place, dimmed to the new `--eldra-revalidating-opacity` token (default `0.9`, from `tokens.json`), with a `1em` spinner drawn beside it outside the component's own box — no width change, no layout shift — plus `aria-busy="true"` and a visually hidden `aria-live="polite"` region reading the new `updatingPrice` / `updatingStock` messages. Distinct from `loading`, which still renders the skeleton and wins when both are set; `ProductCard` passes the flag to its price and stock line and is otherwise unchanged. New parts: `spinner`, `srStatus` on `Price` and `StockBadge`.
 - `--eldra-shadow-float` / `shadow-float`: a wider, softer shadow than `shadow-sm` for a sticky header once the page has scrolled (from `tokens.json`).
 
 ### Fixed

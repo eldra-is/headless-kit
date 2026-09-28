@@ -266,6 +266,10 @@ const twMerge = extendTailwindMerge<
       rounded: ['eldra-link-radius', 'eldra-select-check-radius'],
       // Motion durations (tailwind.css "Motion"): the same "duration" group as `duration-150`.
       duration: ['duration-fast', 'duration-base', 'duration-slow'],
+      // The revalidating dim (tailwind.css "A value that is still on screen…"): the same "opacity"
+      // group as `opacity-90`, so a consumer's own `opacity-*` override on a dimmed part replaces
+      // the dim instead of landing beside it and losing to source order.
+      opacity: ['eldra-revalidating'],
       // The skeleton shimmer (tailwind.css "The skeleton shimmer"): a `surface-strong` fill plus a
       // moving highlight `::after`, no stock Tailwind equivalent, so it gets its own group. Shared
       // by `Price`'s loading state and, later, `Skeleton` itself.

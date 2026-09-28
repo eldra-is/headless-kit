@@ -4,6 +4,7 @@ import { cx, partClass } from '../../utils/cx';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
 import { createNumberFormat, currencyFractionDigits } from '../../utils/number-format';
+import Spinner from '../spinner/Spinner.vue';
 import type { PriceProps, PriceSize } from './types';
 
 const props = withDefaults(defineProps<PriceProps>(), {
@@ -16,8 +17,25 @@ const props = withDefaults(defineProps<PriceProps>(), {
   labels: undefined,
   lang: undefined,
   loading: false,
+  revalidating: false,
   classes: undefined,
 });
+
+/**
+ * `loading` wins when both are set (`PriceProps.revalidating`): there is no value to keep on
+ * screen while the skeleton is showing, so a spinner beside it would be announcing the refresh of
+ * something that is not there.
+ */
+const isRevalidating = computed(() => props.revalidating && !props.loading);
+
+/**
+ * The dim itself — `eldra-revalidating` (`tailwind.css`), which resolves
+ * `--eldra-revalidating-opacity`. It is applied to each value part rather than to the root,
+ * because CSS opacity composites down the tree: a dimmed root would take the spinner with it, and
+ * a child cannot be more opaque than its parent. The spinner is the state's own signal and stays
+ * at full strength.
+ */
+const dim = computed(() => (isRevalidating.value ? 'eldra-revalidating' : ''));
 
 const ambientLocale = useEldraUiLocale();
 const ambientCurrency = useEldraUiCurrency();
@@ -174,7 +192,7 @@ const rootClass = computed(() =>
 /** Spec "Price" → States: Regular current is `text`; Sale current is `accent`. */
 const currentClass = computed(() =>
   partClass(
-    cx('text-price-current', isSale.value ? 'text-accent' : 'text-text', SECTION),
+    cx('text-price-current', isSale.value ? 'text-accent' : 'text-text', SECTION, dim.value),
     props.classes,
     'current'
   )
@@ -183,7 +201,7 @@ const currentClass = computed(() =>
 /** Spec "Price" → Anatomy, part 3: a real `<s>`, `muted`, struck through at 1px. */
 const compareAtClass = computed(() =>
   partClass(
-    cx('text-price-secondary text-muted line-through decoration-1', SECTION),
+    cx('text-price-secondary text-muted line-through decoration-1', SECTION, dim.value),
     props.classes,
     'compareAt'
   )
@@ -191,11 +209,11 @@ const compareAtClass = computed(() =>
 
 /** Spec "Price" → States, "From / unit" row: label `muted`. */
 const fromClass = computed(() =>
-  partClass(cx('text-price-secondary text-muted', SECTION), props.classes, 'from')
+  partClass(cx('text-price-secondary text-muted', SECTION, dim.value), props.classes, 'from')
 );
 
 const unitClass = computed(() =>
-  partClass(cx('text-price-unit text-muted basis-full', SECTION), props.classes, 'unit')
+  partClass(cx('text-price-unit text-muted basis-full', SECTION, dim.value), props.classes, 'unit')
 );
 
 const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
@@ -216,10 +234,58 @@ const skeletonClass = computed(() =>
     'skeleton'
   )
 );
+
+/**
+ * The spinner takes no room at all: a flex item of width `0` whose `-ms-2` cancels, exactly, the
+ * `gap-x-2` the root would otherwise put in front of it, with the circle itself absolutely
+ * positioned inside that zero-width box and overflowing to the right of it. So the price's own
+ * width, its characters and its line breaks are identical with the state on and off — which is
+ * what "no layout shift" has to mean for a value that is already on screen and only being
+ * refreshed — while the circle still lands immediately after the last amount. Anchoring it to the
+ * root's own box instead (`absolute` + `start-full`) looked equivalent and is not: a `Price` is an
+ * `inline-flex`, and a flex or grid parent stretches that box to the column, which put the spinner
+ * at the far edge of the column rather than beside the price (caught in the screenshot baseline).
+ *
+ * It renders *before* the unit line in the template for a related reason: `unit` is `basis-full`,
+ * so anything after it wraps onto a third line instead of sitting beside the amount.
+ *
+ * `size-[1em]` tracks the price's own type size at every `size` — the "≤ 1em" the refresh design
+ * asks for — and its `start-[0.25em]` offset from the amount is in `em` for the same reason: a
+ * fixed `0.25rem` reads as a sensible gap at `sm` and as crowding at `lg`. `self-center` centres
+ * it on the line it sits in, and `text-muted` keeps it furniture beside the number rather than
+ * part of it.
+ */
+const spinnerClass = computed(() =>
+  partClass(
+    'pointer-events-none relative -ms-2 flex h-[1em] w-0 shrink-0 self-center text-muted',
+    props.classes,
+    'spinner'
+  )
+);
+
+/**
+ * Named `srStatus`, not `status`: `LoadMore` already owns a visible `status` part ("Showing 24 of
+ * 96"), and a page holding both — a collection grid is exactly that — makes `[data-part="status"]`
+ * ambiguous for a consumer's own selector (it broke the starter's own `LoadMore` assertion the
+ * first time round). `sr` also matches the package's existing `srText` part, which is the same
+ * kind of thing: text present for assistive technology only.
+ *
+ * The live region is rendered whether or not there is anything to say, and only its text changes:
+ * a region that arrives in the DOM already holding its message is announced unreliably, because a
+ * screen reader takes the region and its content in one pass and has no change to report. It is
+ * `sr-only` — the refresh is visible to a sighted reader as the dim and the spinner.
+ */
+const srStatusClass = computed(() => partClass('sr-only', props.classes, 'srStatus'));
+const srStatusText = computed(() => (isRevalidating.value ? messages.value.updatingPrice : ''));
 </script>
 
 <template>
-  <p data-part="root" :class="rootClass" :lang="lang ?? undefined">
+  <p
+    data-part="root"
+    :class="rootClass"
+    :lang="lang ?? undefined"
+    :aria-busy="isRevalidating ? 'true' : undefined"
+  >
     <!--
       Every space below is an explicit `{{ ' ' }}` interpolation, never whitespace-only text
       between tags: Vue's default template compiler strips any run of whitespace that contains a
@@ -242,9 +308,12 @@ const skeletonClass = computed(() =>
         >{{ ' ' }}<span data-part="srText" :class="srTextClass">{{ regularLabel }}</span
         >{{ ' '
         }}<s data-part="compareAt" :class="compareAtClass">{{ formattedCompareAt }}</s></template
+      ><span v-if="isRevalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true"
+        ><Spinner class="absolute start-[0.25em] top-0 size-[1em]" /></span
       ><template v-if="unitPrice"
         >{{ ' ' }}<span data-part="unit" :class="unitClass">{{ formattedUnitLine }}</span></template
       >
     </template>
+    <span data-part="srStatus" :class="srStatusClass" aria-live="polite">{{ srStatusText }}</span>
   </p>
 </template>

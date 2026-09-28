@@ -113,6 +113,20 @@ table and Storybook for the full contract of each).
   no scroll animation; `←`/`→` move the image from anywhere in the viewer, not only the track; the
   stage is draggable the same way `Carousel`'s own track is (thumbnails unaffected).
 
+## Loading and revalidating
+
+Two of the commerce components carry two different busy states, and they are opposites rather than
+degrees of one thing. `loading` means there is no value yet: `Price` renders a text skeleton,
+`ProductCard` replaces the whole card with one. `revalidating` means the value on screen is real but
+may be a moment out of date — the state a prerendered storefront is in just after load, when the
+page was built with yesterday's price and stock and is refreshing only those two fields live. So
+`Price`, `StockBadge` and `ProductCard` (which passes it straight to its price and stock line) keep
+the value exactly where it is, dim it to `--eldra-revalidating-opacity`, draw a small spinner
+beside it — outside the component's own box, so nothing on the page moves — and mark the root
+`aria-busy="true"` with a hidden live region reading "Updating price" / "Updating stock". A refresh
+that fails simply turns the flag back off and leaves the value that was already there. `loading`
+wins when both are set.
+
 ## Styles
 
 Pick one of three CSS entries, depending on how the consuming project builds CSS:

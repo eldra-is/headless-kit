@@ -616,3 +616,81 @@ describe('ProductCard — accessibility', () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * The card owns no refresh presentation of its own: `revalidating` reaches the two parts whose
+ * values a prerendered page refreshes after load — the price and the stock line — and each draws
+ * the state itself (dimmed value, spinner, `aria-busy`, live region).
+ */
+describe('ProductCard — revalidating', () => {
+  const REFRESHABLE: ProductCardProduct = { ...PRODUCT, stock: 'low' };
+
+  it('forwards the state to the price and the stock line', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: REFRESHABLE, revalidating: true },
+    });
+    const price = wrapper.get('[data-part="price"] [data-part="root"]');
+    const stock = wrapper.get('[data-part="stockLine"] [data-part="root"]');
+    expect(price.attributes('aria-busy')).toBe('true');
+    expect(stock.attributes('aria-busy')).toBe('true');
+    expect(wrapper.findAll('[data-part="spinner"]').length).toBe(2);
+    wrapper.unmount();
+  });
+
+  it('keeps the price and stock text exactly as they render without it', () => {
+    const plain = mountWith(ProductCard, { props: { product: REFRESHABLE } });
+    const busy = mountWith(ProductCard, { props: { product: REFRESHABLE, revalidating: true } });
+    const textOf = (wrapper: { element: Element }, part: string): string => {
+      const clone = wrapper.element.querySelector(`[data-part="${part}"]`)?.cloneNode(true);
+      const element = clone as HTMLElement;
+      element.querySelector('[data-part="srStatus"]')?.remove();
+      return element.textContent ?? '';
+    };
+    expect(textOf(busy, 'price')).toBe(textOf(plain, 'price'));
+    expect(textOf(busy, 'stockLine')).toBe(textOf(plain, 'stockLine'));
+    plain.unmount();
+    busy.unmount();
+  });
+
+  it('leaves the rest of the card alone', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: REFRESHABLE, revalidating: true },
+    });
+    expect(wrapper.attributes('aria-busy')).toBeUndefined();
+    expect(wrapper.get('[data-part="title"]').text()).toBe(PRODUCT.title);
+    expect(wrapper.get('[data-part="quickAdd"]').attributes('disabled')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('draws no spinner at all when it is not revalidating', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: REFRESHABLE } });
+    expect(wrapper.findAll('[data-part="spinner"]').length).toBe(0);
+    wrapper.unmount();
+  });
+
+  it('lets loading win over revalidating', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: REFRESHABLE, loading: true, revalidating: true },
+    });
+    expect(wrapper.find('[data-part="skeleton"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-part="spinner"]').length).toBe(0);
+    expect(wrapper.find('[data-part="price"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('has no axe violations while revalidating', async () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: REFRESHABLE, revalidating: true },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('renders inside a narrow container while revalidating', () => {
+    const wrapper = mountNarrow(ProductCard, {
+      props: { product: REFRESHABLE, revalidating: true },
+    });
+    expect(wrapper.get('[data-part="price"]').text()).toContain('$38.40');
+    wrapper.unmount();
+  });
+});

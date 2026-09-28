@@ -95,6 +95,8 @@ export const isIS: UiMessages = {
   regularPrice: 'Fullt verð',
   from: 'Frá',
   perUnit: (per: string) => `/ ${per}`,
+  updatingPrice: 'Uppfæri verð',
+  updatingStock: 'Uppfæri lagerstöðu',
   // Icelandic decimals use a comma, not a period — `Rating` has no `locale` prop to format
   // through `Intl`, so the swap happens here rather than pulling in a formatter for one digit.
   rating: (value: number, count: number) =>

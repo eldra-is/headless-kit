@@ -50,7 +50,7 @@ export interface BadgeProps {
 export type StockLevel = 'in' | 'low' | 'out' | 'preorder';
 
 /** The parts a consumer can restyle through `classes`. */
-export type StockBadgePart = 'root' | 'icon' | 'label';
+export type StockBadgePart = 'root' | 'icon' | 'label' | 'spinner' | 'srStatus';
 
 export interface StockBadgeProps {
   /** Picks the colour, icon and default message. */
@@ -59,6 +59,14 @@ export interface StockBadgeProps {
   quantity?: number | null;
   /** Overrides the level's default message entirely. */
   message?: string;
+  /**
+   * The stock line is on screen but a fresher one is on its way — a prerendered level being
+   * refreshed after load, say. The level stays exactly where it is and keeps its words, dimmed to
+   * `--eldra-revalidating-opacity`, with a small spinner beside it (drawn outside the root's own
+   * box, so nothing moves) and `aria-busy="true"` on the root; a visually hidden live region says
+   * `messages.updatingStock`.
+   */
+  revalidating?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<StockBadgePart, string>>;
 }

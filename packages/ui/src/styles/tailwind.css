@@ -591,6 +591,18 @@
   }
 }
 
+/* A value that is still on screen while a fresher one is being fetched (`Price`, `StockBadge` and,
+   through them, `ProductCard`, with `revalidating` set): the value keeps its place and its text and
+   is drawn at `--eldra-revalidating-opacity`, with the spinner beside it left at full strength. Not
+   `opacity-90`: the amount of the dim is a token a store restyles, like every other value in this
+   package, and the token is what a consumer lowers to make the state more obvious than the default
+   (which is the strongest dim that still clears 4.5:1 for every colour those values are drawn in —
+   see `eldra-starter-spec/tokens.json`). Registered in `src/utils/cx.ts`'s `opacity` merge group,
+   so a consumer's own `classes.current: 'opacity-100'` replaces it rather than landing beside it. */
+@utility eldra-revalidating {
+  opacity: var(--eldra-revalidating-opacity);
+}
+
 /* Layers. */
 @utility z-sticky {
   z-index: var(--eldra-z-sticky);

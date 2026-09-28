@@ -1,5 +1,8 @@
+import { defineComponent, h } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CURRENCY_KEY, LOCALE_KEY } from '../../../composables/useLocale';
+import { provideEldraUiMessages } from '../../../composables/useMessages';
+import { isIS } from '../../../messages/is-IS';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Price from '../Price.vue';
@@ -8,6 +11,16 @@ afterEach(() => {
   document.body.innerHTML = '';
   vi.restoreAllMocks();
 });
+
+/**
+ * Everything the component renders for a sighted reader: the whole root minus the visually hidden
+ * live region, which is the one thing the revalidating state adds to the text tree.
+ */
+function visibleText(wrapper: { element: Element }): string {
+  const clone = wrapper.element.cloneNode(true) as HTMLElement;
+  clone.querySelector('[data-part="srStatus"]')?.remove();
+  return clone.textContent ?? '';
+}
 
 describe('Price — element and parts', () => {
   it('renders a <p> with no interactive role', () => {
@@ -540,6 +553,141 @@ describe('Price — accessibility', () => {
   it('has no axe violations while loading', async () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, loading: true } });
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+/**
+ * The refresh state a prerendered storefront needs: the built-in value stays on screen while a
+ * live one is fetched, dimmed, with a small spinner beside it — never a skeleton, never a value
+ * that moves. `loading` (the skeleton) still wins when both are set.
+ */
+describe('Price — revalidating', () => {
+  it('keeps the value, marks the root busy and draws a spinner', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 4800, currency: 'USD', locale: 'en-US', revalidating: true },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-part="skeleton"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders exactly the visible text a plain price renders, so nothing reflows', () => {
+    const props = { amount: 3840, compareAt: 4800, currency: 'USD', locale: 'en-US' } as const;
+    const plain = mountWith(Price, { props });
+    const busy = mountWith(Price, { props: { ...props, revalidating: true } });
+    expect(visibleText(busy)).toBe(visibleText(plain));
+    // The spinner is the only element revalidating adds to the visible row, and it contributes no
+    // text of its own and no width: it is absolutely positioned outside the root's own box.
+    const spinner = busy.get('[data-part="spinner"]');
+    expect(spinner.text()).toBe('');
+    expect(spinner.attributes('aria-hidden')).toBe('true');
+    // Zero width, with the negative inline-start margin that cancels the root's own gap: the
+    // spinner is drawn in the space after the value without reserving any of it.
+    expect(spinner.classes()).toContain('w-0');
+    expect(spinner.get('svg').classes()).toContain('absolute');
+    plain.unmount();
+    busy.unmount();
+  });
+
+  it('dims every value part through the revalidating opacity token', () => {
+    const wrapper = mountWith(Price, {
+      props: {
+        amount: 1530,
+        compareAt: 1800,
+        from: true,
+        unitPrice: { amount: 510, per: '100 g' },
+        revalidating: true,
+      },
+    });
+    for (const part of ['current', 'compareAt', 'from', 'unit']) {
+      expect(wrapper.get(`[data-part="${part}"]`).classes(), part).toContain('eldra-revalidating');
+    }
+    // The spinner is the state's own signal and stays at full strength.
+    expect(wrapper.get('[data-part="spinner"]').classes()).not.toContain('eldra-revalidating');
+    wrapper.unmount();
+  });
+
+  it('draws no spinner, no busy flag and no dimming when it is not revalidating', () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, compareAt: 6000 } });
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
+    expect(wrapper.attributes('aria-busy')).toBeUndefined();
+    expect(wrapper.get('[data-part="current"]').classes()).not.toContain('eldra-revalidating');
+    wrapper.unmount();
+  });
+
+  it('lets loading win when both are set', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 4800, loading: true, revalidating: true },
+    });
+    expect(wrapper.find('[data-part="skeleton"]').exists()).toBe(true);
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="current"]').exists()).toBe(false);
+    expect(wrapper.attributes('aria-busy')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('announces the refresh in a visually hidden polite live region', () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true } });
+    const status = wrapper.get('[data-part="srStatus"]');
+    expect(status.text()).toBe('Updating price');
+    expect(status.attributes('aria-live')).toBe('polite');
+    expect(status.classes()).toContain('sr-only');
+    wrapper.unmount();
+  });
+
+  /**
+   * The live region is in the DOM before it has anything to say, and empties again afterwards:
+   * a region inserted together with its text is announced unreliably, because a screen reader
+   * registers the region and its content in the same pass.
+   */
+  it('keeps the live region mounted and empty while it is not revalidating', async () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800 } });
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('');
+    await wrapper.setProps({ revalidating: true });
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('Updating price');
+    await wrapper.setProps({ revalidating: false });
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('');
+    wrapper.unmount();
+  });
+
+  it('reads the refresh message from the catalogue', () => {
+    const Wrapped = defineComponent({
+      setup() {
+        provideEldraUiMessages(isIS);
+        return () =>
+          h(Price, { amount: 6990, currency: 'ISK', locale: 'is-IS', revalidating: true });
+      },
+    });
+    const wrapper = mountWith(Wrapped);
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe(isIS.updatingPrice);
+    wrapper.unmount();
+  });
+
+  /** Reduced motion: the spinner pulses instead of turning, the same pair `Button` uses. */
+  it('turns the spinner, and pulses it under reduced motion', () => {
+    const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true } });
+    const svg = wrapper.get('[data-part="spinner"] svg');
+    expect(svg.classes()).toContain('animate-eldra-spin');
+    expect(svg.classes()).toContain('motion-reduce:animate-eldra-pulse');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations while revalidating', async () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 3840, compareAt: 4800, revalidating: true },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('renders inside a narrow container while revalidating', () => {
+    const wrapper = mountNarrow(Price, {
+      props: { amount: 1530, compareAt: 1800, from: true, revalidating: true },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$15.30');
     wrapper.unmount();
   });
 });

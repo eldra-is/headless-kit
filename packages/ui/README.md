@@ -32,7 +32,8 @@ starts from the same `--eldra-*` variables, so nothing here is a different theme
 delivery shape.
 
 - **`@eldrajs/ui/tokens.css`** — the `--eldra-*` variables only (colours, radii, spacing, type,
-  motion, z-index), declared on `:root` with the spec's defaults, plus a
+  motion, z-index, and the one opacity — `--eldra-revalidating-opacity`), declared on `:root` with
+  the spec's defaults, plus a
   `@media (prefers-reduced-motion: reduce)` rule that zeroes every duration variable.
 - **`@eldrajs/ui/tailwind.css`** — `tokens.css`, then a Tailwind v4 `@theme` block mapping its own
   namespaces onto those variables (`--color-primary: var(--eldra-color-primary)`, `--radius-md`,
@@ -977,6 +978,40 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   `Popover` makes the same `focusOnOpen: false` choice, for the same reason: it has no idea what is
   inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
   the real tab stops that behaviour exists for.
+
+- **`revalidating` on `Price`, `StockBadge` and `ProductCard`** — a second, distinct busy state for
+  a value that is _already on screen_ while a fresher one is fetched, which the spec's own `loading`
+  row does not cover. It exists for prerendered storefronts: a statically built product page or
+  collection grid paints the price and the stock line from build-time data, then refreshes only
+  those values after load, and the visitor must keep reading the value it already has rather than
+  watch it turn back into a skeleton. So the two states are opposites, not degrees of one thing —
+  `loading` means _there is no value yet_ (skeleton, nothing to read), `revalidating` means _this
+  value is real but may be a moment old_ — and `loading` wins when both are set.
+
+  While it is on, the value keeps its text and its place, dimmed to `--eldra-revalidating-opacity`
+  (a shared token, default `0.9`, applied through the `eldra-revalidating` utility); a `1em` spinner
+  — the same shape `Button` draws, from the package's own internal `Spinner.vue` — is drawn beside
+  it; the root carries `aria-busy="true"`; and a visually hidden `aria-live="polite"` region reads
+  `messages.updatingPrice` / `messages.updatingStock`. The spinner is positioned **outside** the
+  component's own box (`absolute` + `start-full` against a `relative` root that only exists while
+  the state is on), so turning the state on changes no width, no line break and no position of
+  anything on the page — a refreshing value never moves the layout around it. The live region is in
+  the DOM whether or not it has anything to say, and only its text changes: a region that arrives
+  already holding its message is announced unreliably, since a screen reader takes the region and
+  its content in one pass and has no change to report.
+
+  The default dim is deliberately shallow. Opacity costs contrast, and these values are drawn in
+  `text`, `muted`, `success`, `warning`, `danger` and `accent`: `0.9` is the strongest dim at which
+  every one of them still clears 4.5:1 (1.4.3) on both `background` and `surface`. A store that
+  wants the state to read more loudly lowers `--eldra-revalidating-opacity` and takes that trade
+  knowingly — which is the point of it being a token rather than a number in a class.
+
+  `ProductCard` draws none of this itself: it passes the flag to its `Price` and `StockBadge`, the
+  two values a refresh actually changes, and the rest of the card (media, title, badges, quick add)
+  stays exactly as it was and fully interactive.
+
+  New parts: `spinner` and `srStatus` on `Price` and `StockBadge` — `srStatus`, not `status`,
+  because `LoadMore` already owns a visible `status` part and a collection page renders both.
 
 ## Deviations
 

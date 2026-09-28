@@ -59,6 +59,10 @@ const meta = {
           '`hidden-suffix=" off"` reads "−20% off". The value is rendered verbatim, leading space',
           'included.',
           '',
+          '**`revalidating`** (`StockBadge` only) keeps the level on screen, dimmed, with a small',
+          'spinner beside it while a fresher one is fetched — `aria-busy="true"` on the root and a',
+          'hidden live region reading `messages.updatingStock`. Parts: `spinner`, `srStatus`.',
+          '',
           '**Messages** (`StockBadge` only): `stockIn`, `stockLow(n)`, `soldOut` (shared with the',
           '`Badge` sold-out state above — one key, not two, for the same phrase),',
           '`stockPreorder(date?)` — the default copy per level. `StockBadge` has no `date` prop, so',
@@ -171,6 +175,25 @@ export const StockPreorder: Story = {
   render: () => ({
     components: { StockBadge },
     template: `<StockBadge level="preorder" message="Pre-order, ships 14 Nov" />`,
+  }),
+};
+
+/**
+ * `revalidating`: the stock line as it renders normally, then while a live level is on its way —
+ * the words stay, dimmed, with a spinner drawn beside them outside the line's own box, so nothing
+ * moves. `aria-busy="true"` and a hidden live region reading `messages.updatingStock` come with it.
+ */
+export const StockRevalidating: Story = {
+  name: 'Stock/Revalidating',
+  render: () => ({
+    components: { StockBadge },
+    template: `
+      <div class="flex flex-col items-start gap-2">
+        <StockBadge level="in" />
+        <StockBadge level="in" revalidating />
+        <StockBadge level="low" :quantity="3" revalidating />
+      </div>
+    `,
   }),
 };
 

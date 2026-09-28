@@ -17,6 +17,7 @@ const meta = {
     amount: { control: 'number' },
     from: { control: 'boolean' },
     loading: { control: 'boolean' },
+    revalidating: { control: 'boolean' },
     unitPrice: { table: { disable: true } },
     labels: { table: { disable: true } },
     classes: { table: { disable: true } },
@@ -50,6 +51,13 @@ const meta = {
           '**`loading`** replaces the whole price with one shimmering text skeleton at the current',
           "size, rather than a skeleton per part — the shimmer is `tailwind.css`'s `eldra-skeleton`",
           'utility, shared with the `Skeleton` primitive a later task adds.',
+          '',
+          '**`revalidating`** is the other half of that pair, for a price that is already on screen',
+          'while a fresher one is fetched (a prerendered amount refreshing after load): the amount',
+          'stays, dimmed to `--eldra-revalidating-opacity`, with a small spinner drawn beside it',
+          "— outside the root's own box, so the price keeps exactly the width and the line breaks",
+          'it had — plus `aria-busy="true"` and a hidden live region reading `messages.updatingPrice`.',
+          '`loading` wins when both are set.',
         ].join('\n'),
       },
     },
@@ -119,6 +127,25 @@ export const Loading: Story = { args: { loading: true } };
 export const ReducedMotion: Story = {
   parameters: { eldra: { reducedMotion: true } },
   args: { loading: true },
+};
+
+/**
+ * `revalidating`: the same price, twice — as it renders normally, and while a live value is on
+ * its way. The dimmed row is the second one, and the two are exactly the same width, in the same
+ * place, with the same line breaks: the spinner is drawn outside the price's own box, so a value
+ * being refreshed never moves the page around it.
+ */
+export const Revalidating: Story = {
+  render: () => ({
+    components: { Price },
+    template: `
+      <div class="flex flex-col gap-3">
+        <Price :amount="3840" :compare-at="4800" />
+        <Price :amount="3840" :compare-at="4800" revalidating />
+        <Price size="lg" :amount="1530" from :unit-price="{ amount: 510, per: '100 g' }" revalidating />
+      </div>
+    `,
+  }),
 };
 
 /** A 20rem container. The combined kind (from, sale, unit) wraps across lines instead of
