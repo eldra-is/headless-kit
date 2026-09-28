@@ -25,8 +25,9 @@
  * message text, which is what reads as "inline" in the rendered sentence.
  *
  * Dismissal is `useStorefront().history` (`app/storefront/history.ts`): `dismissAnnouncement`/
- * `isAnnouncementDismissed` take the raw message and hash it internally, so
- * this block never calls `hashMessage` itself. The dismissed check is a
+ * `isAnnouncementDismissed` take the message text and hash it internally, so
+ * this block never calls `hashMessage` itself; what it passes them is
+ * `dismissKey`, the message without its editing payload (see below). The dismissed check is a
  * `computed` that calls into the store's own reactive `dismissed` ref, so it
  * updates the moment `dismissAnnouncement` runs — no local mirror state
  * needed. In the Studio editor (`useEditing()`), a past dismissal never
@@ -44,6 +45,7 @@ import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import { stripStega } from '@eldrajs/theme-core/stega';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 
 const props = defineProps<{ entry: EldraBlockEntry<'announcement-bar'> }>();
@@ -61,6 +63,14 @@ const background = computed<'primary' | 'accent' | 'surface-strong'>(() => {
 
 const message = computed(() => (data.value.message ?? '').trim());
 const hasMessage = computed(() => message.value !== '');
+/**
+ * What the dismissal is keyed by. `message` is rendered exactly as it was
+ * given, invisible editing payload and all, so that an author can edit the
+ * bar in place in Studio's preview — but that payload names the entry and the
+ * field, so hashing the rendered string would key the preview's dismissal to
+ * something the live site never produces. The key is the visible text alone.
+ */
+const dismissKey = computed(() => stripStega(message.value));
 
 const linkHref = computed(() => safeHref(data.value.linkHref));
 const linkAs = computed(() =>
@@ -74,7 +84,7 @@ const isDismissed = computed(
   () =>
     hasMessage.value &&
     dismissable.value &&
-    storefront.history.isAnnouncementDismissed(message.value)
+    storefront.history.isAnnouncementDismissed(dismissKey.value)
 );
 
 const showLive = computed(() => hasMessage.value && (isEditing.value || !isDismissed.value));
@@ -82,7 +92,7 @@ const showEmptyHint = computed(() => !hasMessage.value && isEditing.value);
 
 function dismiss(): void {
   if (!hasMessage.value) return;
-  storefront.history.dismissAnnouncement(message.value);
+  storefront.history.dismissAnnouncement(dismissKey.value);
   // Wait for the block to actually disappear (v-if re-render) before moving
   // focus, so the browser never has to jump twice.
   void nextTick(() => moveFocusAfterDismiss());

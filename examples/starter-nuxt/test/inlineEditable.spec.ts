@@ -6,6 +6,7 @@ import {
   decodeStega,
   encodeEntryDataStega,
   registerBlockFields,
+  stripStega,
   type BlockFieldsMap,
 } from '@eldrajs/theme-core';
 import manifest from '../.eldra/manifest.json';
@@ -37,6 +38,14 @@ import { mountOptions } from './support/mountBlock';
  *     never sees.
  * Deriving an emptiness check or a storage key from `stripStega(value)` is
  * fine — that copy is never what gets rendered.
+ *
+ * What the gate can and cannot see. A field counts as rendered when its
+ * payload is in the DOM, or when the value — or a recognisable fragment of it
+ * (`fragmentsOf`) — shows up in text that no other field's payload accounts
+ * for and that the block does not already write with no field data at all. So a value the block drops entirely, or rewrites past recognition, is
+ * indistinguishable from one the block never renders and passes; what is
+ * caught is the far commoner case where the text still reads as the author's
+ * and only the payload is gone.
  *
  * Out of scope here: rich-text documents. A rich-text root renders through
  * `@eldrajs/vue`'s renderer, which strips the payload and manages its own
@@ -174,6 +183,74 @@ function unaccountedText(nodes: Text[], valueOf: Map<string, string>): string {
     .join('\n');
 }
 
+/**
+ * A fragment of a value, and which of its ends have to land on a word
+ * boundary for an occurrence to count as that value rather than a coincidence.
+ */
+interface Fragment {
+  text: string;
+  /** The fragment starts where the value starts, so it must start a word. */
+  startsWord: boolean;
+  /** The fragment ends where the value ends, so it must end a word. */
+  endsWord: boolean;
+}
+
+const WORD_CHARACTER = /[\p{L}\p{N}]/u;
+
+/**
+ * Fragments of a value that say "this field reached the page" even when what
+ * reached it is not the value itself.
+ *
+ * A transform that shortens the text — `.slice(0, 10)`, `.split(' ')[0]`, an
+ * ellipsis — leaves a prefix behind, so looking for the whole value would read
+ * a truncated render as "this block does not render this field" and let it
+ * pass. Matching the leading eight characters, the trailing eight (a
+ * suffix-only render) and the first whole word catches the truncation instead.
+ * The word-boundary flags are what keep the short ones honest: `Open`, the
+ * first word of "Open in maps", must not be found inside the block's own
+ * "Opening hours" label. A word under four characters is not distinctive
+ * enough to match on at all, so a short value is only ever matched whole.
+ */
+function fragmentsOf(value: string): Fragment[] {
+  const head = value.slice(0, Math.min(8, value.length));
+  const fragments: Fragment[] = [
+    { text: head, startsWord: true, endsWord: head.length === value.length },
+  ];
+  if (value.length > 8)
+    fragments.push({ text: value.slice(-8), startsWord: false, endsWord: true });
+  const firstWord = value.split(/\s+/)[0] ?? '';
+  if (firstWord.length >= 4 && firstWord !== head) {
+    fragments.push({ text: firstWord, startsWord: true, endsWord: true });
+  }
+  return fragments;
+}
+
+/** Whether `text` holds this fragment on the word boundaries it requires. */
+function holds(text: string, fragment: Fragment): boolean {
+  for (let at = text.indexOf(fragment.text); at !== -1; at = text.indexOf(fragment.text, at + 1)) {
+    const before = text[at - 1];
+    const after = text[at + fragment.text.length];
+    if (fragment.startsWord && before !== undefined && WORD_CHARACTER.test(before)) continue;
+    if (fragment.endsWord && after !== undefined && WORD_CHARACTER.test(after)) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Fields a block deliberately composes into a different sentence, rendering a
+ * copy with the payload stripped. The overlay then leaves the composed text
+ * alone, which is the point: an edit of it would be written back over the
+ * author's own template and lose the placeholder for good. Each entry says
+ * which template it is, so the exemption cannot quietly grow into a habit.
+ */
+const COMPOSED_FIELDS: Record<string, Record<string, string>> = {
+  search: {
+    heading:
+      "`{query}` is replaced with the shopper's query, so the sentence on the page is not the heading the author wrote",
+  },
+};
+
 describe('every text field a block renders stays inline-editable', () => {
   it('covers every block the manifest declares', () => {
     expect(blocks.map(([apiId]) => apiId)).toEqual(
@@ -189,6 +266,19 @@ describe('every text field a block renders stays inline-editable', () => {
       const wrapper = mount(Block, mountOptions({ entry: { id: entryId, data } }));
       await flushPromises();
 
+      // What the block writes with no field data at all: its own labels, its
+      // editor hints, the demo storefront's product names. A fragment that is
+      // already in there is the block's own chrome, not evidence that a field
+      // reached the page — "Delivered", "Results for" and "Open" all occur in
+      // it.
+      const chromeWrapper = mount(Block, mountOptions({ entry: { id: entryId, data: {} } }));
+      await flushPromises();
+      const chrome = stripStega(
+        visibleTextNodes(chromeWrapper.element)
+          .map((node) => node.data)
+          .join('\n')
+      );
+
       const nodes = visibleTextNodes(wrapper.element);
       const fields = encodedTextFields(data);
       const decorable = decorableFields(nodes);
@@ -200,10 +290,26 @@ describe('every text field a block renders stays inline-editable', () => {
 
       for (const field of fields) {
         const runs = decorable.get(field.path);
-        // Neither the value nor its payload reached the DOM: the block does not
-        // render this field as text (a URL, an icon name, an `alt`), so there is
-        // nothing for the overlay to decorate and nothing to assert.
-        if (runs === undefined && !unaccounted.includes(field.value)) continue;
+        // Neither the value, nor a recognisable fragment of it, nor its payload
+        // reached the DOM: the block does not render this field as text (a URL,
+        // an icon name, an `alt`), so there is nothing for the overlay to
+        // decorate and nothing to assert.
+        // A composed field is held to the opposite rule: its payload must be
+        // gone, so the overlay cannot offer an edit of a sentence the author
+        // never wrote.
+        if (COMPOSED_FIELDS[apiId]?.[field.path] !== undefined) {
+          if (runs !== undefined) {
+            broken.push(
+              `${field.path}: composed into another sentence but still carrying its editing ` +
+                `payload — compose from stripStega(value) so the overlay leaves it alone`
+            );
+          }
+          continue;
+        }
+        const shown = fragmentsOf(field.value).some(
+          (fragment) => holds(unaccounted, fragment) && !holds(chrome, fragment)
+        );
+        if (runs === undefined && !shown) continue;
         if (runs === undefined) {
           broken.push(
             `${field.path}: rendered as text but its editing payload is gone — ` +
