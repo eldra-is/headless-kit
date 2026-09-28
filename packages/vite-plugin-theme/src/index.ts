@@ -1,6 +1,6 @@
 export { default } from './plugin';
 export { generateBlockTypes } from './blockTypes';
-export { seedLayout, validateTemplateSeeds } from './templates';
+export { seedLayout, validateTemplateRoles, validateTemplateSeeds } from './templates';
 export type {
   BlockDefinition,
   BlockField,
@@ -9,6 +9,7 @@ export type {
   DeclaredThemeCodePage,
   EldraThemeOptions,
   ManifestRoute,
+  ManifestTemplateRoles,
   ManifestTemplateSeed,
   ManifestTemplateSeedBlock,
   LegacyThemeTokens,

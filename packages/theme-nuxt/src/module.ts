@@ -18,6 +18,7 @@ import eldraTheme, {
   type DeclaredTemplateSeed,
   type DeclaredThemeCodePage,
   type ManifestRoute,
+  type ManifestTemplateRoles,
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
@@ -36,6 +37,10 @@ export interface ModuleOptions {
    * A seed is ignored once the site has a template for its route pattern, so
    * nothing a merchant has edited is overwritten by a later deploy. */
   templates?: DeclaredTemplateSeed[];
+  /** The block data behind the `header`/`footer` roles the declared
+   * `templates` layouts may reference. See that package's changelog for the
+   * validation rules. */
+  templateRoles?: ManifestTemplateRoles;
   tailwind?: boolean;
   /** The theme's own tablet/normal layout breakpoints (min-width px), so
    * Studio's UI can react to the theme's actual ranges (its side panels
@@ -82,6 +87,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         routes: options.routes,
         customPages: options.customPages,
         templates: options.templates,
+        templateRoles: options.templateRoles,
         themeDir: nuxt.options.rootDir,
         tailwind: options.tailwind,
         breakpoints: options.breakpoints,

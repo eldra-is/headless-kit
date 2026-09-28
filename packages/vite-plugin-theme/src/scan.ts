@@ -11,7 +11,7 @@ import { dirname, join, relative } from 'node:path';
 import { blockJsonSchema } from './blockSchema';
 import { migrationChecks, validMigrationFieldShape } from './migrations';
 import { checkSeedMedia } from './seedData';
-import { validateTemplateSeeds } from './templates';
+import { validateTemplateRoles, validateTemplateSeeds } from './templates';
 import { codePointLength, isRecord, stripPlainTextControls } from './util';
 import type {
   BlockDefinition,
@@ -151,6 +151,10 @@ export function scanTheme(opts: ScanOptions): ScanResult {
   }
 
   const templates = validateTemplateSeeds(opts.templates ?? [], blocks, errors);
+  // Cross-checked against the seeds just validated: a role a seed's layout
+  // places — generated or declared — and the theme did not declare the block
+  // data for is an error naming that seed.
+  const templateRoles = validateTemplateRoles(opts.templateRoles, blocks, templates, errors);
 
   const manifest: ThemeManifest = {
     manifestVersion: 1,
@@ -172,6 +176,10 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     // none, so a theme that seeds nothing keeps emitting the file shape it
     // always has.
     ...(templates.length === 0 ? {} : { templates }),
+    // Same reasoning as `templates`: absent rather than empty when the theme
+    // declares no roles, so a theme that seeds no header/footer keeps
+    // emitting the manifest shape an older Core already accepts.
+    ...(templateRoles === undefined ? {} : { templateRoles }),
     tokens: readTokens(themeDir, errors),
   };
   // Resolved independently of the manifest object above: it must never be

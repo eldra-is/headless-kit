@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { scanTheme } from '../scan';
-import { seedLayout, validateTemplateSeeds } from '../templates';
-import type { DeclaredTemplateSeed } from '../types';
+import { seedLayout, validateTemplateRoles, validateTemplateSeeds } from '../templates';
+import type { DeclaredTemplateSeed, ManifestTemplateRoles } from '../types';
 
 const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 
@@ -28,6 +28,14 @@ const validate = (seeds: DeclaredTemplateSeed[]) => {
   const errors: string[] = [];
   const templates = validateTemplateSeeds(seeds, blocks, errors);
   return { templates, errors };
+};
+
+const validateRoles = (roles: ManifestTemplateRoles | undefined, seeds: DeclaredTemplateSeed[]) => {
+  const seedErrors: string[] = [];
+  const templates = validateTemplateSeeds(seeds, blocks, seedErrors);
+  const errors: string[] = [];
+  const roleData = validateTemplateRoles(roles, blocks, templates, errors);
+  return { roles: roleData, errors };
 };
 
 describe('validateTemplateSeeds', () => {
@@ -359,6 +367,125 @@ describe('validateTemplateSeeds', () => {
   });
 });
 
+describe('validateTemplateRoles', () => {
+  it('emits valid roles in manifest shape', () => {
+    const { roles, errors } = validateRoles(
+      {
+        header: { apiId: 'hero', data: { heading: 'Site header' } },
+        footer: { apiId: 'hero', data: { heading: 'Site footer' } },
+      },
+      [heroSeed()]
+    );
+
+    expect(errors).toEqual([]);
+    expect(roles).toEqual({
+      header: { apiId: 'hero', data: { heading: 'Site header' } },
+      footer: { apiId: 'hero', data: { heading: 'Site footer' } },
+    });
+  });
+
+  it('requires a role the default (generated) layout places', () => {
+    const { roles, errors } = validateRoles(undefined, [heroSeed()]);
+
+    expect(errors).toEqual([
+      'templateRoles.header — required: templates[0] places the header role',
+      'templateRoles.footer — required: templates[0] places the footer role',
+    ]);
+    expect(roles).toBeUndefined();
+  });
+
+  it('requires a role a declared layout places, naming the seed that places it', () => {
+    const seed = heroSeed();
+    seed.layout = {
+      version: 1,
+      root: {
+        id: 'root',
+        type: 'flex',
+        layout: { direction: { normal: 'column' } },
+        children: [
+          { id: 'hero-node', type: 'block', entryId: 'hero-1' },
+          { id: 'site-footer', type: 'reusable', role: 'footer' },
+        ],
+      },
+    };
+    const { roles, errors } = validateRoles(undefined, [seed]);
+
+    expect(errors).toEqual([
+      'templateRoles.footer — required: templates[0] places the footer role',
+    ]);
+    expect(roles).toBeUndefined();
+  });
+
+  it('does not require a role no seed places', () => {
+    const { roles, errors } = validateRoles(undefined, [
+      { ...heroSeed(), header: false, footer: false },
+    ]);
+
+    expect(errors).toEqual([]);
+    expect(roles).toBeUndefined();
+  });
+
+  it('errors on a role naming an apiId the theme does not ship', () => {
+    const { errors } = validateRoles({ header: { apiId: 'gone', data: {} } }, [heroSeed()]);
+
+    expect(errors).toEqual([
+      'templateRoles.header.apiId — unknown block "gone"',
+      'templateRoles.footer — required: templates[0] places the footer role',
+    ]);
+  });
+
+  it("errors on a role's data failing the block field validation the scanner applies to mock.json", () => {
+    const { errors } = validateRoles(
+      {
+        header: {
+          apiId: 'gallery',
+          data: { image: { assetId: 'demo-hero', url: '/demo/hero.png' } },
+        },
+        footer: { apiId: 'hero', data: { heading: 'Site footer' } },
+      },
+      [heroSeed()]
+    );
+
+    expect(errors).toEqual([
+      'templateRoles.header.data — image: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+
+  it('errors on role data that is not an object', () => {
+    const { errors } = validateRoles(
+      {
+        header: { apiId: 'hero', data: 'nope' } as unknown as {
+          apiId: string;
+          data: Record<string, unknown>;
+        },
+        footer: { apiId: 'hero', data: { heading: 'Site footer' } },
+      },
+      [heroSeed()]
+    );
+
+    expect(errors).toEqual(['templateRoles.header.data — must be an object']);
+  });
+
+  it('errors on a role that is not an object', () => {
+    const { errors } = validateRoles(
+      { header: 'nope' as unknown as { apiId: string; data: Record<string, unknown> } },
+      [heroSeed()]
+    );
+
+    expect(errors).toEqual([
+      'templateRoles.header — must be an object',
+      'templateRoles.footer — required: templates[0] places the footer role',
+    ]);
+  });
+
+  it('is undefined when the theme declares no roles and no template references one', () => {
+    const { roles, errors } = validateRoles(undefined, []);
+
+    expect(errors).toEqual([]);
+    expect(roles).toBeUndefined();
+  });
+});
+
 describe('seedLayout', () => {
   it('is the layout validateTemplateSeeds generates', () => {
     const seed = heroSeed();
@@ -379,6 +506,10 @@ describe('scanTheme templates', () => {
           blocks: [{ id: 'hero-1', apiId: 'hero', data: { heading: 'Build faster' } }],
         },
       ],
+      templateRoles: {
+        header: { apiId: 'hero', data: { heading: 'Site header' } },
+        footer: { apiId: 'footer', data: { copyright: '© Acme' } },
+      },
     });
 
     expect(errors).toEqual([]);
@@ -403,6 +534,10 @@ describe('scanTheme templates', () => {
         },
       },
     ]);
+    expect(manifest?.templateRoles).toEqual({
+      header: { apiId: 'hero', data: { heading: 'Site header' } },
+      footer: { apiId: 'footer', data: { copyright: '© Acme' } },
+    });
   });
 
   it('leaves the key off the manifest when the theme declares no templates', () => {
@@ -410,6 +545,7 @@ describe('scanTheme templates', () => {
 
     expect(errors).toEqual([]);
     expect(manifest).not.toHaveProperty('templates');
+    expect(manifest).not.toHaveProperty('templateRoles');
   });
 
   it('fails the scan when a seed does not validate against the scanned blocks', () => {
@@ -427,5 +563,46 @@ describe('scanTheme templates', () => {
 
     expect(manifest).toBeNull();
     expect(errors).toContain('templates[0].blocks[0].apiId — unknown block "missing"');
+  });
+
+  it('fails the scan when a declared template places a role the theme did not declare', () => {
+    const { manifest, errors } = scanTheme({
+      themeDir: fixture('valid-theme'),
+      templates: [
+        {
+          routePattern: '/products/:slug',
+          schemaApiId: 'catalog:product',
+          title: 'Product',
+          blocks: [{ id: 'hero-1', apiId: 'hero', data: { heading: 'Build faster' } }],
+        },
+      ],
+      templateRoles: { footer: { apiId: 'footer', data: { copyright: '© Acme' } } },
+    });
+
+    expect(manifest).toBeNull();
+    expect(errors).toEqual([
+      'templateRoles.header — required: templates[0] places the header role',
+    ]);
+  });
+
+  it('fails the scan when a declared role names an apiId the theme does not ship', () => {
+    const { manifest, errors } = scanTheme({
+      themeDir: fixture('valid-theme'),
+      templates: [
+        {
+          routePattern: '/products/:slug',
+          schemaApiId: 'catalog:product',
+          title: 'Product',
+          blocks: [{ id: 'hero-1', apiId: 'hero', data: { heading: 'Build faster' } }],
+        },
+      ],
+      templateRoles: {
+        header: { apiId: 'nope', data: {} },
+        footer: { apiId: 'footer', data: { copyright: '© Acme' } },
+      },
+    });
+
+    expect(manifest).toBeNull();
+    expect(errors).toContain('templateRoles.header.apiId — unknown block "nope"');
   });
 });

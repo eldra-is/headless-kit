@@ -2,6 +2,7 @@ import { parseDynamicRoutePattern } from '@eldrajs/theme-core';
 import { checkSeedMedia } from './seedData';
 import type {
   DeclaredTemplateSeed,
+  ManifestTemplateRoles,
   ManifestTemplateSeed,
   ManifestTemplateSeedBlock,
   TemplateSeedLayout,
@@ -285,4 +286,88 @@ function checkRoutePattern(at: string, seed: DeclaredTemplateSeed, errors: strin
       `${at}.routePattern — a catalog template is resolved by slug, so its parameter must be ":${CATALOG_SLUG_PARAM}" (got ":${parsed.paramName}")`
     );
   }
+}
+
+/**
+ * Validates the block data a theme declares behind the `header`/`footer`
+ * roles its template seed layouts may reference, and returns it in manifest
+ * shape. A role's `apiId` must be a block the theme ships and its `data` is
+ * validated exactly like a seed block's data (the same media walk `mock.json`
+ * and `templates[].blocks[].data` go through) — the manifest write it becomes
+ * is the same kind of write. Cross-checked against the already-validated
+ * `templates`: a role a seed's layout places (whether generated or declared)
+ * and that the theme did not declare is an error naming the seed that needs
+ * it, so Core is never handed a template it cannot seed a site with.
+ */
+export function validateTemplateRoles(
+  roles: ManifestTemplateRoles | undefined,
+  blocks: ReadonlyArray<Record<string, unknown>>,
+  templates: ReadonlyArray<ManifestTemplateSeed>,
+  errors: string[]
+): ManifestTemplateRoles | undefined {
+  const blockFields = new Map<string, Array<Record<string, unknown>>>();
+  for (const block of blocks) {
+    if (typeof block.apiId !== 'string') continue;
+    blockFields.set(
+      block.apiId,
+      Array.isArray(block.fields) ? (block.fields as Array<Record<string, unknown>>) : []
+    );
+  }
+
+  // The first seed (by index) whose layout places each role, so a missing
+  // role's error can point at the seed that needs it. Read defensively
+  // through `unknown` rather than trusting `ManifestTemplateSeed`'s type: a
+  // seed whose declared layout failed validation still reaches here (the
+  // scan keeps going to collect every error), carrying whatever malformed
+  // document it was given.
+  const placedBy = new Map<'header' | 'footer', number>();
+  for (const [index, seed] of templates.entries()) {
+    const layout: unknown = seed.layout;
+    const root = isRecord(layout) ? layout.root : undefined;
+    const children = isRecord(root) && Array.isArray(root.children) ? root.children : [];
+    for (const child of children) {
+      if (
+        isRecord(child) &&
+        child.type === 'reusable' &&
+        ROLES.has(child.role as string) &&
+        !placedBy.has(child.role as 'header' | 'footer')
+      ) {
+        placedBy.set(child.role as 'header' | 'footer', index);
+      }
+    }
+  }
+
+  const input = isRecord(roles) ? (roles as Record<string, unknown>) : {};
+  const normalized: ManifestTemplateRoles = {};
+  for (const role of ROLES as Set<'header' | 'footer'>) {
+    const at = `templateRoles.${role}`;
+    const entry = input[role];
+    if (entry === undefined) {
+      const placedAt = placedBy.get(role);
+      if (placedAt !== undefined) {
+        errors.push(`${at} — required: templates[${placedAt}] places the ${role} role`);
+      }
+      continue;
+    }
+    if (!isRecord(entry)) {
+      errors.push(`${at} — must be an object`);
+      continue;
+    }
+    const apiId = typeof entry.apiId === 'string' ? entry.apiId : '';
+    const fields = blockFields.get(apiId);
+    const data = isRecord(entry.data) ? entry.data : {};
+    if (fields === undefined) {
+      errors.push(`${at}.apiId — unknown block "${String(entry.apiId)}"`);
+    } else if (!isRecord(entry.data)) {
+      errors.push(`${at}.data — must be an object`);
+    } else {
+      // The same walk the scanner applies to a block's mock.json and to a
+      // template seed's block data: a role's data is the same kind of write.
+      checkSeedMedia((path, message) => `${at}.data — ${path}: ${message}`, fields, data, errors);
+    }
+    normalized[role] = { apiId, data };
+  }
+  return normalized.header === undefined && normalized.footer === undefined
+    ? undefined
+    : normalized;
 }

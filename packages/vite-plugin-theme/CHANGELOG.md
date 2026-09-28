@@ -20,6 +20,14 @@ Release-please writes the generated notes from commit messages and does not repl
   two switches steer the generated layout and are never written to the manifest. The key is
   emitted only when a theme declares at least one seed.
 
+  A theme can also declare `templateRoles`: the block data behind the `header`/`footer` roles its
+  template seed layouts reference — `{ header?: { apiId, data }, footer?: { apiId, data } }`,
+  validated the same way as a seed block (`templateRoles.header.apiId — unknown block "…"`,
+  `templateRoles.header.data — …`). A role is required once any declared seed's layout places it
+  (generated or declared), whether or not that seed also carries the switch that puts it there:
+  `templateRoles.header — required: templates[0] places the header role`. Emitted only when the
+  theme declares at least one role, same as `templates`.
+
 - A `reference` field's `relation` now names its targets as any combination of `allowedTagIds`
   (semantic tag names), `allowProducts` and `allowCollections`, with at least one of them —
   `allowedTagIds` is no longer required, and `allowProducts` is no longer refused. A relation that

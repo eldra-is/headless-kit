@@ -64,6 +64,15 @@ export interface ManifestTemplateSeed {
   layout: TemplateSeedLayout;
 }
 
+/** The block data behind the `header`/`footer` roles a template seed's layout
+ * may reference: the theme block and the data instance a site's reusable
+ * header/footer component is seeded from on first deploy. Required whenever
+ * any declared template seed's layout places that role. */
+export interface ManifestTemplateRoles {
+  header?: { apiId: string; data: Record<string, unknown> };
+  footer?: { apiId: string; data: Record<string, unknown> };
+}
+
 /** A template seed as a theme declares it. */
 export interface DeclaredTemplateSeed {
   routePattern: string;
@@ -151,6 +160,10 @@ export interface ThemeManifest {
    * rather than empty when the theme declares none, so a theme that seeds
    * nothing keeps emitting the manifest an older Core already accepts. */
   templates?: ManifestTemplateSeed[];
+  /** The block data behind the `header`/`footer` roles a declared template
+   * seed's layout references. Absent rather than empty when the theme
+   * declares no roles, for the same reason `templates` is absent when empty. */
+  templateRoles?: ManifestTemplateRoles;
   tokens: ThemeDesignTokens | LegacyThemeTokens;
   // No `breakpoints` field here: this type is exactly what is persisted to
   // disk and uploaded (`.eldra/manifest.json`), and Core's ingest validates
@@ -187,6 +200,10 @@ export interface ScanOptions {
   customPages?: DeclaredThemeCodePage[];
   /** Default templates to seed a site with, at most 8. */
   templates?: DeclaredTemplateSeed[];
+  /** The block data behind the `header`/`footer` roles the declared
+   * `templates` layouts may reference. Required for a role once any template
+   * seed's layout places it. */
+  templateRoles?: ManifestTemplateRoles;
   /** The theme's raw, as-configured breakpoints — validated and defaulted
    * into the manifest's `breakpoints` by resolveLayoutBreakpoints (Core),
    * not here. */
@@ -202,6 +219,10 @@ export interface EldraThemeOptions {
    * anything. A seed is ignored once the site has a template for its pattern,
    * so a merchant's edits are never overwritten. */
   templates?: DeclaredTemplateSeed[];
+  /** The block data behind the `header`/`footer` roles the declared
+   * `templates` layouts may reference. Required for a role once any template
+   * seed's layout places it. */
+  templateRoles?: ManifestTemplateRoles;
   /** Theme source root. Nuxt 4 sets Vite's root to app/, so adapters pass rootDir explicitly. */
   themeDir?: string;
   /** Opt in to the Tailwind v4 virtual theme module; false keeps Tailwind entirely optional. */
