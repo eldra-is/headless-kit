@@ -10,8 +10,17 @@ Release-please writes the generated notes from commit messages and does not repl
   Expansion is the same implementation page layouts use, so a component renders identically
   wherever it is placed: its nodes keep their authored ids and carry `renderId`/`placementId`, and
   a missing, foreign or stale component fails closed with the code a page reports for it. An
-  absent projection is an empty one. `block` nodes are still refused in a template, and a
-  placement may not be the root.
+  absent projection is an empty one, and a placement may not be the root.
+- Fix: a route-template layout may contain `block` nodes. Core serves a template in two shapes —
+  the preview read keeps the `reusable` node and the projection, while the **public** read (what
+  `resolveRoute` and every prerender see) has already replaced each placement with the component's
+  own container of blocks and stripped the projection, exactly as a public page read is expanded
+  and redacted. `createTemplateLayoutRenderModel` used to refuse that shape outright, failing every
+  public template route carrying a header or footer role closed. A block in a template is held to
+  the page block-node rules (closed keys, a uuid `entryId` inside the allowlist, never the root)
+  and rendered like a page block; no `template-block` placement is registered for one. Both shapes
+  produce the same document, the same stylesheet and the same DOM identity — the preview shape
+  additionally carries the `renderId`/`placementId` Studio addresses a placement by.
 - Fix: `decodeStega` and `stripStega` now read a payload whose closing delimiter is missing at the
   end of the string. The delimiter is U+FEFF, which `String.prototype.trim()` counts as whitespace,
   so a theme that renders `value.trim()` used to hand the overlay a run that no longer decoded — the

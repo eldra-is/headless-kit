@@ -296,7 +296,17 @@ function transformNode(
     exactKeys(value, ['id', 'type', 'componentId'], path);
     return value as unknown as ReusableComponentPlacement;
   }
-  if (value.type === 'block') fail(`${path}/type`, 'INVALID_VALUE');
+  // A `block` node is legitimate in a route template, from two directions: the
+  // public read arrives with every placement already replaced by the
+  // component's own container of blocks (Core expands and redacts it exactly as
+  // it does a page's), and the preview read's placements become the same blocks
+  // a few lines above, through `expandReusablePlacements`. Neither registers a
+  // `TemplatePlacement`, so `restoreTemplateDocument` leaves it a block and
+  // `renderTemplateNode` renders it like any page block. Nothing is validated
+  // here on purpose: the whole transformed document goes through
+  // `normalizeLayoutDocument` next, which is where the page block-node rules
+  // (closed keys, a required uuid `entryId` inside the allowlist, never the
+  // root) live — so both shapes are held to one implementation of them.
   if (value.type !== 'flex' && value.type !== 'grid') {
     return value as unknown as LayoutNode;
   }

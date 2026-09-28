@@ -159,7 +159,15 @@ describe('template layout render model', () => {
       },
       'INVALID_VALUE',
     ],
+    // A `block` node is admitted in a template now (the public read is
+    // pre-expanded into them), so these two rows are the page block-node rules
+    // biting, not a blanket refusal: a non-uuid entry id, and a key a page
+    // block node does not have.
     [{ id: 'bad', type: 'block', entryId: 'entry-1' }, 'INVALID_VALUE'],
+    [
+      { id: 'bad', type: 'block', entryId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', apiId: 'hero' },
+      'UNKNOWN_KEY',
+    ],
   ])('fails closed for invalid template node %#', (node, code) => {
     expect(() =>
       createTemplateLayoutRenderModel(layout(node), { entry, blockCatalog: catalog })
@@ -461,6 +469,23 @@ describe('reusable placements inside a route template', () => {
     };
   }
 
+  /** What the DOM actually keys off, with the preview-only identity collapsed:
+   *  a node is addressed by its `renderId` (which is its `id` once Core has
+   *  expanded it) and styled by its `className`. */
+  function asRendered(node: unknown): unknown {
+    if (typeof node !== 'object' || node === null) return node;
+    const {
+      renderId,
+      nodeId: _nodeId,
+      placementId: _placementId,
+      ...rest
+    } = node as Record<string, unknown>;
+    const out: Record<string, unknown> = { ...rest };
+    if (typeof renderId === 'string') out.id = renderId;
+    if (Array.isArray(out.children)) out.children = out.children.map(asRendered);
+    return out;
+  }
+
   function issue(run: () => unknown) {
     try {
       run();
@@ -517,6 +542,65 @@ describe('reusable placements inside a route template', () => {
       'flex',
       'template-block',
     ]);
+  });
+
+  // Core serves a route template in two shapes. The PREVIEW read keeps the
+  // `reusable` node and attaches the projection; the PUBLIC read — the one
+  // `resolveRoute` and every prerender see — has already replaced the placement
+  // with the component's own container: `flex`/`grid` of `block` children, node
+  // ids namespaced by the placement id, no `componentId` and no projection
+  // anywhere. Both must render the same template, so this asserts it rather
+  // than restating the shape: the normalized document and the stylesheet are
+  // equal outright, and the render trees are equal once the preview-only
+  // identity (`renderId`/`nodeId`/`placementId`, and the authored `id` they
+  // let the overlay recover) is collapsed back to what the DOM keys off.
+  it('renders the public pre-expanded shape identically to the preview shape', () => {
+    const heroNode = {
+      id: 'HeroPlacement',
+      type: 'template-block',
+      apiId: 'hero',
+      bindings: { heading: 'title' },
+    };
+    const tailNode = { id: 'TailPlacement', type: 'template-block', apiId: 'hero' };
+    // Exactly what Core's public read emits for `placement()`: the component
+    // root keyed by the placement id, its block keyed by the namespaced id.
+    const expandedNode = {
+      id: 'FooterA',
+      type: 'flex',
+      layout: { direction: { normal: 'column' } },
+      children: [
+        {
+          id: layoutRenderNodeId('FooterA\u0000FooterBlock'),
+          type: 'block',
+          entryId: COMPONENT_BLOCK,
+        },
+      ],
+    };
+
+    const preview = createTemplateLayoutRenderModel(templateOf(heroNode, placement(), tailNode), {
+      entry,
+      blockCatalog: catalog,
+      reusableComponentProjection: projection(),
+    });
+    const publicRead = createTemplateLayoutRenderModel(
+      templateOf(heroNode, expandedNode, tailNode),
+      { entry, blockCatalog: catalog }
+    );
+
+    expect(publicRead.document).toEqual(preview.document);
+    expect(publicRead.css).toBe(preview.css);
+    expect(asRendered(publicRead.root)).toEqual(asRendered(preview.root));
+
+    // The one intended difference: only the preview shape can tell the overlay
+    // which placement owns the node and what its authored id was.
+    const previewFooter = preview.root.children[1];
+    const publicFooter = publicRead.root.children[1];
+    if (previewFooter?.type !== 'flex' || publicFooter?.type !== 'flex')
+      throw new Error('expected the component root in both shapes');
+    expect(previewFooter.placementId).toBe('FooterA');
+    expect(previewFooter.id).toBe('FooterRoot');
+    expect(publicFooter.placementId).toBeUndefined();
+    expect(publicFooter.id).toBe('FooterA');
   });
 
   it('treats an absent projection as an empty one, exactly as a page does', () => {
