@@ -62,6 +62,7 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import { stripStega } from '@eldrajs/theme-core/stega';
 import { isInternalHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
@@ -84,6 +85,8 @@ const headingId = `search-heading-${useUiId()}`;
 
 /** The results page this block's own links point back to — `SearchBar`'s own default `action`. */
 const RESULTS_URL = '/search';
+/** What the author writes in `heading` to have the shopper's query dropped into the sentence. */
+const QUERY_PLACEHOLDER = '{query}';
 const resultsLinkAs = isInternalHref(RESULTS_URL) ? EldraRouterLink : undefined;
 
 function searchHref(query: string): string {
@@ -174,6 +177,21 @@ watch(
     const value = next ?? '';
     if (value !== searchQuery.value) searchQuery.value = value;
   }
+);
+
+/**
+ * The heading as it is shown. A heading with no `{query}` placeholder in it is
+ * rendered exactly as it was authored, invisible editing payload included, so
+ * it stays inline-editable in Studio's preview. One that does carry the
+ * placeholder is a template, not the sentence on the page: the shopper's query
+ * goes into it here, so the payload is stripped first — editing the composed
+ * sentence in place would write the shopper's query back over the `{query}`
+ * the author put there and lose the placeholder for good.
+ */
+const headingText = computed(() =>
+  heading.value.includes(QUERY_PLACEHOLDER)
+    ? stripStega(heading.value).replace(QUERY_PLACEHOLDER, searchQuery.value)
+    : heading.value
 );
 
 const searchResult = storefront.search.run(searchQuery);
@@ -301,7 +319,7 @@ const CHIP_CLASS =
     <Container width="wide">
       <div class="mb-8 flex flex-col gap-5">
         <h1 v-if="isResultsPage && hasHeading" :id="headingId" :class="headingClass">
-          {{ heading.replace('{query}', searchQuery) }}
+          {{ headingText }}
         </h1>
         <EditorPlaceholder
           v-else-if="showHeadingHint"
