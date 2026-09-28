@@ -6,6 +6,7 @@ export type {
   BlockField,
   BlockMigration,
   DeclaredTemplateSeed,
+  DeclaredTemplateSeedBlock,
   DeclaredThemeCodePage,
   EldraThemeOptions,
   ManifestRoute,

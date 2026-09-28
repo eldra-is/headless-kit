@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A declared template seed block may now carry `templates` and `bindings`
+  (`Record<string, string>` each), and they are emitted on that block's node in the generated —
+  or declared — seed layout rather than on `templates[].blocks[]`, which still carries only the
+  three keys Core decodes. Both are keyed by a target path into the block's own fields, the same
+  grammar the theme's template layout reads (identifier segments with list indices allowed:
+  `heading`, `items.0.label`, first segment a field the block declares), and each value must be a
+  non-empty string — a text template (`{{ title }}`) for `templates`, a path on the routed entry
+  for `bindings`. A key that is not such a path, or a value that is not a non-empty string, is a
+  validation error naming it (`templates[0].blocks[0].templates.subheading — must be a path into
+  hero's fields (expected …)`). This is what lets a catalog-backed seed fill a block in from the
+  object its route resolved instead of pinning one product or collection into the seed data.
+
 - Themes can declare `templates`: up to 8 default page templates a site is seeded with on its
   first deploy, so a merchant gets working product and collection pages without building
   anything. A seed is `{ routePattern, schemaApiId, title, blocks: [{ id, apiId, data }],

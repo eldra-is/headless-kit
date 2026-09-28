@@ -25,6 +25,19 @@ export interface ManifestTemplateSeedBlock {
   data: Record<string, unknown>;
 }
 
+/** A seed block as a theme declares it: the manifest shape plus the optional
+ * template bindings that belong to the block's *node* in the seed's layout —
+ * how a catalog-backed template fills the block in from the object the route
+ * resolved (`{ currentTitle: '{{ title }}' }`), rather than pinning one
+ * product or collection into the seed data. Both are keyed by a target path
+ * into the block's own fields. */
+export interface DeclaredTemplateSeedBlock extends ManifestTemplateSeedBlock {
+  /** Text templates: `{{ path }}` tokens resolved against the routed entry. */
+  templates?: Record<string, string>;
+  /** Whole-value bindings: a path on the routed entry, copied into the field. */
+  bindings?: Record<string, string>;
+}
+
 /** A reusable component named by the role it fills rather than by id: the theme
  * cannot know a site's component ids, so the role is resolved on deploy. */
 export interface TemplateSeedReusableNode {
@@ -38,6 +51,11 @@ export interface TemplateSeedBlockNode {
   type: 'block';
   /** The id of one of the seed's own `blocks[]`, not a CMS entry id. */
   entryId: string;
+  /** Carried over from the seed block that declared them. Emitted only when
+   * the block declared any, so a seed without bindings keeps emitting the node
+   * an older Core already accepts. */
+  templates?: Record<string, string>;
+  bindings?: Record<string, string>;
 }
 
 export type TemplateSeedLayoutNode = TemplateSeedReusableNode | TemplateSeedBlockNode;
@@ -78,7 +96,7 @@ export interface DeclaredTemplateSeed {
   routePattern: string;
   schemaApiId: TemplateSeedSchemaApiId;
   title: string;
-  blocks: ManifestTemplateSeedBlock[];
+  blocks: DeclaredTemplateSeedBlock[];
   /** Omit to get a column of the blocks in order, framed by the roles below. */
   layout?: TemplateSeedLayout;
   /** Place the header role before the blocks (default true). Scanner input

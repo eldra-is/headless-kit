@@ -2,6 +2,7 @@ import { parseDynamicRoutePattern } from '@eldrajs/theme-core';
 import { checkSeedMedia } from './seedData';
 import type {
   DeclaredTemplateSeed,
+  DeclaredTemplateSeedBlock,
   ManifestTemplateRoles,
   ManifestTemplateSeed,
   ManifestTemplateSeedBlock,
@@ -21,6 +22,16 @@ const SCHEMA_API_IDS = new Set(['catalog:product', 'catalog:collection', 'home']
 const ROLES = new Set(['header', 'footer']);
 const ROOT_NODE_ID = 'root';
 const ROLE_NODE_IDS = { header: 'role-header', footer: 'role-footer' } as const;
+/** A target path into a block's fields, the grammar `@eldrajs/theme-core`'s
+ * template layout already reads: identifier segments, list indices allowed
+ * (`heading`, `items.0.label`). The first segment must be a field the block
+ * declares. */
+const TARGET_FIELD_PATH = /^[a-z][a-zA-Z0-9]{0,48}(?:\.(?:[a-z][a-zA-Z0-9]{0,48}|0|[1-9][0-9]*))*$/;
+/** The two maps a seed block may carry for its layout node. */
+const NODE_BINDING_KEYS = ['templates', 'bindings'] as const;
+type NodeBindingKey = (typeof NODE_BINDING_KEYS)[number];
+/** What a validated seed block contributes to its layout node. */
+type NodeBindings = Partial<Record<NodeBindingKey, Record<string, string>>>;
 
 /**
  * The layout a seed gets when it declares none: one column of its blocks in
@@ -34,7 +45,7 @@ export function seedLayout(seed: DeclaredTemplateSeed): TemplateSeedLayout {
     children.push({ id: ROLE_NODE_IDS.header, type: 'reusable', role: 'header' });
   }
   for (const block of Array.isArray(seed.blocks) ? seed.blocks : []) {
-    children.push({ id: block.id, type: 'block', entryId: block.id });
+    children.push({ id: block.id, type: 'block', entryId: block.id, ...nodeBindingsOf(block) });
   }
   if (seed.footer !== false) {
     children.push({ id: ROLE_NODE_IDS.footer, type: 'reusable', role: 'footer' });
@@ -43,6 +54,18 @@ export function seedLayout(seed: DeclaredTemplateSeed): TemplateSeedLayout {
     version: 1,
     root: { id: ROOT_NODE_ID, type: 'flex', layout: { direction: { normal: 'column' } }, children },
   };
+}
+
+/** The `templates`/`bindings` a seed block carries, as the keys its layout node
+ * takes — omitted entirely when it declared neither, so a seed without bindings
+ * emits exactly the node it always did. */
+function nodeBindingsOf(block: DeclaredTemplateSeedBlock | undefined): NodeBindings {
+  const carried: NodeBindings = {};
+  for (const key of NODE_BINDING_KEYS) {
+    const value = block?.[key];
+    if (value !== undefined) carried[key] = value;
+  }
+  return carried;
 }
 
 /**
@@ -105,13 +128,17 @@ export function validateTemplateSeeds(
     }
     const seedBlockIds = new Set<string>();
     const normalizedBlocks: ManifestTemplateSeedBlock[] = [];
+    // Kept beside the emitted blocks rather than on them: a block's template
+    // bindings belong to its *node* in the layout, and `blocks[]` carries only
+    // the three keys Core decodes.
+    const nodeBindings = new Map<string, NodeBindings>();
     for (const [blockIndex, blockEntry] of seedBlocks.slice(0, MAX_TEMPLATE_BLOCKS).entries()) {
       const blockAt = `${at}.blocks[${blockIndex}]`;
       if (!isRecord(blockEntry)) {
         errors.push(`${blockAt} — must be an object`);
         continue;
       }
-      const block = blockEntry as ManifestTemplateSeedBlock;
+      const block = blockEntry as DeclaredTemplateSeedBlock;
       const id = typeof block.id === 'string' ? block.id : '';
       if (!NODE_ID_PATTERN.test(id)) {
         errors.push(
@@ -137,14 +164,22 @@ export function validateTemplateSeeds(
           errors
         );
       }
-      // Only the three keys Core decodes travel to the manifest.
+      const carried = checkedNodeBindings(blockAt, block, fields, errors);
+      if (Object.keys(carried).length > 0 && typeof block.id === 'string') {
+        nodeBindings.set(block.id, carried);
+      }
+      // Only the three keys Core decodes travel to the manifest's `blocks[]`;
+      // `templates`/`bindings` travel on the layout node instead.
       normalizedBlocks.push({ id: block.id, apiId: block.apiId, data: block.data });
     }
 
     const layout =
       seed.layout === undefined
-        ? seedLayout({ ...seed, blocks: normalizedBlocks })
-        : checkedLayout(at, seed.layout, seedBlockIds, errors);
+        ? seedLayout({
+            ...seed,
+            blocks: normalizedBlocks.map((block) => ({ ...block, ...nodeBindings.get(block.id) })),
+          })
+        : checkedLayout(at, seed.layout, seedBlockIds, nodeBindings, errors);
     normalized.push({
       routePattern: seed.routePattern,
       schemaApiId: seed.schemaApiId,
@@ -157,6 +192,60 @@ export function validateTemplateSeeds(
 }
 
 /**
+ * Validates the `templates` / `bindings` a seed block declares for its layout
+ * node and returns them in the shape the node carries.
+ *
+ * Both are maps from a **target path into the block's own fields** — the same
+ * grammar the theme's template layout reads (identifier segments, list indices
+ * allowed: `heading`, `items.0.label`), whose first segment must be a field the
+ * block declares — to a non-empty string: a text template (`{{ title }}`) for
+ * `templates`, a path on the routed entry for `bindings`. What the value
+ * resolves to is the deploy's to check against the entry it renders; a theme
+ * can only be held to the grammar and to fields it actually ships.
+ */
+function checkedNodeBindings(
+  blockAt: string,
+  block: DeclaredTemplateSeedBlock,
+  fields: ReadonlyArray<Record<string, unknown>> | undefined,
+  errors: string[]
+): NodeBindings {
+  const carried: NodeBindings = {};
+  for (const key of NODE_BINDING_KEYS) {
+    const declared = block[key];
+    if (declared === undefined) continue;
+    if (!isRecord(declared)) {
+      errors.push(`${blockAt}.${key} — must be an object`);
+      continue;
+    }
+    // An unknown block already reported its own error; there are no fields to
+    // hold the paths against, so nothing more is claimed about them here.
+    if (fields === undefined) continue;
+    const declaredFields = new Set(
+      fields
+        .map((field) => field.fieldId)
+        .filter((fieldId): fieldId is string => typeof fieldId === 'string')
+    );
+    const validated: Record<string, string> = {};
+    for (const [path, value] of Object.entries(declared)) {
+      const at = `${blockAt}.${key}.${path}`;
+      if (!TARGET_FIELD_PATH.test(path) || !declaredFields.has(path.split('.')[0]!)) {
+        errors.push(
+          `${at} — must be a path into ${String(block.apiId)}'s fields (expected ${TARGET_FIELD_PATH.source})`
+        );
+        continue;
+      }
+      if (typeof value !== 'string' || value === '') {
+        errors.push(`${at} — must be a non-empty string`);
+        continue;
+      }
+      validated[path] = value;
+    }
+    if (Object.keys(validated).length > 0) carried[key] = validated;
+  }
+  return carried;
+}
+
+/**
  * A declared layout is held to the one shape a seed may take — a single column
  * of role and block nodes — so the manifest always carries a document the
  * deploy can decode without a fallback.
@@ -165,6 +254,7 @@ function checkedLayout(
   at: string,
   layout: TemplateSeedLayout,
   seedBlockIds: ReadonlySet<string>,
+  nodeBindings: ReadonlyMap<string, NodeBindings>,
   errors: string[]
 ): TemplateSeedLayout {
   if (!isRecord(layout)) {
@@ -221,7 +311,7 @@ function checkedLayout(
       } else {
         placed.add(entryId);
       }
-      normalizedChildren.push({ id, type: 'block', entryId });
+      normalizedChildren.push({ id, type: 'block', entryId, ...nodeBindings.get(entryId) });
       continue;
     }
     if (child.type === 'reusable') {

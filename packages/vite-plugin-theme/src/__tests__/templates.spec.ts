@@ -224,6 +224,130 @@ describe('validateTemplateSeeds', () => {
     expect(validate([seed]).errors).toEqual(['templates[0].blocks — must declare 1..50 blocks']);
   });
 
+  it('carries a seed block’s templates and bindings onto its generated layout node', () => {
+    const seed = heroSeed();
+    seed.blocks = [
+      {
+        id: 'hero-1',
+        apiId: 'hero',
+        data: { heading: 'Buy this' },
+        templates: { heading: '{{ title }}' },
+        bindings: { heading: 'title' },
+      },
+    ];
+    const { templates, errors } = validate([seed]);
+
+    expect(errors).toEqual([]);
+    expect(templates[0]?.layout.root.children).toEqual([
+      { id: 'role-header', type: 'reusable', role: 'header' },
+      {
+        id: 'hero-1',
+        type: 'block',
+        entryId: 'hero-1',
+        templates: { heading: '{{ title }}' },
+        bindings: { heading: 'title' },
+      },
+      { id: 'role-footer', type: 'reusable', role: 'footer' },
+    ]);
+    // The maps belong to the node, never to the block the CMS entry is written
+    // from: `blocks[]` still carries exactly the three keys Core decodes.
+    expect(templates[0]?.blocks).toEqual([
+      { id: 'hero-1', apiId: 'hero', data: { heading: 'Buy this' } },
+    ]);
+  });
+
+  it('carries them onto a declared layout’s node too, matched by entryId', () => {
+    const seed = heroSeed();
+    seed.blocks = [
+      {
+        id: 'hero-1',
+        apiId: 'hero',
+        data: { heading: 'Buy this' },
+        templates: { heading: 'Now: {{ title }}' },
+      },
+    ];
+    seed.layout = {
+      version: 1,
+      root: {
+        id: 'root',
+        type: 'flex',
+        layout: { direction: { normal: 'column' } },
+        children: [{ id: 'hero-node', type: 'block', entryId: 'hero-1' }],
+      },
+    };
+    const { templates, errors } = validate([seed]);
+
+    expect(errors).toEqual([]);
+    expect(templates[0]?.layout.root.children).toEqual([
+      {
+        id: 'hero-node',
+        type: 'block',
+        entryId: 'hero-1',
+        templates: { heading: 'Now: {{ title }}' },
+      },
+    ]);
+  });
+
+  it('emits neither key for a seed block that declares no bindings', () => {
+    const { templates } = validate([heroSeed()]);
+    const node = templates[0]?.layout.root.children[1];
+
+    expect(node).toEqual({ id: 'hero-1', type: 'block', entryId: 'hero-1' });
+    expect(node).not.toHaveProperty('templates');
+    expect(node).not.toHaveProperty('bindings');
+  });
+
+  it('errors on a target path that is not a path into the block’s own fields', () => {
+    const seed = heroSeed();
+    seed.blocks = [
+      {
+        id: 'hero-1',
+        apiId: 'hero',
+        data: { heading: 'Buy this' },
+        templates: { subheading: '{{ title }}', 'Heading.0': '{{ title }}' },
+        bindings: { 'heading.0.text': 'title' },
+      },
+    ];
+    const { templates, errors } = validate([seed]);
+
+    expect(errors).toEqual([
+      `templates[0].blocks[0].templates.subheading — must be a path into hero's fields (expected ${'^[a-z][a-zA-Z0-9]{0,48}(?:\\.(?:[a-z][a-zA-Z0-9]{0,48}|0|[1-9][0-9]*))*$'})`,
+      `templates[0].blocks[0].templates.Heading.0 — must be a path into hero's fields (expected ${'^[a-z][a-zA-Z0-9]{0,48}(?:\\.(?:[a-z][a-zA-Z0-9]{0,48}|0|[1-9][0-9]*))*$'})`,
+    ]);
+    // A list index below a declared field is part of the grammar, so the
+    // binding above survives and reaches the node.
+    expect(templates[0]?.layout.root.children[1]).toEqual({
+      id: 'hero-1',
+      type: 'block',
+      entryId: 'hero-1',
+      bindings: { 'heading.0.text': 'title' },
+    });
+  });
+
+  it('errors on a binding value that is not a non-empty string, and on a map that is not an object', () => {
+    const seed = heroSeed();
+    seed.blocks = [
+      {
+        id: 'hero-1',
+        apiId: 'hero',
+        data: { heading: 'Buy this' },
+        templates: { heading: '' },
+        bindings: 'title' as unknown as Record<string, string>,
+      },
+    ];
+    const { templates, errors } = validate([seed]);
+
+    expect(errors).toEqual([
+      'templates[0].blocks[0].templates.heading — must be a non-empty string',
+      'templates[0].blocks[0].bindings — must be an object',
+    ]);
+    expect(templates[0]?.layout.root.children[1]).toEqual({
+      id: 'hero-1',
+      type: 'block',
+      entryId: 'hero-1',
+    });
+  });
+
   it('keeps a declared layout and checks its nodes', () => {
     const seed = heroSeed();
     seed.layout = {
