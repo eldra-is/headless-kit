@@ -4,11 +4,13 @@ import { addImports, addPlugin, addVitePlugin, createResolver, defineNuxtModule 
 import type { NuxtModule } from '@nuxt/schema';
 import {
   buildDynamicRoutePath,
+  catalogRouteTarget,
   createEldraClient,
   EldraClientError,
   parseDynamicRoutePattern,
   resolvePagePath,
   stripStega,
+  type CatalogDoc,
   type EldraClient,
   type EntryDoc,
 } from '@eldrajs/theme-core';
@@ -18,6 +20,8 @@ import eldraTheme, {
   type ManifestRoute,
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
+import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { listAllEntries } from './runtime/resolveRoute';
 
 export interface ModuleOptions {
   gatewayUrl: string;
@@ -130,6 +134,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       }
       const codeOwned = new Set((options.customPages ?? []).map((page) => page.path));
       const entriesBySchema = new Map<string, Promise<EntryDoc[]>>();
+      const catalogByKind = new Map<CatalogRouteKind, Promise<CatalogDoc[]>>();
       for (const template of templates) {
         const pattern = routeString(template.data.routePattern);
         const schemaApiId = routeString(template.data.schemaApiId);
@@ -137,6 +142,27 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         const parsed = parseDynamicRoutePattern(pattern);
         if (parsed === null || parsed.paramName !== slugField || schemaApiId === '') {
           throw new Error(`@eldrajs/theme-nuxt: invalid published route template ${template.id}`);
+        }
+        const catalogKind = catalogRouteTarget(schemaApiId);
+        if (catalogKind !== null) {
+          // Catalog records are merchant data the theme does not control, so a
+          // single unusable or colliding slug is skipped with a warning naming
+          // it — never a failed build for every other product on the site.
+          let catalogPromise = catalogByKind.get(catalogKind);
+          if (catalogPromise === undefined) {
+            catalogPromise = listCatalogDocs(client, catalogKind, options.locale);
+            catalogByKind.set(catalogKind, catalogPromise);
+          }
+          for (const path of catalogDocRoutes(await catalogPromise, pattern)) {
+            if (codeOwned.has(path)) continue;
+            if (generated.has(path)) {
+              console.warn(`[eldra] skipped ${path}: another route already generates this path`);
+              continue;
+            }
+            generated.add(path);
+            ctx.routes.add(path);
+          }
+          continue;
         }
         let entriesPromise = entriesBySchema.get(schemaApiId);
         if (entriesPromise === undefined) {
@@ -212,26 +238,6 @@ async function listRouteTemplateEntries(
     // empty catalog so generation can produce the artifact that repairs it.
     if (error instanceof EldraClientError && error.status === 404) return [];
     throw error;
-  }
-}
-
-async function listAllEntries(
-  client: EldraClient,
-  schemaApiId: string,
-  locale?: string
-): Promise<EntryDoc[]> {
-  const entries: EntryDoc[] = [];
-  let page = 1;
-  for (;;) {
-    const response = await client.getEntries(schemaApiId, {
-      page,
-      pageSize: 100,
-      depth: 0,
-      locale,
-    });
-    entries.push(...response.data);
-    if (!response.meta.hasNext) return entries;
-    page += 1;
   }
 }
 

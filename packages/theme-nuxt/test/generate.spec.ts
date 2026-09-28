@@ -49,6 +49,27 @@ describe('theme-nuxt nuxi generate', () => {
     expect(gateway.requests.some((request) => request.includes('pageSize=100'))).toBe(true);
   });
 
+  it('prerenders and renders a catalog-backed route template from the public catalog', () => {
+    expect(existsSync(output('products/merino-crew/index.html'))).toBe(true);
+    // Only active products get a route: the archived one the list endpoint
+    // would serve unfiltered must not have been generated.
+    expect(existsSync(output('products/retired-tee/index.html'))).toBe(false);
+
+    const product = readFileSync(output('products/merino-crew/index.html'), 'utf8');
+    expect(product).toContain('Product: Merino crew');
+    expect(product).toContain('data-eldra-template-block="product-hero"');
+
+    // The catalog read replaces the CMS entry read entirely: the product came
+    // from the public catalog endpoint, and no CMS schema was consulted for it.
+    expect(gateway.requests).toContain('/catalog/v1/products/merino-crew?locale=is');
+    expect(
+      gateway.requests.some((request) => request.startsWith('/catalog/v1/products/list?'))
+    ).toBe(true);
+    expect(gateway.requests.some((request) => request.includes('/schema/catalog%3Aproduct/'))).toBe(
+      false
+    );
+  });
+
   it('renders dynamic templates and preserves native code-route precedence', () => {
     const dynamic = readFileSync(output('articles/hello-dynamic/index.html'), 'utf8');
     expect(dynamic).toContain('Article: Dynamic article heading');

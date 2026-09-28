@@ -48,6 +48,38 @@ export interface EntryQuery {
   fields?: string[];
 }
 
+/** The query the public catalog read endpoints accept. A subset of `EntryQuery`
+ * on purpose: catalog reads have no `depth`, `sort` or `fields`. */
+export interface CatalogQuery {
+  locale?: string;
+  page?: number;
+  pageSize?: number;
+  filter?: string[];
+}
+
+/**
+ * A public catalog document — a product or a collection — exactly as the
+ * gateway serves it. No response shape is declared here: the catalog is not
+ * CMS content, its documents are never stega-encoded or locale-projected, and
+ * a consumer reads one through a projection rather than field by field.
+ */
+export type CatalogDoc = Record<string, unknown>;
+
+export interface CatalogList {
+  data: CatalogDoc[];
+  meta: PageMeta;
+}
+
+/** Read-only catalog access: the four public endpoints a theme needs to render
+ * and prerender catalog-backed routes. Writes (cart, checkout, orders) are not
+ * part of the theme client. */
+export interface EldraCatalogReader {
+  getProduct(productIdOrSlug: string, query?: CatalogQuery): Promise<CatalogDoc>;
+  listProducts(query?: CatalogQuery): Promise<CatalogList>;
+  getCollection(slug: string, query?: CatalogQuery): Promise<CatalogDoc>;
+  listCollections(query?: CatalogQuery): Promise<CatalogList>;
+}
+
 export interface ResolveEntryListBody {
   schemas: string[];
   filters?: Array<{ schemaId: string; fieldId: string; operator: string; value: unknown }>;
@@ -57,6 +89,8 @@ export interface ResolveEntryListBody {
 }
 
 export interface EldraClient {
+  /** Public catalog reads, for catalog-backed route templates. */
+  catalog: EldraCatalogReader;
   getEntries(schemaIdentifier: string, query?: EntryQuery): Promise<EntryList>;
   getEntry(schemaIdentifier: string, entryId: string, query?: EntryQuery): Promise<EntryDoc>;
   getEntryByUniqueField(

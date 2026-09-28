@@ -256,6 +256,59 @@ const ROUTE_TEMPLATE = {
   },
 };
 
+// Catalog-backed route template: `schemaApiId` names a catalog target rather
+// than a CMS schema, so generation pages the public product list and resolution
+// reads the product by slug — neither touches a CMS entry endpoint.
+const PRODUCT_HERO = {
+  id: '88888888-8888-4888-8888-888888888888',
+  schemaApiId: 'hero',
+  data: { heading: 'Catalog hero placeholder', subheading: 'Static catalog-page subheading' },
+};
+
+const CATALOG_ROUTE_TEMPLATE = {
+  id: 'rt-product',
+  data: {
+    title: 'Product template',
+    routePattern: '/products/:slug',
+    schemaApiId: 'catalog:product',
+    slugField: 'slug',
+    layout: {
+      version: 1,
+      root: {
+        id: 'product-root',
+        type: 'flex',
+        layout: { direction: { normal: 'column' } },
+        children: [
+          {
+            id: 'product-hero',
+            type: 'template-block',
+            apiId: 'hero',
+            entryId: PRODUCT_HERO.id,
+            templates: { heading: 'Product: {{ title }}' },
+          },
+        ],
+      },
+    },
+    blocks: [PRODUCT_HERO],
+  },
+};
+
+const PRODUCTS = [
+  {
+    id: 'prod-merino',
+    slug: 'merino-crew',
+    title: 'Merino crew',
+    status: 'ACTIVE',
+    mediaLinks: [
+      { assetId: 'a1', url: 'https://cdn.example.test/1.jpg', altText: 'Front', sortOrder: 1 },
+    ],
+    variants: [{ id: 'v1', sku: 'MC-S', price: 12900, status: 'ACTIVE' }],
+  },
+  // Archived: the list endpoint is asked for active products only, so this one
+  // must never reach the prerender pass.
+  { id: 'prod-retired', slug: 'retired-tee', title: 'Retired tee', status: 'ARCHIVED' },
+];
+
 const ARTICLES = {
   'article-dynamic': {
     id: 'article-dynamic',
@@ -339,10 +392,30 @@ export function startMockGateway(options: { missingRouteTemplateSchema?: boolean
           res.statusCode = 404;
           res.end('{}');
         } else {
-          res.end(JSON.stringify(listResponse([ROUTE_TEMPLATE])));
+          res.end(JSON.stringify(listResponse([ROUTE_TEMPLATE, CATALOG_ROUTE_TEMPLATE])));
         }
       } else if (url.pathname === `/cms/v1/schema/route-template/entry/${ROUTE_TEMPLATE.id}`) {
         res.end(JSON.stringify(ROUTE_TEMPLATE));
+      } else if (
+        url.pathname === `/cms/v1/schema/route-template/entry/${CATALOG_ROUTE_TEMPLATE.id}`
+      ) {
+        res.end(JSON.stringify(CATALOG_ROUTE_TEMPLATE));
+      } else if (url.pathname === '/catalog/v1/products/list') {
+        const active = url.searchParams.getAll('filter').includes('status:eq:ACTIVE');
+        res.end(
+          JSON.stringify(
+            listResponse(active ? PRODUCTS.filter((p) => p.status === 'ACTIVE') : PRODUCTS)
+          )
+        );
+      } else if (url.pathname.startsWith('/catalog/v1/products/')) {
+        const slug = decodeURIComponent(url.pathname.split('/').pop() ?? '');
+        const product = PRODUCTS.find((candidate) => candidate.slug === slug);
+        if (product === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(product));
+        }
       } else if (url.pathname === '/cms/v1/schema/article/entry') {
         res.end(JSON.stringify(listResponse(Object.values(ARTICLES))));
       } else if (url.pathname.startsWith('/cms/v1/schema/article/entry/unique/slug/')) {

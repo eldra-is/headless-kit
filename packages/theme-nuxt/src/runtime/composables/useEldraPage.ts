@@ -1,21 +1,18 @@
-import { EldraClientError, resolveRoute, stripStega, type EntryDoc } from '@eldrajs/theme-core';
+import type { EntryDoc } from '@eldrajs/theme-core';
 import { useEldra } from '@eldrajs/theme-vue';
 import { clearNuxtData, useAsyncData, useRoute, useRuntimeConfig } from 'nuxt/app';
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
+import type { CatalogRouteRef } from '../catalog';
 import { overlayPreviewDrafts } from '../drafts';
+import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 
-interface ResolvedEldraRoute {
-  page: EntryDoc | null;
-  template: EntryDoc | null;
-  entry: EntryDoc | null;
-}
-
-const EMPTY_ROUTE: ResolvedEldraRoute = { page: null, template: null, entry: null };
+const EMPTY_ROUTE = EMPTY_ELDRA_ROUTE;
 
 export function useEldraPage(): {
   page: Ref<EntryDoc | null>;
   template: Ref<EntryDoc | null>;
   entry: Ref<EntryDoc | null>;
+  catalog: ComputedRef<CatalogRouteRef | null>;
   layout: ComputedRef<unknown | null>;
   blocks: ComputedRef<EntryDoc[]>;
   reusableComponentProjection: ComputedRef<unknown | undefined>;
@@ -33,67 +30,16 @@ export function useEldraPage(): {
   const runtimeLocale = (): string | undefined =>
     (ctx.preview.active ? ctx.preview.locale : null) ?? cfg.locale ?? undefined;
 
-  const listEntries = async (schemaApiId: string): Promise<EntryDoc[]> => {
-    const entries: EntryDoc[] = [];
-    let page = 1;
-    for (;;) {
-      const response = await ctx.client.getEntries(schemaApiId, {
-        page,
-        pageSize: 100,
-        depth: 0,
-        locale: runtimeLocale(),
-      });
-      entries.push(...response.data);
-      if (!response.meta.hasNext) return entries;
-      page += 1;
-    }
-  };
-
-  const listRouteTemplates = async (): Promise<EntryDoc[]> => {
-    try {
-      return await listEntries(cfg.routeTemplateSchema);
-    } catch (cause) {
-      // Upgrade bootstrap: manifest ingest creates this system schema for
-      // sites that predate dynamic pages. Static pages must remain renderable
-      // in the artifact that performs that first ingest.
-      if (cause instanceof EldraClientError && cause.status === 404) return [];
-      throw cause;
-    }
-  };
-
   const resolveCurrentRoute = async (): Promise<ResolvedEldraRoute> => {
     error.value = null;
     try {
-      const [pages, templates] = await Promise.all([
-        listEntries(cfg.pageSchema),
-        listRouteTemplates(),
-      ]);
-      const match = resolveRoute(canonicalRoutePath(route.path), { pages, templates });
-      if (match === null) return EMPTY_ROUTE;
-      if (match.kind === 'static') {
-        const page = await ctx.client.getEntry(cfg.pageSchema, match.entry.id, {
-          depth: 3,
-          locale: runtimeLocale(),
-        });
-        return { page, template: null, entry: null };
-      }
-      const schemaApiId = plainString(match.template.data.schemaApiId);
-      const slugField = plainString(match.template.data.slugField);
-      const slugValue = match.params[slugField];
-      if (schemaApiId === '' || slugField === '' || slugValue === undefined) return EMPTY_ROUTE;
-      const [template, entry] = await Promise.all([
-        ctx.client.getEntry(cfg.routeTemplateSchema, match.template.id, {
-          depth: 3,
-          locale: runtimeLocale(),
-        }),
-        ctx.client.getEntryByUniqueField(schemaApiId, slugField, slugValue, {
-          depth: 3,
-          locale: runtimeLocale(),
-        }),
-      ]);
-      return { page: null, template, entry };
+      return await resolveEldraRoute(
+        ctx.client,
+        cfg,
+        canonicalRoutePath(route.path),
+        runtimeLocale()
+      );
     } catch (cause) {
-      if (cause instanceof EldraClientError && cause.status === 404) return EMPTY_ROUTE;
       error.value = cause instanceof Error ? cause.message : String(cause);
       return EMPTY_ROUTE;
     }
@@ -148,6 +94,7 @@ export function useEldraPage(): {
     overlayPreviewDrafts(active.value.template, ctx.preview.drafts, ctx.preview.draftSchemaApiIds)
   );
   const entry = computed(() => overlayEntryDraft(active.value.entry, ctx.preview.drafts));
+  const catalog = computed<CatalogRouteRef | null>(() => active.value.catalog);
   const layout = computed<unknown | null>(
     () => template.value?.data.layout ?? page.value?.data.layout ?? null
   );
@@ -163,6 +110,7 @@ export function useEldraPage(): {
     page: page as Ref<EntryDoc | null>,
     template: template as Ref<EntryDoc | null>,
     entry: entry as Ref<EntryDoc | null>,
+    catalog,
     layout,
     blocks,
     reusableComponentProjection,
@@ -178,10 +126,6 @@ function overlayEntryDraft(
   if (entry === null) return null;
   const draft = drafts[entry.id];
   return draft === undefined ? entry : { ...entry, data: { ...entry.data, ...draft } };
-}
-
-function plainString(value: unknown): string {
-  return typeof value === 'string' ? stripStega(value).trim() : '';
 }
 
 function canonicalRoutePath(path: string): string {

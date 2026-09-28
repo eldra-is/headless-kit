@@ -1,11 +1,14 @@
 import { isBlockFieldSelect } from './blockFields';
 import { encodeEntryDataStega } from './stegaWalk';
 import type {
+  CatalogDoc,
+  CatalogList,
   EldraClient,
   EldraClientOptions,
   EntryDoc,
   EntryList,
   EntryQuery,
+  PageMeta,
   ResolveEntryListBody,
 } from './clientTypes';
 import { EldraClientError } from './clientTypes';
@@ -52,6 +55,31 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
   }
 
   return {
+    // Catalog documents are never stega-encoded or locale-projected: they are
+    // commerce records, not merchant-authored CMS content, and the gateway
+    // resolves their translations server-side from the `locale` query.
+    catalog: {
+      async getProduct(productIdOrSlug, query) {
+        const res = await request(
+          buildUrl(`/catalog/v1/products/${encodeURIComponent(productIdOrSlug)}`, query)
+        );
+        return (await res.json()) as CatalogDoc;
+      },
+      async listProducts(query) {
+        const res = await request(buildUrl('/catalog/v1/products/list', query));
+        return toCatalogList(await res.json());
+      },
+      async getCollection(slug, query) {
+        const res = await request(
+          buildUrl(`/catalog/v1/collections/${encodeURIComponent(slug)}`, query)
+        );
+        return (await res.json()) as CatalogDoc;
+      },
+      async listCollections(query) {
+        const res = await request(buildUrl('/catalog/v1/collections', query));
+        return toCatalogList(await res.json());
+      },
+    },
     async getEntries(schemaIdentifier, query) {
       const res = await request(
         buildUrl(`/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry`, query)
@@ -118,6 +146,33 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
       return previewToken !== null;
     },
     encodeEntryDataStega,
+  };
+}
+
+/**
+ * Normalise a catalog list response. The gateway serialises an empty page as
+ * `"data": null`, and a caller that pages through the list must not have to
+ * guess whether a missing `meta` means "one page" or "keep asking" — an absent
+ * meta is reported as a single, final page.
+ */
+function toCatalogList(value: unknown): CatalogList {
+  const raw = (value ?? {}) as { data?: unknown; meta?: unknown };
+  if (raw.data !== undefined && raw.data !== null && !Array.isArray(raw.data)) {
+    throw new TypeError('[eldra] gateway catalog list data must be an array');
+  }
+  const data = (raw.data ?? []) as CatalogDoc[];
+  const meta = raw.meta as PageMeta | undefined;
+  return {
+    data,
+    meta: meta ?? {
+      hasNext: false,
+      hasPrev: false,
+      page: 1,
+      pageSize: data.length,
+      rows: data.length,
+      total: data.length,
+      totalPages: 1,
+    },
   };
 }
 

@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Feat: the gateway client gained `client.catalog` — `getProduct(idOrSlug)`, `listProducts()`,
+  `getCollection(slug)` and `listCollections()` over the public catalog endpoints, so a theme can
+  render and prerender a catalog-backed route template without a second HTTP client. Catalog
+  documents are returned as the gateway serves them: never stega-encoded and never locale-projected
+  (they are commerce records, not merchant-authored content, and the gateway resolves their
+  translations from the `locale` query), and a list page reports `data: null` as an empty array.
 - Feat: `catalogRouteTarget(schemaApiId)` recognises a route template's `catalog:product` or
   `catalog:collection` schema id (stega-stripped, exact match) and returns `'product'` /
   `'collection'` / `null`, so a theme's catalog route template can tell which storefront view to
