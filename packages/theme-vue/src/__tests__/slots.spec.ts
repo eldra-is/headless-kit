@@ -89,6 +89,31 @@ function previewContext(overrides: Partial<EldraContext['preview']> = {}): Eldra
 }
 
 describe('EldraLayout version 3 named slots', () => {
+  it('marks a hidden slot child on every element carrying its layout class', async () => {
+    const child = block('CtaOne', ctaId);
+    child.style = { visible: { normal: true, mobile: false } };
+    const wrapper = await mountLayout(v3Layout([block('HeroNode', heroId, { actions: [child] })]), [
+      hero,
+      cta,
+    ]);
+
+    // The binding wraps a slot child and then renders the block inside that
+    // wrapper, so the node's class lands on two nested elements. Both must
+    // carry the marker: the `display:none` gate is per element, and an
+    // unmarked inner element would be hidden inside a shown wrapper in edit
+    // mode. The generated CSS is what stops the dimming compounding.
+    const marked = wrapper.findAll('[data-eldra-layout-node="CtaOne"]');
+    expect(marked).toHaveLength(2);
+    expect(marked.map((element) => element.attributes('data-eldra-hidden'))).toEqual([
+      'mobile',
+      'mobile',
+    ]);
+    expect(marked.every((element) => element.classes(layoutNodeClass('CtaOne')))).toBe(true);
+    expect(
+      wrapper.get('[data-eldra-layout-node="HeroNode"]').attributes('data-eldra-hidden')
+    ).toBeUndefined();
+  });
+
   it('renders both slot children inside the actions slot in document order', async () => {
     const layout = v3Layout([
       block('HeroNode', heroId, {

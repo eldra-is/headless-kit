@@ -260,12 +260,14 @@ export interface BridgePayloads {
     layoutNodeId?: string;
     reusablePlacementId?: string;
     /**
-     * Present, and always `true`, when the layout hides this block at the
-     * breakpoint the theme is currently rendering at (`style.visible` false
-     * there). Edit mode keeps such a block on the canvas — dimmed, still
-     * selectable — so Studio needs to be told what the viewport alone no longer
-     * shows. Absent means visible: additive, so an editor that does not know the
-     * field is unaffected.
+     * Present, and always `true`, when the block's **own** layout node is
+     * hidden at the breakpoint the theme is currently rendering at
+     * (`style.visible` false there). A block hidden only because an ancestor
+     * node is hidden does not carry it — unhiding it is a different act from
+     * unhiding its parent. Edit mode keeps such a block on the canvas —
+     * dimmed, still selectable — so Studio needs to be told what the viewport
+     * alone no longer shows. Absent means visible: additive, so an editor that
+     * does not know the field is unaffected.
      */
     hiddenAtBreakpoint?: true;
   };

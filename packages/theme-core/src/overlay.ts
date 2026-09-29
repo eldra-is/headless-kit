@@ -15,6 +15,7 @@ import {
   type ImageFraming,
 } from './imageFraming';
 import { layoutIdentityOf } from './layoutIdentity';
+import { activeLayoutBreakpoint, type LayoutBreakpoints } from './layout';
 import {
   describeSelectionContext,
   domRangeToPositions,
@@ -309,6 +310,13 @@ export interface OverlayRuntimeOptions {
     payload: BridgePayloads[T]
   ) => void;
   root?: ParentNode;
+  /**
+   * The theme's own layout breakpoints, so `hiddenAtBreakpoint` can say which
+   * of the three ranges the viewport is in — the same numbers the generated
+   * layout CSS wrote its `@media` blocks with, and the same ones the bridge
+   * advertises in `theme:ready`. Omitted, the kit defaults are used.
+   */
+  breakpoints?: LayoutBreakpoints;
 }
 
 export interface OverlayRuntime {
@@ -2664,37 +2672,45 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   }
 
   /**
-   * Is this element hidden by the layout at the breakpoint currently in force?
+   * Is *this* element's own layout node hidden at the breakpoint currently in
+   * force? Strictly own-node: a block inside a hidden container reports
+   * nothing, because unhiding it is a different act from unhiding its parent
+   * and Studio needs to tell the two apart.
    *
-   * The layout CSS answers it with `--eldra-hidden: 1` on the hidden node,
-   * inside that breakpoint's `@media` block — so the browser's own cascade does
-   * the breakpoint arithmetic and the overlay never has to know the theme's
-   * numbers. Reading `display` instead would not work in edit mode, which is
-   * the only mode that asks: there the node is deliberately still displayed.
-   * The property inherits, which is what we want — a block inside a hidden
-   * container is hidden too.
+   * `data-eldra-hidden` is the node's own list of hidden breakpoints, put
+   * there by the framework binding at render time; `activeLayoutBreakpoint`
+   * resolves the viewport against the same three ranges the layout CSS wrote
+   * its `@media` blocks with. Reading `display` instead would not work in edit
+   * mode, which is the only mode that asks: there the node is deliberately
+   * still displayed.
    *
    * Spread into a payload, so a visible block's message is byte-identical to
    * what it was before this field existed.
    */
   function hiddenAtBreakpoint(element: Element): { hiddenAtBreakpoint?: true } {
-    const hidden = getComputedStyle(element).getPropertyValue('--eldra-hidden').trim() === '1';
-    return hidden ? { hiddenAtBreakpoint: true } : {};
+    const hidden = element.getAttribute('data-eldra-hidden');
+    if (hidden === null) return {};
+    const active = activeLayoutBreakpoint(window.innerWidth, opts.breakpoints);
+    return hidden.split(' ').includes(active) ? { hiddenAtBreakpoint: true } : {};
   }
 
   /**
    * Edit mode keeps a breakpoint-hidden node on the canvas so the author can
    * still see and select it. The layout CSS gates its `display:none` on
-   * `:not([data-eldra-editing])` and dims the node when that attribute is
+   * `:not([data-eldra-edit-mode])` and dims the node when that attribute is
    * there, so all this has to do is put the attribute on the nodes a framework
    * binding marked `data-eldra-hidden` — after mount, like every other overlay
    * decoration, never during render, so server and client agree on the DOM.
+   *
+   * The name says *mode*, not "this element is being edited": the marker means
+   * "the canvas is in edit mode, so do not hide me". `data-eldra-rich-text-editing`
+   * is the one that marks an element actually under edit.
    */
   function applyHiddenEditing(): void {
     const editing = started && mode === 'edit';
     for (const element of root.querySelectorAll<HTMLElement>('[data-eldra-hidden]')) {
-      if (editing) element.setAttribute('data-eldra-editing', '');
-      else element.removeAttribute('data-eldra-editing');
+      if (editing) element.setAttribute('data-eldra-edit-mode', '');
+      else element.removeAttribute('data-eldra-edit-mode');
     }
   }
 

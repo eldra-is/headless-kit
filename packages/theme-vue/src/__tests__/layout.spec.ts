@@ -603,15 +603,17 @@ describe('EldraLayout', () => {
     expect(hidden.attributes('data-eldra-hidden')).toBe('tablet');
     // Rendered, not omitted: a static render hides it with CSS, never by
     // dropping it, so the overlay has something to dim in edit mode.
-    expect(hidden.attributes('data-eldra-editing')).toBeUndefined();
+    expect(hidden.attributes('data-eldra-edit-mode')).toBeUndefined();
     expect(
       wrapper.get('[data-eldra-layout-node="HeroPlacementA"]').attributes('data-eldra-hidden')
     ).toBeUndefined();
 
     const css = wrapper.get('style[data-eldra-layout-styles]').text();
     const cls = layoutNodeClass('SecondPlacement');
-    expect(css).toContain(`.${cls}:not([data-eldra-editing]){display:none;}`);
-    expect(css).toContain(`.${cls}[data-eldra-editing]{opacity:0.35;}`);
+    expect(css).toContain(`.${cls}:not([data-eldra-edit-mode]){display:none;}`);
+    expect(css).toContain(
+      `.${cls}[data-eldra-edit-mode]:not([data-eldra-edit-mode] *){opacity:0.35;}`
+    );
   });
 
   it('keeps breakpoint-hidden nodes in deterministic DOM order', async () => {

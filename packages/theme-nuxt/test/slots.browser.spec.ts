@@ -3,6 +3,7 @@ import {
   type Browser,
   type BrowserContext,
   type Frame,
+  type Locator,
   type Page,
 } from '@playwright/test';
 import { execa } from 'execa';
@@ -71,7 +72,7 @@ describe('real-browser slotted layout static/preview parity', () => {
       const staticPage = await context.newPage();
       await staticPage.goto(staticServer.origin, { waitUntil: 'networkidle' });
       const slotWrapper = staticPage.locator('[data-eldra-slot-id="actions"]');
-      await slotWrapper.waitFor();
+      await slotWrapper.waitFor({ state: 'attached' });
       await expect.poll(() => slotWrapper.locator('.cta').textContent()).toBe('Shop now');
       expect(await slotWrapper.locator('[data-eldra-schema="cta"]').count()).toBe(1);
       expect(await slotWrapper.locator(`[data-eldra-block="${CTA_ID}"]`).count()).toBe(1);
@@ -109,28 +110,51 @@ describe('real-browser slotted layout static/preview parity', () => {
       const staticHidden = staticPage.locator('[data-eldra-layout-node="hidden-placement"]');
       await staticHidden.waitFor({ state: 'attached' });
       expect(await staticHidden.getAttribute('data-eldra-hidden')).toBe('normal tablet mobile');
-      expect(await staticHidden.evaluate((node) => getComputedStyle(node).display)).toBe('none');
-      expect(await staticPage.locator('[data-eldra-editing]').count()).toBe(0);
+      await expect
+        .poll(() => staticHidden.evaluate((node) => getComputedStyle(node).display))
+        .toBe('none');
+      await expect
+        .poll(() =>
+          staticPage
+            .locator('[data-eldra-slot-id="actions"][data-eldra-layout-node="cta-placement"]')
+            .evaluate((node) => getComputedStyle(node).display)
+        )
+        .toBe('none');
+      expect(await staticPage.locator('[data-eldra-edit-mode]').count()).toBe(0);
 
       // (e) The same node under the bridge in edit mode: the overlay marks it
-      // after mount, which defeats the `:not([data-eldra-editing])` gate, so
+      // after mount, which defeats the `:not([data-eldra-edit-mode])` gate, so
       // the author can still see and select it — dimmed, never invisible.
       const previewHidden = previewFrame.locator('[data-eldra-layout-node="hidden-placement"]');
       await previewHidden.waitFor();
       await expect
         .poll(() => previewHidden.evaluate((node) => getComputedStyle(node).display))
         .not.toBe('none');
-      expect(await previewHidden.getAttribute('data-eldra-editing')).toBe('');
+      expect(await previewHidden.getAttribute('data-eldra-edit-mode')).toBe('');
       expect(await previewHidden.evaluate((node) => getComputedStyle(node).opacity)).toBe('0.35');
-      // What the overlay reports to Studio about it, from the same cascade.
-      expect(
-        await previewHidden.evaluate((node) =>
-          getComputedStyle(node).getPropertyValue('--eldra-hidden').trim()
-        )
-      ).toBe('1');
       await expect
         .poll(() => previewHidden.locator('.cta').textContent())
         .toBe('Hidden on every device');
+
+      // (f) A hidden *slot child*: the binding renders its layout-node class on
+      // the slot wrapper and again on the block div inside it, and the overlay
+      // marks both (it must — the `display:none` gate is per element). Opacity
+      // multiplies through nesting where `display:none` did not, so the dimming
+      // rule is scoped to a marked element with no marked ancestor and the
+      // composited result is one 35 %, not 0.35 x 0.35 = 0.1225.
+      // The editor-only slot *marker* carries `data-eldra-slot-id` too, so the
+      // wrapper is addressed by its layout node.
+      const slotSelector = '[data-eldra-slot-id="actions"][data-eldra-layout-node="cta-placement"]';
+      const slotChild = previewFrame.locator(slotSelector);
+      const slotChildInner = previewFrame.locator(`${slotSelector} [data-eldra-schema="cta"]`);
+      await slotChild.waitFor();
+      expect(await slotChild.getAttribute('data-eldra-edit-mode')).toBe('');
+      expect(await slotChildInner.getAttribute('data-eldra-edit-mode')).toBe('');
+      expect(await slotChild.evaluate((node) => getComputedStyle(node).opacity)).toBe('0.35');
+      expect(await slotChildInner.evaluate((node) => getComputedStyle(node).opacity)).toBe('1');
+      expect(await effectiveOpacity(slotChildInner)).toBeCloseTo(0.35, 3);
+      // …and the nested case reads the same: a hidden node under a hidden node.
+      expect(await effectiveOpacity(previewHidden)).toBeCloseTo(0.35, 3);
     } catch (error) {
       testError = error;
     }
@@ -200,6 +224,17 @@ export default defineNuxtConfig({
   return root;
 }
 
+/** An element's composited alpha: its own opacity times every ancestor's. */
+function effectiveOpacity(locator: Locator): Promise<number> {
+  return locator.evaluate((node) => {
+    let value = 1;
+    for (let element: Element | null = node; element !== null; element = element.parentElement) {
+      value *= Number(getComputedStyle(element).opacity);
+    }
+    return value;
+  });
+}
+
 async function generate(root: string, gatewayUrl: string): Promise<void> {
   await execa(nuxi, ['generate'], {
     cwd: root,
@@ -263,7 +298,17 @@ async function startGateway(): Promise<ArtifactServer> {
               type: 'block',
               entryId: HOST_ID,
               slots: {
-                actions: [{ id: 'cta-placement', type: 'block', entryId: CTA_ID }],
+                // Hidden too, and a *slot child* — the binding renders its
+                // class on both the slot wrapper and the block div inside it,
+                // which is where an unscoped `opacity` would compound.
+                actions: [
+                  {
+                    id: 'cta-placement',
+                    type: 'block',
+                    entryId: CTA_ID,
+                    style: { visible: { normal: false } },
+                  },
+                ],
               },
             },
             // Hidden at every breakpoint, so the assertions below do not

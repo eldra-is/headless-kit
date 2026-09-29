@@ -794,6 +794,24 @@ function resolveStyle(
 export const EDIT_MODE_HIDDEN_OPACITY = 0.35;
 
 /**
+ * Which of the three breakpoint ranges a viewport width falls in — the same
+ * ranges `cssForDocument` emits its `@media` blocks for, read from the one
+ * place that knows them, so a runtime asking "which breakpoint is in force?"
+ * and the browser evaluating the stylesheet cannot drift apart. `width` is the
+ * viewport width in CSS pixels (`window.innerWidth`), which is what a width
+ * media query is evaluated against.
+ */
+export function activeLayoutBreakpoint(
+  width: number,
+  breakpoints?: LayoutBreakpoints | null
+): LayoutBreakpoint {
+  const resolved = resolveLayoutBreakpoints(breakpoints);
+  if (width >= resolved.normal) return 'normal';
+  if (width >= resolved.tablet) return 'tablet';
+  return 'mobile';
+}
+
+/**
  * The breakpoints at which `style` hides its node, in `normal, tablet, mobile`
  * order, resolved through the grammar's own inheritance (a `visible` a
  * breakpoint does not restate is inherited from the wider one). Empty when the
@@ -952,15 +970,11 @@ function declarations(
   if (style.maxWidth !== undefined) result['max-width'] = style.maxWidth;
   if (style.minHeight !== undefined) result['min-height'] = style.minHeight;
   if (style.alignSelf !== undefined) result['align-self'] = style.alignSelf;
-  // A node the author hid at this breakpoint. The `display:none` itself is not
-  // here: it lives in `hiddenRule`, behind the overlay's edit-mode marker, so
-  // the Studio canvas can keep the node selectable. What stays in the node's
-  // own rule is the fact, as a custom property — it is media-scoped like every
-  // other declaration, so `getComputedStyle(node).--eldra-hidden` answers
-  // "hidden at the breakpoint currently in force?" in edit mode too, where
-  // nothing is `display:none` to read.
-  if (!style.visible) result['--eldra-hidden'] = '1';
-  else if (node.type === 'block' && source.style?.visible !== undefined) result.display = 'block';
+  // A node the author hid at this breakpoint contributes nothing here: its
+  // `display:none` lives in `hiddenRule`, behind the overlay's edit-mode
+  // marker, so the Studio canvas can keep the node selectable.
+  if (style.visible && node.type === 'block' && source.style?.visible !== undefined)
+    result.display = 'block';
   return result;
 }
 
@@ -968,7 +982,7 @@ function declarations(
  * The `display:none` for a node hidden at this breakpoint, plus the edit-mode
  * treatment that replaces it.
  *
- * `:not([data-eldra-editing])` is the gate: the overlay sets that attribute on
+ * `:not([data-eldra-edit-mode])` is the gate: the overlay sets that attribute on
  * hidden nodes after mount when the bridge mode is `edit` (never during render,
  * so server and client emit the same DOM), and removes it on any other mode.
  * Preview, static generation and the published site never carry it, so they
@@ -978,13 +992,24 @@ function declarations(
  * Both selectors add an attribute selector's specificity on top of the class,
  * so they outrank the node's own `.class` rule (its `display:flex`/`grid`)
  * wherever they land in the stylesheet.
+ *
+ * `:not([data-eldra-edit-mode] *)` on the dimming rule is what keeps the opacity
+ * from compounding. The marker goes on every element carrying a hidden node's
+ * class — it has to, because the `display:none` gate is per element and a
+ * framework binding may render a node's class on more than one nested element
+ * (a slot child's wrapper and the block div inside it both carry it) — and
+ * `opacity` multiplies through nesting where `display:none` was idempotent.
+ * Dimming only a marked element that has no marked ancestor applies the 35 %
+ * once per hidden subtree, so a hidden node inside a hidden node, and a hidden
+ * slot child, all land at 0.35 rather than 0.1225.
  */
 function hiddenRule(node: LayoutNode, hidden: boolean): string {
   if (!hidden) return '';
   const selector = `.${layoutNodeClass(node.id)}`;
   return (
-    `${selector}:not([data-eldra-editing]){display:none;}` +
-    `${selector}[data-eldra-editing]{opacity:${EDIT_MODE_HIDDEN_OPACITY};}`
+    `${selector}:not([data-eldra-edit-mode]){display:none;}` +
+    `${selector}[data-eldra-edit-mode]:not([data-eldra-edit-mode] *)` +
+    `{opacity:${EDIT_MODE_HIDDEN_OPACITY};}`
   );
 }
 

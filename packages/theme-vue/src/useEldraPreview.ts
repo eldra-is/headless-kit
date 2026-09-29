@@ -195,7 +195,13 @@ export function startEldraPreview(
         }
       },
     });
-    overlay = createOverlayRuntime({ post: (type, payload) => bridge.post(type, payload) });
+    overlay = createOverlayRuntime({
+      post: (type, payload) => bridge.post(type, payload),
+      // The same numbers the generated layout CSS and `theme:ready` carry, so
+      // the overlay's "hidden at this breakpoint?" verdict cannot drift from
+      // what the stylesheet is actually doing.
+      breakpoints: MANIFEST_BREAKPOINTS,
+    });
     // The reporter is only reachable while the preview bridge exists; static
     // output never installs it, so marker geometry never leaves the theme.
     context.preview.slotGeometryReporter = (slots) => {

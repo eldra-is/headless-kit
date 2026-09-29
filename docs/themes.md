@@ -200,24 +200,24 @@ for this; a block that nests its own `@container` deeper than the root keeps it.
 
 A layout node's `style.visible` is a responsive boolean (`{ normal, tablet?, mobile? }`, inherited
 from the wider breakpoint down like every other responsive value). Where it resolves to `false` the
-generated layout CSS hides the node at that breakpoint. It emits two rules rather than one
-`display: none`:
+generated layout CSS hides the node at that breakpoint. It emits two rules rather than a plain
+`display: none` — `LAYOUTCLASS` below stands for the node's generated
+`eldra-layout-<sha256 of its id>` class:
 
+<!-- prettier-ignore -->
 ```css
 @media (max-width: 767px) {
-  .eldra-layout-<hash > {
-    --eldra-hidden: 1;
-  }
-  .eldra-layout-<hash > :not([data-eldra-editing]) {
-    display: none;
-  }
-  .eldra-layout-<hash > [data-eldra-editing] {
-    opacity: 0.35;
-  }
+  .LAYOUTCLASS:not([data-eldra-edit-mode]) { display: none; }
+  .LAYOUTCLASS[data-eldra-edit-mode]:not([data-eldra-edit-mode] *) { opacity: 0.35; }
 }
 ```
 
-On a published site, in preview and in static generation nothing carries `data-eldra-editing`, so
+Every selector is a **same-element** selector — the attribute conditions apply to the layout node
+itself, never to its children — and each adds an attribute selector's specificity on top of the
+class, so both outrank the node's own `.LAYOUTCLASS` rule (its `display: flex`/`grid`) wherever
+they land in the stylesheet.
+
+On a published site, in preview and in static generation nothing carries `data-eldra-edit-mode`, so
 the node is hidden. Under the Studio bridge in **edit** mode the overlay runtime sets that attribute
 on every node a framework binding marked `data-eldra-hidden` — so the author still sees the node,
 dimmed, and can select, move and unhide it. The marker is applied after mount, like every other
@@ -225,14 +225,32 @@ overlay decoration, so server and client render the same DOM; `data-eldra-hidden
 breakpoints the node is hidden at, space separated — `@eldrajs/theme-core`'s
 `hiddenLayoutBreakpoints(style)`) is rendered unconditionally and carries no styling of its own.
 
-`--eldra-hidden` is the fact, media-scoped like every other declaration, so the browser's own
-cascade answers "is this node hidden at the width in force?" — including in edit mode, where
-nothing is `display: none` to read. That is what the overlay reports to Studio as
-`hiddenAtBreakpoint: true` on `theme:block-clicked` and `theme:blocks-rendered`.
+`:not([data-eldra-edit-mode] *)` on the dimming rule is why the 35 % does not compound. The marker
+goes on every element carrying a hidden node's class — it has to, because the `display: none` gate
+is per element and a binding may put a node's class on more than one nested element (a slot child's
+wrapper and the block element inside it both carry it) — and `opacity` multiplies through nesting
+where `display: none` was idempotent. Dimming only a marked element with no marked ancestor applies
+the 35 % once per hidden subtree, so a hidden node inside a hidden node, and a hidden slot child,
+all land at 0.35 rather than 0.1225.
+
+What the overlay reports to Studio as `hiddenAtBreakpoint: true` on `theme:block-clicked` and
+`theme:blocks-rendered` is strictly the block's **own** node: it reads that node's
+`data-eldra-hidden` and resolves the viewport against the theme's own breakpoints. A block hidden
+only because an ancestor node is hidden does not carry the flag — unhiding it is a different act
+from unhiding its parent.
 
 A wrapper for another framework has one thing to do here: render
 `data-eldra-hidden="<breakpoints>"` on the layout node element. Everything else — the CSS, the
 marker, the bridge message — is already in `@eldrajs/theme-core`.
+
+### Reserved names
+
+`--eldra-*` CSS custom properties, `data-eldra-*` attributes and `eldra-*` class names are the
+kit's. A theme, a block or a design-token file must not define its own under those prefixes: the
+generated stylesheets write them, and the overlay runtime reads them to decide what is hidden, what
+is selected and what is being edited. Everything a theme is expected to set is a documented token
+(see [Design tokens](theme-design-tokens.md)); anything else under those prefixes is internal and
+may change in a minor release.
 
 ## More
 

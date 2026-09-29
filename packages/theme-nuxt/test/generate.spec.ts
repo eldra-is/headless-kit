@@ -165,11 +165,16 @@ describe('theme-nuxt nuxi generate', () => {
     // `visible: { normal: true, tablet: false, mobile: true }`: tablet only.
     expect(html).toContain('data-eldra-hidden="tablet"');
     const cls = `eldra-layout-${createHash('sha256').update('secondary-hero').digest('hex')}`;
-    expect(html).toContain(`.${cls}:not([data-eldra-editing]){display:none;}`);
-    expect(html).toContain(`.${cls}[data-eldra-editing]{opacity:0.35;}`);
+    expect(html).toContain(`.${cls}:not([data-eldra-edit-mode]){display:none;}`);
+    expect(html).toContain(
+      `.${cls}[data-eldra-edit-mode]:not([data-eldra-edit-mode] *){opacity:0.35;}`
+    );
     // The gate is shut on a published artifact: nothing carries the marker the
-    // overlay sets in edit mode, so the node is hidden exactly as before.
-    expect(html).not.toContain('data-eldra-editing=');
+    // overlay sets in edit mode, so the node is hidden exactly as before. The
+    // match is anchored inside a start tag, so the selectors naming the same
+    // attribute in the inline stylesheet (which is text between tags, never
+    // inside one) cannot satisfy it.
+    expect(html).not.toMatch(/<[^>]*\sdata-eldra-edit-mode\b/);
   });
 
   it('renders resolved blocks through the shared responsive layout renderer', () => {

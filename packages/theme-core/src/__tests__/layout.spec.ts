@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  activeLayoutBreakpoint,
   createLayoutRenderModel,
   DEFAULT_LAYOUT_BREAKPOINTS,
   generateLayoutCss,
@@ -880,23 +881,69 @@ describe('breakpoint visibility', () => {
   it('gates display:none on the overlay edit marker and dims the node in its place', () => {
     const css = generateLayoutCss(visibilityLayout({ normal: true, mobile: false }));
     const mobile = mediaBlock(css, MOBILE_QUERY);
-    expect(mobile).toContain(`.${BLOCK_CLASS}{--eldra-hidden:1;}`);
-    expect(mobile).toContain(`.${BLOCK_CLASS}:not([data-eldra-editing]){display:none;}`);
-    expect(mobile).toContain(`.${BLOCK_CLASS}[data-eldra-editing]{opacity:0.35;}`);
+    expect(mobile).toContain(`.${BLOCK_CLASS}:not([data-eldra-edit-mode]){display:none;}`);
+    expect(mobile).toContain(
+      `.${BLOCK_CLASS}[data-eldra-edit-mode]:not([data-eldra-edit-mode] *){opacity:0.35;}`
+    );
 
     for (const query of [NORMAL_QUERY, TABLET_QUERY]) {
       const block = mediaBlock(css, query);
       expect(block).not.toContain('display:none');
-      expect(block).not.toContain('--eldra-hidden');
-      expect(block).not.toContain('data-eldra-editing');
+      expect(block).not.toContain('data-eldra-edit-mode');
     }
+  });
+
+  it('dims a hidden subtree exactly once, however often its class is nested', () => {
+    // jsdom ignores `@media`, so the breakpoint block is unwrapped and applied
+    // directly — the selectors inside it are what this proves, and jsdom does
+    // evaluate the complex `:not()` they use.
+    const layout: LayoutDocument = {
+      version: 1,
+      root: {
+        id: 'Root',
+        type: 'flex',
+        layout: { direction: { normal: 'row' } },
+        children: [
+          {
+            id: 'Outer',
+            type: 'flex',
+            layout: { direction: { normal: 'row' } },
+            style: { visible: { normal: false } },
+            children: [
+              {
+                id: 'BlockA',
+                type: 'block',
+                entryId: ENTRY_A,
+                style: { visible: { normal: false } },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const normal = mediaBlock(generateLayoutCss(layout, new Set([ENTRY_A])), NORMAL_QUERY);
+    document.head.innerHTML = `<style>${normal.slice(normal.indexOf('{') + 1, -1)}</style>`;
+    // Two shapes at once: a hidden node inside a hidden node, and the same
+    // node's class on two nested elements — which is what a framework binding
+    // emits for a slot child (wrapper plus block div).
+    document.body.innerHTML =
+      `<div class="${layoutNodeClass('Outer')}" data-eldra-edit-mode>` +
+      `<div class="${BLOCK_CLASS}" data-eldra-edit-mode>` +
+      `<div class="${BLOCK_CLASS}" data-eldra-edit-mode></div>` +
+      `</div></div>`;
+    const [outer, wrapper, inner] = [...document.querySelectorAll('div')];
+    expect(getComputedStyle(outer!).opacity).toBe('0.35');
+    expect(getComputedStyle(wrapper!).opacity).toBe('1');
+    expect(getComputedStyle(inner!).opacity).toBe('1');
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
   });
 
   it('hides at every breakpoint a falsy normal inherits down to', () => {
     const css = generateLayoutCss(visibilityLayout({ normal: false }));
     for (const query of [NORMAL_QUERY, TABLET_QUERY, MOBILE_QUERY]) {
       expect(mediaBlock(css, query)).toContain(
-        `.${BLOCK_CLASS}:not([data-eldra-editing]){display:none;}`
+        `.${BLOCK_CLASS}:not([data-eldra-edit-mode]){display:none;}`
       );
     }
   });
@@ -904,8 +951,20 @@ describe('breakpoint visibility', () => {
   it('never emits the hidden rules for a node that stays visible', () => {
     const css = generateLayoutCss(visibilityLayout({ normal: true }));
     expect(css).not.toContain('display:none');
-    expect(css).not.toContain('--eldra-hidden');
-    expect(css).not.toContain('data-eldra-editing');
+    expect(css).not.toContain('data-eldra-edit-mode');
+  });
+
+  it('resolves a viewport width to the breakpoint whose @media block is in force', () => {
+    expect(activeLayoutBreakpoint(1024)).toBe('normal');
+    expect(activeLayoutBreakpoint(1023)).toBe('tablet');
+    expect(activeLayoutBreakpoint(768)).toBe('tablet');
+    expect(activeLayoutBreakpoint(767)).toBe('mobile');
+    expect(activeLayoutBreakpoint(0)).toBe('mobile');
+    // A theme with its own breakpoints moves the two edges with it.
+    const custom = { tablet: 500, normal: 900 };
+    expect(activeLayoutBreakpoint(900, custom)).toBe('normal');
+    expect(activeLayoutBreakpoint(899, custom)).toBe('tablet');
+    expect(activeLayoutBreakpoint(499, custom)).toBe('mobile');
   });
 
   it('reports the breakpoints a style hides at, with the grammar inheritance', () => {
