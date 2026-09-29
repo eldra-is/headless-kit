@@ -5,6 +5,7 @@ import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
+import { deriveFacets, filterItems, hasActiveFilters } from './facets';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
   StorefrontAck,
@@ -13,7 +14,6 @@ import type {
   StorefrontCatalog,
   StorefrontCollectionInfo,
   StorefrontCollectionSelector,
-  StorefrontFacet,
   StorefrontForms,
   StorefrontMedia,
   StorefrontOrder,
@@ -848,6 +848,18 @@ const GATEWAY_SORT: Readonly<Record<string, string>> = {
   'price-desc': '-minPrice',
 };
 
+/**
+ * How many products one filtered collection read may scan before it stops.
+ *
+ * The gateway does not filter on facets (see `collectionProducts`), so a filtered view is a
+ * client-side pass over pages this read fetches itself. Unbounded, that is a request per 24
+ * products for a catalogue of any size; bounded at one page, a filter would hide every matching
+ * product past the first page. 200 items — nine reads at the starter's default page size — is the
+ * documented middle (`docs/starter-kit.md`), and the follow-up is server-side facet filters in
+ * Core, after which this whole path collapses back to one request.
+ */
+const FACET_SCAN_CAP = 200;
+
 // ---------------------------------------------------------------------------------------------
 // Collection selectors — a slug goes straight to the gateway, an id needs a lookup first
 // ---------------------------------------------------------------------------------------------
@@ -1057,32 +1069,64 @@ export function createGatewayStorefront(
         async (signal) => {
           const slug = await resolveCollectionSlug(client, collection.value, signal);
           if (slug === null) return null;
-          const { page, pageSize, sort } = opts.value;
+          const { page, pageSize, sort, filters } = opts.value;
           // No `filter` token is built from `opts.filters`: the shopper's facets
           // (`category`, `option:size`, `price`, `availability`) are not fields
           // this endpoint filters on — it takes `id`, `slug`, `status` and
           // `createdAt` — so every facet the block sent used to make the request
-          // a 400. They are dropped until the gateway grows a facet parameter,
-          // which is the same reason `facets` below is `[]`; the grid then shows
-          // the collection unfiltered rather than an error.
+          // a 400. They are applied client-side instead, over the page(s) this
+          // read fetched (the `read` below, then `facets.ts`), which is what the
+          // demo source has always done; a `filter` token goes back in the moment
+          // the gateway grows a facet parameter.
           const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
-          const raw = (await client.catalog.listCollectionProducts(
-            slug,
-            {
-              page,
-              pageSize,
-              sort: gatewaySort === undefined ? undefined : [gatewaySort],
-            },
-            { signal }
-          )) as unknown as RawProductList;
-          // `dto_ProductListResult` — the contract type behind `GET
-          // /catalog/v1/collections/{slug}/products` (checked against
-          // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
-          // declares only `data`/`meta`. No facets/aggregations field exists on this response today,
-          // so there is nothing to map; `facets` stays `[]` until the gateway's contract adds one —
-          // documented here rather than left as a silent, unexplained empty array.
-          const facets: StorefrontFacet[] = [];
-          return { items: (raw.data ?? []).map(mapProductListItem), total: raw.meta.total, facets };
+          const read = (which: number): Promise<RawProductList> =>
+            client.catalog.listCollectionProducts(
+              slug,
+              {
+                page: which,
+                pageSize,
+                sort: gatewaySort === undefined ? undefined : [gatewaySort],
+              },
+              { signal }
+            ) as unknown as Promise<RawProductList>;
+
+          if (!hasActiveFilters(filters)) {
+            const raw = await read(page);
+            const items = (raw.data ?? []).map(mapProductListItem);
+            // `dto_ProductListResult` — the contract type behind `GET
+            // /catalog/v1/collections/{slug}/products` (checked against
+            // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
+            // declares only `data`/`meta`: no facets/aggregations field exists on this response
+            // today, so the facet values are counted off the rows themselves rather than read from
+            // a field that is not there (`deriveFacets`), and a vocabulary a product row cannot
+            // carry (`category`, `size`, `availability`) simply has no group.
+            return { items, total: raw.meta.total, facets: deriveFacets(items) };
+          }
+
+          // Filtered: the pass has to see more than the page the shopper is on, or a filter would
+          // silently hide every product past the first page. Pages are read in order until the
+          // scan cap is reached or the collection runs out — `sort` is the gateway's, so the
+          // scanned window is in the right order and the filtered set can be paged from it.
+          const maxPages = Math.max(1, Math.ceil(FACET_SCAN_CAP / Math.max(pageSize, 1)));
+          const scanned: StorefrontProductListItem[] = [];
+          for (let which = 1; which <= maxPages; which += 1) {
+            const raw = await read(which);
+            const rows = raw.data ?? [];
+            scanned.push(...rows.map(mapProductListItem));
+            if (rows.length < pageSize) break;
+            if (scanned.length >= FACET_SCAN_CAP) break;
+            if (scanned.length >= raw.meta.total) break;
+          }
+          const scanWindow = scanned.slice(0, FACET_SCAN_CAP);
+          const matching = filterItems(scanWindow, filters);
+          const start = (page - 1) * pageSize;
+          return {
+            items: matching.slice(start, start + pageSize),
+            total: matching.length,
+            // Counted over the scanned window rather than the filtered set, the way a facet count
+            // is meant to read: how many products *that value* would return.
+            facets: deriveFacets(scanWindow),
+          };
         },
         { method: 'catalog.collectionProducts', runtime, volatile: 'batch' }
       ),

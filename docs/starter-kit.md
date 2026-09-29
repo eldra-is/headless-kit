@@ -556,7 +556,12 @@ availability and a price range in whole dollars) and returns the filtered `total
 computed over the collection's own items so the filter UI never offers a value that returns nothing.
 That matters beyond tidiness — the scaffolded site and the collection sample page are both
 demo-backed, so a demo that ignored `filters` would show a shopper their filter changing the URL, the
-chips and the active-filter row while the grid and the count stayed exactly as they were.
+chips and the active-filter row while the grid and the count stayed exactly as they were. The facet
+pass itself is **one implementation, shared** — `app/storefront/facets.ts`, pure and framework-free
+— so the demo and the gateway filter by exactly the same rules (price bounds inclusive and in major
+units, `availability` read off the item's own stock, values OR-ed within a source and AND-ed across
+sources). The demo supplies the per-product attributes a product card does not carry; see the
+gateway's own paragraph below for what that means on the live site.
 
 `catalog.collectionProducts` takes a `StorefrontCollectionSelector` — `{ slug }` or `{ id }` — not a
 bare handle, because a `reference` field stores the collection's id and may hand the block nothing
@@ -579,11 +584,39 @@ nothing), and `filter` is the one query parameter the gateway declares repeatabl
 comma-separated. `related` has no relatedness endpoint to call, so it reads the current product and
 lists the same `categoryId` (the documented query parameter on `GET /catalog/v1/products/list`), the
 product itself excluded, falling back to the newest active products when it has no category or the
-category holds nothing else. The collection grid's facet filters reach no `filter` token at all —
-`category`, `option:*`, `price` and `availability` are not fields that endpoint filters on — for the
-same reason its `facets` come back `[]`, and its sort ids map to the sort fields the endpoint knows
-(`featured` and `best-selling` to none: `featured` _is_ the collection's own order, and the contract
-exposes no sales figures). The demo source still answers all of it in full.
+category holds nothing else. Its sort ids map to the sort fields the endpoint knows (`featured` and
+`best-selling` to none: `featured` _is_ the collection's own order, and the contract exposes no sales
+figures).
+
+**The collection grid's facets are applied client-side, over the results the gateway returned.**
+`category`, `option:*`, `price` and `availability` are not fields that endpoint filters on, so no
+`filter` token is built from them; sending one is a 400, and dropping them silently is worse —
+`?minPrice=50&maxPrice=150` used to leave the $48 product on screen under a URL, chips and an
+active-filter row that all claimed it had been filtered. `createGatewayStorefront` now runs the same
+`app/storefront/facets.ts` pass the demo does over the page it fetched, and reports the filtered
+count as `total`, which is what the grid's count line and `LoadMore`'s "Showing X of Y" read.
+
+Two consequences worth knowing before a shop with a long collection goes live:
+
+- **A filtered read scans up to 200 products** (`FACET_SCAN_CAP` in `app/storefront/gateway.ts` —
+  nine reads at the starter's default page size of 24). One gateway page would hide every match
+  beyond page one; no bound at all would mean a request per 24 products for a catalogue of any size.
+  Beyond the cap a filtered view describes only the first 200 products of the collection **in the
+  gateway's current sort order**. Raise or lower the constant for your own catalogue; an unfiltered
+  read is untouched either way (one request, the gateway's own `total`).
+- **`facets` are counted off the fetched rows** (`deriveFacets`) rather than read from a response
+  field that does not exist — `dto_ProductListResult` declares only `data`/`meta`. In practice that
+  is the colour group: `category`, `size` and `availability` are store vocabularies (which values
+  exist, in which order, under which labels) that a product-list row does not carry, so those groups
+  list nothing rather than inventing values. A facet the rows cannot answer is treated as _unknown_
+  and ignored — ticking a size never empties the grid on the live site — while `price` and
+  `availability`, which read the item itself, filter exactly as they do in the demo.
+
+**Core follow-up:** server-side facet filtering (and facet counts) on the catalog list endpoints
+(`internal/modules/catalog/repository/{collection_query,product_list}.go` filter on
+`id`/`slug`/`status`/`createdAt` only). When those land, the block's filters become `filter` tokens
+again, `total` and `facets` come from the response, and this whole client-side pass — scan cap
+included — goes away.
 
 `forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
 back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts

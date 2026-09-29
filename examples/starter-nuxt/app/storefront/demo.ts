@@ -2,6 +2,7 @@ import { nextTick, reactive, ref, watch, type Ref } from 'vue';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
+import { filterItems, matchesFilters, type ProductFacetAttributes } from './facets';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -491,56 +492,15 @@ function buildCollectionItems(total: number): StorefrontProductListItem[] {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * `collection-grid` sends `filters` keyed by its own `filters[].source` ids (see that block's
- * `requestFiltersFor`): `category`, `option:size`, `option:colour`, `availability`, and `price` as
- * a single `"<min>-<max>"` string in whole dollars with either end allowed to be empty. This is
- * the demo's answer to that request — without it the shopper's filter changed the URL, the chips
- * and the active-filter row while the grid and the count stayed exactly as they were, which is
- * worse than not offering filters at all.
- *
- * Every clause is AND-ed across sources and OR-ed within one source, the ordinary faceted-search
- * semantics the block's own UI implies (ticking two colours widens, ticking a colour and a size
- * narrows).
+ * How the demo answers a facet request: `app/storefront/facets.ts` is the pass itself — shared
+ * with `createGatewayStorefront`, so the demo and the real site filter by exactly the same rules —
+ * and this supplies the per-product attributes a product *card* does not carry (`category`,
+ * `sizes`, `colours`). Without an answer here the shopper's filter changed the URL, the chips and
+ * the active-filter row while the grid and the count stayed exactly as they were, which is worse
+ * than not offering filters at all.
  */
-function matchesFilters(
-  item: StorefrontProductListItem,
-  filters: Record<string, string[]> | undefined
-): boolean {
-  if (filters === undefined) return true;
-  const attributes = PRODUCT_ATTRIBUTES.get(item.handle) ?? NO_ATTRIBUTES;
-
-  for (const [source, selected] of Object.entries(filters)) {
-    if (selected.length === 0) continue;
-    if (source === 'category') {
-      if (!selected.includes(attributes.category)) return false;
-    } else if (source === 'option:size') {
-      if (!selected.some((value) => attributes.sizes.includes(value))) return false;
-    } else if (source === 'option:colour') {
-      if (!selected.some((value) => attributes.colours.includes(value))) return false;
-    } else if (source === 'availability') {
-      // "In stock" means orderable now; "Include back-order" additionally admits pre-orders. A
-      // sold-out product matches neither, which is why ticking either one drops it.
-      const admits = selected.some((value) =>
-        value === 'backorder' ? item.stock === 'preorder' : item.available && item.stock !== 'out'
-      );
-      if (!admits) return false;
-    } else if (source === 'price') {
-      if (!matchesPrice(item, selected[0])) return false;
-    }
-    // An unknown source is ignored rather than treated as "matches nothing": a backend that does
-    // not know a filter has no business emptying the grid because of it.
-  }
-  return true;
-}
-
-/** `"<min>-<max>"` in whole dollars, either end empty for "no bound" (`grid.pricePrefix` is `$`). */
-function matchesPrice(item: StorefrontProductListItem, range: string | undefined): boolean {
-  if (range === undefined) return true;
-  const [rawMin = '', rawMax = ''] = range.split('-');
-  const dollars = item.price.amount;
-  if (rawMin !== '' && dollars < Number(rawMin)) return false;
-  if (rawMax !== '' && dollars > Number(rawMax)) return false;
-  return true;
+function attributesFor(item: StorefrontProductListItem): ProductFacetAttributes {
+  return PRODUCT_ATTRIBUTES.get(item.handle) ?? NO_ATTRIBUTES;
 }
 
 /**
@@ -606,7 +566,9 @@ function countedFacets(
       ...facet,
       values: facet.values.map((value) => ({
         ...value,
-        count: items.filter((item) => matchesFilters(item, { [source]: [value.value] })).length,
+        count: items.filter((item) =>
+          matchesFilters(item, { [source]: [value.value] }, attributesFor(item))
+        ).length,
       })),
     };
   });
@@ -1173,7 +1135,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
         if (!info) return null;
         const all = COLLECTION_ITEMS[handle] ?? buildCollectionItems(info.productCount);
         const { page, pageSize, sort, filters } = opts.value;
-        const matching = all.filter((item) => matchesFilters(item, filters));
+        const matching = filterItems(all, filters, attributesFor);
         const ordered = sortCollectionItems(matching, sort);
         const start = (page - 1) * pageSize;
         return {

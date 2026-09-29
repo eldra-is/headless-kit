@@ -9,6 +9,7 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
+import { createGatewayStorefront } from '../../../app/storefront/gateway';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
@@ -20,6 +21,7 @@ import type {
   StorefrontSource,
   VolatileKey,
 } from '../../../app/storefront/types';
+import type { EldraClient } from '@eldrajs/sdk';
 import { enUS } from '../../../app/i18n/en-US';
 import { isIS } from '../../../app/i18n/is-IS';
 import { currencyFor, uiEnUS, uiMessagesFor } from '../../../app/i18n/uiMessages';
@@ -1247,6 +1249,96 @@ describe('collection-grid block', () => {
 
       expect(cards(wrapper)).toHaveLength(shown);
       expect(wrapper.text()).not.toContain(enUS.storefront.error);
+    });
+  });
+
+  /**
+   * The block over the *real* gateway storefront, not a stub of it.
+   *
+   * `/collections/the-winter-edit?sort=featured&columns=3&minPrice=50&maxPrice=150` still showed the
+   * $48 "Speckled stoneware bowl": the block read the range off the URL and sent it correctly, and
+   * `createGatewayStorefront` dropped every facet before its list read, so the grid answered with the
+   * unfiltered collection under a URL, chips and an active-filter row that all said otherwise. This
+   * is that URL, end to end — the block's own seeding, the gateway's request, the facet pass, the
+   * count line — with only the HTTP call faked.
+   */
+  describe('over the gateway storefront, with a price range in the URL', () => {
+    const CATALOGUE: Array<{ slug: string; title: string; price: number }> = [
+      { slug: 'speckled-stoneware-bowl', title: 'Speckled stoneware bowl', price: 48 },
+      { slug: 'linen-waffle-throw', title: 'Linen waffle throw', price: 50 },
+      { slug: 'merino-crew-sweater', title: 'Merino crew sweater', price: 96 },
+      { slug: 'cashmere-wrap', title: 'Cashmere wrap', price: 150 },
+      { slug: 'shearling-slippers', title: 'Shearling slippers', price: 151 },
+    ];
+
+    function gatewaySource(filters: Record<string, string[]>): StorefrontSource {
+      const client = {
+        catalog: {
+          listCollectionProducts: async (_slug: string, query: Record<string, unknown>) => {
+            const page = (query.page as number | undefined) ?? 1;
+            const pageSize = (query.pageSize as number | undefined) ?? 24;
+            const start = (page - 1) * pageSize;
+            const rows = CATALOGUE.slice(start, start + pageSize).map((row) => ({
+              id: `${row.slug}::default`,
+              slug: row.slug,
+              title: row.title,
+              status: 'ACTIVE',
+              minPrice: row.price,
+              maxPrice: row.price,
+              totalVariants: 1,
+            }));
+            return {
+              data: rows,
+              meta: {
+                page,
+                pageSize,
+                total: CATALOGUE.length,
+                totalPages: 1,
+                rows: rows.length,
+                hasNext: false,
+                hasPrev: false,
+              },
+            };
+          },
+        },
+      } as unknown as EldraClient;
+      return createGatewayStorefront(client, {
+        route: {
+          productHandle: null,
+          collectionHandle: 'the-winter-edit',
+          orderToken: null,
+          query: null,
+          page: 1,
+          sort: 'featured',
+          columns: '3',
+          filters,
+          setQuery: () => {},
+        },
+      });
+    }
+
+    it('drops the $48 card and counts only what the range keeps', async () => {
+      const wrapper = mountGrid(mock, {
+        source: gatewaySource({ minPrice: ['50'], maxPrice: ['150'] }),
+      });
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+
+      const titles = cards(wrapper).map((card) => card.get('a').text());
+      expect(titles).toEqual(['Linen waffle throw', 'Merino crew sweater', 'Cashmere wrap']);
+      expect(wrapper.text()).not.toContain('Speckled stoneware bowl');
+      expect(countLine(wrapper).text()).toBe('3 products');
+      expect(wrapper.get('[data-part="status"]').text()).toContain('Showing 3 of 3');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('shows the whole collection again once the range is gone', async () => {
+      const wrapper = mountGrid(mock, { source: gatewaySource({}) });
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+
+      expect(cards(wrapper)).toHaveLength(CATALOGUE.length);
+      expect(countLine(wrapper).text()).toBe('5 products');
     });
   });
 });

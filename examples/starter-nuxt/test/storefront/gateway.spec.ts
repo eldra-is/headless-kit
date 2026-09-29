@@ -5,12 +5,12 @@ import { createGatewayStorefront } from '../../app/storefront/gateway';
 import type { StorefrontCollectionSelector, StorefrontRoute } from '../../app/storefront/types';
 
 /**
- * `createGatewayStorefront` has no spec of its own yet — this covers what D2/D3 touch: the route
- * it is handed is exactly the route a block reads back (`storefront.route`, never a copy), and
- * `catalog.collectionProducts` maps the gateway's real response shape, including the currently
- * unmapped `facets` (see that function's own comment in `gateway.ts` — the contract has no
- * facets/aggregations field on this endpoint today, checked against
- * `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`).
+ * `createGatewayStorefront`'s own spec: the route it is handed is exactly the route a block reads
+ * back (`storefront.route`, never a copy), `catalog.collectionProducts` maps the gateway's real
+ * response shape, and — since the endpoint filters on `id`/`slug`/`status`/`createdAt` only, with
+ * no facets/aggregations field on the response (checked against
+ * `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`) — it applies the shopper's
+ * facets itself, over the results it fetched (`app/storefront/facets.ts`).
  */
 function fakeRoute(): StorefrontRoute {
   return {
@@ -135,7 +135,7 @@ describe('createGatewayStorefront', () => {
     expect(storefront.route).toBe(route);
   });
 
-  it('collectionProducts maps the gateway response and documents the missing facets field as []', async () => {
+  it('collectionProducts maps the gateway response, with no facet the rows can answer', async () => {
     const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
     const collection = ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' });
     const opts = ref({ page: 1, pageSize: 24 });
@@ -509,6 +509,171 @@ describe('createGatewayStorefront', () => {
     // Every id unusable: asking without the token would read the whole catalogue.
     expect(await storefront.catalog.volatileByIds(['a,b', 'x:y'])).toEqual([]);
     expect(calls.productListQueries).toEqual([]);
+  });
+
+  /**
+   * The facet pass over the gateway's own results (`app/storefront/facets.ts`).
+   *
+   * The endpoint filters on `id`/`slug`/`status`/`createdAt` only, so every facet the block sends
+   * used to be dropped on the floor: `?minPrice=50&maxPrice=150` reached the gateway as a plain
+   * paged read and the $48 bowl stayed on screen, under a URL, chips and an active-filter row that
+   * all claimed otherwise. The same pass the demo runs now runs over the fetched page.
+   */
+  describe('collectionProducts applies the shopper’s facets client-side', () => {
+    /** A collection of `prices.length` products, `$<price>` each, paged the way the gateway pages. */
+    function pagedClient(prices: number[]): {
+      client: EldraClient;
+      queries: Array<{ page: number; pageSize: number }>;
+    } {
+      const queries: Array<{ page: number; pageSize: number }> = [];
+      const client = {
+        catalog: {
+          listCollectionProducts: async (_slug: string, query: Record<string, unknown>) => {
+            const page = (query.page as number | undefined) ?? 1;
+            const pageSize = (query.pageSize as number | undefined) ?? 24;
+            queries.push({ page, pageSize });
+            const start = (page - 1) * pageSize;
+            const rows = prices.slice(start, start + pageSize).map((price, index) => ({
+              id: `p${start + index}`,
+              slug: `p${start + index}`,
+              title: `Product ${start + index}`,
+              status: 'ACTIVE',
+              minPrice: price,
+              maxPrice: price,
+              totalVariants: 1,
+            }));
+            return {
+              data: rows,
+              meta: {
+                page,
+                pageSize,
+                total: prices.length,
+                totalPages: Math.ceil(prices.length / pageSize),
+                rows: rows.length,
+                hasNext: start + rows.length < prices.length,
+                hasPrev: page > 1,
+              },
+            };
+          },
+        },
+      } as unknown as EldraClient;
+      return { client, queries };
+    }
+
+    /** Long enough for the filtered path's sequential page reads to have all resolved. */
+    async function drain(): Promise<void> {
+      for (let i = 0; i < 400; i += 1) await Promise.resolve();
+    }
+
+    async function load(
+      client: EldraClient,
+      opts: { page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }
+    ) {
+      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+      const result = storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        ref(opts)
+      );
+      await drain();
+      expect(result.error.value).toBeNull();
+      return result.data.value!;
+    }
+
+    it('drops the $48 product a 50–150 range excludes and keeps the $50 one, with a filtered total', async () => {
+      const { client, queries } = pagedClient([48, 50, 150, 151]);
+      const data = await load(client, { page: 1, pageSize: 24, filters: { price: ['50-150'] } });
+
+      expect(data.items.map((item) => item.price.amount)).toEqual([50, 150]);
+      expect(data.total).toBe(2);
+      // One page held the whole collection, so nothing more was asked for.
+      expect(queries).toEqual([{ page: 1, pageSize: 24 }]);
+    });
+
+    it('reads past page one when the first page is full and a filter is set', async () => {
+      // 30 products: 24 on page one (four of them under the floor), 6 on page two (two under it).
+      const prices = Array.from({ length: 30 }, (_, i) => (i % 6 === 0 ? 10 : 100));
+      const { client, queries } = pagedClient(prices);
+      const data = await load(client, { page: 1, pageSize: 24, filters: { price: ['50-'] } });
+
+      expect(queries).toEqual([
+        { page: 1, pageSize: 24 },
+        { page: 2, pageSize: 24 },
+      ]);
+      // 25 of the 30 are $100 — the count a shopper sees, and more than one gateway page holds.
+      expect(data.total).toBe(25);
+      expect(data.items).toHaveLength(24);
+      expect(data.items.every((item) => item.price.amount === 100)).toBe(true);
+    });
+
+    it('pages the filtered set itself, so page two is the filtered items 25 and up', async () => {
+      const prices = Array.from({ length: 30 }, (_, i) => (i % 6 === 0 ? 10 : 100));
+      const { client } = pagedClient(prices);
+      const data = await load(client, { page: 2, pageSize: 24, filters: { price: ['50-'] } });
+
+      expect(data.total).toBe(25);
+      expect(data.items.map((item) => item.handle)).toEqual(['p29']);
+    });
+
+    it('stops at the documented 200-item scan cap rather than walking a whole catalogue', async () => {
+      const { client, queries } = pagedClient(Array.from({ length: 1000 }, () => 100));
+      const data = await load(client, { page: 1, pageSize: 24, filters: { price: ['50-'] } });
+
+      // ceil(200 / 24) reads, and not one more.
+      expect(queries).toHaveLength(9);
+      expect(queries.at(-1)).toEqual({ page: 9, pageSize: 24 });
+      expect(data.total).toBe(200);
+      expect(data.items).toHaveLength(24);
+    });
+
+    it('leaves the unfiltered read exactly as it was: one page, the gateway’s own total', async () => {
+      const { client, queries } = pagedClient(Array.from({ length: 1000 }, () => 100));
+      const data = await load(client, { page: 1, pageSize: 24 });
+
+      expect(queries).toEqual([{ page: 1, pageSize: 24 }]);
+      expect(data.items).toHaveLength(24);
+      expect(data.total).toBe(1000);
+    });
+
+    it('treats an empty filter bag as no filter at all', async () => {
+      const { client, queries } = pagedClient(Array.from({ length: 100 }, () => 100));
+      const data = await load(client, { page: 1, pageSize: 24, filters: { colour: [] } });
+
+      expect(queries).toEqual([{ page: 1, pageSize: 24 }]);
+      expect(data.total).toBe(100);
+    });
+
+    /**
+     * A facet the product list cannot answer (`category`, `option:*` carry no attributes on a list
+     * row) must not empty the grid — `facets.ts`'s "unknown, not unmatched" rule, seen from here.
+     */
+    it('shows the collection unfiltered for a facet the gateway’s rows cannot answer', async () => {
+      const { client } = pagedClient([48, 50, 150]);
+      const data = await load(client, {
+        page: 1,
+        pageSize: 24,
+        filters: { 'option:size': ['m'], category: ['ceramics'] },
+      });
+
+      expect(data.items).toHaveLength(3);
+      expect(data.total).toBe(3);
+    });
+
+    it('keeps the sort the gateway applied across the pages it scanned', async () => {
+      const prices = Array.from({ length: 30 }, (_, i) => 10 + i);
+      const { client, queries } = pagedClient(prices);
+      const data = await load(client, {
+        page: 1,
+        pageSize: 24,
+        sort: 'price-asc',
+        filters: { price: ['20-'] },
+      });
+
+      expect(queries).toHaveLength(2);
+      // $10–$39 across two gateway pages; the floor keeps $20 and up, still ascending.
+      expect(data.items.map((item) => item.price.amount)).toEqual(
+        Array.from({ length: 20 }, (_, i) => 20 + i)
+      );
+    });
   });
 
   it('every result carries an empty `revalidating` set — the prerender contract’s resting state', async () => {
