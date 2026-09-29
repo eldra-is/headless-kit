@@ -336,8 +336,8 @@ export interface OverlayRuntime {
    */
   setFramingEnabled(enabled: boolean): void;
   /**
-   * Spec decision 7, mirroring setFramingEnabled: the `block-hover`
-   * capability negotiated from editor:hello gates `theme:block-hovered`.
+   * Mirroring setFramingEnabled: the `block-hover` capability negotiated
+   * from editor:hello gates `theme:block-hovered`.
    * Defaults closed, so a theme never reports the hovered block to an editor
    * that did not ask for it. Disabling mid-session forgets the reported
    * hover silently — the other side cannot receive the leave post either.
@@ -442,8 +442,8 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   /** §18 v3 capability gate: set via setRichTextEnabled, negotiated from the
    * `rich-text-inline` capability. Defaults closed. */
   let richTextEnabled = false;
-  /** Spec decision 7 capability gate: set via setBlockHoverEnabled,
-   * negotiated from the `block-hover` capability. Defaults closed. */
+  /** `block-hover` capability gate: set via setBlockHoverEnabled, negotiated
+   * from the editor's editor:hello capabilities. Defaults closed. */
   let blockHoverEnabled = false;
   /** The block last *posted* over `theme:block-hovered` — null once the leave
    * message went out. Distinct from `hoveredElement`, which is the theme's
@@ -2547,13 +2547,14 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   }
 
   /**
-   * Spec decision 7: report the hovered block to the editor, coalesced to one
-   * post per animation frame so a pointer sweep or a scroll burst does not
-   * flood the bridge. `reason` separates the two callers: a pointer event
-   * ('change') posts only when the hovered block is a different one, while a
-   * scroll/resize ('geometry') re-posts the same block's fresh rect. Either
-   * way, with nothing hovered the only post left to make is the leave
-   * message.
+   * Report the hovered block to the editor, coalesced to one post per
+   * animation frame so a pointer sweep or a scroll burst does not flood the
+   * bridge. `reason` separates the two callers: a pointer event ('change')
+   * posts only when the hovered block is a different one, while 'geometry' —
+   * every `reposition()`, so a scroll or resize but equally a selection
+   * change or a rerender — re-posts the same block's rect, which may well be
+   * the rect already sent. Either way, with nothing hovered the only post
+   * left to make is the leave message.
    */
   function scheduleHoverReport(reason: 'change' | 'geometry'): void {
     if (!started || !blockHoverEnabled || mode !== 'edit') return;

@@ -293,9 +293,13 @@ export interface BridgePayloads {
    * inside the same block — and `null` when the pointer leaves the last
    * hovered block (onto the page background, out of the document, or because
    * a rerender detached it). While a block stays hovered the message is
-   * re-posted, coalesced to one per animation frame, on scroll and resize,
-   * exactly like `theme:blocks-rendered`: the iframe can scroll without any
-   * DOM mutation, and a stale rect would strand the editor's chrome.
+   * re-posted, coalesced to one per animation frame, whenever the theme's
+   * geometry may have moved — a scroll, a resize, a selection change or a
+   * content rerender — exactly the triggers `theme:blocks-rendered` re-posts
+   * on, and for the same reason: the iframe can scroll or re-lay-out without
+   * any DOM mutation, and a stale rect would strand the editor's chrome. A
+   * re-post can repeat the rect it last sent, so a consumer applies it
+   * idempotently rather than treating every message as a change.
    *
    * `rect` is the block's `getBoundingClientRect()` in iframe viewport
    * pixels, the same space `theme:blocks-rendered` and `theme:block-clicked`

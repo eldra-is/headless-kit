@@ -6,15 +6,13 @@ Release-please writes the generated notes from commit messages and does not repl
 ## Unreleased
 
 - Feat: a new theme → editor bridge message, `theme:block-hovered`, reports the block the pointer
-  is over — `{ entryId, rect, layoutNodeId?, reusablePlacementId? }`, or `null` once it leaves —
-  so the editor can anchor an affordance (an "add block" control on the block's bottom edge) to the
-  same geometry the theme already outlines. Edit mode only, gated on the new `block-hover`
-  capability both sides advertise, posted when the hovered *block* changes rather than on every
-  pointer move inside it, and re-posted (coalesced to one per animation frame) on scroll and resize
-  while a block stays hovered, exactly like `theme:blocks-rendered`. The identity is always the
-  block's: hovering a field, or a node inside a rich-text editing root, reports the block that
-  contains it and nothing finer. The theme's own hover outline is unchanged, and an editor that
-  does not advertise `block-hover` receives nothing.
+  is over — `{ entryId, rect, layoutNodeId?, reusablePlacementId? }`, or `null` once it leaves — so
+  the editor can anchor an affordance (an "add block" control on the block's bottom edge) to the
+  same geometry the theme already outlines. It is posted when the hovered *block* changes, not on
+  every pointer move inside it, and re-posted whenever the theme's geometry may have moved, so a
+  re-post can repeat the rect it last sent. Edit mode only, and gated on the new `block-hover`
+  capability: an editor that does not advertise it receives nothing. The theme's own hover outline
+  is unchanged.
 - Feat: a route-template layout may now hold reusable component placements (`{ id, type: 'reusable', componentId }`) alongside its `template-block` leaves, and
   `createTemplateLayoutRenderModel` takes a `reusableComponentProjection` to expand them with.
   Expansion is the same implementation page layouts use, so a component renders identically

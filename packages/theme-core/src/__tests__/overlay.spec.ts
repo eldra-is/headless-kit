@@ -3919,7 +3919,7 @@ describe('framing mode', () => {
   });
 });
 
-// --- theme:block-hovered (spec decision 7) ----------------------------------
+// --- theme:block-hovered -----------------------------------------------------
 //
 // The editor anchors an "add block" affordance to the hovered block's bottom
 // edge, so it needs the hovered block's identity and rect — geometry the
@@ -4199,6 +4199,22 @@ describe('block hover reporting', () => {
     vi.advanceTimersByTime(16);
     post.mockClear();
 
+    // The real path a rerender takes: the binding replaces the DOM and calls
+    // rescan(). No pointerout ever fires for a node that was removed under a
+    // motionless pointer, so this is the only thing that can tell the editor
+    // its affordance is anchored to a block that no longer exists.
+    blockA.remove();
+    runtime.rescan();
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([null]);
+  });
+
+  it('posts the leave message on the next scroll when a detached block was never rescanned', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
     blockA.remove();
     window.dispatchEvent(new Event('scroll'));
     vi.advanceTimersByTime(16);
@@ -4263,6 +4279,31 @@ describe('block hover reporting', () => {
 
     expect(gated.mock.calls.filter((call) => call[0] === 'theme:block-hovered')).toEqual([]);
     ungatedRuntime.stop();
+  });
+
+  it('lets no pending frame post after stop()', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    over(blockB); // arms a frame that would post block-2
+    runtime.stop();
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([]);
+  });
+
+  it('posts nothing for a runtime the editor drives before start()', () => {
+    const early = vi.fn<OverlayRuntimeOptions['post']>();
+    const idle = createOverlayRuntime({ post: early });
+    // setMode/setSelected both call reposition(), which schedules the hover
+    // report; none of it may reach the bridge before the runtime is started.
+    idle.setBlockHoverEnabled(true);
+    idle.setMode('edit');
+    idle.setSelected('block-1', 'placement-1');
+    vi.advanceTimersByTime(16);
+
+    expect(early.mock.calls.filter((call) => call[0] === 'theme:block-hovered')).toEqual([]);
   });
 
   it('forgets the reported hover silently when the capability closes mid-session', () => {
