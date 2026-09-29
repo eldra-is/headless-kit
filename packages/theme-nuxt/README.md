@@ -36,6 +36,30 @@ const { page, layout, blocks } = useEldraPage();
 </template>
 ```
 
+## `eldraRouteKey` — required on your `<NuxtPage>`
+
+Give your `app.vue` the route key this module auto-imports:
+
+```vue
+<!-- app/app.vue -->
+<template>
+  <NuxtPage :page-key="eldraRouteKey" />
+</template>
+```
+
+This is not cosmetic on a **generated** site. `nuxi generate` writes each route as
+`<route>/index.html`, and static hosts disagree about which URL that file lives at — some serve
+`/products/ash-glaze-mug`, others answer it with a redirect to `/products/ash-glaze-mug/`. When the
+URL the visitor lands on differs from the path the page was prerendered at, Nuxt re-navigates
+between the two while the page hydrates; a catch-all page's default route key interpolates the
+splat parameter, so those two spellings key differently and Vue destroys and re-creates the page —
+and every block on it. Each block's `setup` then runs twice, so every read a commerce block makes
+goes out twice. Only one of the two instances ever mounts, so nothing in the DOM gives it away.
+
+`eldraRouteKey(route)` keys by the canonical path — the same identity `useEldraPage()` resolves
+content under — so the move is a no-op. Themes scaffolded before this was added should add the
+binding.
+
 ## Catalog-backed route templates
 
 A route template whose `schemaApiId` is `catalog:product` or `catalog:collection` is backed by the

@@ -70,6 +70,29 @@ build/deploy and CI wiring examples, and [Starter kit conventions](starter-kit.m
 primitive layer, the block contract, Storybook, and the accessibility/testing harness a customer
 inherits from `eldra-theme init`.
 
+## The route key a theme's `app.vue` must pass
+
+A theme renders every CMS route through one catch-all page, and its `app.vue` must hand
+`<NuxtPage>` the route key `@eldrajs/theme-nuxt` auto-imports:
+
+```vue
+<!-- app/app.vue -->
+<template>
+  <NuxtPage :page-key="eldraRouteKey" />
+</template>
+```
+
+`nuxi generate` writes each route as `<route>/index.html`, and static hosts disagree about which URL
+that file lives at: some serve `/products/ash-glaze-mug`, others answer it with a 308 to
+`/products/ash-glaze-mug/`. When the URL a visitor lands on differs from the path the page was
+prerendered at, Nuxt re-navigates between the two while the page hydrates — and a catch-all page's
+_default_ key interpolates the splat parameter, so the two spellings key differently and Vue
+destroys and re-creates the page and every block on it. Every block's `setup` runs a second time,
+and every read a commerce block makes goes out twice; only one of the two page instances ever
+mounts, so neither the DOM nor an `onMounted` side effect shows it. `eldraRouteKey` keys by the
+canonical path — the identity `useEldraPage()` already resolves content under — so the move changes
+nothing. The starter does this; a theme scaffolded before it was added should.
+
 ## Seeding default templates
 
 A theme can ship the pages a site starts with. `@eldrajs/theme-nuxt`'s `eldra.templates` (forwarded
