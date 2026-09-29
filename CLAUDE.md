@@ -227,7 +227,13 @@ a build first (`pnpm --filter @eldrajs/theme-nuxt build`, or the root `pnpm buil
 for its two browser specs (`designTokenParity.browser.spec.ts`, `slots.browser.spec.ts`) via
 `@playwright/test` 1.62.1 — `pnpm exec playwright install --with-deps chromium` once locally; CI
 installs it every run. `theme-cli`'s tests run `dist/cli.js` as a subprocess, so build that package
-first too.
+first too. `examples/starter-nuxt` needs the same Chromium for
+`test/prerenderRefresh.browser.spec.ts`, which runs a real `nuxi generate` against a mock gateway
+(`test/support/mockGateway.ts`), serves the output as static files and drives it with Playwright —
+the only test in the kit that sees Nuxt's own hydration, payload and lazily imported block
+components, and the only one that can see a commerce block refetch prerendered data or fail to
+draw its refresh treatment. It generates into a copy of the starter under `os.tmpdir()`, never into
+`examples/starter-nuxt/.output`, so it does not race `test/starter.spec.ts`'s own generate runs.
 
 **The accessibility gate (`examples/starter-nuxt`).** Every primitive and block spec asserts
 `expect(await axe(wrapper.element)).toHaveNoViolations()` (`vitest-axe`, jsdom) — a passing axe

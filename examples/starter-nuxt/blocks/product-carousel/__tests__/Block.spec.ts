@@ -10,6 +10,7 @@ import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
+  StorefrontCollectionSelector,
   StorefrontProductListItem,
   StorefrontResult,
   StorefrontSource,
@@ -207,6 +208,90 @@ describe('product-carousel block', () => {
       expect(cards).toHaveLength(2);
       expect(cards[0]!.props('linkAs')).toBe(EldraRouterLink);
       expect(cards[1]!.props('linkAs')).toBeUndefined();
+    });
+  });
+
+  /**
+   * The prerender contract's "final sources at setup time" half (`app/storefront/types.ts`). Three
+   * results exist whatever the variant, so what keeps the two it is not showing from reading the
+   * storefront is that their sources are empty — and `recentlyViewed` is the one that matters:
+   * it is `localStorage`, so an ungated `byHandles` is prerendered over an empty history and
+   * re-keyed over a full one in the browser, which is a products read on every product page for a
+   * row nobody is looking at (`test/prerenderRefresh.browser.spec.ts` catches it end to end).
+   */
+  describe('reads only the source its variant shows', () => {
+    function recording(options: { productHandle?: string } = {}): {
+      storefront: StorefrontSource;
+      sources: {
+        related?: Ref<string | null>;
+        handles?: Ref<string[]>;
+        collection?: Ref<StorefrontCollectionSelector | null>;
+      };
+    } {
+      const base = createDemoStorefront(options);
+      const sources: {
+        related?: Ref<string | null>;
+        handles?: Ref<string[]>;
+        collection?: Ref<StorefrontCollectionSelector | null>;
+      } = {};
+      return {
+        sources,
+        storefront: {
+          ...base,
+          catalog: {
+            ...base.catalog,
+            related: (handle, limit) => {
+              sources.related = handle;
+              return base.catalog.related(handle, limit);
+            },
+            byHandles: (handles) => {
+              sources.handles = handles;
+              return base.catalog.byHandles(handles);
+            },
+            collectionProducts: (collection, opts) => {
+              sources.collection = collection;
+              return base.catalog.collectionProducts(collection, opts);
+            },
+          },
+        },
+      };
+    }
+
+    it('asks about no history and no collection while it is showing related products', async () => {
+      const { storefront, sources } = recording({ productHandle: 'merino-crew-sweater' });
+      // What a product page looks like by the time this block's setup runs: `product-detail` has
+      // recorded the product being viewed, so the demo history is anything but empty.
+      expect(storefront.history.recentlyViewed.value.length).toBeGreaterThan(0);
+
+      mountBlock({ ...mock, variant: 'related' }, { storefront });
+      await flushPromises();
+
+      expect(sources.related?.value).toBe('merino-crew-sweater');
+      expect(sources.handles?.value).toEqual([]);
+      expect(sources.collection?.value).toBeNull();
+    });
+
+    it('asks about no product and no collection while it is showing recently viewed', async () => {
+      const { storefront, sources } = recording({ productHandle: 'merino-crew-sweater' });
+      mountBlock({ ...mock, variant: 'recently-viewed' }, { storefront });
+      await flushPromises();
+
+      expect(sources.handles?.value).toEqual(storefront.history.recentlyViewed.value);
+      expect(sources.related?.value).toBeNull();
+      expect(sources.collection?.value).toBeNull();
+    });
+
+    it('asks about no product and no history while it is showing a collection', async () => {
+      const { storefront, sources } = recording({ productHandle: 'merino-crew-sweater' });
+      mountBlock(
+        { ...mock, variant: 'collection', sourceHandle: 'winter-knitwear' },
+        { storefront }
+      );
+      await flushPromises();
+
+      expect(sources.collection?.value).toEqual({ slug: 'winter-knitwear' });
+      expect(sources.related?.value).toBeNull();
+      expect(sources.handles?.value).toEqual([]);
     });
   });
 

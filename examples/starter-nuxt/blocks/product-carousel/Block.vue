@@ -115,11 +115,35 @@ const source = computed<StorefrontCollectionSelector | null>(() =>
     : null
 );
 const collectionOpts = computed(() => ({ page: 1, pageSize: limit.value }));
-const productHandleRef = computed(() => storefront.route.productHandle);
 
-const relatedResult = storefront.catalog.related(productHandleRef, limit.value);
+/**
+ * **Three results, and only the variant's own reads anything.** A block cannot create a result
+ * conditionally (a variant is a field an author edits, so all three have to exist for the life of
+ * the block), but every source below is empty for a variant that is not showing — so the two
+ * results this carousel is not rendering ask the storefront nothing, on the server and in the
+ * browser alike.
+ *
+ * That is the prerender contract's other half (`app/storefront/types.ts`): a result's sources must
+ * be *final at setup time on both sides*, or its prerendered key and the key the browser computes
+ * disagree and the page refetches data it already has. `recentlyViewed` is the case that proves
+ * it — it is `localStorage`, empty on the server and filled a moment after mount by
+ * `product-detail`'s `recordView`, so an ungated `byHandles` prerendered as `[[]]` and re-ran in
+ * the browser as `[["<the product being viewed>"]]`: a full products read on every product page,
+ * for a row nobody was looking at. Gated, the handle list is `[]` on both sides and nothing is
+ * requested; the `recently-viewed` variant, which genuinely cannot be prerendered for a visitor's
+ * own history, still reads it live and is the only variant that does.
+ */
+const relatedHandle = computed(() =>
+  isCollection.value || isRecentlyViewed.value ? null : storefront.route.productHandle
+);
+const NO_HANDLES: string[] = [];
+const viewedHandles = computed(() =>
+  isRecentlyViewed.value ? storefront.history.recentlyViewed.value : NO_HANDLES
+);
+
+const relatedResult = storefront.catalog.related(relatedHandle, limit.value);
 const collectionResult = storefront.catalog.collectionProducts(source, collectionOpts);
-const recentlyViewedResult = storefront.catalog.byHandles(storefront.history.recentlyViewed);
+const recentlyViewedResult = storefront.catalog.byHandles(viewedHandles);
 
 /**
  * The one result this variant is showing. Three are created (a block cannot conditionally call a
@@ -170,9 +194,7 @@ const products = computed<StorefrontProductListItem[]>(() => {
   if (isCollection.value) return collectionResult.data.value?.items ?? [];
   if (isRecentlyViewed.value) return recentlyViewedResult.data.value ?? [];
   const items = relatedResult.data.value ?? [];
-  return items.filter(
-    (item) => item.handle !== storefront.route.productHandle && item.available !== false
-  );
+  return items.filter((item) => item.handle !== relatedHandle.value && item.available !== false);
 });
 const cappedProducts = computed(() => products.value.slice(0, limit.value));
 /**

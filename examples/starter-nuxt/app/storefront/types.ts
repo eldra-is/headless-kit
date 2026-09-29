@@ -201,6 +201,16 @@ export interface VolatileSnapshot {
  * `loading` is the third flag and the broadest: any read in flight, including the manual
  * `refresh()` and a reload for changed sources. It is what a block shows a spinner from while the
  * value it already has stays on screen.
+ *
+ * **What a block owes in return: sources that are final at setup time, on both sides.** A result
+ * is cached under a key built from its sources' values at creation, and that key is how the
+ * browser finds the value the build left for it. A source that resolves to one thing while the
+ * page is being generated and to another a moment after hydration — browser-local state, a value
+ * some other block settles first — mints a second key, misses the payload and refetches data the
+ * page is already showing. So a block gives a result it does not render an *empty* source rather
+ * than a live one (`blocks/product-carousel/Block.vue` is the worked example: three results, one
+ * variant, two empty sources), and anything genuinely browser-local
+ * (`history.recentlyViewed`) is only ever read by the variant that shows it.
  */
 export interface StorefrontResult<T> {
   data: Ref<T | null>;

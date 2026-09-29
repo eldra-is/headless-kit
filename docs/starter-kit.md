@@ -458,7 +458,7 @@ does one batched read for the products it is showing
 (`catalog.volatileByIds` → `filter=id:in:…`, chunked at 50) and swaps only
 `price.amount`/`price.compareAt`/`available`/`stock` in; the product **detail** page refreshes
 through its own `catalog.product` read instead, because its `variantId` names a variant rather than
-a product. One read per *batch*, and a batch is every result registered before it goes out: blocks
+a product. One read per _batch_, and a batch is every result registered before it goes out: blocks
 are lazily imported components, so a block whose chunk arrives after the app has mounted opens the
 next batch rather than being left out of the only one — which is what used to happen, silently, to
 the carousel on a product page. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
@@ -470,6 +470,19 @@ demo storefront never refreshes at all, so stories and specs are unaffected. (Th
 against it carries the fixture's real values rather than a skeleton — the same thing the gateway
 storefront does for the real site.) The wiring lives in `app/plugins/eldra-storefront.ts` (Nuxt's
 half) and `app/storefront/refresh.ts`/`volatile.ts` (the framework-free half).
+
+**What a block owes the prerender: sources that are final at setup time.** A result is cached under
+a key built from its sources' values when it is created, and that key is how the browser finds the
+value the build left for it. A source that says one thing during `nuxi generate` and another a
+moment after hydration mints a second key, misses the payload, and refetches data the page is
+already showing. Browser-local state is the trap: `product-carousel` creates three results and
+renders one, and its `recently-viewed` source is `localStorage` — empty while the site is generated,
+filled the instant `product-detail` records the view — so until it was gated behind its own variant
+every product page ran a full products read for a row nobody was looking at. A block gives the
+results it is not rendering an empty source, and reads browser-local state only in the variant that
+shows it. `test/prerenderRefresh.browser.spec.ts` is the guard: a real `nuxi generate` against a
+mock gateway, served as static files and driven with Playwright, asserting the payload's key set and
+every request the page makes afterwards.
 
 **What the visitor actually sees.** Nothing moves. The price and the stock line the page was built
 with stay exactly where they are, at their own size and wording; while the refresh is in flight they
