@@ -512,7 +512,10 @@ writes come back to it as route changes and an unguarded re-seed turns each one 
 request. The filtered read misses the payload by construction — the filters are part of the result
 key — so it reads live, which is exactly what it should do over a build that prerendered the
 collection unfiltered. `test/prerenderRefresh.browser.spec.ts` covers both directions: a hard load
-carrying a price range, and a query changed under a mounted block.
+carrying a price range, and a query changed under a mounted block. `search` has always followed
+`route.query` this way (its own watcher, so `/search?q=…` runs the restored query and every later
+one); its spec now guards that explicitly, since it is the same defect class one seed-once line
+would reintroduce.
 
 **The page must be one route however the host spells it.** A generated site is a tree of
 `<route>/index.html` files, and static hosts disagree about which URL that file lives at: the

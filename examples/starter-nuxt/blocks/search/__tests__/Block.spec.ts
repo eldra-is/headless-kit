@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick, ref, type Ref } from 'vue';
+import { nextTick, ref, watch, type Ref } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
@@ -432,6 +432,75 @@ describe('search block', () => {
       const chips = wrapper.findAll('a').filter((a) => a.text() === firstLabel);
       expect(chips).toHaveLength(1);
       expect(chips[0]!.attributes('href')).toBe(`/search?q=${encodeURIComponent(firstLabel)}`);
+    });
+  });
+
+  /**
+   * The URL arriving late, which is what a **generated** page does.
+   *
+   * Nuxt hydrates a prerendered route under the payload's path with the query stripped, and restores
+   * the address bar's real URL only once the app's `<Suspense>` has resolved — after every component
+   * has mounted (`hasDeferredRoute`, in its own router plugin). So on `/search?q=linen` the block is
+   * built with an empty `route.query`, renders the build's empty-query page, and must pick the real
+   * query up afterwards. `collection-grid` had to grow that (it seeded once and never looked again);
+   * this block has always watched the route, and this is the guard that keeps it that way.
+   */
+  describe('a query the route only carries after mount', () => {
+    const RESPONSE: StorefrontSearchResponse = {
+      query: 'linen',
+      total: 1,
+      products: [],
+      articles: [ARTICLE_A],
+      pages: [],
+      suggestion: null,
+    };
+
+    /** A storefront whose `search.run` records the query text it is asked for, in order. */
+    function recordingSearch(): { source: StorefrontSource; queries: string[] } {
+      const base = createDemoStorefront();
+      const queries: string[] = [];
+      const source: StorefrontSource = {
+        ...base,
+        search: {
+          run: (query) => {
+            watch(query, (value) => queries.push(value), { immediate: true });
+            return stubResult(RESPONSE);
+          },
+        },
+      };
+      return { source, queries };
+    }
+
+    it('runs the restored query and puts it in the field and the heading', async () => {
+      const { source, queries } = recordingSearch();
+      const wrapper = mountSearch(mock, { storefront: source });
+      await nextTick();
+      // The build's state: no query, so the read that was prerendered is the empty one.
+      expect(queries).toEqual(['']);
+
+      // The router restoring the real URL, a tick after the app mounted.
+      source.route.query = 'linen';
+      await nextTick();
+
+      expect(queries).toEqual(['', 'linen']);
+      expect(wrapper.find('input[type="search"]').element.value).toBe('linen');
+      expect(wrapper.text()).toContain('linen');
+    });
+
+    it('follows every later change too, including one that clears it', async () => {
+      const { source, queries } = recordingSearch();
+      const wrapper = mountSearch(mock, { storefront: source });
+      await nextTick();
+
+      source.route.query = 'linen';
+      await nextTick();
+      source.route.query = 'wool';
+      await nextTick();
+      source.route.query = null;
+      await nextTick();
+
+      expect(queries).toEqual(['', 'linen', 'wool', '']);
+      expect(wrapper.find('input[type="search"]').element.value).toBe('');
     });
   });
 });
