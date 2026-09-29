@@ -40,6 +40,13 @@ const STORED_FIELD_KEYS = [
   'metadata',
   'relation',
 ];
+// Keys the kit's field grammar carries that Core's stored `Field` does not —
+// dropped before any storage comparison, so a change to one can never be read
+// as a change to what is stored. `showWhen` is authoring-only visibility:
+// adding, changing or removing it is not a breaking field change and must
+// never demand a version bump. Listed here explicitly rather than merely left
+// out of STORED_FIELD_KEYS, so the omission reads as a decision.
+const IGNORED_FIELD_KEYS = ['showWhen'];
 const STORED_RELATION_KEYS = [
   'multiple',
   'allowProducts',
@@ -213,6 +220,9 @@ export function validMigrationFieldShape(value: unknown, depth = 1): boolean {
 
 function storedMigrationField(raw: unknown, depth = 1): BlockField | null {
   const value = storedObject(raw, STORED_FIELD_KEYS);
+  if (value !== null) {
+    for (const key of IGNORED_FIELD_KEYS) delete value[key];
+  }
   if (
     value === null ||
     typeof value.fieldId !== 'string' ||

@@ -527,6 +527,11 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
   if (titleCount > 1)
     errors.push(`${file}: fields — at most one field may set isTitle (found ${titleCount})`);
 
+  // Conditional visibility is checked per *field set* — top level, each
+  // composite's children, each list item's children — because that is the
+  // scope a sibling reference resolves in.
+  checkFieldSetVisibility(file, fields, 'fields', errors);
+
   const slots = Array.isArray(block.slots) ? (block.slots as Array<Record<string, unknown>>) : [];
   const slotIds = new Set<string>();
   for (const [index, slot] of slots.entries()) {
@@ -550,6 +555,135 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
       );
     }
   }
+}
+
+// A `showWhen` sibling has to be something an author picks from a small,
+// knowable set of values — Core evaluates visibility against the stored value,
+// and Studio hides the editor for a field whose condition does not hold.
+const SHOW_WHEN_SIBLING_TYPES = new Set(['select', 'bool', 'string']);
+
+/** Every field in one field set, plus the field sets nested under it. */
+function checkFieldSetVisibility(
+  file: string,
+  fields: Array<Record<string, unknown>>,
+  path: string,
+  errors: string[],
+  depth = 1
+): void {
+  if (depth > MAX_COMPOSITE_DEPTH + 1) return;
+  const siblings = new Map<string, Record<string, unknown>>();
+  for (const field of fields) {
+    if (isRecord(field)) siblings.set(String(field.fieldId ?? ''), field);
+  }
+  fields.forEach((field, index) => {
+    if (!isRecord(field)) return;
+    checkFieldVisibility(file, field, siblings, `${path}[${index}]`, errors);
+    checkNestedVisibility(file, field, `${path}[${index}]`, errors, depth);
+  });
+}
+
+function checkNestedVisibility(
+  file: string,
+  field: Record<string, unknown>,
+  at: string,
+  errors: string[],
+  depth: number
+): void {
+  const metadata = isRecord(field.metadata) ? field.metadata : null;
+  if (metadata === null) return;
+  if (Array.isArray(metadata.fields)) {
+    checkFieldSetVisibility(
+      file,
+      metadata.fields.filter(isRecord),
+      `${at}.metadata.fields`,
+      errors,
+      depth + 1
+    );
+  }
+  // A list's item is one field on its own; the set a condition inside it
+  // resolves against is the item's own children, not the list's neighbours.
+  if (isRecord(metadata.item)) {
+    const item = metadata.item;
+    const itemPath = `${at}.metadata.item`;
+    checkFieldVisibility(
+      file,
+      item,
+      new Map([[String(item.fieldId ?? ''), item]]),
+      itemPath,
+      errors
+    );
+    checkNestedVisibility(file, item, itemPath, errors, depth + 1);
+  }
+}
+
+/**
+ * The half of the `showWhen` grammar JSON Schema cannot express, and the point
+ * where `equals` sugar is normalized away: the manifest always carries `in`.
+ * Core's manifest ingest re-validates the same rules and refuses a manifest
+ * that breaks one, naming the field.
+ */
+function checkFieldVisibility(
+  file: string,
+  field: Record<string, unknown>,
+  siblings: Map<string, Record<string, unknown>>,
+  at: string,
+  errors: string[]
+): void {
+  const showWhen = field.showWhen;
+  // Absent, or a shape AJV already refused — never report it twice.
+  if (showWhen === undefined || !isRecord(showWhen)) return;
+  const listed = Array.isArray(showWhen.in) ? (showWhen.in as string[]) : null;
+  const equals = typeof showWhen.equals === 'string' ? showWhen.equals : null;
+  if ((listed === null) === (equals === null)) {
+    errors.push(`${file}: ${at}.showWhen — set exactly one of "in" or "equals"`);
+    return;
+  }
+  const values = listed ?? [equals as string];
+  if (values.length === 0) {
+    errors.push(`${file}: ${at}.showWhen.in — must list at least one value`);
+    return;
+  }
+  const siblingId = String(showWhen.field ?? '');
+  if (siblingId === String(field.fieldId ?? '')) {
+    errors.push(`${file}: ${at}.showWhen.field — a field cannot depend on itself`);
+    return;
+  }
+  const sibling = siblings.get(siblingId);
+  if (sibling === undefined) {
+    errors.push(`${file}: ${at}.showWhen.field — references unknown sibling "${siblingId}"`);
+    return;
+  }
+  const siblingType = String(sibling.type ?? '');
+  if (!SHOW_WHEN_SIBLING_TYPES.has(siblingType)) {
+    errors.push(
+      `${file}: ${at}.showWhen.field — sibling "${siblingId}" must be a select, bool or string field (got "${siblingType}")`
+    );
+    return;
+  }
+  // No chains: one hop keeps "is this field visible?" answerable from the
+  // entry's own values without walking a graph that could also cycle.
+  if (sibling.showWhen !== undefined) {
+    errors.push(
+      `${file}: ${at}.showWhen.field — sibling "${siblingId}" carries showWhen itself; conditions do not chain`
+    );
+    return;
+  }
+  if (siblingType === 'select') {
+    const options =
+      isRecord(sibling.metadata) && Array.isArray(sibling.metadata.options)
+        ? sibling.metadata.options
+        : null;
+    if (options !== null) {
+      const unknown = values.filter((value) => !options.includes(value));
+      for (const value of unknown) {
+        errors.push(
+          `${file}: ${at}.showWhen.in — "${value}" is not an option of sibling "${siblingId}"`
+        );
+      }
+      if (unknown.length > 0) return;
+    }
+  }
+  field.showWhen = { field: siblingId, in: values };
 }
 
 function compositeDepth(field: Record<string, unknown>, depth = 1): number {

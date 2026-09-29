@@ -107,6 +107,24 @@ export interface DeclaredTemplateSeed {
   footer?: boolean;
 }
 
+/**
+ * Conditional visibility for a block field: the field is shown to an author
+ * only while the named sibling holds one of `in`'s values. `field` names a
+ * sibling in the *same* field set — top level, or the same composite / list
+ * item — which must be a `select`, `bool` or `string` field carrying no
+ * `showWhen` of its own (conditions do not chain).
+ *
+ * `equals` is sugar for a single-entry `in`; the scanner normalizes it away, so
+ * a manifest always carries `in`. Visibility is authoring UX, not storage:
+ * adding, changing or removing it is never a breaking field change and never
+ * needs a version bump.
+ */
+export interface BlockFieldShowWhen {
+  field: string;
+  in?: string[];
+  equals?: string;
+}
+
 export interface BlockField {
   fieldId: string;
   name: string;
@@ -119,6 +137,8 @@ export interface BlockField {
   helpText?: string;
   validators?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  /** Show this field only while a sibling holds one of the listed values. */
+  showWhen?: BlockFieldShowWhen;
   /** `reference` fields only. A relation must name at least one target
    * (`allowedTagIds`, `allowProducts` or `allowCollections`); `allowedSchemaIds`
    * stays refused, because schema ids are not portable across organizations

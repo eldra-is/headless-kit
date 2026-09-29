@@ -5,6 +5,19 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A block field may now declare `showWhen: { "field": "<sibling>", "in": ["<value>", …] }` — the
+  field is offered to an author only while that sibling holds one of the listed values.
+  `equals: "x"` is sugar for `in: ["x"]` and is normalized away while scanning, so the manifest
+  always carries `in`. `field` names a sibling in the *same* field set (top level, or the same
+  composite / list item) which must be a `select`, `bool` or `string` field carrying no `showWhen`
+  of its own — conditions do not chain — and, for a `select` sibling, every listed value must be
+  one of its `metadata.options`. Each rule is a validation error naming the field
+  (`blocks/product-carousel/block.json: fields[2].showWhen.field — references unknown sibling
+  "variation"`), and Core's manifest ingest refuses the same shapes the same way. Visibility is
+  authoring UX, not storage: adding, changing or removing `showWhen` is **not** a breaking field
+  change, so it never demands a `version` bump, and the generated `.eldra/block-types.d.ts` is
+  unchanged by it.
+
 - A declared template seed block may now carry `templates` and `bindings`
   (`Record<string, string>` each), and they are emitted on that block's node in the generated —
   or declared — seed layout rather than on `templates[].blocks[]`, which still carries only the

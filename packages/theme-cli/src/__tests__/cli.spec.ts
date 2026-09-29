@@ -141,6 +141,31 @@ describe('eldra-theme CLI', () => {
     );
   });
 
+  // Same reasoning as the two above: the `showWhen` grammar's own cases live in
+  // `vite-plugin-theme`'s tests; this only proves its refusals reach the CLI.
+  it('validate rejects a showWhen naming a field that is not a sibling', async () => {
+    writeThemePackage(dir);
+    scaffoldBlock({
+      themeDir: dir,
+      apiId: 'product-carousel',
+      fields: [
+        { fieldId: 'heading', name: 'Heading', type: 'string' },
+        {
+          fieldId: 'sourceHandle',
+          name: 'Collection handle',
+          type: 'string',
+          showWhen: { field: 'variant', in: ['collection'] },
+        },
+      ],
+    });
+
+    const result = await run(['validate'], dir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      'fields[1].showWhen.field — references unknown sibling "variant"'
+    );
+  });
+
   it('validate rejects defaults on field types that CMS does not support', async () => {
     writeThemePackage(dir);
     scaffoldBlock({

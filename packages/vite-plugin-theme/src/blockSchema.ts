@@ -75,6 +75,24 @@ export const blockJsonSchema = {
         helpText: { type: 'string' },
         validators: { type: 'object' },
         metadata: { type: 'object' },
+        // Conditional visibility: the field is shown only while a sibling in
+        // the same field set holds one of `in`'s values. `equals` is sugar for
+        // a single-entry `in` and is normalized away at scan time, so the
+        // manifest always carries `in`. Everything JSON Schema cannot see —
+        // that the sibling exists at this nesting level, is a select/bool/
+        // string, carries no condition of its own, and (for a select) offers
+        // every listed value — is `showWhenChecks` in scan.ts, which Core's
+        // manifest ingest mirrors.
+        showWhen: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['field'],
+          properties: {
+            field: { type: 'string', pattern: FIELD_ID_PATTERN },
+            in: { type: 'array', maxItems: 50, items: { type: 'string' } },
+            equals: { type: 'string' },
+          },
+        },
         // A relation names its targets: semantic tag names, catalog products,
         // catalog collections, in any combination with at least one of them
         // (`semanticChecks` in scan.ts enforces the "at least one" rule, which
