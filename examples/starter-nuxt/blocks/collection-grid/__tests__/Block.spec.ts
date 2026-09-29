@@ -1341,4 +1341,71 @@ describe('collection-grid block', () => {
       expect(countLine(wrapper).text()).toBe('5 products');
     });
   });
+
+  /**
+   * The other direction of the URL round-trip: a query the block did not write.
+   *
+   * Back/Forward, a shared link to the same collection with a different range, and — the one that
+   * made the deployed site's filters inert — arriving on a **prerendered** page, where Nuxt hydrates
+   * under the payload's query-less path and only restores the real URL once the app has mounted. A
+   * block that seeds its filter state once and never looks again shows the unfiltered collection
+   * forever, under chips and a URL that say otherwise.
+   */
+  describe('a query change the block did not make', () => {
+    it('adopts it: the request, the count and the price inputs all follow', async () => {
+      const stub = createStub(PRODUCTS, { filteredCount: 4 });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(stub.requests.at(-1)?.filters).toBeUndefined();
+
+      stub.source.route.filters = { minPrice: ['50'], maxPrice: ['150'] };
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      expect(stub.requests.at(-1)?.filters).toEqual({ price: ['50-150'] });
+      expect(countLine(wrapper).text()).toBe('4 products');
+      // The sidebar's inputs are the applied state and show the range; the drawer's are its pending
+      // copy, which is seeded from the applied state when it opens, so they stay empty until then.
+      const priceInputs = wrapper
+        .findAll('input[inputmode="numeric"]')
+        .map((input) => (input.element as HTMLInputElement).value);
+      expect(priceInputs).toEqual(['50', '150', '', '']);
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('$50');
+    });
+
+    it('follows a sort and a column count out of the URL too', async () => {
+      const stub = createStub(PRODUCTS, { filteredCount: 4 });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      stub.source.route.sort = 'price-desc';
+      stub.source.route.columns = '4';
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      expect(stub.requests.at(-1)?.sort).toBe('price-desc');
+      expect(gridList(wrapper).classes().join(' ')).toContain('4');
+    });
+
+    /** The block's own writes go out through `setQuery`, come back as a route change, and stop. */
+    it('does not re-request when the change is the block’s own round-trip', async () => {
+      const stub = createStub(PRODUCTS, { filteredCount: 4 });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      const before = stub.requests.length;
+      const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
+      await panel.get('input[type="checkbox"]').setValue(true);
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      // Exactly one: the shopper's tick. Reading the URL back must not mint a second request for the
+      // state the block just wrote — an unguarded re-seed does, on every filter the shopper touches.
+      expect(stub.requests.length).toBe(before + 1);
+      expect(stub.requests.at(-1)?.filters).toEqual({ category: ['knitwear'] });
+    });
+  });
 });

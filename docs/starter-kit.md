@@ -496,6 +496,24 @@ shows it. `test/prerenderRefresh.browser.spec.ts` is the guard: a real `nuxi gen
 mock gateway, served as static files and driven with Playwright, asserting the payload's key set and
 every request the page makes afterwards.
 
+**A query string is not in the route while a prerendered page hydrates.** Nuxt hydrates a
+prerendered route under the _payload's_ path — query stripped — and restores the address bar's real
+URL only once the app's `<Suspense>` has resolved (`hasDeferredRoute`, in Nuxt's own router plugin).
+So a block built during hydration sees `route.filters` empty however the visitor arrived, and a
+block that seeds its URL-backed state once and never looks again is inert on the deployed site:
+`/collections/<slug>?minPrice=50&maxPrice=150` rendered the whole collection, both price inputs
+blank, with the chips and the URL insisting otherwise, and no request but the volatile batch.
+`collection-grid` therefore **adopts the route after mount** (`adoptRouteState`) and watches it from
+there — which is also what makes Back/Forward and a shared link work. Two rules keep that honest and
+are worth copying into any block that reads the URL: adopt _after_ mount, never during `setup`, so
+the first client render is still the server's HTML and the filtered read is a transition rather than
+a hydration mismatch; and guard every assignment with an equality check, because the block's own
+writes come back to it as route changes and an unguarded re-seed turns each one into a second
+request. The filtered read misses the payload by construction — the filters are part of the result
+key — so it reads live, which is exactly what it should do over a build that prerendered the
+collection unfiltered. `test/prerenderRefresh.browser.spec.ts` covers both directions: a hard load
+carrying a price range, and a query changed under a mounted block.
+
 **The page must be one route however the host spells it.** A generated site is a tree of
 `<route>/index.html` files, and static hosts disagree about which URL that file lives at: the
 deployed Eldra preview host answers `/products/ash-glaze-mug` with a 308 to

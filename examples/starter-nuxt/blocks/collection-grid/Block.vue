@@ -42,6 +42,7 @@ import {
   h,
   inject,
   nextTick,
+  onMounted,
   ref,
   watch,
   type Component,
@@ -166,7 +167,10 @@ const variant = computed<Variant>(() =>
 );
 const hasSidebar = computed(() => variant.value === 'sidebar');
 
-const columnsField = computed(() => normaliseChoice(data.value.columns, ['2', '3', '4'], '3'));
+/** The column counts the field, the Select and a shared URL all agree on. */
+const COLUMN_CHOICES = ['2', '3', '4'];
+
+const columnsField = computed(() => normaliseChoice(data.value.columns, COLUMN_CHOICES, '3'));
 const pageSize = computed(() =>
   Number(normaliseChoice(data.value.pageSize, ['12', '24', '48'], '24'))
 );
@@ -228,11 +232,10 @@ const sectionLabel = computed(() =>
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Seeded once from `route.filters`/`route.sort`/`route.columns` — "a shared URL restores the
- * whole grid state" (spec Do/Don't) — the same one-time initial read `search`'s own `searchQuery`
- * does from `route.query`. From here the block, not the URL, owns this state: every further
- * change still round-trips through `publishState()` below, which is what keeps the URL in sync
- * going forward.
+ * Seeded from `route.filters`/`route.sort`/`route.columns` — "a shared URL restores the whole grid
+ * state" (spec Do/Don't). From here the block owns this state and writes every change back through
+ * `publishState()`; `adoptRouteState()` below is the other direction, for the moves the block does
+ * not make itself.
  */
 function initialFilterSelection(): FilterSelection {
   const out: FilterSelection = {};
@@ -289,7 +292,7 @@ watch(
 /** The shopper's own column choice, seeded from `route.columns` (a shared URL) when it names a
  *  valid option, else the field's own default — and reset whenever the field's default changes. */
 const columnsChoice = ref(
-  route.columns !== null && ['2', '3', '4'].includes(route.columns)
+  route.columns !== null && COLUMN_CHOICES.includes(route.columns)
     ? route.columns
     : columnsField.value
 );
@@ -297,7 +300,7 @@ watch(columnsField, (value) => {
   columnsChoice.value = value;
 });
 const columnOptions = computed<SelectOption[]>(() =>
-  ['2', '3', '4'].map((value) => ({ value, label: value }))
+  COLUMN_CHOICES.map((value) => ({ value, label: value }))
 );
 
 /** `load-more` grows the window rather than paging; any filter or sort change starts over. */
@@ -575,6 +578,65 @@ const emptyText = computed(() => {
  * `null` clears a key; `page` is always cleared, because any filter, sort or column change starts
  * the results over (`load-more`'s own window is reset beside it).
  */
+/**
+ * The URL, read back into the block's own state — after mount, and on every later change.
+ *
+ * Three moves change the query without the block doing it: the browser's Back/Forward buttons, a
+ * link to the same collection with a different filter, and — the one that made the deployed site's
+ * filters inert — **arriving with a query on a prerendered page**. Nuxt hydrates a prerendered
+ * route under the *payload's* path, query and all stripped, and only restores the real URL once
+ * the app's `<Suspense>` has resolved (`hasDeferredRoute` in its router plugin). So
+ * `?minPrice=50&maxPrice=150` simply is not in the route while the block is being built: seeding
+ * once left the inputs blank, the request unfiltered and the grid showing everything, under chips
+ * and a URL that said otherwise.
+ *
+ * Adopting it after mount rather than during setup is also what keeps the first paint the server's:
+ * the static HTML is the unfiltered collection, the client renders exactly that, and the filtered
+ * read goes out afterwards — a transition, not a hydration mismatch.
+ *
+ * Every assignment is guarded by an equality check, so the block's own `publishState()` round-trip
+ * (write the URL → the route changes → this reads it back) settles instead of re-requesting.
+ */
+function adoptRouteState(): void {
+  const next = initialFilterSelection();
+  if (!sameSelection(next, selection.value)) selection.value = next;
+  const min = route.filters.minPrice?.[0] ?? '';
+  if (min !== priceMin.value) priceMin.value = min;
+  const max = route.filters.maxPrice?.[0] ?? '';
+  if (max !== priceMax.value) priceMax.value = max;
+  if (
+    route.sort !== null &&
+    route.sort !== sort.value &&
+    sortOptions.value.some((option) => option.value === route.sort)
+  ) {
+    sort.value = route.sort;
+  }
+  if (
+    route.columns !== null &&
+    route.columns !== columnsChoice.value &&
+    COLUMN_CHOICES.includes(route.columns)
+  ) {
+    columnsChoice.value = route.columns;
+  }
+}
+
+/** Two selections holding the same values for the same sources, order included. */
+function sameSelection(a: FilterSelection, b: FilterSelection): boolean {
+  const sources = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<FilterSource>;
+  for (const source of sources) {
+    const left = a[source] ?? [];
+    const right = b[source] ?? [];
+    if (left.length !== right.length) return false;
+    if (left.some((value, index) => value !== right[index])) return false;
+  }
+  return true;
+}
+
+onMounted(() => {
+  adoptRouteState();
+  watch(() => [route.filters, route.sort, route.columns], adoptRouteState, { deep: true });
+});
+
 function publishState(): void {
   pagesLoaded.value = 1;
   route.setQuery({

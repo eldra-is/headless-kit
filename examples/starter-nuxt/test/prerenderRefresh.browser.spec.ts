@@ -279,6 +279,67 @@ async function navigateFrom(from: string, go: (page: Page) => Promise<void>): Pr
   }
 }
 
+/** What the collection grid shows: its card titles, its count line, and its two price inputs. */
+interface GridState {
+  titles: string[];
+  count: string;
+  price: string[];
+}
+
+const GRID_SECTION = 'section[aria-label="The winter edit products"]';
+
+function readGrid(page: Page): Promise<GridState> {
+  return page.evaluate((selector) => {
+    const section = document.querySelector(selector);
+    // `aria-labelledby`, not any `ul`: that is the grid's own card list. The active-filter chips
+    // are a `ul[aria-label]` in the same section, and they only exist once something is filtered.
+    const titles = [
+      ...(section?.querySelectorAll('ul[aria-labelledby]:not([aria-hidden]) > li') ?? []),
+    ].map((card) => (card.querySelector('a')?.textContent ?? '').trim());
+    const status = [...(section?.querySelectorAll('p[role="status"]') ?? [])]
+      .map((node) => (node as HTMLElement).textContent?.trim() ?? '')
+      .filter((text) => text !== '');
+    const price = [...(section?.querySelectorAll('aside input[inputmode="numeric"]') ?? [])].map(
+      (input) => (input as HTMLInputElement).value
+    );
+    return { titles, count: status[0] ?? '', price };
+  }, GRID_SECTION);
+}
+
+/**
+ * A hard load, watched long enough for a filtered read to have gone out and answered — the catalog
+ * is held back by `catalogDelayMs`, so this is the settled state, not a race.
+ */
+async function visitCollection(path: string): Promise<{
+  grid: GridState;
+  requests: string[];
+  warnings: string[];
+  url: string;
+}> {
+  gateway.reset();
+  const page = await browser.newPage();
+  const warnings: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (/hydrat|mismatch/i.test(text) || message.type() === 'error') {
+      warnings.push(`${message.type()}: ${text.slice(0, 200)}`);
+    }
+  });
+  page.on('pageerror', (error) => warnings.push(`pageerror: ${error.message.slice(0, 200)}`));
+  try {
+    await page.goto(`${statics.origin}${path}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(CATALOG_DELAY_MS + 2500);
+    return {
+      grid: await readGrid(page),
+      requests: gateway.requests.map((request) => decodeURIComponent(request)),
+      warnings,
+      url: page.url(),
+    };
+  } finally {
+    await page.close();
+  }
+}
+
 /** The sample with the most of the treatment on screen. */
 function peakOf(samples: readonly Treatment[]): Treatment {
   return samples.reduce((most, sample) => (sample.spinners > most.spinners ? sample : most));
@@ -504,5 +565,91 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(shown).toBeGreaterThanOrEqual(0);
     expect(shown).toBeLessThan(4);
     expect(visited.warnings).toEqual([]);
+  });
+
+  /**
+   * The facets a visitor arrives with, on a generated page.
+   *
+   * `app/storefront/facets.ts` filters the gateway's results, and the block reads `minPrice`/
+   * `maxPrice` off the storefront route — and none of that reached a deployed site, because on a
+   * prerendered page the URL's query is not in the route the block is built under. Nuxt hydrates a
+   * prerendered route under the **payload's** path (`hasDeferredRoute` in its own router plugin:
+   * the query arrives only after `app:suspense:resolve`), so the block seeded its filter state from
+   * an empty query, kept it forever, and the page stayed exactly as the build wrote it: all seven
+   * products, "7 products", both price inputs blank, and not one catalog request but the volatile
+   * batch.
+   *
+   * Both halves are asserted here rather than in a mounted spec, because a mounted spec hands the
+   * block a route object with the filters already on it — which is precisely the thing that does
+   * not happen on a generated page.
+   */
+  describe('collection facets from the URL', () => {
+    /** $42, $52, $44 of the seven — the prices `test/support/mockGateway.ts` seeds. */
+    const IN_RANGE = ['Ash glaze mug', 'Brass candle holder', 'Linen napkin set'];
+
+    it('renders the filtered set on a hard load, with the range in the inputs', async () => {
+      const visited = await visitCollection(`${collectionPage}/?minPrice=40&maxPrice=60`);
+
+      expect(visited.grid.titles).toEqual(IN_RANGE);
+      expect(visited.grid.count).toBe(enUS.grid.nProducts.replace('{count}', '3'));
+      expect(visited.grid.price).toEqual(['40', '60']);
+      // The build's payload holds the *unfiltered* result, so a filtered view has to read live —
+      // under a key of its own (the filters are part of it), which is what makes it miss the
+      // payload rather than silently reuse it.
+      expect(
+        visited.requests.some((request) =>
+          request.startsWith(`/catalog/v1/collections/${COLLECTION_HANDLE}/products`)
+        )
+      ).toBe(true);
+      // The server rendered the unfiltered page; the client applies the query after mounting, so
+      // the first paint is still the server's and Vue has nothing to complain about.
+      expect(visited.warnings).toEqual([]);
+      expect(visited.url).toBe(`${statics.origin}${collectionPage}/?minPrice=40&maxPrice=60`);
+    });
+
+    it('re-reads and re-renders when the query changes under the block', async () => {
+      gateway.reset();
+      const page = await browser.newPage();
+      const warnings: string[] = [];
+      page.on('console', (message) => {
+        const text = message.text();
+        if (/hydrat|mismatch/i.test(text) || message.type() === 'error') {
+          warnings.push(`${message.type()}: ${text.slice(0, 200)}`);
+        }
+      });
+      page.on('pageerror', (error) => warnings.push(`pageerror: ${error.message.slice(0, 200)}`));
+      try {
+        await page.goto(`${statics.origin}${collectionPage}`, { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(CATALOG_DELAY_MS + 1500);
+        const before = await readGrid(page);
+        expect(before.titles).toHaveLength(7);
+        expect(before.price).toEqual(['', '']);
+
+        gateway.reset();
+        await page.evaluate(
+          (to) =>
+            (window as unknown as { __eldraPush: (path: string) => Promise<unknown> }).__eldraPush(
+              to
+            ),
+          `${collectionPage}?minPrice=40&maxPrice=60`
+        );
+        await page.waitForTimeout(CATALOG_DELAY_MS + 2500);
+
+        const after = await readGrid(page);
+        expect(after.titles).toEqual(IN_RANGE);
+        expect(after.count).toBe(enUS.grid.nProducts.replace('{count}', '3'));
+        expect(after.price).toEqual(['40', '60']);
+        const requests = gateway.requests.map((request) => decodeURIComponent(request));
+        expect(
+          requests.some((request) =>
+            request.startsWith(`/catalog/v1/collections/${COLLECTION_HANDLE}/products`)
+          )
+        ).toBe(true);
+        expect(page.url()).toBe(`${statics.origin}${collectionPage}?minPrice=40&maxPrice=60`);
+        expect(warnings).toEqual([]);
+      } finally {
+        await page.close();
+      }
+    });
   });
 });
