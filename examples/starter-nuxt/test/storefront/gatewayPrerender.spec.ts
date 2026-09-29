@@ -435,7 +435,7 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
     expect(grid.revalidating.value.size).toBe(0);
   });
 
-  it('refreshes once per page load, and not a result created after the batch', async () => {
+  it('refreshes each result once, and asks nothing when nothing is pending', async () => {
     const calls = fakeClient({ list: async () => [listRow('p-1', 12)] });
     const ssr = asyncDataStub();
     const { storefront, refresher } = wire(calls.client, ssr.prerender);
@@ -448,11 +448,59 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
 
     await refresher.refresh();
     await refresher.refresh();
-    const later = storefront.catalog.byHandles(ref(['p-3']));
-    await refresher.refresh();
     await settle();
 
     expect(volatileReads(calls)).toHaveLength(1);
+  });
+
+  /**
+   * The defect a real `nuxi generate` + browser run found (`test/prerenderRefresh.browser.spec.ts`):
+   * a theme's blocks are lazily imported components, so the ones whose chunk lands after the app
+   * has mounted create their results after the first batch has already gone out. A refresher that
+   * ran once per page dropped them — the product page's carousel never refreshed a price and never
+   * drew the refresh treatment, because `product-detail` had opened and closed the page's only
+   * batch a tick earlier.
+   */
+  it('opens another batch for a result that registered after the last one flushed', async () => {
+    const calls = fakeClient({ list: async () => [listRow('p-1', 12)] });
+    const ssr = asyncDataStub();
+    const { storefront, refresher } = wire(calls.client, ssr.prerender);
+
+    storefront.catalog.collectionProducts(
+      ref({ slug: 'winter-knitwear' }),
+      ref({ page: 1, pageSize: 24 })
+    );
+    await ssr.settleAll();
+    await refresher.refresh();
+    expect(volatileReads(calls)).toHaveLength(1);
+
+    const late = storefront.catalog.byHandles(ref(['p-1']));
+    await ssr.settleAll();
+    await refresher.refresh();
+    await settle();
+
+    expect(volatileReads(calls)).toHaveLength(2);
+    expect(volatileReads(calls)[1]).toEqual(['id:in:p-1']);
+    expect(late.data.value?.[0]?.price.amount).toBe(12);
+  });
+
+  /**
+   * The other half of that rule: batching by burst is only safe because a result created *after*
+   * hydration never joins one. It has just read the live values itself, and the runtime tells it
+   * so by prerendering nothing for it (`app/plugins/eldra-storefront.ts` returns `null` off the
+   * hydrating render).
+   */
+  it('never batches a result the runtime prerendered nothing for', async () => {
+    const calls = fakeClient({ list: async () => [listRow('p-1', 12)] });
+    const { storefront, refresher } = wire(calls.client);
+
+    const later = storefront.catalog.byHandles(ref(['p-1']));
+    await settle();
+    await refresher.refresh();
+    await settle();
+
+    expect(later.data.value?.[0]?.price.amount).toBe(12);
+    expect(volatileReads(calls)).toHaveLength(0);
     expect(later.revalidating.value.size).toBe(0);
   });
 

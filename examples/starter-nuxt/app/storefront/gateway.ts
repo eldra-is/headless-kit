@@ -581,6 +581,15 @@ function createGatewayResult<T>(
    */
   let generation = 0;
   let prerenderable = true;
+  /**
+   * The first load ran under the framework's prerender, so what this result shows comes from the
+   * build and the volatile refresh below is what makes it current again. False for a result
+   * created *after* hydration — a client navigation's, a search as the shopper types — which has
+   * just read the live values itself and must not cost a batched request for values it already
+   * has. Assigned before the first `await` in `load()`, so it is settled by the time the
+   * registration below reads it.
+   */
+  let ranUnderPrerender = false;
 
   /** Only the newest load may write; an older one has already been superseded. */
   const isCurrent = (mine: number): boolean => generation === mine;
@@ -619,6 +628,7 @@ function createGatewayResult<T>(
         : null;
 
     if (handle !== null) {
+      ranUnderPrerender = true;
       // Hydration: the payload's answer, in this same synchronous turn, so the block's first render
       // is the server's render — including an answer of `null`, which leaves this result settled
       // and empty exactly as the server left it (nothing pending, nothing in flight) rather than
@@ -657,7 +667,11 @@ function createGatewayResult<T>(
   watch(sources, load, { immediate: true, deep: true });
 
   const volatile = options.volatile;
-  if (volatile !== undefined && options.runtime?.register !== undefined) {
+  // Only a result whose first load went through the prerender takes part in the volatile refresh.
+  // That is not an optimisation: the refresher batches by *burst* rather than once per page (see
+  // `refresh.ts`), so without this a result created long after hydration would open a batch of its
+  // own to re-read values it has just read live.
+  if (volatile !== undefined && ranUnderPrerender && options.runtime?.register !== undefined) {
     const entry: VolatileRefreshEntry = {
       read: () => data.value,
       write: (next) => {

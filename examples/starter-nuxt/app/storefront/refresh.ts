@@ -12,14 +12,23 @@ import type { VolatileKey, VolatileSnapshot } from './types';
  * products, and three requests would be three chances to paint three different truths.
  *
  * Framework-free and network-free, like `volatile.ts`: it is handed the batched read
- * (`catalog.volatileByIds`) and *when* to run it (`schedule`, called once, with the first result
- * to register) — the plugin passes one that waits for the app to mount, a spec passes a no-op and
- * calls `refresh()` itself.
+ * (`catalog.volatileByIds`) and *when* to run it (`schedule`, called once per pending batch, with
+ * the result that opened it) — the plugin passes one that waits for the app to mount, a spec
+ * passes a no-op and calls `refresh()` itself.
  *
- * **Exactly one refresh per page load.** `refresh()` runs once; an entry that registers afterwards
- * (a result created by a client navigation or a search) is ignored, because such a result has just
- * read the live values itself. A block that wants a fresh read on demand calls
- * `StorefrontResult.refresh()`, which is a full reload, not this.
+ * **One read per batch, and a batch is every result registered before it flushes.** It cannot be
+ * one read per *page*, and that was a real defect: a theme's blocks are lazily imported
+ * components, so on a generated page the ones whose chunk arrives after the app has mounted create
+ * their results after the first batch has already gone out. A one-shot refresher dropped them —
+ * the product page's carousel never refreshed a price and never drew the refresh treatment,
+ * because `product-detail` had opened and closed the page's only batch a tick earlier. So a result
+ * that registers after a flush opens the next batch instead of being ignored, and the results that
+ * register together — every card-bearing block in one hydration pass — still share one request.
+ *
+ * **Every entry refreshes exactly once.** A flush takes the pending entries with it, and a result
+ * registers once, when it is created; `StorefrontResult.refresh()` is a full reload and has
+ * nothing to do with this. Which results register at all is `gateway.ts`'s decision: only one
+ * holding a value the *prerender* produced, never one a client navigation has just read live.
  */
 
 /** What a storefront result lends the collector. Accessors rather than the refs themselves: a
@@ -48,9 +57,9 @@ export interface VolatileRefreshEntry {
 }
 
 export interface VolatileRefresher {
-  /** Takes part in this page's refresh. Ignored once `refresh()` has run. */
+  /** Joins the pending batch, opening one when there is none. */
   register(entry: VolatileRefreshEntry): void;
-  /** Runs the page's refresh, once. Safe to call again — the second call does nothing. */
+  /** Flushes the pending batch now. Nothing pending, nothing happens. */
   refresh(): Promise<void>;
 }
 
@@ -63,7 +72,8 @@ export function createVolatileRefresher(
   schedule: (run: () => void) => void
 ): VolatileRefresher {
   const entries: VolatileRefreshEntry[] = [];
-  let ran = false;
+  /** A flush is already scheduled for the entries collected so far. */
+  let armed = false;
 
   /**
    * One entry's half of the refresh: mark, await, fold in, unmark. A failure is swallowed on
@@ -86,9 +96,9 @@ export function createVolatileRefresher(
   }
 
   async function refresh(): Promise<void> {
-    if (ran) return;
-    ran = true;
+    armed = false;
     const registered = entries.splice(0);
+    if (registered.length === 0) return;
     const batched: VolatileRefreshEntry[] = [];
     const ids: string[] = [];
     const seen = new Set<string>();
@@ -113,7 +123,7 @@ export function createVolatileRefresher(
     }
 
     if (batched.length > 0) {
-      // One read for the whole page, shared by every result that took part in it.
+      // One read for this batch, shared by every result that took part in it.
       const answer = volatileByIds(ids);
       for (const entry of batched) work.push(settle(entry, answer));
     }
@@ -122,10 +132,10 @@ export function createVolatileRefresher(
 
   return {
     register(entry) {
-      if (ran) return;
-      const first = entries.length === 0;
       entries.push(entry);
-      if (first) schedule(() => void refresh());
+      if (armed) return;
+      armed = true;
+      schedule(() => void refresh());
     },
     refresh,
   };

@@ -454,16 +454,19 @@ value it already has stays on screen (`loading && data !== null`). `revalidating
 the volatile keys, and only those, are being refreshed.
 
 What can have moved since the build is money and the stock line, so after the app mounts the page
-does exactly one batched read for every product it is showing
+does one batched read for the products it is showing
 (`catalog.volatileByIds` → `filter=id:in:…`, chunked at 50) and swaps only
 `price.amount`/`price.compareAt`/`available`/`stock` in; the product **detail** page refreshes
 through its own `catalog.product` read instead, because its `variantId` names a variant rather than
-a product. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
+a product. One read per *batch*, and a batch is every result registered before it goes out: blocks
+are lazily imported components, so a block whose chunk arrives after the app has mounted opens the
+next batch rather than being left out of the only one — which is what used to happen, silently, to
+the carousel on a product page. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
 (`'price' | 'stock'`) and the prerendered value stays on screen; a failed refresh keeps the value
 and clears the set — a page never regresses to an error state for something it can already show.
 A result created _after_ hydration (a client navigation, a search as the shopper types) just loads
-live, as it always did, and the demo storefront never refreshes at all, so stories and specs are
-unaffected. (The demo does answer _synchronously_ off a browser, so a server render of a block
+live, as it always did, and never takes part in a batch — it has the live values already — and the
+demo storefront never refreshes at all, so stories and specs are unaffected. (The demo does answer _synchronously_ off a browser, so a server render of a block
 against it carries the fixture's real values rather than a skeleton — the same thing the gateway
 storefront does for the real site.) The wiring lives in `app/plugins/eldra-storefront.ts` (Nuxt's
 half) and `app/storefront/refresh.ts`/`volatile.ts` (the framework-free half).
