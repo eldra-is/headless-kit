@@ -5,6 +5,24 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fix: on a **generated** site in a browser, `useEldraPage()` now resolves routes from the build
+  instead of the gateway. A path Nuxt prerendered (its app manifest ships the list) is read back out
+  of the route payload Nuxt has already loaded, so a client navigation between two prerendered
+  routes renders in the same tick — `pending` never true, no gateway read — and a path the build
+  does not contain is the not-found state immediately, instead of after listing every page and every
+  route template to reach the same answer. Studio preview (the route may be a draft), `nuxi dev` and
+  an SSR deployment all keep the dynamic resolution they had. New pages need a rebuild to become
+  routes, which is what publishing already triggers.
+
+- Fix: a page component now resolves the route **it** is being created for. `useRoute()` inside a
+  package resolves to Nuxt's app-level route, which `NuxtPage` syncs only after the destination
+  page's `<Suspense>` has resolved — and a page's blocks are created inside that pending branch. So
+  on every client navigation the destination page ran its `setup` under the route it was replacing:
+  it rendered the **departing** page's blocks, ran every read on them a second time, and only then
+  swapped to its own content. `useEldraPage()` now reads the router's committed route and pins it
+  for the page's lifetime (the identity `eldraRouteKey` already gives `<NuxtPage>`); called outside
+  a component — for a plugin's route context — it follows the committed route directly.
+
 - Fix: a page served at a URL that differs from the one it was prerendered at only by a trailing
   slash is no longer built twice. A generated site is `<route>/index.html`, and a static host may
   answer `/products/ash-glaze-mug` with a redirect to `/products/ash-glaze-mug/`; Nuxt then

@@ -12,6 +12,7 @@ import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import 'virtual:eldra/tokens.css';
 import { resolveBridgeOrigins } from './origins';
+import { primePrerenderedRoutes } from './staticRoutes';
 
 interface RuntimeEldraConfig {
   gatewayUrl: string;
@@ -37,6 +38,12 @@ export default defineNuxtPlugin({
       preview: createEldraPreviewState(),
     };
     nuxtApp.vueApp.provide(ELDRA_KEY, context);
+
+    // Read the build's prerendered route list now, so the first client navigation already has it
+    // synchronously (`./staticRoutes.ts`, and `useEldraPage`'s `getCachedData`). It is one cached
+    // fetch of a file Nuxt's own payload plugin asks for anyway, and having it early is the
+    // difference between answering an unknown route in the same tick and answering it a tick late.
+    if (import.meta.client) primePrerenderedRoutes();
 
     if (import.meta.client && window.parent !== window) {
       const allowedOrigins = resolveBridgeOrigins(cfg.studioOrigins, document.referrer);

@@ -93,6 +93,21 @@ mounts, so neither the DOM nor an `onMounted` side effect shows it. `eldraRouteK
 canonical path — the identity `useEldraPage()` already resolves content under — so the move changes
 nothing. The starter does this; a theme scaffolded before it was added should.
 
+## Route resolution on a generated site
+
+A `nuxi generate` build answers its own routes in the browser. Nuxt ships the list of paths it
+prerendered (its app manifest), and `useEldraPage()` reads it: a path in that list is resolved from
+the route payload Nuxt has already fetched — no gateway read, and no loading state on a navigation
+between two prerendered routes — and a path that is **not** in it is the not-found shell
+immediately, rather than after listing every page and every route template to reach the same answer.
+
+New content therefore needs a rebuild to become a route, which is how a deployed site already works:
+publishing from Studio triggers one.
+
+Dynamic resolution stays exactly as it was wherever the build cannot be the authority — inside a
+Studio preview frame (the route may be a draft), on `nuxi dev`, and on an SSR deployment, all of
+which prerender nothing.
+
 ## Seeding default templates
 
 A theme can ship the pages a site starts with. `@eldrajs/theme-nuxt`'s `eldra.templates` (forwarded

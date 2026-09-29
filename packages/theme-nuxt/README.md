@@ -60,6 +60,40 @@ goes out twice. Only one of the two instances ever mounts, so nothing in the DOM
 content under — so the move is a no-op. Themes scaffolded before this was added should add the
 binding.
 
+## Route resolution on a generated site
+
+On a **static build in a browser**, `useEldraPage()` resolves routes from the build, not from the
+gateway. `nuxi generate` ships the list of paths it prerendered (Nuxt's app manifest,
+`/_nuxt/builds/meta/<buildId>.json`), and that list answers both questions the resolver used to ask
+the gateway:
+
+- **The path is in the build.** Its page, template and entry are in the `_payload.json` Nuxt's own
+  payload plugin loads in `router.beforeResolve`, before the page component exists — so a client
+  navigation between two prerendered routes renders the destination in the same tick, with `pending`
+  never true and no gateway read at all.
+- **The path is not in the build.** It does not exist: `useEldraPage()` returns the empty route
+  (`page === null && template === null`) straight away, so the theme draws its not-found shell
+  without the five reads it used to take to conclude the same thing. A route published since the
+  build is not in the artifact either — publishing triggers a rebuild, which is what makes the build
+  the authority.
+
+Three situations keep the old dynamic resolution, and are the reason the manifest is consulted
+rather than assumed:
+
+- **Studio preview.** Inside an allowed `studioOrigins` frame the route may be a draft, an
+  unpublished page or a path no build has ever contained, so every resolution is live — from the
+  first render, before the bridge has even said hello.
+- **`nuxi dev`.** The dev server ships a manifest that prerendered nothing.
+- **An SSR deployment** (`nuxt build` plus a Node server), for the same reason: nothing is in the
+  build, so an empty prerendered list means "this build prerendered nothing", never "this route does
+  not exist".
+
+This is also why `eldraRouteKey` above is required rather than advisory: one page component per
+canonical route is what lets the composable resolve the route its page is being created for. Nuxt
+hands a page its own route through an injection private to Nuxt's app module, which a composable
+shipped in a package cannot reach; `useEldraPage()` therefore reads the router's committed route and
+pins it for the page's lifetime.
+
 ## Catalog-backed route templates
 
 A route template whose `schemaApiId` is `catalog:product` or `catalog:collection` is backed by the

@@ -33,3 +33,20 @@ function originMatches(pattern: string, origin: string): boolean {
     candidate.hostname !== suffix
   );
 }
+
+/**
+ * Whether this document could be a Studio preview frame **at all** — framed, by an origin the
+ * site's `studioOrigins` allow.
+ *
+ * `EldraContext.preview.active` is the answer once the bridge has said hello, and everything that
+ * reacts to editing waits for it. This is the question one tick earlier, and it exists because one
+ * decision cannot wait: a static build answers an unknown route as "not found" straight out of the
+ * build manifest, and it must never do that to Studio, where the route being previewed is a draft
+ * the build has never seen. Framed by anything else — another site, a stranger's page — the bridge
+ * will never activate, so the ordinary static answer is the right one.
+ */
+export function isStudioPreviewFrame(configured: string[]): boolean {
+  if (!import.meta.client) return false;
+  if (window.parent === window) return false;
+  return resolveBridgeOrigins(configured, document.referrer).length > 0;
+}

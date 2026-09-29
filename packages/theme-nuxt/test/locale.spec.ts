@@ -144,6 +144,8 @@ const state = vi.hoisted(() => ({
 
 vi.mock('nuxt/app', () => ({
   useRoute: () => state.route,
+  useRouter: () => ({ currentRoute: { value: state.route } }),
+  loadPayload: () => Promise.resolve(null),
   useRuntimeConfig: () => ({ public: { eldra: state.config } }),
   clearNuxtData: () => {},
   useAsyncData: (

@@ -14,7 +14,7 @@
  * composable's own wiring, not about the gateway (`locale.spec.ts` and
  * `catalogRoutes.spec.ts` cover that).
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
 type ResolvedLike = {
@@ -31,6 +31,23 @@ const state = vi.hoisted(() => ({
   path: '/products/merino-crew',
   /** The key and `watch` sources the composable handed `useAsyncData`, last call. */
   asyncData: { key: (): string => '', watch: [] as Array<() => unknown> },
+  /** How many times the composable reached the **gateway** resolver. */
+  resolverCalls: 0,
+  /** Studio's bridge, as `useEldra()` reports it. */
+  previewActive: false,
+  /** The build's prerendered route list, as `staticRoutes.ts` reports it — `null` for a build
+   *  that ships none (a dev server, an SSR deployment). */
+  prerendered: null as ReadonlySet<string> | null,
+  /** Every route payload the build wrote, keyed by path; what `loadPayload` answers with. */
+  payloads: {} as Record<string, { data: Record<string, unknown> }>,
+  /** Nuxt's own two data caches, as the payload plugin leaves them for a navigation. */
+  nuxtApp: {
+    isHydrating: false,
+    payload: { data: {} as Record<string, unknown> },
+    static: { data: {} as Record<string, unknown> },
+  },
+  /** Every `loadPayload` the composable asked for. */
+  payloadsLoaded: [] as string[],
 }));
 
 vi.mock('nuxt/app', () => ({
@@ -39,27 +56,52 @@ vi.mock('nuxt/app', () => ({
       return state.path;
     },
   }),
+  useRouter: () => ({
+    currentRoute: {
+      get value() {
+        return { path: state.path };
+      },
+    },
+  }),
   useRuntimeConfig: () => ({
     public: {
       eldra: { pageSchema: 'page', routeTemplateSchema: 'route-template', locale: null },
     },
   }),
   clearNuxtData: () => {},
+  loadPayload: (path: string) => {
+    state.payloadsLoaded.push(path);
+    return Promise.resolve(state.payloads[path] ?? null);
+  },
+  /**
+   * Nuxt's own two behaviours around `getCachedData`, and nothing else
+   * (`nuxt/dist/app/composables/asyncData.js`): a cached value means the handler never runs, and
+   * the entry starts settled rather than pending — which is the whole of "a static navigation
+   * shows no loading state".
+   */
   useAsyncData: (
     key: unknown,
     handler: () => Promise<unknown>,
-    options?: { default?: () => unknown; watch?: Array<() => unknown> }
+    options?: {
+      default?: () => unknown;
+      watch?: Array<() => unknown>;
+      getCachedData?: (key: string, nuxtApp: unknown, ctx: { cause: string }) => unknown;
+    }
   ) => {
     state.asyncData = {
       key: key as () => string,
       watch: options?.watch ?? [],
     };
-    const data = ref(options?.default?.() ?? null);
-    const pending = ref(true);
-    void Promise.resolve(handler()).then((value) => {
-      data.value = value;
-      pending.value = false;
-    });
+    const resolvedKey = typeof key === 'function' ? (key as () => string)() : (key as string);
+    const cached = options?.getCachedData?.(resolvedKey, state.nuxtApp, { cause: 'initial' });
+    const data = ref(cached ?? options?.default?.() ?? null);
+    const pending = ref(cached === undefined);
+    if (cached === undefined) {
+      void Promise.resolve(handler()).then((value) => {
+        data.value = value;
+        pending.value = false;
+      });
+    }
     return { data, pending };
   },
 }));
@@ -68,7 +110,9 @@ vi.mock('@eldrajs/theme-vue', () => ({
   useEldra: () => ({
     client: {},
     preview: {
-      active: false,
+      get active() {
+        return state.previewActive;
+      },
       locale: null,
       drafts: {},
       draftSchemaApiIds: {},
@@ -80,7 +124,19 @@ vi.mock('@eldrajs/theme-vue', () => ({
 
 vi.mock('../src/runtime/resolveRoute', () => ({
   EMPTY_ELDRA_ROUTE: EMPTY,
-  resolveEldraRoute: () => Promise.resolve(state.resolved),
+  resolveEldraRoute: () => {
+    state.resolverCalls += 1;
+    return Promise.resolve(state.resolved);
+  },
+}));
+
+// The manifest read itself is a browser fact (`src/runtime/staticRoutes.ts` answers `null` off a
+// browser, which is the whole of its dev/SSR guard); these specs are about what `useEldraPage`
+// does with the answer, so the answer is set here and proven end to end by the starter's
+// generate-level browser harness.
+vi.mock('../src/runtime/staticRoutes', () => ({
+  knownPrerenderedRoutes: () => state.prerendered,
+  prerenderedRoutes: () => Promise.resolve(state.prerendered),
 }));
 
 const PROJECTION = (placementId: string): Record<string, unknown> => ({
@@ -227,5 +283,148 @@ describe('useEldraPage route identity', () => {
     expect(slashed).toEqual(bare);
     expect(bare.watched).not.toEqual([]); // the sources exist at all
     state.path = '/products/merino-crew';
+  });
+});
+
+/**
+ * A generated site ships the list of routes it prerendered, and that list — not the gateway — is
+ * what a browser on a static build resolves against.
+ *
+ * Two answers come out of it, and both are answers the gateway was being asked for: a route in the
+ * build has its resolution in the payload Nuxt has already fetched, and a route not in the build
+ * does not exist. Neither may cost a request, and neither may make the page pending: the starter's
+ * `[...slug].vue` renders its loading shell for exactly as long as `pending` is true.
+ *
+ * Studio and the dev server are the exceptions, and they are the reason the manifest is consulted
+ * rather than trusted blindly — a draft route is not in any build.
+ */
+describe('useEldraPage static-first resolution', () => {
+  const PATH = '/products/merino-crew';
+  const KEY = `eldra-page:${PATH}`;
+  const BUILT: ResolvedLike = {
+    page: null,
+    template: { id: 'rt-product', data: { title: 'Product', blocks: [] } },
+    entry: { id: 'prod-merino', data: { title: 'Merino crew' } },
+    catalog: { kind: 'product', slug: 'merino-crew' },
+  };
+
+  beforeEach(() => {
+    state.path = PATH;
+    state.resolved = EMPTY;
+    state.resolverCalls = 0;
+    state.previewActive = false;
+    state.prerendered = null;
+    state.payloads = {};
+    state.payloadsLoaded = [];
+    state.nuxtApp.isHydrating = false;
+    state.nuxtApp.payload.data = {};
+    state.nuxtApp.static.data = {};
+  });
+
+  type Page = ReturnType<typeof import('../src/runtime/composables/useEldraPage').useEldraPage>;
+
+  /**
+   * The composable's state, plus **what it was in the same synchronous turn it was created in**.
+   * "No loading state on a static navigation" is a claim about that turn and nothing later: a
+   * `pending` that settles a microtask afterwards is still a render with the loading shell in it,
+   * and every assertion made after an `await` would pass anyway.
+   */
+  async function pageFor(): Promise<{ page: Page; settledAtSetup: boolean }> {
+    const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');
+    const page = useEldraPage();
+    const settledAtSetup = page.pending.value === false;
+    for (let i = 0; i < 12; i += 1) await Promise.resolve();
+    return { page, settledAtSetup };
+  }
+
+  it('renders a prerendered route straight from the payload Nuxt already loaded', async () => {
+    state.prerendered = new Set([PATH]);
+    // Nuxt's payload plugin writes the destination's payload into `static.data` in
+    // `router.beforeResolve`, before the page component exists.
+    state.nuxtApp.static.data[KEY] = BUILT;
+
+    const {
+      page: { entry, pending },
+      settledAtSetup,
+    } = await pageFor();
+
+    expect(entry.value).toEqual(BUILT.entry);
+    expect(settledAtSetup).toBe(true);
+    expect(pending.value).toBe(false);
+    expect(state.resolverCalls).toBe(0);
+  });
+
+  it('loads the route payload itself when it is not already in memory, still without the gateway', async () => {
+    state.prerendered = new Set([PATH]);
+    state.payloads[PATH] = { data: { [KEY]: BUILT } };
+
+    const {
+      page: { entry },
+    } = await pageFor();
+
+    expect(entry.value).toEqual(BUILT.entry);
+    expect(state.payloadsLoaded).toEqual([PATH]);
+    expect(state.resolverCalls).toBe(0);
+  });
+
+  it('answers a route the build does not contain as not found, with no request and no pending', async () => {
+    state.prerendered = new Set(['/', '/404', '/products/ash-glaze-mug']);
+
+    const {
+      page: { page, template, pending },
+      settledAtSetup,
+    } = await pageFor();
+
+    // Synchronously, in the turn the page component was created in — not one microtask later,
+    // which is still a render of the loading shell.
+    expect(settledAtSetup).toBe(true);
+    expect(page.value).toBeNull();
+    expect(template.value).toBeNull();
+    expect(pending.value).toBe(false);
+    expect(state.resolverCalls).toBe(0);
+  });
+
+  it('still resolves through the gateway in Studio, where the route may be a draft', async () => {
+    state.prerendered = new Set(['/', '/404']);
+    state.previewActive = true;
+    state.resolved = BUILT;
+
+    const {
+      page: { entry },
+      settledAtSetup,
+    } = await pageFor();
+
+    expect(entry.value).toEqual(BUILT.entry);
+    expect(state.resolverCalls).toBeGreaterThan(0);
+    // And it did not shortcut to "no such route" on the way: a build manifest says nothing about a
+    // draft. Settling in the same turn here would mean the manifest had answered.
+    expect(settledAtSetup).toBe(false);
+  });
+
+  it('still resolves through the gateway on a build that prerendered nothing', async () => {
+    // `nuxi dev`, and an SSR deployment: no prerendered list, so the build knows no routes and
+    // cannot be asked about them.
+    state.prerendered = null;
+    state.resolved = BUILT;
+
+    const {
+      page: { entry },
+    } = await pageFor();
+
+    expect(entry.value).toEqual(BUILT.entry);
+    expect(state.resolverCalls).toBeGreaterThan(0);
+  });
+
+  it('falls back to the gateway for a prerendered route whose payload carries no answer', async () => {
+    state.prerendered = new Set([PATH]);
+    state.payloads[PATH] = { data: {} };
+    state.resolved = BUILT;
+
+    const {
+      page: { entry },
+    } = await pageFor();
+
+    expect(entry.value).toEqual(BUILT.entry);
+    expect(state.resolverCalls).toBe(1);
   });
 });
