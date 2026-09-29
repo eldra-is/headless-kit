@@ -93,6 +93,8 @@ interface Visit {
    * read in it.
    */
   instances: { created: Record<string, number>; mounted: Record<string, number> };
+  /** Where the browser ended up — the host's redirect included, which is the point on a page route. */
+  url: string;
 }
 
 /** Just the block components' counts, which is what "built once" is about. */
@@ -155,6 +157,7 @@ async function visit(path: string): Promise<Visit> {
       warnings,
       prices,
       instances,
+      url: page.url(),
     };
   } finally {
     await page.close();
@@ -221,8 +224,8 @@ describe('prerendered commerce data on the generated static site', () => {
       },
     });
     symlinkSync(join(templateDir, 'node_modules'), join(root, 'node_modules'), 'dir');
-    // The mount counter, installed into the generated copy only — the starter ships no such
-    // plugin, so nothing a customer builds carries it.
+    // The mount counter, installed into the generated copy only. In the starter it sits inert
+    // under `test/support/`, where no Nuxt build looks; this is the one place it becomes a plugin.
     cpSync(
       join(templateDir, 'test', 'support', 'mountProbe.client.ts'),
       join(root, 'app', 'plugins', 'zz-mount-probe.client.ts')
@@ -250,6 +253,8 @@ describe('prerendered commerce data on the generated static site', () => {
 
   it('builds every block on a CMS page route exactly once', async () => {
     const visited = await visit(HOME_PAGE_PATH);
+    // The control's premise: `/` is served where it was prerendered, nothing to redirect.
+    expect(visited.url).toBe(`${statics.origin}${HOME_PAGE_PATH}`);
     const instances = blockInstances(visited);
     expect(Object.keys(instances.created).length).toBe(9);
     expect(notExactlyOnce(instances.created)).toEqual([]);
@@ -259,6 +264,10 @@ describe('prerendered commerce data on the generated static site', () => {
 
   it('builds every block on a route-template page exactly once, served with a trailing slash', async () => {
     const visited = await visit(productPage);
+    // The premise first: the host really did redirect, so the browser is hydrating a payload
+    // prerendered at a different path from the one it is sitting on. Without this the rest of the
+    // case would keep passing while quietly testing nothing.
+    expect(visited.url).toBe(`${statics.origin}${productPage}/`);
     const instances = blockInstances(visited);
     expect(Object.keys(instances.created).length).toBe(7);
     // The page is served at `/products/ash-glaze-mug/` and prerendered at

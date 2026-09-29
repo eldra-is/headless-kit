@@ -21,6 +21,17 @@ import { starterTemplateRoles, starterTemplates } from '../../app/templates';
  * own, so leaving it out would change the very ordering these tests are about). Everything else —
  * which blocks a product page carries, which fields the catalog seed strips — is exactly what Core
  * seeds a real site with.
+ *
+ * **Three Core behaviours are encoded by hand here**, because a mock has no Core to ask. Each is a
+ * second copy of a rule that really lives in Core, so if Core changes one the generated page
+ * renders as `data-eldra-invalid-layout` — silently — and a reader has to rediscover why:
+ *
+ *  1. a `reusable` role node resolves to the site's own header/footer component
+ *     (`routeTemplateEntries`);
+ *  2. a seed node carrying `templates`/`bindings` becomes a `template-block` node naming its
+ *     `apiId`, its block entry addressed by uuid (`routeTemplateEntries`);
+ *  3. a CMS **page** document is a **version-2** layout envelope of ordinary `block` nodes, and a
+ *     no-parent page whose slug is `home` is the site root `/` (`pageEntries`).
  */
 
 const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
@@ -229,6 +240,12 @@ function withExtraNodes<T>(children: readonly T[], extra: ReadonlyArray<{ id: st
  * ordinary `block` nodes. That is exactly the shape the deployed site's `/` has, down to the
  * `product-carousel` it carries, which is what makes it a fair comparison for a product page's
  * template-block leaves.
+ *
+ * Core behaviour **3** of the three this file hand-encodes (module header): the `version: 2`
+ * envelope and the ordinary `block` children are Core's *page* layout shape, not `seedLayout`'s
+ * (which emits `version: 1` and the role nodes a route template takes), and `slug: 'home'` with no
+ * parent is what `@eldrajs/theme-core`'s `resolvePagePath` turns into `/`. Get the envelope wrong
+ * and the page renders as `data-eldra-invalid-layout`; get the slug wrong and it never prerenders.
  */
 export const HOME_PAGE_PATH = '/';
 

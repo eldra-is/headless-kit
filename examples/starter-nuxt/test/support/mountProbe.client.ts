@@ -1,9 +1,11 @@
 import { defineNuxtPlugin } from 'nuxt/app';
 
 /**
- * Test-only instrumentation, never shipped: `prerenderRefresh.browser.spec.ts` copies this file
- * into the generated site's `app/plugins/` before it builds it. The starter carries no such
- * plugin, so nothing `eldra-theme init` scaffolds and nothing a customer builds contains it.
+ * Test-only instrumentation: `prerenderRefresh.browser.spec.ts` copies this file into the generated
+ * site's `app/plugins/` before it builds it. It lives under `test/support/`, and the starter has no
+ * such plugin of its own — so `eldra-theme init` does copy this file (it copies the whole starter,
+ * `test/` included) but copies it **inert**, where no Nuxt build ever looks at it. Nothing a
+ * customer ships contains it; only this spec's tmpdir copy has it installed.
  *
  * It counts how many times each **block component instance** is created and mounted in the
  * browser, keyed by the entry it was handed. A request log cannot tell a second render of one
