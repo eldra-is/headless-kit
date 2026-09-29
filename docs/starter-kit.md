@@ -458,10 +458,16 @@ does one batched read for the products it is showing
 (`catalog.volatileByIds` → `filter=id:in:…`, chunked at 50) and swaps only
 `price.amount`/`price.compareAt`/`available`/`stock` in; the product **detail** page refreshes
 through its own `catalog.product` read instead, because its `variantId` names a variant rather than
-a product. One read per _batch_, and a batch is every result registered before it goes out: blocks
-are lazily imported components, so a block whose chunk arrives after the app has mounted opens the
-next batch rather than being left out of the only one — which is what used to happen, silently, to
-the carousel on a product page. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
+a product. A batch is every result registered before it goes out, and there can be more than one:
+blocks are lazily imported components, so a block whose chunk arrives after the app has mounted
+opens the next batch rather than being left out of the only one — which is what used to happen,
+silently, to the carousel on a product page. What is once per page load is the **question**, not the
+batch: the page remembers every product it has asked about and the read that is answering for it, so
+a block that arrives in a later burst showing products an earlier one already covered asks nothing
+and folds in the answer already on its way. Two blocks over the same collection therefore cost one
+request and can never paint two different prices; two results needing the same detail read share
+that request too; and a result that somehow registers twice takes part once. Without that the
+deployed pages issued every read twice, ~35 ms apart, with identical ids. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
 (`'price' | 'stock'`) and the prerendered value stays on screen; a failed refresh keeps the value
 and clears the set — a page never regresses to an error state for something it can already show.
 A result created _after_ hydration (a client navigation, a search as the shopper types) just loads

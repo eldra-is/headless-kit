@@ -462,26 +462,115 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
    * batch a tick earlier.
    */
   it('opens another batch for a result that registered after the last one flushed', async () => {
-    const calls = fakeClient({ list: async () => [listRow('p-1', 12)] });
+    // Rows by the ids asked for, so a late result can be about a different product than the first
+    // batch was — which is what makes a second batch the right answer rather than a duplicate one.
+    const calls = fakeClient({
+      list: async (filter) =>
+        (filter[0]?.replace(/^\w+:in:/, '').split(',') ?? []).map((id) => listRow(id, 12)),
+    });
     const ssr = asyncDataStub();
     const { storefront, refresher } = wire(calls.client, ssr.prerender);
 
-    storefront.catalog.collectionProducts(
+    storefront.catalog.byHandles(ref(['p-1']));
+    await ssr.settleAll();
+    await refresher.refresh();
+    expect(volatileReads(calls)).toEqual([['id:in:p-1']]);
+
+    const late = storefront.catalog.byHandles(ref(['p-2']));
+    await ssr.settleAll();
+    await refresher.refresh();
+    await settle();
+
+    expect(volatileReads(calls)).toEqual([['id:in:p-1'], ['id:in:p-2']]);
+    expect(late.data.value?.[0]?.price.amount).toBe(12);
+  });
+
+  /**
+   * The defect the deployed product page showed with a plain request log: the detail read and the
+   * `id:in` batch both went out twice, 35 ms apart, with identical ids — two bursts asking again
+   * about products the first burst had already re-read. A page load asks about a product once,
+   * whichever burst the result that shows it happens to arrive in.
+   */
+  it('never asks twice about a product another result has already had refreshed', async () => {
+    const calls = fakeClient({
+      list: async (filter) =>
+        (filter[0]?.replace(/^\w+:in:/, '').split(',') ?? []).map((id) => listRow(id, 7)),
+    });
+    const ssr = asyncDataStub();
+    const { storefront, refresher } = wire(calls.client, ssr.prerender);
+
+    const grid = storefront.catalog.collectionProducts(
       ref({ slug: 'winter-knitwear' }),
       ref({ page: 1, pageSize: 24 })
     );
     await ssr.settleAll();
     await refresher.refresh();
-    expect(volatileReads(calls)).toHaveLength(1);
+    expect(volatileReads(calls)).toEqual([['id:in:p-1,p-2']]);
 
-    const late = storefront.catalog.byHandles(ref(['p-1']));
+    // A block whose chunk landed later, showing the same two products.
+    const late = storefront.catalog.byHandles(ref(['p-1', 'p-2']));
     await ssr.settleAll();
     await refresher.refresh();
     await settle();
 
-    expect(volatileReads(calls)).toHaveLength(2);
-    expect(volatileReads(calls)[1]).toEqual(['id:in:p-1']);
-    expect(late.data.value?.[0]?.price.amount).toBe(12);
+    expect(volatileReads(calls)).toEqual([['id:in:p-1,p-2']]);
+    // …and it is not left showing the stale values either: the answer that already arrived for
+    // those ids is folded into it, so the two blocks cannot paint two different prices.
+    expect(late.data.value?.map((item) => item.price.amount)).toEqual([7, 7]);
+    expect(grid.data.value?.items.map((item) => item.price.amount)).toEqual([7, 7]);
+  });
+
+  it('refreshes a result once even when it registers twice', async () => {
+    // Straight at the collector: a block that creates its results twice (a remount, a second
+    // render pass) hands the same entry over twice, and that is one thing to ask about, not two.
+    const reads: string[][] = [];
+    const refresher = createVolatileRefresher(
+      async (ids) => {
+        reads.push(ids);
+        return ids.map((id) => ({
+          id,
+          price: { amount: 5, compareAt: null },
+          available: true,
+          stock: 'in' as const,
+        }));
+      },
+      () => {}
+    );
+    let written = 0;
+    const entry = {
+      read: () => [{ handle: 'p-1', variantId: 'p-1', price: { amount: 4, compareAt: null } }],
+      write: () => {
+        written += 1;
+      },
+      setRevalidating: () => {},
+      token: () => 1,
+    };
+    refresher.register(entry);
+    refresher.register(entry);
+    await refresher.refresh();
+    await refresher.refresh();
+
+    expect(reads).toEqual([['p-1']]);
+    expect(written).toBe(1);
+  });
+
+  it('lets two results that need the same detail read share one request', async () => {
+    const calls = fakeClient();
+    const ssr = asyncDataStub();
+    const { storefront, refresher } = wire(calls.client, ssr.prerender);
+
+    const handle = ref('merino-crew-sweater');
+    const first = storefront.catalog.product(handle);
+    const second = storefront.catalog.product(handle);
+    await ssr.settleAll();
+    const beforeRefresh = calls.detailReads;
+
+    await refresher.refresh();
+    await settle();
+
+    expect(calls.detailReads - beforeRefresh).toBe(1);
+    expect(first.data.value?.price.amount).toBe(96);
+    expect(second.data.value?.price.amount).toBe(96);
   });
 
   /**

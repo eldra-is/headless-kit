@@ -29,6 +29,10 @@ import { startStaticServer, type StaticServer } from './support/staticServer';
  *     their results after a one-shot volatile refresh had already flushed: the carousel's cards
  *     never refreshed and never drew the refresh treatment, and the page's batched read for them
  *     never happened.
+ *  3. And once every burst refreshed, two bursts asked about the same products twice — the deployed
+ *     product page issued its detail read and its `id:in` batch twice, 35 ms apart, with identical
+ *     ids. Which is why every request assertion below is over the **full** log, duplicates
+ *     included, and why `askedMoreThanOnce` exists.
  *
  * The mock gateway answers the CMS route templates and the catalog for the build, and the catalog
  * again for the browser — with every catalog answer held back (`catalogDelayMs`) while the browser
@@ -127,6 +131,31 @@ function staticHtml(path: string): string {
   return readFileSync(output(join(path, 'index.html')), 'utf8');
 }
 
+/**
+ * What the page asked about more than once across its whole refresh — a product id that appears in
+ * two `id:in` batches, or a detail read issued twice. This is the assertion the live request log
+ * would have failed: four requests, two of them repeats of the other two.
+ */
+function askedMoreThanOnce(requests: readonly string[]): string[] {
+  const times = new Map<string, number>();
+  const count = (what: string): void => times.set(what, (times.get(what) ?? 0) + 1);
+  for (const request of requests) {
+    const url = new URL(request, 'http://localhost');
+    const filters = url.searchParams.getAll('filter').filter((token) => token.startsWith('id:in:'));
+    if (filters.length === 0) {
+      count(url.pathname);
+      continue;
+    }
+    for (const token of filters) {
+      for (const id of token.slice('id:in:'.length).split(',')) count(id);
+    }
+  }
+  return [...times]
+    .filter(([, seen]) => seen > 1)
+    .map(([what]) => what)
+    .sort();
+}
+
 /** The sample with the most of the treatment on screen. */
 function peakOf(samples: readonly Treatment[]): Treatment {
   return samples.reduce((most, sample) => (sample.spinners > most.spinners ? sample : most));
@@ -200,15 +229,17 @@ describe('prerendered commerce data on the generated static site', () => {
 
   it('refreshes the product page with the detail read and one batched read, and nothing else', async () => {
     const visited = await visit(productPage);
-    // `product-detail` re-reads its own product (its `variantId` is a variant's, which the products
-    // list cannot answer about), and every card on the page — the carousel's six — is one batched
-    // `id:in` read. Nothing else: no re-run of a prerendered, non-volatile read.
+    // The **full** log, duplicates included, not a set of unique URLs. `product-detail` re-reads
+    // its own product (its `variantId` is a variant's, which the products list cannot answer
+    // about), and every card on the page — the carousel's six — is one batched `id:in` read.
+    // Nothing else: no re-run of a prerendered non-volatile read, and nothing twice.
     expect(visited.requests).toEqual([
       `/catalog/v1/products/${PRODUCT_HANDLE}`,
       '/catalog/v1/products/list?pageSize=6&filter=id:in:prod-cedar-serving-board,' +
         'prod-flax-tea-towel,prod-stoneware-bowl,prod-brass-candle-holder,prod-linen-napkin-set,' +
         'prod-walnut-spoon',
     ]);
+    expect(askedMoreThanOnce(visited.requests)).toEqual([]);
     expect(visited.warnings).toEqual([]);
   });
 
@@ -229,18 +260,28 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(visited.prices).toContain('$68.00');
   });
 
-  it('refreshes the collection grid in one batched read and draws the treatment on its cards', async () => {
+  /**
+   * Two blocks over the same collection — the grid and a carousel below it — which is the shape the
+   * deployed pages showed the duplicate in: different blocks are different lazily imported chunks,
+   * so they register in different bursts, and until this round each burst asked the gateway about
+   * the same seven products all over again.
+   */
+  it('asks about the collection page’s products once, however many blocks show them', async () => {
     const visited = await visit(collectionPage);
+    // One request for the whole page, not one per burst — and asserted as the full log.
     expect(visited.requests).toEqual([
       '/catalog/v1/products/list?pageSize=7&filter=id:in:prod-ash-glaze-mug,' +
         'prod-cedar-serving-board,prod-flax-tea-towel,prod-stoneware-bowl,prod-brass-candle-holder,' +
         'prod-linen-napkin-set,prod-walnut-spoon',
     ]);
+    expect(askedMoreThanOnce(visited.requests)).toEqual([]);
     expect(visited.warnings).toEqual([]);
+    // Both blocks still draw the treatment and both end up showing the refreshed values: the block
+    // that arrived second folds in the answer the first one's read had already brought back.
     const peak = peakOf(visited.samples);
-    expect(peak.spinners).toBe(14); // seven cards, two values each
+    expect(peak.spinners).toBe(28); // seven cards in the grid, seven in the carousel, two each
     expect(peak.busy).toBeGreaterThan(0);
-    expect(peak.announced).toBe(1);
+    expect(peak.announced).toBe(2); // one row-level region per block
     expect(visited.samples[visited.samples.length - 1]).toEqual(NOTHING);
   });
 });

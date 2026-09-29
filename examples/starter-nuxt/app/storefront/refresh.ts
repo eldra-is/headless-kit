@@ -16,19 +16,29 @@ import type { VolatileKey, VolatileSnapshot } from './types';
  * the result that opened it) — the plugin passes one that waits for the app to mount, a spec
  * passes a no-op and calls `refresh()` itself.
  *
- * **One read per batch, and a batch is every result registered before it flushes.** It cannot be
- * one read per *page*, and that was a real defect: a theme's blocks are lazily imported
+ * **A batch is every result registered before it flushes, and there can be more than one.** It
+ * cannot be one batch per *page*, and that was a real defect: a theme's blocks are lazily imported
  * components, so on a generated page the ones whose chunk arrives after the app has mounted create
  * their results after the first batch has already gone out. A one-shot refresher dropped them —
  * the product page's carousel never refreshed a price and never drew the refresh treatment,
- * because `product-detail` had opened and closed the page's only batch a tick earlier. So a result
- * that registers after a flush opens the next batch instead of being ignored, and the results that
- * register together — every card-bearing block in one hydration pass — still share one request.
+ * because `product-detail` had opened and closed the page's only batch a tick earlier.
  *
- * **Every entry refreshes exactly once.** A flush takes the pending entries with it, and a result
- * registers once, when it is created; `StorefrontResult.refresh()` is a full reload and has
- * nothing to do with this. Which results register at all is `gateway.ts`'s decision: only one
- * holding a value the *prerender* produced, never one a client navigation has just read live.
+ * **What is once per page load is the question, not the batch.** A second burst asking again about
+ * products the first burst has already re-read was the next defect, live: the deployed product page
+ * issued its detail read and its `id:in` batch twice, 35 ms apart, with identical ids. So this keeps
+ * a *session* — the whole page load, across every burst:
+ *
+ *  - `refreshed` — every result that has already taken part. A result registered twice takes part
+ *    once.
+ *  - `answerFor` — the read that is answering, or has already answered, for one product id. A
+ *    target in there is never asked about again; the result that shows it waits for the answer
+ *    already on its way and folds in exactly the same values. That is also what makes two results
+ *    needing the same detail read cost one request, and what keeps two blocks showing the same
+ *    product from painting two different truths.
+ *
+ * Which results register at all is `gateway.ts`'s decision: only one holding a value the
+ * *prerender* produced, never one a client navigation has just read live.
+ * `StorefrontResult.refresh()` is a full reload and has nothing to do with any of this.
  */
 
 /** What a storefront result lends the collector. Accessors rather than the refs themselves: a
@@ -74,13 +84,34 @@ export function createVolatileRefresher(
   const entries: VolatileRefreshEntry[] = [];
   /** A flush is already scheduled for the entries collected so far. */
   let armed = false;
+  /** Every result that has taken part in a refresh this page load, however often it registered. */
+  const refreshed = new WeakSet<VolatileRefreshEntry>();
+  /**
+   * Per product id, the read that is answering — or has answered — for it, for the whole page load.
+   * Kept after it settles on purpose: a result that arrives later and shows the same product folds
+   * the same answer in instead of asking a second time, and a target whose read *failed* is not
+   * retried either (the page keeps the value it was built with, which is the same outcome).
+   */
+  const answerFor = new Map<string, Promise<readonly VolatileSnapshot[]>>();
+
+  /** Every snapshot the reads this entry is waiting on answer with, as one list. */
+  function merged(
+    waiting: ReadonlySet<Promise<readonly VolatileSnapshot[]>>
+  ): Promise<readonly VolatileSnapshot[]> {
+    const reads = [...waiting];
+    if (reads.length === 1) return reads[0]!;
+    return Promise.all(reads).then((lists) => lists.flat());
+  }
 
   /**
    * One entry's half of the refresh: mark, await, fold in, unmark. A failure is swallowed on
    * purpose — the page already shows a value, and replacing it with an error would be a worse
    * answer than a price that is a few minutes old.
    */
-  async function settle(entry: VolatileRefreshEntry, answer: Promise<VolatileSnapshot[]>) {
+  async function settle(
+    entry: VolatileRefreshEntry,
+    answer: Promise<readonly VolatileSnapshot[]>
+  ): Promise<void> {
     const token = entry.token();
     entry.setRevalidating(REVALIDATING);
     try {
@@ -99,34 +130,51 @@ export function createVolatileRefresher(
     armed = false;
     const registered = entries.splice(0);
     if (registered.length === 0) return;
-    const batched: VolatileRefreshEntry[] = [];
     const ids: string[] = [];
-    const seen = new Set<string>();
     const work: Array<Promise<void>> = [];
+    // This flush's batched read, promised before it is issued so the ids it will answer for can be
+    // claimed in `answerFor` as the entries are walked — a second entry in the same flush showing
+    // the same product then waits for this one read rather than adding a second.
+    let answerBatch!: (snapshots: readonly VolatileSnapshot[]) => void;
+    let failBatch!: (cause: unknown) => void;
+    const batch = new Promise<readonly VolatileSnapshot[]>((resolve, reject) => {
+      answerBatch = resolve;
+      failBatch = reject;
+    });
 
     for (const entry of registered) {
+      // A result that has already taken part in this page's refresh. Registering twice is a block
+      // creating its results twice (a remount, a second render pass), not a second thing to ask.
+      if (refreshed.has(entry)) continue;
+      refreshed.add(entry);
       // Nothing on screen to refresh — a result that answered `null`, or one whose data holds no
       // products at all (a collection's own info, an order). Asking would be a request for
       // nobody.
       const targets = collectVolatileTargets(entry.read());
       if (targets.length === 0) continue;
-      if (entry.own !== undefined) {
-        work.push(settle(entry, entry.own(entry.read())));
+
+      const waiting = new Set<Promise<readonly VolatileSnapshot[]>>();
+      const missing: string[] = [];
+      for (const id of targets) {
+        const answered = answerFor.get(id);
+        if (answered === undefined) missing.push(id);
+        else waiting.add(answered);
+      }
+      if (missing.length === 0) {
+        // Every value it shows is already being re-read, or has been. Fold that answer in.
+        work.push(settle(entry, merged(waiting)));
         continue;
       }
-      batched.push(entry);
-      for (const id of targets) {
-        if (seen.has(id)) continue;
-        seen.add(id);
-        ids.push(id);
-      }
+      const read = entry.own === undefined ? batch : Promise.resolve(entry.own(entry.read()));
+      for (const id of missing) answerFor.set(id, read);
+      if (entry.own === undefined) ids.push(...missing);
+      waiting.add(read);
+      work.push(settle(entry, merged(waiting)));
     }
 
-    if (batched.length > 0) {
-      // One read for this batch, shared by every result that took part in it.
-      const answer = volatileByIds(ids);
-      for (const entry of batched) work.push(settle(entry, answer));
-    }
+    // One read for every id this flush is the first to ask about, shared by every result in it.
+    if (ids.length > 0) volatileByIds(ids).then(answerBatch, failBatch);
+    else answerBatch([]);
     await Promise.all(work);
   }
 

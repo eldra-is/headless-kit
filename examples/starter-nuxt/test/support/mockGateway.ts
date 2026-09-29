@@ -135,6 +135,12 @@ const listResponse = (data: unknown[]): Record<string, unknown> => ({
  * `template-block` node naming its `apiId` (an ordinary `block` node takes neither key —
  * `@eldrajs/theme-core`'s layout validator refuses it, and the whole page then renders as
  * `data-eldra-invalid-layout`).
+ *
+ * The collection template also carries one block the seed does not: a `product-carousel` over the
+ * same collection its grid shows, which is an ordinary thing for a merchant to put there and the
+ * shape that catches a refresh asking about one product twice — the grid and the carousel are
+ * different blocks, so they arrive in different lazily-imported chunks and therefore in different
+ * refresh bursts, both about exactly the same products.
  */
 function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknown> }> {
   return starterTemplates()
@@ -142,9 +148,27 @@ function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknow
     .map((seed) => {
       const layout = seedLayout(seed);
       const roles = starterTemplateRoles();
+      const extra =
+        seed.schemaApiId === 'catalog:collection'
+          ? [
+              {
+                id: 'collection-more',
+                apiId: 'product-carousel',
+                data: {
+                  heading: 'More from this edit',
+                  variant: 'collection',
+                  sourceHandle: COLLECTION_HANDLE,
+                  limit: '8',
+                  showSwatches: true,
+                  background: 'none',
+                },
+              },
+            ]
+          : [];
       const blocks = [
         { id: 'role-header', apiId: roles.header.apiId, data: roles.header.data },
         ...seed.blocks,
+        ...extra,
         { id: 'role-footer', apiId: roles.footer.apiId, data: roles.footer.data },
       ];
       const apiIdOf = new Map(blocks.map((block) => [block.id, block.apiId]));
@@ -163,7 +187,7 @@ function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknow
             ...layout,
             root: {
               ...layout.root,
-              children: (layout.root.children ?? []).map((node) => {
+              children: withExtraNodes(layout.root.children ?? [], extra).map((node) => {
                 const entryId = entryIdOf.get(node.id);
                 const base = node.type === 'reusable' ? { id: node.id, type: 'block' } : node;
                 return 'templates' in base || 'bindings' in base
@@ -180,6 +204,16 @@ function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknow
         },
       };
     });
+}
+
+/** The extra blocks' nodes, placed where Core would place them: after the seed's own, before the
+ *  footer role. */
+function withExtraNodes<T>(children: readonly T[], extra: ReadonlyArray<{ id: string }>): T[] {
+  if (extra.length === 0) return [...children];
+  const footerAt = children.findIndex((node) => (node as { id?: unknown }).id === 'role-footer');
+  const at = footerAt === -1 ? children.length : footerAt;
+  const nodes = extra.map((block) => ({ id: block.id, type: 'block' }) as T);
+  return [...children.slice(0, at), ...nodes, ...children.slice(at)];
 }
 
 /** `field:op:value` tokens, as much of the grammar as the storefront actually sends. */
