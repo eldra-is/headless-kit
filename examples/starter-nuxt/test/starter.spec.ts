@@ -236,7 +236,7 @@ describe('starter theme', () => {
       'logo-cloud': ['variant', 'heading', 'logos', 'sectionBackground'],
       breadcrumbs: ['showHome', 'homeLabel', 'trail', 'currentTitle', 'showCurrent', 'container'],
       'collection-header': [
-        'collectionHandle',
+        'collection',
         'variant',
         'title',
         'description',
@@ -345,7 +345,6 @@ describe('starter theme', () => {
         'heading',
         'variant',
         'sourceCollection',
-        'sourceHandle',
         'limit',
         'viewAllLabel',
         'viewAllHref',
@@ -354,7 +353,6 @@ describe('starter theme', () => {
       ],
       'collection-grid': [
         'collection',
-        'collectionHandle',
         'variant',
         'columns',
         'pageSize',
@@ -860,17 +858,17 @@ describe('seeded templates (app/templates.ts)', () => {
   it('pins no product or collection into a catalog seed, and takes the title from the route', () => {
     // The live failure this guards: every seeded product page rendered the
     // fixture's own product, because `product-detail.productHandle` (and the
-    // collection blocks' `collectionHandle`, and `product-carousel`'s source)
-    // won over the route the template was resolved by.
+    // collection blocks' own collection field) won over the route the template
+    // was resolved by.
     const templates = scanned.manifest!.templates!;
     const catalogSeeds = templates.filter((template) => template.schemaApiId !== 'home');
     expect(catalogSeeds).toHaveLength(2);
 
     const pinned: Record<string, readonly string[]> = {
       'product-detail': ['productHandle'],
-      'collection-header': ['collectionHandle', 'title', 'description'],
-      'collection-grid': ['collectionHandle'],
-      'product-carousel': ['sourceHandle', 'sourceCollection', 'viewAllHref'],
+      'collection-header': ['collection', 'title', 'description'],
+      'collection-grid': ['collection'],
+      'product-carousel': ['viewAllHref'],
     };
     for (const template of catalogSeeds) {
       for (const block of template.blocks) {
@@ -881,11 +879,17 @@ describe('seeded templates (app/templates.ts)', () => {
       }
     }
 
-    // The home seed keeps its carousel's handle: there is no route context on
-    // `/` for the block to fall back to.
+    // The home seed keeps its carousel's collection: there is no route context
+    // on `/` for the block to fall back to, and the carousel has no route
+    // fallback at all. A theme cannot know the organisation's collection ids, so
+    // it names the collection by slug and Core resolves it on deploy.
     const home = templates.find((template) => template.schemaApiId === 'home')!;
     const carousel = home.blocks.find((block) => block.apiId === 'product-carousel')!;
-    expect(carousel.data.sourceHandle).toBe('the-winter-edit');
+    expect(carousel.data.sourceCollection).toEqual({
+      _type: 'collection',
+      slug: 'the-winter-edit',
+    });
+    expect(Object.hasOwn(carousel.data, 'sourceHandle')).toBe(false);
 
     // Breadcrumbs: Home and nothing else in the data, with the current page's
     // own title bound on the layout node instead of the fixture's product name.

@@ -53,12 +53,13 @@ const ROLE_BLOCKS = { header: 'navigation', footer: 'footer' } as const;
  * A sample page names one product and one collection — that is what makes it a
  * realistic page — and a route template must name none: it renders whatever
  * object its `:slug` resolved to. Every field below either says which object to
- * show (a handle), or repeats the fixture's own copy for it (a title, a
- * description, a trail, a link into its category), so a seed drops it and, where
- * the routed object carries the same thing, binds the field to it instead:
+ * show (a product handle, a collection reference), or repeats the fixture's own
+ * copy for it (a title, a description, a trail, a link into its category), so a
+ * seed drops it and, where the routed object carries the same thing, binds the
+ * field to it instead:
  *
  * - `strip` — dropped outright. The commerce blocks read the route when their
- *   handle field is empty (`storefront.route.productHandle` /
+ *   own field is empty (`storefront.route.productHandle` /
  *   `collectionHandle`, the "field wins, route is the fallback" contract each
  *   block's own `helpText` describes), and the editorial fields fall back to the
  *   storefront object the same way.
@@ -71,8 +72,12 @@ const ROLE_BLOCKS = { header: 'navigation', footer: 'footer' } as const;
  *   the catalog projection `@eldrajs/theme-nuxt` binds a catalog route to).
  *
  * `product-carousel` appears here for the **product** seed only — its `related`
- * variant reads the route — while the home seed keeps its handle, because `/`
- * has no route context to fall back to.
+ * variant reads the route — while the home seed keeps its `sourceCollection`,
+ * because `/` has no route context to fall back to and the carousel has no route
+ * fallback at all. That seed names the collection by slug
+ * (`{ "_type": "collection", "slug": "the-winter-edit" }`), the only form a
+ * theme can ship: Core resolves it against the organisation's own catalog on
+ * deploy, and leaves the field empty when nothing matches.
  *
  * Two fields are stripped without a binding on purpose. `collection-header`'s
  * `description` is rich text and a text template renders a string, so there is
@@ -97,13 +102,13 @@ const CATALOG_SEED_SHAPE: Readonly<
     templates: { currentTitle: '{{ title }}' },
   },
   'product-detail': { strip: ['productHandle'] },
-  'product-carousel': { strip: ['sourceHandle', 'sourceCollection', 'viewAllHref'] },
+  'product-carousel': { strip: ['viewAllHref'] },
   'collection-header': {
-    strip: ['collectionHandle', 'title', 'description'],
+    strip: ['collection', 'title', 'description'],
     emptyLists: ['trail', 'subcollections'],
     templates: { title: '{{ title }}' },
   },
-  'collection-grid': { strip: ['collectionHandle'] },
+  'collection-grid': { strip: ['collection'] },
 };
 
 /**

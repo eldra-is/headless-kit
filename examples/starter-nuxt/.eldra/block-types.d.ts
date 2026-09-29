@@ -88,7 +88,6 @@ declare global {
     };
     'collection-grid': {
       collection?: EldraCollectionReference | null;
-      collectionHandle?: string;
       variant: 'sidebar' | 'drawer-only';
       columns: '2' | '3' | '4';
       pageSize: '12' | '24' | '48';
@@ -100,7 +99,7 @@ declare global {
       emptyText?: string;
     };
     'collection-header': {
-      collectionHandle?: string;
+      collection?: EldraCollectionReference | null;
       variant: 'image' | 'text-only';
       title?: string;
       description?: RichTextNode;
@@ -274,7 +273,6 @@ declare global {
       heading: string;
       variant: 'related' | 'recently-viewed' | 'collection';
       sourceCollection?: EldraCollectionReference | null;
-      sourceHandle?: string;
       limit?: '4' | '8' | '12';
       viewAllLabel?: string;
       viewAllHref?: string;

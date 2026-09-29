@@ -306,11 +306,25 @@ where only `id` and `_type` are guaranteed — `slug`, `status`, `type`, `produc
 `translations` come with a resolved read, and a depth-0 read, an archived collection and an unsaved
 draft overlay in the page builder all arrive as the bare stub. Any other relation stays
 `Record<string, unknown>`, because the value's shape depends on what the author picked.
-`product-carousel`'s `sourceCollection` and `collection-grid`'s `collection` are the worked
-examples: each keeps its original handle field beside the picker (renamed "Collection handle
-(legacy)") so a merchant's existing block keeps working, and resolves the collection through
+`product-carousel`'s `sourceCollection`, `collection-grid`'s `collection` and
+`collection-header`'s `collection` are the worked examples, and a reference is now the **only** way
+any of the three names a collection: the handle string fields they shipped with
+(`sourceHandle`, `collectionHandle`) are retired, because a handle a merchant retyped went stale the
+moment the collection was renamed. All three resolve through
 `app/storefront/collectionSelector.ts` — the reference first (its `slug` when it has one, its id
-otherwise), then the legacy handle, then the route.
+otherwise), then, for the two blocks that can sit on a collection template, the route's own
+collection. A retired handle an entry still carries (Core keeps it as `<fieldId>__vN`) is not read
+by anything in the theme.
+
+**A seed names a collection by slug.** A theme cannot know an organisation's collection ids, so a
+`reference` value in seed data — a block's `mock.json`, a `pages/*.page.json` fixture, a template
+seed's block data — may take the form `{ "_type": "collection", "slug": "<handle>" }`. Core resolves
+it against the organisation's own catalog at seed time and leaves the field empty when nothing
+matches, so the deploy still succeeds. `eldra-theme validate` holds every seed reference to one of
+three shapes — absent, `{ "_type": …, "id": "<uuid>" }`, or that slug form on a relation whose
+`allowCollections` is true — and refuses anything else with the path that carries it. `mock.json`
+leaves references **absent** (see below); `pages/home.page.json`'s carousel is the worked example of
+the slug form.
 
 **Variants.** A block with visual variants declares a `select` field named `variant` in
 `block.json`; every declared option value gets its own generated Storybook story and its own axe
@@ -330,15 +344,18 @@ worked example — the collection source is offered only for the `collection` va
 only for `related`, and the `collection` variant derives its "view all" link from the collection
 that was picked (`/collections/<slug>`, from `app/storefront/collectionSelector.ts`'s
 `selectorSlug`) rather than asking for a URL a second time, showing no link while that collection
-is known only by id. `collection-grid` deliberately has none: its legacy `collectionHandle` should
-appear only when no collection reference is picked, and "this reference is empty" is not a
-condition this grammar can express, so the field stays visible.
+is known only by id. `collection-grid` and `collection-header` declare none: each has a single
+collection field with no variant to condition it on.
 
 **`mock.json`** is the seed Studio writes into a block's CMS entry when an author inserts it from the
 palette, so it must be a write-valid shape for every field type — most importantly, **media fields
 are absent** (never `null`, never a fixture object): Core's write-side media validator only accepts
 `{ "assetId": "<uuid>", "framing"?: {...} }`, and a block whose `mock.json` populated a media field
-with a Storybook fixture is rejected with a 400 on every fresh insert. Every
+with a Storybook fixture is rejected with a 400 on every fresh insert. **Reference fields are absent
+too**, for the same reason a media field is: an inserted block must not arrive pointing at one
+particular collection. The demo reference that makes a generated story render real catalogue data
+goes in `preview.json` instead (`collection-grid`, `collection-header` and `product-carousel` each
+carry one, by the demo fixture's own id). Every
 other field is still the canonical demo content, not filler — write copy like a real store would, no
 lorem ipsum; the starter's fictional store is "Northwind Goods" (home and lifestyle goods). Because
 `mock.json` carries no media, `Block.vue` must render a sensible empty state with none (no crash,
@@ -348,7 +365,12 @@ before an editor uploads anything.
 
 **`preview.json`** (optional, sibling to `mock.json`) is the story/preview-only overlay that supplies
 demo imagery: the same media shape as before,
-`{ "assetId": "demo-<name>", "url": "/demo/<name>.svg", "altText": "…" }`, and nothing else. Demo
+`{ "assetId": "demo-<name>", "url": "/demo/<name>.svg", "altText": "…" }` — and the demo collection
+reference the commerce blocks need to render a real grid, carousel or header in a story. That one
+carries **both** keys, `{ "_type": "collection", "id": "<a demoCollectionId() value>", "slug": "…" }`,
+because that is what a published read hands a block (a bare `{ id, _type }` stub is the depth-0 /
+draft-overlay case, where `catalog.collection()` has no key to look a title, description or count up
+by) — so the story and the `preview.png` show what a live page shows, not a half-resolved one. Demo
 images live under `public/demo/`, generated deterministically by `scripts/demo-images.mjs` (seeded
 SVG illustrations, no third-party assets, no licensing question — a customer swaps them for real
 photos). `scripts/generate-stories.mjs` merges it onto `mock.json` (`{ ...mock, ...preview }`) for
@@ -403,6 +425,15 @@ The renamed pair must stay storage-compatible (same `type`, same `localized`, sa
 a migration moves stored data forward, it never converts it. A brand-new `apiId` starts at
 `version: 1` with no `migrations`, even in the same change that retires an old block of a similar
 shape: the rule only ever compares a schema against its own prior manifest entry.
+
+**Retiring a field takes the bump and nothing else.** A field dropped outright has no rename to
+declare, so it gets no `migrations` entry: the `version` bump is the whole signal, and Core moves
+the previous content into a `<fieldId>__vN` legacy field rather than discarding it. Three fields
+retired this way when the commerce blocks moved to collection references — `product-carousel`'s
+`sourceHandle` (version 2 → 3), `collection-grid`'s `collectionHandle` (2 → 3) and
+`collection-header`'s `collectionHandle` (1 → 2, the same change that added its `collection`
+reference; _adding_ a field needs no bump). Nothing in the theme reads a retired field, which is
+the point: a stale handle must not stand in for the collection an author picked.
 
 **Sample pages (`pages/*.page.json`).** Four fixtures — `home.page.json`, `product.page.json`,
 `collection.page.json`, `article.page.json` — are this starter's channel for showing a realistic
@@ -733,9 +764,9 @@ Five rules the file exists to keep:
   makes them a realistic page — but a template renders whatever its route resolved, so the seeds
   for `/products/:slug` and `/collections/:slug` drop everything that names the fixture's own
   object and bind the fields the routed object carries itself. Dropped: `product-detail`'s
-  `productHandle`; `collection-header`'s `collectionHandle`, `title` and `description`;
-  `collection-grid`'s `collectionHandle`; `product-carousel`'s `sourceHandle`/`sourceCollection`
-  and its `viewAllHref` (a link into the fixture product's category); the fixture's own levels and
+  `productHandle`; `collection-header`'s `collection`, `title` and `description`;
+  `collection-grid`'s `collection`; `product-carousel`'s `viewAllHref` (a link into the fixture
+  product's category); the fixture's own levels and
   links in `breadcrumbs`' `trail` and `collection-header`'s `subcollections` (emptied, a shape both
   blocks render — `breadcrumbs` still shows the Home crumb from `showHome`); and
   `product-detail`'s "Details" tab, which is the fixture product's own description, leaving the
@@ -743,8 +774,10 @@ Five rules the file exists to keep:
   `currentTitle` and `collection-header`'s `title`, both `{{ title }}` against the catalog
   projection. `collection-header`'s `description` is rich text and a text template renders a
   string, so it is only dropped — the block falls back to the collection's own description, which
-  is the same value. The home seed keeps its carousel's handle: `/` has no route context to fall
-  back to. `test/starter.spec.ts` checks the per-field rules and, bluntly, that the fixture's
+  is the same value. The home seed keeps its carousel's `sourceCollection`: `/` has no route
+  context to fall back to, and the carousel has no route fallback at all. It names the collection
+  by slug (`{ "_type": "collection", "slug": "the-winter-edit" }`), the only form a theme can ship,
+  and Core resolves it against the organisation's own catalog on deploy. `test/starter.spec.ts` checks the per-field rules and, bluntly, that the fixture's
   product and collection are named nowhere in a catalog seed.
 
 Editing a sample page fixture therefore edits the seeded template too — one copy of the starter's

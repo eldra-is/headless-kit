@@ -4,13 +4,14 @@
   "description": "Opens a collection page with a breadcrumb, the collection title, an optional clamped description with Read more, the live product count, and an optional image or sub-collection links.",
   "icon": "layout-align-top",
   "category": "commerce",
-  "version": 1,
+  "version": 2,
   "fields": [
     {
-      "fieldId": "collectionHandle",
-      "name": "Collection handle",
-      "type": "string",
-      "helpText": "Leave empty on a collection template — the route supplies it."
+      "fieldId": "collection",
+      "name": "Collection",
+      "type": "reference",
+      "relation": { "allowCollections": true },
+      "helpText": "Leave empty on a collection page to use that collection."
     },
     {
       "fieldId": "variant",

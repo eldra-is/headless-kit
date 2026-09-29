@@ -1264,7 +1264,7 @@
       "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
       "icon": "layout-grid",
       "category": "commerce",
-      "version": 2,
+      "version": 3,
       "fields": [
         {
           "fieldId": "collection",
@@ -1273,13 +1273,7 @@
           "relation": {
             "allowCollections": true
           },
-          "helpText": "Pick a collection. Overrides the handle below. Leave both empty on a collection template — the route supplies it."
-        },
-        {
-          "fieldId": "collectionHandle",
-          "name": "Collection handle (legacy)",
-          "type": "string",
-          "helpText": "Used when no collection is picked above. Picking one is preferred: it survives a renamed collection."
+          "helpText": "Leave empty on a collection page to use that collection."
         },
         {
           "fieldId": "variant",
@@ -1453,7 +1447,6 @@
         }
       ],
       "mock": {
-        "collectionHandle": "winter-knitwear",
         "variant": "sidebar",
         "columns": "3",
         "pageSize": "24",
@@ -1514,13 +1507,16 @@
       "description": "Opens a collection page with a breadcrumb, the collection title, an optional clamped description with Read more, the live product count, and an optional image or sub-collection links.",
       "icon": "layout-align-top",
       "category": "commerce",
-      "version": 1,
+      "version": 2,
       "fields": [
         {
-          "fieldId": "collectionHandle",
-          "name": "Collection handle",
-          "type": "string",
-          "helpText": "Leave empty on a collection template — the route supplies it."
+          "fieldId": "collection",
+          "name": "Collection",
+          "type": "reference",
+          "relation": {
+            "allowCollections": true
+          },
+          "helpText": "Leave empty on a collection page to use that collection."
         },
         {
           "fieldId": "variant",
@@ -1663,7 +1659,6 @@
       ],
       "mock": {
         "variant": "image",
-        "collectionHandle": "the-winter-edit",
         "title": "Winter knitwear",
         "showCount": true,
         "showBreadcrumb": true,
@@ -4551,7 +4546,7 @@
       "description": "A horizontally scrolling row of product cards, such as \"You may also like\" or \"Recently viewed\", with a heading, a view-all link, arrows and a counter.",
       "icon": "carousel-horizontal",
       "category": "commerce",
-      "version": 2,
+      "version": 3,
       "fields": [
         {
           "fieldId": "heading",
@@ -4587,19 +4582,7 @@
           "relation": {
             "allowCollections": true
           },
-          "helpText": "Pick a collection. Overrides the handle below.",
-          "showWhen": {
-            "field": "variant",
-            "in": [
-              "collection"
-            ]
-          }
-        },
-        {
-          "fieldId": "sourceHandle",
-          "name": "Collection handle (legacy)",
-          "type": "string",
-          "helpText": "Used when no collection is picked above. Picking one is preferred: it survives a renamed collection.",
+          "helpText": "Pick the collection this carousel shows.",
           "showWhen": {
             "field": "variant",
             "in": [
@@ -7422,7 +7405,10 @@
             "viewAllLabel": "View all",
             "showSwatches": true,
             "background": "none",
-            "sourceHandle": "the-winter-edit"
+            "sourceCollection": {
+              "_type": "collection",
+              "slug": "the-winter-edit"
+            }
           }
         },
         {

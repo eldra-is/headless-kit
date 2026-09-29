@@ -78,7 +78,14 @@ demo media instead, from `public/demo/`: `{ "assetId": "demo-<name>", "url": "/d
 "altText": "…" }`. Make sure `Block.vue` renders a sensible empty state with the field absent — no
 crash, no broken layout — since that is also the state right after an author inserts the block.
 `pnpm validate` fails with a clear message if a media field in `mock.json` is anything but absent or
-`{assetId: uuid}`. A `select` field named `variant` gets a generated Storybook story per declared
+`{assetId: uuid}`. A `reference` field follows the same rule for the same reason: leave it out of
+`mock.json` (an inserted block must not arrive pointing at one particular collection) and put the
+demo value in `preview.json` — `{ "_type": "collection", "id": "<a demoCollectionId() value>",
+"slug": "<its handle>" }`, both keys, which is the shape a published read hands the block.
+Seed data that must name a collection it cannot know the id of — a `pages/*.page.json` fixture, and
+therefore the template seed built from it — names it by slug instead
+(`{ "_type": "collection", "slug": "the-winter-edit" }`), which Core resolves against the
+organisation's own catalog on deploy. A `select` field named `variant` gets a generated Storybook story per declared
 option automatically; add an axe assertion for each variant in the block's spec, mounted from both
 the merged (mock + preview) data and the bare `mock.json`. Run `pnpm previews` once the block
 renders, and commit the generated `preview.png` / `.eldra/previews/*.png` / `.eldra/previews.json`

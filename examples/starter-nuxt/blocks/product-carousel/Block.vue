@@ -24,7 +24,7 @@
  *
  * **The variant decides which settings exist.** `block.json` puts a `showWhen` condition on every
  * field only one variant reads, so Studio offers an author exactly the settings that variant
- * honours: the collection source (`sourceCollection`, `sourceHandle`) only for `collection`, the
+ * honours: the collection source (`sourceCollection`) only for `collection`, the
  * "view all" label for `related` and `collection`, and `viewAllHref` only for `related` — the
  * `collection` variant derives its own link from the collection that was picked (`viewAllHref`
  * below), and `recently-viewed` has no link at all. A hidden field keeps its stored value, so
@@ -110,21 +110,19 @@ const showSwatchesField = computed(() => data.value.showSwatches ?? true);
 /**
  * Which collection the `collection` variant shows. `sourceCollection` is the
  * `reference` field an author picks in Studio; it stores the collection's id, so
- * a renamed collection cannot silently empty this block. `sourceHandle` is the
- * handle field this block shipped with — still honoured, so a merchant's
- * existing carousel keeps working after the theme update, and it is what
- * `mock.json` (Storybook, previews) still carries.
+ * a renamed collection cannot silently empty this block. It replaced a
+ * `sourceHandle` string field in version 3, and that value is not read here any
+ * more even when an entry still carries it (Core keeps it as `sourceHandle__v2`)
+ * — a stale handle must not win over, or stand in for, the collection an author
+ * picked.
  *
- * `collectionSelector` prefers the reference's resolved `slug`, falls back to
+ * `collectionSelector` prefers the reference's resolved `slug` and falls back to
  * its bare id (a page builder draft overlay, or a depth-0 read — see
- * `app/storefront/collectionSelector.ts`) and only then to the legacy handle: a
- * picked collection overrides the handle in every case, which is what the
- * field's own help text promises.
+ * `app/storefront/collectionSelector.ts`). No route fallback: this block never
+ * sits on a collection route's own subject.
  */
 const source = computed<StorefrontCollectionSelector | null>(() =>
-  isCollection.value
-    ? collectionSelector(data.value.sourceCollection, data.value.sourceHandle)
-    : null
+  isCollection.value ? collectionSelector(data.value.sourceCollection) : null
 );
 const collectionOpts = computed(() => ({ page: 1, pageSize: limit.value }));
 

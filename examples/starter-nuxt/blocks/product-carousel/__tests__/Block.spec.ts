@@ -114,7 +114,11 @@ describe('product-carousel block', () => {
       async (variant) => {
         const data =
           variant === 'collection'
-            ? { ...mock, variant, sourceHandle: 'winter-knitwear' }
+            ? {
+                ...mock,
+                variant,
+                sourceCollection: { _type: 'collection', slug: 'winter-knitwear' },
+              }
             : { ...mock, variant };
         const wrapper = mountBlock(data);
         await flushPromises();
@@ -284,7 +288,11 @@ describe('product-carousel block', () => {
     it('asks about no product and no history while it is showing a collection', async () => {
       const { storefront, sources } = recording({ productHandle: 'merino-crew-sweater' });
       mountBlock(
-        { ...mock, variant: 'collection', sourceHandle: 'winter-knitwear' },
+        {
+          ...mock,
+          variant: 'collection',
+          sourceCollection: { _type: 'collection', slug: 'winter-knitwear' },
+        },
         { storefront }
       );
       await flushPromises();
@@ -459,12 +467,13 @@ describe('product-carousel block', () => {
 
   /**
    * The `collection` variant's source (spec `Starter blocks`): `sourceCollection`
-   * is the `reference` field an author picks in Studio, which stores the
-   * collection's **id**; `sourceHandle` is the handle field this block shipped
-   * with, kept so an existing carousel keeps working after the theme update. A
-   * picked collection overrides the handle; its resolved `slug` is used when the
-   * value carries one, and its bare id otherwise (a page builder draft overlay,
-   * or a depth-0 read).
+   * is the `reference` field an author picks in Studio, and since version 3 it is
+   * the block's **only** source — the `sourceHandle` string field it shipped with
+   * is retired (Core keeps its content as `sourceHandle__v2`) and is not read
+   * here even when an entry still carries it. The reference's resolved `slug` is
+   * used when the value carries one, and its bare id otherwise (a page builder
+   * draft overlay, or a depth-0 read); a theme's own seed carries the slug with
+   * no id at all.
    */
   describe('the collection variant\u2019s source', () => {
     const WINTER = demoCollectionId('winter-knitwear')!;
@@ -504,12 +513,25 @@ describe('product-carousel block', () => {
       expect(titles(wrapper).slice(0, 2)).toEqual(['Merino crew sweater', 'Speckled latte mug']);
     });
 
-    it('falls back to the legacy handle when nothing is picked', async () => {
-      const wrapper = await mountCollection({ sourceHandle: 'best-sellers' });
+    it('reads a seed reference, which names the collection by slug and carries no id', async () => {
+      // What `pages/home.page.json` ships and Core writes when it cannot resolve
+      // the slug against the organisation's catalog.
+      const wrapper = await mountCollection({
+        sourceCollection: { _type: 'collection', slug: 'best-sellers' },
+      });
       expect(titles(wrapper).slice(0, 2)).toEqual(['Merino crew sweater', 'Speckled latte mug']);
     });
 
-    it('lets the picked collection override the legacy handle', async () => {
+    it('ignores a retired sourceHandle an entry still carries', async () => {
+      // The handle field is gone: a value left behind by the old schema must not
+      // stand in for the collection an author never picked, or the block would
+      // keep showing a collection nobody can see in Studio any more.
+      const wrapper = await mountCollection({ sourceHandle: 'best-sellers' });
+      expect(wrapper.findAllComponents(ProductCard)).toHaveLength(0);
+      expect(wrapper.find('section').exists()).toBe(false);
+    });
+
+    it('lets the picked collection win over a retired handle beside it', async () => {
       const wrapper = await mountCollection({
         sourceCollection: { id: WINTER, _type: 'collection', slug: 'winter-knitwear' },
         sourceHandle: 'best-sellers',
@@ -521,18 +543,7 @@ describe('product-carousel block', () => {
       ]);
     });
 
-    it('lets a stub reference override the legacy handle too', async () => {
-      const wrapper = await mountCollection({
-        sourceCollection: { id: WINTER, _type: 'collection' },
-        sourceHandle: 'best-sellers',
-      });
-      expect(titles(wrapper).slice(0, 2)).toEqual([
-        'Merino crew sweater',
-        'Fisherman rib cardigan',
-      ]);
-    });
-
-    it('renders nothing with neither a reference nor a handle', async () => {
+    it('renders nothing with no collection picked', async () => {
       const wrapper = await mountCollection({});
       expect(wrapper.find('section').exists()).toBe(false);
     });
@@ -609,10 +620,10 @@ describe('product-carousel block', () => {
       expect(wrapper.get('h2 a').attributes('href')).toBe('/collections/best-sellers');
     });
 
-    it('derives it from the legacy handle when that is all the block has', async () => {
+    it('derives it from a seed reference’s slug as readily as from a resolved one', async () => {
       const wrapper = await mountVariant({
         variant: 'collection',
-        sourceHandle: 'best-sellers',
+        sourceCollection: { _type: 'collection', slug: 'best-sellers' },
         viewAllHref: '/authored-somewhere-else',
       });
       expect(wrapper.get('h2 a').attributes('href')).toBe('/collections/best-sellers');

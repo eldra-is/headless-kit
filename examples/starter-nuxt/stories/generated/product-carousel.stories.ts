@@ -6,6 +6,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/product-carousel/Block.vue';
 import mock from '../../blocks/product-carousel/mock.json';
+import preview from '../../blocks/product-carousel/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/product-carousel",
@@ -15,7 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = mock;
+const base = { ...mock, ...preview };
 
 export const Default: Story = {
   args: { entry: { id: "product-carousel", data: base } },

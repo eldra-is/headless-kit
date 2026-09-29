@@ -4,31 +4,32 @@ import type { StorefrontCollectionSelector } from './types';
  * Turns what a block knows about "which collection" into the one identifier the
  * storefront layer takes (`StorefrontCollectionSelector`).
  *
- * A `reference` field targeting catalog collections stores the collection's id,
- * so a renamed collection can never silently empty a block. The public read
- * resolves that id into an object carrying the `slug` too — but not always: at
- * depth 0, and while the page builder is showing an unsaved draft overlay, the
- * value is the bare stub `{ id, _type: 'collection' }`. Both are usable, so a
- * picked collection wins over the block's legacy handle field either way; the
- * `slug` is preferred when it is there because every storefront can look a
- * handle up, while resolving an id may cost an extra request or not be possible
- * at all (`gateway.ts`).
+ * A `reference` field targeting catalog collections is the only way a block
+ * names a collection — the legacy handle fields are gone. It normally stores the
+ * collection's id, so a renamed collection can never silently empty a block, and
+ * the public read resolves that id into an object carrying the `slug` too — but
+ * not always: at depth 0, and while the page builder is showing an unsaved draft
+ * overlay, the value is the bare stub `{ id, _type: 'collection' }`. A theme's
+ * own seed is the mirror image (`{ _type: 'collection', slug }`, which Core
+ * resolves against the organisation's catalog on deploy). All three are usable,
+ * and the `slug` is preferred when it is there because every storefront can look
+ * a handle up, while resolving an id may cost an extra request or not be
+ * possible at all (`gateway.ts`).
  *
- * `fallbackSlugs` are the block's own slug sources, in the order it wants them
- * tried — the legacy handle field, then (for a block that can sit on a
- * collection template) the route's own collection.
+ * `routeSlug` is the collection template's own segment
+ * (`storefront.route.collectionHandle`), the fallback for a block dropped onto a
+ * collection page with the field left empty — "field wins, route is the
+ * fallback". `product-carousel` passes none: it never sits on a collection
+ * route's own subject.
  */
 export function collectionSelector(
   reference: EldraCollectionReference | null | undefined,
-  ...fallbackSlugs: Array<string | null | undefined>
+  routeSlug?: string | null
 ): StorefrontCollectionSelector | null {
   const picked = referenceSelector(reference);
   if (picked !== null) return picked;
-  for (const slug of fallbackSlugs) {
-    const trimmed = (slug ?? '').trim();
-    if (trimmed !== '') return { slug: trimmed };
-  }
-  return null;
+  const trimmed = (routeSlug ?? '').trim();
+  return trimmed === '' ? null : { slug: trimmed };
 }
 
 /** The slug a selector names, or `null` when it names a collection by id — what

@@ -172,7 +172,7 @@ function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknow
                 data: {
                   heading: 'More from this edit',
                   variant: 'collection',
-                  sourceHandle: COLLECTION_HANDLE,
+                  sourceCollection: { _type: 'collection', slug: COLLECTION_HANDLE },
                   limit: '8',
                   showSwatches: true,
                   background: 'none',

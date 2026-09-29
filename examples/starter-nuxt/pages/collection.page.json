@@ -164,7 +164,7 @@
       "id": "collection-header",
       "data": {
         "variant": "image",
-        "collectionHandle": "the-winter-edit",
+        "collection": { "_type": "collection", "slug": "the-winter-edit" },
         "title": "The winter edit",
         "showCount": true,
         "showBreadcrumb": false,
@@ -208,7 +208,7 @@
       "apiId": "collection-grid",
       "id": "collection-grid",
       "data": {
-        "collectionHandle": "the-winter-edit",
+        "collection": { "_type": "collection", "slug": "the-winter-edit" },
         "variant": "sidebar",
         "columns": "3",
         "pageSize": "24",

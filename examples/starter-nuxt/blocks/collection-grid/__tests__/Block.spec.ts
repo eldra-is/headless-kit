@@ -282,7 +282,7 @@ describe('collection-grid block', () => {
       // Route and field both empty: nothing at all outside the editor.
       const source = createDemoStorefront();
       source.route.collectionHandle = null;
-      const empty = mountGrid({ ...mock, collectionHandle: '' }, { source });
+      const empty = mountGrid(mock, { source });
       expect(empty.find('section').exists()).toBe(false);
     });
   });
@@ -1053,11 +1053,13 @@ describe('collection-grid block', () => {
   /**
    * Which collection the grid shows (spec `Starter blocks`): the `collection`
    * `reference` field an author picks in Studio — which stores the collection's
-   * **id** — then the legacy `collectionHandle`, then the collection template's
-   * own route segment. A picked collection overrides both; its resolved `slug` is
-   * used when the value carries one, and its bare id otherwise (a page builder
-   * draft overlay, a depth-0 read, or an archived collection, all of which read
-   * as the bare stub).
+   * **id** — then the collection template's own route segment. The picked
+   * collection overrides the route; its resolved `slug` is used when the value
+   * carries one, and its bare id otherwise (a page builder draft overlay, a
+   * depth-0 read, or an archived collection, all of which read as the bare
+   * stub). The `collectionHandle` string field the block shipped with is retired
+   * as of version 3 (Core keeps its content as `collectionHandle__v2`) and is
+   * not read here even when an entry still carries it.
    */
   describe('the collection source', () => {
     const WINTER = demoCollectionId('winter-knitwear')!;
@@ -1096,26 +1098,35 @@ describe('collection-grid block', () => {
       ).toContainEqual({ id: WINTER });
     });
 
-    it('falls back to the legacy handle, then to the route — the handle first when both are set', () => {
-      const bothSet = requestedFor({ ...mock, collection: null }, 'the-winter-edit');
-      expect(bothSet).toContainEqual({ slug: mock.collectionHandle });
-      expect(bothSet).not.toContainEqual({ slug: 'the-winter-edit' });
+    it('reads a seed reference, which names the collection by slug and carries no id', () => {
+      // What `pages/collection.page.json` ships and Core writes when it cannot
+      // resolve the slug against the organisation's catalog.
       expect(
-        requestedFor({ ...mock, collection: null, collectionHandle: '' }, 'the-winter-edit')
-      ).toContainEqual({ slug: 'the-winter-edit' });
+        requestedFor({ ...mock, collection: { _type: 'collection', slug: 'best-sellers' } })
+      ).toContainEqual({ slug: 'best-sellers' });
     });
 
-    it('lets the picked collection override both the handle and the route', () => {
+    it('falls back to the route when no collection is picked', () => {
+      expect(requestedFor({ ...mock, collection: null }, 'the-winter-edit')).toContainEqual({
+        slug: 'the-winter-edit',
+      });
+    });
+
+    it('ignores a retired collectionHandle an entry still carries', () => {
+      // The handle field is gone: a value left behind by the old schema must not
+      // stand in for a collection nobody can see in Studio any more, and must
+      // not shadow the route the template resolved.
+      const asked = requestedFor({ ...mock, collectionHandle: 'best-sellers' }, 'the-winter-edit');
+      expect(asked).not.toContainEqual({ slug: 'best-sellers' });
+      expect(asked).toContainEqual({ slug: 'the-winter-edit' });
+    });
+
+    it('lets the picked collection override the route', () => {
       const asked = requestedFor(
-        {
-          ...mock,
-          collection: { id: WINTER, _type: 'collection' },
-          collectionHandle: 'best-sellers',
-        },
+        { ...mock, collection: { id: WINTER, _type: 'collection' } },
         'the-winter-edit'
       );
       expect(asked).toContainEqual({ id: WINTER });
-      expect(asked).not.toContainEqual({ slug: 'best-sellers' });
       expect(asked).not.toContainEqual({ slug: 'the-winter-edit' });
     });
 
@@ -1135,10 +1146,7 @@ describe('collection-grid block', () => {
     it('shows the publish hint when only an unresolvable collection id is known', async () => {
       const source = createDemoStorefront();
       source.route.collectionHandle = null;
-      const wrapper = mountGrid(
-        { ...mock, collection: UNRESOLVABLE, collectionHandle: '' },
-        { source, editing: true }
-      );
+      const wrapper = mountGrid({ ...mock, collection: UNRESOLVABLE }, { source, editing: true });
       await flushPromises();
       expect(wrapper.text()).toContain(enUS.storefront.unresolvedCollectionLabel);
       expect(wrapper.text()).toContain(enUS.storefront.unresolvedCollectionHelp);
@@ -1150,10 +1158,7 @@ describe('collection-grid block', () => {
     it('never shows that hint to a live visitor — the block renders its own empty grid instead', async () => {
       const source = createDemoStorefront();
       source.route.collectionHandle = null;
-      const wrapper = mountGrid(
-        { ...mock, collection: UNRESOLVABLE, collectionHandle: '' },
-        { source }
-      );
+      const wrapper = mountGrid({ ...mock, collection: UNRESOLVABLE }, { source });
       await flushPromises();
       expect(wrapper.text()).not.toContain(enUS.storefront.unresolvedCollectionLabel);
       expect(cards(wrapper)).toHaveLength(0);
@@ -1163,7 +1168,7 @@ describe('collection-grid block', () => {
     it('shows the "Choose a collection" hint when no collection is bound', async () => {
       const source = createDemoStorefront();
       source.route.collectionHandle = null;
-      const base = mountOptions({ entry: { id: 'e1', data: { ...mock, collectionHandle: '' } } });
+      const base = mountOptions({ entry: { id: 'e1', data: mock } });
       const wrapper = mount(Block, {
         ...base,
         global: {

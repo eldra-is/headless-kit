@@ -7,9 +7,9 @@
  *
  * **Where the data comes from.** Everything a shopper sees — cards, prices, filter values, counts,
  * the total — is `useStorefront().catalog.collectionProducts()`; the CMS fields only configure the
- * block and carry the empty-state copy. The collection is the `collectionHandle` field when an
- * author set one, else `route.collectionHandle` (the field's own help text: "Leave empty on a
- * collection template — the route supplies it"). Cards are always built by `toProductCard()`, the
+ * block and carry the empty-state copy. The collection is the `collection` reference field when an
+ * author picked one, else `route.collectionHandle` (the field's own help text: "Leave empty on a
+ * collection page to use that collection"). Cards are always built by `toProductCard()`, the
  * one mapping every commerce block shares.
  *
  * **Where the state goes.** Selected filters, sort, columns and page belong in the URL so results
@@ -192,20 +192,21 @@ function normaliseChoice(value: unknown, allowed: string[], fallback: string): s
 /**
  * Which collection this grid shows. `collection` is the `reference` field an
  * author picks in Studio; it stores the collection's id, so a renamed collection
- * cannot silently empty the block. `collectionHandle` is the handle field this
- * block shipped with — still honoured, so a merchant's existing grid keeps
- * working after the theme update, and it is what `mock.json` (Storybook,
- * previews) still carries. `route.collectionHandle` is the collection template's
- * own segment, the case the fields are both meant to be left empty for.
+ * cannot silently empty the block. It replaced a `collectionHandle` string field
+ * in version 3 — a handle a merchant retyped went stale the moment the
+ * collection was renamed, and the field is not read here any more even when an
+ * entry still carries the retired value (Core keeps it as `collectionHandle__v2`
+ * and nothing in this theme looks at it). `route.collectionHandle` is the
+ * collection template's own segment, the case the field is meant to be left
+ * empty for.
  *
  * `collectionSelector` prefers the reference's resolved `slug`, falls back to its
  * bare id (a page builder draft overlay, or a depth-0 read — see
- * `app/storefront/collectionSelector.ts`) and only then to the handle and the
- * route: a picked collection overrides both, which is what its help text
- * promises.
+ * `app/storefront/collectionSelector.ts`) and only then to the route: a picked
+ * collection overrides it, which is what its help text promises.
  */
 const selected = computed<StorefrontCollectionSelector | null>(() =>
-  collectionSelector(data.value.collection, data.value.collectionHandle, route.collectionHandle)
+  collectionSelector(data.value.collection, route.collectionHandle)
 );
 /** The handle, when the collection is known by one. `collection()` below and the
  *  `/collections/<slug>` paging links have no other key to work from; the grid

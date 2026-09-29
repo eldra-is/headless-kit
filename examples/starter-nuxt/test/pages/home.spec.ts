@@ -122,13 +122,17 @@ describe('home page (pages/home.page.json)', () => {
     // trust-strip `columns` (not `inline`): the per-item body line only renders in `columns`.
     expect(main.text()).toContain('Delivered in 2–4 business days, carbon-neutral.');
 
-    // product-carousel `collection` sourced from the demo storefront's `the-winter-edit` handle
-    // (`app/storefront/demo.ts` only seeds `winter-knitwear`/`the-winter-edit` — a `sourceHandle`
-    // the demo catalogue doesn't recognise resolves to no products at all, and the whole block
-    // renders nothing live, so the fixture points at a real handle rather than a placeholder one):
-    // real product cards render, capped at the `limit: "8"` override, and "View all" points at the
-    // collection the block is sourced from — the `collection` variant derives its own link
-    // (`/collections/<slug>`) and has no `viewAllHref` field to override it with.
+    // product-carousel `collection`, sourced through the seed form of a reference:
+    // `sourceCollection: { _type: "collection", slug: "the-winter-edit" }`, the only form a theme
+    // can ship (Core resolves the slug against the organisation's own catalog on deploy). The
+    // demo storefront resolves a reference by slug as readily as by id, so the fixture renders
+    // exactly what a seeded site does. `app/storefront/demo.ts` only seeds
+    // `winter-knitwear`/`the-winter-edit` — a slug the demo catalogue doesn't recognise resolves
+    // to no products at all and the whole block renders nothing live, so the fixture names a real
+    // collection rather than a placeholder. Real product cards render, capped at the `limit: "8"`
+    // override, and "View all" points at the collection the block is sourced from — the
+    // `collection` variant derives its own link (`/collections/<slug>`) and has no `viewAllHref`
+    // field to override it with.
     const carouselRoot = roots[4];
     expect(carouselRoot.querySelectorAll('h3')).toHaveLength(8);
     // The carousel's heading is its "view all" link: the label lives in the anchor's accessible
@@ -137,6 +141,12 @@ describe('home page (pages/home.page.json)', () => {
       a.getAttribute('aria-label')?.includes('View all')
     );
     expect(viewAllLink?.getAttribute('href')).toBe('/collections/the-winter-edit');
+    // The slug came out of the reference, not out of a handle field: the fixture carries no
+    // `sourceHandle`, and there is no field left that could have supplied it.
+    const carouselData = homeFixture.blocks.find((block) => block.apiId === 'product-carousel')!
+      .data as Record<string, unknown>;
+    expect(carouselData.sourceCollection).toEqual({ _type: 'collection', slug: 'the-winter-edit' });
+    expect(Object.hasOwn(carouselData, 'sourceHandle')).toBe(false);
 
     // split-content `startWith: "image-left"`: row 1's image sits on the left (no reorder class),
     // row 2 alternates to the right (`@tablet:order-2`) — the visual side only `startWith` decides.

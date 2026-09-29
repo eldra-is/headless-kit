@@ -6,12 +6,13 @@ import {
 } from '../../app/storefront/collectionSelector';
 
 /**
- * The resolution order two blocks share (`product-carousel`, `collection-grid`):
- * a picked collection always wins over the slug sources behind it, and its
- * resolved `slug` is preferred over its bare id. Asserted here rather than only
- * through the blocks, because the demo storefront answers a slug and an id
- * equally well — so a block test cannot tell the two apart, and the order would
- * go unguarded.
+ * The resolution order the three commerce blocks share (`product-carousel`,
+ * `collection-grid`, `collection-header`): the picked collection's resolved
+ * `slug`, then its bare id, then — for a block that can sit on a collection
+ * template — the route's own collection. Asserted here rather than only through
+ * the blocks, because the demo storefront answers a slug and an id equally well
+ * — so a block test cannot tell the two apart, and the order would go
+ * unguarded.
  */
 const ID = '2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a01';
 
@@ -26,30 +27,40 @@ describe('collectionSelector', () => {
     expect(collectionSelector({ id: ID, _type: 'collection' })).toEqual({ id: ID });
   });
 
-  it('lets a reference with a slug beat every fallback slug', () => {
+  it('reads a seed reference, which names its collection by slug and carries no id', () => {
+    // What `pages/home.page.json` ships and Core writes when it cannot resolve
+    // the slug to one of the organisation's own collections: the block still
+    // has a usable selector without the round trip.
     expect(
-      collectionSelector({ id: ID, _type: 'collection', slug: 'picked' }, 'legacy-handle', 'route')
-    ).toEqual({ slug: 'picked' });
+      collectionSelector({
+        _type: 'collection',
+        slug: 'the-winter-edit',
+      } as EldraCollectionReference)
+    ).toEqual({ slug: 'the-winter-edit' });
   });
 
-  it('lets a stub reference beat every fallback slug too — the field overrides the handle', () => {
-    expect(collectionSelector({ id: ID, _type: 'collection' }, 'legacy-handle', 'route')).toEqual({
-      id: ID,
+  it('lets a reference with a slug beat the route', () => {
+    expect(collectionSelector({ id: ID, _type: 'collection', slug: 'picked' }, 'route')).toEqual({
+      slug: 'picked',
     });
   });
 
-  it('takes the fallbacks in the order the block gave them', () => {
-    expect(collectionSelector(null, 'legacy-handle', 'route')).toEqual({ slug: 'legacy-handle' });
-    expect(collectionSelector(null, '', 'route')).toEqual({ slug: 'route' });
-    expect(collectionSelector(null, '  ', null)).toBeNull();
+  it('lets a stub reference beat the route too — the field overrides it', () => {
+    expect(collectionSelector({ id: ID, _type: 'collection' }, 'route')).toEqual({ id: ID });
+  });
+
+  it('falls back to the route’s collection, and to nothing at all', () => {
+    expect(collectionSelector(null, 'route')).toEqual({ slug: 'route' });
+    expect(collectionSelector(null, '  ')).toBeNull();
+    expect(collectionSelector(null, null)).toBeNull();
     expect(collectionSelector(undefined)).toBeNull();
   });
 
-  it('trims a hand-typed handle and ignores a reference with neither key', () => {
+  it('trims the route’s handle and ignores a reference with neither key', () => {
     expect(collectionSelector(null, '  spaced  ')).toEqual({ slug: 'spaced' });
     expect(
-      collectionSelector({ slug: '   ' } as unknown as EldraCollectionReference, 'legacy')
-    ).toEqual({ slug: 'legacy' });
+      collectionSelector({ slug: '   ' } as unknown as EldraCollectionReference, 'route')
+    ).toEqual({ slug: 'route' });
   });
 
   it('reports the slug, and whether only an id is known', () => {

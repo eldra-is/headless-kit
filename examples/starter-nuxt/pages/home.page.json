@@ -280,7 +280,7 @@
         "viewAllLabel": "View all",
         "showSwatches": true,
         "background": "none",
-        "sourceHandle": "the-winter-edit"
+        "sourceCollection": { "_type": "collection", "slug": "the-winter-edit" }
       }
     },
     {

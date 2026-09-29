@@ -8,10 +8,12 @@
  * count always comes from the store — never a field, per the spec's own "Don't fake the count"
  * rule.
  *
- * `handle` is `collectionHandle` when the field is set, else the route's own collection handle
- * (`storefront.route.collectionHandle`) — the same "field wins, route is the fallback" contract
- * `collectionHandle`'s own `helpText` describes, for a block dropped straight onto a collection
- * template with no field filled in at all.
+ * The collection is the `collection` reference field when an author picked one, else the route's
+ * own collection (`storefront.route.collectionHandle`) — the same "field wins, route is the
+ * fallback" contract the field's own `helpText` describes ("Leave empty on a collection page to
+ * use that collection"), for a block dropped straight onto a collection template with nothing
+ * filled in at all. The reference replaced a `collectionHandle` string field in version 2, and a
+ * retired handle an entry still carries (`collectionHandle__v1`) is not read here.
  *
  * `variant: 'image'` renders two columns from `@tablet` (48rem: text left, a 3:2 image right,
  * vertically centred) and stacks image-first below it; `variant: 'text-only'` is a single column
@@ -49,6 +51,7 @@ import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
+import { collectionSelector, selectorSlug } from '../../app/storefront/collectionSelector';
 
 interface TrailLevel {
   label?: string;
@@ -73,13 +76,17 @@ const descriptionId = `collection-header-description-${uid}`;
 const readMoreId = `collection-header-readmore-${uid}`;
 
 // ---------------------------------------------------------------------------------------------
-// Storefront lookup — `collectionHandle` wins, the route's own collection handle is the fallback.
+// Storefront lookup — the picked collection wins, the route's own collection is the fallback.
 // ---------------------------------------------------------------------------------------------
 
-const handle = computed(() => {
-  const explicit = (data.value.collectionHandle ?? '').trim();
-  return explicit !== '' ? explicit : storefront.route.collectionHandle;
-});
+/** `catalog.collection()` has no key but the handle, so a collection known only
+ *  by id (a page builder draft overlay, or a depth-0 read — see
+ *  `app/storefront/collectionSelector.ts`) resolves to nothing and the block
+ *  falls back to its own `title`/`description`/`image` fields until the page is
+ *  published, exactly as it does with no collection at all. */
+const handle = computed(() =>
+  selectorSlug(collectionSelector(data.value.collection, storefront.route.collectionHandle))
+);
 const collectionResult = storefront.catalog.collection(handle);
 const collectionInfo = computed(() => collectionResult.data.value);
 

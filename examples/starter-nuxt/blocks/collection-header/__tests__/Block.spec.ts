@@ -8,7 +8,7 @@ import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { enUS } from '../../../app/i18n/en-US';
-import { createDemoStorefront } from '../../../app/storefront/demo';
+import { createDemoStorefront, demoCollectionId } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
   StorefrontCollectionInfo,
@@ -242,13 +242,77 @@ describe('collection-header block', () => {
     });
   });
 
+  /**
+   * Which collection the header describes: the `collection` `reference` field an
+   * author picks in Studio, else the collection template's own route segment —
+   * "field wins, route is the fallback", the same contract `collection-grid`
+   * follows. The `collectionHandle` string field the block shipped with is
+   * retired as of version 2 (Core keeps its content as `collectionHandle__v1`)
+   * and is not read here even when an entry still carries it.
+   */
+  describe('the collection source', () => {
+    it('describes the collection the reference names, over the route’s own', async () => {
+      const wrapper = await mountHeader({
+        variant: 'text-only',
+        collection: { _type: 'collection', slug: 'the-winter-edit' },
+      });
+      expect(wrapper.text()).toContain('The winter edit');
+      expect(wrapper.text()).not.toContain('Winter knitwear');
+    });
+
+    it('resolves a reference that carries a resolved slug beside its id', async () => {
+      const wrapper = await mountHeader({
+        variant: 'text-only',
+        collection: {
+          id: demoCollectionId('the-winter-edit')!,
+          _type: 'collection',
+          slug: 'the-winter-edit',
+        },
+      });
+      expect(wrapper.text()).toContain('The winter edit');
+    });
+
+    it('falls back to the route when no collection is picked', async () => {
+      const wrapper = await mountHeader({ variant: 'text-only' });
+      expect(wrapper.text()).toContain('Winter knitwear');
+    });
+
+    it('ignores a retired collectionHandle an entry still carries', async () => {
+      // The handle field is gone: a value left behind by the old schema must not
+      // shadow the collection the route resolved, or a seeded collection page
+      // would describe whichever collection the sample page once named.
+      const wrapper = await mountHeader({
+        variant: 'text-only',
+        collectionHandle: 'the-winter-edit',
+      });
+      expect(wrapper.text()).toContain('Winter knitwear');
+      expect(wrapper.text()).not.toContain('The winter edit');
+    });
+
+    it('falls back to its own fields while the picked collection is known only by id', async () => {
+      // A page builder draft overlay, or a depth-0 read: `catalog.collection()`
+      // has no key but the handle, so nothing resolves and the block shows what
+      // the author typed rather than an error.
+      const source = createDemoStorefront();
+      source.route.collectionHandle = null;
+      const wrapper = await mountHeader(
+        {
+          variant: 'text-only',
+          title: 'Sale',
+          collection: { id: '00000000-0000-4000-8000-000000000000', _type: 'collection' },
+        },
+        source
+      );
+      expect(wrapper.text()).toContain('Sale');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
   describe('image variant fallback', () => {
     it('renders the text-only layout with no <img> when neither the field nor the store has an image', async () => {
-      const wrapper = await mountHeader({
-        variant: 'image',
-        title: 'Sale',
-        collectionHandle: 'no-such-collection',
-      });
+      const source = createDemoStorefront();
+      source.route.collectionHandle = null;
+      const wrapper = await mountHeader({ variant: 'image', title: 'Sale' }, source);
       expect(wrapper.find('img').exists()).toBe(false);
       expect(wrapper.text()).toContain('Sale');
     });
