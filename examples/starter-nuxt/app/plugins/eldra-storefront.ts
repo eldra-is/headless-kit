@@ -1,4 +1,4 @@
-import { defineNuxtPlugin, useAsyncData, useRoute, useRouter, useRuntimeConfig } from 'nuxt/app';
+import { defineNuxtPlugin, useAsyncData, useRouter, useRuntimeConfig } from 'nuxt/app';
 import { getCurrentInstance, nextTick, reactive, watchEffect } from 'vue';
 import { createEldraClient } from '@eldrajs/sdk';
 import {
@@ -20,7 +20,7 @@ import {
 } from '../storefront/prerender';
 
 /**
- * The only file under `app/storefront/*`'s orbit that touches Nuxt globals (`useRoute`,
+ * The only file under `app/storefront/*`'s orbit that touches Nuxt globals (`useRouter`,
  * `useRouter`, `useRuntimeConfig`) — every block reads `useStorefront()` instead, which never
  * does: the route context it exposes is read-only data, and a block may not read the URL itself.
  *
@@ -60,7 +60,20 @@ export default defineNuxtPlugin({
   name: 'eldra-storefront',
   setup(nuxtApp) {
     const router = useRouter();
-    const activeRoute = useRoute();
+    // The router's **committed** route, not `useRoute()`.
+    //
+    // `useRoute()` is Nuxt's app-level route, and `NuxtPage` syncs that only once the destination
+    // page's `<Suspense>` has resolved (`nuxt/dist/pages/runtime/page.js`, `onResolve`). A page's
+    // blocks are lazily imported components created *inside* that pending branch, so every
+    // storefront result on the page being navigated to would be created under the route context of
+    // the page it replaces: a product page whose `productHandle` is still `null` and whose
+    // `collectionHandle` is still the collection the shopper clicked from. That is a result keyed
+    // differently from the one the build prerendered — so it misses the payload — and then a
+    // second, live read the moment the route catches up.
+    //
+    // `router.currentRoute` is the destination from the moment the navigation is confirmed, which
+    // is before any of that happens.
+    const activeRoute = router.currentRoute;
     // The catalog object a route template matched, when this path is served by one
     // (`schemaApiId: 'catalog:product' | 'catalog:collection'`); `null` on every other route.
     const { catalog } = useEldraPage();
@@ -81,7 +94,7 @@ export default defineNuxtPlugin({
       filters: {},
       setQuery(patch: Record<string, string | string[] | null>) {
         const nextQuery: Record<string, string | string[]> = {};
-        for (const [key, value] of Object.entries(activeRoute.query)) {
+        for (const [key, value] of Object.entries(activeRoute.value.query)) {
           if (value !== null && value !== undefined) nextQuery[key] = value as string | string[];
         }
         for (const [key, value] of Object.entries(patch)) {
@@ -111,24 +124,24 @@ export default defineNuxtPlugin({
     //    catalog template behind it — the storefront pages a site has before its first deploy
     //    seeds the templates, and the demo/Storybook routes.
     watchEffect(() => {
-      const handle = firstOf(activeRoute.params.handle as string | string[] | undefined);
+      const handle = firstOf(activeRoute.value.params.handle as string | string[] | undefined);
       const match = catalog.value;
       if (match === null) {
-        route.productHandle = activeRoute.path.startsWith('/products/') ? handle : null;
-        route.collectionHandle = activeRoute.path.startsWith('/collections/') ? handle : null;
+        route.productHandle = activeRoute.value.path.startsWith('/products/') ? handle : null;
+        route.collectionHandle = activeRoute.value.path.startsWith('/collections/') ? handle : null;
       } else {
         route.productHandle = match.kind === 'product' ? match.slug : null;
         route.collectionHandle = match.kind === 'collection' ? match.slug : null;
       }
-      route.orderToken = firstOf(activeRoute.query.token as string | string[] | undefined);
-      route.query = firstOf(activeRoute.query.q as string | string[] | undefined);
-      const page = Number(firstOf(activeRoute.query.page as string | string[] | undefined));
+      route.orderToken = firstOf(activeRoute.value.query.token as string | string[] | undefined);
+      route.query = firstOf(activeRoute.value.query.q as string | string[] | undefined);
+      const page = Number(firstOf(activeRoute.value.query.page as string | string[] | undefined));
       route.page = Number.isFinite(page) && page > 0 ? page : 1;
-      route.sort = firstOf(activeRoute.query.sort as string | string[] | undefined);
-      route.columns = firstOf(activeRoute.query.columns as string | string[] | undefined);
+      route.sort = firstOf(activeRoute.value.query.sort as string | string[] | undefined);
+      route.columns = firstOf(activeRoute.value.query.columns as string | string[] | undefined);
 
       const filters: Record<string, string[]> = {};
-      for (const [key, value] of Object.entries(activeRoute.query)) {
+      for (const [key, value] of Object.entries(activeRoute.value.query)) {
         if (RESERVED_QUERY_KEYS.has(key) || value === null || value === undefined) continue;
         filters[key] = Array.isArray(value) ? (value as string[]) : [value as string];
       }
@@ -195,11 +208,22 @@ export default defineNuxtPlugin({
         key: string,
         load: () => Promise<T | null>
       ): StorefrontPrerenderHandle<T> | null {
-        // Nothing to prerender once the page is the browser's: this result is being created by a
-        // navigation, and `useAsyncData` outside a component's `setup()` has no server-prefetch to
-        // register on either.
-        if (import.meta.client && !nuxtApp.isHydrating) return null;
+        // `useAsyncData` outside a component's `setup()` has no server-prefetch to register on.
         if (getCurrentInstance() === null) return null;
+        // After hydration, only when the build actually answered this key. Nuxt's payload plugin
+        // loads the destination's `_payload.json` in `router.beforeResolve` and writes every key in
+        // it into `nuxtApp.static.data` before the page component exists
+        // (`nuxt/dist/app/plugins/payload.client.js`), so on a navigation to a **prerendered**
+        // route the answer this result wants is already in memory — reading it back is what makes
+        // a client navigation land on real prices instead of a skeleton, and what leaves the page
+        // with the same one batched volatile refresh a hard load makes.
+        //
+        // A key that is not there is a route the build does not have (a preview, a dev server) or
+        // a result the build could not know about (a search as the shopper types): it loads live,
+        // exactly as it always did, and stays out of the volatile refresh because it has just read
+        // the live values itself (`app/storefront/gateway.ts`'s `ranUnderPrerender`).
+        if (import.meta.client && !nuxtApp.isHydrating && !(key in nuxtApp.static.data))
+          return null;
         return prerenderThroughAsyncData<T>(keyedAsyncData, key, load);
       },
       // Only the browser refreshes: on the server the read that just ran *is* the live value.

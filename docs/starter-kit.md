@@ -470,9 +470,15 @@ that request too; and a result that somehow registers twice takes part once. Wit
 deployed pages issued every read twice, ~35 ms apart, with identical ids. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
 (`'price' | 'stock'`) and the prerendered value stays on screen; a failed refresh keeps the value
 and clears the set — a page never regresses to an error state for something it can already show.
-A result created _after_ hydration (a client navigation, a search as the shopper types) just loads
-live, as it always did, and never takes part in a batch — it has the live values already — and the
-demo storefront never refreshes at all, so stories and specs are unaffected. (The demo does answer _synchronously_ off a browser, so a server render of a block
+A result created _after_ hydration reads the build's answer when there is one and loads live when
+there is not, and the test is the payload itself: Nuxt loads the destination's `_payload.json` in
+`router.beforeResolve` and writes every key in it into `nuxtApp.static.data` before the page
+component exists, so a client navigation to a **prerendered** route finds its results already
+answered — real prices on the first frame rather than a skeleton, and the same one batched volatile
+refresh a hard load makes. A key that is not there is a route the build does not have (a preview, a
+dev server) or a question the build could not know (a search as the shopper types): it loads live as
+it always did and never takes part in a batch, since it has the live values already. The demo
+storefront never refreshes at all, so stories and specs are unaffected. (The demo does answer _synchronously_ off a browser, so a server render of a block
 against it carries the fixture's real values rather than a skeleton — the same thing the gateway
 storefront does for the real site.) The wiring lives in `app/plugins/eldra-storefront.ts` (Nuxt's
 half) and `app/storefront/refresh.ts`/`volatile.ts` (the framework-free half).

@@ -1,10 +1,11 @@
-import { chromium, type Browser } from '@playwright/test';
+import { chromium, type Browser, type Page } from '@playwright/test';
 import { execa } from 'execa';
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { enUS } from '../app/i18n/en-US';
 import {
   COLLECTION_HANDLE,
   HOME_PAGE_PATH,
@@ -92,7 +93,10 @@ interface Visit {
    * must be 1: a block created a second time runs its `setup` again, and with it every storefront
    * read in it.
    */
-  instances: { created: Record<string, number>; mounted: Record<string, number> };
+  instances: {
+    created: Record<string, number>;
+    mounted: Record<string, number>;
+  };
   /** Where the browser ended up — the host's redirect included, which is the point on a page route. */
   url: string;
 }
@@ -125,7 +129,9 @@ async function visit(path: string): Promise<Visit> {
   });
   page.on('pageerror', (error) => warnings.push(`pageerror: ${error.message.slice(0, 200)}`));
   try {
-    await page.goto(`${statics.origin}${path}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${statics.origin}${path}`, {
+      waitUntil: 'domcontentloaded',
+    });
     const samples: Treatment[] = [];
     // 4 s covers the whole 1.5 s refresh and the settled state after it.
     for (let elapsed = 0; elapsed < 4000; elapsed += 200) {
@@ -149,7 +155,10 @@ async function visit(path: string): Promise<Visit> {
         __eldraCreated?: Record<string, number>;
         __eldraMounted?: Record<string, number>;
       };
-      return { created: probe.__eldraCreated ?? {}, mounted: probe.__eldraMounted ?? {} };
+      return {
+        created: probe.__eldraCreated ?? {},
+        mounted: probe.__eldraMounted ?? {},
+      };
     });
     return {
       requests: gateway.requests.map((request) => decodeURIComponent(request)),
@@ -200,6 +209,74 @@ function askedMoreThanOnce(requests: readonly string[]): string[] {
     .filter(([, seen]) => seen > 1)
     .map(([what]) => what)
     .sort();
+}
+
+/** One sample of what a visitor can see while the app moves between two routes. */
+interface NavSample {
+  /** The whole visible page text — the loading shell's string is in here, or it is not. */
+  text: string;
+  h1: string;
+}
+
+interface Navigation {
+  samples: NavSample[];
+  /** `pathname + search` of every **gateway** request made from the moment the navigation started. */
+  requests: string[];
+  url: string;
+  warnings: string[];
+}
+
+/** The first sample that shows the not-found shell, or -1 — how promptly a 404 was answered. */
+function firstSampleShowing(samples: readonly NavSample[], text: string): number {
+  return samples.findIndex((sample) => sample.text.includes(text));
+}
+
+/**
+ * Load `from`, let its own post-hydration refresh finish, then navigate **inside the app** and
+ * watch what the visitor sees and what the gateway is asked, from the click onwards.
+ *
+ * The wait before `gateway.reset()` is what makes the request log mean anything: the departure
+ * page's refresh is held back by `catalogDelayMs`, and a navigation started while it is in flight
+ * would put its answers in the log this is about.
+ */
+async function navigateFrom(from: string, go: (page: Page) => Promise<void>): Promise<Navigation> {
+  const page = await browser.newPage();
+  const warnings: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (/hydrat|mismatch/i.test(text) || message.type() === 'error') {
+      warnings.push(`${message.type()}: ${text.slice(0, 200)}`);
+    }
+  });
+  page.on('pageerror', (error) => warnings.push(`pageerror: ${error.message.slice(0, 200)}`));
+  try {
+    await page.goto(`${statics.origin}${from}`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await page.waitForTimeout(CATALOG_DELAY_MS + 1500);
+    gateway.reset();
+    await go(page);
+    const samples: NavSample[] = [];
+    // 50 ms, not the 200 ms the hard-load sampler uses: a loading shell that flashes between two
+    // prerendered routes is gone in well under a frame budget's worth of coarse sampling.
+    for (let elapsed = 0; elapsed < 3000; elapsed += 50) {
+      samples.push(
+        await page.evaluate(() => ({
+          text: document.body.innerText,
+          h1: document.querySelector('h1')?.textContent?.trim() ?? '',
+        }))
+      );
+      await page.waitForTimeout(50);
+    }
+    return {
+      samples,
+      requests: gateway.requests.map((request) => decodeURIComponent(request)),
+      url: page.url(),
+      warnings,
+    };
+  } finally {
+    await page.close();
+  }
 }
 
 /** The sample with the most of the treatment on screen. */
@@ -365,5 +442,67 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(peak.busy).toBeGreaterThan(0);
     expect(peak.announced).toBe(2); // one row-level region per block
     expect(visited.samples[visited.samples.length - 1]).toEqual(NOTHING);
+  });
+
+  /**
+   * Client-side navigation between two **prerendered** routes. Everything the destination needs is
+   * in the build: Nuxt's own payload plugin loads `/products/<handle>/_payload.json` in
+   * `router.beforeResolve` and writes it into `nuxtApp.static.data` before the page component
+   * exists. A route resolution that reaches the gateway anyway is a resolution the build already
+   * did — and it is visible, because the page renders its loading shell while it waits.
+   *
+   * The request log is asserted whole: the only reads a static navigation may make are the
+   * destination page's own volatile refresh (the product's detail read, and one batched `id:in`
+   * for the carousel's cards). A CMS read, or a read belonging to the collection page being left,
+   * is a defect — the first says the route was resolved again, the second says a departing block
+   * re-ran on the route change before it unmounted.
+   */
+  it('shows no loading state and asks nothing about the route when a card is clicked', async () => {
+    const visited = await navigateFrom(collectionPage, async (page) => {
+      await page.locator('#main a[href^="/products/"]').first().click();
+    });
+    // The premise: a real client-side navigation happened, to the product this spec is about.
+    expect(visited.url).toBe(`${statics.origin}${productPage}`);
+    expect(
+      visited.samples.map((sample) => sample.text).filter((text) => text.includes(enUS.loading))
+    ).toEqual([]);
+    expect(visited.samples[visited.samples.length - 1]?.h1).toBe('Ash glaze mug');
+    // The **whole** log. One read, and it is the product page's own volatile refresh: the detail
+    // read `product-detail` makes for itself, because the id it shows is a *variant's* and the
+    // batched `id:in` read cannot answer about it (`app/storefront/refresh.ts`). There is no
+    // batched read beside it — the six cards on this page are products the collection page already
+    // re-read a moment ago, and the refresher answers for a product once per page load, client
+    // navigations included. Everything else the page shows came out of the payload Nuxt loaded for
+    // the route: no `/cms/` read to resolve it, and nothing belonging to the collection page being
+    // left.
+    expect(visited.requests).toEqual([`/catalog/v1/products/${PRODUCT_HANDLE}`]);
+    expect(askedMoreThanOnce(visited.requests)).toEqual([]);
+    expect(visited.warnings).toEqual([]);
+  });
+
+  /**
+   * A route the build does not know. The prerendered route list is shipped with the site (Nuxt's
+   * app manifest), so "no such route" is an answer the browser already holds: the not-found shell
+   * must appear at once, and the gateway must not be asked a single question to reach it.
+   */
+  it('answers an unknown route as not found at once, with no gateway call at all', async () => {
+    const visited = await navigateFrom(collectionPage, async (page) => {
+      await page.evaluate(() =>
+        (
+          window as unknown as {
+            __eldraPush: (path: string) => Promise<unknown>;
+          }
+        ).__eldraPush('/products/does-not-exist')
+      );
+    });
+    expect(visited.requests).toEqual([]);
+    expect(
+      visited.samples.map((sample) => sample.text).filter((text) => text.includes(enUS.loading))
+    ).toEqual([]);
+    // Within four samples — 200 ms — rather than after a round of gateway reads.
+    const shown = firstSampleShowing(visited.samples, enUS.notFound.title);
+    expect(shown).toBeGreaterThanOrEqual(0);
+    expect(shown).toBeLessThan(4);
+    expect(visited.warnings).toEqual([]);
   });
 });
