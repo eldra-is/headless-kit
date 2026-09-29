@@ -4092,6 +4092,18 @@ describe('block hover reporting', () => {
     expect(hovers()).toEqual([]);
   });
 
+  it('posts nothing when a hover, a scroll and a leave all land in the same frame', () => {
+    // The scroll marks the geometry stale while the pointerover's frame is
+    // still armed; the leave empties the hover before anything was posted.
+    // Nothing was ever reported, so there is no leave to report either.
+    over(heading);
+    window.dispatchEvent(new Event('scroll'));
+    outOfDocument(blockA);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([]);
+  });
+
   it('coalesces a pointer sweep across blocks into one post carrying the block it settled on', () => {
     over(blockA);
     over(blockB);

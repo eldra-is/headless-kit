@@ -2594,6 +2594,13 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   function reportHoveredBlock(refreshGeometry: boolean): void {
     if (!started || !blockHoverEnabled || mode !== 'edit') return;
     const block = hoveredElement !== null && hoveredElement.isConnected ? hoveredElement : null;
+    // Nothing hovered and nothing reported: there is no leave to report, and
+    // `refreshGeometry` must not manufacture one. A pointerover, a scroll and
+    // a pointer-leave inside one frame reach exactly this state — the
+    // pointerover arms the frame, the scroll marks the geometry stale, the
+    // leave empties the hover before anything was ever posted — and a `null`
+    // here would be a leave message for a hover the editor never heard about.
+    if (block === null && reportedHoverElement === null) return;
     if (block === reportedHoverElement && !refreshGeometry) return;
     reportedHoverElement = block;
     if (block === null) {
