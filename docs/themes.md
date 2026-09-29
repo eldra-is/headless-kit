@@ -46,7 +46,9 @@ reimplementation. Both stay framework-agnostic: a non-Vue theme could call `scan
 `@eldrajs/theme-core/bridge` is the postMessage protocol between a theme running in Studio's page
 builder preview iframe and the Studio editor host. Messages come in two families: `theme:*` is what
 the theme sends — `theme:ready`, `theme:route-changed`, `theme:block-clicked`,
-`theme:rich-text-selection`, `theme:slots-rendered`, and so on — and `editor:*` is what Studio
+`theme:rich-text-selection`, `theme:slots-rendered`, `theme:block-hovered` (the hovered block's
+identity and rect, edit mode only, for an editor affordance anchored to that block — see
+`BridgePayloads` in `bridge/protocol.ts`), and so on — and `editor:*` is what Studio
 sends back — `editor:hello`, `editor:init`, `editor:content-update`, `editor:design-tokens`,
 `editor:select-block`, `editor:rich-text-editing`. Every message is wrapped in a versioned envelope
 (`makeEnvelope`/`parseEnvelope`, `BRIDGE_VERSION`) that a theme on an older protocol version simply

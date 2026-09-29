@@ -22,6 +22,7 @@ function overlayStub() {
     acceptRichTextApplied: vi.fn(),
     locateRichText: vi.fn(),
     setRichTextEnabled: vi.fn(),
+    setBlockHoverEnabled: vi.fn(),
     chromeStyles: vi.fn(),
     chromeState: vi.fn(),
   };
@@ -40,28 +41,56 @@ function setup(capabilities: string[] = []): {
 const target = { entryId: 'e1', fieldPath: 'body', locale: 'en-US' };
 
 describe('createPreviewMessageRouter', () => {
-  it('negotiates the three capabilities and forwards the two overlay gates', () => {
-    const { overlay, router } = setup(['block-slots', 'image-framing', 'rich-text-inline']);
+  it('negotiates the four capabilities and forwards the three overlay gates', () => {
+    const { overlay, router } = setup([
+      'block-slots',
+      'block-hover',
+      'image-framing',
+      'rich-text-inline',
+    ]);
 
-    expect(router.capabilities).toEqual({ slots: true, framing: true, richText: true });
+    expect(router.capabilities).toEqual({
+      slots: true,
+      framing: true,
+      richText: true,
+      blockHover: true,
+    });
     expect(overlay.setFramingEnabled).toHaveBeenLastCalledWith(true);
     expect(overlay.setRichTextEnabled).toHaveBeenLastCalledWith(true);
+    expect(overlay.setBlockHoverEnabled).toHaveBeenLastCalledWith(true);
 
     // Re-negotiated on every hello, including reconnects that drop a capability.
     router.negotiate(['block-slots']);
-    expect(router.capabilities).toEqual({ slots: true, framing: false, richText: false });
+    expect(router.capabilities).toEqual({
+      slots: true,
+      framing: false,
+      richText: false,
+      blockHover: false,
+    });
     expect(overlay.setFramingEnabled).toHaveBeenLastCalledWith(false);
     expect(overlay.setRichTextEnabled).toHaveBeenLastCalledWith(false);
+    expect(overlay.setBlockHoverEnabled).toHaveBeenLastCalledWith(false);
   });
 
   it('reset() closes every gate', () => {
-    const { overlay, router } = setup(['block-slots', 'image-framing', 'rich-text-inline']);
+    const { overlay, router } = setup([
+      'block-slots',
+      'block-hover',
+      'image-framing',
+      'rich-text-inline',
+    ]);
 
     router.reset();
 
-    expect(router.capabilities).toEqual({ slots: false, framing: false, richText: false });
+    expect(router.capabilities).toEqual({
+      slots: false,
+      framing: false,
+      richText: false,
+      blockHover: false,
+    });
     expect(overlay.setFramingEnabled).toHaveBeenLastCalledWith(false);
     expect(overlay.setRichTextEnabled).toHaveBeenLastCalledWith(false);
+    expect(overlay.setBlockHoverEnabled).toHaveBeenLastCalledWith(false);
   });
 
   it('routes selection and drag messages to the overlay', () => {

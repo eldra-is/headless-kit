@@ -63,6 +63,7 @@ describe('@eldrajs/bridge', () => {
     expect(ready.payload.capabilities).toEqual([
       'design-tokens',
       'block-slots',
+      'block-hover',
       'image-framing',
       'rich-text-inline',
     ]);
@@ -379,6 +380,7 @@ describe('@eldrajs/bridge', () => {
     expect(THEME_CAPABILITIES).toEqual([
       'design-tokens',
       'block-slots',
+      'block-hover',
       'image-framing',
       'rich-text-inline',
     ]);
@@ -387,9 +389,16 @@ describe('@eldrajs/bridge', () => {
       'select-block',
       'inline-text',
       'block-slots',
+      'block-hover',
       'image-framing',
       'rich-text-inline',
     ]);
+  });
+
+  it('lists theme:block-hovered in KNOWN_MESSAGE_TYPES and advertises block-hover on both sides', () => {
+    expect(KNOWN_MESSAGE_TYPES.has('theme:block-hovered')).toBe(true);
+    expect([...THEME_CAPABILITIES]).toContain('block-hover');
+    expect([...EDITOR_CAPABILITIES]).toContain('block-hover');
   });
 
   it('round-trips the framing envelopes in both directions', () => {
@@ -453,6 +462,7 @@ describe('@eldrajs/bridge', () => {
     expect(THEME_CAPABILITIES).toEqual([
       'design-tokens',
       'block-slots',
+      'block-hover',
       'image-framing',
       'rich-text-inline',
     ]);
@@ -461,6 +471,7 @@ describe('@eldrajs/bridge', () => {
       'select-block',
       'inline-text',
       'block-slots',
+      'block-hover',
       'image-framing',
       'rich-text-inline',
     ]);

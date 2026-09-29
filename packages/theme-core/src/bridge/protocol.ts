@@ -285,6 +285,36 @@ export interface BridgePayloads {
     }>;
   };
   /**
+   * The block the pointer is currently over, reported in edit mode only and
+   * only when the editor negotiated the `block-hover` capability
+   * (theme → editor).
+   *
+   * Posted when the hovered block *changes* — never once per pointer move
+   * inside the same block — and `null` when the pointer leaves the last
+   * hovered block (onto the page background, out of the document, or because
+   * a rerender detached it). While a block stays hovered the message is
+   * re-posted, coalesced to one per animation frame, on scroll and resize,
+   * exactly like `theme:blocks-rendered`: the iframe can scroll without any
+   * DOM mutation, and a stale rect would strand the editor's chrome.
+   *
+   * `rect` is the block's `getBoundingClientRect()` in iframe viewport
+   * pixels, the same space `theme:blocks-rendered` and `theme:block-clicked`
+   * report; `layoutNodeId`/`reusablePlacementId` are the block's placement
+   * identity, omitted (never `undefined`) when it has none.
+   *
+   * The identity is always the block's — hovering a field, or anything inside
+   * a rich-text editing root, reports the block that contains it and nothing
+   * finer. The intended consumer is an editor-side "add block" affordance
+   * anchored to the hovered block's bottom edge; the theme draws its own hover
+   * outline regardless and that behaviour is independent of this message.
+   */
+  'theme:block-hovered': {
+    entryId: string;
+    rect: DOMRectLike;
+    layoutNodeId?: string;
+    reusablePlacementId?: string;
+  } | null;
+  /**
    * Geometry of the editor-only slot markers rendered by the theme when the
    * editor negotiated the `block-slots` capability (theme → editor).
    */
@@ -365,6 +395,7 @@ export const KNOWN_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'theme:field-clicked',
   'theme:text-edited',
   'theme:blocks-rendered',
+  'theme:block-hovered',
   'theme:slots-rendered',
   'theme:height-changed',
   'theme:error',
@@ -386,13 +417,15 @@ export const EDITOR_CAPABILITIES = [
   'select-block',
   'inline-text',
   'block-slots',
+  'block-hover',
   'image-framing',
   'rich-text-inline',
 ] as const;
 
 /** Capabilities the theme advertises in theme:ready. `block-slots` gates the
  * editor-only slot markers and their theme:slots-rendered geometry reports.
- * `image-framing` gates the framing messages. `rich-text-inline` gates the
+ * `block-hover` gates theme:block-hovered, the hovered block's identity and
+ * rect, the same way. `image-framing` gates the framing messages. `rich-text-inline` gates the
  * §18 v3 messages that let the operator edit rich text natively in the
  * theme's own rendered DOM while Studio owns the document, the editor and
  * the toolbar; a side that does not advertise it never sends, and must
@@ -400,6 +433,7 @@ export const EDITOR_CAPABILITIES = [
 export const THEME_CAPABILITIES = [
   'design-tokens',
   'block-slots',
+  'block-hover',
   'image-framing',
   'rich-text-inline',
 ] as const;

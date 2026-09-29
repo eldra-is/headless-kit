@@ -18,6 +18,7 @@ const overlay = {
   setFramingMode: vi.fn(),
   setFramingEnabled: vi.fn(),
   setRichTextEnabled: vi.fn(),
+  setBlockHoverEnabled: vi.fn(),
   setRichTextEditing: vi.fn(),
   acceptRichTextApplied: vi.fn(),
   locateRichText: vi.fn(),

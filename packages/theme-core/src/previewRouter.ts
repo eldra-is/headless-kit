@@ -31,6 +31,7 @@ export interface NegotiatedEditorCapabilities {
   slots: boolean;
   framing: boolean;
   richText: boolean;
+  blockHover: boolean;
 }
 
 export interface PreviewMessageRouter {
@@ -47,7 +48,12 @@ export interface PreviewMessageRouter {
   reset(): void;
 }
 
-const CLOSED: NegotiatedEditorCapabilities = { slots: false, framing: false, richText: false };
+const CLOSED: NegotiatedEditorCapabilities = {
+  slots: false,
+  framing: false,
+  richText: false,
+  blockHover: false,
+};
 
 type RichTextTarget = {
   entryId: string;
@@ -71,6 +77,7 @@ export function createPreviewMessageRouter(
     const runtime = resolve();
     runtime.setFramingEnabled(capabilities.framing);
     runtime.setRichTextEnabled(capabilities.richText);
+    runtime.setBlockHoverEnabled(capabilities.blockHover);
   }
 
   return {
@@ -82,6 +89,7 @@ export function createPreviewMessageRouter(
         slots: list.includes('block-slots'),
         framing: list.includes('image-framing'),
         richText: list.includes('rich-text-inline'),
+        blockHover: list.includes('block-hover'),
       };
       apply();
       return capabilities;

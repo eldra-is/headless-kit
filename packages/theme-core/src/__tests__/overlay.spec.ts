@@ -3918,3 +3918,366 @@ describe('framing mode', () => {
     });
   });
 });
+
+// --- theme:block-hovered (spec decision 7) ----------------------------------
+//
+// The editor anchors an "add block" affordance to the hovered block's bottom
+// edge, so it needs the hovered block's identity and rect — geometry the
+// theme already tracks for its own hover outline but never reported. The
+// message is edit-mode only, gated on the negotiated `block-hover`
+// capability, posted when the hovered *block* changes (not on every pointer
+// move inside it), null on leave, and refreshed on scroll/resize.
+describe('block hover reporting', () => {
+  let post: Mock<OverlayRuntimeOptions['post']>;
+  let runtime: OverlayRuntime;
+  let blockA: HTMLElement;
+  let blockB: HTMLElement;
+  let heading: HTMLElement;
+  let richTextRoot: HTMLElement;
+
+  function stubRect(element: Element, rect: { x: number; y: number }): void {
+    vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
+      x: rect.x,
+      y: rect.y,
+      width: 300,
+      height: 80,
+      top: rect.y,
+      left: rect.x,
+      right: rect.x + 300,
+      bottom: rect.y + 80,
+      toJSON: () => ({}),
+    } as DOMRect);
+  }
+
+  const over = (element: Element): void => {
+    element.dispatchEvent(new Event('pointerover', { bubbles: true }));
+  };
+  /** A bubbled pointerout with a null relatedTarget: the pointer left the
+   * document entirely, which is the only case the runtime treats as a leave. */
+  const outOfDocument = (element: Element): void => {
+    element.dispatchEvent(new MouseEvent('pointerout', { bubbles: true }));
+  };
+  const hovers = (): unknown[] =>
+    post.mock.calls.filter((call) => call[0] === 'theme:block-hovered').map((call) => call[1]);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback) => setTimeout(() => cb(0), 16) as unknown as number
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+    post = vi.fn<OverlayRuntimeOptions['post']>();
+    document.body.innerHTML = '';
+
+    blockA = document.createElement('section');
+    blockA.setAttribute('data-eldra-block', 'block-1');
+    blockA.setAttribute('data-eldra-schema', 'hero');
+    blockA.setAttribute('data-eldra-layout-node', 'placement-1');
+    heading = document.createElement('h2');
+    heading.setAttribute('data-eldra-field', 'heading');
+    heading.textContent = 'Hello';
+    richTextRoot = document.createElement('div');
+    richTextRoot.setAttribute('data-eldra-rich-text', '');
+    richTextRoot.setAttribute('data-eldra-entry', 'block-1');
+    richTextRoot.setAttribute('data-eldra-field', 'body');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Body copy';
+    richTextRoot.appendChild(paragraph);
+    blockA.append(heading, richTextRoot);
+
+    const placement = document.createElement('div');
+    placement.setAttribute('data-eldra-layout-node', 'component-node');
+    placement.setAttribute('data-eldra-reusable-placement', 'footer-a');
+    blockB = document.createElement('section');
+    blockB.setAttribute('data-eldra-block', 'block-2');
+    blockB.setAttribute('data-eldra-schema', 'footer');
+    placement.appendChild(blockB);
+
+    document.body.append(blockA, placement);
+    stubRect(blockA, { x: 0, y: 100 });
+    stubRect(blockB, { x: 0, y: 400 });
+    // A descendant's own rect must never be the one reported.
+    stubRect(heading, { x: 8, y: 108 });
+    stubRect(richTextRoot, { x: 8, y: 150 });
+
+    runtime = createOverlayRuntime({ post });
+    runtime.start();
+    runtime.setMode('edit');
+    runtime.setBlockHoverEnabled(true);
+    // setMode calls reposition(), which schedules coalesced frames; flush them
+    // before mockClear() so they cannot inflate a later assertion.
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+  });
+
+  afterEach(() => {
+    runtime.stop();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("reports the hovered block's own identity and rect, not the descendant the pointer is over", () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-1',
+        rect: { x: 0, y: 100, width: 300, height: 80 },
+        layoutNodeId: 'placement-1',
+      },
+    ]);
+  });
+
+  it('carries the reusable placement identity when the block is placed through one', () => {
+    over(blockB);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-2',
+        rect: { x: 0, y: 400, width: 300, height: 80 },
+        layoutNodeId: 'component-node',
+        reusablePlacementId: 'footer-a',
+      },
+    ]);
+  });
+
+  it('reports the containing block and nothing finer for a node inside a rich-text root', () => {
+    over(richTextRoot.firstElementChild!);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-1',
+        rect: { x: 0, y: 100, width: 300, height: 80 },
+        layoutNodeId: 'placement-1',
+      },
+    ]);
+  });
+
+  it('posts null when the pointer moves off the block onto the page background', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    over(document.body);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([null]);
+  });
+
+  it('posts null when the pointer leaves the document altogether', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    outOfDocument(blockA);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([null]);
+  });
+
+  it('posts nothing when the pointer moves between descendants of the block it is already on', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    over(blockA);
+    over(richTextRoot);
+    over(heading);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([]);
+  });
+
+  it('coalesces a pointer sweep across blocks into one post carrying the block it settled on', () => {
+    over(blockA);
+    over(blockB);
+    over(heading);
+    over(blockB);
+    expect(hovers()).toEqual([]); // nothing until the frame runs
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-2',
+        rect: { x: 0, y: 400, width: 300, height: 80 },
+        layoutNodeId: 'component-node',
+        reusablePlacementId: 'footer-a',
+      },
+    ]);
+  });
+
+  it('posts nothing when a sweep within one frame returns to the block already reported', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    over(blockB);
+    over(heading);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([]);
+  });
+
+  it('re-posts the hovered rect on scroll, coalescing a burst into one post per frame', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    stubRect(blockA, { x: 0, y: 240 });
+    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('scroll'));
+    expect(hovers()).toEqual([]);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-1',
+        rect: { x: 0, y: 240, width: 300, height: 80 },
+        layoutNodeId: 'placement-1',
+      },
+    ]);
+  });
+
+  it('goes quiet again after a scroll re-post, once the pointer only moves inside that block', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    stubRect(blockA, { x: 0, y: 240 });
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    over(richTextRoot);
+    over(heading);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([]);
+  });
+
+  it('re-posts the hovered rect on resize', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    stubRect(blockA, { x: 0, y: 40 });
+    window.dispatchEvent(new Event('resize'));
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-1',
+        rect: { x: 0, y: 40, width: 300, height: 80 },
+        layoutNodeId: 'placement-1',
+      },
+    ]);
+  });
+
+  it('re-posts nothing on scroll while no block is hovered', () => {
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([]);
+  });
+
+  it('posts the leave message once a rerender detaches the hovered block', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    blockA.remove();
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([null]);
+  });
+
+  it('posts nothing in preview mode, and leaves edit mode without a leave message', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    // Studio drove the mode change and knows the hover is over; a preview-mode
+    // theme reports no hover at all, so neither the exit nor anything after it
+    // may post.
+    runtime.setMode('preview');
+    vi.advanceTimersByTime(16);
+    expect(hovers()).toEqual([]);
+
+    over(heading);
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(16);
+    expect(hovers()).toEqual([]);
+  });
+
+  it('re-reports from scratch when edit mode resumes, without resurrecting the stale hover', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    // Silent on both sides of the round trip: no leave message on the way
+    // out, and re-entering edit mode must not report a hover the pointer
+    // never re-established.
+    runtime.setMode('preview');
+    runtime.setMode('edit');
+    vi.advanceTimersByTime(16);
+    expect(hovers()).toEqual([]);
+
+    over(heading);
+    vi.advanceTimersByTime(16);
+
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-1',
+        rect: { x: 0, y: 100, width: 300, height: 80 },
+        layoutNodeId: 'placement-1',
+      },
+    ]);
+  });
+
+  it('posts nothing until the editor negotiates the block-hover capability', () => {
+    runtime.stop();
+    const gated = vi.fn<OverlayRuntimeOptions['post']>();
+    const ungatedRuntime = createOverlayRuntime({ post: gated });
+    ungatedRuntime.start();
+    ungatedRuntime.setMode('edit');
+    vi.advanceTimersByTime(16);
+
+    over(heading);
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(16);
+
+    expect(gated.mock.calls.filter((call) => call[0] === 'theme:block-hovered')).toEqual([]);
+    ungatedRuntime.stop();
+  });
+
+  it('forgets the reported hover silently when the capability closes mid-session', () => {
+    over(heading);
+    vi.advanceTimersByTime(16);
+    post.mockClear();
+
+    runtime.setBlockHoverEnabled(false);
+    vi.advanceTimersByTime(16);
+    expect(hovers()).toEqual([]);
+
+    over(blockB);
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(16);
+    expect(hovers()).toEqual([]);
+
+    // Re-opening the capability starts from nothing reported: the block the
+    // editor last heard about is not one it can still be showing chrome for.
+    runtime.setBlockHoverEnabled(true);
+    over(heading);
+    vi.advanceTimersByTime(16);
+    expect(hovers()).toEqual([
+      {
+        entryId: 'block-1',
+        rect: { x: 0, y: 100, width: 300, height: 80 },
+        layoutNodeId: 'placement-1',
+      },
+    ]);
+  });
+});

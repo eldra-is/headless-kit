@@ -296,6 +296,7 @@ export interface OverlayRuntimeOptions {
       | 'theme:field-clicked'
       | 'theme:text-edited'
       | 'theme:blocks-rendered'
+      | 'theme:block-hovered'
       | 'theme:drop-candidate'
       | 'theme:node-dropped'
       | 'theme:framing-target'
@@ -334,6 +335,15 @@ export interface OverlayRuntime {
    * doesn't advertise the capability can't receive them either.
    */
   setFramingEnabled(enabled: boolean): void;
+  /**
+   * Spec decision 7, mirroring setFramingEnabled: the `block-hover`
+   * capability negotiated from editor:hello gates `theme:block-hovered`.
+   * Defaults closed, so a theme never reports the hovered block to an editor
+   * that did not ask for it. Disabling mid-session forgets the reported
+   * hover silently — the other side cannot receive the leave post either.
+   * The theme's own hover outline is unaffected either way.
+   */
+  setBlockHoverEnabled(enabled: boolean): void;
   /**
    * §18 v3: Studio's headless rich-text editor became active (`active: true`)
    * for this field, or closed. The theme marks the root with
@@ -432,6 +442,22 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   /** §18 v3 capability gate: set via setRichTextEnabled, negotiated from the
    * `rich-text-inline` capability. Defaults closed. */
   let richTextEnabled = false;
+  /** Spec decision 7 capability gate: set via setBlockHoverEnabled,
+   * negotiated from the `block-hover` capability. Defaults closed. */
+  let blockHoverEnabled = false;
+  /** The block last *posted* over `theme:block-hovered` — null once the leave
+   * message went out. Distinct from `hoveredElement`, which is the theme's
+   * own hover-box anchor and moves with every pointerover: comparing the two
+   * is what keeps a pointer wandering inside one block from posting again. */
+  let reportedHoverElement: Element | null = null;
+  /** Coalesces `theme:block-hovered` posts into at most one per animation
+   * frame, like blocksRaf. Cancelled in stop(); scheduling is a no-op once
+   * stopped. */
+  let hoverReportRaf: number | null = null;
+  /** Set when the pending frame must post even though the hovered block did
+   * not change — a scroll or resize moved its rect under a still-hovered
+   * pointer, which no pointer event reports. */
+  let hoverGeometryStale = false;
   /**
    * §18 v3 (floating toolbar follow-up): each editable rich-text root's
    * prior inline `white-space`/`word-wrap` declarations, captured the one
@@ -2259,6 +2285,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     const block = target?.closest('[data-eldra-block]') ?? null;
     hoveredElement = block;
     if (hoverBox !== null) positionBox(hoverBox, block);
+    scheduleHoverReport('change');
   }
 
   /** Clears the tracked hover once the pointer actually leaves the document
@@ -2268,6 +2295,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     if ((event as PointerEvent).relatedTarget !== null) return;
     hoveredElement = null;
     if (hoverBox !== null) positionBox(hoverBox, null);
+    scheduleHoverReport('change');
   }
 
   function layoutNodes(): HTMLElement[] {
@@ -2513,8 +2541,86 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     if (selectedBox !== null) positionBox(selectedBox, selectedElement());
     if (framing !== null) positionFramingChrome();
     scheduleReportBlocks();
+    scheduleHoverReport('geometry');
     scheduleRichTextSync();
     scheduleRichTextSelectionRepost();
+  }
+
+  /**
+   * Spec decision 7: report the hovered block to the editor, coalesced to one
+   * post per animation frame so a pointer sweep or a scroll burst does not
+   * flood the bridge. `reason` separates the two callers: a pointer event
+   * ('change') posts only when the hovered block is a different one, while a
+   * scroll/resize ('geometry') re-posts the same block's fresh rect. Either
+   * way, with nothing hovered the only post left to make is the leave
+   * message.
+   */
+  function scheduleHoverReport(reason: 'change' | 'geometry'): void {
+    if (!started || !blockHoverEnabled || mode !== 'edit') return;
+    if (hoveredElement === null) {
+      // Nothing is hovered, so there is no geometry to refresh: the only
+      // thing left to report is the leave message, and only when a block was
+      // actually reported before. This is also the rerender case —
+      // `reposition()` clears a detached hovered element before scheduling,
+      // and the editor's affordance would otherwise stay anchored to a block
+      // that no longer exists, with no pointerout ever coming for it.
+      if (reportedHoverElement === null) return;
+    } else if (reason === 'geometry') {
+      hoverGeometryStale = true;
+    } else if (hoveredElement === reportedHoverElement && !hoverGeometryStale) {
+      // Pointerover fires for every descendant the pointer crosses; the
+      // block behind them is the same one that was already reported.
+      return;
+    }
+    if (hoverReportRaf !== null) return;
+    hoverReportRaf = requestAnimationFrame(() => {
+      hoverReportRaf = null;
+      const stale = hoverGeometryStale;
+      hoverGeometryStale = false;
+      reportHoveredBlock(stale);
+    });
+  }
+
+  /**
+   * Posts the hovered block's identity and rect, or `null` once a block that
+   * was reported stops being hovered. `refreshGeometry` is the scroll/resize
+   * path: the block is unchanged but its rect is not, so the dedupe against
+   * `reportedHoverElement` must not swallow the post.
+   *
+   * A rerender can detach the hovered node without any pointerout (the same
+   * case `reposition()` guards for the hover box), so a disconnected element
+   * counts as no hover and posts the leave message.
+   */
+  function reportHoveredBlock(refreshGeometry: boolean): void {
+    if (!started || !blockHoverEnabled || mode !== 'edit') return;
+    const block = hoveredElement !== null && hoveredElement.isConnected ? hoveredElement : null;
+    if (block === reportedHoverElement && !refreshGeometry) return;
+    reportedHoverElement = block;
+    if (block === null) {
+      opts.post('theme:block-hovered', null);
+      return;
+    }
+    opts.post('theme:block-hovered', {
+      // The identity is the block's, never the hovered descendant's — a field
+      // or a node inside a rich-text editing root reports the block that
+      // contains it and nothing finer.
+      entryId: block.getAttribute('data-eldra-block') ?? '',
+      rect: rectOf(block),
+      ...layoutIdentityOf(block),
+    });
+  }
+
+  /** Forget the reported hover without posting a leave message — for the
+   * transitions Studio itself drove (a mode change, the capability closing,
+   * teardown), where the other side either knows already or cannot receive
+   * the post at all. */
+  function forgetReportedHover(): void {
+    reportedHoverElement = null;
+    hoverGeometryStale = false;
+    if (hoverReportRaf !== null) {
+      cancelAnimationFrame(hoverReportRaf);
+      hoverReportRaf = null;
+    }
   }
 
   /** Studio anchors its floating chrome to block rects reported over
@@ -2632,6 +2738,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       styleEl = null;
       hoverBox = null;
       hoveredElement = null;
+      forgetReportedHover();
       selectedBox = null;
       dropIndicator = null;
       framingBox = null;
@@ -2663,6 +2770,9 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // re-anchor and re-show it before a fresh pointerover.
       hoveredElement = null;
       if (hoverBox !== null) positionBox(hoverBox, null);
+      // The hover report goes with it, silently: Studio drove the mode change
+      // and a preview-mode theme reports no hover at all.
+      forgetReportedHover();
     },
     setSelected(entryId, layoutNodeId, reusablePlacementId) {
       selectedId = entryId;
@@ -2726,6 +2836,10 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     setFramingEnabled(enabled) {
       framingEnabled = enabled;
       if (!enabled) exitFraming({ silent: true });
+    },
+    setBlockHoverEnabled(enabled) {
+      blockHoverEnabled = enabled;
+      if (!enabled) forgetReportedHover();
     },
     setRichTextEditing(target, active) {
       if (!richTextEnabled) return;
