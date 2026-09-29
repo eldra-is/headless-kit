@@ -22,6 +22,14 @@
  * at every width — so a short row keeps its controls at desktop even when nothing scrolls there,
  * which is the safe side of the approximation, kept rather than patching the package component.
  *
+ * **The variant decides which settings exist.** `block.json` puts a `showWhen` condition on every
+ * field only one variant reads, so Studio offers an author exactly the settings that variant
+ * honours: the collection source (`sourceCollection`, `sourceHandle`) only for `collection`, the
+ * "view all" label for `related` and `collection`, and `viewAllHref` only for `related` — the
+ * `collection` variant derives its own link from the collection that was picked (`viewAllHref`
+ * below), and `recently-viewed` has no link at all. A hidden field keeps its stored value, so
+ * switching variants back restores what the author typed.
+ *
  * `quickAdd` is left off every card: this block's own "Uses" list in the design spec names Badge,
  * Price and the swatch summary but never quick add, and turning it on would give each card two
  * separate tab stops (the stretched title link, then the quick-add button) where the spec's
@@ -54,7 +62,11 @@ import type {
   StorefrontCollectionSelector,
   StorefrontProductListItem,
 } from '../../app/storefront/types';
-import { collectionSelector, selectorNeedsPublish } from '../../app/storefront/collectionSelector';
+import {
+  collectionSelector,
+  selectorNeedsPublish,
+  selectorSlug,
+} from '../../app/storefront/collectionSelector';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
 
@@ -274,7 +286,28 @@ const carouselAriaLabel = computed(() =>
  *  prop match Vue applies to a bound attribute is a runtime-only behaviour, invisible to
  *  `nuxi typecheck`'s template type-checking. */
 
-const viewAllHref = computed(() => safeHref(data.value.viewAllHref));
+/**
+ * Where "view all" goes, per variant — `block.json`'s `showWhen` conditions offer an author exactly
+ * the fields the variant reads, and this is the other half of that promise.
+ *
+ * `collection` derives the destination from the collection that was picked rather than asking for
+ * it a second time: `/collections/<slug>`, the same path `collection-grid` builds its own paging
+ * links from. `viewAllHref` is never read here — Studio does not show it in this variant, and a
+ * stale value left behind by an author who switched variants must not win over the collection in
+ * front of them. A collection known only by id (a page builder draft overlay, or a depth-0 read —
+ * `app/storefront/collectionSelector.ts`) has no slug, and there is no other key a collection page
+ * can be addressed by, so the heading simply is not a link until the page is published.
+ *
+ * `related` keeps the authored href: a recommendations row has no collection page of its own.
+ * `recently-viewed` never links (`hasViewAll` below) — the shopper's own history has no page.
+ */
+const collectionViewAllHref = computed<string | null>(() => {
+  const slug = selectorSlug(source.value);
+  return slug === null ? null : `/collections/${slug}`;
+});
+const viewAllHref = computed(() =>
+  safeHref(isCollection.value ? collectionViewAllHref.value : data.value.viewAllHref)
+);
 const hasViewAll = computed(
   () =>
     !isRecentlyViewed.value &&

@@ -278,7 +278,6 @@
         "variant": "collection",
         "limit": "8",
         "viewAllLabel": "View all",
-        "viewAllHref": "/collections/new",
         "showSwatches": true,
         "background": "none",
         "sourceHandle": "the-winter-edit"

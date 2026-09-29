@@ -127,7 +127,8 @@ describe('home page (pages/home.page.json)', () => {
     // the demo catalogue doesn't recognise resolves to no products at all, and the whole block
     // renders nothing live, so the fixture points at a real handle rather than a placeholder one):
     // real product cards render, capped at the `limit: "8"` override, and "View all" points at the
-    // override href regardless of which collection actually backs the row.
+    // collection the block is sourced from — the `collection` variant derives its own link
+    // (`/collections/<slug>`) and has no `viewAllHref` field to override it with.
     const carouselRoot = roots[4];
     expect(carouselRoot.querySelectorAll('h3')).toHaveLength(8);
     // The carousel's heading is its "view all" link: the label lives in the anchor's accessible
@@ -135,7 +136,7 @@ describe('home page (pages/home.page.json)', () => {
     const viewAllLink = [...main.element.querySelectorAll('a')].find((a) =>
       a.getAttribute('aria-label')?.includes('View all')
     );
-    expect(viewAllLink?.getAttribute('href')).toBe('/collections/new');
+    expect(viewAllLink?.getAttribute('href')).toBe('/collections/the-winter-edit');
 
     // split-content `startWith: "image-left"`: row 1's image sits on the left (no reorder class),
     // row 2 alternates to the right (`@tablet:order-2`) — the visual side only `startWith` decides.

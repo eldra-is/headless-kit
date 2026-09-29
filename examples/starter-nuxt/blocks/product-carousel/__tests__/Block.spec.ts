@@ -578,6 +578,69 @@ describe('product-carousel block', () => {
   });
 
   /**
+   * The "view all" link, per variant (spec `Starter blocks`, and the `showWhen`
+   * conditions in `block.json`):
+   *
+   * - `collection` derives the destination from the collection an author picked
+   *   — `/collections/<slug>` — and never reads `viewAllHref`, which Studio does
+   *   not even offer in this variant. A collection known only by id (a page
+   *   builder draft overlay, a depth-0 read) has no slug to link to, so the
+   *   heading stays plain text rather than pointing at `/collections/undefined`.
+   * - `related` keeps the authored `viewAllHref`: its row is recommendations,
+   *   which no single collection page corresponds to.
+   * - `recently-viewed` never links at all — the shopper's own history has no
+   *   page.
+   */
+  describe('the view-all link', () => {
+    const BEST_SELLERS_ID = demoCollectionId('best-sellers')!;
+
+    async function mountVariant(data: Record<string, unknown>) {
+      const wrapper = mountBlock({ ...mock, limit: '4', ...data });
+      await flushPromises();
+      return wrapper;
+    }
+
+    it('derives the collection variant\u2019s link from the picked collection, ignoring viewAllHref', async () => {
+      const wrapper = await mountVariant({
+        variant: 'collection',
+        sourceCollection: { id: BEST_SELLERS_ID, _type: 'collection', slug: 'best-sellers' },
+        viewAllHref: '/authored-somewhere-else',
+      });
+      expect(wrapper.get('h2 a').attributes('href')).toBe('/collections/best-sellers');
+    });
+
+    it('derives it from the legacy handle when that is all the block has', async () => {
+      const wrapper = await mountVariant({
+        variant: 'collection',
+        sourceHandle: 'best-sellers',
+        viewAllHref: '/authored-somewhere-else',
+      });
+      expect(wrapper.get('h2 a').attributes('href')).toBe('/collections/best-sellers');
+    });
+
+    it('renders the heading unlinked when the collection is known only by id', async () => {
+      const wrapper = await mountVariant({
+        variant: 'collection',
+        sourceCollection: { id: BEST_SELLERS_ID, _type: 'collection' },
+        viewAllHref: '/authored-somewhere-else',
+      });
+      expect(wrapper.findAllComponents(ProductCard).length).toBeGreaterThan(1);
+      expect(wrapper.find('h2 a').exists()).toBe(false);
+      expect(wrapper.get('h2').text()).toBe(mock.heading);
+    });
+
+    it('keeps the authored href in the related variant', async () => {
+      const wrapper = await mountVariant({ variant: 'related', viewAllHref: '/collections/all' });
+      expect(wrapper.get('h2 a').attributes('href')).toBe('/collections/all');
+    });
+
+    it('renders no link at all in recently-viewed', async () => {
+      const wrapper = await mountVariant({ variant: 'recently-viewed' });
+      expect(wrapper.find('h2 a').exists()).toBe(false);
+    });
+  });
+
+  /**
    * The prerendered page's live refresh (`app/storefront/types.ts`): the row's cards are in the
    * HTML from the first paint, and a few hundred milliseconds after mount the storefront swaps in
    * the backend's current prices and stock lines. The row never redraws for it, and it announces

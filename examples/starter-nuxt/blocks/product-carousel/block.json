@@ -28,13 +28,15 @@
       "name": "Collection",
       "type": "reference",
       "relation": { "allowCollections": true },
-      "helpText": "Pick a collection. Overrides the handle below."
+      "helpText": "Pick a collection. Overrides the handle below.",
+      "showWhen": { "field": "variant", "in": ["collection"] }
     },
     {
       "fieldId": "sourceHandle",
       "name": "Collection handle (legacy)",
       "type": "string",
-      "helpText": "For the collection variant, when no collection is picked above. Picking one is preferred: it survives a renamed collection."
+      "helpText": "Used when no collection is picked above. Picking one is preferred: it survives a renamed collection.",
+      "showWhen": { "field": "variant", "in": ["collection"] }
     },
     {
       "fieldId": "limit",
@@ -48,13 +50,15 @@
       "name": "View all label",
       "type": "string",
       "localized": true,
-      "helpText": "Makes the heading a link to viewAllHref; read after the heading by assistive technology, e.g. \"View all\". Hidden in recently-viewed."
+      "helpText": "Makes the heading a link; read after the heading by assistive technology, e.g. \"View all\".",
+      "showWhen": { "field": "variant", "in": ["related", "collection"] }
     },
     {
       "fieldId": "viewAllHref",
       "name": "View all link",
       "type": "string",
-      "helpText": "Where the heading links to. Hidden in recently-viewed."
+      "helpText": "Where the heading links to. The collection variant links to the collection you picked instead.",
+      "showWhen": { "field": "variant", "in": ["related"] }
     },
     {
       "fieldId": "showSwatches",

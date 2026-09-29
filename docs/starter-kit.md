@@ -316,6 +316,24 @@ otherwise), then the legacy handle, then the route.
 `block.json`; every declared option value gets its own generated Storybook story and its own axe
 assertion in the block's test.
 
+**Conditional fields (`showWhen`).** A field only one variant reads declares
+`"showWhen": { "field": "variant", "in": ["collection"] }`, and Studio offers it to an author only
+while that sibling holds one of the listed values (`"equals": "collection"` is sugar for a
+single-entry `in`; the scanner normalizes it away). `field` names a sibling in the **same** field
+set — top level, or the same `composite` / `list` item — which must be a `select`, `bool` or
+`string` field carrying no `showWhen` of its own, and every value must be one of a `select`
+sibling's `metadata.options`; `eldra-theme validate` refuses each of those with a line naming the
+field. Visibility is authoring UX, not storage: a hidden field keeps its stored value (so switching
+a variant back restores what the author typed), validators apply only while it is visible, and
+adding, changing or removing a condition never needs a `version` bump. `product-carousel` is the
+worked example — the collection source is offered only for the `collection` variant, `viewAllHref`
+only for `related`, and the `collection` variant derives its "view all" link from the collection
+that was picked (`/collections/<slug>`, from `app/storefront/collectionSelector.ts`'s
+`selectorSlug`) rather than asking for a URL a second time, showing no link while that collection
+is known only by id. `collection-grid` deliberately has none: its legacy `collectionHandle` should
+appear only when no collection reference is picked, and "this reference is empty" is not a
+condition this grammar can express, so the field stays visible.
+
 **`mock.json`** is the seed Studio writes into a block's CMS entry when an author inserts it from the
 palette, so it must be a write-valid shape for every field type — most importantly, **media fields
 are absent** (never `null`, never a fixture object): Core's write-side media validator only accepts
