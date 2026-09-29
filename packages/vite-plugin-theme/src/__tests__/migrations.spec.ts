@@ -12,6 +12,10 @@ const field = (fieldId: string, type = 'string', extra = {}): BlockField => ({
   type,
   ...extra,
 });
+/** A collections-only `reference` field, the shape the starter's three commerce
+ *  blocks pick a collection with. */
+const ref = (fieldId: string): BlockField =>
+  field(fieldId, 'reference', { relation: { allowCollections: true } });
 const step = (version = 2, from = 'titl', to = 'title') => ({ version, renames: [{ from, to }] });
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'eldra-migrations-'));
@@ -292,6 +296,41 @@ describe('block field migrations', () => {
     f.write([field('title')], 2);
     expect(f.scan(previous).errors).toEqual([]);
   });
+
+  it.each([
+    [
+      'product-carousel',
+      2,
+      [ref('sourceCollection'), field('sourceHandle')],
+      [ref('sourceCollection')],
+      'sourceHandle',
+    ],
+    [
+      'collection-grid',
+      2,
+      [ref('collection'), field('collectionHandle')],
+      [ref('collection')],
+      'collectionHandle',
+    ],
+    ['collection-header', 1, [field('collectionHandle')], [ref('collection')], 'collectionHandle'],
+  ] as const)(
+    'holds the starter to a bump when %s drops its legacy handle beside the reference field',
+    (_block, from, before, after, handle) => {
+      // The three retirements in the starter, pinned: dropping a handle field
+      // is invisible to Core without a bump, so the previous content would be
+      // discarded rather than retired into `<fieldId>__vN`. Adding the
+      // reference field beside it (collection-header) needs nothing.
+      const f = fixture();
+      f.write([...before], from);
+      const previous = f.scan().manifest!;
+      f.write([...after], from);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        `field ${handle} was removed; bump "version" to ${from + 1} so Core retires the previous content`
+      );
+      f.write([...after], from + 1);
+      expect(f.scan(previous).errors).toEqual([]);
+    }
+  );
 
   it('does not double-report a field removed via a declared rename', () => {
     // A rename declared at the previous local version, without a bump, is

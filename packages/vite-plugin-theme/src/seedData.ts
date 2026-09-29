@@ -2,6 +2,14 @@ import { isRecord } from './util';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MEDIA_VALUE_KEYS = new Set(['assetId', 'framing']);
+/** The two shapes a seed may name a referenced object by: one that already
+ * exists (`id`), or a catalog collection Core looks up by slug on deploy. */
+const REFERENCE_ID_KEYS = new Set(['_type', 'id']);
+const REFERENCE_SLUG_KEYS = new Set(['_type', 'slug']);
+const REFERENCE_MESSAGE =
+  'reference values must be absent, {_type, id: uuid} or {_type: "collection", slug} — Core resolves the slug at seed time';
+const REFERENCE_RELATION_MESSAGE =
+  'a {_type: "collection", slug} seed reference needs a relation with allowCollections';
 
 /** How one finding is worded, so the same walk serves both callers: a block's
  * `mock.json` (`<file>: <path>: <message>`) and a template seed's block data
@@ -9,7 +17,10 @@ const MEDIA_VALUE_KEYS = new Set(['assetId', 'framing']);
 export type SeedErrorFormat = (path: string, message: string) => string;
 
 /**
- * Studio seeds a freshly-inserted block's CMS entry from `mock.json`
+ * Validates one seed's data against the block's own fields: the two value
+ * shapes Core's write side refuses outright are media and reference values.
+ *
+ * **Media.** Studio seeds a freshly-inserted block's CMS entry from `mock.json`
  * verbatim, and the CMS's write-side media validator only accepts
  * `{ assetId: <uuid>, framing? }` — the starter's old convention of
  * embedding a Storybook fixture
@@ -21,8 +32,18 @@ export type SeedErrorFormat = (path: string, message: string) => string;
  * field buried inside `feature-grid`'s `items` or `gallery`'s multi-value
  * `images` is checked too, not just top-level fields. A theme's template
  * seeds are the same kind of write, so they go through the same walk.
+ *
+ * **References.** A `reference` field's seed value either names an object that
+ * already exists (`{_type, id: <uuid>}`) or, for a relation that allows catalog
+ * collections, names one by slug (`{_type: "collection", slug}`) — the form a
+ * theme ships, because a theme cannot know the organisation's collection ids.
+ * Core resolves that slug against the organisation's own catalog at seed time
+ * and leaves the field empty when nothing matches, so a deploy still succeeds.
+ * Anything else — a bare handle string, a resolved read's full object, a slug
+ * on a relation that allows no collection — would be written verbatim into an
+ * entry Core then refuses, so it is refused here with the path that carries it.
  */
-export function checkSeedMedia(
+export function checkSeedData(
   format: SeedErrorFormat,
   fields: Array<Record<string, unknown>>,
   data: Record<string, unknown>,
@@ -54,12 +75,28 @@ export function checkSeedMedia(
       continue;
     }
 
+    if (field.type === 'reference') {
+      const relation = isRecord(field.relation) ? field.relation : {};
+      if (relation.multiple === true) {
+        if (Array.isArray(value)) {
+          value.forEach((item, index) =>
+            checkReferenceValue(format, `${path}[${index}]`, item, relation, errors)
+          );
+        } else {
+          checkReferenceValue(format, path, value, relation, errors);
+        }
+      } else {
+        checkReferenceValue(format, path, value, relation, errors);
+      }
+      continue;
+    }
+
     if (field.type === 'composite') {
       const nestedFields = Array.isArray(metadata.fields)
         ? (metadata.fields as Array<Record<string, unknown>>)
         : [];
       if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        checkSeedMedia(format, nestedFields, value as Record<string, unknown>, errors, path);
+        checkSeedData(format, nestedFields, value as Record<string, unknown>, errors, path);
       }
       continue;
     }
@@ -76,7 +113,7 @@ export function checkSeedMedia(
         if (item.type === 'media') {
           checkMediaValue(format, `${path}[${index}]`, entry, errors);
         } else if (itemFields !== null && entry !== null && typeof entry === 'object') {
-          checkSeedMedia(
+          checkSeedData(
             format,
             itemFields,
             entry as Record<string, unknown>,
@@ -106,5 +143,46 @@ function checkMediaValue(
     errors.push(
       format(path, 'media values must be {assetId: uuid} — use preview.json for demo imagery')
     );
+  }
+}
+
+/**
+ * One reference value. `_type` is required in both forms — Core reads it to
+ * know which catalog the identifier belongs to — and the id form is checked
+ * only for shape: whether that object exists is the deploy's to find out,
+ * exactly like the slug form.
+ */
+function checkReferenceValue(
+  format: SeedErrorFormat,
+  path: string,
+  value: unknown,
+  relation: Record<string, unknown>,
+  errors: string[]
+): void {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    errors.push(format(path, REFERENCE_MESSAGE));
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  const type = typeof record._type === 'string' ? record._type.trim() : '';
+  const byId =
+    keys.every((key) => REFERENCE_ID_KEYS.has(key)) &&
+    type !== '' &&
+    typeof record.id === 'string' &&
+    UUID_PATTERN.test(record.id);
+  const bySlug =
+    keys.every((key) => REFERENCE_SLUG_KEYS.has(key)) &&
+    type === 'collection' &&
+    typeof record.slug === 'string' &&
+    record.slug.trim() !== '';
+  if (!byId && !bySlug) {
+    errors.push(format(path, REFERENCE_MESSAGE));
+    return;
+  }
+  // A slug only resolves against the catalog the relation opens: a theme that
+  // did not ask for collections must not smuggle one in through a seed.
+  if (bySlug && relation.allowCollections !== true) {
+    errors.push(format(path, REFERENCE_RELATION_MESSAGE));
   }
 }

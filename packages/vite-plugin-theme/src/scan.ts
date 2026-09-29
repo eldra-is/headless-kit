@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { blockJsonSchema } from './blockSchema';
 import { migrationChecks, validMigrationFieldShape } from './migrations';
-import { checkSeedMedia } from './seedData';
+import { checkSeedData } from './seedData';
 import { validateTemplateRoles, validateTemplateSeeds } from './templates';
 import { codePointLength, isRecord, stripPlainTextControls } from './util';
 import type {
@@ -108,7 +108,7 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     }
     if (mock !== null && validBlock) {
       const mockPath = toRelative(themeDir, mockFile);
-      checkSeedMedia(
+      checkSeedData(
         (path, message) => `${mockPath}: ${path}: ${message}`,
         Array.isArray(block.fields) ? (block.fields as Array<Record<string, unknown>>) : [],
         mock,

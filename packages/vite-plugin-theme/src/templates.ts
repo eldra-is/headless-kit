@@ -1,5 +1,5 @@
 import { parseDynamicRoutePattern } from '@eldrajs/theme-core';
-import { checkSeedMedia } from './seedData';
+import { checkSeedData } from './seedData';
 import type {
   DeclaredTemplateSeed,
   DeclaredTemplateSeedBlock,
@@ -157,7 +157,7 @@ export function validateTemplateSeeds(
       } else {
         // The same walk the scanner applies to a block's mock.json: a seed is
         // the write Core makes on deploy, so it obeys the same media rule.
-        checkSeedMedia(
+        checkSeedData(
           (path, message) => `${blockAt}.data — ${path}: ${message}`,
           fields,
           block.data,
@@ -453,7 +453,7 @@ export function validateTemplateRoles(
     } else {
       // The same walk the scanner applies to a block's mock.json and to a
       // template seed's block data: a role's data is the same kind of write.
-      checkSeedMedia((path, message) => `${at}.data — ${path}: ${message}`, fields, data, errors);
+      checkSeedData((path, message) => `${at}.data — ${path}: ${message}`, fields, data, errors);
     }
     normalized[role] = { apiId, data };
   }

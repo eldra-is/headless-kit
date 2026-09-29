@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Seed data (a block's `mock.json`, a template seed's block data and a template role's data) may
+  now name a catalog collection by slug in a `reference` field:
+  `{ "_type": "collection", "slug": "the-winter-edit" }`. A theme cannot know an organisation's
+  collection ids, so this is the only form it can ship; Core resolves it against the
+  organisation's own catalog at seed time and leaves the field empty when nothing matches, so the
+  deploy still succeeds. The scanner now validates every seed reference value: absent,
+  `{ _type, id: <uuid> }`, or the slug form on a relation whose `allowCollections` is true.
+  Anything else — a bare handle string, a resolved read's whole object, a slug on a relation that
+  allows no collection — is a validation error naming the path that carries it
+  (`blocks/collection-grid/mock.json: collection: reference values must be absent, …`), the same
+  way a media value that is not `{assetId: uuid}` already was.
+
 - A block field may now declare `showWhen: { "field": "<sibling>", "in": ["<value>", …] }` — the
   field is offered to an author only while that sibling holds one of the listed values.
   `equals: "x"` is sugar for `in: ["x"]` and is normalized away while scanning, so the manifest
