@@ -786,6 +786,30 @@ function resolveStyle(
   };
 }
 
+/**
+ * How visible a hidden node is on the Studio canvas in edit mode — the design's
+ * 35 %: dim enough to read as "not on this device", solid enough to click,
+ * drag and see what it is.
+ */
+export const EDIT_MODE_HIDDEN_OPACITY = 0.35;
+
+/**
+ * The breakpoints at which `style` hides its node, in `normal, tablet, mobile`
+ * order, resolved through the grammar's own inheritance (a `visible` a
+ * breakpoint does not restate is inherited from the wider one). Empty when the
+ * node is visible everywhere.
+ *
+ * This is the value of the `data-eldra-hidden` attribute a framework binding
+ * puts on the layout node, space-separated: it is rendered identically on the
+ * server and the client, carries no styling of its own, and is what the overlay
+ * finds the hidden nodes by when it marks them for edit mode.
+ */
+export function hiddenLayoutBreakpoints(style?: LayoutStyle): LayoutBreakpoint[] {
+  const visible = style?.visible;
+  if (visible === undefined) return [];
+  return BREAKPOINT_KEYS.filter((breakpoint) => !scalar(visible, breakpoint));
+}
+
 function scalar<T>(responsive: Responsive<T>, breakpoint: LayoutBreakpoint): T {
   if (breakpoint === 'mobile') return responsive.mobile ?? responsive.tablet ?? responsive.normal;
   if (breakpoint === 'tablet') return responsive.tablet ?? responsive.normal;
@@ -845,6 +869,7 @@ function cssForDocument(document: LayoutDocument, breakpoints?: LayoutBreakpoint
           string,
           string
         >,
+        hidden: !resolvedNode.style.visible,
       };
     });
   });
@@ -853,7 +878,8 @@ function cssForDocument(document: LayoutDocument, breakpoints?: LayoutBreakpoint
       .map(
         (node, position) =>
           rule(node, resolved[index]![position]!.own) +
-          childRule(node, resolved[index]![position]!.child)
+          childRule(node, resolved[index]![position]!.child) +
+          hiddenRule(node, resolved[index]![position]!.hidden)
       )
       .join('');
   const normalRules = rulesAt(0);
@@ -926,9 +952,40 @@ function declarations(
   if (style.maxWidth !== undefined) result['max-width'] = style.maxWidth;
   if (style.minHeight !== undefined) result['min-height'] = style.minHeight;
   if (style.alignSelf !== undefined) result['align-self'] = style.alignSelf;
-  if (!style.visible) result.display = 'none';
+  // A node the author hid at this breakpoint. The `display:none` itself is not
+  // here: it lives in `hiddenRule`, behind the overlay's edit-mode marker, so
+  // the Studio canvas can keep the node selectable. What stays in the node's
+  // own rule is the fact, as a custom property — it is media-scoped like every
+  // other declaration, so `getComputedStyle(node).--eldra-hidden` answers
+  // "hidden at the breakpoint currently in force?" in edit mode too, where
+  // nothing is `display:none` to read.
+  if (!style.visible) result['--eldra-hidden'] = '1';
   else if (node.type === 'block' && source.style?.visible !== undefined) result.display = 'block';
   return result;
+}
+
+/**
+ * The `display:none` for a node hidden at this breakpoint, plus the edit-mode
+ * treatment that replaces it.
+ *
+ * `:not([data-eldra-editing])` is the gate: the overlay sets that attribute on
+ * hidden nodes after mount when the bridge mode is `edit` (never during render,
+ * so server and client emit the same DOM), and removes it on any other mode.
+ * Preview, static generation and the published site never carry it, so they
+ * hide the node outright, exactly as before. Under the editor the node is drawn
+ * at reduced opacity instead, which is what keeps it selectable on the canvas.
+ *
+ * Both selectors add an attribute selector's specificity on top of the class,
+ * so they outrank the node's own `.class` rule (its `display:flex`/`grid`)
+ * wherever they land in the stylesheet.
+ */
+function hiddenRule(node: LayoutNode, hidden: boolean): string {
+  if (!hidden) return '';
+  const selector = `.${layoutNodeClass(node.id)}`;
+  return (
+    `${selector}:not([data-eldra-editing]){display:none;}` +
+    `${selector}[data-eldra-editing]{opacity:${EDIT_MODE_HIDDEN_OPACITY};}`
+  );
 }
 
 /**

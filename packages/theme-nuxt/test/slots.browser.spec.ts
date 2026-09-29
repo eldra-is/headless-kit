@@ -31,6 +31,7 @@ const orgId = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
 const HOST_ID = '55555555-5555-4555-8555-555555555555';
 const CTA_ID = '66666666-6666-4666-8666-666666666666';
+const HIDDEN_ID = '77777777-7777-4777-8777-777777777777';
 
 interface ArtifactServer {
   server: Server;
@@ -51,7 +52,7 @@ describe('real-browser slotted layout static/preview parity', () => {
     await closeServer(studioServer?.server);
   });
 
-  it('renders slot children in static DOM and editor markers under preview negotiation', async () => {
+  it('renders slot children in static DOM, editor markers and a dimmed hidden node under preview negotiation', async () => {
     const gateway = await startGateway();
     const root = createFixture(new URL(studioServer.origin).origin);
     let staticServer: ArtifactServer | undefined;
@@ -93,8 +94,43 @@ describe('real-browser slotted layout static/preview parity', () => {
           previewFrame.locator('[data-eldra-slot-marker]').getAttribute('data-eldra-slot-id')
         )
         .toBe('actions');
-      // Markers are inert and editor-only; slot content still renders beneath them.
-      await expect.poll(() => previewFrame.locator('.cta').textContent()).toBe('Shop now');
+      // Markers are inert and editor-only; slot content still renders beneath
+      // them. Scoped to the slot: the page also carries a second `cta` block,
+      // the breakpoint-hidden one checked below.
+      await expect
+        .poll(() => previewFrame.locator('[data-eldra-slot-id="actions"] .cta').textContent())
+        .toBe('Shop now');
+
+      // (d) A node the layout hides at this breakpoint: `display:none` on the
+      // published artifact. Only a real browser evaluates the `@media` block
+      // the rule lives in, which is why this assertion is here and not in
+      // jsdom. The element is in the DOM either way — it is hidden, not
+      // dropped.
+      const staticHidden = staticPage.locator('[data-eldra-layout-node="hidden-placement"]');
+      await staticHidden.waitFor({ state: 'attached' });
+      expect(await staticHidden.getAttribute('data-eldra-hidden')).toBe('normal tablet mobile');
+      expect(await staticHidden.evaluate((node) => getComputedStyle(node).display)).toBe('none');
+      expect(await staticPage.locator('[data-eldra-editing]').count()).toBe(0);
+
+      // (e) The same node under the bridge in edit mode: the overlay marks it
+      // after mount, which defeats the `:not([data-eldra-editing])` gate, so
+      // the author can still see and select it — dimmed, never invisible.
+      const previewHidden = previewFrame.locator('[data-eldra-layout-node="hidden-placement"]');
+      await previewHidden.waitFor();
+      await expect
+        .poll(() => previewHidden.evaluate((node) => getComputedStyle(node).display))
+        .not.toBe('none');
+      expect(await previewHidden.getAttribute('data-eldra-editing')).toBe('');
+      expect(await previewHidden.evaluate((node) => getComputedStyle(node).opacity)).toBe('0.35');
+      // What the overlay reports to Studio about it, from the same cascade.
+      expect(
+        await previewHidden.evaluate((node) =>
+          getComputedStyle(node).getPropertyValue('--eldra-hidden').trim()
+        )
+      ).toBe('1');
+      await expect
+        .poll(() => previewHidden.locator('.cta').textContent())
+        .toBe('Hidden on every device');
     } catch (error) {
       testError = error;
     }
@@ -230,6 +266,14 @@ async function startGateway(): Promise<ArtifactServer> {
                 actions: [{ id: 'cta-placement', type: 'block', entryId: CTA_ID }],
               },
             },
+            // Hidden at every breakpoint, so the assertions below do not
+            // depend on the browser viewport the context was opened with.
+            {
+              id: 'hidden-placement',
+              type: 'block',
+              entryId: HIDDEN_ID,
+              style: { visible: { normal: false } },
+            },
           ],
         },
       },
@@ -240,6 +284,7 @@ async function startGateway(): Promise<ArtifactServer> {
           data: { heading: 'Slotted hero heading', subheading: 'Browser parity' },
         },
         { id: CTA_ID, schemaApiId: 'cta', data: { label: 'Shop now' } },
+        { id: HIDDEN_ID, schemaApiId: 'cta', data: { label: 'Hidden on every device' } },
       ],
     },
   };

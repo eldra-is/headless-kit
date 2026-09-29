@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Feat: `EldraLayout` renders `data-eldra-hidden` on a layout node its style hides at one or more
+  breakpoints, listing them space separated (`data-eldra-hidden="tablet mobile"`). It is rendered
+  unconditionally — identical on the server and the client, carrying no styling of its own — and is
+  how `@eldrajs/theme-core`'s overlay finds the nodes to mark when Studio puts the theme in edit
+  mode, where a hidden node is dimmed rather than removed.
+
 - Feat: `EldraLayout` renders reusable component placements inside a **route template**. The
   `templateEntry` branch now passes `reusableComponentProjection` (an absent one is the empty
   projection, so a placement fails closed exactly as it does on a page) and the resolved `blocks`

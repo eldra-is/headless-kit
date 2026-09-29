@@ -196,6 +196,44 @@ renders its wide one, shrunk to its content). A determinate block keeps its own 
 container, exactly as a block rendered outside a layout does. Nothing in a block has to change
 for this; a block that nests its own `@container` deeper than the root keeps it.
 
+## Hiding a node on some devices
+
+A layout node's `style.visible` is a responsive boolean (`{ normal, tablet?, mobile? }`, inherited
+from the wider breakpoint down like every other responsive value). Where it resolves to `false` the
+generated layout CSS hides the node at that breakpoint. It emits two rules rather than one
+`display: none`:
+
+```css
+@media (max-width: 767px) {
+  .eldra-layout-<hash > {
+    --eldra-hidden: 1;
+  }
+  .eldra-layout-<hash > :not([data-eldra-editing]) {
+    display: none;
+  }
+  .eldra-layout-<hash > [data-eldra-editing] {
+    opacity: 0.35;
+  }
+}
+```
+
+On a published site, in preview and in static generation nothing carries `data-eldra-editing`, so
+the node is hidden. Under the Studio bridge in **edit** mode the overlay runtime sets that attribute
+on every node a framework binding marked `data-eldra-hidden` — so the author still sees the node,
+dimmed, and can select, move and unhide it. The marker is applied after mount, like every other
+overlay decoration, so server and client render the same DOM; `data-eldra-hidden` itself (the
+breakpoints the node is hidden at, space separated — `@eldrajs/theme-core`'s
+`hiddenLayoutBreakpoints(style)`) is rendered unconditionally and carries no styling of its own.
+
+`--eldra-hidden` is the fact, media-scoped like every other declaration, so the browser's own
+cascade answers "is this node hidden at the width in force?" — including in edit mode, where
+nothing is `display: none` to read. That is what the overlay reports to Studio as
+`hiddenAtBreakpoint: true` on `theme:block-clicked` and `theme:blocks-rendered`.
+
+A wrapper for another framework has one thing to do here: render
+`data-eldra-hidden="<breakpoints>"` on the layout node element. Everything else — the CSS, the
+marker, the bridge message — is already in `@eldrajs/theme-core`.
+
 ## More
 
 - [Starter kit conventions](starter-kit.md) — the primitive layer (`app/components/ui/`), the block

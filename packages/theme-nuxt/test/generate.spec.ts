@@ -160,6 +160,18 @@ describe('theme-nuxt nuxi generate', () => {
     expect(bad).not.toContain('Shop now');
   });
 
+  it('keeps a breakpoint-hidden node in the artifact, hidden by CSS and unmarked', () => {
+    const html = readFileSync(output('index.html'), 'utf8');
+    // `visible: { normal: true, tablet: false, mobile: true }`: tablet only.
+    expect(html).toContain('data-eldra-hidden="tablet"');
+    const cls = `eldra-layout-${createHash('sha256').update('secondary-hero').digest('hex')}`;
+    expect(html).toContain(`.${cls}:not([data-eldra-editing]){display:none;}`);
+    expect(html).toContain(`.${cls}[data-eldra-editing]{opacity:0.35;}`);
+    // The gate is shut on a published artifact: nothing carries the marker the
+    // overlay sets in edit mode, so the node is hidden exactly as before.
+    expect(html).not.toContain('data-eldra-editing=');
+  });
+
   it('renders resolved blocks through the shared responsive layout renderer', () => {
     const html = readFileSync(output('index.html'), 'utf8');
     const about = readFileSync(output('about/index.html'), 'utf8');

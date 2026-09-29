@@ -13,6 +13,25 @@ Release-please writes the generated notes from commit messages and does not repl
   re-post can repeat the rect it last sent. Edit mode only, and gated on the new `block-hover`
   capability: an editor that does not advertise it receives nothing. The theme's own hover outline
   is unchanged.
+- Feat: a layout node the author hid at a breakpoint (`style.visible` false there) stays on the
+  Studio canvas in edit mode instead of disappearing. The generated layout CSS no longer puts
+  `display:none` in the node's own rule: it emits
+  `.<node>:not([data-eldra-editing]){display:none}` plus `.<node>[data-eldra-editing]{opacity:0.35}`
+  inside that breakpoint's `@media` block, and the overlay runtime sets `data-eldra-editing` on the
+  nodes a framework binding marked `data-eldra-hidden` whenever the bridge mode is `edit` (after
+  mount, like every other overlay decoration, so server and client render the same DOM). Preview,
+  static generation and the published site never carry the marker, so they hide the node exactly as
+  before. The node's own rule now carries `--eldra-hidden:1` at the breakpoints it is hidden at, so
+  the browser's cascade — not a second copy of the theme's breakpoint numbers — answers "hidden
+  right now?" in edit mode too, where nothing is `display:none` to read.
+- Feat: `hiddenLayoutBreakpoints(style)` returns the breakpoints a layout style hides its node at,
+  in `normal, tablet, mobile` order and through the grammar's own inheritance. It is the value of
+  the `data-eldra-hidden` attribute a framework binding puts on the layout node, space separated.
+  `EDIT_MODE_HIDDEN_OPACITY` is the 35 % the canvas dims such a node to.
+- Feat: `theme:block-clicked` and each entry of `theme:blocks-rendered` may now carry
+  `hiddenAtBreakpoint: true` — the block is hidden by the layout at the breakpoint the theme is
+  rendering at. Additive and present only when true, so an editor that does not know the field sees
+  byte-identical messages.
 - Feat: a route-template layout may now hold reusable component placements (`{ id, type: 'reusable', componentId }`) alongside its `template-block` leaves, and
   `createTemplateLayoutRenderModel` takes a `reusableComponentProjection` to expand them with.
   Expansion is the same implementation page layouts use, so a component renders identically

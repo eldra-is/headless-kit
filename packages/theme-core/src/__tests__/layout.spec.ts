@@ -3,6 +3,7 @@ import {
   createLayoutRenderModel,
   DEFAULT_LAYOUT_BREAKPOINTS,
   generateLayoutCss,
+  hiddenLayoutBreakpoints,
   layoutNodeClass,
   normalizeLayoutDocument,
   resolveLayoutBreakpoints,
@@ -10,6 +11,7 @@ import {
   validateLayoutDocument,
   type BlockSlotDefinition,
   type LayoutDocument,
+  type Responsive,
   type SlotValidationContext,
   type WidthLength,
 } from '../layout';
@@ -843,5 +845,110 @@ describe('LayoutBreakpoints (breakpoints negotiation)', () => {
       expect(warn.mock.calls[0]![0]).toContain('invalid layout breakpoints');
       warn.mockRestore();
     });
+  });
+});
+
+describe('breakpoint visibility', () => {
+  const NORMAL_QUERY = '(min-width:1024px)';
+  const TABLET_QUERY = '(min-width:768px) and (max-width:1023px)';
+  const MOBILE_QUERY = '(max-width:767px)';
+  const BLOCK_CLASS = layoutNodeClass('BlockA');
+
+  function mediaBlock(css: string, query: string): string {
+    // Nothing nests a second `@media`, so splitting on the at-rule yields one
+    // whole breakpoint block per segment.
+    const found = css
+      .split('@media ')
+      .filter(Boolean)
+      .find((part) => part.startsWith(`${query}{`));
+    if (found === undefined) throw new Error(`no @media ${query} block in ${css}`);
+    return found;
+  }
+
+  function visibilityLayout(visible: Responsive<boolean>): LayoutDocument {
+    return {
+      version: 1,
+      root: {
+        id: 'Root',
+        type: 'flex',
+        children: [{ id: 'BlockA', type: 'block', entryId: ENTRY_A, style: { visible } }],
+        layout: { direction: { normal: 'row' } },
+      },
+    };
+  }
+
+  it('gates display:none on the overlay edit marker and dims the node in its place', () => {
+    const css = generateLayoutCss(visibilityLayout({ normal: true, mobile: false }));
+    const mobile = mediaBlock(css, MOBILE_QUERY);
+    expect(mobile).toContain(`.${BLOCK_CLASS}{--eldra-hidden:1;}`);
+    expect(mobile).toContain(`.${BLOCK_CLASS}:not([data-eldra-editing]){display:none;}`);
+    expect(mobile).toContain(`.${BLOCK_CLASS}[data-eldra-editing]{opacity:0.35;}`);
+
+    for (const query of [NORMAL_QUERY, TABLET_QUERY]) {
+      const block = mediaBlock(css, query);
+      expect(block).not.toContain('display:none');
+      expect(block).not.toContain('--eldra-hidden');
+      expect(block).not.toContain('data-eldra-editing');
+    }
+  });
+
+  it('hides at every breakpoint a falsy normal inherits down to', () => {
+    const css = generateLayoutCss(visibilityLayout({ normal: false }));
+    for (const query of [NORMAL_QUERY, TABLET_QUERY, MOBILE_QUERY]) {
+      expect(mediaBlock(css, query)).toContain(
+        `.${BLOCK_CLASS}:not([data-eldra-editing]){display:none;}`
+      );
+    }
+  });
+
+  it('never emits the hidden rules for a node that stays visible', () => {
+    const css = generateLayoutCss(visibilityLayout({ normal: true }));
+    expect(css).not.toContain('display:none');
+    expect(css).not.toContain('--eldra-hidden');
+    expect(css).not.toContain('data-eldra-editing');
+  });
+
+  it('reports the breakpoints a style hides at, with the grammar inheritance', () => {
+    expect(hiddenLayoutBreakpoints(undefined)).toEqual([]);
+    expect(hiddenLayoutBreakpoints({})).toEqual([]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: true } })).toEqual([]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: true, tablet: false } })).toEqual([
+      'tablet',
+      'mobile',
+    ]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: false, tablet: true } })).toEqual([
+      'normal',
+    ]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: false } })).toEqual([
+      'normal',
+      'tablet',
+      'mobile',
+    ]);
+  });
+
+  it('is the only visibility key the grammar has — `hidden` is unknown', () => {
+    const layout = visibilityLayout({ normal: true }) as unknown as {
+      root: { children: Array<{ style: Record<string, unknown> }> };
+    };
+    layout.root.children[0]!.style = { hidden: { normal: true } };
+    expect(validateLayoutDocument(layout, new Set([ENTRY_A]))).toEqual({
+      path: '/root/children/0/style/hidden',
+      code: 'UNKNOWN_KEY',
+    });
+  });
+
+  it('refuses a non-boolean and a breakpoint map with no normal', () => {
+    expect(
+      validateLayoutDocument(
+        visibilityLayout({ normal: 'false' } as unknown as Responsive<boolean>),
+        new Set([ENTRY_A])
+      )
+    ).toEqual({ path: '/root/children/0/style/visible/normal', code: 'INVALID_TYPE' });
+    expect(
+      validateLayoutDocument(
+        visibilityLayout({ tablet: false } as unknown as Responsive<boolean>),
+        new Set([ENTRY_A])
+      )
+    ).toEqual({ path: '/root/children/0/style/visible/normal', code: 'REQUIRED' });
   });
 });

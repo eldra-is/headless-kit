@@ -2273,6 +2273,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       rect: rectOf(block),
       ...(layoutNodeId ? { layoutNodeId } : {}),
       ...(reusablePlacementId ? { reusablePlacementId } : {}),
+      ...hiddenAtBreakpoint(block),
     });
     if (mode === 'edit') {
       event.preventDefault();
@@ -2656,9 +2657,45 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
         rect: rectOf(block),
         ...(layoutNodeId ? { layoutNodeId } : {}),
         ...(reusablePlacementId ? { reusablePlacementId } : {}),
+        ...hiddenAtBreakpoint(block),
       };
     });
     opts.post('theme:blocks-rendered', { blocks });
+  }
+
+  /**
+   * Is this element hidden by the layout at the breakpoint currently in force?
+   *
+   * The layout CSS answers it with `--eldra-hidden: 1` on the hidden node,
+   * inside that breakpoint's `@media` block — so the browser's own cascade does
+   * the breakpoint arithmetic and the overlay never has to know the theme's
+   * numbers. Reading `display` instead would not work in edit mode, which is
+   * the only mode that asks: there the node is deliberately still displayed.
+   * The property inherits, which is what we want — a block inside a hidden
+   * container is hidden too.
+   *
+   * Spread into a payload, so a visible block's message is byte-identical to
+   * what it was before this field existed.
+   */
+  function hiddenAtBreakpoint(element: Element): { hiddenAtBreakpoint?: true } {
+    const hidden = getComputedStyle(element).getPropertyValue('--eldra-hidden').trim() === '1';
+    return hidden ? { hiddenAtBreakpoint: true } : {};
+  }
+
+  /**
+   * Edit mode keeps a breakpoint-hidden node on the canvas so the author can
+   * still see and select it. The layout CSS gates its `display:none` on
+   * `:not([data-eldra-editing])` and dims the node when that attribute is
+   * there, so all this has to do is put the attribute on the nodes a framework
+   * binding marked `data-eldra-hidden` — after mount, like every other overlay
+   * decoration, never during render, so server and client agree on the DOM.
+   */
+  function applyHiddenEditing(): void {
+    const editing = started && mode === 'edit';
+    for (const element of root.querySelectorAll<HTMLElement>('[data-eldra-hidden]')) {
+      if (editing) element.setAttribute('data-eldra-editing', '');
+      else element.removeAttribute('data-eldra-editing');
+    }
   }
 
   return {
@@ -2668,6 +2705,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       mountHost();
       decorateStegaTextNodes();
       applyRichTextEditable();
+      applyHiddenEditing();
       reportBlocks();
       // Registered before onClick, on document rather than eventTarget (see
       // onNavigationClick's doc comment) — navigation is prevented first,
@@ -2707,6 +2745,10 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       clearRichTextEditing();
       mode = 'preview';
       applyRichTextEditable();
+      // `started` is already false, so this strips the edit marker from every
+      // node it put one on: a torn-down bridge must not leave the page showing
+      // what the published site hides.
+      applyHiddenEditing();
       richTextRevisions.clear();
       releaseAllRichTextRenders();
       if (blocksRaf !== null) {
@@ -2764,6 +2806,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       if (nextMode !== 'edit') clearRichTextEditing();
       root.querySelectorAll<HTMLElement>('[data-eldra-field]').forEach(applyEditable);
       applyRichTextEditable();
+      applyHiddenEditing();
       // Leaving edit mode must hide the selected box immediately, and
       // re-entering it must restore the box for the current selection,
       // without waiting on the next pointer/scroll/resize event.
@@ -2797,6 +2840,8 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       decorateStegaTextNodes();
       // A rerender brings back roots without the editing surface on them.
       applyRichTextEditable();
+      // ...and layout nodes without the edit-mode marker on them either.
+      applyHiddenEditing();
       // Item 10: a framed image can be replaced by a rerender (same entry/
       // field attributes, new DOM node); re-resolve it or leave framing if
       // it is truly gone.

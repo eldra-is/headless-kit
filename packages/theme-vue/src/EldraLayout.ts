@@ -18,12 +18,14 @@ import {
   designTokenRevisionHash,
   DEFAULT_LAYOUT_BREAKPOINTS,
   generateDesignTokenCss,
+  hiddenLayoutBreakpoints,
   normalizeThemeDesignTokens,
   type BlockSlotDefinition,
   type EntryDoc,
   type LayoutBreakpoints,
   type LayoutRenderModel,
   type LayoutRenderNode,
+  type LayoutStyle,
   type ReusableComponentProjection,
   type ReusableLayoutRenderModel,
   type ReusableLayoutRenderNode,
@@ -146,6 +148,20 @@ function reusablePlacement(node: object): string | undefined {
   return typeof node.placementId === 'string' ? node.placementId : undefined;
 }
 
+/**
+ * `data-eldra-hidden` — the breakpoints the layout hides this node at, space
+ * separated, or nothing when it is visible everywhere.
+ *
+ * Rendered unconditionally, in preview and on the published site alike: it
+ * carries no styling of its own (the generated layout CSS does the hiding), it
+ * is identical on the server and on the client, and it is how the overlay finds
+ * the nodes to mark when Studio switches the theme into edit mode. Deciding it
+ * per bridge mode instead would be a hydration mismatch.
+ */
+function hiddenBreakpoints(style: LayoutStyle | undefined): string | undefined {
+  return hiddenLayoutBreakpoints(style).join(' ') || undefined;
+}
+
 function renderBlock(
   node: RenderBlockNode,
   entries: ReadonlyMap<string, EntryDoc>,
@@ -161,6 +177,7 @@ function renderBlock(
       class: node.className,
       hidden: true,
       'data-eldra-layout-node': node.id,
+      'data-eldra-hidden': hiddenBreakpoints(node.style),
       'data-eldra-reusable-placement': reusablePlacement(node),
       'data-eldra-missing-block': apiId ?? 'unknown',
     });
@@ -196,6 +213,7 @@ function renderBlock(
       key: renderIdentity(node),
       class: node.className,
       'data-eldra-layout-node': node.id,
+      'data-eldra-hidden': hiddenBreakpoints(node.style),
       'data-eldra-reusable-placement': reusablePlacement(node),
       'data-eldra-block': entry.id,
       'data-eldra-schema': apiId,
@@ -221,6 +239,7 @@ function renderSlotChildren(
         key: identity,
         class: child.className,
         'data-eldra-layout-node': child.id,
+        'data-eldra-hidden': hiddenBreakpoints(child.style),
         'data-eldra-slot-id': slotId,
         'data-eldra-block': child.entryId,
       },
@@ -282,6 +301,7 @@ function renderNode(
       key: renderIdentity(node),
       class: node.className,
       'data-eldra-layout-node': node.id,
+      'data-eldra-hidden': hiddenBreakpoints(node.style),
       'data-eldra-reusable-placement': reusablePlacement(node),
       'data-eldra-layout-container': node.type,
     },

@@ -259,6 +259,15 @@ export interface BridgePayloads {
     rect: DOMRectLike;
     layoutNodeId?: string;
     reusablePlacementId?: string;
+    /**
+     * Present, and always `true`, when the layout hides this block at the
+     * breakpoint the theme is currently rendering at (`style.visible` false
+     * there). Edit mode keeps such a block on the canvas — dimmed, still
+     * selectable — so Studio needs to be told what the viewport alone no longer
+     * shows. Absent means visible: additive, so an editor that does not know the
+     * field is unaffected.
+     */
+    hiddenAtBreakpoint?: true;
   };
   'theme:field-clicked': {
     entryId: string;
@@ -282,6 +291,8 @@ export interface BridgePayloads {
       rect: DOMRectLike;
       layoutNodeId?: string;
       reusablePlacementId?: string;
+      /** See `theme:block-clicked`'s field of the same name. */
+      hiddenAtBreakpoint?: true;
     }>;
   };
   /**

@@ -591,6 +591,29 @@ describe('EldraLayout', () => {
     expect(wrapper.findAll('[style]')).toHaveLength(0);
   });
 
+  it('marks a breakpoint-hidden node for the overlay and gates its display:none', async () => {
+    const wrapper = mount(EldraLayout, {
+      props: { layout: responsiveLayout(), blocks: [hero, second] },
+    });
+    await flushPromises();
+
+    const hidden = wrapper.get('[data-eldra-layout-node="SecondPlacement"]');
+    // `visible: { normal: true, tablet: false, mobile: true }` — tablet only:
+    // mobile restates `true`, so it does not inherit the tablet hide.
+    expect(hidden.attributes('data-eldra-hidden')).toBe('tablet');
+    // Rendered, not omitted: a static render hides it with CSS, never by
+    // dropping it, so the overlay has something to dim in edit mode.
+    expect(hidden.attributes('data-eldra-editing')).toBeUndefined();
+    expect(
+      wrapper.get('[data-eldra-layout-node="HeroPlacementA"]').attributes('data-eldra-hidden')
+    ).toBeUndefined();
+
+    const css = wrapper.get('style[data-eldra-layout-styles]').text();
+    const cls = layoutNodeClass('SecondPlacement');
+    expect(css).toContain(`.${cls}:not([data-eldra-editing]){display:none;}`);
+    expect(css).toContain(`.${cls}[data-eldra-editing]{opacity:0.35;}`);
+  });
+
   it('keeps breakpoint-hidden nodes in deterministic DOM order', async () => {
     const wrapper = mount(EldraLayout, {
       props: { layout: responsiveLayout(), blocks: [hero, second] },

@@ -4334,3 +4334,134 @@ describe('block hover reporting', () => {
     ]);
   });
 });
+
+describe('breakpoint-hidden layout nodes', () => {
+  let post: Mock<OverlayRuntimeOptions['post']>;
+  let runtime: OverlayRuntime;
+  let node: HTMLElement;
+
+  function renderedBlocks(
+    call: unknown[] | undefined
+  ): BridgePayloads['theme:blocks-rendered']['blocks'] {
+    if (call === undefined) throw new Error('no theme:blocks-rendered post');
+    return (call[1] as BridgePayloads['theme:blocks-rendered']).blocks;
+  }
+
+  /** The layout CSS a node hidden at the breakpoint in force emits: the fact
+   * as a custom property (jsdom evaluates it — it ignores `@media`, so the
+   * rule is written unwrapped here), plus the gated `display:none`. */
+  function styleHiddenNode(): void {
+    const style = document.createElement('style');
+    style.textContent = '.hidden-node{--eldra-hidden:1;}';
+    document.head.appendChild(style);
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback) => setTimeout(() => cb(0), 16) as unknown as number
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+    post = vi.fn<OverlayRuntimeOptions['post']>();
+    document.head.innerHTML = '';
+    document.body.innerHTML =
+      '<div class="hidden-node" data-eldra-layout-node="Placement" data-eldra-hidden="mobile">' +
+      '<section data-eldra-block="block-1" data-eldra-schema="hero"></section>' +
+      '</div>' +
+      '<div data-eldra-layout-node="Shown">' +
+      '<section data-eldra-block="block-2" data-eldra-schema="hero"></section>' +
+      '</div>';
+    node = document.querySelector<HTMLElement>('[data-eldra-hidden]')!;
+    runtime = createOverlayRuntime({ post });
+    runtime.start();
+  });
+
+  afterEach(() => {
+    runtime.stop();
+    document.head.innerHTML = '';
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('marks a hidden node for edit mode only, so preview and static keep display:none', () => {
+    expect(node.hasAttribute('data-eldra-editing')).toBe(false);
+
+    runtime.setMode('edit');
+    expect(node.getAttribute('data-eldra-editing')).toBe('');
+    expect(
+      document.querySelector('[data-eldra-layout-node="Shown"]')!.hasAttribute('data-eldra-editing')
+    ).toBe(false);
+
+    runtime.setMode('preview');
+    expect(node.hasAttribute('data-eldra-editing')).toBe(false);
+  });
+
+  it('waits for start(): a mode set on a stopped runtime decorates nothing', () => {
+    runtime.stop();
+    const idle = createOverlayRuntime({ post });
+    idle.setMode('edit');
+    expect(node.hasAttribute('data-eldra-editing')).toBe(false);
+
+    idle.start();
+    expect(node.getAttribute('data-eldra-editing')).toBe('');
+    idle.stop();
+  });
+
+  it('marks nodes a rerender brought in, and unmarks everything on stop', () => {
+    runtime.setMode('edit');
+    node.remove();
+    const replacement = document.createElement('div');
+    replacement.className = 'hidden-node';
+    replacement.setAttribute('data-eldra-layout-node', 'Placement');
+    replacement.setAttribute('data-eldra-hidden', 'mobile');
+    document.body.appendChild(replacement);
+    expect(replacement.hasAttribute('data-eldra-editing')).toBe(false);
+
+    runtime.rescan();
+    expect(replacement.getAttribute('data-eldra-editing')).toBe('');
+
+    runtime.stop();
+    expect(replacement.hasAttribute('data-eldra-editing')).toBe(false);
+  });
+
+  it('reports hiddenAtBreakpoint for the breakpoint in force, on render and on click', () => {
+    styleHiddenNode();
+    post.mockClear();
+    window.dispatchEvent(new Event('resize'));
+    vi.advanceTimersByTime(20);
+    const rendered = post.mock.calls.find(([type]) => type === 'theme:blocks-rendered');
+    expect(rendered?.[1]).toEqual({
+      blocks: [
+        expect.objectContaining({ entryId: 'block-1', hiddenAtBreakpoint: true }),
+        expect.objectContaining({ entryId: 'block-2' }),
+      ],
+    });
+    const shown = renderedBlocks(rendered)[1]!;
+    expect('hiddenAtBreakpoint' in shown).toBe(false);
+
+    post.mockClear();
+    document
+      .querySelector('[data-eldra-block="block-1"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(post).toHaveBeenCalledWith(
+      'theme:block-clicked',
+      expect.objectContaining({ entryId: 'block-1', hiddenAtBreakpoint: true })
+    );
+
+    post.mockClear();
+    document
+      .querySelector('[data-eldra-block="block-2"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const clicked = post.mock.calls.find(([type]) => type === 'theme:block-clicked');
+    expect(clicked?.[1] && 'hiddenAtBreakpoint' in clicked[1]).toBe(false);
+  });
+
+  it('reads the breakpoint in force, not the attribute: an unmatched breakpoint is not hidden', () => {
+    post.mockClear();
+    window.dispatchEvent(new Event('resize'));
+    vi.advanceTimersByTime(20);
+    const rendered = post.mock.calls.find(([type]) => type === 'theme:blocks-rendered');
+    expect(renderedBlocks(rendered).some((block) => 'hiddenAtBreakpoint' in block)).toBe(false);
+  });
+});
