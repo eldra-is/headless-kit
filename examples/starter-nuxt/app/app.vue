@@ -11,6 +11,13 @@
  * whoever raises a toast — the `cart` block's Undo, for one — needs exactly one mounted region to
  * render it, and that region owns every timer and the hand-off into an open modal `<dialog>`). It
  * belongs here rather than in a block: two of them would render every toast twice.
+ *
+ * `:page-key` is `@eldrajs/theme-nuxt`'s `eldraRouteKey` (auto-imported), not Nuxt's default, and
+ * it is load-bearing on a **generated** site: a host that answers `/products/ash-glaze-mug` with a
+ * redirect to `/products/ash-glaze-mug/` makes Nuxt re-navigate between the two paths while the
+ * page hydrates, and the catch-all route's default key differs between them — so the page, and
+ * every block on it, would be destroyed and built again, running each block's `setup` (and the
+ * storefront reads in it) twice. Keying by the canonical path makes that move a no-op.
  */
 import { Link, Toaster } from '@eldrajs/ui';
 import EldraRouterLink from './components/EldraRouterLink.vue';
@@ -30,6 +37,6 @@ const t = useT();
   >
     {{ t('nav.skipToContent') }}
   </Link>
-  <NuxtPage />
+  <NuxtPage :page-key="eldraRouteKey" />
   <Toaster />
 </template>

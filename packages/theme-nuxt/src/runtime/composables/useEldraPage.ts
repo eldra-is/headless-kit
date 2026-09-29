@@ -6,6 +6,7 @@ import type { CatalogRouteRef } from '../catalog';
 import { overlayPreviewDrafts } from '../drafts';
 import { normalizeLocale } from '../locale';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
+import { canonicalRoutePath } from '../routePath';
 
 export function useEldraPage(): {
   page: Ref<EntryDoc | null>;
@@ -50,7 +51,12 @@ export function useEldraPage(): {
   const { data: resolvedRoute, pending } = useAsyncData<ResolvedEldraRoute>(
     () => `eldra-page:${canonicalRoutePath(route.path)}`,
     resolveCurrentRoute,
-    { watch: [() => route.path], default: () => EMPTY_ELDRA_ROUTE }
+    // The **canonical** path, never `route.path` itself: a static host that answers
+    // `/products/x` with a 308 to `/products/x/` makes Nuxt re-navigate between the two during
+    // hydration (see `../routePath.ts`), and watching the raw path would make that a route change
+    // — a second gateway resolve, `pending` back to true, and the whole block tree torn down and
+    // built again while the answer is in flight.
+    { watch: [() => canonicalRoutePath(route.path)], default: () => EMPTY_ELDRA_ROUTE }
   );
 
   const previewResolvedRoute = ref<ResolvedEldraRoute | undefined>(undefined);
@@ -76,7 +82,7 @@ export function useEldraPage(): {
     { immediate: true }
   );
   watch(
-    () => route.path,
+    () => canonicalRoutePath(route.path),
     () => {
       previewRefreshRequest += 1;
       previewResolvedRoute.value = undefined;
@@ -136,10 +142,6 @@ function overlayEntryDraft(
   if (entry === null) return null;
   const draft = drafts[entry.id];
   return draft === undefined ? entry : { ...entry, data: { ...entry.data, ...draft } };
-}
-
-function canonicalRoutePath(path: string): string {
-  return path !== '/' && path.endsWith('/') ? path.slice(0, -1) : path;
 }
 
 function isEntryDoc(value: unknown): value is EntryDoc {

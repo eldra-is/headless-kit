@@ -27,13 +27,42 @@ export interface StaticServer {
   close(): Promise<void>;
 }
 
+/**
+ * Whether a directory-style path is answered with a 308 to the same path plus a trailing slash,
+ * the way the deployed preview host answers it:
+ *
+ * ```
+ * $ curl -D - https://<site>/products/ash-glaze-mug
+ * HTTP/2 308
+ * location: https://<site>/products/ash-glaze-mug/
+ * ```
+ *
+ * `nuxi generate` writes `products/ash-glaze-mug/index.html` and prerenders it under the path
+ * **without** the slash, so on the real host every page but `/` is hydrated at a URL one character
+ * different from the one it was rendered at. That is not cosmetic — see
+ * `prerenderRefresh.browser.spec.ts` — so the harness serves the site the same way rather than the
+ * flattering way.
+ */
+const TRAILING_SLASH_REDIRECT = true;
+
 export function startStaticServer(root: string): Promise<StaticServer> {
   return new Promise((resolve) => {
     const server = createServer((request, response) => {
-      const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
+      const url = new URL(request.url ?? '/', 'http://localhost');
+      const pathname = decodeURIComponent(url.pathname);
       const relative = normalize(pathname).replace(/^[/\\]+/, '');
       if (relative.startsWith('..')) {
         response.writeHead(400).end('Invalid path');
+        return;
+      }
+      if (
+        TRAILING_SLASH_REDIRECT &&
+        relative !== '' &&
+        extname(relative) === '' &&
+        !pathname.endsWith('/')
+      ) {
+        response.writeHead(308, { location: `${url.pathname}/${url.search}` });
+        response.end();
         return;
       }
       const candidate =

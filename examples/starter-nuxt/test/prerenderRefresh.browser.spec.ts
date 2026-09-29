@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   COLLECTION_HANDLE,
+  HOME_PAGE_PATH,
   PRODUCT_HANDLE,
   startMockGateway,
   type MockGateway,
@@ -18,7 +19,7 @@ import { startStaticServer, type StaticServer } from './support/staticServer';
  *
  * Every other spec for this feature mounts blocks, or server-renders and hydrates them by hand.
  * Neither can see what this one is about: a `nuxi generate` build, served as static files, driving
- * **Nuxt's own** hydration, payload and lazily-imported block components. Two defects lived
+ * **Nuxt's own** hydration, payload and lazily-imported block components. Four defects lived
  * happily under the mounted suites and were only visible here:
  *
  *  1. A storefront result whose source is not final at setup time re-keys in the browser and
@@ -33,6 +34,18 @@ import { startStaticServer, type StaticServer } from './support/staticServer';
  *     product page issued its detail read and its `id:in` batch twice, 35 ms apart, with identical
  *     ids. Which is why every request assertion below is over the **full** log, duplicates
  *     included, and why `askedMoreThanOnce` exists.
+ *  4. …and the reason there were two bursts at all: the deployed host answers
+ *     `/products/ash-glaze-mug` with a 308 to the same path plus a trailing slash, while the site
+ *     is prerendered at the path without one. Nuxt's hydration re-navigates between the two, and
+ *     because the catch-all route's default key differs between them the page — and every block on
+ *     it — was destroyed and built again, so every read the page makes was created twice.
+ *     `startStaticServer` serves the site the same way the host does, and the mount probe below is
+ *     what makes the second build visible: only one of the two instances ever reaches `mounted`, so
+ *     a request log or a DOM count sees nothing.
+ *
+ * The CMS **page** route (`/`) is in here as the control: its prerendered path and its served path
+ * are the same string, so it never had the fourth defect, which is exactly how the live
+ * discriminator read (home refreshed once, a product page twice).
  *
  * The mock gateway answers the CMS route templates and the catalog for the build, and the catalog
  * again for the browser — with every catalog answer held back (`catalogDelayMs`) while the browser
@@ -73,6 +86,28 @@ interface Visit {
   warnings: string[];
   /** Every money amount on the page, in order, once everything has settled. */
   prices: string[];
+  /**
+   * How many component instances each block got, and how many of them mounted, keyed
+   * `<component>|<schemaApiId>|<entry id>` — see `test/support/mountProbe.client.ts`. Every value
+   * must be 1: a block created a second time runs its `setup` again, and with it every storefront
+   * read in it.
+   */
+  instances: { created: Record<string, number>; mounted: Record<string, number> };
+}
+
+/** Just the block components' counts, which is what "built once" is about. */
+function blockInstances(visited: Visit): Visit['instances'] {
+  const blocksOnly = (counts: Record<string, number>): Record<string, number> =>
+    Object.fromEntries(Object.entries(counts).filter(([key]) => key.startsWith('Block|')));
+  return {
+    created: blocksOnly(visited.instances.created),
+    mounted: blocksOnly(visited.instances.mounted),
+  };
+}
+
+/** The entries whose count is anything but one, as `[key, count]` pairs — `[]` when all is well. */
+function notExactlyOnce(counts: Record<string, number>): Array<[string, number]> {
+  return Object.entries(counts).filter(([, count]) => count !== 1);
 }
 
 /** Load one generated page in a real browser and watch it refresh. */
@@ -107,11 +142,19 @@ async function visit(path: string): Promise<Visit> {
     const prices = await page.evaluate(() =>
       (document.body.innerText.match(/\$\d[\d.,]*/g) ?? []).slice(0, 12)
     );
+    const instances = await page.evaluate(() => {
+      const probe = window as unknown as {
+        __eldraCreated?: Record<string, number>;
+        __eldraMounted?: Record<string, number>;
+      };
+      return { created: probe.__eldraCreated ?? {}, mounted: probe.__eldraMounted ?? {} };
+    });
     return {
       requests: gateway.requests.map((request) => decodeURIComponent(request)),
       samples,
       warnings,
       prices,
+      instances,
     };
   } finally {
     await page.close();
@@ -178,6 +221,12 @@ describe('prerendered commerce data on the generated static site', () => {
       },
     });
     symlinkSync(join(templateDir, 'node_modules'), join(root, 'node_modules'), 'dir');
+    // The mount counter, installed into the generated copy only — the starter ships no such
+    // plugin, so nothing a customer builds carries it.
+    cpSync(
+      join(templateDir, 'test', 'support', 'mountProbe.client.ts'),
+      join(root, 'app', 'plugins', 'zz-mount-probe.client.ts')
+    );
     const generated = await execa(nuxi, ['generate'], {
       cwd: root,
       env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID },
@@ -197,6 +246,30 @@ describe('prerendered commerce data on the generated static site', () => {
     await statics?.close();
     await gateway?.close();
     if (scratch !== undefined) rmSync(scratch, { recursive: true, force: true });
+  });
+
+  it('builds every block on a CMS page route exactly once', async () => {
+    const visited = await visit(HOME_PAGE_PATH);
+    const instances = blockInstances(visited);
+    expect(Object.keys(instances.created).length).toBe(9);
+    expect(notExactlyOnce(instances.created)).toEqual([]);
+    expect(notExactlyOnce(instances.mounted)).toEqual([]);
+    expect(visited.warnings).toEqual([]);
+  });
+
+  it('builds every block on a route-template page exactly once, served with a trailing slash', async () => {
+    const visited = await visit(productPage);
+    const instances = blockInstances(visited);
+    expect(Object.keys(instances.created).length).toBe(7);
+    // The page is served at `/products/ash-glaze-mug/` and prerendered at
+    // `/products/ash-glaze-mug` (`startStaticServer`'s 308 is the deployed host's). Nuxt therefore
+    // re-navigates between the two while the page hydrates, and unless the route key and the page
+    // composable both read the *canonical* path, that move destroys and rebuilds the page — every
+    // block's `setup` runs again, every storefront read in it goes out again, and only one of the
+    // two instances ever mounts, so the mount count alone would say nothing is wrong.
+    expect(notExactlyOnce(instances.created)).toEqual([]);
+    expect(notExactlyOnce(instances.mounted)).toEqual([]);
+    expect(visited.warnings).toEqual([]);
   });
 
   it('writes real prices and stock into the static HTML, with no skeleton and nothing busy', () => {

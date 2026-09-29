@@ -118,6 +118,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     addPlugin(resolver.resolve('./runtime/plugin'));
     addImports([
       { name: 'useEldraPage', from: resolver.resolve('./runtime/composables/useEldraPage') },
+      // The route key a theme's catch-all page gives `<NuxtPage>`; see `./runtime/routePath`.
+      { name: 'eldraRouteKey', from: resolver.resolve('./runtime/routePath') },
       { name: 'useEldra', from: '@eldrajs/theme-vue' },
       { name: 'useEldraEntry', from: '@eldrajs/theme-vue' },
       { name: 'useEldraPreview', from: '@eldrajs/theme-vue' },

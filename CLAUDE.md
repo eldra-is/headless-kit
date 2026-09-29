@@ -234,6 +234,12 @@ the only test in the kit that sees Nuxt's own hydration, payload and lazily impo
 components, and the only one that can see a commerce block refetch prerendered data or fail to
 draw its refresh treatment. It generates into a copy of the starter under `os.tmpdir()`, never into
 `examples/starter-nuxt/.output`, so it does not race `test/starter.spec.ts`'s own generate runs.
+Two details of it are load-bearing and easy to "simplify" away: its static server answers a
+directory path with a **308 to the same path plus a trailing slash**, the way the deployed preview
+host does (the artifact is prerendered without one, and that mismatch is what made Nuxt rebuild
+every page mid-hydration), and it copies `test/support/mountProbe.client.ts` into the generated
+copy's `app/plugins/` to count block **instances** — a block built twice mounts once, so a DOM
+count or a request log alone cannot see it.
 
 **The accessibility gate (`examples/starter-nuxt`).** Every primitive and block spec asserts
 `expect(await axe(wrapper.element)).toHaveNoViolations()` (`vitest-axe`, jsdom) — a passing axe

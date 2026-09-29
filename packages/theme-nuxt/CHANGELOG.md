@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fix: a page served at a URL that differs from the one it was prerendered at only by a trailing
+  slash is no longer built twice. A generated site is `<route>/index.html`, and a static host may
+  answer `/products/ash-glaze-mug` with a redirect to `/products/ash-glaze-mug/`; Nuxt then
+  re-navigates between the two paths while the page hydrates, and the catch-all route's default key
+  differs between them — so the page, and every block on it, was destroyed and created again,
+  running each block's `setup` (and every storefront read in it) a second time. `useEldraPage()` now
+  watches the **canonical** path, the one its async-data key already used, and the module
+  auto-imports `eldraRouteKey` for a theme to give `<NuxtPage>` (`:page-key="eldraRouteKey"`) so the
+  page survives that move. Themes scaffolded before this should add the `page-key` binding; the
+  starter does.
+
 - Feat: `useEldraPage()` exposes `reusableComponentProjection` on a **route-template** route. Core
   attaches the projection to whichever document the read returned, and a route resolves exactly one
   of the two — a static route a `page`, a dynamic one a `template` — so the composable now reads the

@@ -28,10 +28,17 @@ const EMPTY: ResolvedLike = { page: null, template: null, entry: null, catalog: 
 
 const state = vi.hoisted(() => ({
   resolved: { page: null, template: null, entry: null, catalog: null } as unknown,
+  path: '/products/merino-crew',
+  /** The key and `watch` sources the composable handed `useAsyncData`, last call. */
+  asyncData: { key: (): string => '', watch: [] as Array<() => unknown> },
 }));
 
 vi.mock('nuxt/app', () => ({
-  useRoute: () => ({ path: '/products/merino-crew' }),
+  useRoute: () => ({
+    get path() {
+      return state.path;
+    },
+  }),
   useRuntimeConfig: () => ({
     public: {
       eldra: { pageSchema: 'page', routeTemplateSchema: 'route-template', locale: null },
@@ -39,10 +46,14 @@ vi.mock('nuxt/app', () => ({
   }),
   clearNuxtData: () => {},
   useAsyncData: (
-    _key: unknown,
+    key: unknown,
     handler: () => Promise<unknown>,
-    options?: { default?: () => unknown }
+    options?: { default?: () => unknown; watch?: Array<() => unknown> }
   ) => {
+    state.asyncData = {
+      key: key as () => string,
+      watch: options?.watch ?? [],
+    };
     const data = ref(options?.default?.() ?? null);
     const pending = ref(true);
     void Promise.resolve(handler()).then((value) => {
@@ -185,5 +196,36 @@ describe('useEldraPage reusable projection', () => {
         template: templateDoc(templateProjection),
       })
     ).resolves.toEqual(pageProjection);
+  });
+});
+
+/**
+ * A generated site is prerendered at `/products/x` and served by the deployed host at
+ * `/products/x/` (a 308 — see `src/runtime/routePath.ts`), so Nuxt moves the router between those
+ * two spellings while the page hydrates. The composable must call that one route: its async-data
+ * key already did, and its `watch` sources must agree with the key, or the same key is resolved a
+ * second time — `pending` back to true, the block tree torn down and rebuilt around the answer.
+ */
+describe('useEldraPage route identity', () => {
+  it('reads the same key and the same watch sources for a path with and without a trailing slash', async () => {
+    state.resolved = EMPTY;
+    const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');
+
+    state.path = '/products/merino-crew';
+    useEldraPage();
+    const bare = {
+      key: state.asyncData.key(),
+      watched: state.asyncData.watch.map((source) => source()),
+    };
+
+    state.path = '/products/merino-crew/';
+    const slashed = {
+      key: state.asyncData.key(),
+      watched: state.asyncData.watch.map((source) => source()),
+    };
+
+    expect(slashed).toEqual(bare);
+    expect(bare.watched).not.toEqual([]); // the sources exist at all
+    state.path = '/products/merino-crew';
   });
 });

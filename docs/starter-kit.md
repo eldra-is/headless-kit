@@ -490,6 +490,21 @@ shows it. `test/prerenderRefresh.browser.spec.ts` is the guard: a real `nuxi gen
 mock gateway, served as static files and driven with Playwright, asserting the payload's key set and
 every request the page makes afterwards.
 
+**The page must be one route however the host spells it.** A generated site is a tree of
+`<route>/index.html` files, and static hosts disagree about which URL that file lives at: the
+deployed Eldra preview host answers `/products/ash-glaze-mug` with a 308 to
+`/products/ash-glaze-mug/`, while the artifact was prerendered at the path _without_ the slash. Nuxt
+compares the two while the page hydrates, finds them different and re-navigates between them — and
+the catch-all route's default key differs between those two spellings, so the page and every block
+on it were destroyed and built again: each block's `setup` ran twice and every storefront read in it
+went out twice, while only one of the two instances ever mounted (so nothing in the DOM, and no
+`onMounted` side effect, gave it away). `app/app.vue` therefore passes
+`:page-key="eldraRouteKey"` — `@eldrajs/theme-nuxt`'s own canonical-path key, the same identity
+`useEldraPage()` resolves content under — to `<NuxtPage>`. Keep that binding; a theme that drops it
+pays for every commerce read on every dynamic route twice. The guard is the same generate-level
+spec, whose static server redirects the way the real host does and whose mount probe counts block
+instances, not DOM nodes.
+
 **What the visitor actually sees.** Nothing moves. The price and the stock line the page was built
 with stay exactly where they are, at their own size and wording; while the refresh is in flight they
 are drawn slightly dimmed with a small spinner beside them, and each is marked `aria-busy`

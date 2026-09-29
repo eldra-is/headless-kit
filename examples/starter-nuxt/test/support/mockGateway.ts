@@ -29,6 +29,10 @@ const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 const blockUuid = (index: number): string =>
   `${String(index + 1).padStart(8, '0')}-0000-4000-8000-000000000000`;
 
+/** The home page's block entries start here, so a page block id can never collide with a
+ * template block id — the mount counter keys by entry id. */
+const PAGE_BLOCK_UUID_OFFSET = 100;
+
 interface MockVariant {
   id: string;
   sku: string;
@@ -216,6 +220,60 @@ function withExtraNodes<T>(children: readonly T[], extra: ReadonlyArray<{ id: st
   return [...children.slice(0, at), ...nodes, ...children.slice(at)];
 }
 
+/**
+ * The starter's own home seed, as the CMS **page** entry a deployed site holds — the control every
+ * route-template assertion is read against.
+ *
+ * A static route resolves to a `page` and no `template`, so `app/pages/[...slug].vue` hands
+ * `EldraLayout` no `templateEntry` and the layout takes its page branch: a v2 page document of
+ * ordinary `block` nodes. That is exactly the shape the deployed site's `/` has, down to the
+ * `product-carousel` it carries, which is what makes it a fair comparison for a product page's
+ * template-block leaves.
+ */
+export const HOME_PAGE_PATH = '/';
+
+function pageEntries(): Array<{ id: string; data: Record<string, unknown> }> {
+  const seed = starterTemplates().find((candidate) => candidate.schemaApiId === 'home');
+  if (seed === undefined) throw new Error('mockGateway: the starter no longer seeds a home page');
+  const roles = starterTemplateRoles();
+  const blocks = [
+    { id: 'role-header', apiId: roles.header.apiId, data: roles.header.data },
+    ...seed.blocks,
+    { id: 'role-footer', apiId: roles.footer.apiId, data: roles.footer.data },
+  ];
+  const entryIdOf = new Map(
+    blocks.map((block, index) => [block.id, blockUuid(PAGE_BLOCK_UUID_OFFSET + index)])
+  );
+  return [
+    {
+      id: 'page-home',
+      data: {
+        title: seed.title,
+        // No parent and the slug `home` is the site root — see `resolvePagePath`.
+        slug: 'home',
+        layout: {
+          version: 2,
+          root: {
+            id: 'root',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: blocks.map((block) => ({
+              id: block.id,
+              type: 'block',
+              entryId: entryIdOf.get(block.id),
+            })),
+          },
+        },
+        blocks: blocks.map((block) => ({
+          id: entryIdOf.get(block.id),
+          schemaApiId: block.apiId,
+          data: block.data,
+        })),
+      },
+    },
+  ];
+}
+
 /** `field:op:value` tokens, as much of the grammar as the storefront actually sends. */
 function matchesFilters(row: MockProduct, filters: string[]): boolean {
   for (const token of filters) {
@@ -245,6 +303,7 @@ export function startMockGateway(): Promise<MockGateway> {
     const requests: string[] = [];
     const state = { catalogDelayMs: 0 };
     const templates = routeTemplateEntries();
+    const pages = pageEntries();
 
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
@@ -283,7 +342,11 @@ export function startMockGateway(): Promise<MockGateway> {
       const segments = url.pathname.split('/').filter(Boolean);
 
       if (url.pathname === '/cms/v1/schema/page/entry') {
-        answer(listResponse([]));
+        answer(listResponse(pages));
+      } else if (url.pathname.startsWith('/cms/v1/schema/page/entry/')) {
+        const id = segments[segments.length - 1];
+        const page = pages.find((entry) => entry.id === id);
+        answer(page ?? {}, page === undefined ? 404 : 200);
       } else if (url.pathname === '/cms/v1/schema/route-template/entry') {
         answer(listResponse(templates));
       } else if (url.pathname.startsWith('/cms/v1/schema/route-template/entry/')) {
