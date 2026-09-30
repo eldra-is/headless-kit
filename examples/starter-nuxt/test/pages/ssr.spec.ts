@@ -15,7 +15,6 @@
 import { describe, expect, it } from 'vitest';
 import Navigation from '../../blocks/navigation/Block.vue';
 import navigationMock from '../../blocks/navigation/mock.json';
-import navigationPreview from '../../blocks/navigation/preview.json';
 import ProductDetail from '../../blocks/product-detail/Block.vue';
 import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
@@ -45,7 +44,7 @@ describe('server rendering', () => {
   it('server-renders the header block without touching window or document', async () => {
     const html = await renderBlockToString(Navigation, {
       id: 'ssr-header',
-      data: { ...navigationMock, ...navigationPreview },
+      data: navigationMock,
     });
 
     expect(html).toContain('<header');

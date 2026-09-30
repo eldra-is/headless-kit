@@ -704,7 +704,82 @@ describe('block field migrations — link', () => {
       const f = fixture();
       f.write([oldList('links')], 2, [{ version: 2, convertToLink: [listConversion] }]);
       expect(f.scan().errors.join('\n')).toContain(
-        'conversion destination "links" must be a list whose item is a link field'
+        'conversion destination "links" must be a list of links, or a list of composites each carrying one list of links'
+      );
+    });
+
+    it('converts a list of groups whose composite carries the links one level down', () => {
+      // The footer's own shape: the group keeps its title and its inner list
+      // becomes a list of links.
+      const groupList = (inner: BlockField): BlockField => ({
+        fieldId: 'groups',
+        name: 'groups',
+        type: 'list',
+        metadata: {
+          item: {
+            fieldId: 'group',
+            name: 'Group',
+            type: 'composite',
+            metadata: { fields: [field('title'), inner] },
+          },
+        },
+      });
+      const f = fixture();
+      f.write(
+        [
+          groupList({
+            fieldId: 'links',
+            name: 'links',
+            type: 'list',
+            metadata: {
+              item: {
+                fieldId: 'link',
+                name: 'Link',
+                type: 'composite',
+                metadata: { fields: [field('label'), field('href')] },
+              },
+            },
+          }),
+        ],
+        1
+      );
+      const previous = f.scan().manifest!;
+      f.write([groupList(newList('links'))], 2, [
+        {
+          version: 2,
+          convertToLink: [
+            { from: 'groups', to: 'groups', shape: 'list', label: 'label', url: 'href' },
+          ],
+        },
+      ]);
+      expect(f.scan(previous).errors).toEqual([]);
+    });
+
+    it('refuses a one-level-down conversion whose source has no list there', () => {
+      const f = fixture();
+      f.write([field('groups')], 1);
+      const previous = f.scan().manifest!;
+      f.write(
+        [
+          {
+            fieldId: 'groups',
+            name: 'groups',
+            type: 'list',
+            metadata: {
+              item: {
+                fieldId: 'group',
+                name: 'Group',
+                type: 'composite',
+                metadata: { fields: [field('title'), newList('links')] },
+              },
+            },
+          },
+        ],
+        2,
+        [{ version: 2, convertToLink: [{ from: 'groups', to: 'groups', shape: 'list' }] }]
+      );
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion source "groups" must be a list of composites'
       );
     });
 
@@ -755,6 +830,48 @@ describe('block field migrations — link', () => {
       expect(f.scan(previous).errors.join('\n')).toContain(
         'conversion label "showCta" must name another string field of the previous block'
       );
+    });
+
+    it("accepts a group that lives on the children list's item, not on the top row", () => {
+      const f = fixture();
+      // The v2 mega-menu shape: the top row has no `group` of its own, only its
+      // nested links do — the conversion names the same four keys at both
+      // levels.
+      const menuOnlyGroup: BlockField = {
+        fieldId: 'links',
+        name: 'links',
+        type: 'list',
+        metadata: {
+          item: {
+            fieldId: 'link',
+            name: 'Link',
+            type: 'composite',
+            metadata: {
+              fields: [
+                field('label'),
+                field('href'),
+                {
+                  fieldId: 'menuLinks',
+                  name: 'menuLinks',
+                  type: 'list',
+                  metadata: {
+                    item: {
+                      fieldId: 'menuLink',
+                      name: 'menuLink',
+                      type: 'composite',
+                      metadata: { fields: [field('group'), field('label'), field('href')] },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      };
+      f.write([menuOnlyGroup], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [{ version: 2, convertToLink: [listConversion] }]);
+      expect(f.scan(previous).errors).toEqual([]);
     });
 
     it('refuses a list conversion whose source was not a list of composites', () => {

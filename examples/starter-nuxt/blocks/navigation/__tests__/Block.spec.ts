@@ -6,18 +6,69 @@ import { Badge } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
-import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { computed, nextTick } from 'vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 
-// `mock.json` is the seed Studio writes when an author inserts the block —
-// media fields (`brandLogo`, `links[].features[].image`) are absent.
-// `preview.json` (shallow-merged, `links` replaced wholesale) is the
-// story/preview-only demo-imagery overlay: same links, Knitwear also gets
-// its two feature cards.
-const merged = { ...mock, ...preview };
+// `mock.json` is the seed Studio writes when an author inserts the block — media fields
+// (`brandLogo`) are absent, and a collection destination is named by handle, because a theme
+// cannot know an organisation's catalog ids.
+//
+// Core rewrites those handles to ids when it seeds the entry, and the site resolves each id to a
+// slug and a title before rendering. `resolveTargets` does both here, so a spec can assert the
+// hrefs a real page produces; `mock` itself stays the unresolved seed, which is what a header
+// looks like the moment it is inserted and nothing has resolved yet.
+const COLLECTION_TEMPLATE = {
+  id: 'rt-collection',
+  data: {
+    schemaApiId: 'catalog:collection',
+    routePattern: '/collections/:slug',
+    slugField: 'slug',
+  },
+};
+
+interface SeedTarget {
+  _type: string;
+  slug?: string;
+  id?: string;
+}
+interface SeedLink {
+  kind: string;
+  target?: SeedTarget;
+  url?: string;
+  label?: string;
+  group?: string;
+  children?: SeedLink[];
+}
+
+function resolveTargets<T extends Record<string, unknown>>(
+  data: T
+): {
+  data: T;
+  links: { templates: (typeof COLLECTION_TEMPLATE)[]; targets: Map<string, unknown> };
+} {
+  const targets = new Map<string, unknown>();
+  const rewrite = (link: SeedLink): SeedLink => {
+    const slug = link.target?.slug;
+    if (link.target === undefined || slug === undefined) {
+      return { ...link, ...(link.children ? { children: link.children.map(rewrite) } : {}) };
+    }
+    const id = `id-${slug}`;
+    targets.set(`${link.target._type}:${id}`, { slug, title: link.label });
+    return {
+      ...link,
+      target: { _type: link.target._type, id },
+      ...(link.children ? { children: link.children.map(rewrite) } : {}),
+    };
+  };
+  const next = { ...data } as Record<string, unknown>;
+  if (Array.isArray(next.links)) next.links = (next.links as SeedLink[]).map(rewrite);
+  if (next.cta !== undefined) next.cta = rewrite(next.cta as SeedLink);
+  return { data: next as T, links: { templates: [COLLECTION_TEMPLATE], targets } };
+}
+
+const resolved = resolveTargets(mock);
 
 /** The injected fetcher still resolves through a promise; flush one microtask/macrotask turn
  *  before asserting on icon markup — the same wait `trust-strip`'s/`team`'s own specs use. */
@@ -26,7 +77,7 @@ async function flushIcons(): Promise<void> {
 }
 
 function mountBlock(data: Record<string, unknown>, opts?: { attachTo?: Element }) {
-  const base = mountOptions({ entry: { id: 'e1', data } });
+  const base = mountOptions({ entry: { id: 'e1', data } }, { links: resolved.links });
   return mount(Block, {
     ...base,
     ...opts,
@@ -46,6 +97,7 @@ function mountWithEditing(data: Record<string, unknown>, editing: boolean) {
         [ELDRA_KEY]: {
           client: {},
           designTokens: { colors: {} },
+          links: resolved.links,
           preview: Object.assign(createEldraPreviewState(), {
             active: editing,
             mode: editing ? 'edit' : 'preview',
@@ -80,35 +132,83 @@ describe('header block (navigation apiId)', () => {
   });
 
   it('renders the bare mock.json content — the freshly-inserted state, no images, axe-clean', async () => {
+    // Nothing is resolved yet: every label shows, and every catalog destination is still a handle
+    // the site has not turned into a path, so the rows are plain text and the call to action —
+    // which is a button or nothing, never a button to nowhere — is not drawn at all.
     const wrapper = mountBlock(mock);
     expect(wrapper.find('img').exists()).toBe(false);
     expect(wrapper.text()).toContain(mock.brandText);
     for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
-    expect(wrapper.text()).toContain(mock.ctaLabel);
+    expect(wrapper.text()).not.toContain(mock.ctaLabel);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('renders the merged preview.json content with the Knitwear feature cards, axe-clean', async () => {
-    const wrapper = mountBlock(merged, { attachTo: document.body });
+  it('draws the call to action once its destination resolves', async () => {
+    const wrapper = mountBlock(resolved.data);
+    const cta = wrapper.findAll('a').find((a) => a.text() === mock.ctaLabel)!;
+    expect(cta.attributes('href')).toBe('/collections/gifts');
     expect(await axe(wrapper.element)).toHaveNoViolations();
-    const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
-    await knitwear.trigger('click');
-    const panelId = knitwear.attributes('aria-controls')!;
-    const panel = wrapper.get(`#${panelId}`);
-    expect(panel.findAll('img')).toHaveLength(2);
-    expect(panel.text()).toContain('New season knitwear');
+  });
+
+  it('renders a resolved collection row as /collections/<slug>, axe-clean', async () => {
+    const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    const kitchen = wrapper.findAll('a').find((a) => a.text() === 'Kitchen')!;
+    expect(kitchen.attributes('href')).toBe('/collections/kitchen');
+    // A row with no catalog target at all still renders its own URL.
+    const journal = wrapper.findAll('a').find((a) => a.text() === 'Journal')!;
+    expect(journal.attributes('href')).toBe('/journal');
     wrapper.unmount();
   });
 
-  it('renders each declared variant with the merged content, axe-clean', async () => {
+  it('renders a row whose target no longer exists as plain text, never a dead anchor', async () => {
+    // The site resolved nothing for this target — deleted, unpublished, or a kind the theme has no
+    // route for. The label is still worth showing; an anchor to nowhere is not.
+    const wrapper = mountBlock({
+      ...resolved.data,
+      links: [
+        { kind: 'collection', target: { _type: 'collection', id: 'id-gone' }, label: 'Gone' },
+      ],
+    });
+    expect(wrapper.text()).toContain('Gone');
+    expect(wrapper.findAll('a').some((a) => a.text() === 'Gone')).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders nothing at all for a row with no label', async () => {
+    const wrapper = mountBlock({
+      ...resolved.data,
+      links: [
+        { kind: 'url', url: '/journal' },
+        { kind: 'url', url: '/pages/visit', label: 'Visit' },
+      ],
+    });
+    const rows = wrapper.findAll('nav ul li');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.text()).toBe('Visit');
+  });
+
+  it('renders a row with children as a mega-menu disclosure', async () => {
+    const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+    const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+    expect(knitwear.attributes('aria-expanded')).toBe('false');
+    await knitwear.trigger('click');
+    const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
+    expect(panel.text()).toContain('Women');
+    const sweaters = panel.findAll('a').find((a) => a.text() === 'Sweaters')!;
+    expect(sweaters.attributes('href')).toBe('/collections/womens-sweaters');
+    wrapper.unmount();
+  });
+
+  it('renders each declared variant with the resolved content, axe-clean', async () => {
     for (const variant of ['default', 'centered', 'minimal']) {
-      const wrapper = mountBlock({ ...merged, variant });
+      const wrapper = mountBlock({ ...resolved.data, variant });
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   });
 
   it('has no h1 anywhere in the header (block headings are never h1)', () => {
-    const wrapper = mountBlock(merged);
+    const wrapper = mountBlock(resolved.data);
     expect(wrapper.find('h1').exists()).toBe(false);
   });
 
@@ -117,7 +217,7 @@ describe('header block (navigation apiId)', () => {
     // `<div>`/`<ul>` with no `nav` landmark of its own: with no real stylesheet loaded, jsdom/axe
     // cannot tell "hidden below 64rem" from "visible", so a second identically-labelled `nav`
     // would trip axe's `landmark-unique` rule the moment both exist in the same render.
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(resolved.data);
     const navs = wrapper.findAll('nav[aria-label="Primary navigation"]');
     expect(navs).toHaveLength(1);
   });
@@ -129,12 +229,12 @@ describe('header block (navigation apiId)', () => {
     // not establish one of its own. Losing this silently strands every `@tablet:`/`@content:` class
     // at its mobile value regardless of the block's real width (the footer review's own
     // regression: it shipped its mobile layout at 1280px).
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(resolved.data);
     expect(wrapper.get('header').classes()).toContain('@container');
   });
 
   it('never emits data-section/data-section-bg (it is not a Section, so a following Hero keeps its own top padding)', () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(resolved.data);
     const header = wrapper.get('header').element;
     expect(header.hasAttribute('data-section')).toBe(false);
     expect(header.hasAttribute('data-section-bg')).toBe(false);
@@ -144,7 +244,7 @@ describe('header block (navigation apiId)', () => {
     // Cross-block contract (the announcement-bar block): after dismissing itself, it moves focus to
     // `[data-eldra-header-focus]` in the header, falling back to `#main`. The brand link is the
     // first focusable element in DOM order ahead of the primary links list.
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(resolved.data);
     const marked = wrapper.get('[data-eldra-header-focus]');
     expect(marked.element.tagName).toBe('A');
     expect(marked.attributes('href')).toBe('/');
@@ -157,7 +257,7 @@ describe('header block (navigation apiId)', () => {
 
   describe('mega-menu keyboard', () => {
     it('Enter/Space toggles the trigger; hover alone never opens it; opening one closes the other', async () => {
-      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       // Locate the two mega-menu triggers by their accessible label text.
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       const ceramics = wrapper.findAll('button').find((b) => b.text().includes('Ceramics'))!;
@@ -185,7 +285,7 @@ describe('header block (navigation apiId)', () => {
     it('hover opens a panel after 150ms, leaving it closes it after 150ms, and a click-opened panel stays', async () => {
       vi.useFakeTimers();
       try {
-        const wrapper = mountBlock(mock, { attachTo: document.body });
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
         const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
         const panel = () => wrapper.find(`#${knitwear.attributes('aria-controls')}`);
 
@@ -223,7 +323,7 @@ describe('header block (navigation apiId)', () => {
     });
 
     it('a sticky bar hides on scroll-down, returns on scroll-up or at the top, and never hides while in use', async () => {
-      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       const header = wrapper.get('header');
       Object.defineProperty(header.element, 'offsetHeight', { value: 72, configurable: true });
       const scrollTo = async (y: number) => {
@@ -268,7 +368,7 @@ describe('header block (navigation apiId)', () => {
     });
 
     it('a non-sticky bar scrolls away with the page and never hides itself', async () => {
-      const wrapper = mountBlock({ ...mock, sticky: false }, { attachTo: document.body });
+      const wrapper = mountBlock({ ...resolved.data, sticky: false }, { attachTo: document.body });
       const header = wrapper.get('header');
       Object.defineProperty(window, 'scrollY', { value: 800, configurable: true });
       window.dispatchEvent(new Event('scroll'));
@@ -280,7 +380,7 @@ describe('header block (navigation apiId)', () => {
     });
 
     it('Esc on the trigger closes the panel and returns focus to the trigger', async () => {
-      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       await knitwear.trigger('click');
       expect(knitwear.attributes('aria-expanded')).toBe('true');
@@ -295,7 +395,7 @@ describe('header block (navigation apiId)', () => {
     });
 
     it('Esc from inside the panel closes it and returns focus to the trigger', async () => {
-      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       await knitwear.trigger('click');
       const panelId = knitwear.attributes('aria-controls')!;
@@ -314,7 +414,7 @@ describe('header block (navigation apiId)', () => {
 
   describe('drawer keyboard', () => {
     it('opens as a dialog with the first focusable row focused', async () => {
-      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
       await menuButton.trigger('click');
 
@@ -327,7 +427,7 @@ describe('header block (navigation apiId)', () => {
     });
 
     it('Esc closes the drawer and returns focus to the menu button', async () => {
-      const wrapper = mountBlock(mock, { attachTo: document.body });
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
       // A real click focuses the button before it fires; `trigger('click')` only dispatches the
       // event, so the opener has to be focused explicitly for `useDialog`'s "return focus to
@@ -356,7 +456,7 @@ describe('header block (navigation apiId)', () => {
     }
 
     it('reads "Cart, empty" with nothing in the cart, and shows no badge', () => {
-      const wrapper = mountBlock(mock); // demo storefront's cart starts empty
+      const wrapper = mountBlock(resolved.data); // demo storefront's cart starts empty
       expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, empty');
       expect(wrapper.findComponent(Badge).exists()).toBe(false);
     });
@@ -383,7 +483,7 @@ describe('header block (navigation apiId)', () => {
 
   it('marks the current link with aria-current="page"', async () => {
     window.history.pushState({}, '', '/collections/kitchen');
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(resolved.data);
     const current = wrapper
       .findAll('a')
       .find((a) => a.attributes('href') === '/collections/kitchen')!;
@@ -394,19 +494,19 @@ describe('header block (navigation apiId)', () => {
 
   it('renders 8 links with no overflow markup errors', async () => {
     const eightLinks = [
-      ...mock.links,
-      { label: 'Sale', href: '/collections/sale' },
-      { label: 'Gifts', href: '/collections/gifts' },
-      { label: 'About', href: '/pages/about' },
+      ...resolved.data.links,
+      { kind: 'url', url: '/collections/sale', label: 'Sale' },
+      { kind: 'url', url: '/collections/gifts', label: 'Gifts' },
+      { kind: 'url', url: '/pages/about', label: 'About' },
     ];
-    const wrapper = mountBlock({ ...mock, links: eightLinks });
+    const wrapper = mountBlock({ ...resolved.data, links: eightLinks });
     expect(wrapper.findAll('nav ul li, ul.list-none > li').length).toBeGreaterThan(0);
     for (const link of eightLinks) expect(wrapper.text()).toContain(link.label);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it('bare mock (no features) spreads mega-menu groups across the full width', async () => {
-    const wrapper = mountBlock(mock, { attachTo: document.body });
+  it('spreads mega-menu groups across the full width', async () => {
+    const wrapper = mountBlock(resolved.data, { attachTo: document.body });
     const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
     await knitwear.trigger('click');
     const panelId = knitwear.attributes('aria-controls')!;
@@ -418,7 +518,7 @@ describe('header block (navigation apiId)', () => {
   });
 
   it('the search control has aria-haspopup="dialog" and opens SearchModal', async () => {
-    const wrapper = mountBlock(mock, { attachTo: document.body });
+    const wrapper = mountBlock(resolved.data, { attachTo: document.body });
     const searchButton = wrapper.get('button[aria-label="Search"]');
     expect(searchButton.attributes('aria-haspopup')).toBe('dialog');
     await searchButton.trigger('click');
@@ -428,7 +528,7 @@ describe('header block (navigation apiId)', () => {
   });
 
   it('minimal variant keeps links, account and the call to action only in the drawer', () => {
-    const wrapper = mountBlock({ ...mock, variant: 'minimal' });
+    const wrapper = mountBlock({ ...resolved.data, variant: 'minimal' });
     expect(wrapper.find('ul.list-none.items-center').exists()).toBe(false);
     expect(wrapper.findAll('button').some((b) => b.text() === 'Menu')).toBe(true);
     // The bar itself shows no call to action in `minimal` — only the drawer's own copy of it,
@@ -442,7 +542,7 @@ describe('header block (navigation apiId)', () => {
 
   describe('empty / editor state', () => {
     it('shows the "Add a link" editor hint only while editing, with no links', () => {
-      const empty = { ...mock, links: [] };
+      const empty = { ...resolved.data, links: [] };
       const editing = mountWithEditing(empty, true);
       expect(editing.text()).toContain('Add a link');
 
@@ -453,12 +553,12 @@ describe('header block (navigation apiId)', () => {
 
   describe('transparentOverHero', () => {
     it('field off renders solid, with no data-eldra-transparent attribute', () => {
-      const wrapper = mountBlock({ ...mock, transparentOverHero: false });
+      const wrapper = mountBlock({ ...resolved.data, transparentOverHero: false });
       expect(wrapper.find('header').attributes('data-eldra-transparent')).toBeUndefined();
     });
 
     it('field on sets the transparent attribute (the block only reads its own field)', () => {
-      const wrapper = mountBlock({ ...mock, transparentOverHero: true });
+      const wrapper = mountBlock({ ...resolved.data, transparentOverHero: true });
       expect(wrapper.find('header').attributes('data-eldra-transparent')).toBe('true');
     });
   });
@@ -471,14 +571,13 @@ describe('header block (navigation apiId)', () => {
     const PATHS = {
       'menu-2': 'M4 6l16 0',
       'chevron-down': 'M6 9l6 6l6 -6',
-      'arrow-right': 'M13 6l6 6',
       search: 'M21 21l-6 -6',
       user: 'M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2',
       'shopping-bag': 'M9 11v-5a3 3 0 0 1 6 0v5',
     };
 
     it('replaces every hand-rolled <svg> with EldraIcon, resolving each Tabler icon by name', async () => {
-      const wrapper = mountBlock(merged, { attachTo: document.body });
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       await flushIcons();
       await nextTick();
       const html = wrapper.html();
@@ -541,7 +640,7 @@ describe('header block (navigation apiId)', () => {
     it('publishes the sticky header’s rendered height on document.documentElement, tracks a resize, and clears it on unmount', async () => {
       const stub = stubResizeObserver();
       try {
-        const wrapper = mountBlock({ ...mock, sticky: true }, { attachTo: document.body });
+        const wrapper = mountBlock({ ...resolved.data, sticky: true }, { attachTo: document.body });
         const header = wrapper.get('header').element as HTMLElement;
         stubHeaderHeight(header, 64);
         await nextTick();
@@ -567,7 +666,10 @@ describe('header block (navigation apiId)', () => {
     it('never publishes the variable for a non-sticky header', async () => {
       const stub = stubResizeObserver();
       try {
-        const wrapper = mountBlock({ ...mock, sticky: false }, { attachTo: document.body });
+        const wrapper = mountBlock(
+          { ...resolved.data, sticky: false },
+          { attachTo: document.body }
+        );
         await nextTick();
         expect(document.documentElement.style.getPropertyValue('--eldra-header-height')).toBe('');
         wrapper.unmount();

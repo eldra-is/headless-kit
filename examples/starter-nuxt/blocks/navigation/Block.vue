@@ -17,12 +17,17 @@
  * Mega-menus are theme-drawn disclosures (`<button aria-expanded aria-controls>` + a panel placed
  * right after the trigger in the DOM), not a package component — the design spec is explicit that
  * they are "non-modal disclosures, never dialogs" and the plan's "Uses" list for this block never
- * names a popover/select primitive. `menuLinks` (this starter's flattened form of the spec's
- * `links[].groups[].links`, needed because Core's composite nesting depth is 5 and
- * `links -> composite -> groups -> composite -> links` would be 5 already before `link` itself)
- * groups into columns by treating consecutive items that share `group` as one column, in order.
+ * names a popover/select primitive. A link's own `children` are its mega-menu, and consecutive
+ * children sharing a `group` become one column, in order.
+ *
+ * Every destination is a `link` value — a collection, product, page or entry the platform knows,
+ * or an external URL — resolved to an href by `useEldraLink()`. A row whose target has been
+ * deleted, or that the site has no route for, resolves to no href and renders its label as plain
+ * text rather than a dead anchor; a row with no label at all renders nothing.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watchEffect } from 'vue';
+import { useEldraLink } from '@eldrajs/theme-vue';
+import type { ResolvedLink } from '@eldrajs/theme-vue';
 import {
   Badge,
   Button,
@@ -41,8 +46,7 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import UiImage from '../../app/components/ui/UiImage.vue';
-import { isInternalHref, safeHref } from '../../app/utils/links';
+import { isInternalHref } from '../../app/utils/links';
 import { focusRing } from '../../app/utils/classes';
 import { formatMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
@@ -54,9 +58,6 @@ const t = useT();
 const isEditing = useEditing();
 const storefront = useStorefront();
 
-type NavLink = NonNullable<EldraBlockData['navigation']['links']>[number];
-type MenuLink = NonNullable<NavLink['menuLinks']>[number];
-
 const variant = computed<'default' | 'centered' | 'minimal'>(() => data.value.variant ?? 'default');
 
 // --- brand -----------------------------------------------------------------------------------
@@ -66,58 +67,55 @@ const brandHref = '/';
 
 // --- links + mega-menus ------------------------------------------------------------------------
 
-const rawLinks = computed<NavLink[]>(() => data.value.links ?? []);
+const rawLinks = computed(() => data.value.links ?? []);
 
-/** `safeHref`, normalised to `undefined` (never `null`) — the shape every `@eldrajs/ui` `href`
- *  prop takes. */
-function toHref(value: unknown): string | undefined {
-  return safeHref(value) ?? undefined;
-}
+/** The site's own route authority: a `link` value in, `{ href, label, group, children }` out. */
+const resolveLink = useEldraLink();
+
 function toLinkAs(href: string | undefined): typeof EldraRouterLink | undefined {
   return href !== undefined && isInternalHref(href) ? EldraRouterLink : undefined;
 }
 
-/** Resolved links: `href` passed through `safeHref` (dropped if unsafe/absent), `as` set for a
- *  same-site destination. A link with `menuLinks` never navigates itself (spec: the trigger is a
- *  disclosure, not a link), so its own `href` is only kept for reference and never rendered. */
+interface NavRow {
+  label: string;
+  href: string | undefined;
+  as?: typeof EldraRouterLink;
+}
+
+/** Resolved links. A row with no label has nothing to show and is dropped; a row whose target no
+ *  longer exists keeps its label and loses its `href`, and the template renders it as plain text.
+ *  A link with children never navigates itself (spec: the trigger is a disclosure, not a link), so
+ *  its own href is never rendered. */
 const links = computed(() =>
-  rawLinks.value.map((link) => {
-    const href = toHref(link.href);
-    return {
-      label: link.label,
-      href,
-      as: toLinkAs(href),
-      groups: groupMenuLinks(link.menuLinks),
-      features: (link.features ?? []).slice(0, 2).map((feature) => {
-        const featureHref = toHref(feature.href);
-        return {
-          image: feature.image,
-          label: feature.label,
-          href: featureHref,
-          as: toLinkAs(featureHref),
-        };
-      }),
-    };
+  rawLinks.value.flatMap((item) => {
+    const resolved = resolveLink(item);
+    if (resolved === null || resolved.label === null) return [];
+    return [{ ...toRow(resolved), groups: groupChildren(resolved.children) }];
   })
 );
 
 interface MenuGroup {
   title?: string;
-  links: Array<{ label: string; href: string | undefined; as?: typeof EldraRouterLink }>;
+  links: NavRow[];
 }
 
-/** Consecutive `menuLinks` entries that share `group` become one column, in the order they were
- *  authored — the flattened form's own rule (block.json `links[].menuLinks` help text). */
-function groupMenuLinks(menuLinks: MenuLink[] | undefined): MenuGroup[] {
+function toRow(resolved: ResolvedLink): NavRow {
+  const href = resolved.href ?? undefined;
+  return { label: resolved.label ?? '', href, as: toLinkAs(href) };
+}
+
+/** Consecutive children that share a `group` become one column, in the order they were authored —
+ *  the field's own rule (block.json `links` help text). */
+function groupChildren(children: ResolvedLink[]): MenuGroup[] {
   const groups: MenuGroup[] = [];
-  for (const entry of menuLinks ?? []) {
-    const href = toHref(entry.href);
-    const row = { label: entry.label, href, as: toLinkAs(href) };
+  for (const child of children) {
+    if (child.label === null) continue;
+    const title = child.group ?? undefined;
     const last = groups[groups.length - 1];
-    if (last !== undefined && last.title === entry.group) {
-      last.links.push(row);
+    if (last !== undefined && last.title === title) {
+      last.links.push(toRow(child));
     } else {
-      groups.push({ title: entry.group, links: [row] });
+      groups.push({ title, links: [toRow(child)] });
     }
   }
   return groups;
@@ -219,9 +217,13 @@ function onMenuButtonClick(): void {
 
 // --- call to action ----------------------------------------------------------------------------
 
-const ctaHref = computed(() => toHref(data.value.ctaHref));
+const ctaLink = computed(() => resolveLink(data.value.cta));
+const ctaHref = computed(() => ctaLink.value?.href ?? undefined);
 const ctaLinkAs = computed(() => toLinkAs(ctaHref.value));
-const hasCta = computed(() => Boolean(data.value.ctaLabel && ctaHref.value));
+/** The button keeps its own label field; the link's own label is the fallback, so a CTA converted
+ *  from the old label/href pair reads the same either way. */
+const ctaLabel = computed(() => data.value.ctaLabel ?? ctaLink.value?.label ?? '');
+const hasCta = computed(() => Boolean(ctaLabel.value && ctaHref.value));
 
 // --- search ------------------------------------------------------------------------------------
 
@@ -597,7 +599,7 @@ const actionsPositionClass = computed(() =>
               />
             </button>
             <Link
-              v-else
+              v-else-if="link.href"
               :href="link.href"
               :as="link.as"
               variant="standalone"
@@ -609,6 +611,9 @@ const actionsPositionClass = computed(() =>
             >
               {{ link.label }}
             </Link>
+            <span v-else class="inline-flex h-10 items-center px-3 text-sm font-medium">
+              {{ link.label }}
+            </span>
 
             <div
               v-if="hasMegaMenu(index)"
@@ -633,6 +638,7 @@ const actionsPositionClass = computed(() =>
                   >
                     <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
                       <Link
+                        v-if="row.href"
                         :href="row.href"
                         :as="row.as"
                         variant="standalone"
@@ -641,32 +647,12 @@ const actionsPositionClass = computed(() =>
                       >
                         {{ row.label }}
                       </Link>
+                      <span v-else class="text-text flex min-h-9 items-center text-sm">
+                        {{ row.label }}
+                      </span>
                     </li>
                   </ul>
                 </div>
-              </div>
-              <div v-if="link.features.length > 0" class="grid grid-cols-2 gap-6">
-                <Link
-                  v-for="(feature, featureIndex) in link.features"
-                  :key="featureIndex"
-                  :href="feature.href"
-                  :as="feature.as"
-                  variant="standalone"
-                  :underline="false"
-                  :classes="{ root: 'block w-60' }"
-                >
-                  <UiImage
-                    v-if="feature.image"
-                    :src="feature.image.url"
-                    :alt="feature.image.altText ?? ''"
-                    aspect="4/3"
-                    rounded="lg"
-                  />
-                  <span class="mt-3 flex items-center gap-1 text-sm font-semibold">
-                    {{ feature.label }}
-                    <EldraIcon name="arrow-right" size="sm" />
-                  </span>
-                </Link>
               </div>
             </div>
           </li>
@@ -796,7 +782,7 @@ const actionsPositionClass = computed(() =>
             :as="ctaLinkAs"
             :classes="{ container: 'hidden @content:inline-flex' }"
           >
-            {{ data.ctaLabel }}
+            {{ ctaLabel }}
           </Button>
         </div>
       </nav>
@@ -826,7 +812,7 @@ const actionsPositionClass = computed(() =>
               />
             </button>
             <Link
-              v-else
+              v-else-if="link.href"
               :href="link.href"
               :as="link.as"
               variant="standalone"
@@ -839,6 +825,12 @@ const actionsPositionClass = computed(() =>
             >
               {{ link.label }}
             </Link>
+            <span
+              v-else
+              class="font-heading flex min-h-14 w-full items-center text-xl font-semibold"
+            >
+              {{ link.label }}
+            </span>
 
             <div
               v-if="hasMegaMenu(index)"
@@ -853,6 +845,7 @@ const actionsPositionClass = computed(() =>
                 <ul class="list-none">
                   <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
                     <Link
+                      v-if="row.href"
                       :href="row.href"
                       :as="row.as"
                       variant="standalone"
@@ -862,6 +855,7 @@ const actionsPositionClass = computed(() =>
                     >
                       {{ row.label }}
                     </Link>
+                    <span v-else class="flex min-h-11 items-center text-sm">{{ row.label }}</span>
                   </li>
                 </ul>
               </div>
@@ -879,7 +873,7 @@ const actionsPositionClass = computed(() =>
           :as="ctaLinkAs"
           @click="drawerOpen = false"
         >
-          {{ data.ctaLabel }}
+          {{ ctaLabel }}
         </Button>
         <Link
           v-if="showAccount"

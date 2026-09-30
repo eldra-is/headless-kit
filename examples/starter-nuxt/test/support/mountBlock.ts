@@ -16,7 +16,13 @@ import {
 // needed. This matters beyond tidiness: `eldra-theme init` copies this
 // starter (including `test/`) into a customer's project verbatim, where no
 // monorepo sibling exists to reach into at all.
-import { createEldraPreviewState, ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
+import {
+  createEldraLinkState,
+  createEldraPreviewState,
+  ELDRA_KEY,
+  type EldraContext,
+  type EldraLinkState,
+} from '@eldrajs/theme-vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
 import { currencyFor, uiMessagesFor } from '../../app/i18n/uiMessages';
 import { createDemoStorefront } from '../../app/storefront/demo';
@@ -38,7 +44,7 @@ import { STOREFRONT_KEY } from '../../app/storefront/types';
  */
 export function mountOptions(
   props: { entry: { id: string; data: Record<string, unknown> } },
-  options: { locale?: string } = {}
+  options: { locale?: string; links?: Partial<EldraLinkState> } = {}
 ): {
   props: { entry: { id: string; data: Record<string, unknown> } };
   global: {
@@ -52,7 +58,7 @@ export function mountOptions(
     props,
     global: {
       provide: {
-        [ELDRA_KEY]: createTestEldraContext(locale),
+        [ELDRA_KEY]: createTestEldraContext(locale, options.links),
         // The same wiring `app/plugins/eldra-ui-messages.ts` does on a real
         // page: `@eldrajs/ui`'s own strings, number locale and store
         // currency all follow the content locale.
@@ -73,10 +79,18 @@ export function mountOptions(
   };
 }
 
-function createTestEldraContext(locale = 'en-US'): EldraContext {
+function createTestEldraContext(
+  locale = 'en-US',
+  links: Partial<EldraLinkState> = {}
+): EldraContext {
   const context: EldraContext = {
     client: createTestEldraClient(),
     designTokens: reactive(normalizeThemeDesignTokens({ colors: {} })),
+    // Empty by default, exactly as a page that has resolved nothing yet: every
+    // `link` value then resolves to a label with no href. A spec that wants a
+    // real destination passes the site's own route templates and targets, the
+    // way `@eldrajs/theme-nuxt` fills them from the resolved route.
+    links: Object.assign(createEldraLinkState(), links),
     preview: createEldraPreviewState(),
   };
   context.preview.locale = locale;

@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `resolveLink` returns `label` and `group` exactly as they were authored, markers and all, because
+  those are the strings a theme renders and in a Studio preview each carries the invisible payload
+  that makes it inline-editable; only the strings a route is derived from (`kind`, the target's
+  `_type`/`id`/`slug`, a `kind: "url"` href) are stega-stripped.
+
 - New `@eldrajs/theme-core/links` entry: `resolveLink(value, context)` turns a `link` field's value
   into `{ href, label, newTab, group, children }` against the site's own pages and route templates —
   a product through the template serving `catalog:product`, a collection through

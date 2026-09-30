@@ -312,7 +312,28 @@ describe('resolveLink — label, group, new tab and children', () => {
     ]);
   });
 
-  it('strips stega markers out of every string it reads', () => {
+  it('keeps the label and group as authored, so a preview can still edit them inline', () => {
+    // Only the emptiness test strips: a stripped label would lose the
+    // invisible payload Studio's overlay decorates an editable field with.
+    const label = encodeStega('Knitwear', META);
+    const group = encodeStega('Women', META);
+    const resolved = resolveLink({ kind: 'url', url: '/x', label, group }, context());
+    expect(resolved?.label).toBe(label);
+    expect(resolved?.group).toBe(group);
+  });
+
+  it("falls back to the target's title with its own markers intact", () => {
+    const title = encodeStega('Knitwear', META);
+    const targets = new Map([[`collection:${COLLECTION_ID}`, { slug: 'knitwear', title }]]);
+    expect(
+      resolveLink(
+        { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } },
+        context({ targets })
+      )?.label
+    ).toBe(title);
+  });
+
+  it('strips stega markers out of every string a route is derived from', () => {
     const targets = new Map([
       [`collection:${COLLECTION_ID}`, { slug: encodeStega('knitwear', META) }],
     ]);
@@ -324,7 +345,7 @@ describe('resolveLink — label, group, new tab and children', () => {
       },
       context({ targets })
     );
-    expect(resolved).toMatchObject({ href: '/collections/knitwear', label: 'Knitwear' });
+    expect(resolved?.href).toBe('/collections/knitwear');
   });
 });
 

@@ -164,16 +164,22 @@ function resolveOne(value: unknown, context: LinkRouteContext, depth: number): R
   const link = asLinkValue(value);
   if (link === null) return null;
   const info = targetInfo(link.target, context);
-  const ownLabel = plain(link.label);
-  const targetTitle = plain(info?.title);
+  // `label` and `group` come back **unstripped**. They are the strings a theme
+  // renders, and in a Studio preview each carries the invisible payload that
+  // makes it inline-editable; handing back a stripped copy would silently end
+  // editing for every navigation label. Only the emptiness test uses the
+  // stripped value, which is never rendered.
+  const ownLabel = typeof link.label === 'string' ? link.label : '';
+  const targetTitle = typeof info?.title === 'string' ? info.title : '';
+  const group = typeof link.group === 'string' ? link.group : '';
   return {
-    // Every string is read stega-stripped, `kind` included: in a preview the
-    // gateway encodes all string leaves of an entry's data, so a raw `kind`
-    // would match no branch at all.
+    // Every string the *route* is derived from is read stega-stripped, `kind`
+    // included: in a preview the gateway encodes all string leaves of an
+    // entry's data, so a raw `kind` would match no branch at all.
     href: resolveHref(plain(link.kind), link, info, context),
-    label: ownLabel !== '' ? ownLabel : targetTitle !== '' ? targetTitle : null,
+    label: plain(ownLabel) !== '' ? ownLabel : plain(targetTitle) !== '' ? targetTitle : null,
     newTab: link.openInNewTab === true,
-    group: plain(link.group) === '' ? null : plain(link.group),
+    group: plain(group) === '' ? null : group,
     children:
       depth > 0 || !Array.isArray(link.children)
         ? []

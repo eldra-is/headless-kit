@@ -4,7 +4,7 @@
   "description": "The store's top bar: brand, primary links with optional mega-menus, search, account, cart and one call to action.",
   "icon": "layout-navbar",
   "category": "structure",
-  "version": 2,
+  "version": 3,
   "groups": [
     {
       "groupId": "brand",
@@ -30,6 +30,27 @@
         {
           "from": "logo",
           "to": "brandLogo"
+        }
+      ]
+    },
+    {
+      "version": 3,
+      "renames": [],
+      "convertToLink": [
+        {
+          "from": "links",
+          "to": "links",
+          "shape": "list",
+          "label": "label",
+          "url": "href",
+          "group": "group",
+          "children": "menuLinks"
+        },
+        {
+          "from": "ctaHref",
+          "to": "cta",
+          "shape": "string",
+          "label": "ctaLabel"
         }
       ]
     }
@@ -59,7 +80,7 @@
         "required": true,
         "maxLength": 20
       },
-      "helpText": "Shown as the wordmark when no logo is set. Keep it under 20 characters \u2014 it never wraps."
+      "helpText": "Shown as the wordmark when no logo is set. Keep it under 20 characters — it never wraps."
     },
     {
       "fieldId": "brandLogo",
@@ -76,116 +97,16 @@
       "name": "Links",
       "type": "list",
       "groupId": "navigation",
-      "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64\u201380rem.",
+      "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64–80rem. Give a link children to turn it into a mega-menu: consecutive children sharing the same Group form one column, in order — up to 4 groups × 8 links.",
       "metadata": {
         "item": {
           "fieldId": "link",
           "name": "Link",
-          "type": "composite",
+          "type": "link",
+          "localized": true,
           "metadata": {
-            "fields": [
-              {
-                "fieldId": "label",
-                "name": "Label",
-                "type": "string",
-                "localized": true,
-                "validators": {
-                  "required": true
-                },
-                "helpText": "Two words max. Stays on one line."
-              },
-              {
-                "fieldId": "href",
-                "name": "URL",
-                "type": "string",
-                "helpText": "Destination when the item has no mega-menu links below."
-              },
-              {
-                "fieldId": "menuLinks",
-                "name": "Mega-menu links",
-                "type": "list",
-                "helpText": "Filling this turns the item into a mega-menu disclosure. Consecutive items that share the same Group form one column, in order \u2014 up to 4 groups \u00d7 8 links.",
-                "metadata": {
-                  "item": {
-                    "fieldId": "menuLink",
-                    "name": "Mega-menu link",
-                    "type": "composite",
-                    "metadata": {
-                      "fields": [
-                        {
-                          "fieldId": "group",
-                          "name": "Group",
-                          "type": "string",
-                          "localized": true,
-                          "helpText": "Column heading. Consecutive links sharing the same group form one column."
-                        },
-                        {
-                          "fieldId": "label",
-                          "name": "Label",
-                          "type": "string",
-                          "localized": true,
-                          "validators": {
-                            "required": true
-                          }
-                        },
-                        {
-                          "fieldId": "href",
-                          "name": "URL",
-                          "type": "string",
-                          "validators": {
-                            "required": true
-                          }
-                        }
-                      ]
-                    }
-                  }
-                }
-              },
-              {
-                "fieldId": "features",
-                "name": "Feature cards",
-                "type": "list",
-                "helpText": "Up to 2 image cards on the right of the mega-menu.",
-                "metadata": {
-                  "item": {
-                    "fieldId": "feature",
-                    "name": "Feature card",
-                    "type": "composite",
-                    "metadata": {
-                      "fields": [
-                        {
-                          "fieldId": "image",
-                          "name": "Image",
-                          "type": "media",
-                          "metadata": {
-                            "multiple": false,
-                            "framing": true,
-                            "framingAspectRatio": "4/3"
-                          }
-                        },
-                        {
-                          "fieldId": "label",
-                          "name": "Label",
-                          "type": "string",
-                          "localized": true,
-                          "validators": {
-                            "required": true
-                          }
-                        },
-                        {
-                          "fieldId": "href",
-                          "name": "URL",
-                          "type": "string",
-                          "validators": {
-                            "required": true
-                          }
-                        }
-                      ]
-                    }
-                  }
-                }
-              }
-            ]
+            "tree": true,
+            "kinds": ["product", "collection", "category", "page", "entry", "url"]
           }
         }
       }
@@ -196,7 +117,7 @@
       "type": "bool",
       "groupId": "actions",
       "default": true,
-      "helpText": "Opens Search (also on / and \u2318K / Ctrl+K)."
+      "helpText": "Opens Search (also on / and ⌘K / Ctrl+K)."
     },
     {
       "fieldId": "searchStyle",
@@ -224,10 +145,14 @@
       "localized": true
     },
     {
-      "fieldId": "ctaHref",
+      "fieldId": "cta",
       "name": "Button link",
-      "type": "string",
-      "groupId": "actions"
+      "type": "link",
+      "groupId": "actions",
+      "localized": true,
+      "metadata": {
+        "kinds": ["product", "collection", "category", "entry", "page", "url"]
+      }
     },
     {
       "fieldId": "sticky",

@@ -1,30 +1,10 @@
-import { stripStega } from '@eldrajs/theme-core/stega';
-
-/** Allow ordinary site links while rejecting executable and opaque URL schemes. */
-export function safeHref(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const href = stripStega(value).trim();
-  if (
-    href.length === 0 ||
-    href.length > 2048 ||
-    href.includes('\\') ||
-    Array.from(href).some((character) => {
-      const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint <= 31 || codePoint === 127;
-    })
-  ) {
-    return null;
-  }
-  if (href.startsWith('/')) return href.startsWith('//') ? null : href;
-  if (href.startsWith('#')) return href;
-
-  try {
-    const protocol = new URL(href).protocol;
-    return ['https:', 'http:', 'mailto:', 'tel:'].includes(protocol) ? href : null;
-  } catch {
-    return null;
-  }
-}
+/**
+ * The kit's own href allowlist, re-exported under the name this theme's blocks
+ * already call: ordinary site links are allowed, executable and opaque URL
+ * schemes are not. One implementation, in `@eldrajs/theme-core`, so a block
+ * and the link resolver can never disagree about what is safe.
+ */
+export { safeLinkHref as safeHref } from '@eldrajs/theme-core/links';
 
 /**
  * A destination the site itself owns — a path (`/shop`) or an in-page hash

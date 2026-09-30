@@ -16,6 +16,8 @@ import { ELDRA_KEY } from './context';
  */
 export function useEldraLink(): (value: unknown) => ResolvedLink | null {
   const context = inject(ELDRA_KEY, null);
-  if (context === null) return () => null;
+  // Also `null` for a context assembled before this state existed: an adapter
+  // one version behind resolves nothing rather than throwing inside a render.
+  if (context === null || context.links === undefined) return () => null;
   return (value: unknown) => resolveLink(value, context.links);
 }
