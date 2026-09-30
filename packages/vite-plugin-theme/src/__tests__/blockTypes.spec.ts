@@ -310,4 +310,67 @@ describe('generateBlockTypes', () => {
       expect(output).toContain('source?: Record<string, unknown>;');
     });
   });
+  describe('link fields', () => {
+    it('types a bare link field as EldraLink and declares the interface once', () => {
+      const output = generateBlockTypes([
+        block('navigation', [{ fieldId: 'cta', name: 'Button link', type: 'link' }]),
+      ]);
+      expect(output).toContain('cta?: EldraLink;');
+      expect(output).toContain('interface EldraLink {');
+      expect(output).toContain(
+        "kind: 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';"
+      );
+      expect(output).toContain('children?: EldraLink[];');
+      expect(output.match(/interface EldraLink \{/g)).toHaveLength(1);
+    });
+
+    it('declares the interface only when some block actually uses the type', () => {
+      const output = generateBlockTypes([
+        block('hero', [{ fieldId: 'heading', name: 'Heading', type: 'string' }]),
+      ]);
+      expect(output).not.toContain('EldraLink');
+    });
+
+    it("types a list of links as an array, from the list's item", () => {
+      const output = generateBlockTypes([
+        block('navigation', [
+          {
+            fieldId: 'links',
+            name: 'Links',
+            type: 'list',
+            metadata: { item: { fieldId: 'link', name: 'Link', type: 'link' } },
+          },
+        ]),
+      ]);
+      expect(output).toContain('links?: Array<EldraLink>;');
+      expect(output).toContain('interface EldraLink {');
+    });
+
+    it('types a link nested inside a composite, and still declares the interface', () => {
+      const output = generateBlockTypes([
+        block('cta-band', [
+          {
+            fieldId: 'items',
+            name: 'Items',
+            type: 'list',
+            metadata: {
+              item: {
+                fieldId: 'item',
+                name: 'Item',
+                type: 'composite',
+                metadata: {
+                  fields: [
+                    { fieldId: 'label', name: 'Label', type: 'string' },
+                    { fieldId: 'destination', name: 'Destination', type: 'link' },
+                  ],
+                },
+              },
+            },
+          },
+        ]),
+      ]);
+      expect(output).toContain('items?: Array<{ label?: string; destination?: EldraLink }>;');
+      expect(output).toContain('interface EldraLink {');
+    });
+  });
 });

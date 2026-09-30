@@ -10,6 +10,7 @@ const STORED_FIELD_TYPES = new Set([
   'int',
   'json',
   'layout',
+  'link',
   'list',
   'lucide-icon',
   'markdown',

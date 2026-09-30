@@ -808,3 +808,206 @@ describe('scanTheme reference relation targets', () => {
     ]);
   });
 });
+
+describe('scanTheme link field metadata', () => {
+  const AT = 'blocks/hero/block.json: fields[0]';
+
+  function linkList(item: Record<string, unknown>): string {
+    return withHeroField({
+      fieldId: 'links',
+      name: 'Links',
+      type: 'list',
+      metadata: { item },
+    });
+  }
+
+  it('accepts a bare link field with no metadata at all', () => {
+    const dir = withHeroField({ fieldId: 'cta', name: 'Button link', type: 'link' });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([]);
+  });
+
+  it('accepts a link declaring kinds and allowed entry schemas', () => {
+    const dir = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { kinds: ['collection', 'entry', 'url'], allowedEntrySchemaApiIds: ['article'] },
+    });
+    const { manifest, errors } = scanTheme({ themeDir: dir, framework: 'nuxt' });
+    expect(errors).toEqual([]);
+    // The metadata reaches the manifest verbatim: it is what Studio's picker
+    // and Core's publish-time validation both read.
+    expect((manifest!.blocks[0]!.fields as Array<Record<string, unknown>>)[0]!.metadata).toEqual({
+      kinds: ['collection', 'entry', 'url'],
+      allowedEntrySchemaApiIds: ['article'],
+    });
+  });
+
+  it.each(['kinds', 'allowedEntrySchemaApiIds', 'tree'])(
+    'rejects metadata.%s on a field type other than link',
+    (key) => {
+      const dir = withHeroField({
+        fieldId: 'title',
+        name: 'Title',
+        type: 'string',
+        metadata: { [key]: key === 'tree' ? true : ['product'] },
+      });
+      expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+        `${AT}.metadata.${key} — only allowed on type "link"`,
+      ]);
+    }
+  );
+
+  it('rejects an unknown kind', () => {
+    const dir = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { kinds: ['collection', 'blog'] },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.kinds — unknown kind "blog"`,
+    ]);
+  });
+
+  it('rejects an empty kinds list — a link an author can never fill in', () => {
+    const dir = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { kinds: [] },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.kinds — must list at least one kind`,
+    ]);
+  });
+
+  it('rejects kinds that is not an array, and a duplicated kind', () => {
+    const notArray = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { kinds: 'collection' },
+    });
+    expect(scanTheme({ themeDir: notArray, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.kinds — must be an array of link kinds`,
+    ]);
+
+    const duplicate = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { kinds: ['url', 'url'] },
+    });
+    expect(scanTheme({ themeDir: duplicate, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.kinds — duplicate kind "url"`,
+    ]);
+  });
+
+  it('rejects allowedEntrySchemaApiIds when kinds excludes "entry"', () => {
+    const dir = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { kinds: ['collection'], allowedEntrySchemaApiIds: ['article'] },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.allowedEntrySchemaApiIds — requires metadata.kinds to include "entry"`,
+    ]);
+  });
+
+  it('rejects an empty or malformed allowedEntrySchemaApiIds', () => {
+    const empty = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { allowedEntrySchemaApiIds: [] },
+    });
+    expect(scanTheme({ themeDir: empty, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.allowedEntrySchemaApiIds — must list at least one schema apiId`,
+    ]);
+
+    const bad = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { allowedEntrySchemaApiIds: ['Article'] },
+    });
+    expect(scanTheme({ themeDir: bad, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.allowedEntrySchemaApiIds — invalid schema apiId "Article"`,
+    ]);
+  });
+
+  it("accepts metadata.tree on a link that is a list's item", () => {
+    const dir = linkList({
+      fieldId: 'link',
+      name: 'Link',
+      type: 'link',
+      localized: true,
+      metadata: { tree: true, kinds: ['collection', 'page', 'url'] },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([]);
+  });
+
+  it('refuses metadata.tree on a top-level link — a list is what a tree is authored in', () => {
+    const dir = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      metadata: { tree: true },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      `${AT} — metadata.tree is only allowed on a link that is a list's item`,
+    ]);
+  });
+
+  it("refuses metadata.tree on a link inside a composite's fields", () => {
+    const dir = withHeroField({
+      fieldId: 'card',
+      name: 'Card',
+      type: 'composite',
+      metadata: {
+        fields: [{ fieldId: 'cta', name: 'Link', type: 'link', metadata: { tree: true } }],
+      },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.fields[0] — metadata.tree is only allowed on a link that is a list's item`,
+    ]);
+  });
+
+  it('rejects a non-boolean tree', () => {
+    const dir = linkList({
+      fieldId: 'link',
+      name: 'Link',
+      type: 'link',
+      metadata: { tree: 'yes' },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.item.metadata.tree — must be a boolean`,
+    ]);
+  });
+
+  it("reports a bad kind on a list's link item with the item's own path", () => {
+    const dir = linkList({
+      fieldId: 'link',
+      name: 'Link',
+      type: 'link',
+      metadata: { tree: true, kinds: ['blog'] },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      `${AT}.metadata.item.metadata.kinds — unknown kind "blog"`,
+    ]);
+  });
+
+  it('keeps relation a reference-only key for a link field too', () => {
+    const dir = withHeroField({
+      fieldId: 'cta',
+      name: 'Button link',
+      type: 'link',
+      relation: { allowCollections: true },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
+      'blocks/hero/block.json: fields[0].relation — only allowed on type "reference" (got "link")',
+    ]);
+  });
+});

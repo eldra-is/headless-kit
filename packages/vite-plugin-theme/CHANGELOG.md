@@ -5,6 +5,24 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A block field may now declare `"type": "link"` — one destination the platform understands rather
+  than a typed-out URL. Its value is
+  `{ kind, target?: { _type, id }, url?, label?, openInNewTab?, group?, children? }` with `kind` one
+  of `product`, `collection`, `category`, `entry`, `page` or `url`; `url` is set only for
+  `kind: "url"` and `target` only for the other five, and `children` is one level deep and never
+  more. Three metadata keys belong to the type and to nothing else: `kinds` (the kinds an author may
+  pick from — every kind when absent), `allowedEntrySchemaApiIds` (restricts `kind: "entry"` to the
+  named schemas, and requires `kinds` to include `entry`), and `tree` (author the field as a tree of
+  one level of children — allowed only on a `link` that is a `list`'s `metadata.item`, because a
+  `list` may declare only `allowedSchemas` and `item` itself). A `link` field may not declare
+  `relation`. Each refusal names the field's own path
+  (`blocks/navigation/block.json: fields[3].metadata.item.metadata.kinds — unknown kind "blog"`).
+
+- `.eldra/block-types.d.ts` types a `link` field as the new global `EldraLink` interface — a list of
+  links as `Array<EldraLink>`, a link inside a composite inline with the rest — and declares the
+  interface only when some block actually uses the type, the way `RichTextNode` is only imported
+  when one declares rich text.
+
 - Seed data (a block's `mock.json`, a template seed's block data and a template role's data) may
   now name a catalog collection by slug in a `reference` field:
   `{ "_type": "collection", "slug": "the-winter-edit" }`. A theme cannot know an organisation's

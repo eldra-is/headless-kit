@@ -559,4 +559,20 @@ describe.each(['composite', 'list'])('stored %s children', (container) => {
     f.write([nested('title', field('child', 'media'))], 2, [step()]);
     expect(f.scan(previous).errors).toEqual([]);
   });
+  it('knows link as a stored field type, so a link field can be renamed across a version bump', () => {
+    const f = fixture();
+    f.write([field('ctaHref', 'link')], 1);
+    const previous = f.scan().manifest!;
+    expect(f.scan().errors).toEqual([]);
+    f.write([field('cta', 'link')], 2, [step(2, 'ctaHref', 'cta')]);
+    expect(f.scan(previous).errors).toEqual([]);
+  });
+
+  it('still refuses a link that changed into another type without a bump', () => {
+    const f = fixture();
+    f.write([field('cta', 'link')], 1);
+    const previous = f.scan().manifest!;
+    f.write([field('cta', 'string')], 1);
+    expect(f.scan(previous).errors.join('\n')).toContain('changed type (link → string)');
+  });
 });

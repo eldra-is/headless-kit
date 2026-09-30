@@ -125,6 +125,24 @@ export interface BlockFieldShowWhen {
   equals?: string;
 }
 
+/** The destinations a `link` field's value may name. Mirrors the value's own
+ * `kind`, which Core validates against the same six. */
+export type LinkKind = 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';
+
+/** The whole metadata surface a `link` field may declare. Core's field
+ * registry allows exactly these three keys on the type and refuses any other,
+ * so a block declaring more is refused at ingest rather than at render. */
+export interface BlockFieldLinkMetadata {
+  /** The kinds an author may pick from; every kind when absent. */
+  kinds?: LinkKind[];
+  /** Restricts `kind: "entry"` to entries of the named schemas. */
+  allowedEntrySchemaApiIds?: string[];
+  /** Author this link as a tree of one level of children. Declared on the
+   * link itself — a `list` may declare only `allowedSchemas` and `item` — so a
+   * `link` carrying it must be a list's item. */
+  tree?: boolean;
+}
+
 export interface BlockField {
   fieldId: string;
   name: string;

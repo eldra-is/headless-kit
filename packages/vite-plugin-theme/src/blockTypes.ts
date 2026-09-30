@@ -24,9 +24,29 @@ import type { BlockDefinition, BlockField } from './types';
  * mixing targets keeps `Record<string, unknown>`, because the value's shape
  * then depends on which kind of thing the author picked.
  */
+/** Emitted into the generated preamble only when some block declares a `link`
+ * field, the way `RichTextNode` is only imported when one declares rich text.
+ * `target` and `url` are both optional because exactly one of them is set, and
+ * which one depends on `kind`; `children` is one level deep and never more. */
+const LINK_INTERFACE = `  /** A destination a \`link\` field points at: a catalog object, an entry,
+   *  a page, or an external URL. Resolve it to an href with
+   *  \`resolveLink\` from \`@eldrajs/theme-core/links\`. */
+  interface EldraLink {
+    kind: 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';
+    target?: { _type: string; id: string };
+    url?: string;
+    label?: string;
+    openInNewTab?: boolean;
+    group?: string;
+    children?: EldraLink[];
+  }
+
+`;
+
 export function generateBlockTypes(blocks: BlockDefinition[]): string {
   const sorted = [...blocks].sort((a, b) => a.apiId.localeCompare(b.apiId));
   const usesRichText = sorted.some((block) => fieldsUseTypeDeep(block.fields ?? [], 'rich-text'));
+  const usesLink = sorted.some((block) => fieldsUseTypeDeep(block.fields ?? [], 'link'));
 
   const typeImports = usesRichText ? 'ImageFraming, RichTextNode' : 'ImageFraming';
   const blockDataBody =
@@ -61,7 +81,7 @@ declare global {
     translations?: unknown;
   }
 
-  interface EldraBlockData {${blockDataBody}}
+${usesLink ? LINK_INTERFACE : ''}  interface EldraBlockData {${blockDataBody}}
 
   type EldraBlockEntry<K extends keyof EldraBlockData> = {
     id: string;
@@ -102,6 +122,8 @@ function fieldTypeExpr(field: BlockField): string {
       return 'number';
     case 'rich-text':
       return 'RichTextNode';
+    case 'link':
+      return 'EldraLink';
     case 'media':
       return isMultipleMedia(field) ? 'EldraMedia[]' : 'EldraMedia';
     case 'select':

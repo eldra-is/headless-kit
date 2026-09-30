@@ -15,6 +15,7 @@ import { validateTemplateRoles, validateTemplateSeeds } from './templates';
 import { codePointLength, isRecord, stripPlainTextControls } from './util';
 import type {
   BlockDefinition,
+  LinkKind,
   ManifestRoute,
   ScanOptions,
   ScanResult,
@@ -36,6 +37,21 @@ const SLOT_ID_PATTERN = /^[a-z][a-z0-9-]{0,47}$/;
 // Mirrors Core's stripControlRunes: Unicode categories Cc (IsControl) and Cf (format).
 const SLOT_CONTROL_CHARS = /[\p{Cc}\p{Cf}]/gu;
 const RICH_TEXT_TOOLBAR_CONTROL_SET = new Set<string>(RICH_TEXT_TOOLBAR_CONTROLS);
+/** The six destinations a `link` value may name — Core validates a stored
+ * value against the same set. */
+const LINK_KINDS: readonly LinkKind[] = [
+  'product',
+  'collection',
+  'category',
+  'entry',
+  'page',
+  'url',
+];
+const LINK_KIND_SET = new Set<string>(LINK_KINDS);
+/** The three metadata keys Core's `link` field type declares, and therefore
+ * the whole surface a block.json may carry on one. */
+const LINK_METADATA_KEYS = ['kinds', 'allowedEntrySchemaApiIds', 'tree'] as const;
+const SCHEMA_API_ID_PATTERN = /^[a-z][a-z0-9-]{1,48}$/;
 
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
 const validateBlockJson = ajv.compile(blockJsonSchema);
@@ -532,6 +548,11 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
   // scope a sibling reference resolves in.
   checkFieldSetVisibility(file, fields, 'fields', errors);
 
+  // `link` metadata is checked over the same nesting, because a link is most
+  // often a list's item rather than a top-level field, and `tree` is only
+  // legal there.
+  checkLinkFieldSet(file, fields, 'fields', false, errors);
+
   const slots = Array.isArray(block.slots) ? (block.slots as Array<Record<string, unknown>>) : [];
   const slotIds = new Set<string>();
   for (const [index, slot] of slots.entries()) {
@@ -555,6 +576,135 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
       );
     }
   }
+}
+
+/**
+ * The `link` half of the field grammar, over one field set and everything
+ * nested under it.
+ *
+ * Three metadata keys belong to `link` and to nothing else, so a block that
+ * puts `kinds` on a string field learns that here rather than from Core's
+ * ingest. `tree` additionally demands that the link *is* a list's item: it
+ * asks the editor to author a list of links as a tree, and a `list` cannot
+ * carry the flag itself because Core's list field declares only
+ * `allowedSchemas` and `item` and refuses every other metadata key.
+ */
+function checkLinkFieldSet(
+  file: string,
+  fields: Array<Record<string, unknown>>,
+  path: string,
+  isListItem: boolean,
+  errors: string[],
+  depth = 1
+): void {
+  if (depth > MAX_COMPOSITE_DEPTH + 1) return;
+  fields.forEach((field, index) => {
+    if (!isRecord(field)) return;
+    const at = fields.length === 1 && isListItem ? path : `${path}[${index}]`;
+    checkLinkField(file, field, at, isListItem, errors);
+    const metadata = isRecord(field.metadata) ? field.metadata : null;
+    if (metadata === null) return;
+    if (Array.isArray(metadata.fields)) {
+      checkLinkFieldSet(
+        file,
+        metadata.fields.filter(isRecord),
+        `${at}.metadata.fields`,
+        false,
+        errors,
+        depth + 1
+      );
+    }
+    if (isRecord(metadata.item)) {
+      checkLinkFieldSet(file, [metadata.item], `${at}.metadata.item`, true, errors, depth + 1);
+    }
+  });
+}
+
+function checkLinkField(
+  file: string,
+  field: Record<string, unknown>,
+  at: string,
+  isListItem: boolean,
+  errors: string[]
+): void {
+  const metadata = isRecord(field.metadata) ? field.metadata : {};
+  const declared = LINK_METADATA_KEYS.filter((key) => key in metadata);
+  if (declared.length === 0) return;
+  if (field.type !== 'link') {
+    for (const key of declared) {
+      errors.push(`${file}: ${at}.metadata.${key} — only allowed on type "link"`);
+    }
+    return;
+  }
+  const kinds = checkLinkKinds(file, metadata, at, errors);
+  if ('allowedEntrySchemaApiIds' in metadata) {
+    const ids = metadata.allowedEntrySchemaApiIds;
+    if (!Array.isArray(ids)) {
+      errors.push(
+        `${file}: ${at}.metadata.allowedEntrySchemaApiIds — must be an array of schema apiIds`
+      );
+    } else if (ids.length === 0) {
+      errors.push(
+        `${file}: ${at}.metadata.allowedEntrySchemaApiIds — must list at least one schema apiId`
+      );
+    } else {
+      for (const id of ids) {
+        if (typeof id !== 'string' || !SCHEMA_API_ID_PATTERN.test(id)) {
+          errors.push(
+            `${file}: ${at}.metadata.allowedEntrySchemaApiIds — invalid schema apiId "${String(id)}"`
+          );
+        }
+      }
+    }
+    // Restricting which entry schemas may be picked is meaningless when the
+    // field never offers the entry kind at all.
+    if (kinds !== null && !kinds.includes('entry')) {
+      errors.push(
+        `${file}: ${at}.metadata.allowedEntrySchemaApiIds — requires metadata.kinds to include "entry"`
+      );
+    }
+  }
+  if ('tree' in metadata) {
+    if (typeof metadata.tree !== 'boolean') {
+      errors.push(`${file}: ${at}.metadata.tree — must be a boolean`);
+    } else if (metadata.tree === true && !isListItem) {
+      errors.push(`${file}: ${at} — metadata.tree is only allowed on a link that is a list's item`);
+    }
+  }
+}
+
+/** The declared kinds, or null when the field declares none (which means all
+ *  six) or declared something unusable. */
+function checkLinkKinds(
+  file: string,
+  metadata: Record<string, unknown>,
+  at: string,
+  errors: string[]
+): string[] | null {
+  if (!('kinds' in metadata)) return null;
+  const kinds = metadata.kinds;
+  if (!Array.isArray(kinds)) {
+    errors.push(`${file}: ${at}.metadata.kinds — must be an array of link kinds`);
+    return null;
+  }
+  if (kinds.length === 0) {
+    errors.push(`${file}: ${at}.metadata.kinds — must list at least one kind`);
+    return null;
+  }
+  const seen = new Set<string>();
+  let valid = true;
+  for (const kind of kinds) {
+    if (typeof kind !== 'string' || !LINK_KIND_SET.has(kind)) {
+      errors.push(`${file}: ${at}.metadata.kinds — unknown kind "${String(kind)}"`);
+      valid = false;
+    } else if (seen.has(kind)) {
+      errors.push(`${file}: ${at}.metadata.kinds — duplicate kind "${kind}"`);
+      valid = false;
+    } else {
+      seen.add(kind);
+    }
+  }
+  return valid ? (kinds as string[]) : null;
 }
 
 // A `showWhen` sibling has to be something an author picks from a small,
