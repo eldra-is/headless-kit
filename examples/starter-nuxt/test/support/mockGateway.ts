@@ -142,6 +142,47 @@ const listResponse = (data: unknown[]): Record<string, unknown> => ({
 });
 
 /**
+ * The header a **deployed** site holds, rather than the seed a theme ships.
+ *
+ * `mock.json` names a collection by handle, because a theme cannot know an organisation's catalog
+ * ids; Core rewrites those to ids when it seeds the entry, so what a site actually stores — and
+ * what the generate must resolve — is a `{_type, id}` target. Four rows stand for the four answers
+ * the resolver can give: a collection this gateway serves, a product it serves, an ordinary URL
+ * that needs no catalog at all, and a target it has never heard of, which must render as a label
+ * and no anchor.
+ */
+export const LINKED_HEADER_LABELS = {
+  collection: 'The winter edit',
+  product: 'Ash glaze mug',
+  url: 'Journal',
+  missing: 'Discontinued',
+} as const;
+
+function linkedHeaderData(data: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...data,
+    links: [
+      {
+        kind: 'collection',
+        target: { _type: 'collection', id: COLLECTIONS[0]!.id },
+        label: LINKED_HEADER_LABELS.collection,
+      },
+      {
+        kind: 'product',
+        target: { _type: 'product', id: PRODUCTS[0]!.id },
+        label: LINKED_HEADER_LABELS.product,
+      },
+      { kind: 'url', url: '/journal', label: LINKED_HEADER_LABELS.url },
+      {
+        kind: 'collection',
+        target: { _type: 'collection', id: 'col-deleted' },
+        label: LINKED_HEADER_LABELS.missing,
+      },
+    ],
+  };
+}
+
+/**
  * The starter's own seeds, as the CMS route-template entries a deployed site holds.
  *
  * Two shapes differ from `seedLayout`'s output, both because a seed is an *input* Core rewrites
@@ -181,7 +222,7 @@ function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknow
             ]
           : [];
       const blocks = [
-        { id: 'role-header', apiId: roles.header.apiId, data: roles.header.data },
+        { id: 'role-header', apiId: roles.header.apiId, data: linkedHeaderData(roles.header.data) },
         ...seed.blocks,
         ...extra,
         { id: 'role-footer', apiId: roles.footer.apiId, data: roles.footer.data },
@@ -254,7 +295,7 @@ function pageEntries(): Array<{ id: string; data: Record<string, unknown> }> {
   if (seed === undefined) throw new Error('mockGateway: the starter no longer seeds a home page');
   const roles = starterTemplateRoles();
   const blocks = [
-    { id: 'role-header', apiId: roles.header.apiId, data: roles.header.data },
+    { id: 'role-header', apiId: roles.header.apiId, data: linkedHeaderData(roles.header.data) },
     ...seed.blocks,
     { id: 'role-footer', apiId: roles.footer.apiId, data: roles.footer.data },
   ];

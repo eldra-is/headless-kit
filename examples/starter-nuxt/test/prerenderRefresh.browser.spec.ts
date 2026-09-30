@@ -9,6 +9,7 @@ import { enUS } from '../app/i18n/en-US';
 import {
   COLLECTION_HANDLE,
   HOME_PAGE_PATH,
+  LINKED_HEADER_LABELS,
   PRODUCT_HANDLE,
   startMockGateway,
   type MockGateway,
@@ -431,6 +432,28 @@ describe('prerendered commerce data on the generated static site', () => {
     }
     // The carousel's cards are prerendered too, prices and all.
     expect(staticHtml(productPage)).toContain('Cedar serving board');
+  });
+
+  it("bakes every header link's href into the static HTML, and draws no anchor for a target that is gone", () => {
+    // The whole point of the `link` field: the header stores what it points at, and the site
+    // derives the path from its own route templates at prerender time. A visitor with no
+    // JavaScript gets working links; the browser makes no request to resolve one.
+    for (const path of [HOME_PAGE_PATH, productPage, collectionPage]) {
+      const html = staticHtml(path);
+      const anchor = (label: string): RegExpMatchArray | null =>
+        html.match(new RegExp(`<a[^>]*href="([^"]*)"[^>]*>(?:(?!</a>).)*${label}`, 's'));
+
+      expect(anchor(LINKED_HEADER_LABELS.collection)?.[1], path).toBe(
+        `/collections/${COLLECTION_HANDLE}`
+      );
+      expect(anchor(LINKED_HEADER_LABELS.product)?.[1], path).toBe(`/products/${PRODUCT_HANDLE}`);
+      expect(anchor(LINKED_HEADER_LABELS.url)?.[1], path).toBe('/journal');
+
+      // The gateway has never heard of this collection — deleted, archived, or unpublished. The
+      // label is still worth showing; an anchor to nowhere is not.
+      expect(html, path).toContain(LINKED_HEADER_LABELS.missing);
+      expect(anchor(LINKED_HEADER_LABELS.missing), path).toBeNull();
+    }
   });
 
   it('prerenders every storefront read the product page makes, under the key the browser computes', () => {

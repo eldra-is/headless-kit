@@ -7,6 +7,7 @@ export const KNOWN_FIELD_TYPES = [
   'icon',
   'int',
   'json',
+  'link',
   'list',
   'lucide-icon',
   'markdown',

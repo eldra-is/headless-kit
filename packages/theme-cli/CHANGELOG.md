@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `eldra-theme validate` accepts the new `link` field type. A theme declaring one against an older
+  gateway still validates offline; against a newer one the remote `/cms/v1/field-types` list wins,
+  as it already did.
+
 - `eldra-theme validate` reports the new `showWhen` conditional-field rules
   (`@eldrajs/vite-plugin-theme`): a condition naming a field that is not a sibling in the same
   field set, naming itself, naming a sibling that is not a `select`/`bool`/`string`, naming one

@@ -159,7 +159,7 @@ describe('starter theme', () => {
         'searchStyle',
         'showAccount',
         'ctaLabel',
-        'ctaHref',
+        'cta',
         'sticky',
         'transparentOverHero',
       ],
@@ -962,10 +962,14 @@ describe('seeded templates (app/templates.ts)', () => {
     // And proven directly, because an empty error list would also be what a scanner that never
     // looked at the seeds returns: the sample pages carry demo imagery
     // (`{assetId: "demo-hero", url, altText, width, height}`) in `hero.image`, `hero.slides[]`,
-    // `navigation.links[].features[]`, `split-content.rows[]`, `testimonials.items[]`,
-    // `collection-header.image` and `cta.image` — none of it may survive into a seed.
+    // `split-content.rows[]`, `testimonials.items[]`, `collection-header.image` and `cta.image` —
+    // none of it may survive into a seed.
     const seeded = JSON.stringify([scanned.manifest!.templates, scanned.manifest!.templateRoles]);
-    expect(seeded).not.toContain('"url"');
+    // A media value's own `url` key, not the `url` a `link` value legitimately carries for
+    // `kind: "url"` — so the match is the demo asset's shape, and a header's `/journal` link is
+    // left alone.
+    expect(seeded).not.toMatch(/"assetId"\s*:\s*"demo-/);
+    expect(seeded).not.toContain('"altText"');
     expect(seeded).not.toContain('demo-');
     // The non-media copy of those same blocks is still there, so the strip took the media and
     // not the block.
