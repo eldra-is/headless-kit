@@ -5,6 +5,37 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A block migration step may now carry `convertToLink`, which turns an existing field's values into
+  a `link` field's on deploy — where a handle can still be resolved against the catalog — rather
+  than letting a composite-to-link change land as a retirement that leaves the new field empty:
+
+  ```jsonc
+  "migrations": [{
+    "version": 3,
+    "renames": [],
+    "convertToLink": [
+      { "from": "links", "to": "links", "shape": "list",
+        "label": "label", "url": "href", "group": "group", "children": "menuLinks" },
+      { "from": "ctaHref", "to": "cta", "shape": "string", "label": "ctaLabel" }
+    ]
+  }]
+  ```
+
+  `shape` says what the old field was: a `string` holding an href, or a `list` of composites whose
+  named children carry the label, href, group and nested links. **The conversion copies; it never
+  deletes.** `from` is left alone, so the ordinary retirement pass then stashes it as
+  `<from>__v<previousVersion>` and anything the old shape carried and a link cannot hold stays
+  readable — and a step that converts still has to bump the block's version for that reason. It is
+  idempotent for free: on the next deploy `from` no longer exists under its old id.
+
+  The scanner checks that `to` exists in the incoming fields and is a `link` (or, for
+  `shape: "list"`, a list whose item is one), that `from` exists in the previous local manifest, and
+  that the named `label`/`url`/`group`/`children` are children of the previous item's composite —
+  for `shape: "string"`, that `label` names another string field of the previous block.
+
+- `renames` is now optional on a migration step, so a step may carry only conversions. A step must
+  still declare at least one of `renames` and `convertToLink`.
+
 - Seed data (a block's `mock.json`, a template seed's block data and a template role's data) may
   name a `link` field's destination. A product or a collection may be named by handle —
   `{ "kind": "collection", "target": { "_type": "collection", "slug": "the-winter-edit" } }` — and

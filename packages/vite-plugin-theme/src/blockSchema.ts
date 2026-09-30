@@ -41,7 +41,10 @@ export const blockJsonSchema = {
     blockMigration: {
       type: 'object',
       additionalProperties: false,
-      required: ['version', 'renames'],
+      // `renames` is optional so a step may carry only conversions; a step
+      // that declares neither is refused by `migrationChecks`, which can say
+      // so in the file's own wording.
+      required: ['version'],
       properties: {
         version: { type: 'integer', minimum: 2 },
         renames: {
@@ -54,6 +57,32 @@ export const blockJsonSchema = {
             properties: {
               from: { type: 'string', pattern: FIELD_ID_PATTERN },
               to: { type: 'string', pattern: FIELD_ID_PATTERN },
+            },
+          },
+        },
+        // Converts an existing field's values into a `link` field's on deploy,
+        // where a handle can still be resolved against the catalog. `from` is
+        // read and `to` is written; `from` is left alone, so the engine's
+        // ordinary retirement pass then stashes it as `<from>__v<previous>`
+        // and nothing the old shape carried and the new one cannot hold is
+        // lost. `shape` says what the old field was: a `string` holding an
+        // href, or a `list` of composites whose named children carry the
+        // label, href, group and nested links.
+        convertToLink: {
+          type: 'array',
+          maxItems: 16,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['from', 'to', 'shape'],
+            properties: {
+              from: { type: 'string', pattern: FIELD_ID_PATTERN },
+              to: { type: 'string', pattern: FIELD_ID_PATTERN },
+              shape: { type: 'string', enum: ['string', 'list'] },
+              label: { type: 'string', pattern: FIELD_ID_PATTERN },
+              url: { type: 'string', pattern: FIELD_ID_PATTERN },
+              group: { type: 'string', pattern: FIELD_ID_PATTERN },
+              children: { type: 'string', pattern: FIELD_ID_PATTERN },
             },
           },
         },

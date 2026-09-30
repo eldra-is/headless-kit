@@ -1,4 +1,4 @@
-import type { BlockDefinition, BlockField } from './types';
+import type { BlockDefinition, BlockField, BlockMigrationLinkConversion } from './types';
 
 // Core cms/field.IsValidFieldType, including types only used by descendants.
 const STORED_FIELD_TYPES = new Set([
@@ -72,9 +72,20 @@ export function migrationChecks(
     if (versions.has(step.version))
       errors.push(`${at}.version — migration versions must be unique`);
     versions.add(step.version);
+    const renames = step.renames ?? [];
+    const conversions = step.convertToLink ?? [];
+    // A step that carries neither key says nothing at all; an empty `renames`
+    // stays legal, because it is how a step that only bumps a version has
+    // always been written.
+    if (step.renames === undefined && step.convertToLink === undefined) {
+      errors.push(`${at} — a migration step must declare renames or convertToLink`);
+    }
+    for (const conversion of conversions) {
+      checkConversionTarget(at, conversion, next, errors);
+    }
     const sources = new Set<string>();
     const targets = new Set<string>();
-    for (const rename of step.renames) {
+    for (const rename of renames) {
       if (rename.from === rename.to)
         errors.push(`${at} — renames require distinct top-level field IDs`);
       if (!next.has(rename.to))
@@ -90,7 +101,22 @@ export function migrationChecks(
   const sources = new Set<string>();
   const targets = new Set<string>();
   for (const step of [...(block.migrations ?? [])].sort((a, b) => a.version - b.version)) {
-    for (const rename of step.renames) {
+    // Skipped once the step has been applied, exactly as a rename is: the
+    // conversion leaves `from` behind for the retirement pass, so on the next
+    // deploy the previous local manifest no longer describes the old shape —
+    // and re-checking it against the new one would refuse a step that has
+    // already run.
+    if (step.version > previous.version) {
+      for (const conversion of step.convertToLink ?? []) {
+        checkConversionSource(
+          `${file}: migrations (version ${step.version})`,
+          conversion,
+          old,
+          errors
+        );
+      }
+    }
+    for (const rename of step.renames ?? []) {
       const prior = old.get(rename.from);
       const at = `${file}: migrations (version ${step.version})`;
       if (step.version <= previous.version) {
@@ -121,6 +147,94 @@ export function migrationChecks(
   requireVersionBumpForRetirement(file, block, previous, old, next, errors);
 }
 
+/**
+ * What a conversion must be true of in the *incoming* fields: it writes a link,
+ * so `to` has to be one — or, for `shape: "list"`, a list whose item is one.
+ * Checked without any history, because it is a statement about the block being
+ * deployed rather than about what came before it.
+ */
+function checkConversionTarget(
+  at: string,
+  conversion: BlockMigrationLinkConversion,
+  next: Map<string, BlockField>,
+  errors: string[]
+): void {
+  const destination = next.get(conversion.to);
+  if (destination === undefined) {
+    errors.push(
+      `${at} — conversion destination "${conversion.to}" does not exist in incoming fields`
+    );
+    return;
+  }
+  const expectsList = conversion.shape === 'list';
+  const item = expectsList ? listItem(destination) : null;
+  const isLink = expectsList ? item?.type === 'link' : destination.type === 'link';
+  if (!isLink) {
+    errors.push(
+      expectsList
+        ? `${at} — conversion destination "${conversion.to}" must be a list whose item is a link field`
+        : `${at} — conversion destination "${conversion.to}" must be a link field`
+    );
+  }
+}
+
+/**
+ * What a conversion must be true of in the *previous local manifest*: the field
+ * it reads has to exist, in the shape the step says it has, carrying the
+ * children it names. Advisory, like every other history check here — Core owns
+ * the installed schema and re-validates the same rules at ingest.
+ */
+function checkConversionSource(
+  at: string,
+  conversion: BlockMigrationLinkConversion,
+  old: Map<string, BlockField>,
+  errors: string[]
+): void {
+  const prior = old.get(conversion.from);
+  if (prior === undefined) {
+    errors.push(`${at} — conversion source does not exist in the previous local schema`);
+    return;
+  }
+  if (conversion.shape === 'string') {
+    if (prior.type !== 'string') {
+      errors.push(`${at} — conversion source "${conversion.from}" must be a string field`);
+    }
+    if (conversion.label !== undefined) {
+      const label = old.get(conversion.label);
+      if (conversion.label === conversion.from || label === undefined || label.type !== 'string') {
+        errors.push(
+          `${at} — conversion label "${conversion.label}" must name another string field of the previous block`
+        );
+      }
+    }
+    return;
+  }
+  const item = listItem(prior);
+  if (prior.type !== 'list' || item === null || item.type !== 'composite') {
+    errors.push(`${at} — conversion source "${conversion.from}" must be a list of composites`);
+    return;
+  }
+  const children = new Map(compositeFields(item).map((child) => [child.fieldId, child]));
+  for (const key of ['label', 'url', 'group', 'children'] as const) {
+    const named = conversion[key];
+    if (named !== undefined && !children.has(named)) {
+      errors.push(
+        `${at} — conversion ${key} "${named}" is not a child of "${conversion.from}"'s item`
+      );
+    }
+  }
+}
+
+function listItem(field: BlockField): BlockField | null {
+  const item = field.metadata?.item;
+  return isRecord(item) ? (item as unknown as BlockField) : null;
+}
+
+function compositeFields(field: BlockField): BlockField[] {
+  const fields = field.metadata?.fields;
+  return Array.isArray(fields) ? (fields as BlockField[]).filter(isRecord) : [];
+}
+
 // Fields whose id is unchanged across a redeploy (no declared rename) never go
 // through the renamed-field compatibility check above, and a field dropped
 // from `fields` entirely never appears in `next` at all. Core retires either
@@ -140,7 +254,7 @@ function requireVersionBumpForRetirement(
   const bumped = block.version > previous.version;
   const renamedFrom = new Set<string>();
   for (const step of block.migrations ?? []) {
-    for (const rename of step.renames) renamedFrom.add(rename.from);
+    for (const rename of step.renames ?? []) renamedFrom.add(rename.from);
   }
   for (const [fieldId, prior] of old) {
     if (renamedFrom.has(fieldId)) continue;

@@ -559,6 +559,9 @@ describe.each(['composite', 'list'])('stored %s children', (container) => {
     f.write([nested('title', field('child', 'media'))], 2, [step()]);
     expect(f.scan(previous).errors).toEqual([]);
   });
+});
+
+describe('block field migrations — link', () => {
   it('knows link as a stored field type, so a link field can be renamed across a version bump', () => {
     const f = fixture();
     f.write([field('ctaHref', 'link')], 1);
@@ -574,5 +577,268 @@ describe.each(['composite', 'list'])('stored %s children', (container) => {
     const previous = f.scan().manifest!;
     f.write([field('cta', 'string')], 1);
     expect(f.scan(previous).errors.join('\n')).toContain('changed type (link → string)');
+  });
+  describe('convertToLink', () => {
+    /** The v2 shape the starter's header carried: a list of composites with a
+     *  label, an href and a nested list of the same. */
+    const oldList = (fieldId: string): BlockField => ({
+      fieldId,
+      name: fieldId,
+      type: 'list',
+      metadata: {
+        item: {
+          fieldId: 'link',
+          name: 'Link',
+          type: 'composite',
+          metadata: {
+            fields: [
+              field('label'),
+              field('href'),
+              field('group'),
+              {
+                fieldId: 'menuLinks',
+                name: 'menuLinks',
+                type: 'list',
+                metadata: {
+                  item: {
+                    fieldId: 'menuLink',
+                    name: 'menuLink',
+                    type: 'composite',
+                    metadata: { fields: [field('label'), field('href'), field('group')] },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+    const newList = (fieldId: string): BlockField => ({
+      fieldId,
+      name: fieldId,
+      type: 'list',
+      metadata: { item: { fieldId: 'link', name: 'Link', type: 'link', metadata: { tree: true } } },
+    });
+    const listConversion = {
+      from: 'links',
+      to: 'links',
+      shape: 'list',
+      label: 'label',
+      url: 'href',
+      group: 'group',
+      children: 'menuLinks',
+    };
+
+    it('accepts a list conversion and a string conversion in one step', () => {
+      const f = fixture();
+      f.write([oldList('links'), field('ctaLabel'), field('ctaHref')], 2);
+      const previous = f.scan().manifest!;
+      f.write([newList('links'), field('ctaLabel'), field('cta', 'link')], 3, [
+        {
+          version: 3,
+          renames: [],
+          convertToLink: [
+            listConversion,
+            { from: 'ctaHref', to: 'cta', shape: 'string', label: 'ctaLabel' },
+          ],
+        },
+      ]);
+      const result = f.scan(previous);
+      expect(result.errors).toEqual([]);
+      // The step reaches the manifest verbatim — Core applies it on deploy.
+      expect(result.manifest?.blocks.find((b) => b.apiId === 'hero')?.migrations).toEqual([
+        {
+          version: 3,
+          renames: [],
+          convertToLink: [
+            listConversion,
+            { from: 'ctaHref', to: 'cta', shape: 'string', label: 'ctaLabel' },
+          ],
+        },
+      ]);
+    });
+
+    it('accepts a step carrying only conversions, with no renames key at all', () => {
+      const f = fixture();
+      f.write([field('ctaHref')], 1);
+      const previous = f.scan().manifest!;
+      f.write([field('cta', 'link')], 2, [
+        { version: 2, convertToLink: [{ from: 'ctaHref', to: 'cta', shape: 'string' }] },
+      ]);
+      expect(f.scan(previous).errors).toEqual([]);
+    });
+
+    it('applies renames and conversions declared in the same step', () => {
+      const f = fixture();
+      f.write([field('titl'), field('ctaHref')], 1);
+      const previous = f.scan().manifest!;
+      f.write([field('title'), field('cta', 'link')], 2, [
+        {
+          version: 2,
+          renames: [{ from: 'titl', to: 'title' }],
+          convertToLink: [{ from: 'ctaHref', to: 'cta', shape: 'string' }],
+        },
+      ]);
+      expect(f.scan(previous).errors).toEqual([]);
+    });
+
+    it('refuses a step that declares neither renames nor convertToLink', () => {
+      const f = fixture();
+      f.write([field('title')], 2, [{ version: 2 }]);
+      expect(f.scan().errors.join('\n')).toContain(
+        'a migration step must declare renames or convertToLink'
+      );
+    });
+
+    it('refuses a conversion whose destination is not a link', () => {
+      const f = fixture();
+      f.write([field('cta')], 2, [
+        { version: 2, convertToLink: [{ from: 'ctaHref', to: 'cta', shape: 'string' }] },
+      ]);
+      expect(f.scan().errors.join('\n')).toContain(
+        'conversion destination "cta" must be a link field'
+      );
+    });
+
+    it("refuses a list conversion whose destination's item is not a link", () => {
+      const f = fixture();
+      f.write([oldList('links')], 2, [{ version: 2, convertToLink: [listConversion] }]);
+      expect(f.scan().errors.join('\n')).toContain(
+        'conversion destination "links" must be a list whose item is a link field'
+      );
+    });
+
+    it('refuses a conversion whose destination does not exist at all', () => {
+      const f = fixture();
+      f.write([field('title')], 2, [
+        { version: 2, convertToLink: [{ from: 'ctaHref', to: 'cta', shape: 'string' }] },
+      ]);
+      expect(f.scan().errors.join('\n')).toContain(
+        'conversion destination "cta" does not exist in incoming fields'
+      );
+    });
+
+    it('refuses a conversion whose source is absent from the previous local schema', () => {
+      const f = fixture();
+      f.write([field('title')], 1);
+      const previous = f.scan().manifest!;
+      f.write([field('title'), field('cta', 'link')], 2, [
+        { version: 2, convertToLink: [{ from: 'ctaHref', to: 'cta', shape: 'string' }] },
+      ]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion source does not exist in the previous local schema'
+      );
+    });
+
+    it('refuses a string conversion whose source was not a string', () => {
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links'), field('cta', 'link')], 2, [
+        { version: 2, convertToLink: [{ from: 'links', to: 'cta', shape: 'string' }] },
+      ]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion source "links" must be a string field'
+      );
+    });
+
+    it('refuses a string conversion whose label does not name another string field', () => {
+      const f = fixture();
+      f.write([field('ctaHref'), field('showCta', 'bool')], 1);
+      const previous = f.scan().manifest!;
+      f.write([field('cta', 'link'), field('showCta', 'bool')], 2, [
+        {
+          version: 2,
+          convertToLink: [{ from: 'ctaHref', to: 'cta', shape: 'string', label: 'showCta' }],
+        },
+      ]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion label "showCta" must name another string field of the previous block'
+      );
+    });
+
+    it('refuses a list conversion whose source was not a list of composites', () => {
+      const f = fixture();
+      f.write([field('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [{ version: 2, convertToLink: [listConversion] }]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion source "links" must be a list of composites'
+      );
+    });
+
+    it("refuses a named child the previous item's composite does not carry", () => {
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [
+        {
+          version: 2,
+          convertToLink: [{ ...listConversion, url: 'destination', children: 'submenu' }],
+        },
+      ]);
+      const joined = f.scan(previous).errors.join('\n');
+      expect(joined).toContain('conversion url "destination" is not a child of "links"\'s item');
+      expect(joined).toContain('conversion children "submenu" is not a child of "links"\'s item');
+    });
+
+    it('still demands a version bump: a conversion copies rather than moves, so the source is retired', () => {
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      // Same version as before, so Core would have nothing to retire the old
+      // value into — the conversion does not excuse the bump.
+      f.write([newList('links')], 1, [{ version: 2, convertToLink: [listConversion] }]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'bump "version" to 2 so Core retires the previous content'
+      );
+    });
+
+    it('stops re-checking a conversion the previous manifest has already applied', () => {
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const v1 = f.scan().manifest!;
+      f.write([newList('links')], 2, [{ version: 2, convertToLink: [listConversion] }]);
+      const v2 = f.scan(v1).manifest!;
+      expect(f.scan(v1).errors).toEqual([]);
+      // Deployed again with no change: `links` is now a list of links in the
+      // previous manifest too, and the already-applied step must not be read
+      // as a conversion from a shape that is no longer there.
+      expect(f.scan(v2).errors).toEqual([]);
+    });
+
+    it.each([
+      ['a missing shape', [{ version: 2, convertToLink: [{ from: 'a', to: 'b' }] }]],
+      [
+        'an unknown shape',
+        [{ version: 2, convertToLink: [{ from: 'a', to: 'b', shape: 'tree' }] }],
+      ],
+      [
+        'an extra key',
+        [{ version: 2, convertToLink: [{ from: 'a', to: 'b', shape: 'string', icon: 'x' }] }],
+      ],
+      [
+        'a nested source',
+        [{ version: 2, convertToLink: [{ from: 'a.b', to: 'b', shape: 'string' }] }],
+      ],
+      [
+        'too many conversions',
+        [
+          {
+            version: 2,
+            convertToLink: Array.from({ length: 17 }, (_, i) => ({
+              from: `old${i}`,
+              to: 'cta',
+              shape: 'string',
+            })),
+          },
+        ],
+      ],
+    ])('rejects malformed %s without crashing', (_name, migrations) => {
+      const f = fixture();
+      f.write([field('cta', 'link')], 3, migrations);
+      expect(() => f.scan()).not.toThrow();
+      expect(f.scan().manifest).toBeNull();
+    });
   });
 });

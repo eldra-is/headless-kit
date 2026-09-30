@@ -178,9 +178,33 @@ export interface BlockSlotDefinition {
   allowedBlockApiIds?: string[]; // unique, ≤50
 }
 
+/** One field's values converted into a `link` field's on deploy. `from` is read
+ * and `to` is written; `from` is never deleted, so the engine's ordinary
+ * retirement pass stashes it as `<from>__v<previousVersion>` and anything the
+ * old shape carried and a link cannot hold stays readable. */
+export interface BlockMigrationLinkConversion {
+  /** The field read, as the previous local manifest names it. */
+  from: string;
+  /** The `link` field written — or the `list` of links, for `shape: "list"`. */
+  to: string;
+  /** What `from` was: a string holding an href, or a list of composites. */
+  shape: 'string' | 'list';
+  /** The child (or, for `shape: "string"`, the sibling field) holding the label. */
+  label?: string;
+  /** `shape: "list"` only: the child holding the href. */
+  url?: string;
+  /** `shape: "list"` only: the child holding the column heading. */
+  group?: string;
+  /** `shape: "list"` only: the child list holding the nested links. */
+  children?: string;
+}
+
 export interface BlockMigration {
   version: number;
-  renames: Array<{ from: string; to: string }>;
+  /** Optional: a step may carry only conversions. A step must declare at least
+   * one of `renames` and `convertToLink`. */
+  renames?: Array<{ from: string; to: string }>;
+  convertToLink?: BlockMigrationLinkConversion[];
 }
 
 export interface BlockDefinition {
