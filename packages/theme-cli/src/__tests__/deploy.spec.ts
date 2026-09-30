@@ -224,6 +224,51 @@ describe('deployTheme', () => {
     );
   });
 
+  it('prints the conversion summary beside the retirements', async () => {
+    makeBuild(root);
+    api = await startMockDeployApi({
+      syncResult: {
+        created: [],
+        updated: ['navigation'],
+        removed: [],
+        warnings: [],
+        fieldMigrations: {
+          retired: [
+            {
+              blockApiId: 'navigation',
+              fieldId: 'links',
+              retiredAs: 'links__v2',
+              fromVersion: 2,
+              reason: 'shape-changed',
+              migratedCount: 5,
+            },
+          ],
+          converted: [
+            {
+              block: 'navigation',
+              field: 'links',
+              count: 44,
+              urlFallbacks: 44,
+              dropped: [{ reason: 'kind not offered by the field', count: 2 }],
+            },
+          ],
+          convertedCount: 44,
+          droppedCount: 2,
+        },
+      },
+    });
+    const lines: string[] = [];
+
+    await deployTheme(options({ log: (line) => lines.push(line) }));
+
+    expect(lines).toContain(
+      'retired navigation.links → links__v2 (shape-changed, 5 entries) — previous content is read-only in Studio'
+    );
+    expect(lines).toContain(
+      'converted 44 values in navigation.links; 44 kept as plain URLs; 2 dropped: kind not offered by the field ×2'
+    );
+  });
+
   it('prints nothing extra when the deploy has no retired field migrations', async () => {
     makeBuild(root);
     api = await startMockDeployApi();

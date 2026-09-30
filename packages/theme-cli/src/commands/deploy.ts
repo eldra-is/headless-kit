@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import * as tar from 'tar';
+import { fieldMigrationLines, type FieldMigrationReport } from '../deployReport';
 
 const MAX_FILES = 20_000;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -34,20 +35,15 @@ export interface DeployOptions {
   fetch?: typeof globalThis.fetch;
   log?: (line: string) => void;
 }
-export interface RetiredFieldMigration {
-  blockApiId: string;
-  fieldId: string;
-  retiredAs: string;
-  fromVersion: number;
-  reason: 'type-changed' | 'localization-changed' | 'shape-changed' | 'removed';
-  migratedCount: number;
-}
 export interface DeploySyncResult {
   created: string[];
   updated: string[];
   removed: string[];
   warnings: string[];
-  fieldMigrations?: { retired: RetiredFieldMigration[] };
+  /** Both halves of what the deploy did to existing content — the fields it
+   *  retired and the values it converted. Every part is optional, so a deploy
+   *  against a gateway that reports less still succeeds. */
+  fieldMigrations?: FieldMigrationReport;
 }
 export interface DeployResult {
   deploymentId: string;
@@ -131,11 +127,7 @@ export async function deployTheme(opts: DeployOptions): Promise<DeployResult> {
       `deployment ${accepted.deploymentId} accepted — blocks +${syncResult.created.length} ~${syncResult.updated.length} -${syncResult.removed.length}`
     );
     for (const w of syncResult.warnings) log(`warning: ${w}`);
-    for (const retired of syncResult.fieldMigrations?.retired ?? []) {
-      log(
-        `retired ${retired.blockApiId}.${retired.fieldId} → ${retired.retiredAs} (${retired.reason}, ${retired.migratedCount} entries) — previous content is read-only in Studio`
-      );
-    }
+    for (const line of fieldMigrationLines(syncResult.fieldMigrations)) log(line);
     const deadline = Date.now() + (opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     let lastStatus = '';
     for (;;) {

@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `eldra-theme deploy` prints what a deploy **converted** beside what it retired. A version bump
+  that turns an existing field's values into a `link` field's rewrites those values rather than
+  losing them, and each converted field now gets its own line:
+  `converted 44 values in navigation.links; 44 kept as plain URLs; 2 dropped: <reason> ×2`, the
+  last two clauses appearing only when there is something to say. A gateway that reports totals
+  without a per-field breakdown gets one `converted N values into link fields` line instead. Without
+  this, the entire visible account of a successful conversion was the retirement lines, which say
+  content is now read-only — the opposite of what happened. `fieldMigrationLines(report)` is
+  exported so a wrapper can print the same lines its own way, with the `FieldMigrationReport`,
+  `ConvertedFieldMigration`, `DroppedLinkRows` and `RetiredFieldMigration` types. Every part of the
+  report is optional, so deploying against a gateway that reports less still works.
+
 - `eldra-theme validate` accepts the new `link` field type. A theme declaring one against an older
   gateway still validates offline; against a newer one the remote `/cms/v1/field-types` list wins,
   as it already did.
