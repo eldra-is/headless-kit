@@ -1,9 +1,12 @@
 import { inject, provide, reactive, type InjectionKey } from 'vue';
 import type { BridgePayloads } from '@eldrajs/theme-core/bridge';
+import type { LinkTargetInfo } from '@eldrajs/theme-core/links';
 import {
   normalizeThemeDesignTokens,
   type EldraClient,
+  type PageLike,
   type RichTextFieldIdentity,
+  type RouteTemplateLike,
   type ThemeDesignTokens,
 } from '@eldrajs/theme-core';
 
@@ -15,8 +18,22 @@ export type SlotGeometry = BridgePayloads['theme:slots-rendered']['slots'][numbe
 
 export type SlotGeometryReporter = (slots: SlotGeometry[]) => void;
 
+/**
+ * What `resolveLink` needs, as one reactive slice of the theme context: the
+ * site's pages and route templates, and what it knows about the objects its
+ * links point at, keyed `${_type}:${id}`. An adapter fills it where it already
+ * resolves the route — one place, one read per type — so a prerendered page
+ * carries every href in its payload.
+ */
+export interface EldraLinkState {
+  pages: PageLike[];
+  templates: RouteTemplateLike[];
+  targets: Map<string, LinkTargetInfo>;
+}
+
 export interface EldraContext {
   client: EldraClient;
+  links: EldraLinkState;
   preview: {
     active: boolean;
     mode: 'preview' | 'edit';
@@ -93,10 +110,20 @@ export function createEldraPreviewState(): EldraContext['preview'] {
   });
 }
 
+/**
+ * The link slice of a fresh theme context, reactive and empty. Built here for
+ * the same reason `createEldraPreviewState` is: a missing field is a runtime
+ * error rather than a type error once the object is assembled elsewhere.
+ */
+export function createEldraLinkState(): EldraLinkState {
+  return reactive({ pages: [], templates: [], targets: new Map<string, LinkTargetInfo>() });
+}
+
 export function provideEldra(opts: { client: EldraClient; designTokens?: unknown }): EldraContext {
   const context: EldraContext = {
     client: opts.client,
     designTokens: reactive(normalizeThemeDesignTokens(opts.designTokens ?? { colors: {} })),
+    links: createEldraLinkState(),
     preview: createEldraPreviewState(),
   };
   provide(ELDRA_KEY, context);

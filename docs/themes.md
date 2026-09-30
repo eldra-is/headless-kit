@@ -110,6 +110,53 @@ Dynamic resolution stays exactly as it was wherever the build cannot be the auth
 Studio preview frame (the route may be a draft), on `nuxi dev`, and on an SSR deployment, all of
 which prerender nothing.
 
+## Links
+
+A `link` field stores a destination the platform understands — a product, collection, category,
+entry or page by id, or an external URL — rather than a typed-out href that silently rots when the
+target is renamed. Resolve one to an href with `useEldraLink()`:
+
+```vue
+<script setup lang="ts">
+import { useEldraLink } from '@eldrajs/theme-vue';
+
+const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
+const link = useEldraLink();
+</script>
+
+<template>
+  <nav>
+    <template v-for="(item, index) in props.entry.data.links ?? []" :key="index">
+      <a v-if="link(item)?.href" :href="link(item)!.href!">{{ link(item)!.label }}</a>
+      <span v-else-if="link(item)?.label">{{ link(item)!.label }}</span>
+    </template>
+  </nav>
+</template>
+```
+
+`useEldraLink()` returns `(value) => ResolvedLink | null`, where `ResolvedLink` is
+`{ href, label, newTab, group, children }`. Two rules matter to a theme:
+
+- **`href` is null whenever nothing addressable was found** — the target is gone, carries no slug,
+  or the site has no route template serving its kind. Render the label as plain text then (or
+  nothing), never a dead anchor.
+- **`label` is the value's own when an author set one, else the target's own title, else null.** A
+  row with no label at all is a row with nothing to show.
+
+`children` is one level deep and never more, which is what a mega-menu column needs and all the
+grammar allows. A child's `group` is its column heading.
+
+`@eldrajs/theme-nuxt` fills the context inside the same `useAsyncData` call that resolves the route,
+so a `nuxi generate` build bakes every href into the page's payload and a prerendered page resolves
+them with no client request. The lookups are one batched read per target type, and a read that fails
+leaves those targets unknown — the links pointing at them render unlinked rather than failing the
+page.
+
+The framework-free half is `@eldrajs/theme-core/links`: `resolveLink(value, context)`,
+`linkTargetKeys(value)` (the `` `${_type}:${id}` `` keys to look up) and `safeLinkHref(value)`, the
+kit's single href allowlist. A wrapper for another framework fills the same context and re-exports
+the same three.
+
 ## Seeding default templates
 
 A theme can ship the pages a site starts with. `@eldrajs/theme-nuxt`'s `eldra.templates` (forwarded

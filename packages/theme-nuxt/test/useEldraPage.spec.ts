@@ -109,6 +109,7 @@ vi.mock('nuxt/app', () => ({
 vi.mock('@eldrajs/theme-vue', () => ({
   useEldra: () => ({
     client: {},
+    links: { pages: [], templates: [], targets: new Map() },
     preview: {
       get active() {
         return state.previewActive;

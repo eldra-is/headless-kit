@@ -36,6 +36,7 @@ export function useEldraPage(): {
   layout: ComputedRef<unknown | null>;
   blocks: ComputedRef<EntryDoc[]>;
   reusableComponentProjection: ComputedRef<unknown | undefined>;
+  links: ComputedRef<ResolvedEldraRoute['links']>;
   pending: Ref<boolean>;
   error: Ref<string | null>;
 } {
@@ -190,6 +191,28 @@ export function useEldraPage(): {
   );
   const entry = computed(() => overlayEntryDraft(active.value.entry, ctx.preview.drafts));
   const catalog = computed<CatalogRouteRef | null>(() => active.value.catalog);
+  // Written into the shared context rather than returned alone, because
+  // `useEldraLink()` reads it from there — a block resolves its own links
+  // without every theme threading the state down to it. It arrives with the
+  // same `useAsyncData` payload the page already carries, so a prerendered page
+  // has it before the first render.
+  //
+  // A resolution with no `links` at all is a payload written by a build that
+  // predates this key, which a static host can still be serving; it clears the
+  // state rather than throwing, and every link then renders unlinked until the
+  // route is resolved again.
+  const linkState = computed<ResolvedEldraRoute['links']>(
+    () => active.value.links ?? { pages: [], templates: [], targets: new Map() }
+  );
+  watch(
+    linkState,
+    (links) => {
+      ctx.links.pages = links.pages;
+      ctx.links.templates = links.templates;
+      ctx.links.targets = links.targets;
+    },
+    { immediate: true }
+  );
   const layout = computed<unknown | null>(
     () => template.value?.data.layout ?? page.value?.data.layout ?? null
   );
@@ -215,6 +238,7 @@ export function useEldraPage(): {
     layout,
     blocks,
     reusableComponentProjection,
+    links: linkState,
     pending,
     error,
   };

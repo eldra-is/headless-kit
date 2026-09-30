@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { EldraContext } from '../context';
+import { createEldraLinkState, type EldraContext } from '../context';
 import { applyResolvedDesignTokens } from '../useEldraPreview';
 
 const containers = {
@@ -14,6 +14,7 @@ function context(): EldraContext {
   return {
     client: {} as EldraContext['client'],
     designTokens: reactive({ colors: {}, containers: {} }),
+    links: createEldraLinkState(),
     preview: reactive({
       active: true,
       mode: 'edit',

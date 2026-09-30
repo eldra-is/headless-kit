@@ -173,6 +173,7 @@ async function renderPage(
   state.config.locale = config.locale;
   state.ctx = {
     client,
+    links: { pages: [], templates: [], targets: new Map() },
     preview: { ...preview, drafts: {}, draftSchemaApiIds: {}, revision: 0, refreshRevision: 0 },
   };
   const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');

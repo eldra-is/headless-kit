@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A `link` field's destinations now resolve to real hrefs on a generated site. Route resolution
+  fills the theme context's `links` slice from the page and route-template lists it already reads,
+  plus one batched read per target type for the objects the resolved document's blocks name — all
+  inside the same `useAsyncData` call, so a `nuxi generate` build bakes every href into the page's
+  payload and a prerendered page resolves them with no client request. A read that fails leaves
+  those targets unknown: the links pointing at them render unlinked rather than failing the page.
+  `useEldraPage()` also returns the slice as `links`.
+
 - Fix: on a **generated** site in a browser, `useEldraPage()` now resolves routes from the build
   instead of the gateway. A path Nuxt prerendered (its app manifest ships the list) is read back out
   of the route payload Nuxt has already loaded, so a client navigation between two prerendered

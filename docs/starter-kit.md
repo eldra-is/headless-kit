@@ -293,7 +293,13 @@ payload's bit characters behind and reads a cleared field as filled. The 33 bloc
 
 **Field types, and the one `reference` shape that is typed.** `block.json`'s field `type` values are
 Core's (`string`, `text`, `rich-text`, `media`, `select`, `bool`, `int`, `list`, `composite`,
-`reference`, …). A `reference` field carries a `relation` naming what an editor may pick, as any
+`reference`, `link`, …). A `link` field stores one destination the platform understands — a
+product, collection, category, entry or page by id, or an external URL — and the theme derives the
+href with `useEldraLink()` (see `docs/themes.md`, "Links"), so a renamed collection can never leave
+a header pointing at a 404. It may narrow what an author can pick with `metadata.kinds`, restrict
+`kind: "entry"` with `metadata.allowedEntrySchemaApiIds`, and — on a `link` that is a `list`'s
+`metadata.item` — ask for a one-level tree with `metadata.tree: true`, which is how the header and
+footer author their navigation. A `reference` field carries a `relation` naming what an editor may pick, as any
 combination of `allowedTagIds` (semantic tag names — never schema ids, which are not portable
 across organizations), `allowProducts` and `allowCollections`, with **at least one of them**:
 `eldra-theme validate` fails a relation that names none with `relation requires one of

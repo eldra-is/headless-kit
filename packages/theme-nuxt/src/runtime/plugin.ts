@@ -1,6 +1,7 @@
 import { createEldraClient, normalizeThemeDesignTokens } from '@eldrajs/theme-core';
 import {
   ELDRA_KEY,
+  createEldraLinkState,
   createEldraPreviewState,
   registerBlockFields,
   startEldraPreview,
@@ -35,6 +36,7 @@ export default defineNuxtPlugin({
     const context: EldraContext = {
       client,
       designTokens: reactive(normalizeThemeDesignTokens(manifest.tokens)),
+      links: createEldraLinkState(),
       preview: createEldraPreviewState(),
     };
     nuxtApp.vueApp.provide(ELDRA_KEY, context);

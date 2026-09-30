@@ -1,12 +1,26 @@
 export {
   ELDRA_KEY,
+  createEldraLinkState,
   createEldraPreviewState,
   provideEldra,
   useEldra,
   type EldraContext,
+  type EldraLinkState,
   type SlotGeometry,
   type SlotGeometryReporter,
 } from './context';
+export { useEldraLink } from './useEldraLink';
+export {
+  linkTargetKeys,
+  resolveLink,
+  safeLinkHref,
+  type LinkKind,
+  type LinkRouteContext,
+  type LinkTarget,
+  type LinkTargetInfo,
+  type LinkValue,
+  type ResolvedLink,
+} from '@eldrajs/theme-core/links';
 export { EldraBlockZone, getBlockSchemaApiId } from './EldraBlockZone';
 export { EldraLayout } from './EldraLayout';
 export { EldraRichText } from './EldraRichText';

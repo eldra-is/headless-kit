@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- New `useEldraLink()`: returns `(value) => ResolvedLink | null`, which resolves a `link` field's
+  value against the site's own pages and route templates. Keep the returned function — it closes
+  over the reactive theme context, so a row re-resolves when its target arrives or a preview draft
+  changes the value, and outside a themed app it resolves everything to `null` rather than throwing.
+  `resolveLink`, `linkTargetKeys`, `safeLinkHref` and the link types are re-exported from the
+  package root.
+
+- `EldraContext` gains a reactive `links` slice (`pages`, `templates`, `targets`), built by the new
+  `createEldraLinkState()` beside `createEldraPreviewState()`. An adapter that assembles a context
+  by hand must build it from there.
+
 - Feat: `EldraLayout` renders `data-eldra-hidden` on a layout node its style hides at one or more
   breakpoints, listing them space separated (`data-eldra-hidden="tablet mobile"`). It is rendered
   unconditionally — identical on the server and the client, carrying no styling of its own — and is
