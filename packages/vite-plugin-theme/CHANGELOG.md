@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A seed's `link` value with `kind: "url"` is checked against the platform's href allowlist rather
+  than only for being a non-blank string, so a scan refuses what a deploy refuses. A `mock.json` or
+  `preview.json` carrying `javascript:…`, a `data:` url, a protocol-relative `//host`, a bare `#`,
+  a backslash, a control character, a value over 2048 bytes or a scheme with the wrong number of
+  slashes (`https:example.com`) now fails `eldra-theme validate` and `pnpm dev`/`build` with a line
+  naming the path that carries it, instead of failing at the deploy — the one place a theme author
+  cannot fix it offline.
+
 - A block migration step may now carry `convertToLink`, which turns an existing field's values into
   a `link` field's on deploy — where a handle can still be resolved against the catalog — rather
   than letting a composite-to-link change land as a retirement that leaves the new field empty:

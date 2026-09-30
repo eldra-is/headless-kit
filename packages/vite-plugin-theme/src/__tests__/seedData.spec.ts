@@ -131,6 +131,8 @@ describe('checkSeedData — reference values', () => {
 describe('checkSeedData — link values', () => {
   const LINK_MESSAGE =
     'link values must be {kind, …}: a target is absent, {_type, id: uuid} or {_type: "product"|"collection", slug} — Core resolves the slug at seed time';
+  const LINK_URL_MESSAGE =
+    'a link with kind "url" needs a url the platform stores: a rooted /path that is not //, an #anchor with something after it, an absolute http(s):// url with a host, or a mailto:/tel: with an address — at most 2048 bytes, no backslash and no control characters';
   const linkField = { fieldId: 'cta', name: 'Button link', type: 'link' };
   const linkList = {
     fieldId: 'links',
@@ -297,8 +299,6 @@ describe('checkSeedData — link values', () => {
     ['a value that is not an object', 'https://example.com'],
     ['a missing kind', { target: { _type: 'collection', slug: 'gifts' } }],
     ['an unknown kind', { kind: 'blog', url: '/journal' }],
-    ['a url kind with no url', { kind: 'url' }],
-    ['a url kind with a blank url', { kind: 'url', url: '   ' }],
     [
       'a url kind carrying a target',
       { kind: 'url', url: '/x', target: { _type: 'page', id: UUID } },
@@ -354,7 +354,60 @@ describe('checkSeedData — link values', () => {
       },
     };
     expect(errorsFor([listOfComposites], { items: [{ cta: { kind: 'url' } }] })).toEqual([
-      `items[0].cta: ${LINK_MESSAGE}`,
+      `items[0].cta: ${LINK_URL_MESSAGE}`,
     ]);
+  });
+
+  /**
+   * A `kind: "url"` seed goes through the same allowlist the platform's write
+   * side applies, so the scan refuses exactly what the deploy refuses. Before
+   * this, a seed only had to be a non-blank string: `javascript:` and a bare
+   * `#` passed `eldra-theme validate` and failed at the deploy, the one place
+   * an author cannot fix them offline.
+   */
+  it.each([
+    ['a rooted path', '/collections/knitwear'],
+    ['a path with a query', '/search?q=wool'],
+    ['an in-page hash that names something', '#main'],
+    ['https', 'https://example.com/x'],
+    ['an uppercase scheme', 'HTTPS://example.com/x'],
+    ['mailto', 'mailto:hello@example.com'],
+    ['tel', 'tel:+3545550000'],
+  ])('accepts a url seed carrying %s', (_label, url) => {
+    expect(errorsFor([linkField], { cta: { kind: 'url', url } })).toEqual([]);
+  });
+
+  it.each([
+    ['no url at all', undefined],
+    ['a blank url', '   '],
+    ['a non-string url', 42],
+    ['javascript:', 'javascript:alert(1)'],
+    ['data:', 'data:text/html,<script>alert(1)</script>'],
+    ['a protocol-relative url', '//evil.com'],
+    ['a backslash', '/collections\\..\\admin'],
+    ['a C0 control character', `/collections/${String.fromCodePoint(0x01)}knitwear`],
+    ['a C1 control character', `/collections/${String.fromCodePoint(0x85)}knitwear`],
+    ['a scheme with no slashes', 'https:example.com'],
+    ['a scheme with one slash', 'http:/example.com'],
+    ['a bare hash', '#'],
+    ['a bare mailto', 'mailto:'],
+    ['a bare tel', 'tel:'],
+    ['a bare handle', 'knitwear'],
+    ['2049 bytes', `/${'a'.repeat(2048)}`],
+    ['2048 UTF-16 units that are more than 2048 bytes', `/${'é'.repeat(2047)}`],
+  ])('refuses a url seed carrying %s', (_label, url) => {
+    expect(errorsFor([linkField], { cta: { kind: 'url', url } })).toEqual([
+      `cta: ${LINK_URL_MESSAGE}`,
+    ]);
+  });
+
+  it('applies the allowlist to a child of a navigation item too', () => {
+    expect(
+      errorsFor([linkList], {
+        links: [
+          { kind: 'url', url: '/shop', label: 'Shop', children: [{ kind: 'url', url: '#' }] },
+        ],
+      })
+    ).toEqual([`links[0].children[0]: ${LINK_URL_MESSAGE}`]);
   });
 });

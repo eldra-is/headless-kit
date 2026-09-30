@@ -1,3 +1,4 @@
+import { safeLinkHref } from '@eldrajs/theme-core/links';
 import { isRecord } from './util';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,6 +21,13 @@ const LINK_MESSAGE =
   'link values must be {kind, …}: a target is absent, {_type, id: uuid} or {_type: "product"|"collection", slug} — Core resolves the slug at seed time';
 const LINK_NONE_MESSAGE =
   'a link with kind "none" is a heading: it needs a label and children, and carries no target or url';
+/** The url allowlist is the platform write side's, applied here through the
+ * kit's single implementation (`safeLinkHref`) so a scan refuses exactly what a
+ * deploy refuses: a seed carrying `javascript:` or a bare `#` used to pass the
+ * scan and fail at the deploy, which is the one place an author cannot fix it
+ * offline. */
+const LINK_URL_MESSAGE =
+  'a link with kind "url" needs a url the platform stores: a rooted /path that is not //, an #anchor with something after it, an absolute http(s):// url with a host, or a mailto:/tel: with an address — at most 2048 bytes, no backslash and no control characters';
 
 /** How one finding is worded, so the same walk serves both callers: a block's
  * `mock.json` (`<file>: <path>: <message>`) and a template seed's block data
@@ -61,7 +69,10 @@ export type SeedErrorFormat = (path: string, message: string) => string;
  * for, so a seed leaves their target out and an author fills it in. Children
  * are walked too, and one of them may not carry children of its own — which
  * also means `kind: "none"`, the heading that must carry children, can only
- * ever be a top-level item.
+ * ever be a top-level item. A `kind: "url"` value goes through the same href
+ * allowlist the platform's write side applies (`safeLinkHref`), not merely a
+ * non-blank check, so a scan refuses what a deploy would refuse rather than
+ * leaving an author to discover it there.
  */
 export function checkSeedData(
   format: SeedErrorFormat,
@@ -264,8 +275,10 @@ function checkLinkValue(
       errors.push(format(path, LINK_NONE_MESSAGE));
     }
   } else if (kind === 'url') {
-    if (typeof value.url !== 'string' || value.url.trim() === '' || value.target !== undefined) {
+    if (value.target !== undefined) {
       errors.push(format(path, LINK_MESSAGE));
+    } else if (safeLinkHref(value.url) === null) {
+      errors.push(format(path, LINK_URL_MESSAGE));
     }
   } else {
     if (value.url !== undefined) {
