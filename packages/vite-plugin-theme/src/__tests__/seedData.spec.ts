@@ -202,6 +202,62 @@ describe('checkSeedData — link values', () => {
     ).toEqual([]);
   });
 
+  it('accepts a heading: kind "none" with a label and children', () => {
+    expect(
+      errorsFor([linkList], {
+        links: [
+          {
+            kind: 'none',
+            label: 'Shop',
+            children: [{ kind: 'url', url: '/collections/knitwear', label: 'Knitwear' }],
+          },
+        ],
+      })
+    ).toEqual([]);
+  });
+
+  it.each([
+    ['no children at all', { kind: 'none', label: 'Shop' }],
+    ['an empty children list', { kind: 'none', label: 'Shop', children: [] }],
+    ['no label', { kind: 'none', children: [{ kind: 'url', url: '/a', label: 'A' }] }],
+    [
+      'a blank label',
+      { kind: 'none', label: '  ', children: [{ kind: 'url', url: '/a', label: 'A' }] },
+    ],
+    [
+      'a url',
+      {
+        kind: 'none',
+        label: 'Shop',
+        url: '/x',
+        children: [{ kind: 'url', url: '/a', label: 'A' }],
+      },
+    ],
+    [
+      'a target',
+      {
+        kind: 'none',
+        label: 'Shop',
+        target: { _type: 'collection', slug: 'x' },
+        children: [{ kind: 'url', url: '/a', label: 'A' }],
+      },
+    ],
+  ])('refuses a heading with %s', (_label, value) => {
+    expect(errorsFor([linkField], { cta: value })).toEqual([
+      'cta: a link with kind "none" is a heading: it needs a label and children, and carries no target or url',
+    ]);
+  });
+
+  it('refuses a heading as a child — a child may carry no children, so it can head nothing', () => {
+    expect(
+      errorsFor([linkList], {
+        links: [{ kind: 'url', url: '/a', children: [{ kind: 'none', label: 'Shop' }] }],
+      })
+    ).toEqual([
+      'links[0].children[0]: a link with kind "none" is a heading: it needs a label and children, and carries no target or url',
+    ]);
+  });
+
   it('refuses a product-typed slug target on a collection link', () => {
     expect(
       errorsFor([linkField], {

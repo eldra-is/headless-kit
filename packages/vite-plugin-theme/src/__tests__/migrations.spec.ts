@@ -836,6 +836,22 @@ describe('block field migrations — link', () => {
       );
     });
 
+    it('still checks a conversion source while the previous manifest describes the old shape', () => {
+      // A repository whose own `.eldra/manifest.json` was regenerated at the new
+      // version stopped checking its conversion sources when the check was
+      // gated on the version alone, and a step naming a field the old composite
+      // never carried went unreported.
+      const f = fixture();
+      f.write([oldList('links')], 3);
+      const stillOld = f.scan().manifest!;
+      f.write([newList('links')], 3, [
+        { version: 3, convertToLink: [{ ...listConversion, url: 'destination' }] },
+      ]);
+      expect(f.scan(stillOld).errors.join('\n')).toContain(
+        'conversion url "destination" is not a child of "links"\'s item'
+      );
+    });
+
     it('stops re-checking a conversion the previous manifest has already applied', () => {
       const f = fixture();
       f.write([oldList('links')], 1);

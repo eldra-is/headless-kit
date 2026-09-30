@@ -29,10 +29,11 @@ import type { BlockDefinition, BlockField } from './types';
  * `target` and `url` are both optional because exactly one of them is set, and
  * which one depends on `kind`; `children` is one level deep and never more. */
 const LINK_INTERFACE = `  /** A destination a \`link\` field points at: a catalog object, an entry,
-   *  a page, or an external URL. Resolve it to an href with
+   *  a page, or an external URL — or \`kind: "none"\`, a heading that groups
+   *  the links under it and goes nowhere itself. Resolve it to an href with
    *  \`resolveLink\` from \`@eldrajs/theme-core/links\`. */
   interface EldraLink {
-    kind: 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';
+    kind: 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url' | 'none';
     target?: { _type: string; id: string };
     url?: string;
     label?: string;

@@ -159,6 +159,22 @@ describe('footer block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  it('renders a column heading as a heading, never as an anchor', () => {
+    // `kind: "none"` is the only shape a column heading has: a label, children,
+    // and nowhere to go.
+    const wrapper = mountFooter(resolvedMock);
+    const heading = wrapper.findAll('h3').find((h) => h.text() === 'Shop')!;
+    expect(heading.find('a').exists()).toBe(false);
+    expect(wrapper.findAll('a').some((a) => a.text() === 'Shop')).toBe(false);
+    // …and its children are the column's links.
+    expect(
+      wrapper
+        .findAll('a')
+        .find((a) => a.text() === 'Knitwear')!
+        .attributes('href')
+    ).toBe('/collections/knitwear');
+  });
+
   it('renders nothing at all for a row with no label', () => {
     const wrapper = mountFooter({
       ...resolvedMock,

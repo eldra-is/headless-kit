@@ -858,6 +858,16 @@ describe('scanTheme link field metadata', () => {
     }
   );
 
+  it('accepts "none" as a declared kind — the heading a tree item may be', () => {
+    const dir = linkList({
+      fieldId: 'link',
+      name: 'Link',
+      type: 'link',
+      metadata: { tree: true, kinds: ['none', 'collection', 'url'] },
+    });
+    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([]);
+  });
+
   it('rejects an unknown kind', () => {
     const dir = withHeroField({
       fieldId: 'cta',

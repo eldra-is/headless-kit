@@ -101,20 +101,26 @@ export function migrationChecks(
   const sources = new Set<string>();
   const targets = new Set<string>();
   for (const step of [...(block.migrations ?? [])].sort((a, b) => a.version - b.version)) {
-    // Skipped once the step has been applied, exactly as a rename is: the
-    // conversion leaves `from` behind for the retirement pass, so on the next
-    // deploy the previous local manifest no longer describes the old shape —
-    // and re-checking it against the new one would refuse a step that has
-    // already run.
-    if (step.version > previous.version) {
-      for (const conversion of step.convertToLink ?? []) {
-        checkConversionSource(
-          `${file}: migrations (version ${step.version})`,
-          conversion,
-          old,
-          errors
-        );
-      }
+    // A conversion is checked against the previous local manifest whenever that
+    // manifest still *describes the old shape* — which is the case on the first
+    // deploy of the step, and on every re-scan of a repository whose own
+    // `.eldra/manifest.json` has not been regenerated past it. It is skipped
+    // only once `from` is gone or has become the link it converts into: the
+    // conversion leaves `from` behind for the retirement pass, so re-reading it
+    // then would refuse a step that has already run.
+    //
+    // The version comparison alone was not enough. A repository whose local
+    // manifest had already been regenerated at the new version stopped checking
+    // its own conversion sources, and a step naming a field the old composite
+    // never carried went unreported until Core's ingest found it.
+    for (const conversion of step.convertToLink ?? []) {
+      if (step.version <= previous.version && alreadyConverted(conversion, old)) continue;
+      checkConversionSource(
+        `${file}: migrations (version ${step.version})`,
+        conversion,
+        old,
+        errors
+      );
     }
     for (const rename of step.renames ?? []) {
       const prior = old.get(rename.from);
@@ -185,6 +191,18 @@ function checkConversionTarget(
  * children it names. Advisory, like every other history check here — Core owns
  * the installed schema and re-validates the same rules at ingest.
  */
+/** Whether the previous local manifest already describes `from` as the link the
+ *  conversion writes — the state a deploy leaves behind when `from` and `to`
+ *  share an id. An absent `from` counts too: it has been retired. */
+function alreadyConverted(
+  conversion: BlockMigrationLinkConversion,
+  old: Map<string, BlockField>
+): boolean {
+  const prior = old.get(conversion.from);
+  if (prior === undefined) return true;
+  return conversion.shape === 'string' ? prior.type === 'link' : listItem(prior)?.type === 'link';
+}
+
 function checkConversionSource(
   at: string,
   conversion: BlockMigrationLinkConversion,

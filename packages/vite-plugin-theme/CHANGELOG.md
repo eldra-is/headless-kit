@@ -29,7 +29,11 @@ Release-please writes the generated notes from commit messages and does not repl
   idempotent for free: on the next deploy `from` no longer exists under its old id.
 
   The scanner checks that `to` exists in the incoming fields and is a `link` (or, for
-  `shape: "list"`, a list whose item is one), that `from` exists in the previous local manifest, and
+  `shape: "list"`, a list whose item is one), that `from` exists in the previous local manifest —
+  and it keeps checking a step's source for as long as that manifest still describes the old shape,
+  rather than stopping at the version comparison, so a repository whose own `.eldra/manifest.json`
+  has been regenerated past the step still reports a conversion that names a field the old shape
+  never carried — and
   that the named `label`/`url`/`group`/`children` are children of the previous item's composite — or
   of its own nested children list, since a conversion names the same keys at both levels. For
   `shape: "string"`, that `label` names another string field of the previous block.
@@ -48,6 +52,12 @@ Release-please writes the generated notes from commit messages and does not repl
   that is not a uuid, a handle for a kind Core cannot resolve one for, and a child carrying
   children of its own. Children are walked with the same rules, and a `link` inside a list or a
   composite is walked as well.
+
+- A `link` value may be `kind: "none"` — a heading that groups the links under it and goes nowhere
+  itself, which is the only shape a footer column heading or a mega-menu parent without its own page
+  has. It carries a `label` and non-empty `children`, never a `target` or a `url`, and is refused
+  anywhere it cannot head anything (as a child, or with no children of its own). `metadata.kinds`
+  accepts it alongside the six destinations.
 
 - A block field may now declare `"type": "link"` — one destination the platform understands rather
   than a typed-out URL. Its value is

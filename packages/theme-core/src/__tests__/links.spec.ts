@@ -128,6 +128,33 @@ describe('resolveLink — one branch per kind', () => {
     expect(resolveLink({ kind: 'url', url: 'javascript:alert(1)' }, context())?.href).toBeNull();
   });
 
+  it('resolves a heading to a label and its children, and never to an href', () => {
+    expect(
+      resolveLink(
+        {
+          kind: 'none',
+          label: 'Shop',
+          children: [{ kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } }],
+        },
+        context()
+      )
+    ).toEqual({
+      href: null,
+      label: 'Shop',
+      newTab: false,
+      group: null,
+      children: [
+        {
+          href: '/collections/knitwear',
+          label: 'Knitwear',
+          newTab: false,
+          group: null,
+          children: [],
+        },
+      ],
+    });
+  });
+
   it('resolves a category, so a theme that ships the route needs no further change', () => {
     const withCategoryRoute = context({
       templates: [

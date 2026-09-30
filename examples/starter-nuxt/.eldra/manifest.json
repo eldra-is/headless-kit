@@ -2629,7 +2629,7 @@
           "fieldId": "groups",
           "name": "Link groups",
           "type": "list",
-          "helpText": "Up to 4 groups. Shown on the default variant only. A group is one link whose label is the column heading and whose children are the column’s links; a group with no children renders as a heading on its own.",
+          "helpText": "Up to 4 groups. Shown on the default variant only. A group is one link whose label is the column heading and whose children are the column’s links — pick the \"None\" kind for a heading that is not itself a link.",
           "metadata": {
             "item": {
               "fieldId": "group",
@@ -2769,8 +2769,7 @@
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [
           {
-            "kind": "url",
-            "url": "/collections",
+            "kind": "none",
             "label": "Shop",
             "children": [
               {
@@ -2808,8 +2807,7 @@
             ]
           },
           {
-            "kind": "url",
-            "url": "/pages/help",
+            "kind": "none",
             "label": "Help",
             "children": [
               {
@@ -2835,8 +2833,7 @@
             ]
           },
           {
-            "kind": "url",
-            "url": "/pages/about",
+            "kind": "none",
             "label": "Company",
             "children": [
               {
@@ -3642,7 +3639,8 @@
                   "category",
                   "page",
                   "entry",
-                  "url"
+                  "url",
+                  "none"
                 ]
               }
             }
@@ -7813,8 +7811,7 @@
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [
           {
-            "kind": "url",
-            "url": "/collections",
+            "kind": "none",
             "label": "Shop",
             "children": [
               {
@@ -7852,8 +7849,7 @@
             ]
           },
           {
-            "kind": "url",
-            "url": "/pages/help",
+            "kind": "none",
             "label": "Help",
             "children": [
               {
@@ -7879,8 +7875,7 @@
             ]
           },
           {
-            "kind": "url",
-            "url": "/pages/about",
+            "kind": "none",
             "label": "Company",
             "children": [
               {

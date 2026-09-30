@@ -318,7 +318,7 @@ describe('generateBlockTypes', () => {
       expect(output).toContain('cta?: EldraLink;');
       expect(output).toContain('interface EldraLink {');
       expect(output).toContain(
-        "kind: 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';"
+        "kind: 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url' | 'none';"
       );
       expect(output).toContain('children?: EldraLink[];');
       expect(output.match(/interface EldraLink \{/g)).toHaveLength(1);

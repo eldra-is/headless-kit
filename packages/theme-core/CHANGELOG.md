@@ -10,6 +10,10 @@ Release-please writes the generated notes from commit messages and does not repl
   that makes it inline-editable; only the strings a route is derived from (`kind`, the target's
   `_type`/`id`/`slug`, a `kind: "url"` href) are stega-stripped.
 
+- `resolveLink` understands `kind: "none"`, a heading that groups the links under it: it resolves to
+  a label and its children and never to an href, so a theme renders it as a heading rather than an
+  anchor.
+
 - New `@eldrajs/theme-core/links` entry: `resolveLink(value, context)` turns a `link` field's value
   into `{ href, label, newTab, group, children }` against the site's own pages and route templates —
   a product through the template serving `catalog:product`, a collection through

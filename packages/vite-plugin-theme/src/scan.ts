@@ -37,7 +37,8 @@ const SLOT_ID_PATTERN = /^[a-z][a-z0-9-]{0,47}$/;
 // Mirrors Core's stripControlRunes: Unicode categories Cc (IsControl) and Cf (format).
 const SLOT_CONTROL_CHARS = /[\p{Cc}\p{Cf}]/gu;
 const RICH_TEXT_TOOLBAR_CONTROL_SET = new Set<string>(RICH_TEXT_TOOLBAR_CONTROLS);
-/** The six destinations a `link` value may name — Core validates a stored
+/** What a `link` value may be — six destinations plus `none`, the heading that
+ * groups the links under it and goes nowhere itself. Core validates a stored
  * value against the same set. */
 const LINK_KINDS: readonly LinkKind[] = [
   'product',
@@ -46,6 +47,7 @@ const LINK_KINDS: readonly LinkKind[] = [
   'entry',
   'page',
   'url',
+  'none',
 ];
 const LINK_KIND_SET = new Set<string>(LINK_KINDS);
 /** The three metadata keys Core's `link` field type declares, and therefore

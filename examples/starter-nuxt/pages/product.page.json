@@ -500,8 +500,7 @@
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [
           {
-            "kind": "url",
-            "url": "/collections",
+            "kind": "none",
             "label": "Shop",
             "children": [
               {
@@ -539,8 +538,7 @@
             ]
           },
           {
-            "kind": "url",
-            "url": "/pages/help",
+            "kind": "none",
             "label": "Help",
             "children": [
               {
@@ -566,8 +564,7 @@
             ]
           },
           {
-            "kind": "url",
-            "url": "/pages/about",
+            "kind": "none",
             "label": "Company",
             "children": [
               {

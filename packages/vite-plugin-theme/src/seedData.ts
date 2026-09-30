@@ -15,9 +15,11 @@ const REFERENCE_RELATION_MESSAGE =
  * `reference` field's own seed grammar stays collection-only. */
 const LINK_SLUG_KEYS = new Set(['_type', 'slug']);
 const LINK_SLUG_TYPES = new Set(['product', 'collection']);
-const LINK_KINDS = new Set(['product', 'collection', 'category', 'entry', 'page', 'url']);
+const LINK_KINDS = new Set(['product', 'collection', 'category', 'entry', 'page', 'url', 'none']);
 const LINK_MESSAGE =
   'link values must be {kind, …}: a target is absent, {_type, id: uuid} or {_type: "product"|"collection", slug} — Core resolves the slug at seed time';
+const LINK_NONE_MESSAGE =
+  'a link with kind "none" is a heading: it needs a label and children, and carries no target or url';
 
 /** How one finding is worded, so the same walk serves both callers: a block's
  * `mock.json` (`<file>: <path>: <message>`) and a template seed's block data
@@ -57,7 +59,9 @@ export type SeedErrorFormat = (path: string, message: string) => string;
  * organisation's catalog ids and Core resolves the handle at seed time; the
  * other kinds address organisation-owned objects a theme has no portable name
  * for, so a seed leaves their target out and an author fills it in. Children
- * are walked too, and one of them may not carry children of its own.
+ * are walked too, and one of them may not carry children of its own — which
+ * also means `kind: "none"`, the heading that must carry children, can only
+ * ever be a top-level item.
  */
 export function checkSeedData(
   format: SeedErrorFormat,
@@ -242,7 +246,20 @@ function checkLinkValue(
     errors.push(format(path, LINK_MESSAGE));
     return;
   }
-  if (kind === 'url') {
+  if (kind === 'none') {
+    // A heading is only a heading when something hangs under it: a `none` with
+    // no children names nothing, points nowhere and renders as a stray word.
+    if (
+      typeof value.label !== 'string' ||
+      value.label.trim() === '' ||
+      value.target !== undefined ||
+      value.url !== undefined ||
+      !Array.isArray(value.children) ||
+      value.children.length === 0
+    ) {
+      errors.push(format(path, LINK_NONE_MESSAGE));
+    }
+  } else if (kind === 'url') {
     if (typeof value.url !== 'string' || value.url.trim() === '' || value.target !== undefined) {
       errors.push(format(path, LINK_MESSAGE));
     }

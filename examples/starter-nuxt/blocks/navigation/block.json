@@ -106,7 +106,7 @@
           "localized": true,
           "metadata": {
             "tree": true,
-            "kinds": ["product", "collection", "category", "page", "entry", "url"]
+            "kinds": ["product", "collection", "category", "page", "entry", "url", "none"]
           }
         }
       }

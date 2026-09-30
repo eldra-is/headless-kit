@@ -125,9 +125,11 @@ export interface BlockFieldShowWhen {
   equals?: string;
 }
 
-/** The destinations a `link` field's value may name. Mirrors the value's own
- * `kind`, which Core validates against the same six. */
-export type LinkKind = 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';
+/** What a `link` field's value points at. Six are destinations; `none` is a
+ * heading — a row that groups the links under it and goes nowhere itself, which
+ * is the only shape a mega-menu column heading has. Core validates a stored
+ * value against the same seven. */
+export type LinkKind = 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url' | 'none';
 
 /** The whole metadata surface a `link` field may declare. Core's field
  * registry allows exactly these three keys on the type and refuses any other,

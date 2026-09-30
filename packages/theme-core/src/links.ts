@@ -6,8 +6,10 @@ import {
 import { resolvePagePath, type PageLike } from './pagePath';
 import { stripStega } from './stega';
 
-/** The six destinations a `link` field's value may name. */
-export type LinkKind = 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';
+/** What a `link` field's value points at. Six are destinations; `none` is a
+ * heading — a row that groups the links under it and goes nowhere itself, which
+ * is the only shape a mega-menu or footer column heading has. */
+export type LinkKind = 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url' | 'none';
 
 /** The reference encoding the platform already uses everywhere else: the exact
  * pair a reference picker writes and a reference parser reads. `_type` mirrors
@@ -19,7 +21,7 @@ export interface LinkTarget {
 
 export interface LinkValue {
   kind: LinkKind;
-  /** Set for every kind but `url`. */
+  /** Set for every kind but `url` and `none`. */
   target?: LinkTarget;
   /** Set for `kind: "url"` only. */
   url?: string;
@@ -68,7 +70,15 @@ const CATALOG_ROUTE_TARGETS: Readonly<Record<string, string>> = {
   category: 'catalog:category',
 };
 
-const LINK_KINDS = new Set<string>(['product', 'collection', 'category', 'entry', 'page', 'url']);
+const LINK_KINDS = new Set<string>([
+  'product',
+  'collection',
+  'category',
+  'entry',
+  'page',
+  'url',
+  'none',
+]);
 
 const MAX_HREF_LENGTH = 2048;
 const ALLOWED_PROTOCOLS = ['https:', 'http:', 'mailto:', 'tel:'];
@@ -149,6 +159,8 @@ function targetKey(target: unknown): string | null {
  * Null only when the value is not a link at all — a value whose target is
  * missing still resolves, with `href: null`, because the label is worth
  * rendering as plain text and a theme decides for itself whether to show it.
+ * A `kind: "none"` heading resolves the same way, deliberately: it has a label
+ * and children and never an href.
  * That is the rule a block storing a collection reference already follows:
  * there is no other key a collection page can be addressed by, so the heading
  * simply is not a link until the page is published.
@@ -195,6 +207,9 @@ function resolveHref(
   info: LinkTargetInfo | undefined,
   context: LinkRouteContext
 ): string | null {
+  // A heading goes nowhere by definition — its whole job is to group the links
+  // under it — so it resolves to no href and a theme renders it as text.
+  if (kind === 'none') return null;
   if (kind === 'url') return safeLinkHref(link.url);
   if (kind === 'page') return pagePath(link.target, context);
   if (info === undefined) return null;

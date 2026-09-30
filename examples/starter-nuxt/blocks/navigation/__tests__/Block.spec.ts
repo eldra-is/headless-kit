@@ -200,6 +200,37 @@ describe('header block (navigation apiId)', () => {
     wrapper.unmount();
   });
 
+  it('renders a heading-only mega-menu parent as a disclosure with no destination', async () => {
+    // `kind: "none"`: the trigger has a label and children and goes nowhere,
+    // which is what a mega-menu parent without its own page is.
+    const wrapper = mountBlock(
+      {
+        ...resolved.data,
+        links: [
+          {
+            kind: 'none',
+            label: 'Workshop',
+            children: [{ kind: 'url', url: '/journal', label: 'Journal' }],
+          },
+        ],
+      },
+      { attachTo: document.body }
+    );
+    const trigger = wrapper.findAll('button').find((b) => b.text().includes('Workshop'))!;
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+    expect(wrapper.findAll('a').some((a) => a.text() === 'Workshop')).toBe(false);
+    await trigger.trigger('click');
+    const panel = wrapper.get(`#${trigger.attributes('aria-controls')}`);
+    expect(
+      panel
+        .findAll('a')
+        .find((a) => a.text() === 'Journal')!
+        .attributes('href')
+    ).toBe('/journal');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
   it('renders each declared variant with the resolved content, axe-clean', async () => {
     for (const variant of ['default', 'centered', 'minimal']) {
       const wrapper = mountBlock({ ...resolved.data, variant });
