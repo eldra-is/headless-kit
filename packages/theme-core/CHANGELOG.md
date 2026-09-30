@@ -27,8 +27,12 @@ Release-please writes the generated notes from commit messages and does not repl
   rooted path that is not protocol-relative, an in-page hash, or `https:`/`http:`/`mailto:`/`tel:`,
   stega-stripped, at most 2048 characters, no backslash and no control characters.
 
-- `EldraCatalogReader` gains `listCategories(query?)` (`GET /catalog/v1/categories`), the one read a
-  category link target needs.
+- `EldraCatalogReader` gains an **optional** `listCategories?(query?)`
+  (`GET /catalog/v1/categories`), the one read a category link target needs. It is optional so that
+  an implementation written against an earlier version — a test double, a custom transport — still
+  satisfies the interface; `createEldraClient` provides it, and a reader that does not resolves no
+  category targets, which renders those links without a destination exactly as a category no route
+  template serves already does.
 
 - Feat: a new theme → editor bridge message, `theme:block-hovered`, reports the block the pointer
   is over — `{ entryId, rect, layoutNodeId?, reusablePlacementId? }`, or `null` once it leaves — so

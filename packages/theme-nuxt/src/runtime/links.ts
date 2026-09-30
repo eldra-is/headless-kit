@@ -37,6 +37,7 @@ export interface LinkTargetSources {
  * One batched read per type, never one per link: products, collections and
  * categories by an `id:in:` filter in chunks, entries one read per schema the
  * site routes, each paged to the end rather than to the first hundred rows.
+ * The category read is skipped entirely by a reader that does not offer one.
  * Only the ids that were asked for are kept, so a gateway that ignores the
  * filter cannot put its whole catalogue into the page's payload. A read that
  * fails leaves those targets unknown rather than throwing — a link whose target
@@ -67,12 +68,18 @@ export async function collectLinkTargets(
       )
     );
   }
-  for (const chunk of chunks(byType.get('category'))) {
-    reads.push(
-      readInto(targets, 'category', chunk, async (query) =>
-        toPage(await client.catalog.listCategories({ ...query, filter: [idFilter(chunk)] }))
-      )
-    );
+  // `listCategories` is optional on the reader: one that does not have it
+  // resolves no category targets, and those links render without a destination
+  // exactly as they do where no route template serves them.
+  const listCategories = client.catalog.listCategories?.bind(client.catalog);
+  if (listCategories !== undefined) {
+    for (const chunk of chunks(byType.get('category'))) {
+      reads.push(
+        readInto(targets, 'category', chunk, async (query) =>
+          toPage(await listCategories({ ...query, filter: [idFilter(chunk)] }))
+        )
+      );
+    }
   }
   if ((byType.get('entry') ?? []).length > 0) {
     for (const schemaApiId of sources.entrySchemaApiIds ?? []) {

@@ -120,7 +120,12 @@ describe('createEldraClient', () => {
         },
       })
     );
-    const list = await client().catalog.listCategories({ locale: 'en-US', pageSize: 100 });
+    // `listCategories` is optional on the reader so an older hand-written one
+    // still satisfies the interface; `createEldraClient` always provides it,
+    // which is what this asserts before calling it.
+    const catalog = client().catalog;
+    expect(typeof catalog.listCategories).toBe('function');
+    const list = await catalog.listCategories!({ locale: 'en-US', pageSize: 100 });
     const [url, init] = fetchMock.mock.calls[0]!;
     const u = new URL(url as string);
     expect(u.origin + u.pathname).toBe(`${GATEWAY}/catalog/v1/categories`);

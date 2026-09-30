@@ -2748,7 +2748,17 @@
               "fieldId": "legalLink",
               "name": "Legal link",
               "type": "link",
-              "localized": true
+              "localized": true,
+              "metadata": {
+                "kinds": [
+                  "product",
+                  "collection",
+                  "category",
+                  "entry",
+                  "page",
+                  "url"
+                ]
+              }
             }
           }
         },

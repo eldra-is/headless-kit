@@ -72,14 +72,21 @@ export interface CatalogList {
 
 /** Read-only catalog access: the public endpoints a theme needs to render and
  * prerender catalog-backed routes, and to resolve the catalog objects its links
- * point at. Writes (cart, checkout, orders) are not part of the theme client. */
+ * point at. Writes (cart, checkout, orders) are not part of the theme client.
+ * Every method a reader has always had is required; one added since is not, so
+ * an implementation written against an older version still satisfies this. */
 export interface EldraCatalogReader {
   getProduct(productIdOrSlug: string, query?: CatalogQuery): Promise<CatalogDoc>;
   listProducts(query?: CatalogQuery): Promise<CatalogList>;
   getCollection(slug: string, query?: CatalogQuery): Promise<CatalogDoc>;
   listCollections(query?: CatalogQuery): Promise<CatalogList>;
-  /** The category tree. */
-  listCategories(query?: CatalogQuery): Promise<CatalogList>;
+  /**
+   * The category tree. **Optional**: it arrived after this interface was
+   * published, and a hand-written reader — a test double, a custom transport —
+   * predates it. A caller that cannot find it has no category targets to
+   * resolve, which is the same answer as a category that no route serves.
+   */
+  listCategories?(query?: CatalogQuery): Promise<CatalogList>;
 }
 
 export interface ResolveEntryListBody {

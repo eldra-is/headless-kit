@@ -132,6 +132,24 @@ describe('collectLinkTargets', () => {
     expect(paths.filter((path) => path === '/catalog/v1/collections')).toHaveLength(1);
   });
 
+  it('resolves no category target through a reader that has no listCategories', async () => {
+    // The method is optional on the interface, so an older hand-written reader
+    // still satisfies it: its category links render without a destination, the
+    // same answer as a category no route template serves.
+    const { client, paths } = stubClient({
+      listCollections: () => listPage([{ id: COLLECTION_ID, slug: 'knitwear' }]),
+    });
+    delete (client.catalog as { listCategories?: unknown }).listCategories;
+
+    const targets = await collectLinkTargets(client, [
+      'category:cat-1',
+      `collection:${COLLECTION_ID}`,
+    ]);
+
+    expect(targets.has('category:cat-1')).toBe(false);
+    expect(paths).toEqual(['/catalog/v1/collections']);
+  });
+
   it('asks the catalog only for the types the links actually name', async () => {
     const { client, paths } = stubClient({
       listCollections: () => listPage([{ id: COLLECTION_ID, slug: 'knitwear' }]),
