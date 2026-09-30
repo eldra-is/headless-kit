@@ -226,6 +226,10 @@ function checkReferenceValue(
  * have — which is why a seed for them names no target at all and an author
  * fills it in.
  *
+ * A target's `_type` must mirror its `kind` in both forms, which is what Core's
+ * own validator refuses a mismatch on at deploy; checking it here moves that
+ * failure to the scan instead.
+ *
  * Unlike `reference`, a `link` carries no `relation`: which catalogs it may
  * name is the type's own grammar rather than the field's, so there is no
  * analogue of the relation check above.
@@ -283,11 +287,21 @@ function checkLinkValue(
   );
 }
 
+/**
+ * A target's `_type` mirrors its `kind` exactly — `product`, `collection`,
+ * `category` and `page` by name, and `entry` for `kind: "entry"`, the value
+ * Core folds `entry_<apiId>` into. Checking it here is what moves a mismatch
+ * forward from the deploy, where Core's own validator refuses it, to the scan.
+ */
+function targetTypeMatchesKind(type: string, kind: string): boolean {
+  return type === kind;
+}
+
 function validLinkTarget(target: unknown, kind: string): boolean {
   if (!isRecord(target)) return false;
   const keys = Object.keys(target);
   const type = typeof target._type === 'string' ? target._type.trim() : '';
-  if (type === '') return false;
+  if (type === '' || !targetTypeMatchesKind(type, kind)) return false;
   if (
     keys.every((key) => REFERENCE_ID_KEYS.has(key)) &&
     typeof target.id === 'string' &&
@@ -298,7 +312,6 @@ function validLinkTarget(target: unknown, kind: string): boolean {
   return (
     keys.every((key) => LINK_SLUG_KEYS.has(key)) &&
     LINK_SLUG_TYPES.has(kind) &&
-    type === kind &&
     typeof target.slug === 'string' &&
     target.slug.trim() !== ''
   );

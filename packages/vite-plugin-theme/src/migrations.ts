@@ -80,8 +80,17 @@ export function migrationChecks(
     if (step.renames === undefined && step.convertToLink === undefined) {
       errors.push(`${at} — a migration step must declare renames or convertToLink`);
     }
+    const conversionTargets = new Set<string>();
     for (const conversion of conversions) {
       checkConversionTarget(at, conversion, next, errors);
+      // Two conversions writing one field would each claim the whole value and
+      // the later one would win silently; Core's ingest refuses the pair.
+      if (conversionTargets.has(conversion.to)) {
+        errors.push(
+          `${at} — conversion destinations must be unique; two conversions cannot write one field`
+        );
+      }
+      conversionTargets.add(conversion.to);
     }
     const sources = new Set<string>();
     const targets = new Set<string>();
@@ -176,7 +185,26 @@ function checkConversionTarget(
     if (destination.type !== 'link') {
       errors.push(`${at} — conversion destination "${conversion.to}" must be a link field`);
     }
+    // A string conversion reads one field and writes one link. There are no
+    // rows, so there is nothing for these to name.
+    for (const key of ['url', 'group'] as const) {
+      if (conversion[key] !== undefined) {
+        errors.push(`${at} — conversion ${key} is not allowed on shape "string"`);
+      }
+    }
+    if (conversion.children !== undefined) {
+      errors.push(`${at} — conversion children is not allowed on shape "string"`);
+    }
     return;
+  }
+  // A nested row is a link like any other, and a link needs somewhere to point:
+  // without an href key at either level every child converts blank and is
+  // dropped, which is the defect that looks like "the menu lost its links".
+  if (
+    conversion.children !== undefined &&
+    (conversion.children.url ?? conversion.url) === undefined
+  ) {
+    errors.push(`${at} — conversion children requires url, or a step-level url to inherit`);
   }
   if (listItem(destination)?.type !== 'link') {
     errors.push(

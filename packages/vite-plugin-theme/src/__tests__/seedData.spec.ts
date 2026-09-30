@@ -266,6 +266,25 @@ describe('checkSeedData — link values', () => {
     ).toEqual([`cta: ${LINK_MESSAGE}`]);
   });
 
+  it('refuses an id target whose _type does not mirror its kind', () => {
+    // Core's own validator refuses this at deploy ("link target type does not
+    // match kind"); catching it here is the point of the seed walk.
+    expect(
+      errorsFor([linkField], { cta: { kind: 'page', target: { _type: 'product', id: UUID } } })
+    ).toEqual([`cta: ${LINK_MESSAGE}`]);
+    expect(
+      errorsFor([linkField], { cta: { kind: 'entry', target: { _type: 'page', id: UUID } } })
+    ).toEqual([`cta: ${LINK_MESSAGE}`]);
+  });
+
+  it('accepts an id target for every kind whose _type does mirror it', () => {
+    for (const kind of ['product', 'collection', 'category', 'entry', 'page']) {
+      expect(errorsFor([linkField], { cta: { kind, target: { _type: kind, id: UUID } } })).toEqual(
+        []
+      );
+    }
+  });
+
   it('refuses a slug target for a kind Core cannot resolve a handle for', () => {
     expect(
       errorsFor([linkField], {

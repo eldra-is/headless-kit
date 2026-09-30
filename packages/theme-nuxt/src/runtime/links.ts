@@ -10,6 +10,10 @@ const CHUNK_SIZE = 50;
 /** Enough for the chunk above in one page, whatever the gateway's default is. */
 const PAGE_SIZE = 100;
 
+/** A read that claims a successor forever would loop forever; a hundred pages
+ * of a hundred is far past anything a link set can name. */
+const MAX_PAGES = 100;
+
 export interface LinkTargetSources {
   /**
    * The CMS schemas an `entry` target may belong to. A link target carries
@@ -30,12 +34,14 @@ export interface LinkTargetSources {
  * What the site knows about every object its links point at, keyed
  * `${_type}:${id}` — the key `linkTargetKeys` produces.
  *
- * One batched read per type, never one per link: products and collections by an
- * `id:in:` filter in chunks, categories in one unpaginated read (the tree has no
- * id filter and is small), entries one read per schema the site routes. A read
- * that fails leaves those targets unknown rather than throwing — a link whose
- * target cannot be resolved renders unlinked, exactly as a deleted target does,
- * and one failing catalog read must not take a whole page down.
+ * One batched read per type, never one per link: products, collections and
+ * categories by an `id:in:` filter in chunks, entries one read per schema the
+ * site routes, each paged to the end rather than to the first hundred rows.
+ * Only the ids that were asked for are kept, so a gateway that ignores the
+ * filter cannot put its whole catalogue into the page's payload. A read that
+ * fails leaves those targets unknown rather than throwing — a link whose target
+ * cannot be resolved renders unlinked, exactly as a deleted target does, and one
+ * failing catalog read must not take a whole page down.
  */
 export async function collectLinkTargets(
   client: EldraClient,
@@ -49,30 +55,22 @@ export async function collectLinkTargets(
 
   for (const chunk of chunks(byType.get('product'))) {
     reads.push(
-      readInto(
-        targets,
-        'product',
-        async (query) =>
-          (await client.catalog.listProducts({ ...query, filter: [idFilter(chunk)] })).data
+      readInto(targets, 'product', chunk, async (query) =>
+        toPage(await client.catalog.listProducts({ ...query, filter: [idFilter(chunk)] }))
       )
     );
   }
   for (const chunk of chunks(byType.get('collection'))) {
     reads.push(
-      readInto(
-        targets,
-        'collection',
-        async (query) =>
-          (await client.catalog.listCollections({ ...query, filter: [idFilter(chunk)] })).data
+      readInto(targets, 'collection', chunk, async (query) =>
+        toPage(await client.catalog.listCollections({ ...query, filter: [idFilter(chunk)] }))
       )
     );
   }
-  if ((byType.get('category') ?? []).length > 0) {
+  for (const chunk of chunks(byType.get('category'))) {
     reads.push(
-      readInto(
-        targets,
-        'category',
-        async (query) => (await client.catalog.listCategories(query)).data
+      readInto(targets, 'category', chunk, async (query) =>
+        toPage(await client.catalog.listCategories({ ...query, filter: [idFilter(chunk)] }))
       )
     );
   }
@@ -80,13 +78,16 @@ export async function collectLinkTargets(
     for (const schemaApiId of sources.entrySchemaApiIds ?? []) {
       for (const chunk of chunks(byType.get('entry'))) {
         reads.push(
-          readInto(targets, 'entry', async (query) => {
+          readInto(targets, 'entry', chunk, async (query) => {
             const list = await client.getEntries(schemaApiId, {
               ...query,
               depth: 0,
               filter: [idFilter(chunk)],
             });
-            return list.data.map((entry) => ({ ...entry.data, id: entry.id, schemaApiId }));
+            return {
+              data: list.data.map((entry) => ({ ...entry.data, id: entry.id, schemaApiId })),
+              hasNext: list.meta?.hasNext === true,
+            };
           })
         );
       }
@@ -101,23 +102,52 @@ export async function collectLinkTargets(
   await Promise.all(reads);
   return targets;
 
+  /**
+   * One chunk's worth of targets, read a page at a time until the gateway says
+   * there is no successor. Paging is not optional: a read that stopped at one
+   * page would silently lose every target past it, and a lost target renders
+   * exactly like a deleted one.
+   *
+   * `wanted` is the chunk's own ids. Only those are stored, so a gateway that
+   * ignores the `id:in:` filter — the category tree is served as a whole today
+   * — cannot put its entire catalogue into the page's prerendered payload.
+   */
   async function readInto(
     into: Map<string, LinkTargetInfo>,
     type: string,
-    read: (query: { locale?: string; pageSize: number }) => Promise<CatalogDoc[]>
+    wanted: readonly string[],
+    read: (query: {
+      locale?: string;
+      page: number;
+      pageSize: number;
+    }) => Promise<{ data: CatalogDoc[]; hasNext: boolean }>
   ): Promise<void> {
+    const ids = new Set(wanted);
     try {
-      const docs = await read({ ...localeQuery(locale), pageSize: PAGE_SIZE });
-      for (const doc of docs) {
-        const id = text(doc.id);
-        // Never overwrite: the first schema that claims an entry id wins, and a
-        // later empty read cannot blank a target already found.
-        if (id !== '' && !into.has(`${type}:${id}`)) into.set(`${type}:${id}`, toTargetInfo(doc));
+      for (let page = 1; page <= MAX_PAGES; page += 1) {
+        const result = await read({ ...localeQuery(locale), page, pageSize: PAGE_SIZE });
+        for (const doc of result.data) {
+          const id = text(doc.id);
+          // Never overwrite: the first schema that claims an entry id wins, and
+          // a later empty read cannot blank a target already found.
+          if (id === '' || !ids.has(id) || into.has(`${type}:${id}`)) continue;
+          into.set(`${type}:${id}`, toTargetInfo(doc));
+        }
+        // A page that claims a successor but serves nothing would loop forever.
+        if (!result.hasNext || result.data.length === 0) return;
       }
     } catch {
       // Left unknown on purpose: the links pointing here render unlinked.
     }
   }
+}
+
+/** A catalog list response as the pager reads it. */
+function toPage(list: { data: CatalogDoc[]; meta?: { hasNext?: boolean } }): {
+  data: CatalogDoc[];
+  hasNext: boolean;
+} {
+  return { data: list.data, hasNext: list.meta?.hasNext === true };
 }
 
 function idFilter(ids: readonly string[]): string {

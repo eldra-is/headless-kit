@@ -78,8 +78,7 @@ export interface EldraCatalogReader {
   listProducts(query?: CatalogQuery): Promise<CatalogList>;
   getCollection(slug: string, query?: CatalogQuery): Promise<CatalogDoc>;
   listCollections(query?: CatalogQuery): Promise<CatalogList>;
-  /** The category tree. Unpaginated in practice — a category link resolves its
-   * target out of one read rather than one per id. */
+  /** The category tree. */
   listCategories(query?: CatalogQuery): Promise<CatalogList>;
 }
 

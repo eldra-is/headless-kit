@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The batched target reads behind a `link` field now page to the end of a result rather than
+  stopping at the first hundred rows, and the category read asks for the ids it actually needs
+  (`id:in:`, in chunks, like the product and collection reads) and keeps only those. A target lost
+  past a page boundary renders as a link with no destination, which is indistinguishable from a
+  deleted one; and a category tree read whole would otherwise put every category a site has into
+  the prerendered payload of every page that links to one.
+
+- The walk that finds which targets a page names reaches far deeper before it gives up, and says so
+  when it does — naming the entry — instead of returning silently. The old bound could be reached
+  by a link nested inside a composite inside a list, and the only symptom was a link that quietly
+  had no destination.
+
 - A `link` field's destinations now resolve to real hrefs on a generated site. Route resolution
   fills the theme context's `links` slice from the page and route-template lists it already reads,
   plus one batched read per target type for the objects the resolved document's blocks name — all

@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EldraClientError, type CatalogDoc, type EldraClient } from '@eldrajs/theme-core';
 import { collectLinkTargets } from '../src/runtime/links';
-import { resolveEldraRoute } from '../src/runtime/resolveRoute';
+import {
+  collectDocumentTargetKeys,
+  MAX_TARGET_WALK_DEPTH,
+  resolveEldraRoute,
+} from '../src/runtime/resolveRoute';
 
 const SCHEMAS = { pageSchema: 'page', routeTemplateSchema: 'route-template' };
 
@@ -159,6 +163,53 @@ describe('collectLinkTargets', () => {
     expect(paths).toEqual([]);
   });
 
+  it('pages to the end of a read, so a target past the first page still resolves', async () => {
+    // A read that stopped at one page would lose every target past it, and a
+    // lost target renders exactly like a deleted one.
+    const ids = Array.from({ length: 40 }, (_, index) => `cat-${index}`);
+    const page = (rows: string[], hasNext: boolean, number: number) => ({
+      data: rows.map((id) => ({ id, slug: id })),
+      meta: {
+        hasNext,
+        hasPrev: number > 1,
+        page: number,
+        pageSize: 20,
+        rows: rows.length,
+        total: ids.length,
+        totalPages: 2,
+      },
+    });
+    const { client, paths } = stubClient({
+      listCategories: (query) =>
+        Number(query.page ?? 1) === 1
+          ? page(ids.slice(0, 20), true, 1)
+          : page(ids.slice(20), false, 2),
+    });
+
+    const targets = await collectLinkTargets(
+      client,
+      ids.map((id) => `category:${id}`)
+    );
+
+    expect(targets.get('category:cat-39')).toEqual({ slug: 'cat-39' });
+    expect(targets.size).toBe(40);
+    expect(paths.filter((path) => path === '/catalog/v1/categories')).toHaveLength(2);
+  });
+
+  it('asks the category read for the ids it wants, and keeps only those', async () => {
+    // The tree is served whole today, so the filter may be ignored — every row
+    // it did not ask about would otherwise land in the page's payload.
+    const { client } = stubClient({
+      listCategories: () =>
+        listPage([
+          { id: 'cat-wanted', slug: 'tableware' },
+          { id: 'cat-everything-else', slug: 'noise' },
+        ]),
+    });
+    const targets = await collectLinkTargets(client, ['category:cat-wanted']);
+    expect([...targets.keys()]).toEqual(['category:cat-wanted']);
+  });
+
   it('leaves a target unknown when its read fails, rather than throwing', async () => {
     const { client } = stubClient({
       listCollections: () => {
@@ -175,6 +226,35 @@ describe('collectLinkTargets', () => {
     expect(targets.has(`collection:${COLLECTION_ID}`)).toBe(false);
     // The other read still landed: one failure costs only its own links.
     expect(targets.get(`product:${PRODUCT_ID}`)).toEqual({ slug: 'ash-glaze-mug' });
+  });
+});
+
+describe('collectDocumentTargetKeys', () => {
+  /** A link value buried `levels` objects deep in a block's data. */
+  function nested(levels: number): Record<string, unknown> {
+    let value: unknown = { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } };
+    for (let i = 0; i < levels; i += 1) value = { nested: [value] };
+    return { id: 'e1', data: { blocks: [{ id: 'b', data: { field: value } }] } } as never;
+  }
+
+  it('reaches a link far deeper than any block grammar allows', () => {
+    // Composite nesting caps at 5, each level costs two steps here, and the
+    // document adds its own envelope on top — a walk that gave up at 8 missed
+    // a link inside a composite inside a list.
+    const warn = vi.fn();
+    expect(collectDocumentTargetKeys(nested(20) as never, warn)).toEqual([
+      `collection:${COLLECTION_ID}`,
+    ]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('says so when it gives up, rather than silently dropping the target', () => {
+    const warn = vi.fn();
+    const keys = collectDocumentTargetKeys(nested(MAX_TARGET_WALK_DEPTH) as never, warn);
+    expect(keys).toEqual([]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('renders without a destination');
+    expect(warn.mock.calls[0]![0]).toContain('e1');
   });
 });
 

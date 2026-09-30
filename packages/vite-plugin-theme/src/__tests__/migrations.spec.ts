@@ -688,6 +688,92 @@ describe('block field migrations — link', () => {
       );
     });
 
+    it.each([
+      [
+        'url',
+        { from: 'ctaHref', to: 'cta', shape: 'string', url: 'href' },
+        'conversion url is not allowed on shape "string"',
+      ],
+      [
+        'group',
+        { from: 'ctaHref', to: 'cta', shape: 'string', group: 'group' },
+        'conversion group is not allowed on shape "string"',
+      ],
+      [
+        'children',
+        { from: 'ctaHref', to: 'cta', shape: 'string', children: { from: 'rows' } },
+        'conversion children is not allowed on shape "string"',
+      ],
+    ])(
+      'refuses %s on a string conversion — there are no rows to name',
+      (_key, conversion, message) => {
+        const f = fixture();
+        f.write([field('cta', 'link')], 2, [{ version: 2, convertToLink: [conversion] }]);
+        expect(f.scan().errors.join('\n')).toContain(message);
+      }
+    );
+
+    it('refuses a children mapping with no href key at either level', () => {
+      // Every child would convert blank and be dropped — the defect that reads
+      // as "the menu lost its links".
+      const f = fixture();
+      f.write([newList('links')], 2, [
+        {
+          version: 2,
+          convertToLink: [
+            {
+              from: 'links',
+              to: 'links',
+              shape: 'list',
+              label: 'label',
+              children: { from: 'menuLinks' },
+            },
+          ],
+        },
+      ]);
+      expect(f.scan().errors.join('\n')).toContain(
+        'conversion children requires url, or a step-level url to inherit'
+      );
+    });
+
+    it('accepts a children mapping that inherits the step-level url', () => {
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [
+        {
+          version: 2,
+          convertToLink: [
+            {
+              from: 'links',
+              to: 'links',
+              shape: 'list',
+              label: 'label',
+              url: 'href',
+              children: { from: 'menuLinks' },
+            },
+          ],
+        },
+      ]);
+      expect(f.scan(previous).errors).toEqual([]);
+    });
+
+    it('refuses two conversions writing the same field', () => {
+      const f = fixture();
+      f.write([field('cta', 'link'), field('ctaHref'), field('other')], 2, [
+        {
+          version: 2,
+          convertToLink: [
+            { from: 'ctaHref', to: 'cta', shape: 'string' },
+            { from: 'other', to: 'cta', shape: 'string' },
+          ],
+        },
+      ]);
+      expect(f.scan().errors.join('\n')).toContain(
+        'conversion destinations must be unique; two conversions cannot write one field'
+      );
+    });
+
     it('refuses a conversion whose destination is not a link', () => {
       const f = fixture();
       f.write([field('cta')], 2, [

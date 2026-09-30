@@ -157,15 +157,41 @@ async function linkState(
   return { pages, templates, targets };
 }
 
-/** Every target key the document's blocks name, deduplicated. Walks the block
- *  data generically rather than knowing which fields are links, so a theme
- *  adding a link field needs no change here. */
-function collectDocumentTargetKeys(document: EntryDoc | null): string[] {
+/**
+ * How deep the generic walk below goes before it gives up.
+ *
+ * The bound is not a guess at how a document is shaped: the block grammar caps
+ * composite nesting at 5, each of those levels costs two steps here (the object
+ * and the array around it), and the document adds its own envelope — blocks, a
+ * layout tree, a reusable component's projection — on top. 64 is far past every
+ * one of those together, while still ending a walk through a value that
+ * somehow refers back to itself.
+ */
+export const MAX_TARGET_WALK_DEPTH = 64;
+
+/**
+ * Every target key the document's blocks name, deduplicated. Walks the block
+ * data generically rather than knowing which fields are links, so a theme
+ * adding a link field needs no change here.
+ *
+ * Reaching the bound is reported rather than swallowed. A key this walk misses
+ * is a target never read, so its link renders unlinked on the generated site —
+ * which looks exactly like a target that was deleted. A build has to be able to
+ * tell those two apart.
+ */
+export function collectDocumentTargetKeys(
+  document: EntryDoc | null,
+  warn: (message: string) => void = (message) => console.warn(message)
+): string[] {
   if (document === null) return [];
   const keys: string[] = [];
   const seen = new Set<string>();
+  let truncated = false;
   const visit = (value: unknown, depth: number): void => {
-    if (depth > 8) return;
+    if (depth > MAX_TARGET_WALK_DEPTH) {
+      truncated = true;
+      return;
+    }
     if (Array.isArray(value)) {
       for (const item of value) visit(item, depth + 1);
       return;
@@ -180,6 +206,12 @@ function collectDocumentTargetKeys(document: EntryDoc | null): string[] {
     for (const nested of Object.values(value as Record<string, unknown>)) visit(nested, depth + 1);
   };
   visit(document.data, 0);
+  if (truncated) {
+    warn(
+      `[eldra] stopped looking for link targets ${MAX_TARGET_WALK_DEPTH} levels into entry ` +
+        `${document.id}; any link nested deeper than that renders without a destination`
+    );
+  }
   return keys;
 }
 

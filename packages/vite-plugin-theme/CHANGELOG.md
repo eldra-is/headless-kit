@@ -36,11 +36,13 @@ Release-please writes the generated notes from commit messages and does not repl
   idempotent for free: on the next deploy `from` no longer exists under its old id.
 
   The scanner checks that `to` exists in the incoming fields and is a `link` (or, for
-  `shape: "list"`, a list whose item is one), that `from` exists in the previous local manifest —
-  and it keeps checking a step's source for as long as that manifest still describes the old shape,
-  rather than stopping at the version comparison, so a repository whose own `.eldra/manifest.json`
-  has been regenerated past the step still reports a conversion that names a field the old shape
-  never carried — and
+  `shape: "list"`, a list whose item is one), that no two conversions in a step write the same
+  field, that a `shape: "string"` conversion declares no `url`, `group` or `children` (it reads one
+  field and writes one link, so there are no rows to name), that a `children` mapping has an href
+  key at one level or the other (without one every child converts blank and is dropped), that
+  `from` exists in the previous local manifest — for as long as that manifest still describes the
+  old shape; a step stops being source-checked once `from` is gone or has itself become the link
+  the step writes, which is what redeploying an applied step produces — and
   that every named key exists at the level it names: `label`/`url`/`group` on the previous item's
   composite, `children.from` as a list of composites under it, and `children`'s own key names on
   that nested composite. For `shape: "string"`, that `label` names another string field of the
@@ -57,8 +59,9 @@ Release-please writes the generated notes from commit messages and does not repl
   organisation-owned objects a theme has no portable name for, so a seed leaves their `target` out
   and an author fills it in. The scanner refuses anything else: an unknown `kind`, a `url` on a
   kind that is not `url` (or a missing one on a kind that is), a `target` on `kind: "url"`, an id
-  that is not a uuid, a handle for a kind Core cannot resolve one for, and a child carrying
-  children of its own. Children are walked with the same rules, and a `link` inside a list or a
+  that is not a uuid, a target whose `_type` does not mirror its `kind` (the rule Core's own
+  validator refuses a mismatch on at deploy), a handle for a kind Core cannot resolve one for, and a
+  child carrying children of its own. Children are walked with the same rules, and a `link` inside a list or a
   composite is walked as well.
 
 - A `link` value may be `kind: "none"` — a heading that groups the links under it and goes nowhere
