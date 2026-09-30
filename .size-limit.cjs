@@ -47,6 +47,14 @@ module.exports = [
     path: 'packages/theme-core/dist/bridge.js',
     limit: '2 kB',
   },
+  // The link resolver, on the same scale as the bridge: a route-pattern parser,
+  // a page-path walk and one URL allowlist. A theme imports it on every page
+  // that renders navigation, so it has to stay small.
+  {
+    name: '@eldrajs/theme-core — links',
+    path: 'packages/theme-core/dist/links.js',
+    limit: '3 kB',
+  },
   {
     name: '@eldrajs/ui — Button, without vue or tailwind-merge',
     path: 'packages/ui/dist/index.js',

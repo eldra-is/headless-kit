@@ -54,6 +54,10 @@
       "types": "./dist/dynamic-route.d.ts",
       "import": "./dist/dynamic-route.js"
     },
+    "./links": {
+      "types": "./dist/links.d.ts",
+      "import": "./dist/links.js"
+    },
     "./template-layout": {
       "types": "./dist/template-layout.d.ts",
       "import": "./dist/template-layout.js"

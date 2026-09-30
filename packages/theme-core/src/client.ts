@@ -79,6 +79,10 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
         const res = await request(buildUrl('/catalog/v1/collections', query));
         return toCatalogList(await res.json());
       },
+      async listCategories(query) {
+        const res = await request(buildUrl('/catalog/v1/categories', query));
+        return toCatalogList(await res.json());
+      },
     },
     async getEntries(schemaIdentifier, query) {
       const res = await request(

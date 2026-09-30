@@ -105,6 +105,31 @@ describe('createEldraClient', () => {
     expect(new Headers((init as RequestInit).headers).get('X-Preview-Token')).toBeNull();
   });
 
+  it('lists categories, with the same URL, header and query plumbing as collections', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        data: [{ id: 'c1', slug: 'tableware' }],
+        meta: {
+          hasNext: false,
+          hasPrev: false,
+          page: 1,
+          pageSize: 25,
+          rows: 1,
+          total: 1,
+          totalPages: 1,
+        },
+      })
+    );
+    const list = await client().catalog.listCategories({ locale: 'en-US', pageSize: 100 });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    const u = new URL(url as string);
+    expect(u.origin + u.pathname).toBe(`${GATEWAY}/catalog/v1/categories`);
+    expect(u.searchParams.get('locale')).toBe('en-US');
+    expect(u.searchParams.get('pageSize')).toBe('100');
+    expect(new Headers((init as RequestInit).headers).get('X-Org-Id')).toBe(ORG);
+    expect(list.data).toEqual([{ id: 'c1', slug: 'tableware' }]);
+  });
+
   it('normalizes an omitted empty-list data field to an empty array', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({

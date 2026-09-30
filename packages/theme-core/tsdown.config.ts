@@ -9,6 +9,7 @@ export default defineConfig({
     'preview-router': 'src/previewRouter.ts',
     layout: 'src/layout.ts',
     'dynamic-route': 'src/dynamicRoute.ts',
+    links: 'src/links.ts',
     'template-layout': 'src/templateLayout.ts',
     reusable: 'src/reusable.ts',
     'design-tokens': 'src/designTokens.ts',

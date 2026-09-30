@@ -70,14 +70,17 @@ export interface CatalogList {
   meta: PageMeta;
 }
 
-/** Read-only catalog access: the four public endpoints a theme needs to render
- * and prerender catalog-backed routes. Writes (cart, checkout, orders) are not
- * part of the theme client. */
+/** Read-only catalog access: the public endpoints a theme needs to render and
+ * prerender catalog-backed routes, and to resolve the catalog objects its links
+ * point at. Writes (cart, checkout, orders) are not part of the theme client. */
 export interface EldraCatalogReader {
   getProduct(productIdOrSlug: string, query?: CatalogQuery): Promise<CatalogDoc>;
   listProducts(query?: CatalogQuery): Promise<CatalogList>;
   getCollection(slug: string, query?: CatalogQuery): Promise<CatalogDoc>;
   listCollections(query?: CatalogQuery): Promise<CatalogList>;
+  /** The category tree. Unpaginated in practice — a category link resolves its
+   * target out of one read rather than one per id. */
+  listCategories(query?: CatalogQuery): Promise<CatalogList>;
 }
 
 export interface ResolveEntryListBody {

@@ -5,6 +5,22 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- New `@eldrajs/theme-core/links` entry: `resolveLink(value, context)` turns a `link` field's value
+  into `{ href, label, newTab, group, children }` against the site's own pages and route templates —
+  a product through the template serving `catalog:product`, a collection through
+  `catalog:collection`, a category through `catalog:category`, an entry through the template serving
+  its own schema, a page through the page tree, and a `kind: "url"` through the href allowlist. A
+  target that is unknown, has no slug, or that no route template serves gives `href: null`, so a
+  theme renders the label as plain text rather than a dead anchor; the label is the value's own when
+  it has one, else the target's title, else null. `linkTargetKeys(value)` returns the
+  `` `${_type}:${id}` `` keys a value names, children included and deduplicated, so a site can read
+  its targets in one batch per type. `safeLinkHref(value)` is the kit's single href allowlist — a
+  rooted path that is not protocol-relative, an in-page hash, or `https:`/`http:`/`mailto:`/`tel:`,
+  stega-stripped, at most 2048 characters, no backslash and no control characters.
+
+- `EldraCatalogReader` gains `listCategories(query?)` (`GET /catalog/v1/categories`), the one read a
+  category link target needs.
+
 - Feat: a new theme → editor bridge message, `theme:block-hovered`, reports the block the pointer
   is over — `{ entryId, rect, layoutNodeId?, reusablePlacementId? }`, or `null` once it leaves — so
   the editor can anchor an affordance (an "add block" control on the block's bottom edge) to the
