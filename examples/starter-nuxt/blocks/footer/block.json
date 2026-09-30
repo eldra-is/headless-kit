@@ -28,8 +28,11 @@
           "to": "groups",
           "shape": "list",
           "label": "title",
-          "url": "href",
-          "children": "links"
+          "children": {
+            "from": "links",
+            "label": "label",
+            "url": "href"
+          }
         },
         {
           "from": "links",

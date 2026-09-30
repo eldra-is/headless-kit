@@ -233,38 +233,45 @@ function checkConversionSource(
     errors.push(`${at} — conversion source "${conversion.from}" must be a list of composites`);
     return;
   }
-  // A conversion names the same four keys at both levels: the item's own
-  // composite carries the top row's label, href and its nested list, and that
-  // nested list's item composite carries a child's label, href and the column
-  // heading a top row never has. So a named key is satisfied by either.
-  const own = compositeFields(item).map((child) => child.fieldId);
-  const nested =
-    conversion.children === undefined
-      ? []
-      : nestedItemFields(item, conversion.children).map((child) => child.fieldId);
-  const known = new Set([...own, ...nested]);
+  // Each level names its own keys. The step's `label`/`url`/`group` are the
+  // row's, and `children`'s are the nested rows' — defaulting to the step's,
+  // because a v2 shape often does reuse them.
+  const own = new Set(compositeFields(item).map((child) => child.fieldId));
   for (const key of ['label', 'url', 'group'] as const) {
     const named = conversion[key];
-    if (named !== undefined && !known.has(named)) {
+    if (named !== undefined && !own.has(named)) {
       errors.push(
         `${at} — conversion ${key} "${named}" is not a child of "${conversion.from}"'s item`
       );
     }
   }
-  if (conversion.children !== undefined && !own.includes(conversion.children)) {
+  const children = conversion.children;
+  if (children === undefined) return;
+  const nestedItem = nestedListItem(item, children.from);
+  if (nestedItem === null) {
     errors.push(
-      `${at} — conversion children "${conversion.children}" is not a child of "${conversion.from}"'s item`
+      `${at} — conversion children.from "${children.from}" is not a list of composites under "${conversion.from}"'s item`
     );
+    return;
+  }
+  const nestedIds = new Set(compositeFields(nestedItem).map((child) => child.fieldId));
+  for (const key of ['label', 'url', 'group'] as const) {
+    const named = children[key] ?? conversion[key];
+    if (named !== undefined && !nestedIds.has(named)) {
+      errors.push(
+        `${at} — conversion children.${key} "${named}" is not a child of "${children.from}"'s item`
+      );
+    }
   }
 }
 
-/** The fields of the composite inside the named child list, when the child is a
- *  list of composites at all. */
-function nestedItemFields(item: BlockField, childId: string): BlockField[] {
+/** The composite inside the named child list, when the child is a list of
+ *  composites at all. */
+function nestedListItem(item: BlockField, childId: string): BlockField | null {
   const child = compositeFields(item).find((field) => field.fieldId === childId);
-  if (child === undefined || child.type !== 'list') return [];
+  if (child === undefined || child.type !== 'list') return null;
   const nested = listItem(child);
-  return nested === null || nested.type !== 'composite' ? [] : compositeFields(nested);
+  return nested === null || nested.type !== 'composite' ? null : nested;
 }
 
 function listItem(field: BlockField): BlockField | null {

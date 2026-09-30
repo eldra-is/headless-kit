@@ -15,11 +15,18 @@ Release-please writes the generated notes from commit messages and does not repl
     "renames": [],
     "convertToLink": [
       { "from": "links", "to": "links", "shape": "list",
-        "label": "label", "url": "href", "group": "group", "children": "menuLinks" },
+        "label": "label", "url": "href",
+        "children": { "from": "menuLinks", "group": "group" } },
       { "from": "ctaHref", "to": "cta", "shape": "string", "label": "ctaLabel" }
     ]
   }]
   ```
+
+  `label`, `url` and `group` name the fields of the **row** being converted; `children` names the
+  nested list and the key names those nested rows use, each falling back to the step's own when it
+  is left out. They are separate because the row above rarely uses the same names — a footer column
+  is `{title, links[]}` while each link under it is `{label, href}`, which one set of keys could not
+  carry.
 
   `shape` says what the old field was: a `string` holding an href, or a `list` of composites whose
   named children carry the label, href, group and nested links. **The conversion copies; it never
@@ -34,9 +41,10 @@ Release-please writes the generated notes from commit messages and does not repl
   rather than stopping at the version comparison, so a repository whose own `.eldra/manifest.json`
   has been regenerated past the step still reports a conversion that names a field the old shape
   never carried — and
-  that the named `label`/`url`/`group`/`children` are children of the previous item's composite — or
-  of its own nested children list, since a conversion names the same keys at both levels. For
-  `shape: "string"`, that `label` names another string field of the previous block.
+  that every named key exists at the level it names: `label`/`url`/`group` on the previous item's
+  composite, `children.from` as a list of composites under it, and `children`'s own key names on
+  that nested composite. For `shape: "string"`, that `label` names another string field of the
+  previous block.
 
 - `renames` is now optional on a migration step, so a step may carry only conversions. A step must
   still declare at least one of `renames` and `convertToLink`.

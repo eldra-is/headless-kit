@@ -43,8 +43,10 @@
           "shape": "list",
           "label": "label",
           "url": "href",
-          "group": "group",
-          "children": "menuLinks"
+          "children": {
+            "from": "menuLinks",
+            "group": "group"
+          }
         },
         {
           "from": "ctaHref",

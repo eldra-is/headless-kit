@@ -197,8 +197,19 @@ export interface BlockMigrationLinkConversion {
   url?: string;
   /** `shape: "list"` only: the child holding the column heading. */
   group?: string;
-  /** `shape: "list"` only: the child list holding the nested links. */
-  children?: string;
+  /**
+   * `shape: "list"` only: the child list holding the nested links, and the key
+   * names those nested rows use. They are named separately because the row
+   * above rarely uses the same ones — a footer column is `{title, links[]}`
+   * while each link under it is `{label, href}`. Each name falls back to the
+   * step's own when it is left out.
+   */
+  children?: {
+    from: string;
+    label?: string;
+    url?: string;
+    group?: string;
+  };
 }
 
 export interface BlockMigration {

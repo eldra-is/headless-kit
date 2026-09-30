@@ -594,7 +594,6 @@ describe('block field migrations — link', () => {
             fields: [
               field('label'),
               field('href'),
-              field('group'),
               {
                 fieldId: 'menuLinks',
                 name: 'menuLinks',
@@ -625,8 +624,7 @@ describe('block field migrations — link', () => {
       shape: 'list',
       label: 'label',
       url: 'href',
-      group: 'group',
-      children: 'menuLinks',
+      children: { from: 'menuLinks', group: 'group' },
     };
 
     it('accepts a list conversion and a string conversion in one step', () => {
@@ -757,6 +755,129 @@ describe('block field migrations — link', () => {
       );
     });
 
+    it("names the nested rows' own keys, which the row above need not share", () => {
+      // The footer's shape: a column is `{title, links[]}` and each link under
+      // it is `{label, href}` — one `label` key per step could not carry both.
+      const f = fixture();
+      const groupList = (inner: BlockField): BlockField => ({
+        fieldId: 'groups',
+        name: 'groups',
+        type: 'list',
+        metadata: {
+          item: {
+            fieldId: 'group',
+            name: 'Group',
+            type: 'composite',
+            metadata: { fields: [field('title'), inner] },
+          },
+        },
+      });
+      f.write(
+        [
+          groupList({
+            fieldId: 'links',
+            name: 'links',
+            type: 'list',
+            metadata: {
+              item: {
+                fieldId: 'link',
+                name: 'Link',
+                type: 'composite',
+                metadata: { fields: [field('label'), field('href')] },
+              },
+            },
+          }),
+        ],
+        1
+      );
+      const previous = f.scan().manifest!;
+      f.write([newList('groups')], 2, [
+        {
+          version: 2,
+          convertToLink: [
+            {
+              from: 'groups',
+              to: 'groups',
+              shape: 'list',
+              label: 'title',
+              children: { from: 'links', label: 'label', url: 'href' },
+            },
+          ],
+        },
+      ]);
+      expect(f.scan(previous).errors).toEqual([]);
+    });
+
+    it('refuses a step key that names a field only the nested rows carry', () => {
+      // `group` lives on the mega-menu's own rows, never on the item above
+      // them, so naming it at the step level is a mistake the scanner catches.
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [
+        { version: 2, convertToLink: [{ ...listConversion, group: 'group' }] },
+      ]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion group "group" is not a child of "links"\'s item'
+      );
+    });
+
+    it('refuses a children.from that is not a list of composites', () => {
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [
+        {
+          version: 2,
+          convertToLink: [{ ...listConversion, children: { from: 'label' } }],
+        },
+      ]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion children.from "label" is not a list of composites under "links"\'s item'
+      );
+    });
+
+    it("refuses a nested key the children's composite does not carry", () => {
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [
+        {
+          version: 2,
+          convertToLink: [
+            { ...listConversion, children: { from: 'menuLinks', url: 'destination' } },
+          ],
+        },
+      ]);
+      expect(f.scan(previous).errors.join('\n')).toContain(
+        'conversion children.url "destination" is not a child of "menuLinks"\'s item'
+      );
+    });
+
+    it("falls back to the step's own key names for the nested rows", () => {
+      // `menuLinks`' item carries `label` and `href` too, so naming them once
+      // is enough.
+      const f = fixture();
+      f.write([oldList('links')], 1);
+      const previous = f.scan().manifest!;
+      f.write([newList('links')], 2, [
+        {
+          version: 2,
+          convertToLink: [
+            {
+              from: 'links',
+              to: 'links',
+              shape: 'list',
+              label: 'label',
+              url: 'href',
+              children: { from: 'menuLinks' },
+            },
+          ],
+        },
+      ]);
+      expect(f.scan(previous).errors).toEqual([]);
+    });
+
     it("accepts a group that lives on the children list's item, not on the top row", () => {
       const f = fixture();
       // The v2 mega-menu shape: the top row has no `group` of its own, only its
@@ -809,19 +930,21 @@ describe('block field migrations — link', () => {
       );
     });
 
-    it("refuses a named child the previous item's composite does not carry", () => {
+    it("refuses a named key the previous item's composite does not carry", () => {
       const f = fixture();
       f.write([oldList('links')], 1);
       const previous = f.scan().manifest!;
       f.write([newList('links')], 2, [
         {
           version: 2,
-          convertToLink: [{ ...listConversion, url: 'destination', children: 'submenu' }],
+          convertToLink: [{ ...listConversion, url: 'destination', children: { from: 'submenu' } }],
         },
       ]);
       const joined = f.scan(previous).errors.join('\n');
       expect(joined).toContain('conversion url "destination" is not a child of "links"\'s item');
-      expect(joined).toContain('conversion children "submenu" is not a child of "links"\'s item');
+      expect(joined).toContain(
+        'conversion children.from "submenu" is not a list of composites under "links"\'s item'
+      );
     });
 
     it('still demands a version bump: a conversion copies rather than moves, so the source is retired', () => {

@@ -82,7 +82,21 @@ export const blockJsonSchema = {
               label: { type: 'string', pattern: FIELD_ID_PATTERN },
               url: { type: 'string', pattern: FIELD_ID_PATTERN },
               group: { type: 'string', pattern: FIELD_ID_PATTERN },
-              children: { type: 'string', pattern: FIELD_ID_PATTERN },
+              // The nested rows carry their own key names, because the row
+              // above them rarely uses the same ones: a footer column is
+              // `{title, links[]}` and each link under it is `{label, href}`.
+              // Each name defaults to the step's own when it is left out.
+              children: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['from'],
+                properties: {
+                  from: { type: 'string', pattern: FIELD_ID_PATTERN },
+                  label: { type: 'string', pattern: FIELD_ID_PATTERN },
+                  url: { type: 'string', pattern: FIELD_ID_PATTERN },
+                  group: { type: 'string', pattern: FIELD_ID_PATTERN },
+                },
+              },
             },
           },
         },
