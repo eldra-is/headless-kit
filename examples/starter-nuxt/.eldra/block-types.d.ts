@@ -25,6 +25,19 @@ declare global {
     translations?: unknown;
   }
 
+  /** A destination a `link` field points at: a catalog object, an entry,
+   *  a page, or an external URL. Resolve it to an href with
+   *  `resolveLink` from `@eldrajs/theme-core/links`. */
+  interface EldraLink {
+    kind: 'product' | 'collection' | 'category' | 'entry' | 'page' | 'url';
+    target?: { _type: string; id: string };
+    url?: string;
+    label?: string;
+    openInNewTab?: boolean;
+    group?: string;
+    children?: EldraLink[];
+  }
+
   interface EldraBlockData {
     'announcement-bar': {
       variant: 'primary' | 'accent' | 'subtle';
@@ -167,14 +180,14 @@ declare global {
       brandText: string;
       brandLogo?: EldraMedia;
       description?: string;
-      groups?: Array<{ title: string; links?: Array<{ label: string; href: string }> }>;
-      links?: Array<{ label: string; href: string }>;
+      groups?: Array<EldraLink>;
+      links?: Array<EldraLink>;
       showNewsletter?: boolean;
       newsletterTitle?: string;
       newsletterText?: string;
       social?: Array<{ network: 'instagram' | 'facebook' | 'pinterest' | 'tiktok' | 'youtube'; href: string }>;
       legalText?: string;
-      legalLinks?: Array<{ label: string; href: string }>;
+      legalLinks?: Array<EldraLink>;
       showLocale?: boolean;
       showCurrency?: boolean;
     };
@@ -220,12 +233,12 @@ declare global {
       variant: 'default' | 'centered' | 'minimal';
       brandText: string;
       brandLogo?: EldraMedia;
-      links?: Array<{ label: string; href?: string; menuLinks?: Array<{ group?: string; label: string; href: string }>; features?: Array<{ image?: EldraMedia; label: string; href: string }> }>;
+      links?: Array<EldraLink>;
       showSearch?: boolean;
       searchStyle?: 'icon' | 'field' | 'inline';
       showAccount?: boolean;
       ctaLabel?: string;
-      ctaHref?: string;
+      cta?: EldraLink;
       sticky?: boolean;
       transparentOverHero?: boolean;
     };

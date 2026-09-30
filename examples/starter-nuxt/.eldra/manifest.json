@@ -2523,7 +2523,7 @@
       "description": "Site footer with brand, link groups, a newsletter sign-up, social links, a legal line and locale/currency selectors.",
       "icon": "layout-bottombar",
       "category": "structure",
-      "version": 2,
+      "version": 3,
       "migrations": [
         {
           "version": 2,
@@ -2535,6 +2535,34 @@
             {
               "from": "legal",
               "to": "legalText"
+            }
+          ]
+        },
+        {
+          "version": 3,
+          "renames": [],
+          "convertToLink": [
+            {
+              "from": "groups",
+              "to": "groups",
+              "shape": "list",
+              "label": "title",
+              "url": "href",
+              "children": "links"
+            },
+            {
+              "from": "links",
+              "to": "links",
+              "shape": "list",
+              "label": "label",
+              "url": "href"
+            },
+            {
+              "from": "legalLinks",
+              "to": "legalLinks",
+              "shape": "list",
+              "label": "label",
+              "url": "href"
             }
           ]
         }
@@ -2601,60 +2629,15 @@
           "fieldId": "groups",
           "name": "Link groups",
           "type": "list",
-          "helpText": "Up to 4 groups. Shown on the default variant only.",
+          "helpText": "Up to 4 groups. Shown on the default variant only. A group is one link whose label is the column heading and whose children are the column’s links; a group with no children renders as a heading on its own.",
           "metadata": {
             "item": {
               "fieldId": "group",
               "name": "Group",
-              "type": "composite",
+              "type": "link",
+              "localized": true,
               "metadata": {
-                "fields": [
-                  {
-                    "fieldId": "title",
-                    "name": "Title",
-                    "type": "string",
-                    "localized": true,
-                    "validators": {
-                      "required": true,
-                      "maxLength": 40
-                    }
-                  },
-                  {
-                    "fieldId": "links",
-                    "name": "Links",
-                    "type": "list",
-                    "helpText": "Up to 8 links.",
-                    "metadata": {
-                      "item": {
-                        "fieldId": "link",
-                        "name": "Link",
-                        "type": "composite",
-                        "metadata": {
-                          "fields": [
-                            {
-                              "fieldId": "label",
-                              "name": "Label",
-                              "type": "string",
-                              "localized": true,
-                              "validators": {
-                                "required": true,
-                                "maxLength": 60
-                              }
-                            },
-                            {
-                              "fieldId": "href",
-                              "name": "URL",
-                              "type": "string",
-                              "validators": {
-                                "required": true
-                              }
-                            }
-                          ]
-                        }
-                      }
-                    }
-                  }
-                ]
+                "tree": true
               }
             }
           }
@@ -2663,33 +2646,15 @@
           "fieldId": "links",
           "name": "Links",
           "type": "list",
-          "helpText": "Up to 5 links. Shown on the minimal variant only.",
+          "helpText": "Up to 5 links. Shown on the minimal variant only. Give a link children to nest one level.",
           "metadata": {
             "item": {
               "fieldId": "link",
               "name": "Link",
-              "type": "composite",
+              "type": "link",
+              "localized": true,
               "metadata": {
-                "fields": [
-                  {
-                    "fieldId": "label",
-                    "name": "Label",
-                    "type": "string",
-                    "localized": true,
-                    "validators": {
-                      "required": true,
-                      "maxLength": 60
-                    }
-                  },
-                  {
-                    "fieldId": "href",
-                    "name": "URL",
-                    "type": "string",
-                    "validators": {
-                      "required": true
-                    }
-                  }
-                ]
+                "tree": true
               }
             }
           }
@@ -2779,29 +2744,8 @@
             "item": {
               "fieldId": "legalLink",
               "name": "Legal link",
-              "type": "composite",
-              "metadata": {
-                "fields": [
-                  {
-                    "fieldId": "label",
-                    "name": "Label",
-                    "type": "string",
-                    "localized": true,
-                    "validators": {
-                      "required": true,
-                      "maxLength": 40
-                    }
-                  },
-                  {
-                    "fieldId": "href",
-                    "name": "URL",
-                    "type": "string",
-                    "validators": {
-                      "required": true
-                    }
-                  }
-                ]
-              }
+              "type": "link",
+              "localized": true
             }
           }
         },
@@ -2825,85 +2769,119 @@
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [
           {
-            "title": "Shop",
-            "links": [
+            "kind": "url",
+            "url": "/collections",
+            "label": "Shop",
+            "children": [
               {
-                "label": "Knitwear",
-                "href": "/collections/knitwear"
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "knitwear"
+                },
+                "label": "Knitwear"
               },
               {
-                "label": "Ceramics",
-                "href": "/collections/ceramics"
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "ceramics"
+                },
+                "label": "Ceramics"
               },
               {
-                "label": "Kitchen",
-                "href": "/collections/kitchen"
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "kitchen"
+                },
+                "label": "Kitchen"
               },
               {
-                "label": "Gift cards",
-                "href": "/products/gift-card"
+                "kind": "product",
+                "target": {
+                  "_type": "product",
+                  "slug": "gift-card"
+                },
+                "label": "Gift cards"
               }
             ]
           },
           {
-            "title": "Help",
-            "links": [
+            "kind": "url",
+            "url": "/pages/help",
+            "label": "Help",
+            "children": [
               {
-                "label": "Shipping",
-                "href": "/pages/shipping"
+                "kind": "url",
+                "url": "/pages/shipping",
+                "label": "Shipping"
               },
               {
-                "label": "Returns",
-                "href": "/pages/returns"
+                "kind": "url",
+                "url": "/pages/returns",
+                "label": "Returns"
               },
               {
-                "label": "Care guides",
-                "href": "/journal/care"
+                "kind": "url",
+                "url": "/journal/care",
+                "label": "Care guides"
               },
               {
-                "label": "Contact us",
-                "href": "/pages/contact"
+                "kind": "url",
+                "url": "/pages/contact",
+                "label": "Contact us"
               }
             ]
           },
           {
-            "title": "Company",
-            "links": [
+            "kind": "url",
+            "url": "/pages/about",
+            "label": "Company",
+            "children": [
               {
-                "label": "Our story",
-                "href": "/pages/about"
+                "kind": "url",
+                "url": "/pages/about",
+                "label": "Our story"
               },
               {
-                "label": "Makers",
-                "href": "/pages/makers"
+                "kind": "url",
+                "url": "/pages/makers",
+                "label": "Makers"
               },
               {
-                "label": "Journal",
-                "href": "/journal"
+                "kind": "url",
+                "url": "/journal",
+                "label": "Journal"
               },
               {
-                "label": "Visit the studio",
-                "href": "/pages/visit"
+                "kind": "url",
+                "url": "/pages/visit",
+                "label": "Visit the studio"
               }
             ]
           }
         ],
         "links": [
           {
-            "label": "Shipping",
-            "href": "/pages/shipping"
+            "kind": "url",
+            "url": "/pages/shipping",
+            "label": "Shipping"
           },
           {
-            "label": "Returns",
-            "href": "/pages/returns"
+            "kind": "url",
+            "url": "/pages/returns",
+            "label": "Returns"
           },
           {
-            "label": "Contact us",
-            "href": "/pages/contact"
+            "kind": "url",
+            "url": "/pages/contact",
+            "label": "Contact us"
           },
           {
-            "label": "Our story",
-            "href": "/pages/about"
+            "kind": "url",
+            "url": "/pages/about",
+            "label": "Our story"
           }
         ],
         "showNewsletter": true,
@@ -2930,16 +2908,19 @@
         "legalText": "© 2026 Northwind Goods",
         "legalLinks": [
           {
-            "label": "Privacy",
-            "href": "/pages/privacy"
+            "kind": "url",
+            "url": "/pages/privacy",
+            "label": "Privacy"
           },
           {
-            "label": "Terms",
-            "href": "/pages/terms"
+            "kind": "url",
+            "url": "/pages/terms",
+            "label": "Terms"
           },
           {
-            "label": "Accessibility",
-            "href": "/pages/accessibility"
+            "kind": "url",
+            "url": "/pages/accessibility",
+            "label": "Accessibility"
           }
         ],
         "showLocale": true,
@@ -3549,7 +3530,7 @@
       "description": "The store's top bar: brand, primary links with optional mega-menus, search, account, cart and one call to action.",
       "icon": "layout-navbar",
       "category": "structure",
-      "version": 2,
+      "version": 3,
       "groups": [
         {
           "groupId": "brand",
@@ -3575,6 +3556,27 @@
             {
               "from": "logo",
               "to": "brandLogo"
+            }
+          ]
+        },
+        {
+          "version": 3,
+          "renames": [],
+          "convertToLink": [
+            {
+              "from": "links",
+              "to": "links",
+              "shape": "list",
+              "label": "label",
+              "url": "href",
+              "group": "group",
+              "children": "menuLinks"
+            },
+            {
+              "from": "ctaHref",
+              "to": "cta",
+              "shape": "string",
+              "label": "ctaLabel"
             }
           ]
         }
@@ -3625,115 +3627,22 @@
           "name": "Links",
           "type": "list",
           "groupId": "navigation",
-          "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64–80rem.",
+          "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64–80rem. Give a link children to turn it into a mega-menu: consecutive children sharing the same Group form one column, in order — up to 4 groups × 8 links.",
           "metadata": {
             "item": {
               "fieldId": "link",
               "name": "Link",
-              "type": "composite",
+              "type": "link",
+              "localized": true,
               "metadata": {
-                "fields": [
-                  {
-                    "fieldId": "label",
-                    "name": "Label",
-                    "type": "string",
-                    "localized": true,
-                    "validators": {
-                      "required": true
-                    },
-                    "helpText": "Two words max. Stays on one line."
-                  },
-                  {
-                    "fieldId": "href",
-                    "name": "URL",
-                    "type": "string",
-                    "helpText": "Destination when the item has no mega-menu links below."
-                  },
-                  {
-                    "fieldId": "menuLinks",
-                    "name": "Mega-menu links",
-                    "type": "list",
-                    "helpText": "Filling this turns the item into a mega-menu disclosure. Consecutive items that share the same Group form one column, in order — up to 4 groups × 8 links.",
-                    "metadata": {
-                      "item": {
-                        "fieldId": "menuLink",
-                        "name": "Mega-menu link",
-                        "type": "composite",
-                        "metadata": {
-                          "fields": [
-                            {
-                              "fieldId": "group",
-                              "name": "Group",
-                              "type": "string",
-                              "localized": true,
-                              "helpText": "Column heading. Consecutive links sharing the same group form one column."
-                            },
-                            {
-                              "fieldId": "label",
-                              "name": "Label",
-                              "type": "string",
-                              "localized": true,
-                              "validators": {
-                                "required": true
-                              }
-                            },
-                            {
-                              "fieldId": "href",
-                              "name": "URL",
-                              "type": "string",
-                              "validators": {
-                                "required": true
-                              }
-                            }
-                          ]
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "fieldId": "features",
-                    "name": "Feature cards",
-                    "type": "list",
-                    "helpText": "Up to 2 image cards on the right of the mega-menu.",
-                    "metadata": {
-                      "item": {
-                        "fieldId": "feature",
-                        "name": "Feature card",
-                        "type": "composite",
-                        "metadata": {
-                          "fields": [
-                            {
-                              "fieldId": "image",
-                              "name": "Image",
-                              "type": "media",
-                              "metadata": {
-                                "multiple": false,
-                                "framing": true,
-                                "framingAspectRatio": "4/3"
-                              }
-                            },
-                            {
-                              "fieldId": "label",
-                              "name": "Label",
-                              "type": "string",
-                              "localized": true,
-                              "validators": {
-                                "required": true
-                              }
-                            },
-                            {
-                              "fieldId": "href",
-                              "name": "URL",
-                              "type": "string",
-                              "validators": {
-                                "required": true
-                              }
-                            }
-                          ]
-                        }
-                      }
-                    }
-                  }
+                "tree": true,
+                "kinds": [
+                  "product",
+                  "collection",
+                  "category",
+                  "page",
+                  "entry",
+                  "url"
                 ]
               }
             }
@@ -3777,10 +3686,21 @@
           "localized": true
         },
         {
-          "fieldId": "ctaHref",
+          "fieldId": "cta",
           "name": "Button link",
-          "type": "string",
-          "groupId": "actions"
+          "type": "link",
+          "groupId": "actions",
+          "localized": true,
+          "metadata": {
+            "kinds": [
+              "product",
+              "collection",
+              "category",
+              "entry",
+              "page",
+              "url"
+            ]
+          }
         },
         {
           "fieldId": "sticky",
@@ -3803,110 +3723,190 @@
         "brandText": "Northwind Goods",
         "links": [
           {
+            "kind": "collection",
+            "target": {
+              "_type": "collection",
+              "slug": "knitwear"
+            },
             "label": "Knitwear",
-            "href": "/collections/knitwear",
-            "menuLinks": [
+            "children": [
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "womens-sweaters"
+                },
                 "group": "Women",
-                "label": "Sweaters",
-                "href": "/collections/womens-sweaters"
+                "label": "Sweaters"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "womens-cardigans"
+                },
                 "group": "Women",
-                "label": "Cardigans",
-                "href": "/collections/womens-cardigans"
+                "label": "Cardigans"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "scarves-wraps"
+                },
                 "group": "Women",
-                "label": "Scarves & wraps",
-                "href": "/collections/scarves-wraps"
+                "label": "Scarves & wraps"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "hats-gloves"
+                },
                 "group": "Women",
-                "label": "Hats & gloves",
-                "href": "/collections/hats-gloves"
+                "label": "Hats & gloves"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mens-sweaters"
+                },
                 "group": "Men",
-                "label": "Sweaters",
-                "href": "/collections/mens-sweaters"
+                "label": "Sweaters"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mens-cardigans"
+                },
                 "group": "Men",
-                "label": "Cardigans",
-                "href": "/collections/mens-cardigans"
+                "label": "Cardigans"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mens-scarves"
+                },
                 "group": "Men",
-                "label": "Scarves",
-                "href": "/collections/mens-scarves"
+                "label": "Scarves"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "socks"
+                },
                 "group": "Men",
-                "label": "Socks",
-                "href": "/collections/socks"
+                "label": "Socks"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "merino-essentials"
+                },
                 "group": "Collections",
-                "label": "Merino essentials",
-                "href": "/collections/merino-essentials"
+                "label": "Merino essentials"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "heavy-winter-knits"
+                },
                 "group": "Collections",
-                "label": "Heavy winter knits",
-                "href": "/collections/heavy-winter-knits"
+                "label": "Heavy winter knits"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "undyed-wool"
+                },
                 "group": "Collections",
-                "label": "Undyed wool",
-                "href": "/collections/undyed-wool"
+                "label": "Undyed wool"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "knitwear"
+                },
                 "group": "Collections",
-                "label": "Shop all knitwear",
-                "href": "/collections/knitwear"
+                "label": "Shop all knitwear"
               }
             ]
           },
           {
+            "kind": "collection",
+            "target": {
+              "_type": "collection",
+              "slug": "ceramics"
+            },
             "label": "Ceramics",
-            "href": "/collections/ceramics",
-            "menuLinks": [
+            "children": [
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "plates"
+                },
                 "group": "Tableware",
-                "label": "Plates",
-                "href": "/collections/plates"
+                "label": "Plates"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "bowls"
+                },
                 "group": "Tableware",
-                "label": "Bowls",
-                "href": "/collections/bowls"
+                "label": "Bowls"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mugs-cups"
+                },
                 "group": "Tableware",
-                "label": "Mugs & cups",
-                "href": "/collections/mugs-cups"
+                "label": "Mugs & cups"
               }
             ]
           },
           {
-            "label": "Kitchen",
-            "href": "/collections/kitchen"
+            "kind": "collection",
+            "target": {
+              "_type": "collection",
+              "slug": "kitchen"
+            },
+            "label": "Kitchen"
           },
           {
-            "label": "Journal",
-            "href": "/journal"
+            "kind": "url",
+            "url": "/journal",
+            "label": "Journal"
           },
           {
-            "label": "Visit the studio",
-            "href": "/pages/visit"
+            "kind": "url",
+            "url": "/pages/visit",
+            "label": "Visit the studio"
           }
         ],
         "showSearch": true,
         "searchStyle": "icon",
         "showAccount": true,
         "ctaLabel": "Shop gifts",
-        "ctaHref": "/collections/gifts",
+        "cta": {
+          "kind": "collection",
+          "target": {
+            "_type": "collection",
+            "slug": "gifts"
+          }
+        },
         "sticky": true,
         "transparentOverHero": false
       },
@@ -7616,122 +7616,192 @@
         "brandText": "Northwind Goods",
         "links": [
           {
+            "kind": "collection",
+            "target": {
+              "_type": "collection",
+              "slug": "knitwear"
+            },
             "label": "Knitwear",
-            "href": "/collections/knitwear",
-            "menuLinks": [
+            "children": [
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "womens-sweaters"
+                },
                 "group": "Women",
-                "label": "Sweaters",
-                "href": "/collections/womens-sweaters"
+                "label": "Sweaters"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "womens-cardigans"
+                },
                 "group": "Women",
-                "label": "Cardigans",
-                "href": "/collections/womens-cardigans"
+                "label": "Cardigans"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "scarves-wraps"
+                },
                 "group": "Women",
-                "label": "Scarves & wraps",
-                "href": "/collections/scarves-wraps"
+                "label": "Scarves & wraps"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "hats-gloves"
+                },
                 "group": "Women",
-                "label": "Hats & gloves",
-                "href": "/collections/hats-gloves"
+                "label": "Hats & gloves"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mens-sweaters"
+                },
                 "group": "Men",
-                "label": "Sweaters",
-                "href": "/collections/mens-sweaters"
+                "label": "Sweaters"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mens-cardigans"
+                },
                 "group": "Men",
-                "label": "Cardigans",
-                "href": "/collections/mens-cardigans"
+                "label": "Cardigans"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mens-scarves"
+                },
                 "group": "Men",
-                "label": "Scarves",
-                "href": "/collections/mens-scarves"
+                "label": "Scarves"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "socks"
+                },
                 "group": "Men",
-                "label": "Socks",
-                "href": "/collections/socks"
+                "label": "Socks"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "merino-essentials"
+                },
                 "group": "Collections",
-                "label": "Merino essentials",
-                "href": "/collections/merino-essentials"
+                "label": "Merino essentials"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "heavy-winter-knits"
+                },
                 "group": "Collections",
-                "label": "Heavy winter knits",
-                "href": "/collections/heavy-winter-knits"
+                "label": "Heavy winter knits"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "undyed-wool"
+                },
                 "group": "Collections",
-                "label": "Undyed wool",
-                "href": "/collections/undyed-wool"
+                "label": "Undyed wool"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "knitwear"
+                },
                 "group": "Collections",
-                "label": "Shop all knitwear",
-                "href": "/collections/knitwear"
-              }
-            ],
-            "features": [
-              {
-                "label": "New season knitwear",
-                "href": "/collections/knitwear"
-              },
-              {
-                "label": "Care & repair guide",
-                "href": "/pages/care"
+                "label": "Shop all knitwear"
               }
             ]
           },
           {
+            "kind": "collection",
+            "target": {
+              "_type": "collection",
+              "slug": "ceramics"
+            },
             "label": "Ceramics",
-            "href": "/collections/ceramics",
-            "menuLinks": [
+            "children": [
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "plates"
+                },
                 "group": "Tableware",
-                "label": "Plates",
-                "href": "/collections/plates"
+                "label": "Plates"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "bowls"
+                },
                 "group": "Tableware",
-                "label": "Bowls",
-                "href": "/collections/bowls"
+                "label": "Bowls"
               },
               {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "mugs-cups"
+                },
                 "group": "Tableware",
-                "label": "Mugs & cups",
-                "href": "/collections/mugs-cups"
+                "label": "Mugs & cups"
               }
             ]
           },
           {
-            "label": "Kitchen",
-            "href": "/collections/kitchen"
+            "kind": "collection",
+            "target": {
+              "_type": "collection",
+              "slug": "kitchen"
+            },
+            "label": "Kitchen"
           },
           {
-            "label": "Journal",
-            "href": "/journal"
+            "kind": "url",
+            "url": "/journal",
+            "label": "Journal"
           },
           {
-            "label": "Visit the studio",
-            "href": "/pages/visit"
+            "kind": "url",
+            "url": "/pages/visit",
+            "label": "Visit the studio"
           }
         ],
         "showSearch": true,
         "searchStyle": "icon",
         "showAccount": true,
         "ctaLabel": "Shop gifts",
-        "ctaHref": "/collections/gifts",
         "sticky": true,
-        "transparentOverHero": false
+        "transparentOverHero": false,
+        "cta": {
+          "kind": "collection",
+          "target": {
+            "_type": "collection",
+            "slug": "gifts"
+          }
+        }
       }
     },
     "footer": {
@@ -7743,85 +7813,119 @@
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [
           {
-            "title": "Shop",
-            "links": [
+            "kind": "url",
+            "url": "/collections",
+            "label": "Shop",
+            "children": [
               {
-                "label": "Knitwear",
-                "href": "/collections/knitwear"
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "knitwear"
+                },
+                "label": "Knitwear"
               },
               {
-                "label": "Ceramics",
-                "href": "/collections/ceramics"
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "ceramics"
+                },
+                "label": "Ceramics"
               },
               {
-                "label": "Kitchen",
-                "href": "/collections/kitchen"
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "kitchen"
+                },
+                "label": "Kitchen"
               },
               {
-                "label": "Gift cards",
-                "href": "/products/gift-card"
+                "kind": "product",
+                "target": {
+                  "_type": "product",
+                  "slug": "gift-card"
+                },
+                "label": "Gift cards"
               }
             ]
           },
           {
-            "title": "Help",
-            "links": [
+            "kind": "url",
+            "url": "/pages/help",
+            "label": "Help",
+            "children": [
               {
-                "label": "Shipping",
-                "href": "/pages/shipping"
+                "kind": "url",
+                "url": "/pages/shipping",
+                "label": "Shipping"
               },
               {
-                "label": "Returns",
-                "href": "/pages/returns"
+                "kind": "url",
+                "url": "/pages/returns",
+                "label": "Returns"
               },
               {
-                "label": "Care guides",
-                "href": "/journal/care"
+                "kind": "url",
+                "url": "/journal/care",
+                "label": "Care guides"
               },
               {
-                "label": "Contact us",
-                "href": "/pages/contact"
+                "kind": "url",
+                "url": "/pages/contact",
+                "label": "Contact us"
               }
             ]
           },
           {
-            "title": "Company",
-            "links": [
+            "kind": "url",
+            "url": "/pages/about",
+            "label": "Company",
+            "children": [
               {
-                "label": "Our story",
-                "href": "/pages/about"
+                "kind": "url",
+                "url": "/pages/about",
+                "label": "Our story"
               },
               {
-                "label": "Makers",
-                "href": "/pages/makers"
+                "kind": "url",
+                "url": "/pages/makers",
+                "label": "Makers"
               },
               {
-                "label": "Journal",
-                "href": "/journal"
+                "kind": "url",
+                "url": "/journal",
+                "label": "Journal"
               },
               {
-                "label": "Visit the studio",
-                "href": "/pages/visit"
+                "kind": "url",
+                "url": "/pages/visit",
+                "label": "Visit the studio"
               }
             ]
           }
         ],
         "links": [
           {
-            "label": "Shipping",
-            "href": "/pages/shipping"
+            "kind": "url",
+            "url": "/pages/shipping",
+            "label": "Shipping"
           },
           {
-            "label": "Returns",
-            "href": "/pages/returns"
+            "kind": "url",
+            "url": "/pages/returns",
+            "label": "Returns"
           },
           {
-            "label": "Contact us",
-            "href": "/pages/contact"
+            "kind": "url",
+            "url": "/pages/contact",
+            "label": "Contact us"
           },
           {
-            "label": "Our story",
-            "href": "/pages/about"
+            "kind": "url",
+            "url": "/pages/about",
+            "label": "Our story"
           }
         ],
         "showNewsletter": false,
@@ -7848,16 +7952,19 @@
         "legalText": "© 2026 Northwind Goods",
         "legalLinks": [
           {
-            "label": "Privacy",
-            "href": "/pages/privacy"
+            "kind": "url",
+            "url": "/pages/privacy",
+            "label": "Privacy"
           },
           {
-            "label": "Terms",
-            "href": "/pages/terms"
+            "kind": "url",
+            "url": "/pages/terms",
+            "label": "Terms"
           },
           {
-            "label": "Accessibility",
-            "href": "/pages/accessibility"
+            "kind": "url",
+            "url": "/pages/accessibility",
+            "label": "Accessibility"
           }
         ],
         "showLocale": true,

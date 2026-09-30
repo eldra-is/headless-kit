@@ -28,14 +28,10 @@ Release-please writes the generated notes from commit messages and does not repl
   readable — and a step that converts still has to bump the block's version for that reason. It is
   idempotent for free: on the next deploy `from` no longer exists under its old id.
 
-  For `shape: "list"`, `to` is a list of links, or a list of composites each carrying one list of
-  links — the footer's link groups, where the group's own title stays a string beside the converted
-  rows. The conversion descends at most that one level, and never more.
-
-  The scanner checks that `to` exists in the incoming fields and can hold links, that `from` exists
-  in the previous local manifest with a matching shape at the same depth, and that the named
-  `label`/`url`/`group`/`children` are children of the previous row's composite — or of its own
-  nested children list, since a conversion names the same keys at both levels. For
+  The scanner checks that `to` exists in the incoming fields and is a `link` (or, for
+  `shape: "list"`, a list whose item is one), that `from` exists in the previous local manifest, and
+  that the named `label`/`url`/`group`/`children` are children of the previous item's composite — or
+  of its own nested children list, since a conversion names the same keys at both levels. For
   `shape: "string"`, that `label` names another string field of the previous block.
 
 - `renames` is now optional on a migration step, so a step may carry only conversions. A step must

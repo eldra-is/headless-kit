@@ -112,7 +112,6 @@ export function migrationChecks(
           `${file}: migrations (version ${step.version})`,
           conversion,
           old,
-          next,
           errors
         );
       }
@@ -150,12 +149,9 @@ export function migrationChecks(
 
 /**
  * What a conversion must be true of in the *incoming* fields: it writes a link,
- * so `to` has to be one — or, for `shape: "list"`, a list of links, or a list
- * of composites each carrying one list of links (the footer's link groups,
- * where the group's own title stays a string beside the converted rows). It
- * descends at most that one level, and never more. Checked without any
- * history, because it is a statement about the block being deployed rather
- * than about what came before it.
+ * so `to` has to be one — or, for `shape: "list"`, a list whose item is one.
+ * Checked without any history, because it is a statement about the block being
+ * deployed rather than about what came before it.
  */
 function checkConversionTarget(
   at: string,
@@ -176,33 +172,11 @@ function checkConversionTarget(
     }
     return;
   }
-  if (linkListRows(destination) === null) {
+  if (listItem(destination)?.type !== 'link') {
     errors.push(
-      `${at} — conversion destination "${conversion.to}" must be a list of links, or a list of composites each carrying one list of links`
+      `${at} — conversion destination "${conversion.to}" must be a list whose item is a link field`
     );
   }
-}
-
-/**
- * Where the link rows sit inside a `shape: "list"` destination.
- *
- * `{}`                  — the list's own items are links.
- * `{ childId: "<id>" }` — the list's item is a composite whose child `<id>` is
- *                         the list of links; the composite's other children are
- *                         untouched by the conversion.
- * `null`                — neither, so the destination cannot hold the converted
- *                         values at all.
- */
-function linkListRows(field: BlockField): { childId?: string } | null {
-  if (field.type !== 'list') return null;
-  const item = listItem(field);
-  if (item === null) return null;
-  if (item.type === 'link') return {};
-  if (item.type !== 'composite') return null;
-  const nested = compositeFields(item).filter(
-    (child) => child.type === 'list' && listItem(child)?.type === 'link'
-  );
-  return nested.length === 1 ? { childId: nested[0]!.fieldId } : null;
 }
 
 /**
@@ -215,7 +189,6 @@ function checkConversionSource(
   at: string,
   conversion: BlockMigrationLinkConversion,
   old: Map<string, BlockField>,
-  next: Map<string, BlockField>,
   errors: string[]
 ): void {
   const prior = old.get(conversion.from);
@@ -237,25 +210,10 @@ function checkConversionSource(
     }
     return;
   }
-  // The destination says how deep the rows sit; the source has to match it,
-  // level for level, so one walk finds a row on both sides.
-  const destination = next.get(conversion.to);
-  const rows = destination === undefined ? null : linkListRows(destination);
-  let item = listItem(prior);
+  const item = listItem(prior);
   if (prior.type !== 'list' || item === null || item.type !== 'composite') {
     errors.push(`${at} — conversion source "${conversion.from}" must be a list of composites`);
     return;
-  }
-  if (rows?.childId !== undefined) {
-    const child = compositeFields(item).find((field) => field.fieldId === rows.childId);
-    const nested = child === undefined ? null : listItem(child);
-    if (child?.type !== 'list' || nested === null || nested.type !== 'composite') {
-      errors.push(
-        `${at} — conversion source "${conversion.from}" must carry a list of composites at "${rows.childId}"`
-      );
-      return;
-    }
-    item = nested;
   }
   // A conversion names the same four keys at both levels: the item's own
   // composite carries the top row's label, href and its nested list, and that

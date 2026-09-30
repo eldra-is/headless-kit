@@ -5,53 +5,159 @@
   "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
   "groups": [
     {
-      "title": "Shop",
-      "links": [
-        { "label": "Knitwear", "href": "/collections/knitwear" },
-        { "label": "Ceramics", "href": "/collections/ceramics" },
-        { "label": "Kitchen", "href": "/collections/kitchen" },
-        { "label": "Gift cards", "href": "/products/gift-card" }
+      "kind": "url",
+      "url": "/collections",
+      "label": "Shop",
+      "children": [
+        {
+          "kind": "collection",
+          "target": {
+            "_type": "collection",
+            "slug": "knitwear"
+          },
+          "label": "Knitwear"
+        },
+        {
+          "kind": "collection",
+          "target": {
+            "_type": "collection",
+            "slug": "ceramics"
+          },
+          "label": "Ceramics"
+        },
+        {
+          "kind": "collection",
+          "target": {
+            "_type": "collection",
+            "slug": "kitchen"
+          },
+          "label": "Kitchen"
+        },
+        {
+          "kind": "product",
+          "target": {
+            "_type": "product",
+            "slug": "gift-card"
+          },
+          "label": "Gift cards"
+        }
       ]
     },
     {
-      "title": "Help",
-      "links": [
-        { "label": "Shipping", "href": "/pages/shipping" },
-        { "label": "Returns", "href": "/pages/returns" },
-        { "label": "Care guides", "href": "/journal/care" },
-        { "label": "Contact us", "href": "/pages/contact" }
+      "kind": "url",
+      "url": "/pages/help",
+      "label": "Help",
+      "children": [
+        {
+          "kind": "url",
+          "url": "/pages/shipping",
+          "label": "Shipping"
+        },
+        {
+          "kind": "url",
+          "url": "/pages/returns",
+          "label": "Returns"
+        },
+        {
+          "kind": "url",
+          "url": "/journal/care",
+          "label": "Care guides"
+        },
+        {
+          "kind": "url",
+          "url": "/pages/contact",
+          "label": "Contact us"
+        }
       ]
     },
     {
-      "title": "Company",
-      "links": [
-        { "label": "Our story", "href": "/pages/about" },
-        { "label": "Makers", "href": "/pages/makers" },
-        { "label": "Journal", "href": "/journal" },
-        { "label": "Visit the studio", "href": "/pages/visit" }
+      "kind": "url",
+      "url": "/pages/about",
+      "label": "Company",
+      "children": [
+        {
+          "kind": "url",
+          "url": "/pages/about",
+          "label": "Our story"
+        },
+        {
+          "kind": "url",
+          "url": "/pages/makers",
+          "label": "Makers"
+        },
+        {
+          "kind": "url",
+          "url": "/journal",
+          "label": "Journal"
+        },
+        {
+          "kind": "url",
+          "url": "/pages/visit",
+          "label": "Visit the studio"
+        }
       ]
     }
   ],
   "links": [
-    { "label": "Shipping", "href": "/pages/shipping" },
-    { "label": "Returns", "href": "/pages/returns" },
-    { "label": "Contact us", "href": "/pages/contact" },
-    { "label": "Our story", "href": "/pages/about" }
+    {
+      "kind": "url",
+      "url": "/pages/shipping",
+      "label": "Shipping"
+    },
+    {
+      "kind": "url",
+      "url": "/pages/returns",
+      "label": "Returns"
+    },
+    {
+      "kind": "url",
+      "url": "/pages/contact",
+      "label": "Contact us"
+    },
+    {
+      "kind": "url",
+      "url": "/pages/about",
+      "label": "Our story"
+    }
   ],
   "showNewsletter": true,
   "newsletterTitle": "Letters from the workshop",
   "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
   "social": [
-    { "network": "instagram", "href": "https://instagram.com/northwindgoods" },
-    { "network": "pinterest", "href": "https://pinterest.com/northwindgoods" },
-    { "network": "tiktok", "href": "https://tiktok.com/@northwindgoods" },
-    { "network": "youtube", "href": "https://youtube.com/@northwindgoods" }
+    {
+      "network": "instagram",
+      "href": "https://instagram.com/northwindgoods"
+    },
+    {
+      "network": "pinterest",
+      "href": "https://pinterest.com/northwindgoods"
+    },
+    {
+      "network": "tiktok",
+      "href": "https://tiktok.com/@northwindgoods"
+    },
+    {
+      "network": "youtube",
+      "href": "https://youtube.com/@northwindgoods"
+    }
   ],
   "legalText": "© 2026 Northwind Goods",
   "legalLinks": [
-    { "label": "Privacy", "href": "/pages/privacy" },
-    { "label": "Terms", "href": "/pages/terms" },
-    { "label": "Accessibility", "href": "/pages/accessibility" }
+    {
+      "kind": "url",
+      "url": "/pages/privacy",
+      "label": "Privacy"
+    },
+    {
+      "kind": "url",
+      "url": "/pages/terms",
+      "label": "Terms"
+    },
+    {
+      "kind": "url",
+      "url": "/pages/accessibility",
+      "label": "Accessibility"
+    }
   ],
   "showLocale": true,
   "showCurrency": true

@@ -6,7 +6,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/navigation/Block.vue';
 import mock from '../../blocks/navigation/mock.json';
-import preview from '../../blocks/navigation/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/navigation",
@@ -16,7 +15,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = { ...mock, ...preview };
+const base = mock;
 
 export const Default: Story = {
   args: { entry: { id: "navigation", data: base } },

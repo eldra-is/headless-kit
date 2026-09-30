@@ -12,6 +12,55 @@ import type { StorefrontForms } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { enUS } from '../../../app/i18n/en-US';
 
+/**
+ * `mock.json` names a collection or product by handle, because a theme cannot know an
+ * organisation's catalog ids: Core rewrites those to ids when it seeds the entry, and the site
+ * resolves each id to a slug before rendering. This is the same route context a real page carries,
+ * keyed to the ids `resolveTargets` writes, so a spec can assert the hrefs the footer produces.
+ */
+const TEMPLATES = [
+  {
+    id: 'rt-collection',
+    data: {
+      schemaApiId: 'catalog:collection',
+      routePattern: '/collections/:slug',
+      slugField: 'slug',
+    },
+  },
+  {
+    id: 'rt-product',
+    data: { schemaApiId: 'catalog:product', routePattern: '/products/:slug', slugField: 'slug' },
+  },
+];
+
+interface SeedLink {
+  kind: string;
+  target?: { _type: string; slug?: string; id?: string };
+  url?: string;
+  label?: string;
+  children?: SeedLink[];
+}
+
+const linkTargets = new Map<string, unknown>();
+function resolveSeedLink(link: SeedLink): SeedLink {
+  const slug = link.target?.slug;
+  if (link.target === undefined || slug === undefined) return link;
+  const id = `id-${slug}`;
+  linkTargets.set(`${link.target._type}:${id}`, { slug, title: link.label });
+  return { ...link, target: { _type: link.target._type, id } };
+}
+
+const resolvedMock = {
+  ...mock,
+  groups: (mock.groups as SeedLink[]).map((group) => ({
+    ...group,
+    children: (group.children ?? []).map(resolveSeedLink),
+  })),
+  links: (mock.links as SeedLink[]).map(resolveSeedLink),
+  legalLinks: (mock.legalLinks as SeedLink[]).map(resolveSeedLink),
+};
+const linkContext = { templates: TEMPLATES, targets: linkTargets };
+
 function mountFooter(
   data: Record<string, unknown>,
   options: {
@@ -21,7 +70,7 @@ function mountFooter(
     editing?: boolean;
   } = {}
 ) {
-  const base = mountOptions({ entry: { id: 'e1', data } });
+  const base = mountOptions({ entry: { id: 'e1', data } }, { links: linkContext });
   if (options.editing) {
     const context = base.global.provide[ELDRA_KEY] as {
       preview: { active: boolean; mode: string };
@@ -65,7 +114,7 @@ describe('footer block', () => {
     const wrapper = mountFooter(mock);
     expect(wrapper.text()).toContain(mock.brandText);
     expect(wrapper.text()).toContain(mock.description);
-    for (const group of mock.groups) expect(wrapper.text()).toContain(group.title);
+    for (const group of mock.groups) expect(wrapper.text()).toContain(group.label);
     expect(wrapper.text()).toContain(mock.legalText);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
@@ -80,11 +129,48 @@ describe('footer block', () => {
     const wrapper = mountFooter({ ...mock, variant: 'minimal' });
     expect(wrapper.text()).toContain(mock.brandText);
     for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
-    expect(wrapper.text()).not.toContain(mock.groups[0]!.title);
+    expect(wrapper.text()).not.toContain(mock.groups[0]!.label);
     expect(wrapper.findAll('h3')).toHaveLength(0);
     expect(wrapper.find('input[type="email"]').exists()).toBe(false);
     expect(wrapper.find('form').exists()).toBe(false);
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders a resolved collection and product row as their own paths', async () => {
+    const wrapper = mountFooter(resolvedMock);
+    const anchor = (label: string) => wrapper.findAll('a').find((a) => a.text() === label)!;
+    expect(anchor('Knitwear').attributes('href')).toBe('/collections/knitwear');
+    expect(anchor('Gift cards').attributes('href')).toBe('/products/gift-card');
+    // A legal row is an ordinary URL and needs no catalog at all.
+    expect(anchor('Privacy').attributes('href')).toBe('/pages/privacy');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders a row whose target no longer exists as plain text, never a dead anchor', async () => {
+    const wrapper = mountFooter({
+      ...resolvedMock,
+      variant: 'minimal',
+      links: [
+        { kind: 'collection', target: { _type: 'collection', id: 'id-gone' }, label: 'Gone' },
+      ],
+    });
+    expect(wrapper.text()).toContain('Gone');
+    expect(wrapper.findAll('a').some((a) => a.text() === 'Gone')).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders nothing at all for a row with no label', () => {
+    const wrapper = mountFooter({
+      ...resolvedMock,
+      variant: 'minimal',
+      links: [
+        { kind: 'url', url: '/pages/terms' },
+        { kind: 'url', url: '/pages/privacy', label: 'Privacy' },
+      ],
+    });
+    const rows = wrapper.findAll('nav ul li');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.text()).toBe('Privacy');
   });
 
   it('background primary renders with no axe violations', async () => {

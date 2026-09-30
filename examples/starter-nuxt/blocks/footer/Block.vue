@@ -22,8 +22,10 @@
  * icon-loading path outside `useEldraIcon` for a purely decorative detail with no acceptance
  * criterion or test coverage — left out rather than doing either.
  *
- * Every group/flat/legal link is resolved once through `resolveLinks` below: `safeHref` drops an
- * unsafe destination (the link is then not rendered at all) and a same-site path routes through
+ * Every group/flat/legal destination is a `link` value — a collection, product, page or entry the
+ * platform knows, or an external URL — resolved once through `useEldraLink()`. A row whose target
+ * has been deleted, or that the site has no route for, keeps its label and renders as plain text
+ * rather than a dead anchor; a row with no label renders nothing. A same-site path routes through
  * `EldraRouterLink` (see `app/utils/links.ts`). `tone="muted"` + `:underline="false"` is the
  * spec's tertiary link, turning `text` with an underline only on hover; legal links keep the
  * package's own underline-at-rest default (spec: "always underlined").
@@ -52,6 +54,8 @@
  * actually fires.
  */
 import { computed, nextTick, ref, watch } from 'vue';
+import { useEldraLink } from '@eldrajs/theme-vue';
+import type { ResolvedLink } from '@eldrajs/theme-vue';
 import {
   Button,
   Container,
@@ -77,8 +81,11 @@ import type { ThemeIconName } from '../../app/icons';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import type { MessageKey } from '../../app/i18n/messages';
 
-type FooterLinkField = { label: string; href: string };
-type ResolvedLink = { label: string; href: string; as: typeof EldraRouterLink | undefined };
+type FooterLink = {
+  label: string;
+  href: string | undefined;
+  as: typeof EldraRouterLink | undefined;
+};
 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
@@ -108,20 +115,43 @@ const paddingClass = computed(() =>
   variant.value === 'minimal' ? 'py-8' : 'pt-12 pb-6 @tablet:pt-16 @tablet:pb-8'
 );
 
-/** Drops an unsafe destination and resolves a same-site one through the router (see file doc). */
-function resolveLinks(links: FooterLinkField[] | undefined): ResolvedLink[] {
-  return (links ?? []).flatMap((link) => {
-    const href = safeHref(link.href);
-    if (href === null) return [];
-    return [{ label: link.label, href, as: isInternalHref(href) ? EldraRouterLink : undefined }];
+const resolveLink = useEldraLink();
+
+/** Drops a row with nothing to show, and resolves a same-site destination through the router (see
+ *  file doc). A row whose target no longer resolves keeps its label and loses its href. */
+function resolveLinks(links: unknown[] | undefined): FooterLink[] {
+  return (links ?? []).flatMap((value) => {
+    const resolved = resolveLink(value);
+    return resolved === null ? [] : toRows([resolved]);
   });
 }
 
+/** The same drop-and-route rule over links that are already resolved — a group's children. */
+function toRows(resolved: readonly ResolvedLink[]): FooterLink[] {
+  return resolved.flatMap((link) => {
+    if (link.label === null) return [];
+    const href = link.href ?? undefined;
+    return [
+      {
+        label: link.label,
+        href,
+        as: href !== undefined && isInternalHref(href) ? EldraRouterLink : undefined,
+      },
+    ];
+  });
+}
+
+/**
+ * A link group is one link whose label is the column heading and whose children are the column's
+ * links — the same shape the header's mega-menu uses. A group's own destination is never rendered,
+ * for the same reason the header's is not: the row that heads a column is a heading, not a link.
+ */
 const groups = computed(() =>
-  (data.value.groups ?? []).map((group) => ({
-    title: group.title,
-    links: resolveLinks(group.links),
-  }))
+  (data.value.groups ?? []).flatMap((value) => {
+    const resolved = resolveLink(value);
+    if (resolved === null || resolved.label === null) return [];
+    return [{ title: resolved.label, links: toRows(resolved.children) }];
+  })
 );
 const minimalLinks = computed(() => resolveLinks(data.value.links));
 const legalLinks = computed(() => resolveLinks(data.value.legalLinks));
@@ -348,6 +378,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               <ul class="mt-2 space-y-1">
                 <li v-for="(link, linkIndex) in group.links" :key="linkIndex">
                   <Link
+                    v-if="link.href"
                     :href="link.href"
                     :as="link.as"
                     tone="muted"
@@ -355,6 +386,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                     :classes="{ root: 'inline-flex min-h-9 items-center text-base' }"
                     >{{ link.label }}</Link
                   >
+                  <span v-else class="text-muted inline-flex min-h-9 items-center text-base">{{
+                    link.label
+                  }}</span>
                 </li>
               </ul>
             </div>
@@ -439,6 +473,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           <ul class="flex flex-wrap items-center gap-x-6 gap-y-2" role="list">
             <li v-for="(link, index) in minimalLinks" :key="index">
               <Link
+                v-if="link.href"
                 :href="link.href"
                 :as="link.as"
                 tone="muted"
@@ -446,6 +481,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 :classes="{ root: 'inline-flex min-h-9 items-center text-base' }"
                 >{{ link.label }}</Link
               >
+              <span v-else class="text-muted inline-flex min-h-9 items-center text-base">{{
+                link.label
+              }}</span>
             </li>
           </ul>
         </nav>
@@ -479,12 +517,14 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           <ul v-if="legalLinks.length > 0" class="flex flex-wrap gap-x-4 gap-y-2" role="list">
             <li v-for="(link, index) in legalLinks" :key="index">
               <Link
+                v-if="link.href"
                 :href="link.href"
                 :as="link.as"
                 tone="muted"
                 :classes="{ root: 'inline-flex min-h-6 items-center' }"
                 >{{ link.label }}</Link
               >
+              <span v-else class="inline-flex min-h-6 items-center">{{ link.label }}</span>
             </li>
           </ul>
         </div>
