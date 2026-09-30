@@ -80,8 +80,19 @@ const LINK_KINDS = new Set<string>([
   'none',
 ]);
 
-const MAX_HREF_LENGTH = 2048;
-const ALLOWED_PROTOCOLS = ['https:', 'http:', 'mailto:', 'tel:'];
+/** The cap is on **bytes**, not UTF-16 units, because the write side counts
+ *  bytes: a string of 2048 units can be several times that once encoded, and a
+ *  renderer that accepted it would render what storage refuses. */
+const MAX_HREF_BYTES = 2048;
+
+const HREF_ENCODER = new TextEncoder();
+
+/** The whole Cc category — C0 (U+0000–U+001F), DEL, and C1 (U+0080–U+009F).
+ *  C1 matters: several of those code points are ignored or re-interpreted
+ *  during URL parsing, so a value carrying one is not the value it looks like. */
+function isControlCodePoint(codePoint: number): boolean {
+  return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
+}
 
 /**
  * An href a theme may render, or null.
@@ -91,30 +102,43 @@ const ALLOWED_PROTOCOLS = ['https:', 'http:', 'mailto:', 'tel:'];
  * and rejects executable and opaque ones. This is the kit's single
  * implementation: a theme re-exports it rather than keeping a copy that can
  * drift.
+ *
+ * It is the same allowlist the platform's write side applies, rule for rule, so
+ * a value a theme renders is a value that can be stored and a value that is
+ * stored is a value that renders. In order: trimmed and non-empty; at most 2048
+ * bytes; no backslash anywhere (several browsers normalize `/\host` toward a
+ * protocol-relative URL, so a value that looks site-relative here would leave
+ * the site there); no control character; then an `http://`/`https://` prefix
+ * (case-insensitive) that parses **with a host**, a `/` path that is not `//`,
+ * or a `#`, `mailto:` or `tel:` that carries something after the prefix.
+ * Nothing else.
+ *
+ * `new URL(href).protocol` is deliberately not the scheme test: it accepts
+ * `https:example.com` and `http:/example.com`, neither of which addresses the
+ * host they appear to.
  */
 export function safeLinkHref(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const href = stripStega(value).trim();
-  if (
-    href.length === 0 ||
-    href.length > MAX_HREF_LENGTH ||
-    href.includes('\\') ||
-    Array.from(href).some((character) => {
-      const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint <= 31 || codePoint === 127;
-    })
-  ) {
-    return null;
+  if (href.length === 0 || HREF_ENCODER.encode(href).length > MAX_HREF_BYTES) return null;
+  if (href.includes('\\')) return null;
+  for (const character of href) {
+    if (isControlCodePoint(character.codePointAt(0) ?? 0)) return null;
   }
-  if (href.startsWith('/')) return href.startsWith('//') ? null : href;
-  if (href.startsWith('#')) return href;
-
-  try {
-    const protocol = new URL(href).protocol;
-    return ALLOWED_PROTOCOLS.includes(protocol) ? href : null;
-  } catch {
-    return null;
+  const lower = href.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://')) {
+    try {
+      return new URL(href).host === '' ? null : href;
+    } catch {
+      return null;
+    }
   }
+  if (href.startsWith('//')) return null;
+  if (href.startsWith('/')) return href;
+  if (href.startsWith('#')) return href.length > '#'.length ? href : null;
+  if (lower.startsWith('mailto:')) return href.length > 'mailto:'.length ? href : null;
+  if (lower.startsWith('tel:')) return href.length > 'tel:'.length ? href : null;
+  return null;
 }
 
 /**

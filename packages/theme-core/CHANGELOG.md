@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `safeLinkHref` is the same allowlist the platform's write side applies, rule for rule, so a value
+  a theme renders is a value an author can save and a value that is stored is a value that renders.
+  The cap is 2048 **bytes** rather than UTF-16 units; the whole Cc category counts as control
+  characters (C1, U+0080–U+009F, not only C0 and DEL); a `#`, `mailto:` or `tel:` needs something
+  after it, since a bare `#` addresses nothing; and an absolute url is tested by its
+  `http://`/`https://` prefix plus a host rather than by `new URL(href).protocol`, which accepts
+  `https:example.com` and `http:/example.com`, neither of which addresses the host it appears to.
+
 - `resolveLink` returns `label` and `group` exactly as they were authored, markers and all, because
   those are the strings a theme renders and in a Studio preview each carries the invisible payload
   that makes it inline-editable; only the strings a route is derived from (`kind`, the target's
@@ -25,7 +33,7 @@ Release-please writes the generated notes from commit messages and does not repl
   `` `${_type}:${id}` `` keys a value names, children included and deduplicated, so a site can read
   its targets in one batch per type. `safeLinkHref(value)` is the kit's single href allowlist — a
   rooted path that is not protocol-relative, an in-page hash, or `https:`/`http:`/`mailto:`/`tel:`,
-  stega-stripped, at most 2048 characters, no backslash and no control characters.
+  stega-stripped, at most 2048 bytes, no backslash and no control characters.
 
 - `EldraCatalogReader` gains an **optional** `listCategories?(query?)`
   (`GET /catalog/v1/categories`), the one read a category link target needs. It is optional so that

@@ -408,16 +408,25 @@ describe('linkTargetKeys', () => {
   });
 });
 
+/**
+ * The allowlist is the platform write side's, rule for rule. These two tables
+ * are that rule's own accept/refuse cases: every row here is a value the write
+ * boundary decides the same way, so a drift in either half fails here rather
+ * than at deploy time, where an author can only see it as a refusal.
+ */
 describe('safeLinkHref', () => {
   it.each([
     ['a rooted path', '/collections/knitwear'],
     ['a path with a query', '/search?q=wool'],
-    ['an in-page hash', '#main'],
+    ['an in-page hash that names something', '#main'],
     ['https', 'https://example.com/x'],
     ['http', 'http://example.com/x'],
+    ['an uppercase scheme', 'HTTPS://example.com/x'],
     ['mailto', 'mailto:hello@example.com'],
     ['tel', 'tel:+3545550000'],
+    ['an uppercase mailto', 'MAILTO:hello@example.com'],
     ['a 2048-byte href', `/${'a'.repeat(2047)}`],
+    ['a multi-byte href inside the byte budget', `/${'é'.repeat(1023)}`],
   ])('accepts %s', (_label, href) => {
     expect(safeLinkHref(href)).toBe(href);
   });
@@ -429,12 +438,22 @@ describe('safeLinkHref', () => {
     ['vbscript:', 'vbscript:msgbox(1)'],
     ['file:', 'file:///etc/passwd'],
     ['a backslash', '/collections\\..\\admin'],
-    ['a control character', '/collections/knitwear'],
-    ['a DEL character', '/collections/knitwear'],
+    ['a C0 control character', `/collections/${String.fromCodePoint(0x01)}knitwear`],
+    ['a DEL character', `/collections/${String.fromCodePoint(0x7f)}knitwear`],
+    ['the first C1 control character', `/collections/${String.fromCodePoint(0x80)}knitwear`],
+    ['the C1 next line character', `/collections/${String.fromCodePoint(0x85)}knitwear`],
+    ['the last C1 control character', `/collections/${String.fromCodePoint(0x9f)}knitwear`],
     ['a 2049-byte href', `/${'a'.repeat(2048)}`],
+    ['2048 UTF-16 units that are more than 2048 bytes', `/${'é'.repeat(2047)}`],
     ['a blank string', '   '],
     ['a bare handle', 'knitwear'],
     ['a non-string', 42],
+    ['a scheme with no slashes', 'https:example.com'],
+    ['a scheme with one slash', 'http:/example.com'],
+    ['a scheme with no host', 'https://'],
+    ['a bare hash', '#'],
+    ['a bare mailto', 'mailto:'],
+    ['a bare tel', 'tel:'],
   ])('rejects %s', (_label, href) => {
     expect(safeLinkHref(href)).toBeNull();
   });
