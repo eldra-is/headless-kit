@@ -243,17 +243,18 @@ describe('deployTheme', () => {
               migratedCount: 5,
             },
           ],
+          convertedCount: 2,
+          droppedCount: 1,
           converted: [
             {
-              block: 'navigation',
-              field: 'links',
-              count: 44,
+              blockApiId: 'navigation',
+              fieldId: 'links',
+              from: 'links',
+              convertedCount: 2,
               urlFallbacks: 44,
-              dropped: [{ reason: 'kind not offered by the field', count: 2 }],
+              dropped: [{ reason: 'kind-not-offered', kind: 'none', count: 1 }],
             },
           ],
-          convertedCount: 44,
-          droppedCount: 2,
         },
       },
     });
@@ -265,7 +266,10 @@ describe('deployTheme', () => {
       'retired navigation.links → links__v2 (shape-changed, 5 entries) — previous content is read-only in Studio'
     );
     expect(lines).toContain(
-      'converted 44 values in navigation.links; 44 kept as plain URLs; 2 dropped: kind not offered by the field ×2'
+      'converted navigation.links → links (2 entries, 44 links kept their URL)'
+    );
+    expect(lines).toContain(
+      'warning: dropped 1 "none" row from navigation.links — the field does not offer that kind'
     );
   });
 

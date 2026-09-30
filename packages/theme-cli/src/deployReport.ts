@@ -6,9 +6,9 @@
  * **retire** a field, parking its values under a new id where they are
  * read-only, and it can **convert** them, rewriting them into the new field's
  * own shape so nothing is lost and nothing has to be retyped. Printing only the
- * first half is what made a successful conversion read as data loss — five
- * lines saying content was retired, and no mention of the values the same
- * deploy carried forward.
+ * first half is what made a successful conversion read as data loss — several
+ * lines saying the content had become read-only, and no mention of the values
+ * the same deploy carried forward.
  *
  * The shape is read defensively on purpose: every part of the breakdown is
  * optional, so a newer CLI against an older gateway prints what it is given and
@@ -24,26 +24,42 @@ export interface RetiredFieldMigration {
   migratedCount: number;
 }
 
-/** One reason values under a single field could not be carried forward, with
- *  how many rows it accounted for. */
+/**
+ * One reason rows under a single field could not be carried forward, with the
+ * link kind they named and how many rows it accounted for.
+ *
+ * `reason` is a closed vocabulary, so it prints as a sentence when it is one
+ * this version knows and raw otherwise — the same way an unrecognised warning
+ * code is still printed rather than swallowed.
+ */
 export interface DroppedLinkRows {
   reason?: string;
-  /** What a gateway that names the shape rather than the cause calls it. */
   kind?: string;
   count?: number;
 }
 
-/** One field's conversion: how many values were rewritten, how many of them
- *  kept their plain href because no catalog object matched, and what was left
- *  behind. The block and the field each accept both spellings a gateway may
- *  name them by, so the line reads correctly either way. */
+/**
+ * One field's conversion.
+ *
+ * The two counts are in **different units**, which is why the line names them
+ * separately: `convertedCount` counts entry/variant units rewritten, while
+ * `urlFallbacks` counts produced link **rows** stored as a plain url because
+ * they named no catalog or CMS destination. One entry holding a twelve-row
+ * navigation is one converted entry and up to twelve fallbacks, so printing
+ * them under one noun would read as a contradiction.
+ *
+ * `from` is the outgoing field that was read and `fieldId` the link field that
+ * was written; they are often the same id. The block and the field also accept
+ * the shorter spellings a gateway may name them by.
+ */
 export interface ConvertedFieldMigration {
-  block?: string;
   blockApiId?: string;
-  field?: string;
+  block?: string;
   fieldId?: string;
-  count?: number;
+  field?: string;
+  from?: string;
   convertedCount?: number;
+  count?: number;
   urlFallbacks?: number;
   dropped?: DroppedLinkRows[];
 }
@@ -55,9 +71,16 @@ export interface FieldMigrationReport {
   droppedCount?: number;
 }
 
+/** The drop reasons this version can say in words. Anything else prints as the
+ *  code the gateway sent, so a reason added later is still reported. */
+const DROP_REASONS: Readonly<Record<string, string>> = {
+  'kind-not-offered': 'the field does not offer that kind',
+};
+
 /**
- * Every line a deploy's field migrations are worth printing, in order: the
- * retirements first, then one line per converted field.
+ * Every line a deploy's field migrations are worth printing: the retirements,
+ * then for each converted field what it carried forward and one warning per
+ * group of rows it could not.
  *
  * Returned rather than logged so the wording is testable on its own — the
  * deploy command only forwards these to its logger.
@@ -71,7 +94,10 @@ export function fieldMigrationLines(report: FieldMigrationReport | undefined | n
     );
   }
   const converted = asArray(report.converted);
-  for (const entry of converted) lines.push(convertedLine(entry));
+  for (const entry of converted) {
+    lines.push(convertedLine(entry));
+    lines.push(...droppedWarnings(entry));
+  }
   // A gateway that reports totals without the per-field breakdown still has
   // something worth saying; a gateway that reports both would repeat itself.
   if (converted.length === 0) {
@@ -82,33 +108,60 @@ export function fieldMigrationLines(report: FieldMigrationReport | undefined | n
 }
 
 function convertedLine(entry: ConvertedFieldMigration): string {
-  const where = `${nameOf(entry.block ?? entry.blockApiId)}.${nameOf(entry.field ?? entry.fieldId)}`;
-  const clauses = [`converted ${values(count(entry.count ?? entry.convertedCount))} in ${where}`];
+  const parts = [units(count(entry.convertedCount ?? entry.count), 'entry', 'entries')];
   const fallbacks = count(entry.urlFallbacks);
   if (fallbacks > 0)
-    clauses.push(`${fallbacks} kept as ${fallbacks === 1 ? 'a plain URL' : 'plain URLs'}`);
-  const dropped = asArray(entry.dropped).filter((row) => count(row.count) > 0);
-  const droppedTotal = dropped.reduce((total, row) => total + count(row.count), 0);
-  if (droppedTotal > 0) {
-    const reasons = dropped
-      .map((row) => `${nameOf(row.reason ?? row.kind)} ×${count(row.count)}`)
-      .join(', ');
-    clauses.push(`${droppedTotal} dropped: ${reasons}`);
-  }
-  return clauses.join('; ');
+    parts.push(fallbacks === 1 ? '1 link kept its URL' : `${fallbacks} links kept their URL`);
+  return `converted ${where(entry)} (${parts.join(', ')})`;
+}
+
+/**
+ * One warning per group of dropped rows, naming the kind first: the kind is
+ * what an author has to change, and the reason says why.
+ */
+function droppedWarnings(entry: ConvertedFieldMigration): string[] {
+  const target = `${blockOf(entry)}.${fieldOf(entry)}`;
+  return asArray(entry.dropped)
+    .filter((row) => count(row.count) > 0)
+    .map((row) => {
+      const rows = count(row.count);
+      const kind = typeof row.kind === 'string' && row.kind.trim() !== '' ? ` "${row.kind}"` : '';
+      return `warning: dropped ${rows}${kind} ${rows === 1 ? 'row' : 'rows'} from ${target} — ${reasonText(row.reason)}`;
+    });
+}
+
+/** `block.from → field`: which field was read and which was written. */
+function where(entry: ConvertedFieldMigration): string {
+  const field = fieldOf(entry);
+  const from = typeof entry.from === 'string' && entry.from.trim() !== '' ? entry.from : field;
+  return `${blockOf(entry)}.${from} → ${field}`;
+}
+
+function blockOf(entry: ConvertedFieldMigration): string {
+  return nameOf(entry.blockApiId ?? entry.block);
+}
+
+function fieldOf(entry: ConvertedFieldMigration): string {
+  return nameOf(entry.fieldId ?? entry.field);
+}
+
+function reasonText(reason: unknown): string {
+  const code = nameOf(reason);
+  return DROP_REASONS[code] ?? code;
 }
 
 function totalsLine(report: FieldMigrationReport): string | null {
   const converted = count(report.convertedCount);
   const dropped = count(report.droppedCount);
   if (converted === 0 && dropped === 0) return null;
-  const clauses = [`converted ${values(converted)} into link fields`];
+  if (converted === 0) return `dropped ${units(dropped, 'row', 'rows')} during the link conversion`;
+  const clauses = [`converted ${units(converted, 'entry', 'entries')} into link fields`];
   if (dropped > 0) clauses.push(`${dropped} dropped`);
   return clauses.join('; ');
 }
 
-function values(n: number): string {
-  return `${n} ${n === 1 ? 'value' : 'values'}`;
+function units(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 function count(value: unknown): number {
