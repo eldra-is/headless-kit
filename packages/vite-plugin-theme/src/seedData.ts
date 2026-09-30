@@ -10,6 +10,14 @@ const REFERENCE_MESSAGE =
   'reference values must be absent, {_type, id: uuid} or {_type: "collection", slug} — Core resolves the slug at seed time';
 const REFERENCE_RELATION_MESSAGE =
   'a {_type: "collection", slug} seed reference needs a relation with allowCollections';
+/** A `link` target named by handle. Wider than `REFERENCE_SLUG_KEYS` on
+ * purpose: Core resolves a link target's slug against both catalogs, while the
+ * `reference` field's own seed grammar stays collection-only. */
+const LINK_SLUG_KEYS = new Set(['_type', 'slug']);
+const LINK_SLUG_TYPES = new Set(['product', 'collection']);
+const LINK_KINDS = new Set(['product', 'collection', 'category', 'entry', 'page', 'url']);
+const LINK_MESSAGE =
+  'link values must be {kind, …}: a target is absent, {_type, id: uuid} or {_type: "product"|"collection", slug} — Core resolves the slug at seed time';
 
 /** How one finding is worded, so the same walk serves both callers: a block's
  * `mock.json` (`<file>: <path>: <message>`) and a template seed's block data
@@ -42,6 +50,14 @@ export type SeedErrorFormat = (path: string, message: string) => string;
  * Anything else — a bare handle string, a resolved read's full object, a slug
  * on a relation that allows no collection — would be written verbatim into an
  * entry Core then refuses, so it is refused here with the path that carries it.
+ *
+ * **Links.** A `link` field's seed value carries a `kind` and, for every kind
+ * but `url`, an optional `target`. A product or a collection may be named by
+ * handle (`{_type: "product", slug}`) because a theme cannot know an
+ * organisation's catalog ids and Core resolves the handle at seed time; the
+ * other kinds address organisation-owned objects a theme has no portable name
+ * for, so a seed leaves their target out and an author fills it in. Children
+ * are walked too, and one of them may not carry children of its own.
  */
 export function checkSeedData(
   format: SeedErrorFormat,
@@ -91,6 +107,11 @@ export function checkSeedData(
       continue;
     }
 
+    if (field.type === 'link') {
+      checkLinkValue(format, path, value, errors);
+      continue;
+    }
+
     if (field.type === 'composite') {
       const nestedFields = Array.isArray(metadata.fields)
         ? (metadata.fields as Array<Record<string, unknown>>)
@@ -112,6 +133,8 @@ export function checkSeedData(
       value.forEach((entry, index) => {
         if (item.type === 'media') {
           checkMediaValue(format, `${path}[${index}]`, entry, errors);
+        } else if (item.type === 'link') {
+          checkLinkValue(format, `${path}[${index}]`, entry, errors);
         } else if (itemFields !== null && entry !== null && typeof entry === 'object') {
           checkSeedData(
             format,
@@ -185,4 +208,81 @@ function checkReferenceValue(
   if (bySlug && relation.allowCollections !== true) {
     errors.push(format(path, REFERENCE_RELATION_MESSAGE));
   }
+}
+
+/**
+ * One link value, and each of its children.
+ *
+ * A theme cannot know an organisation's catalog ids, so a seed may name a
+ * product or a collection by handle — `{_type: "product", slug}` — and Core
+ * resolves it against that organisation's own catalog on deploy, leaving the
+ * link out when nothing matches rather than failing the deploy. The other four
+ * kinds have no portable handle (a category, an entry and a page are all
+ * organisation-owned), so they can only be seeded by an id a theme does not
+ * have — which is why a seed for them names no target at all and an author
+ * fills it in.
+ *
+ * Unlike `reference`, a `link` carries no `relation`: which catalogs it may
+ * name is the type's own grammar rather than the field's, so there is no
+ * analogue of the relation check above.
+ */
+function checkLinkValue(
+  format: SeedErrorFormat,
+  path: string,
+  value: unknown,
+  errors: string[],
+  isChild = false
+): void {
+  if (!isRecord(value)) {
+    errors.push(format(path, LINK_MESSAGE));
+    return;
+  }
+  const kind = typeof value.kind === 'string' ? value.kind.trim() : '';
+  if (!LINK_KINDS.has(kind)) {
+    errors.push(format(path, LINK_MESSAGE));
+    return;
+  }
+  if (kind === 'url') {
+    if (typeof value.url !== 'string' || value.url.trim() === '' || value.target !== undefined) {
+      errors.push(format(path, LINK_MESSAGE));
+    }
+  } else {
+    if (value.url !== undefined) {
+      errors.push(format(path, LINK_MESSAGE));
+    } else if (value.target !== undefined && !validLinkTarget(value.target, kind)) {
+      errors.push(format(path, LINK_MESSAGE));
+    }
+  }
+  if (value.children === undefined) return;
+  // Depth 2, never 3: an item may carry children, a child may not. Core
+  // refuses a deeper value outright, so a seed carrying one would write
+  // something no author could ever save again.
+  if (isChild || !Array.isArray(value.children)) {
+    errors.push(format(path, LINK_MESSAGE));
+    return;
+  }
+  value.children.forEach((child, index) =>
+    checkLinkValue(format, `${path}.children[${index}]`, child, errors, true)
+  );
+}
+
+function validLinkTarget(target: unknown, kind: string): boolean {
+  if (!isRecord(target)) return false;
+  const keys = Object.keys(target);
+  const type = typeof target._type === 'string' ? target._type.trim() : '';
+  if (type === '') return false;
+  if (
+    keys.every((key) => REFERENCE_ID_KEYS.has(key)) &&
+    typeof target.id === 'string' &&
+    UUID_PATTERN.test(target.id)
+  ) {
+    return true;
+  }
+  return (
+    keys.every((key) => LINK_SLUG_KEYS.has(key)) &&
+    LINK_SLUG_TYPES.has(kind) &&
+    type === kind &&
+    typeof target.slug === 'string' &&
+    target.slug.trim() !== ''
+  );
 }

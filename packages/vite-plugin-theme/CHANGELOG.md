@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Seed data (a block's `mock.json`, a template seed's block data and a template role's data) may
+  name a `link` field's destination. A product or a collection may be named by handle —
+  `{ "kind": "collection", "target": { "_type": "collection", "slug": "the-winter-edit" } }` — and
+  Core resolves it against the organisation's own catalog at seed time, leaving that one link out
+  when nothing matches rather than emptying the field. The other kinds address
+  organisation-owned objects a theme has no portable name for, so a seed leaves their `target` out
+  and an author fills it in. The scanner refuses anything else: an unknown `kind`, a `url` on a
+  kind that is not `url` (or a missing one on a kind that is), a `target` on `kind: "url"`, an id
+  that is not a uuid, a handle for a kind Core cannot resolve one for, and a child carrying
+  children of its own. Children are walked with the same rules, and a `link` inside a list or a
+  composite is walked as well.
+
 - A block field may now declare `"type": "link"` — one destination the platform understands rather
   than a typed-out URL. Its value is
   `{ kind, target?: { _type, id }, url?, label?, openInNewTab?, group?, children? }` with `kind` one
