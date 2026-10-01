@@ -62,6 +62,7 @@ import { isInternalHref } from '../../app/utils/links';
 import { focusRing } from '../../app/utils/classes';
 import { formatMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
+import { useMegaMenuKeys } from './useMegaMenuKeys';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
@@ -147,6 +148,9 @@ const menuIds = computed(() =>
   }))
 );
 const uid = useUiId();
+/** The bar's own `<ul>`: the element `useMegaMenuKeys` walks to find the top-level items and the
+ *  panels, so the keyboard model never keeps a second list of its own to fall out of step. */
+const barLinkList = ref<HTMLElement | null>(null);
 
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 /** Whether the open panel was opened by hover (then leaving it closes it) rather than by a click,
@@ -156,10 +160,19 @@ function clearHoverTimer(): void {
   if (hoverTimer !== undefined) clearTimeout(hoverTimer);
   hoverTimer = undefined;
 }
-function toggleMenu(index: number): void {
+/** Opens one panel (closing any other) as a keyboard-owned one: hover never closes what a key
+ *  opened. Every keyboard path into a panel goes through here. */
+function openMenu(index: number): void {
   clearHoverTimer();
   openedByHover = false;
-  openMenuIndex.value = openMenuIndex.value === index ? null : index;
+  openMenuIndex.value = index;
+}
+function toggleMenu(index: number): void {
+  if (openMenuIndex.value === index) {
+    closeMenu();
+    return;
+  }
+  openMenu(index);
 }
 function closeMenu(): void {
   clearHoverTimer();
@@ -177,32 +190,51 @@ function onTriggerMouseEnter(index: number): void {
     hoverTimer = undefined;
   }, 150);
 }
+/** True while focus sits on the item's trigger or anywhere inside its panel. */
+function focusWithinMenu(index: number): boolean {
+  if (typeof document === 'undefined') return false;
+  const active = document.activeElement;
+  const ids = menuIds.value[index];
+  if (active === null || ids === undefined) return false;
+  return (
+    document.getElementById(ids.trigger)?.contains(active) === true ||
+    document.getElementById(ids.panel)?.contains(active) === true
+  );
+}
 /** Leaving the trigger or its panel: a pending hover-open is dropped, and a panel that hover opened
  *  closes after the same 150ms grace — long enough to cross the gap from the trigger into the
  *  panel (entering either clears the timer) but short enough that the panel never lingers once the
- *  pointer has moved on. */
+ *  pointer has moved on. A hover-opened panel that focus has since moved into is keyboard-owned
+ *  from then on: closing it as the pointer wanders off would strand that focus on a hidden link,
+ *  so the pointer's own grace period gives way and `onNavItemFocusOut` closes it instead. */
 function onTriggerMouseLeave(): void {
   clearHoverTimer();
   if (openMenuIndex.value === null || !openedByHover) return;
   hoverTimer = setTimeout(() => {
     hoverTimer = undefined;
-    if (openedByHover) closeMenu();
+    const index = openMenuIndex.value;
+    if (index === null || !openedByHover) return;
+    if (focusWithinMenu(index)) return;
+    closeMenu();
   }, 150);
 }
-function onTriggerKeydown(index: number, event: KeyboardEvent): void {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    toggleMenu(index);
-  } else if (event.key === 'Escape' && openMenuIndex.value === index) {
-    event.preventDefault();
-    closeMenuAndFocusTrigger(index);
-  }
-}
-function onPanelKeydown(index: number, event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    event.preventDefault();
-    closeMenuAndFocusTrigger(index);
-  }
+/**
+ * A disclosure closes as soon as focus leaves the trigger-and-panel pair, which is what the pattern
+ * asks for and the one thing this block used to get wrong: `Tab` past the panel's last link,
+ * `Shift+Tab` back before the trigger, or a click anywhere else all left the panel hanging open
+ * under a bar whose focus had moved on. The `<li>` *is* the pair (the trigger, or plain link, and
+ * that item's panel are its only children), so one `focusout` on it answers all three: a
+ * `relatedTarget` still inside the `<li>` is movement within the menu, anything else — including
+ * `null`, which is what a click on non-focusable page furniture gives — has left it. Focus itself is
+ * never moved here; only the panel closes.
+ */
+function onNavItemFocusOut(index: number, event: FocusEvent): void {
+  if (openMenuIndex.value !== index) return;
+  const pair = event.currentTarget;
+  const next = event.relatedTarget;
+  if (!(pair instanceof HTMLElement)) return;
+  if (next instanceof Node && pair.contains(next)) return;
+  closeMenu();
 }
 function closeMenuAndFocusTrigger(index: number): void {
   closeMenu();
@@ -210,6 +242,17 @@ function closeMenuAndFocusTrigger(index: number): void {
     document.getElementById(menuIds.value[index]!.trigger)?.focus();
   });
 }
+/** Arrow keys, Home/End, Enter/Space and Escape across the bar and its panels — the APG's
+ *  disclosure-navigation pattern, in `useMegaMenuKeys.ts` with the reasoning for each key. */
+const { onTriggerKeydown, onPanelKeydown, onBarLinkKeydown } = useMegaMenuKeys({
+  list: barLinkList,
+  openIndex: openMenuIndex,
+  hasPanel: hasMegaMenu,
+  open: openMenu,
+  toggle: toggleMenu,
+  close: closeMenu,
+  closeAndFocusTrigger: closeMenuAndFocusTrigger,
+});
 
 onBeforeUnmount(clearHoverTimer);
 
@@ -744,8 +787,19 @@ const actionsPositionClass = computed(() =>
           }}</span>
         </Link>
 
-        <ul v-if="linksVisible" :class="['list-none items-center gap-1', linksPositionClass]">
-          <li v-for="(link, index) in links" :key="index">
+        <ul
+          v-if="linksVisible"
+          ref="barLinkList"
+          :class="['list-none items-center gap-1', linksPositionClass]"
+        >
+          <!-- One `<li>` per link, trigger (or plain link) then that item's panel: the pair the
+               disclosure pattern closes on focus leaving, and the reading order the arrow keys
+               walk. -->
+          <li
+            v-for="(link, index) in links"
+            :key="index"
+            @focusout="onNavItemFocusOut(index, $event)"
+          >
             <button
               v-if="hasMegaMenu(index)"
               :id="menuIds[index]!.trigger"
@@ -780,6 +834,7 @@ const actionsPositionClass = computed(() =>
               :classes="{
                 root: `inline-flex h-10 items-center px-3 text-sm font-medium ${isCurrent(link.href) ? 'font-semibold underline underline-offset-4' : ''}`,
               }"
+              @keydown="onBarLinkKeydown(index, $event)"
             >
               {{ link.label }}
             </Link>

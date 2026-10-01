@@ -579,6 +579,274 @@ describe('header block (navigation apiId)', () => {
       expect(document.activeElement).toBe(knitwear.element);
       wrapper.unmount();
     });
+
+    /**
+     * The WAI-ARIA APG "Disclosure Navigation Menu" pattern with its arrow-key extension. There is
+     * no `role="menu"` and no `aria-activedescendant`: focus is real focus on the real links, so
+     * every assertion here reads `document.activeElement` — which is only meaningful with the
+     * wrapper attached to the document, as every spec in this describe does.
+     *
+     * The mock's bar is Knitwear (mega-menu), Ceramics (mega-menu), Kitchen, Journal and Visit the
+     * studio (plain links), which is exactly the mix the keys have to cope with.
+     */
+    describe('arrow keys', () => {
+      type Wrapper = ReturnType<typeof mountBlock>;
+      const triggerFor = (wrapper: Wrapper, label: string): DOMWrapper<HTMLElement> =>
+        wrapper
+          .findAll('button')
+          .find((button) => button.text().includes(label))! as DOMWrapper<HTMLElement>;
+      const panelFor = (wrapper: Wrapper, trigger: DOMWrapper<HTMLElement>): DOMWrapper<Element> =>
+        wrapper.get(`#${trigger.attributes('aria-controls')}`);
+      const panelLinks = (wrapper: Wrapper, trigger: DOMWrapper<HTMLElement>) =>
+        panelFor(wrapper, trigger).findAll('a');
+      /** The bar's own top-level items, in bar order: the first element of each `<li>`. */
+      const topLevel = (trigger: DOMWrapper<HTMLElement>): Element[] =>
+        Array.from(trigger.element.closest('ul')!.children).map((li) => li.firstElementChild!);
+
+      it('ArrowDown on a trigger opens its panel and moves focus to the first link', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        knitwear.element.focus();
+
+        await knitwear.trigger('keydown', { key: 'ArrowDown' });
+        await nextTick();
+
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+        const links = panelLinks(wrapper, knitwear);
+        expect(document.activeElement).toBe(links[0]!.element);
+        // A panel a visitor has arrowed into is still a clean one.
+        expect(await axe(wrapper.element)).toHaveNoViolations();
+        wrapper.unmount();
+      });
+
+      it('ArrowUp on a trigger opens its panel and moves focus to the last link', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        knitwear.element.focus();
+
+        await knitwear.trigger('keydown', { key: 'ArrowUp' });
+        await nextTick();
+
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+        const links = panelLinks(wrapper, knitwear);
+        // The panel's own reading order ends on the "View all" row.
+        expect(links[links.length - 1]!.attributes('data-eldra-mega-view-all')).toBe('');
+        expect(document.activeElement).toBe(links[links.length - 1]!.element);
+        wrapper.unmount();
+      });
+
+      it('ArrowDown and ArrowUp walk the panel in reading order and clamp at both ends', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        await knitwear.trigger('click');
+        const links = panelLinks(wrapper, knitwear);
+        expect(links.length).toBeGreaterThan(2);
+
+        links[0]!.element.focus();
+        await links[0]!.trigger('keydown', { key: 'ArrowDown' });
+        expect(document.activeElement).toBe(links[1]!.element);
+
+        await links[1]!.trigger('keydown', { key: 'ArrowUp' });
+        expect(document.activeElement).toBe(links[0]!.element);
+
+        // Clamped, never wrapped: the first link keeps focus instead of jumping to the last.
+        await links[0]!.trigger('keydown', { key: 'ArrowUp' });
+        expect(document.activeElement).toBe(links[0]!.element);
+
+        const last = links[links.length - 1]!;
+        last.element.focus();
+        await last.trigger('keydown', { key: 'ArrowDown' });
+        expect(document.activeElement).toBe(last.element);
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+        wrapper.unmount();
+      });
+
+      it('Home and End inside a panel jump to its first and last link', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        await knitwear.trigger('click');
+        const links = panelLinks(wrapper, knitwear);
+
+        links[2]!.element.focus();
+        await links[2]!.trigger('keydown', { key: 'End' });
+        await nextTick();
+        expect(document.activeElement).toBe(links[links.length - 1]!.element);
+
+        await links[links.length - 1]!.trigger('keydown', { key: 'Home' });
+        await nextTick();
+        expect(document.activeElement).toBe(links[0]!.element);
+        wrapper.unmount();
+      });
+
+      it('Home and End on a trigger move to the first and last top-level item', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const ceramics = triggerFor(wrapper, 'Ceramics');
+        const items = topLevel(ceramics);
+        expect(items).toHaveLength(5);
+        expect(items[items.length - 1]!.textContent).toContain('Visit the studio');
+
+        ceramics.element.focus();
+        await ceramics.trigger('keydown', { key: 'End' });
+        await nextTick();
+        expect(document.activeElement).toBe(items[items.length - 1]);
+
+        await wrapper
+          .findAll('a')
+          .find((link) => link.element === items[items.length - 1])!
+          .trigger('keydown', { key: 'Home' });
+        await nextTick();
+        expect(document.activeElement).toBe(items[0]);
+        wrapper.unmount();
+      });
+
+      it('ArrowRight along the bar carries an open panel onto the next trigger', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        const ceramics = triggerFor(wrapper, 'Ceramics');
+        await knitwear.trigger('click');
+        knitwear.element.focus();
+
+        await knitwear.trigger('keydown', { key: 'ArrowRight' });
+        await nextTick();
+        expect(document.activeElement).toBe(ceramics.element);
+        expect(ceramics.attributes('aria-expanded')).toBe('true');
+        expect(knitwear.attributes('aria-expanded')).toBe('false');
+
+        // With nothing open, the same key is a plain focus move: no panel opens behind it.
+        await ceramics.trigger('keydown', { key: 'Escape' });
+        await nextTick();
+        await ceramics.trigger('keydown', { key: 'ArrowLeft' });
+        await nextTick();
+        expect(document.activeElement).toBe(knitwear.element);
+        expect(knitwear.attributes('aria-expanded')).toBe('false');
+        wrapper.unmount();
+      });
+
+      it("ArrowRight from inside a panel enters the next trigger's panel, and a plain link closes it", async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        const ceramics = triggerFor(wrapper, 'Ceramics');
+        const items = topLevel(knitwear);
+        await knitwear.trigger('click');
+        const first = panelLinks(wrapper, knitwear)[0]!;
+        first.element.focus();
+
+        await first.trigger('keydown', { key: 'ArrowRight' });
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('false');
+        expect(ceramics.attributes('aria-expanded')).toBe('true');
+        const ceramicsLinks = panelLinks(wrapper, ceramics);
+        expect(document.activeElement).toBe(ceramicsLinks[0]!.element);
+
+        // Kitchen has no groups, so it is an ordinary link: it takes focus and the panel closes
+        // behind it rather than one opening that does not exist.
+        await ceramicsLinks[0]!.trigger('keydown', { key: 'ArrowRight' });
+        await nextTick();
+        expect(ceramics.attributes('aria-expanded')).toBe('false');
+        expect(document.activeElement).toBe(items[2]);
+
+        // And the travel keys work on from a plain link, so the row is never a one-way street.
+        await wrapper
+          .findAll('a')
+          .find((link) => link.element === items[2])!
+          .trigger('keydown', { key: 'ArrowRight' });
+        await nextTick();
+        expect(document.activeElement).toBe(items[3]);
+        wrapper.unmount();
+      });
+
+      it('clamps at the end of the bar instead of wrapping', async () => {
+        // A bar whose last item *is* a mega-menu trigger, so both the trigger and the panel sit at
+        // the end: the mock's own last item is a plain link.
+        const wrapper = mountBlock(
+          { ...resolved.data, links: resolved.data.links.slice(0, 2) },
+          { attachTo: document.body }
+        );
+        const ceramics = triggerFor(wrapper, 'Ceramics');
+        ceramics.element.focus();
+        await ceramics.trigger('keydown', { key: 'ArrowDown' });
+        await nextTick();
+        const links = panelLinks(wrapper, ceramics);
+        expect(document.activeElement).toBe(links[0]!.element);
+
+        await links[0]!.trigger('keydown', { key: 'ArrowRight' });
+        await nextTick();
+        expect(ceramics.attributes('aria-expanded')).toBe('true');
+        expect(document.activeElement).toBe(links[0]!.element);
+
+        ceramics.element.focus();
+        await ceramics.trigger('keydown', { key: 'ArrowRight' });
+        await nextTick();
+        expect(document.activeElement).toBe(ceramics.element);
+        expect(ceramics.attributes('aria-expanded')).toBe('true');
+        wrapper.unmount();
+      });
+
+      it('closes the panel once focus leaves the item, and keeps it while focus moves inside', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        await knitwear.trigger('click');
+        const links = panelLinks(wrapper, knitwear);
+
+        links[0]!.element.focus();
+        links[1]!.element.focus();
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+        // Leaving the trigger-and-panel pair — what Tab past the last link, Shift+Tab before the
+        // trigger and a click elsewhere all amount to. The panel closes; focus is left alone.
+        const brand = wrapper.get('a[data-eldra-header-focus]');
+        brand.element.focus();
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('false');
+        expect(document.activeElement).toBe(brand.element);
+        wrapper.unmount();
+      });
+
+      it('hands a hover-opened panel over to the keyboard once focus is inside it', async () => {
+        vi.useFakeTimers();
+        try {
+          const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+          const knitwear = triggerFor(wrapper, 'Knitwear');
+
+          await knitwear.trigger('mouseenter');
+          vi.advanceTimersByTime(160);
+          await nextTick();
+          expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+          // Focus has arrived inside what hover opened, so the pointer no longer owns it: closing
+          // on the way out would strand that focus on a link the panel has just hidden.
+          panelLinks(wrapper, knitwear)[0]!.element.focus();
+          await knitwear.trigger('mouseleave');
+          vi.advanceTimersByTime(300);
+          await nextTick();
+          expect(knitwear.attributes('aria-expanded')).toBe('true');
+
+          // Focus leaving is what closes it now.
+          wrapper.get('a[data-eldra-header-focus]').element.focus();
+          await nextTick();
+          expect(knitwear.attributes('aria-expanded')).toBe('false');
+          wrapper.unmount();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it("keeps the panel's links in the tab sequence, in DOM order right after the trigger", async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        await knitwear.trigger('click');
+        const links = panelLinks(wrapper, knitwear);
+
+        // No roving tabindex: this is a disclosure, not a menu.
+        for (const link of links) expect(link.attributes('tabindex')).toBeUndefined();
+        const order = wrapper.findAll('a, button').map((el) => el.element);
+        const at = order.indexOf(knitwear.element);
+        expect(at).toBeGreaterThanOrEqual(0);
+        expect(order.slice(at + 1, at + 1 + links.length)).toEqual(links.map((l) => l.element));
+        wrapper.unmount();
+      });
+    });
   });
 
   describe('drawer keyboard', () => {
