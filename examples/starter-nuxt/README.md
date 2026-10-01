@@ -141,6 +141,12 @@ Once set, `app/storefront/gateway.ts` posts `{ kind: 'subscribe' | 'sendMessage'
 'notifyBackInStock', ...input }` as JSON to that endpoint and treats a non-2xx response as a
 recoverable failure (the same retry-on-resubmit path each form's own spec proves).
 
+## Checkout
+
+`checkoutUrl` is also optional, set the same way (`runtimeConfig.public.checkoutUrl` or
+`NUXT_PUBLIC_CHECKOUT_URL`). Without it the cart still adds, updates and persists lines normally —
+it just has no Check out button to show, since there is nowhere to hand the cart off to.
+
 ## Restyling
 
 Two layers, both plain files:

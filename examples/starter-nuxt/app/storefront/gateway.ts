@@ -802,17 +802,30 @@ function createGatewayResult<T>(
 // Cart — createCartSession() for the remembered cart id, client.cart.* for persistence
 // ---------------------------------------------------------------------------------------------
 
+// A store with no configured checkout base URL has no checkout hand-off at all: `handoffUrl`
+// throws when neither this call nor the client's own options carry one, and that must never fail
+// a cart mutation (or cart initialisation, for a remembered cart id). Resolve to `null` instead of
+// calling it in that case.
+function resolveCheckoutUrl(
+  client: EldraClient,
+  checkoutBaseUrl: string | undefined,
+  cartId: string
+): string | null {
+  if (!checkoutBaseUrl) return null;
+  return client.checkout.handoffUrl({ cartId, checkoutUrl: checkoutBaseUrl });
+}
+
 function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | undefined): CartOps {
   const session = createCartSession();
   let cartId = session.read();
   const checkoutUrl = ref<string | null>(
-    cartId ? client.checkout.handoffUrl({ cartId, checkoutUrl: checkoutBaseUrl }) : null
+    cartId ? resolveCheckoutUrl(client, checkoutBaseUrl, cartId) : null
   );
 
   function remember(id: string): void {
     cartId = id;
     session.remember(id);
-    checkoutUrl.value = client.checkout.handoffUrl({ cartId: id, checkoutUrl: checkoutBaseUrl });
+    checkoutUrl.value = resolveCheckoutUrl(client, checkoutBaseUrl, id);
   }
 
   return {
