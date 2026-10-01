@@ -862,11 +862,14 @@ springs back — so without a message a refusal is indistinguishable from a cont
 reached the gateway — and `useStorefrontFeedback()` is the only place that turns one into a toast. No
 block writes its own copy, so the same refusal reads the same way wherever a shopper meets it. Form
 refusals stay inline next to the field that caused them (the discount code, the back-in-stock address,
-the contact fields), which is the Toast primitive's own rule. A successful **Add to cart** opens the
-hosted drawer when one is live (`cart.drawerAvailable`) — the cart itself is the clearest confirmation
-there is — and falls back to an "Added to cart" toast when none is. A refused add that named stock
-also flips the product block's own stock line to sold out, because the cart service has just proved it
-knows something the page's read did not.
+the contact fields), which is the Toast primitive's own rule. A successful **Add to cart** is confirmed by an
+"Added to cart" toast and never by opening the drawer — the design spec's own rule for the Drawer
+primitive, because a modal over the page takes the focus and the scroll position of a shopper who
+pressed one button while reading a product. The toast _offers_ the cart instead: its "View cart" action
+opens the hosted drawer when one is live (`cart.drawerAvailable` — a shopper asking to see the cart is
+the spec's exception) and links to `/cart` when none is. A refused add that named stock also flips the
+product block's own stock line to sold out, because the cart service has just proved it knows
+something the page's read did not.
 
 `/cart` stays, and stays a route: `app/pages/cart.vue` is theme **code**, not a page an author
 composes. A shopper's cart is their own session: there is nothing to lay out, and a site must not be

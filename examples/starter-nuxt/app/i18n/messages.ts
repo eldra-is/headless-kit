@@ -888,9 +888,11 @@ export interface Messages {
     removed: string;
     undo: string;
     /**
-     * The confirmation for an add made where no cart drawer is mounted — a page that has none, or
-     * a visitor whose JavaScript has not hydrated the header yet. With a drawer the add opens it
-     * instead: the cart itself is the strongest confirmation there is.
+     * The confirmation for a successful add. A toast, never the drawer — the spec's own rule for the
+     * Drawer primitive ("a Toast (not the drawer) to confirm 'Added to cart' unless the shopper asked
+     * to see the cart"), since a modal over the page takes the focus and the scroll position of a
+     * shopper who pressed one button. `viewCart` above is the toast's action: it opens the hosted
+     * drawer when one is live, and links to `/cart` when none is.
      */
     added: string;
     awayFromFree: string;

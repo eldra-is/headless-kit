@@ -385,11 +385,14 @@ watch(
  * is not feedback: it looks identical whether the line was added or the gateway refused it, which is
  * exactly how a 409 `CART_INSUFFICIENT_STOCK` became "Add to cart does nothing".
  *
- * **On success**, the hosted cart drawer opens (`app/app.vue` mounts one, and `drawerAvailable` says
- * whether it is live): the cart itself, with the new line in it, is the clearest confirmation there
- * is, and it is a click away from checking out. With no drawer — a page without one, or a visitor
- * whose header has not hydrated — there is a toast instead, which is what the Toast primitive's own
- * guidance asks for.
+ * **On success**, a toast — never the drawer. The design spec is explicit about this
+ * (`01-core-components.md` → "Drawer": "a Toast (not the drawer) to confirm 'Added to cart' unless
+ * the shopper asked to see the cart"), and the reason is the shopper's place on the page: they were
+ * reading a product, they pressed one button, and a modal `<dialog>` over everything takes their
+ * focus and their scroll position for a decision they did not ask to make. So the toast confirms it
+ * and *offers* the cart: its action opens the hosted drawer when one is live (`drawerAvailable` — the
+ * shopper asking to see the cart is exactly what the spec's exception is about), and is an ordinary
+ * link to `/cart` when none is, which is the same destination the header's bag has in that state.
  *
  * **On failure**, one shared toast through `useStorefrontFeedback()` (the sentence comes from the
  * gateway's `errorId`, not from this block), plus the one reaction a page can usefully have: a
@@ -418,11 +421,18 @@ async function primaryAction(): Promise<void> {
     feedback.report(failure, { id: 'product-add-to-cart' });
     return;
   }
-  if (cart.drawerAvailable.value) {
-    cart.drawerOpen.value = true;
-    return;
-  }
-  toast.show({ id: 'product-add-to-cart', title: t('cart.added') });
+  toast.show({
+    id: 'product-add-to-cart',
+    title: t('cart.added'),
+    action: cart.drawerAvailable.value
+      ? {
+          label: t('cart.viewCart'),
+          onActivate: () => {
+            cart.drawerOpen.value = true;
+          },
+        }
+      : { label: t('cart.viewCart'), href: '/cart' },
+  });
 }
 
 /* ------------------------------------------------------------------------- */

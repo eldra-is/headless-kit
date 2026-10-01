@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { computed, defineComponent, h, nextTick, ref } from 'vue';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
 import { EldraHttpError } from '@eldrajs/sdk';
-import { useToast } from '@eldrajs/ui';
+import { useToast, type ToastAction } from '@eldrajs/ui';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
@@ -162,6 +162,11 @@ function toasts(): Array<{ title: string; variant: string }> {
   return useToast().toasts.value.map((item) => ({ title: item.title, variant: item.variant }));
 }
 
+/** The one queued toast's action, as the `Toaster` would render it — a link or a button. */
+function toastAction(): ToastAction | undefined {
+  return useToast().toasts.value[0]?.action;
+}
+
 describe('add to cart feedback', () => {
   /**
    * The defect this guards: the block awaited `cart.add`, the button's `:loading` flipped back, and
@@ -249,10 +254,12 @@ describe('add to cart feedback', () => {
   });
 
   /**
-   * Success needs to be visible too. With a drawer mounted the add opens it — the cart itself, with
-   * the new line in it — and that is why there is no toast in this case.
+   * Success is confirmed by a toast and **not** by opening the drawer — the design spec's own rule for
+   * the Drawer primitive ("a Toast (not the drawer) to confirm 'Added to cart' unless the shopper
+   * asked to see the cart"): a modal over the page takes the focus and the scroll position of someone
+   * who pressed one button while reading a product.
    */
-  it('opens the hosted cart drawer when the add succeeds', async () => {
+  it('confirms a successful add with a toast, leaving the drawer closed', async () => {
     const storefront = storefrontWith();
     storefront.cart.drawerAvailable.value = true;
     const wrapper = await mountReady(mock, { storefront });
@@ -260,20 +267,39 @@ describe('add to cart feedback', () => {
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
-    expect(storefront.cart.drawerOpen.value).toBe(true);
     expect(storefront.cart.lines.value).toHaveLength(1);
-    expect(toasts()).toEqual([]);
+    expect(toasts()).toEqual([{ title: 'Added to cart', variant: 'success' }]);
+    expect(storefront.cart.drawerOpen.value).toBe(false);
   });
 
-  it('confirms with a toast instead when no drawer is mounted', async () => {
+  it('offers the cart from the toast, opening the hosted drawer when one is live', async () => {
+    const storefront = storefrontWith();
+    storefront.cart.drawerAvailable.value = true;
+    const wrapper = await mountReady(mock, { storefront });
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    // The shopper asking to see the cart is the spec's own exception — and the only thing that opens
+    // the drawer here.
+    const action = toastAction();
+    expect(action?.label).toBe('View cart');
+    expect(action).not.toHaveProperty('href');
+    (action as { onActivate: () => void }).onActivate();
+    expect(storefront.cart.drawerOpen.value).toBe(true);
+  });
+
+  it('offers /cart from the toast when no drawer is mounted', async () => {
     const storefront = storefrontWith();
     const wrapper = await mountReady(mock, { storefront });
 
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
-    expect(storefront.cart.drawerOpen.value).toBe(false);
     expect(toasts()).toEqual([{ title: 'Added to cart', variant: 'success' }]);
+    // The same destination the header's bag has without a live drawer.
+    expect(toastAction()).toEqual({ label: 'View cart', href: '/cart' });
+    expect(storefront.cart.drawerOpen.value).toBe(false);
   });
 });
 
