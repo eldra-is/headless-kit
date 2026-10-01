@@ -25,7 +25,8 @@ export interface StockLineInput {
    * `preorder` is what makes a product a back-order; `out` marks the whole product sold out.
    */
   stock: 'in' | 'low' | 'out' | 'preorder';
-  /** Real units of the *selected* variant, or `null` when the store does not track them. */
+  /** Real units of the variant the buy box is selling, or `null` when they are not known for it
+   *  (`StorefrontProduct.inventory`). */
   inventory: number | null;
   /** Whether the selected combination of options can be bought at all. */
   variantAvailable: boolean;

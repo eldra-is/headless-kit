@@ -40,23 +40,48 @@ describe('toStorefrontFailure', () => {
 });
 
 describe('failureMessageKey', () => {
-  it('says out of stock for a refusal about stock, however the gateway spells it', () => {
-    for (const body of [
-      { code: 'CONFLICT', errorId: 'CART_INSUFFICIENT_STOCK' },
-      { code: 'CART_INSUFFICIENT_STOCK' },
-      { code: 'INSUFFICIENT_STOCK' },
+  it('says out of stock for a refusal about stock', () => {
+    // What the cart service actually sends: the generic `code` every conflict carries, and the
+    // `errorId` that says which conflict it was.
+    const failure = toStorefrontFailure(
+      refusal(409, { code: 'CONFLICT', errorId: 'CART_INSUFFICIENT_STOCK' })
+    );
+    expect(failureMessageKey(failure)).toBe('storefront.outOfStock');
+    expect(isOutOfStock(failure)).toBe(true);
+
+    // `code` is read as a tolerance should a refusal ever arrive without the `errorId`.
+    const idless = toStorefrontFailure(refusal(409, { code: 'CART_INSUFFICIENT_STOCK' }));
+    expect(failureMessageKey(idless)).toBe('storefront.outOfStock');
+  });
+
+  it('says the item is gone for a product or variant that no longer resolves', () => {
+    for (const errorId of [
+      'CART_INVALID_PRODUCT',
+      'CART_INVALID_PRODUCT_ID',
+      'CART_INVALID_VARIANT_ID',
     ]) {
-      const failure = toStorefrontFailure(refusal(409, body));
-      expect(failureMessageKey(failure)).toBe('storefront.outOfStock');
-      expect(isOutOfStock(failure)).toBe(true);
+      const failure = toStorefrontFailure(refusal(409, { errorId }));
+      expect(failureMessageKey(failure)).toBe('storefront.unavailable');
+      // Specific, but not the stock case — the page must not flip its stock line for it.
+      expect(isOutOfStock(failure)).toBe(false);
     }
   });
 
-  it('says the item is gone for a product the shop no longer sells', () => {
-    const failure = toStorefrontFailure(refusal(409, { errorId: 'CART_INVALID_PRODUCT' }));
-    expect(failureMessageKey(failure)).toBe('storefront.unavailable');
-    // Specific, but not the stock case — the page must not flip its stock line for it.
-    expect(isOutOfStock(failure)).toBe(false);
+  it('says to reload when the cart, or the line in it, is gone', () => {
+    for (const errorId of ['CART_NOT_FOUND', 'CART_ITEM_NOT_FOUND']) {
+      expect(failureMessageKey(toStorefrontFailure(refusal(404, { errorId })))).toBe(
+        'storefront.cartOutOfDate'
+      );
+    }
+  });
+
+  it('says something generic for the cart service’s internal failures', () => {
+    // Real ids, and none of them anything a shopper can act on.
+    for (const errorId of ['CART_DB_UPDATE_ERROR', 'CART_VERSION_CONFLICT', 'CART_MARSHAL_ERROR']) {
+      expect(failureMessageKey(toStorefrontFailure(refusal(500, { errorId })))).toBe(
+        'storefront.mutationFailed'
+      );
+    }
   });
 
   it('falls back to the generic sentence for anything else, and for no failure at all', () => {

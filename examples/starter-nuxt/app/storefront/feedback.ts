@@ -31,17 +31,29 @@ export interface StorefrontFailure {
 }
 
 /** The gateway refused the add because the stock is not there. */
-export const INSUFFICIENT_STOCK = 'CART_INSUFFICIENT_STOCK';
+const INSUFFICIENT_STOCK = 'CART_INSUFFICIENT_STOCK';
 
 /**
- * The failures this theme has its own words for. Everything else — and every failure that never
- * reached the gateway — gets `storefront.mutationFailed`, because a sentence a shopper cannot act on
- * is worse than the plain one: naming an `errorId` at them is noise, and guessing a cause from a
- * status is how "check your spelling" ends up in front of someone whose connection dropped.
+ * The failures this theme has its own words for, by the `errorId` the cart service actually sends.
+ * Everything else — and every failure that never reached the gateway — gets
+ * `storefront.mutationFailed`, because a sentence a shopper cannot act on is worse than the plain
+ * one: naming an `errorId` at them is noise, and guessing a cause from a status is how "check your
+ * spelling" ends up in front of someone whose connection dropped. The cart service's remaining ids
+ * are about the store's own internals (database, marshalling, version conflicts) or about the
+ * discount field, which reports itself inline (`blocks/cart/parts/Summary.vue`); neither is something
+ * a shopper can do anything with.
  */
 const MESSAGE_BY_ERROR_ID: Record<string, MessageKey> = {
   [INSUFFICIENT_STOCK]: 'storefront.outOfStock',
+  // The product, or the variant of it, no longer resolves — discontinued since the page was built,
+  // or never buyable at all.
   CART_INVALID_PRODUCT: 'storefront.unavailable',
+  CART_INVALID_PRODUCT_ID: 'storefront.unavailable',
+  CART_INVALID_VARIANT_ID: 'storefront.unavailable',
+  // The cart, or the line in it, is not there any more: the shopper's page is describing a cart the
+  // store has moved on from, and reloading is the one thing that fixes it.
+  CART_NOT_FOUND: 'storefront.cartOutOfDate',
+  CART_ITEM_NOT_FOUND: 'storefront.cartOutOfDate',
 };
 
 /**
@@ -70,13 +82,11 @@ export function toStorefrontFailure(caught: unknown): StorefrontFailure {
 /** The sentence to show for a failure — `storefront.mutationFailed` unless it names a known cause. */
 export function failureMessageKey(failure: StorefrontFailure | null): MessageKey {
   if (failure === null) return 'storefront.mutationFailed';
-  // `code` is read as well as `errorId` because the two fields carry the same vocabulary in
-  // different gateway versions: one deployment answers `{ code: 'INSUFFICIENT_STOCK' }` where
-  // another answers `{ code: 'CONFLICT', errorId: 'CART_INSUFFICIENT_STOCK' }`.
+  // `code` is read only as a tolerance: today's gateway always sends an `errorId` beside the generic
+  // `code` (`CONFLICT`), and this costs nothing should a refusal ever arrive with only the one field.
   return (
     MESSAGE_BY_ERROR_ID[failure.errorId ?? ''] ??
     MESSAGE_BY_ERROR_ID[failure.code ?? ''] ??
-    MESSAGE_BY_ERROR_ID[`CART_${failure.code ?? ''}`] ??
     'storefront.mutationFailed'
   );
 }

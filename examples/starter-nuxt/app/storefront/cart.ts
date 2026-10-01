@@ -8,19 +8,13 @@ export interface CartStore {
   count: ComputedRef<number>;
   pending: Ref<boolean>;
   /**
-   * The last failure's own message, for anything that only needs to know *whether* the last
-   * mutation failed. Kept because that is all several callers want; `lastFailure` below is the same
-   * failure with the parts a caller has to branch on, and the two are always set and cleared
-   * together.
+   * The last *run* mutation's failure message, for the cart as a whole — a status, not a per-call
+   * answer. A caller asking "did **my** call fail?" reads the value its own call resolved with
+   * (every mutation below answers `StorefrontFailure | null`); reading this instead would describe
+   * whatever the cart did last, including another block's request and a call that never ran.
    */
   error: Ref<string | null>;
-  /**
-   * The last failure, structured (`app/storefront/feedback.ts`). A backend message is not something
-   * to show a shopper, and "it failed" is not enough to choose a sentence — an add refused for stock
-   * deserves "This item is out of stock." and nothing else can be told apart from a dropped
-   * request — so the store keeps the `errorId`/`code`/`status` the SDK threw rather than flattening
-   * them away. `null` while the last mutation succeeded.
-   */
+  /** The same failure, structured (`app/storefront/feedback.ts`), with the same caveat. */
   lastFailure: Ref<StorefrontFailure | null>;
   /**
    * The three facts about the cart drawer that two unrelated component trees — the header
@@ -58,12 +52,19 @@ export interface CartStore {
   drawerAvailable: Ref<boolean>;
   drawerHosted: Ref<boolean>;
   lastRemoved: Ref<{ line: StorefrontCartLine; index: number } | null>;
-  add(i: CartAddInput): Promise<void>;
-  setQuantity(lineId: string, quantity: number): Promise<void>;
-  remove(lineId: string): Promise<void>;
-  undoRemove(): Promise<void>;
+  /**
+   * Every mutation resolves with **its own** outcome: `null` when it succeeded, or when there was
+   * nothing to do (a line that is already gone, an undo with nothing to restore), and the failure
+   * when the backend refused it. That is what a block reports to the shopper
+   * (`app/composables/useStorefrontFeedback.ts`) — a store-wide field read after the fact cannot say
+   * whose call it describes, and says nothing at all about a call that returned early.
+   */
+  add(i: CartAddInput): Promise<StorefrontFailure | null>;
+  setQuantity(lineId: string, quantity: number): Promise<StorefrontFailure | null>;
+  remove(lineId: string): Promise<StorefrontFailure | null>;
+  undoRemove(): Promise<StorefrontFailure | null>;
   applyDiscount(code: string): Promise<StorefrontAck>;
-  removeDiscount(code: string): Promise<void>;
+  removeDiscount(code: string): Promise<StorefrontFailure | null>;
   checkoutUrl: ComputedRef<string | null>;
 }
 
@@ -115,11 +116,13 @@ export function createCartStore(ops: CartOps): CartStore {
   const error = ref<string | null>(null);
   const lastFailure = ref<StorefrontFailure | null>(null);
 
-  /** Every `catch` in this file, so no path can record one half of a failure and not the other. */
-  function fail(caught: unknown): void {
+  /** Every `catch` in this file, so no path can record one half of a failure and not the other —
+   *  and the one place the caller's own answer comes from. */
+  function fail(caught: unknown): StorefrontFailure {
     const failure = toStorefrontFailure(caught);
     lastFailure.value = failure;
     error.value = failure.message;
+    return failure;
   }
 
   /** Every mutation's start: the previous failure is this mutation's history, not its result. */
@@ -140,7 +143,7 @@ export function createCartStore(ops: CartOps): CartStore {
 
   let inFlight = 0;
 
-  async function run(task: () => Promise<CartSnapshot>): Promise<void> {
+  async function run(task: () => Promise<CartSnapshot>): Promise<StorefrontFailure | null> {
     inFlight += 1;
     pending.value = true;
     clearFailure();
@@ -148,8 +151,9 @@ export function createCartStore(ops: CartOps): CartStore {
       const snapshot = await task();
       lines.value = snapshot.lines;
       totals.value = snapshot.totals;
+      return null;
     } catch (caught) {
-      fail(caught);
+      return fail(caught);
     } finally {
       inFlight -= 1;
       if (inFlight === 0) pending.value = false;
@@ -177,14 +181,16 @@ export function createCartStore(ops: CartOps): CartStore {
     setQuantity: (lineId, quantity) => run(() => ops.setQuantity(lineId, quantity)),
     async remove(lineId) {
       const index = lines.value.findIndex((line) => line.id === lineId);
-      if (index === -1) return;
+      // Already gone — nothing was asked of the backend, so nothing failed.
+      if (index === -1) return null;
       const line = lines.value[index]!;
-      await run(() => ops.remove(lineId));
-      if (error.value === null) lastRemoved.value = { line, index };
+      const failure = await run(() => ops.remove(lineId));
+      if (failure === null) lastRemoved.value = { line, index };
+      return failure;
     },
     async undoRemove() {
       const removed = lastRemoved.value;
-      if (!removed) return;
+      if (!removed) return null;
       // Reinsert at the exact index it was removed from — trusting a re-`add()`'s own returned
       // line order would not guarantee that, so this half is local and synchronous.
       lines.value = [
@@ -205,8 +211,9 @@ export function createCartStore(ops: CartOps): CartStore {
         // Only totals are trusted from the backend here — `lines` stays the locally-restored
         // order above.
         totals.value = snapshot.totals;
+        return null;
       } catch (caught) {
-        fail(caught);
+        return fail(caught);
       } finally {
         inFlight -= 1;
         if (inFlight === 0) pending.value = false;

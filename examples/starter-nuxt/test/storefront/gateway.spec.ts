@@ -751,7 +751,7 @@ describe('createGatewayStorefront', () => {
       expect(requests).toEqual([[{ variantId: 'var-m' }, { variantId: 'var-l' }]]);
     });
 
-    it('fills inventory and keeps the first in-stock variant as the one to buy', async () => {
+    it('keeps the first in-stock variant as the one to buy', async () => {
       const { client } = productClient({
         items: [
           { variantId: 'var-m', available: true, allowBackorder: false, availableQuantity: 2 },
@@ -760,8 +760,36 @@ describe('createGatewayStorefront', () => {
       });
       const product = await read(client);
       expect(product?.stock).toBe('in');
-      expect(product?.inventory).toBe(2);
       expect(product?.variantId).toBe('var-m');
+    });
+
+    /**
+     * `inventory` is the count of the variant the buy box is *selling*, and the mapping can only
+     * speak for the one it chose — not for whichever the shopper picks in the picker. So a product
+     * with options reports no count rather than labelling M's two units "only 2 left in L"; a product
+     * with one thing to buy reports it, which is where the low-stock line comes from.
+     */
+    it('reports a unit count only when there is one variant it can belong to', async () => {
+      const withOptions = productClient({
+        items: [
+          { variantId: 'var-m', available: true, allowBackorder: false, availableQuantity: 2 },
+          { variantId: 'var-l', available: true, allowBackorder: false, availableQuantity: 9 },
+        ],
+      });
+      expect((await read(withOptions.client))?.inventory).toBeNull();
+
+      const single = productClient(
+        {
+          items: [
+            { variantId: 'var-only', available: true, allowBackorder: false, availableQuantity: 2 },
+          ],
+        },
+        { variants: [{ id: 'var-only', status: 'ACTIVE', price: 96 }] }
+      );
+      const product = await read(single.client);
+      expect(product?.inventory).toBe(2);
+      expect(product?.variantId).toBe('var-only');
+      expect(product?.stock).toBe('in');
     });
 
     it('reads sold out for a published variant with nothing on the shelf', async () => {
@@ -773,7 +801,6 @@ describe('createGatewayStorefront', () => {
       });
       const product = await read(client);
       expect(product?.stock).toBe('out');
-      expect(product?.inventory).toBe(0);
       // Both option values are unbuyable, so the pickers say so too (spec: struck through, ", sold
       // out" in the accessible name) instead of offering a choice that cannot be fulfilled.
       expect(product?.options[0]?.values.map((value) => value.available)).toEqual([false, false]);
@@ -789,7 +816,6 @@ describe('createGatewayStorefront', () => {
       const product = await read(client);
       expect(product?.variantId).toBe('var-l');
       expect(product?.stock).toBe('in');
-      expect(product?.inventory).toBe(5);
       expect(product?.options[0]?.values.map((value) => value.available)).toEqual([false, true]);
     });
 

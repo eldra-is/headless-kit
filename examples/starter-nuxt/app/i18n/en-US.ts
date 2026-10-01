@@ -107,6 +107,7 @@ export const enUS = {
     mutationFailed: 'Something went wrong. Please try again.',
     outOfStock: 'This item is out of stock.',
     unavailable: 'This item is no longer available.',
+    cartOutOfDate: 'Your cart is out of date. Reload the page and try again.',
     unresolvedCollectionLabel: 'Publish to load products',
     unresolvedCollectionHelp:
       'The collection is picked. Its products appear here once this page is published.',

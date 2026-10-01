@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
+import { EldraHttpError } from '@eldrajs/sdk';
+import { useToast } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Summary from '../parts/Summary.vue';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront, DEMO_CART_LINES } from '../../../app/storefront/demo';
+import { toStorefrontFailure } from '../../../app/storefront/feedback';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
 
 /** The Northwind cart the spec's page story shows: $210.00 over three lines, over the $80
@@ -14,7 +17,14 @@ const SUBTOTAL = '$210.00';
 const trackedWrappers: VueWrapper[] = [];
 afterEach(() => {
   for (const wrapper of trackedWrappers.splice(0)) wrapper.unmount();
+  // `useToast` is a module-level queue in `@eldrajs/ui`; the single app-wide `Toaster` renders it.
+  useToast().clear();
 });
+
+/** What the app's one `Toaster` would render for this summary's own actions. */
+function toasts(): Array<{ title: string; variant: string }> {
+  return useToast().toasts.value.map((item) => ({ title: item.title, variant: item.variant }));
+}
 
 async function mountSummary(
   props: Partial<{ showDiscount: boolean; showPaymentIcons: boolean; note: string }> = {}
@@ -118,6 +128,35 @@ describe('cart summary', () => {
 
       expect(storefront.cart.totals.value?.discount ?? null).toBeNull();
       expect(wrapper.find('input[name="discountCode"]').exists()).toBe(true);
+    });
+
+    /**
+     * Taking an applied code off is a cart mutation, and the chip has no field to annotate: the
+     * inline alert above belongs to the entry form, which is not even mounted while a code is
+     * applied. So a refusal here is reported the way every other cart mutation's is. Without it the
+     * shopper presses remove and the page is byte-identical to a button wired to nothing.
+     */
+    it('reports a refused removal in a toast, keeping the chip', async () => {
+      const { wrapper, storefront } = await mountSummary();
+      await applyCode(wrapper, 'WINTER15');
+      storefront.cart.removeDiscount = async () =>
+        toStorefrontFailure(
+          new EldraHttpError({ status: 409, statusText: 'Conflict' } as Response, {
+            code: 'CONFLICT',
+            errorId: 'CART_NOT_FOUND',
+          })
+        );
+
+      await wrapper.get('[role="status"] button').trigger('click');
+      await flushPromises();
+
+      expect(toasts()).toEqual([
+        { title: 'Your cart is out of date. Reload the page and try again.', variant: 'danger' },
+      ]);
+      // The code is still on the cart, so the chip — not the entry field — is what is rendered.
+      expect(wrapper.get('[role="status"]').text()).toContain('WINTER15');
+      expect(wrapper.find('input[name="discountCode"]').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
     it('marks a refused code invalid and explains it in an alert linked by aria-describedby', async () => {

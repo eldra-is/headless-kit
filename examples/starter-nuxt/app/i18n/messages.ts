@@ -241,8 +241,13 @@ export interface Messages {
     mutationFailed: string;
     /** The gateway refused for stock (`CART_INSUFFICIENT_STOCK`). */
     outOfStock: string;
-    /** The gateway no longer sells this at all (`CART_INVALID_PRODUCT`). */
+    /** The product or variant no longer resolves (`CART_INVALID_PRODUCT` and its siblings). */
     unavailable: string;
+    /**
+     * The cart, or the line in it, is gone (`CART_NOT_FOUND`, `CART_ITEM_NOT_FOUND`): the page is
+     * describing a cart the store has moved on from, so it names the one thing that fixes it.
+     */
+    cartOutOfDate: string;
     orderStatus: {
       processing: string;
       shipped: string;

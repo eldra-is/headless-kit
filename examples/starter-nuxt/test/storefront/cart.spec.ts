@@ -276,6 +276,68 @@ describe('createCartStore', () => {
       });
     });
 
+    /**
+     * The answer a caller branches on is the one its *own* call resolved with. A store-wide field
+     * read after awaiting cannot say whose call it describes, and says nothing at all about a call
+     * that returned early without asking the backend anything — which is how a refused undo used to
+     * make a second press of the same (now empty) Undo button re-raise a refusal already shown.
+     */
+    it('resolves the failure of the call that failed, and null from a no-op', async () => {
+      const a = line({ id: 'a' });
+      const store = createCartStore(
+        fakeOps({
+          init: async () => ({ lines: [a], totals: totalsFor([a]) }),
+          remove: async () => emptySnapshot(),
+          add: async () => {
+            throw outOfStock;
+          },
+        })
+      );
+      await settle();
+
+      // A line that is not in the cart asks the backend nothing, so nothing failed.
+      expect(await store.remove('not-a-line')).toBeNull();
+      expect(await store.remove('a')).toBeNull();
+
+      const refused = await store.undoRemove();
+      expect(refused?.errorId).toBe('CART_INSUFFICIENT_STOCK');
+      // …and a second press has nothing left to restore, so it reports nothing — even though the
+      // store-wide fields still remember the refusal that did happen.
+      expect(await store.undoRemove()).toBeNull();
+      expect(store.lastFailure.value?.errorId).toBe('CART_INSUFFICIENT_STOCK');
+    });
+
+    it('resolves the failure from every other mutation too', async () => {
+      const a = line({ id: 'a' });
+      const store = createCartStore(
+        fakeOps({
+          init: async () => ({ lines: [a], totals: totalsFor([a]) }),
+          add: async () => {
+            throw outOfStock;
+          },
+          setQuantity: async () => {
+            throw outOfStock;
+          },
+          remove: async () => {
+            throw outOfStock;
+          },
+          removeDiscount: async () => {
+            throw outOfStock;
+          },
+        })
+      );
+      await settle();
+
+      expect((await store.add({ productId: 'p1', variantId: 'v1', quantity: 1 }))?.status).toBe(
+        409
+      );
+      expect((await store.setQuantity('a', 2))?.status).toBe(409);
+      expect((await store.remove('a'))?.status).toBe(409);
+      expect((await store.removeDiscount('WINTER15'))?.status).toBe(409);
+      // A refused removal leaves nothing to undo: the line is still in the cart.
+      expect(store.lastRemoved.value).toBeNull();
+    });
+
     it('is cleared by the next mutation, together with error', async () => {
       let fails = true;
       const store = createCartStore(

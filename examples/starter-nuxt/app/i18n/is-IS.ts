@@ -108,6 +108,7 @@ export const isIS = {
     mutationFailed: 'Eitthvað fór úrskeiðis. Prófaðu aftur.',
     outOfStock: 'Þessi vara er ekki til á lager.',
     unavailable: 'Þessi vara er ekki lengur í boði.',
+    cartOutOfDate: 'Karfan þín er ekki uppfærð. Endurnýjaðu síðuna og prófaðu aftur.',
     unresolvedCollectionLabel: 'Birtu síðuna til að hlaða vörum',
     unresolvedCollectionHelp:
       'Vörulistinn er valinn. Vörurnar úr honum birtast hér þegar síðan hefur verið birt.',

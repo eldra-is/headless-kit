@@ -103,8 +103,8 @@ function removeLabel(line: StorefrontCartLine): string {
  */
 async function onQuantity(line: StorefrontCartLine, quantity: number): Promise<void> {
   if (quantity === line.quantity) return;
-  await cart.setQuantity(line.id, quantity);
-  if (cart.lastFailure.value !== null) feedback.report(cart.lastFailure.value, { id: 'cart-line' });
+  const failure = await cart.setQuantity(line.id, quantity);
+  if (failure !== null) feedback.report(failure, { id: 'cart-line' });
 }
 
 /** The first control of the row belonging to `lineId` — its title link, or whatever else that row
@@ -120,9 +120,9 @@ function focusLine(lineId: string | undefined): boolean {
 
 async function onRemove(line: StorefrontCartLine, index: number): Promise<void> {
   emit('removing');
-  await cart.remove(line.id);
-  if (cart.lastFailure.value !== null) {
-    feedback.report(cart.lastFailure.value, { id: 'cart-line' });
+  const failure = await cart.remove(line.id);
+  if (failure !== null) {
+    feedback.report(failure, { id: 'cart-line' });
     return;
   }
   toast.show({
@@ -139,12 +139,21 @@ async function onRemove(line: StorefrontCartLine, index: number): Promise<void> 
   if (!focusLine(remaining[index]?.id)) focusLine(remaining[index - 1]?.id);
 }
 
-/** Undo puts the line back locally and re-adds it in the background (`app/storefront/cart.ts`), so a
- *  refusal there — the shop sold the last one in between — is the one the shopper is least likely to
- *  notice on their own: the row is already back on screen. */
+/**
+ * Undo puts the line back locally and re-adds it in the background (`app/storefront/cart.ts`), so a
+ * refusal there — the shop sold the last one in between — is the one the shopper is least likely to
+ * notice on their own: the row is already back on screen.
+ *
+ * The removal toast goes with it. It is the toast whose own button was just pressed, so it is
+ * still standing (activating an action does not dismiss it, and its timer is paused while focus is
+ * inside the stack), and its Undo now has nothing left to restore. Left beside the refusal it would
+ * show the shopper two contradictory statements about one line, and a button that does nothing.
+ */
 async function undoRemove(): Promise<void> {
-  await cart.undoRemove();
-  if (cart.lastFailure.value !== null) feedback.report(cart.lastFailure.value, { id: 'cart-line' });
+  const failure = await cart.undoRemove();
+  if (failure === null) return;
+  toast.dismiss('cart-line-removed');
+  feedback.report(failure, { id: 'cart-line' });
 }
 
 /** Spec Layout, "Line item": the two-row compact grid, one row from 48rem of container width. */

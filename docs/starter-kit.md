@@ -520,7 +520,9 @@ nothing on the shelf reads sold out rather than "In stock, ready to ship". The c
 store that tracks no stock, an answer about no variant, a service that is down all leave the page on
 the variant's published status, silently, because a shopper cannot act on "we could not reach
 inventory". Product **cards** stay on status: availability is per variant and a card carries none, so
-a grid would cost one detail read per tile. A batch is every result registered before it goes out, and there can be more than one:
+a grid would cost one detail read per tile.
+
+A batch is every result registered before it goes out, and there can be more than one:
 blocks are lazily imported components, so a block whose chunk arrives after the app has mounted
 opens the next batch rather than being left out of the only one — which is what used to happen,
 silently, to the carousel on a product page. What is once per page load is the **question**, not the
@@ -529,7 +531,16 @@ a block that arrives in a later burst showing products an earlier one already co
 and folds in the answer already on its way. Two blocks over the same collection therefore cost one
 request and can never paint two different prices; two results needing the same detail read share
 that request too; and a result that somehow registers twice takes part once. Without that the
-deployed pages issued every read twice, ~35 ms apart, with identical ids. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
+deployed pages issued every read twice, ~35 ms apart, with identical ids.
+
+The one thing that is **not** shared is the detail read itself: a result that reads for itself never
+takes the batch's answer, because the products list the batch reads from carries no inventory, and
+the product page's stock line is the one thing that needs it. So a page showing the same product in a
+card and in the buy box makes both reads — one extra request, and the right trade: folding the list's
+answer into the buy box would leave it on the stock the page was built with, which is the whole
+reason the refresh exists.
+
+While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
 (`'price' | 'stock'`) and the prerendered value stays on screen; a failed refresh keeps the value
 and clears the set — a page never regresses to an error state for something it can already show.
 A result created _after_ hydration reads the build's answer when there is one and loads live when

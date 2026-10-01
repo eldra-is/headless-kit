@@ -837,9 +837,9 @@ describe('prerendered commerce data on the generated static site', () => {
     // re-read a moment ago, and the refresher answers for a product once per page load, client
     // navigations included. The product page itself is not one of those answers: a result that
     // reads for itself is never satisfied by a batch (`app/storefront/refresh.ts`), because the
-    // batch cannot answer the variant-level inventory this page's stock line is about. Everything else the page shows came out of the payload Nuxt loaded for
-    // the route: no `/cms/` read to resolve it, and nothing belonging to the collection page being
-    // left.
+    // batch cannot answer the variant-level inventory this page's stock line is about.
+    // Everything else the page shows came out of the payload Nuxt loaded for the route: no `/cms/`
+    // read to resolve it, and nothing belonging to the collection page being left.
     expect(visited.requests).toEqual([
       `/catalog/v1/products/${PRODUCT_HANDLE}`,
       '/inventory/v1/stock/availability',

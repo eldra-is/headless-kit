@@ -291,12 +291,6 @@ const variantAvailable = computed(() =>
 /* ------------------------------------------------------------------------- */
 
 /**
- * `StorefrontProduct.inventory` is the theme's one inventory number (see
- * `app/storefront/types.ts`): a store that tracks units per variant maps the *selected* variant's
- * count into it, and one that tracks nothing at all sends `null`, which is what keeps "only N left"
- * off a made-to-order product.
- */
-/**
  * The cart refused an add for stock. The product read is the page's source of truth for stock
  * (`gateway.ts` reads real inventory for it), but the cart service is the one that actually
  * commits it: when the two disagree, the cart has just proved it knows something the read did not,
@@ -314,6 +308,13 @@ watch([() => productResult.data.value, variantLabel], () => {
   refusedForStock.value = false;
 });
 
+/**
+ * `StorefrontProduct.inventory` is the theme's one inventory number (see `app/storefront/types.ts`):
+ * the count of the variant this page would sell, or `null` from a store that tracks no units — and
+ * also `null` whenever the source cannot say which variant a count belongs to, since "only 2 left in
+ * L" about M's two units is worse than no line at all. Either way `null` is what keeps "only N left"
+ * off a made-to-order product, and off a product whose count would be guesswork.
+ */
 const stockLine = computed(() =>
   deriveStockLine({
     stock: refusedForStock.value ? 'out' : (product.value?.stock ?? 'in'),
@@ -409,13 +410,12 @@ async function primaryAction(): Promise<void> {
   // `variantId` empty rather than inventing one from the product's own id.
   if (buyable === null || buyable.variantId === '') return;
   const cart = storefront.cart;
-  await cart.add({
+  const failure = await cart.add({
     productId: buyable.productId,
     variantId: buyable.variantId,
     quantity: quantity.value,
   });
 
-  const failure = cart.lastFailure.value;
   if (failure !== null) {
     if (isOutOfStock(failure)) refusedForStock.value = true;
     feedback.report(failure, { id: 'product-add-to-cart' });

@@ -346,6 +346,9 @@ function mapProductDetails(
     variants.find((variant) => variantBuyable(variant, stock)) ??
     variants.find((variant) => variant.status === 'ACTIVE') ??
     variants[0];
+  /** The variant whose unit count is unambiguously *the* count: there is only one thing to buy. */
+  const countableVariant =
+    variants.length === 1 || (raw.options ?? []).length === 0 ? firstAvailable : undefined;
   const prices = variants.map((variant) => variant.price);
   const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
   const images = (raw.mediaLinks ?? [])
@@ -383,9 +386,18 @@ function mapProductDetails(
       const text = raw.description?.text;
       return typeof text === 'string' ? text : '';
     })(),
-    // Real units of the variant the page shows, or `null` when inventory said nothing about it —
-    // which is what keeps "only N left" off a store that tracks no units (spec States, Low stock).
-    inventory: firstAvailable ? (stock?.get(firstAvailable.id)?.availableQuantity ?? null) : null,
+    // Real units — but only when they cannot be mis-attributed. `StorefrontProduct.inventory` is
+    // *the selected variant's* count (see its own declaration), and the one variant this mapping can
+    // speak for is `firstAvailable`: the variant an add sends, which is not necessarily the one the
+    // shopper has picked in the buy box. So a product with options and more than one variant reports
+    // no count at all rather than labelling M's two units "only 2 left in L" — the same `null` a
+    // store that tracks no units sends, which simply leaves the low-stock line off (spec States, Low
+    // stock). Reporting per-variant counts means carrying every variant's availability on the product
+    // and resolving the shopper's selection against it, which is also what the buy box would need to
+    // add the variant it is showing rather than the first buyable one.
+    inventory: countableVariant
+      ? (stock?.get(countableVariant.id)?.availableQuantity ?? null)
+      : null,
     stock: variantStock(firstAvailable, stock),
     available: raw.status === 'ACTIVE',
     productId: raw.id,

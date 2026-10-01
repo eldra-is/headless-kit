@@ -76,6 +76,13 @@ export interface StorefrontProduct extends StorefrontProductListItem {
   options: StorefrontProductOption[];
   categoryTrail: Array<{ label: string; href: string }>;
   description: string;
+  /**
+   * Real units of the variant this page would sell — `variantId` above — or `null`. `null` covers two
+   * different stores and one honest refusal: a store that tracks no units at all, a read that could
+   * not reach inventory, and a product whose count cannot be attributed to one variant (a source that
+   * knows M has two left but cannot say the shopper is looking at M sends none, because "only 2 left
+   * in L" is worse than no line at all). Either way the low-stock line is simply left off.
+   */
   inventory: number | null;
   shipsBy?: string | null;
 }

@@ -66,13 +66,18 @@ afterEach(() => {
 
 async function mountCart(
   data: Record<string, unknown>,
-  options: { cartLines?: StorefrontCartLine[]; refuseMutations?: unknown } = {}
+  options: {
+    cartLines?: StorefrontCartLine[];
+    refuseMutations?: unknown;
+    /** Refuse only the re-add behind Undo, so the removal itself still succeeds. */
+    refuseOnly?: 'add';
+  } = {}
 ): Promise<{ wrapper: VueWrapper; storefront: StorefrontSource }> {
   const lines = options.cartLines ?? DEMO_CART_LINES;
   const storefront =
     options.refuseMutations === undefined
       ? createDemoStorefront({ cartLines: lines })
-      : refusingStorefront(lines, options.refuseMutations);
+      : refusingStorefront(lines, options.refuseMutations, options.refuseOnly);
   const base = mountOptions({ entry: { id: 'cart', data } });
   const wrapper = mount(Harness, {
     props: { entry: { id: 'cart', data }, storefront },
@@ -119,22 +124,33 @@ function focusableNames(root: Element): string[] {
  * ops cannot do, and the one state these controls have nothing of their own to show: the stepper
  * springs back and the row stays put, exactly as if the button did nothing.
  */
-function refusingStorefront(lines: StorefrontCartLine[], thrown: unknown): StorefrontSource {
-  const source = createDemoStorefront({ cartLines: lines });
+function refusingStorefront(
+  lines: StorefrontCartLine[],
+  thrown: unknown,
+  only?: 'add'
+): StorefrontSource {
+  let held = lines.map((line) => ({ ...line }));
   const snapshot = (): CartSnapshot => ({
-    lines: lines.map((line) => ({ ...line })),
+    lines: held.map((line) => ({ ...line })),
     totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
   });
   const refuse = async (): Promise<never> => {
     throw thrown;
   };
+  const source = createDemoStorefront({ cartLines: lines });
   return {
     ...source,
     cart: createCartStore({
       init: async () => snapshot(),
       add: refuse,
-      setQuantity: refuse,
-      remove: refuse,
+      setQuantity: only === 'add' ? async () => snapshot() : refuse,
+      remove:
+        only === 'add'
+          ? async (lineId) => {
+              held = held.filter((line) => line.id !== lineId);
+              return snapshot();
+            }
+          : refuse,
       applyDiscount: refuse,
       removeDiscount: refuse,
       checkoutUrl: ref<string | null>(null),
@@ -403,6 +419,43 @@ describe('cart block', () => {
 
       expect(alertToast()?.textContent).toContain('This item is out of stock.');
       expect(storefront.cart.lines.value[0]?.quantity).toBe(1);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /**
+     * The removal toast's own Undo was just pressed and the shop refused the re-add. That toast is
+     * still standing (activating an action does not dismiss it, and its timer is paused while focus
+     * is inside the stack) and its button now has nothing left to restore, so left beside the
+     * refusal it would put two contradictory statements about one line to the shopper.
+     */
+    it('replaces the removal toast when the undo it offered is refused', async () => {
+      const { wrapper, storefront } = await mountCart(mock, {
+        refuseOnly: 'add',
+        refuseMutations: new EldraHttpError({ status: 409, statusText: 'Conflict' } as Response, {
+          code: 'CONFLICT',
+          errorId: 'CART_INSUFFICIENT_STOCK',
+        }),
+      });
+      await openDrawer(wrapper);
+
+      await wrapper
+        .get('dialog [aria-label="Remove Merino crew sweater, Oat / M"]')
+        .trigger('click');
+      await flushPromises();
+      await nextTick();
+      expect(toastRoot()?.textContent).toContain('Merino crew sweater removed');
+
+      toastRoot()!.querySelector<HTMLElement>('[data-part="action"]')!.click();
+      await flushPromises();
+      await nextTick();
+
+      expect(alertToast()?.textContent).toContain('This item is out of stock.');
+      expect(toastRoot()?.textContent ?? '').not.toContain('removed');
+      // The line is back on screen — the restore is local and deliberate — which is exactly why the
+      // shopper has to be told the shop could not take it back.
+      expect(storefront.cart.lines.value.map((line) => line.title)).toContain(
+        'Merino crew sweater'
+      );
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
