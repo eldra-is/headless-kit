@@ -9,6 +9,11 @@ platform repository.
 
 ## Unreleased
 
+- `EldraHttpError` now carries the problem body's `errorId` alongside `code`. `code` names the class
+  of failure (`CONFLICT`, `VALIDATION`), which several unrelated refusals share; `errorId` names
+  which one it was (`CART_INSUFFICIENT_STOCK`), so a storefront can say "out of stock" for a refused
+  cart add instead of a generic failure.
+
 - Fix: the `filter` query parameter is now sent as one `filter=` entry per token instead of a
   single comma-joined one. It is the one list parameter the gateway declares repeatable
   (`explode: true`), and a filter token's own value may contain commas (`slug:in:a,b`), so joining

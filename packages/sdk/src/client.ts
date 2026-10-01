@@ -65,8 +65,17 @@ export class EldraHttpError extends Error {
   readonly status: number;
   readonly statusText: string;
   readonly body: unknown;
-  /** The gateway's problem `code`, such as `INSUFFICIENT_STOCK`, when the body carried one. */
+  /** The gateway's problem `code`, such as `CONFLICT`, when the body carried one. */
   readonly code: string | undefined;
+  /**
+   * The gateway's problem `errorId` — the stable identifier for *which* failure this is, such as
+   * `CART_INSUFFICIENT_STOCK`. `code` names the class of failure (`CONFLICT`, `VALIDATION`) and
+   * several unrelated refusals share one, so a caller that reacts to a specific cause has to read
+   * this: a 409 on an add is `{ code: 'CONFLICT', errorId: 'CART_INSUFFICIENT_STOCK' }`, and
+   * telling it apart from any other conflict is what lets a storefront say "out of stock" rather
+   * than "something went wrong".
+   */
+  readonly errorId: string | undefined;
 
   constructor(response: Response, body: unknown) {
     super(`Web Studio request failed with ${response.status} ${response.statusText}`);
@@ -74,14 +83,16 @@ export class EldraHttpError extends Error {
     this.status = response.status;
     this.statusText = response.statusText;
     this.body = body;
-    this.code = problemCode(body);
+    this.code = problemString(body, 'code');
+    this.errorId = problemString(body, 'errorId');
   }
 }
 
-function problemCode(body: unknown): string | undefined {
-  if (body && typeof body === 'object' && 'code' in body) {
-    const code = (body as { code?: unknown }).code;
-    return typeof code === 'string' ? code : undefined;
+/** One field of an RFC 9457 problem body, when the body is an object that carries it as a string. */
+function problemString(body: unknown, key: 'code' | 'errorId'): string | undefined {
+  if (body && typeof body === 'object' && key in body) {
+    const value = (body as Record<string, unknown>)[key];
+    return typeof value === 'string' ? value : undefined;
   }
   return undefined;
 }
