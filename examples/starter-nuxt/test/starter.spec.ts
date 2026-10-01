@@ -519,6 +519,25 @@ describe('starter theme', () => {
     const notFound = readFileSync(output('404.html'), 'utf8');
     expect(notFound).toContain('data-eldra-not-found');
     expect(notFound).toContain('href="/"');
+
+    // `/cart` is the theme's own route (`app/pages/cart.vue`), the destination the header's bag
+    // names whenever no cart drawer is mounted. Nothing gateway-driven ever lists it, so it is
+    // prerendered by name from `nuxt.config.ts`; without that file a static host answers 404 and
+    // the bag lands every shopper on the not-found shell, whatever the app would have rendered.
+    // Asserted on the *credential-free* build on purpose: a cart route that needed a gateway to
+    // exist would be no route at all.
+    const cart = readFileSync(output(join('cart', 'index.html')), 'utf8');
+    expect(cart).not.toContain('data-eldra-not-found');
+    expect(cart).toContain('Your cart');
+    expect(cart).toContain('Your cart is empty');
+    // The prerendered route list the deployed site reads back at runtime
+    // (`@eldrajs/theme-nuxt`'s `staticRoutes.ts`) has to carry it too.
+    const metaDir = output(join('_nuxt', 'builds', 'meta'));
+    const [metaFile] = readdirSync(metaDir);
+    const buildMeta = JSON.parse(readFileSync(join(metaDir, metaFile ?? ''), 'utf8')) as {
+      prerendered: string[];
+    };
+    expect(buildMeta.prerendered).toContain('/cart');
   }, 360_000);
 
   it('supports an exact authenticated Studio origin override', async () => {

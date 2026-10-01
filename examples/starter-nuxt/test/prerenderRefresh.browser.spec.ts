@@ -746,6 +746,39 @@ describe('prerendered commerce data on the generated static site', () => {
   });
 
   /**
+   * The header's bag, on a generated site, in a real browser — the defect an operator reported as
+   * "the cart does not seem to work, it just redirects to /cart".
+   *
+   * The bag is an anchor to `/cart` whenever no cart drawer is mounted, and `/cart` was a path
+   * nothing in the theme answered: the site's catch-all asked the gateway for a CMS page with that
+   * slug, found none, and the shopper landed on the not-found shell — on the deployed site, on the
+   * host's own 404. Only this spec can see it end to end: the bag is in a prerendered header, the
+   * click is a real router navigation, and the destination has to exist as a file in the artifact
+   * before any of it means anything.
+   */
+  it('lands on a rendered cart when the header bag is clicked', async () => {
+    // The file first: `/cart` is prerendered by name (`nuxt.config.ts`), so a static host has
+    // something to serve for it. Without this the navigation below would still "work" in the
+    // router while the deployed site answered 404.
+    const prerendered = staticHtml('/cart');
+    expect(prerendered).toContain(enUS.cart.emptyFallbackTitle);
+    expect(prerendered).not.toContain('data-eldra-not-found');
+
+    const visited = await navigateFrom(HOME_PAGE_PATH, async (page) => {
+      await page.locator('header a[href="/cart"]').first().click();
+    });
+
+    expect(visited.url).toBe(`${statics.origin}/cart`);
+    const settled = visited.samples[visited.samples.length - 1];
+    expect(settled?.h1).toContain(enUS.cart.title);
+    expect(settled?.text).toContain(enUS.cart.emptyFallbackTitle);
+    expect(settled?.text).not.toContain(enUS.notFound.title);
+    // A code route: the gateway is never asked to resolve it, however long the page sits there.
+    expect(visited.requests.filter((request) => request.startsWith('/cms/'))).toEqual([]);
+    expect(visited.warnings).toEqual([]);
+  });
+
+  /**
    * The facets a visitor arrives with, on a generated page.
    *
    * `app/storefront/facets.ts` filters the gateway's results, and the block reads `minPrice`/
