@@ -49,10 +49,17 @@ precedence.
 | `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search` |
 | `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList`                                                             |
 | `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`                                        |
-| `checkout`  | `handoffUrl`                                                                                                           |
+| `checkout`  | `url`                                                                                                                  |
 | `orders`    | `get`, `recover`                                                                                                       |
 | `inventory` | `availability`                                                                                                         |
 | `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`                                                              |
+| `platform`  | `config`                                                                                                               |
+
+`checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
+checkout page, so the client asks the platform where (`platform.config()`, a public read cached per
+client instance) and returns `{checkoutUrl}/checkout/{orgId}/{cartId}`; it rejects when the platform
+published none, which a storefront should treat as "no Check out to show" rather than an error worth
+reporting to a shopper.
 
 Every failed request throws `EldraHttpError` with `status` and the gateway's problem `code`.
 `createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without

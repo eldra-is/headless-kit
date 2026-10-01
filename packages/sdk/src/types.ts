@@ -42,8 +42,6 @@ export interface EldraClientOptions {
   headers?: RuntimeValue<HeadersInit>;
   httpClient?: EldraHttpClient;
   fetch?: typeof fetch;
-  /** Origin of the hosted checkout app, used by `checkout.handoffUrl`. */
-  checkoutUrl?: RuntimeValue<string>;
 }
 
 export interface EldraPaginationOptions {
@@ -267,6 +265,7 @@ export interface EldraClient {
   features: EldraFeatureClient;
   cart: EldraCartClient;
   orders: EldraOrdersClient;
+  platform: EldraPlatformClient;
   checkout: EldraCheckoutClient;
   inventory: EldraInventoryClient;
 }
@@ -316,11 +315,22 @@ export type EldraStockAvailability = EldraContractResponse<
 >;
 export type EldraStockAvailabilityItem = Item<Prop<EldraStockAvailability, 'items'>>;
 
-export interface EldraCheckoutHandoffOptions {
+export interface EldraCheckoutUrlOptions {
   cartId: string;
   locale?: string;
-  checkoutUrl?: string;
+  /** Overrides the client's own `orgId` — a storefront serving several organisations. */
   orgId?: string;
+}
+
+/**
+ * Mirrors `GET /platform/v1/config` on the web gateway: the public read (no `X-Org-Id`, cached for
+ * five minutes) that tells a storefront where the platform hosts checkout. Written by hand because
+ * the generated contract does not carry the path yet; it becomes
+ * `EldraContractResponse<'/platform/v1/config', 'get'>` once the contract is regenerated.
+ */
+export interface EldraPlatformConfig {
+  /** Origin of the platform-hosted checkout app; `null` when the platform publishes none. */
+  checkoutUrl: string | null;
 }
 
 export interface EldraCartClient {
@@ -360,8 +370,20 @@ export interface EldraOrdersClient {
 }
 
 export interface EldraCheckoutClient {
-  /** Where a storefront sends the customer: `{checkoutUrl}/checkout/{orgId}/{cartId}`. */
-  handoffUrl(options: EldraCheckoutHandoffOptions): string;
+  /**
+   * Where a storefront sends the customer: `{checkoutUrl}/checkout/{orgId}/{cartId}`, with the
+   * locale as `lang`. The base URL is the platform's — read from `platform.config()`, cached per
+   * client — so this is async and rejects when the platform published none.
+   */
+  url(options: EldraCheckoutUrlOptions, context?: EldraRequestContext): Promise<string>;
+}
+
+export interface EldraPlatformClient {
+  /**
+   * The platform's public configuration. Read once per client instance: concurrent callers share
+   * the one in-flight request, and a read that failed is retried by the next call.
+   */
+  config(context?: EldraRequestContext): Promise<EldraPlatformConfig>;
 }
 
 export interface EldraInventoryClient {

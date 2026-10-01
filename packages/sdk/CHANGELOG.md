@@ -9,6 +9,19 @@ platform repository.
 
 ## Unreleased
 
+- **Breaking:** checkout is the platform's. `client.checkout.handoffUrl({ cartId, checkoutUrl })`
+  and the `checkoutUrl` client option are gone, replaced by `await client.checkout.url({ cartId,
+locale })`: the base URL comes from `client.platform.config()` — a new public read of
+  `GET /platform/v1/config` (`{ checkoutUrl: string | null }`, no org header, cached for the life of
+  the client, a failed read retried by the next call) — and the result is the same
+  `{checkoutUrl}/checkout/{orgId}/{cartId}?lang=…` as before. A storefront no longer configures, or
+  can accidentally point somewhere else, the checkout it hands the cart to; it awaits the URL and
+  shows its Check out control once it resolves. `url()` rejects when the platform published none
+  (`The platform did not publish a checkout URL`), carrying a failed read as the error's `cause`.
+  `EldraCheckoutHandoffOptions` is now `EldraCheckoutUrlOptions` (same `cartId`/`locale`/`orgId`,
+  no `checkoutUrl`), and `EldraPlatformClient`/`EldraPlatformConfig` are exported. The config
+  response type is hand-written until the gateway contract carries the path.
+
 - `EldraHttpError` now carries the problem body's `errorId` alongside `code`. `code` names the class
   of failure (`CONFLICT`, `VALIDATION`), which several unrelated refusals share; `errorId` names
   which one it was (`CART_INSUFFICIENT_STOCK`), so a storefront can say "out of stock" for a refused

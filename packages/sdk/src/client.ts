@@ -16,11 +16,12 @@ import type {
   EldraOrganizationDetails,
   EldraOrganizationFeature,
   EldraOrganizationOptions,
+  EldraPlatformConfig,
   EldraProductDetails,
   EldraProductList,
   EldraAddCartItemInput,
   EldraCart,
-  EldraCheckoutHandoffOptions,
+  EldraCheckoutUrlOptions,
   EldraCollection,
   EldraCollectionList,
   EldraCollectionListOptions,
@@ -126,6 +127,23 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
       orgId,
       path: `/organization/v1/${encodeURIComponent(orgId)}`,
     });
+  };
+
+  /**
+   * The platform's own public read, cached for the life of the client: one in-flight promise serves
+   * every caller, so two `checkout.url()` calls in the same session make one request. A *failed*
+   * read is not remembered — the cache entry is dropped so the next call tries again rather than
+   * leaving a storefront with no checkout until it is reloaded.
+   */
+  let platformConfig: Promise<EldraPlatformConfig> | undefined;
+  const readPlatformConfig = (context?: EldraRequestContext): Promise<EldraPlatformConfig> => {
+    platformConfig ??= request<unknown>({ ...context, path: '/platform/v1/config' })
+      .then(toPlatformConfig)
+      .catch((error: unknown) => {
+        platformConfig = undefined;
+        throw error;
+      });
+    return platformConfig;
   };
 
   const getOrganizationFeatureMap = async (
@@ -365,23 +383,29 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           body: { token: token.trim() },
         }),
     },
+    platform: {
+      config: (context?: EldraRequestContext) => readPlatformConfig(context),
+    },
     checkout: {
-      handoffUrl: (handoff: EldraCheckoutHandoffOptions) => {
-        const checkoutUrl = handoff.checkoutUrl ?? resolveRuntimeValue(options.checkoutUrl);
+      url: async (handoff: EldraCheckoutUrlOptions, context?: EldraRequestContext) => {
+        // The platform hosts checkout; where it hosts it is the platform's answer to give, so this
+        // is the only source of the base URL. A read that fails is reported as the same refusal as
+        // a platform that published none — a storefront can do nothing different about either —
+        // with the failure attached as the error's `cause`.
+        let checkoutUrl: string | null = null;
+        let cause: unknown;
+        try {
+          checkoutUrl = (await readPlatformConfig(context)).checkoutUrl;
+        } catch (error: unknown) {
+          cause = error;
+        }
         if (!checkoutUrl) {
           throw new Error(
-            'Missing checkout URL. Pass checkoutUrl to createEldraClient() or to handoffUrl().'
+            'The platform did not publish a checkout URL (GET /platform/v1/config).',
+            cause === undefined ? undefined : { cause }
           );
         }
-        const orgId = handoff.orgId ?? resolveOrgId(options);
-        if (!orgId) {
-          throw new Error('Missing Web Studio organization ID.');
-        }
-        const url = new URL(
-          `${checkoutUrl.replace(/\/$/, '')}/checkout/${encodeURIComponent(orgId)}/${encodeURIComponent(handoff.cartId)}`
-        );
-        if (handoff.locale) url.searchParams.set('lang', handoff.locale);
-        return url.toString();
+        return buildCheckoutUrl(checkoutUrl, handoff, options);
       },
     },
     inventory: {
@@ -394,6 +418,38 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         }),
     },
   };
+}
+
+/**
+ * `{checkoutUrl}/checkout/{orgId}/{cartId}` — where a storefront sends the customer, with the
+ * locale as `lang` when it has one. Internal: the base URL comes from the platform's config, which
+ * only `checkout.url()` can read, so there is no public builder that takes a base of its own.
+ */
+function buildCheckoutUrl(
+  checkoutUrl: string,
+  handoff: EldraCheckoutUrlOptions,
+  options: EldraClientOptions
+): string {
+  const orgId = handoff.orgId ?? resolveOrgId(options);
+  if (!orgId) {
+    throw new Error('Missing Web Studio organization ID.');
+  }
+  const url = new URL(
+    `${checkoutUrl.replace(/\/$/, '')}/checkout/${encodeURIComponent(orgId)}/${encodeURIComponent(handoff.cartId)}`
+  );
+  if (handoff.locale) url.searchParams.set('lang', handoff.locale);
+  return url.toString();
+}
+
+/**
+ * The gateway answers `{ checkoutUrl: string | null }`. Anything else — a blank string, a missing
+ * key, a body that is not an object at all — is read as "no checkout published" rather than handed
+ * on as a URL, since the value goes straight into a link a shopper clicks.
+ */
+function toPlatformConfig(body: unknown): EldraPlatformConfig {
+  const value = (body as { checkoutUrl?: unknown } | null | undefined)?.checkoutUrl;
+  const checkoutUrl = typeof value === 'string' ? value.trim() : '';
+  return { checkoutUrl: checkoutUrl === '' ? null : checkoutUrl };
 }
 
 function resolveRequestOrgId(

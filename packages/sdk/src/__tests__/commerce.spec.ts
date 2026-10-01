@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { createEldraClient, EldraHttpError } from '../index';
-import type { EldraCart, EldraHttpRequest, EldraOrder } from '../index';
+import type { EldraCart, EldraHttpRequest, EldraOrder, EldraPlatformConfig } from '../index';
 import { stubHttpClient } from './support';
 
 function recording(response: unknown = {}) {
@@ -8,7 +8,6 @@ function recording(response: unknown = {}) {
   const client = createEldraClient({
     apiBaseUrl: 'https://api.example.test/api',
     orgId: 'org-123',
-    checkoutUrl: 'https://checkout.example.test/',
     httpClient: stubHttpClient((request) => {
       requests.push(request);
       return response;
@@ -132,22 +131,120 @@ describe('eldra sdk orders', () => {
   });
 });
 
-describe('eldra sdk checkout', () => {
-  it('builds the hosted checkout handoff url', () => {
-    const { client } = recording();
+/**
+ * The platform hosts checkout, so where it lives is the platform's answer to give: a storefront
+ * reads `GET /platform/v1/config` rather than carrying a base URL of its own. These guard the two
+ * things a storefront depends on — that the read happens once per client however many carts ask for
+ * a URL, and that an outage is retried rather than remembered as "no checkout".
+ */
+function platformRecording(answer: (count: number) => unknown) {
+  const requests: EldraHttpRequest[] = [];
+  const client = createEldraClient({
+    apiBaseUrl: 'https://api.example.test/api',
+    orgId: 'org-123',
+    httpClient: stubHttpClient((request) => {
+      requests.push(request);
+      return answer(requests.length);
+    }),
+  });
+  return { client, requests };
+}
 
-    expect(client.checkout.handoffUrl({ cartId: 'cart 1', locale: 'is-IS' })).toBe(
-      'https://checkout.example.test/checkout/org-123/cart%201?lang=is-IS'
+describe('eldra sdk platform config', () => {
+  it('reads the public config and caches it for the life of the client', async () => {
+    const { client, requests } = platformRecording(() => ({
+      checkoutUrl: 'https://checkout.eldra.app',
+    }));
+
+    const first = await client.platform.config();
+    const second = await client.platform.config();
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].method).toBe('GET');
+    expect(requests[0].url).toBe('https://api.example.test/api/platform/v1/config');
+    expect(first).toEqual({ checkoutUrl: 'https://checkout.eldra.app' });
+    expect(second).toEqual(first);
+    expectTypeOf(first).toEqualTypeOf<EldraPlatformConfig>();
+  });
+
+  it('serves concurrent callers from one in-flight request', async () => {
+    const { client, requests } = platformRecording(() => ({
+      checkoutUrl: 'https://checkout.eldra.app',
+    }));
+
+    const [first, second] = await Promise.all([client.platform.config(), client.platform.config()]);
+
+    expect(requests).toHaveLength(1);
+    expect(first).toEqual(second);
+  });
+
+  it('does not cache a failed read: the next call tries again', async () => {
+    const { client, requests } = platformRecording((count) => {
+      if (count === 1) throw new Error('gateway unreachable');
+      return { checkoutUrl: 'https://checkout.eldra.app' };
+    });
+
+    await expect(client.platform.config()).rejects.toThrow('gateway unreachable');
+    await expect(client.platform.config()).resolves.toEqual({
+      checkoutUrl: 'https://checkout.eldra.app',
+    });
+    expect(requests).toHaveLength(2);
+  });
+
+  it('reads a platform that publishes no checkout as null, blank included', async () => {
+    const { client } = platformRecording(() => ({ checkoutUrl: null }));
+    await expect(client.platform.config()).resolves.toEqual({ checkoutUrl: null });
+
+    const blank = platformRecording(() => ({ checkoutUrl: '   ' }));
+    await expect(blank.client.platform.config()).resolves.toEqual({ checkoutUrl: null });
+
+    const empty = platformRecording(() => ({}));
+    await expect(empty.client.platform.config()).resolves.toEqual({ checkoutUrl: null });
+  });
+});
+
+describe('eldra sdk checkout', () => {
+  it('builds the hand-off url from the platform config', async () => {
+    const { client, requests } = platformRecording(() => ({
+      checkoutUrl: 'https://checkout.eldra.app/',
+    }));
+
+    await expect(client.checkout.url({ cartId: 'cart 1', locale: 'is-IS' })).resolves.toBe(
+      'https://checkout.eldra.app/checkout/org-123/cart%201?lang=is-IS'
     );
-    expect(client.checkout.handoffUrl({ cartId: 'c', checkoutUrl: 'http://localhost:3002' })).toBe(
-      'http://localhost:3002/checkout/org-123/c'
+    // A second cart reuses the one config read.
+    await expect(client.checkout.url({ cartId: 'c' })).resolves.toBe(
+      'https://checkout.eldra.app/checkout/org-123/c'
+    );
+    expect(requests).toHaveLength(1);
+  });
+
+  it('takes an explicit orgId over the one on the client, encoding both ids', async () => {
+    const { client } = platformRecording(() => ({ checkoutUrl: 'https://checkout.eldra.app' }));
+
+    await expect(client.checkout.url({ cartId: 'cart/1', orgId: 'org 2' })).resolves.toBe(
+      'https://checkout.eldra.app/checkout/org%202/cart%2F1'
     );
   });
 
-  it('refuses to build a handoff without a checkout url', () => {
-    const client = createEldraClient({ orgId: 'org-123', httpClient: stubHttpClient(() => ({})) });
+  it('refuses when the platform published no checkout url', async () => {
+    const { client } = platformRecording(() => ({ checkoutUrl: null }));
 
-    expect(() => client.checkout.handoffUrl({ cartId: 'c' })).toThrow(/checkout URL/);
+    await expect(client.checkout.url({ cartId: 'c' })).rejects.toThrow(
+      /did not publish a checkout URL/
+    );
+  });
+
+  it('refuses when the config cannot be read, carrying the read failure as the cause', async () => {
+    const { client } = platformRecording(() => {
+      throw new Error('gateway unreachable');
+    });
+
+    const caught = await client.checkout.url({ cartId: 'c' }).catch((error: unknown) => error);
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toMatch(/did not publish a checkout URL/);
+    expect(((caught as Error).cause as Error | undefined)?.message).toBe('gateway unreachable');
   });
 });
 
