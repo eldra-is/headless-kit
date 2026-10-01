@@ -105,6 +105,10 @@ export const isIS = {
     error: 'Ekki tókst að sækja þetta núna.',
     notFound: 'Þessi vara er ekki lengur í boði.',
     updatingValues: 'Uppfæri verð og lagerstöðu',
+    mutationFailed: 'Eitthvað fór úrskeiðis. Prófaðu aftur.',
+    outOfStock: 'Þessi vara er ekki til á lager.',
+    unavailable: 'Þessi vara er ekki lengur í boði.',
+    cartOutOfDate: 'Karfan þín er ekki uppfærð. Endurnýjaðu síðuna og prófaðu aftur.',
     unresolvedCollectionLabel: 'Birtu síðuna til að hlaða vörum',
     unresolvedCollectionHelp:
       'Vörulistinn er valinn. Vörurnar úr honum birtast hér þegar síðan hefur verið birt.',
@@ -464,6 +468,7 @@ export const isIS = {
     removeItemVariant: 'Fjarlægja {title}, {variant}',
     removed: '{title} fjarlægt úr körfunni',
     undo: 'Afturkalla',
+    added: 'Sett í körfu',
     awayFromFree: 'Þú ert {amount} frá fríri sendingu',
     freeUnlocked: 'Frí sending tryggð',
     discountCode: 'Afsláttarkóði',

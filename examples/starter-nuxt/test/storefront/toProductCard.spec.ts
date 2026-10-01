@@ -14,7 +14,7 @@ function baseItem(overrides: Partial<StorefrontProductListItem> = {}): Storefron
     colours: [{ name: 'Oat', swatch: '#d8cbb0' }],
     stock: 'in',
     available: true,
-    variantId: 'merino-crew-sweater::oat::m',
+    productId: 'merino-crew-sweater',
     ...overrides,
   };
 }

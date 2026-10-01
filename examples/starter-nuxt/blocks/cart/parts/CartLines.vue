@@ -46,6 +46,7 @@ import { computed, nextTick, ref } from 'vue';
 import { Button, Link, Price, QuantityStepper, VisuallyHidden, useToast } from '@eldrajs/ui';
 import type { StorefrontCartLine } from '../../../app/storefront/types';
 import { useStorefront } from '../../../app/composables/useStorefront';
+import { useStorefrontFeedback } from '../../../app/composables/useStorefrontFeedback';
 import { useT } from '../../../app/composables/useT';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
@@ -71,6 +72,7 @@ const t = useT();
 const money = useMoney();
 const cart = useStorefront().cart;
 const toast = useToast();
+const feedback = useStorefrontFeedback();
 
 const rootEl = ref<HTMLElement | null>(null);
 
@@ -94,9 +96,15 @@ function removeLabel(line: StorefrontCartLine): string {
     : t('cart.removeItemVariant', { title: line.title, variant });
 }
 
-function onQuantity(line: StorefrontCartLine, quantity: number): void {
+/**
+ * Every refusal is reported (`useStorefrontFeedback`), because none of these controls has anything
+ * else to show one with: the stepper springs back to the quantity the store still holds and the row
+ * stays exactly where it was, which is indistinguishable from a control that does nothing.
+ */
+async function onQuantity(line: StorefrontCartLine, quantity: number): Promise<void> {
   if (quantity === line.quantity) return;
-  void cart.setQuantity(line.id, quantity);
+  const failure = await cart.setQuantity(line.id, quantity);
+  if (failure !== null) feedback.report(failure, { id: 'cart-line' });
 }
 
 /** The first control of the row belonging to `lineId` — its title link, or whatever else that row
@@ -112,12 +120,15 @@ function focusLine(lineId: string | undefined): boolean {
 
 async function onRemove(line: StorefrontCartLine, index: number): Promise<void> {
   emit('removing');
-  await cart.remove(line.id);
-  if (cart.error.value !== null) return;
+  const failure = await cart.remove(line.id);
+  if (failure !== null) {
+    feedback.report(failure, { id: 'cart-line' });
+    return;
+  }
   toast.show({
     id: 'cart-line-removed',
     title: t('cart.removed', { title: line.title }),
-    action: { label: t('cart.undo'), onActivate: () => void cart.undoRemove() },
+    action: { label: t('cart.undo'), onActivate: () => void undoRemove() },
   });
   // What is left is read from the store, not from `lines`: that prop only catches up with the
   // store on the host's next render, which is the render being waited for below. With nothing left
@@ -126,6 +137,23 @@ async function onRemove(line: StorefrontCartLine, index: number): Promise<void> 
   const remaining = cart.lines.value;
   await nextTick();
   if (!focusLine(remaining[index]?.id)) focusLine(remaining[index - 1]?.id);
+}
+
+/**
+ * Undo puts the line back locally and re-adds it in the background (`app/storefront/cart.ts`), so a
+ * refusal there — the shop sold the last one in between — is the one the shopper is least likely to
+ * notice on their own: the row is already back on screen.
+ *
+ * The removal toast goes with it. It is the toast whose own button was just pressed, so it is
+ * still standing (activating an action does not dismiss it, and its timer is paused while focus is
+ * inside the stack), and its Undo now has nothing left to restore. Left beside the refusal it would
+ * show the shopper two contradictory statements about one line, and a button that does nothing.
+ */
+async function undoRemove(): Promise<void> {
+  const failure = await cart.undoRemove();
+  if (failure === null) return;
+  toast.dismiss('cart-line-removed');
+  feedback.report(failure, { id: 'cart-line' });
 }
 
 /** Spec Layout, "Line item": the two-row compact grid, one row from 48rem of container width. */
@@ -207,7 +235,7 @@ const STEPPER_CLASSES = {
               :max="line.max ?? undefined"
               :item-name="line.title"
               :classes="STEPPER_CLASSES"
-              @change="(value: number) => onQuantity(line, value)"
+              @change="(value: number) => void onQuantity(line, value)"
             />
           </div>
           <Button

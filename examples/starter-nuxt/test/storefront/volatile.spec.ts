@@ -30,7 +30,7 @@ function listItem(overrides: Partial<StorefrontProductListItem> = {}): Storefron
     colours: [{ name: 'Oat', swatch: '#d8cbb0' }],
     stock: 'in',
     available: true,
-    variantId: 'p-1',
+    productId: 'p-1',
     ...overrides,
   };
 }
@@ -66,17 +66,17 @@ describe('collectVolatileTargets', () => {
 
   it('reads a card list in order, and never repeats an id', () => {
     const items = [
-      listItem({ variantId: 'p-1' }),
-      listItem({ variantId: 'p-2' }),
-      listItem({ variantId: 'p-1' }),
-      listItem({ variantId: 'p-3' }),
+      listItem({ productId: 'p-1' }),
+      listItem({ productId: 'p-2' }),
+      listItem({ productId: 'p-1' }),
+      listItem({ productId: 'p-3' }),
     ];
     expect(collectVolatileTargets(items)).toEqual(['p-1', 'p-2', 'p-3']);
   });
 
   it('reads the collection grid’s `{ items, total, facets }` result', () => {
     const data = {
-      items: [listItem({ variantId: 'p-9' }), listItem({ variantId: 'p-8' })],
+      items: [listItem({ productId: 'p-9' }), listItem({ productId: 'p-8' })],
       total: 2,
       facets: [],
     };
@@ -87,7 +87,7 @@ describe('collectVolatileTargets', () => {
     const response: StorefrontSearchResponse = {
       query: 'sweater',
       total: 3,
-      products: [listItem({ variantId: 'p-4' }), listItem({ variantId: 'p-5' })],
+      products: [listItem({ productId: 'p-4' }), listItem({ productId: 'p-5' })],
       articles: [{ title: 'Knitwear care', href: '/journal/care', category: '', readingTime: '' }],
       pages: [{ title: 'Shipping', href: '/shipping', path: '/shipping', snippet: '' }],
       suggestion: null,
@@ -102,12 +102,13 @@ describe('collectVolatileTargets', () => {
     expect(collectVolatileTargets('merino-crew-sweater')).toEqual([]);
     expect(collectVolatileTargets({})).toEqual([]);
     expect(collectVolatileTargets([])).toEqual([]);
-    // A cart line carries `variantId` and `title` but is not a product card.
+    // A cart line carries `productId` and `title` but is not a product card.
     expect(
       collectVolatileTargets([
         {
           id: 'line-1',
-          variantId: 'p-1',
+          productId: 'p-1',
+          variantId: 'p-1::oat',
           title: 'Merino crew sweater',
           url: '/products/merino-crew-sweater',
           variantLabel: 'Oat / M',
@@ -122,7 +123,7 @@ describe('collectVolatileTargets', () => {
 
   it('skips an item with no usable id', () => {
     expect(
-      collectVolatileTargets([listItem({ variantId: '' }), listItem({ variantId: 'p-2' })])
+      collectVolatileTargets([listItem({ productId: '' }), listItem({ productId: 'p-2' })])
     ).toEqual(['p-2']);
   });
 });
@@ -143,7 +144,7 @@ describe('applyVolatileSnapshots', () => {
     expect(next?.featuredImage).toBe(item.featuredImage);
     expect(next?.rating).toBe(item.rating);
     expect(next?.colours).toBe(item.colours);
-    expect(next?.variantId).toBe(item.variantId);
+    expect(next?.productId).toBe(item.productId);
   });
 
   /**
@@ -186,8 +187,8 @@ describe('applyVolatileSnapshots', () => {
   });
 
   it('keeps the untouched items in a list at their own identity', () => {
-    const changed = listItem({ variantId: 'p-1' });
-    const untouched = listItem({ variantId: 'p-2' });
+    const changed = listItem({ productId: 'p-1' });
+    const untouched = listItem({ productId: 'p-2' });
     const list = [changed, untouched];
     const next = applyVolatileSnapshots(list, [snapshot()]);
 

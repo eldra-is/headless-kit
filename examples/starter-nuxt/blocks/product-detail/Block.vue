@@ -54,6 +54,7 @@ import {
   TabPanel,
   Tabs,
   VariantPicker,
+  useToast,
   type FormLayoutSubmitPayload,
 } from '@eldrajs/ui';
 import { EldraRichText } from '@eldrajs/theme-vue';
@@ -62,6 +63,8 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
+import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
+import { isOutOfStock } from '../../app/storefront/feedback';
 import { roundMoney, useMoney } from '../../app/storefront/money';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -87,6 +90,8 @@ const { data, entryId } = useBlockData(props, 'product-detail');
 const t = useT();
 const editing = useEditing();
 const storefront = useStorefront();
+const feedback = useStorefrontFeedback();
+const toast = useToast();
 
 const titleId = `product-detail-title-${useUiId()}`;
 /** Every `VariantPicker` radio group on the page needs a unique native `name`, or two
@@ -286,14 +291,33 @@ const variantAvailable = computed(() =>
 /* ------------------------------------------------------------------------- */
 
 /**
- * `StorefrontProduct.inventory` is the theme's one inventory number (see
- * `app/storefront/types.ts`): a store that tracks units per variant maps the *selected* variant's
- * count into it, and one that tracks nothing at all sends `null`, which is what keeps "only N left"
- * off a made-to-order product.
+ * The cart refused an add for stock. The product read is the page's source of truth for stock
+ * (`gateway.ts` reads real inventory for it), but the cart service is the one that actually
+ * commits it: when the two disagree, the cart has just proved it knows something the read did not,
+ * and continuing to offer a button that cannot work is the worse of the two errors. So the page
+ * holds that one fact locally and shows the sold-out state the spec already defines — Notify me, the
+ * sold-out line, no stepper — rather than inventing a fifth state for it.
+ *
+ * Dropped as soon as anything fresher could contradict it: a product read that came back *different*
+ * — which is exactly what "the refresh said otherwise" means, since a refresh that changes nothing
+ * keeps every object at its own identity (`app/storefront/volatile.ts`) and has not contradicted
+ * anything — or another variant chosen, which is not the variant the backend refused.
+ */
+const refusedForStock = ref(false);
+watch([() => productResult.data.value, variantLabel], () => {
+  refusedForStock.value = false;
+});
+
+/**
+ * `StorefrontProduct.inventory` is the theme's one inventory number (see `app/storefront/types.ts`):
+ * the count of the variant this page would sell, or `null` from a store that tracks no units — and
+ * also `null` whenever the source cannot say which variant a count belongs to, since "only 2 left in
+ * L" about M's two units is worse than no line at all. Either way `null` is what keeps "only N left"
+ * off a made-to-order product, and off a product whose count would be guesswork.
  */
 const stockLine = computed(() =>
   deriveStockLine({
-    stock: product.value?.stock ?? 'in',
+    stock: refusedForStock.value ? 'out' : (product.value?.stock ?? 'in'),
     inventory: product.value?.inventory ?? null,
     variantAvailable: variantAvailable.value,
     variantLabel: variantLabel.value,
@@ -357,14 +381,58 @@ watch(
   { immediate: true }
 );
 
+/**
+ * Add to cart, and — either way — something the shopper can see. The button's own spinner stopping
+ * is not feedback: it looks identical whether the line was added or the gateway refused it, which is
+ * exactly how a 409 `CART_INSUFFICIENT_STOCK` became "Add to cart does nothing".
+ *
+ * **On success**, a toast — never the drawer. The design spec is explicit about this
+ * (`01-core-components.md` → "Drawer": "a Toast (not the drawer) to confirm 'Added to cart' unless
+ * the shopper asked to see the cart"), and the reason is the shopper's place on the page: they were
+ * reading a product, they pressed one button, and a modal `<dialog>` over everything takes their
+ * focus and their scroll position for a decision they did not ask to make. So the toast confirms it
+ * and *offers* the cart: its action opens the hosted drawer when one is live (`drawerAvailable` — the
+ * shopper asking to see the cart is exactly what the spec's exception is about), and is an ordinary
+ * link to `/cart` when none is, which is the same destination the header's bag has in that state.
+ *
+ * **On failure**, one shared toast through `useStorefrontFeedback()` (the sentence comes from the
+ * gateway's `errorId`, not from this block), plus the one reaction a page can usefully have: a
+ * refusal for stock flips its own stock line to sold out.
+ */
 async function primaryAction(): Promise<void> {
   if (soldOut.value) {
     notifyOpen.value = true;
     return;
   }
-  const variantId = product.value?.variantId;
-  if (variantId === undefined) return;
-  await storefront.cart.add({ variantId, quantity: quantity.value });
+  const buyable = product.value;
+  // Both ids, because the backend resolves the pair (`app/storefront/cart.ts`'s `CartAddInput`). A
+  // product read that answered no buyable variant has nothing to add — `mapProductDetails` leaves
+  // `variantId` empty rather than inventing one from the product's own id.
+  if (buyable === null || buyable.variantId === '') return;
+  const cart = storefront.cart;
+  const failure = await cart.add({
+    productId: buyable.productId,
+    variantId: buyable.variantId,
+    quantity: quantity.value,
+  });
+
+  if (failure !== null) {
+    if (isOutOfStock(failure)) refusedForStock.value = true;
+    feedback.report(failure, { id: 'product-add-to-cart' });
+    return;
+  }
+  toast.show({
+    id: 'product-add-to-cart',
+    title: t('cart.added'),
+    action: cart.drawerAvailable.value
+      ? {
+          label: t('cart.viewCart'),
+          onActivate: () => {
+            cart.drawerOpen.value = true;
+          },
+        }
+      : { label: t('cart.viewCart'), href: '/cart' },
+  });
 }
 
 /* ------------------------------------------------------------------------- */
@@ -401,7 +469,7 @@ async function submitNotify(payload: FormLayoutSubmitPayload): Promise<void> {
     return;
   }
   const variantId = product.value?.variantId;
-  if (variantId === undefined) return;
+  if (variantId === undefined || variantId === '') return;
   notifySubmitting.value = true;
   const ack = await storefront.catalog.notifyBackInStock({ email, variantId });
   notifySubmitting.value = false;

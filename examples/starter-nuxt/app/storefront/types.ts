@@ -45,7 +45,16 @@ export interface StorefrontProductListItem {
   colours?: Array<{ name: string; swatch: string }>;
   stock: 'in' | 'low' | 'out' | 'preorder';
   available: boolean;
-  variantId: string;
+  /**
+   * The **catalog product's** id — what a volatile refresh addresses this row by
+   * (`app/storefront/volatile.ts`) and what a cart add has to send as its `productId`.
+   *
+   * A list row deliberately carries no variant id: the products list read answers none, and a
+   * product's buyable variants are only in the detail read. So nothing can be put in the cart from
+   * a card alone — a quick-add on a card has to read the product first (`catalog.product`) and take
+   * the `variantId` off that, which is why no card in this theme offers one.
+   */
+  productId: string;
 }
 
 export interface StorefrontProductOption {
@@ -56,10 +65,24 @@ export interface StorefrontProductOption {
 }
 
 export interface StorefrontProduct extends StorefrontProductListItem {
+  /**
+   * The **variant** the page would add to the cart: the product's first buyable one
+   * (`gateway.ts`'s `mapProductDetails`). Distinct from the inherited `productId`, and both halves
+   * are sent on an add — the cart service looks the pair up together and refuses a variant that
+   * does not belong to the product it was given.
+   */
+  variantId: string;
   images: StorefrontMedia[];
   options: StorefrontProductOption[];
   categoryTrail: Array<{ label: string; href: string }>;
   description: string;
+  /**
+   * Real units of the variant this page would sell — `variantId` above — or `null`. `null` covers two
+   * different stores and one honest refusal: a store that tracks no units at all, a read that could
+   * not reach inventory, and a product whose count cannot be attributed to one variant (a source that
+   * knows M has two left but cannot say the shopper is looking at M sends none, because "only 2 left
+   * in L" is worse than no line at all). Either way the low-stock line is simply left off.
+   */
   inventory: number | null;
   shipsBy?: string | null;
 }
@@ -80,6 +103,9 @@ export interface StorefrontFacet {
 
 export interface StorefrontCartLine {
   id: string;
+  /** The catalog product this line's variant belongs to — the other half of an add (see
+   *  `StorefrontProduct.variantId`), which is what lets Undo re-add a removed line. */
+  productId: string;
   variantId: string;
   title: string;
   url: string;
@@ -165,7 +191,7 @@ export type VolatileKey = 'price' | 'stock';
 
 /**
  * One product's volatile values as the backend has them *now*, keyed by the same id the page's
- * own data carries (`StorefrontProductListItem.variantId` — what the gateway's product list read
+ * own data carries (`StorefrontProductListItem.productId` — what the gateway's product list read
  * fills from the product's `id`). `price` is the whole `StorefrontPrice` this theme already uses,
  * not a second money shape: `amount` and `compareAt` are read off it, `from` is not (the price
  * *spread* is a property of the product's variants, not a value that refreshes).

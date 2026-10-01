@@ -228,6 +228,26 @@ export interface Messages {
      */
     unresolvedCollectionLabel: string;
     unresolvedCollectionHelp: string;
+    /**
+     * The three sentences a failed **mutation** is reported with — an add to cart, a quantity, a
+     * removal, an undo. One set for every commerce block, chosen from the gateway's `errorId` in
+     * `app/storefront/feedback.ts` and shown through `useStorefrontFeedback()`; a block never writes
+     * its own, so the same refusal reads the same way wherever a shopper meets it.
+     *
+     * `mutationFailed` is the fallback and the common case: anything the theme has no specific words
+     * for, and everything that never reached the gateway at all (offline, aborted). It says what
+     * happened and what to do, and nothing it cannot know.
+     */
+    mutationFailed: string;
+    /** The gateway refused for stock (`CART_INSUFFICIENT_STOCK`). */
+    outOfStock: string;
+    /** The product or variant no longer resolves (`CART_INVALID_PRODUCT` and its siblings). */
+    unavailable: string;
+    /**
+     * The cart, or the line in it, is gone (`CART_NOT_FOUND`, `CART_ITEM_NOT_FOUND`): the page is
+     * describing a cart the store has moved on from, so it names the one thing that fixes it.
+     */
+    cartOutOfDate: string;
     orderStatus: {
       processing: string;
       shipped: string;
@@ -872,6 +892,14 @@ export interface Messages {
     removeItemVariant: string;
     removed: string;
     undo: string;
+    /**
+     * The confirmation for a successful add. A toast, never the drawer — the spec's own rule for the
+     * Drawer primitive ("a Toast (not the drawer) to confirm 'Added to cart' unless the shopper asked
+     * to see the cart"), since a modal over the page takes the focus and the scroll position of a
+     * shopper who pressed one button. `viewCart` above is the toast's action: it opens the hosted
+     * drawer when one is live, and links to `/cart` when none is.
+     */
+    added: string;
     awayFromFree: string;
     freeUnlocked: string;
     discountCode: string;

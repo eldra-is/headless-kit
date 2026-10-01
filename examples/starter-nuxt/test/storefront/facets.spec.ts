@@ -23,7 +23,7 @@ function item(
     price: { amount: 100, compareAt: null },
     stock: 'in',
     available: true,
-    variantId: `${overrides.handle}::v1`,
+    productId: `${overrides.handle}`,
     ...overrides,
   };
 }

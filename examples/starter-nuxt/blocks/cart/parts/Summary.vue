@@ -40,6 +40,7 @@ import {
   type FormLayoutSubmitPayload,
 } from '@eldrajs/ui';
 import { useStorefront } from '../../../app/composables/useStorefront';
+import { useStorefrontFeedback } from '../../../app/composables/useStorefrontFeedback';
 import { useT } from '../../../app/composables/useT';
 import { useUiId } from '../../../app/composables/useUiId';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
@@ -63,6 +64,7 @@ const t = useT();
 /** Totals are major units (`app/storefront/types.ts`); `<Price>` reads minor. */
 const money = useMoney();
 const cart = useStorefront().cart;
+const feedback = useStorefrontFeedback();
 
 /**
  * `Chip` names its remove button from `messages.removeTag` ("Remove WINTER15") and takes no
@@ -133,8 +135,19 @@ async function onApply(payload: FormLayoutSubmitPayload): Promise<void> {
   }
 }
 
-function onRemoveCode(applied: string): void {
-  void cart.removeDiscount(applied);
+/**
+ * Taking an applied code back off is a cart mutation like any other, and the chip's remove button
+ * has no field to annotate a refusal next to: the inline `refusal` row above belongs to the entry
+ * form, which is not even mounted while a code is applied (it is this chip's `v-else`). So a
+ * refused removal is reported the way every other cart mutation's is, under its own toast id so it
+ * never replaces a line-level message.
+ */
+async function onRemoveCode(): Promise<void> {
+  const applied = discount.value?.code;
+  // Only the chip raises this, and the chip only exists while a code is applied.
+  if (applied === undefined) return;
+  const failure = await cart.removeDiscount(applied);
+  if (failure !== null) feedback.report(failure, { id: 'cart-discount' });
 }
 
 const checkoutHref = computed(() => safeHref(cart.checkoutUrl.value));
@@ -176,7 +189,7 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
           <EldraIcon name="circle-check" size="sm" class="shrink-0" />
           {{ t('cart.applied') }}
         </span>
-        <Chip size="sm" removable :label="discount.code" @remove="onRemoveCode(discount.code)" />
+        <Chip size="sm" removable :label="discount.code" @remove="() => void onRemoveCode()" />
       </div>
 
       <FormLayout

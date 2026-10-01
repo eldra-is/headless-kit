@@ -676,6 +676,265 @@ describe('createGatewayStorefront', () => {
     });
   });
 
+  /**
+   * The product page's stock comes from inventory, not from the variant's publication status. A
+   * published variant with nothing on the shelf used to read "In stock, ready to ship" next to an
+   * Add to cart the cart service then refused for stock — the page and the cart disagreeing about
+   * the same product.
+   */
+  describe('the product page reads stock from inventory', () => {
+    function productClient(
+      availability: unknown,
+      options: { variants?: Array<Record<string, unknown>> } = {}
+    ): { client: EldraClient; requests: unknown[] } {
+      const requests: unknown[] = [];
+      const client = {
+        catalog: {
+          getProduct: async () => ({
+            id: 'prod-merino',
+            slug: 'merino-crew-sweater',
+            title: 'Merino crew sweater',
+            status: 'ACTIVE',
+            options: [
+              {
+                key: 'size',
+                name: 'Size',
+                values: [
+                  { id: 'ov-m', key: 'm', name: 'M' },
+                  { id: 'ov-l', key: 'l', name: 'L' },
+                ],
+              },
+            ],
+            variants: options.variants ?? [
+              {
+                id: 'var-m',
+                status: 'ACTIVE',
+                price: 96,
+                optionValues: [{ id: 'x', name: 'M', optionId: 'size', optionValueId: 'ov-m' }],
+              },
+              {
+                id: 'var-l',
+                status: 'ACTIVE',
+                price: 96,
+                optionValues: [{ id: 'y', name: 'L', optionId: 'size', optionValueId: 'ov-l' }],
+              },
+            ],
+          }),
+        },
+        inventory: {
+          availability: async (items: unknown) => {
+            requests.push(items);
+            if (availability instanceof Error) throw availability;
+            return availability;
+          },
+        },
+      } as unknown as EldraClient;
+      return { client, requests };
+    }
+
+    async function read(client: EldraClient) {
+      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+      const result = storefront.catalog.product(ref('merino-crew-sweater'));
+      await settle();
+      return result.data.value;
+    }
+
+    it('asks about every variant at once, with no location id', async () => {
+      const { client, requests } = productClient({
+        items: [
+          { variantId: 'var-m', available: true, allowBackorder: false, availableQuantity: 4 },
+          { variantId: 'var-l', available: true, allowBackorder: false, availableQuantity: 9 },
+        ],
+      });
+      await read(client);
+      // One bulk call, and no `locationId`: an item without one resolves the org's default location.
+      expect(requests).toEqual([[{ variantId: 'var-m' }, { variantId: 'var-l' }]]);
+    });
+
+    it('keeps the first in-stock variant as the one to buy', async () => {
+      const { client } = productClient({
+        items: [
+          { variantId: 'var-m', available: true, allowBackorder: false, availableQuantity: 2 },
+          { variantId: 'var-l', available: true, allowBackorder: false, availableQuantity: 9 },
+        ],
+      });
+      const product = await read(client);
+      expect(product?.stock).toBe('in');
+      expect(product?.variantId).toBe('var-m');
+    });
+
+    /**
+     * `inventory` is the count of the variant the buy box is *selling*, and the mapping can only
+     * speak for the one it chose — not for whichever the shopper picks in the picker. So a product
+     * with options reports no count rather than labelling M's two units "only 2 left in L"; a product
+     * with one thing to buy reports it, which is where the low-stock line comes from.
+     */
+    it('reports a unit count only when there is one variant it can belong to', async () => {
+      const withOptions = productClient({
+        items: [
+          { variantId: 'var-m', available: true, allowBackorder: false, availableQuantity: 2 },
+          { variantId: 'var-l', available: true, allowBackorder: false, availableQuantity: 9 },
+        ],
+      });
+      expect((await read(withOptions.client))?.inventory).toBeNull();
+
+      const single = productClient(
+        {
+          items: [
+            { variantId: 'var-only', available: true, allowBackorder: false, availableQuantity: 2 },
+          ],
+        },
+        { variants: [{ id: 'var-only', status: 'ACTIVE', price: 96 }] }
+      );
+      const product = await read(single.client);
+      expect(product?.inventory).toBe(2);
+      expect(product?.variantId).toBe('var-only');
+      expect(product?.stock).toBe('in');
+    });
+
+    it('reads sold out for a published variant with nothing on the shelf', async () => {
+      const { client } = productClient({
+        items: [
+          { variantId: 'var-m', available: false, allowBackorder: false, availableQuantity: 0 },
+          { variantId: 'var-l', available: false, allowBackorder: false, availableQuantity: 0 },
+        ],
+      });
+      const product = await read(client);
+      expect(product?.stock).toBe('out');
+      // Both option values are unbuyable, so the pickers say so too (spec: struck through, ", sold
+      // out" in the accessible name) instead of offering a choice that cannot be fulfilled.
+      expect(product?.options[0]?.values.map((value) => value.available)).toEqual([false, false]);
+    });
+
+    it('opens on the first variant that can be bought, not the first published one', async () => {
+      const { client } = productClient({
+        items: [
+          { variantId: 'var-m', available: false, allowBackorder: false, availableQuantity: 0 },
+          { variantId: 'var-l', available: true, allowBackorder: false, availableQuantity: 5 },
+        ],
+      });
+      const product = await read(client);
+      expect(product?.variantId).toBe('var-l');
+      expect(product?.stock).toBe('in');
+      expect(product?.options[0]?.values.map((value) => value.available)).toEqual([false, true]);
+    });
+
+    it('reads back-order for a variant that is out but takes orders anyway', async () => {
+      const { client } = productClient({
+        items: [
+          { variantId: 'var-m', available: false, allowBackorder: true, availableQuantity: 0 },
+          { variantId: 'var-l', available: false, allowBackorder: true, availableQuantity: 0 },
+        ],
+      });
+      const product = await read(client);
+      expect(product?.stock).toBe('preorder');
+    });
+
+    /**
+     * Fail-soft, three ways: the read threw, the read answered about nothing, and the read answered
+     * about other variants. Each keeps the page exactly as it was before inventory was consulted —
+     * a store that has not set stock up, or a service that is down, must not read sold out.
+     */
+    it('keeps the status-derived stock when inventory cannot answer', async () => {
+      for (const answer of [
+        new Error('inventory unavailable'),
+        { items: [] },
+        { items: null },
+        {
+          items: [
+            {
+              variantId: 'var-other',
+              available: false,
+              allowBackorder: false,
+              availableQuantity: 0,
+            },
+          ],
+        },
+      ]) {
+        const { client } = productClient(answer);
+        const product = await read(client);
+        expect(product?.stock).toBe('in');
+        expect(product?.inventory).toBeNull();
+        expect(product?.variantId).toBe('var-m');
+        expect(product?.options[0]?.values.map((value) => value.available)).toEqual([true, true]);
+      }
+    });
+
+    it('reads sold out for a product whose variants are all unpublished, inventory or not', async () => {
+      const { client } = productClient(new Error('down'), {
+        variants: [{ id: 'var-m', status: 'DRAFT', price: 96 }],
+      });
+      const product = await read(client);
+      expect(product?.stock).toBe('out');
+    });
+  });
+
+  /**
+   * The add payload. `productId` and `variantId` are two different ids, and the gateway's cart
+   * service resolves them as a pair (one lookup of "this variant, of this product"): a pair that
+   * does not exist answers 500, which is what sending the variant id as both did. The detail
+   * mapping is the other half of the same fact — `productId` from the product, `variantId` from its
+   * first buyable variant — so this asserts both, together, since either alone would pass while the
+   * add stayed broken.
+   */
+  it('cart.add sends the product id and the variant id as the two different ids they are', async () => {
+    const addItemInputs: Array<Record<string, unknown>> = [];
+    const client = {
+      catalog: {
+        getProduct: async () => ({
+          id: 'prod-merino',
+          slug: 'merino-crew-sweater',
+          title: 'Merino crew sweater',
+          status: 'ACTIVE',
+          variants: [{ id: 'var-oat-m', status: 'ACTIVE', price: 96 }],
+        }),
+      },
+      cart: {
+        addItem: async (input: Record<string, unknown>) => {
+          addItemInputs.push(input);
+          return {
+            id: 'cart-1',
+            currency: 'USD',
+            items: [
+              {
+                id: 'line-1',
+                productId: 'prod-merino',
+                variantId: 'var-oat-m',
+                title: 'Merino crew sweater',
+                price: 96,
+                quantity: 2,
+              },
+            ],
+            totals: { subtotal: 192, discount: 0, taxAmount: 0, total: 192 },
+          };
+        },
+      },
+      checkout: { handoffUrl: () => 'https://checkout.example/cart-1' },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.catalog.product(ref('merino-crew-sweater'));
+    await settle();
+
+    const product = result.data.value;
+    expect(product?.productId).toBe('prod-merino');
+    expect(product?.variantId).toBe('var-oat-m');
+
+    await storefront.cart.add({
+      productId: product!.productId,
+      variantId: product!.variantId,
+      quantity: 2,
+    });
+
+    expect(addItemInputs).toEqual([
+      { cartId: undefined, productId: 'prod-merino', variantId: 'var-oat-m', quantity: 2 },
+    ]);
+    // And the line that comes back carries both halves, so Undo can re-add exactly this pair.
+    expect(storefront.cart.lines.value).toEqual([
+      expect.objectContaining({ productId: 'prod-merino', variantId: 'var-oat-m' }),
+    ]);
+  });
+
   it('every result carries an empty `revalidating` set — the prerender contract’s resting state', async () => {
     const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
     const result = storefront.catalog.collectionProducts(

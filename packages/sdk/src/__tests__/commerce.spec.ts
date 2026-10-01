@@ -217,4 +217,21 @@ describe('eldra sdk errors', () => {
     expect(error.code).toBe('INSUFFICIENT_STOCK');
     expect(plain.code).toBeUndefined();
   });
+
+  // A refused cart add is the case this exists for: the `code` is the generic `CONFLICT` every
+  // other conflict also carries, so only `errorId` says the refusal was about stock.
+  it('exposes the gateway problem errorId beside the code', () => {
+    const response = { status: 409, statusText: 'Conflict' } as Response;
+
+    const error = new EldraHttpError(response, {
+      code: 'CONFLICT',
+      errorId: 'CART_INSUFFICIENT_STOCK',
+      detail: 'insufficient stock',
+    });
+
+    expect(error.code).toBe('CONFLICT');
+    expect(error.errorId).toBe('CART_INSUFFICIENT_STOCK');
+    expect(new EldraHttpError(response, { code: 'CONFLICT' }).errorId).toBeUndefined();
+    expect(new EldraHttpError(response, { errorId: 7 }).errorId).toBeUndefined();
+  });
 });

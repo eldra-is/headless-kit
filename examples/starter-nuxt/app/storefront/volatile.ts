@@ -10,10 +10,11 @@ import type { StorefrontPrice, StorefrontProductListItem, VolatileSnapshot } fro
  * `applyVolatileSnapshots` how to swap the answers in; *when* any of that happens, and what
  * `revalidating` says while it does, is the implementation's own business.
  *
- * **Identity.** A product is addressed by `StorefrontProductListItem.variantId` — the id field
+ * **Identity.** A product is addressed by `StorefrontProductListItem.productId` — the id field
  * every card already carries, which `gateway.ts`'s list mapping fills from the product's own `id`
- * and which the demo fixture fills with its variant key. There is no second id field: adding one
- * would mean two ways to name the same product and two chances to disagree.
+ * and which the demo fixture fills with the product's handle. There is no second id field: adding
+ * one would mean two ways to name the same product and two chances to disagree. (A product's
+ * *variants* are a detail-read concern and never reach a card — see that type's own comment.)
  *
  * **Identity, the other kind.** `applyVolatileSnapshots` returns the *same object* when nothing
  * changed, and leaves every untouched item at its own reference when something did. That is not
@@ -51,9 +52,9 @@ export function collectVolatileTargets(data: unknown): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
   for (const item of productItemsOf(data)) {
-    if (item.variantId === '' || seen.has(item.variantId)) continue;
-    seen.add(item.variantId);
-    ids.push(item.variantId);
+    if (item.productId === '' || seen.has(item.productId)) continue;
+    seen.add(item.productId);
+    ids.push(item.productId);
   }
   return ids;
 }
@@ -87,12 +88,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * A product card or a full product — the two shapes that carry volatile values. The check is
  * structural rather than nominal because the data reaches here as plain JSON-ish objects, and it
- * is deliberately narrow: a `StorefrontCartLine` also has a `variantId` and a `title`, but no
+ * is deliberately narrow: a `StorefrontCartLine` also has a `productId` and a `title`, but no
  * `handle` and no `price` object, so it is not one of these.
  */
 function isProductItem(value: unknown): value is StorefrontProductListItem {
   if (!isRecord(value)) return false;
-  if (typeof value.handle !== 'string' || typeof value.variantId !== 'string') return false;
+  if (typeof value.handle !== 'string' || typeof value.productId !== 'string') return false;
   const price = value.price;
   return isRecord(price) && typeof price.amount === 'number';
 }
@@ -149,7 +150,7 @@ function applyToList(list: readonly unknown[], byId: Map<string, VolatileSnapsho
 }
 
 function applyToItem(item: VolatileItem, byId: Map<string, VolatileSnapshot>): VolatileItem {
-  const snapshot = byId.get(item.variantId);
+  const snapshot = byId.get(item.productId);
   if (snapshot === undefined) return item;
 
   const price = applyPrice(item.price, snapshot.price);

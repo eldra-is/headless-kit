@@ -1,4 +1,4 @@
-import { createServer, type Server } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { seedLayout } from '@eldrajs/vite-plugin-theme';
 import { starterTemplateRoles, starterTemplates } from '../../app/templates';
 
@@ -127,6 +127,45 @@ const listItemOf = (row: MockProduct): Record<string, unknown> => ({
   ...(row.compareAtPrice === undefined ? {} : { compareAtPrice: row.compareAtPrice }),
   totalVariants: row.variants.length,
 });
+
+/**
+ * `POST /inventory/v1/stock/availability`'s answer: every variant the request named, in stock.
+ *
+ * The product page reads it alongside the catalogue response (`app/storefront/gateway.ts`), so
+ * without it the generated site would exercise the fail-soft path on every product — a 404 in the
+ * browser console and no inventory ever read, which is not what a deployed site does. `stockOf` is
+ * what a test changes to make a variant sold out.
+ */
+const availabilityOf = (body: unknown): Record<string, unknown> => {
+  const items = (body as { items?: Array<{ variantId?: unknown }> } | null)?.items ?? [];
+  return {
+    items: items.flatMap((item) =>
+      typeof item.variantId === 'string'
+        ? [
+            {
+              variantId: item.variantId,
+              locationId: 'loc-default',
+              available: true,
+              allowBackorder: false,
+              availableQuantity: 24,
+            },
+          ]
+        : []
+    ),
+  };
+};
+
+/** The request body of a POST, as JSON — only `availabilityOf` needs one. */
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(chunk as Buffer);
+  if (chunks.length === 0) return null;
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return null;
+  }
+}
 
 const listResponse = (data: unknown[]): Record<string, unknown> => ({
   data,
@@ -404,6 +443,10 @@ export function startMockGateway(): Promise<MockGateway> {
     const pages = pageEntries();
 
     const server = createServer((req, res) => {
+      void handle(req, res);
+    });
+
+    const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
       const url = new URL(req.url ?? '/', 'http://localhost');
       // The browser reads this origin cross-origin; the SDK sends `X-Org-Id`, which makes every
       // read a preflighted request.
@@ -459,6 +502,8 @@ export function startMockGateway(): Promise<MockGateway> {
             matchesFilters(row, filters) && (categoryId === null || row.categoryId === categoryId)
         ).slice(0, Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 100);
         answer(listResponse(rows.map(listItemOf)));
+      } else if (url.pathname === '/inventory/v1/stock/availability') {
+        answer(availabilityOf(await readJsonBody(req)));
       } else if (url.pathname === '/catalog/v1/collections') {
         answer(listResponse(COLLECTIONS));
       } else if (
@@ -480,7 +525,7 @@ export function startMockGateway(): Promise<MockGateway> {
       } else {
         answer({}, 404);
       }
-    });
+    };
 
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();

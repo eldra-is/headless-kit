@@ -104,6 +104,10 @@ export const enUS = {
     error: "We couldn't load this right now.",
     notFound: 'This product is no longer available.',
     updatingValues: 'Updating prices and stock',
+    mutationFailed: 'Something went wrong. Please try again.',
+    outOfStock: 'This item is out of stock.',
+    unavailable: 'This item is no longer available.',
+    cartOutOfDate: 'Your cart is out of date. Reload the page and try again.',
     unresolvedCollectionLabel: 'Publish to load products',
     unresolvedCollectionHelp:
       'The collection is picked. Its products appear here once this page is published.',
@@ -463,6 +467,7 @@ export const enUS = {
     removeItemVariant: 'Remove {title}, {variant}',
     removed: '{title} removed',
     undo: 'Undo',
+    added: 'Added to cart',
     awayFromFree: "You're {amount} away from free shipping",
     freeUnlocked: 'Free shipping unlocked',
     discountCode: 'Discount code',

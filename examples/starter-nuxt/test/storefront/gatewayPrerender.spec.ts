@@ -87,12 +87,21 @@ function fakeClient(
     detail?: () => Record<string, unknown>;
     list?: (filter: string[]) => Promise<Array<Record<string, unknown>>>;
     collectionProducts?: () => Array<Record<string, unknown>>;
+    /** The inventory answer for the detail read. Omitted, there is no inventory service at all —
+     *  which is the fail-soft case every other test here runs in. */
+    stock?: () => Array<Record<string, unknown>>;
   } = {}
 ): FakeClient {
   const state: FakeClient = {
     detailReads: 0,
     listFilters: [],
     client: {
+      inventory: {
+        availability: async () => {
+          if (options.stock === undefined) throw new Error('no inventory service');
+          return { items: options.stock() };
+        },
+      },
       catalog: {
         getProduct: async () => {
           state.detailReads += 1;
@@ -248,6 +257,7 @@ describe('gateway storefront — prerendered results', () => {
       price: { amount: 96, compareAt: null },
       stock: 'in',
       available: true,
+      productId: 'p-1',
       variantId: 'v-1',
     };
     const hydrating = asyncDataStub({
@@ -359,9 +369,9 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
   });
 
   /**
-   * P1's hand-off note: a detail product's `variantId` is a *variant's* id, which the batched
-   * `id:in:` read (product ids) can never match. It refreshes through its own product read
-   * instead, and stays out of the batch.
+   * The detail page is the one result whose stock line is about a *variant*, so it needs the
+   * variant-level inventory the batched `id:in:` read (the products list) carries none of. It
+   * refreshes through its own product read instead, and stays out of the batch.
    */
   it('refreshes the detail product through `catalog.product`, not through the batch', async () => {
     let price = 96;
@@ -382,6 +392,40 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
     expect(detail.data.value?.price.amount).toBe(79);
     expect(detail.data.value?.title).toBe('Merino crew sweater');
     expect(detail.revalidating.value.size).toBe(0);
+  });
+
+  /**
+   * The prerender half of the inventory read: the generated HTML carries the stock the product had
+   * at build, and the refresh after mount is what corrects it. A page prerendered while the last
+   * one was on the shelf has to stop saying "In stock, ready to ship" once it is gone.
+   */
+  it('corrects a prerendered stock line from inventory on the refresh after mount', async () => {
+    let onHand = 4;
+    const calls = fakeClient({
+      detail: () => detailRow(96),
+      list: async () => [],
+      stock: () => [
+        {
+          variantId: 'v-1',
+          available: onHand > 0,
+          allowBackorder: false,
+          availableQuantity: onHand,
+        },
+      ],
+    });
+    const ssr = asyncDataStub();
+    const { storefront, refresher } = wire(calls.client, ssr.prerender);
+
+    const detail = storefront.catalog.product(ref('merino-crew-sweater'));
+    await ssr.settleAll();
+    expect(detail.data.value?.stock).toBe('in');
+    expect(detail.data.value?.inventory).toBe(4);
+
+    onHand = 0;
+    await refresher.refresh();
+
+    expect(detail.data.value?.stock).toBe('out');
+    expect(detail.data.value?.inventory).toBe(0);
   });
 
   it('drops an answer for data the result has already replaced', async () => {
@@ -538,7 +582,7 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
     );
     let written = 0;
     const entry = {
-      read: () => [{ handle: 'p-1', variantId: 'p-1', price: { amount: 4, compareAt: null } }],
+      read: () => [{ handle: 'p-1', productId: 'p-1', price: { amount: 4, compareAt: null } }],
       write: () => {
         written += 1;
       },
@@ -552,6 +596,41 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
 
     expect(reads).toEqual([['p-1']]);
     expect(written).toBe(1);
+  });
+
+  /**
+   * The product page and a grid on the same page are about the same product id, and the batched read
+   * cannot answer what the product page needs: the products list carries no inventory, so an answer
+   * folded in from it would leave the page's stock line on the value it was built with. Before the
+   * ids were named for what they are this fell out by accident — a detail product's volatile id was a
+   * *variant's*, which no list read matched — and the first page to hit it was a client-side
+   * navigation from a collection page, where the grid had already claimed that product.
+   */
+  it('still reads the detail product for itself when a card list already asked about it', async () => {
+    const calls = fakeClient({
+      detail: () => detailRow(96),
+      list: async () => [listRow('p-1', 96)],
+      stock: () => [
+        { variantId: 'v-1', available: false, allowBackorder: false, availableQuantity: 0 },
+      ],
+    });
+    const ssr = asyncDataStub();
+    const { storefront, refresher } = wire(calls.client, ssr.prerender);
+
+    // The grid registers first, exactly as a collection page's own refresh does.
+    const grid = storefront.catalog.byHandles(ref(['p-1']));
+    const detail = storefront.catalog.product(ref('merino-crew-sweater'));
+    await ssr.settleAll();
+    const before = calls.detailReads;
+
+    await refresher.refresh();
+
+    expect(calls.detailReads - before).toBe(1);
+    expect(detail.data.value?.stock).toBe('out');
+    expect(detail.data.value?.inventory).toBe(0);
+    // …and the grid still got its own batched answer, unaffected.
+    expect(volatileReads(calls)).toEqual([['id:in:p-1']]);
+    expect(grid.data.value?.[0]?.price.amount).toBe(96);
   });
 
   it('lets two results that need the same detail read share one request', async () => {

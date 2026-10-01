@@ -1,4 +1,5 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { toStorefrontFailure, type StorefrontFailure } from './feedback';
 import type { StorefrontAck, StorefrontCartLine, StorefrontCartTotals } from './types';
 
 export interface CartStore {
@@ -6,7 +7,15 @@ export interface CartStore {
   totals: Ref<StorefrontCartTotals | null>;
   count: ComputedRef<number>;
   pending: Ref<boolean>;
+  /**
+   * The last *run* mutation's failure message, for the cart as a whole — a status, not a per-call
+   * answer. A caller asking "did **my** call fail?" reads the value its own call resolved with
+   * (every mutation below answers `StorefrontFailure | null`); reading this instead would describe
+   * whatever the cart did last, including another block's request and a call that never ran.
+   */
   error: Ref<string | null>;
+  /** The same failure, structured (`app/storefront/feedback.ts`), with the same caveat. */
+  lastFailure: Ref<StorefrontFailure | null>;
   /**
    * The three facts about the cart drawer that two unrelated component trees — the header
    * (`blocks/navigation/Block.vue`) and the cart itself (`blocks/cart/Block.vue`) — have to agree
@@ -43,13 +52,33 @@ export interface CartStore {
   drawerAvailable: Ref<boolean>;
   drawerHosted: Ref<boolean>;
   lastRemoved: Ref<{ line: StorefrontCartLine; index: number } | null>;
-  add(i: { variantId: string; quantity: number }): Promise<void>;
-  setQuantity(lineId: string, quantity: number): Promise<void>;
-  remove(lineId: string): Promise<void>;
-  undoRemove(): Promise<void>;
+  /**
+   * Every mutation resolves with **its own** outcome: `null` when it succeeded, or when there was
+   * nothing to do (a line that is already gone, an undo with nothing to restore), and the failure
+   * when the backend refused it. That is what a block reports to the shopper
+   * (`app/composables/useStorefrontFeedback.ts`) — a store-wide field read after the fact cannot say
+   * whose call it describes, and says nothing at all about a call that returned early.
+   */
+  add(i: CartAddInput): Promise<StorefrontFailure | null>;
+  setQuantity(lineId: string, quantity: number): Promise<StorefrontFailure | null>;
+  remove(lineId: string): Promise<StorefrontFailure | null>;
+  undoRemove(): Promise<StorefrontFailure | null>;
   applyDiscount(code: string): Promise<StorefrontAck>;
-  removeDiscount(code: string): Promise<void>;
+  removeDiscount(code: string): Promise<StorefrontFailure | null>;
   checkoutUrl: ComputedRef<string | null>;
+}
+
+/**
+ * Both halves of "what to put in the cart". The backend resolves the pair together — one lookup of
+ * "this variant, of this product" — so a variant id alone is not enough, and a product id sent as
+ * both is a pair that does not exist. A caller gets the pair from a product *detail* read
+ * (`StorefrontProduct.productId`/`variantId`) or from a cart line (`StorefrontCartLine`); a product
+ * card carries no variant at all, by design (`app/storefront/types.ts`).
+ */
+export interface CartAddInput {
+  productId: string;
+  variantId: string;
+  quantity: number;
 }
 
 export interface CartSnapshot {
@@ -66,17 +95,13 @@ export interface CartSnapshot {
 export interface CartOps {
   /** The cart as it exists when the store is created (e.g. a previously remembered cart id). */
   init(): Promise<CartSnapshot>;
-  add(input: { variantId: string; quantity: number }): Promise<CartSnapshot>;
+  add(input: CartAddInput): Promise<CartSnapshot>;
   setQuantity(lineId: string, quantity: number): Promise<CartSnapshot>;
   remove(lineId: string): Promise<CartSnapshot>;
   applyDiscount(code: string): Promise<{ ack: StorefrontAck; snapshot?: CartSnapshot }>;
   removeDiscount(): Promise<CartSnapshot>;
   /** Reactive so a cart id assigned after the first `add()` updates the link immediately. */
   checkoutUrl: Ref<string | null>;
-}
-
-function toErrorMessage(caught: unknown): string {
-  return caught instanceof Error ? caught.message : 'Something went wrong.';
 }
 
 /**
@@ -89,6 +114,22 @@ export function createCartStore(ops: CartOps): CartStore {
   const totals = ref<StorefrontCartTotals | null>(null);
   const pending = ref(false);
   const error = ref<string | null>(null);
+  const lastFailure = ref<StorefrontFailure | null>(null);
+
+  /** Every `catch` in this file, so no path can record one half of a failure and not the other —
+   *  and the one place the caller's own answer comes from. */
+  function fail(caught: unknown): StorefrontFailure {
+    const failure = toStorefrontFailure(caught);
+    lastFailure.value = failure;
+    error.value = failure.message;
+    return failure;
+  }
+
+  /** Every mutation's start: the previous failure is this mutation's history, not its result. */
+  function clearFailure(): void {
+    lastFailure.value = null;
+    error.value = null;
+  }
   const drawerOpen = ref(false);
   const drawerAvailable = ref(false);
   const drawerHosted = ref(false);
@@ -102,16 +143,17 @@ export function createCartStore(ops: CartOps): CartStore {
 
   let inFlight = 0;
 
-  async function run(task: () => Promise<CartSnapshot>): Promise<void> {
+  async function run(task: () => Promise<CartSnapshot>): Promise<StorefrontFailure | null> {
     inFlight += 1;
     pending.value = true;
-    error.value = null;
+    clearFailure();
     try {
       const snapshot = await task();
       lines.value = snapshot.lines;
       totals.value = snapshot.totals;
+      return null;
     } catch (caught) {
-      error.value = toErrorMessage(caught);
+      return fail(caught);
     } finally {
       inFlight -= 1;
       if (inFlight === 0) pending.value = false;
@@ -129,6 +171,7 @@ export function createCartStore(ops: CartOps): CartStore {
     count,
     pending,
     error,
+    lastFailure,
     drawerOpen,
     drawerAvailable,
     drawerHosted,
@@ -138,14 +181,16 @@ export function createCartStore(ops: CartOps): CartStore {
     setQuantity: (lineId, quantity) => run(() => ops.setQuantity(lineId, quantity)),
     async remove(lineId) {
       const index = lines.value.findIndex((line) => line.id === lineId);
-      if (index === -1) return;
+      // Already gone — nothing was asked of the backend, so nothing failed.
+      if (index === -1) return null;
       const line = lines.value[index]!;
-      await run(() => ops.remove(lineId));
-      if (error.value === null) lastRemoved.value = { line, index };
+      const failure = await run(() => ops.remove(lineId));
+      if (failure === null) lastRemoved.value = { line, index };
+      return failure;
     },
     async undoRemove() {
       const removed = lastRemoved.value;
-      if (!removed) return;
+      if (!removed) return null;
       // Reinsert at the exact index it was removed from — trusting a re-`add()`'s own returned
       // line order would not guarantee that, so this half is local and synchronous.
       lines.value = [
@@ -156,17 +201,19 @@ export function createCartStore(ops: CartOps): CartStore {
       lastRemoved.value = null;
       inFlight += 1;
       pending.value = true;
-      error.value = null;
+      clearFailure();
       try {
         const snapshot = await ops.add({
+          productId: removed.line.productId,
           variantId: removed.line.variantId,
           quantity: removed.line.quantity,
         });
         // Only totals are trusted from the backend here — `lines` stays the locally-restored
         // order above.
         totals.value = snapshot.totals;
+        return null;
       } catch (caught) {
-        error.value = toErrorMessage(caught);
+        return fail(caught);
       } finally {
         inFlight -= 1;
         if (inFlight === 0) pending.value = false;
@@ -175,7 +222,7 @@ export function createCartStore(ops: CartOps): CartStore {
     async applyDiscount(code) {
       inFlight += 1;
       pending.value = true;
-      error.value = null;
+      clearFailure();
       try {
         const { ack, snapshot } = await ops.applyDiscount(code);
         if (snapshot) {
@@ -184,7 +231,7 @@ export function createCartStore(ops: CartOps): CartStore {
         }
         return ack;
       } catch (caught) {
-        error.value = toErrorMessage(caught);
+        fail(caught);
         return { ok: false, reason: 'failed' };
       } finally {
         inFlight -= 1;

@@ -460,11 +460,11 @@ describe('createDemoStorefront', () => {
     it('answers with the card’s own price, availability and stock line, by the id it carries', async () => {
       const storefront = createDemoStorefront();
       const sweater = PRODUCTS[0]!;
-      const snapshots = await storefront.catalog.volatileByIds([sweater.variantId]);
+      const snapshots = await storefront.catalog.volatileByIds([sweater.productId]);
 
       expect(snapshots).toEqual([
         {
-          id: sweater.variantId,
+          id: sweater.productId,
           price: sweater.price,
           available: sweater.available,
           stock: sweater.stock,
@@ -481,10 +481,10 @@ describe('createDemoStorefront', () => {
       expect(await storefront.catalog.volatileByIds(['not-a-product'])).toEqual([]);
       expect(await storefront.catalog.volatileByIds([])).toEqual([]);
       expect(
-        (await storefront.catalog.volatileByIds(['not-a-product', sweater.variantId])).map(
+        (await storefront.catalog.volatileByIds(['not-a-product', sweater.productId])).map(
           (snapshot) => snapshot.id
         )
-      ).toEqual([sweater.variantId]);
+      ).toEqual([sweater.productId]);
     });
 
     it('refreshing a card with its own snapshot changes nothing, object identity included', async () => {

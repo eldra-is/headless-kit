@@ -512,8 +512,17 @@ What can have moved since the build is money and the stock line, so after the ap
 does one batched read for the products it is showing
 (`catalog.volatileByIds` → `filter=id:in:…`, chunked at 50) and swaps only
 `price.amount`/`price.compareAt`/`available`/`stock` in; the product **detail** page refreshes
-through its own `catalog.product` read instead, because its `variantId` names a variant rather than
-a product. A batch is every result registered before it goes out, and there can be more than one:
+through its own `catalog.product` read instead, because that read is the only one that knows the
+variant-level inventory behind its stock line. That read pairs the catalogue response with one bulk
+`inventory.availability` call for the product's variants (no `locationId`, so the organisation's
+default location answers), and fills `inventory` and `stock` from it: a published variant with
+nothing on the shelf reads sold out rather than "In stock, ready to ship". The call fails soft — a
+store that tracks no stock, an answer about no variant, a service that is down all leave the page on
+the variant's published status, silently, because a shopper cannot act on "we could not reach
+inventory". Product **cards** stay on status: availability is per variant and a card carries none, so
+a grid would cost one detail read per tile.
+
+A batch is every result registered before it goes out, and there can be more than one:
 blocks are lazily imported components, so a block whose chunk arrives after the app has mounted
 opens the next batch rather than being left out of the only one — which is what used to happen,
 silently, to the carousel on a product page. What is once per page load is the **question**, not the
@@ -522,7 +531,16 @@ a block that arrives in a later burst showing products an earlier one already co
 and folds in the answer already on its way. Two blocks over the same collection therefore cost one
 request and can never paint two different prices; two results needing the same detail read share
 that request too; and a result that somehow registers twice takes part once. Without that the
-deployed pages issued every read twice, ~35 ms apart, with identical ids. While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
+deployed pages issued every read twice, ~35 ms apart, with identical ids.
+
+The one thing that is **not** shared is the detail read itself: a result that reads for itself never
+takes the batch's answer, because the products list the batch reads from carries no inventory, and
+the product page's stock line is the one thing that needs it. So a page showing the same product in a
+card and in the buy box makes both reads — one extra request, and the right trade: folding the list's
+answer into the buy box would leave it on the stock the page was built with, which is the whole
+reason the refresh exists.
+
+While that is in flight the keys being refreshed sit in `StorefrontResult.revalidating`
 (`'price' | 'stock'`) and the prerendered value stays on screen; a failed refresh keeps the value
 and clears the set — a page never regresses to an error state for something it can already show.
 A result created _after_ hydration reads the build's answer when there is one and loads live when
@@ -842,6 +860,27 @@ What follows from one host (the rules themselves are documented once in the code
   the rest of the canvas inert behind it; `onCartClick` returns early while `useEditing()` is true.
 - Nothing else about the drawer moved — `cart.drawerOpen`, the Esc/backdrop close, the focus return to
   the bag, the live count and the Undo toast are the block's own, unchanged.
+
+**Every failed mutation is reported, and every successful add is visible.** A failed _read_ leaves
+the page showing what it already had and the blocks say so in place (`StorefrontResult.error`); a
+failed _change_ leaves nothing behind — the button's spinner stops, the row does not move, the stepper
+springs back — so without a message a refusal is indistinguishable from a control that does nothing.
+`app/storefront/cart.ts` therefore keeps the structured failure (`lastFailure`: the SDK error's
+`errorId`, `code` and `status`, not just its message, which is developer text) beside the existing
+`error` string, `app/storefront/feedback.ts` maps one `errorId` to one translated sentence —
+`storefront.outOfStock` for `CART_INSUFFICIENT_STOCK`, `storefront.unavailable` for
+`CART_INVALID_PRODUCT`, `storefront.mutationFailed` for everything else and for anything that never
+reached the gateway — and `useStorefrontFeedback()` is the only place that turns one into a toast. No
+block writes its own copy, so the same refusal reads the same way wherever a shopper meets it. Form
+refusals stay inline next to the field that caused them (the discount code, the back-in-stock address,
+the contact fields), which is the Toast primitive's own rule. A successful **Add to cart** is confirmed by an
+"Added to cart" toast and never by opening the drawer — the design spec's own rule for the Drawer
+primitive, because a modal over the page takes the focus and the scroll position of a shopper who
+pressed one button while reading a product. The toast _offers_ the cart instead: its "View cart" action
+opens the hosted drawer when one is live (`cart.drawerAvailable` — a shopper asking to see the cart is
+the spec's exception) and links to `/cart` when none is. A refused add that named stock also flips the
+product block's own stock line to sold out, because the cart service has just proved it knows
+something the page's read did not.
 
 `/cart` stays, and stays a route: `app/pages/cart.vue` is theme **code**, not a page an author
 composes. A shopper's cart is their own session: there is nothing to lay out, and a site must not be

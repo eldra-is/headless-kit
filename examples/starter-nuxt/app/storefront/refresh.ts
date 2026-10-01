@@ -59,9 +59,9 @@ export interface VolatileRefreshEntry {
   token(): number;
   /**
    * A result that cannot go through the batched read refreshes itself with this, and is passed the
-   * data it is refreshing. The product detail page is the case that exists: its `variantId` is a
-   * *variant's* id (`gateway.ts`'s `mapProductDetails`), which the products list's `id:in:` filter
-   * does not match, so it re-reads the product and answers with a snapshot of its own.
+   * data it is refreshing. The product detail page is the case that exists: it needs the
+   * variant-level inventory the products list carries none of (`gateway.ts`'s `mapProductDetails`),
+   * so it re-reads the product and answers with a snapshot of its own.
    */
   own?(current: unknown): Promise<VolatileSnapshot[]>;
 }
@@ -93,6 +93,18 @@ export function createVolatileRefresher(
    * retried either (the page keeps the value it was built with, which is the same outcome).
    */
   const answerFor = new Map<string, Promise<readonly VolatileSnapshot[]>>();
+  /**
+   * The same thing for results that read for themselves (`VolatileRefreshEntry.own`), kept apart
+   * from `answerFor` on purpose: the two kinds of read cannot stand in for one another. `own` exists
+   * *because* the batched read cannot answer what such a result needs — the product page's
+   * variant-level inventory, which the products list carries none of — so a batch answer folded into
+   * a detail page would leave it on the stock the page was built with, which is the whole thing the
+   * refresh is for. Two detail results over the same product still share one read, through here.
+   *
+   * (It used to need no saying: a detail product's volatile id was a *variant's*, so no list read
+   * could ever match it. Now that every row names the product it is about, they do match.)
+   */
+  const ownAnswerFor = new Map<string, Promise<readonly VolatileSnapshot[]>>();
 
   /** Every snapshot the reads this entry is waiting on answer with, as one list. */
   function merged(
@@ -101,6 +113,21 @@ export function createVolatileRefresher(
     const reads = [...waiting];
     if (reads.length === 1) return reads[0]!;
     return Promise.all(reads).then((lists) => lists.flat());
+  }
+
+  /** Splits an entry's targets into the reads already answering for them and the ids nothing is. */
+  function claim(
+    pending: ReadonlyMap<string, Promise<readonly VolatileSnapshot[]>>,
+    targets: readonly string[]
+  ): { waiting: Set<Promise<readonly VolatileSnapshot[]>>; missing: string[] } {
+    const waiting = new Set<Promise<readonly VolatileSnapshot[]>>();
+    const missing: string[] = [];
+    for (const id of targets) {
+      const answered = pending.get(id);
+      if (answered === undefined) missing.push(id);
+      else waiting.add(answered);
+    }
+    return { waiting, missing };
   }
 
   /**
@@ -153,22 +180,27 @@ export function createVolatileRefresher(
       const targets = collectVolatileTargets(entry.read());
       if (targets.length === 0) continue;
 
-      const waiting = new Set<Promise<readonly VolatileSnapshot[]>>();
-      const missing: string[] = [];
-      for (const id of targets) {
-        const answered = answerFor.get(id);
-        if (answered === undefined) missing.push(id);
-        else waiting.add(answered);
-      }
-      if (missing.length === 0) {
-        // Every value it shows is already being re-read, or has been. Fold that answer in.
+      // A result that reads for itself asks its own question, shared only with another result that
+      // would ask exactly the same one (`ownAnswerFor`), never with the batch.
+      if (entry.own !== undefined) {
+        const { waiting, missing } = claim(ownAnswerFor, targets);
+        if (missing.length > 0) {
+          const read = Promise.resolve(entry.own(entry.read()));
+          for (const id of missing) ownAnswerFor.set(id, read);
+          waiting.add(read);
+        }
         work.push(settle(entry, merged(waiting)));
         continue;
       }
-      const read = entry.own === undefined ? batch : Promise.resolve(entry.own(entry.read()));
-      for (const id of missing) answerFor.set(id, read);
-      if (entry.own === undefined) ids.push(...missing);
-      waiting.add(read);
+
+      const { waiting, missing } = claim(answerFor, targets);
+      // Nothing missing: every value it shows is already being re-read, or has been. Fold that
+      // answer in rather than asking again.
+      if (missing.length > 0) {
+        for (const id of missing) answerFor.set(id, batch);
+        ids.push(...missing);
+        waiting.add(batch);
+      }
       work.push(settle(entry, merged(waiting)));
     }
 

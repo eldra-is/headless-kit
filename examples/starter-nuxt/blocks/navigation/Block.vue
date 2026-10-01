@@ -256,7 +256,7 @@ const searchResult = storefront.search.run(searchQuery);
 function toSearchResults(response: StorefrontSearchResponse | null): SearchResults | undefined {
   if (response === null) return undefined;
   const products: SearchResultItem[] = response.products.map((product) => ({
-    id: product.variantId,
+    id: product.productId,
     title: product.title,
     href: product.url,
     price: formatMoney(product.price.amount),
