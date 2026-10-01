@@ -381,6 +381,12 @@ const scrolled = ref(false);
  * block occupies, byte for byte what it was while the bar was in it.
  */
 const hiddenByScroll = ref(false);
+/**
+ * True only while focus inside the bar is `:focus-visible`: a plain mouse click on the bag or
+ * search button focuses it too, and the drawer/dialog it opens restores focus there on close, so
+ * counting any focus would pin the bar open for the rest of the page view instead of just for the
+ * keyboard visitor 2.4.7 protects.
+ */
 const focusWithinBar = ref(false);
 /**
  * The bar's height, named once: the bar sets it on its own `<nav>` and the spacer reserves the very
@@ -421,8 +427,17 @@ watchEffect((onCleanup) => {
   window.addEventListener('scroll', onScroll, { passive: true });
   onCleanup(() => window.removeEventListener('scroll', onScroll));
 });
-function onBarFocusIn(): void {
-  focusWithinBar.value = true;
+function onBarFocusIn(event: FocusEvent): void {
+  const target = event.target;
+  // `:focus-visible` is the browser's own keyboard-vs-pointer call, re-read on every focusin —
+  // including a dialog's programmatic `.focus()` back onto its opener, which the browser still
+  // attributes to the click that opened it and so never matches. An engine that can't evaluate the
+  // selector can't tell the two apart either; assume keyboard, the conservative 2.4.7 default.
+  try {
+    focusWithinBar.value = target instanceof Element ? target.matches(':focus-visible') : true;
+  } catch {
+    focusWithinBar.value = true;
+  }
 }
 function onBarFocusOut(event: FocusEvent): void {
   const next = event.relatedTarget;

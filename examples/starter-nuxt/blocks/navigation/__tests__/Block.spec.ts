@@ -76,6 +76,22 @@ async function flushIcons(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve));
 }
 
+/**
+ * jsdom implements the `:focus-visible` syntax but never matches it — not even for a real
+ * `.focus()` call — so it cannot tell a keyboard focus from a pointer one on its own. The sticky
+ * bar's focus specs need that distinction, so they patch `Element.prototype.matches` to answer
+ * deterministically for just that selector and restore the original afterwards.
+ */
+function stubFocusVisible(matches: boolean): () => void {
+  const original = Element.prototype.matches;
+  Element.prototype.matches = function (this: Element, selector: string): boolean {
+    return selector === ':focus-visible' ? matches : original.call(this, selector);
+  };
+  return () => {
+    Element.prototype.matches = original;
+  };
+}
+
 function mountBlock(data: Record<string, unknown>, opts?: { attachTo?: Element }) {
   const base = mountOptions({ entry: { id: 'e1', data } }, { links: resolved.links });
   return mount(Block, {
@@ -450,16 +466,73 @@ describe('header block (navigation apiId)', () => {
       expect(header.classes()).not.toContain('-translate-y-full');
       await knitwear.trigger('keydown', { key: 'Escape' });
       await nextTick();
-      // … and so does keyboard focus inside the bar.
-      await header.trigger('focusin');
-      await scrollTo(1200);
-      expect(header.classes()).not.toContain('-translate-y-full');
-      await header.trigger('focusout', { relatedTarget: document.body });
-      await scrollTo(1500);
-      expect(header.classes()).toContain('-translate-y-full');
+      // Keyboard focus inside the bar keeps it shown too — the dedicated `:focus-visible` specs
+      // below cover that (and the mouse-click case that must *not* pin it open).
 
       await scrollTo(0);
       wrapper.unmount();
+    });
+
+    it('a mouse click that focuses the bag does not pin a scrolled-away bar open', async () => {
+      // A plain click focuses the clicked control, but never matches `:focus-visible` — the
+      // distinction `focusWithinBar` now keys off so the header can hide again after the cart
+      // drawer (or search dialog) returns focus to the button that opened it. jsdom's own
+      // `:focus-visible` already evaluates to `false` here even for a real `.focus()` call, so
+      // this stub only makes that assumption explicit rather than relying on an engine quirk.
+      const restore = stubFocusVisible(false);
+      try {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const header = wrapper.get('header');
+        Object.defineProperty(header.element, 'offsetHeight', { value: 72, configurable: true });
+        const scrollTo = async (y: number) => {
+          Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+          window.dispatchEvent(new Event('scroll'));
+          await nextTick();
+        };
+        const bag = wrapper
+          .findAll('a, button')
+          .find((el) => el.attributes('aria-label')?.startsWith('Cart'))!;
+
+        await bag.trigger('focusin');
+        await scrollTo(300);
+        expect(header.classes()).toContain('-translate-y-full');
+
+        await scrollTo(0);
+        wrapper.unmount();
+      } finally {
+        restore();
+      }
+    });
+
+    it('keyboard focus-visible on a bar control keeps a scrolled-away bar on screen', async () => {
+      // jsdom never matches `:focus-visible`, even right after a real `.focus()` call, so it
+      // cannot tell this case apart from the click above on its own; stub it to prove the keyboard
+      // side of the same rule.
+      const restore = stubFocusVisible(true);
+      try {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const header = wrapper.get('header');
+        Object.defineProperty(header.element, 'offsetHeight', { value: 72, configurable: true });
+        const scrollTo = async (y: number) => {
+          Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+          window.dispatchEvent(new Event('scroll'));
+          await nextTick();
+        };
+        const searchButton = wrapper.get('button[aria-label="Search"]');
+
+        await searchButton.trigger('focusin');
+        await scrollTo(300);
+        expect(header.classes()).not.toContain('-translate-y-full');
+
+        await searchButton.trigger('focusout', { relatedTarget: document.body });
+        await scrollTo(600);
+        expect(header.classes()).toContain('-translate-y-full');
+
+        await scrollTo(0);
+        wrapper.unmount();
+      } finally {
+        restore();
+      }
     });
 
     it('a non-sticky bar scrolls away with the page and never hides itself', async () => {
