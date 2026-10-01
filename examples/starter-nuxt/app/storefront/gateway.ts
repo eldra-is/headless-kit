@@ -127,6 +127,14 @@ interface RawProductDetails {
   variants?: RawProductVariant[] | null;
 }
 
+/** One row of `POST /inventory/v1/stock/availability`'s answer. */
+interface RawStockAvailability {
+  variantId: string;
+  available: boolean;
+  allowBackorder: boolean;
+  availableQuantity: number;
+}
+
 interface RawCollectionItem {
   id: string;
   slug: string;
@@ -248,15 +256,96 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
       compareAt: raw.compareAtPrice ?? null,
       from: raw.minPrice !== raw.maxPrice,
     },
+    // A card stays on the product's published status, not on inventory: the availability read is
+    // per *variant*, and a list row carries no variant at all (see `StorefrontProductListItem`), so
+    // answering a grid from inventory would mean one product detail read per card. The product page
+    // is where the honest number belongs, and it is the only page whose button spends it.
     stock: raw.status === 'ACTIVE' ? 'in' : 'out',
     available: raw.status === 'ACTIVE',
     productId: raw.id,
   };
 }
 
-function mapProductDetails(raw: RawProductDetails): StorefrontProduct {
+/**
+ * What the inventory service says about each of a product's variants, by variant id.
+ *
+ * `null` — and a variant missing from a non-null map — both mean "nothing known", which is not the
+ * same as "nothing left": the mapping below then falls back to the variant's own `status`, exactly
+ * what it used before this read existed. That is the fail-soft rule the whole feature rests on: a
+ * store that has not set inventory up, an inventory service that is down, and a product whose
+ * variants it has never heard of all keep a working product page instead of a catalogue that reads
+ * sold out.
+ */
+type StockByVariant = ReadonlyMap<string, RawStockAvailability>;
+
+/**
+ * The product page's inventory read. The catalogue's own product response carries a variant's
+ * `status` — whether it is published — and nothing at all about units, so a published variant with
+ * no stock read "In stock, ready to ship" beside an Add to cart the cart service then refused. One
+ * bulk call answers for every variant of the product at once.
+ *
+ * No `locationId` is sent: an item without one resolves the organisation's default location, which
+ * is the only location a storefront knows about.
+ *
+ * It never throws and never reports. A shopper cannot act on "we could not reach inventory", and
+ * the page has a usable answer without it (see `StockByVariant`), so a failure is silent by design.
+ */
+async function readStock(
+  client: EldraClient,
+  raw: RawProductDetails,
+  signal?: AbortSignal
+): Promise<StockByVariant | null> {
+  const items = (raw.variants ?? [])
+    .map((variant) => variant.id)
+    .filter((variantId) => variantId !== '')
+    .map((variantId) => ({ variantId }));
+  if (items.length === 0) return null;
+  try {
+    const answer = (await client.inventory.availability(
+      items,
+      signal ? { signal } : {}
+    )) as unknown as {
+      items?: RawStockAvailability[] | null;
+    };
+    const byVariant = new Map<string, RawStockAvailability>();
+    for (const item of answer.items ?? []) byVariant.set(item.variantId, item);
+    return byVariant.size === 0 ? null : byVariant;
+  } catch {
+    return null;
+  }
+}
+
+/** Can this variant be bought right now: published, and either in stock or open to back-order. */
+function variantBuyable(variant: RawProductVariant, stock: StockByVariant | null): boolean {
+  if (variant.status !== 'ACTIVE') return false;
+  const known = stock?.get(variant.id);
+  return known === undefined || known.available || known.allowBackorder;
+}
+
+/** The product-level stock signal `deriveStockLine` reads, for the variant the page shows. */
+function variantStock(
+  variant: RawProductVariant | undefined,
+  stock: StockByVariant | null
+): StorefrontProduct['stock'] {
+  if (variant === undefined || variant.status !== 'ACTIVE') return 'out';
+  const known = stock?.get(variant.id);
+  if (known === undefined) return 'in';
+  if (known.available) return 'in';
+  return known.allowBackorder ? 'preorder' : 'out';
+}
+
+function mapProductDetails(
+  raw: RawProductDetails,
+  stock: StockByVariant | null
+): StorefrontProduct {
   const variants = raw.variants ?? [];
-  const firstAvailable = variants.find((variant) => variant.status === 'ACTIVE') ?? variants[0];
+  // Spec Do/Don't, "Don't pre-select a sold-out variant": the variant the page opens on is the
+  // first one a shopper could actually buy, and only when none can does it fall back to the first
+  // published one — which is the variant whose sold-out line the shopper then reads.
+  const firstAvailable =
+    variants.find((variant) => variantBuyable(variant, stock)) ??
+    variants.find((variant) => variant.status === 'ACTIVE') ??
+    variants[0];
   const prices = variants.map((variant) => variant.price);
   const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
   const images = (raw.mediaLinks ?? [])
@@ -284,7 +373,7 @@ function mapProductDetails(raw: RawProductDetails): StorefrontProduct {
         label: value.name,
         available: variants.some(
           (variant) =>
-            variant.status === 'ACTIVE' &&
+            variantBuyable(variant, stock) &&
             (variant.optionValues ?? []).some((ov) => ov.optionValueId === value.id)
         ),
       })),
@@ -294,8 +383,10 @@ function mapProductDetails(raw: RawProductDetails): StorefrontProduct {
       const text = raw.description?.text;
       return typeof text === 'string' ? text : '';
     })(),
-    inventory: null,
-    stock: firstAvailable?.status === 'ACTIVE' ? 'in' : 'out',
+    // Real units of the variant the page shows, or `null` when inventory said nothing about it —
+    // which is what keeps "only N left" off a store that tracks no units (spec States, Low stock).
+    inventory: firstAvailable ? (stock?.get(firstAvailable.id)?.availableQuantity ?? null) : null,
+    stock: variantStock(firstAvailable, stock),
     available: raw.status === 'ACTIVE',
     productId: raw.id,
     // The variant an add would send, paired with `productId` above: the cart service looks the two
@@ -1007,7 +1098,9 @@ async function detailSnapshots(
   const [id] = collectVolatileTargets(current);
   if (handle === null || handle === '' || id === undefined) return [];
   const raw = (await client.catalog.getProduct(handle, {})) as unknown as RawProductDetails;
-  const fresh = mapProductDetails(raw);
+  // The refresh is the half of the design that matters on a prerendered page: the build-time read
+  // gave the stock the product had when the page was generated, and this corrects it after mount.
+  const fresh = mapProductDetails(raw, await readStock(client, raw));
   return [
     {
       id,
@@ -1050,7 +1143,7 @@ export function createGatewayStorefront(
             {},
             { signal }
           )) as unknown as RawProductDetails;
-          return mapProductDetails(raw);
+          return mapProductDetails(raw, await readStock(client, raw, signal));
         },
         {
           method: 'catalog.product',

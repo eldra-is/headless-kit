@@ -512,8 +512,15 @@ What can have moved since the build is money and the stock line, so after the ap
 does one batched read for the products it is showing
 (`catalog.volatileByIds` → `filter=id:in:…`, chunked at 50) and swaps only
 `price.amount`/`price.compareAt`/`available`/`stock` in; the product **detail** page refreshes
-through its own `catalog.product` read instead, because its `variantId` names a variant rather than
-a product. A batch is every result registered before it goes out, and there can be more than one:
+through its own `catalog.product` read instead, because that read is the only one that knows the
+variant-level inventory behind its stock line. That read pairs the catalogue response with one bulk
+`inventory.availability` call for the product's variants (no `locationId`, so the organisation's
+default location answers), and fills `inventory` and `stock` from it: a published variant with
+nothing on the shelf reads sold out rather than "In stock, ready to ship". The call fails soft — a
+store that tracks no stock, an answer about no variant, a service that is down all leave the page on
+the variant's published status, silently, because a shopper cannot act on "we could not reach
+inventory". Product **cards** stay on status: availability is per variant and a card carries none, so
+a grid would cost one detail read per tile. A batch is every result registered before it goes out, and there can be more than one:
 blocks are lazily imported components, so a block whose chunk arrives after the app has mounted
 opens the next batch rather than being left out of the only one — which is what used to happen,
 silently, to the carousel on a product page. What is once per page load is the **question**, not the

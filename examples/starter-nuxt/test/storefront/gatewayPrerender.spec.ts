@@ -87,12 +87,21 @@ function fakeClient(
     detail?: () => Record<string, unknown>;
     list?: (filter: string[]) => Promise<Array<Record<string, unknown>>>;
     collectionProducts?: () => Array<Record<string, unknown>>;
+    /** The inventory answer for the detail read. Omitted, there is no inventory service at all —
+     *  which is the fail-soft case every other test here runs in. */
+    stock?: () => Array<Record<string, unknown>>;
   } = {}
 ): FakeClient {
   const state: FakeClient = {
     detailReads: 0,
     listFilters: [],
     client: {
+      inventory: {
+        availability: async () => {
+          if (options.stock === undefined) throw new Error('no inventory service');
+          return { items: options.stock() };
+        },
+      },
       catalog: {
         getProduct: async () => {
           state.detailReads += 1;
@@ -383,6 +392,40 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
     expect(detail.data.value?.price.amount).toBe(79);
     expect(detail.data.value?.title).toBe('Merino crew sweater');
     expect(detail.revalidating.value.size).toBe(0);
+  });
+
+  /**
+   * The prerender half of the inventory read: the generated HTML carries the stock the product had
+   * at build, and the refresh after mount is what corrects it. A page prerendered while the last
+   * one was on the shelf has to stop saying "In stock, ready to ship" once it is gone.
+   */
+  it('corrects a prerendered stock line from inventory on the refresh after mount', async () => {
+    let onHand = 4;
+    const calls = fakeClient({
+      detail: () => detailRow(96),
+      list: async () => [],
+      stock: () => [
+        {
+          variantId: 'v-1',
+          available: onHand > 0,
+          allowBackorder: false,
+          availableQuantity: onHand,
+        },
+      ],
+    });
+    const ssr = asyncDataStub();
+    const { storefront, refresher } = wire(calls.client, ssr.prerender);
+
+    const detail = storefront.catalog.product(ref('merino-crew-sweater'));
+    await ssr.settleAll();
+    expect(detail.data.value?.stock).toBe('in');
+    expect(detail.data.value?.inventory).toBe(4);
+
+    onHand = 0;
+    await refresher.refresh();
+
+    expect(detail.data.value?.stock).toBe('out');
+    expect(detail.data.value?.inventory).toBe(0);
   });
 
   it('drops an answer for data the result has already replaced', async () => {
