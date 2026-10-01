@@ -12,7 +12,9 @@
 // a `flush: 'pre'` effect with no callback runs its body immediately, inside `setup()`, and `setup()`
 // runs on the server too — so each server render raised `ReferenceError: window is not defined`,
 // which `nitro.prerender.failOnError` turns into a failed build.
-import { describe, expect, it } from 'vitest';
+import { defineComponent, h } from 'vue';
+import { describe, expect, it, vi } from 'vitest';
+import Cart from '../../blocks/cart/Block.vue';
 import Navigation from '../../blocks/navigation/Block.vue';
 import navigationMock from '../../blocks/navigation/mock.json';
 import ProductDetail from '../../blocks/product-detail/Block.vue';
@@ -20,12 +22,16 @@ import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import productCarouselMock from '../../blocks/product-carousel/mock.json';
 import { enUS } from '../../app/i18n/en-US';
-import { renderBlockToString, renderPageToString } from '../support/renderSsr';
+import { renderBlockToString, renderPageToString, renderShellToString } from '../support/renderSsr';
 import type { PageFixture } from '../support/mountPage';
 import homePage from '../../pages/home.page.json';
 import productPage from '../../pages/product.page.json';
 import collectionPage from '../../pages/collection.page.json';
 import articlePage from '../../pages/article.page.json';
+
+// `app/app.vue` reads `useRoute()` as a bare Nuxt auto-import (it is the shell: that is where closing
+// the cart drawer on a route change belongs). A server render only ever calls it, never navigates.
+vi.stubGlobal('useRoute', () => ({ fullPath: '/' }));
 
 const FIXTURES: Array<[string, PageFixture]> = [
   ['home', homePage as unknown as PageFixture],
@@ -49,6 +55,49 @@ describe('server rendering', () => {
 
     expect(html).toContain('<header');
     expect(html).toContain('Primary navigation');
+  });
+
+  /**
+   * The shell's own cart drawer, in the HTML a static host serves: closed (a `<dialog>` without `open`
+   * is `display: none`, so nothing of it shows on a page nobody opened the cart on), and exactly one
+   * of them even with an authored `drawer`-variant `cart` block on the same page — two in the markup
+   * would hydrate into two, and the bag could only ever open one. The rule that makes the authored
+   * block defer on the server as well as in the browser is documented on `CartStore`
+   * (`app/storefront/cart.ts`).
+   */
+  it('server-renders the app shell with one closed cart drawer, authored block or not', async () => {
+    const AuthoredCartPage = defineComponent({
+      name: 'AuthoredCartPage',
+      setup: () => () =>
+        h('main', { id: 'main' }, [
+          h(Cart, { entry: { id: 'authored-cart', data: { variant: 'drawer' } } } as never),
+        ]),
+    });
+
+    const html = await renderShellToString(AuthoredCartPage);
+
+    expect(html).toContain(enUS.cart.title);
+    expect(html.match(/<dialog/g) ?? []).toHaveLength(1);
+    // The attribute, not the `open:flex` utility in its class list.
+    expect(html).not.toMatch(/<dialog[^>]*\sopen[=\s>]/);
+  });
+
+  /**
+   * And the bag that opens it stays a real link in that HTML, which is what a visitor with no
+   * JavaScript — or one reading the page before it hydrates — has. Why it does, and why the swap to a
+   * button afterwards is not a hydration correction: `drawerAvailable` in `app/storefront/cart.ts`.
+   */
+  it('leaves the header bag an anchor to /cart in the prerendered HTML', async () => {
+    const html = await renderShellToString(
+      defineComponent({
+        name: 'HeaderPage',
+        setup: () => () =>
+          h(Navigation, { entry: { id: 'ssr-header', data: navigationMock } } as never),
+      })
+    );
+
+    expect(html).toContain('href="/cart"');
+    expect(html).not.toMatch(/<button[^>]*aria-label="Cart/);
   });
 
   it.each(FIXTURES)(

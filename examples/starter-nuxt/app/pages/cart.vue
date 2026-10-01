@@ -2,11 +2,13 @@
 /**
  * `/cart` — the theme's own cart route.
  *
- * The header's bag (`blocks/navigation/Block.vue`) sends the shopper here whenever no cart drawer
- * is mounted, and the drawer's own "View cart" button points at the same path. Both have always
- * named `/cart`; nothing in the theme answered it, so the site's catch-all
- * (`app/pages/[...slug].vue`) asked the gateway for a CMS page with that slug, found none, and the
- * bag landed every shopper on the not-found shell. This is the page they were being sent to.
+ * The cart a shopper reaches *without* leaving the page they are on is the drawer the theme hosts in
+ * `app/app.vue`; this route is the rest of what `/cart` has to be — the drawer's own "View cart"
+ * destination, the deep link somebody can bookmark or be sent, and what the header's bag still leads
+ * to in the prerendered HTML (`drawerAvailable` in `app/storefront/cart.ts`). Both the bag and the
+ * drawer have always named `/cart`; nothing in the theme answered it, so the site's catch-all
+ * (`app/pages/[...slug].vue`) asked the gateway for a CMS page with that slug, found none, and landed
+ * every shopper on the not-found shell. This is the page they were being sent to.
  *
  * It is a **code** route, not a CMS page: a shopper's cart is their own session, there is nothing
  * for an author to compose, and a site must not be able to lose its cart by deleting a page. Being
@@ -24,7 +26,8 @@
  * cart block with) is a route only some stores have.
  *
  * Author-editable copy for this surface arrives with the storefront settings entry
- * (`docs/starter-kit.md`, "The cart route"); until then the strings above are the theme's.
+ * (`docs/starter-kit.md`, "The cart drawer and the `/cart` route"); until then the strings above
+ * are the theme's.
  */
 import { computed } from 'vue';
 import CartBlock from '../../blocks/cart/Block.vue';
@@ -33,8 +36,11 @@ import { useT } from '../composables/useT';
 const t = useT();
 
 /**
- * Stable, so the block's `useUiId()`-derived heading ids stay the same between the prerendered
- * HTML and the hydrated page. It is not a CMS entry id and never reaches the gateway.
+ * An `EldraBlockEntry` needs an id. This one is the theme's own, not a CMS entry id, and never
+ * reaches the gateway; `app/app.vue`'s hosted drawer carries its own (`theme-cart-drawer`) so the
+ * two theme-owned cart entries stay tellable apart — on this route both are mounted. No id in the
+ * rendered markup comes from here: those are Vue's `useId()`, derived from a component's position in
+ * the tree (`app/composables/useUiId.ts`).
  */
 const ENTRY_ID = 'theme-cart';
 

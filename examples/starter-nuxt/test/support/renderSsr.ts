@@ -1,5 +1,6 @@
 import { createSSRApp, defineComponent, h, type Component } from 'vue';
 import { renderToString } from 'vue/server-renderer';
+import AppShell from '../../app/app.vue';
 import { mountOptions } from './mountBlock';
 import { renderPageFixtureRegions, type PageFixture } from '../../stories/support/pageBlocks';
 
@@ -51,6 +52,25 @@ export async function renderBlockToString(
 ): Promise<string> {
   const app = createSSRApp(defineComponent({ setup: () => () => h(component, { entry }) }));
   applyProvides(app, provides);
+  return renderToString(app);
+}
+
+/**
+ * Server-renders the app shell (`app/app.vue`) itself, with `page` standing in for `<NuxtPage>`.
+ *
+ * It is the only way a spec sees what the theme puts into *every* prerendered page regardless of
+ * what an author composed — the skip link, the one cart drawer the shell hosts, the toast region —
+ * and therefore the only way to prove that a `drawer`-variant `cart` block on the page adds no
+ * second `<dialog>` to the generated HTML. `app.vue` reads `eldraRouteKey` as a Nuxt auto-import;
+ * server-side that resolves to `undefined` and `<NuxtPage>`'s stand-in simply ignores the key.
+ */
+export async function renderShellToString(
+  page: Component,
+  provides: Record<symbol, unknown> = {}
+): Promise<string> {
+  const app = createSSRApp(AppShell);
+  applyProvides(app, provides);
+  app.component('NuxtPage', page);
   return renderToString(app);
 }
 

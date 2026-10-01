@@ -484,6 +484,8 @@ export const enUS = {
     emptyFallbackTitle: 'Your cart is empty',
     drawerHintLabel: 'The cart drawer opens from the header',
     drawerHintHelp: 'Shoppers open it with the bag button; nothing shows here until they do.',
+    drawerHintHosted:
+      'The theme already opens one on every page, so this block adds nothing and can be removed.',
   },
   order: {
     number: 'Order {number}',

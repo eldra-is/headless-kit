@@ -807,12 +807,48 @@ never renders a seeded template — it is there because that instance writes the
 `.eldra/manifest.json` the Nuxt build writes, and without it the checked-in file flips between
 "with seeds" and "without" depending on which build ran last.
 
-## The cart route
+## The cart drawer and the `/cart` route
 
-`/cart` is `app/pages/cart.vue` — theme **code**, not a page an author composes. A shopper's cart is
-their own session: there is nothing to lay out, and a site must not be able to lose its cart by
-deleting a page. Being a concrete route it also outranks `app/pages/[...slug].vue`, so the gateway is
-never asked about `/cart`.
+The cart is a **side drawer the theme hosts**, not a block an author places. `app/app.vue` mounts one
+`blocks/cart/Block.vue` in its `drawer` variant beside the `Toaster`, so it exists on every route and
+the header's bag opens it where the shopper already is. Before that it only existed where somebody had
+placed a `drawer`-variant `cart` block on the page — nobody does — so every bag click left the page
+for `/cart`.
+
+What follows from one host (the rules themselves are documented once in the code, on `CartStore` in
+`app/storefront/cart.ts`, and every file that takes part points there):
+
+- **The bag always opens the drawer.** `blocks/navigation/Block.vue` reads
+  `storefront.cart.drawerAvailable`, which the hosting block raises from `onMounted`, and renders the
+  bag as a `<button>` — with `aria-haspopup="dialog"`, like every other overlay trigger in the header
+  — while it is up. In the **prerendered** HTML the flag is still down (no mount hook has run), so the
+  bag is a plain `<a href="/cart">` there with no popup annotation: a visitor with no JavaScript, or
+  one reading the page before it hydrates, still has somewhere to go, and the swap to a button
+  afterwards is an ordinary reactive update rather than a hydration correction.
+- **An authored `drawer`-variant block draws nothing.** `app/app.vue` sets `cart.drawerHosted` in its
+  own `setup()`, before any block on the page is created, so such a block renders no `<dialog>` of its
+  own — on the server as much as in the browser, which is what keeps the generated HTML and the
+  hydrated page at exactly one drawer. In Studio's editor it still shows its placeholder, which says
+  the theme hosts the drawer. No field and no `block.json` version changes, so an author who already
+  placed one keeps their block and its data, and a deploy migrates nothing.
+- **The drawer closes on every navigation.** It is in the shell, so no navigation unmounts it any
+  more, and a modal `<dialog>` left open makes the page the shopper just reached inert and
+  unscrollable. `app/app.vue` watches the route and closes it, which covers every destination inside
+  the drawer at once — a line's product title, Check out, View cart, anything added later — and
+  back/forward with them. Only the empty state's button closes the drawer itself, because the block
+  spec says it does.
+- **In Studio's editor the bag is inert.** The preview overlay cancels clicks that carry an `href`,
+  not a button's, so an author clicking the bag in the canvas would otherwise get a modal drawer with
+  the rest of the canvas inert behind it; `onCartClick` returns early while `useEditing()` is true.
+- Nothing else about the drawer moved — `cart.drawerOpen`, the Esc/backdrop close, the focus return to
+  the bag, the live count and the Undo toast are the block's own, unchanged.
+
+`/cart` stays, and stays a route: `app/pages/cart.vue` is theme **code**, not a page an author
+composes. A shopper's cart is their own session: there is nothing to lay out, and a site must not be
+able to lose its cart by deleting a page. Being a concrete route it also outranks
+`app/pages/[...slug].vue`, so the gateway is never asked about `/cart`. It is the drawer's own "View
+cart" destination, the deep link somebody can bookmark or be sent, and the no-JavaScript fallback
+above.
 
 Two things make it real on a deployed site, and both are easy to drop:
 
@@ -820,22 +856,21 @@ Two things make it real on a deployed site, and both are easy to drop:
   module's `prerender:routes` hook lists CMS pages and route templates — so without that line the
   artifact has no `cart/index.html` and a static host answers 404 however the app would have
   rendered it. `test/starter.spec.ts` asserts the file and the build manifest's prerendered list on
-  the credential-free build; `test/prerenderRefresh.browser.spec.ts` clicks the header's bag on a
-  generated site and lands on the cart.
+  the credential-free build; `test/prerenderRefresh.browser.spec.ts` opens the drawer from the bag on
+  a generated site, then sends the router to `/cart` and lands on the prerendered page.
 - The page renders `blocks/cart/Block.vue` in its `page` variant, with an entry the theme owns
   rather than a CMS entry. That is one implementation of the line items, the totals and the empty
-  state, shared with the block an author can place on a page.
-
-This is also the destination `blocks/navigation/Block.vue` sends the header's bag to whenever no cart
-drawer is mounted (`storefront.cart.drawerAvailable`, which `blocks/cart/Block.vue` raises for as
-long as a `drawer`-variant block is on the page), and the one the drawer's own "View cart" button
-points at.
+  state, shared with the drawer and with the block an author can place on a page.
 
 Two limits worth knowing. The copy is the theme's `app/i18n` strings, not something an author can
 edit — editable copy for this surface belongs with a storefront settings entry, which does not exist
 yet. And the route carries no header or footer: those are the site's own reusable components, and the
 runtime resolves them only as part of a CMS page or route template, so a code route has no way to ask
 for them. `/404` has the same shape for the same reason.
+
+`test/cartDrawer.spec.ts` is where the shell and a page are mounted together — the only spec that
+mounts `app/app.vue` — and `test/pages/ssr.spec.ts` asserts the same two facts about the server-
+rendered shell: one closed `<dialog>`, and a bag that is still a link.
 
 ## 4. Storybook and generated previews
 
