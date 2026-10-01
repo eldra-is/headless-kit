@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { EldraClient } from '@eldrajs/sdk';
 import { createGatewayStorefront } from '../../app/storefront/gateway';
 import type { StorefrontRoute } from '../../app/storefront/types';
@@ -7,10 +7,14 @@ import type { StorefrontRoute } from '../../app/storefront/types';
  * `createGatewayStorefront(...).cart` — the gateway-backed `CartOps` (`createGatewayCartOps` in
  * `gateway.ts`) — had no spec of its own: `cart.spec.ts` proves `createCartStore`'s engine against
  * a hand-written fake `CartOps`, and `gateway.spec.ts` covers catalog/search mapping only. That gap
- * is what let a store with no `checkoutUrl` configured fail every add: `client.checkout.handoffUrl`
- * throws "Missing checkout URL…" when neither the call nor the client options carry one (see
- * `packages/sdk/src/client.ts`), and `remember()` called it unconditionally after every successful
- * add — and synchronously at cart-ops creation, for a remembered cart id, too.
+ * is what let the checkout hand-off fail every add, back when the theme had to carry a checkout
+ * base URL and `remember()` built the URL synchronously from it.
+ *
+ * The hand-off is the platform's now: `client.checkout.url({ cartId })` reads where checkout lives
+ * from the platform's own config and so resolves *after* the mutation it followed. Two things have
+ * to hold, and neither is visible in a synchronous assertion: Check out appears once that resolves
+ * (after an add, and after a cart restored from a remembered id), and a platform that publishes no
+ * checkout — or a read that fails — costs the cart nothing but the button.
  */
 
 function fakeRoute(): StorefrontRoute {
@@ -78,27 +82,29 @@ function liveCartResponse(overrides: Record<string, unknown> = {}): Record<strin
   };
 }
 
-/** Mirrors `@eldrajs/sdk`'s own `handoffUrl`: throws when nothing supplies a checkout base URL. */
-function fakeHandoffUrl(checkoutBaseUrl: string | undefined) {
-  return ({ cartId, checkoutUrl }: { cartId: string; checkoutUrl?: string }) => {
-    const resolved = checkoutUrl ?? checkoutBaseUrl;
-    if (!resolved) {
-      throw new Error(
-        'Missing checkout URL. Pass checkoutUrl to createEldraClient() or to handoffUrl().'
-      );
+/**
+ * Mirrors `@eldrajs/sdk`'s own `checkout.url`: asynchronous, because the base URL comes from the
+ * platform's config, and rejecting — with the SDK's own message — when the platform published none.
+ * `'unreachable'` stands for the read itself failing, which the SDK reports the same way.
+ */
+function fakeCheckoutUrl(platform: string | null | 'unreachable') {
+  return async ({ cartId }: { cartId: string }) => {
+    if (platform === 'unreachable') throw new Error('gateway unreachable');
+    if (platform === null) {
+      throw new Error('The platform did not publish a checkout URL (GET /platform/v1/config).');
     }
-    return `${resolved.replace(/\/$/, '')}/checkout/org-1/${cartId}`;
+    return `${platform.replace(/\/$/, '')}/checkout/org-1/${cartId}`;
   };
 }
 
-function fakeClient(checkoutBaseUrl: string | undefined): EldraClient {
+function fakeClient(platform: string | null | 'unreachable'): EldraClient {
   return {
     cart: {
       addItem: async () => liveCartResponse(),
       get: async () => liveCartResponse(),
     },
     checkout: {
-      handoffUrl: fakeHandoffUrl(checkoutBaseUrl),
+      url: fakeCheckoutUrl(platform),
     },
   } as unknown as EldraClient;
 }
@@ -109,9 +115,9 @@ async function settle(): Promise<void> {
 }
 
 describe('createGatewayStorefront().cart (gateway-backed CartOps)', () => {
-  it('add() succeeds with no checkoutUrl configured: the line is stored and checkoutUrl stays null', async () => {
+  it('add() sets checkoutUrl from the platform once the read resolves', async () => {
     (globalThis as { localStorage?: Storage }).localStorage = fakeLocalStorage();
-    const client = fakeClient(undefined);
+    const client = fakeClient('https://checkout.eldra.app');
     const { cart } = createGatewayStorefront(client, { route: fakeRoute() });
     await settle();
 
@@ -120,40 +126,71 @@ describe('createGatewayStorefront().cart (gateway-backed CartOps)', () => {
     expect(failure).toBeNull();
     expect(cart.lines.value).toHaveLength(1);
     expect(cart.lines.value[0]?.title).toBe('Ash glaze mug');
-    expect(cart.checkoutUrl.value).toBeNull();
     expect(globalThis.localStorage.getItem('eldra.cartId')).toBe(
       '03302070-0000-4000-8000-000000000000'
     );
-  });
-
-  it('add() sets checkoutUrl when a checkout base URL is configured', async () => {
-    (globalThis as { localStorage?: Storage }).localStorage = fakeLocalStorage();
-    const client = fakeClient('https://checkout.example.com');
-    const { cart } = createGatewayStorefront(client, {
-      route: fakeRoute(),
-      checkoutUrl: 'https://checkout.example.com',
-    });
-    await settle();
-
-    const failure = await cart.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
-
-    expect(failure).toBeNull();
-    expect(cart.checkoutUrl.value).toBe(
-      'https://checkout.example.com/checkout/org-1/03302070-0000-4000-8000-000000000000'
+    await vi.waitFor(() =>
+      expect(cart.checkoutUrl.value).toBe(
+        'https://checkout.eldra.app/checkout/org-1/03302070-0000-4000-8000-000000000000'
+      )
     );
   });
 
-  it('init with a remembered cart id and no checkoutUrl does not throw', async () => {
+  it('sets checkoutUrl for a cart restored from a remembered id', async () => {
     (globalThis as { localStorage?: Storage }).localStorage = fakeLocalStorage({
       'eldra.cartId': '03302070-0000-4000-8000-000000000000',
     });
-    const client = fakeClient(undefined);
+    const client = fakeClient('https://checkout.eldra.app');
 
     const { cart } = createGatewayStorefront(client, { route: fakeRoute() });
     await settle();
 
     expect(cart.lastFailure.value).toBeNull();
-    expect(cart.checkoutUrl.value).toBeNull();
     expect(cart.lines.value).toHaveLength(1);
+    await vi.waitFor(() =>
+      expect(cart.checkoutUrl.value).toBe(
+        'https://checkout.eldra.app/checkout/org-1/03302070-0000-4000-8000-000000000000'
+      )
+    );
+  });
+
+  it('add() succeeds and checkoutUrl stays null when the platform publishes no checkout', async () => {
+    (globalThis as { localStorage?: Storage }).localStorage = fakeLocalStorage();
+    const client = fakeClient(null);
+    const { cart } = createGatewayStorefront(client, { route: fakeRoute() });
+    await settle();
+
+    const failure = await cart.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+    await settle();
+    await settle();
+
+    expect(failure).toBeNull();
+    expect(cart.lines.value).toHaveLength(1);
+    expect(cart.lastFailure.value).toBeNull();
+    expect(cart.checkoutUrl.value).toBeNull();
+  });
+
+  it('a failed platform read costs the cart nothing but the Check out button', async () => {
+    (globalThis as { localStorage?: Storage }).localStorage = fakeLocalStorage({
+      'eldra.cartId': '03302070-0000-4000-8000-000000000000',
+    });
+    const client = fakeClient('unreachable');
+
+    const { cart } = createGatewayStorefront(client, { route: fakeRoute() });
+    await settle();
+    await settle();
+
+    expect(cart.lastFailure.value).toBeNull();
+    expect(cart.error.value).toBeNull();
+    expect(cart.lines.value).toHaveLength(1);
+    expect(cart.checkoutUrl.value).toBeNull();
+
+    const failure = await cart.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+    await settle();
+    await settle();
+
+    expect(failure).toBeNull();
+    expect(cart.lines.value).toHaveLength(1);
+    expect(cart.checkoutUrl.value).toBeNull();
   });
 });

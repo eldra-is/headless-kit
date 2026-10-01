@@ -143,9 +143,12 @@ recoverable failure (the same retry-on-resubmit path each form's own spec proves
 
 ## Checkout
 
-`checkoutUrl` is also optional, set the same way (`runtimeConfig.public.checkoutUrl` or
-`NUXT_PUBLIC_CHECKOUT_URL`). Without it the cart still adds, updates and persists lines normally —
-it just has no Check out button to show, since there is nowhere to hand the cart off to.
+Nothing to configure: the checkout page is the platform's, and `@eldrajs/sdk` asks the platform
+where it is. As soon as the cart has an id — a line just added, or one remembered from a previous
+visit — `app/storefront/gateway.ts` awaits `client.checkout.url({ cartId })` and the Check out
+button appears when that resolves. If the platform publishes no checkout URL, or the read does not
+come back, the cart still adds, updates and persists lines normally; it just has no Check out
+button to show, since there is nowhere to hand the cart off to.
 
 ## Restyling
 

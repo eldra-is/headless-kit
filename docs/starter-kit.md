@@ -882,6 +882,17 @@ the spec's exception) and links to `/cart` when none is. A refused add that name
 product block's own stock line to sold out, because the cart service has just proved it knows
 something the page's read did not.
 
+**Check out is the platform's page, and the theme configures nothing to reach it.** The base URL is
+the platform's own (`client.platform.config()`, read once per client by `@eldrajs/sdk`), so
+`app/storefront/gateway.ts` resolves `client.checkout.url({ cartId })` whenever a cart id is known —
+after an add, and for a cart restored from the remembered id — and writes the result into
+`cart.checkoutUrl`, which the drawer's foot and `blocks/cart/parts/Summary.vue` already key off. The
+read is asynchronous and may refuse (a platform with no checkout published, a read that failed), and
+neither may reach the cart: the button appears when the URL resolves and the ref stays `null`
+otherwise, while the add that triggered it succeeds either way. Nothing runs on the server or under
+a prerender, and nothing needs a guard for that — the cart id is browser state, so there is no cart
+to resolve a URL for until the page is in a browser.
+
 `/cart` stays, and stays a route: `app/pages/cart.vue` is theme **code**, not a page an author
 composes. A shopper's cart is their own session: there is nothing to lay out, and a site must not be
 able to lose its cart by deleting a page. Being a concrete route it also outranks

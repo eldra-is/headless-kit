@@ -909,7 +909,7 @@ describe('createGatewayStorefront', () => {
           };
         },
       },
-      checkout: { handoffUrl: () => 'https://checkout.example/cart-1' },
+      checkout: { url: async () => 'https://checkout.example/cart-1' },
     } as unknown as EldraClient;
 
     const storefront = createGatewayStorefront(client, { route: fakeRoute() });

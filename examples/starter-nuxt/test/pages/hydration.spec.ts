@@ -186,7 +186,7 @@ function gatewayStorefront(handle: string, half: 'server' | 'client'): Storefron
     },
   };
   // Never called: the read is answered by the runtime on both sides, which is the point.
-  const client = { catalog: {}, checkout: { handoffUrl: () => '' } } as unknown as EldraClient;
+  const client = { catalog: {}, checkout: { url: async () => '' } } as unknown as EldraClient;
   return createGatewayStorefront(client, { route: routeFor(handle), runtime });
 }
 

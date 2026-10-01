@@ -52,9 +52,11 @@ import {
  * blocks are lazily imported components: their `setup()` — and therefore the result they create —
  * can run well after the plugin has finished.
  *
- * `formsEndpoint`/`checkoutUrl` are this starter's own optional config — `runtimeConfig.public` is
- * read defensively (not through the module's typed `eldra` key) since a customer may not have
- * declared them in `nuxt.config.ts` yet; see `README.md` for where to add them.
+ * `formsEndpoint` is this starter's own optional config — `runtimeConfig.public` is read
+ * defensively (not through the module's typed `eldra` key) since a customer may not have declared
+ * it in `nuxt.config.ts` yet; see `README.md` for where to add it. There is no checkout URL to
+ * configure: the platform hosts the checkout page and the SDK reads where from the platform
+ * itself.
  */
 export default defineNuxtPlugin({
   name: 'eldra-storefront',
@@ -151,7 +153,6 @@ export default defineNuxtPlugin({
     const publicConfig = useRuntimeConfig().public as unknown as {
       eldra?: { gatewayUrl?: string; orgId?: string };
       formsEndpoint?: string;
-      checkoutUrl?: string;
     };
 
     const client = createEldraClient({
@@ -233,7 +234,6 @@ export default defineNuxtPlugin({
     source = createGatewayStorefront(client, {
       route,
       formsEndpoint: publicConfig.formsEndpoint,
-      checkoutUrl: publicConfig.checkoutUrl,
       runtime,
     });
 
