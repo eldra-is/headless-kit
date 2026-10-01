@@ -482,9 +482,16 @@ describe('prerendered commerce data on the generated static site', () => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top };
         };
-        const rect = document.getElementById(id)!.getBoundingClientRect();
+        const panel = document.getElementById(id)!;
+        const rect = panel.getBoundingClientRect();
+        // The first column of the grid, and the "View all" anchor — the two pieces of content
+        // that decide whether the panel has an inset at all.
+        const firstColumn = panel.firstElementChild!.getBoundingClientRect();
+        const viewAll = panel.querySelector('[data-eldra-mega-view-all]')!.getBoundingClientRect();
         return {
           panel: { left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top },
+          firstColumn: { left: firstColumn.left, right: firstColumn.right },
+          viewAll: { left: viewAll.left, right: viewAll.right },
           brand: box('header [data-eldra-header-focus]'),
           actions: box('header [data-eldra-header-actions]'),
           bar: box('header'),
@@ -500,6 +507,11 @@ describe('prerendered commerce data on the generated static site', () => {
       // real claim rather than a coincidence of where this item sits.
       expect(edges.trigger.left).toBeGreaterThan(edges.panel.left + 1);
       expect(edges.trigger.right).toBeLessThan(edges.panel.right - 1);
+      // And the inset the operator asked for: nothing inside the panel sits flush against its
+      // edges. 24px is the narrow-container figure; the wide container's own 32px clears it too,
+      // so one bound holds at every width this page is measured at.
+      expect(edges.firstColumn.left).toBeGreaterThanOrEqual(edges.panel.left + 24);
+      expect(edges.viewAll.right).toBeLessThanOrEqual(edges.panel.right - 24);
     } finally {
       await page.close();
     }

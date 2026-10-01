@@ -26,7 +26,10 @@
  * brand's left edge and the actions' right edge whichever item opened it — the same box on every
  * variant, since each one lays its bar out inside the same `Container`. Its columns are a plain
  * 12-column grid, three columns per group, so four groups fill the row and one to three sit
- * left-aligned at the same width instead of stretching to fill.
+ * left-aligned at the same width instead of stretching to fill — inset from the panel's own edges
+ * rather than flush against them, so the first group's text and the trailing "View all" each keep
+ * a 32px margin from the edge the panel shares with the brand and the actions above it (24px on a
+ * narrower container).
  *
  * Every destination is a `link` value — a collection, product, page or entry the platform knows,
  * or an external URL — resolved to an href by `useEldraLink()`. A row whose target has been
@@ -631,16 +634,21 @@ const actionsPositionClass = computed(() =>
             <!-- The panel spans the bar's own container (`left-0 right-0` against the `relative`
                  `<nav>` above) and sits directly under it. The hairline along its top edge is the
                  bar's own full-bleed `border-b` — the bar is never transparent while a panel is
-                 open — so the panel draws no border of its own, only its ground and a soft shadow
-                 below it. Its columns are a 12-column grid at three columns each: four groups fill
-                 the row, fewer stay left-aligned at that same width rather than stretching, and a
-                 fifth group wraps to a second row. -->
+                 open — so the panel takes no top border of its own (`border-t-0`); the other three
+                 sides carry the border token and the bottom corners are rounded, which is what
+                 makes the open panel read as a sheet hanging off the bar rather than as a slab of
+                 background with content loose on it. Its columns are a 12-column grid at three
+                 columns each: four groups fill the row, fewer stay left-aligned at that same width
+                 rather than stretching, and a fifth group wraps to a second row — all of it inset
+                 from the panel's edges (32px, 24px below the `wide` container edge), so no text
+                 ever sits flush against the panel's own boundary. `rounded-b-lg` is this theme's
+                 12px step: `radius-lg` is 0.75rem here, `radius-xl` 1rem. -->
             <div
               v-if="hasMegaMenu(index)"
               v-show="openMenuIndex === index"
               :id="menuIds[index]!.panel"
               data-eldra-mega-panel
-              class="bg-background shadow-float absolute top-full right-0 left-0 z-30 grid grid-cols-12 gap-6 py-8"
+              class="bg-background border-border shadow-float @wide:p-8 absolute top-full right-0 left-0 z-30 grid grid-cols-12 gap-6 rounded-b-lg border border-t-0 p-6"
               @keydown="onPanelKeydown(index, $event)"
               @mouseenter="clearHoverTimer"
               @mouseleave="onTriggerMouseLeave"
@@ -648,7 +656,7 @@ const actionsPositionClass = computed(() =>
               <div v-for="(group, groupIndex) in link.groups" :key="groupIndex" class="col-span-3">
                 <p
                   :id="`${menuIds[index]!.panel}-g${groupIndex}`"
-                  class="text-muted mb-3 text-xs font-semibold tracking-[0.12em] uppercase"
+                  class="text-muted mb-3 text-[11px] font-semibold tracking-wide uppercase"
                 >
                   {{ group.title }}
                 </p>
@@ -663,11 +671,16 @@ const actionsPositionClass = computed(() =>
                       :as="row.as"
                       variant="standalone"
                       :underline="false"
-                      :classes="{ root: 'text-text flex min-h-9 items-center text-sm' }"
+                      :classes="{
+                        root: 'text-text flex min-h-9 items-center text-[15px] font-medium hover:underline-offset-4',
+                      }"
                     >
                       {{ row.label }}
                     </Link>
-                    <span v-else class="text-text flex min-h-9 items-center text-sm">
+                    <span
+                      v-else
+                      class="text-text flex min-h-9 items-center text-[15px] font-medium"
+                    >
                       {{ row.label }}
                     </span>
                   </li>
@@ -675,12 +688,19 @@ const actionsPositionClass = computed(() =>
               </div>
               <!-- The parent's own destination, which the trigger gave up when it became a
                    disclosure. A `kind: "none"` heading resolves to no href and therefore offers
-                   nothing here. -->
-              <div v-if="link.href" class="col-span-12 flex justify-end">
+                   nothing here. A rule across the full content width separates it from the groups,
+                   and `arrow` gives it the same trailing arrow-right every other "view all" in the
+                   theme carries — the package draws it outside the label, so the underline runs
+                   under the words only. -->
+              <div
+                v-if="link.href"
+                class="border-border col-span-12 flex justify-end border-t pt-4"
+              >
                 <Link
                   :href="link.href"
                   :as="link.as"
                   variant="standalone"
+                  arrow
                   data-eldra-mega-view-all
                   :aria-label="t('header.viewAllOf', { label: link.label })"
                   :classes="{ root: 'text-sm' }"

@@ -575,15 +575,26 @@ describe('header block (navigation apiId)', () => {
       // A width of its own is exactly what the old panel had, and what made it feel arbitrary.
       expect(panel.classes()).not.toContain('w-screen');
       expect(panel.classes().some((token) => token.startsWith('max-w-'))).toBe(false);
-      // The hairline above the panel is the bar's own full-bleed bottom border, so the panel adds
-      // no border of its own — only its ground and the soft shadow under it.
-      expect(panel.classes().some((token) => token.startsWith('border'))).toBe(false);
-      expect(panel.classes()).toContain('shadow-float');
-
-      // The container's grid: 12 columns, 24px gutters, 32px of vertical padding.
-      for (const token of ['grid', 'grid-cols-12', 'gap-6', 'py-8']) {
+      // The hairline above the panel is the bar's own full-bleed bottom border, so the panel takes
+      // no top border of its own; the other three sides are the border token, the bottom corners
+      // are rounded, and the shadow falls below.
+      for (const token of [
+        'border',
+        'border-t-0',
+        'border-border',
+        'rounded-b-lg',
+        'shadow-float',
+      ]) {
         expect(panel.classes()).toContain(token);
       }
+
+      // The container's grid: 12 columns, 24px gutters, and an inset that keeps every column off
+      // the panel's own edges — 24px, 32px once the container passes `wide`. The browser case
+      // measures what this produces; here it is only the arrangement.
+      for (const token of ['grid', 'grid-cols-12', 'gap-6', 'p-6', '@wide:p-8']) {
+        expect(panel.classes()).toContain(token);
+      }
+      expect(panel.classes()).not.toContain('py-8');
       wrapper.unmount();
     });
 
@@ -613,7 +624,13 @@ describe('header block (navigation apiId)', () => {
       expect(viewAll.text()).toBe('View all');
       // Self-descriptive out of context (2.4.4), opening with the visible text (2.5.3).
       expect(viewAll.attributes('aria-label')).toBe('View all Knitwear');
-      expect([...viewAll.element.parentElement!.classList]).toContain('justify-end');
+      // Right-aligned under a rule that spans the panel's content width, 16px above it.
+      for (const token of ['justify-end', 'border-t', 'border-border', 'pt-4', 'col-span-12']) {
+        expect([...viewAll.element.parentElement!.classList]).toContain(token);
+      }
+      // The trailing arrow the theme's other "view all" links carry, drawn outside the label so
+      // the underline runs under the words only.
+      expect(viewAll.find('[data-part="arrow"]').exists()).toBe(true);
       expect(await axe(wrapper.element)).toHaveNoViolations();
       wrapper.unmount();
     });
