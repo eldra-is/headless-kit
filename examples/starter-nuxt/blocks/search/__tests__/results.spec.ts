@@ -14,7 +14,7 @@ function product(overrides: Partial<StorefrontProductListItem> = {}): Storefront
     price: { amount: 40, compareAt: null },
     stock: 'in',
     available: true,
-    variantId: 'linen-napkins::natural',
+    productId: 'linen-napkins',
     ...overrides,
   };
 }
@@ -72,7 +72,7 @@ describe('toSearchBarResults', () => {
     expect(result.collections).toEqual([]);
     expect(result.products).toEqual([
       {
-        id: 'linen-napkins::natural',
+        id: 'linen-napkins',
         title: 'Linen napkins, set of 4',
         href: '/products/linen-napkins',
         price: '$40.00',
@@ -94,7 +94,7 @@ describe('toSearchBarResults', () => {
 
   it('caps each group at suggestionsPerGroup', () => {
     const products = Array.from({ length: 6 }, (_, i) =>
-      product({ handle: `product-${i}`, variantId: `product-${i}::default` })
+      product({ handle: `product-${i}`, productId: `product-${i}` })
     );
     const articles = Array.from({ length: 6 }, (_, i) => ({
       title: `Story ${i}`,
@@ -118,35 +118,32 @@ describe('toSearchBarResults', () => {
   it('ranks sold-out products last, before the suggestionsPerGroup cap is applied', () => {
     const soldOut = product({
       handle: 'sold-out',
-      variantId: 'sold-out::default',
+      productId: 'sold-out',
       stock: 'out',
       available: false,
     });
-    const inStockA = product({ handle: 'in-stock-a', variantId: 'in-stock-a::default' });
-    const inStockB = product({ handle: 'in-stock-b', variantId: 'in-stock-b::default' });
+    const inStockA = product({ handle: 'in-stock-a', productId: 'in-stock-a' });
+    const inStockB = product({ handle: 'in-stock-b', productId: 'in-stock-b' });
 
     const result = toSearchBarResults(response({ products: [soldOut, inStockA, inStockB] }), 3);
     expect(result.products.map((item) => item.id)).toEqual([
-      'in-stock-a::default',
-      'in-stock-b::default',
-      'sold-out::default',
+      'in-stock-a',
+      'in-stock-b',
+      'sold-out',
     ]);
   });
 
   it('drops a sold-out product from the cap entirely when enough in-stock ones fill it', () => {
     const soldOut = product({
       handle: 'sold-out',
-      variantId: 'sold-out::default',
+      productId: 'sold-out',
       stock: 'out',
       available: false,
     });
-    const inStockA = product({ handle: 'in-stock-a', variantId: 'in-stock-a::default' });
-    const inStockB = product({ handle: 'in-stock-b', variantId: 'in-stock-b::default' });
+    const inStockA = product({ handle: 'in-stock-a', productId: 'in-stock-a' });
+    const inStockB = product({ handle: 'in-stock-b', productId: 'in-stock-b' });
 
     const result = toSearchBarResults(response({ products: [soldOut, inStockA, inStockB] }), 2);
-    expect(result.products.map((item) => item.id)).toEqual([
-      'in-stock-a::default',
-      'in-stock-b::default',
-    ]);
+    expect(result.products.map((item) => item.id)).toEqual(['in-stock-a', 'in-stock-b']);
   });
 });

@@ -362,9 +362,16 @@ async function primaryAction(): Promise<void> {
     notifyOpen.value = true;
     return;
   }
-  const variantId = product.value?.variantId;
-  if (variantId === undefined) return;
-  await storefront.cart.add({ variantId, quantity: quantity.value });
+  const buyable = product.value;
+  // Both ids, because the backend resolves the pair (`app/storefront/cart.ts`'s `CartAddInput`). A
+  // product read that answered no buyable variant has nothing to add — `mapProductDetails` leaves
+  // `variantId` empty rather than inventing one from the product's own id.
+  if (buyable === null || buyable.variantId === '') return;
+  await storefront.cart.add({
+    productId: buyable.productId,
+    variantId: buyable.variantId,
+    quantity: quantity.value,
+  });
 }
 
 /* ------------------------------------------------------------------------- */
@@ -401,7 +408,7 @@ async function submitNotify(payload: FormLayoutSubmitPayload): Promise<void> {
     return;
   }
   const variantId = product.value?.variantId;
-  if (variantId === undefined) return;
+  if (variantId === undefined || variantId === '') return;
   notifySubmitting.value = true;
   const ack = await storefront.catalog.notifyBackInStock({ email, variantId });
   notifySubmitting.value = false;

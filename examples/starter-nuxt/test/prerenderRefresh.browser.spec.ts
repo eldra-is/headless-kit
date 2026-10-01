@@ -750,8 +750,8 @@ describe('prerendered commerce data on the generated static site', () => {
   it('refreshes the product page with the detail read and one batched read, and nothing else', async () => {
     const visited = await visit(productPage);
     // The **full** log, duplicates included, not a set of unique URLs. `product-detail` re-reads
-    // its own product (its `variantId` is a variant's, which the products list cannot answer
-    // about), and every card on the page — the carousel's six — is one batched `id:in` read.
+    // its own product (only that read knows the variant-level inventory the products list cannot
+    // answer about), and every card on the page — the carousel's six — is one batched `id:in` read.
     // Nothing else: no re-run of a prerendered non-volatile read, and nothing twice.
     expect(visited.requests).toEqual([
       `/catalog/v1/products/${PRODUCT_HANDLE}`,

@@ -63,6 +63,12 @@ interface DemoProductDef {
   compareAt?: number;
   stock: 'in' | 'low' | 'out' | 'preorder';
   available: boolean;
+  /**
+   * The fixture's **variant** id for this product's first buyable variant. The product's own id is
+   * its `handle` (`buildListItem` below): the two are different ids in the demo exactly as they are
+   * in a real catalogue, so every path that has to send the pair — a cart add, above all — is
+   * exercised here rather than passing by accident because one id stood in for both.
+   */
   variantId: string;
   rating?: { value: number; count: number } | null;
   colours?: Array<{ name: string; swatch: string }>;
@@ -236,7 +242,7 @@ function buildListItem(def: DemoProductDef, index: number): StorefrontProductLis
     colours: def.colours,
     stock: def.stock,
     available: def.available,
-    variantId: def.variantId,
+    productId: def.handle,
   };
 }
 
@@ -274,6 +280,7 @@ function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct
   const isMerino = def.handle === 'merino-crew-sweater';
   return {
     ...listItem,
+    variantId: def.variantId,
     images: [demoImage(index + 1, def.title), demoImage(index + 7, `${def.title}, alternate view`)],
     options: isMerino ? MERINO_OPTIONS : [],
     categoryTrail: isMerino
@@ -295,7 +302,7 @@ const PRODUCTS_FULL: Record<string, StorefrontProduct> = Object.fromEntries(
 );
 
 /** Every fixture product a volatile refresh could be asked about, by the id a card carries. */
-const PRODUCTS_BY_ID = new Map(PRODUCTS.map((product) => [product.variantId, product]));
+const PRODUCTS_BY_ID = new Map(PRODUCTS.map((product) => [product.productId, product]));
 
 /**
  * The demo half of `catalog.volatileByIds`. The fixture never changes, so this always answers with
@@ -312,7 +319,7 @@ function demoVolatileSnapshots(ids: readonly string[]): VolatileSnapshot[] {
     const product = PRODUCTS_BY_ID.get(id);
     if (!product) continue;
     snapshots.push({
-      id: product.variantId,
+      id: product.productId,
       price: product.price,
       available: product.available,
       stock: product.stock,
@@ -482,7 +489,7 @@ function buildCollectionItems(total: number): StorefrontProductListItem[] {
       ...base,
       handle,
       url: `${base.url}${suffix}`,
-      variantId: `${base.variantId}${suffix}`,
+      productId: `${base.productId}${suffix}`,
     };
   });
 }
@@ -581,6 +588,7 @@ function countedFacets(
 const ORDER_LINES: StorefrontCartLine[] = [
   {
     id: 'nw-10482-1',
+    productId: 'fell-crew-sweater',
     variantId: 'fell-crew-sweater::oatmeal::m',
     title: 'Fell crew sweater',
     url: '/products/fell-crew-sweater',
@@ -593,6 +601,7 @@ const ORDER_LINES: StorefrontCartLine[] = [
   },
   {
     id: 'nw-10482-2',
+    productId: 'everyday-mug',
     variantId: 'everyday-mug::fjord::350ml',
     title: 'Everyday mug',
     url: '/products/everyday-mug',
@@ -605,6 +614,7 @@ const ORDER_LINES: StorefrontCartLine[] = [
   },
   {
     id: 'nw-10482-3',
+    productId: 'linen-tea-towels-set-of-2',
     variantId: 'linen-tea-towels-set-of-2::sage',
     title: 'Linen tea towels, set of 2',
     url: '/products/linen-tea-towels-set-of-2',
@@ -871,6 +881,7 @@ function buildSearchResponse(query: string): StorefrontSearchResponse {
 export const DEMO_CART_LINES: StorefrontCartLine[] = [
   {
     id: 'demo-cart-1',
+    productId: 'merino-crew-sweater',
     variantId: 'merino-crew-sweater::oat::m',
     title: 'Merino crew sweater',
     url: '/products/merino-crew-sweater',
@@ -883,6 +894,7 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
   },
   {
     id: 'demo-cart-2',
+    productId: 'speckled-latte-mug',
     variantId: 'speckled-latte-mug::clay',
     title: 'Speckled latte mug',
     url: '/products/speckled-latte-mug',
@@ -895,6 +907,7 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
   },
   {
     id: 'demo-cart-3',
+    productId: 'walnut-serving-board',
     variantId: 'walnut-serving-board::large',
     title: 'Walnut serving board',
     url: '/products/walnut-serving-board',
@@ -931,8 +944,8 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
     async init() {
       return snapshot();
     },
-    async add({ variantId, quantity }) {
-      const product = PRODUCTS.find((p) => p.variantId === variantId);
+    async add({ productId, variantId, quantity }) {
+      const product = PRODUCTS.find((p) => p.productId === productId);
       const existing = lines.find((line) => line.variantId === variantId);
       if (existing) {
         existing.quantity += quantity;
@@ -943,6 +956,7 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
           ...lines,
           {
             id: `line-${nextLineId++}`,
+            productId,
             variantId,
             title: product?.title ?? 'Product',
             url: product?.url ?? '#',

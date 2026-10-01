@@ -248,6 +248,7 @@ describe('gateway storefront — prerendered results', () => {
       price: { amount: 96, compareAt: null },
       stock: 'in',
       available: true,
+      productId: 'p-1',
       variantId: 'v-1',
     };
     const hydrating = asyncDataStub({
@@ -359,9 +360,9 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
   });
 
   /**
-   * P1's hand-off note: a detail product's `variantId` is a *variant's* id, which the batched
-   * `id:in:` read (product ids) can never match. It refreshes through its own product read
-   * instead, and stays out of the batch.
+   * The detail page is the one result whose stock line is about a *variant*, so it needs the
+   * variant-level inventory the batched `id:in:` read (the products list) carries none of. It
+   * refreshes through its own product read instead, and stays out of the batch.
    */
   it('refreshes the detail product through `catalog.product`, not through the batch', async () => {
     let price = 96;
@@ -538,7 +539,7 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
     );
     let written = 0;
     const entry = {
-      read: () => [{ handle: 'p-1', variantId: 'p-1', price: { amount: 4, compareAt: null } }],
+      read: () => [{ handle: 'p-1', productId: 'p-1', price: { amount: 4, compareAt: null } }],
       write: () => {
         written += 1;
       },

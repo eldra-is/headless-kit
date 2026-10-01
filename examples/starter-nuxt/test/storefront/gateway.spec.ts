@@ -676,6 +676,72 @@ describe('createGatewayStorefront', () => {
     });
   });
 
+  /**
+   * The add payload. `productId` and `variantId` are two different ids, and the gateway's cart
+   * service resolves them as a pair (one lookup of "this variant, of this product"): a pair that
+   * does not exist answers 500, which is what sending the variant id as both did. The detail
+   * mapping is the other half of the same fact — `productId` from the product, `variantId` from its
+   * first buyable variant — so this asserts both, together, since either alone would pass while the
+   * add stayed broken.
+   */
+  it('cart.add sends the product id and the variant id as the two different ids they are', async () => {
+    const addItemInputs: Array<Record<string, unknown>> = [];
+    const client = {
+      catalog: {
+        getProduct: async () => ({
+          id: 'prod-merino',
+          slug: 'merino-crew-sweater',
+          title: 'Merino crew sweater',
+          status: 'ACTIVE',
+          variants: [{ id: 'var-oat-m', status: 'ACTIVE', price: 96 }],
+        }),
+      },
+      cart: {
+        addItem: async (input: Record<string, unknown>) => {
+          addItemInputs.push(input);
+          return {
+            id: 'cart-1',
+            currency: 'USD',
+            items: [
+              {
+                id: 'line-1',
+                productId: 'prod-merino',
+                variantId: 'var-oat-m',
+                title: 'Merino crew sweater',
+                price: 96,
+                quantity: 2,
+              },
+            ],
+            totals: { subtotal: 192, discount: 0, taxAmount: 0, total: 192 },
+          };
+        },
+      },
+      checkout: { handoffUrl: () => 'https://checkout.example/cart-1' },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.catalog.product(ref('merino-crew-sweater'));
+    await settle();
+
+    const product = result.data.value;
+    expect(product?.productId).toBe('prod-merino');
+    expect(product?.variantId).toBe('var-oat-m');
+
+    await storefront.cart.add({
+      productId: product!.productId,
+      variantId: product!.variantId,
+      quantity: 2,
+    });
+
+    expect(addItemInputs).toEqual([
+      { cartId: undefined, productId: 'prod-merino', variantId: 'var-oat-m', quantity: 2 },
+    ]);
+    // And the line that comes back carries both halves, so Undo can re-add exactly this pair.
+    expect(storefront.cart.lines.value).toEqual([
+      expect.objectContaining({ productId: 'prod-merino', variantId: 'var-oat-m' }),
+    ]);
+  });
+
   it('every result carries an empty `revalidating` set — the prerender contract’s resting state', async () => {
     const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
     const result = storefront.catalog.collectionProducts(

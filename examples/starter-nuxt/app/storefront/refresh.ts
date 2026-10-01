@@ -59,9 +59,9 @@ export interface VolatileRefreshEntry {
   token(): number;
   /**
    * A result that cannot go through the batched read refreshes itself with this, and is passed the
-   * data it is refreshing. The product detail page is the case that exists: its `variantId` is a
-   * *variant's* id (`gateway.ts`'s `mapProductDetails`), which the products list's `id:in:` filter
-   * does not match, so it re-reads the product and answers with a snapshot of its own.
+   * data it is refreshing. The product detail page is the case that exists: it needs the
+   * variant-level inventory the products list carries none of (`gateway.ts`'s `mapProductDetails`),
+   * so it re-reads the product and answers with a snapshot of its own.
    */
   own?(current: unknown): Promise<VolatileSnapshot[]>;
 }

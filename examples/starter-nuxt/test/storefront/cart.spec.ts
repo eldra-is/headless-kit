@@ -1,11 +1,17 @@
 import { ref } from 'vue';
 import { describe, expect, it } from 'vitest';
-import { createCartStore, type CartOps, type CartSnapshot } from '../../app/storefront/cart';
+import {
+  createCartStore,
+  type CartAddInput,
+  type CartOps,
+  type CartSnapshot,
+} from '../../app/storefront/cart';
 import type { StorefrontCartLine, StorefrontCartTotals } from '../../app/storefront/types';
 
 function line(overrides: Partial<StorefrontCartLine> = {}): StorefrontCartLine {
   return {
     id: 'line-1',
+    productId: 'merino-crew-sweater',
     variantId: 'merino-crew-sweater::oat::m',
     title: 'Merino crew sweater',
     url: '/products/merino-crew-sweater',
@@ -79,9 +85,30 @@ describe('createCartStore', () => {
     const snapshot: CartSnapshot = { lines: [added], totals: totalsFor([added]) };
     const store = createCartStore(fakeOps({ add: async () => snapshot }));
     await settle();
-    await store.add({ variantId: added.variantId, quantity: 2 });
+    await store.add({
+      productId: added.productId,
+      variantId: added.variantId,
+      quantity: 2,
+    });
     expect(store.count.value).toBe(2);
     expect(store.lines.value).toEqual([added]);
+  });
+
+  /** Both halves reach `ops`, unchanged: the backend resolves the pair, so a store that dropped or
+   *  substituted either would send a pair that does not exist (`CartAddInput`). */
+  it('add() forwards the product id and the variant id to ops as given', async () => {
+    const inputs: CartAddInput[] = [];
+    const store = createCartStore(
+      fakeOps({
+        add: async (input) => {
+          inputs.push(input);
+          return emptySnapshot();
+        },
+      })
+    );
+    await settle();
+    await store.add({ productId: 'prod-merino', variantId: 'var-oat-m', quantity: 3 });
+    expect(inputs).toEqual([{ productId: 'prod-merino', variantId: 'var-oat-m', quantity: 3 }]);
   });
 
   it('setQuantity() replaces lines/totals from the resolved snapshot', async () => {
@@ -97,8 +124,16 @@ describe('createCartStore', () => {
 
   it('remove() stores the removed line and its index in lastRemoved', async () => {
     const a = line({ id: 'a' });
-    const b = line({ id: 'b', variantId: 'speckled-latte-mug::clay' });
-    const c = line({ id: 'c', variantId: 'walnut-serving-board::large' });
+    const b = line({
+      id: 'b',
+      productId: 'speckled-latte-mug',
+      variantId: 'speckled-latte-mug::clay',
+    });
+    const c = line({
+      id: 'c',
+      productId: 'walnut-serving-board',
+      variantId: 'walnut-serving-board::large',
+    });
     const store = createCartStore(
       fakeOps({
         init: async () => ({ lines: [a, b, c], totals: totalsFor([a, b, c]) }),
@@ -116,8 +151,17 @@ describe('createCartStore', () => {
 
   it('undoRemove() restores the removed line at the same index and clears lastRemoved', async () => {
     const a = line({ id: 'a' });
-    const b = line({ id: 'b', variantId: 'speckled-latte-mug::clay' });
-    const c = line({ id: 'c', variantId: 'walnut-serving-board::large' });
+    const b = line({
+      id: 'b',
+      productId: 'speckled-latte-mug',
+      variantId: 'speckled-latte-mug::clay',
+    });
+    const c = line({
+      id: 'c',
+      productId: 'walnut-serving-board',
+      variantId: 'walnut-serving-board::large',
+    });
+    const addInputs: CartAddInput[] = [];
     const store = createCartStore(
       fakeOps({
         init: async () => ({ lines: [a, b, c], totals: totalsFor([a, b, c]) }),
@@ -125,7 +169,10 @@ describe('createCartStore', () => {
           const remaining = [a, b, c].filter((l) => l.id !== lineId);
           return { lines: remaining, totals: totalsFor(remaining) };
         },
-        add: async () => ({ lines: [a, c], totals: totalsFor([a, b, c]) }),
+        add: async (input) => {
+          addInputs.push(input);
+          return { lines: [a, c], totals: totalsFor([a, b, c]) };
+        },
       })
     );
     await settle();
@@ -133,6 +180,10 @@ describe('createCartStore', () => {
     await store.undoRemove();
     expect(store.lines.value).toEqual([a, b, c]);
     expect(store.lastRemoved.value).toBeNull();
+    // The re-add is the removed line's own pair — a line id is not something `ops.add` can take.
+    expect(addInputs).toEqual([
+      { productId: 'speckled-latte-mug', variantId: 'speckled-latte-mug::clay', quantity: 1 },
+    ]);
   });
 
   it('undoRemove() does nothing when there is nothing to restore', async () => {
@@ -162,7 +213,7 @@ describe('createCartStore', () => {
     await settle();
     expect(store.pending.value).toBe(false);
 
-    const call = store.add({ variantId: 'v1', quantity: 1 });
+    const call = store.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
     expect(store.pending.value).toBe(true);
     gate.resolve(emptySnapshot());
     await call;

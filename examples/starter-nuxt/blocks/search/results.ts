@@ -47,7 +47,7 @@ export function toSearchBarResults(
   const products: SearchResultItem[] = rankProducts(response.products)
     .slice(0, suggestionsPerGroup)
     .map((product) => ({
-      id: product.variantId,
+      id: product.productId,
       title: product.title,
       href: product.url,
       price: formatMoney(product.price.amount),

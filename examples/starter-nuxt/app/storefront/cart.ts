@@ -43,13 +43,26 @@ export interface CartStore {
   drawerAvailable: Ref<boolean>;
   drawerHosted: Ref<boolean>;
   lastRemoved: Ref<{ line: StorefrontCartLine; index: number } | null>;
-  add(i: { variantId: string; quantity: number }): Promise<void>;
+  add(i: CartAddInput): Promise<void>;
   setQuantity(lineId: string, quantity: number): Promise<void>;
   remove(lineId: string): Promise<void>;
   undoRemove(): Promise<void>;
   applyDiscount(code: string): Promise<StorefrontAck>;
   removeDiscount(code: string): Promise<void>;
   checkoutUrl: ComputedRef<string | null>;
+}
+
+/**
+ * Both halves of "what to put in the cart". The backend resolves the pair together — one lookup of
+ * "this variant, of this product" — so a variant id alone is not enough, and a product id sent as
+ * both is a pair that does not exist. A caller gets the pair from a product *detail* read
+ * (`StorefrontProduct.productId`/`variantId`) or from a cart line (`StorefrontCartLine`); a product
+ * card carries no variant at all, by design (`app/storefront/types.ts`).
+ */
+export interface CartAddInput {
+  productId: string;
+  variantId: string;
+  quantity: number;
 }
 
 export interface CartSnapshot {
@@ -66,7 +79,7 @@ export interface CartSnapshot {
 export interface CartOps {
   /** The cart as it exists when the store is created (e.g. a previously remembered cart id). */
   init(): Promise<CartSnapshot>;
-  add(input: { variantId: string; quantity: number }): Promise<CartSnapshot>;
+  add(input: CartAddInput): Promise<CartSnapshot>;
   setQuantity(lineId: string, quantity: number): Promise<CartSnapshot>;
   remove(lineId: string): Promise<CartSnapshot>;
   applyDiscount(code: string): Promise<{ ack: StorefrontAck; snapshot?: CartSnapshot }>;
@@ -159,6 +172,7 @@ export function createCartStore(ops: CartOps): CartStore {
       error.value = null;
       try {
         const snapshot = await ops.add({
+          productId: removed.line.productId,
           variantId: removed.line.variantId,
           quantity: removed.line.quantity,
         });

@@ -250,7 +250,7 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
     },
     stock: raw.status === 'ACTIVE' ? 'in' : 'out',
     available: raw.status === 'ACTIVE',
-    variantId: raw.id,
+    productId: raw.id,
   };
 }
 
@@ -297,7 +297,11 @@ function mapProductDetails(raw: RawProductDetails): StorefrontProduct {
     inventory: null,
     stock: firstAvailable?.status === 'ACTIVE' ? 'in' : 'out',
     available: raw.status === 'ACTIVE',
-    variantId: firstAvailable?.id ?? raw.id,
+    productId: raw.id,
+    // The variant an add would send, paired with `productId` above: the cart service looks the two
+    // up together and refuses a variant that does not belong to the product it was given. A product
+    // with no variants at all has nothing buyable, so there is no id to fall back to.
+    variantId: firstAvailable?.id ?? '',
   };
 }
 
@@ -318,6 +322,7 @@ function mapCartLine(raw: RawCartItem): StorefrontCartLine {
     .join(' / ');
   return {
     id: raw.id,
+    productId: raw.productId,
     variantId: raw.variantId,
     title: raw.title,
     url: `/products/${raw.productId}`,
@@ -365,7 +370,8 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
   const status = ORDER_STATUS_MAP[raw.status.toUpperCase()] ?? 'processing';
   const lines: StorefrontCartLine[] = (raw.orderLines ?? []).map((line) => ({
     id: line.id,
-    variantId: line.variantId ?? line.productId,
+    productId: line.productId,
+    variantId: line.variantId ?? '',
     title: line.productName,
     url: `/products/${line.productId}`,
     variantLabel: line.variantName ?? '',
@@ -450,7 +456,7 @@ function mapSearchResponse(raw: RawSearchResponse, query: string): StorefrontSea
       price: { amount: 0 },
       stock: 'in',
       available: true,
-      variantId: result.id,
+      productId: result.id,
     }));
   const articles = linkedResults
     .filter(({ result }) => result.kind === 'CMS_ENTRY')
@@ -726,10 +732,14 @@ function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | und
         };
       }
     },
-    async add({ variantId, quantity }) {
+    // `productId` and `variantId` are two different ids and the gateway needs both: its cart
+    // service reads the pair together (one lookup of "this variant, of this product") and answers
+    // 500 for a pair that does not exist. Sending the variant id as both — which is what this did
+    // while a list row's `variantId` was really a product id — made every add fail that way.
+    async add({ productId, variantId, quantity }) {
       const raw = (await client.cart.addItem({
         cartId: cartId ?? undefined,
-        productId: variantId,
+        productId,
         variantId,
         quantity,
       })) as unknown as RawCart;
@@ -971,7 +981,7 @@ async function volatileSnapshots(
     // Deliberately no `inventory`: the products list carries none, and an absent key means
     // "unknown, keep what the page already shows" rather than "nothing left".
     return {
-      id: item.variantId,
+      id: item.productId,
       price: item.price,
       available: item.available,
       stock: item.stock,
@@ -981,14 +991,13 @@ async function volatileSnapshots(
 
 /**
  * The product detail page's own volatile refresh — the one result that cannot go through the
- * batched read. `mapProductDetails` fills `variantId` from the product's first buyable *variant*,
- * and the products list's `id:in:` filter matches *product* ids, so the detail product would ask
- * the batch about an id it can never answer (P1's hand-off note). It re-reads its own product
- * instead, which is also the read that knows the variant-level `inventory` the list has none of.
+ * batched read. The batch answers from the products list, which carries no inventory at all, and
+ * the one page in the theme whose stock line is about a *variant* is this one, so it re-reads its
+ * own product: that read is the only one that knows the variant-level `inventory`.
  *
- * The snapshot is keyed by the id the page is *showing*, not by the fresh read's own `variantId`:
- * those differ exactly when the first buyable variant has changed — the moment the refresh exists
- * for — and keying by the fresh one would answer about a product the page cannot find.
+ * The snapshot is keyed by the id the page is *showing*, not by the fresh read's own `productId`:
+ * they are the same id in every ordinary case, and keying by the fresh one would answer about a
+ * product the page cannot find whenever they are not.
  */
 async function detailSnapshots(
   client: EldraClient,
