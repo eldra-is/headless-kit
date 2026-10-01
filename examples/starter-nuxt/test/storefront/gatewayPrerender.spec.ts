@@ -598,6 +598,41 @@ describe('gateway storefront — the volatile refresh after hydration', () => {
     expect(written).toBe(1);
   });
 
+  /**
+   * The product page and a grid on the same page are about the same product id, and the batched read
+   * cannot answer what the product page needs: the products list carries no inventory, so an answer
+   * folded in from it would leave the page's stock line on the value it was built with. Before the
+   * ids were named for what they are this fell out by accident — a detail product's volatile id was a
+   * *variant's*, which no list read matched — and the first page to hit it was a client-side
+   * navigation from a collection page, where the grid had already claimed that product.
+   */
+  it('still reads the detail product for itself when a card list already asked about it', async () => {
+    const calls = fakeClient({
+      detail: () => detailRow(96),
+      list: async () => [listRow('p-1', 96)],
+      stock: () => [
+        { variantId: 'v-1', available: false, allowBackorder: false, availableQuantity: 0 },
+      ],
+    });
+    const ssr = asyncDataStub();
+    const { storefront, refresher } = wire(calls.client, ssr.prerender);
+
+    // The grid registers first, exactly as a collection page's own refresh does.
+    const grid = storefront.catalog.byHandles(ref(['p-1']));
+    const detail = storefront.catalog.product(ref('merino-crew-sweater'));
+    await ssr.settleAll();
+    const before = calls.detailReads;
+
+    await refresher.refresh();
+
+    expect(calls.detailReads - before).toBe(1);
+    expect(detail.data.value?.stock).toBe('out');
+    expect(detail.data.value?.inventory).toBe(0);
+    // …and the grid still got its own batched answer, unaffected.
+    expect(volatileReads(calls)).toEqual([['id:in:p-1']]);
+    expect(grid.data.value?.[0]?.price.amount).toBe(96);
+  });
+
   it('lets two results that need the same detail read share one request', async () => {
     const calls = fakeClient();
     const ssr = asyncDataStub();

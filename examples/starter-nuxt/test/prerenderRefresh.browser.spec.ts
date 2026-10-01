@@ -758,6 +758,8 @@ describe('prerendered commerce data on the generated static site', () => {
       '/catalog/v1/products/list?pageSize=6&filter=id:in:prod-cedar-serving-board,' +
         'prod-flax-tea-towel,prod-stoneware-bowl,prod-brass-candle-holder,prod-linen-napkin-set,' +
         'prod-walnut-spoon',
+      // The detail read's second half: the product's own inventory, which the list read has none of.
+      '/inventory/v1/stock/availability',
     ]);
     expect(askedMoreThanOnce(visited.requests)).toEqual([]);
     expect(visited.warnings).toEqual([]);
@@ -833,10 +835,15 @@ describe('prerendered commerce data on the generated static site', () => {
     // batched `id:in` read cannot answer about it (`app/storefront/refresh.ts`). There is no
     // batched read beside it — the six cards on this page are products the collection page already
     // re-read a moment ago, and the refresher answers for a product once per page load, client
-    // navigations included. Everything else the page shows came out of the payload Nuxt loaded for
+    // navigations included. The product page itself is not one of those answers: a result that
+    // reads for itself is never satisfied by a batch (`app/storefront/refresh.ts`), because the
+    // batch cannot answer the variant-level inventory this page's stock line is about. Everything else the page shows came out of the payload Nuxt loaded for
     // the route: no `/cms/` read to resolve it, and nothing belonging to the collection page being
     // left.
-    expect(visited.requests).toEqual([`/catalog/v1/products/${PRODUCT_HANDLE}`]);
+    expect(visited.requests).toEqual([
+      `/catalog/v1/products/${PRODUCT_HANDLE}`,
+      '/inventory/v1/stock/availability',
+    ]);
     expect(askedMoreThanOnce(visited.requests)).toEqual([]);
     expect(visited.warnings).toEqual([]);
   });
