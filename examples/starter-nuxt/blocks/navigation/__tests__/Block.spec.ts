@@ -553,6 +553,40 @@ describe('header block (navigation apiId)', () => {
       expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 120 items');
       expect(wrapper.findComponent(Badge).text()).toBe('99+');
     });
+
+    // The bag's two forms, and the destination of the link form. With no drawer mounted the bag is
+    // an anchor to `/cart`, which is `app/pages/cart.vue` — a theme route, prerendered by
+    // `nuxt.config.ts`. It used to be an anchor to a path nothing in the theme answered, so the
+    // site's catch-all asked the gateway for a CMS page called "cart", found none, and every
+    // shopper who clicked the bag landed on the not-found shell.
+    it('links to the cart route when no drawer is mounted', () => {
+      const wrapper = mountBlock(resolved.data); // the demo storefront claims no drawer
+      const bag = findCartButton(wrapper);
+      expect(bag.element.tagName).toBe('A');
+      expect(bag.attributes('href')).toBe('/cart');
+    });
+
+    it('is a button that opens the drawer when one is mounted, and navigates nowhere', async () => {
+      const base = mountOptions({ entry: { id: 'e1', data: resolved.data } });
+      const storefront = createDemoStorefront();
+      // Exactly what `blocks/cart/Block.vue` does from `onMounted` in its `drawer` variant.
+      storefront.cart.drawerAvailable.value = true;
+      const wrapper = mount(Block, {
+        ...base,
+        global: {
+          ...base.global,
+          provide: { ...base.global.provide, [STOREFRONT_KEY]: storefront },
+        },
+      });
+
+      const bag = findCartButton(wrapper);
+      expect(bag.element.tagName).toBe('BUTTON');
+      expect(bag.attributes('href')).toBeUndefined();
+
+      expect(storefront.cart.drawerOpen.value).toBe(false);
+      await bag.trigger('click');
+      expect(storefront.cart.drawerOpen.value).toBe(true);
+    });
   });
 
   it('marks the current link with aria-current="page"', async () => {
