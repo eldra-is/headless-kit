@@ -16,12 +16,8 @@
  * must be able to open their cart from the header on every route, so it cannot be something an
  * author places on a page — `blocks/cart/Block.vue` in its `drawer` variant, mounted once, with the
  * entry the theme owns rather than a CMS document (`app/pages/cart.vue` builds its `page`-variant
- * entry the same way). `cart.drawerHosted` is declared below, in this shell's own `setup()`, so a
- * `drawer`-variant `cart` block an author did place knows to draw no second `<dialog>` — it reads
- * the flag while it renders, on the server as well as in the browser, so the prerendered HTML and
- * the hydrated page agree. The `/cart` route stays what it was: the drawer's own "View cart"
- * destination, the deep link, and what the header's bag still points at in the generated HTML until
- * the drawer is live (see that block's `onMounted`).
+ * entry the same way). The rules behind the three `cart.drawer*` flags this file sets live in one
+ * place, on `CartStore` in `app/storefront/cart.ts`; `/cart` stays exactly what it was.
  *
  * `:page-key` is `@eldrajs/theme-nuxt`'s `eldraRouteKey` (auto-imported), not Nuxt's default, and
  * it is load-bearing on a **generated** site: a host that answers `/products/ash-glaze-mug` with a
@@ -30,7 +26,7 @@
  * every block on it, would be destroyed and built again, running each block's `setup` (and the
  * storefront reads in it) twice. Keying by the canonical path makes that move a no-op.
  */
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { Link, Toaster } from '@eldrajs/ui';
 import CartBlock from '../blocks/cart/Block.vue';
 import EldraRouterLink from './components/EldraRouterLink.vue';
@@ -42,13 +38,35 @@ const t = useT();
 const cart = useStorefront().cart;
 /** Claimed in `setup()`, not from a mount hook: every block on the page is created after this line
  *  runs, in a server render as much as in the browser, which is what makes an authored
- *  `drawer`-variant `cart` block's "defer to the host" decision the same in both. */
+ *  `drawer`-variant `cart` block's "defer to the host" decision the same in both
+ *  (`app/storefront/cart.ts`). */
 cart.drawerHosted.value = true;
 
 /**
- * Stable, so the drawer's `useUiId()`-derived ids are the same in the prerendered HTML and after
- * hydration, and distinct from `app/pages/cart.vue`'s `theme-cart` — on `/cart` both exist at once.
- * It is not a CMS entry id and never reaches the gateway.
+ * The drawer is this shell's, so no navigation unmounts it the way a page-level one was unmounted —
+ * it has to close itself, or it sits open over wherever the shopper just went, with that page inert
+ * and not scrolling behind it (`useDialog` in `@eldrajs/ui`). One rule here covers every destination
+ * inside the drawer — each line's product title, Check out, View cart — and back/forward with it,
+ * because the router turns a `popstate` into a route change too. `flush: 'pre'` (the default) runs it
+ * before the new page renders.
+ *
+ * `useRoute` is a Nuxt auto-import; this file is Nuxt-only already (`<NuxtPage>`, `eldraRouteKey`),
+ * which is exactly why the rule belongs here and not in a block — `blocks/**` may not read the route.
+ */
+const route = useRoute();
+watch(
+  () => route.fullPath,
+  () => {
+    cart.drawerOpen.value = false;
+  }
+);
+
+/**
+ * An `EldraBlockEntry` needs an id. This one is the theme's own, not a CMS entry id, and never
+ * reaches the gateway; it is kept distinct from `app/pages/cart.vue`'s `theme-cart` so the two
+ * theme-owned cart entries stay tellable apart while debugging — on `/cart` both are mounted. The ids
+ * in the rendered markup do not come from here: every one of them is Vue's own `useId()`, derived
+ * from the component's position in the tree (`app/composables/useUiId.ts`).
  */
 const DRAWER_ENTRY_ID = 'theme-cart-drawer';
 

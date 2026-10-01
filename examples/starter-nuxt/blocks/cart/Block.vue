@@ -12,15 +12,11 @@
  *   scrolls, and the footer holds the subtotal, the note, Check out and View cart. No discount
  *   field, no payment icons — those are the page's (spec Variants).
  *
- *   **The theme hosts the drawer, not a page.** A cart drawer has to exist on every route, so
- *   `app/app.vue` mounts exactly one of these in its `drawer` variant with `host` set — the same
- *   argument the `Toaster` beside it makes. An authored `cart` block in `drawer` variant therefore
- *   finds `cart.drawerHosted` already true (the shell declares it in its own `setup()`, so this is
- *   decided before the block renders anywhere, the server included) and draws no `<dialog>` of its
- *   own: the shopper would otherwise get two drawers on that one page, and the header's bag could
- *   only open one of them. In Studio's editor it still shows its placeholder, saying where the
- *   drawer lives; live it renders nothing at all. Nothing about the field set changes, so an author
- *   who already placed one keeps their block and their data.
+ *   **The theme hosts the drawer, not a page**, so this component has two roles: the shell's one
+ *   host (`host`, mounted by `app/app.vue`) draws the drawer, and an authored `drawer`-variant block
+ *   defers to it and draws none — `ownsDrawer` below. The rule and its reasons are documented once,
+ *   on `CartStore` in `app/storefront/cart.ts`; closing the drawer when the shopper navigates out of
+ *   it is the shell's job for the same reason (a block may not read the route).
  * - `page` — a `Section spacing="none"` with 2rem of top padding and the `md` step below it, an `h1`
  *   at the h2 scale with the live item count beside it, a Continue shopping link, and from 64rem a
  *   `1fr | 22rem` layout: the shipping panel, the `aria-hidden` column headings and the items on the
@@ -116,11 +112,12 @@ const countLabel = computed(() =>
 );
 
 /**
- * Which of the two drawer roles this instance has. `app/app.vue` declares `cart.drawerHosted` in its
- * own `setup()`, so an authored block — created later, inside the page — reads it as already true
- * and defers: no `<dialog>`, on the server or in the browser, so the generated HTML and the hydrated
- * page agree and the site has exactly one cart drawer. Outside the Nuxt app (Storybook, a block
- * spec) nothing hosts one, and the block draws its own drawer exactly as before.
+ * Which of the two drawer roles this instance has: the theme's own host draws the drawer, an authored
+ * `drawer`-variant block defers to it (`cart.drawerHosted`, documented on `CartStore` in
+ * `app/storefront/cart.ts`). The shell declares that flag in its own `setup()`, so an authored block —
+ * created later, inside the page — reads it as already true and renders no `<dialog>` on the server
+ * either. Outside the Nuxt app (Storybook, a block spec) nothing hosts one, and the block draws its
+ * own drawer exactly as before.
  */
 const defersToHost = computed(() => props.host !== true && cart.drawerHosted.value);
 const ownsDrawer = computed(() => isDrawer.value && !defersToHost.value);
@@ -129,32 +126,17 @@ const ownsDrawer = computed(() => isDrawer.value && !defersToHost.value);
  * Spec Variants: only the drawer makes the header's bag a button, and only while it is mounted — so
  * only the instance that actually draws one raises the flag. A `page`-variant block never *clears*
  * it either: a cart page carries both a page cart and the theme's drawer, and whichever mounted last
- * must not silently turn the other one's drawer off.
- *
- * `onMounted`, deliberately not `setup()`: on a prerendered page the flag is then still false while
- * the server renders, so the header's bag is an `<a href="/cart">` in the HTML — the destination a
- * visitor with no JavaScript, or one who has not hydrated yet, can still use. The flip to a drawer
- * button happens after mount, as an ordinary reactive update rather than a hydration correction.
+ * must not silently turn the other one's drawer off. `onMounted` rather than `setup()` is deliberate
+ * and is the prerendered bag's whole story — see `drawerAvailable` in `app/storefront/cart.ts`.
  */
 onMounted(() => {
-  if (!ownsDrawer.value) return;
-  cart.drawerAvailable.value = true;
-  // Back/forward with the drawer open. The theme's drawer outlives a navigation — it is mounted in
-  // the app shell, not on the page — so unlike a page-level one it would otherwise sit open over
-  // whatever the shopper went back to. `popstate` is the only navigation that can reach a modal
-  // drawer: everything behind it is inert, and the two destinations inside it close it themselves.
-  // A plain browser API (as in `blocks/navigation/Block.vue`'s current-page listener), bound on
-  // mount so a server render never touches `window`.
-  window.addEventListener('popstate', closeDrawer);
+  if (ownsDrawer.value) cart.drawerAvailable.value = true;
 });
 watch(ownsDrawer, (owns) => {
   cart.drawerAvailable.value = owns;
 });
 onBeforeUnmount(() => {
   if (ownsDrawer.value) cart.drawerAvailable.value = false;
-  // Unconditional: a no-op for an instance that never added one, and still the right thing for one
-  // that stopped owning the drawer (an editor variant switch) after it did.
-  window.removeEventListener('popstate', closeDrawer);
 });
 
 const note = computed(() => (data.value.note ?? '').trim());
@@ -221,6 +203,9 @@ watch(isEmpty, async (empty) => {
   heading.focus();
 });
 
+/** The empty state's button only (spec States, Empty: "in the drawer it closes the drawer and goes
+ *  to `emptyLink`"). Every other destination inside the drawer is a plain router link, and the app
+ *  shell closes the drawer on the route change — see `drawerOpen` in `app/storefront/cart.ts`. */
 function closeDrawer(): void {
   drawerOpen.value = false;
 }
@@ -303,15 +288,14 @@ const DRAWER_CLASSES = {
           </template>
           {{ t('cart.checkout') }}
         </Button>
-        <!-- Closed on the way out: the drawer is the app shell's, so a router navigation does not
-             unmount it and it would stay open over the cart page. -->
+        <!-- No `@click` close: this is a router link like the line titles beside it, and the app
+             shell closes the drawer on the route change (`app/storefront/cart.ts`, `drawerOpen`). -->
         <Button
           variant="outline"
           block
           :href="CART_PATH"
           :as="EldraRouterLink"
           :label="t('cart.viewCart')"
-          @click="closeDrawer"
         />
       </template>
     </Drawer>

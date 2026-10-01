@@ -9,10 +9,12 @@
 // This is the one spec that mounts the app shell itself. Everything it asserts is about the shell
 // and a page agreeing with each other (one drawer between them, a bag that opens it, a `/cart` route
 // that still renders the page variant), which neither a block spec nor a page spec can see.
-// `app/pages/cart.vue` reads `useHead()` as a bare Nuxt auto-import, so — as in `cartPage.spec.ts` —
-// it is stubbed before that module is imported. `<NuxtPage>` is registered per mount as whatever
-// stands in for the page.
-import { defineComponent, h, type Component } from 'vue';
+// `app/app.vue` and `app/pages/cart.vue` read `useRoute()`/`useHead()` as bare Nuxt auto-imports, so —
+// as in `cartPage.spec.ts` — both are stubbed before those modules are imported. The route stub is a
+// plain reactive object this file writes to, which is how a navigation is driven here: `app.vue`
+// watches `route.fullPath`, so moving it is exactly what the router does to the shell when the shopper
+// follows any link. `<NuxtPage>` is registered per mount as whatever stands in for the page.
+import { defineComponent, h, reactive, type Component } from 'vue';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEldraLinkState, createEldraPreviewState, ELDRA_KEY } from '@eldrajs/theme-vue';
@@ -26,6 +28,10 @@ import { STOREFRONT_KEY, type StorefrontSource } from '../app/storefront/types';
 import { enUS } from '../app/i18n/en-US';
 
 vi.stubGlobal('useHead', () => {});
+
+/** The shell's `useRoute()`. One object for the file; every mount reads the same one. */
+const route = reactive({ fullPath: '/' });
+vi.stubGlobal('useRoute', () => route);
 
 const { default: App } = await import('../app/app.vue');
 const { default: CartPage } = await import('../app/pages/cart.vue');
@@ -59,6 +65,7 @@ afterEach(() => {
   // `@eldrajs/ui`'s modal scroll lock is module-level.
   document.documentElement.style.overflow = '';
   document.body.innerHTML = '';
+  route.fullPath = '/';
 });
 
 interface ShellOptions {
@@ -147,10 +154,12 @@ describe('the theme hosts one cart drawer', () => {
       storefront: createDemoStorefront({ cartLines: DEMO_CART_LINES }),
     });
 
-    // A button, not a link: no navigation, so the shopper keeps the page they were on.
+    // A button, not a link: no navigation, so the shopper keeps the page they were on. And in that
+    // form it is a dialog trigger, announced like every other overlay trigger in the header.
     const control = bag(wrapper);
     expect(control.element.tagName).toBe('BUTTON');
     expect(control.attributes('href')).toBeUndefined();
+    expect(control.attributes('aria-haspopup')).toBe('dialog');
 
     control.element.focus();
     await control.trigger('click');
@@ -175,33 +184,37 @@ describe('the theme hosts one cart drawer', () => {
     expect(document.activeElement).toBe(control.element);
   });
 
-  it('closes itself on the way to the cart page, and on back/forward', async () => {
-    // The shell's drawer is not unmounted by a navigation the way a page-level one was, so it has to
-    // close itself or it sits open over whatever the shopper went to.
-    const { wrapper, storefront } = await mountShell(HeaderPage, {
+  it('closes on any navigation out of it, whichever destination the shopper took', async () => {
+    // A page-level drawer was unmounted by the navigation that left it; the shell's is not, so an
+    // open one would sit over the page the shopper just went to — that page `inert` and not
+    // scrolling, until they found Escape.
+    const { storefront } = await mountShell(HeaderPage, {
       storefront: createDemoStorefront({ cartLines: DEMO_CART_LINES }),
     });
 
-    // jsdom implements no navigation, and the anchor is a real one.
-    const swallowNavigation = (event: Event): void => event.preventDefault();
-    document.addEventListener('click', swallowNavigation, true);
-    try {
-      storefront.cart.drawerOpen.value = true;
-      await flushPromises();
-      const viewCart = wrapper
-        .findAll('dialog a')
-        .find((link) => link.attributes('href') === '/cart')!;
-      await viewCart.trigger('click');
-      expect(storefront.cart.drawerOpen.value).toBe(false);
+    storefront.cart.drawerOpen.value = true;
+    await flushPromises();
+    const drawer = cartDialogs()[0]!;
+    expect(drawer.hasAttribute('open')).toBe(true);
+    expect(document.documentElement.style.overflow).toBe('hidden');
 
-      storefront.cart.drawerOpen.value = true;
-      await flushPromises();
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      await flushPromises();
-      expect(storefront.cart.drawerOpen.value).toBe(false);
-    } finally {
-      document.removeEventListener('click', swallowNavigation, true);
-    }
+    // Every way out of the drawer is an ordinary same-site router link with no close handler of its
+    // own — a line's product title, Check out while the checkout is same-site, View cart — which is
+    // why the rule has to live where the drawer does rather than on each of them.
+    const hrefs = [...drawer.querySelectorAll('a')].map((link) => link.getAttribute('href'));
+    expect(hrefs).toContain('/cart');
+    expect(hrefs).toContain('/checkout/demo-cart');
+    expect(hrefs.filter((href) => href?.startsWith('/products/')).length).toBeGreaterThan(0);
+
+    // What the router does to the shell when any one of them is followed — back/forward included,
+    // since the router turns a `popstate` into the same route change.
+    route.fullPath = '/products/speckled-latte-mug';
+    await flushPromises();
+
+    expect(storefront.cart.drawerOpen.value).toBe(false);
+    expect(cartDialogs()[0]?.hasAttribute('open')).toBe(false);
+    // The new page is neither inert nor scroll-locked behind a dialog nobody closed.
+    expect(document.documentElement.style.overflow).toBe('');
   });
 
   it('leaves an authored drawer-variant cart block with no drawer of its own', async () => {
@@ -239,13 +252,16 @@ describe('the theme hosts one cart drawer', () => {
     expect(cartDialogs()).toHaveLength(1);
   });
 
-  it('keeps the /cart route rendering the page variant beside it', async () => {
+  it('keeps the /cart route rendering the page variant beside it, axe-clean', async () => {
     const { wrapper } = await mountShell(CartPage);
 
     const heading = wrapper.get('main#main h1');
     expect(heading.text()).toContain(enUS.cart.title);
     expect(wrapper.get('main#main').text()).toContain(enUS.cart.emptyFallbackTitle);
     expect(cartDialogs()).toHaveLength(1);
+    // The one document that holds a `page`-variant cart and the hosted drawer at once — the case
+    // this arrangement created, and the mount no other spec makes.
+    expect(await axe(document.body)).toHaveNoViolations();
   });
 
   it('is axe-clean with the drawer closed and with it open', async () => {

@@ -13,7 +13,7 @@
 // runs on the server too — so each server render raised `ReferenceError: window is not defined`,
 // which `nitro.prerender.failOnError` turns into a failed build.
 import { defineComponent, h } from 'vue';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import Cart from '../../blocks/cart/Block.vue';
 import Navigation from '../../blocks/navigation/Block.vue';
 import navigationMock from '../../blocks/navigation/mock.json';
@@ -28,6 +28,10 @@ import homePage from '../../pages/home.page.json';
 import productPage from '../../pages/product.page.json';
 import collectionPage from '../../pages/collection.page.json';
 import articlePage from '../../pages/article.page.json';
+
+// `app/app.vue` reads `useRoute()` as a bare Nuxt auto-import (it is the shell: that is where closing
+// the cart drawer on a route change belongs). A server render only ever calls it, never navigates.
+vi.stubGlobal('useRoute', () => ({ fullPath: '/' }));
 
 const FIXTURES: Array<[string, PageFixture]> = [
   ['home', homePage as unknown as PageFixture],
@@ -54,13 +58,12 @@ describe('server rendering', () => {
   });
 
   /**
-   * The shell's own cart drawer, in the HTML a static host serves. Two things have to be true of it:
-   * a closed `<dialog>` is `display: none` to the UA, so nothing of it shows on a page nobody opened
-   * the cart on; and there is exactly one of them even when an author has also placed a
-   * `drawer`-variant `cart` block on the page, because the shell claims `cart.drawerHosted` in its
-   * own `setup()` — before any block renders — so that block defers on the server exactly as it does
-   * in the browser. Two drawers in the markup would hydrate into two, and the header's bag could
-   * only ever open one of them.
+   * The shell's own cart drawer, in the HTML a static host serves: closed (a `<dialog>` without `open`
+   * is `display: none`, so nothing of it shows on a page nobody opened the cart on), and exactly one
+   * of them even with an authored `drawer`-variant `cart` block on the same page — two in the markup
+   * would hydrate into two, and the bag could only ever open one. The rule that makes the authored
+   * block defer on the server as well as in the browser is documented on `CartStore`
+   * (`app/storefront/cart.ts`).
    */
   it('server-renders the app shell with one closed cart drawer, authored block or not', async () => {
     const AuthoredCartPage = defineComponent({
@@ -80,10 +83,9 @@ describe('server rendering', () => {
   });
 
   /**
-   * And the bag that opens it stays a real link in that HTML: `cart.drawerAvailable` is raised from
-   * the hosted drawer's `onMounted`, which never runs on the server, so a visitor with no JavaScript
-   * — or one reading the page before it hydrates — still has `/cart` to go to. The flip to a drawer
-   * button happens after hydration, as an ordinary reactive update.
+   * And the bag that opens it stays a real link in that HTML, which is what a visitor with no
+   * JavaScript — or one reading the page before it hydrates — has. Why it does, and why the swap to a
+   * button afterwards is not a hydration correction: `drawerAvailable` in `app/storefront/cart.ts`.
    */
   it('leaves the header bag an anchor to /cart in the prerendered HTML', async () => {
     const html = await renderShellToString(

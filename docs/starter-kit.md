@@ -815,22 +815,31 @@ the header's bag opens it where the shopper already is. Before that it only exis
 placed a `drawer`-variant `cart` block on the page — nobody does — so every bag click left the page
 for `/cart`.
 
-What follows from one host:
+What follows from one host (the rules themselves are documented once in the code, on `CartStore` in
+`app/storefront/cart.ts`, and every file that takes part points there):
 
 - **The bag always opens the drawer.** `blocks/navigation/Block.vue` reads
   `storefront.cart.drawerAvailable`, which the hosting block raises from `onMounted`, and renders the
-  bag as a `<button>` while it is up. In the **prerendered** HTML the flag is still down (no mount hook
-  has run), so the bag is an `<a href="/cart">` there: a visitor with no JavaScript, or one reading the
-  page before it hydrates, still has somewhere to go, and the swap to a button afterwards is an
-  ordinary reactive update rather than a hydration correction.
+  bag as a `<button>` — with `aria-haspopup="dialog"`, like every other overlay trigger in the header
+  — while it is up. In the **prerendered** HTML the flag is still down (no mount hook has run), so the
+  bag is a plain `<a href="/cart">` there with no popup annotation: a visitor with no JavaScript, or
+  one reading the page before it hydrates, still has somewhere to go, and the swap to a button
+  afterwards is an ordinary reactive update rather than a hydration correction.
 - **An authored `drawer`-variant block draws nothing.** `app/app.vue` sets `cart.drawerHosted` in its
   own `setup()`, before any block on the page is created, so such a block renders no `<dialog>` of its
   own — on the server as much as in the browser, which is what keeps the generated HTML and the
   hydrated page at exactly one drawer. In Studio's editor it still shows its placeholder, which says
   the theme hosts the drawer. No field and no `block.json` version changes, so an author who already
   placed one keeps their block and its data, and a deploy migrates nothing.
-- **The drawer closes itself on the way out.** It is in the shell, so a navigation no longer unmounts
-  it: "View cart" closes it as it goes, and it closes on `popstate` (back/forward) too.
+- **The drawer closes on every navigation.** It is in the shell, so no navigation unmounts it any
+  more, and a modal `<dialog>` left open makes the page the shopper just reached inert and
+  unscrollable. `app/app.vue` watches the route and closes it, which covers every destination inside
+  the drawer at once — a line's product title, Check out, View cart, anything added later — and
+  back/forward with them. Only the empty state's button closes the drawer itself, because the block
+  spec says it does.
+- **In Studio's editor the bag is inert.** The preview overlay cancels clicks that carry an `href`,
+  not a button's, so an author clicking the bag in the canvas would otherwise get a modal drawer with
+  the rest of the canvas inert behind it; `onCartClick` returns early while `useEditing()` is true.
 - Nothing else about the drawer moved — `cart.drawerOpen`, the Esc/backdrop close, the focus return to
   the bag, the live count and the Undo toast are the block's own, unchanged.
 
@@ -848,7 +857,7 @@ Two things make it real on a deployed site, and both are easy to drop:
   artifact has no `cart/index.html` and a static host answers 404 however the app would have
   rendered it. `test/starter.spec.ts` asserts the file and the build manifest's prerendered list on
   the credential-free build; `test/prerenderRefresh.browser.spec.ts` opens the drawer from the bag on
-  a generated site, then follows "View cart" to the prerendered page.
+  a generated site, then sends the router to `/cart` and lands on the prerendered page.
 - The page renders `blocks/cart/Block.vue` in its `page` variant, with an entry the theme owns
   rather than a CMS entry. That is one implementation of the line items, the totals and the empty
   state, shared with the drawer and with the block an author can place on a page.

@@ -916,10 +916,10 @@ describe('prerendered commerce data on the generated static site', () => {
       await page.waitForTimeout(CATALOG_DELAY_MS + 1500);
       gateway.reset();
 
-      // Hydrated: the drawer is mounted, so the bag swapped from a link to a button. That swap is a
-      // reactive update *after* hydration (the flag is raised in the drawer's `onMounted`), which is
-      // why `warnings` below must still be empty — a mismatch would mean the server and the first
-      // client render disagreed.
+      // Hydrated: the drawer is mounted, so the bag swapped from a link to a button (`drawerAvailable`
+      // in `app/storefront/cart.ts`). The swap happens *after* hydration, which is why `warnings`
+      // below must still be empty — a mismatch would mean the server and the first client render
+      // disagreed.
       const bag = page.locator('header button[aria-label^="Cart"]');
       await bag.waitFor({ state: 'visible', timeout: 5000 });
       expect(await page.locator('header a[href="/cart"]').count()).toBe(0);

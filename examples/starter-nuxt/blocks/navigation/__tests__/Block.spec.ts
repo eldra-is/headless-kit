@@ -126,6 +126,28 @@ function mountWithCartCount(data: Record<string, unknown>, count: number) {
   });
 }
 
+/** The header as it renders on a live page: a storefront whose drawer is mounted and live, which is
+ *  exactly what `blocks/cart/Block.vue` reports from `onMounted` once `app/app.vue` has hosted one. */
+function mountWithDrawer(data: Record<string, unknown>, opts: { editing?: boolean } = {}) {
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  const storefront = createDemoStorefront();
+  storefront.cart.drawerAvailable.value = true;
+  const provide: Record<symbol, unknown> = {
+    ...base.global.provide,
+    [STOREFRONT_KEY]: storefront,
+  };
+  if (opts.editing === true) {
+    provide[ELDRA_KEY] = {
+      client: {},
+      designTokens: { colors: {} },
+      links: resolved.links,
+      preview: Object.assign(createEldraPreviewState(), { active: true, mode: 'edit' }),
+    };
+  }
+  const wrapper = mount(Block, { ...base, global: { ...base.global, provide } });
+  return { wrapper, storefront };
+}
+
 describe('header block (navigation apiId)', () => {
   afterEach(() => {
     window.history.pushState({}, '', '/');
@@ -559,33 +581,44 @@ describe('header block (navigation apiId)', () => {
     // `nuxt.config.ts`. It used to be an anchor to a path nothing in the theme answered, so the
     // site's catch-all asked the gateway for a CMS page called "cart", found none, and every
     // shopper who clicked the bag landed on the not-found shell.
-    it('links to the cart route when no drawer is mounted', () => {
+    it('links to the cart route when no drawer is mounted, and claims no popup', () => {
       const wrapper = mountBlock(resolved.data); // the demo storefront claims no drawer
       const bag = findCartButton(wrapper);
       expect(bag.element.tagName).toBe('A');
       expect(bag.attributes('href')).toBe('/cart');
+      // A link to a page pops nothing up; only the button form is a dialog trigger.
+      expect(bag.attributes('aria-haspopup')).toBeUndefined();
     });
 
     it('is a button that opens the drawer when one is mounted, and navigates nowhere', async () => {
-      const base = mountOptions({ entry: { id: 'e1', data: resolved.data } });
-      const storefront = createDemoStorefront();
-      // Exactly what `blocks/cart/Block.vue` does from `onMounted` in its `drawer` variant.
-      storefront.cart.drawerAvailable.value = true;
-      const wrapper = mount(Block, {
-        ...base,
-        global: {
-          ...base.global,
-          provide: { ...base.global.provide, [STOREFRONT_KEY]: storefront },
-        },
-      });
+      const { wrapper, storefront } = mountWithDrawer(resolved.data);
 
       const bag = findCartButton(wrapper);
       expect(bag.element.tagName).toBe('BUTTON');
       expect(bag.attributes('href')).toBeUndefined();
+      // Spec "Cart": "It opens from the header bag button (`aria-haspopup=\"dialog\"`)" — the same
+      // annotation the Menu and search triggers carry.
+      expect(bag.attributes('aria-haspopup')).toBe('dialog');
 
       expect(storefront.cart.drawerOpen.value).toBe(false);
       await bag.trigger('click');
       expect(storefront.cart.drawerOpen.value).toBe(true);
+    });
+
+    /**
+     * In Studio's editor the bag does nothing. The preview overlay cancels a click that carries an
+     * `href` (that is how it keeps an author from navigating away while editing), but a button's click
+     * is not an `href` click and reaches this handler — and a modal `<dialog>` over the canvas makes
+     * the rest of the page inert and unscrollable until the author finds Escape. An author inspecting
+     * the header is not shopping.
+     */
+    it('does nothing when the bag is clicked in the editor', async () => {
+      const { wrapper, storefront } = mountWithDrawer(resolved.data, { editing: true });
+
+      const bag = findCartButton(wrapper);
+      expect(bag.element.tagName).toBe('BUTTON');
+      await bag.trigger('click');
+      expect(storefront.cart.drawerOpen.value).toBe(false);
     });
   });
 

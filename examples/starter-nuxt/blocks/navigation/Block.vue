@@ -296,14 +296,17 @@ const accountHref = '/account';
 
 const cartCount = computed(() => storefront.cart.count.value);
 /**
- * The theme mounts one cart drawer in its app shell (`app/app.vue`), so on a live page this is true
- * and the bag is a `<button>` that opens it without leaving the route. It is raised from that
- * drawer's `onMounted`, which is what keeps the bag an `<a href="/cart">` in the generated HTML —
- * the destination a visitor with no JavaScript, or one still waiting for hydration, can use, and the
- * same path the drawer's own "View cart" button leads to (`app/pages/cart.vue`).
+ * The theme mounts one cart drawer in its app shell, so on a live page this is true and the bag is a
+ * `<button>` that opens it without leaving the route; in the prerendered HTML it is still false and
+ * the bag is an `<a href="/cart">`. Both halves, and why, are documented on `CartStore` in
+ * `app/storefront/cart.ts`.
  */
 const cartDrawerAvailable = computed(() => storefront.cart.drawerAvailable.value);
 const cartHref = computed(() => (cartDrawerAvailable.value ? undefined : '/cart'));
+/** Only the button form is a dialog trigger (spec "Cart": "It opens from the header bag button
+ *  (`aria-haspopup="dialog"`)"), like the Menu and search triggers above. The link form must not
+ *  claim it: in the prerendered HTML the bag goes to `/cart`, and nothing pops up. */
+const cartPopupType = computed(() => (cartDrawerAvailable.value ? 'dialog' : undefined));
 const cartAccessibleName = computed(() => {
   const count = cartCount.value;
   if (count === 0) return t('header.cartEmpty');
@@ -313,6 +316,12 @@ const cartAccessibleName = computed(() => {
 const cartBadgeLabel = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)));
 
 function onCartClick(): void {
+  // A no-op in Studio's editor. The theme overlay only prevents a click that carries an `href`
+  // (`@eldrajs/theme-core`'s navigation guard), so with the drawer available the bag is a button whose
+  // click it cannot intercept — and a modal `<dialog>` over the canvas makes the rest of the page
+  // inert and unscrollable until the author finds Escape. An author inspecting the header is not
+  // shopping, so the bag simply does nothing there.
+  if (isEditing.value) return;
   if (cartDrawerAvailable.value)
     storefront.cart.drawerOpen.value = !storefront.cart.drawerOpen.value;
 }
@@ -945,6 +954,7 @@ const actionsPositionClass = computed(() =>
               :label="cartAccessibleName"
               :href="cartHref"
               :as="toLinkAs(cartHref)"
+              :aria-haspopup="cartPopupType"
               @click="onCartClick"
             >
               <template #leadingIcon>
