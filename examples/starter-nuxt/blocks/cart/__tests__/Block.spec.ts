@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { defineComponent, h, type PropType } from 'vue';
+import { defineComponent, h, nextTick, ref, type PropType } from 'vue';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Toaster, useToast } from '@eldrajs/ui';
@@ -7,7 +7,9 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { EldraHttpError } from '@eldrajs/sdk';
 import { createDemoStorefront, DEMO_CART_LINES } from '../../../app/storefront/demo';
+import { createCartStore, type CartSnapshot } from '../../../app/storefront/cart';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
 import type { StorefrontCartLine } from '../../../app/storefront/types';
 
@@ -64,9 +66,13 @@ afterEach(() => {
 
 async function mountCart(
   data: Record<string, unknown>,
-  options: { cartLines?: StorefrontCartLine[] } = {}
+  options: { cartLines?: StorefrontCartLine[]; refuseMutations?: unknown } = {}
 ): Promise<{ wrapper: VueWrapper; storefront: StorefrontSource }> {
-  const storefront = createDemoStorefront({ cartLines: options.cartLines ?? DEMO_CART_LINES });
+  const lines = options.cartLines ?? DEMO_CART_LINES;
+  const storefront =
+    options.refuseMutations === undefined
+      ? createDemoStorefront({ cartLines: lines })
+      : refusingStorefront(lines, options.refuseMutations);
   const base = mountOptions({ entry: { id: 'cart', data } });
   const wrapper = mount(Harness, {
     props: { entry: { id: 'cart', data }, storefront },
@@ -108,9 +114,43 @@ function focusableNames(root: Element): string[] {
   return [...root.querySelectorAll('a[href], button, input')].map(accessibleNameOf);
 }
 
+/**
+ * The demo storefront with a cart that holds its lines but refuses every change — what the in-memory
+ * ops cannot do, and the one state these controls have nothing of their own to show: the stepper
+ * springs back and the row stays put, exactly as if the button did nothing.
+ */
+function refusingStorefront(lines: StorefrontCartLine[], thrown: unknown): StorefrontSource {
+  const source = createDemoStorefront({ cartLines: lines });
+  const snapshot = (): CartSnapshot => ({
+    lines: lines.map((line) => ({ ...line })),
+    totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+  });
+  const refuse = async (): Promise<never> => {
+    throw thrown;
+  };
+  return {
+    ...source,
+    cart: createCartStore({
+      init: async () => snapshot(),
+      add: refuse,
+      setQuantity: refuse,
+      remove: refuse,
+      applyDiscount: refuse,
+      removeDiscount: refuse,
+      checkoutUrl: ref<string | null>(null),
+    }),
+  };
+}
+
 /** The live Undo toast the `Toaster` rendered (it teleports into the open drawer, or to `<body>`). */
 function toastRoot(): HTMLElement | null {
   return document.body.querySelector<HTMLElement>('[data-part="list"]');
+}
+
+/** A `danger` toast is rendered as `role="alert"`, *beside* the polite list rather than inside it
+ *  (`Toaster`), so a refusal is announced immediately instead of waiting its turn. */
+function alertToast(): HTMLElement | null {
+  return document.body.querySelector<HTMLElement>('[role="alert"]');
 }
 
 describe('cart block', () => {
@@ -326,6 +366,44 @@ describe('cart block', () => {
         'Speckled latte mug',
         'Walnut serving board',
       ]);
+    });
+
+    /**
+     * A refused change has to say so. Nothing on screen moves when the backend says no — the line is
+     * still there, the stepper is back at the quantity the store still holds — so without this the
+     * only difference between "we could not" and "that button is broken" is invisible.
+     */
+    it('reports a refused removal and a refused quantity change, keeping the line', async () => {
+      const { wrapper, storefront } = await mountCart(mock, {
+        refuseMutations: new EldraHttpError({ status: 409, statusText: 'Conflict' } as Response, {
+          code: 'CONFLICT',
+          errorId: 'CART_INSUFFICIENT_STOCK',
+        }),
+      });
+      await openDrawer(wrapper);
+
+      await wrapper
+        .get('dialog [aria-label="Remove Merino crew sweater, Oat / M"]')
+        .trigger('click');
+      await flushPromises();
+
+      expect(storefront.cart.lines.value.map((line) => line.title)).toContain(
+        'Merino crew sweater'
+      );
+      await nextTick();
+
+      expect(alertToast()?.textContent).toContain('This item is out of stock.');
+      // No Undo offered for a removal that did not happen.
+      expect(toastRoot()?.textContent ?? '').not.toContain('removed');
+
+      useToast().clear();
+      await wrapper.get('dialog [data-part="increase"]').trigger('click');
+      await flushPromises();
+      await nextTick();
+
+      expect(alertToast()?.textContent).toContain('This item is out of stock.');
+      expect(storefront.cart.lines.value[0]?.quantity).toBe(1);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
     it('moves focus to the empty-state heading when the last line goes', async () => {

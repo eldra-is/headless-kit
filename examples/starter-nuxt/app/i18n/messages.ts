@@ -228,6 +228,21 @@ export interface Messages {
      */
     unresolvedCollectionLabel: string;
     unresolvedCollectionHelp: string;
+    /**
+     * The three sentences a failed **mutation** is reported with — an add to cart, a quantity, a
+     * removal, an undo. One set for every commerce block, chosen from the gateway's `errorId` in
+     * `app/storefront/feedback.ts` and shown through `useStorefrontFeedback()`; a block never writes
+     * its own, so the same refusal reads the same way wherever a shopper meets it.
+     *
+     * `mutationFailed` is the fallback and the common case: anything the theme has no specific words
+     * for, and everything that never reached the gateway at all (offline, aborted). It says what
+     * happened and what to do, and nothing it cannot know.
+     */
+    mutationFailed: string;
+    /** The gateway refused for stock (`CART_INSUFFICIENT_STOCK`). */
+    outOfStock: string;
+    /** The gateway no longer sells this at all (`CART_INVALID_PRODUCT`). */
+    unavailable: string;
     orderStatus: {
       processing: string;
       shipped: string;
@@ -872,6 +887,12 @@ export interface Messages {
     removeItemVariant: string;
     removed: string;
     undo: string;
+    /**
+     * The confirmation for an add made where no cart drawer is mounted — a page that has none, or
+     * a visitor whose JavaScript has not hydrated the header yet. With a drawer the add opens it
+     * instead: the cart itself is the strongest confirmation there is.
+     */
+    added: string;
     awayFromFree: string;
     freeUnlocked: string;
     discountCode: string;

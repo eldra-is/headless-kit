@@ -54,6 +54,7 @@ import {
   TabPanel,
   Tabs,
   VariantPicker,
+  useToast,
   type FormLayoutSubmitPayload,
 } from '@eldrajs/ui';
 import { EldraRichText } from '@eldrajs/theme-vue';
@@ -62,6 +63,8 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
+import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
+import { isOutOfStock } from '../../app/storefront/feedback';
 import { roundMoney, useMoney } from '../../app/storefront/money';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -87,6 +90,8 @@ const { data, entryId } = useBlockData(props, 'product-detail');
 const t = useT();
 const editing = useEditing();
 const storefront = useStorefront();
+const feedback = useStorefrontFeedback();
+const toast = useToast();
 
 const titleId = `product-detail-title-${useUiId()}`;
 /** Every `VariantPicker` radio group on the page needs a unique native `name`, or two
@@ -291,9 +296,27 @@ const variantAvailable = computed(() =>
  * count into it, and one that tracks nothing at all sends `null`, which is what keeps "only N left"
  * off a made-to-order product.
  */
+/**
+ * The cart refused an add for stock. The product read is the page's source of truth for stock
+ * (`gateway.ts` reads real inventory for it), but the cart service is the one that actually
+ * commits it: when the two disagree, the cart has just proved it knows something the read did not,
+ * and continuing to offer a button that cannot work is the worse of the two errors. So the page
+ * holds that one fact locally and shows the sold-out state the spec already defines — Notify me, the
+ * sold-out line, no stepper — rather than inventing a fifth state for it.
+ *
+ * Dropped as soon as anything fresher could contradict it: a product read that came back *different*
+ * — which is exactly what "the refresh said otherwise" means, since a refresh that changes nothing
+ * keeps every object at its own identity (`app/storefront/volatile.ts`) and has not contradicted
+ * anything — or another variant chosen, which is not the variant the backend refused.
+ */
+const refusedForStock = ref(false);
+watch([() => productResult.data.value, variantLabel], () => {
+  refusedForStock.value = false;
+});
+
 const stockLine = computed(() =>
   deriveStockLine({
-    stock: product.value?.stock ?? 'in',
+    stock: refusedForStock.value ? 'out' : (product.value?.stock ?? 'in'),
     inventory: product.value?.inventory ?? null,
     variantAvailable: variantAvailable.value,
     variantLabel: variantLabel.value,
@@ -357,6 +380,21 @@ watch(
   { immediate: true }
 );
 
+/**
+ * Add to cart, and — either way — something the shopper can see. The button's own spinner stopping
+ * is not feedback: it looks identical whether the line was added or the gateway refused it, which is
+ * exactly how a 409 `CART_INSUFFICIENT_STOCK` became "Add to cart does nothing".
+ *
+ * **On success**, the hosted cart drawer opens (`app/app.vue` mounts one, and `drawerAvailable` says
+ * whether it is live): the cart itself, with the new line in it, is the clearest confirmation there
+ * is, and it is a click away from checking out. With no drawer — a page without one, or a visitor
+ * whose header has not hydrated — there is a toast instead, which is what the Toast primitive's own
+ * guidance asks for.
+ *
+ * **On failure**, one shared toast through `useStorefrontFeedback()` (the sentence comes from the
+ * gateway's `errorId`, not from this block), plus the one reaction a page can usefully have: a
+ * refusal for stock flips its own stock line to sold out.
+ */
 async function primaryAction(): Promise<void> {
   if (soldOut.value) {
     notifyOpen.value = true;
@@ -367,11 +405,24 @@ async function primaryAction(): Promise<void> {
   // product read that answered no buyable variant has nothing to add — `mapProductDetails` leaves
   // `variantId` empty rather than inventing one from the product's own id.
   if (buyable === null || buyable.variantId === '') return;
-  await storefront.cart.add({
+  const cart = storefront.cart;
+  await cart.add({
     productId: buyable.productId,
     variantId: buyable.variantId,
     quantity: quantity.value,
   });
+
+  const failure = cart.lastFailure.value;
+  if (failure !== null) {
+    if (isOutOfStock(failure)) refusedForStock.value = true;
+    feedback.report(failure, { id: 'product-add-to-cart' });
+    return;
+  }
+  if (cart.drawerAvailable.value) {
+    cart.drawerOpen.value = true;
+    return;
+  }
+  toast.show({ id: 'product-add-to-cart', title: t('cart.added') });
 }
 
 /* ------------------------------------------------------------------------- */

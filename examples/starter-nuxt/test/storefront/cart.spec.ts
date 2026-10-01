@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { describe, expect, it } from 'vitest';
+import { EldraHttpError } from '@eldrajs/sdk';
 import {
   createCartStore,
   type CartAddInput,
@@ -218,6 +219,116 @@ describe('createCartStore', () => {
     gate.resolve(emptySnapshot());
     await call;
     expect(store.pending.value).toBe(false);
+  });
+
+  /**
+   * A failed mutation has to survive as more than a sentence. The gateway refuses an add it cannot
+   * fill with `409 { code: 'CONFLICT', errorId: 'CART_INSUFFICIENT_STOCK' }`, and `code` is the half
+   * every other conflict also carries — so a store that kept only `caught.message` left a block with
+   * no way to tell "out of stock" from "your connection dropped", and `message` itself ("Web Studio
+   * request failed with 409 Conflict") is not a sentence to show anyone.
+   */
+  describe('a failed mutation', () => {
+    const outOfStock = new EldraHttpError({ status: 409, statusText: 'Conflict' } as Response, {
+      code: 'CONFLICT',
+      errorId: 'CART_INSUFFICIENT_STOCK',
+      detail: 'insufficient stock',
+    });
+
+    it('keeps the SDK error’s errorId, code and status in lastFailure', async () => {
+      const store = createCartStore(
+        fakeOps({
+          add: async () => {
+            throw outOfStock;
+          },
+        })
+      );
+      await settle();
+      await store.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+
+      expect(store.lastFailure.value).toEqual({
+        message: outOfStock.message,
+        errorId: 'CART_INSUFFICIENT_STOCK',
+        code: 'CONFLICT',
+        status: 409,
+      });
+      // …and the string half still works for every existing caller.
+      expect(store.error.value).toBe(outOfStock.message);
+      expect(store.pending.value).toBe(false);
+    });
+
+    it('reports nothing structured for a request that never reached the gateway', async () => {
+      const store = createCartStore(
+        fakeOps({
+          setQuantity: async () => {
+            throw new TypeError('Failed to fetch');
+          },
+        })
+      );
+      await settle();
+      await store.setQuantity('line-1', 2);
+
+      expect(store.lastFailure.value).toEqual({
+        message: 'Failed to fetch',
+        errorId: null,
+        code: null,
+        status: null,
+      });
+    });
+
+    it('is cleared by the next mutation, together with error', async () => {
+      let fails = true;
+      const store = createCartStore(
+        fakeOps({
+          add: async () => {
+            if (fails) throw outOfStock;
+            return emptySnapshot();
+          },
+        })
+      );
+      await settle();
+      await store.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+      expect(store.lastFailure.value).not.toBeNull();
+
+      fails = false;
+      await store.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+      expect(store.lastFailure.value).toBeNull();
+      expect(store.error.value).toBeNull();
+    });
+
+    it('records the failure of the re-add behind undoRemove', async () => {
+      const a = line({ id: 'a' });
+      const store = createCartStore(
+        fakeOps({
+          init: async () => ({ lines: [a], totals: totalsFor([a]) }),
+          remove: async () => emptySnapshot(),
+          add: async () => {
+            throw outOfStock;
+          },
+        })
+      );
+      await settle();
+      await store.remove('a');
+      await store.undoRemove();
+
+      expect(store.lastFailure.value?.errorId).toBe('CART_INSUFFICIENT_STOCK');
+      // The line is still back on screen — the restore is local and deliberate (see `undoRemove`),
+      // which is exactly why a shopper has to be told the shop could not take it back.
+      expect(store.lines.value).toEqual([a]);
+    });
+
+    it('records the failure of an applyDiscount that threw, and still answers an ack', async () => {
+      const store = createCartStore(
+        fakeOps({
+          applyDiscount: async () => {
+            throw outOfStock;
+          },
+        })
+      );
+      await settle();
+      expect(await store.applyDiscount('WINTER15')).toEqual({ ok: false, reason: 'failed' });
+      expect(store.lastFailure.value?.status).toBe(409);
+    });
   });
 
   it('checkoutUrl mirrors the ops-provided ref reactively', async () => {

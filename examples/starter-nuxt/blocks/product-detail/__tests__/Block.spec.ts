@@ -2,10 +2,13 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { computed, defineComponent, h, nextTick, ref } from 'vue';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
+import { EldraHttpError } from '@eldrajs/sdk';
+import { useToast } from '@eldrajs/ui';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront } from '../../../app/storefront/demo';
+import { createCartStore, type CartOps, type CartSnapshot } from '../../../app/storefront/cart';
 import {
   STOREFRONT_KEY,
   type StorefrontProduct,
@@ -116,6 +119,162 @@ function optionByLabel(wrapper: Wrapper, label: string) {
 
 afterEach(() => {
   delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+  // `useToast` is a module-level queue in `@eldrajs/ui`; a toast left in it would leak into the
+  // next test.
+  useToast().clear();
+});
+
+/** A gateway refusal as `@eldrajs/sdk` throws it, problem body and all. */
+function refusal(body: unknown): EldraHttpError {
+  return new EldraHttpError({ status: 409, statusText: 'Conflict' } as Response, body);
+}
+
+function emptyCart(): CartSnapshot {
+  return {
+    lines: [],
+    totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+  };
+}
+
+/**
+ * The demo storefront with a cart whose `add` refuses — the one thing the in-memory demo ops cannot
+ * do, and the state the whole buy box has to behave in: the gateway answered, it said no, and the
+ * page looks exactly as it did a moment ago unless the block says otherwise.
+ */
+function storefrontWithRefusingCart(thrown: unknown, patch: Partial<StorefrontProduct> = {}) {
+  const source = storefrontWith(patch);
+  const ops: CartOps = {
+    init: async () => emptyCart(),
+    add: async () => {
+      throw thrown;
+    },
+    setQuantity: async () => emptyCart(),
+    remove: async () => emptyCart(),
+    applyDiscount: async () => ({ ack: { ok: false, reason: 'invalid' as const } }),
+    removeDiscount: async () => emptyCart(),
+    checkoutUrl: ref<string | null>(null),
+  };
+  return { ...source, cart: createCartStore(ops) };
+}
+
+/** What the single app-wide `Toaster` would render: the live queue, newest last. */
+function toasts(): Array<{ title: string; variant: string }> {
+  return useToast().toasts.value.map((item) => ({ title: item.title, variant: item.variant }));
+}
+
+describe('add to cart feedback', () => {
+  /**
+   * The defect this guards: the block awaited `cart.add`, the button's `:loading` flipped back, and
+   * a 409 `CART_INSUFFICIENT_STOCK` reached nothing a shopper could see — "Add to cart does
+   * nothing". The copy is the specific one, because the refusal named its cause.
+   */
+  it('says the item is out of stock when the gateway refuses the add for stock', async () => {
+    const storefront = storefrontWithRefusingCart(
+      refusal({
+        code: 'CONFLICT',
+        errorId: 'CART_INSUFFICIENT_STOCK',
+        detail: 'insufficient stock',
+      })
+    );
+    const wrapper = await mountReady(mock, { storefront });
+    expect(statusLine(wrapper).text()).toContain('In stock, ready to ship');
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await nextTick();
+
+    expect(toasts()).toEqual([{ title: 'This item is out of stock.', variant: 'danger' }]);
+    // …and the page stops offering a button that cannot work: the spec's own sold-out state.
+    expect(statusLine(wrapper).text()).toContain('Sold out in Oat / XS');
+    expect(addToCart(wrapper).text()).toContain('Notify me');
+    expect(wrapper.find('[role="spinbutton"]').exists()).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('says something generic for a refusal it has no words for, and leaves the stock line alone', async () => {
+    const storefront = storefrontWithRefusingCart(refusal({ code: 'INTERNAL' }));
+    const wrapper = await mountReady(mock, { storefront });
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await nextTick();
+
+    expect(toasts()).toEqual([
+      { title: 'Something went wrong. Please try again.', variant: 'danger' },
+    ]);
+    // Nothing was learned about stock, so nothing about stock changes.
+    expect(statusLine(wrapper).text()).toContain('In stock, ready to ship');
+    expect(addToCart(wrapper).text()).toContain('Add to cart · $96.00');
+  });
+
+  it('reports a request that never reached the gateway the same generic way', async () => {
+    const storefront = storefrontWithRefusingCart(new TypeError('Failed to fetch'));
+    const wrapper = await mountReady(mock, { storefront });
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(toasts()).toEqual([
+      { title: 'Something went wrong. Please try again.', variant: 'danger' },
+    ]);
+  });
+
+  it('presses the refused button twice without stacking two toasts', async () => {
+    const storefront = storefrontWithRefusingCart(refusal({ code: 'INTERNAL' }));
+    const wrapper = await mountReady(mock, { storefront });
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(toasts()).toHaveLength(1);
+  });
+
+  it('lets the stock line recover when a fresher product read disagrees', async () => {
+    const storefront = storefrontWithRefusingCart(
+      refusal({ code: 'CONFLICT', errorId: 'CART_INSUFFICIENT_STOCK' })
+    );
+    const wrapper = await mountReady(mock, { storefront });
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await nextTick();
+    expect(addToCart(wrapper).text()).toContain('Notify me');
+
+    // Another variant chosen is not the variant the backend refused.
+    await optionByLabel(wrapper, 'L').setValue();
+    await nextTick();
+    expect(addToCart(wrapper).text()).toContain('Add to cart · $96.00');
+    expect(statusLine(wrapper).text()).toContain('In stock, ready to ship');
+  });
+
+  /**
+   * Success needs to be visible too. With a drawer mounted the add opens it — the cart itself, with
+   * the new line in it — and that is why there is no toast in this case.
+   */
+  it('opens the hosted cart drawer when the add succeeds', async () => {
+    const storefront = storefrontWith();
+    storefront.cart.drawerAvailable.value = true;
+    const wrapper = await mountReady(mock, { storefront });
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(storefront.cart.drawerOpen.value).toBe(true);
+    expect(storefront.cart.lines.value).toHaveLength(1);
+    expect(toasts()).toEqual([]);
+  });
+
+  it('confirms with a toast instead when no drawer is mounted', async () => {
+    const storefront = storefrontWith();
+    const wrapper = await mountReady(mock, { storefront });
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(storefront.cart.drawerOpen.value).toBe(false);
+    expect(toasts()).toEqual([{ title: 'Added to cart', variant: 'success' }]);
+  });
 });
 
 describe('product-detail block', () => {

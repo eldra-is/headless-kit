@@ -1,4 +1,5 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { toStorefrontFailure, type StorefrontFailure } from './feedback';
 import type { StorefrontAck, StorefrontCartLine, StorefrontCartTotals } from './types';
 
 export interface CartStore {
@@ -6,7 +7,21 @@ export interface CartStore {
   totals: Ref<StorefrontCartTotals | null>;
   count: ComputedRef<number>;
   pending: Ref<boolean>;
+  /**
+   * The last failure's own message, for anything that only needs to know *whether* the last
+   * mutation failed. Kept because that is all several callers want; `lastFailure` below is the same
+   * failure with the parts a caller has to branch on, and the two are always set and cleared
+   * together.
+   */
   error: Ref<string | null>;
+  /**
+   * The last failure, structured (`app/storefront/feedback.ts`). A backend message is not something
+   * to show a shopper, and "it failed" is not enough to choose a sentence — an add refused for stock
+   * deserves "This item is out of stock." and nothing else can be told apart from a dropped
+   * request — so the store keeps the `errorId`/`code`/`status` the SDK threw rather than flattening
+   * them away. `null` while the last mutation succeeded.
+   */
+  lastFailure: Ref<StorefrontFailure | null>;
   /**
    * The three facts about the cart drawer that two unrelated component trees — the header
    * (`blocks/navigation/Block.vue`) and the cart itself (`blocks/cart/Block.vue`) — have to agree
@@ -88,10 +103,6 @@ export interface CartOps {
   checkoutUrl: Ref<string | null>;
 }
 
-function toErrorMessage(caught: unknown): string {
-  return caught instanceof Error ? caught.message : 'Something went wrong.';
-}
-
 /**
  * The shared cart engine both `demo.ts` and `gateway.ts` build their `StorefrontSource.cart` from,
  * swapping only `ops` — this is what `cart.spec.ts` exercises directly, against a small fake `ops`
@@ -102,6 +113,20 @@ export function createCartStore(ops: CartOps): CartStore {
   const totals = ref<StorefrontCartTotals | null>(null);
   const pending = ref(false);
   const error = ref<string | null>(null);
+  const lastFailure = ref<StorefrontFailure | null>(null);
+
+  /** Every `catch` in this file, so no path can record one half of a failure and not the other. */
+  function fail(caught: unknown): void {
+    const failure = toStorefrontFailure(caught);
+    lastFailure.value = failure;
+    error.value = failure.message;
+  }
+
+  /** Every mutation's start: the previous failure is this mutation's history, not its result. */
+  function clearFailure(): void {
+    lastFailure.value = null;
+    error.value = null;
+  }
   const drawerOpen = ref(false);
   const drawerAvailable = ref(false);
   const drawerHosted = ref(false);
@@ -118,13 +143,13 @@ export function createCartStore(ops: CartOps): CartStore {
   async function run(task: () => Promise<CartSnapshot>): Promise<void> {
     inFlight += 1;
     pending.value = true;
-    error.value = null;
+    clearFailure();
     try {
       const snapshot = await task();
       lines.value = snapshot.lines;
       totals.value = snapshot.totals;
     } catch (caught) {
-      error.value = toErrorMessage(caught);
+      fail(caught);
     } finally {
       inFlight -= 1;
       if (inFlight === 0) pending.value = false;
@@ -142,6 +167,7 @@ export function createCartStore(ops: CartOps): CartStore {
     count,
     pending,
     error,
+    lastFailure,
     drawerOpen,
     drawerAvailable,
     drawerHosted,
@@ -169,7 +195,7 @@ export function createCartStore(ops: CartOps): CartStore {
       lastRemoved.value = null;
       inFlight += 1;
       pending.value = true;
-      error.value = null;
+      clearFailure();
       try {
         const snapshot = await ops.add({
           productId: removed.line.productId,
@@ -180,7 +206,7 @@ export function createCartStore(ops: CartOps): CartStore {
         // order above.
         totals.value = snapshot.totals;
       } catch (caught) {
-        error.value = toErrorMessage(caught);
+        fail(caught);
       } finally {
         inFlight -= 1;
         if (inFlight === 0) pending.value = false;
@@ -189,7 +215,7 @@ export function createCartStore(ops: CartOps): CartStore {
     async applyDiscount(code) {
       inFlight += 1;
       pending.value = true;
-      error.value = null;
+      clearFailure();
       try {
         const { ack, snapshot } = await ops.applyDiscount(code);
         if (snapshot) {
@@ -198,7 +224,7 @@ export function createCartStore(ops: CartOps): CartStore {
         }
         return ack;
       } catch (caught) {
-        error.value = toErrorMessage(caught);
+        fail(caught);
         return { ok: false, reason: 'failed' };
       } finally {
         inFlight -= 1;

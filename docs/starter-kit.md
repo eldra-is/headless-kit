@@ -850,6 +850,24 @@ What follows from one host (the rules themselves are documented once in the code
 - Nothing else about the drawer moved — `cart.drawerOpen`, the Esc/backdrop close, the focus return to
   the bag, the live count and the Undo toast are the block's own, unchanged.
 
+**Every failed mutation is reported, and every successful add is visible.** A failed _read_ leaves
+the page showing what it already had and the blocks say so in place (`StorefrontResult.error`); a
+failed _change_ leaves nothing behind — the button's spinner stops, the row does not move, the stepper
+springs back — so without a message a refusal is indistinguishable from a control that does nothing.
+`app/storefront/cart.ts` therefore keeps the structured failure (`lastFailure`: the SDK error's
+`errorId`, `code` and `status`, not just its message, which is developer text) beside the existing
+`error` string, `app/storefront/feedback.ts` maps one `errorId` to one translated sentence —
+`storefront.outOfStock` for `CART_INSUFFICIENT_STOCK`, `storefront.unavailable` for
+`CART_INVALID_PRODUCT`, `storefront.mutationFailed` for everything else and for anything that never
+reached the gateway — and `useStorefrontFeedback()` is the only place that turns one into a toast. No
+block writes its own copy, so the same refusal reads the same way wherever a shopper meets it. Form
+refusals stay inline next to the field that caused them (the discount code, the back-in-stock address,
+the contact fields), which is the Toast primitive's own rule. A successful **Add to cart** opens the
+hosted drawer when one is live (`cart.drawerAvailable`) — the cart itself is the clearest confirmation
+there is — and falls back to an "Added to cart" toast when none is. A refused add that named stock
+also flips the product block's own stock line to sold out, because the cart service has just proved it
+knows something the page's read did not.
+
 `/cart` stays, and stays a route: `app/pages/cart.vue` is theme **code**, not a page an author
 composes. A shopper's cart is their own session: there is nothing to lay out, and a site must not be
 able to lose its cart by deleting a page. Being a concrete route it also outranks
