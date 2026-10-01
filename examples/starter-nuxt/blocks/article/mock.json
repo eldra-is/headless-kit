@@ -2,7 +2,7 @@
   "title": "How we glaze our stoneware",
   "dek": "Every Northwind mug and bowl passes through two firings and three pairs of hands. Here is what happens between the wheel and your kitchen shelf.",
   "categoryLabel": "Ceramics",
-  "categoryHref": "/journal/ceramics",
+  "categoryHref": "",
   "publishedAt": "2026-09-18",
   "readingTime": "6 min read",
   "coverCaption": "Bisqueware waiting for its glaze bath in the Portland studio.",
@@ -507,6 +507,6 @@
   "authorRole": "Studio lead, Northwind ceramics",
   "authorBio": "Ingrid has thrown pots in Portland for eighteen years and mixes every Northwind glaze by hand. She still signs the first mug out of each new batch.",
   "authorLinkLabel": "More from Ingrid",
-  "authorLinkHref": "/journal/authors/ingrid-moe",
+  "authorLinkHref": "",
   "showByline": true
 }

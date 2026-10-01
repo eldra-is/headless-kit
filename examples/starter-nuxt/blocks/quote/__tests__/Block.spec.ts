@@ -144,10 +144,11 @@ describe('quote block', () => {
   });
 
   it('the role line is a link, and a tab stop with the package focus ring, only with sourceLinkHref', () => {
-    const wrapper = mountBlock(mock);
+    const sourceLinkHref = 'https://thelarder.example/winter-gift-guide';
+    const wrapper = mountBlock({ ...mock, sourceLinkHref });
     const link = wrapper.get('a');
     expect(link.text()).toBe(mock.role);
-    expect(link.attributes('href')).toBe(mock.sourceLinkHref);
+    expect(link.attributes('href')).toBe(sourceLinkHref);
     expect(link.attributes('aria-label')).toBe(mock.sourceLinkLabel);
     expect(link.classes()).toContain('eldra-focus');
     const focusable = Array.from(wrapper.element.querySelectorAll('a, button, input, [tabindex]'));
@@ -155,7 +156,10 @@ describe('quote block', () => {
   });
 
   it('renders an external source link as a plain <a>, not the internal router link', () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock({
+      ...mock,
+      sourceLinkHref: 'https://thelarder.example/winter-gift-guide',
+    });
     const link = wrapper.get('a');
     expect(link.element.tagName).toBe('A');
   });
@@ -249,7 +253,10 @@ describe('quote block', () => {
   });
 
   it('the role-line link is inline inside its own line box, never a shrunken block target', () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock({
+      ...mock,
+      sourceLinkHref: 'https://thelarder.example/winter-gift-guide',
+    });
     const link = wrapper.get('figcaption a');
     expect(link.classes()).not.toContain('block');
     expect(link.element.parentElement?.tagName).toBe('P');

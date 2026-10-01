@@ -16,7 +16,7 @@
       "period": "/ month",
       "note": "Billed monthly. Skip or cancel any time.",
       "ctaLabel": "Start monthly",
-      "ctaHref": "/products/pantry-club-monthly",
+      "ctaHref": "",
       "included": [true, false, true, false, false]
     },
     {
@@ -26,7 +26,7 @@
       "period": "/ 3 months",
       "note": "$35 a box, billed each season.",
       "ctaLabel": "Start seasonal",
-      "ctaHref": "/products/pantry-club-seasonal",
+      "ctaHref": "",
       "included": [true, true, true, true, false]
     },
     {
@@ -36,7 +36,7 @@
       "period": "/ year",
       "note": "$33 a box, billed once a year.",
       "ctaLabel": "Start annual",
-      "ctaHref": "/products/pantry-club-annual",
+      "ctaHref": "",
       "included": [true, true, true, true, true]
     }
   ],

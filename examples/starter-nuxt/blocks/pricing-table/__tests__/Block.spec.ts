@@ -26,6 +26,19 @@ const bare = {
   ],
 };
 
+/** `mock.json`'s `plans[].ctaHref` ship empty (no dead demo link — see `docs/starter-kit.md`'s
+ *  seed-href ruling), so tests whose whole point is exercising a working call-to-action supply
+ *  their own, the same real-looking demo paths the seed used to carry. */
+const DEMO_CTA_HREFS = [
+  '/products/pantry-club-monthly',
+  '/products/pantry-club-seasonal',
+  '/products/pantry-club-annual',
+];
+const mockWithCta = {
+  ...mock,
+  plans: mock.plans.map((plan, index) => ({ ...plan, ctaHref: DEMO_CTA_HREFS[index] })),
+};
+
 function mountBlock(data: Record<string, unknown>, options: { editing?: boolean } = {}) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const opts = {
@@ -53,7 +66,7 @@ async function flush() {
 
 describe('pricing-table block', () => {
   it('renders the full mock.json content with no axe violations', async () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(mockWithCta);
     await flush();
     expect(wrapper.text()).toContain(mock.heading);
     expect(wrapper.text()).toContain(mock.intro);
@@ -64,6 +77,13 @@ describe('pricing-table block', () => {
       expect(wrapper.text()).toContain(plan.ctaLabel);
     }
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders no call-to-action button for a plan whose ctaHref is empty — the seeded state', async () => {
+    const wrapper = mountBlock(mock);
+    await flush();
+    expect(wrapper.findAll('a')).toHaveLength(0);
+    for (const plan of mock.plans) expect(wrapper.text()).not.toContain(plan.ctaLabel);
   });
 
   it('renders the bare, required-fields-only content with no axe violations', async () => {
@@ -166,7 +186,7 @@ describe('pricing-table block', () => {
   });
 
   it('the highlighted plan is carried by badge text, a thicker border and a filled button — never colour alone', () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(mockWithCta);
     const items = planItems(wrapper);
     const highlightedIndex = mock.plans.findIndex((p) => p.name === mock.highlightedPlan);
     items.forEach((item, index) => {
@@ -185,7 +205,7 @@ describe('pricing-table block', () => {
   });
 
   it('an empty highlightedPlan gives every plan the outline button', () => {
-    const wrapper = mountBlock({ ...mock, highlightedPlan: '' });
+    const wrapper = mountBlock({ ...mockWithCta, highlightedPlan: '' });
     const buttons = wrapper.findAllComponents(Button);
     expect(buttons).toHaveLength(mock.plans.length);
     for (const button of buttons) expect(button.props('variant')).toBe('outline');
@@ -193,7 +213,7 @@ describe('pricing-table block', () => {
   });
 
   it('a highlightedPlan that matches no plan name highlights nothing', () => {
-    const wrapper = mountBlock({ ...mock, highlightedPlan: 'Lifetime' });
+    const wrapper = mountBlock({ ...mockWithCta, highlightedPlan: 'Lifetime' });
     for (const button of wrapper.findAllComponents(Button)) {
       expect(button.props('variant')).toBe('outline');
     }
@@ -210,9 +230,9 @@ describe('pricing-table block', () => {
    */
   it('an empty highlightedPlan never highlights a plan with an empty name', () => {
     const wrapper = mountBlock({
-      ...mock,
+      ...mockWithCta,
       highlightedPlan: '',
-      plans: [...mock.plans, { name: '', price: '$1', period: '/ month', included: [] }],
+      plans: [...mockWithCta.plans, { name: '', price: '$1', period: '/ month', included: [] }],
     });
     for (const button of wrapper.findAllComponents(Button)) {
       expect(button.props('variant')).toBe('outline');
@@ -230,7 +250,7 @@ describe('pricing-table block', () => {
   });
 
   it('does not span the full width when there is more than one plan', () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock(mockWithCta);
     for (const item of planItems(wrapper)) {
       expect(item.className).not.toContain('col-span-full');
     }
@@ -251,7 +271,7 @@ describe('pricing-table block', () => {
 
   describe('keyboard path', () => {
     it('Tab visits the calls to action plan by plan, in the visible order; feature rows are not focusable', () => {
-      const wrapper = mountBlock(mock);
+      const wrapper = mountBlock(mockWithCta);
       const links = wrapper.findAll('a');
       expect(links.map((link) => link.text())).toEqual(mock.plans.map((p) => p.ctaLabel));
       for (const link of links) expect(link.attributes('tabindex')).toBeUndefined();
@@ -273,12 +293,13 @@ describe('pricing-table block', () => {
      * block cancels the keydown, so the platform's own default action still runs.
      */
     it('activates a call to action with a native Enter contract', () => {
-      const base = mountOptions({ entry: { id: 'e1', data: mock } });
+      const base = mountOptions({ entry: { id: 'e1', data: mockWithCta } });
       const wrapper = mount(Block, {
         ...base,
         attachTo: document.body,
       });
-      const link = wrapper.get(`a[href="${mock.plans[0]!.ctaHref}"]`).element as HTMLAnchorElement;
+      const link = wrapper.get(`a[href="${mockWithCta.plans[0]!.ctaHref}"]`)
+        .element as HTMLAnchorElement;
       link.focus();
       expect(document.activeElement).toBe(link);
       const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });

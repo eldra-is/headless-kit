@@ -72,7 +72,10 @@ function mountBlock(data: Record<string, unknown>, options: { editing?: boolean 
 
 describe('faq block', () => {
   it('renders the full mock.json content with no axe violations', async () => {
-    const wrapper = mountBlock(mock);
+    // `contactLinkHref` ships empty in the seed (no dead demo link) — this test's point is to
+    // exercise every piece of content at once, so it supplies its own, as the "contact line" tests
+    // below exercise the href-empty default separately.
+    const wrapper = mountBlock({ ...mock, contactLinkHref: '/pages/contact' });
     expect(wrapper.text()).toContain(mock.heading);
     expect(wrapper.text()).toContain(mock.intro);
     for (const item of mock.items) expect(wrapper.text()).toContain(item.question);
@@ -254,7 +257,11 @@ describe('faq block', () => {
     });
 
     it('places the contact line inside the head column, not after the accordion', () => {
-      const wrapper = mountBlock({ ...mock, variant: 'two-column' });
+      const wrapper = mountBlock({
+        ...mock,
+        variant: 'two-column',
+        contactLinkHref: '/pages/contact',
+      });
       const head = wrapper.get('h2').element.parentElement!;
       expect(head.textContent).toContain(mock.contactLinkLabel);
     });
@@ -262,7 +269,7 @@ describe('faq block', () => {
 
   describe('contact line', () => {
     it('renders the contact line when contactLinkHref and contactLinkLabel are set', () => {
-      const wrapper = mountBlock(mock);
+      const wrapper = mountBlock({ ...mock, contactLinkHref: '/pages/contact' });
       const link = wrapper.get('a[href="/pages/contact"]');
       expect(link.text()).toBe(mock.contactLinkLabel);
       expect(wrapper.text()).toContain(mock.contactText);

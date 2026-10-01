@@ -133,14 +133,31 @@ describe('hero block', () => {
     expect(media.classes()).toEqual(expect.arrayContaining(['object-cover', 'h-full', 'w-full']));
   });
 
-  it('falls back to the built-in CTAs when the actions slot is empty', () => {
+  it('renders no built-in CTAs — the seeded state carries no destination for either', () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
+    expect(wrapper.text()).not.toContain(mock.primaryCtaLabel);
+    expect(wrapper.text()).not.toContain(mock.secondaryCtaLabel);
+    expect(wrapper.findAll('a')).toHaveLength(0);
+  });
+
+  it('falls back to the built-in CTAs when the actions slot is empty and hrefs are set', () => {
+    const primaryCtaHref = '/collections/new';
+    const secondaryCtaHref = '/pages/about';
+    const wrapper = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...mock, primaryCtaHref, secondaryCtaHref } } })
+    );
     expect(wrapper.text()).toContain(mock.primaryCtaLabel);
     expect(wrapper.text()).toContain(mock.secondaryCtaLabel);
   });
 
   it('routes both same-site CTAs through the router, not a document navigation', () => {
-    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
+    const primaryCtaHref = '/collections/new';
+    const secondaryCtaHref = '/pages/about';
+    const wrapper = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...mock, primaryCtaHref, secondaryCtaHref } } })
+    );
     // Both destinations are same-site, so both must go through `EldraRouterLink` -> `NuxtLink`.
     // `Button` reaches it through the same `as` prop `Link` uses, and hands it the destination as
     // `to`: asserting the component's prop (not the rendered `href`) is what tells the two apart,
@@ -148,21 +165,22 @@ describe('hero block', () => {
     const destinations = wrapper
       .findAllComponents({ name: 'NuxtLink' })
       .map((link) => link.props('to'));
-    expect(destinations).toEqual([mock.primaryCtaHref, mock.secondaryCtaHref]);
+    expect(destinations).toEqual([primaryCtaHref, secondaryCtaHref]);
   });
 
   it('leaves an off-site CTA a plain document navigation', () => {
+    const secondaryCtaHref = '/pages/about';
     const wrapper = mount(
       Block,
       mountOptions({
         entry: {
           id: 'e1',
-          data: { ...mock, primaryCtaHref: 'https://example.com/shop' },
+          data: { ...mock, primaryCtaHref: 'https://example.com/shop', secondaryCtaHref },
         },
       })
     );
     expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((l) => l.props('to'))).toEqual([
-      mock.secondaryCtaHref,
+      secondaryCtaHref,
     ]);
     expect(wrapper.get('a[href="https://example.com/shop"]').text()).toBe(mock.primaryCtaLabel);
   });

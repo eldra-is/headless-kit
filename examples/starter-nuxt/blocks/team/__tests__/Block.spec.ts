@@ -58,6 +58,14 @@ describe('team block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  it('renders no header link when linkHref is empty, even with linkLabel set — the seeded state', () => {
+    const wrapper = mountBlock(mock);
+    expect(wrapper.text()).not.toContain(mock.linkLabel);
+    // Each person's own social links still render — only the header's own link is gated.
+    const personLinkCount = mock.people.flatMap((p) => p.links ?? []).length;
+    expect(wrapper.findAll('a')).toHaveLength(personLinkCount);
+  });
+
   it('renders the bare, required-fields-only content with no axe violations', async () => {
     const wrapper = mountBlock(bare);
     expect(wrapper.text()).toContain(bare.heading);
@@ -181,10 +189,11 @@ describe('team block', () => {
 
   describe('keyboard path', () => {
     it('Tab reaches the header link, then each person’s links, in reading order', () => {
-      const wrapper = mountBlock(mock);
+      const linkHref = '/pages/makers';
+      const wrapper = mountBlock({ ...mock, linkHref });
       const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'));
       const expected = [
-        mock.linkHref,
+        linkHref,
         ...mock.people.flatMap((person) => (person.links ?? []).map((link) => link.href)),
       ];
       expect(hrefs).toEqual(expected);

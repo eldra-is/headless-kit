@@ -8,9 +8,9 @@
   "delayedTitle": "Running a little late",
   "cancelledTitle": "This order was cancelled",
   "returnLinkLabel": "Start a return",
-  "returnLinkHref": "/pages/returns",
+  "returnLinkHref": "",
   "shopAgainLinkLabel": "Shop again",
-  "shopAgainLinkHref": "/collections/all",
+  "shopAgainLinkHref": "",
   "helpLinks": [
     { "label": "Contact us", "href": "/pages/contact", "icon": "mail" },
     { "label": "Start a return", "href": "/pages/returns", "icon": "arrow-back-up" },

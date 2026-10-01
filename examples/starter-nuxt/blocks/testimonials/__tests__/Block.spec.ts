@@ -42,6 +42,18 @@ describe('testimonials block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
+  it('renders no header "Read all reviews" link when linkHref is empty — the seeded state', () => {
+    const wrapper = mountBlock(mock);
+    expect(wrapper.text()).not.toContain(mock.linkLabel);
+  });
+
+  it('renders the header link when both linkLabel and linkHref are set', () => {
+    const wrapper = mountBlock({ ...mock, linkHref: '/pages/reviews' });
+    const link = wrapper.findAll('a').find((a) => a.text() === mock.linkLabel);
+    expect(link).toBeTruthy();
+    expect(link!.attributes('href')).toBe('/pages/reviews');
+  });
+
   it('renders the bare, required-fields-only content with no axe violations', async () => {
     const wrapper = mountBlock(bare);
     expect(wrapper.text()).toContain(bare.heading);
@@ -118,9 +130,15 @@ describe('testimonials block', () => {
   });
 
   it('the meta line is a link only when productHref is set', () => {
-    const wrapper = mountBlock(mock);
-    const withProduct = mock.items.filter((item) => 'productHref' in item);
-    const withoutProduct = mock.items.filter((item) => !('productHref' in item));
+    // `productHref` ships empty in the seed (no dead demo link — see `docs/starter-kit.md`'s
+    // seed-href ruling) on every item that carries the key, so this test supplies real values for
+    // the ones meant to demonstrate a link, the same way a page author would.
+    const items = mock.items.map((item, index) =>
+      'productHref' in item ? { ...item, productHref: `/products/demo-item-${index}` } : item
+    );
+    const wrapper = mountBlock({ ...mock, items });
+    const withProduct = items.filter((item) => 'productHref' in item && item.productHref !== '');
+    const withoutProduct = items.filter((item) => !('productHref' in item));
     expect(withProduct.length).toBeGreaterThan(0);
     expect(withoutProduct.length).toBeGreaterThan(0);
     for (const item of withProduct) {
@@ -129,6 +147,16 @@ describe('testimonials block', () => {
       expect(link!.text()).toBe(item.meta);
     }
     for (const item of withoutProduct) {
+      expect(wrapper.findAll('a').some((a) => a.text() === item.meta)).toBe(false);
+      expect(wrapper.text()).toContain(item.meta);
+    }
+  });
+
+  it('renders the meta line as plain text (no anchor) when productHref is empty — the seeded state', () => {
+    const wrapper = mountBlock(mock);
+    const itemsWithKey = mock.items.filter((item) => 'productHref' in item);
+    expect(itemsWithKey.length).toBeGreaterThan(0);
+    for (const item of itemsWithKey) {
       expect(wrapper.findAll('a').some((a) => a.text() === item.meta)).toBe(false);
       expect(wrapper.text()).toContain(item.meta);
     }

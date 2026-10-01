@@ -88,17 +88,26 @@ function withRelated(
 describe('product-carousel block', () => {
   describe('accessibility', () => {
     it('renders the full mock.json content with no axe violations', async () => {
-      const wrapper = mountBlock(mock);
+      const viewAllHref = '/collections/knitwear';
+      const wrapper = mountBlock({ ...mock, viewAllHref });
       await flushPromises();
       expect(wrapper.text()).toContain(mock.heading);
       // The heading is the "view all" link: its visible text is the heading, the label and its
       // context follow visually hidden, and the anchor points at `viewAllHref`.
       const headingLink = wrapper.get('h2 a');
-      expect(headingLink.attributes('href')).toBe(mock.viewAllHref);
+      expect(headingLink.attributes('href')).toBe(viewAllHref);
       expect(headingLink.text()).toBe(mock.heading);
       expect(headingLink.attributes('aria-label')).toBe(`${mock.heading} — View all products`);
       expect(wrapper.get('h2').text()).toBe(mock.heading);
       expect(wrapper.findAll('a').filter((a) => a.text().includes('View all'))).toHaveLength(0);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders the heading as plain text (no link) when viewAllHref is empty — the seeded state', async () => {
+      const wrapper = mountBlock(mock);
+      await flushPromises();
+      expect(wrapper.find('h2 a').exists()).toBe(false);
+      expect(wrapper.get('h2').text()).toBe(mock.heading);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
@@ -397,7 +406,10 @@ describe('product-carousel block', () => {
     });
 
     it('Tab reaches every card once, after the heading link and the arrows', async () => {
-      const wrapper = mountBlock(mock, { attach: true });
+      const wrapper = mountBlock(
+        { ...mock, viewAllHref: '/collections/knitwear' },
+        { attach: true }
+      );
       await flushPromises();
       const focusables = [
         ...wrapper.element.querySelectorAll<HTMLElement>('a, button, [tabindex]'),

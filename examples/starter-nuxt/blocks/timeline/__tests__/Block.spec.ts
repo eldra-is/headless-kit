@@ -64,7 +64,7 @@ function mountBlock(data: Record<string, unknown>, options: { editing?: boolean 
 
 describe('timeline block', () => {
   it('renders the full mock.json content with no axe violations', async () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock({ ...mock, linkHref: '/collections/blankets' });
     expect(wrapper.text()).toContain(mock.heading);
     expect(wrapper.text()).toContain(mock.intro);
     expect(wrapper.text()).toContain(mock.linkLabel);
@@ -249,7 +249,7 @@ describe('timeline block', () => {
   });
 
   it('the only focusable element is the header link', () => {
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock({ ...mock, linkHref: '/collections/blankets' });
     const focusable = wrapper.findAll('a, button, input, [tabindex]');
     expect(focusable).toHaveLength(1);
     expect(focusable[0]!.element.tagName).toBe('A');

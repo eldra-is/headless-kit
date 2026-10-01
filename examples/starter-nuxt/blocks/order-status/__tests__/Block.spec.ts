@@ -335,7 +335,10 @@ describe('order-status block', () => {
     });
 
     it('offers Shop again once an order is cancelled', async () => {
-      const wrapper = await mountStatus('cancelled');
+      const wrapper = await mountStatus('cancelled', {
+        ...mock,
+        shopAgainLinkHref: '/collections/all',
+      });
       const button = wrapper.findAll('a').find((el) => el.text().includes(mock.shopAgainLinkLabel));
       expect(button?.exists()).toBe(true);
     });

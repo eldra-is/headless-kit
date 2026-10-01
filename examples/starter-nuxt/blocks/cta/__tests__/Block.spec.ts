@@ -42,12 +42,16 @@ describe('cta block', () => {
   });
 
   it('renders the bare mock.json content with no axe violations', async () => {
+    // `primaryCtaHref`/`secondaryCtaHref` ship empty in the seed (no dead demo link) — with no
+    // href, `hasPrimaryCta`/`hasSecondaryCta` are false and neither button (nor its label) renders
+    // at all; see the "renders no buttons" test below for that case explicitly.
     const wrapper = mountBlock(mock);
     expect(wrapper.text()).toContain(mock.heading);
     expect(wrapper.text()).toContain(mock.eyebrow);
     expect(wrapper.text()).toContain(mock.text);
-    expect(wrapper.text()).toContain(mock.primaryCtaLabel);
-    expect(wrapper.text()).toContain(mock.secondaryCtaLabel);
+    expect(wrapper.text()).not.toContain(mock.primaryCtaLabel);
+    expect(wrapper.text()).not.toContain(mock.secondaryCtaLabel);
+    expect(wrapper.findAll('a, button')).toHaveLength(0);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
@@ -77,29 +81,37 @@ describe('cta block', () => {
   );
 
   it('routes both same-site actions through the router, not a document navigation', () => {
-    const wrapper = mountBlock(mock);
+    const primaryCtaHref = '/pages/studio-sessions';
+    const secondaryCtaHref = '/pages/visit';
+    const wrapper = mountBlock({ ...mock, primaryCtaHref, secondaryCtaHref });
     const destinations = wrapper
       .findAllComponents({ name: 'NuxtLink' })
       .map((link) => link.props('to'));
-    expect(destinations).toEqual([mock.primaryCtaHref, mock.secondaryCtaHref]);
+    expect(destinations).toEqual([primaryCtaHref, secondaryCtaHref]);
     // Both actions render as real anchors (the router stub itself writes an `<a href>`).
-    expect(wrapper.get(`a[href="${mock.primaryCtaHref}"]`).text()).toBe(mock.primaryCtaLabel);
-    expect(wrapper.get(`a[href="${mock.secondaryCtaHref}"]`).text()).toBe(mock.secondaryCtaLabel);
+    expect(wrapper.get(`a[href="${primaryCtaHref}"]`).text()).toBe(mock.primaryCtaLabel);
+    expect(wrapper.get(`a[href="${secondaryCtaHref}"]`).text()).toBe(mock.secondaryCtaLabel);
   });
 
   it('leaves an off-site primary action a plain document navigation', () => {
-    const wrapper = mountBlock({ ...mock, primaryCtaHref: 'https://example.com/book' });
+    const secondaryCtaHref = '/pages/visit';
+    const wrapper = mountBlock({
+      ...mock,
+      primaryCtaHref: 'https://example.com/book',
+      secondaryCtaHref,
+    });
     expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((l) => l.props('to'))).toEqual([
-      mock.secondaryCtaHref,
+      secondaryCtaHref,
     ]);
     expect(wrapper.get('a[href="https://example.com/book"]').text()).toBe(mock.primaryCtaLabel);
   });
 
   it('split with no image renders the centred fallback and no <img>', async () => {
-    const wrapper = mountBlock({ ...mock, variant: 'split' });
+    const primaryCtaHref = '/pages/studio-sessions';
+    const wrapper = mountBlock({ ...mock, variant: 'split', primaryCtaHref });
     expect(wrapper.find('img').exists()).toBe(false);
     expect(wrapper.text()).toContain(mock.heading);
-    expect(wrapper.get(`a[href="${mock.primaryCtaHref}"]`).exists()).toBe(true);
+    expect(wrapper.get(`a[href="${primaryCtaHref}"]`).exists()).toBe(true);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
@@ -111,15 +123,20 @@ describe('cta block', () => {
   });
 
   it('banner renders exactly one button and drops the eyebrow and secondary action', () => {
-    const wrapper = mountBlock({ ...mock, variant: 'banner' });
+    const primaryCtaHref = '/pages/studio-sessions';
+    const wrapper = mountBlock({ ...mock, variant: 'banner', primaryCtaHref });
     expect(wrapper.findAll('a, button')).toHaveLength(1);
-    expect(wrapper.get(`a[href="${mock.primaryCtaHref}"]`).text()).toBe(mock.primaryCtaLabel);
+    expect(wrapper.get(`a[href="${primaryCtaHref}"]`).text()).toBe(mock.primaryCtaLabel);
     expect(wrapper.text()).not.toContain(mock.eyebrow);
     expect(wrapper.text()).not.toContain(mock.secondaryCtaLabel);
   });
 
   it('the banner button is a smaller control below 48rem, and the package’s own lg from 48rem (spec: 2.75rem, then 3rem)', () => {
-    const wrapper = mountBlock({ ...mock, variant: 'banner' });
+    const wrapper = mountBlock({
+      ...mock,
+      variant: 'banner',
+      primaryCtaHref: '/pages/studio-sessions',
+    });
     const button = wrapper.get('a, button');
     const classes = button.classes();
     // `control-h` (the package's regular control height, closest token-backed step to the spec's
@@ -150,6 +167,7 @@ describe('cta block', () => {
   it('omits the secondary action when no secondary label/href is set', () => {
     const wrapper = mountBlock({
       ...mock,
+      primaryCtaHref: '/pages/studio-sessions',
       secondaryCtaLabel: undefined,
       secondaryCtaHref: undefined,
     });
@@ -178,7 +196,7 @@ describe('cta block', () => {
       variant: 'primary',
       heading: mock.heading,
       primaryCtaLabel: mock.primaryCtaLabel,
-      primaryCtaHref: mock.primaryCtaHref,
+      primaryCtaHref: '/pages/studio-sessions',
     });
     expect(wrapper.text()).toContain(mock.heading);
     expect(wrapper.findAll('a, button')).toHaveLength(1);
@@ -187,7 +205,11 @@ describe('cta block', () => {
 
   describe('keyboard path', () => {
     it('reaches the primary action then the secondary action, in document (Tab) order', () => {
-      const wrapper = mountBlock(mock);
+      const wrapper = mountBlock({
+        ...mock,
+        primaryCtaHref: '/pages/studio-sessions',
+        secondaryCtaHref: '/pages/visit',
+      });
       const links = wrapper.findAll('a');
       expect(links.map((link) => link.text())).toEqual([
         mock.primaryCtaLabel,
@@ -208,13 +230,16 @@ describe('cta block', () => {
      * `defaultPrevented` to `true` and fails this test.
      */
     it('activates the primary action with a native Enter contract, and the secondary the same way', () => {
+      const primaryCtaHref = '/pages/studio-sessions';
+      const secondaryCtaHref = '/pages/visit';
       const wrapper = mount(Block, {
-        ...mountOptions({ entry: { id: 'e1', data: mock } }),
+        ...mountOptions({
+          entry: { id: 'e1', data: { ...mock, primaryCtaHref, secondaryCtaHref } },
+        }),
         attachTo: document.body,
       });
-      const primary = wrapper.get(`a[href="${mock.primaryCtaHref}"]`).element as HTMLAnchorElement;
-      const secondary = wrapper.get(`a[href="${mock.secondaryCtaHref}"]`)
-        .element as HTMLAnchorElement;
+      const primary = wrapper.get(`a[href="${primaryCtaHref}"]`).element as HTMLAnchorElement;
+      const secondary = wrapper.get(`a[href="${secondaryCtaHref}"]`).element as HTMLAnchorElement;
 
       primary.focus();
       expect(document.activeElement).toBe(primary);

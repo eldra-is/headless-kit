@@ -136,15 +136,29 @@ describe('article-list block', () => {
   });
 
   it('marks "All" active by default (no category context set)', async () => {
-    const wrapper = mountBlock(withImages);
+    // `selfPath` (this instance's own route) falls back to `viewAllHref` when `categoryHref` is
+    // unset — the seed carries neither (no dead demo link ships), so a real page using this
+    // variant supplies its own `viewAllHref`, which this test stands in for.
+    const wrapper = mountBlock({ ...withImages, viewAllHref: '/journal' });
     await flushPromises();
     const nav = wrapper.get('nav[aria-label="Filter stories by category"]');
     const all = nav.findAll('a').find((link) => link.text().includes('All'))!;
     expect(all.attributes('aria-current')).toBe('true');
   });
 
-  it('paginates: page links, current page, and disabled ends carry the right ARIA', async () => {
+  it('renders no "self path" chrome (active chip, pagination) when neither categoryHref nor viewAllHref is set — the seeded state', async () => {
+    // `mock.json` ships both empty (see `docs/starter-kit.md`'s seed-href ruling): without either,
+    // the block has no page of its own to build `?page=n` links or an active-chip match against,
+    // so it renders the filter chips and items with nothing marked current, and no pagination.
     const wrapper = mountBlock({ ...withImages, perPage: '3' });
+    await flushPromises();
+    const nav = wrapper.get('nav[aria-label="Filter stories by category"]');
+    expect(nav.findAll('[aria-current="true"]')).toHaveLength(0);
+    expect(wrapper.find('nav[aria-label="Journal pages"]').exists()).toBe(false);
+  });
+
+  it('paginates: page links, current page, and disabled ends carry the right ARIA', async () => {
+    const wrapper = mountBlock({ ...withImages, viewAllHref: '/journal', perPage: '3' });
     await flushPromises();
     const nav = wrapper.get('nav[aria-label="Journal pages"]');
     const current = nav.get('[aria-current="page"]');
@@ -153,14 +167,17 @@ describe('article-list block', () => {
     expect(nav.text()).toContain('Next');
 
     const pageTwo = nav.findAll('a').find((link) => link.attributes('aria-label') === 'Page 2')!;
-    expect(pageTwo.attributes('href')).toBe(`${mock.viewAllHref}?page=2`);
+    expect(pageTwo.attributes('href')).toBe('/journal?page=2');
 
     const prevControls = nav.findAll('[aria-disabled="true"]');
     expect(prevControls.length).toBeGreaterThan(0);
   });
 
   it('shows the last page as disabled at the end and hides pagination for one page', async () => {
-    const wrapper = mountBlock({ ...withImages, perPage: '3' }, { page: 2 });
+    const wrapper = mountBlock(
+      { ...withImages, viewAllHref: '/journal', perPage: '3' },
+      { page: 2 }
+    );
     await flushPromises();
     const nav = wrapper.get('nav[aria-label="Journal pages"]');
     const current = nav.get('[aria-current="page"]');
@@ -168,7 +185,7 @@ describe('article-list block', () => {
     const disabled = nav.findAll('[aria-disabled="true"]');
     expect(disabled.length).toBeGreaterThan(0);
 
-    const onePage = mountBlock({ ...withImages, perPage: '12' });
+    const onePage = mountBlock({ ...withImages, viewAllHref: '/journal', perPage: '12' });
     await flushPromises();
     expect(onePage.find('nav[aria-label="Journal pages"]').exists()).toBe(false);
   });
@@ -182,7 +199,10 @@ describe('article-list block', () => {
   });
 
   it('a page number beyond totalPages clamps to the last real page instead of rendering blank', async () => {
-    const wrapper = mountBlock({ ...withImages, perPage: '3' }, { page: 99 });
+    const wrapper = mountBlock(
+      { ...withImages, viewAllHref: '/journal', perPage: '3' },
+      { page: 99 }
+    );
     await flushPromises();
     // withImages has 5 items at perPage 3, so totalPages is 2 — page 99 clamps to it.
     const nav = wrapper.get('nav[aria-label="Journal pages"]');
@@ -216,14 +236,25 @@ describe('article-list block', () => {
   });
 
   it('renders the empty state with a working "View all stories" link and no pagination', async () => {
-    const wrapper = mountBlock({ ...mock, items: [] });
+    const wrapper = mountBlock({ ...mock, items: [], viewAllHref: '/journal' });
     await flushPromises();
     expect(wrapper.text()).toContain(mock.emptyTitle);
     expect(wrapper.text()).toContain(mock.emptyText);
     const link = wrapper.get('a');
     expect(link.text()).toContain(mock.viewAllLabel);
-    expect(link.attributes('href')).toBe(mock.viewAllHref);
+    expect(link.attributes('href')).toBe('/journal');
     expect(wrapper.find('nav[aria-label="Journal pages"]').exists()).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders the empty state with no "view all" anchor when viewAllHref is empty — the seeded state', async () => {
+    // `showFilters` chips (a separate `href` field, unaffected by this round) still render their
+    // own anchors, so this checks specifically for the empty-state action link, not any anchor.
+    const wrapper = mountBlock({ ...mock, items: [], showFilters: false });
+    await flushPromises();
+    expect(wrapper.text()).toContain(mock.emptyTitle);
+    expect(wrapper.text()).toContain(mock.emptyText);
+    expect(wrapper.find('a').exists()).toBe(false);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 

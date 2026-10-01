@@ -33,7 +33,27 @@ describe('announcement-bar block', () => {
     const wrapper = mountAnnouncement({ ...mock });
     await flushPromises();
     expect(wrapper.text()).toContain(mock.message);
+    // `linkHref` ships empty in the seed (no dead demo link) — `linkLabel` only renders inside
+    // the link itself (see the "shows only the message with no link" test below), so it is not
+    // expected in the bare-mock text either.
+    expect(wrapper.text()).not.toContain(mock.linkLabel);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders no anchor when linkHref is empty even though linkLabel is set', async () => {
+    const wrapper = mountAnnouncement({ ...mock, linkHref: '' });
+    await flushPromises();
+    expect(wrapper.find('a').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain(mock.linkLabel);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders the link when both linkLabel and linkHref are set', async () => {
+    const wrapper = mountAnnouncement({ ...mock, linkHref: '/pages/shipping' });
+    await flushPromises();
     expect(wrapper.text()).toContain(mock.linkLabel);
+    const link = wrapper.get('a');
+    expect(link.attributes('href')).toBe('/pages/shipping');
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
@@ -61,7 +81,7 @@ describe('announcement-bar block', () => {
   });
 
   it('has exactly two tab stops, in order: the link, then the dismiss button', async () => {
-    const wrapper = mountAnnouncement(mock);
+    const wrapper = mountAnnouncement({ ...mock, linkHref: '/pages/shipping' });
     await flushPromises();
     const focusable = wrapper.element.querySelectorAll('a[href], button');
     expect(focusable).toHaveLength(2);
@@ -156,7 +176,7 @@ describe('announcement-bar block', () => {
   });
 
   it('shows only the link with no dismiss button when not dismissable', async () => {
-    const wrapper = mountAnnouncement({ ...mock, dismissable: false });
+    const wrapper = mountAnnouncement({ ...mock, dismissable: false, linkHref: '/pages/shipping' });
     await flushPromises();
     expect(wrapper.find('button').exists()).toBe(false);
     const focusable = wrapper.element.querySelectorAll('a[href], button');
@@ -166,7 +186,7 @@ describe('announcement-bar block', () => {
   });
 
   it('the link is identifiable by its underline, not colour alone', () => {
-    const wrapper = mountAnnouncement(mock);
+    const wrapper = mountAnnouncement({ ...mock, linkHref: '/pages/shipping' });
     const link = wrapper.get('a');
     expect(link.classes()).toContain('underline');
   });

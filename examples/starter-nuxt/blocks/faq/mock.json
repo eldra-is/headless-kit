@@ -110,6 +110,6 @@
   ],
   "contactText": "Still wondering about something?",
   "contactLinkLabel": "Ask our customer care team",
-  "contactLinkHref": "/pages/contact",
+  "contactLinkHref": "",
   "sectionBackground": "none"
 }

@@ -277,7 +277,10 @@ describe('contact block', () => {
   });
 
   it('"Open in maps" sits outside the iframe/image, is a tab stop and announces the new tab', () => {
-    const wrapper = mountContact(merged);
+    const wrapper = mountContact({
+      ...merged,
+      mapLinkHref: 'https://www.openstreetmap.org/search?query=Portland%20Oregon',
+    });
     const mapLink = wrapper.findAll('a').find((a) => a.text().includes(mock.mapLinkLabel));
     expect(mapLink).toBeTruthy();
     expect(mapLink!.attributes('target')).toBe('_blank');

@@ -39,7 +39,14 @@ function mountBlock(
 
 describe('article block', () => {
   it('renders the full (mock + preview) content with no axe violations', async () => {
-    const wrapper = mountBlock(withMedia);
+    // `categoryHref`/`authorLinkHref` ship empty in the seed (no dead demo link), so this test —
+    // whose point is to exercise every piece of content at once — supplies its own, the same way
+    // a page author would once they pick real destinations.
+    const wrapper = mountBlock({
+      ...withMedia,
+      categoryHref: '/journal/ceramics',
+      authorLinkHref: '/journal/authors/ingrid-moe',
+    });
     expect(wrapper.text()).toContain(withMedia.title);
     expect(wrapper.text()).toContain(withMedia.dek);
     expect(wrapper.text()).toContain(withMedia.categoryLabel);
@@ -47,6 +54,13 @@ describe('article block', () => {
     expect(wrapper.text()).toContain(withMedia.authorName);
     expect(wrapper.text()).toContain(withMedia.authorBio);
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders no category chip and no author link — the seeded state carries no destination for either', () => {
+    const wrapper = mountBlock(mock);
+    expect(wrapper.get('header').find('a').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain(mock.categoryLabel);
+    expect(wrapper.get('footer').find('a').exists()).toBe(false);
   });
 
   it('renders the bare mock.json (no preview overlay) with no cover or author avatar, body intact, no axe violations', async () => {
@@ -123,17 +137,20 @@ describe('article block', () => {
   });
 
   it('routes the category and author links internally through the router', () => {
-    const wrapper = mountBlock(withMedia);
+    const categoryHref = '/journal/ceramics';
+    const authorLinkHref = '/journal/authors/ingrid-moe';
+    const wrapper = mountBlock({ ...withMedia, categoryHref, authorLinkHref });
     const internalTargets = wrapper
       .findAllComponents({ name: 'NuxtLink' })
       .map((link) => link.props('to'));
-    expect(internalTargets).toContain(withMedia.categoryHref);
-    expect(internalTargets).toContain(withMedia.authorLinkHref);
+    expect(internalTargets).toContain(categoryHref);
+    expect(internalTargets).toContain(authorLinkHref);
   });
 
   it('the category link is natively focusable (no tabindex override)', () => {
-    const wrapper = mountBlock(mock);
-    const categoryLink = wrapper.get(`a[href="${mock.categoryHref}"]`);
+    const categoryHref = '/journal/ceramics';
+    const wrapper = mountBlock({ ...mock, categoryHref });
+    const categoryLink = wrapper.get(`a[href="${categoryHref}"]`);
     expect(categoryLink.attributes('tabindex')).toBeUndefined();
   });
 
@@ -179,7 +196,7 @@ describe('article block', () => {
     // `gap-1` container plus `mt-2` on bio / `mt-1` on the link (the previous shape) sums margin
     // and gap, overshooting both to 0.75rem and 0.5rem respectively — this asserts neither the
     // bio paragraph nor the link carries its own top margin any more.
-    const wrapper = mountBlock(mock);
+    const wrapper = mountBlock({ ...mock, authorLinkHref: '/journal/authors/ingrid-moe' });
     const footer = wrapper.get('footer');
     const bio = footer.findAll('p').find((p) => p.text() === mock.authorBio)!;
     expect(bio.classes().some((c) => /^mt-/.test(c))).toBe(false);
@@ -188,7 +205,11 @@ describe('article block', () => {
   });
 
   it('an invalid publishedAt renders no <time> element and does not crash', async () => {
-    const wrapper = mountBlock({ ...mock, publishedAt: 'not-a-date' });
+    const wrapper = mountBlock({
+      ...mock,
+      publishedAt: 'not-a-date',
+      categoryHref: '/journal/ceramics',
+    });
     expect(wrapper.find('time').exists()).toBe(false);
     // The rest of the meta line (category, reading time) still renders — only the date drops.
     expect(wrapper.text()).toContain(mock.categoryLabel);

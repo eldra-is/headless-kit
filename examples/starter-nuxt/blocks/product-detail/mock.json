@@ -107,7 +107,7 @@
     }
   ],
   "sizeGuideLabel": "Size guide",
-  "sizeGuideHref": "/pages/size-guide",
+  "sizeGuideHref": "",
   "stickyBar": true,
   "showCategory": true
 }

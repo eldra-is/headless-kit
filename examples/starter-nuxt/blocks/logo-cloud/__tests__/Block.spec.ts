@@ -90,12 +90,21 @@ describe('logo-cloud block', () => {
     for (const logo of mock.logos) expect(wrapper.text()).toContain(logo.name);
   });
 
+  it('renders no <a> at all when every logo ships with an empty href — the seeded state', () => {
+    // `mock.json`'s `logos[].href` ships empty (no dead demo external host) — every logo renders
+    // as a plain, unlinked wordmark/image cell.
+    const wrapper = mountBlock(mock);
+    expect(wrapper.findAll('a')).toHaveLength(0);
+  });
+
   it('linked logos are real <a> tab stops in visual order and activate with Enter (native anchor behaviour)', () => {
-    const wrapper = mountBlock(mock, { attachToBody: true });
+    const logos = mock.logos.map((logo, index) => ({
+      ...logo,
+      href: `https://stockist-${index + 1}.example`,
+    }));
+    const wrapper = mountBlock({ ...mock, logos }, { attachToBody: true });
     const links = wrapper.findAll('a');
-    expect(links.map((link) => link.attributes('href'))).toEqual(
-      mock.logos.map((logo) => logo.href)
-    );
+    expect(links.map((link) => link.attributes('href'))).toEqual(logos.map((logo) => logo.href));
     const first = links[0]!.element as HTMLAnchorElement;
     first.focus();
     expect(document.activeElement).toBe(first);
@@ -103,16 +112,24 @@ describe('logo-cloud block', () => {
   });
 
   it("every linked logo meets its variant's minimum target size (class assertion)", () => {
-    const grid = mountBlock({ ...mock, variant: 'grid' });
+    const logos = mock.logos.map((logo, index) => ({
+      ...logo,
+      href: `https://stockist-${index + 1}.example`,
+    }));
+    const grid = mountBlock({ ...mock, logos, variant: 'grid' });
     for (const link of grid.findAll('a')) expect(link.classes()).toContain('h-full');
 
-    const row = mountBlock({ ...mock, variant: 'row' });
+    const row = mountBlock({ ...mock, logos, variant: 'row' });
     for (const link of row.findAll('a')) expect(link.classes()).toContain('min-h-16');
   });
 
   it('renders a real <a> for every href — hover is never the only cue that a logo is a link', () => {
-    const wrapper = mountBlock(mock);
-    for (const logo of mock.logos) {
+    const logos = mock.logos.map((logo, index) => ({
+      ...logo,
+      href: `https://stockist-${index + 1}.example`,
+    }));
+    const wrapper = mountBlock({ ...mock, logos });
+    for (const logo of logos) {
       const link = wrapper.findAll('a').find((a) => a.attributes('href') === logo.href);
       expect(link, `expected a link to ${logo.href}`).toBeTruthy();
     }

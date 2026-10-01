@@ -2,7 +2,7 @@
   "variant": "grid",
   "heading": "From the journal",
   "viewAllLabel": "View all stories",
-  "viewAllHref": "/journal",
+  "viewAllHref": "",
   "source": "manual",
   "perPage": "6",
   "showFilters": true,
@@ -24,7 +24,7 @@
       "dek": "Two firings, three pairs of hands and a kiln that always has the last word. A morning in the Portland studio.",
       "href": "/journal/how-we-glaze-our-stoneware",
       "categoryLabel": "Ceramics",
-      "categoryHref": "/journal/ceramics",
+      "categoryHref": "",
       "publishedAt": "2026-09-18",
       "readingTime": "6 min read"
     },
@@ -33,7 +33,7 @@
       "dek": "Wash less, air more. How to keep a knit soft and shape-true for a decade, pills and all.",
       "href": "/journal/caring-for-merino",
       "categoryLabel": "Care",
-      "categoryHref": "/journal/care",
+      "categoryHref": "",
       "publishedAt": "2026-09-09",
       "readingTime": "4 min read"
     },
@@ -42,7 +42,7 @@
       "dek": "Our kitchen team's weekday breakfast, made in one Everyday saucepan with whatever fruit is in the bowl.",
       "href": "/journal/brown-butter-oats",
       "categoryLabel": "Recipes",
-      "categoryHref": "/journal/recipes",
+      "categoryHref": "",
       "publishedAt": "2026-08-28",
       "readingTime": "3 min read"
     },
@@ -51,7 +51,7 @@
       "dek": "Three generations, one loom room and the reason our tea towels soften with every wash.",
       "href": "/journal/porto-linen-mill",
       "categoryLabel": "Makers",
-      "categoryHref": "/journal/makers",
+      "categoryHref": "",
       "publishedAt": "2026-08-14",
       "readingTime": "7 min read"
     },
@@ -60,7 +60,7 @@
       "dek": "Mismatched plates, one good candle and a menu you can make the day before.",
       "href": "/journal/slow-table-for-six",
       "categoryLabel": "Home",
-      "categoryHref": "/journal/home",
+      "categoryHref": "",
       "publishedAt": "2026-07-30",
       "readingTime": "5 min read"
     }

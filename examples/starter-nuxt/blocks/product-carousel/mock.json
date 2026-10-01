@@ -3,7 +3,7 @@
   "variant": "related",
   "limit": "8",
   "viewAllLabel": "View all",
-  "viewAllHref": "/collections/knitwear",
+  "viewAllHref": "",
   "showSwatches": true,
   "background": "none"
 }

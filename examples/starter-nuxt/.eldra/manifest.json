@@ -69,7 +69,7 @@
         "variant": "primary",
         "message": "Free shipping on orders over $80",
         "linkLabel": "Details",
-        "linkHref": "/pages/shipping",
+        "linkHref": "",
         "dismissable": true
       },
       "previewImage": ".eldra/previews/announcement-bar.png"
@@ -245,7 +245,7 @@
         "title": "How we glaze our stoneware",
         "dek": "Every Northwind mug and bowl passes through two firings and three pairs of hands. Here is what happens between the wheel and your kitchen shelf.",
         "categoryLabel": "Ceramics",
-        "categoryHref": "/journal/ceramics",
+        "categoryHref": "",
         "publishedAt": "2026-09-18",
         "readingTime": "6 min read",
         "coverCaption": "Bisqueware waiting for its glaze bath in the Portland studio.",
@@ -750,7 +750,7 @@
         "authorRole": "Studio lead, Northwind ceramics",
         "authorBio": "Ingrid has thrown pots in Portland for eighteen years and mixes every Northwind glaze by hand. She still signs the first mug out of each new batch.",
         "authorLinkLabel": "More from Ingrid",
-        "authorLinkHref": "/journal/authors/ingrid-moe",
+        "authorLinkHref": "",
         "showByline": true
       },
       "previewImage": ".eldra/previews/article.png"
@@ -981,7 +981,7 @@
         "variant": "grid",
         "heading": "From the journal",
         "viewAllLabel": "View all stories",
-        "viewAllHref": "/journal",
+        "viewAllHref": "",
         "source": "manual",
         "perPage": "6",
         "showFilters": true,
@@ -1021,7 +1021,7 @@
             "dek": "Two firings, three pairs of hands and a kiln that always has the last word. A morning in the Portland studio.",
             "href": "/journal/how-we-glaze-our-stoneware",
             "categoryLabel": "Ceramics",
-            "categoryHref": "/journal/ceramics",
+            "categoryHref": "",
             "publishedAt": "2026-09-18",
             "readingTime": "6 min read"
           },
@@ -1030,7 +1030,7 @@
             "dek": "Wash less, air more. How to keep a knit soft and shape-true for a decade, pills and all.",
             "href": "/journal/caring-for-merino",
             "categoryLabel": "Care",
-            "categoryHref": "/journal/care",
+            "categoryHref": "",
             "publishedAt": "2026-09-09",
             "readingTime": "4 min read"
           },
@@ -1039,7 +1039,7 @@
             "dek": "Our kitchen team's weekday breakfast, made in one Everyday saucepan with whatever fruit is in the bowl.",
             "href": "/journal/brown-butter-oats",
             "categoryLabel": "Recipes",
-            "categoryHref": "/journal/recipes",
+            "categoryHref": "",
             "publishedAt": "2026-08-28",
             "readingTime": "3 min read"
           },
@@ -1048,7 +1048,7 @@
             "dek": "Three generations, one loom room and the reason our tea towels soften with every wash.",
             "href": "/journal/porto-linen-mill",
             "categoryLabel": "Makers",
-            "categoryHref": "/journal/makers",
+            "categoryHref": "",
             "publishedAt": "2026-08-14",
             "readingTime": "7 min read"
           },
@@ -1057,7 +1057,7 @@
             "dek": "Mismatched plates, one good candle and a menu you can make the day before.",
             "href": "/journal/slow-table-for-six",
             "categoryLabel": "Home",
-            "categoryHref": "/journal/home",
+            "categoryHref": "",
             "publishedAt": "2026-07-30",
             "readingTime": "5 min read"
           }
@@ -1925,7 +1925,7 @@
         "phone": "+1 503 496 0214",
         "email": "hello@northwind.example",
         "mapLinkLabel": "Open in maps",
-        "mapLinkHref": "https://www.openstreetmap.org/search?query=Portland%20Oregon",
+        "mapLinkHref": "",
         "mapNote": "Free parking on Tannery Lane",
         "formTitle": "Send us a message",
         "topics": [
@@ -2076,9 +2076,9 @@
         "heading": "Throw your own bowl with our potters",
         "text": "Two-hour wheel sessions every Saturday in Portland. Clay, glazes and firing included; your bowl ships to you three weeks later.",
         "primaryCtaLabel": "Book a session",
-        "primaryCtaHref": "/pages/studio-sessions",
+        "primaryCtaHref": "",
         "secondaryCtaLabel": "Plan your visit",
-        "secondaryCtaHref": "/pages/visit"
+        "secondaryCtaHref": ""
       },
       "previewImage": ".eldra/previews/cta.png"
     },
@@ -2339,7 +2339,7 @@
         ],
         "contactText": "Still wondering about something?",
         "contactLinkLabel": "Ask our customer care team",
-        "contactLinkHref": "/pages/contact",
+        "contactLinkHref": "",
         "sectionBackground": "none"
       },
       "previewImage": ".eldra/previews/faq.png"
@@ -3282,9 +3282,9 @@
         "heading": "Made slowly, used daily",
         "subheading": "Merino knits, hand-thrown stoneware and kitchen goods from small workshops. Made to be used every day and kept for years.",
         "primaryCtaLabel": "Shop new arrivals",
-        "primaryCtaHref": "/collections/new",
+        "primaryCtaHref": "",
         "secondaryCtaLabel": "Our story",
-        "secondaryCtaHref": "/pages/about",
+        "secondaryCtaHref": "",
         "spacing": "md"
       },
       "previewImage": ".eldra/previews/hero.png"
@@ -3499,35 +3499,35 @@
         "logos": [
           {
             "name": "Hearth & Co.",
-            "href": "https://hearthandco.example"
+            "href": ""
           },
           {
             "name": "Maple Row",
-            "href": "https://maplerow.example"
+            "href": ""
           },
           {
             "name": "The Larder",
-            "href": "https://thelarder.example"
+            "href": ""
           },
           {
             "name": "Fernhill",
-            "href": "https://fernhill.example"
+            "href": ""
           },
           {
             "name": "kiln & kettle",
-            "href": "https://kilnandkettle.example"
+            "href": ""
           },
           {
             "name": "Common Room",
-            "href": "https://commonroom.example"
+            "href": ""
           },
           {
             "name": "Tidewater",
-            "href": "https://tidewater.example"
+            "href": ""
           },
           {
             "name": "oak/ash",
-            "href": "https://oakash.example"
+            "href": ""
           }
         ],
         "sectionBackground": "none"
@@ -4275,9 +4275,9 @@
         "delayedTitle": "Running a little late",
         "cancelledTitle": "This order was cancelled",
         "returnLinkLabel": "Start a return",
-        "returnLinkHref": "/pages/returns",
+        "returnLinkHref": "",
         "shopAgainLinkLabel": "Shop again",
-        "shopAgainLinkHref": "/collections/all",
+        "shopAgainLinkHref": "",
         "helpLinks": [
           {
             "label": "Contact us",
@@ -4504,7 +4504,7 @@
             "period": "/ month",
             "note": "Billed monthly. Skip or cancel any time.",
             "ctaLabel": "Start monthly",
-            "ctaHref": "/products/pantry-club-monthly",
+            "ctaHref": "",
             "included": [
               true,
               false,
@@ -4520,7 +4520,7 @@
             "period": "/ 3 months",
             "note": "$35 a box, billed each season.",
             "ctaLabel": "Start seasonal",
-            "ctaHref": "/products/pantry-club-seasonal",
+            "ctaHref": "",
             "included": [
               true,
               true,
@@ -4536,7 +4536,7 @@
             "period": "/ year",
             "note": "$33 a box, billed once a year.",
             "ctaLabel": "Start annual",
-            "ctaHref": "/products/pantry-club-annual",
+            "ctaHref": "",
             "included": [
               true,
               true,
@@ -4667,7 +4667,7 @@
         "variant": "related",
         "limit": "8",
         "viewAllLabel": "View all",
-        "viewAllHref": "/collections/knitwear",
+        "viewAllHref": "",
         "showSwatches": true,
         "background": "none"
       },
@@ -4984,7 +4984,7 @@
           }
         ],
         "sizeGuideLabel": "Size guide",
-        "sizeGuideHref": "/pages/size-guide",
+        "sizeGuideHref": "",
         "stickyBar": true,
         "showCategory": true
       },
@@ -5096,7 +5096,7 @@
         "name": "The Larder Journal",
         "role": "Winter gift guide, 2025",
         "sourceLinkLabel": "Read the guide",
-        "sourceLinkHref": "https://thelarder.example/winter-gift-guide",
+        "sourceLinkHref": "",
         "sectionBackground": "none"
       },
       "previewImage": ".eldra/previews/quote.png"
@@ -6157,7 +6157,7 @@
         "heading": "The people behind the parcels",
         "intro": "Eleven of us in Portland, and 38 makers we work with directly.",
         "linkLabel": "Meet our makers",
-        "linkHref": "/pages/makers",
+        "linkHref": "",
         "people": [
           {
             "name": "Ingrid Solberg",
@@ -6374,7 +6374,7 @@
         "heading": "Used every day, reviewed honestly",
         "summary": "4.8 out of 5 from 9,214 verified reviews",
         "linkLabel": "Read all reviews",
-        "linkHref": "/pages/reviews",
+        "linkHref": "",
         "items": [
           {
             "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
@@ -6382,7 +6382,7 @@
             "meta": "Portland, OR · Speckled latte mug",
             "rating": "5",
             "productLabel": "Speckled latte mug",
-            "productHref": "/products/latte-mug"
+            "productHref": ""
           },
           {
             "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
@@ -6390,7 +6390,7 @@
             "meta": "Austin, TX · Lambswool throw",
             "rating": "5",
             "productLabel": "Lambswool throw blanket",
-            "productHref": "/products/lambswool-throw"
+            "productHref": ""
           },
           {
             "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
@@ -6398,7 +6398,7 @@
             "meta": "Minneapolis, MN · Stoneware dinner plates",
             "rating": "4",
             "productLabel": "Stoneware dinner plates",
-            "productHref": "/products/dinner-plates"
+            "productHref": ""
           },
           {
             "quote": "Customer care swapped my cardigan for a size up in two days, no forms, no fuss. It is the one I reach for first.",
@@ -6544,7 +6544,7 @@
         "heading": "How a Northwind blanket is made",
         "intro": "Four stages, one state, nothing rushed.",
         "linkLabel": "Shop blankets",
-        "linkHref": "/collections/blankets",
+        "linkHref": "",
         "items": [
           {
             "title": "Fleece from two farms",
@@ -6890,7 +6890,7 @@
         "duration": "2:14",
         "caption": "Tomás throws, trims and glazes a latte mug at our Portland workshop. Filmed in one take.",
         "transcriptLabel": "Read the transcript",
-        "transcriptHref": "/pages/transcripts/latte-mug",
+        "transcriptHref": "",
         "privacyNote": "Loads from YouTube when you press play",
         "sectionBackground": "none"
       },

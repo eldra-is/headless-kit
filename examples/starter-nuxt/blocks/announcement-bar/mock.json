@@ -2,6 +2,6 @@
   "variant": "primary",
   "message": "Free shipping on orders over $80",
   "linkLabel": "Details",
-  "linkHref": "/pages/shipping",
+  "linkHref": "",
   "dismissable": true
 }

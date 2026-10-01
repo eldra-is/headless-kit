@@ -353,10 +353,12 @@ describe('product-detail block', () => {
     });
 
     it('shows the size guide link beside the size pills only when both fields are set', async () => {
-      const wrapper = await mountReady(mock);
+      const wrapper = await mountReady({ ...mock, sizeGuideHref: '/pages/size-guide' });
       expect(wrapper.get('a[href="/pages/size-guide"]').text()).toBe('Size guide');
 
-      const noHref = await mountReady({ ...mock, sizeGuideHref: '' });
+      // `sizeGuideHref` ships empty in the seed (no dead demo link) — `mock` on its own already
+      // exercises that default.
+      const noHref = await mountReady(mock);
       expect(noHref.find('a[href="/pages/size-guide"]').exists()).toBe(false);
     });
   });
