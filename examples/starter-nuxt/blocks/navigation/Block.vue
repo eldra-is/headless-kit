@@ -37,7 +37,7 @@
  * deleted, or that the site has no route for, resolves to no href and renders its label as plain
  * text rather than a dead anchor; a row with no label at all renders nothing.
  */
-import { computed, nextTick, onBeforeUnmount, ref, watchEffect } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue';
 import { useEldraLink } from '@eldrajs/theme-vue';
 import type { ResolvedLink } from '@eldrajs/theme-vue';
 import {
@@ -294,7 +294,18 @@ const accountHref = '/account';
 
 // --- cart --------------------------------------------------------------------------------------
 
-const cartCount = computed(() => storefront.cart.count.value);
+/**
+ * The count is a shopper's own state, restored from their browser after the page is up, so the
+ * server never knows it: the prerendered bag always reads "Cart, empty" with no pill. Reading the
+ * store before mount would let the client's first render disagree with that HTML on every reload
+ * that restores a cart (a hydration mismatch, with the bag re-rendered from scratch); gating it on
+ * mount makes the first client render match the server's and the count arrive as an ordinary update.
+ */
+const mounted = ref(false);
+onMounted(() => {
+  mounted.value = true;
+});
+const cartCount = computed(() => (mounted.value ? storefront.cart.count.value : 0));
 /**
  * The theme mounts one cart drawer in its app shell, so on a live page this is true and the bag is a
  * `<button>` that opens it without leaving the route; in the prerendered HTML it is still false and

@@ -12,7 +12,7 @@
 // a `flush: 'pre'` effect with no callback runs its body immediately, inside `setup()`, and `setup()`
 // runs on the server too — so each server render raised `ReferenceError: window is not defined`,
 // which `nitro.prerender.failOnError` turns into a failed build.
-import { defineComponent, h } from 'vue';
+import { computed, defineComponent, h } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 import Cart from '../../blocks/cart/Block.vue';
 import Navigation from '../../blocks/navigation/Block.vue';
@@ -22,6 +22,8 @@ import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import productCarouselMock from '../../blocks/product-carousel/mock.json';
 import { enUS } from '../../app/i18n/en-US';
+import { STOREFRONT_KEY } from '../../app/storefront/types';
+import { createDemoStorefront } from '../../app/storefront/demo';
 import { renderBlockToString, renderPageToString, renderShellToString } from '../support/renderSsr';
 import type { PageFixture } from '../support/mountPage';
 import homePage from '../../pages/home.page.json';
@@ -98,6 +100,26 @@ describe('server rendering', () => {
 
     expect(html).toContain('href="/cart"');
     expect(html).not.toMatch(/<button[^>]*aria-label="Cart/);
+  });
+
+  /**
+   * The count is the shopper's own, restored in their browser after the page is up, so the server
+   * never has it — and the client's first render must not have it either, or every reload that
+   * restores a cart hydrates a bag the server wrote as empty against one already carrying a pill.
+   * The block reads the count only once mounted; `onMounted` never runs here, so a storefront that
+   * already knows about two items still renders the empty bag.
+   */
+  it('prerenders the bag as empty even when the storefront already holds a cart', async () => {
+    const storefront = createDemoStorefront();
+    const cart = { ...storefront.cart, count: computed(() => 2) };
+    const html = await renderBlockToString(
+      Navigation,
+      { id: 'ssr-header-count', data: navigationMock },
+      { [STOREFRONT_KEY]: { ...storefront, cart } }
+    );
+
+    expect(html).toContain('aria-label="Cart, empty"');
+    expect(html).not.toContain('Cart, 2 items');
   });
 
   it.each(FIXTURES)(

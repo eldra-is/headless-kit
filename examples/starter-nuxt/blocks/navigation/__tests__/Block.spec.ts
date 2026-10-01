@@ -630,13 +630,17 @@ describe('header block (navigation apiId)', () => {
       expect(wrapper.findComponent(Badge).exists()).toBe(false);
     });
 
-    it('reads "Cart, 1 item" for a single item', () => {
+    // The count is read only once the block has mounted (the server never knows it), so each of
+    // these waits one tick for that update before looking at the bag.
+    it('reads "Cart, 1 item" for a single item', async () => {
       const wrapper = mountWithCartCount(mock, 1);
+      await nextTick();
       expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 1 item');
     });
 
-    it('reads "Cart, {n} items" for more than one, with an aria-hidden badge carrying the count', () => {
+    it('reads "Cart, {n} items" for more than one, with an aria-hidden badge carrying the count', async () => {
       const wrapper = mountWithCartCount(mock, 2);
+      await nextTick();
       expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 2 items');
       const badge = wrapper.findComponent(Badge);
       expect(badge.attributes('aria-hidden')).toBe('true');
@@ -646,8 +650,9 @@ describe('header block (navigation apiId)', () => {
       expect(badge.classes()).toContain('pointer-events-none');
     });
 
-    it('reads "99+" above 99', () => {
+    it('reads "99+" above 99', async () => {
       const wrapper = mountWithCartCount(mock, 120);
+      await nextTick();
       expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 120 items');
       expect(wrapper.findComponent(Badge).text()).toBe('99+');
     });
