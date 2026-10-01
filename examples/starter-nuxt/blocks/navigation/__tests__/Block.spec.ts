@@ -641,6 +641,9 @@ describe('header block (navigation apiId)', () => {
       const badge = wrapper.findComponent(Badge);
       expect(badge.attributes('aria-hidden')).toBe('true');
       expect(badge.text()).toBe('2');
+      // The pill is a sibling drawn over the bag's corner, and with the count it grows across the
+      // middle of the button; a pointer on it must still reach the bag underneath.
+      expect(badge.classes()).toContain('pointer-events-none');
     });
 
     it('reads "99+" above 99', () => {

@@ -984,7 +984,7 @@ const actionsPositionClass = computed(() =>
               pill
               :label="cartBadgeLabel"
               :classes="{
-                root: 'absolute -top-0.5 -right-0.5 min-w-5 justify-center px-1 text-[0.6875rem] leading-4',
+                root: 'pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center px-1 text-[0.6875rem] leading-4',
                 label: 'tabular-nums',
               }"
             />
