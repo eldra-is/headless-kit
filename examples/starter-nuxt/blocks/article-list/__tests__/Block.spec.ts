@@ -147,9 +147,10 @@ describe('article-list block', () => {
   });
 
   it('renders no "self path" chrome (active chip, pagination) when neither categoryHref nor viewAllHref is set — the seeded state', async () => {
-    // `mock.json` ships both empty (see `docs/starter-kit.md`'s seed-href ruling): without either,
-    // the block has no page of its own to build `?page=n` links or an active-chip match against,
-    // so it renders the filter chips and items with nothing marked current, and no pagination.
+    // `mock.json` ships both empty — an inserted block links to no demo path nothing serves —
+    // so without either, the block has no page of its own to build `?page=n` links or an
+    // active-chip match against: it renders the filter chips and items with nothing marked
+    // current, and no pagination.
     const wrapper = mountBlock({ ...withImages, perPage: '3' });
     await flushPromises();
     const nav = wrapper.get('nav[aria-label="Filter stories by category"]');
@@ -248,8 +249,8 @@ describe('article-list block', () => {
   });
 
   it('renders the empty state with no "view all" anchor when viewAllHref is empty — the seeded state', async () => {
-    // `showFilters` chips (a separate `href` field, unaffected by this round) still render their
-    // own anchors, so this checks specifically for the empty-state action link, not any anchor.
+    // `showFilters` chips are a separate `href` field and still render their own anchors, so this
+    // checks specifically for the empty-state action link, not any anchor.
     const wrapper = mountBlock({ ...mock, items: [], showFilters: false });
     await flushPromises();
     expect(wrapper.text()).toContain(mock.emptyTitle);

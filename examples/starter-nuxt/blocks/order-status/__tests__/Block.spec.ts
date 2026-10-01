@@ -2,6 +2,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ref } from 'vue';
+import { Button } from '@eldrajs/ui';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
@@ -328,8 +329,15 @@ describe('order-status block', () => {
     });
 
     it('offers Start a return once an order is delivered', async () => {
-      const wrapper = await mountStatus('delivered');
-      const button = wrapper.findAll('a').find((el) => el.text().includes(mock.returnLinkLabel));
+      // `returnLinkHref` ships empty in the seed, so this test gives the primary CTA its own
+      // destination — the same override the "Shop again" test below already needed. Scoped to the
+      // `Button` component (the primary CTA), not any `<a>`: `helpLinks` renders its own "Start a
+      // return" `Link` with the same label text in the "Need help?" section, which would otherwise
+      // make this test pass even if the primary CTA stopped rendering.
+      const wrapper = await mountStatus('delivered', { ...mock, returnLinkHref: '/pages/returns' });
+      const button = wrapper
+        .findAllComponents(Button)
+        .find((el) => el.text().includes(mock.returnLinkLabel));
       expect(button?.exists()).toBe(true);
       expect(wrapper.text()).not.toContain(enUS.order.trackPackage);
     });
@@ -339,8 +347,22 @@ describe('order-status block', () => {
         ...mock,
         shopAgainLinkHref: '/collections/all',
       });
-      const button = wrapper.findAll('a').find((el) => el.text().includes(mock.shopAgainLinkLabel));
+      const button = wrapper
+        .findAllComponents(Button)
+        .find((el) => el.text().includes(mock.shopAgainLinkLabel));
       expect(button?.exists()).toBe(true);
+    });
+
+    it('renders no primary CTA button for the seeded empty-href state (delivered and cancelled)', async () => {
+      // `returnLinkHref`/`shopAgainLinkHref` both ship empty in the seed — no block links to a
+      // demo path nothing serves — so the bare `mock` default must render no primary CTA at all
+      // for either status, even though `helpLinks` still carries its own unrelated "Start a
+      // return" link in the "Need help?" section.
+      const delivered = await mountStatus('delivered');
+      expect(delivered.findAllComponents(Button)).toHaveLength(0);
+
+      const cancelled = await mountStatus('cancelled');
+      expect(cancelled.findAllComponents(Button)).toHaveLength(0);
     });
   });
 

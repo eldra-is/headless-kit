@@ -130,9 +130,9 @@ describe('testimonials block', () => {
   });
 
   it('the meta line is a link only when productHref is set', () => {
-    // `productHref` ships empty in the seed (no dead demo link — see `docs/starter-kit.md`'s
-    // seed-href ruling) on every item that carries the key, so this test supplies real values for
-    // the ones meant to demonstrate a link, the same way a page author would.
+    // `productHref` ships empty on every item that carries the key — an empty href renders no
+    // anchor, and the seed links to no demo path nothing serves — so this test supplies real
+    // values for the ones meant to demonstrate a link, the same way a page author would.
     const items = mock.items.map((item, index) =>
       'productHref' in item ? { ...item, productHref: `/products/demo-item-${index}` } : item
     );

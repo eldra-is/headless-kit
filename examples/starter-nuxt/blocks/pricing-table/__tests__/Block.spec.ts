@@ -26,9 +26,9 @@ const bare = {
   ],
 };
 
-/** `mock.json`'s `plans[].ctaHref` ship empty (no dead demo link — see `docs/starter-kit.md`'s
- *  seed-href ruling), so tests whose whole point is exercising a working call-to-action supply
- *  their own, the same real-looking demo paths the seed used to carry. */
+/** `mock.json`'s `plans[].ctaHref` ship empty — an empty href renders no anchor, and the seed
+ *  links to no demo path nothing serves — so tests whose whole point is exercising a working
+ *  call-to-action supply their own, the same real-looking demo paths the seed used to carry. */
 const DEMO_CTA_HREFS = [
   '/products/pantry-club-monthly',
   '/products/pantry-club-seasonal',

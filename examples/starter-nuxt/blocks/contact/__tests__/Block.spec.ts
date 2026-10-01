@@ -314,6 +314,19 @@ describe('contact block', () => {
     expect(img.attributes('alt')).toBe(preview.mapImage.altText);
   });
 
+  it('a present map area renders no "Open in maps" anchor when mapLinkHref is empty — the seeded state', () => {
+    // `mapLinkHref` ships empty in `mock.json`; `merged` still carries `preview.json`'s `mapImage`,
+    // so the map area itself renders — this is the realistic "map present, no link" case, not the
+    // "no map fields at all" one below.
+    const wrapper = mountContact(merged);
+    expect(wrapper.find('[data-part="map"]').exists()).toBe(true);
+    expect(wrapper.find('img').exists()).toBe(true);
+    expect(wrapper.text()).toContain(mock.mapNote);
+    // Scoped to the map area's own link, not any anchor: the block also renders phone/email
+    // `tel:`/`mailto:` links elsewhere, which are unaffected by `mapLinkHref`.
+    expect(wrapper.findAll('a').some((a) => a.text().includes(mock.mapLinkLabel))).toBe(false);
+  });
+
   it('with no map fields at all, no map area is rendered', () => {
     const wrapper = mountContact({
       ...mock,
