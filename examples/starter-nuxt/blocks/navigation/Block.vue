@@ -295,6 +295,13 @@ const accountHref = '/account';
 // --- cart --------------------------------------------------------------------------------------
 
 const cartCount = computed(() => storefront.cart.count.value);
+/**
+ * The theme mounts one cart drawer in its app shell (`app/app.vue`), so on a live page this is true
+ * and the bag is a `<button>` that opens it without leaving the route. It is raised from that
+ * drawer's `onMounted`, which is what keeps the bag an `<a href="/cart">` in the generated HTML —
+ * the destination a visitor with no JavaScript, or one still waiting for hydration, can use, and the
+ * same path the drawer's own "View cart" button leads to (`app/pages/cart.vue`).
+ */
 const cartDrawerAvailable = computed(() => storefront.cart.drawerAvailable.value);
 const cartHref = computed(() => (cartDrawerAvailable.value ? undefined : '/cart'));
 const cartAccessibleName = computed(() => {

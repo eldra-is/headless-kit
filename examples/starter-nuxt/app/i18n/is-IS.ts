@@ -486,6 +486,8 @@ export const isIS = {
     emptyFallbackTitle: 'Karfan þín er tóm',
     drawerHintLabel: 'Karfan opnast úr hausnum',
     drawerHintHelp: 'Kaupendur opna hana með töskuhnappnum; hér sést ekkert fyrr en þeir gera það.',
+    drawerHintHosted:
+      'Þemað opnar hana þegar á öllum síðum, svo þessi hluti gerir ekkert og má fjarlægja.',
   },
   order: {
     number: 'Pöntun {number}',

@@ -11,6 +11,16 @@
  *   (`blocks/navigation/Block.vue`). The shipping bar spans the panel edge to edge, the body
  *   scrolls, and the footer holds the subtotal, the note, Check out and View cart. No discount
  *   field, no payment icons — those are the page's (spec Variants).
+ *
+ *   **The theme hosts the drawer, not a page.** A cart drawer has to exist on every route, so
+ *   `app/app.vue` mounts exactly one of these in its `drawer` variant with `host` set — the same
+ *   argument the `Toaster` beside it makes. An authored `cart` block in `drawer` variant therefore
+ *   finds `cart.drawerHosted` already true (the shell declares it in its own `setup()`, so this is
+ *   decided before the block renders anywhere, the server included) and draws no `<dialog>` of its
+ *   own: the shopper would otherwise get two drawers on that one page, and the header's bag could
+ *   only open one of them. In Studio's editor it still shows its placeholder, saying where the
+ *   drawer lives; live it renders nothing at all. Nothing about the field set changes, so an author
+ *   who already placed one keeps their block and their data.
  * - `page` — a `Section spacing="none"` with 2rem of top padding and the `md` step below it, an `h1`
  *   at the h2 scale with the live item count beside it, a Continue shopping link, and from 64rem a
  *   `1fr | 22rem` layout: the shipping panel, the `aria-hidden` column headings and the items on the
@@ -31,8 +41,10 @@
  * set on the element at that moment rather than baked into `EmptyState`'s markup.
  *
  * **The editor.** A closed drawer draws nothing at all, which in Studio's editor would look like a
- * block that failed to render, so the `drawer` variant shows one `EditorPlaceholder` naming where
- * the drawer opens from — editor-only, gated on `useEditing()` like every other block's hints.
+ * block that failed to render, so an authored `drawer` variant shows one `EditorPlaceholder` naming
+ * where the drawer opens from — editor-only, gated on `useEditing()` like every other block's hints.
+ * The theme's own host (`host`) shows none: it is not a block on the page, there is no card in the
+ * layer tree for it, and a placeholder would appear on every page the author opens.
  */
 import {
   computed,
@@ -69,7 +81,15 @@ import CartLines from './parts/CartLines.vue';
 import ShippingBar from './parts/ShippingBar.vue';
 import Summary from './parts/Summary.vue';
 
-const props = defineProps<{ entry: EldraBlockEntry<'cart'> }>();
+const props = defineProps<{
+  entry: EldraBlockEntry<'cart'>;
+  /**
+   * Set only by `app/app.vue`, the one place the theme mounts the drawer itself. A block an author
+   * placed on a page is rendered by `EldraBlockZone`, which passes `entry` and nothing else, so it
+   * can never claim to be the host.
+   */
+  host?: boolean;
+}>();
 const { data } = useBlockData(props, 'cart');
 const editing = useEditing();
 const t = useT();
@@ -96,19 +116,45 @@ const countLabel = computed(() =>
 );
 
 /**
- * Spec Variants: only the drawer makes the header's bag a button, and only while it is mounted.
- * A `page`-variant block never *clears* the flag either — a cart page can carry both a page cart and
- * a drawer mounted by the layout, and whichever mounted last must not silently turn the other one's
- * drawer off.
+ * Which of the two drawer roles this instance has. `app/app.vue` declares `cart.drawerHosted` in its
+ * own `setup()`, so an authored block — created later, inside the page — reads it as already true
+ * and defers: no `<dialog>`, on the server or in the browser, so the generated HTML and the hydrated
+ * page agree and the site has exactly one cart drawer. Outside the Nuxt app (Storybook, a block
+ * spec) nothing hosts one, and the block draws its own drawer exactly as before.
+ */
+const defersToHost = computed(() => props.host !== true && cart.drawerHosted.value);
+const ownsDrawer = computed(() => isDrawer.value && !defersToHost.value);
+
+/**
+ * Spec Variants: only the drawer makes the header's bag a button, and only while it is mounted — so
+ * only the instance that actually draws one raises the flag. A `page`-variant block never *clears*
+ * it either: a cart page carries both a page cart and the theme's drawer, and whichever mounted last
+ * must not silently turn the other one's drawer off.
+ *
+ * `onMounted`, deliberately not `setup()`: on a prerendered page the flag is then still false while
+ * the server renders, so the header's bag is an `<a href="/cart">` in the HTML — the destination a
+ * visitor with no JavaScript, or one who has not hydrated yet, can still use. The flip to a drawer
+ * button happens after mount, as an ordinary reactive update rather than a hydration correction.
  */
 onMounted(() => {
-  if (isDrawer.value) cart.drawerAvailable.value = true;
+  if (!ownsDrawer.value) return;
+  cart.drawerAvailable.value = true;
+  // Back/forward with the drawer open. The theme's drawer outlives a navigation — it is mounted in
+  // the app shell, not on the page — so unlike a page-level one it would otherwise sit open over
+  // whatever the shopper went back to. `popstate` is the only navigation that can reach a modal
+  // drawer: everything behind it is inert, and the two destinations inside it close it themselves.
+  // A plain browser API (as in `blocks/navigation/Block.vue`'s current-page listener), bound on
+  // mount so a server render never touches `window`.
+  window.addEventListener('popstate', closeDrawer);
 });
-watch(isDrawer, (drawer) => {
-  cart.drawerAvailable.value = drawer;
+watch(ownsDrawer, (owns) => {
+  cart.drawerAvailable.value = owns;
 });
 onBeforeUnmount(() => {
-  if (isDrawer.value) cart.drawerAvailable.value = false;
+  if (ownsDrawer.value) cart.drawerAvailable.value = false;
+  // Unconditional: a no-op for an instance that never added one, and still the right thing for one
+  // that stopped owning the drawer (an editor variant switch) after it did.
+  window.removeEventListener('popstate', closeDrawer);
 });
 
 const note = computed(() => (data.value.note ?? '').trim());
@@ -188,13 +234,19 @@ const DRAWER_CLASSES = {
 
 <template>
   <template v-if="isDrawer">
-    <Section v-if="editing" spacing="sm">
+    <!-- The author's hint only: the theme's own host is not a block on a page, so a placeholder
+         there would follow the author onto every page they open. -->
+    <Section v-if="editing && !host" spacing="sm">
       <Container width="content">
-        <EditorPlaceholder :label="t('cart.drawerHintLabel')" :help="t('cart.drawerHintHelp')" />
+        <EditorPlaceholder
+          :label="t('cart.drawerHintLabel')"
+          :help="defersToHost ? t('cart.drawerHintHosted') : t('cart.drawerHintHelp')"
+        />
       </Container>
     </Section>
 
     <Drawer
+      v-if="ownsDrawer"
       v-model="drawerOpen"
       side="right"
       :title="t('cart.title')"
@@ -251,12 +303,15 @@ const DRAWER_CLASSES = {
           </template>
           {{ t('cart.checkout') }}
         </Button>
+        <!-- Closed on the way out: the drawer is the app shell's, so a router navigation does not
+             unmount it and it would stay open over the cart page. -->
         <Button
           variant="outline"
           block
           :href="CART_PATH"
           :as="EldraRouterLink"
           :label="t('cart.viewCart')"
+          @click="closeDrawer"
         />
       </template>
     </Drawer>

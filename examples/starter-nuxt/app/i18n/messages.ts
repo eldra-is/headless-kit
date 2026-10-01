@@ -851,7 +851,8 @@ export interface Messages {
    * filled in (the same shape as `gallery.carouselFallback`): `EmptyState` needs a title, and the
    * field's own copy lives in `mock.json`. `drawerHintLabel`/`drawerHintHelp` are the one editor-only hint (`EditorPlaceholder`, gated by
    * `useEditing()`): a closed drawer draws nothing at all, so the editor needs to be told where the
-   * block is.
+   * block is. `drawerHintHosted` replaces that help text once the theme is hosting the drawer itself
+   * (`app/app.vue`), where the author's own block draws no drawer and can go.
    */
   cart: {
     title: string;
@@ -892,6 +893,7 @@ export interface Messages {
     emptyFallbackTitle: string;
     drawerHintLabel: string;
     drawerHintHelp: string;
+    drawerHintHosted: string;
   };
   /**
    * The order-status block's own strings (spec `02-blocks.md` 3719–3835, "Order status") — the

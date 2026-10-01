@@ -9,6 +9,18 @@ export interface CartStore {
   error: Ref<string | null>;
   drawerOpen: Ref<boolean>;
   drawerAvailable: Ref<boolean>;
+  /**
+   * "The theme itself mounts the cart drawer." Set by the app shell (`app/app.vue`), which hosts the
+   * one drawer the site has, so a `drawer`-variant `cart` block an author places on a page draws no
+   * second one. The shell declares it in its own `setup()` — before any page block is created, on
+   * the server as well as in the browser — so that block makes the same decision in the prerendered
+   * HTML as it does after hydration.
+   *
+   * Not the same fact as `drawerAvailable`, which says a drawer is mounted and *live* (it is what
+   * turns the header's bag from a link to `/cart` into a button) and is therefore only ever true in
+   * the browser, raised from the hosting block's `onMounted`.
+   */
+  drawerHosted: Ref<boolean>;
   lastRemoved: Ref<{ line: StorefrontCartLine; index: number } | null>;
   add(i: { variantId: string; quantity: number }): Promise<void>;
   setQuantity(lineId: string, quantity: number): Promise<void>;
@@ -58,6 +70,7 @@ export function createCartStore(ops: CartOps): CartStore {
   const error = ref<string | null>(null);
   const drawerOpen = ref(false);
   const drawerAvailable = ref(false);
+  const drawerHosted = ref(false);
   const lastRemoved = ref<{ line: StorefrontCartLine; index: number } | null>(null) as Ref<{
     line: StorefrontCartLine;
     index: number;
@@ -97,6 +110,7 @@ export function createCartStore(ops: CartOps): CartStore {
     error,
     drawerOpen,
     drawerAvailable,
+    drawerHosted,
     lastRemoved,
     checkoutUrl,
     add: (input) => run(() => ops.add(input)),

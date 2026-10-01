@@ -2,11 +2,16 @@
 /**
  * `/cart` — the theme's own cart route.
  *
- * The header's bag (`blocks/navigation/Block.vue`) sends the shopper here whenever no cart drawer
- * is mounted, and the drawer's own "View cart" button points at the same path. Both have always
- * named `/cart`; nothing in the theme answered it, so the site's catch-all
- * (`app/pages/[...slug].vue`) asked the gateway for a CMS page with that slug, found none, and the
- * bag landed every shopper on the not-found shell. This is the page they were being sent to.
+ * The cart a shopper reaches *without* leaving the page they are on is the drawer the theme hosts in
+ * `app/app.vue`; this route is the rest of what `/cart` has to be. The drawer's own "View cart"
+ * button points here, it is the deep link somebody can bookmark or be sent, and it is what the
+ * header's bag (`blocks/navigation/Block.vue`) still leads to in the prerendered HTML —
+ * `cart.drawerAvailable` is raised from the hosted drawer's `onMounted`, so a visitor with no
+ * JavaScript, or one reading the page before it hydrates, gets a working link rather than a dead
+ * button. Both the bag and the drawer have always named `/cart`; nothing in the theme answered it,
+ * so the site's catch-all (`app/pages/[...slug].vue`) asked the gateway for a CMS page with that
+ * slug, found none, and landed every shopper on the not-found shell. This is the page they were
+ * being sent to.
  *
  * It is a **code** route, not a CMS page: a shopper's cart is their own session, there is nothing
  * for an author to compose, and a site must not be able to lose its cart by deleting a page. Being
@@ -24,7 +29,8 @@
  * cart block with) is a route only some stores have.
  *
  * Author-editable copy for this surface arrives with the storefront settings entry
- * (`docs/starter-kit.md`, "The cart route"); until then the strings above are the theme's.
+ * (`docs/starter-kit.md`, "The cart drawer and the `/cart` route"); until then the strings above
+ * are the theme's.
  */
 import { computed } from 'vue';
 import CartBlock from '../../blocks/cart/Block.vue';

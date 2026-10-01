@@ -12,7 +12,9 @@
 // a `flush: 'pre'` effect with no callback runs its body immediately, inside `setup()`, and `setup()`
 // runs on the server too — so each server render raised `ReferenceError: window is not defined`,
 // which `nitro.prerender.failOnError` turns into a failed build.
+import { defineComponent, h } from 'vue';
 import { describe, expect, it } from 'vitest';
+import Cart from '../../blocks/cart/Block.vue';
 import Navigation from '../../blocks/navigation/Block.vue';
 import navigationMock from '../../blocks/navigation/mock.json';
 import ProductDetail from '../../blocks/product-detail/Block.vue';
@@ -20,7 +22,7 @@ import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import productCarouselMock from '../../blocks/product-carousel/mock.json';
 import { enUS } from '../../app/i18n/en-US';
-import { renderBlockToString, renderPageToString } from '../support/renderSsr';
+import { renderBlockToString, renderPageToString, renderShellToString } from '../support/renderSsr';
 import type { PageFixture } from '../support/mountPage';
 import homePage from '../../pages/home.page.json';
 import productPage from '../../pages/product.page.json';
@@ -49,6 +51,51 @@ describe('server rendering', () => {
 
     expect(html).toContain('<header');
     expect(html).toContain('Primary navigation');
+  });
+
+  /**
+   * The shell's own cart drawer, in the HTML a static host serves. Two things have to be true of it:
+   * a closed `<dialog>` is `display: none` to the UA, so nothing of it shows on a page nobody opened
+   * the cart on; and there is exactly one of them even when an author has also placed a
+   * `drawer`-variant `cart` block on the page, because the shell claims `cart.drawerHosted` in its
+   * own `setup()` — before any block renders — so that block defers on the server exactly as it does
+   * in the browser. Two drawers in the markup would hydrate into two, and the header's bag could
+   * only ever open one of them.
+   */
+  it('server-renders the app shell with one closed cart drawer, authored block or not', async () => {
+    const AuthoredCartPage = defineComponent({
+      name: 'AuthoredCartPage',
+      setup: () => () =>
+        h('main', { id: 'main' }, [
+          h(Cart, { entry: { id: 'authored-cart', data: { variant: 'drawer' } } } as never),
+        ]),
+    });
+
+    const html = await renderShellToString(AuthoredCartPage);
+
+    expect(html).toContain(enUS.cart.title);
+    expect(html.match(/<dialog/g) ?? []).toHaveLength(1);
+    // The attribute, not the `open:flex` utility in its class list.
+    expect(html).not.toMatch(/<dialog[^>]*\sopen[=\s>]/);
+  });
+
+  /**
+   * And the bag that opens it stays a real link in that HTML: `cart.drawerAvailable` is raised from
+   * the hosted drawer's `onMounted`, which never runs on the server, so a visitor with no JavaScript
+   * — or one reading the page before it hydrates — still has `/cart` to go to. The flip to a drawer
+   * button happens after hydration, as an ordinary reactive update.
+   */
+  it('leaves the header bag an anchor to /cart in the prerendered HTML', async () => {
+    const html = await renderShellToString(
+      defineComponent({
+        name: 'HeaderPage',
+        setup: () => () =>
+          h(Navigation, { entry: { id: 'ssr-header', data: navigationMock } } as never),
+      })
+    );
+
+    expect(html).toContain('href="/cart"');
+    expect(html).not.toMatch(/<button[^>]*aria-label="Cart/);
   });
 
   it.each(FIXTURES)(

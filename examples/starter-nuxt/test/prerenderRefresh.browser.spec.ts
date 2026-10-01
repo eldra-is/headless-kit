@@ -395,7 +395,9 @@ describe('prerendered commerce data on the generated static site', () => {
     // The control's premise: `/` is served where it was prerendered, nothing to redirect.
     expect(visited.url).toBe(`${statics.origin}${HOME_PAGE_PATH}`);
     const instances = blockInstances(visited);
-    expect(Object.keys(instances.created).length).toBe(9);
+    // The page's own nine, plus the `cart` block `app/app.vue` hosts as the site's one drawer — it
+    // is a block component like any other, so the probe counts it, and it must be built once too.
+    expect(Object.keys(instances.created).length).toBe(10);
     expect(notExactlyOnce(instances.created)).toEqual([]);
     expect(notExactlyOnce(instances.mounted)).toEqual([]);
     expect(visited.warnings).toEqual([]);
@@ -408,7 +410,8 @@ describe('prerendered commerce data on the generated static site', () => {
     // case would keep passing while quietly testing nothing.
     expect(visited.url).toBe(`${statics.origin}${productPage}/`);
     const instances = blockInstances(visited);
-    expect(Object.keys(instances.created).length).toBe(7);
+    // The page's own seven, plus the shell's hosted cart drawer (see the control above).
+    expect(Object.keys(instances.created).length).toBe(8);
     // The page is served at `/products/ash-glaze-mug/` and prerendered at
     // `/products/ash-glaze-mug` (`startStaticServer`'s 308 is the deployed host's). Nuxt therefore
     // re-navigates between the two while the page hydrates, and unless the route key and the page
@@ -865,17 +868,24 @@ describe('prerendered commerce data on the generated static site', () => {
   });
 
   /**
-   * The header's bag, on a generated site, in a real browser — the defect an operator reported as
-   * "the cart does not seem to work, it just redirects to /cart".
+   * The header's bag, on a generated site, in a real browser. Two reported defects meet here: "the
+   * cart does not seem to work, it just redirects to /cart" (the bag named a path nothing in the
+   * theme answered, so the catch-all asked the gateway for a CMS page called "cart", found none, and
+   * the shopper got the not-found shell), and then that it redirected at all — a cart belongs in a
+   * drawer over the page the shopper is reading.
    *
-   * The bag is an anchor to `/cart` whenever no cart drawer is mounted, and `/cart` was a path
-   * nothing in the theme answered: the site's catch-all asked the gateway for a CMS page with that
-   * slug, found none, and the shopper landed on the not-found shell — on the deployed site, on the
-   * host's own 404. Only this spec can see it end to end: the bag is in a prerendered header, the
-   * click is a real router navigation, and the destination has to exist as a file in the artifact
-   * before any of it means anything.
+   * So this is the whole progression a generated page goes through, which only this spec can see:
+   * the prerendered HTML carries the bag as a real `<a href="/cart">` and the theme's drawer closed
+   * (a visitor with no JavaScript, and a reader who arrives before hydration, still have somewhere to
+   * go); once hydrated the drawer is mounted and the bag is a `<button>` that opens it with no
+   * navigation at all; and `/cart` is still a prerendered file that renders the cart page when the
+   * router is sent there.
+   *
+   * The generated site's cart is empty — a prerender has no shopper's session — so the drawer shows
+   * its empty state, and its filled footer (subtotal, Check out, View cart) is the block spec's
+   * ground rather than this one's.
    */
-  it('lands on a rendered cart when the header bag is clicked', async () => {
+  it('opens the hosted cart drawer from the header bag, with /cart still there behind it', async () => {
     // The file first: `/cart` is prerendered by name (`nuxt.config.ts`), so a static host has
     // something to serve for it. Without this the navigation below would still "work" in the
     // router while the deployed site answered 404.
@@ -883,18 +893,85 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(prerendered).toContain(enUS.cart.emptyFallbackTitle);
     expect(prerendered).not.toContain('data-eldra-not-found');
 
-    const visited = await navigateFrom(HOME_PAGE_PATH, async (page) => {
-      await page.locator('header a[href="/cart"]').first().click();
-    });
+    // The home page as a static host serves it: one closed drawer (the `open` attribute, never the
+    // `open:flex` utility in its class list), and the bag still a link.
+    const home = staticHtml(HOME_PAGE_PATH);
+    // Exactly one cart drawer in the markup — its close button names it, where "Your cart" alone
+    // would also match the empty state inside it.
+    expect(home.match(/aria-label="Close Your cart"/g) ?? []).toHaveLength(1);
+    expect(home).not.toMatch(/<dialog[^>]*\sopen[=\s>]/);
+    expect(home).toContain('href="/cart"');
 
-    expect(visited.url).toBe(`${statics.origin}/cart`);
-    const settled = visited.samples[visited.samples.length - 1];
-    expect(settled?.h1).toContain(enUS.cart.title);
-    expect(settled?.text).toContain(enUS.cart.emptyFallbackTitle);
-    expect(settled?.text).not.toContain(enUS.notFound.title);
-    // A code route: the gateway is never asked to resolve it, however long the page sits there.
-    expect(visited.requests.filter((request) => request.startsWith('/cms/'))).toEqual([]);
-    expect(visited.warnings).toEqual([]);
+    const page = await browser.newPage();
+    const warnings: string[] = [];
+    page.on('console', (message) => {
+      const text = message.text();
+      if (/hydrat|mismatch/i.test(text) || message.type() === 'error') {
+        warnings.push(`${message.type()}: ${text.slice(0, 200)}`);
+      }
+    });
+    page.on('pageerror', (error) => warnings.push(`pageerror: ${error.message.slice(0, 200)}`));
+    try {
+      await page.goto(`${statics.origin}${HOME_PAGE_PATH}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(CATALOG_DELAY_MS + 1500);
+      gateway.reset();
+
+      // Hydrated: the drawer is mounted, so the bag swapped from a link to a button. That swap is a
+      // reactive update *after* hydration (the flag is raised in the drawer's `onMounted`), which is
+      // why `warnings` below must still be empty — a mismatch would mean the server and the first
+      // client render disagreed.
+      const bag = page.locator('header button[aria-label^="Cart"]');
+      await bag.waitFor({ state: 'visible', timeout: 5000 });
+      expect(await page.locator('header a[href="/cart"]').count()).toBe(0);
+
+      await bag.click();
+      const opened = await page.evaluate(() => {
+        const open = [...document.querySelectorAll('dialog[open]')];
+        return {
+          count: open.length,
+          title: open[0]?.querySelector('[data-part="title"]')?.textContent ?? '',
+          text: (open[0] as HTMLElement | undefined)?.innerText ?? '',
+          path: location.pathname,
+        };
+      });
+      // One drawer, it is the cart, and the shopper is still on the page they were reading.
+      expect(opened.count).toBe(1);
+      expect(opened.title).toContain(enUS.cart.title);
+      expect(opened.text).toContain(enUS.cart.emptyFallbackTitle);
+      expect(opened.path).toBe(HOME_PAGE_PATH);
+      // Opening the cart asks the gateway nothing: the cart is the shopper's own session state.
+      expect(gateway.requests.filter((request) => request.startsWith('/cms/'))).toEqual([]);
+
+      // Esc closes the top dialog and hands focus back to the bag that opened it.
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(100);
+      expect(await page.locator('dialog[open]').count()).toBe(0);
+      expect(
+        await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')
+      ).toMatch(/^Cart/);
+
+      // And the deep link is still a real route: a client-side navigation to it renders the
+      // prerendered cart page, not the not-found shell.
+      await page.evaluate(() =>
+        (window as unknown as { __eldraPush: (path: string) => Promise<unknown> }).__eldraPush(
+          '/cart'
+        )
+      );
+      await page.waitForURL(`${statics.origin}/cart`);
+      await page.waitForTimeout(500);
+      const settled = await page.evaluate(() => ({
+        h1: document.querySelector('main#main h1')?.textContent?.trim() ?? '',
+        text: document.body.innerText,
+      }));
+      expect(settled.h1).toContain(enUS.cart.title);
+      expect(settled.text).toContain(enUS.cart.emptyFallbackTitle);
+      expect(settled.text).not.toContain(enUS.notFound.title);
+      // A code route: the gateway is never asked to resolve it.
+      expect(gateway.requests.filter((request) => request.startsWith('/cms/'))).toEqual([]);
+      expect(warnings).toEqual([]);
+    } finally {
+      await page.close();
+    }
   });
 
   /**
