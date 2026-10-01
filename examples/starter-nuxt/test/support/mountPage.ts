@@ -120,12 +120,20 @@ export async function mountPageWithSkipLink(
  * `pageBlockRoots(wrapper)[i]`. Reading it off `main.children` (which is what these specs did
  * while the route rendered everything inside `<main>`) would now silently drop the header and
  * footer.
+ *
+ * A block may render more than one element: the header renders its bar plus the box that holds the
+ * flow the fixed bar is not in (`data-eldra-header-spacer`). Layout, not a block root — and here,
+ * where the fixture mounts block components directly rather than inside the block zone's own
+ * wrapper, it would otherwise shift every index after the header by one.
  */
 export function pageBlockRoots(wrapper: VueWrapper): Element[] {
+  const isBlockRoot = (element: Element): boolean =>
+    !element.hasAttribute('data-eldra-header-spacer');
   const roots: Element[] = [];
   for (const child of wrapper.element.children) {
-    if (child.tagName === 'MAIN') roots.push(...child.children);
-    else if (child.tagName !== 'A') roots.push(child); // skip `mountPageWithSkipLink`'s own link
+    if (child.tagName === 'MAIN') roots.push(...[...child.children].filter(isBlockRoot));
+    // `A` is `mountPageWithSkipLink`'s own link, not a block.
+    else if (child.tagName !== 'A' && isBlockRoot(child)) roots.push(child);
   }
   return roots;
 }

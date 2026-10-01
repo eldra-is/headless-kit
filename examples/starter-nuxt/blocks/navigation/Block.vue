@@ -349,9 +349,27 @@ const scrolled = ref(false);
  * drawer, the search overlay, or keyboard focus anywhere inside the bar (a hidden bar would strand
  * a focused control off-screen — 2.4.7). Non-sticky headers scroll away with the page and never
  * hide.
+ *
+ * The bar that does this is `position: fixed`, not `position: sticky`, and the spacer below it
+ * (`barSpacerClasses`) reserves the room it no longer takes in the flow. A sticky box is clamped to
+ * its own containing block, and a block's containing block is the single-block wrapper rendered
+ * around it — a `<div data-eldra-block>` from the block zone, or that same wrapper nested in a
+ * layout node's container. That box is exactly the bar's own height, so a sticky bar inside it has
+ * nowhere to travel: it stays at the top of the *page*, scrolls out of view with it and never
+ * returns, however the state machine below sets its classes. Measured against the viewport instead,
+ * the bar travels — and the spacer keeps the page's own flow, where the hero starts and what the
+ * block occupies, byte for byte what it was while the bar was in it.
  */
 const hiddenByScroll = ref(false);
 const focusWithinBar = ref(false);
+/**
+ * The bar's height, named once: the bar sets it on its own `<nav>` and the spacer reserves the very
+ * same box. Two literals would drift the first time a breakpoint moved, and a spacer that drifts
+ * from the bar is a page that jumps. `@content:` is a container query, so it is only ever as true
+ * as the container it is measured in — which is why both boxes sit inside an `@container` of the
+ * block's own width.
+ */
+const BAR_HEIGHT_CLASS = 'h-16 @content:h-[4.5rem]';
 let lastScrollY = 0;
 const SCROLL_JITTER = 4;
 function onScroll(): void {
@@ -415,19 +433,22 @@ watchEffect((onCleanup) => {
  * never survives past this instance of the block.
  */
 const barRoot = ref<HTMLElement | null>(null);
+/** The same measurement, in pixels, for the spacer below the fixed bar to reserve. */
+const barHeight = ref<number | null>(null);
 watchEffect((onCleanup) => {
   // Server render has no `document` at all; nothing to publish or clear there.
   if (typeof document === 'undefined') return;
   if (!sticky.value || typeof ResizeObserver === 'undefined' || barRoot.value === null) {
     document.documentElement.style.removeProperty('--eldra-header-height');
+    barHeight.value = null;
     return;
   }
   const el = barRoot.value;
   const publish = (): void => {
-    document.documentElement.style.setProperty(
-      '--eldra-header-height',
-      `${el.getBoundingClientRect().height}px`
-    );
+    const height = el.getBoundingClientRect().height;
+    document.documentElement.style.setProperty('--eldra-header-height', `${height}px`);
+    // The same measurement the spacer reserves, so the two can never disagree.
+    barHeight.value = height;
   };
   const observer = new ResizeObserver(publish);
   observer.observe(el);
@@ -435,6 +456,7 @@ watchEffect((onCleanup) => {
   onCleanup(() => {
     observer.disconnect();
     document.documentElement.style.removeProperty('--eldra-header-height');
+    barHeight.value = null;
   });
 });
 
@@ -533,7 +555,7 @@ const barRootClasses = computed(() =>
   [
     '@container',
     sticky.value
-      ? 'sticky top-0 z-40 motion-safe:transition-transform motion-safe:duration-base'
+      ? 'fixed inset-x-0 top-0 z-40 motion-safe:transition-transform motion-safe:duration-base'
       : '',
     barHidden.value ? '-translate-y-full' : '',
     isTransparent.value
@@ -543,6 +565,32 @@ const barRootClasses = computed(() =>
   ]
     .filter(Boolean)
     .join(' ')
+);
+
+/**
+ * The room the fixed bar is no longer in the flow to claim: an empty box of the bar's own height,
+ * rendered only when the bar is fixed, so a non-sticky header still occupies its space itself.
+ *
+ * The height classes are what the first paint of a prerendered page has, before the bar has been
+ * measured at all — a spacer that started at zero would drop the page by the bar's height and lift
+ * it again on hydration. They carry the `@content:` breakpoint, so they need a container of the
+ * block's own width to be measured in: the bar has one (its own `@container` root), and the spacer
+ * is one, which is why the box that holds the height is a child rather than the spacer itself.
+ * `barHeight` takes over the moment the `ResizeObserver` above has a real number, and from then on
+ * the spacer is the bar's measured height to the pixel, whatever either box's width does.
+ *
+ * The two boxes mirror the bar's own two: the outer one carries the hairline, as the `<header>`
+ * carries `border-b`, and the inner one the height, as the `<nav>` does. Which is also the only way
+ * the pixel lands: everything here is `border-box`, so a border on the box that *has* the height
+ * eats into it rather than adding to it. `border-transparent` contributes nothing but that pixel,
+ * and only while the bar has it — the solid bar draws `border-b` and the transparent-over-hero bar
+ * does not, so without this the page would shift by 1px the moment the bar turned solid.
+ */
+const barSpacerClasses = computed(() =>
+  ['@container', isTransparent.value ? '' : 'border-b border-transparent'].filter(Boolean).join(' ')
+);
+const barSpacerStyle = computed(() =>
+  barHeight.value === null ? undefined : { height: `${barHeight.value}px` }
 );
 
 const hairlineClass = computed(() =>
@@ -589,7 +637,10 @@ const actionsPositionClass = computed(() =>
            `left-0 right-0` here spans exactly the bar's own container. -->
       <nav
         :aria-label="t('header.primary')"
-        class="@tablet:h-16 @tablet:gap-4 @content:h-[4.5rem] relative grid h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1"
+        :class="[
+          BAR_HEIGHT_CLASS,
+          '@tablet:gap-4 relative grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1',
+        ]"
       >
         <Button
           :classes="{ container: menuButtonHiddenClass }"
@@ -1009,4 +1060,17 @@ const actionsPositionClass = computed(() =>
       :loading="searchResult.pending.value"
     />
   </header>
+  <!-- The flow the fixed bar left behind — see `barSpacerClasses`. Empty and unlabelled: it is
+       layout, with nothing in it for a screen reader or the tab order to reach. The outer box is the
+       `<header>`'s counterpart (the `@container` the height is measured in, and the hairline) and the
+       inner one the `<nav>`'s (the height itself). -->
+  <div
+    v-if="sticky"
+    data-eldra-header-spacer
+    aria-hidden="true"
+    :class="barSpacerClasses"
+    :style="barSpacerStyle"
+  >
+    <div :class="BAR_HEIGHT_CLASS" />
+  </div>
 </template>
