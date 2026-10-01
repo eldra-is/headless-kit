@@ -116,7 +116,7 @@ The store's top bar: brand, primary links with optional mega-menus, search, acco
 | `links[].features[].link` | link | yes | — | |
 | `showSearch` | bool | no | on | Shows the search control. It opens SearchModal (also on `/` and `⌘K` / `Ctrl+K`). |
 | `searchStyle` | select | no | `icon` | `icon`: a ghost icon button that opens SearchModal. `field`: a pill-shaped search trigger that looks like a field ("Search the shop", with a `⌘K` hint) and opens the same modal. It shows from 64rem only; below that the icon button shows. `inline`: `centered` variant only, a SearchBar in the bar with live results in a panel below it (from 64rem; below that the icon button shows). |
-| `showAccount` | bool | no | on | Hidden in the bar below 64rem and in `minimal`. Always listed in the drawer. |
+| `showAccount` | bool | no | off | Off until a store has customer accounts. Hidden in the bar below 64rem and in `minimal`. Always listed in the drawer. |
 | `cta` | link | no | none | One primary button (label and link). Hidden in the bar below 64rem, where it becomes the full-width drawer button. |
 | `sticky` | bool | no | on | The header stays at the top while scrolling. |
 | `transparentOverHero` | bool | no | off | Only takes effect when the next block is a Hero with variant `image-background`. Otherwise it is ignored. |

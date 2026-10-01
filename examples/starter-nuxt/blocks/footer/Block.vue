@@ -197,6 +197,17 @@ const showLocale = computed(() => data.value.showLocale ?? true);
 const showCurrency = computed(() => data.value.showCurrency ?? true);
 const hasSelectors = computed(() => showLocale.value || showCurrency.value);
 
+/**
+ * The legal row carries the rule that separates it from the zone above, so a row with nothing in it
+ * is a hairline across the footer under empty space. A footer with no legal line, no legal links and
+ * both selectors off has exactly that, which is a shape an author can reach from the panel — and the
+ * shape a store that has not written its policy pages yet starts from — so the row goes when there is
+ * nothing to rule off.
+ */
+const hasLegalRow = computed(
+  () => Boolean(data.value.legalText) || legalLinks.value.length > 0 || hasSelectors.value
+);
+
 /** The spec's own example locales/currencies (not CMS content — see file doc). */
 const LOCALE_VALUES = ['us-en', 'ca-en', 'ca-fr'] as const;
 const CURRENCY_VALUES = ['USD', 'CAD', 'EUR'] as const;
@@ -510,6 +521,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
 
       <!-- Legal row -->
       <div
+        v-if="hasLegalRow"
         class="border-border text-muted @tablet:flex-row @tablet:items-center @tablet:justify-between mt-12 flex flex-col gap-4 border-t pt-6 text-[0.8125rem] leading-[1.4]"
       >
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">

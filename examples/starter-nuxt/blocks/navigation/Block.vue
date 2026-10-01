@@ -4,7 +4,8 @@
  * would orphan every Studio page that uses it); `Header` is only the display name.
  *
  * Layout: a 4-column grid (`auto minmax(0,1fr) auto auto`) whose DOM order is always
- * `menuButton, brand, links, search, actions` — the same "DOM order stays sensible for screen
+ * `menuButton, brand, links, search, actions` (the menu button only while the drawer has something
+ * to show — see `drawerHasContent`) — the same "DOM order stays sensible for screen
  * readers, CSS reorders visually" approach the pre-rebuild block used for its `centered` variant
  * (see its own comment, now generalised). Hiding the menu button at `@content:` (64rem of *block*
  * width, not viewport — every breakpoint here is a `@container` variant measured against
@@ -285,7 +286,10 @@ function openSearch(): void {
 
 // --- account -----------------------------------------------------------------------------------
 
-const showAccount = computed(() => data.value.showAccount !== false);
+/** `=== true`, not `!== false`: `showAccount`'s declared default in `block.json` is `false`, so an
+ *  entry that carries no value for it must read as off — a store has no customer accounts until it
+ *  says it does, and an account icon that leads nowhere is worse than none. */
+const showAccount = computed(() => data.value.showAccount === true);
 const accountHref = '/account';
 
 // --- cart --------------------------------------------------------------------------------------
@@ -555,6 +559,15 @@ const menuButtonHiddenClass = computed(() =>
   variant.value === 'minimal' ? '' : '@content:hidden'
 );
 const linksVisible = computed(() => variant.value !== 'minimal' && links.value.length > 0);
+/**
+ * The drawer holds the links, the call to action and the account row — nothing else. A header with
+ * no links, no CTA and accounts off (the shape this theme seeds a fresh store with) therefore has
+ * an empty drawer, and a Menu button that opens one is a control that does nothing: the bar renders
+ * brand and actions only, and the button goes with the drawer it has nothing to show from.
+ */
+const drawerHasContent = computed(
+  () => links.value.length > 0 || hasCta.value || showAccount.value
+);
 
 const brandPositionClass = computed(() =>
   variant.value === 'centered'
@@ -592,6 +605,7 @@ const actionsPositionClass = computed(() =>
         class="@tablet:h-16 @tablet:gap-4 @content:h-[4.5rem] relative grid h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1"
       >
         <Button
+          v-if="drawerHasContent"
           :classes="{ container: menuButtonHiddenClass }"
           variant="ghost"
           size="sm"
@@ -777,7 +791,12 @@ const actionsPositionClass = computed(() =>
           :classes="{ root: linksPositionClass }"
         />
 
-        <div :class="['flex items-center', searchPositionClass]">
+        <!-- `justify-end` matters in exactly one case and is inert in every other: with no Menu
+             button in the grid (nothing to put in the drawer), the search control auto-places into
+             the `minmax(0,1fr)` column the brand usually takes, and left-aligned it would sit
+             against the wordmark with the cart stranded across the bar. Everywhere else this
+             wrapper lands in an `auto` column, which is content-sized, so the rule does nothing. -->
+        <div :class="['flex items-center justify-end', searchPositionClass]">
           <template v-if="showSearch">
             <Button
               v-if="searchStyle === 'icon'"
@@ -901,7 +920,13 @@ const actionsPositionClass = computed(() =>
       </nav>
     </Container>
 
-    <Drawer :id="drawerId" v-model="drawerOpen" side="left" :aria-label="t('header.menu')">
+    <Drawer
+      v-if="drawerHasContent"
+      :id="drawerId"
+      v-model="drawerOpen"
+      side="left"
+      :aria-label="t('header.menu')"
+    >
       <div>
         <ul class="list-none">
           <li v-for="(link, index) in links" :key="index" class="border-border border-b">

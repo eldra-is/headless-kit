@@ -466,6 +466,65 @@ describe('footer block', () => {
     });
   });
 
+  /**
+   * The footer a fresh store actually starts with, copied from the shape every `pages/*.page.json`
+   * seeds: brand, description, the legal line and the selectors — no link groups, no flat links, no
+   * legal links and no social accounts, because none of those destinations exist in an organisation
+   * nobody has filled in yet. `mock.json` keeps all of them: it is the state an author sees the
+   * moment they insert the block, not the state a deploy seeds.
+   */
+  describe('the seeded empty footer', () => {
+    const SEEDED = {
+      variant: 'default',
+      background: 'surface-strong',
+      brandText: mock.brandText,
+      description: mock.description,
+      groups: [],
+      links: [],
+      showNewsletter: false,
+      social: [],
+      legalText: mock.legalText,
+      legalLinks: [],
+      showLocale: true,
+      showCurrency: true,
+    };
+
+    it('renders brand and description only, with no empty column or link markup, axe-clean', async () => {
+      const wrapper = mountFooter(SEEDED);
+      expect(wrapper.text()).toContain(mock.brandText);
+      expect(wrapper.text()).toContain(mock.description);
+      // No link-groups `nav`, no column headings, and no social row: each part is drawn only when
+      // it has something in it, so nothing renders a heading or a list over nothing.
+      expect(wrapper.find('nav').exists()).toBe(false);
+      expect(wrapper.findAll('h3')).toHaveLength(0);
+      expect(wrapper.find('a[target="_blank"]').exists()).toBe(false);
+      // The brand wordmark is still a link home — that is the only anchor left.
+      const anchors = wrapper.findAll('a');
+      expect(anchors).toHaveLength(1);
+      expect(anchors[0]!.attributes('href')).toBe('/');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('keeps the legal row for the legal line and the selectors', () => {
+      const wrapper = mountFooter(SEEDED);
+      expect(wrapper.text()).toContain(mock.legalText);
+      expect(wrapper.findAll('[role="combobox"]')).toHaveLength(2);
+    });
+
+    it('drops the legal row — and its rule — when there is nothing to put in it', async () => {
+      // The row carries the hairline that separates it from the zone above, so an empty one is a
+      // line drawn across the footer under nothing at all.
+      const wrapper = mountFooter({
+        ...SEEDED,
+        legalText: '',
+        showLocale: false,
+        showCurrency: false,
+      });
+      expect(wrapper.find('.border-t').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
   it('social link names include the store name', () => {
     const wrapper = mountFooter(mock);
     const instagramLink = wrapper

@@ -438,6 +438,9 @@ describe('prerendered commerce data on the generated static site', () => {
     // The whole point of the `link` field: the header stores what it points at, and the site
     // derives the path from its own route templates at prerender time. A visitor with no
     // JavaScript gets working links; the browser makes no request to resolve one.
+    //
+    // The links are `mockGateway`'s own fixture, not the theme's seed: the seed ships none, so a
+    // header with destinations only ever exists once an author has made some.
     for (const path of [HOME_PAGE_PATH, productPage, collectionPage]) {
       const html = staticHtml(path);
       const anchor = (label: string): RegExpMatchArray | null =>
@@ -472,6 +475,19 @@ describe('prerendered commerce data on the generated static site', () => {
       expect(panelId).not.toBeNull();
       // Vitest's `expect` here, not Playwright's — the wait is the locator's own.
       await page.locator(`#${panelId ?? ''}`).waitFor({ state: 'visible' });
+      // "Visible" is true from the *first* frame of the panel's entrance, and that entrance carries
+      // a 4px rise (`-translate-y-1` over 150ms, `panelTransition` in `blocks/navigation/Block.vue`).
+      // Measuring there reads the panel 4px above where it settles — which, plus the bar's own 1px
+      // border, is exactly the 5px this geometry case used to fail by whenever the machine got to
+      // `evaluate` inside 150ms. So wait for the transition itself to finish, not just for the
+      // element to exist.
+      await page.waitForFunction(
+        (id) =>
+          (document.getElementById(id)?.getAnimations() ?? []).every(
+            (animation) => animation.playState !== 'running'
+          ),
+        panelId ?? ''
+      );
 
       const edges = await page.evaluate((id) => {
         const box = (

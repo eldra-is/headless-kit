@@ -948,9 +948,56 @@ describe('seeded templates (app/templates.ts)', () => {
     const roles = scanned.manifest!.templateRoles!;
     expect(roles.header?.apiId).toBe('navigation');
     expect(roles.footer?.apiId).toBe('footer');
-    // Real data, not an empty stub: the home fixture's own header and footer.
-    expect(roles.header?.data.links).toBeInstanceOf(Array);
-    expect(roles.footer?.data.groups).toBeInstanceOf(Array);
+    // Real data, not an empty stub: the home fixture's own header and footer settings.
+    expect(roles.header?.data.brandText).toBe('Northwind Goods');
+    expect(roles.header?.data.showSearch).toBe(true);
+    expect(roles.footer?.data.description).toEqual(expect.stringContaining('small workshops'));
+  });
+
+  it('seeds a header and footer with no destinations at all', () => {
+    // A theme cannot know an organisation's own pages, collections or policies, so it ships none:
+    // every seeded link would resolve to nothing on a fresh org and render as a label or a bare
+    // path to a page that does not exist. The *fields* stay — an author fills them in Studio — and
+    // `blocks/*/mock.json` keeps its demo rows, because that is the state of a block an author has
+    // just inserted, not the state a deploy seeds.
+    const roles = scanned.manifest!.templateRoles!;
+    expect(roles.header!.data.links).toEqual([]);
+    expect(roles.header!.data.cta).toBeUndefined();
+    expect(roles.header!.data.ctaLabel).toBeUndefined();
+    // No customer accounts yet, so the account control is off until a store turns it on.
+    expect(roles.header!.data.showAccount).toBe(false);
+    expect(roles.footer!.data.groups).toEqual([]);
+    expect(roles.footer!.data.links).toEqual([]);
+    expect(roles.footer!.data.legalLinks).toEqual([]);
+    expect(roles.footer!.data.social).toEqual([]);
+
+    // And the same is true of every page fixture the seeds are built from, not just the home one
+    // the roles happen to come from.
+    for (const name of ['home', 'product', 'collection', 'article']) {
+      const fixture = JSON.parse(
+        readFileSync(join(templateDir, 'pages', `${name}.page.json`), 'utf8')
+      ) as { blocks: Array<{ apiId: string; data: Record<string, unknown> }> };
+      const header = fixture.blocks.find((block) => block.apiId === 'navigation')!;
+      const footer = fixture.blocks.find((block) => block.apiId === 'footer')!;
+      expect({
+        page: name,
+        links: header.data.links,
+        showAccount: header.data.showAccount,
+      }).toEqual({ page: name, links: [], showAccount: false });
+      expect({ page: name, groups: footer.data.groups, legal: footer.data.legalLinks }).toEqual({
+        page: name,
+        groups: [],
+        legal: [],
+      });
+    }
+  });
+
+  it('declares showAccount off by default, so a header entry that omits it has no account control', () => {
+    const navigation = scanned.manifest!.blocks.find((block) => block.apiId === 'navigation')!;
+    const showAccount = navigation.fields.find((field) => field.fieldId === 'showAccount')!;
+    expect(showAccount.default).toBe(false);
+    // The setting itself stays, so a store with customer accounts can turn it on.
+    expect(showAccount.type).toBe('bool');
   });
 
   it('seeds Core-valid data: every seed block and both roles pass the mock.json rules', () => {

@@ -144,12 +144,17 @@ const listResponse = (data: unknown[]): Record<string, unknown> => ({
 /**
  * The header a **deployed** site holds, rather than the seed a theme ships.
  *
- * `mock.json` names a collection by handle, because a theme cannot know an organisation's catalog
- * ids; Core rewrites those to ids when it seeds the entry, so what a site actually stores — and
- * what the generate must resolve — is a `{_type, id}` target. Four rows stand for the four answers
- * the resolver can give: a collection this gateway serves, a product it serves, an ordinary URL
- * that needs no catalog at all, and a target it has never heard of, which must render as a label
- * and no anchor.
+ * The seed ships no links at all — a theme cannot know an organisation's own collections, products
+ * or pages, so `pages/*.page.json` leaves the field empty and an author fills it in Studio. These
+ * rows are therefore this file's own fixture, not the seed's content, and they are what makes the
+ * generate's link resolution observable: a merchant who has authored a header is the only one who
+ * has hrefs to bake.
+ *
+ * What a site stores is a `{_type, id}` target — Core resolves a handle to an id when an author
+ * picks a destination — so that is the shape here. Four rows stand for the four answers the
+ * resolver can give: a collection this gateway serves, a product it serves, an ordinary URL that
+ * needs no catalog at all, and a target it has never heard of, which must render as a label and no
+ * anchor.
  *
  * A fifth row carries `children`, which is what makes it a mega-menu trigger rather than a link —
  * the only shape whose geometry can be measured in a real browser. It is last, so the four answers

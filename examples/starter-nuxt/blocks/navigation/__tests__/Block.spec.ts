@@ -752,6 +752,67 @@ describe('header block (navigation apiId)', () => {
   });
 
   describe('empty / editor state', () => {
+    /**
+     * The header a fresh store actually starts with, copied from the shape every
+     * `pages/*.page.json` seeds: brand, search, cart — no links, no call to action, and accounts
+     * off until the store has them. `mock.json` keeps its demo links because it is the state an
+     * author sees the moment they *insert* the block, not the state a deploy seeds.
+     */
+    const SEEDED = {
+      variant: 'default',
+      brandText: 'Northwind Goods',
+      links: [],
+      showSearch: true,
+      searchStyle: 'icon',
+      showAccount: false,
+      sticky: true,
+      transparentOverHero: false,
+    };
+
+    it('renders the seeded header as brand and actions only — no links, no CTA, no account, axe-clean', async () => {
+      const wrapper = mountBlock(SEEDED);
+      expect(wrapper.text()).toContain('Northwind Goods');
+      // The bar's link list is not drawn at all with nothing in it, so no empty `<ul>` is left
+      // sitting in the grid.
+      expect(wrapper.find('ul.list-none.items-center').exists()).toBe(false);
+      expect(wrapper.find('button[aria-label="Search"]').exists()).toBe(true);
+      expect(wrapper.find('[aria-label="Cart, empty"]').exists()).toBe(true);
+      expect(wrapper.find('[aria-label="Account"]').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('draws no Menu button and no drawer when the drawer would be empty', () => {
+      // The drawer holds links, the call to action and the account row. With none of the three
+      // there is nothing to open, and a Menu button that opens an empty sheet is a control that
+      // does nothing.
+      const wrapper = mountBlock(SEEDED);
+      expect(wrapper.find('button[aria-label="Open menu"]').exists()).toBe(false);
+      // `dialog[aria-label="Menu"]` is the drawer itself; the search overlay's own `<dialog>`
+      // renders either way, so the drawer has to be named rather than counted.
+      expect(wrapper.find('dialog[aria-label="Menu"]').exists()).toBe(false);
+      expect(mountBlock(resolved.data).find('dialog[aria-label="Menu"]').exists()).toBe(true);
+    });
+
+    it('keeps the Menu button as soon as the drawer has something to show', () => {
+      for (const data of [
+        { ...SEEDED, showAccount: true },
+        { ...SEEDED, links: [{ kind: 'url', url: '/journal', label: 'Journal' }] },
+        { ...SEEDED, ctaLabel: 'Shop', cta: { kind: 'url', url: '/collections/all' } },
+      ]) {
+        const wrapper = mountBlock(data);
+        expect(wrapper.find('button[aria-label="Open menu"]').exists()).toBe(true);
+      }
+    });
+
+    it('treats an entry with no showAccount value as off, matching the field’s declared default', () => {
+      // `block.json` declares `default: false`, so an entry that was written before the field
+      // existed — or by anything that omits it — must read as off rather than inheriting the old
+      // "on unless turned off" behaviour.
+      const { showAccount: _omitted, ...withoutTheField } = SEEDED;
+      const wrapper = mountBlock(withoutTheField);
+      expect(wrapper.find('[aria-label="Account"]').exists()).toBe(false);
+    });
+
     it('shows the "Add a link" editor hint only while editing, with no links', () => {
       const empty = { ...resolved.data, links: [] };
       const editing = mountWithEditing(empty, true);

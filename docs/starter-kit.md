@@ -731,7 +731,7 @@ template: it has no CMS schema behind it, and the theme resolves `:slug` against
 at render time (`useEldraPage().catalog`, see [themes.md](themes.md#seeding-default-templates)).
 `home` seeds the site's home page and applies only when the site has none.
 
-Five rules the file exists to keep:
+Six rules the file exists to keep:
 
 - **The header and footer are roles, not blocks.** Each seed's `blocks` are its fixture's blocks
   **minus** `navigation` and `footer`; those two travel once, as `eldra.templateRoles`
@@ -744,6 +744,17 @@ Five rules the file exists to keep:
   `reusableComponentProjection`, which expands the header component where its node sits, between
   the template's own blocks — see
   [Reusable page components](theme-reusable-components.md#route-templates).
+- **The seeded header and footer carry no destinations.** A theme cannot know an organisation's own
+  collections, pages or policy documents, so the fixtures leave every link field in `navigation` and
+  `footer` empty — the header's `links` and `cta`, the footer's `groups`, `links`, `legalLinks` and
+  `social` — and `showAccount` is off (its declared default) until a store has customer accounts.
+  Every _setting_ stays, because a setting is a decision the theme can make: brand, variant, search
+  style, sticky, the selectors, the newsletter copy. A seeded demo link resolves to nothing on a
+  fresh organisation and renders as a label, or as a path to a page nobody has written — which is
+  also why both blocks draw each part only when it holds something: no empty link column, no Menu
+  button over an empty drawer, no rule across an empty legal row. `blocks/*/mock.json` keeps its demo
+  rows, because that is the state of a block an author has just inserted, not the state a deploy
+  seeds.
 - **Seed data is Core-valid, exactly like `mock.json`.** A seed is the write Core makes on deploy,
   so it obeys the same media rule: a media field is either absent or `{ assetId: <uuid> }`. The
   sample pages carry demo imagery for Storybook (`{ assetId: "demo-hero", url, altText, … }`), so

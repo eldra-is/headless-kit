@@ -22,6 +22,7 @@ import {
   mountPage,
   mountPageWithSkipLink,
   pageBlockRoots,
+  withAuthoredHeaderLink,
 } from '../support/mountPage';
 import productPage from '../../pages/product.page.json';
 import type { PageFixture } from '../support/mountPage';
@@ -37,6 +38,13 @@ const URGENCY_PATTERN = /\d+ (people|viewing)|only today|hurry/i;
 
 async function mountProductPage() {
   return mountPage(fixture, { attachTo: document.body });
+}
+
+/** The same page with one link authored onto its header, for the cases that are about the mobile
+ *  drawer — the seeded header has nothing to put in one, so it draws neither the Menu button nor the
+ *  drawer (see `withAuthoredHeaderLink`). */
+async function mountProductPageWithHeaderLink() {
+  return mountPage(withAuthoredHeaderLink(fixture), { attachTo: document.body });
 }
 
 describe('product sample page', () => {
@@ -109,13 +117,16 @@ describe('product sample page', () => {
   it('tab order runs header → breadcrumbs → product-detail → carousel → faq → footer', async () => {
     const wrapper = await mountProductPage();
     const html = wrapper.html();
-    const openMenu = html.indexOf('Open menu');
+    // The header's first focusable control. It used to be the Menu button, which the seeded header
+    // no longer draws: with no links, no call to action and accounts off there is nothing to put in
+    // the drawer, so the brand wordmark is the first thing the tab order reaches.
+    const header = html.indexOf('data-eldra-header-focus');
     const breadcrumb = html.indexOf('aria-label="Breadcrumb"');
     const gallery = html.indexOf('aria-label="Product images"');
     const carousel = html.indexOf('You may also like');
     const faqHeading = html.indexOf('Shipping &amp; care');
     const footer = html.indexOf('<footer');
-    const order = [openMenu, breadcrumb, gallery, carousel, faqHeading, footer];
+    const order = [header, breadcrumb, gallery, carousel, faqHeading, footer];
     expect(order.every((i) => i >= 0)).toBe(true);
     for (let i = 1; i < order.length; i += 1) {
       expect(order[i]).toBeGreaterThan(order[i - 1]!);
@@ -195,7 +206,7 @@ describe('product sample page', () => {
 
   describe('modals', () => {
     it('menu drawer: opens as a dialog and Esc returns focus to the menu button', async () => {
-      const wrapper = await mountProductPage();
+      const wrapper = await mountProductPageWithHeaderLink();
       const menuButton = wrapper.get('button[aria-label="Open menu"]');
       menuButton.element.focus();
       await menuButton.trigger('click');

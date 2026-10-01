@@ -136,8 +136,8 @@
       "name": "Show account",
       "type": "bool",
       "groupId": "actions",
-      "default": true,
-      "helpText": "Shown in the bar from 64rem, and always in the drawer."
+      "default": false,
+      "helpText": "Off by default — turn it on once the store has customer accounts. Shown in the bar from 64rem, and always in the drawer."
     },
     {
       "fieldId": "ctaLabel",

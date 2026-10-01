@@ -7,6 +7,7 @@ import {
   mountPage,
   mountPageWithSkipLink,
   pageBlockRoots,
+  withAuthoredHeaderLink,
   type PageFixture,
 } from '../support/mountPage';
 import { axe } from '../support/axe';
@@ -217,7 +218,12 @@ describe('home page (pages/home.page.json)', () => {
   });
 
   it('opens the mobile menu as a dialog from the menu button, and Esc returns focus to it', async () => {
-    const wrapper = await mountPage(homeFixture, { attachTo: document.body });
+    // `withAuthoredHeaderLink`: the seeded header ships no links, no call to action and accounts
+    // off, so it draws no Menu button and no drawer — see that helper's own comment. The mobile
+    // menu is what a header a merchant *has* filled in offers, which is the state under test here.
+    const wrapper = await mountPage(withAuthoredHeaderLink(homeFixture), {
+      attachTo: document.body,
+    });
     // The menu button lives in the header, which is a sibling of `<main>` now — so this reads off
     // the whole page rather than `main`.
     const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
