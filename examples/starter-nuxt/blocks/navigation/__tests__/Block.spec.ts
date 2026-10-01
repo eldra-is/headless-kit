@@ -548,6 +548,98 @@ describe('header block (navigation apiId)', () => {
     wrapper.unmount();
   });
 
+  describe('mega-menu panel geometry', () => {
+    // jsdom computes no layout, so the proof that the panel really lands on the brand's left edge
+    // and the actions' right edge is the browser case in `test/prerenderRefresh.browser.spec.ts`.
+    // What is checkable here is the arrangement that produces it: the panel is pinned to the
+    // header's own content box — the `<nav>` — rather than to the item that opened it, and its
+    // columns are the container's 12-column grid.
+    it('pins the panel to the header container, not to the trigger that opened it', async () => {
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      const nav = wrapper.get('nav');
+      // The positioning context: the panel's `left-0 right-0` only means "the header container"
+      // because this is the nearest positioned ancestor.
+      expect(nav.classes()).toContain('relative');
+      // …and no row of the bar may reclaim it, or the panel would hang under its own item again.
+      for (const row of wrapper.findAll('nav > ul > li')) {
+        expect(row.classes()).not.toContain('relative');
+      }
+
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      await knitwear.trigger('click');
+      const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
+      expect(panel.attributes('data-eldra-mega-panel')).toBe('');
+      for (const token of ['absolute', 'top-full', 'left-0', 'right-0', 'bg-background']) {
+        expect(panel.classes()).toContain(token);
+      }
+      // A width of its own is exactly what the old panel had, and what made it feel arbitrary.
+      expect(panel.classes()).not.toContain('w-screen');
+      expect(panel.classes().some((token) => token.startsWith('max-w-'))).toBe(false);
+      // The hairline above the panel is the bar's own full-bleed bottom border, so the panel adds
+      // no border of its own — only its ground and the soft shadow under it.
+      expect(panel.classes().some((token) => token.startsWith('border'))).toBe(false);
+      expect(panel.classes()).toContain('shadow-float');
+
+      // The container's grid: 12 columns, 24px gutters, 32px of vertical padding.
+      for (const token of ['grid', 'grid-cols-12', 'gap-6', 'py-8']) {
+        expect(panel.classes()).toContain(token);
+      }
+      wrapper.unmount();
+    });
+
+    it('lays three-column groups out left-aligned instead of stretching them to fill', async () => {
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      const ceramics = wrapper.findAll('button').find((b) => b.text().includes('Ceramics'))!;
+      await ceramics.trigger('click');
+      const panel = wrapper.get(`#${ceramics.attributes('aria-controls')}`);
+      // Ceramics has a single group; Knitwear has three. Both get the same column width — a lone
+      // group sits at a quarter of the container rather than stretching across all twelve.
+      const columns = panel
+        .findAll('ul[aria-labelledby]')
+        .map((list) => list.element.parentElement!);
+      expect(columns).toHaveLength(1);
+      for (const column of columns) expect([...column.classList]).toContain('col-span-3');
+      wrapper.unmount();
+    });
+
+    it("offers the parent's own destination as a View all row, and a heading none", async () => {
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      await knitwear.trigger('click');
+      const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
+      const viewAll = panel.get('[data-eldra-mega-view-all]');
+      // The trigger gave the destination up when it became a disclosure; the panel offers it.
+      expect(viewAll.attributes('href')).toBe('/collections/knitwear');
+      expect(viewAll.text()).toBe('View all');
+      // Self-descriptive out of context (2.4.4), opening with the visible text (2.5.3).
+      expect(viewAll.attributes('aria-label')).toBe('View all Knitwear');
+      expect([...viewAll.element.parentElement!.classList]).toContain('justify-end');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    });
+
+    it('renders no View all row for a kind: "none" heading', async () => {
+      const wrapper = mountBlock(
+        {
+          ...resolved.data,
+          links: [
+            {
+              kind: 'none',
+              label: 'Workshop',
+              children: [{ kind: 'url', url: '/journal', label: 'Journal' }],
+            },
+          ],
+        },
+        { attachTo: document.body }
+      );
+      const trigger = wrapper.findAll('button').find((b) => b.text().includes('Workshop'))!;
+      await trigger.trigger('click');
+      const panel = wrapper.get(`#${trigger.attributes('aria-controls')}`);
+      expect(panel.find('[data-eldra-mega-view-all]').exists()).toBe(false);
+      wrapper.unmount();
+    });
+  });
+
   it('the search control has aria-haspopup="dialog" and opens SearchModal', async () => {
     const wrapper = mountBlock(resolved.data, { attachTo: document.body });
     const searchButton = wrapper.get('button[aria-label="Search"]');

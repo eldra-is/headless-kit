@@ -150,12 +150,18 @@ const listResponse = (data: unknown[]): Record<string, unknown> => ({
  * the resolver can give: a collection this gateway serves, a product it serves, an ordinary URL
  * that needs no catalog at all, and a target it has never heard of, which must render as a label
  * and no anchor.
+ *
+ * A fifth row carries `children`, which is what makes it a mega-menu trigger rather than a link —
+ * the only shape whose geometry can be measured in a real browser. It is last, so the four answers
+ * above keep the document order the href assertions read.
  */
 export const LINKED_HEADER_LABELS = {
   collection: 'The winter edit',
   product: 'Ash glaze mug',
   url: 'Journal',
   missing: 'Discontinued',
+  mega: 'Everything',
+  megaChild: 'All of it',
 } as const;
 
 function linkedHeaderData(data: Record<string, unknown>): Record<string, unknown> {
@@ -177,6 +183,19 @@ function linkedHeaderData(data: Record<string, unknown>): Record<string, unknown
         kind: 'collection',
         target: { _type: 'collection', id: 'col-deleted' },
         label: LINKED_HEADER_LABELS.missing,
+      },
+      {
+        kind: 'collection',
+        target: { _type: 'collection', id: COLLECTIONS[0]!.id },
+        label: LINKED_HEADER_LABELS.mega,
+        children: [
+          {
+            kind: 'collection',
+            target: { _type: 'collection', id: COLLECTIONS[0]!.id },
+            group: 'Shop',
+            label: LINKED_HEADER_LABELS.megaChild,
+          },
+        ],
       },
     ],
   };

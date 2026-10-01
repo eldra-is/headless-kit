@@ -20,6 +20,14 @@
  * names a popover/select primitive. A link's own `children` are its mega-menu, and consecutive
  * children sharing a `group` become one column, in order.
  *
+ * An open panel spans the header's own content container rather than hanging under the trigger at
+ * some width of its own: it is positioned against the `<nav>`, which *is* that container (the box
+ * inside `Container`'s max-width and gutters), so `left-0 right-0` lands its edges exactly on the
+ * brand's left edge and the actions' right edge whichever item opened it — the same box on every
+ * variant, since each one lays its bar out inside the same `Container`. Its columns are a plain
+ * 12-column grid, three columns per group, so four groups fill the row and one to three sit
+ * left-aligned at the same width instead of stretching to fill.
+ *
  * Every destination is a `link` value — a collection, product, page or entry the platform knows,
  * or an external URL — resolved to an href by `useEldraLink()`. A row whose target has been
  * deleted, or that the site has no route for, resolves to no href and renders its label as plain
@@ -85,7 +93,9 @@ interface NavRow {
 /** Resolved links. A row with no label has nothing to show and is dropped; a row whose target no
  *  longer exists keeps its label and loses its `href`, and the template renders it as plain text.
  *  A link with children never navigates itself (spec: the trigger is a disclosure, not a link), so
- *  its own href is never rendered. */
+ *  its own href never sits on the trigger — a parent that *has* a destination (anything but a
+ *  `kind: "none"` heading, which resolves to no href at all) offers it inside the panel instead, as
+ *  the "View all" row. */
 const links = computed(() =>
   rawLinks.value.flatMap((item) => {
     const resolved = resolveLink(item);
@@ -523,9 +533,12 @@ const actionsPositionClass = computed(() =>
     @focusout="onBarFocusOut"
   >
     <Container width="wide">
+      <!-- `relative` is what an open mega-menu panel measures itself against: this element is the
+           header's content box (inside `Container`'s max-width and gutters), so a panel pinned to
+           `left-0 right-0` here spans exactly the bar's own container. -->
       <nav
         :aria-label="t('header.primary')"
-        class="@tablet:h-16 @tablet:gap-4 @content:h-[4.5rem] grid h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1"
+        class="@tablet:h-16 @tablet:gap-4 @content:h-[4.5rem] relative grid h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1"
       >
         <Button
           :classes="{ container: menuButtonHiddenClass }"
@@ -573,7 +586,7 @@ const actionsPositionClass = computed(() =>
         </Link>
 
         <ul v-if="linksVisible" :class="['list-none items-center gap-1', linksPositionClass]">
-          <li v-for="(link, index) in links" :key="index" class="relative">
+          <li v-for="(link, index) in links" :key="index">
             <button
               v-if="hasMegaMenu(index)"
               :id="menuIds[index]!.trigger"
@@ -615,44 +628,65 @@ const actionsPositionClass = computed(() =>
               {{ link.label }}
             </span>
 
+            <!-- The panel spans the bar's own container (`left-0 right-0` against the `relative`
+                 `<nav>` above) and sits directly under it. The hairline along its top edge is the
+                 bar's own full-bleed `border-b` — the bar is never transparent while a panel is
+                 open — so the panel draws no border of its own, only its ground and a soft shadow
+                 below it. Its columns are a 12-column grid at three columns each: four groups fill
+                 the row, fewer stay left-aligned at that same width rather than stretching, and a
+                 fifth group wraps to a second row. -->
             <div
               v-if="hasMegaMenu(index)"
               v-show="openMenuIndex === index"
               :id="menuIds[index]!.panel"
-              class="border-border bg-background absolute top-full left-0 z-30 grid w-screen max-w-4xl grid-cols-[minmax(0,1fr)_auto] gap-12 border-t border-b p-8 shadow-md"
+              data-eldra-mega-panel
+              class="bg-background shadow-float absolute top-full right-0 left-0 z-30 grid grid-cols-12 gap-6 py-8"
               @keydown="onPanelKeydown(index, $event)"
               @mouseenter="clearHoverTimer"
               @mouseleave="onTriggerMouseLeave"
             >
-              <div class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-8">
-                <div v-for="(group, groupIndex) in link.groups" :key="groupIndex">
-                  <p
-                    :id="`${menuIds[index]!.panel}-g${groupIndex}`"
-                    class="text-muted mb-3 text-xs font-semibold tracking-[0.12em] uppercase"
-                  >
-                    {{ group.title }}
-                  </p>
-                  <ul
-                    :aria-labelledby="`${menuIds[index]!.panel}-g${groupIndex}`"
-                    class="flex list-none flex-col"
-                  >
-                    <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
-                      <Link
-                        v-if="row.href"
-                        :href="row.href"
-                        :as="row.as"
-                        variant="standalone"
-                        :underline="false"
-                        :classes="{ root: 'text-text flex min-h-9 items-center text-sm' }"
-                      >
-                        {{ row.label }}
-                      </Link>
-                      <span v-else class="text-text flex min-h-9 items-center text-sm">
-                        {{ row.label }}
-                      </span>
-                    </li>
-                  </ul>
-                </div>
+              <div v-for="(group, groupIndex) in link.groups" :key="groupIndex" class="col-span-3">
+                <p
+                  :id="`${menuIds[index]!.panel}-g${groupIndex}`"
+                  class="text-muted mb-3 text-xs font-semibold tracking-[0.12em] uppercase"
+                >
+                  {{ group.title }}
+                </p>
+                <ul
+                  :aria-labelledby="`${menuIds[index]!.panel}-g${groupIndex}`"
+                  class="flex list-none flex-col"
+                >
+                  <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
+                    <Link
+                      v-if="row.href"
+                      :href="row.href"
+                      :as="row.as"
+                      variant="standalone"
+                      :underline="false"
+                      :classes="{ root: 'text-text flex min-h-9 items-center text-sm' }"
+                    >
+                      {{ row.label }}
+                    </Link>
+                    <span v-else class="text-text flex min-h-9 items-center text-sm">
+                      {{ row.label }}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+              <!-- The parent's own destination, which the trigger gave up when it became a
+                   disclosure. A `kind: "none"` heading resolves to no href and therefore offers
+                   nothing here. -->
+              <div v-if="link.href" class="col-span-12 flex justify-end">
+                <Link
+                  :href="link.href"
+                  :as="link.as"
+                  variant="standalone"
+                  data-eldra-mega-view-all
+                  :aria-label="t('header.viewAllOf', { label: link.label })"
+                  :classes="{ root: 'text-sm' }"
+                >
+                  {{ t('header.viewAll') }}
+                </Link>
               </div>
             </div>
           </li>
@@ -731,7 +765,7 @@ const actionsPositionClass = computed(() =>
           </template>
         </div>
 
-        <div :class="['flex items-center gap-1', actionsPositionClass]">
+        <div data-eldra-header-actions :class="['flex items-center gap-1', actionsPositionClass]">
           <Button
             v-if="showAccount && variant !== 'minimal'"
             variant="ghost"

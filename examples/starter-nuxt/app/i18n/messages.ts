@@ -263,6 +263,14 @@ export interface Messages {
     cartOne: string;
     /** The cart button's accessible name with more than one item ("Cart, {count} items"). */
     cartMany: string;
+    /** The visible text of the mega-menu panel's row linking to the parent item's own
+     *  destination — the one the trigger gave up when it became a disclosure. Shown only for a
+     *  parent that has a destination at all (a `kind: "none"` heading has none). */
+    viewAll: string;
+    /** That row's accessible name, which names the parent ("View all Knitwear") so the link reads
+     *  on its own out of context (2.4.4). It opens with `viewAll` verbatim, which is what keeps the
+     *  visible label part of the accessible name (2.5.3). */
+    viewAllOf: string;
   };
   /**
    * Editor-only hint strings: shown only when `useEditing()` is

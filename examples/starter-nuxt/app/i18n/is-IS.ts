@@ -132,6 +132,8 @@ export const isIS = {
     cartEmpty: 'Karfa, tóm',
     cartOne: 'Karfa, 1 vara',
     cartMany: 'Karfa, {count} vörur',
+    viewAll: 'Sjá allt',
+    viewAllOf: 'Sjá allt: {label}',
   },
   editor: {
     addLink: 'Bæta við tengli',

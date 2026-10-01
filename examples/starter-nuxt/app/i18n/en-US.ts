@@ -131,6 +131,8 @@ export const enUS = {
     cartEmpty: 'Cart, empty',
     cartOne: 'Cart, 1 item',
     cartMany: 'Cart, {count} items',
+    viewAll: 'View all',
+    viewAllOf: 'View all {label}',
   },
   editor: {
     addLink: 'Add a link',

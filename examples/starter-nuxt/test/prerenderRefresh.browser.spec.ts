@@ -456,6 +456,55 @@ describe('prerendered commerce data on the generated static site', () => {
     }
   });
 
+  it("opens a mega-menu that spans the header's container, whichever item opened it", async () => {
+    // Geometry only a real browser can answer. The panel used to be pinned to the item that
+    // opened it at a width of its own, so where it started and stopped depended on which word in
+    // the bar the visitor happened to hover. It now spans the bar's own container: its left edge
+    // on the brand's, its right edge on the actions', and its top on the bar's bottom edge.
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    try {
+      await page.goto(`${statics.origin}${HOME_PAGE_PATH}`, { waitUntil: 'domcontentloaded' });
+      const trigger = page
+        .locator('header nav')
+        .getByRole('button', { name: LINKED_HEADER_LABELS.mega });
+      await trigger.click();
+      const panelId = await trigger.getAttribute('aria-controls');
+      expect(panelId).not.toBeNull();
+      // Vitest's `expect` here, not Playwright's — the wait is the locator's own.
+      await page.locator(`#${panelId ?? ''}`).waitFor({ state: 'visible' });
+
+      const edges = await page.evaluate((id) => {
+        const box = (
+          selector: string
+        ): { left: number; right: number; bottom: number; top: number } => {
+          const element = document.querySelector(selector);
+          if (element === null) throw new Error(`no ${selector}`);
+          const rect = element.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top };
+        };
+        const rect = document.getElementById(id)!.getBoundingClientRect();
+        return {
+          panel: { left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top },
+          brand: box('header [data-eldra-header-focus]'),
+          actions: box('header [data-eldra-header-actions]'),
+          bar: box('header'),
+          trigger: box(`[aria-controls="${id}"]`),
+        };
+      }, panelId ?? '');
+
+      expect(Math.round(edges.panel.left)).toBe(Math.round(edges.brand.left));
+      expect(Math.round(edges.panel.right)).toBe(Math.round(edges.actions.right));
+      // Directly below the bar — within the bar's own 1px bottom border.
+      expect(Math.abs(edges.panel.top - edges.bar.bottom)).toBeLessThanOrEqual(2);
+      // And the premise: the trigger is nowhere near either edge, so "spans the container" is a
+      // real claim rather than a coincidence of where this item sits.
+      expect(edges.trigger.left).toBeGreaterThan(edges.panel.left + 1);
+      expect(edges.trigger.right).toBeLessThan(edges.panel.right - 1);
+    } finally {
+      await page.close();
+    }
+  });
+
   it('prerenders every storefront read the product page makes, under the key the browser computes', () => {
     // The whole set, not a sample: a key the browser computes differently is a key missing from
     // this list, and `byHandles` is the one that used to be — `[[]]` here, `[["ash-glaze-mug"]]`
