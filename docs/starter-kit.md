@@ -807,6 +807,36 @@ never renders a seeded template — it is there because that instance writes the
 `.eldra/manifest.json` the Nuxt build writes, and without it the checked-in file flips between
 "with seeds" and "without" depending on which build ran last.
 
+## The cart route
+
+`/cart` is `app/pages/cart.vue` — theme **code**, not a page an author composes. A shopper's cart is
+their own session: there is nothing to lay out, and a site must not be able to lose its cart by
+deleting a page. Being a concrete route it also outranks `app/pages/[...slug].vue`, so the gateway is
+never asked about `/cart`.
+
+Two things make it real on a deployed site, and both are easy to drop:
+
+- `nuxt.config.ts` lists `/cart` in `nitro.prerender.routes`. Nothing gateway-driven ever will — the
+  module's `prerender:routes` hook lists CMS pages and route templates — so without that line the
+  artifact has no `cart/index.html` and a static host answers 404 however the app would have
+  rendered it. `test/starter.spec.ts` asserts the file and the build manifest's prerendered list on
+  the credential-free build; `test/prerenderRefresh.browser.spec.ts` clicks the header's bag on a
+  generated site and lands on the cart.
+- The page renders `blocks/cart/Block.vue` in its `page` variant, with an entry the theme owns
+  rather than a CMS entry. That is one implementation of the line items, the totals and the empty
+  state, shared with the block an author can place on a page.
+
+This is also the destination `blocks/navigation/Block.vue` sends the header's bag to whenever no cart
+drawer is mounted (`storefront.cart.drawerAvailable`, which `blocks/cart/Block.vue` raises for as
+long as a `drawer`-variant block is on the page), and the one the drawer's own "View cart" button
+points at.
+
+Two limits worth knowing. The copy is the theme's `app/i18n` strings, not something an author can
+edit — editable copy for this surface belongs with a storefront settings entry, which does not exist
+yet. And the route carries no header or footer: those are the site's own reusable components, and the
+runtime resolves them only as part of a CMS page or route template, so a code route has no way to ask
+for them. `/404` has the same shape for the same reason.
+
 ## 4. Storybook and generated previews
 
 Storybook 10 (`@storybook/vue3-vite`) lives in `examples/starter-nuxt/.storybook/`, with

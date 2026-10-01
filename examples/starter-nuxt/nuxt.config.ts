@@ -22,7 +22,11 @@ export default defineNuxtConfig({
     // static preset; it needs no config key here (nitro's PrerenderOptions
     // type has no `fallback` property — a prior `fallback: '200.html'` here
     // was inert and only surfaced once `nuxi typecheck` started running).
-    prerender: { crawlLinks: false, failOnError: false, routes: ['/404'] },
+    // `/cart` is `app/pages/cart.vue`, a code route rather than a CMS page, so nothing in the
+    // gateway-driven `prerender:routes` hook (`@eldrajs/theme-nuxt`) ever lists it. Naming it here
+    // is what writes `cart/index.html` into the artifact — a static host answers 404 for a path it
+    // has no file for, however the app would render it.
+    prerender: { crawlLinks: false, failOnError: false, routes: ['/404', '/cart'] },
     hooks: {
       // Nitro always emits `404.html` itself as a blank SPA-fallback shell
       // for static hosts (identical to `200.html`, no server-fetched data —

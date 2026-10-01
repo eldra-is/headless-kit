@@ -353,6 +353,48 @@ describe('header block (navigation apiId)', () => {
       }
     });
 
+    /**
+     * The bar travels against the viewport, not against the box it is rendered in. A `sticky` bar
+     * is clamped to its containing block, and a block's containing block is the single-block
+     * wrapper the block zone (or a layout node) renders around it — a box exactly the bar's own
+     * height, which leaves a sticky bar nowhere to go: it sits at the top of the page, scrolls out
+     * of view with it and never comes back, however this state machine sets its classes. So the bar
+     * is `fixed`, and the spacer below it holds the flow the bar left.
+     */
+    it('positions the sticky bar against the viewport and reserves its height in the flow', async () => {
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      const header = wrapper.get('header');
+      expect(header.classes()).toContain('fixed');
+      expect(header.classes()).toContain('inset-x-0');
+      expect(header.classes()).toContain('top-0');
+      expect(header.classes()).not.toContain('sticky');
+
+      const spacer = wrapper.get('[data-eldra-header-spacer]');
+      expect(spacer.attributes('aria-hidden')).toBe('true');
+      expect(spacer.text()).toBe('');
+      // The bar's own height, and the 1px its bottom hairline adds, reserved to the pixel: the
+      // spacer mirrors the bar's own two boxes, the hairline and the `@container` on the outer one
+      // (as on the `<header>`) and the height on the inner (as on the `<nav>`).
+      expect(spacer.classes()).toContain('@container');
+      expect(spacer.classes()).toContain('border-b');
+      expect(spacer.classes()).toContain('border-transparent');
+      const reserved = spacer.get('div');
+      const bar = wrapper.get('header nav');
+      for (const height of ['h-16', '@content:h-[4.5rem]']) {
+        expect(bar.classes()).toContain(height);
+        expect(reserved.classes()).toContain(height);
+      }
+
+      wrapper.unmount();
+    });
+
+    it('reserves nothing for a non-sticky bar: it occupies its own space in the flow', () => {
+      const wrapper = mountBlock({ ...resolved.data, sticky: false }, { attachTo: document.body });
+      expect(wrapper.find('[data-eldra-header-spacer]').exists()).toBe(false);
+      expect(wrapper.get('header').classes()).not.toContain('fixed');
+      wrapper.unmount();
+    });
+
     it('a sticky bar hides on scroll-down, returns on scroll-up or at the top, and never hides while in use', async () => {
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       const header = wrapper.get('header');
@@ -405,6 +447,7 @@ describe('header block (navigation apiId)', () => {
       window.dispatchEvent(new Event('scroll'));
       await nextTick();
       expect(header.classes()).not.toContain('sticky');
+      expect(header.classes()).not.toContain('fixed');
       expect(header.classes()).not.toContain('-translate-y-full');
       Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
       wrapper.unmount();
@@ -509,6 +552,40 @@ describe('header block (navigation apiId)', () => {
       const wrapper = mountWithCartCount(mock, 120);
       expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 120 items');
       expect(wrapper.findComponent(Badge).text()).toBe('99+');
+    });
+
+    // The bag's two forms, and the destination of the link form. With no drawer mounted the bag is
+    // an anchor to `/cart`, which is `app/pages/cart.vue` — a theme route, prerendered by
+    // `nuxt.config.ts`. It used to be an anchor to a path nothing in the theme answered, so the
+    // site's catch-all asked the gateway for a CMS page called "cart", found none, and every
+    // shopper who clicked the bag landed on the not-found shell.
+    it('links to the cart route when no drawer is mounted', () => {
+      const wrapper = mountBlock(resolved.data); // the demo storefront claims no drawer
+      const bag = findCartButton(wrapper);
+      expect(bag.element.tagName).toBe('A');
+      expect(bag.attributes('href')).toBe('/cart');
+    });
+
+    it('is a button that opens the drawer when one is mounted, and navigates nowhere', async () => {
+      const base = mountOptions({ entry: { id: 'e1', data: resolved.data } });
+      const storefront = createDemoStorefront();
+      // Exactly what `blocks/cart/Block.vue` does from `onMounted` in its `drawer` variant.
+      storefront.cart.drawerAvailable.value = true;
+      const wrapper = mount(Block, {
+        ...base,
+        global: {
+          ...base.global,
+          provide: { ...base.global.provide, [STOREFRONT_KEY]: storefront },
+        },
+      });
+
+      const bag = findCartButton(wrapper);
+      expect(bag.element.tagName).toBe('BUTTON');
+      expect(bag.attributes('href')).toBeUndefined();
+
+      expect(storefront.cart.drawerOpen.value).toBe(false);
+      await bag.trigger('click');
+      expect(storefront.cart.drawerOpen.value).toBe(true);
     });
   });
 
@@ -930,6 +1007,26 @@ describe('header block (navigation apiId)', () => {
 
         wrapper.unmount();
         expect(document.documentElement.style.getPropertyValue('--eldra-header-height')).toBe('');
+      } finally {
+        stub.restore();
+      }
+    });
+
+    it('hands the same measurement to the spacer, so the flow it reserves is the bar’s own height', async () => {
+      const stub = stubResizeObserver();
+      try {
+        const wrapper = mountBlock({ ...resolved.data, sticky: true }, { attachTo: document.body });
+        const header = wrapper.get('header').element as HTMLElement;
+        stubHeaderHeight(header, 64);
+        await nextTick();
+        expect(wrapper.get('[data-eldra-header-spacer]').attributes('style')).toBe('height: 64px;');
+
+        stubHeaderHeight(header, 96);
+        stub.trigger();
+        await nextTick();
+        expect(wrapper.get('[data-eldra-header-spacer]').attributes('style')).toBe('height: 96px;');
+
+        wrapper.unmount();
       } finally {
         stub.restore();
       }

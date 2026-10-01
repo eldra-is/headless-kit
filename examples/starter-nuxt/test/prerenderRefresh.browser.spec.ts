@@ -627,6 +627,109 @@ describe('prerendered commerce data on the generated static site', () => {
     }
   });
 
+  it('hides the sticky bar on the way down, brings it back on the way up, and pins it while in use', async () => {
+    // Where the bar actually is, which only a real browser can answer. The reveal is a class on the
+    // bar, and a mounted test can read that class off a bar that is nowhere near the screen: on a
+    // generated page the bar sits inside the single-block wrapper the block zone renders around it,
+    // a box exactly the bar's own height, and a bar clamped to that box never travels at all — it
+    // stays at the top of the *page*, scrolls out of view with it, and "revealed" means a class
+    // change on something 900px above the viewport. So every assertion here is a rectangle.
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    try {
+      await page.goto(`${statics.origin}${HOME_PAGE_PATH}`, { waitUntil: 'domcontentloaded' });
+      // The bar publishes its height from its own ResizeObserver, which runs only once hydrated.
+      await page.waitForFunction(
+        () => document.documentElement.style.getPropertyValue('--eldra-header-height') !== ''
+      );
+
+      const bar = async (): Promise<{
+        top: number;
+        bottom: number;
+        height: number;
+        position: string;
+        scrollY: number;
+        maxScroll: number;
+      }> =>
+        page.evaluate(() => {
+          const element = document.querySelector('header');
+          if (element === null) throw new Error('no header');
+          const rect = element.getBoundingClientRect();
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+            height: rect.height,
+            position: getComputedStyle(element).position,
+            scrollY: window.scrollY,
+            maxScroll: document.documentElement.scrollHeight - window.innerHeight,
+          };
+        });
+      /** The hide and the reveal are a transform transition; give it room to land. */
+      const settle = async (): Promise<void> => {
+        await page.waitForTimeout(600);
+      };
+
+      const atTop = await bar();
+      expect(atTop.position).toBe('fixed');
+      expect(Math.round(atTop.top)).toBe(0);
+      // The premise of everything below: this page is tall enough to scroll 1200px.
+      expect(atTop.maxScroll).toBeGreaterThan(1200);
+      // And the bar reserves in the flow exactly the height it no longer occupies there, so the
+      // page below it starts where it always did: the block still takes up the bar's own height.
+      const flow = await page.evaluate(() => {
+        const element = document.querySelector('header');
+        if (element === null) throw new Error('no header');
+        const spacer = document.querySelector('[data-eldra-header-spacer]');
+        const wrapper = element.closest('[data-eldra-block]');
+        return {
+          spacer: spacer === null ? null : spacer.getBoundingClientRect().height,
+          // The height the spacer's *classes* alone reserve — all the first paint of a prerendered
+          // page has, before the bar has been measured at all — against the bar's own box for those
+          // same classes. A difference here is a page that jumps on hydration.
+          reserved:
+            spacer === null ? null : spacer.firstElementChild!.getBoundingClientRect().height,
+          nav: element.querySelector('nav')!.getBoundingClientRect().height,
+          wrapper: wrapper === null ? null : wrapper.getBoundingClientRect().height,
+        };
+      });
+      expect(flow.spacer).toBe(atTop.height);
+      expect(flow.reserved).toBe(flow.nav);
+      expect(flow.wrapper).toBe(atTop.height);
+
+      await page.evaluate(() => window.scrollTo(0, 1200));
+      await settle();
+      const down = await bar();
+      expect(down.scrollY).toBe(1200);
+      // Off the screen entirely — translated out, not merely left behind.
+      expect(down.bottom).toBeLessThanOrEqual(0);
+
+      await page.evaluate(() => window.scrollBy(0, -300));
+      await settle();
+      const up = await bar();
+      expect(up.scrollY).toBe(900);
+      expect(Math.round(up.top)).toBe(0);
+      expect(up.bottom).toBeGreaterThan(0);
+      // Vitest's `expect` here, not Playwright's: the visibility is read, not awaited.
+      expect(await page.locator('header').isVisible()).toBe(true);
+
+      // In use: an open mega-menu pins the bar through a scroll-down that would otherwise hide it.
+      const trigger = page
+        .locator('header nav')
+        .getByRole('button', { name: LINKED_HEADER_LABELS.mega });
+      await trigger.click();
+      const panelId = await trigger.getAttribute('aria-controls');
+      await page.locator(`#${panelId ?? ''}`).waitFor({ state: 'visible' });
+      await page.evaluate(() => window.scrollBy(0, 400));
+      await settle();
+      const pinned = await bar();
+      expect(pinned.scrollY).toBe(1300);
+      expect(Math.round(pinned.top)).toBe(0);
+      expect(await trigger.getAttribute('aria-expanded')).toBe('true');
+      expect(await page.locator(`#${panelId ?? ''}`).isVisible()).toBe(true);
+    } finally {
+      await page.close();
+    }
+  });
+
   it('prerenders every storefront read the product page makes, under the key the browser computes', () => {
     // The whole set, not a sample: a key the browser computes differently is a key missing from
     // this list, and `byHandles` is the one that used to be — `[[]]` here, `[["ash-glaze-mug"]]`
@@ -758,6 +861,39 @@ describe('prerendered commerce data on the generated static site', () => {
     const shown = firstSampleShowing(visited.samples, enUS.notFound.title);
     expect(shown).toBeGreaterThanOrEqual(0);
     expect(shown).toBeLessThan(4);
+    expect(visited.warnings).toEqual([]);
+  });
+
+  /**
+   * The header's bag, on a generated site, in a real browser — the defect an operator reported as
+   * "the cart does not seem to work, it just redirects to /cart".
+   *
+   * The bag is an anchor to `/cart` whenever no cart drawer is mounted, and `/cart` was a path
+   * nothing in the theme answered: the site's catch-all asked the gateway for a CMS page with that
+   * slug, found none, and the shopper landed on the not-found shell — on the deployed site, on the
+   * host's own 404. Only this spec can see it end to end: the bag is in a prerendered header, the
+   * click is a real router navigation, and the destination has to exist as a file in the artifact
+   * before any of it means anything.
+   */
+  it('lands on a rendered cart when the header bag is clicked', async () => {
+    // The file first: `/cart` is prerendered by name (`nuxt.config.ts`), so a static host has
+    // something to serve for it. Without this the navigation below would still "work" in the
+    // router while the deployed site answered 404.
+    const prerendered = staticHtml('/cart');
+    expect(prerendered).toContain(enUS.cart.emptyFallbackTitle);
+    expect(prerendered).not.toContain('data-eldra-not-found');
+
+    const visited = await navigateFrom(HOME_PAGE_PATH, async (page) => {
+      await page.locator('header a[href="/cart"]').first().click();
+    });
+
+    expect(visited.url).toBe(`${statics.origin}/cart`);
+    const settled = visited.samples[visited.samples.length - 1];
+    expect(settled?.h1).toContain(enUS.cart.title);
+    expect(settled?.text).toContain(enUS.cart.emptyFallbackTitle);
+    expect(settled?.text).not.toContain(enUS.notFound.title);
+    // A code route: the gateway is never asked to resolve it, however long the page sits there.
+    expect(visited.requests.filter((request) => request.startsWith('/cms/'))).toEqual([]);
     expect(visited.warnings).toEqual([]);
   });
 
