@@ -430,9 +430,10 @@ watchEffect((onCleanup) => {
 function onBarFocusIn(event: FocusEvent): void {
   const target = event.target;
   // `:focus-visible` is the browser's own keyboard-vs-pointer call, re-read on every focusin —
-  // including a dialog's programmatic `.focus()` back onto its opener, which the browser still
-  // attributes to the click that opened it and so never matches. An engine that can't evaluate the
-  // selector can't tell the two apart either; assume keyboard, the conservative 2.4.7 default.
+  // including a dialog's programmatic `.focus()` back onto its opener, which the browser attributes
+  // to whatever closed the dialog: a mouse on the close button or backdrop does not match, Escape
+  // does, and that pin lasts only until focus leaves the bar. An engine that can't evaluate the
+  // selector can't tell the two apart; it is treated as keyboard, the conservative 2.4.7 default.
   try {
     focusWithinBar.value = target instanceof Element ? target.matches(':focus-visible') : true;
   } catch {
