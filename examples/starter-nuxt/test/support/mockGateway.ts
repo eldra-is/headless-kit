@@ -164,9 +164,19 @@ export const LINKED_HEADER_LABELS = {
   megaChild: 'All of it',
 } as const;
 
-function linkedHeaderData(data: Record<string, unknown>): Record<string, unknown> {
+/**
+ * `overrides` is how a single page gets a header state the others do not have. The collection
+ * template takes `transparentOverHero`, because what that state does to the bar — and to an open
+ * mega-menu's own ground — is a computed colour, answerable only in a real browser and only on a
+ * page whose header actually carries the field.
+ */
+function linkedHeaderData(
+  data: Record<string, unknown>,
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
   return {
     ...data,
+    ...overrides,
     links: [
       {
         kind: 'collection',
@@ -241,7 +251,13 @@ function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknow
             ]
           : [];
       const blocks = [
-        { id: 'role-header', apiId: roles.header.apiId, data: linkedHeaderData(roles.header.data) },
+        {
+          id: 'role-header',
+          apiId: roles.header.apiId,
+          data: linkedHeaderData(roles.header.data, {
+            transparentOverHero: seed.schemaApiId === 'catalog:collection',
+          }),
+        },
         ...seed.blocks,
         ...extra,
         { id: 'role-footer', apiId: roles.footer.apiId, data: roles.footer.data },

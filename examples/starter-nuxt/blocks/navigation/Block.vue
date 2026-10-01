@@ -459,6 +459,53 @@ const isTransparent = computed(
     !drawerOpen.value
 );
 
+// --- the surface the bar and an open panel share ------------------------------------------------
+
+/**
+ * One source of truth for the colour the header paints, published on the bar itself as
+ * `--eldra-header-surface` and read by an open mega-menu panel as its own ground.
+ *
+ * The panel used to name a ground token of its own (`bg-background`, the same one the bar names).
+ * The two read identically today and would drift the moment either side's ground changed — and a
+ * sheet hanging off the bar in a *slightly* different colour is the one thing an open panel must
+ * never look like. The bar now publishes what it paints and the panel takes it, so there is nothing
+ * left to keep in step by hand.
+ *
+ * `bg-background` is the only ground the bar ever has. The transparent-over-hero state is not an
+ * exception: `isTransparent` is false whenever a panel is open (a panel must never float on a
+ * transparent bar — it is also what gives the panel the full-bleed hairline along its top edge), so
+ * by the time anything reads this variable the bar has already turned solid. The value is written as
+ * the Tailwind namespace variable `bg-background` itself resolves to, so a theme whose `background`
+ * token Studio is editing live moves the bar and the panel together, in the same frame.
+ */
+const HEADER_SURFACE_VAR = '--eldra-header-surface';
+const barSurfaceStyle = { [HEADER_SURFACE_VAR]: 'var(--color-background)' };
+const panelSurfaceStyle = { background: `var(${HEADER_SURFACE_VAR})` };
+
+/**
+ * A panel eases in and out rather than appearing and vanishing: opacity 0→1 with a 4px rise over
+ * 150ms on the way in, and the same 4px back out over a slightly quicker 120ms on the way out, so
+ * closing never feels slower than opening. A Vue `<Transition>` rather than a CSS class on the panel
+ * itself, because only a `<Transition>` holds the element long enough for the leave half to play at
+ * all — `v-show` alone would cut it to `display: none` in the same frame the panel closed.
+ *
+ * The panel stays mounted either way (`v-show`, never `v-if`): `aria-expanded` and the panel's
+ * presence must never disagree, and nothing here delays the element past the attribute flip.
+ * `pointer-events-none` while it leaves keeps a pointer crossing the fading panel from clearing the
+ * close timer and pulling it back open.
+ *
+ * Under `prefers-reduced-motion: reduce` the rise is dropped — `motion-safe:` carries it — and only
+ * the fade is left.
+ */
+const panelTransition = {
+  enterFromClass: 'opacity-0 motion-safe:-translate-y-1',
+  enterActiveClass: 'transition-[opacity,transform] duration-[150ms] ease-out',
+  enterToClass: 'opacity-100',
+  leaveFromClass: 'opacity-100',
+  leaveActiveClass: 'pointer-events-none transition-[opacity,transform] duration-[120ms] ease-in',
+  leaveToClass: 'opacity-0 motion-safe:-translate-y-1',
+};
+
 /**
  * `@eldrajs/ui`'s `classes` prop takes a plain string per part (`Partial<Record<Part, string>>`),
  * never an array — `Section`'s own `partClass`/`cx` treats a non-string, non-falsy value as the
@@ -532,6 +579,7 @@ const actionsPositionClass = computed(() =>
     ref="barRoot"
     :data-eldra-transparent="isTransparent ? 'true' : undefined"
     :class="barRootClasses"
+    :style="barSurfaceStyle"
     @focusin="onBarFocusIn"
     @focusout="onBarFocusOut"
   >
@@ -642,73 +690,84 @@ const actionsPositionClass = computed(() =>
                  rather than stretching, and a fifth group wraps to a second row — all of it inset
                  from the panel's edges (32px, 24px below the `wide` container edge), so no text
                  ever sits flush against the panel's own boundary. `rounded-b-lg` is this theme's
-                 12px step: `radius-lg` is 0.75rem here, `radius-xl` 1rem. -->
-            <div
-              v-if="hasMegaMenu(index)"
-              v-show="openMenuIndex === index"
-              :id="menuIds[index]!.panel"
-              data-eldra-mega-panel
-              class="bg-background border-border shadow-float @wide:p-8 absolute top-full right-0 left-0 z-30 grid grid-cols-12 gap-6 rounded-b-lg border border-t-0 p-6"
-              @keydown="onPanelKeydown(index, $event)"
-              @mouseenter="clearHoverTimer"
-              @mouseleave="onTriggerMouseLeave"
-            >
-              <div v-for="(group, groupIndex) in link.groups" :key="groupIndex" class="col-span-3">
-                <p
-                  :id="`${menuIds[index]!.panel}-g${groupIndex}`"
-                  class="text-muted mb-3 text-[11px] font-semibold tracking-wide uppercase"
-                >
-                  {{ group.title }}
-                </p>
-                <ul
-                  :aria-labelledby="`${menuIds[index]!.panel}-g${groupIndex}`"
-                  class="flex list-none flex-col"
-                >
-                  <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
-                    <Link
-                      v-if="row.href"
-                      :href="row.href"
-                      :as="row.as"
-                      variant="standalone"
-                      :underline="false"
-                      :classes="{
-                        root: 'text-text flex min-h-9 items-center text-[15px] font-medium hover:underline-offset-4',
-                      }"
-                    >
-                      {{ row.label }}
-                    </Link>
-                    <span
-                      v-else
-                      class="text-text flex min-h-9 items-center text-[15px] font-medium"
-                    >
-                      {{ row.label }}
-                    </span>
-                  </li>
-                </ul>
-              </div>
-              <!-- The parent's own destination, which the trigger gave up when it became a
-                   disclosure. A `kind: "none"` heading resolves to no href and therefore offers
-                   nothing here. A rule across the full content width separates it from the groups,
-                   and `arrow` gives it the same trailing arrow-right every other "view all" in the
-                   theme carries — the package draws it outside the label, so the underline runs
-                   under the words only. -->
+                 12px step: `radius-lg` is 0.75rem here, `radius-xl` 1rem.
+
+                 Its ground is the bar's own, read from the variable the bar publishes rather than
+                 named again here, and it eases in and out — see `barSurfaceStyle` and
+                 `panelTransition` above. -->
+            <Transition v-bind="panelTransition">
               <div
-                v-if="link.href"
-                class="border-border col-span-12 flex justify-end border-t pt-4"
+                v-if="hasMegaMenu(index)"
+                v-show="openMenuIndex === index"
+                :id="menuIds[index]!.panel"
+                data-eldra-mega-panel
+                class="border-border shadow-float @wide:p-8 absolute top-full right-0 left-0 z-30 grid grid-cols-12 gap-6 rounded-b-lg border border-t-0 p-6"
+                :style="panelSurfaceStyle"
+                @keydown="onPanelKeydown(index, $event)"
+                @mouseenter="clearHoverTimer"
+                @mouseleave="onTriggerMouseLeave"
               >
-                <Link
-                  :href="link.href"
-                  :as="link.as"
-                  variant="standalone"
-                  arrow
-                  data-eldra-mega-view-all
-                  :aria-label="t('header.viewAllOf', { label: link.label })"
-                  :classes="{ root: 'text-sm' }"
+                <div
+                  v-for="(group, groupIndex) in link.groups"
+                  :key="groupIndex"
+                  class="col-span-3"
                 >
-                  {{ t('header.viewAll') }}
-                </Link>
+                  <p
+                    :id="`${menuIds[index]!.panel}-g${groupIndex}`"
+                    class="text-muted mb-3 text-[11px] font-semibold tracking-wide uppercase"
+                  >
+                    {{ group.title }}
+                  </p>
+                  <ul
+                    :aria-labelledby="`${menuIds[index]!.panel}-g${groupIndex}`"
+                    class="flex list-none flex-col"
+                  >
+                    <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
+                      <Link
+                        v-if="row.href"
+                        :href="row.href"
+                        :as="row.as"
+                        variant="standalone"
+                        :underline="false"
+                        :classes="{
+                          root: 'text-text flex min-h-9 items-center text-[15px] font-medium hover:underline-offset-4',
+                        }"
+                      >
+                        {{ row.label }}
+                      </Link>
+                      <span
+                        v-else
+                        class="text-text flex min-h-9 items-center text-[15px] font-medium"
+                      >
+                        {{ row.label }}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+                <!-- The parent's own destination, which the trigger gave up when it became a
+                     disclosure. A `kind: "none"` heading resolves to no href and therefore offers
+                     nothing here. A rule across the full content width separates it from the groups,
+                     and `arrow` gives it the same trailing arrow-right every other "view all" in the
+                     theme carries — the package draws it outside the label, so the underline runs
+                     under the words only. -->
+                <div
+                  v-if="link.href"
+                  class="border-border col-span-12 flex justify-end border-t pt-4"
+                >
+                  <Link
+                    :href="link.href"
+                    :as="link.as"
+                    variant="standalone"
+                    arrow
+                    data-eldra-mega-view-all
+                    :aria-label="t('header.viewAllOf', { label: link.label })"
+                    :classes="{ root: 'text-sm' }"
+                  >
+                    {{ t('header.viewAll') }}
+                  </Link>
+                </div>
               </div>
-            </div>
+            </Transition>
           </li>
         </ul>
         <EditorPlaceholder

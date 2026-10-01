@@ -517,6 +517,100 @@ describe('prerendered commerce data on the generated static site', () => {
     }
   });
 
+  it("paints an open mega-menu in the bar's own colour, and eases it in and out", async () => {
+    // Two more things only a real browser can answer. First the colour: both the bar and the panel
+    // resolve `--eldra-header-surface` through the theme's token variables, which exist only in a
+    // real stylesheet — jsdom sees the class names and no colour at all. Second the leave: a panel
+    // that merely stops being `display: block` is indistinguishable, in a mounted test, from one
+    // that fades out over 120ms, and the fade is the whole point of the change.
+    //
+    // Both bar states are measured, because they are the two different grounds the bar can be
+    // asked about: the home page's header is solid, and the collection template's carries
+    // `transparentOverHero`, so at rest it paints nothing at all. An open panel must match the bar
+    // in both — which means the bar must have stopped being transparent by the time one is open.
+    const page = await browser.newPage({
+      viewport: { width: 1280, height: 900 },
+      reducedMotion: 'no-preference',
+    });
+    try {
+      for (const [path, transparentAtRest] of [
+        [HOME_PAGE_PATH, false],
+        [collectionPage, true],
+      ] as const) {
+        await page.goto(`${statics.origin}${path}`, { waitUntil: 'domcontentloaded' });
+        // The header publishes `--eldra-header-height` from its own ResizeObserver, which runs only
+        // in the browser: the cheapest proof the bar is hydrated and will answer a click.
+        await page.waitForFunction(
+          () => document.documentElement.style.getPropertyValue('--eldra-header-height') !== ''
+        );
+
+        const barColour = async (): Promise<string> =>
+          page.evaluate(() => getComputedStyle(document.querySelector('header')!).backgroundColor);
+        const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+        expect((await barColour()) === TRANSPARENT, `${path} at rest`).toBe(transparentAtRest);
+
+        const trigger = page
+          .locator('header nav')
+          .getByRole('button', { name: LINKED_HEADER_LABELS.mega });
+        await trigger.click();
+        const panelId = (await trigger.getAttribute('aria-controls')) ?? '';
+        expect(panelId, path).not.toBe('');
+        // The enter half: it finishes at full opacity rather than settling somewhere short of it.
+        await page.waitForFunction(
+          (id) => getComputedStyle(document.getElementById(id)!).opacity === '1',
+          panelId
+        );
+
+        const open = await page.evaluate((id) => {
+          const bar = document.querySelector('header')!;
+          return {
+            panel: getComputedStyle(document.getElementById(id)!).backgroundColor,
+            bar: getComputedStyle(bar).backgroundColor,
+            transparentAttribute: bar.getAttribute('data-eldra-transparent'),
+          };
+        }, panelId);
+        // The whole point of the change: one surface, not two that happen to agree.
+        expect(open.panel, path).toBe(open.bar);
+        expect(open.panel, path).not.toBe(TRANSPARENT);
+        // A panel never floats on a transparent bar, whatever the field says.
+        expect(open.transparentAttribute, path).toBeNull();
+
+        // The leave half, sampled frame by frame from the click that closes it: the panel is still
+        // painted, part-way through a fade, for a while after `aria-expanded` has already gone back
+        // to false — which is exactly what a `<Transition>` buys over a bare `v-show`.
+        const leave = await page.evaluate(
+          (id) =>
+            new Promise<{ faded: boolean; hiddenAfterMs: number }>((resolve) => {
+              const panel = document.getElementById(id)!;
+              const start = performance.now();
+              let faded = false;
+              const tick = (): void => {
+                const style = getComputedStyle(panel);
+                const elapsed = performance.now() - start;
+                if (style.display === 'none' || elapsed > 2000) {
+                  resolve({ faded, hiddenAfterMs: elapsed });
+                  return;
+                }
+                if (Number(style.opacity) < 1) faded = true;
+                requestAnimationFrame(tick);
+              };
+              (document.querySelector(`[aria-controls="${id}"]`) as HTMLElement).click();
+              requestAnimationFrame(tick);
+            }),
+          panelId
+        );
+        expect(leave.faded, `${path} fades out`).toBe(true);
+        // 120ms of leave: comfortably more than the frame a bare `v-show` would have taken, and
+        // nowhere near a panel that never leaves at all.
+        expect(leave.hiddenAfterMs, path).toBeGreaterThanOrEqual(60);
+        expect(leave.hiddenAfterMs, path).toBeLessThan(1000);
+        expect(await trigger.getAttribute('aria-expanded'), path).toBe('false');
+      }
+    } finally {
+      await page.close();
+    }
+  });
+
   it('prerenders every storefront read the product page makes, under the key the browser computes', () => {
     // The whole set, not a sample: a key the browser computes differently is a key missing from
     // this list, and `byHandles` is the one that used to be — `[[]]` here, `[["ash-glaze-mug"]]`

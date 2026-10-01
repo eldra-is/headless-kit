@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { mount } from '@vue/test-utils';
+import { mount, type DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { Badge } from '@eldrajs/ui';
@@ -569,7 +569,7 @@ describe('header block (navigation apiId)', () => {
       await knitwear.trigger('click');
       const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
       expect(panel.attributes('data-eldra-mega-panel')).toBe('');
-      for (const token of ['absolute', 'top-full', 'left-0', 'right-0', 'bg-background']) {
+      for (const token of ['absolute', 'top-full', 'left-0', 'right-0']) {
         expect(panel.classes()).toContain(token);
       }
       // A width of its own is exactly what the old panel had, and what made it feel arbitrary.
@@ -632,6 +632,77 @@ describe('header block (navigation apiId)', () => {
       // the underline runs under the words only.
       expect(viewAll.find('[data-part="arrow"]').exists()).toBe(true);
       expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    });
+
+    it('takes its ground from the bar instead of naming one, and the bar publishes it', async () => {
+      // Two `bg-background` utilities read the same today and drift the moment either side's ground
+      // changes. The bar publishes the colour it paints and the panel reads it, so there is one
+      // surface rather than two that happen to agree. The colours themselves are a browser matter
+      // (a token variable resolves to nothing in jsdom) — `test/prerenderRefresh.browser.spec.ts`
+      // compares the two computed grounds, with the bar solid and with `transparentOverHero` on.
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      expect(wrapper.get('header').attributes('style')).toContain(
+        '--eldra-header-surface: var(--color-background)'
+      );
+
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      await knitwear.trigger('click');
+      const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
+      expect(panel.attributes('style')).toContain('background: var(--eldra-header-surface)');
+      // And no ground token of its own left behind to drift away from the bar's.
+      expect(panel.classes()).not.toContain('bg-background');
+      wrapper.unmount();
+    });
+
+    it('eases the panel in and out, with the rise dropped under reduced motion', async () => {
+      // A `<Transition>` applies its from/active classes in the same patch that opens or closes the
+      // panel, one frame before the to-classes land, so this is the frame they can be read in.
+      // jsdom computes no transition at all, which is also why the leave's own duration is proven in
+      // the browser spec instead; what is checkable here is the wiring and the numbers on it.
+      //
+      // `stubs: { transition: false }` is the one thing this test needs that no other does:
+      // `@vue/test-utils` stubs `<Transition>` by default, and a stub applies no classes at all.
+      const base = mountOptions(
+        { entry: { id: 'e1', data: resolved.data } },
+        {
+          links: resolved.links,
+        }
+      );
+      const wrapper = mount(Block, {
+        ...base,
+        attachTo: document.body,
+        global: { ...base.global, stubs: { ...base.global.stubs, transition: false } },
+      });
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      const panel = (): DOMWrapper<Element> =>
+        wrapper.get(`#${knitwear.attributes('aria-controls')}`);
+
+      await knitwear.trigger('click');
+      expect(knitwear.attributes('aria-expanded')).toBe('true');
+      for (const token of [
+        'opacity-0',
+        'motion-safe:-translate-y-1',
+        'transition-[opacity,transform]',
+        'duration-[150ms]',
+        'ease-out',
+      ]) {
+        expect(panel().classes(), 'enter').toContain(token);
+      }
+
+      await knitwear.trigger('click');
+      // The panel is still there, and still addressable, while it leaves — that is the whole point
+      // of a `<Transition>` over a bare `v-show` — but it can no longer be pointed at, so a pointer
+      // crossing it on its way out never clears the close timer and pulls it back open.
+      expect(knitwear.attributes('aria-expanded')).toBe('false');
+      for (const token of [
+        'pointer-events-none',
+        'transition-[opacity,transform]',
+        'duration-[120ms]',
+        'ease-in',
+      ]) {
+        expect(panel().classes(), 'leave').toContain(token);
+      }
       wrapper.unmount();
     });
 
