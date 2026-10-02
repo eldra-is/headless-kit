@@ -821,21 +821,32 @@ function createGatewayCartOps(client: EldraClient): CartOps {
   const session = createCartSession();
   let cartId = session.read();
   const checkoutUrl = ref<string | null>(null);
+  // The cart id this has asked about, resolved or still in flight. Every add calls `remember()`, and
+  // the hand-off does not change while the cart id does not, so one ask per cart is enough — and two
+  // adds landing before the first answer must not fire two. A refusal clears it, so the next add
+  // asks again (the SDK does not cache a failed config read either).
+  let askedFor: string | null = null;
 
   function resolveCheckoutUrl(id: string): void {
-    // Already resolved for this cart — every add calls `remember()`, and the URL does not change
-    // while the cart id does not. A `null` is retried, since a failed config read is not cached by
-    // the SDK either.
-    if (checkoutUrl.value !== null && id === cartId) return;
-    void client.checkout
-      .url({ cartId: id })
-      .then((url) => {
-        // Not the cart we are on any more (a different id, or none): leave it alone.
-        if (id === cartId) checkoutUrl.value = url;
-      })
-      .catch(() => {
-        if (id === cartId) checkoutUrl.value = null;
-      });
+    if (id === askedFor) return;
+    askedFor = id;
+    try {
+      void client.checkout
+        .url({ cartId: id })
+        .then((url) => {
+          // Not the cart we are on any more (a different id, or none): leave it alone.
+          if (id === cartId) checkoutUrl.value = url;
+        })
+        .catch(() => {
+          if (askedFor === id) askedFor = null;
+          if (id === cartId) checkoutUrl.value = null;
+        });
+    } catch {
+      // A `checkout.url` that throws *synchronously* — not the SDK's, which is `async`, but a
+      // hand-written stand-in or a customer's own client — must not escape into the add that
+      // triggered this.
+      askedFor = null;
+    }
   }
 
   if (cartId) resolveCheckoutUrl(cartId);
@@ -862,6 +873,7 @@ function createGatewayCartOps(client: EldraClient): CartOps {
         // A remembered cart id the gateway no longer recognises (expired, cleared server-side).
         session.forget();
         cartId = null;
+        askedFor = null;
         checkoutUrl.value = null;
         return {
           lines: [],
