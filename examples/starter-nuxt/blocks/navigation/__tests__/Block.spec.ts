@@ -661,6 +661,22 @@ describe('header block (navigation apiId)', () => {
         wrapper.unmount();
       });
 
+      it('ArrowUp with focus not on a panel link enters at the last link, mirroring ArrowDown', async () => {
+        // Nothing in a panel but its links is focusable today, so this is the deliberate shape of an
+        // edge rather than a path a visitor can walk: Down enters at the first row, so Up enters at
+        // the last instead of clamping to the first.
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        await knitwear.trigger('click');
+        const links = panelLinks(wrapper, knitwear);
+        wrapper.get('a[data-eldra-header-focus]').element.focus();
+
+        await panelFor(wrapper, knitwear).trigger('keydown', { key: 'ArrowUp' });
+        await nextTick();
+        expect(document.activeElement).toBe(links[links.length - 1]!.element);
+        wrapper.unmount();
+      });
+
       it('Home and End inside a panel jump to its first and last link', async () => {
         const wrapper = mountBlock(resolved.data, { attachTo: document.body });
         const knitwear = triggerFor(wrapper, 'Knitwear');
@@ -722,7 +738,7 @@ describe('header block (navigation apiId)', () => {
         wrapper.unmount();
       });
 
-      it("ArrowRight from inside a panel enters the next trigger's panel, and a plain link closes it", async () => {
+      it('ArrowRight from inside a panel lands on the next item itself, panel open', async () => {
         const wrapper = mountBlock(resolved.data, { attachTo: document.body });
         const knitwear = triggerFor(wrapper, 'Knitwear');
         const ceramics = triggerFor(wrapper, 'Ceramics');
@@ -731,16 +747,21 @@ describe('header block (navigation apiId)', () => {
         const first = panelLinks(wrapper, knitwear)[0]!;
         first.element.focus();
 
+        // "Moves focus to the next button and expands its dropdown": the trigger itself takes
+        // focus, not a row inside the panel that just opened — ArrowDown is what enters that.
         await first.trigger('keydown', { key: 'ArrowRight' });
         await nextTick();
         expect(knitwear.attributes('aria-expanded')).toBe('false');
         expect(ceramics.attributes('aria-expanded')).toBe('true');
-        const ceramicsLinks = panelLinks(wrapper, ceramics);
-        expect(document.activeElement).toBe(ceramicsLinks[0]!.element);
+        expect(document.activeElement).toBe(ceramics.element);
+
+        await ceramics.trigger('keydown', { key: 'ArrowDown' });
+        await nextTick();
+        expect(document.activeElement).toBe(panelLinks(wrapper, ceramics)[0]!.element);
 
         // Kitchen has no groups, so it is an ordinary link: it takes focus and the panel closes
         // behind it rather than one opening that does not exist.
-        await ceramicsLinks[0]!.trigger('keydown', { key: 'ArrowRight' });
+        await panelLinks(wrapper, ceramics)[0]!.trigger('keydown', { key: 'ArrowRight' });
         await nextTick();
         expect(ceramics.attributes('aria-expanded')).toBe('false');
         expect(document.activeElement).toBe(items[2]);
@@ -752,6 +773,49 @@ describe('header block (navigation apiId)', () => {
           .trigger('keydown', { key: 'ArrowRight' });
         await nextTick();
         expect(document.activeElement).toBe(items[3]);
+        wrapper.unmount();
+      });
+
+      it('lands on the trigger of a panel with no focusable row rather than losing focus', async () => {
+        // Every child of this heading points at something the site cannot resolve, so its panel
+        // renders plain text and no "View all" (the parent is a `kind: "none"` heading): zero
+        // focusable rows. Crossing onto it must still leave focus somewhere operable.
+        const wrapper = mountBlock(
+          {
+            ...resolved.data,
+            links: [
+              resolved.data.links[0],
+              {
+                kind: 'none',
+                label: 'Workshop',
+                children: [
+                  {
+                    kind: 'collection',
+                    target: { _type: 'collection', id: 'id-gone' },
+                    label: 'Gone',
+                  },
+                ],
+              },
+            ],
+          },
+          { attachTo: document.body }
+        );
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        const workshop = triggerFor(wrapper, 'Workshop');
+        await knitwear.trigger('click');
+        const first = panelLinks(wrapper, knitwear)[0]!;
+        first.element.focus();
+
+        await first.trigger('keydown', { key: 'ArrowRight' });
+        await nextTick();
+        expect(panelLinks(wrapper, workshop)).toHaveLength(0);
+        expect(workshop.attributes('aria-expanded')).toBe('true');
+        expect(document.activeElement).toBe(workshop.element);
+
+        // ArrowDown finds nothing to enter, and leaves focus on the trigger rather than nowhere.
+        await workshop.trigger('keydown', { key: 'ArrowDown' });
+        await nextTick();
+        expect(document.activeElement).toBe(workshop.element);
         wrapper.unmount();
       });
 
@@ -801,6 +865,101 @@ describe('header block (navigation apiId)', () => {
         expect(knitwear.attributes('aria-expanded')).toBe('false');
         expect(document.activeElement).toBe(brand.element);
         wrapper.unmount();
+      });
+
+      /**
+       * Dispatched by hand rather than through `trigger()`, which does not hand back the event, and
+       * `defaultPrevented` is the whole assertion here.
+       */
+      const press = (el: Element, key: string): boolean => {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        el.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+
+      /**
+       * The panel is `v-show`n: it is in the DOM with `display: none` until the open state flushes,
+       * and a browser will not focus a hidden element. jsdom focuses one happily, so the outcome
+       * cannot be asserted — the ordering can: focus must not be attempted while the panel is still
+       * hidden, only on the tick after Vue has shown it.
+       */
+      it('focuses into the panel only after it has been shown, never in the same tick', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        const first = panelLinks(wrapper, knitwear)[0]!.element;
+        const focusSpy = vi.spyOn(first, 'focus');
+
+        knitwear.element.focus();
+        expect(press(knitwear.element, 'ArrowDown')).toBe(true);
+        // Nothing has flushed yet: the panel is still hidden, so nothing may have been focused.
+        expect(knitwear.attributes('aria-expanded')).toBe('false');
+        expect(focusSpy).not.toHaveBeenCalled();
+
+        await nextTick();
+        expect(knitwear.attributes('aria-expanded')).toBe('true');
+        expect(focusSpy).toHaveBeenCalled();
+        expect(document.activeElement).toBe(first);
+        focusSpy.mockRestore();
+        wrapper.unmount();
+      });
+
+      it('takes only the keys it handles, and leaves every other one to the page', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const knitwear = triggerFor(wrapper, 'Knitwear');
+        const kitchen = topLevel(knitwear)[2]!;
+
+        // A trigger and a plain bar link both pass unhandled keys straight through, so the header's
+        // own `/` and `⌘K` shortcuts and the page's scrolling are untouched.
+        for (const key of ['PageDown', 'a', 'Tab']) {
+          expect(press(knitwear.element, key)).toBe(false);
+          expect(press(kitchen, key)).toBe(false);
+        }
+        expect(press(knitwear.element, 'ArrowDown')).toBe(true);
+        await nextTick();
+
+        const first = panelLinks(wrapper, knitwear)[0]!.element;
+        for (const key of ['PageDown', 'a', 'Tab']) expect(press(first, key)).toBe(false);
+        expect(press(first, 'ArrowDown')).toBe(true);
+        wrapper.unmount();
+      });
+
+      it('leaves Down and Up alone on a plain bar link, which has no panel to open', async () => {
+        const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+        const kitchen = topLevel(triggerFor(wrapper, 'Knitwear'))[2]!;
+        kitchen.focus();
+
+        expect(press(kitchen, 'ArrowDown')).toBe(false);
+        expect(press(kitchen, 'ArrowUp')).toBe(false);
+        expect(document.activeElement).toBe(kitchen);
+        // The travel keys it does take still work.
+        expect(press(kitchen, 'ArrowRight')).toBe(true);
+        wrapper.unmount();
+      });
+
+      it('drops a pending hover-open when focus leaves the menus', async () => {
+        vi.useFakeTimers();
+        try {
+          const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+          const knitwear = triggerFor(wrapper, 'Knitwear');
+          const ceramics = triggerFor(wrapper, 'Ceramics');
+          await knitwear.trigger('click');
+          panelLinks(wrapper, knitwear)[0]!.element.focus();
+
+          // The pointer has come to rest on the next trigger: its 150ms open is armed, not fired.
+          await ceramics.trigger('mouseenter');
+          // Focus leaves the header's menus, which closes the open panel…
+          wrapper.get('a[data-eldra-header-focus]').element.focus();
+          await nextTick();
+          expect(knitwear.attributes('aria-expanded')).toBe('false');
+
+          // …and takes the pending hover-open with it, so nothing springs open behind the keyboard.
+          vi.advanceTimersByTime(300);
+          await nextTick();
+          expect(ceramics.attributes('aria-expanded')).toBe('false');
+          wrapper.unmount();
+        } finally {
+          vi.useRealTimers();
+        }
       });
 
       it('hands a hover-opened panel over to the keyboard once focus is inside it', async () => {

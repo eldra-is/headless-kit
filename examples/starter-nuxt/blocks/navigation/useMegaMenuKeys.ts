@@ -27,10 +27,6 @@ interface TopLevelItem {
   index: number;
 }
 
-/** Where focus is when an arrow key crosses to another top-level item: on the bar's own row of
- *  items, or down inside one of their panels. */
-type Origin = 'bar' | 'panel';
-
 type Edge = 'first' | 'last';
 
 export interface MegaMenuKeysOptions {
@@ -130,45 +126,71 @@ export function useMegaMenuKeys(options: MegaMenuKeysOptions): MegaMenuKeys {
   /**
    * Moves focus to another top-level item, and takes the open panel with it.
    *
-   * From a trigger, focus lands on the next trigger or plain link — and if a panel was open, moving
-   * onto another trigger opens *that* one, so arrowing along the bar reads as walking the open
-   * menu rather than closing it and starting again. From inside a panel, focus lands at the same
-   * level it left: the next trigger's panel opens and focus goes to its first link. Either way a
-   * plain link just takes focus and the open panel closes behind it.
+   * Focus always lands on the item itself — the trigger button or the plain link — never inside the
+   * neighbour's panel, wherever it travelled from: the pattern's own rule is "move to the next
+   * button and expand its dropdown", and `ArrowDown` from there is what enters the panel. That also
+   * means nothing can strand focus: an open panel with no focusable row of its own (every child's
+   * destination deleted, and a `kind: "none"` parent so there is no "View all" either) leaves focus
+   * sitting on its trigger, where every key still works.
+   *
+   * The open panel follows: landing on another trigger opens that one, and landing on a plain link
+   * closes what was open. With nothing open to begin with, this is a plain focus move.
    */
-  function focusTopLevel(position: number, from: Origin): void {
+  function focusTopLevel(position: number): void {
     const items = topLevelItems();
     const target = items[position];
     if (target === undefined) return;
-    const wasOpen = options.openIndex.value !== null;
-    if (options.hasPanel(target.index) && (from === 'panel' || wasOpen)) {
-      options.open(target.index);
-      if (from === 'panel') {
-        focusPanelEdge(target.index, 'first');
-        return;
-      }
-    } else if (wasOpen) {
-      options.close();
+    if (options.openIndex.value !== null) {
+      if (options.hasPanel(target.index)) options.open(target.index);
+      else options.close();
     }
     target.el.focus();
   }
 
   /** ArrowRight / ArrowLeft: one step along the bar, clamped at both ends. */
-  function stepTopLevel(index: number, delta: number, from: Origin): void {
+  function stepTopLevel(index: number, delta: number): void {
     const items = topLevelItems();
     const position = items.findIndex((item) => item.index === index);
     if (position === -1) return;
     const next = clamp(position + delta, items.length);
     // Already at that end: nothing moves, and focus stays exactly where the visitor left it.
     if (next === position) return;
-    focusTopLevel(next, from);
+    focusTopLevel(next);
   }
 
-  /** Home / End on an item in the bar: its first or last item. */
-  function edgeTopLevel(edge: Edge, from: Origin): void {
+  /** Home / End: the bar's first or last item. */
+  function edgeTopLevel(edge: Edge): void {
     const items = topLevelItems();
     if (items.length === 0) return;
-    focusTopLevel(edge === 'first' ? 0 : items.length - 1, from);
+    focusTopLevel(edge === 'first' ? 0 : items.length - 1);
+  }
+
+  /**
+   * The four keys that travel the bar's own row, shared by every handler below so they cannot drift
+   * apart as keys are added. Returns whether it took the key, which is what keeps `preventDefault`
+   * to the keys actually handled.
+   */
+  function barTravel(index: number, event: KeyboardEvent): boolean {
+    switch (event.key) {
+      case 'ArrowRight':
+        event.preventDefault();
+        stepTopLevel(index, 1);
+        return true;
+      case 'ArrowLeft':
+        event.preventDefault();
+        stepTopLevel(index, -1);
+        return true;
+      case 'Home':
+        event.preventDefault();
+        edgeTopLevel('first');
+        return true;
+      case 'End':
+        event.preventDefault();
+        edgeTopLevel('last');
+        return true;
+      default:
+        return false;
+    }
   }
 
   function onTriggerKeydown(index: number, event: KeyboardEvent): void {
@@ -186,31 +208,17 @@ export function useMegaMenuKeys(options: MegaMenuKeysOptions): MegaMenuKeys {
         options.closeAndFocusTrigger(index);
         return;
       // ArrowDown / ArrowUp open the panel if it is closed and step straight into it, at the end
-      // the key points at — the APG's own "open and move focus into the disclosure" keys.
+      // the key points at — the APG's own "open and move focus into the disclosure" keys. `open()`
+      // runs either way, so a panel the pointer opened is the keyboard's from this point on.
       case 'ArrowDown':
       case 'ArrowUp': {
         event.preventDefault();
-        if (options.openIndex.value !== index) options.open(index);
+        options.open(index);
         focusPanelEdge(index, event.key === 'ArrowDown' ? 'first' : 'last');
         return;
       }
-      case 'ArrowRight':
-        event.preventDefault();
-        stepTopLevel(index, 1, 'bar');
-        return;
-      case 'ArrowLeft':
-        event.preventDefault();
-        stepTopLevel(index, -1, 'bar');
-        return;
-      case 'Home':
-        event.preventDefault();
-        edgeTopLevel('first', 'bar');
-        return;
-      case 'End':
-        event.preventDefault();
-        edgeTopLevel('last', 'bar');
-        return;
       default:
+        barTravel(index, event);
         return;
     }
   }
@@ -223,26 +231,7 @@ export function useMegaMenuKeys(options: MegaMenuKeysOptions): MegaMenuKeys {
    * link has no panel to open, so those keys stay the page's own scroll.
    */
   function onBarLinkKeydown(index: number, event: KeyboardEvent): void {
-    switch (event.key) {
-      case 'ArrowRight':
-        event.preventDefault();
-        stepTopLevel(index, 1, 'bar');
-        return;
-      case 'ArrowLeft':
-        event.preventDefault();
-        stepTopLevel(index, -1, 'bar');
-        return;
-      case 'Home':
-        event.preventDefault();
-        edgeTopLevel('first', 'bar');
-        return;
-      case 'End':
-        event.preventDefault();
-        edgeTopLevel('last', 'bar');
-        return;
-      default:
-        return;
-    }
+    barTravel(index, event);
   }
 
   function onPanelKeydown(index: number, event: KeyboardEvent): void {
@@ -254,13 +243,18 @@ export function useMegaMenuKeys(options: MegaMenuKeysOptions): MegaMenuKeys {
       // Down and up walk the panel's own reading order, clamped at its ends; Home and End jump to
       // them. Tab still moves through the very same links, in the very same order.
       case 'ArrowDown':
+      case 'ArrowUp': {
         event.preventDefault();
-        focusPanelLink(index, focusedPanelPosition(index) + 1);
+        const position = focusedPanelPosition(index);
+        if (position < 0) {
+          // Focus is inside the panel but not on one of its links. Enter at the end the key points
+          // at, exactly as entering from the trigger does, rather than clamping to the first row.
+          focusPanelEdge(index, event.key === 'ArrowDown' ? 'first' : 'last');
+          return;
+        }
+        focusPanelLink(index, position + (event.key === 'ArrowDown' ? 1 : -1));
         return;
-      case 'ArrowUp':
-        event.preventDefault();
-        focusPanelLink(index, focusedPanelPosition(index) - 1);
-        return;
+      }
       case 'Home':
         event.preventDefault();
         focusPanelEdge(index, 'first');
@@ -269,15 +263,11 @@ export function useMegaMenuKeys(options: MegaMenuKeysOptions): MegaMenuKeys {
         event.preventDefault();
         focusPanelEdge(index, 'last');
         return;
-      case 'ArrowRight':
-        event.preventDefault();
-        stepTopLevel(index, 1, 'panel');
-        return;
-      case 'ArrowLeft':
-        event.preventDefault();
-        stepTopLevel(index, -1, 'panel');
-        return;
+      // Left and right travel the bar from in here too, landing on the neighbouring item itself.
+      // Home and End never reach this: in a panel they belong to the panel, and the cases above
+      // have already taken them.
       default:
+        barTravel(index, event);
         return;
     }
   }

@@ -227,6 +227,10 @@ function onTriggerMouseLeave(): void {
  * `relatedTarget` still inside the `<li>` is movement within the menu, anything else — including
  * `null`, which is what a click on non-focusable page furniture gives — has left it. Focus itself is
  * never moved here; only the panel closes.
+ *
+ * `closeMenu()` also drops any pending hover-open, deliberately: focus leaving the header's menus is
+ * the visitor saying they are done with them, so a panel the pointer happens to be resting over must
+ * not spring open a moment later behind the keyboard's back. The pointer reopens it by moving.
  */
 function onNavItemFocusOut(index: number, event: FocusEvent): void {
   if (openMenuIndex.value !== index) return;
