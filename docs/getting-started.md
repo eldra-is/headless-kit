@@ -82,12 +82,25 @@ not subject to this.
 | `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search` |
 | `cms`       | `list`, `get`, `getByUniqueField`, `resolveEntryList` — typed by the generator below                                   |
 | `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`  |
-| `checkout`  | `handoffUrl({ cartId, locale })` — the hosted checkout takes it from there                                             |
+| `checkout`  | `url({ cartId, locale })` — the platform-hosted checkout takes it from there                                           |
 | `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                      |
 | `inventory` | `availability`                                                                                                         |
 | `features`  | the organisation's enabled features                                                                                    |
+| `platform`  | `config()` — the platform's public settings, cached per client; today the checkout URL                                 |
 
 Totals come from the server. The cart's `totals` are the truth; never sum lines in the storefront.
+
+## Handing the cart to checkout
+
+The checkout page is the platform's, not yours: `await eldra.checkout.url({ cartId, locale })` reads
+where it lives from `GET /platform/v1/config` (public, cached for the life of the client) and returns
+`{checkoutUrl}/checkout/{orgId}/{cartId}`. Resolve it whenever you have a cart id and show your
+Check out control once it does; it rejects — rather than returning a half-built link — when the
+platform published no checkout URL, when the read failed, and when the published value is not an
+absolute `http(s)` URL, with a distinct message for each. A storefront that keeps the control hidden
+in that case stays usable either way. The read takes no organisation header (the route is
+organisation-independent) and is shared by every caller of one client, so its only per-call option
+is a `signal` that abandons your own wait.
 
 ## Generated types
 

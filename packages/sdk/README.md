@@ -49,10 +49,20 @@ precedence.
 | `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search` |
 | `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList`                                                             |
 | `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`                                        |
-| `checkout`  | `handoffUrl`                                                                                                           |
+| `checkout`  | `url`                                                                                                                  |
 | `orders`    | `get`, `recover`                                                                                                       |
 | `inventory` | `availability`                                                                                                         |
 | `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`                                                              |
+| `platform`  | `config`                                                                                                               |
+
+`checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
+checkout page, so the client asks the platform where (`platform.config()`, a public read cached per
+client instance, sent without the organisation header because the route takes none) and returns
+`{checkoutUrl}/checkout/{orgId}/{cartId}`. It rejects — with a different message for each cause, and
+the read failure as `cause` where there was one — when the platform published no checkout URL, when
+the config could not be read, and when what was published is not an absolute `http(s)` URL. A
+storefront should treat all three as "no Check out to show" rather than something to report to a
+shopper.
 
 Every failed request throws `EldraHttpError` with `status` and the gateway's problem `code`.
 `createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without

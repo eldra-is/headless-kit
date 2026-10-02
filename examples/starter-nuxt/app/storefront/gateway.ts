@@ -802,30 +802,61 @@ function createGatewayResult<T>(
 // Cart — createCartSession() for the remembered cart id, client.cart.* for persistence
 // ---------------------------------------------------------------------------------------------
 
-// A store with no configured checkout base URL has no checkout hand-off at all: `handoffUrl`
-// throws when neither this call nor the client's own options carry one, and that must never fail
-// a cart mutation (or cart initialisation, for a remembered cart id). Resolve to `null` instead of
-// calling it in that case.
-function resolveCheckoutUrl(
-  client: EldraClient,
-  checkoutBaseUrl: string | undefined,
-  cartId: string
-): string | null {
-  if (!checkoutBaseUrl) return null;
-  return client.checkout.handoffUrl({ cartId, checkoutUrl: checkoutBaseUrl });
-}
-
-function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | undefined): CartOps {
+/**
+ * Where the cart is handed off is the platform's answer, not the theme's: `client.checkout.url`
+ * reads it from the platform's own public config (once per client, cached there) and builds
+ * `{checkoutUrl}/checkout/{orgId}/{cartId}`. So it is asynchronous, and it can refuse — a platform
+ * that published no checkout URL, a read that did not come back — and neither may touch the cart:
+ * the URL lands in `checkoutUrl` when it resolves, which is when Check out appears, and a refusal
+ * leaves the ref `null`, the cart's own "nowhere to hand this off to" state that
+ * `blocks/cart/parts/Summary.vue` and the drawer's foot already key off. An add that succeeded is
+ * never reported as failed because the checkout URL did not resolve, and neither is a cart
+ * restored from a remembered id.
+ *
+ * None of it runs on the server or under a prerender, and nothing needs guarding for that: the
+ * cart id is browser state (`createCartSession` reads `localStorage`, which the server has none
+ * of), so there is no cart to resolve a URL for until the page is in a browser.
+ */
+function createGatewayCartOps(client: EldraClient): CartOps {
   const session = createCartSession();
   let cartId = session.read();
-  const checkoutUrl = ref<string | null>(
-    cartId ? resolveCheckoutUrl(client, checkoutBaseUrl, cartId) : null
-  );
+  const checkoutUrl = ref<string | null>(null);
+  // The cart id this has asked about, resolved or still in flight. Every add calls `remember()`, and
+  // the hand-off does not change while the cart id does not, so one ask per cart is enough — and two
+  // adds landing before the first answer must not fire two. A refusal clears it, so the next add
+  // asks again (the SDK does not cache a failed config read either).
+  let askedFor: string | null = null;
+
+  function resolveCheckoutUrl(id: string): void {
+    if (id === askedFor) return;
+    askedFor = id;
+    try {
+      void client.checkout
+        .url({ cartId: id })
+        .then((url) => {
+          // Not the cart we are on any more (a different id, or none): leave it alone.
+          if (id === cartId) checkoutUrl.value = url;
+        })
+        .catch(() => {
+          if (askedFor === id) askedFor = null;
+          if (id === cartId) checkoutUrl.value = null;
+        });
+    } catch {
+      // A `checkout.url` that throws *synchronously* — not the SDK's, which is `async`, but a
+      // hand-written stand-in or a customer's own client — must not escape into the add that
+      // triggered this.
+      askedFor = null;
+    }
+  }
+
+  if (cartId) resolveCheckoutUrl(cartId);
 
   function remember(id: string): void {
+    // A different cart than the one the current URL points at; it is not this cart's hand-off.
+    if (id !== cartId) checkoutUrl.value = null;
     cartId = id;
     session.remember(id);
-    checkoutUrl.value = resolveCheckoutUrl(client, checkoutBaseUrl, id);
+    resolveCheckoutUrl(id);
   }
 
   return {
@@ -842,6 +873,8 @@ function createGatewayCartOps(client: EldraClient, checkoutBaseUrl: string | und
         // A remembered cart id the gateway no longer recognises (expired, cleared server-side).
         session.forget();
         cartId = null;
+        askedFor = null;
+        checkoutUrl.value = null;
         return {
           lines: [],
           totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
@@ -1144,7 +1177,6 @@ async function detailSnapshots(
 export interface GatewayStorefrontOptions {
   route: StorefrontRoute;
   formsEndpoint?: string;
-  checkoutUrl?: string;
   /**
    * The app layer's prerender/refresh abilities. Omitted — Storybook, a spec that only wants a
    * mapping — every result loads client-side the way it always did, and nothing refreshes.
@@ -1330,7 +1362,7 @@ export function createGatewayStorefront(
     ready: ref(true),
     route: options.route,
     catalog,
-    cart: createCartStore(createGatewayCartOps(client, options.checkoutUrl)),
+    cart: createCartStore(createGatewayCartOps(client)),
     search,
     orders,
     forms,
