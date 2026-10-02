@@ -96,8 +96,11 @@ The checkout page is the platform's, not yours: `await eldra.checkout.url({ cart
 where it lives from `GET /platform/v1/config` (public, cached for the life of the client) and returns
 `{checkoutUrl}/checkout/{orgId}/{cartId}`. Resolve it whenever you have a cart id and show your
 Check out control once it does; it rejects — rather than returning a half-built link — when the
-platform published no checkout URL or the read failed, and a storefront that keeps the control
-hidden in that case stays usable either way.
+platform published no checkout URL, when the read failed, and when the published value is not an
+absolute `http(s)` URL, with a distinct message for each. A storefront that keeps the control hidden
+in that case stays usable either way. The read takes no organisation header (the route is
+organisation-independent) and is shared by every caller of one client, so its only per-call option
+is a `signal` that abandons your own wait.
 
 ## Generated types
 

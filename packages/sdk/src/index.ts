@@ -46,6 +46,7 @@ export type {
   EldraOrdersClient,
   EldraPlatformClient,
   EldraPlatformConfig,
+  EldraPlatformReadOptions,
   EldraRecoveredBasket,
   EldraRecoveredBasketItem,
   EldraSearchOptions,

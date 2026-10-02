@@ -151,6 +151,23 @@ function platformRecording(answer: (count: number) => unknown) {
 }
 
 describe('eldra sdk platform config', () => {
+  /**
+   * The gateway made this route organisation-independent deliberately: it takes no `X-Org-Id`, and a
+   * request that carried one would be bound to the organisation's registered origins like any
+   * org-scoped read — answering 403 from a browser origin the gateway promises 200 to. The pair of
+   * assertions is the guard: absent here, still present on an ordinary read of the same client.
+   */
+  it('sends no organisation header, while an org-scoped read still does', async () => {
+    const { client, requests } = platformRecording(() => ({ checkoutUrl: null }));
+
+    await client.platform.config();
+    await client.cart.get('cart-1');
+
+    expect(requests[0].url).toBe('https://api.example.test/api/platform/v1/config');
+    expect(requests[0].headers.get('X-Org-Id')).toBeNull();
+    expect(requests[1].headers.get('X-Org-Id')).toBe('org-123');
+  });
+
   it('reads the public config and caches it for the life of the client', async () => {
     const { client, requests } = platformRecording(() => ({
       checkoutUrl: 'https://checkout.eldra.app',
@@ -189,6 +206,46 @@ describe('eldra sdk platform config', () => {
       checkoutUrl: 'https://checkout.eldra.app',
     });
     expect(requests).toHaveLength(2);
+  });
+
+  /**
+   * The read is shared, so it cannot belong to one caller's lifetime: a storefront that aborts its
+   * own requests on a route change would otherwise cancel the config read out from under every
+   * other caller. A signal therefore abandons the *waiting* and leaves the request alone.
+   */
+  it('lets a caller abandon its wait without cancelling the shared read', async () => {
+    let release: ((value: unknown) => void) | undefined;
+    const inFlight = new Promise<unknown>((resolve) => {
+      release = resolve;
+    });
+    const { client, requests } = platformRecording(() => inFlight);
+
+    const controller = new AbortController();
+    const abandoned = client.platform.config({ signal: controller.signal });
+    const patient = client.platform.config();
+    controller.abort();
+
+    // The signal's own reason, which is what any other aborted call in a storefront rejects with.
+    const caught = await abandoned.catch((error: unknown) => error);
+    expect((caught as Error).name).toBe('AbortError');
+    expect(requests[0].signal).toBeUndefined();
+    release?.({ checkoutUrl: 'https://checkout.eldra.app' });
+    await expect(patient).resolves.toEqual({ checkoutUrl: 'https://checkout.eldra.app' });
+    expect(requests).toHaveLength(1);
+  });
+
+  it('rejects a caller whose signal is already aborted, and serves the next one', async () => {
+    const { client, requests } = platformRecording(() => ({
+      checkoutUrl: 'https://checkout.eldra.app',
+    }));
+
+    await expect(client.platform.config({ signal: AbortSignal.abort('gone') })).rejects.toBe(
+      'gone'
+    );
+    await expect(client.platform.config()).resolves.toEqual({
+      checkoutUrl: 'https://checkout.eldra.app',
+    });
+    expect(requests).toHaveLength(1);
   });
 
   it('reads a platform that publishes no checkout as null, blank included', async () => {
@@ -231,11 +288,17 @@ describe('eldra sdk checkout', () => {
     const { client } = platformRecording(() => ({ checkoutUrl: null }));
 
     await expect(client.checkout.url({ cartId: 'c' })).rejects.toThrow(
-      /did not publish a checkout URL/
+      'The platform did not publish a checkout URL (GET /platform/v1/config).'
     );
   });
 
-  it('refuses when the config cannot be read, carrying the read failure as the cause', async () => {
+  /**
+   * A different sentence from the one above, deliberately: "the platform published none" and "the
+   * read did not come back" have nothing in common to fix, and a caller that logs `error.message` —
+   * or a storefront that swallows the error, as the starter's cart does — would otherwise be sent
+   * after a misconfigured platform when the gateway was unreachable or refused the origin.
+   */
+  it('says so, differently, when the config could not be read, and keeps the cause', async () => {
     const { client } = platformRecording(() => {
       throw new Error('gateway unreachable');
     });
@@ -243,8 +306,35 @@ describe('eldra sdk checkout', () => {
     const caught = await client.checkout.url({ cartId: 'c' }).catch((error: unknown) => error);
 
     expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toMatch(/did not publish a checkout URL/);
+    expect((caught as Error).message).toBe(
+      'Could not read the platform checkout URL (GET /platform/v1/config): gateway unreachable'
+    );
     expect(((caught as Error).cause as Error | undefined)?.message).toBe('gateway unreachable');
+  });
+
+  it('strips every trailing slash from the published base', async () => {
+    const { client } = platformRecording(() => ({ checkoutUrl: 'https://checkout.eldra.app//' }));
+
+    await expect(client.checkout.url({ cartId: 'c' })).resolves.toBe(
+      'https://checkout.eldra.app/checkout/org-123/c'
+    );
+  });
+
+  /**
+   * The value goes into a link a shopper clicks. The gateway normalises what it stores, so this is
+   * the defensive layer — but a relative base would otherwise surface as `TypeError: Invalid URL`
+   * from inside the SDK, and a `javascript:` one as a working link.
+   */
+  it('refuses a published base that is not an absolute http(s) URL', async () => {
+    const relative = platformRecording(() => ({ checkoutUrl: 'checkout.eldra.app' }));
+    await expect(relative.client.checkout.url({ cartId: 'c' })).rejects.toThrow(
+      /unusable checkout URL \("checkout\.eldra\.app"\): it must be an absolute http\(s\) URL/
+    );
+
+    const script = platformRecording(() => ({ checkoutUrl: 'javascript:alert(1)' }));
+    await expect(script.client.checkout.url({ cartId: 'c' })).rejects.toThrow(
+      /unusable checkout URL/
+    );
   });
 });
 

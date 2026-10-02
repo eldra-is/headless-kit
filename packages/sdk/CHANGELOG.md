@@ -11,16 +11,28 @@ platform repository.
 
 - **Breaking:** checkout is the platform's. `client.checkout.handoffUrl({ cartId, checkoutUrl })`
   and the `checkoutUrl` client option are gone, replaced by `await client.checkout.url({ cartId,
-locale })`: the base URL comes from `client.platform.config()` — a new public read of
-  `GET /platform/v1/config` (`{ checkoutUrl: string | null }`, no org header, cached for the life of
-  the client, a failed read retried by the next call) — and the result is the same
+locale })`: the base URL comes from `client.platform.config()` — a new read of
+  `GET /platform/v1/config` (`{ checkoutUrl: string | null }`, cached for the life of the client, a
+  failed read retried by the next call) — and the result is the same
   `{checkoutUrl}/checkout/{orgId}/{cartId}?lang=…` as before. A storefront no longer configures, or
   can accidentally point somewhere else, the checkout it hands the cart to; it awaits the URL and
-  shows its Check out control once it resolves. `url()` rejects when the platform published none
-  (`The platform did not publish a checkout URL`), carrying a failed read as the error's `cause`.
+  shows its Check out control once it resolves.
+
+  Three details of the read are deliberate. It sends **no `X-Org-Id`**: the gateway made the route
+  organisation-independent, and the header would put a public read behind the
+  origin-to-organisation binding, refusing a browser origin the route answers today. The shared
+  in-flight request carries **no caller's signal**, so one caller abandoning its wait cannot cancel
+  the read the others are sharing — `platform.config()` and `checkout.url()` take
+  `EldraPlatformReadOptions` (`{ signal }`), which aborts your own wait and nothing else. And the
+  published value is **checked, not trusted**: it has to parse as an absolute `http(s)` URL before
+  it can become a link.
+
+  `url()` has one refusal per cause, each saying which it was: `The platform did not publish a
+checkout URL`, `Could not read the platform checkout URL … : <why>` (with the read failure as the
+  error's `cause`), and `The platform published an unusable checkout URL …`.
   `EldraCheckoutHandoffOptions` is now `EldraCheckoutUrlOptions` (same `cartId`/`locale`/`orgId`,
-  no `checkoutUrl`), and `EldraPlatformClient`/`EldraPlatformConfig` are exported. The config
-  response type is hand-written until the gateway contract carries the path.
+  no `checkoutUrl`), and `EldraPlatformClient`/`EldraPlatformConfig`/`EldraPlatformReadOptions` are
+  exported. The config response type is hand-written until the gateway contract carries the path.
 
 - `EldraHttpError` now carries the problem body's `errorId` alongside `code`. `code` names the class
   of failure (`CONFLICT`, `VALIDATION`), which several unrelated refusals share; `errorId` names

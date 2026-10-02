@@ -57,9 +57,12 @@ precedence.
 
 `checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
 checkout page, so the client asks the platform where (`platform.config()`, a public read cached per
-client instance) and returns `{checkoutUrl}/checkout/{orgId}/{cartId}`; it rejects when the platform
-published none, which a storefront should treat as "no Check out to show" rather than an error worth
-reporting to a shopper.
+client instance, sent without the organisation header because the route takes none) and returns
+`{checkoutUrl}/checkout/{orgId}/{cartId}`. It rejects — with a different message for each cause, and
+the read failure as `cause` where there was one — when the platform published no checkout URL, when
+the config could not be read, and when what was published is not an absolute `http(s)` URL. A
+storefront should treat all three as "no Check out to show" rather than something to report to a
+shopper.
 
 Every failed request throws `EldraHttpError` with `status` and the gateway's problem `code`.
 `createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without

@@ -323,14 +323,28 @@ export interface EldraCheckoutUrlOptions {
 }
 
 /**
- * Mirrors `GET /platform/v1/config` on the web gateway: the public read (no `X-Org-Id`, cached for
- * five minutes) that tells a storefront where the platform hosts checkout. Written by hand because
- * the generated contract does not carry the path yet; it becomes
+ * Mirrors `GET /platform/v1/config` on the web gateway: the public, organisation-independent read
+ * (it takes no `X-Org-Id`, and the SDK sends none, so it answers whatever the browser's origin;
+ * `Cache-Control: public, max-age=300`) that tells a storefront where the platform hosts checkout.
+ * Written by hand because the generated contract does not carry the path yet; it becomes
  * `EldraContractResponse<'/platform/v1/config', 'get'>` once the contract is regenerated.
  */
 export interface EldraPlatformConfig {
   /** Origin of the platform-hosted checkout app; `null` when the platform publishes none. */
   checkoutUrl: string | null;
+}
+
+/**
+ * The only per-call option the platform reads take. There is no request context to pass: the route
+ * carries no organisation, no preview token and no auth, and the answer is shared by every caller of
+ * one client — so headers or an `orgId` per call could not mean anything.
+ */
+export interface EldraPlatformReadOptions {
+  /**
+   * Abandons **this** caller's wait. The read is shared, so it is not cancelled: aborting rejects
+   * the promise you are holding and leaves the request to whoever else is waiting on it.
+   */
+  signal?: AbortSignal;
 }
 
 export interface EldraCartClient {
@@ -373,17 +387,20 @@ export interface EldraCheckoutClient {
   /**
    * Where a storefront sends the customer: `{checkoutUrl}/checkout/{orgId}/{cartId}`, with the
    * locale as `lang`. The base URL is the platform's — read from `platform.config()`, cached per
-   * client — so this is async and rejects when the platform published none.
+   * client — so this is async, and it rejects when the platform published no checkout URL, when the
+   * read failed (with that failure as the error's `cause`), and when what the platform published is
+   * not an absolute `http(s)` URL. Each refusal says which it was.
    */
-  url(options: EldraCheckoutUrlOptions, context?: EldraRequestContext): Promise<string>;
+  url(options: EldraCheckoutUrlOptions, readOptions?: EldraPlatformReadOptions): Promise<string>;
 }
 
 export interface EldraPlatformClient {
   /**
    * The platform's public configuration. Read once per client instance: concurrent callers share
-   * the one in-flight request, and a read that failed is retried by the next call.
+   * the one in-flight request — cancellable by none of them, see `EldraPlatformReadOptions` — and a
+   * read that failed is retried by the next call.
    */
-  config(context?: EldraRequestContext): Promise<EldraPlatformConfig>;
+  config(readOptions?: EldraPlatformReadOptions): Promise<EldraPlatformConfig>;
 }
 
 export interface EldraInventoryClient {
