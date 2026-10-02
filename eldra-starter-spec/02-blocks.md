@@ -191,7 +191,7 @@ The cart count is not a field: it comes from the cart.
   - `Enter` / `Space` on the trigger toggles its panel.
   - `Down` / `Up` on the trigger open the panel if it is closed and move focus into it, to its first or last link.
   - `Right` / `Left` move focus to the next or previous item in the bar's list — triggers and plain links alike — and stop at the ends rather than wrapping. Focus lands on the item itself, whether it travelled from an item or from inside an open panel: if a panel was open, the item it lands on opens its own panel and focus stays on the trigger, from where `Down` enters it. An ordinary link simply takes focus, and the open panel closes behind it.
-  - `Home` / `End` on an item in the bar, or on `Right` / `Left` from inside a panel, go to the bar's first and last item the same way.
+  - `Home` / `End` on an item in the bar go to the bar's first and last item, landing the same way `Right` / `Left` do. Inside an open panel they belong to the panel (below).
   - Inside an open panel, `Down` / `Up` move through the panel's own reading order (the groups in order, then the feature links and the "View all" row), stopping at the ends; `Home` / `End` go to its first and last link. `Tab` and `Shift+Tab` move through those same links in the same order.
   - `Esc` with focus on the trigger or anywhere in the panel closes it and returns focus to the trigger.
   - A panel closes as soon as focus leaves its trigger and panel — `Tab` past the panel's last link, `Shift+Tab` before the trigger, or a click elsewhere on the page. Focus itself is not moved; only the panel closes.
