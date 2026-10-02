@@ -324,7 +324,8 @@ export interface EldraCheckoutUrlOptions {
 
 /**
  * Mirrors `GET /platform/v1/config` on the web gateway: the public, organisation-independent read
- * (it takes no `X-Org-Id`, and the SDK sends none, so it answers whatever the browser's origin;
+ * (it takes no `X-Org-Id`, and the SDK sends none, so it answers the same thing whatever the
+ * browser's origin;
  * `Cache-Control: public, max-age=300`) that tells a storefront where the platform hosts checkout.
  * Written by hand because the generated contract does not carry the path yet; it becomes
  * `EldraContractResponse<'/platform/v1/config', 'get'>` once the contract is regenerated.
