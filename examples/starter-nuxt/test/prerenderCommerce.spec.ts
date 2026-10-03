@@ -103,7 +103,7 @@ describe('a prerendered product page', () => {
     );
 
     expect(html).toContain('Merino crew sweater');
-    expect(html).toContain('$96');
+    expect(html).toContain('$96.00');
     expect(html).toContain('In stock, ready to ship');
     // The state this whole change exists to remove from a prerendered page.
     expect(html).not.toContain('Loading…');

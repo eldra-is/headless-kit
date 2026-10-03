@@ -10,26 +10,30 @@ import {
 
 describe('formatMoney', () => {
   it('formats a major-unit amount as itself', () => {
-    // The live defect: a catalog price of 28 is $28, not $0.28.
-    expect(formatMoney(28, 'USD')).toBe('$28');
-    expect(formatMoney(96.5, 'USD')).toBe('$96.5');
+    // The live defect: a catalog price of 28 is $28.00, not $0.28.
+    expect(formatMoney(28, 'USD')).toBe('$28.00');
+    expect(formatMoney(96.5, 'USD')).toBe('$96.50');
   });
 
   /**
-   * Two digit rules, both the formatter's rather than this module's: the **maximum** is the
-   * currency's own count, so a zero-decimal currency renders none at all; the **minimum** is 0, so
-   * a whole amount renders no trailing zeroes either. The second is `formatCurrency`'s documented
-   * contract — the one the private library's currency fields have always had — and this module
-   * follows it rather than keeping a second rule of its own.
+   * The currency's own fraction count, used as **both** the maximum and the minimum — a displayed
+   * price pads, which is the sixth argument `formatCurrency` takes and the one thing this module
+   * asks of it beyond the private library's own contract. Without the minimum, `$96` would sit
+   * above `$96.50` in a cart; without the maximum, a króna would grow a fraction it has no minor
+   * unit for.
    */
-  it('takes the maximum fraction digits from the currency and the minimum from the util', () => {
+  it('takes the fraction digits from the currency, as both the cap and the padding', () => {
     expect(formatMoney(28, 'ISK', 'is-IS')).not.toMatch(/[.,]\d/);
     expect(formatMoney(28, 'ISK', 'is-IS')).toContain('28');
-    // Not even for an amount that has a fraction: krónur have no minor unit to show one in.
+    // Not even for an amount that has a fraction: krónur have no minor unit to show one in, and
+    // so nothing to pad to either.
     expect(formatMoney(28.4, 'ISK', 'en-US')).toBe('kr\u00a028');
-    expect(formatMoney(28, 'USD', 'en-US')).toBe('$28');
-    expect(formatMoney(28.5, 'USD', 'en-US')).toBe('$28.5');
+    expect(formatMoney(28, 'USD', 'en-US')).toBe('$28.00');
+    expect(formatMoney(28.5, 'USD', 'en-US')).toBe('$28.50');
     expect(formatMoney(28.567, 'USD', 'en-US')).toBe('$28.57');
+    // The same formatter called the private library's way pads nothing — proof the padding is
+    // this module's argument, not a change to the package's own contract.
+    expect(formatCurrency(28, 'en-US', 'USD')).toBe('$28');
   });
 
   it('formats in the store’s currency, not the locale’s', () => {
@@ -47,15 +51,15 @@ describe('formatMoney', () => {
   it('writes the currency’s narrow sign, the same one every <Price> writes', () => {
     expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr\u00a02,800');
     expect(formatMoney(2800, 'ISK', 'is-IS')).toBe('2.800\u00a0kr.');
-    expect(formatMoney(28, 'USD', 'en-US')).toBe('$28');
+    expect(formatMoney(28, 'USD', 'en-US')).toBe('$28.00');
     // `is-IS` writes `$` for dollars narrow, where its wide sign is the code itself.
-    expect(formatMoney(28, 'USD', 'is-IS')).toBe('28\u00a0$');
+    expect(formatMoney(28, 'USD', 'is-IS')).toBe('28,00\u00a0$');
   });
 
   it('is `@eldrajs/ui`’s own `formatCurrency`, not a second copy of it', () => {
     // Asserted as an identity across every usable pair the theme can see — with the same narrow
-    // sign and the same fraction cap this module passes — so the day the package's formatter
-    // changes, this module follows it instead of drifting from it.
+    // sign and the same fraction arguments this module passes — so the day the package's
+    // formatter changes, this module follows it instead of drifting from it.
     for (const [currency, digits] of [
       ['ISK', 0],
       ['USD', 2],
@@ -63,7 +67,7 @@ describe('formatMoney', () => {
     ] as const) {
       for (const locale of ['en-US', 'is-IS']) {
         expect(formatMoney(2800.5, currency, locale)).toBe(
-          formatCurrency(2800.5, locale, currency, true, digits)
+          formatCurrency(2800.5, locale, currency, true, digits, digits)
         );
       }
     }
@@ -96,11 +100,11 @@ describe('the formatter cache', () => {
   it('keeps one currency-and-locale pair from answering for another', () => {
     // `resolveFormat` memoizes `Intl.NumberFormat` per pair, which is the one way this module could
     // start returning a cached answer for the wrong store or the wrong page.
-    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.5');
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
     expect(formatMoney(1234.5, 'USD', 'is-IS')).toBe(formatMoney(1234.5, 'USD', 'is-IS'));
-    expect(formatMoney(1234.5, 'USD', 'is-IS')).not.toBe('$1,234.5');
+    expect(formatMoney(1234.5, 'USD', 'is-IS')).not.toBe('$1,234.50');
     expect(formatMoney(1234, 'ISK', 'is-IS')).toContain('kr');
-    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.5');
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
     // And the digits each pair resolves stay its own.
     expect(toMinorUnits(28, 'USD', 'en-US')).toBe(2800);
     expect(toMinorUnits(28, 'ISK', 'en-US')).toBe(28);

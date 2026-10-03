@@ -184,7 +184,7 @@ describe('server rendering', () => {
       });
 
       expect(html).toContain('Merino crew sweater');
-      expect(html).toContain('$96');
+      expect(html).toContain('$96.00');
       expect(html).toContain('In stock, ready to ship');
       expect(html).not.toContain(enUS.storefront.loading);
       expect(html).not.toContain(enUS.storefront.notFound);
@@ -254,7 +254,7 @@ describe('server rendering', () => {
       });
 
       expect(html).toContain('Fisherman rib cardigan');
-      expect(html).toContain('$164');
+      expect(html).toContain('$164.00');
       expect(html).toContain('In stock, ships in 1–2 days');
       expect(html).not.toContain('eldra-skeleton');
       expect(html).not.toContain('eldra-revalidating');

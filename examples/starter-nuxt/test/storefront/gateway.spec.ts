@@ -297,7 +297,7 @@ describe('createGatewayStorefront', () => {
                 title: 'Linen tea towels',
                 status: 'ARCHIVED',
                 minPrice: 2400,
-                // A price *range*: `mapProductListItem` marks it `from: true` ("From $24").
+                // A price *range*: `mapProductListItem` marks it `from: true` ("From $24.00").
                 maxPrice: 3600,
                 totalVariants: 3,
               },
@@ -335,7 +335,7 @@ describe('createGatewayStorefront', () => {
     const products = result.data.value!.products;
     // The whole snapshot, `from` included: on this path the merge is the product's *first* price,
     // not a refresh of one already on screen, so dropping the range marker would turn a
-    // "From $24" product into an exact $24 one.
+    // "From $24.00" product into an exact $24.00 one.
     expect(products.map((product) => product.price)).toEqual([
       { amount: 9600, compareAt: 12000, from: false },
       { amount: 2400, compareAt: null, from: true },
@@ -446,7 +446,7 @@ describe('createGatewayStorefront', () => {
    * A pricing read that cannot answer must not cost the shopper the results themselves — and must
    * not cost them a *wrong* price either. The product keeps its row with `price: null`, which the
    * suggestion panel renders without a price; a zero would have been formatted as the store's own
-   * "$0", which is the defect this whole path exists to avoid.
+   * "$0.00", which is the defect this whole path exists to avoid.
    */
   it.each([
     ['the gateway refuses', () => Promise.reject(httpError(503))],

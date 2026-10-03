@@ -80,7 +80,9 @@ describe('money is formatted in exactly one place', () => {
 
   it('formats through the public util, which is what gives every price the narrow sign', () => {
     // The module under the exception, held to the util it exists to call.
-    expect(formatMoney(2800, 'ISK', 'en-US')).toBe(formatCurrency(2800, 'en-US', 'ISK', true, 0));
+    expect(formatMoney(2800, 'ISK', 'en-US')).toBe(
+      formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)
+    );
     expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr 2,800');
     expect(formatMoney(2800, 'ISK', 'is-IS')).toBe('2.800 kr.');
   });

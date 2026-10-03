@@ -658,16 +658,17 @@ The module builds **no `Intl.NumberFormat` for a currency itself**: `formatMoney
 `@eldrajs/ui`'s `formatCurrency` and `currencyLabel` is its `currencySymbol`, which is what makes
 the sign in a sentence the same one every `<Price>`, `<ProductCard>` and `<CurrencyInput>` on the
 page writes — the currency's **narrow** sign (`kr 2,800` on an English page, `2.800 kr.` on an
-Icelandic one, `$28` for dollars). A theme that reaches for `{ style: 'currency' }` directly gets
+Icelandic one, `$28.00` for dollars). A theme that reaches for `{ style: 'currency' }` directly gets
 the _wide_ sign instead (`ISK 2,800`) and quietly disagrees with every price beside it; that is the
 one reason to go through the package here rather than through `Intl`. `test/moneyFormatting.spec.ts`
 scans `app/**` and `blocks/**` and fails on any second formatter, because the failure is silent: a
 second one renders perfectly good-looking money that simply disagrees with the money beside it.
 
-The fraction digits come from that formatter too — the currency's own count as the maximum, and a
-minimum of zero — so a whole amount reads `$96`, not `$96.00`. That is the private component
-library's own currency contract, which `@eldrajs/ui` now holds the canonical copy of; see
-`docs/ui.md`.
+The fraction digits come from that formatter too, and `formatMoney` asks it for the currency's own
+count as **both** the maximum and the minimum — the same pair `<Price>` passes — so a króna never
+grows a fraction and a dollar amount never leaves a cart column ragged (`$96.00`, not `$96`). That
+padding is the one argument beyond the private component library's own currency contract, which
+`@eldrajs/ui` holds the canonical copy of; see `docs/ui.md`.
 
 **The currency is the store's, and it is never guessed.** It comes from the platform — the
 organisation's commerce settings, read once at build by `@eldrajs/theme-nuxt` and provided app-wide

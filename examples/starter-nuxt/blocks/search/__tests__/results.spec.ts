@@ -84,7 +84,7 @@ describe('toSearchBarResults', () => {
         id: 'linen-napkins',
         title: 'Linen napkins, set of 4',
         href: '/products/linen-napkins',
-        price: '$40',
+        price: '$40.00',
         image: '/demo/product-1.svg',
         imageAlt: 'Linen napkins',
       },

@@ -101,13 +101,15 @@ function resolveFormat(currency: string | undefined, locale: string): MoneyForma
     // helper it ports does, and this runs inside `computed`s where a throw takes the whole block
     // down. So the code is probed once per pair here rather than guarded once per amount.
     try {
-      formatCurrency(0, locale, code, true, digits);
+      formatCurrency(0, locale, code, true, digits, digits);
       resolved = {
-        // The narrow sign is the util's own default and the whole reason to go through it; the
-        // fraction cap is the **currency's** count rather than the util's default of 2, which would
-        // print a fractional króna and round a three-decimal currency to two. Both are what
-        // `<Price>` passes, so a formatted sentence and the `<Price>` beside it cannot disagree.
-        format: (amount) => formatCurrency(amount, locale, code, true, digits),
+        // The narrow sign is the util's own default and the whole reason to go through it. The
+        // currency's own count goes in twice: as the cap, because the util's default of 2 would
+        // print a fractional króna and round a three-decimal currency to two; and as the
+        // **minimum**, which is the util's display rule — without it `$96` and `$96.50` sit in the
+        // same column. Both are exactly what `<Price>` passes, so a formatted sentence and the
+        // `<Price>` beside it cannot disagree about either.
+        format: (amount) => formatCurrency(amount, locale, code, true, digits, digits),
         digits,
       };
     } catch {
@@ -120,11 +122,11 @@ function resolveFormat(currency: string | undefined, locale: string): MoneyForma
 }
 
 /**
- * A major-unit amount as text, in the currency's own shape and its **narrow** sign: `$28` for
+ * A major-unit amount as text, in the currency's own shape and its **narrow** sign: `$28.00` for
  * `USD`, `2.800 kr.` for `ISK` on an Icelandic page, `kr 2,800` for the same money on an English
- * one. The fraction count is the currency's own maximum with a minimum of zero — `formatCurrency`'s
- * contract — so a zero-decimal currency never renders phantom decimals and a whole amount never
- * renders a trailing `.00`.
+ * one. The fraction count is the currency's own, as both the maximum and the minimum, so a
+ * zero-decimal currency never renders phantom decimals and a two-decimal one never renders a
+ * ragged column.
  *
  * Three outcomes, and the last two are the honest ones:
  *

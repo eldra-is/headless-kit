@@ -28,11 +28,11 @@ function barWidth(wrapper: ReturnType<typeof mountBar>): string | undefined {
 
 describe('cart shipping bar', () => {
   it('says how much is left in words, with the amount as a formatted price', async () => {
-    // $80 threshold, $68 subtotal — the spec's own drawer example.
+    // $80.00 threshold, $68.00 subtotal — the spec's own drawer example.
     const wrapper = mountBar({ threshold: '80.00', subtotal: 68 });
     const status = wrapper.get('[role="status"]');
     expect(status.text()).toContain("You're");
-    expect(status.text()).toContain('$12');
+    expect(status.text()).toContain('$12.00');
     expect(status.text()).toContain('away from free shipping');
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
@@ -70,9 +70,9 @@ describe('cart shipping bar', () => {
   });
 
   it('reads the threshold in the same major units the cart’s own amounts use', () => {
-    // "80" and a $68 subtotal are both major units, so the shopper is $12 short — the
+    // "80" and a $68.00 subtotal are both major units, so the shopper is $12.00 short — the
     // amount itself is a `<Price>`, which takes minor units, so it is converted on the way in.
     const wrapper = mountBar({ threshold: '80', subtotal: 68 });
-    expect(wrapper.get('[role="status"]').text()).toContain('$12');
+    expect(wrapper.get('[role="status"]').text()).toContain('$12.00');
   });
 });

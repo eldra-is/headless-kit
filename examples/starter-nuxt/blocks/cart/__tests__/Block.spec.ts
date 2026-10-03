@@ -255,7 +255,7 @@ describe('cart block', () => {
       await openDrawer(wrapper);
       const footer = wrapper.get('dialog [data-part="footer"]');
       expect(footer.text()).toContain('Subtotal');
-      expect(footer.text()).toContain('$210');
+      expect(footer.text()).toContain('$210.00');
       expect(footer.text()).toContain(mock.note);
       expect(footer.get('a[href="/checkout/demo-cart"]').text()).toContain('Check out');
       expect(footer.get('a[href="/cart"]').text()).toContain('View cart');
@@ -310,10 +310,10 @@ describe('cart block', () => {
       const { wrapper } = await mountCart(mock);
       await openDrawer(wrapper);
       const rows = wrapper.findAll('dialog li');
-      // Merino: one of them, so no "each" line; the mug: two at $28.
+      // Merino: one of them, so no "each" line; the mug: two at $28.00.
       expect(rows[0]!.text()).not.toContain('each');
-      expect(rows[1]!.text()).toMatch(/\$28\s*each/);
-      expect(rows[1]!.text()).toContain('$56');
+      expect(rows[1]!.text()).toMatch(/\$28\.00\s*each/);
+      expect(rows[1]!.text()).toContain('$56.00');
     });
 
     it('sends a stepper change to the store and re-renders the line total', async () => {
@@ -324,7 +324,7 @@ describe('cart block', () => {
       await flushPromises();
 
       expect(storefront.cart.lines.value[0]!.quantity).toBe(2);
-      expect(wrapper.findAll('dialog li')[0]!.text()).toContain('$192');
+      expect(wrapper.findAll('dialog li')[0]!.text()).toContain('$192.00');
     });
 
     it('carries the hidden "Line total" label on every line total', async () => {
@@ -483,7 +483,7 @@ describe('cart block', () => {
       const status = wrapper
         .findAll('[role="status"]')
         .find((element) => element.text().includes('Free shipping'))!;
-      // $210 against the mock's $80 threshold.
+      // $210.00 against the mock's $80.00 threshold.
       expect(status.text()).toBe('Free shipping unlocked');
       expect(status.attributes('aria-live')).toBeUndefined(); // role="status" is already polite
       expect(wrapper.find('[aria-hidden="true"] > div').exists()).toBe(true);
