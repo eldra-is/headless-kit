@@ -169,6 +169,7 @@ describe('createGatewayStorefront', () => {
   it('search drops results whose targetUrl is missing or unsafe, and never emits a "#" link', async () => {
     const client = {
       catalog: {
+        listProducts: async () => ({ data: [], meta: {} }),
         search: async () => ({
           total: 5,
           results: [
@@ -213,6 +214,166 @@ describe('createGatewayStorefront', () => {
     ];
     expect(everyHref).not.toContain('#');
     expect(everyHref.some((href) => href.startsWith('javascript:'))).toBe(false);
+  });
+
+  /**
+   * The search index is built over the platform's own documents, and a document with no public
+   * route can only be named by its authoring URL — a `/cms/…` path. Those survive `safeHref` (they
+   * are ordinary site paths), so without a rule of their own they reached the modal and the results
+   * page as rows that take a shopper out of the shop and onto a path the site serves no file for.
+   * Core only returns routable results now; this is the theme refusing to depend on that.
+   */
+  it('search drops a result whose destination is an authoring path', async () => {
+    const client = {
+      catalog: {
+        listProducts: async () => ({ data: [], meta: {} }),
+        search: async () => ({
+          total: 6,
+          results: [
+            { id: 'p1', kind: 'PRODUCT', title: 'Routable product', targetUrl: '/products/good' },
+            { id: 'p2', kind: 'PRODUCT', title: 'Authored product', targetUrl: '/cms/products/p2' },
+            { id: 'e1', kind: 'CMS_ENTRY', title: 'Routable story', targetUrl: '/journal/good' },
+            { id: 'e2', kind: 'CMS_ENTRY', title: 'Authored story', targetUrl: '/cms/entries/e2' },
+            { id: 's1', kind: 'CMS_SCHEMA', title: 'Routable page', targetUrl: '/pages/good' },
+            // The prefix itself, with nothing under it: a path the theme cannot route either.
+            { id: 's2', kind: 'CMS_SCHEMA', title: 'Authoring root', targetUrl: '/cms' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('linen'));
+    await settle();
+
+    const response = result.data.value!;
+    expect(response.products.map((product) => product.title)).toEqual(['Routable product']);
+    expect(response.articles.map((article) => article.title)).toEqual(['Routable story']);
+    expect(response.pages.map((page) => page.title)).toEqual(['Routable page']);
+    const everyHref = [
+      ...response.products.map((product) => product.url),
+      ...response.articles.map((article) => article.href),
+      ...response.pages.map((page) => page.href),
+    ];
+    expect(everyHref.some((href) => href.startsWith('/cms'))).toBe(false);
+    // A path that merely *contains* the word is a real storefront route and must survive.
+    expect(response.pages[0]!.href).toBe('/pages/good');
+  });
+
+  /**
+   * A search result carries no money at all, so the mapping has nothing to write but
+   * `{ amount: 0 }` — and a zero that reached a card rendered as the store's own zero amount, a
+   * real price formatted in the store's currency and wrong. The products a search found are priced
+   * from the catalogue by the same batched `id:in:` read the volatile refresh uses, before the
+   * response is published.
+   */
+  it('search prices its products from a batched products-list read, in one request', async () => {
+    const productListQueries: Array<Record<string, unknown>> = [];
+    const client = {
+      catalog: {
+        listProducts: async (query: Record<string, unknown>) => {
+          productListQueries.push(query);
+          return {
+            data: [
+              {
+                id: 'p1',
+                slug: 'merino-crew-sweater',
+                title: 'Merino crew sweater',
+                status: 'ACTIVE',
+                minPrice: 9600,
+                maxPrice: 9600,
+                compareAtPrice: 12000,
+                totalVariants: 1,
+              },
+              {
+                id: 'p2',
+                slug: 'linen-tea-towels-pair',
+                title: 'Linen tea towels',
+                status: 'ARCHIVED',
+                minPrice: 2400,
+                maxPrice: 2400,
+                totalVariants: 1,
+              },
+            ],
+            meta: {},
+          };
+        },
+        search: async () => ({
+          total: 2,
+          results: [
+            { id: 'p1', kind: 'PRODUCT', title: 'Merino crew sweater', targetUrl: '/products/a' },
+            { id: 'p2', kind: 'PRODUCT', title: 'Linen tea towels', targetUrl: '/products/b' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('linen'));
+    await settle();
+
+    const products = result.data.value!.products;
+    expect(products.map((product) => product.price)).toEqual([
+      { amount: 9600, compareAt: 12000 },
+      { amount: 2400, compareAt: null },
+    ]);
+    // Availability rides along, which is what lets the suggestion list rank sold-out items last.
+    expect(products.map((product) => product.available)).toEqual([true, false]);
+    expect(products.map((product) => product.stock)).toEqual(['in', 'out']);
+
+    // One request for both ids, through the one repeatable `id:in:` token — never a read per row.
+    expect(productListQueries).toHaveLength(1);
+    expect(productListQueries[0]!.filter).toEqual(['id:in:p1,p2']);
+  });
+
+  /** A pricing read that cannot answer must not cost the shopper the results themselves. */
+  it('search keeps its results when the pricing read fails', async () => {
+    const client = {
+      catalog: {
+        listProducts: async () => {
+          throw new Error('products list unavailable');
+        },
+        search: async () => ({
+          total: 1,
+          results: [
+            { id: 'p1', kind: 'PRODUCT', title: 'Merino crew sweater', targetUrl: '/products/a' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('linen'));
+    await settle();
+
+    expect(result.error.value).toBeNull();
+    expect(result.data.value!.products.map((product) => product.title)).toEqual([
+      'Merino crew sweater',
+    ]);
+  });
+
+  /** No products in the response: nothing to price, so nothing is asked for. */
+  it('search makes no pricing request when it found no products', async () => {
+    const productListQueries: Array<Record<string, unknown>> = [];
+    const client = {
+      catalog: {
+        listProducts: async (query: Record<string, unknown>) => {
+          productListQueries.push(query);
+          return { data: [], meta: {} };
+        },
+        search: async () => ({
+          total: 1,
+          results: [{ id: 's1', kind: 'CMS_SCHEMA', title: 'Shipping', targetUrl: '/pages/x' }],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('shipping'));
+    await settle();
+
+    expect(result.data.value!.pages).toHaveLength(1);
+    expect(productListQueries).toEqual([]);
   });
 
   it('collectionProducts resolves null for no collection at all, without calling the client', async () => {
