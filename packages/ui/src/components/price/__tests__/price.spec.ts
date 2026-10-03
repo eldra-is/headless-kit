@@ -1,11 +1,13 @@
-import { defineComponent, h, nextTick } from 'vue';
+import { defineComponent, h } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CURRENCY_KEY, LOCALE_KEY } from '../../../composables/useLocale';
 import { provideEldraUiMessages } from '../../../composables/useMessages';
 import { isIS } from '../../../messages/is-IS';
 import { axe } from '../../../test/axe';
+import { giveMotionTokens, recordAnimations, stubReducedMotion } from '../../../test/motion';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Price from '../Price.vue';
+import type { PriceProps } from '../types';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -725,211 +727,149 @@ describe('Price — revalidating', () => {
  * moment old; these cover the fade that plays when the fresher one lands, so a value that was
  * never seen changing does not simply appear as different settled text.
  *
- * `@vue/test-utils` stubs `<Transition>` by default, which is what most of these read: the stub
- * renders its props as attributes on a `transition-stub` element, so the recipe the component
- * binds is assertable without racing a real animation. The last two unstub it and drive the real
- * thing, which is the only way to see that exactly one copy of the amount is ever in the DOM.
+ * The fade is a one-element `Element.animate()` on the inner value span
+ * (`src/utils/valueFade.ts`), not a `<Transition>`, so there is nothing asynchronous to wait for
+ * here: the text is an ordinary interpolation and changes with the props. `recordAnimations`
+ * watches what was played, `giveMotionTokens` supplies the `--eldra-*` values the real cascade
+ * would have inherited to the element.
  */
 describe('Price — the amount changing', () => {
   const USD = { currency: 'USD', locale: 'en-US' } as const;
 
-  /** One transition phase, under fake timers: both of Vue's animation frames plus the render it
-   *  schedules. With no stylesheet there is no transition duration to wait out, so a phase is over
-   *  as soon as its frames have run. */
-  async function flushFrames(): Promise<void> {
-    await vi.advanceTimersByTimeAsync(100);
-    await nextTick();
+  /** The value span plus the tokens the fade reads off it. */
+  function readyPrice(props: Partial<PriceProps> & { amount: number }) {
+    const wrapper = mountWith(Price, { props: { ...USD, ...props } });
+    for (const part of ['currentValue', 'compareAtValue']) {
+      const el = wrapper.find(`[data-part="${part}"]`);
+      if (el.exists()) giveMotionTokens(el.element);
+    }
+    return wrapper;
   }
 
-  /** The classes Vue would apply, as the stub reports them. */
-  function transitionClasses(wrapper: {
-    find: (s: string) => { attributes: () => Record<string, string | undefined> };
-  }): string[] {
-    const attributes = wrapper.find('transition-stub').attributes();
-    return [
-      'enterfromclass',
-      'enteractiveclass',
-      'entertoclass',
-      'leavefromclass',
-      'leaveactiveclass',
-      'leavetoclass',
-    ].flatMap((name) => (attributes[name] ?? '').split(/\s+/).filter(Boolean));
-  }
-
-  it('wraps each amount in its own value node, keyed on the formatted text', async () => {
-    const wrapper = mountWith(Price, {
-      props: { amount: 3840, compareAt: 4800, revalidating: true, ...USD },
-    });
+  it('renders each amount in its own value node', () => {
+    const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
     expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$38.40');
     expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$48.00');
-    const before = wrapper.get('[data-part="currentValue"]').element;
-
-    await wrapper.setProps({ amount: 3600 });
-    const after = wrapper.get('[data-part="currentValue"]');
-    expect(after.text()).toBe('$36.00');
-    // A new key is a new element: that is what gives the transition something to leave and
-    // something to enter.
-    expect(after.element).not.toBe(before);
     wrapper.unmount();
   });
 
-  /** Keyed on the *formatted* text, not the raw amount: a change that formats identically must not
-   *  fade a number into the same number. */
-  it('keeps the same value node when the formatted amount does not change', async () => {
-    const wrapper = mountWith(Price, {
-      props: { amount: 6990, currency: 'ISK', locale: 'is-IS', revalidating: true },
-    });
+  /**
+   * **The value is correct the instant the props change** — refreshed or not. That is the whole
+   * reason the fade plays on one stable element instead of a keyed `<Transition>`: `out-in`
+   * renders a placeholder and brings the new text in on a later render pass, which showed the
+   * previous amount for the length of the leave, after `aria-busy` and the dim had already gone,
+   * and made every value change in the package asynchronous (the starter's cart line total still
+   * read the old amount a tick after the stepper click).
+   */
+  it.each([
+    ['a refreshing price', true],
+    ['a price that has never refreshed', false],
+  ])('changes the amount in the same tick for %s', async (_case, revalidating) => {
+    const wrapper = readyPrice({ amount: 9600, compareAt: 12000, revalidating });
+    await wrapper.setProps({ amount: 19200, compareAt: 24000 });
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$192.00');
+    expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$240.00');
+    wrapper.unmount();
+  });
+
+  /** One element, so there is never a second copy of the price for a screen reader to find — not
+   *  while it changes, not for a frame afterwards. */
+  it('keeps exactly one copy of each amount across a change', async () => {
+    const wrapper = readyPrice({ amount: 4800, compareAt: 6000, revalidating: true });
     const before = wrapper.get('[data-part="currentValue"]').element;
-    // ISK has no minor unit, so these two format to the same string.
-    await wrapper.setProps({ amount: 6990 });
+    await wrapper.setProps({ amount: 900 });
+    expect(wrapper.findAll('[data-part="currentValue"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-part="compareAtValue"]')).toHaveLength(1);
+    // And it is the same element: the text is interpolated, nothing is replaced.
     expect(wrapper.get('[data-part="currentValue"]').element).toBe(before);
     wrapper.unmount();
   });
 
-  it('crossfades out-in over the token duration once the price has refreshed', () => {
-    const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true, ...USD } });
-    const attributes = wrapper.find('transition-stub').attributes();
-    // One value in the DOM at a time — never two copies of the amount for a screen reader to read.
-    expect(attributes.mode).toBe('out-in');
-    expect(attributes.enterfromclass).toContain('opacity-0');
-    expect(attributes.leavetoclass).toContain('opacity-0');
-    for (const phase of ['enteractiveclass', 'leaveactiveclass'] as const) {
-      expect(attributes[phase], phase).toContain('transition-opacity');
-      // The duration and easing are the tokens, never a literal.
-      expect(attributes[phase], phase).toContain('duration-base');
-      expect(attributes[phase], phase).toContain('ease-out');
-    }
+  it('fades the new amount in over the token duration and easing', async () => {
+    const played = recordAnimations();
+    const wrapper = readyPrice({ amount: 4800, compareAt: 6000, revalidating: true });
+    // Nothing while the price mounts. (The tokens only reach the element after mount here, so the
+    // "a value that arrives with the component has not changed" rule is guarded where it can be
+    // real — `ValueText`'s own spec, which mounts with them already in place.)
+    expect(played.calls).toHaveLength(0);
+
+    await wrapper.setProps({ amount: 3600 });
+    expect(played.calls).toHaveLength(1);
+    const fade = played.calls[0]!;
+    expect(fade.el).toBe(wrapper.get('[data-part="currentValue"]').element);
+    // Enter only: from transparent to the element's own settled opacity, which the dim owns.
+    expect(fade.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+    expect(fade.options.duration).toBe(200);
+    expect(fade.options.easing).toBe('cubic-bezier(0.2, 0, 0, 1)');
+    expect(fade.options.fill).toBeUndefined();
     wrapper.unmount();
+    played.restore();
   });
 
-  /**
-   * Reduced motion: every class the transition applies is `motion-safe:`-gated, so under
-   * `prefers-reduced-motion: reduce` it applies none of them — no opacity change, no transition
-   * property, and the new amount is simply there. A CSS gate rather than a `matchMedia` read, so
-   * it stays right when a visitor changes the setting without this component re-rendering.
-   */
-  it('gates every class behind motion-safe, so reduced motion swaps instantly', () => {
-    const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true, ...USD } });
-    const classes = transitionClasses(wrapper);
-    expect(classes.length).toBeGreaterThan(0);
-    for (const name of classes) {
-      expect(name, name).toMatch(/^motion-safe:/);
-    }
+  it('fades a changed compare-at too, and only the part that changed', async () => {
+    const played = recordAnimations();
+    const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
+    await wrapper.setProps({ compareAt: 5200 });
+    expect(played.calls).toHaveLength(1);
+    expect(played.calls[0]!.el).toBe(wrapper.get('[data-part="compareAtValue"]').element);
     wrapper.unmount();
+    played.restore();
   });
 
-  /** Before anything has been refreshed there is no `<Transition>` at all — see the next spec for
-   *  why that matters — and it stays in place afterwards. */
-  it('wraps the amount in a transition only once the price has refreshed', async () => {
-    const wrapper = mountWith(Price, { props: { amount: 4800, ...USD } });
-    expect(wrapper.find('transition-stub').exists()).toBe(false);
+  /** Keyed on the *formatted* text, not the raw amount: a change that formats identically (a
+   *  currency with no minor units re-reading the same major amount) stays completely still. */
+  it('plays nothing when the formatted amount does not change', async () => {
+    const played = recordAnimations();
+    const wrapper = mountWith(Price, {
+      props: { amount: 6990, currency: 'ISK', locale: 'is-IS', revalidating: true },
+    });
+    giveMotionTokens(wrapper.get('[data-part="currentValue"]').element);
+    await wrapper.setProps({ amount: 6990 });
+    expect(played.calls).toHaveLength(0);
+    wrapper.unmount();
+    played.restore();
+  });
+
+  /** Turning the state on brings the spinner and the dim; the amount itself does not move. */
+  it('plays nothing when the refresh starts', async () => {
+    const played = recordAnimations();
+    const wrapper = readyPrice({ amount: 4800 });
+    await wrapper.setProps({ revalidating: true });
+    expect(played.calls).toHaveLength(0);
     expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$48.00');
-
-    await wrapper.setProps({ revalidating: true });
-    expect(transitionClasses(wrapper).length).toBeGreaterThan(0);
-
-    // And it stays armed after the read finishes: the fresher amount almost always arrives in the
-    // same turn the flag clears, which is the change the fade exists for.
-    await wrapper.setProps({ revalidating: false });
-    expect(transitionClasses(wrapper).length).toBeGreaterThan(0);
     wrapper.unmount();
+    played.restore();
   });
 
   /**
-   * **A price that has never been refreshed changes synchronously**, and that is why the
-   * `<Transition>` is mounted by a `v-if` instead of sitting there permanently with its classes
-   * switched off. `mode="out-in"` renders a placeholder as soon as the key changes and brings the
-   * new child in on a later render pass — so a permanent transition made *every* amount change in
-   * the package asynchronous: a cart line total still read `$96.00` a tick after the stepper had
-   * been clicked to 2 (caught by the starter's own cart spec).
+   * Reduced motion is answered twice over, and either answer is enough: the visitor's own setting,
+   * and `--eldra-duration-base`, which `tokens.css` zeroes under `prefers-reduced-motion: reduce`.
+   * The value still changes — instantly — in every one of these.
    */
-  it('changes an un-refreshed amount in the same tick', async () => {
-    const wrapper = mountWith(Price, {
-      props: { amount: 9600, ...USD },
-      global: { stubs: { transition: false } },
-    });
-    await wrapper.setProps({ amount: 19200 });
-    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$192.00');
+  it.each([
+    ['the visitor asked for reduced motion', '200ms', true],
+    ['the stylesheet zeroed the duration token', '0ms', false],
+    ['no stylesheet supplies the token at all', '', false],
+  ])('plays no animation when %s', async (_case, duration, reduce) => {
+    const played = recordAnimations();
+    const motion = reduce ? stubReducedMotion() : null;
+    const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true, ...USD } });
+    if (duration !== '')
+      giveMotionTokens(wrapper.get('[data-part="currentValue"]').element, duration);
+
+    await wrapper.setProps({ amount: 3600 });
+    expect(played.calls).toHaveLength(0);
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
     wrapper.unmount();
+    motion?.restore();
+    played.restore();
   });
 
-  /**
-   * Turning the state *on* must not fade anything — only the spinner and the dim arrive. The
-   * `v-if` does swap the plain span for the transition-wrapped one at that moment, and what keeps
-   * that invisible is that a `<Transition>` has no `appear`: the child it mounts with is not
-   * animated, so no entrance class is ever applied to it.
-   */
-  it('does not fade the amount when the refresh starts', async () => {
-    const wrapper = mountWith(Price, {
-      props: { amount: 4800, ...USD },
-      global: { stubs: { transition: false } },
-    });
-    await wrapper.setProps({ revalidating: true });
-    const value = wrapper.get('[data-part="currentValue"]');
-    expect(value.text()).toBe('$48.00');
-    expect(value.classes()).toEqual([]);
-    wrapper.unmount();
-  });
-
-  /**
-   * The real transition, unstubbed. `out-in` is what keeps the accessibility tree honest: the old
-   * amount leaves before the new one is inserted, so there is exactly one number in the DOM at
-   * every instant — a simultaneous crossfade would have both, and a screen reader reaching the
-   * price mid-fade would find two prices.
-   */
-  it('never has two amounts in the DOM at once while the fade runs', async () => {
-    // Fake animation frames rather than racing real ones: Vue steps a CSS transition on
-    // `nextFrame` (two `requestAnimationFrame`s), so with real frames the fade can be over before
-    // the mid-fade assertion runs — which is exactly how this spec first flaked under a loaded
-    // parallel run. Faking them makes each phase a deliberate step.
-    vi.useFakeTimers();
-    try {
-      const wrapper = mountWith(Price, {
-        props: { amount: 4800, revalidating: true, ...USD },
-        global: { stubs: { transition: false } },
-      });
-      await wrapper.setProps({ amount: 900 });
-
-      // Mid-leave: the old amount is still the only one in the DOM — `out-in` has not inserted the
-      // new one yet — and it carries nothing but motion-safe classes.
-      expect(wrapper.findAll('[data-part="currentValue"]')).toHaveLength(1);
-      const leaving = wrapper.get('[data-part="currentValue"]');
-      expect(leaving.text()).toBe('$48.00');
-      for (const name of leaving.classes()) {
-        expect(name, name).toMatch(/^motion-safe:/);
-      }
-
-      // The leave settles and the enter starts, then the enter settles.
-      await flushFrames();
-      expect(wrapper.findAll('[data-part="currentValue"]')).toHaveLength(1);
-      await flushFrames();
-      expect(wrapper.findAll('[data-part="currentValue"]')).toHaveLength(1);
-      expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$9.00');
-      // Settled: nothing of the transition is left on the element.
-      expect(wrapper.get('[data-part="currentValue"]').classes()).toEqual([]);
-      expect(visibleText(wrapper)).toContain('$9.00');
-      wrapper.unmount();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  /** Real frames here, not the faked ones above: axe-core needs its own timers to run at all. The
-   *  check is phase-agnostic — the first call lands while the fade is in flight or just after it,
-   *  and either is a state a visitor can be in. */
   it('has no axe violations across a value change', async () => {
-    const wrapper = mountWith(Price, {
-      props: { amount: 3840, compareAt: 4800, revalidating: true, ...USD },
-      global: { stubs: { transition: false } },
-    });
-    await wrapper.setProps({ amount: 3600, compareAt: 4000 });
-    expect(await axe(wrapper.element)).toHaveNoViolations();
-
-    await vi.waitUntil(() => wrapper.get('[data-part="currentValue"]').text() === '$36.00', {
-      timeout: 5000,
-      interval: 5,
-    });
+    const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
+    await wrapper.setProps({ amount: 3600, compareAt: 4000, revalidating: false });
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
-  }, 20000);
+  });
 });

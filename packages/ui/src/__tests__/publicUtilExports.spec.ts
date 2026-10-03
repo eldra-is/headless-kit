@@ -32,9 +32,16 @@ describe('public util exports', () => {
     expect(ui.initialsFromName('Maya Okafor')).toBe('MO');
   });
 
-  it('keeps tagRecipe/listFormat/valueTransition internal (class recipes and a join helper, not public API)', () => {
+  it('keeps tagRecipe/listFormat/valueFade internal (a class recipe, a join helper and one animation)', () => {
     expect((ui as Record<string, unknown>).TAG_FILL).toBeUndefined();
     expect((ui as Record<string, unknown>).formatConjunctionList).toBeUndefined();
-    expect((ui as Record<string, unknown>).VALUE_FADE).toBeUndefined();
+    expect((ui as Record<string, unknown>).fadeInChangedValue).toBeUndefined();
+  });
+
+  /** `prefersReducedMotion` moved to `src/utils/cssTiming.ts` and is re-exported through
+   *  `useCarousel`; the public entry must still carry it, and it must still be the real check. */
+  it('still exports prefersReducedMotion after its move to utils', () => {
+    expect(typeof ui.prefersReducedMotion).toBe('function');
+    expect(typeof ui.prefersReducedMotion()).toBe('boolean');
   });
 });

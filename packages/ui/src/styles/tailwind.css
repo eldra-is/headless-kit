@@ -594,20 +594,20 @@
 /* A value that is still on screen while a fresher one is being fetched (`Price`, `StockBadge` and,
    through them, `ProductCard`, with `revalidating` set): the value keeps its place and its text and
    is drawn at `--eldra-revalidating-opacity`, with the spinner beside it left at full strength. Not
-   a literal `opacity-55`: the amount of the dim is a token a store restyles, like every other value
-   in this package, and it is what a consumer raises to make the state quieter than the default —
-   which is deliberately deep enough that the value reads as unsettled rather than as settled text,
-   and takes a contrast trade for the length of the read to get there (see
-   `eldra-starter-spec/tokens.json` for the numbers). Registered in `src/utils/cx.ts`'s `opacity`
-   merge group, so a consumer's own `classes.current: 'opacity-100'` replaces it rather than landing
-   beside it.
+   a literal `opacity-75`: the amount of the dim is a token a store restyles, like every other value
+   in this package. The default is the deepest dim at which every colour these values are drawn in
+   still clears 3:1 on every ground this package ships — deep enough to read as unsettled rather
+   than as settled text, and below 4.5:1 for everything but `text` while the read lasts (see
+   `eldra-starter-spec/tokens.json` for the numbers and for which way to move it). Registered in
+   `src/utils/cx.ts`'s `opacity` merge group, so a consumer's own `classes.current: 'opacity-100'`
+   replaces it rather than landing beside it.
 
-   The dim is only half of the treatment: the *change* is eased too. Once either component has
-   refreshed, it wraps the text in a `<Transition mode="out-in">` keyed on that text, so a new
-   amount fades in where the old one faded out instead of simply appearing — see
-   `src/utils/valueTransition.ts`, whose classes are all `motion-safe:`-gated, and which is why the
-   dim sits on the value *part* while the fade sits on an inner span: both are `opacity`, and one
-   element cannot animate a property another rule is holding at the token's value. */
+   The dim is only half of the treatment: the *change* is eased too. A changed amount, or a changed
+   stock line, fades in over `--eldra-duration-base` — played in JavaScript on the value's own inner
+   span (`src/utils/valueFade.ts`), not in CSS and not through a `<Transition>`, so the text itself
+   is never a frame behind the props. The fade is on that inner span rather than on the value part
+   for the same reason the dim is on the part: both are `opacity`, and one element cannot animate a
+   property another rule is holding at the token's value. */
 @utility eldra-revalidating {
   opacity: var(--eldra-revalidating-opacity);
 }

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
-import { VALUE_FADE } from '../../utils/valueTransition';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
+import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { StockBadgeProps, StockLevel } from './types';
 
@@ -73,26 +73,13 @@ const text = computed(() => props.message ?? defaultMessage.value);
  * The dim goes on the icon and the label rather than on the root, because CSS opacity composites
  * down the tree and a dimmed root would take the spinner with it — the spinner is the state's own
  * signal and stays at full strength.
+ *
+ * And the change itself is eased the same way `Price` eases a changed amount: `ValueText` (the
+ * inner span the words are rendered into, below) fades them in over `--eldra-duration-base`
+ * whenever they change, on the element that already holds the new wording, with nothing fading
+ * out — see `src/utils/valueFade.ts`.
  */
 const dim = computed(() => (props.revalidating ? 'eldra-revalidating' : ''));
-
-/**
- * And the other half of the treatment, exactly as `Price.vue` draws it: once this stock line has
- * refreshed at all, a change of wording fades out and in over `--eldra-duration-base` instead of
- * being replaced in a single frame. This latches rather than tracking `revalidating`, because the
- * fresher level usually arrives in the same turn the flag clears, and the template switches to the
- * transition-wrapped wording with a `v-if` on it rather than leaving a `<Transition>` in place —
- * see `src/utils/valueTransition.ts` for both, and for why the fade is on an inner span rather than
- * on the dimmed `label` itself.
- */
-const eased = ref(false);
-watch(
-  () => props.revalidating,
-  (busy) => {
-    if (busy) eased.value = true;
-  },
-  { immediate: true }
-);
 
 const rootClass = computed(() =>
   partClass(
@@ -106,9 +93,9 @@ const iconClass = computed(() =>
 );
 const labelClass = computed(() => partClass(dim.value, props.classes, 'label'));
 
-/** The element the crossfade replaces: an inner span carrying the words and nothing else, so the
- *  fade (0 -> 1 on the span) composites inside the dim (`--eldra-revalidating-opacity` on the
- *  part) instead of competing with it for the same property. */
+/** The element the fade plays on: an inner span (`ValueText`) carrying the words and nothing else,
+ *  so the fade (0 -> 1 on the span) composites inside the dim (`--eldra-revalidating-opacity` on
+ *  the part) instead of competing with it for the same property. */
 const labelValueClass = computed(() => partClass('', props.classes, 'labelValue'));
 
 /**
@@ -157,12 +144,8 @@ const srStatusText = computed(() => (props.revalidating ? messages.value.updatin
       <path v-for="d in LEVEL_ICON_PATHS[level]" :key="d" :d="d" />
     </svg>
     <span data-part="label" :class="labelClass"
-      ><Transition v-if="eased" v-bind="VALUE_FADE"
-        ><span :key="text" data-part="labelValue" :class="labelValueClass">{{
-          text
-        }}</span></Transition
-      ><span v-else data-part="labelValue" :class="labelValueClass">{{ text }}</span></span
-    >
+      ><ValueText data-part="labelValue" :class="labelValueClass" :text="text"
+    /></span>
     <span v-if="revalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true">
       <Spinner class="absolute start-[0.25em] top-0 size-[1em]" />
     </span>

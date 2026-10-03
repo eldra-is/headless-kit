@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
-import { VALUE_FADE } from '../../utils/valueTransition';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
 import { createNumberFormat, currencyFractionDigits } from '../../utils/number-format';
+import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { PriceProps, PriceSize } from './types';
 
@@ -36,32 +36,16 @@ const isRevalidating = computed(() => props.revalidating && !props.loading);
  * because CSS opacity composites down the tree: a dimmed root would take the spinner with it, and
  * a child cannot be more opaque than its parent. The spinner is the state's own signal and stays
  * at full strength.
+ *
+ * The dim says the amount on screen may be a moment old; the other half of the treatment is that
+ * the amount *changing* is eased rather than simply replaced. `ValueText` (the inner span each
+ * amount is rendered into, below) fades it in over `--eldra-duration-base` whenever its formatted
+ * text changes, on the element that already holds the new text. Nothing fades out: a leaving half
+ * would keep the previous amount on screen after `aria-busy`, the dim and the spinner had already
+ * gone, which on a price is exactly the thing not to do. See `src/utils/valueFade.ts` for the
+ * rest — why one element rather than a keyed `<Transition>`, and how reduced motion is answered.
  */
 const dim = computed(() => (isRevalidating.value ? 'eldra-revalidating' : ''));
-
-/**
- * The dim says the amount on screen may be a moment old; this is the other half — the amount
- * *changing* is eased rather than simply replaced. It latches on the first refresh this price ever
- * runs and stays on, which is what makes the change that *ends* a refresh the one that fades: the
- * fresher amount usually arrives in the same turn `revalidating` clears, so a fade gated on the
- * flag itself would be off by exactly the change it exists for. Latching also keeps the arming
- * invisible — the key below does not change when the spinner appears, so nothing fades at the
- * start of a read.
- *
- * It is what the template's `v-if` picks the transition-wrapped amount with, rather than something
- * the transition itself reads: a `<Transition mode="out-in">` left permanently in place would make
- * every amount change asynchronous, refresh or not. See `src/utils/valueTransition.ts` for that,
- * for the `motion-safe:` gate, and for why the fade sits on an inner span rather than on the
- * dimmed part itself (both are `opacity`, and the dim holds that property at the token's value).
- */
-const eased = ref(false);
-watch(
-  isRevalidating,
-  (busy) => {
-    if (busy) eased.value = true;
-  },
-  { immediate: true }
-);
 
 const ambientLocale = useEldraUiLocale();
 const ambientCurrency = useEldraUiCurrency();
@@ -245,10 +229,10 @@ const unitClass = computed(() =>
 const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
 
 /**
- * The two elements the crossfade above actually replaces: an inner span per money value, carrying
+ * The two elements the fade plays on: an inner span per money value (`ValueText`), carrying
  * nothing of its own but the text and whatever `classes.currentValue`/`classes.compareAtValue`
  * adds. They exist so the fade and the dim are on different elements — opacity composites down the
- * tree, so the inner span animates 0 -> 1 *inside* the part's own `--eldra-revalidating-opacity`
+ * tree, so the inner span fades 0 -> 1 *inside* the part's own `--eldra-revalidating-opacity`
  * instead of fighting it for the same property — and nothing else about the price's boxes changes:
  * an inline span in an inline formatting context adds no width, no line box and no baseline of its
  * own, and `tabular-nums` is inherited from the part.
@@ -347,28 +331,18 @@ const srStatusText = computed(() => (isRevalidating.value ? messages.value.updat
         ><span data-part="srText" :class="srTextClass">{{ saleLabel }}</span
         >{{ ' ' }}</template
       ><span data-part="current" :class="currentClass"
-        ><Transition v-if="eased" v-bind="VALUE_FADE"
-          ><span :key="formattedCurrent" data-part="currentValue" :class="currentValueClass">{{
-            formattedCurrent
-          }}</span></Transition
-        ><span v-else data-part="currentValue" :class="currentValueClass">{{
-          formattedCurrent
-        }}</span></span
+        ><ValueText
+          data-part="currentValue"
+          :class="currentValueClass"
+          :text="formattedCurrent" /></span
       ><template v-if="isSale"
         >{{ ' ' }}<span data-part="srText" :class="srTextClass">{{ regularLabel }}</span
         >{{ ' '
         }}<s data-part="compareAt" :class="compareAtClass"
-          ><Transition v-if="eased" v-bind="VALUE_FADE"
-            ><span
-              :key="formattedCompareAt"
-              data-part="compareAtValue"
-              :class="compareAtValueClass"
-              >{{ formattedCompareAt }}</span
-            ></Transition
-          ><span v-else data-part="compareAtValue" :class="compareAtValueClass">{{
-            formattedCompareAt
-          }}</span></s
-        ></template
+          ><ValueText
+            data-part="compareAtValue"
+            :class="compareAtValueClass"
+            :text="formattedCompareAt" /></s></template
       ><span v-if="isRevalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true"
         ><Spinner class="absolute start-[0.25em] top-0 size-[1em]" /></span
       ><template v-if="unitPrice"

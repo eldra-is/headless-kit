@@ -12,9 +12,9 @@ export type PriceSize = 'sm' | 'md' | 'lg';
  * on `Avatar`/`LogoItem` — see this package's README for the naming rule.
  *
  * `currentValue` and `compareAtValue` are the inner spans holding the formatted amounts inside
- * `current`/`compareAt`. They exist so the refresh dim (on the part) and the crossfade a changed
- * amount plays (on the span) are not the same element fighting over `opacity`; they add no box of
- * their own, and a consumer who only wants to restyle the amount's text can reach either one. */
+ * `current`/`compareAt`. They exist so the refresh dim (on the part) and the fade a changed amount
+ * plays (on the span) are not the same element fighting over `opacity`; they add no box of their
+ * own, and a consumer who only wants to restyle the amount's text can reach either one. */
 export type PricePart =
   | 'root'
   | 'current'
@@ -73,11 +73,12 @@ export interface PriceProps {
    * `messages.updatingPrice`. Distinct from `loading`, which means there is no price yet and shows
    * a skeleton instead — and `loading` wins when both are set.
    *
-   * Setting this once also arms the amount's own crossfade for the rest of the component's life:
-   * from then on a changed `amount`/`compareAt` fades out and the new one fades in over
-   * `--eldra-duration-base` rather than being replaced in a single frame — instantly, with no
-   * fade at all, under `prefers-reduced-motion: reduce`. The value never regresses to a skeleton,
-   * and there is never more than one copy of it in the accessibility tree.
+   * Independently of this flag, a changed `amount`/`compareAt` fades in over
+   * `--eldra-duration-base` rather than simply appearing — enter only, on the element that already
+   * holds the new text, so the amount is correct the instant the prop changes and a stale one is
+   * never left on screen; instantly, with no animation at all, under
+   * `prefers-reduced-motion: reduce`. The value never regresses to a skeleton, and there is never
+   * more than one copy of it in the accessibility tree.
    */
   revalidating?: boolean;
   /**

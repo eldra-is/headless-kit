@@ -63,10 +63,10 @@ const meta = {
           'spinner beside it while a fresher one is fetched — `aria-busy="true"` on the root and a',
           'hidden live region reading `messages.updatingStock` (`announce: false` drops that region',
           'for a page that announces the refresh once itself). Parts: `spinner`, `srStatus`, and',
-          "`labelValue`, the inner span holding the words. Setting it once also arms the line's",
-          'crossfade: from then on new wording fades in where the old faded out, over',
-          '`duration-base`, rather than the line simply reading differently — instantly, with no',
-          'fade, under `prefers-reduced-motion: reduce`.',
+          '`labelValue`, the inner span holding the words. Independently of the flag, changed',
+          'wording fades in over `duration-base` rather than the line simply reading differently —',
+          'enter only, on the element that already holds the new words, and with no animation at',
+          'all under `prefers-reduced-motion: reduce`.',
           '',
           '**Messages** (`StockBadge` only): `stockIn`, `stockLow(n)`, `soldOut` (shared with the',
           '`Badge` sold-out state above — one key, not two, for the same phrase),',
@@ -188,8 +188,8 @@ export const StockPreorder: Story = {
  * the words stay, dimmed (`--eldra-revalidating-opacity`, deep enough to read as unsettled rather
  * than as settled text), with a spinner drawn beside them outside the line's own box, so nothing
  * moves. `aria-busy="true"` and a hidden live region reading `messages.updatingStock` come with it,
- * and when the fresher level lands its wording crossfades in — see `Display/Price`'s own
- * `ValueChange` story for that half, which a still image cannot show.
+ * and when the fresher level lands its wording fades in — see `Display/Price`'s own `ValueChange`
+ * story for that half, which a still image cannot show.
  */
 export const StockRevalidating: Story = {
   name: 'Stock/Revalidating',

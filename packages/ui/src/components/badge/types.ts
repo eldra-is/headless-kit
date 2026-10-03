@@ -50,9 +50,9 @@ export interface BadgeProps {
 export type StockLevel = 'in' | 'low' | 'out' | 'preorder';
 
 /** The parts a consumer can restyle through `classes`. `labelValue` is the inner span holding the
- *  words inside `label`: it exists so the refresh dim (on `label`) and the crossfade a changed
- *  stock line plays (on the span) are not one element fighting over `opacity`. It adds no box of
- *  its own. */
+ *  words inside `label`: it exists so the refresh dim (on `label`) and the fade a changed stock
+ *  line plays (on the span) are not one element fighting over `opacity`. It adds no box of its
+ *  own. */
 export type StockBadgePart = 'root' | 'icon' | 'label' | 'labelValue' | 'spinner' | 'srStatus';
 
 export interface StockBadgeProps {
@@ -69,10 +69,10 @@ export interface StockBadgeProps {
    * box, so nothing moves) and `aria-busy="true"` on the root; a visually hidden live region says
    * `messages.updatingStock`.
    *
-   * Setting this once also arms the line's own crossfade for the rest of the component's life:
-   * from then on a changed `level`/`message` fades out and the new wording fades in over
-   * `--eldra-duration-base` rather than being replaced in a single frame — instantly, with no
-   * fade at all, under `prefers-reduced-motion: reduce`.
+   * Independently of this flag, changed wording (`level`/`message`) fades in over
+   * `--eldra-duration-base` rather than simply appearing — enter only, on the element that already
+   * holds the new words; instantly, with no animation at all, under
+   * `prefers-reduced-motion: reduce`.
    */
   revalidating?: boolean;
   /**

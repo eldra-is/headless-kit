@@ -128,14 +128,17 @@ that fails simply turns the flag back off and leaves the value that was already 
 wins when both are set. A grid should pass `announce: false` alongside `revalidating` and announce
 the refresh once at page level — that drops each value's own live region and changes nothing else.
 
-The dim is deliberately deep (`--eldra-revalidating-opacity`, default `0.55`): a value being
-refreshed has to read as unsettled rather than as ordinary settled text, which costs contrast for
-as long as the read lasts and is tunable per store — raise the token for a quieter state. And when
-the fresher value lands it **crossfades** rather than simply appearing: the old amount, or the old
-stock line, fades out and the new one fades in over `--eldra-duration-base`, with exactly one copy
-of the value in the DOM at any instant and nothing new in the accessibility tree. Under
-`prefers-reduced-motion: reduce` the swap is instant. A value that is on screen never turns back
-into a skeleton.
+The dim is deep enough to see (`--eldra-revalidating-opacity`, default `0.75`): a value being
+refreshed has to read as unsettled rather than as ordinary settled text. That costs contrast for as
+long as the read lasts — 0.75 is the deepest dim at which every colour these values are drawn in
+still clears 3:1 on every ground the package ships, and it is below 4.5:1 for everything but the
+plain `text` colour — so the token is there to move: `0.9` restores the AA text ratio, lower makes
+the state louder. And when the fresher value lands it **fades in** rather than simply appearing:
+the new amount, or the new stock line, is on screen the instant the data changes and fades from
+transparent over `--eldra-duration-base`. Nothing fades out, so a stale value is never shown after
+the component has stopped saying it is busy, and there is only ever one copy of the value in the
+DOM. Under `prefers-reduced-motion: reduce` there is no animation at all and the value simply
+changes. A value that is on screen never turns back into a skeleton.
 
 ## Styles
 
