@@ -14,6 +14,7 @@ import {
   type EldraClient,
   type EntryDoc,
 } from '@eldrajs/theme-core';
+import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
 import eldraTheme, {
   type DeclaredTemplateSeed,
   type DeclaredThemeCodePage,
@@ -22,6 +23,7 @@ import eldraTheme, {
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { normalizeLocale } from './runtime/locale';
 import { listAllEntries } from './runtime/resolveRoute';
 
@@ -78,7 +80,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     routeTemplateSchema: 'route-template',
     tailwind: false,
   },
-  setup(options, nuxt) {
+  async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);
     const studioOrigins = validateStudioOrigins(options.studioOrigins);
 
@@ -113,6 +115,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // Normalised here too, so a blank `ELDRA_LOCALE` or `eldra.locale`
       // reaches the client as "no locale" rather than an empty `?locale=`.
       locale: normalizeLocale(options.locale) ?? null,
+      // What the store sells in, filled in below once the platform has
+      // answered. Written here as well so the key exists for anything that
+      // reads this object during another module's own `setup`.
+      commerce: null as StoreCommerce | null,
     };
 
     addPlugin(resolver.resolve('./runtime/plugin'));
@@ -240,6 +246,21 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       { name: 'eldra-theme-version', content: themeVersion(nuxt.options.rootDir) },
       { name: 'eldra-sdk-version', content: packageVersion(resolver.resolve('../package.json')) },
     ];
+
+    // The store's currency, once per build — see `./runtime/commerce.ts` for why it is read here
+    // and not in the browser, and why a failure is a warning rather than a failed build. Awaited
+    // last, after every registration above, so one gateway round trip cannot change what this
+    // module installs; the value lands on the runtime-config object written earlier, which Nitro
+    // does not read until the build itself starts.
+    //
+    // There is no client when the site has no gateway credentials — the same site the
+    // `prerender:routes` hook below warns about and prerenders "/" for.
+    const commerceClient =
+      options.gatewayUrl === '' || options.orgId === ''
+        ? null
+        : createEldraCommerceClient({ apiBaseUrl: options.gatewayUrl, orgId: options.orgId });
+    (nuxt.options.runtimeConfig.public.eldra as { commerce: StoreCommerce | null }).commerce =
+      await readStoreCommerce(commerceClient);
   },
 });
 

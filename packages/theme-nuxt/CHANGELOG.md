@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `runtimeConfig.public.eldra` now carries `commerce` — `{ currency, taxInclusivePricing,
+defaultTaxRate }`, or `null` — read once from the organisation during the build, so a prerendered
+  page's prices are formatted in the currency the store actually sells in instead of one the theme
+  guessed from the content locale. A store with no commerce settings, a site built without gateway
+  credentials and a read that failed all land on `null` with a single warning
+  (`[eldra] the store publishes no currency — prices render as a number with the code`); the build
+  never fails over it. There is no environment override: the platform is the source, and a
+  theme-side currency could only relabel real amounts. See the README for what a theme should do
+  with `null`.
+
 - The batched target reads behind a `link` field now page to the end of a result rather than
   stopping at the first hundred rows, and the category read asks for the ids it actually needs
   (`id:in:`, in chunks, like the product and collection reads) and keeps only those. A target lost

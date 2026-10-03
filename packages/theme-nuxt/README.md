@@ -118,6 +118,28 @@ the build continues.
 preview bridge. See [examples/starter-nuxt](../../examples/starter-nuxt) for a full theme and
 [docs/themes.md](../../docs/themes.md) for the integration guide.
 
+## What the store sells in
+
+The module reads the organisation's commerce settings once, during the build, and puts them on the
+runtime config beside the gateway URL and the org id:
+
+```ts
+const { commerce } = useRuntimeConfig().public.eldra as {
+  commerce: { currency: string; taxInclusivePricing: boolean; defaultTaxRate: number } | null;
+};
+```
+
+`commerce` is `null` when the store has not configured commerce, when the site is built without
+gateway credentials, or when the read failed — the build prints one warning and finishes, because a
+currency nobody can fetch should cost a symbol, not a deploy. A theme that formats prices should
+treat `null` as "render the number and its code", never as a currency to guess at; the starter does
+exactly that in `app/storefront/money.ts`.
+
+There is no environment override on purpose. The platform publishes the currency the catalogue's
+prices are actually in, so a theme-side `ELDRA_CURRENCY` could only ever relabel real amounts.
+It is read at build rather than in the browser because every price on a prerendered page is
+formatted against it.
+
 ## Development
 
 `src/runtime/**` is compiled by Nuxt at build/dev time, not by `tsc` — it imports `nuxt/app` and

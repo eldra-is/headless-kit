@@ -41,6 +41,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@eldrajs/sdk": "workspace:^",
     "@eldrajs/theme-core": "workspace:^",
     "@eldrajs/theme-vue": "workspace:^",
     "@eldrajs/vite-plugin-theme": "workspace:^",
