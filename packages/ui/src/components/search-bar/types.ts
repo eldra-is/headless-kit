@@ -56,6 +56,7 @@ export type SearchBarPart =
   | 'field'
   | 'leadingIcon'
   | 'clearButton'
+  | 'busy'
   | 'shortcutHint'
   | 'panel'
   | 'listbox'

@@ -421,10 +421,31 @@ describe('SearchModal — the live region', () => {
     expect(region().text()).toBe(enUS.searchLoading);
     expect(region().text()).not.toContain('No results');
 
+    // The answer lands with the rows, not 400ms behind them — see `SearchBar`'s own version.
     await wrapper.setProps({ results: RESULTS });
-    vi.advanceTimersByTime(400);
     await nextTick();
     expect(region().text()).toBe(enUS.resultsCount(RESULTS.total, 'bowl'));
+  });
+
+  /**
+   * The visible half of the loading state. The modal's panel is always open, so a shopper on a slow
+   * connection stared at an almost-empty panel with one line of hidden text and no sign that a
+   * request was out.
+   */
+  it('draws a spinner beside the field and marks the listbox busy while loading', async () => {
+    vi.useFakeTimers();
+    const wrapper = mount({ modelValue: true, query: 'wool', results: undefined, loading: true });
+    expect(wrapper.find('[data-part="busy"]').exists()).toBe(false);
+
+    vi.advanceTimersByTime(300);
+    await nextTick();
+    expect(wrapper.find('[data-part="busy"]').exists()).toBe(true);
+    expect(wrapper.find('[data-part="listbox"]').attributes('aria-busy')).toBe('true');
+
+    await wrapper.setProps({ results: RESULTS, loading: false });
+    await nextTick();
+    expect(wrapper.find('[data-part="busy"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="listbox"]').attributes('aria-busy')).toBeUndefined();
   });
 });
 

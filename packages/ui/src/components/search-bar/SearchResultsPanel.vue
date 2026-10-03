@@ -290,13 +290,20 @@ function onPanelMouseDown(event: MouseEvent): void {
     <!-- Spec → Accessibility: 'The panel is `role="listbox"` named "Search suggestions"'. It is the
          element `aria-controls` points at, and it always renders while the panel is showing — a
          `role="combobox"` must point at something real — so the no-results message and the loading
-         rows are its siblings rather than invalid children of a listbox. -->
+         rows are its siblings rather than invalid children of a listbox.
+
+         `aria-busy` while the `loading` view is showing: the list is known to be incomplete, and a
+         screen reader should not read the rows of the *previous* query as this one's answer. It is
+         the same contract `Price` and `StockBadge` already follow for a value being re-read, and it
+         is on the listbox rather than the panel because the listbox is what `aria-controls` points
+         at and what holds the rows. -->
     <div
       :id="listboxId"
       data-part="listbox"
       role="listbox"
       :class="listboxClass"
       :aria-label="listboxLabel"
+      :aria-busy="view === 'loading' ? 'true' : undefined"
     >
       <div
         v-for="(section, index) in sections"

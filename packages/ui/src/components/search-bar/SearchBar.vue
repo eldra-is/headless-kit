@@ -14,6 +14,7 @@ import {
 import { useListbox } from '../select/useListbox';
 import { matchRange, type MatchParts } from '../select/useOptionList';
 import { usePopover } from '../select/usePopover';
+import Spinner from '../spinner/Spinner.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import SearchResultsPanel from './SearchResultsPanel.vue';
 import { claimShortcut, ownsShortcut, releaseShortcut } from './shortcutOwner';
@@ -582,28 +583,59 @@ function onSubmit(): void {
  * **"No results" is an answer, so it needs one.** With `results` absent there is no response for
  * this query yet — `awaitingFirstResults`, the state the panel draws as `loading` — and announcing
  * "No results for “q”" there is a wrong answer that corrects itself a second later, in the one
- * channel that cannot be re-read. The region says `searchLoading` instead, and the count (or the
- * genuine "No results") lands when the response does, on this same debounce.
+ * channel that cannot be re-read. The region says `searchLoading` instead.
+ *
+ * **The 400ms is the typing pause, not a delay on the answer.** It exists so a region is not
+ * rewritten on every keystroke. Once it has fired for a query, the response *for that query* is
+ * what the region was waiting for, so it replaces "Searching…" in the same tick the panel's rows
+ * change — debouncing it again left a screen-reader user being told "Searching…" for 400ms after
+ * the list had already changed under them.
  */
 const ANNOUNCE_DELAY_MS = 400;
 const announcement = ref('');
 let announceTimer: ReturnType<typeof setTimeout> | undefined;
+/** The query the region is currently speaking about, or `null` while it is silent — what tells a
+ *  response for the query already announced apart from one that arrives mid-pause. */
+let announcedQuery: string | null = null;
 
-watch([query, () => props.results], ([text]) => {
+function stopAnnounceTimer(): void {
   if (announceTimer !== undefined) clearTimeout(announceTimer);
   announceTimer = undefined;
+}
+
+function announceFor(text: string): void {
+  const results = props.results;
+  announcement.value =
+    results === undefined
+      ? m.value.searchLoading
+      : results.total > 0
+        ? m.value.resultsCount(results.total, text)
+        : m.value.noResultsFor(text);
+  announcedQuery = text;
+}
+
+watch([query, () => props.results], ([text], [previousText]) => {
   if (text === '') {
+    stopAnnounceTimer();
     announcement.value = '';
+    announcedQuery = null;
     return;
   }
-  announceTimer = setTimeout(() => {
-    const results = props.results;
-    if (results === undefined) {
-      announcement.value = m.value.searchLoading;
-    } else {
-      announcement.value =
-        results.total > 0 ? m.value.resultsCount(results.total, text) : m.value.noResultsFor(text);
+  if (text === previousText) {
+    // Only the response changed. If the pause has already elapsed for this query, this *is* the
+    // answer the region was waiting for and it lands with the rows. If the pause is still running,
+    // it is left alone — it will read the newest response when it fires, where restarting it would
+    // push the announcement further away with every response that arrived.
+    if (announcedQuery === text) {
+      stopAnnounceTimer();
+      announceFor(text);
     }
+    return;
+  }
+  // A different query: the pause starts again, which is the whole point of it.
+  stopAnnounceTimer();
+  announceTimer = setTimeout(() => {
+    announceFor(text);
     announceTimer = undefined;
   }, ANNOUNCE_DELAY_MS);
 });
@@ -752,6 +784,23 @@ const shortcutHintClass = computed(() =>
   )
 );
 
+/**
+ * The **visible** half of the `loading` view, beside the field rather than only inside the panel.
+ *
+ * Spec → Panel views, `loading` gives the panel three skeleton rows; nothing gave the field itself a
+ * signal, so a shopper on a slow connection watched an almost-empty panel with no indication that
+ * anything was happening — while every other in-flight value in this package (`Price`,
+ * `StockBadge`, `Button`, `LoadMore`) draws the one shared `Spinner`. This is that same shape, on
+ * the same 300ms delay as the panel's own loading view so a fast read never flashes it. Decorative:
+ * the state is announced by the live region and by `aria-busy` on the listbox, never by the shape.
+ */
+const busyClass = computed(() =>
+  part(
+    'pointer-events-none absolute end-10 inset-y-0 my-auto inline-flex items-center text-muted',
+    'busy'
+  )
+);
+
 const liveRegionClass = computed(() => part('', 'liveRegion'));
 
 const showClear = computed(() => model.value.length > 0);
@@ -811,6 +860,10 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
         @click="openPanel"
         @keydown="onKeydown"
       />
+
+      <span v-if="loadingShown" data-part="busy" :class="busyClass">
+        <Spinner class="size-4.5" />
+      </span>
 
       <button
         v-if="showClear"
