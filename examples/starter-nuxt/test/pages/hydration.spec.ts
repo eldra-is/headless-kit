@@ -23,6 +23,8 @@ import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import productCarouselMock from '../../blocks/product-carousel/mock.json';
 import CollectionGrid from '../../blocks/collection-grid/Block.vue';
 import collectionGridMock from '../../blocks/collection-grid/mock.json';
+import Search from '../../blocks/search/Block.vue';
+import searchMock from '../../blocks/search/mock.json';
 import { createDemoStorefront } from '../../app/storefront/demo';
 import { createGatewayStorefront, type StorefrontRuntime } from '../../app/storefront/gateway';
 import { STOREFRONT_KEY } from '../../app/storefront/types';
@@ -328,5 +330,48 @@ describe('hydrating a prerendered commerce block', () => {
     expect(run.firstPaint).toContain(enUS.storefront.notFound);
     expect(run.firstPaint).not.toContain(enUS.storefront.loading);
     expect(withoutPackageEnhancement(run.firstPaint)).toBe(withoutPackageEnhancement(run.expected));
+  });
+
+  /**
+   * `/search` is the one route whose prerendered file answers *every* URL: a static host serves the
+   * same `search/index.html` for `/search` and for `/search?q=linen`, so the markup it ships knows
+   * no query at all (`app/pages/search.vue`). The browser's first render has to be that same markup
+   * even though the address bar — and therefore `useStorefront().route.query` — already carries the
+   * query, which is why `blocks/search/Block.vue` adopts it in `onMounted` rather than at setup.
+   *
+   * Without that gate the first paint is a different `h1` and a `<p role="status">` where the
+   * popular-search chips were: Vue patches the difference, warns, and the shopper watches the idle
+   * heading flash into the answered one.
+   */
+  it('search hydrates a prerendered shell as idle, then answers the URL’s query', async () => {
+    const entry: BlockEntry = {
+      id: 'h-search',
+      data: searchMock as unknown as Record<string, unknown>,
+    };
+
+    // The prerender: no query on the route, because the file is built once for every query.
+    const html = await renderBlockHtml(Search, entry, {
+      [STOREFRONT_KEY]: createDemoStorefront(),
+    });
+    expect(html).toContain(enUS.search.idleTitle);
+    // `not.toContain('No results')` would match the template's own HTML comment, which SSR keeps.
+    expect(html).not.toContain('No results for');
+
+    // The browser: the real URL, `?q=linen`, from the first synchronous read onwards.
+    const run = hydrateBlock(Search, entry, html, {
+      [STOREFRONT_KEY]: createDemoStorefront({ query: 'linen' }),
+    });
+    runs.push(run);
+
+    expect(hydrationWarnings(run)).toEqual([]);
+    expect(run.firstPaint).toContain(enUS.search.idleTitle);
+    expect(withoutPackageEnhancement(run.firstPaint)).toBe(withoutPackageEnhancement(run.expected));
+
+    // And the gate did not simply turn the query off: the answer arrives on the ticks after mount.
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(run.container.innerHTML).toContain('Results for');
+    expect(run.container.innerHTML).not.toContain(enUS.search.idleTitle);
   });
 });

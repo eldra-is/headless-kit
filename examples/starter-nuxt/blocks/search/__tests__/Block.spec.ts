@@ -14,6 +14,7 @@ import type {
 } from '../../../app/storefront/types';
 import { createDemoStorefront, PRODUCTS } from '../../../app/storefront/demo';
 import { enUS } from '../../../app/i18n/en-US';
+import { uiEnUS } from '../../../app/i18n/uiMessages';
 
 /** The genuinely minimal fixture: only the one required field. Exercises every fallback default
  *  (placeholder, the default products/journal/pages types, `suggestionsPerGroup`, no popular
@@ -317,7 +318,7 @@ describe('search block', () => {
   });
 
   describe('result tabs', () => {
-    it('a type with zero results has no tab', () => {
+    it('a type with zero results has no tab', async () => {
       const wrapper = mountSearch(mock, {
         storefront: withSearch({
           query: 'linen',
@@ -328,6 +329,9 @@ describe('search block', () => {
           suggestion: null,
         }),
       });
+      // The route's query is adopted in `onMounted` (so the prerendered shell and the browser's
+      // first render agree — see the block's own comment), so the answered page is a tick away.
+      await nextTick();
       const tabs = wrapper.findAll('[role="tab"]');
       const titles = tabs.map((tab) => tab.text());
       expect(titles.some((title) => title.startsWith(enUS.search.typePages))).toBe(false);
@@ -375,7 +379,7 @@ describe('search block', () => {
       expect(wrapper.html()).not.toContain('javascript:');
     });
 
-    it('a single result type hides the Tabs widget altogether', () => {
+    it('a single result type hides the Tabs widget altogether', async () => {
       const wrapper = mountSearch(mock, {
         storefront: withSearch({
           query: 'linen',
@@ -386,6 +390,7 @@ describe('search block', () => {
           suggestion: null,
         }),
       });
+      await nextTick();
       expect(wrapper.find('[role="tablist"]').exists()).toBe(false);
       expect(wrapper.text()).toContain(enUS.search.typeProducts);
     });
@@ -624,6 +629,90 @@ describe('search block', () => {
       expect(document.querySelector('[data-part="loading"]')).not.toBeNull();
       // Never the "nothing found" view while the request for it is still out.
       expect(document.body.textContent).not.toContain('No results');
+
+      // The announcement is debounced 400ms, past the loading view's own 300ms, and it has to agree
+      // with the panel: a screen-reader user must not hear the search fail and then hear it succeed.
+      vi.advanceTimersByTime(100);
+      await nextTick();
+      expect(document.querySelector('[data-part="liveRegion"]')?.textContent).toBe(
+        uiEnUS.searchLoading
+      );
     });
+  });
+
+  /**
+   * A product the storefront could not price (`StorefrontSearchProduct.price === null`: the pricing
+   * read failed, or the catalogue did not answer about that id). `ProductCardProduct.price` is
+   * required — a commerce card without a price is not a product card — so the results page renders
+   * no card for it rather than one reading the store's own "$0.00", and the Products tab counts the
+   * cards it can draw rather than the rows it was given.
+   */
+  describe('a product the storefront could not price', () => {
+    function withUnpricedProducts(): StorefrontSource {
+      const base = createDemoStorefront({ query: 'linen' });
+      const response: StorefrontSearchResponse = {
+        query: 'linen',
+        total: 3,
+        products: [
+          { ...PRODUCTS[0]!, price: null },
+          { ...PRODUCTS[1]!, price: null },
+        ],
+        articles: [ARTICLE_A],
+        // A second visible type, so the page draws its tabs at all and the Products tab's absence
+        // is a real assertion rather than the "only one type" fallback.
+        pages: [
+          { title: 'Shipping', href: '/pages/shipping', path: '/pages/shipping', snippet: '' },
+        ],
+        suggestion: null,
+      };
+      return { ...base, search: { run: () => stubResult(response) } };
+    }
+
+    it('renders no card for it, and never a formatted zero', async () => {
+      const wrapper = mountSearch(mock, { storefront: withUnpricedProducts() });
+      await nextTick();
+
+      expect(wrapper.text()).not.toContain('0.00');
+      expect(wrapper.text()).not.toContain(PRODUCTS[0]!.title);
+      // The journal result is untouched: only the product cards need a price.
+      expect(wrapper.text()).toContain(ARTICLE_A.title);
+    });
+
+    it('names no more products in its tabs than the grid can show', async () => {
+      const wrapper = mountSearch(mock, { storefront: withUnpricedProducts() });
+      await nextTick();
+
+      const titles = wrapper.findAll('[role="tab"]').map((tab) => tab.text());
+      expect(titles.some((title) => title.startsWith(enUS.search.typeProducts))).toBe(false);
+      expect(titles.some((title) => title.startsWith(enUS.search.typeJournal))).toBe(true);
+    });
+  });
+
+  /**
+   * `/search?q=%20` is somebody's stray space, not a search: `SearchBar` trims its own input and
+   * treats it as idle, and the page has to agree rather than heading itself `Results for “ ”`,
+   * printing a count line and spending a backend read on it.
+   */
+  it('treats a whitespace-only query as no query at all', async () => {
+    const storefront = createDemoStorefront({ query: '   ' });
+    const queries: string[] = [];
+    const base = storefront.search.run;
+    const wrapper = mountSearch(mock, {
+      storefront: {
+        ...storefront,
+        search: {
+          run: (ref_) => {
+            watch(ref_, (value) => queries.push(value), { immediate: true });
+            return base(ref_);
+          },
+        },
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.get('h1').text()).toBe(enUS.search.idleTitle);
+    expect(wrapper.find('[role="status"]:not([aria-live])').exists()).toBe(false);
+    // Never a read for the whitespace itself.
+    expect(queries).toEqual(['']);
   });
 });

@@ -953,11 +953,20 @@ has no `search/index.html` and a static host answers 404 however the app would h
 
 **One file answers every query.** A static host serves the same `search/index.html` for `/search` and
 for `/search?q=mug`, so the prerendered HTML cannot be about any one query: it is the block's **idle**
-state (the heading, the field, the popular searches), and the query is read out of the URL after
-hydration through `useStorefront().route.query`, which the block already follows. That is why the
-block prints no heading and no no-results stack without a query — the empty query is a real
-`search.run()` answer with `total: 0`, and taking it at face value baked "No results for “”" into
-every search page in the artifact.
+state (the heading, the field, the popular searches). That is why the block prints no heading and no
+no-results stack without a query — the empty query is a real `search.run()` answer with `total: 0`,
+and taking it at face value baked "No results for “”" into every search page in the artifact.
+
+The query is adopted from `useStorefront().route.query` in **`onMounted`**, not at setup, and that
+gate is load-bearing rather than tidy. The storefront's route is filled synchronously during plugin
+setup, so a hydrating browser on `/search?q=mug` already knows the query before its first render —
+which would then disagree with the file it is hydrating (a different `h1`, a status line where the
+chips were), and Vue would patch and repaint the block instead of hydrating it. `onMounted` never
+runs on the server and runs after the first client render, so the two are equal by construction. It
+is the same gate `app/composables/useRevalidating.ts` puts on the refresh treatment, for the same
+reason, and `test/pages/ssr.spec.ts` and `test/pages/hydration.spec.ts` hold the two halves of it. A
+whitespace-only `?q=` is no query at all: the block trims before deciding, exactly as `SearchBar`
+does for its own views.
 
 **A read in flight is not an answer.** `StorefrontResult.data` keeps the previous answer until the
 next one lands, which is right for a page of prerendered products and wrong for a search panel: the
@@ -968,6 +977,18 @@ the query in the field, hand the component `undefined` while those differ — it
 draws the loading view past 300ms — and read `loading`, not `pending`, for whether a read is in
 flight. `pending` is the skeleton flag ("a read in flight with _nothing to show_"), so it is false for
 every search after the first one.
+
+**A price it does not know is `null`, never `0`.** The search endpoint carries no money, so
+`search.run()` prices the products it found from the catalogue itself — the same batched `id:in:`
+products-list read the volatile refresh uses, folded in by the same merge — and leaves
+`StorefrontSearchProduct.price` as `null` for anything it could not price: a read that failed, or a
+found id the catalogue did not answer about. A zero would be a _real_ price in the store's currency,
+and every consumer formats it, so the shopper would read "$0.00". What each surface does with the
+`null` follows that surface's own contract: `SearchResultItem.price` is optional, so a suggestion row
+keeps the product and drops the price; `ProductCardProduct.price` is required — a commerce card
+without a price is not a product card — so `toProductCard()` renders no card, the same answer it
+already gives an unusable URL, and the results page counts the cards it can draw rather than the rows
+it was handed.
 
 Two fields the theme's own entry deliberately leaves absent: `popularSearches` and
 `noResultsCollection` are a merchant's answers, not a theme's. An author who wants them places the

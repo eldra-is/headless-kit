@@ -11,9 +11,9 @@
  * `search.run()`'s response into its shape, capped by this block's own `suggestionsPerGroup` and
  * ranking sold-out products last.
  *
- * **One query, one search.** `searchQuery` is seeded from `useStorefront().route.query` (the
- * query that actually brought the shopper here) and stays in sync with it going forward, but is
- * also `SearchBar`'s own two-way `v-model` — the same single-query wiring
+ * **One query, one search.** `searchQuery` is adopted from `useStorefront().route.query` (the
+ * query that actually brought the shopper here) after mount, and stays in sync with it going
+ * forward, but is also `SearchBar`'s own two-way `v-model` — the same single-query wiring
  * `blocks/navigation/Block.vue`'s header search uses. That single ref drives one `search.run()`
  * call feeding both the field's own live suggestion panel and this page's heading, summary, tabs
  * and result sections: a results page is an instant-search page, so retyping the query updates
@@ -55,7 +55,7 @@
  * own spec still provides a stub `search`/`catalog` where a test needs a pending or empty result on
  * demand.
  */
-import { computed, inject, ref, toValue, watch } from 'vue';
+import { computed, inject, onMounted, ref, toValue, watch } from 'vue';
 import {
   Container,
   CURRENCY_KEY,
@@ -80,6 +80,7 @@ import { stripStega } from '@eldrajs/theme-core/stega';
 import { isInternalHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
+import type { MessageKey } from '../../app/i18n/messages';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { toSearchBarResults } from './results';
 import PopularChips from './PopularChips.vue';
@@ -185,22 +186,39 @@ const showPopularHint = computed(() => editing.value && isResultsPage.value && !
 
 // --- the query and the one search call ----------------------------------------------------------
 
-/** Seeded from, and kept following, `useStorefront().route.query` — the query that actually
- *  brought the shopper here (spec: `{query}` in the heading, and "keep the query in the field on
- *  the results page"). Also `SearchBar`'s own two-way `v-model`: see the module doc comment for
- *  why one ref serves both. */
-const searchQuery = ref(storefront.route.query ?? '');
-watch(
-  () => storefront.route.query,
-  (next) => {
-    const value = next ?? '';
-    if (value !== searchQuery.value) searchQuery.value = value;
-  }
-);
+/** The query the URL carries, trimmed: `?q=%20` is somebody's stray space, not a search, and
+ *  `SearchBar` trims its own input for exactly the same reason. */
+const routeQuery = computed(() => (storefront.route.query ?? '').trim());
+
+/**
+ * The field's own value — `SearchBar`'s two-way `v-model`, so it is exactly what the shopper has
+ * typed and never a rewritten copy (trimming it here would fight them mid-word).
+ *
+ * **It starts empty even when the route already carries a query**, and that is the whole point.
+ * `/search` is prerendered once, with no query at all, so the HTML a static host serves for
+ * `/search?q=mug` is the idle state (`app/pages/search.vue`). A first client render that already
+ * knew the query would disagree with that markup: Vue would patch it and repaint the block instead
+ * of hydrating it, and the shopper would see the idle heading flash. `onMounted` never runs on the
+ * server and runs *after* the first client render, which makes the two equal by construction — the
+ * same gate `app/composables/useRevalidating.ts` puts on the refresh treatment, for the same reason.
+ * The watch below then carries every later change, so a client navigation is unaffected.
+ */
+const searchQuery = ref('');
+onMounted(() => {
+  if (routeQuery.value !== searchQuery.value) searchQuery.value = routeQuery.value;
+});
+watch(routeQuery, (next) => {
+  if (next !== searchQuery.value) searchQuery.value = next;
+});
+
+/** What the page is *about*: the field's value with its surrounding space gone. Everything that
+ *  decides something — whether a query was asked at all, what the heading says, what is searched
+ *  for — reads this rather than the raw field. */
+const query = computed(() => searchQuery.value.trim());
 
 /** Whether there is a query to answer at all. `/search` with no `?q=` — the idle state, and every
  *  prerender of this route — has none, and a page with no question on it must not print an answer. */
-const hasQuery = computed(() => searchQuery.value !== '');
+const hasQuery = computed(() => query.value !== '');
 
 /**
  * The heading as it is shown. A heading with no `{query}` placeholder in it is
@@ -218,10 +236,12 @@ const headingText = computed(() => {
   // theme's own idle title takes its place. Studio keeps the authored sentence: an author editing
   // the page has no query either, and a heading they cannot see is a heading they cannot change.
   if (!hasQuery.value && !editing.value) return t('search.idleTitle');
-  return stripStega(heading.value).replace(QUERY_PLACEHOLDER, searchQuery.value);
+  return stripStega(heading.value).replace(QUERY_PLACEHOLDER, query.value);
 });
 
-const searchResult = storefront.search.run(searchQuery);
+// The trimmed query, not the field's raw value: a read for `" "` is a read for nothing, and the
+// response echoes back what it was asked, which is what `response` below compares against.
+const searchResult = storefront.search.run(query);
 /**
  * The answer to the query that is **in the field right now**, or `null` while the read for it is
  * still in flight.
@@ -236,7 +256,7 @@ const searchResult = storefront.search.run(searchQuery);
  */
 const response = computed(() => {
   const answer = searchResult.data.value;
-  return answer !== null && answer.query === searchQuery.value ? answer : null;
+  return answer !== null && answer.query === query.value ? answer : null;
 });
 /**
  * `loading`, not `pending`: `pending` is the skeleton flag — "a read in flight with **nothing to
@@ -256,10 +276,20 @@ const barResults = computed(() =>
 
 // --- counts and visibility ------------------------------------------------------------------
 
+/**
+ * The product rows that can actually be drawn as cards. `TypeSection.vue` builds the same list from
+ * the same rows, and `toProductCardEntries` drops any whose URL is unusable or whose price the
+ * storefront could not learn (`app/storefront/toProductCard.ts`) — so counting the raw rows instead
+ * would head a tab "Products (3)" over a grid showing fewer, or, when the pricing read failed, none.
+ */
+const productCards = computed(() =>
+  toProductCardEntries(response.value?.products ?? [], { ratio: '4x5', minorUnits: money.minor })
+);
+
 function countFor(type: ResultTypeId): number {
   const current = response.value;
   if (current === null) return 0;
-  if (type === 'products') return current.products.length;
+  if (type === 'products') return productCards.value.length;
   if (type === 'journal') return current.articles.length;
   return current.pages.length;
 }
@@ -289,7 +319,10 @@ watch(visibleTypes, (list) => {
 
 // --- the summary line (results-page only) ----------------------------------------------------
 
-function pluralise(count: number, one: string, many: string): string {
+/** `MessageKey`, not `string`: `t()` takes the key union, and every call site here passes a
+ *  literal. Typed as `string` this compiled only because nothing type-checked this file — see
+ *  `docs/starter-kit.md` on which blocks the app program reaches. */
+function pluralise(count: number, one: MessageKey, many: MessageKey): string {
   return t(count === 1 ? one : many, { count });
 }
 
@@ -431,7 +464,7 @@ const headingClass =
         role="status"
         class="flex max-w-[40rem] flex-col gap-4"
       >
-        <h1 :class="headingClass">{{ t('search.noResultsTitle', { query: searchQuery }) }}</h1>
+        <h1 :class="headingClass">{{ t('search.noResultsTitle', { query }) }}</h1>
         <p class="text-body-sm text-muted">
           {{ t('search.noResultsAdvice') }}
           <Link
@@ -474,7 +507,7 @@ const headingClass =
           v-if="showTabs"
           v-model="activeTab"
           variant="underline"
-          :aria-label="t('search.resultTabs')"
+          :ariaLabel="t('search.resultTabs')"
         >
           <template #tabs>
             <Tab value="all" :title="`${t('search.all')} (${totalCount})`" />
@@ -501,7 +534,7 @@ const headingClass =
               :label="typeLabel(config)"
               :count="countFor(config.type)"
               :view-all-text="viewAllText(config)"
-              :view-all-href="searchHref(searchQuery)"
+              :view-all-href="searchHref(query)"
               :view-all-link-as="resultsLinkAs"
             />
           </TabPanel>
@@ -519,7 +552,7 @@ const headingClass =
               :label="typeLabel(config)"
               :count="countFor(config.type)"
               :view-all-text="viewAllText(config)"
-              :view-all-href="searchHref(searchQuery)"
+              :view-all-href="searchHref(query)"
               :view-all-link-as="resultsLinkAs"
             />
           </TabPanel>
@@ -540,7 +573,7 @@ const headingClass =
             :label="typeLabel(config)"
             :count="countFor(config.type)"
             :view-all-text="viewAllText(config)"
-            :view-all-href="searchHref(searchQuery)"
+            :view-all-href="searchHref(query)"
             :view-all-link-as="resultsLinkAs"
           />
         </template>
