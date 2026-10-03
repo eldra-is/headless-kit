@@ -985,11 +985,16 @@ draws the loading view past 300ms — and read `loading`, not `pending`, for whe
 flight. `pending` is the skeleton flag ("a read in flight with _nothing to show_"), so it is false for
 every search after the first one.
 
-**A price it does not know is `null`, never `0`.** The search endpoint carries no money, so
-`search.run()` prices the products it found from the catalogue itself — the same batched `id:in:`
-products-list read the volatile refresh uses, folded in by the same merge — and leaves
-`StorefrontSearchProduct.price` as `null` for anything it could not price: a read that failed, or a
-found id the catalogue did not answer about. A zero would be a _real_ price in the store's currency,
+**A price it does not know is `null`, never `0`.** The search endpoint carries no money and no
+image, so `search.run()` reads both from the catalogue itself — the same batched `id:in:`
+products-list read the volatile refresh uses — and leaves
+`StorefrontSearchProduct.price` as `null` for anything it could not reach: a read that failed, or a
+found id the catalogue did not answer about. **It asks by `sourceId`.** A search result carries two
+ids — `id` names the search-index row, `sourceId` the catalog document the row is about — and only
+the second is something the catalogue has heard of; asking by `id` answers zero rows every time,
+which is what shipped once, and is why `test/storefront/gateway.spec.ts` asserts the filter token
+itself rather than a rendered price (an empty price renders as nothing and fails silently).
+A zero would be a _real_ price in the store's currency,
 and every consumer formats it, so the shopper would read "$0.00". What each surface does with the
 `null` follows that surface's own contract: `SearchResultItem.price` is optional, so a suggestion row
 keeps the product and drops the price; `ProductCardProduct.price` is required — a commerce card
