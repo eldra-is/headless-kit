@@ -241,10 +241,10 @@ describe('server rendering', () => {
       });
 
       expect(html).toContain(formatMoney(96, 'ISK', 'en-US'));
-      expect(formatMoney(96, 'ISK', 'en-US')).toBe('kr 96');
+      expect(formatMoney(96, 'ISK', 'en-US')).toBe('kr\u00a096');
       // Not the code in front of an amount, anywhere: not in a price, not in a button label, not
       // in the footer's own currency text (which names the code *after* its sign, "ISK kr").
-      expect(html).not.toMatch(/ISK(\s|&nbsp;| )\d/);
+      expect(html).not.toMatch(/ISK(\s|&nbsp;)\d/);
     });
 
     it('server-renders product-carousel with real cards, and no skeleton', async () => {

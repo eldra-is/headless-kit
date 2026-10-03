@@ -83,7 +83,7 @@ describe('money is formatted in exactly one place', () => {
     expect(formatMoney(2800, 'ISK', 'en-US')).toBe(
       formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)
     );
-    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr 2,800');
-    expect(formatMoney(2800, 'ISK', 'is-IS')).toBe('2.800 kr.');
+    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr\u00a02,800');
+    expect(formatMoney(2800, 'ISK', 'is-IS')).toBe('2.800\u00a0kr.');
   });
 });
