@@ -7,6 +7,7 @@ import {
   type StorefrontSource,
   type VolatileSnapshot,
 } from '../storefront/types';
+import { toStorefrontCommerce } from '../storefront/commerce';
 import {
   createGatewayStorefront,
   type StorefrontPrerenderHandle,
@@ -151,7 +152,7 @@ export default defineNuxtPlugin({
     });
 
     const publicConfig = useRuntimeConfig().public as unknown as {
-      eldra?: { gatewayUrl?: string; orgId?: string };
+      eldra?: { gatewayUrl?: string; orgId?: string; commerce?: unknown };
       formsEndpoint?: string;
     };
 
@@ -233,6 +234,11 @@ export default defineNuxtPlugin({
 
     source = createGatewayStorefront(client, {
       route,
+      // What the store sells in, as the platform published it — the module read it once during the
+      // build (`@eldrajs/theme-nuxt`), so a prerendered page already has it. `app/plugins/
+      // eldra-ui-messages.ts` provides the currency half to `@eldrajs/ui`; this puts the whole
+      // record on `useStorefront()` for the blocks that need the tax-inclusive flag.
+      commerce: toStorefrontCommerce(publicConfig.eldra?.commerce),
       formsEndpoint: publicConfig.formsEndpoint,
       runtime,
     });

@@ -1,5 +1,4 @@
 import type { SearchResultItem, SearchResults } from '@eldrajs/ui';
-import { formatMoney } from '../../app/storefront/money';
 import type {
   StorefrontProductListItem,
   StorefrontSearchResponse,
@@ -35,10 +34,16 @@ function rankProducts(products: StorefrontProductListItem[]): StorefrontProductL
  *
  * `total` is the *whole* result count the backend reports, not the number of rows returned here —
  * matching `SearchResults.total`'s own contract (the "See all N results" row reads it directly).
+ *
+ * `formatPrice` is the block's own `useMoney().format` — the store's currency and the page's
+ * locale, resolved where a composable can be called. This function is pure, so it takes the
+ * formatter rather than reaching for the currency itself: the currency is the platform's, provided
+ * to the component tree, and nothing outside a `setup()` can read it.
  */
 export function toSearchBarResults(
   response: StorefrontSearchResponse | null,
-  suggestionsPerGroup: number
+  suggestionsPerGroup: number,
+  formatPrice: (amount: number) => string
 ): SearchResults {
   if (response === null) {
     return { products: [], collections: [], articles: [], pages: [], total: 0 };
@@ -50,7 +55,7 @@ export function toSearchBarResults(
       id: product.productId,
       title: product.title,
       href: product.url,
-      price: formatMoney(product.price.amount),
+      price: formatPrice(product.price.amount),
       image: product.featuredImage?.src,
       imageAlt: product.featuredImage?.alt,
     }));

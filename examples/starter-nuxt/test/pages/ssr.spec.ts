@@ -21,7 +21,9 @@ import ProductDetail from '../../blocks/product-detail/Block.vue';
 import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import productCarouselMock from '../../blocks/product-carousel/mock.json';
+import { CURRENCY_KEY, LOCALE_KEY } from '@eldrajs/ui';
 import { enUS } from '../../app/i18n/en-US';
+import { formatMoney } from '../../app/storefront/money';
 import { STOREFRONT_KEY } from '../../app/storefront/types';
 import { createDemoStorefront } from '../../app/storefront/demo';
 import { renderBlockToString, renderPageToString, renderShellToString } from '../support/renderSsr';
@@ -168,6 +170,34 @@ describe('server rendering', () => {
       // absence. (`aria-busy` on its own is not a usable signal here: the demo cart store starts a
       // read of its own, so the Add to cart button is legitimately busy in this render.)
       expect(html).not.toContain('eldra-revalidating');
+    });
+
+    /**
+     * The whole point of reading the store's currency at **build** time: a prerendered page is
+     * already formatted in it. A store selling in krónur gets krónur in the HTML a static host
+     * serves — not a dollar sign the browser corrects a tick later, and not a bare number.
+     *
+     * The dollar amounts are listed one by one rather than caught with a `/\$\d/` sweep: this page
+     * also carries a `$` the shopper's currency does not decide — the footer's own currency
+     * selector ("USD $") and an authored FAQ sentence about a $4 gift card. Those are content;
+     * these are prices.
+     */
+    it('server-renders the product page in the store’s own currency', async () => {
+      const commerce = { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 };
+      const html = await renderPageToString(productPage as unknown as PageFixture, {
+        [CURRENCY_KEY]: commerce.currency,
+        [LOCALE_KEY]: 'is-IS',
+        [STOREFRONT_KEY]: createDemoStorefront({ commerce }),
+      });
+
+      // The demo product is 96, was 128 (`app/storefront/demo.ts`).
+      expect(html).toContain(formatMoney(96, 'ISK', 'is-IS'));
+      expect(html).toContain(formatMoney(128, 'ISK', 'is-IS'));
+      expect(html).toContain('kr.');
+      for (const dollars of ['$96', '$128', '$164', '$28']) {
+        expect(html).not.toContain(dollars);
+      }
+      expect(html).not.toContain('96.00');
     });
 
     it('server-renders product-carousel with real cards, and no skeleton', async () => {

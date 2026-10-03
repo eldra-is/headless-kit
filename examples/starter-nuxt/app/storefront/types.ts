@@ -16,8 +16,30 @@ import type { CartStore } from './cart';
  * always in **major units** — 28 is twenty-eight dollars, not twenty-eight cents — because that is
  * what the gateway sends. `@eldrajs/ui`'s `Price`/`ProductCard` read minor units, so a value from
  * here goes through `toMinorUnits()` (`app/storefront/money.ts`) on its way into one of those, and
- * through `formatMoney()` when it has to appear inside a sentence.
+ * through `formatMoney()` when it has to appear inside a sentence. Which currency they are in is
+ * the store's own, never the content locale's: see `StorefrontCommerce` below.
  */
+
+/**
+ * What the store sells in, as the platform publishes it: the organisation's own commerce settings,
+ * read once at build by `@eldrajs/theme-nuxt` and handed to the app on
+ * `runtimeConfig.public.eldra.commerce`. `null` on a store that has not configured commerce.
+ *
+ * `currency` reaches `@eldrajs/ui`'s components through `CURRENCY_KEY`
+ * (`app/plugins/eldra-ui-messages.ts`), which is where every `<Price>` and every `useMoney()` call
+ * takes it from — this field is here for the rest of it: `taxInclusivePricing` tells a block
+ * whether the amounts it is showing already contain VAT ("incl. VAT" vs. "excl. VAT", tax
+ * "calculated at checkout"), and `defaultTaxRate` is the fraction applied to shipping and to
+ * products with no rate of their own.
+ */
+export interface StorefrontCommerce {
+  /** ISO 4217 code every price in this storefront is quoted in, e.g. `ISK`. */
+  currency: string;
+  /** Prices already contain VAT; the storefront shows them as they are. */
+  taxInclusivePricing: boolean;
+  /** Fraction, e.g. `0.24`. */
+  defaultTaxRate: number;
+}
 
 export interface StorefrontMedia {
   src: string;
@@ -351,6 +373,9 @@ export interface HistoryStore {
 
 export interface StorefrontSource {
   ready: Ref<boolean>;
+  /** See `StorefrontCommerce`: what the store sells in, or `null` when the platform publishes
+   *  nothing. Not reactive — it is a build-time fact about the store, not page state. */
+  commerce: StorefrontCommerce | null;
   route: StorefrontRoute;
   catalog: StorefrontCatalog;
   cart: CartStore;

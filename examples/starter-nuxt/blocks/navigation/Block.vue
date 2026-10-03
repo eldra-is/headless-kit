@@ -60,7 +60,7 @@ import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref } from '../../app/utils/links';
 import { focusRing } from '../../app/utils/classes';
-import { formatMoney } from '../../app/storefront/money';
+import { useMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
 import { useMegaMenuKeys } from './useMegaMenuKeys';
 
@@ -299,6 +299,8 @@ const searchStyle = computed<'icon' | 'field' | 'inline'>(() => {
 const searchOpen = ref(false);
 const searchQuery = ref('');
 const searchResult = storefront.search.run(searchQuery);
+/** The store's own currency and the page's locale — never a currency guessed from either. */
+const money = useMoney();
 
 function toSearchResults(response: StorefrontSearchResponse | null): SearchResults | undefined {
   if (response === null) return undefined;
@@ -306,7 +308,7 @@ function toSearchResults(response: StorefrontSearchResponse | null): SearchResul
     id: product.productId,
     title: product.title,
     href: product.url,
-    price: formatMoney(product.price.amount),
+    price: money.format(product.price.amount),
     image: product.featuredImage?.src,
     imageAlt: product.featuredImage?.alt,
   }));

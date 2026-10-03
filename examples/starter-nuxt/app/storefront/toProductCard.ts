@@ -19,8 +19,10 @@ import type { StorefrontProductListItem } from './types';
  * **Units.** Storefront money is major units (`types.ts`) and `ProductCardProduct.price` is minor
  * units, like every other `@eldrajs/ui` money input, so the two prices are converted on the way in.
  * `opts.minorUnits` exists so a block can hand in the conversion already bound to the currency and
- * locale its `<ProductCard>` will resolve (`useMoney().minor`) — the fallback is the theme's own
- * `USD`/`en-US` default, which is right until the store's settings say otherwise.
+ * locale its `<ProductCard>` will resolve (`useMoney().minor`) — which is what every block that
+ * renders a card does. The fallback converts with no currency at all, i.e. at ISO 4217's default
+ * two digits, the same scale the `<ProductCard>` reading the value falls back to; it is there for a
+ * caller outside a component (a mapping test), not for a block.
  *
  * `opts.revalidating` is accepted here and consumed by `toProductCardEntries()` below, the same
  * shape `opts.ratio` has: it is a property of the *page's* refresh, not of one product, so it
@@ -52,7 +54,7 @@ export function toProductCard(
 ): ProductCardProduct | null {
   const url = safeHref(item.url);
   if (url === null) return null;
-  const minor = opts?.minorUnits ?? toMinorUnits;
+  const minor = opts?.minorUnits ?? ((amount: number) => toMinorUnits(amount, undefined));
   const { amount, compareAt, from } = item.price;
   const isSale = compareAt != null && compareAt > amount;
   return {

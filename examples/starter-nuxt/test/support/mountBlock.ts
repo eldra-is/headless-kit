@@ -24,9 +24,10 @@ import {
   type EldraLinkState,
 } from '@eldrajs/theme-vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
-import { currencyFor, uiMessagesFor } from '../../app/i18n/uiMessages';
+import { uiMessagesFor } from '../../app/i18n/uiMessages';
+import { uiCurrencyFor } from '../../app/storefront/commerce';
 import { createDemoStorefront } from '../../app/storefront/demo';
-import { STOREFRONT_KEY } from '../../app/storefront/types';
+import { STOREFRONT_KEY, type StorefrontCommerce } from '../../app/storefront/types';
 
 /**
  * The single place a block's test environment mimics the site — mirrors
@@ -44,7 +45,17 @@ import { STOREFRONT_KEY } from '../../app/storefront/types';
  */
 export function mountOptions(
   props: { entry: { id: string; data: Record<string, unknown> } },
-  options: { locale?: string; links?: Partial<EldraLinkState> } = {}
+  options: {
+    locale?: string;
+    links?: Partial<EldraLinkState>;
+    /**
+     * What the store sells in, for a spec about money: the demo store's own `DEMO_COMMERCE` (US
+     * dollars) by default, `null` for a store that publishes no currency at all. Both the
+     * storefront's `commerce` and `@eldrajs/ui`'s `CURRENCY_KEY` come from this one value, the
+     * same way the two plugins take both from one runtime-config read on a real page.
+     */
+    commerce?: StorefrontCommerce | null;
+  } = {}
 ): {
   props: { entry: { id: string; data: Record<string, unknown> } };
   global: {
@@ -54,21 +65,24 @@ export function mountOptions(
   };
 } {
   const locale = options.locale ?? 'en-US';
+  const storefront = createDemoStorefront({ commerce: options.commerce });
   return {
     props,
     global: {
       provide: {
         [ELDRA_KEY]: createTestEldraContext(locale, options.links),
         // The same wiring `app/plugins/eldra-ui-messages.ts` does on a real
-        // page: `@eldrajs/ui`'s own strings, number locale and store
-        // currency all follow the content locale.
+        // page: `@eldrajs/ui`'s own strings and number locale follow the
+        // content locale, and its store currency comes from the store — the
+        // platform's answer there, the demo source's own here — never from the
+        // locale.
         [MESSAGES_KEY]: uiMessagesFor(locale),
         [LOCALE_KEY]: locale,
-        [CURRENCY_KEY]: currencyFor(locale),
+        [CURRENCY_KEY]: uiCurrencyFor(storefront.commerce?.currency),
         // The same wiring `app/plugins/eldra-storefront.ts` does on a real page: a commerce block
         // reads `useStorefront()`, never the client directly, so every block test sees the
         // Northwind demo catalogue (`app/storefront/demo.ts`) instead of a live gateway.
-        [STOREFRONT_KEY]: createDemoStorefront(),
+        [STOREFRONT_KEY]: storefront,
       },
       // `components`, not only `stubs`: blocks route an internal destination
       // through `app/components/EldraRouterLink.vue`, whose template writes

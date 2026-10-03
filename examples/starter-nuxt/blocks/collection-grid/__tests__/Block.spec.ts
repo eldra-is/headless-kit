@@ -3,7 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { computed, ref, watch, type Ref } from 'vue';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
-import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, ProductCard, type UiMessages } from '@eldrajs/ui';
+import { LOCALE_KEY, MESSAGES_KEY, ProductCard, type UiMessages } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
@@ -24,7 +24,7 @@ import type {
 import type { EldraClient } from '@eldrajs/sdk';
 import { enUS } from '../../../app/i18n/en-US';
 import { isIS } from '../../../app/i18n/is-IS';
-import { currencyFor, uiEnUS, uiMessagesFor } from '../../../app/i18n/uiMessages';
+import { uiEnUS, uiMessagesFor } from '../../../app/i18n/uiMessages';
 
 /** Only the four required fields: the freshly-inserted seed, exercising every fallback default
  *  (no collection of its own — the route supplies one — no filters, no sort, no empty copy). */
@@ -955,8 +955,10 @@ describe('collection-grid block', () => {
             ...base.global.provide,
             [ELDRA_KEY]: context,
             [MESSAGES_KEY]: messages,
+            // The store's currency is not re-provided: it does not follow the locale switch this
+            // spec is about — it is the platform's, fixed for the life of the page — so
+            // `mountOptions`' own provide (spread above) stands.
             [LOCALE_KEY]: () => context.preview.locale ?? undefined,
-            [CURRENCY_KEY]: () => currencyFor(context.preview.locale),
           },
         },
       });

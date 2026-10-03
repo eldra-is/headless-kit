@@ -198,7 +198,13 @@ const searchResult = storefront.search.run(searchQuery);
 const response = computed(() => searchResult.data.value);
 const isLoading = computed(() => searchResult.pending.value);
 
-const barResults = computed(() => toSearchBarResults(response.value, suggestionsPerGroup.value));
+/** The store's currency and the page's locale, for the suggestion prices below and the
+ *  `<ProductCard>`s the no-results state renders (`money.minor`). */
+const money = useMoney();
+
+const barResults = computed(() =>
+  toSearchBarResults(response.value, suggestionsPerGroup.value, money.format)
+);
 
 // --- counts and visibility ------------------------------------------------------------------
 
@@ -274,7 +280,6 @@ const noResultsCollection = storefront.catalog.collectionProducts(noResultsSelec
  * `url` and drops an item whose URL is not a `safeHref` (`ProductCard`'s link is required, so a
  * linkless card does not exist), reporting per card whether the destination routes.
  */
-const money = useMoney();
 const noResultsProducts = computed(() =>
   toProductCardEntries((noResultsCollection.data.value?.items ?? []).slice(0, 4), {
     ratio: '4x5',

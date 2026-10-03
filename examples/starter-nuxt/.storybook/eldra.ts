@@ -3,7 +3,8 @@ import { provide } from 'vue';
 import { createEldraClient } from '@eldrajs/theme-core';
 import { provideEldra } from '@eldrajs/theme-vue';
 import { provideEldraUiCurrency, provideEldraUiLocale, provideEldraUiMessages } from '@eldrajs/ui';
-import { currencyFor, uiMessagesFor } from '../app/i18n/uiMessages';
+import { uiMessagesFor } from '../app/i18n/uiMessages';
+import { uiCurrencyFor } from '../app/storefront/commerce';
 import { createDemoStorefront, DEMO_CART_LINES } from '../app/storefront/demo';
 import { STOREFRONT_KEY } from '../app/storefront/types';
 
@@ -48,11 +49,13 @@ export const withEldraContext: Decorator = (story, storyContext) => ({
     });
     context.preview.locale = 'en-US';
     // The same wiring `app/plugins/eldra-ui-messages.ts` does on a real page:
-    // `@eldrajs/ui`'s own strings, number locale and store currency all
-    // follow the story's content locale.
+    // `@eldrajs/ui`'s own strings and number locale follow the story's content
+    // locale, and its store currency comes from the storefront rather than the
+    // locale — on a real page the platform publishes it, here the demo source
+    // declares it (`DEMO_COMMERCE`, US dollars, the currency every Northwind
+    // amount in the fixtures is quoted in).
     provideEldraUiMessages(uiMessagesFor(context.preview.locale));
     provideEldraUiLocale(context.preview.locale);
-    provideEldraUiCurrency(currencyFor(context.preview.locale));
     // The demo cart starts empty (a real shopper's first visit), which would leave the `cart`
     // block's own stories showing only its empty state — and its `drawer` story showing nothing at
     // all, since a closed `<dialog>` draws nothing. Seeding the spec's own cart content and opening
@@ -65,6 +68,7 @@ export const withEldraContext: Decorator = (story, storyContext) => ({
       cartLines: isCartStory ? DEMO_CART_LINES : undefined,
     });
     if (isCartStory) storefront.cart.drawerOpen.value = true;
+    provideEldraUiCurrency(uiCurrencyFor(storefront.commerce?.currency));
     provide(STOREFRONT_KEY, storefront);
     return {};
   },

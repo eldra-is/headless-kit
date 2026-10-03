@@ -482,7 +482,21 @@ export function startMockGateway(): Promise<MockGateway> {
       const filters = url.searchParams.getAll('filter');
       const segments = url.pathname.split('/').filter(Boolean);
 
-      if (url.pathname === '/cms/v1/schema/page/entry') {
+      if (url.pathname.startsWith('/organization/v1/')) {
+        // What the store sells in. `@eldrajs/theme-nuxt` reads this once per build and puts it on
+        // `runtimeConfig.public.eldra.commerce`, which is where every price on a generated page
+        // takes its currency from — US dollars here, the currency every fixture price below is
+        // quoted in.
+        answer({
+          id: ORG_ID,
+          name: 'Northwind Goods',
+          features: [
+            { feature: 'CMS', enabled: true },
+            { feature: 'ECOMMERCE', enabled: true },
+          ],
+          commerce: { currency: 'USD', taxInclusivePricing: false, defaultTaxRate: 0.08 },
+        });
+      } else if (url.pathname === '/cms/v1/schema/page/entry') {
         answer(listResponse(pages));
       } else if (url.pathname.startsWith('/cms/v1/schema/page/entry/')) {
         const id = segments[segments.length - 1];
