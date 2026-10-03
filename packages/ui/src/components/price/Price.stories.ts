@@ -45,7 +45,7 @@ const meta = {
           '`compareAt` at or below `amount` is ignored. On sale, `current` turns `accent` and',
           '`compareAt` renders as a real `<s>`, `muted` and struck through — each preceded by a',
           'visually hidden label (`messages.salePrice`/`regularPrice`, or `labels.sale`/`regular`',
-          'per instance) so a screen reader reads "Sale price $38.4 Regular price $48" even',
+          'per instance) so a screen reader reads "Sale price $38.40 Regular price $48.00" even',
           'though many screen readers do not announce strike-through on their own.',
           '',
           '**`currency`/`locale`** default to `useEldraUiCurrency()`/`useEldraUiLocale()` — a new',
@@ -55,10 +55,11 @@ const meta = {
           "**Every amount is formatted by the package's own `formatCurrency`**, the canonical copy",
           "of the private library's currency formatter — so a price, a `CurrencyInput` and a",
           "theme's own formatted sentence cannot write the same money three ways. Two things come",
-          'from that formatter rather than from this component: the **narrow** sign, and a',
-          '**minimum of zero fraction digits** (`"$48"`, not `"$48.00"`; `"$38.4"`, not',
-          '`"$38.40"`). The *maximum* is the currency\'s own count, so a zero-decimal currency',
-          'prints none at all and a three-decimal one prints three.',
+          'from that formatter rather than from this component: the **narrow** sign, and the',
+          "**fraction digits** it is given: `Price` asks for the currency's own count as both the",
+          'maximum and the minimum, so `$48.00` keeps its zeroes and a zero-decimal currency prints',
+          'none. Called the way a currency *field* calls it — without that minimum — the same',
+          'formatter pads nothing (`"$48"`), which is why the argument is there.',
           '',
           '**`narrowSymbol`** is `true` by default, the same default `CurrencyInput` carries: the',
           'currency\'s narrow sign, so an Icelandic store priced in krónur reads "kr 2,800" on an',
@@ -67,7 +68,7 @@ const meta = {
           "is the ISO code itself. A locale whose two signs are identical (`is-IS`'s `kr.`) is",
           'unaffected either way.',
           '',
-          '**`unitPrice`** renders a second, full-width line ("$5.1 / 100 g") — `amount` in minor',
+          '**`unitPrice`** renders a second, full-width line ("$5.10 / 100 g") — `amount` in minor',
           'units, `per` rendered verbatim after `messages.perUnit`.',
           '',
           '**`loading`** replaces the whole price with one shimmering text skeleton at the current',
@@ -110,7 +111,7 @@ export const Sale: Story = { args: { amount: 3840, compareAt: 4800 } };
 export const From: Story = { args: { amount: 1530, from: true } };
 
 /** A per-unit price on its own full-width second line, combined with a sale to show every part at
- * once ("From $15.3 ~~$18~~ / $5.1 / 100 g"). */
+ * once ("From $15.30 ~~$18.00~~ / $5.10 / 100 g"). */
 export const UnitPrice: Story = {
   args: {
     amount: 1530,

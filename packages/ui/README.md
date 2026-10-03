@@ -926,29 +926,39 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   (`src/utils/number-format.ts`) — locale-aware number formatting and its inverse, behind the
   numeric controls and exported for use outside them.
 
-  **`formatCurrency(value, locale = 'en-US', currency = 'USD', narrowSymbol = true, maxFraction = 2)`**
-  and **`formatUnit(value, { locale, unit, maxFraction, isCurrency, currency, narrow })`** are
-  **ports of the private Eldra library's own two helpers, and the canonical copy of them**: that
+  **`formatCurrency(value, locale = 'en-US', currency = 'USD', narrowSymbol = true, maxFraction = 2, minFraction?)`**
+  and
+  **`formatUnit(value, { locale, unit, maxFraction, isCurrency, currency, narrow, minFraction })`**
+  are **ports of the private Eldra library's own two helpers, and the canonical copy of them**: that
   library is expected to import these and delete its own, so the signatures are positional and the
-  option names are its own, against this package's house style, and the output must stay identical
-  character for character. The contract, in full: `minimumFractionDigits` is always `0`,
-  `maximumFractionDigits` is `maxFraction`, a currency carries
+  option names are its own, against this package's house style, and for the arguments it passes the
+  output must stay identical character for character. The contract, in full:
+  `minimumFractionDigits` is `0`, `maximumFractionDigits` is `maxFraction`, a currency carries
   `currencyDisplay: narrow ? 'narrowSymbol' : 'symbol'`, and a unit carries no `unitDisplay` at all
   (so `UnitFormatOptions.narrow` affects a currency only — unlike `NumberFormatOptions.narrow`,
   which narrows a unit too). `src/utils/__tests__/number-format.spec.ts` holds a parity table that
   recomputes that rule with `Intl` directly and fails if the two ever diverge.
 
+  **`minFraction` is the one addition to the ported signature, and it is display-only: omit it to
+  match input formatting.** Omitted — which is how the private library calls — the behaviour is
+  exactly the contract above, so `28` formats as `"$28"` and `28.5` as `"$28.5"`: the rule a
+  currency _field_ wants, where it shows what a person typed rather than what the minor unit
+  allows. A _displayed_ amount wants the opposite, a price list in which one row reads `$96` and
+  the next `$96.50` being no column of money, so it passes `currencyFractionDigits(currency, locale)`
+  and gets `"$96.00"`. `Price` passes that count as **both** `minFraction` and `maxFraction`; a
+  zero-decimal currency is unaffected by either, its own count being `0`.
+
   `formatCurrency` is what a theme should reach for when it has to put money in a sentence ("Add to
   cart · kr 2,800") rather than render a `<Price>`: a hand-built
   `Intl.NumberFormat({ style: 'currency' })` writes the **wide** sign (`"ISK 2,800"`), which is not
   the shape this package's own prices and currency fields are in, and that mismatch is exactly the
-  defect it exists to prevent. Two consequences of the ported contract to know before calling it:
-  `28` formats as `"$28"`, not `"$28.00"` (the minimum is 0 — the rule a currency _field_ wants),
-  and `maxFraction` defaults to `2` whatever the currency, so a caller that wants the currency's own
-  count passes `currencyFractionDigits(currency, locale)` — which is what `Price` does, and what
-  keeps a zero-decimal currency integral and `BHD` at three places. It **throws** `RangeError` for a
+  defect it exists to prevent. Note that `maxFraction` defaults to `2` whatever the currency, so a
+  caller that wants the currency's own count passes it — which is what keeps a króna from growing a
+  fraction it has no minor unit for, and `BHD` at three places. It **throws** `RangeError` for a
   code `Intl` rejects, as the private helper does; a caller inside a `computed` guards it the way
-  `Price` does (plain decimal plus the raw code).
+  `Price` does (plain decimal plus the raw code). Formatters are memoised per distinct shape inside
+  the module, so a grid of prices pays for one construction rather than one per amount while both
+  functions stay pure.
 
   **`currencySymbol(currency, locale, narrow = true)`** is this package's own addition rather than a
   port: the sign on its own — `"kr"`, `"kr."`, `"$"` — read out of `formatToParts` rather than a
@@ -1022,13 +1032,12 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   sign; a locale whose two signs are identical (`is-IS` writes `kr.` either way) is unaffected
   either way, and `ProductCard` inherits the prop through its own `Price`.
 
-  Formatting through the ported `formatCurrency` brings its fraction rule with it, which is the
-  **visible** half of this: the minimum is `0`, so `"$48"` rather than `"$48.00"`, and `"$38.4"`
-  rather than `"$38.40"`. `Price` passes `currencyFractionDigits(currency, locale)` as the
-  _maximum_, so a zero-decimal currency still prints none (`"kr 2,800"`, never `"kr 2,800.4"`) and a
-  three-decimal one still prints three — only the trailing zeroes are gone. That is the private
-  library's contract rather than a choice made here, and the point of the port is that the two
-  cannot differ.
+  `Price` formats every amount through that ported `formatCurrency`, passing
+  `currencyFractionDigits(currency, locale)` as **both** the maximum and the minimum fraction
+  digits. The maximum keeps a zero-decimal currency integral (`"kr 2,800"`, never `"kr 2,800.4"`)
+  and `BHD` at three places; the minimum is why a price reads `"$48.00"` rather than the `"$48"`
+  the same formatter gives a currency _field_, which pads nothing because a field shows what
+  someone typed. One formatter, two rules, and the caller says which.
 
 - **`revalidating` on `Price`, `StockBadge` and `ProductCard`** — a second, distinct busy state for
   a value that is _already on screen_ while a fresher one is fetched, which the spec's own `loading`

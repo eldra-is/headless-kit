@@ -713,7 +713,7 @@ describe('ProductCard — revalidating', () => {
     const wrapper = mountNarrow(ProductCard, {
       props: { product: REFRESHABLE, revalidating: true },
     });
-    expect(wrapper.get('[data-part="price"]').text()).toContain('$38.4');
+    expect(wrapper.get('[data-part="price"]').text()).toContain('$38.40');
     wrapper.unmount();
   });
 });

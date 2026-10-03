@@ -227,6 +227,100 @@ describe('formatCurrency', () => {
     expect(() => formatCurrency(1234, 'en-US', 'XYZ1')).toThrow(RangeError);
     expect(() => formatCurrency(1234, 'en-US', '')).toThrow(RangeError);
   });
+
+  it('keeps throwing for a bad code, rather than caching the failure', () => {
+    // The formatter cache must only ever hold a construction that succeeded.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(() => formatCurrency(1234, 'en-US', 'XYZ1')).toThrow(RangeError);
+    }
+  });
+});
+
+/**
+ * The sixth parameter, and the one addition to the ported signature: the display rule. A price list
+ * in which one row reads `$96` and the next `$96.50` is not a column of money, so a *displayed*
+ * amount asks for the currency's own count as the minimum as well as the maximum; a currency
+ * *field* omits it and keeps the private helper's unpadded output.
+ */
+describe('formatCurrency — minFraction', () => {
+  it('pads to minFraction when it is given', () => {
+    expect(formatCurrency(28, 'en-US', 'USD', true, 2, 2)).toBe('$28.00');
+    expect(formatCurrency(28.5, 'en-US', 'USD', true, 2, 2)).toBe('$28.50');
+    expect(formatCurrency(28.567, 'en-US', 'USD', true, 2, 2)).toBe('$28.57');
+  });
+
+  it('is the private helper exactly when it is omitted', () => {
+    // Omitted and explicitly `undefined` both mean "the private behaviour", so a caller forwarding
+    // an optional value cannot accidentally change the contract.
+    for (const value of [28, 28.5, 28.567]) {
+      expect(formatCurrency(value, 'en-US', 'USD')).toBe(privateRule(value, 'en-US', 'USD'));
+      expect(formatCurrency(value, 'en-US', 'USD', true, 2, undefined)).toBe(
+        privateRule(value, 'en-US', 'USD')
+      );
+    }
+    expect(formatCurrency(28, 'en-US', 'USD')).toBe('$28');
+  });
+
+  it('leaves a zero-decimal currency alone, there being nothing to pad to', () => {
+    expect(formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)).toBe('kr 2,800');
+    expect(formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)).toBe(
+      formatCurrency(2800, 'en-US', 'ISK', true, 0)
+    );
+  });
+
+  it('pads a three-decimal currency to its own three', () => {
+    expect(formatCurrency(1234.5, 'en-US', 'BHD', true, 3, 3)).toContain('.500');
+  });
+
+  it('reaches `formatUnit` as its own option, and narrows nothing by itself', () => {
+    expect(formatCurrency(28, 'en-US', 'USD', true, 2, 2)).toBe(
+      formatUnit(28, {
+        locale: 'en-US',
+        isCurrency: true,
+        currency: 'USD',
+        maxFraction: 2,
+        narrow: true,
+        minFraction: 2,
+      })
+    );
+  });
+});
+
+/**
+ * `formatUnit` memoises the formatters it builds, which is the one piece of state in this module.
+ * It must be invisible: same arguments, same answer, and one shape's entry never answering for
+ * another's.
+ */
+describe('the formatter cache', () => {
+  it('answers the same for a repeated call', () => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(formatCurrency(28, 'en-US', 'USD', true, 2, 2)).toBe('$28.00');
+      expect(formatCurrency(28, 'en-US', 'USD')).toBe('$28');
+    }
+  });
+
+  it('keeps every input that changes the output in its key', () => {
+    // Each pair differs in exactly one argument, so a key missing that argument would make the
+    // second call answer with the first one's formatter.
+    expect(formatCurrency(28, 'en-US', 'USD')).not.toBe(formatCurrency(28, 'is-IS', 'USD'));
+    expect(formatCurrency(28, 'en-US', 'USD')).not.toBe(formatCurrency(28, 'en-US', 'EUR'));
+    expect(formatCurrency(2800, 'en-US', 'ISK', true)).not.toBe(
+      formatCurrency(2800, 'en-US', 'ISK', false)
+    );
+    expect(formatCurrency(28, 'en-US', 'USD', true, 2, 2)).not.toBe(
+      formatCurrency(28, 'en-US', 'USD', true, 2)
+    );
+    expect(formatCurrency(28.567, 'en-US', 'USD', true, 1)).not.toBe(
+      formatCurrency(28.567, 'en-US', 'USD', true, 2)
+    );
+    // A unit and a currency of the same locale and digits are different shapes too.
+    expect(formatUnit(28, { locale: 'en-US', unit: 'kilogram' })).not.toBe(
+      formatUnit(28, { locale: 'en-US', isCurrency: true, currency: 'USD' })
+    );
+    expect(formatUnit(28, { locale: 'en-US', unit: 'kilogram' })).not.toBe(
+      formatUnit(28, { locale: 'en-US', unit: 'meter' })
+    );
+  });
 });
 
 describe('formatUnit', () => {

@@ -110,11 +110,14 @@ function warnInvalidCurrency(code: string): void {
  *
  * - `narrowSymbol` is the prop, `true` by default and the same default `CurrencyInput` carries:
  *   `"kr 2,800"`, not `"ISK 2,800"`, under `en-US`/`ISK` (see `PriceProps.narrowSymbol`).
- * - `maxFraction` is the **currency's** own count (`fractionDigits`, above), not the util's
- *   default of `2`: that default would print `2800.4` krónur as `"kr 2,800.4"` and round a
- *   three-decimal currency to two. With it, a zero-decimal currency prints none and `BHD` prints
- *   three. The *minimum* is the util's own `0` either way, which is why `28.00` reads `"$28"` —
- *   part of the formatter's contract, not this component's choice.
+ * - `maxFraction` **and** `minFraction` are both the **currency's** own count (`fractionDigits`,
+ *   above). The maximum matters because the util's default of `2` would print `2800.4` krónur as
+ *   `"kr 2,800.4"` and round a three-decimal currency to two. The minimum is the util's
+ *   *display* rule, and it is why a price reads `"$48.00"` rather than `"$48"`: called with five
+ *   arguments the formatter pads nothing, which is right for a currency *field* showing what
+ *   someone typed and ragged in a price list, where one row reading `$96` above another reading
+ *   `$96.50` is not a column of money. A zero-decimal currency is unaffected by either — its own
+ *   count is `0`, so `"kr 2,800"` stays exactly that.
  *
  * `invalid` records whether the currency code is one `Intl` rejects: `formatCurrency` throws for
  * such a code exactly as the private helper does, and this runs inside a `computed`, where a throw
@@ -124,7 +127,14 @@ function warnInvalidCurrency(code: string): void {
  */
 const currencyFormat = computed<{ format: (major: number) => string; invalid: boolean }>(() => {
   const format = (major: number): string =>
-    formatCurrency(major, locale.value, currency.value, props.narrowSymbol, fractionDigits.value);
+    formatCurrency(
+      major,
+      locale.value,
+      currency.value,
+      props.narrowSymbol,
+      fractionDigits.value,
+      fractionDigits.value
+    );
 
   try {
     format(0);
