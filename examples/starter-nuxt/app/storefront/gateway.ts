@@ -188,6 +188,8 @@ interface RawSearchResponse {
 interface RawCartItem {
   id: string;
   productId: string;
+  /** The product's public slug, snapshotted by the cart; absent on lines added before it was. */
+  productSlug?: string;
   variantId: string;
   title: string;
   price: number;
@@ -214,6 +216,8 @@ interface RawCart {
 interface RawOrderLine {
   id: string;
   productId: string;
+  /** The product's public slug as the order snapshotted it; older orders carry none. */
+  slug?: string;
   productName: string;
   variantId?: string;
   variantName?: string;
@@ -438,7 +442,9 @@ function mapCartLine(raw: RawCartItem): StorefrontCartLine {
     productId: raw.productId,
     variantId: raw.variantId,
     title: raw.title,
-    url: `/products/${raw.productId}`,
+    // The storefront's product route is `/products/<slug>`; the id is only a fallback for a line
+    // snapshotted before the cart carried the slug, where nothing better exists.
+    url: `/products/${raw.productSlug || raw.productId}`,
     variantLabel,
     quantity: raw.quantity,
     unitPrice: raw.price,
@@ -486,7 +492,7 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
     productId: line.productId,
     variantId: line.variantId ?? '',
     title: line.productName,
-    url: `/products/${line.productId}`,
+    url: `/products/${line.slug || line.productId}`,
     variantLabel: line.variantName ?? '',
     quantity: line.quantity,
     unitPrice: line.unitPrice,

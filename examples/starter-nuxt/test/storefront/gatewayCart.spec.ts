@@ -175,6 +175,24 @@ describe('createGatewayStorefront().cart (gateway-backed CartOps)', () => {
     );
   });
 
+  it('links a line to the product by its slug, and only by its id when the cart carries none', async () => {
+    (globalThis as { localStorage?: Storage }).localStorage = fakeLocalStorage();
+    const { client } = fakeClient('https://checkout.eldra.app');
+    const withSlug = liveCartResponse();
+    const items = withSlug.items as Array<Record<string, unknown>>;
+    items[0] = { ...items[0], productSlug: 'ash-glaze-mug' };
+    const responses = [withSlug, liveCartResponse()];
+    client.cart.addItem = async () => responses.shift()!;
+    const { cart } = createGatewayStorefront(client, { route: fakeRoute() });
+    await settle();
+
+    await cart.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+    expect(cart.lines.value[0]?.url).toBe('/products/ash-glaze-mug');
+
+    await cart.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+    expect(cart.lines.value[0]?.url).toBe('/products/43e660a0-0000-4000-8000-000000000000');
+  });
+
   it('sets checkoutUrl for a cart restored from a remembered id', async () => {
     (globalThis as { localStorage?: Storage }).localStorage = fakeLocalStorage({
       'eldra.cartId': '03302070-0000-4000-8000-000000000000',
