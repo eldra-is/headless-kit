@@ -48,13 +48,20 @@ import type { StorefrontProductListItem } from './types';
  *
  * Callers normally go through `toProductCardEntries()` below rather than calling this per item.
  */
+/**
+ * The conversion a caller outside a component gets: no currency, so ISO 4217's default two digits —
+ * the same scale the `<ProductCard>` reading the value falls back to. Module level, so the fallback
+ * path allocates nothing per call and the case has a name.
+ */
+const NO_CURRENCY_MINOR_UNITS = (amount: number): number => toMinorUnits(amount, undefined);
+
 export function toProductCard(
   item: StorefrontProductListItem,
   opts?: ToProductCardOptions
 ): ProductCardProduct | null {
   const url = safeHref(item.url);
   if (url === null) return null;
-  const minor = opts?.minorUnits ?? ((amount: number) => toMinorUnits(amount, undefined));
+  const minor = opts?.minorUnits ?? NO_CURRENCY_MINOR_UNITS;
   const { amount, compareAt, from } = item.price;
   const isSale = compareAt != null && compareAt > amount;
   return {

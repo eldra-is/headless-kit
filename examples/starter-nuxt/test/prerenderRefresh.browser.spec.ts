@@ -6,6 +6,7 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { enUS } from '../app/i18n/en-US';
+import { formatMoney } from '../app/storefront/money';
 import {
   COLLECTION_HANDLE,
   HOME_PAGE_PATH,
@@ -86,7 +87,11 @@ interface Visit {
   samples: Treatment[];
   /** Console errors and anything Vue said about hydration. */
   warnings: string[];
-  /** Every money amount on the page, in order, once everything has settled. */
+  /**
+   * Every money amount on the page, in order, once everything has settled — read off `<Price>`'s own
+   * value part rather than scraped out of the body text, so an authored sentence that mentions an
+   * amount ("Free delivery over $80") is not mistaken for a price the storefront formatted.
+   */
   prices: string[];
   /**
    * How many component instances each block got, and how many of them mounted, keyed
@@ -149,7 +154,9 @@ async function visit(path: string): Promise<Visit> {
       await page.waitForTimeout(200);
     }
     const prices = await page.evaluate(() =>
-      (document.body.innerText.match(/\$\d[\d.,]*/g) ?? []).slice(0, 12)
+      [...document.querySelectorAll('[data-part="current"]')]
+        .map((node) => (node as HTMLElement).textContent?.trim() ?? '')
+        .slice(0, 12)
     );
     const instances = await page.evaluate(() => {
       const probe = window as unknown as {
@@ -426,7 +433,12 @@ describe('prerendered commerce data on the generated static site', () => {
   it('writes real prices and stock into the static HTML, with no skeleton and nothing busy', () => {
     for (const path of [productPage, collectionPage]) {
       const html = staticHtml(path);
-      expect(html, path).toContain('$42.00');
+      // In the store's own currency, which the build read from the platform
+      // (`test/support/mockGateway.ts` publishes ISK — and says why it is not dollars). A page that
+      // fell back to `@eldrajs/ui`'s ambient default would read `$42.00` here instead.
+      expect(html, path).toContain('commerce:{currency:"ISK"');
+      expect(html, path).toContain(formatMoney(42, 'ISK'));
+      expect(html, path).not.toContain('$42.00');
       expect(html, path).toContain('Ash glaze mug');
       expect(html, path).not.toContain('eldra-skeleton');
       expect(html, path).not.toContain('eldra-revalidating');
@@ -778,8 +790,8 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(peak.announced).toBeGreaterThanOrEqual(1);
     // …and it is gone once the refresh has answered, with the prerendered values still on screen.
     expect(visited.samples[visited.samples.length - 1]).toEqual(NOTHING);
-    expect(visited.prices).toContain('$42.00');
-    expect(visited.prices).toContain('$68.00');
+    expect(visited.prices).toContain(formatMoney(42, 'ISK'));
+    expect(visited.prices).toContain(formatMoney(68, 'ISK'));
   });
 
   /**
@@ -998,7 +1010,8 @@ describe('prerendered commerce data on the generated static site', () => {
    * not happen on a generated page.
    */
   describe('collection facets from the URL', () => {
-    /** $42, $52, $44 of the seven — the prices `test/support/mockGateway.ts` seeds. */
+    /** 42, 52 and 44 of the seven — the prices `test/support/mockGateway.ts` seeds. The range
+     *  inputs are major units, so they read the same whatever the store's currency is. */
     const IN_RANGE = ['Ash glaze mug', 'Brass candle holder', 'Linen napkin set'];
 
     it('renders the filtered set on a hard load, with the range in the inputs', async () => {

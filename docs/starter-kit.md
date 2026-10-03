@@ -664,9 +664,16 @@ rather than an incomplete one. A store that has not configured commerce publishe
 whole block down. `@eldrajs/ui`'s `<Price>` elements follow the same rule, which takes one small
 piece of care: an _absent_ `CURRENCY_KEY` is what the package answers `USD` for, so "no currency"
 is provided as the empty string instead (`uiCurrencyFor`, `app/storefront/commerce.ts`) — a code
-`Intl` must reject, which is exactly how `Price`'s own fallback arrives at a bare number. `useStorefront().commerce` carries the whole record for the blocks that need more
-than the currency: `taxInclusivePricing` (whether the amounts on screen already contain VAT) and
-`defaultTaxRate`.
+`Intl` must reject, which is exactly how `Price`'s own fallback arrives at a bare number.
+`useStorefront().commerce` carries the whole record for the blocks that need more than the currency:
+`taxInclusivePricing` (whether the amounts on screen already contain VAT) and `defaultTaxRate`.
+
+**`@eldrajs/ui` follow-up:** `useEldraUiCurrency()` should not default to `USD`, and `Price` should
+render a bare number for a code it cannot use rather than the number followed by that code. The
+empty-string sentinel above is a workaround for both: it is what makes the package decline a currency
+at all, and because `Price` still appends the (empty) code it leaves a trailing space in the rendered
+markup and logs one dev warning per component instance. When the package stops guessing,
+`uiCurrencyFor` can be deleted and the plugin can provide `commerce?.currency` directly.
 
 The demo source answers the _whole_ request, not just the paging part: `search.run` honours the query
 text, and `catalog.collectionProducts` honours `sort` and `filters` (category, size, colour,

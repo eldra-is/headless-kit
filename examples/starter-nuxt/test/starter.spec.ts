@@ -506,6 +506,14 @@ describe('starter theme', () => {
     expect(readFileSync(output('_headers'), 'utf8')).toContain(
       "frame-ancestors 'self' https://localhost:4311"
     );
+    // A build with no credentials cannot know what the store sells in, and says so in the one place
+    // that matters: the runtime config baked into every page carries no currency, rather than one
+    // the theme picked. It reads `""` and not `null` because that is what Nuxt serialises a null
+    // public-runtime-config value as — `locale` beside it does the same — which is exactly why
+    // `toStorefrontCommerce` treats an empty string as "the store published nothing" rather than as
+    // a malformed record. `@eldrajs/theme-nuxt` warns once; the page then renders plain numbers.
+    expect(readFileSync(output('index.html'), 'utf8')).toContain('commerce:""');
+    expect(result.stderr + result.stdout).toContain('the store publishes no currency');
 
     // Nitro's own `/404.html` is normally a generic SPA-fallback shell
     // (identical to `200.html`) used by static hosts for unmatched routes —

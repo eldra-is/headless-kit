@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
 
 /**
@@ -36,6 +36,17 @@ function provideWith(eldra: Record<string, unknown>): Map<symbol, unknown> {
   return provided;
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/** This theme's own warnings, separated from Vue's. */
+function eldraWarnings(warn: { mock: { calls: unknown[][] } }): string[] {
+  return warn.mock.calls
+    .map((call) => String(call[0]))
+    .filter((message) => message.startsWith('[eldra]'));
+}
+
 describe('eldra-ui-messages', () => {
   it('provides the currency the platform published, not one read off the locale', () => {
     const provided = provideWith({ commerce: ISK });
@@ -53,11 +64,38 @@ describe('eldra-ui-messages', () => {
     for (const eldra of [
       {},
       { commerce: null },
+      // What a page actually carries when the module wrote `null`: Nuxt serialises a null public
+      // runtime-config value as an empty string.
+      { commerce: '' },
       { commerce: { currency: 'ISK' } },
       { commerce: { ...ISK, currency: '' } },
       { commerce: { ...ISK, taxInclusivePricing: 'yes' } },
     ]) {
       expect(provideWith(eldra).get(CURRENCY_KEY)).toBe('');
     }
+  });
+
+  it('says so in dev when it throws away a currency because the record is half set', () => {
+    // Dropping every price on the page to a bare number because two tax fields were missing is not
+    // something to do in silence: the currency was there.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    provideWith({ commerce: { currency: 'ISK', defaultTaxRate: 0.24 } });
+
+    // Filtered, because Vue itself warns about the `inject()` this harness makes outside a
+    // component — see `provideWith`.
+    expect(eldraWarnings(warn)).toHaveLength(1);
+    expect(eldraWarnings(warn)[0]).toContain('taxInclusivePricing');
+  });
+
+  it('says nothing when the store simply has no commerce settings', () => {
+    // Not a mistake, and not a lost currency — the ordinary state of a store that sells nothing yet.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    provideWith({});
+    provideWith({ commerce: null });
+    provideWith({ commerce: '' });
+
+    expect(eldraWarnings(warn)).toEqual([]);
   });
 });

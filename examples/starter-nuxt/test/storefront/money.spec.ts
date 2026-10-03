@@ -40,6 +40,22 @@ describe('formatMoney', () => {
   });
 });
 
+describe('the formatter cache', () => {
+  it('keeps one currency-and-locale pair from answering for another', () => {
+    // `resolveFormat` memoizes `Intl.NumberFormat` per pair, which is the one way this module could
+    // start returning a cached answer for the wrong store or the wrong page.
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
+    expect(formatMoney(1234.5, 'USD', 'is-IS')).toBe(formatMoney(1234.5, 'USD', 'is-IS'));
+    expect(formatMoney(1234.5, 'USD', 'is-IS')).not.toBe('$1,234.50');
+    expect(formatMoney(1234, 'ISK', 'is-IS')).toContain('kr');
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
+    // And the digits each pair resolves stay its own.
+    expect(toMinorUnits(28, 'USD', 'en-US')).toBe(2800);
+    expect(toMinorUnits(28, 'ISK', 'en-US')).toBe(28);
+    expect(toMinorUnits(28, 'USD', 'en-US')).toBe(2800);
+  });
+});
+
 describe('toMinorUnits', () => {
   it('converts for @eldrajs/ui’s minor-unit money inputs', () => {
     expect(toMinorUnits(28, 'USD')).toBe(2800);

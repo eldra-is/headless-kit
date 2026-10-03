@@ -1,5 +1,8 @@
 import type { InjectionKey, Ref } from 'vue';
 import type { EldraClient } from '@eldrajs/sdk';
+// Type-only, so nothing of the Nuxt module (a build-time entry that reaches for `@nuxt/kit` and
+// `node:fs`) can reach an app bundle or a Storybook story through this import.
+import type { StoreCommerce } from '@eldrajs/theme-nuxt/commerce';
 import type { CartStore } from './cart';
 
 /**
@@ -25,21 +28,19 @@ import type { CartStore } from './cart';
  * read once at build by `@eldrajs/theme-nuxt` and handed to the app on
  * `runtimeConfig.public.eldra.commerce`. `null` on a store that has not configured commerce.
  *
+ * `{ currency, taxInclusivePricing, defaultTaxRate }`, and **not re-declared here**: the module
+ * that writes the key publishes its type, so this is an alias. A theme that hand-copies the record
+ * is a theme that stops compiling, or quietly stops reading a field, the first time the platform
+ * adds one.
+ *
  * `currency` reaches `@eldrajs/ui`'s components through `CURRENCY_KEY`
  * (`app/plugins/eldra-ui-messages.ts`), which is where every `<Price>` and every `useMoney()` call
- * takes it from — this field is here for the rest of it: `taxInclusivePricing` tells a block
- * whether the amounts it is showing already contain VAT ("incl. VAT" vs. "excl. VAT", tax
+ * takes it from. The rest is what this type is carried around for: `taxInclusivePricing` tells a
+ * block whether the amounts it is showing already contain VAT ("incl. VAT" vs. "excl. VAT", tax
  * "calculated at checkout"), and `defaultTaxRate` is the fraction applied to shipping and to
  * products with no rate of their own.
  */
-export interface StorefrontCommerce {
-  /** ISO 4217 code every price in this storefront is quoted in, e.g. `ISK`. */
-  currency: string;
-  /** Prices already contain VAT; the storefront shows them as they are. */
-  taxInclusivePricing: boolean;
-  /** Fraction, e.g. `0.24`. */
-  defaultTaxRate: number;
-}
+export type StorefrontCommerce = StoreCommerce;
 
 export interface StorefrontMedia {
   src: string;

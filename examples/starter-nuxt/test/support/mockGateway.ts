@@ -485,8 +485,13 @@ export function startMockGateway(): Promise<MockGateway> {
       if (url.pathname.startsWith('/organization/v1/')) {
         // What the store sells in. `@eldrajs/theme-nuxt` reads this once per build and puts it on
         // `runtimeConfig.public.eldra.commerce`, which is where every price on a generated page
-        // takes its currency from — US dollars here, the currency every fixture price below is
-        // quoted in.
+        // takes its currency from.
+        //
+        // **ISK, deliberately not USD.** `USD` is also `@eldrajs/ui`'s own ambient default
+        // (`DEFAULT_UI_CURRENCY`), so a dollar-priced fixture renders identically whether the
+        // platform's answer reached the page or the component library's fallback did — the one
+        // thing the generated-site tests are here to tell apart. A zero-decimal currency makes it
+        // visible twice over: the symbol differs *and* the minor-unit scale does.
         answer({
           id: ORG_ID,
           name: 'Northwind Goods',
@@ -494,7 +499,7 @@ export function startMockGateway(): Promise<MockGateway> {
             { feature: 'CMS', enabled: true },
             { feature: 'ECOMMERCE', enabled: true },
           ],
-          commerce: { currency: 'USD', taxInclusivePricing: false, defaultTaxRate: 0.08 },
+          commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
         });
       } else if (url.pathname === '/cms/v1/schema/page/entry') {
         answer(listResponse(pages));

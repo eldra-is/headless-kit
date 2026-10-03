@@ -162,7 +162,7 @@ cart · 2.800 kr.") and the `<Price>` beside it therefore always agree.
 A store that has not configured commerce publishes no currency, and the build says so once:
 
 ```
-[eldra] the store publishes no currency — prices render as a number with the code
+[eldra] the store publishes no currency — prices render as plain numbers
 ```
 
 Prices then render as plain numbers — in a `<Price>` element and in a formatted sentence alike,
