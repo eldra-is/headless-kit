@@ -65,6 +65,8 @@ export const isIS: UiMessages = {
   slideOf: (position: number, total: number) => `${position} af ${total}`,
   goToSlide: (n: number) => `Fara á skyggnu ${n}`,
   slides: 'Skyggnur',
+  slideInstructions:
+    'Notaðu vinstri og hægri örvatakka til að fara á milli skyggna. Ýttu á Tab til að fara innan núverandi skyggnu.',
   closeLightbox: 'Loka myndaskoðara',
   previousImage: 'Fyrri mynd',
   nextImage: 'Næsta mynd',

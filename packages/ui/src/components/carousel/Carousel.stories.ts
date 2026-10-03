@@ -75,12 +75,25 @@ const meta = {
           '`"below"`), `dots`, `counter`, `autoplay` (ms; any non-zero value always renders the',
           'Pause/Play button, WCAG 2.2.2).',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `header`, `track`,',
-          '`slide`, `prev`, `next`, `dots`, `dot`, `counter`, `pause`. `slide` is not an element',
+          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `header`,',
+          '`instructions`, `track`, `slide`, `prev`, `next`, `dots`, `dot`, `counter`, `pause`.',
+          '`slide` is not an element',
           "this component renders itself — `useCarousel` annotates the default slot's own",
           'top-level children directly (`role="group"`, `aria-roledescription="slide"`, an',
           '"n of total" `aria-label`, and the `eldra-carousel-slide` sizing class) rather than',
           "wrapping them, so a consumer's own `<li>`/`<figure>`/component root becomes the slide.",
+          '',
+          '**One tab stop, decided by the slides.** A carousel whose slides hold their own links',
+          'or buttons gives the whole row a single entry point on the **active** slide: `Tab` and',
+          "`Shift+Tab` move through that card's own controls in DOM order and then leave the",
+          'carousel (never into the next card), `←`/`→` move between slides from anywhere inside',
+          'one, `Home`/`End` jump to the ends, and `Enter`/`Space` stay with the focused control.',
+          'The track carries no `tabindex` in that model. A carousel whose slides hold nothing',
+          'focusable — a single-slide image gallery, the Lightbox stage — keeps the track itself',
+          'as the one stop with `←`/`→` stepping it. No prop chooses between them; the content',
+          "does. The `instructions` part is the visually hidden sentence the root's own",
+          '`aria-describedby` points at in the first model, so the pattern is announced once on',
+          'entering the carousel. See `KeyboardFocus` below and the README.',
           '',
           '**Never loops.** Arrows and dots disable at the ends; only autoplay wraps from the',
           'last slide back to the first. If the focused arrow becomes disabled, focus moves to',
@@ -125,6 +138,42 @@ export const ProductRow: Story = {
         </template>
         <li v-for="product in products" :key="product.url" class="list-none">
           <ProductCard :product="product" />
+        </li>
+      </Carousel>
+    `,
+  }),
+};
+
+/**
+ * The keyboard, with cards in the slides (the model the roving focus exists for). Every card holds
+ * two controls — a link and a secondary button — so the story shows both halves of the rule at
+ * once: `Tab` from the first card's link reaches its "Save" button and then leaves the carousel
+ * entirely, while `←`/`→` move between cards and `Home`/`End` jump to the ends. Only the active
+ * card's controls are in the tab sequence; the rest sit at `tabindex="-1"` until the arrows (or an
+ * arrow button, a dot, a drag or a plain scroll) make their card the active one.
+ *
+ * Deliberately plain markup rather than `ProductCard`, so what is tabbable is visible in the
+ * story's own source: the parked `tabindex`es are applied in place by `useCarousel`, to whatever
+ * the default slot renders.
+ */
+export const KeyboardFocus: Story = {
+  render: () => ({
+    components: { Carousel },
+    setup: () => ({ titles: ['Merino crew', 'Lambswool throw', 'Latte mug', 'Linen napkins'] }),
+    template: `
+      <Carousel aria-label="Bestsellers" :per-view="{ base: 1.25, md: 3 }" class="max-w-2xl">
+        <template #header>
+          <h2 class="text-h4 text-text">Bestsellers</h2>
+        </template>
+        <li
+          v-for="title in titles"
+          :key="title"
+          class="list-none rounded-lg border border-border bg-surface p-4"
+        >
+          <a :href="'#' + title" class="text-body text-text eldra-focus block font-semibold">{{ title }}</a>
+          <button type="button" class="text-body-sm text-muted eldra-focus mt-3 cursor-pointer underline">
+            Save
+          </button>
         </li>
       </Carousel>
     `,

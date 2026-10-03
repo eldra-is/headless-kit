@@ -13,6 +13,32 @@ Release-please writes the generated notes from commit messages and does not repl
 - `searchLoading` message (`'Searching…'`), used by `SearchBar` and `SearchModal` — see Fixed below.
 - `SearchBar` / `SearchModal` draw a spinner beside the field while a request is in flight (the shared `Spinner`, on the same 300ms delay as the panel's own loading view) and mark the listbox `aria-busy="true"` while it is showing. New part: `busy`. Until now the loading state was three skeleton rows inside the panel and a hidden live-region line — nothing beside the field itself, so a slow search looked like nothing was happening.
 
+### Changed
+
+- **`Carousel` takes one tab stop for the whole row.** A carousel whose slides hold their own links
+  or buttons (a product row, a gallery of tiles, a linked hero figure) no longer puts its track in
+  the tab sequence, and no longer leaves every card's controls in it: the **active slide** owns the
+  single entry point, `Tab`/`Shift+Tab` move through that card's own controls in DOM order and then
+  leave the carousel — never into the next card — and `←`/`→` move between slides from anywhere
+  inside one, with `Home`/`End` for the ends. Focus follows onto the new slide and the track
+  scrolls to it (clamped, never wrapping, instant under reduced motion); `Enter`/`Space` stay with
+  the focused control, and the arrow keys are never taken from an `input`, `textarea`, `select`,
+  `[contenteditable]`, an ARIA role that owns them (`combobox`, `listbox`, `slider`, `spinbutton`,
+  `tablist`, `tree`, `grid`), media with controls, or an element marked `data-no-arrow-keys`.
+  Before this, tabbing past a twelve-card row took thirteen presses, with a double stop (the track,
+  then immediately the first card's link) to start it — the spec's own Keyboard rule asks a
+  composite widget for one stop and arrow keys inside. A carousel whose slides hold nothing
+  focusable is unchanged: the track keeps `tabindex="0"` and `←`/`→` step it, which is also what
+  `Lightbox`'s stage keeps. **If you assert on the track's `tabindex`, or on every card's link
+  being tabbable, those assertions will change.** The composable owns `tabindex` on the slides and
+  their controls now, so pass none of your own; `useCarousel` returns `trackFocusable` (bind the
+  track's `tabindex` to it) and `focusItem` alongside the existing members.
+- New message `slideInstructions` — "Use the left and right arrow keys to move between slides. Press
+  Tab to move within the current slide." `Carousel` renders it once per carousel as a visually
+  hidden paragraph (new part: `instructions`) referenced by the **root's** own `aria-describedby`,
+  so a screen reader hears the keyboard pattern on entering the carousel rather than once per
+  slide. Rendered only in the model it describes (slides holding something focusable).
+
 ### Fixed
 
 - `SearchBar` / `SearchModal`: the live region announces the response as soon as it arrives instead of waiting out another 400ms. The debounce is the typing pause; once it has fired for a query, the response *for that query* replaces "Searching…" in the same tick the panel's rows change. A response arriving mid-pause still waits it out, and no longer restarts it.

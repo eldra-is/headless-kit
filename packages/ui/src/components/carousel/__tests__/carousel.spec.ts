@@ -84,7 +84,13 @@ function pointerEventAt(
 }
 
 describe('Carousel — element and structure', () => {
-  it('renders a labelled region with a focusable track', async () => {
+  /**
+   * `THREE_SLIDES` holds no link, button or anything else focusable, which is the one case where
+   * the track itself is the carousel's single tab stop (spec "Carousel" → Accessibility: 'Track:
+   * `tabindex="0"`'). A carousel whose slides *do* hold controls moves that stop onto the active
+   * slide instead — "Carousel — roving focus" further down covers both halves of that rule.
+   */
+  it('renders a labelled region with a focusable track, no slide holding anything focusable', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers' },
       slots: { default: THREE_SLIDES },
@@ -598,6 +604,365 @@ describe('Carousel — keyboard', () => {
       expect(el.tagName).toBe('BUTTON');
       expect((el as HTMLButtonElement).type).toBe('button');
     }
+    wrapper.unmount();
+  });
+});
+
+/**
+ * Two product-card-shaped slides per card: a title link and a secondary control, the shape the
+ * starter's own product row renders (`ProductCard`'s stretched title link, then its quick-add
+ * button) and the one the roving model exists for.
+ */
+const THREE_CARD_SLIDES = `
+  <li><a href="/alpha">Alpha</a><button type="button">Save Alpha</button></li>
+  <li><a href="/bravo">Bravo</a><button type="button">Save Bravo</button></li>
+  <li><a href="/charlie">Charlie</a><button type="button">Save Charlie</button></li>
+`;
+
+/**
+ * Everything inside `el` that `Tab` would actually stop on: natively focusable elements and
+ * anything with an explicit `tabindex`, minus whatever sits at `-1`. The whole roving model is a
+ * claim about this list, so every assertion below reads it rather than one attribute at a time —
+ * an element parked at `-1` and an element that never had a `tabindex` are the same thing to a
+ * shopper pressing `Tab`, and only the resulting list says whether the carousel takes one stop or
+ * thirteen.
+ */
+function tabbableIn(el: HTMLElement): HTMLElement[] {
+  const candidates = el.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]'
+  );
+  return Array.from(candidates).filter((node) => node.getAttribute('tabindex') !== '-1');
+}
+
+function controlsOf(slide: HTMLElement): HTMLElement[] {
+  return Array.from(slide.querySelectorAll<HTMLElement>('a[href], button, input'));
+}
+
+describe('Carousel — roving focus', () => {
+  it('takes one tab stop for the whole row: only the active slide keeps its own controls', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_CARD_SLIDES },
+    });
+    await settle();
+    const slides = slidesOf(wrapper);
+    // The entry point is the active card's own first control, so the track itself must not be a
+    // stop as well — spec "Keyboard": one tab stop for a composite widget, not two.
+    expect(track(wrapper).getAttribute('tabindex')).toBeNull();
+    expect(tabbableIn(track(wrapper))).toEqual(controlsOf(slides[0]!));
+    // Both of the active card's controls, in DOM order: `Tab` moves within the card (operator
+    // ruling), and the last of them is the last tabbable thing in the track, so the next `Tab`
+    // leaves the carousel instead of walking into slide 2.
+    expect(tabbableIn(track(wrapper))).toHaveLength(2);
+    for (const slide of slides) expect(slide.getAttribute('tabindex')).toBe('-1');
+    for (const slide of slides.slice(1)) {
+      for (const control of controlsOf(slide)) {
+        expect(control.getAttribute('tabindex')).toBe('-1');
+      }
+    }
+    wrapper.unmount();
+  });
+
+  it('is the active slide element itself when that slide holds no control of its own', async () => {
+    // A hero's `split-carousel`: some figures are linked, some are not. Every slide still has
+    // exactly one entry point, and the carousel still exactly one.
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Hero' },
+      slots: {
+        default: `
+          <figure><span>Unlinked</span></figure>
+          <figure><a href="/linked">Linked</a></figure>
+        `,
+      },
+    });
+    await settle();
+    const slides = slidesOf(wrapper);
+    expect(slides[0]?.getAttribute('tabindex')).toBe('0');
+    expect(slides[1]?.getAttribute('tabindex')).toBe('-1');
+    expect(tabbableIn(track(wrapper))).toEqual([slides[0]]);
+
+    await wrapper.find('[data-part="track"]').trigger('keydown', { key: 'ArrowRight' });
+    await settle();
+    expect(slides[0]?.getAttribute('tabindex')).toBe('-1');
+    // Slide 2 has a link, so the link is the entry point and the slide element is not a stop.
+    expect(slides[1]?.getAttribute('tabindex')).toBe('-1');
+    expect(tabbableIn(track(wrapper))).toEqual([slides[1]?.querySelector('a')]);
+    wrapper.unmount();
+  });
+
+  it('keeps the track focusable, and the slides not, when no slide holds anything focusable', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Photo gallery', controls: 'below', dots: true },
+      slots: { default: '<figure>One</figure><figure>Two</figure>' },
+    });
+    await settle();
+    expect(track(wrapper).getAttribute('tabindex')).toBe('0');
+    for (const slide of slidesOf(wrapper)) expect(slide.getAttribute('tabindex')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('hands the parked controls back their own tabindex when their slide becomes active', async () => {
+    // The middle card's link carries an author's own `tabindex="0"`: parking must remember it and
+    // give that exact value back, not a guess — removing the attribute would leave a link whose
+    // author deliberately pinned it behaving differently after one arrow press.
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default: `
+          <li><a href="/alpha">Alpha</a></li>
+          <li><a href="/bravo" tabindex="0">Bravo</a></li>
+        `,
+      },
+    });
+    await settle();
+    const slides = slidesOf(wrapper);
+    const alpha = slides[0]!.querySelector('a')!;
+    const bravo = slides[1]!.querySelector('a')!;
+    expect(alpha.getAttribute('tabindex')).toBeNull();
+    expect(bravo.getAttribute('tabindex')).toBe('-1');
+
+    await wrapper.find('[data-part="track"]').trigger('keydown', { key: 'ArrowRight' });
+    await settle();
+    expect(bravo.getAttribute('tabindex')).toBe('0');
+    expect(alpha.getAttribute('tabindex')).toBe('-1');
+
+    await wrapper.find('[data-part="track"]').trigger('keydown', { key: 'ArrowLeft' });
+    await settle();
+    expect(alpha.getAttribute('tabindex')).toBeNull();
+    expect(bravo.getAttribute('tabindex')).toBe('-1');
+
+    // And again, so the round trip is not a one-off: what parking remembers the second time is
+    // the value it restored the first time, not the `-1` it wrote over it.
+    await wrapper.find('[data-part="track"]').trigger('keydown', { key: 'ArrowRight' });
+    await settle();
+    expect(bravo.getAttribute('tabindex')).toBe('0');
+    wrapper.unmount();
+  });
+
+  it('parks the controls of slides that arrive after mount', async () => {
+    const wrapper = mountWith(
+      {
+        components: { Carousel },
+        props: ['items'],
+        template: `
+          <Carousel aria-label="Bestsellers">
+            <li v-for="item in items" :key="item"><a :href="'/' + item">{{ item }}</a></li>
+          </Carousel>
+        `,
+      },
+      { props: { items: ['a'] } }
+    );
+    await settle();
+    expect(tabbableIn(track(wrapper))).toHaveLength(1);
+
+    await wrapper.setProps({ items: ['a', 'b', 'c'] });
+    await settle();
+    const slides = slidesOf(wrapper);
+    expect(slides).toHaveLength(3);
+    expect(tabbableIn(track(wrapper))).toEqual([slides[0]?.querySelector('a')]);
+    wrapper.unmount();
+  });
+
+  /**
+   * The case a product row actually lives through: four skeleton slides with nothing focusable in
+   * them (so the track is the one stop) are replaced by cards whose links arrive *inside* already
+   * mounted slides. Only the subtree observer can see that, and without it every card's link would
+   * sit in the tab sequence at once while the track stayed a stop of its own — two models at the
+   * same time.
+   */
+  it('switches model when a slide gains focusable content without the slide itself changing', async () => {
+    const wrapper = mountWith(
+      {
+        components: { Carousel },
+        props: ['loaded'],
+        template: `
+          <Carousel aria-label="Bestsellers">
+            <li v-for="n in 2" :key="n">
+              <a v-if="loaded" :href="'/p' + n">Product {{ n }}</a>
+              <span v-else>Loading</span>
+            </li>
+          </Carousel>
+        `,
+      },
+      { props: { loaded: false } }
+    );
+    await settle();
+    expect(track(wrapper).getAttribute('tabindex')).toBe('0');
+
+    await wrapper.setProps({ loaded: true });
+    await settle();
+    expect(track(wrapper).getAttribute('tabindex')).toBeNull();
+    const slides = slidesOf(wrapper);
+    expect(tabbableIn(track(wrapper))).toEqual([slides[0]?.querySelector('a')]);
+    expect(slides[1]?.querySelector('a')?.getAttribute('tabindex')).toBe('-1');
+    wrapper.unmount();
+  });
+
+  it('moves the active slide and focus with ArrowRight/ArrowLeft from inside a card', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_CARD_SLIDES },
+    });
+    await settle();
+    const slides = slidesOf(wrapper);
+    const link = (i: number) => slides[i]!.querySelector('a')!;
+    link(0).focus();
+    expect(document.activeElement).toBe(link(0));
+
+    // From the card's own link, not from the slide element — the ruling's "from anywhere inside a
+    // card", which is where focus really is once the entry point is a link.
+    link(0).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await settle();
+    expect(document.activeElement).toBe(link(1));
+    expect(wrapper.emitted('change')).toEqual([[1]]);
+    expect(tabbableIn(track(wrapper))).toEqual(controlsOf(slides[1]!));
+
+    // And from a *secondary* control of the card, which is just as much "inside" it.
+    slides[1]!
+      .querySelector('button')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    await settle();
+    expect(document.activeElement).toBe(link(0));
+    wrapper.unmount();
+  });
+
+  it('clamps at both ends and jumps to first/last with Home/End', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_CARD_SLIDES },
+    });
+    await settle();
+    const slides = slidesOf(wrapper);
+    const link = (i: number) => slides[i]!.querySelector('a')!;
+    const press = (from: HTMLElement, key: string) =>
+      from.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+
+    press(link(0), 'ArrowLeft');
+    await settle();
+    expect(document.activeElement).toBe(link(0));
+    expect(wrapper.emitted('change')).toBeUndefined();
+
+    press(link(0), 'End');
+    await settle();
+    expect(document.activeElement).toBe(link(2));
+
+    press(link(2), 'ArrowRight');
+    await settle();
+    expect(document.activeElement).toBe(link(2));
+
+    press(link(2), 'Home');
+    await settle();
+    expect(document.activeElement).toBe(link(0));
+    expect(wrapper.emitted('change')).toEqual([[2], [0]]);
+    wrapper.unmount();
+  });
+
+  it('leaves the arrow keys alone inside a control that owns them itself', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default: `
+          <li><a href="/alpha">Alpha</a><input aria-label="Quantity" value="1" /></li>
+          <li><a href="/bravo">Bravo</a></li>
+        `,
+      },
+    });
+    await settle();
+    const field = wrapper.find('input').element as HTMLInputElement;
+    field.focus();
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      bubbles: true,
+      cancelable: true,
+    });
+    field.dispatchEvent(event);
+    await settle();
+    // The caret moves, the row does not: nothing prevented, nothing emitted, focus untouched.
+    expect(event.defaultPrevented).toBe(false);
+    expect(wrapper.emitted('change')).toBeUndefined();
+    expect(document.activeElement).toBe(field);
+    wrapper.unmount();
+  });
+
+  it('leaves Enter and Space to the focused control', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_CARD_SLIDES },
+    });
+    await settle();
+    const link = slidesOf(wrapper)[0]!.querySelector('a')!;
+    link.focus();
+    for (const key of ['Enter', ' ']) {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      link.dispatchEvent(event);
+      await settle();
+      // Never intercepted: the browser's own activation of the focused link is the right one, and
+      // a `preventDefault()` here would be what stopped the navigation.
+      expect(event.defaultPrevented).toBe(false);
+    }
+    expect(wrapper.emitted('change')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('follows the arrow buttons and the dots, so Tab lands on the slide in view', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers', controls: 'below', dots: true },
+      slots: { default: THREE_CARD_SLIDES },
+    });
+    await settle();
+    const slides = slidesOf(wrapper);
+    await wrapper.find('[data-part="next"]').trigger('click');
+    await settle();
+    expect(tabbableIn(track(wrapper))).toEqual(controlsOf(slides[1]!));
+
+    await wrapper.findAll('[data-part="dot"]')[2]!.trigger('click');
+    await settle();
+    expect(tabbableIn(track(wrapper))).toEqual(controlsOf(slides[2]!));
+    wrapper.unmount();
+  });
+
+  it('describes the whole carousel once, not every slide', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_CARD_SLIDES },
+    });
+    await settle();
+    const instructions = wrapper.find('[data-part="instructions"]');
+    expect(instructions.exists()).toBe(true);
+    expect(instructions.text()).toBe(enUS.slideInstructions);
+    expect(instructions.classes()).toContain('sr-only');
+    // On the root, so it is read on entering the group and not once per slide the arrows walk
+    // through; no slide carries a description of its own.
+    expect(wrapper.attributes('aria-describedby')).toBe(instructions.attributes('id'));
+    for (const slide of slidesOf(wrapper)) {
+      expect(slide.getAttribute('aria-describedby')).toBeNull();
+    }
+    // Still announced as a carousel of slides, with the position spelled out (spec "Carousel" →
+    // Accessibility), which is what pairs with the hint.
+    expect(wrapper.attributes('aria-roledescription')).toBe('carousel');
+    expect(slidesOf(wrapper)[1]?.getAttribute('aria-roledescription')).toBe('slide');
+    expect(slidesOf(wrapper)[1]?.getAttribute('aria-label')).toBe(enUS.slideOf(2, 3));
+    wrapper.unmount();
+  });
+
+  it('renders no instructions when the track itself is the tab stop', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Photo gallery' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    expect(wrapper.find('[data-part="instructions"]').exists()).toBe(false);
+    expect(wrapper.attributes('aria-describedby')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with cards in the slides', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_CARD_SLIDES, header: '<h2>Bestsellers</h2>' },
+    });
+    await settle();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });

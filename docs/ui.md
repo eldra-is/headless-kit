@@ -104,7 +104,12 @@ table and Storybook for the full contract of each).
   from the last slide back to the first. Touch swipes natively; mouse/pen drag (`draggable`,
   default `true`) snaps to the nearest slide on release, biased one slide further by a fast flick.
   `useCarousel` (also exported) is the whole behaviour with no rendering of its own, reused
-  unchanged by the Lightbox's own track.
+  unchanged by the Lightbox's own track. One tab stop for the whole row, as a composite widget
+  should have: with cards in the slides, the active slide owns the only entry point (`Tab` moves
+  within that card and then leaves the carousel, never into the next card), `←`/`→` move between
+  slides from anywhere inside one and `Home`/`End` jump to the ends; a gallery whose slides hold
+  nothing focusable keeps the track itself as the one stop with `←`/`→` stepping it. See
+  `packages/ui/README.md`'s `useCarousel` section for the whole rule and what it trades.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind
   an ellipsis button below its own 48rem width (never the viewport) and never truncating a title.
 - `Lightbox` — a full-screen native `<dialog>` image viewer for product galleries, built on

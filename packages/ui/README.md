@@ -507,7 +507,9 @@ const {
   goTo,
   next,
   prev, // never loop — arrows/dots disable at the ends instead
-  onTrackKeydown, // ArrowLeft/ArrowRight — bind to the track's `keydown`
+  trackFocusable, // true only while no slide holds anything focusable — bind the track's tabindex
+  onTrackKeydown, // the whole keyboard, both models — bind to the track's `keydown`
+  focusItem, // move the entry point (and focus) onto a slide; the arrow keys' own path
   playing,
   pause,
   resume,
@@ -536,6 +538,48 @@ container-query breakpoint, so `Carousel` and `Lightbox` share one reading of th
 style rather than classes, deliberately — see the Deviations entry. `prefersReducedMotion` is the one
 JavaScript check CSS's own `motion-reduce:` cannot make on its own — whether autoplay may start at
 all.
+
+**Keyboard: one tab stop, wherever the cards are.** Spec "Keyboard": "Composite widgets (tabs,
+listboxes, menus, carousels, radio groups) take one tab stop and use arrow keys inside, following
+the WAI-ARIA Authoring Practices." Which shape that takes is decided by the slides' own content,
+with no prop to choose it — `trackFocusable` is the answer and the track's `tabindex` is bound to
+it:
+
+- **No slide holds anything focusable** (a single-slide image gallery, a `Lightbox` stage): the
+  track itself is the one stop (`tabindex="0"`) and `←`/`→` step it. The spec's own "Track:
+  `tabindex="0"`" case, unchanged.
+- **Any slide holds a link or a button** (a product row, a gallery of "view larger" tiles, a linked
+  hero figure): the **active slide** owns the one entry point and the track is not a stop at all.
+  Its own controls keep their natural `tabindex`, so `Tab`/`Shift+Tab` move through _that card's_
+  link, wishlist and quick-add in DOM order and then leave the carousel entirely — every other
+  slide's controls are parked at `tabindex="-1"`, which is what stops `Tab` from walking into the
+  next card. The slide element is itself a stop only when it is active and holds no control of its
+  own, so a mixed row (linked and unlinked figures) has exactly one entry point either way.
+  `←`/`→` move between slides from anywhere inside one, `Home`/`End` jump to the first/last, focus
+  follows onto the new slide's entry point and the track scrolls to it (clamped, never wrapping,
+  instant under reduced motion). `Enter`/`Space` are left to the focused control, so a card's own
+  link navigates the way the browser means it to. Nothing is intercepted inside a control that owns
+  the horizontal arrows itself — an `input`, `textarea`, `select`, `[contenteditable]`, a
+  `combobox`/`listbox`/`slider`/`spinbutton`/`tablist`/`tree`/`grid` role, media with controls, or
+  anything an author opts out with `data-no-arrow-keys`.
+
+What this costs, deliberately: a card's secondary control is reachable only once that card is the
+active one, i.e. after the arrow keys (or the arrows, the dots or a scroll) have moved to it. That
+is the WAI-ARIA Authoring Practices trade every composite widget makes, and it is what the
+alternative — one tab stop per card, thirteen presses to get past a twelve-card row — costs
+instead. `Carousel` renders the hint for it once per carousel: a visually hidden
+`slideInstructions` paragraph (`data-part="instructions"`), referenced by the **root's** own
+`aria-describedby` so it is announced on entering the carousel rather than again on every slide the
+arrow keys walk through, alongside `aria-roledescription="carousel"` on the root and
+`role="group"`/`aria-roledescription="slide"`/`aria-label="2 of 4"` on each slide.
+
+The whole pass re-runs on mount, whenever the slides change, whenever anything _inside_ a slide
+changes (a second `MutationObserver`, `subtree: true` — a product row's cards replace four
+skeletons without the slide elements themselves changing at all) and whenever the active slide
+changes, including from an arrow button, a dot, autoplay, a drag or a plain two-finger scroll — so
+`Tab` always lands on the card the shopper is looking at. A parked control gets back the exact
+`tabindex` it had (usually none at all, so the attribute is removed rather than set to `"0"`), and
+this composable owns `tabindex` on the slides and their controls outright: pass none of your own.
 
 **Pointer drag** (operator ruling): touch already swipes the track for free through native
 scroll-snap; `draggable` (default `true`) adds the mouse/pen equivalent. `pointerdown` on the
@@ -2449,6 +2493,26 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   fire as well — closing the dialog behind the toast, not only the toast the spec's own Keyboard
   row asks Escape to close ("closes the toast that holds focus"). `preventDefault()` on the
   `keydown` suppresses that native "close request" before it reaches the dialog.
+- **A `Carousel` whose slides hold their own links or buttons takes one tab stop on the active
+  slide, and its track is not focusable at all** — against the spec's own Carousel section, which
+  gives the track `tabindex="0"` unconditionally ("Track: `tabindex="0"` with a label") and spells
+  the tab order out as "the header arrows, then the track, then the links inside the cards".
+  Operator ruling, and the spec's own general Keyboard rule says the opposite in the stronger
+  place: "Composite widgets (tabs, listboxes, menus, carousels, radio groups) take one tab stop and
+  use arrow keys inside, following the WAI-ARIA Authoring Practices." Both halves of the Carousel
+  section's own wording produce a double stop (the track, then immediately the first card's link)
+  and then one stop per card after it — thirteen presses to get past a twelve-card row, which is
+  what the ruling calls bad practice. The track keeps `tabindex="0"` in exactly the case the
+  section's wording was written for and where nothing else can take the stop: a single-slide image
+  gallery whose slides hold nothing focusable, and the `Lightbox` stage ("Stage / track … focusable")
+  — decided by content, since `CarouselProps` carries nothing that tells the component which
+  variant it is (the same reason the slide-labelling entry below gives). Inside the active slide the
+  tab sequence is untouched, so a card's link and its quick-add are still `Tab` and `Shift+Tab`
+  from each other; a _different_ card's controls need the arrow keys first. `Carousel` adds one
+  thing the spec does not name for it, the visually hidden `slideInstructions` sentence on the
+  root's `aria-describedby` (see the README's `useCarousel` section), because a keyboard pattern
+  nothing on screen explains is worth saying to the one visitor who cannot see the row it applies
+  to.
 - **Every `Carousel` slide gets the spec's gallery treatment — `role="group"`,
   `aria-roledescription="slide"`, an "n of total" `aria-label` — including product rows.** The
   spec's own Accessibility section gives that markup to "gallery slides" only and calls a product

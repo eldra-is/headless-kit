@@ -51,6 +51,26 @@ describe('Lightbox — element and structure', () => {
     wrapper.unmount();
   });
 
+  /**
+   * The stage is the viewer's own tab stop (spec "Lightbox" → Anatomy, part 5: "Stage / track …
+   * focusable"), and it stays that way even though it shares `useCarousel` with `Carousel`, whose
+   * slides hand that stop to the active slide as soon as one of them holds a link or a button. A
+   * Lightbox slide holds an image and a caption and nothing focusable at all, so the shared
+   * `syncFocusModel` leaves both the stage and the slides exactly as this component renders them —
+   * asserted here rather than assumed, since the two components read the same file.
+   */
+  it('keeps the stage itself focusable, with no tabindex on any slide', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true, thumbnails: true },
+    });
+    await settle();
+    expect(wrapper.find('[data-part="track"]').attributes('tabindex')).toBe('0');
+    for (const slide of wrapper.findAll('[data-part="slide"]')) {
+      expect(slide.attributes('tabindex')).toBeUndefined();
+    }
+    wrapper.unmount();
+  });
+
   it('gives every slide role=group, a slide roledescription and an "n of total" label', async () => {
     const wrapper = mountWith(Lightbox, {
       props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },

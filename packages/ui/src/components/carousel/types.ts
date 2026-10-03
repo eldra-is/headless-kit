@@ -28,11 +28,16 @@ export type CarouselControls = 'header' | 'below';
  * same prop as everything else. `slide` is not an element `Carousel` renders itself: it is applied
  * to each of the default slot's own top-level children (see `Carousel.vue`'s own comment), so a
  * `classes.slide` override reaches them the same way `data-part="slide"` and `aria-roledescription`
- * do.
+ * do. `instructions` is the visually hidden keyboard hint the root's own `aria-describedby` points
+ * at, rendered only while the slides hold something focusable and the roving keyboard is therefore
+ * live (see `Carousel.vue`'s own `instructionsId` comment) — it is not in the spec's anatomy
+ * either, and restyling it is almost always a mistake, but a consumer replacing the sentence's own
+ * `sr-only` treatment (a visible instruction line, say) should not have to fork the component.
  */
 export type CarouselPart =
   | 'root'
   | 'header'
+  | 'instructions'
   | 'track'
   | 'slide'
   | 'prev'
