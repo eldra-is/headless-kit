@@ -107,9 +107,11 @@ table and Storybook for the full contract of each).
   unchanged by the Lightbox's own track. One tab stop for the whole row, as a composite widget
   should have: with cards in the slides, the active slide owns the only entry point (`Tab` moves
   within that card and then leaves the carousel, never into the next card), `←`/`→` move between
-  slides from anywhere inside one and `Home`/`End` jump to the ends; a gallery whose slides hold
-  nothing focusable keeps the track itself as the one stop with `←`/`→` stepping it. See
-  `packages/ui/README.md`'s `useCarousel` section for the whole rule and what it trades.
+  slides from anywhere inside one and `Home`/`End` jump to the ends; a slide with nothing to land
+  on becomes that stop itself, so a carousel never has none, and a gallery whose slides hold
+  nothing focusable at all keeps the track itself as the one stop with `←`/`→` stepping it. The
+  model is applied after mount, so a server-rendered page carries the pre-enhancement shape until
+  then. See `packages/ui/README.md`'s `useCarousel` section for the whole rule and what it trades.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind
   an ellipsis button below its own 48rem width (never the viewport) and never truncating a title.
 - `Lightbox` — a full-screen native `<dialog>` image viewer for product galleries, built on

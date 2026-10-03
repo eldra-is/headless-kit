@@ -553,15 +553,24 @@ it:
   Its own controls keep their natural `tabindex`, so `Tab`/`Shift+Tab` move through _that card's_
   link, wishlist and quick-add in DOM order and then leave the carousel entirely — every other
   slide's controls are parked at `tabindex="-1"`, which is what stops `Tab` from walking into the
-  next card. The slide element is itself a stop only when it is active and holds no control of its
-  own, so a mixed row (linked and unlinked figures) has exactly one entry point either way.
-  `←`/`→` move between slides from anywhere inside one, `Home`/`End` jump to the first/last, focus
-  follows onto the new slide's entry point and the track scrolls to it (clamped, never wrapping,
-  instant under reduced motion). `Enter`/`Space` are left to the focused control, so a card's own
-  link navigates the way the browser means it to. Nothing is intercepted inside a control that owns
-  the horizontal arrows itself — an `input`, `textarea`, `select`, `[contenteditable]`, a
-  `combobox`/`listbox`/`slider`/`spinbutton`/`tablist`/`tree`/`grid` role, media with controls, or
-  anything an author opts out with `data-no-arrow-keys`.
+  next card. `←`/`→` move between slides from anywhere inside one, `Home`/`End` jump to the
+  first/last, focus follows onto the new slide's entry point and the track scrolls to it (clamped,
+  never wrapping, instant under reduced motion). `Enter`/`Space` are left to the focused control, so
+  a card's own link navigates the way the browser means it to. Nothing is intercepted inside a
+  control that owns the horizontal arrows itself — a text-like `input` (a checkbox, a submit button
+  or a file picker owns no horizontal arrows and never blocks the row), `textarea`, `select`,
+  `[contenteditable]`, a `combobox`/`listbox`/`radiogroup`/`slider`/`spinbutton`/`tablist`/`tree`/
+  `grid`/`menu` role, media with controls, or anything an author opts out with `data-no-arrow-keys`.
+
+  **Where focus lands, and when the slide element itself is the stop.** The entry point is the
+  slide's first _tab stop candidate_: rendered, outside `aria-hidden="true"`, not `disabled`, and
+  not at the author's own `tabindex="-1"`. A card's decorative image link marked
+  `aria-hidden="true" tabindex="-1"` ahead of the real title link is therefore stepped past rather
+  than focused — focus inside `aria-hidden` announces nothing. A slide with no candidate at all (an
+  unlinked figure, or one whose only focusable content is an author's `-1` focus target) becomes
+  the stop itself: `tabindex="0"` while active, `-1` otherwise, plus the package's `eldra-focus`
+  ring, so a carousel is never left with zero tab stops. A slide that _does_ hold a control gets no
+  `tabindex` written on it at all.
 
 What this costs, deliberately: a card's secondary control is reachable only once that card is the
 active one, i.e. after the arrow keys (or the arrows, the dots or a scroll) have moved to it. That
@@ -574,12 +583,25 @@ arrow keys walk through, alongside `aria-roledescription="carousel"` on the root
 `role="group"`/`aria-roledescription="slide"`/`aria-label="2 of 4"` on each slide.
 
 The whole pass re-runs on mount, whenever the slides change, whenever anything _inside_ a slide
-changes (a second `MutationObserver`, `subtree: true` — a product row's cards replace four
-skeletons without the slide elements themselves changing at all) and whenever the active slide
-changes, including from an arrow button, a dot, autoplay, a drag or a plain two-finger scroll — so
-`Tab` always lands on the card the shopper is looking at. A parked control gets back the exact
-`tabindex` it had (usually none at all, so the attribute is removed rather than set to `"0"`), and
-this composable owns `tabindex` on the slides and their controls outright: pass none of your own.
+changes (a second `MutationObserver` over the track's subtree — a product row's cards replace four
+skeletons without the slide elements themselves changing at all; it watches children plus
+`tabindex`/`aria-hidden`/`disabled`, so a quick-add going `disabled` moves the entry point, and
+coalesces a burst into one pass) and whenever the active slide changes, including from an arrow
+button, a dot, autoplay, a drag or a plain two-finger scroll — so `Tab` always lands on the card
+the shopper is looking at. A parked control gets back the exact `tabindex` it had (usually none at
+all, so the attribute is removed rather than set to `"0"`), and this composable owns `tabindex` on
+the slides and their controls outright: pass none of your own.
+
+**Before the first client render there is no roving model.** The pass runs in `onMounted`, so a
+server-rendered page — and a page whose JavaScript never arrives — carries the pre-enhancement
+shape: the track focusable, every card's link in the tab sequence. That is deliberate, it is the
+same progressive enhancement the per-slide labelling already relies on, and the first client render
+matches the server's exactly (nothing to mismatch); the model only moves afterwards. One more
+consequence worth stating: with `controls: "below"` or `dots`, `Tab` from the active card's last
+control reaches the carousel's own below-row controls before it reaches the page — they are stops
+in their own right, as they always were — and `Shift+Tab` from the first reaches the header arrows
+the same way. "Leaves the carousel" means it never walks into another card, not that the carousel's
+own controls are skipped.
 
 **Pointer drag** (operator ruling): touch already swipes the track for free through native
 scroll-snap; `draggable` (default `true`) adds the mouse/pen equivalent. `pointerdown` on the

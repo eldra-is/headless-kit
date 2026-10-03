@@ -216,16 +216,21 @@ describe('hero split-carousel — linked and unlinked slides in one row', () => 
     await nextTick();
     const figures = slides(wrapper);
     expect(track(wrapper).getAttribute('tabindex')).toBeNull();
-    // Slide 1 holds no link, so the slide element itself is the stop; slide 2's link is parked.
+    // Slide 1 holds no link, so the slide element itself is the stop — with the package's own
+    // focus ring, since it has no control of its own to bring one. Slide 2's link is parked.
     expect(figures[0]?.getAttribute('tabindex')).toBe('0');
+    expect(figures[0]?.classList.contains('eldra-focus')).toBe(true);
     expect(tabbableIn(track(wrapper))).toEqual([figures[0]]);
 
     press(figures[0]!, 'ArrowRight');
     await nextTick();
-    // Slide 2 holds a link, so the link is the stop and the slide element is not.
+    // Slide 2 holds a link, so the link is the stop and the slide element carries no tabindex of
+    // its own at all; slide 1 keeps the `-1` that lets the arrows and a click still reach it.
     const link = figures[1]!.querySelector<HTMLElement>('a[href]')!;
     expect(document.activeElement).toBe(link);
-    expect(figures[1]?.getAttribute('tabindex')).toBe('-1');
+    expect(figures[1]?.getAttribute('tabindex')).toBeNull();
+    expect(figures[1]?.classList.contains('eldra-focus')).toBe(false);
+    expect(figures[0]?.getAttribute('tabindex')).toBe('-1');
     expect(tabbableIn(track(wrapper))).toEqual([link]);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });

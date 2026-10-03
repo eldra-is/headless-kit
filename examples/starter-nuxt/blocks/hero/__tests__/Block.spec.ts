@@ -264,8 +264,10 @@ describe('hero block', () => {
         await nextTick();
       };
 
-      // One entry point: the active slide's own link, never the slide element beside it.
-      expect(slides()[0]?.getAttribute('tabindex')).toBe('-1');
+      // One entry point: the active slide's own link. A slide that holds a control carries no
+      // `tabindex` of its own — there is nothing for one to do there — and every other slide's
+      // link is parked out of the tab sequence.
+      expect(slides()[0]?.getAttribute('tabindex')).toBeNull();
       expect(slides()[0]?.querySelector('a[href]')?.getAttribute('tabindex')).toBeNull();
       expect(slides()[1]?.querySelector('a[href]')?.getAttribute('tabindex')).toBe('-1');
 

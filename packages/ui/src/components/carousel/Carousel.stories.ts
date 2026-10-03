@@ -145,12 +145,17 @@ export const ProductRow: Story = {
 };
 
 /**
- * The keyboard, with cards in the slides (the model the roving focus exists for). Every card holds
- * two controls — a link and a secondary button — so the story shows both halves of the rule at
- * once: `Tab` from the first card's link reaches its "Save" button and then leaves the carousel
- * entirely, while `←`/`→` move between cards and `Home`/`End` jump to the ends. Only the active
- * card's controls are in the tab sequence; the rest sit at `tabindex="-1"` until the arrows (or an
- * arrow button, a dot, a drag or a plain scroll) make their card the active one.
+ * The keyboard, with cards in the slides (the model the roving focus exists for). The first three
+ * cards hold two controls each — a link and a secondary button — so the story shows both halves of
+ * the rule at once: `Tab` from the active card's link reaches its "Save" button and then leaves the
+ * carousel entirely, while `←`/`→` move between cards and `Home`/`End` jump to the ends. Only the
+ * active card's controls are in the tab sequence; the rest sit at `tabindex="-1"` until the arrows
+ * (or an arrow button, a dot, a drag or a plain scroll) make their card the active one.
+ *
+ * The **last card holds no control at all**, which is the other half of the rule: a slide with
+ * nothing to land on becomes the tab stop itself (`tabindex="0"` while it is active) and carries
+ * the package's own `eldra-focus` ring, so arrowing onto it shows the same ring every control
+ * shows. A hero's unlinked figure beside linked ones is the real-world shape of it.
  *
  * Deliberately plain markup rather than `ProductCard`, so what is tabbable is visible in the
  * story's own source: the parked `tabindex`es are applied in place by `useCarousel`, to whatever
@@ -159,7 +164,7 @@ export const ProductRow: Story = {
 export const KeyboardFocus: Story = {
   render: () => ({
     components: { Carousel },
-    setup: () => ({ titles: ['Merino crew', 'Lambswool throw', 'Latte mug', 'Linen napkins'] }),
+    setup: () => ({ titles: ['Merino crew', 'Lambswool throw', 'Latte mug'] }),
     template: `
       <Carousel aria-label="Bestsellers" :per-view="{ base: 1.25, md: 3 }" class="max-w-2xl">
         <template #header>
@@ -174,6 +179,10 @@ export const KeyboardFocus: Story = {
           <button type="button" class="text-body-sm text-muted eldra-focus mt-3 cursor-pointer underline">
             Save
           </button>
+        </li>
+        <li class="list-none rounded-lg border border-border bg-surface p-4">
+          <p class="text-body text-text font-semibold">Gift card</p>
+          <p class="text-body-sm text-muted mt-3">Back in stock soon</p>
         </li>
       </Carousel>
     `,

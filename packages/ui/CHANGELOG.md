@@ -22,9 +22,12 @@ Release-please writes the generated notes from commit messages and does not repl
   leave the carousel — never into the next card — and `←`/`→` move between slides from anywhere
   inside one, with `Home`/`End` for the ends. Focus follows onto the new slide and the track
   scrolls to it (clamped, never wrapping, instant under reduced motion); `Enter`/`Space` stay with
-  the focused control, and the arrow keys are never taken from an `input`, `textarea`, `select`,
-  `[contenteditable]`, an ARIA role that owns them (`combobox`, `listbox`, `slider`, `spinbutton`,
-  `tablist`, `tree`, `grid`), media with controls, or an element marked `data-no-arrow-keys`.
+  the focused control, and the arrow keys are never taken from a text-like `input`, `textarea`,
+  `select`, `[contenteditable]`, an ARIA role that owns them (`combobox`, `listbox`, `radiogroup`,
+  `slider`, `spinbutton`, `tablist`, `tree`, `grid`, `menu`), media with controls, or an element
+  marked `data-no-arrow-keys` — a checkbox, a submit button or a file picker owns no horizontal
+  arrows, so the row still moves from one.
+
   Before this, tabbing past a twelve-card row took thirteen presses, with a double stop (the track,
   then immediately the first card's link) to start it — the spec's own Keyboard rule asks a
   composite widget for one stop and arrow keys inside. A carousel whose slides hold nothing
@@ -33,6 +36,15 @@ Release-please writes the generated notes from commit messages and does not repl
   being tabbable, those assertions will change.** The composable owns `tabindex` on the slides and
   their controls now, so pass none of your own; `useCarousel` returns `trackFocusable` (bind the
   track's `tabindex` to it) and `focusItem` alongside the existing members.
+
+  Focus lands on the slide's first **tab stop candidate**: rendered, outside `aria-hidden="true"`,
+  not `disabled`, not at the author's own `tabindex="-1"`. A decorative `aria-hidden` image link
+  ahead of a card's title link is stepped past rather than focused. A slide with no candidate at
+  all — an unlinked figure, or one whose only focusable content is an author's `-1` focus target —
+  becomes the tab stop itself (`tabindex="0"` while active, plus the package's `eldra-focus` ring),
+  so a carousel is never left with no tab stop; a slide that holds a control has no `tabindex`
+  written on it at all. Before the first client render — on the server, and with no JavaScript —
+  the pre-enhancement shape stands: the track focusable, every card's link tabbable.
 - New message `slideInstructions` — "Use the left and right arrow keys to move between slides. Press
   Tab to move within the current slide." `Carousel` renders it once per carousel as a visually
   hidden paragraph (new part: `instructions`) referenced by the **root's** own `aria-describedby`,
