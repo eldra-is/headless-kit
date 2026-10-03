@@ -141,6 +141,47 @@ the component has stopped saying it is busy, and there is only ever one copy of 
 DOM. Under `prefers-reduced-motion: reduce` there is no animation at all and the value simply
 changes. A value that is on screen never turns back into a skeleton.
 
+## Money and number formatting
+
+Every currency the package renders is written with the currency's **narrow** sign — `kr 2,800`
+under `en-US`/`ISK`, `2.800 kr.` under `is-IS`, `$28` for dollars — because that is the sign a
+store's own back office writes, and a price that disagreed with the currency field an operator
+typed it into is a bug the shopper sees. `Price` (and `ProductCard` through it) takes
+`narrowSymbol`, `true` by default, as `CurrencyInput` already did; pass `false` for the wide sign,
+which for some currency-and-locale pairs is the ISO code itself.
+
+`Price` formats through `formatCurrency` (below), so it carries that formatter's fraction rule:
+the currency's own count as the maximum, and a **minimum of zero**, which is why a whole amount
+reads `$48` rather than `$48.00`.
+
+A theme that has to put money in a sentence rather than render a `<Price>` — "Add to cart ·
+kr 2,800", a cart line total, a search suggestion — should format it with the package's own
+`formatCurrency` rather than `Intl.NumberFormat`, which writes the wide sign by default and so
+quietly disagrees with every price beside it:
+
+```ts
+import { currencySymbol, formatCurrency } from '@eldrajs/ui';
+
+formatCurrency(2800, 'en-US', 'ISK', true, 0); // "kr 2,800"
+formatCurrency(28, 'en-US', 'USD'); // "$28"
+currencySymbol('ISK', 'is-IS'); // "kr."
+```
+
+`formatCurrency(value, locale, currency, narrowSymbol, maxFraction)` is positional, with those
+defaults, because it is a **port of the private Eldra library's own helper and the canonical copy of
+it** — that library imports this one rather than keeping its own, so the signature is its signature
+and the output has to stay identical. Two things follow from that contract: the minimum fraction
+digits are `0`, so `28` is `"$28"` and `28.5` is `"$28.5"`; and `maxFraction` defaults to `2`
+whatever the currency, so pass `currencyFractionDigits(currency, locale)` when you want the
+currency's own count (`<Price>` does, which is what keeps krónur integral and `BHD` at three
+places). It throws `RangeError` for a code `Intl` rejects, as the original does — guard it the way
+`Price` does if it runs inside a `computed`.
+
+`currencySymbol` is this package's own addition: the sign on its own, for a place that names a
+currency rather than formatting an amount in it. It never throws. Both sit alongside `formatNumber`,
+`formatUnit`, `createNumberFormat`, `parseLocaleNumber`, `localeSeparators` and
+`currencyFractionDigits` — see `packages/ui/README.md` for the whole set.
+
 ## Styles
 
 Pick one of three CSS entries, depending on how the consuming project builds CSS:

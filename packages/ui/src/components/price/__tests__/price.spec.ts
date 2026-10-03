@@ -51,7 +51,7 @@ describe('Price — formatting', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 4800, currency: 'USD', locale: 'en-US' },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$48');
     wrapper.unmount();
   });
 
@@ -59,7 +59,7 @@ describe('Price — formatting', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 124000, currency: 'USD', locale: 'en-US' },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$1,240.00');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$1,240');
     wrapper.unmount();
   });
 
@@ -86,9 +86,9 @@ describe('Price — formatting', () => {
   });
 
   it('reads the amount as minor units, not major', () => {
-    // 4800 minor units of USD is $48.00, not $4,800.00.
+    // 4800 minor units of USD is $48, not $4,800.
     const wrapper = mountWith(Price, { props: { amount: 4800, currency: 'USD', locale: 'en-US' } });
-    expect(wrapper.get('[data-part="current"]').text()).not.toBe('$4,800.00');
+    expect(wrapper.get('[data-part="current"]').text()).not.toBe('$4,800');
     wrapper.unmount();
   });
 
@@ -103,6 +103,114 @@ describe('Price — formatting', () => {
       props: { amount: 1_234_567, currency: 'BHD', locale: 'en-US' },
     });
     expect(wrapper.get('[data-part="current"]').text()).toBe(expected);
+    wrapper.unmount();
+  });
+
+  /**
+   * The fraction digits are `formatCurrency`'s, which this component now formats every amount
+   * through: a **maximum** of the currency's own count, and a **minimum of 0**. So a whole amount
+   * carries no decimals at all, and a half one carries exactly the digits it has. This is the
+   * ported contract, not a choice made here — the private library's currency formatter has always
+   * written `minimumFractionDigits: 0`, and the public copy is only useful if it is identical.
+   */
+  it('writes no trailing zeroes: the minimum fraction digits are 0', () => {
+    const whole = mountWith(Price, { props: { amount: 2800, currency: 'USD', locale: 'en-US' } });
+    expect(whole.get('[data-part="current"]').text()).toBe('$28');
+    whole.unmount();
+
+    const half = mountWith(Price, { props: { amount: 2850, currency: 'USD', locale: 'en-US' } });
+    expect(half.get('[data-part="current"]').text()).toBe('$28.5');
+    half.unmount();
+
+    const cents = mountWith(Price, { props: { amount: 2857, currency: 'USD', locale: 'en-US' } });
+    expect(cents.get('[data-part="current"]').text()).toBe('$28.57');
+    cents.unmount();
+  });
+
+  it('caps the fraction at the currency’s own count, not the util’s default of 2', () => {
+    // `formatCurrency`'s own default would print 2800.4 krónur as "kr 2,800.4" and round BHD to
+    // two places; this component passes `currencyFractionDigits` instead, which is what keeps a
+    // zero-decimal currency integral (there is no fractional króna to show) and BHD at three.
+    const isk = mountWith(Price, { props: { amount: 2800, currency: 'ISK', locale: 'en-US' } });
+    expect(isk.get('[data-part="current"]').text()).toBe('kr 2,800');
+    isk.unmount();
+
+    const bhd = mountWith(Price, {
+      props: { amount: 1_234_567, currency: 'BHD', locale: 'en-US' },
+    });
+    expect(bhd.get('[data-part="current"]').text()).toContain('.567');
+    bhd.unmount();
+  });
+});
+
+/**
+ * The defect this covers: `<Price>` built its formatter without `narrow`, so an Icelandic store's
+ * price read "ISK 2,800" on an `en-US` page while the `CurrencyInput` the operator typed it into
+ * read "kr 2,800" — the same money in two signs. `narrowSymbol` is `true` by default, the same
+ * default that field carries.
+ */
+describe('Price — narrowSymbol', () => {
+  it('renders the narrow currency sign by default', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 2800, currency: 'ISK', locale: 'en-US' },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
+    wrapper.unmount();
+  });
+
+  it('renders the wide sign when narrowSymbol is false', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 2800, currency: 'ISK', locale: 'en-US', narrowSymbol: false },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
+    wrapper.unmount();
+  });
+
+  it('reformats when the prop changes, rather than keeping the first formatter', async () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 2800, currency: 'ISK', locale: 'en-US' },
+    });
+    await wrapper.setProps({ narrowSymbol: false });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
+    wrapper.unmount();
+  });
+
+  it('changes the sign only, never the digits', () => {
+    // Both signs, same number: how many fraction digits a price carries is the formatter's
+    // business — the currency's own maximum, and the util's minimum of 0 — not the sign's.
+    for (const narrowSymbol of [true, false]) {
+      const wrapper = mountWith(Price, {
+        props: { amount: 2850, currency: 'USD', locale: 'en-US', narrowSymbol },
+      });
+      expect(wrapper.get('[data-part="current"]').text()).toBe('$28.5');
+      wrapper.unmount();
+    }
+  });
+
+  it('leaves a locale whose two signs are identical untouched', () => {
+    // `is-IS` writes `kr.` either way, which is why every existing is-IS assertion in this file
+    // is unchanged by the new default.
+    for (const narrowSymbol of [true, false]) {
+      const wrapper = mountWith(Price, {
+        props: { amount: 6990, currency: 'ISK', locale: 'is-IS', narrowSymbol },
+      });
+      expect(wrapper.get('[data-part="current"]').text()).toBe('6.990\u00a0kr.');
+      wrapper.unmount();
+    }
+  });
+
+  it('applies to compareAt and the unit-price line too', () => {
+    const wrapper = mountWith(Price, {
+      props: {
+        amount: 2800,
+        compareAt: 3600,
+        currency: 'ISK',
+        locale: 'en-US',
+        unitPrice: { amount: 500, per: '100 g' },
+      },
+    });
+    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('kr\u00a03,600');
+    expect(wrapper.get('[data-part="unit"]').text()).toContain('kr\u00a0500');
     wrapper.unmount();
   });
 });
@@ -181,7 +289,7 @@ describe('Price — invalid currency', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 4800, currency: 'USD', locale: 'en-US' },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$48');
     wrapper.unmount();
   });
 
@@ -204,7 +312,7 @@ describe('Price — invalid currency', () => {
 describe('Price — ambient locale and currency', () => {
   it('defaults to USD / en-US with nothing provided', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800 } });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$48');
     wrapper.unmount();
   });
 
@@ -222,7 +330,7 @@ describe('Price — ambient locale and currency', () => {
       props: { amount: 4800, locale: 'en-US', currency: 'USD' },
       global: { provide: { [LOCALE_KEY as symbol]: 'is-IS', [CURRENCY_KEY as symbol]: 'ISK' } },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$48');
     wrapper.unmount();
   });
 });
@@ -255,7 +363,7 @@ describe('Price — sale', () => {
   it('renders the compare-at as a real <s> element', () => {
     const wrapper = mountWith(Price, { props: { amount: 3840, compareAt: 4800 } });
     expect(wrapper.get('[data-part="compareAt"]').element.tagName).toBe('S');
-    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('$48');
     wrapper.unmount();
   });
 
@@ -281,9 +389,9 @@ describe('Price — sale', () => {
     wrapper.unmount();
   });
 
-  it('reads "Sale price $38.40 Regular price $48.00" in that order', () => {
+  it('reads "Sale price $38.4 Regular price $48" in that order', () => {
     const wrapper = mountWith(Price, { props: { amount: 3840, compareAt: 4800 } });
-    expect(wrapper.text().replace(/\s+/g, ' ')).toBe('Sale price $38.40 Regular price $48.00');
+    expect(wrapper.text().replace(/\s+/g, ' ')).toBe('Sale price $38.4 Regular price $48');
     wrapper.unmount();
   });
 
@@ -346,7 +454,7 @@ describe('Price — unit price', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 1530, unitPrice: { amount: 510, per: '100 g' } },
     });
-    expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.10 / 100 g');
+    expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.1 / 100 g');
     wrapper.unmount();
   });
 
@@ -358,7 +466,7 @@ describe('Price — unit price', () => {
     wrapper.unmount();
   });
 
-  it('combines with from and sale ("From $15.30 $18.00 / $5.10 / 100 g")', () => {
+  it('combines with from and sale ("From $15.3 $18 / $5.1 / 100 g")', () => {
     const wrapper = mountWith(Price, {
       props: {
         amount: 1530,
@@ -368,9 +476,9 @@ describe('Price — unit price', () => {
       },
     });
     expect(wrapper.get('[data-part="from"]').text()).toBe('From');
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$15.30');
-    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('$18.00');
-    expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.10 / 100 g');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$15.3');
+    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('$18');
+    expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.1 / 100 g');
     wrapper.unmount();
   });
 });
@@ -526,7 +634,7 @@ describe('Price — narrow container', () => {
     });
     expect(wrapper.element.tagName).toBe('P');
     expect(wrapper.classes()).toContain('flex-wrap');
-    expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.10 / 100 g');
+    expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.1 / 100 g');
     wrapper.unmount();
   });
 });
@@ -569,7 +677,7 @@ describe('Price — revalidating', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 4800, currency: 'USD', locale: 'en-US', revalidating: true },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$48');
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
     expect(wrapper.attributes('aria-busy')).toBe('true');
     expect(wrapper.find('[data-part="skeleton"]').exists()).toBe(false);
@@ -717,7 +825,7 @@ describe('Price — revalidating', () => {
     const wrapper = mountNarrow(Price, {
       props: { amount: 1530, compareAt: 1800, from: true, revalidating: true },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$15.30');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('$15.3');
     wrapper.unmount();
   });
 });
@@ -748,8 +856,8 @@ describe('Price — the amount changing', () => {
 
   it('renders each amount in its own value node', () => {
     const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
-    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$38.40');
-    expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$38.4');
+    expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$48');
     wrapper.unmount();
   });
 
@@ -767,8 +875,8 @@ describe('Price — the amount changing', () => {
   ])('changes the amount in the same tick for %s', async (_case, revalidating) => {
     const wrapper = readyPrice({ amount: 9600, compareAt: 12000, revalidating });
     await wrapper.setProps({ amount: 19200, compareAt: 24000 });
-    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$192.00');
-    expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$240.00');
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$192');
+    expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$240');
     wrapper.unmount();
   });
 
@@ -836,7 +944,7 @@ describe('Price — the amount changing', () => {
     const wrapper = readyPrice({ amount: 4800 });
     await wrapper.setProps({ revalidating: true });
     expect(played.calls).toHaveLength(0);
-    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$48.00');
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$48');
     wrapper.unmount();
     played.restore();
   });
@@ -859,7 +967,7 @@ describe('Price — the amount changing', () => {
 
     await wrapper.setProps({ amount: 3600 });
     expect(played.calls).toHaveLength(0);
-    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36');
     wrapper.unmount();
     motion?.restore();
     played.restore();
@@ -881,7 +989,7 @@ describe('Price — the amount changing', () => {
     // The shape of a real refresh: the flag clears and the fresher amount arrives together.
     await wrapper.setProps({ amount: 3600, revalidating: false });
 
-    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36');
     expect(wrapper.attributes('aria-busy')).toBeUndefined();
     expect(wrapper.get('[data-part="current"]').classes()).not.toContain('eldra-revalidating');
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
@@ -892,7 +1000,7 @@ describe('Price — the amount changing', () => {
   it('has no axe violations across a value change', async () => {
     const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
     await wrapper.setProps({ amount: 3600, compareAt: 4000, revalidating: false });
-    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36');
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });

@@ -171,3 +171,147 @@ export function currencyFractionDigits(currency: string, locale = 'en-US'): numb
     return 2;
   }
 }
+
+/**
+ * The options the private library's `formatUnit` takes, mirrored name for name (its own
+ * `UnitFormatProps`) so that library can alias this module's function in place of its copy.
+ * `locale` and `maxFraction` are the two it declares as required; every value is defaulted here
+ * exactly as it defaults them, so an omitted one behaves identically either way.
+ */
+export interface UnitFormatOptions {
+  /** A BCP 47 locale tag. Defaults to `"en-US"`. */
+  locale?: string;
+  /** An `Intl` unit identifier, read only when `isCurrency` is false. Defaults to `"meter"`. */
+  unit?: string;
+  /** `maximumFractionDigits`. Defaults to `2`. */
+  maxFraction?: number;
+  /** Format as a currency rather than a unit. Defaults to `false`. */
+  isCurrency?: boolean;
+  /** ISO 4217, read only when `isCurrency`. Defaults to `"USD"`. */
+  currency?: string;
+  /**
+   * The **narrow** currency sign (`currencyDisplay: "narrowSymbol"`) rather than the wide one.
+   * Defaults to `false`. Deliberately has no effect on a unit — the private helper sets no
+   * `unitDisplay` at all, so a unit is always `Intl`'s own `"short"`. (`NumberFormatOptions.narrow`,
+   * this module's own option, *does* narrow a unit; that is the one place the two vocabularies
+   * differ, and the reason this function does not simply forward `narrow`.)
+   */
+  narrow?: boolean;
+}
+
+/**
+ * A number with a unit or a currency attached, in a locale: the port of the private library's own
+ * `formatUnit`, option names and all.
+ *
+ * **This is the canonical copy.** The private library is expected to import it from `@eldrajs/ui`
+ * and delete its own, so the two must agree character for character in output: `style` is
+ * `"currency"` or `"unit"`, `minimumFractionDigits` is always `0`, `maximumFractionDigits` is
+ * `maxFraction`, a currency carries `currencyDisplay: narrow ? "narrowSymbol" : "symbol"`, and a
+ * unit carries no `unitDisplay` of its own. Change none of that here without changing it there.
+ *
+ * Throws what `Intl.NumberFormat` throws — a `RangeError` for a currency code, unit identifier or
+ * locale it does not recognise — because the private helper does, and a public copy that swallowed
+ * an error its original raises is not the same function. A caller inside a `computed` must guard
+ * it (`Price` does, falling back to a plain decimal plus the raw code).
+ */
+export function formatUnit(value: number, options: UnitFormatOptions): string {
+  const {
+    locale = 'en-US',
+    unit = 'meter',
+    maxFraction = 2,
+    isCurrency = false,
+    currency = 'USD',
+    narrow = false,
+  } = options;
+
+  return createNumberFormat({
+    locale,
+    style: isCurrency ? 'currency' : 'unit',
+    unit: isCurrency ? undefined : unit,
+    currency: isCurrency ? currency : undefined,
+    minFraction: 0,
+    maxFraction,
+    // Both displays are set explicitly rather than through `narrow`, which would narrow a unit as
+    // well: `currencyDisplay` to the private helper's own ternary, and `unitDisplay` to `"short"`,
+    // which is exactly what `Intl` uses when that helper leaves it unset.
+    currencyDisplay: isCurrency ? (narrow ? 'narrowSymbol' : 'symbol') : undefined,
+    unitDisplay: isCurrency ? undefined : 'short',
+  }).format(value);
+}
+
+/**
+ * One currency amount as text, in the narrow sign by default: `"kr 2,800"` (`en-US`/`ISK`),
+ * `"2.800 kr."` (`is-IS`/`ISK`), `"$28"` (`en-US`/`USD`).
+ *
+ * The port of the private library's own `formatCurrency` — **positional arguments and the same
+ * defaults on purpose**, where the rest of this package would take an options object, so that this
+ * can be the canonical copy that library imports in place of its own. It is
+ * `formatUnit(value, { locale, isCurrency: true, currency, maxFraction, narrow: narrowSymbol })`
+ * and nothing else, exactly as the private one is.
+ *
+ * This is the one public entry point for formatting money, and the reason it exists: a hand-built
+ * `Intl.NumberFormat({ style: 'currency' })` renders the **wide** sign (`"ISK 2,800"`), which is
+ * not the shape this kit's prices and currency fields are in — a storefront formatting its own
+ * amounts that way showed `"ISK 2,800"` in a button label beside a `<Price>` reading `"kr 2,800"`
+ * for the same money.
+ *
+ * Two consequences of the contract worth knowing before calling it:
+ *
+ * - **`minimumFractionDigits` is `0`.** `28` is `"$28"`, not `"$28.00"`, and `28.5` is `"$28.5"`.
+ *   That is the rule a currency *field* wants — show what a person typed, not what the minor unit
+ *   allows — and it is part of the contract, not an accident of it.
+ * - **`maxFraction` defaults to `2` whatever the currency.** A zero-decimal currency is unaffected
+ *   (`ISK` has no fraction to print), but a three-decimal one is rounded to two unless the caller
+ *   says otherwise. Pass `currencyFractionDigits(currency, locale)` for the currency's own count,
+ *   which is what `Price` does.
+ *
+ * Throws for an unrecognised currency code or locale, the same as `formatUnit` and the same as the
+ * private helper; see that function's note.
+ */
+export function formatCurrency(
+  value: number,
+  locale = 'en-US',
+  currency = 'USD',
+  narrowSymbol = true,
+  maxFraction = 2
+): string {
+  return formatUnit(value, {
+    locale,
+    isCurrency: true,
+    currency,
+    maxFraction,
+    narrow: narrowSymbol,
+  });
+}
+
+/**
+ * The sign a currency is written with in a locale, on its own: `"kr"` (`ISK` under `en-US`,
+ * narrow), `"kr."` (`ISK` under `is-IS`), `"$"` (`USD` under `en-US`). For a place that names a
+ * currency rather than formatting an amount in it — a currency selector, a label beside a store's
+ * code.
+ *
+ * This package's own addition rather than a port: the private library has no equivalent. Read out
+ * of `formatToParts` rather than a hand-maintained code → symbol table, so it is whatever the
+ * runtime's own ICU data says, and `narrow` (the default) picks the same sign `formatCurrency`
+ * prints. Some locales have no sign for a currency distinct from its code — `ISK` under `en-US` is
+ * `"ISK"` with `narrow: false`, `CHF` is `"CHF"` either way — in which case that is what comes
+ * back; a caller pairing the code with the symbol should compare the two and print the code alone
+ * when they match, rather than `"ISK ISK"`.
+ *
+ * Unlike `formatCurrency` this one never throws: it has no original to be faithful to, and an
+ * unrecognised code returns the code itself, which is also what `Intl` answers for a code it knows
+ * but has no sign for.
+ */
+export function currencySymbol(currency: string, locale = 'en-US', narrow = true): string {
+  try {
+    const parts = createNumberFormat({
+      locale,
+      style: 'currency',
+      currency,
+      narrow,
+    }).formatToParts(0);
+    return parts.find((part) => part.type === 'currency')?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}

@@ -3,7 +3,11 @@ import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { createNumberFormat, currencyFractionDigits } from '../../utils/number-format';
+import {
+  createNumberFormat,
+  currencyFractionDigits,
+  formatCurrency,
+} from '../../utils/number-format';
 import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { PriceProps, PriceSize } from './types';
@@ -14,6 +18,7 @@ const props = withDefaults(defineProps<PriceProps>(), {
   locale: undefined,
   size: 'md',
   from: false,
+  narrowSymbol: true,
   unitPrice: undefined,
   labels: undefined,
   lang: undefined,
@@ -98,34 +103,42 @@ function warnInvalidCurrency(code: string): void {
 }
 
 /**
- * `Intl.NumberFormat({ style: 'currency' })` already applies the currency's own fraction-digit
- * rule when formatting — no minor units for `ISK`/`JPY`, two for `USD` — so once `toMajor` has
- * converted the raw integer, the formatter needs nothing else to produce `"$48.00"` or `"6.990
- * kr."` exactly (spec "Price" → Variants, Locale row). `invalid` records whether construction fell
- * back, so `formatAmount` below knows to append the raw code itself.
+ * Every amount is formatted by the package's own `formatCurrency` — the canonical copy of the
+ * private library's currency formatter — so a price, a `CurrencyInput` and a theme's own formatted
+ * sentence on the same page cannot write the same money three ways. Two of its arguments are
+ * decided here rather than left to its defaults:
+ *
+ * - `narrowSymbol` is the prop, `true` by default and the same default `CurrencyInput` carries:
+ *   `"kr 2,800"`, not `"ISK 2,800"`, under `en-US`/`ISK` (see `PriceProps.narrowSymbol`).
+ * - `maxFraction` is the **currency's** own count (`fractionDigits`, above), not the util's
+ *   default of `2`: that default would print `2800.4` krónur as `"kr 2,800.4"` and round a
+ *   three-decimal currency to two. With it, a zero-decimal currency prints none and `BHD` prints
+ *   three. The *minimum* is the util's own `0` either way, which is why `28.00` reads `"$28"` —
+ *   part of the formatter's contract, not this component's choice.
+ *
+ * `invalid` records whether the currency code is one `Intl` rejects: `formatCurrency` throws for
+ * such a code exactly as the private helper does, and this runs inside a `computed`, where a throw
+ * breaks the whole render rather than just the price. So the code is probed once per
+ * locale/currency/sign change rather than per amount, and `formatAmount` below falls back to a
+ * plain decimal with the raw code appended (`"1,234 XYZ1"`).
  */
-const currencyFormat = computed<{ formatter: Intl.NumberFormat; invalid: boolean }>(() => {
+const currencyFormat = computed<{ format: (major: number) => string; invalid: boolean }>(() => {
+  const format = (major: number): string =>
+    formatCurrency(major, locale.value, currency.value, props.narrowSymbol, fractionDigits.value);
+
   try {
-    return {
-      formatter: createNumberFormat({
-        locale: locale.value,
-        style: 'currency',
-        currency: currency.value,
-      }),
-      invalid: false,
-    };
+    format(0);
+    return { format, invalid: false };
   } catch {
     warnInvalidCurrency(currency.value);
-    return {
-      formatter: createNumberFormat({ locale: locale.value, style: 'decimal' }),
-      invalid: true,
-    };
+    const formatter = createNumberFormat({ locale: locale.value, style: 'decimal' });
+    return { format: (major) => formatter.format(major), invalid: true };
   }
 });
 
 function formatAmount(minorUnits: number): string {
-  const { formatter, invalid } = currencyFormat.value;
-  const formatted = formatter.format(toMajor(minorUnits));
+  const { format, invalid } = currencyFormat.value;
+  const formatted = format(toMajor(minorUnits));
   return invalid ? `${formatted} ${currency.value}` : formatted;
 }
 

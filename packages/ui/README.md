@@ -921,13 +921,46 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
 - **`filterNumericBeforeInput`** (`src/utils/numeric-input.ts`) — the `beforeinput` filter that
   keeps a numeric text field numeric, used by `QuantityStepper` and exported for a consumer
   building a numeric control of their own.
-- **`createNumberFormat` / `formatNumber` / `parseLocaleNumber` / `localeSeparators` /
-  `currencyFractionDigits`** (`src/utils/number-format.ts`) — locale-aware number formatting and
-  its inverse, behind the numeric controls and exported for use outside them.
+- **`createNumberFormat` / `formatNumber` / `formatCurrency` / `formatUnit` / `currencySymbol` /
+  `parseLocaleNumber` / `localeSeparators` / `currencyFractionDigits`**
+  (`src/utils/number-format.ts`) — locale-aware number formatting and its inverse, behind the
+  numeric controls and exported for use outside them.
+
+  **`formatCurrency(value, locale = 'en-US', currency = 'USD', narrowSymbol = true, maxFraction = 2)`**
+  and **`formatUnit(value, { locale, unit, maxFraction, isCurrency, currency, narrow })`** are
+  **ports of the private Eldra library's own two helpers, and the canonical copy of them**: that
+  library is expected to import these and delete its own, so the signatures are positional and the
+  option names are its own, against this package's house style, and the output must stay identical
+  character for character. The contract, in full: `minimumFractionDigits` is always `0`,
+  `maximumFractionDigits` is `maxFraction`, a currency carries
+  `currencyDisplay: narrow ? 'narrowSymbol' : 'symbol'`, and a unit carries no `unitDisplay` at all
+  (so `UnitFormatOptions.narrow` affects a currency only — unlike `NumberFormatOptions.narrow`,
+  which narrows a unit too). `src/utils/__tests__/number-format.spec.ts` holds a parity table that
+  recomputes that rule with `Intl` directly and fails if the two ever diverge.
+
+  `formatCurrency` is what a theme should reach for when it has to put money in a sentence ("Add to
+  cart · kr 2,800") rather than render a `<Price>`: a hand-built
+  `Intl.NumberFormat({ style: 'currency' })` writes the **wide** sign (`"ISK 2,800"`), which is not
+  the shape this package's own prices and currency fields are in, and that mismatch is exactly the
+  defect it exists to prevent. Two consequences of the ported contract to know before calling it:
+  `28` formats as `"$28"`, not `"$28.00"` (the minimum is 0 — the rule a currency _field_ wants),
+  and `maxFraction` defaults to `2` whatever the currency, so a caller that wants the currency's own
+  count passes `currencyFractionDigits(currency, locale)` — which is what `Price` does, and what
+  keeps a zero-decimal currency integral and `BHD` at three places. It **throws** `RangeError` for a
+  code `Intl` rejects, as the private helper does; a caller inside a `computed` guards it the way
+  `Price` does (plain decimal plus the raw code).
+
+  **`currencySymbol(currency, locale, narrow = true)`** is this package's own addition rather than a
+  port: the sign on its own — `"kr"`, `"kr."`, `"$"` — read out of `formatToParts` rather than a
+  code → symbol table, for a place that names a currency rather than formatting an amount in it. A
+  currency with no sign distinct from its code in that locale returns the code, so a caller pairing
+  the two should compare them rather than printing `"ISK ISK"`. It never throws.
+
   `currencyFractionDigits` is the one no component here calls: `UnitInput` and `CurrencyInput`
   keep the private library's rule that `maxFraction` is `2` whatever the currency, so it is
   exported for a consumer who wants the currency's own minor unit instead (`0` for ISK, `3` for
   KWD, read from ICU).
+
 - **`frameAspectRatio`** (`src/utils/ratio.ts`) — turns an `ImageRatio` preset into the CSS
   `aspect-ratio` value `Image`'s frame and `Skeleton`'s `media` variant both resolve it to; exported
   so a consumer accepting an `ImageRatio` of their own (`ImageRatio` itself is public) can honour it.
@@ -978,6 +1011,24 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   `Popover` makes the same `focusOnOpen: false` choice, for the same reason: it has no idea what is
   inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
   the real tab stops that behaviour exists for.
+
+- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `true` by
+  default, the same default `CurrencyInput` already carried, so every currency this package renders
+  is written with the currency's **narrow** sign: `"kr 2,800"` under `en-US`/`ISK`, not
+  `"ISK 2,800"`; `"$"`, not `"US$"`, in a locale that distinguishes the two. The design spec says
+  only that the amount is formatted by `Intl`, which leaves the sign open; a store's own back office
+  writes narrow signs, and a price that disagreed with the currency field the operator typed it into
+  was the defect worth closing by default rather than by opt-in. Set it to `false` for the wide
+  sign; a locale whose two signs are identical (`is-IS` writes `kr.` either way) is unaffected
+  either way, and `ProductCard` inherits the prop through its own `Price`.
+
+  Formatting through the ported `formatCurrency` brings its fraction rule with it, which is the
+  **visible** half of this: the minimum is `0`, so `"$48"` rather than `"$48.00"`, and `"$38.4"`
+  rather than `"$38.40"`. `Price` passes `currencyFractionDigits(currency, locale)` as the
+  _maximum_, so a zero-decimal currency still prints none (`"kr 2,800"`, never `"kr 2,800.4"`) and a
+  three-decimal one still prints three — only the trailing zeroes are gone. That is the private
+  library's contract rather than a choice made here, and the point of the port is that the two
+  cannot differ.
 
 - **`revalidating` on `Price`, `StockBadge` and `ProductCard`** — a second, distinct busy state for
   a value that is _already on screen_ while a fresher one is fetched, which the spec's own `loading`

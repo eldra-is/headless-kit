@@ -382,10 +382,14 @@ export { applyMask, defaultCharacterMeaning, stripMask } from './utils/mask';
 export {
   createNumberFormat,
   currencyFractionDigits,
+  currencySymbol,
+  formatCurrency,
   formatNumber,
+  formatUnit,
   localeSeparators,
   parseLocaleNumber,
   type NumberFormatOptions,
+  type UnitFormatOptions,
 } from './utils/number-format';
 // The `beforeinput` filter that keeps a numeric text field numeric, used by `QuantityStepper` —
 // exported for a consumer building a numeric control of their own.
