@@ -1,4 +1,4 @@
-import { prefersReducedMotion } from '../carousel/useCarousel';
+import { parseCssDurationMs, prefersReducedMotion, readCssVar } from '../../utils/cssTiming';
 
 /**
  * The Web Animations API height animation `AccordionItem.vue` plays on its panel element (spec
@@ -19,23 +19,6 @@ import { prefersReducedMotion } from '../carousel/useCarousel';
  * ships `tokens.css`), the animation is skipped outright rather than guessing a number that could
  * silently disagree with whatever the page's real tokens turn out to say.
  */
-
-function readCssVar(el: Element, name: string): string {
-  if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return '';
-  return window.getComputedStyle(el).getPropertyValue(name).trim();
-}
-
-/** Parses a CSS `<time>` (`200ms` / `0.2s`) into milliseconds, or `null` when it isn't a positive
- *  one — the custom property is unset, empty, zeroed (reduced motion already zeroes it in
- *  `tokens.css`, which this treats the same as "cannot animate" rather than animating a 0ms step),
- *  or not a time at all. */
-function parseDurationMs(raw: string): number | null {
-  const match = /^(-?[0-9]*\.?[0-9]+)(ms|s)$/.exec(raw);
-  if (!match) return null;
-  const value = Number.parseFloat(match[1]!);
-  if (!Number.isFinite(value) || value <= 0) return null;
-  return match[2] === 's' ? value * 1000 : value;
-}
 
 export interface PanelHeightAnimator {
   /** Animates the panel open: `0 → scrollHeight`, `--eldra-ease-out`. Reverses a close still in
@@ -113,7 +96,7 @@ export function createPanelHeightAnimator(panel: HTMLElement): PanelHeightAnimat
       settle();
       return Promise.resolve();
     }
-    const duration = parseDurationMs(readCssVar(panel, durationVar));
+    const duration = parseCssDurationMs(readCssVar(panel, durationVar));
     if (duration === null) {
       settle();
       return Promise.resolve();

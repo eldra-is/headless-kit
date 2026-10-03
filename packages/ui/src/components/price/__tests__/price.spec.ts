@@ -4,8 +4,10 @@ import { CURRENCY_KEY, LOCALE_KEY } from '../../../composables/useLocale';
 import { provideEldraUiMessages } from '../../../composables/useMessages';
 import { isIS } from '../../../messages/is-IS';
 import { axe } from '../../../test/axe';
+import { giveMotionTokens, recordAnimations, stubReducedMotion } from '../../../test/motion';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Price from '../Price.vue';
+import type { PriceProps } from '../types';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -716,6 +718,182 @@ describe('Price — revalidating', () => {
       props: { amount: 1530, compareAt: 1800, from: true, revalidating: true },
     });
     expect(wrapper.get('[data-part="current"]').text()).toBe('$15.30');
+    wrapper.unmount();
+  });
+});
+
+/**
+ * The refresh's second half: the amount *changing*. The dim says the value on screen may be a
+ * moment old; these cover the fade that plays when the fresher one lands, so a value that was
+ * never seen changing does not simply appear as different settled text.
+ *
+ * The fade is a one-element `Element.animate()` on the inner value span
+ * (`src/utils/valueFade.ts`), not a `<Transition>`, so there is nothing asynchronous to wait for
+ * here: the text is an ordinary interpolation and changes with the props. `recordAnimations`
+ * watches what was played, `giveMotionTokens` supplies the `--eldra-*` values the real cascade
+ * would have inherited to the element.
+ */
+describe('Price — the amount changing', () => {
+  const USD = { currency: 'USD', locale: 'en-US' } as const;
+
+  /** The value span plus the tokens the fade reads off it. */
+  function readyPrice(props: Partial<PriceProps> & { amount: number }) {
+    const wrapper = mountWith(Price, { props: { ...USD, ...props } });
+    for (const part of ['currentValue', 'compareAtValue']) {
+      const el = wrapper.find(`[data-part="${part}"]`);
+      if (el.exists()) giveMotionTokens(el.element);
+    }
+    return wrapper;
+  }
+
+  it('renders each amount in its own value node', () => {
+    const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$38.40');
+    expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$48.00');
+    wrapper.unmount();
+  });
+
+  /**
+   * **The value is correct the instant the props change** — refreshed or not. That is the whole
+   * reason the fade plays on one stable element instead of a keyed `<Transition>`: `out-in`
+   * renders a placeholder and brings the new text in on a later render pass, which showed the
+   * previous amount for the length of the leave, after `aria-busy` and the dim had already gone,
+   * and made every value change in the package asynchronous (the starter's cart line total still
+   * read the old amount a tick after the stepper click).
+   */
+  it.each([
+    ['a refreshing price', true],
+    ['a price that has never refreshed', false],
+  ])('changes the amount in the same tick for %s', async (_case, revalidating) => {
+    const wrapper = readyPrice({ amount: 9600, compareAt: 12000, revalidating });
+    await wrapper.setProps({ amount: 19200, compareAt: 24000 });
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$192.00');
+    expect(wrapper.get('[data-part="compareAtValue"]').text()).toBe('$240.00');
+    wrapper.unmount();
+  });
+
+  /** One element, so there is never a second copy of the price for a screen reader to find — not
+   *  while it changes, not for a frame afterwards. */
+  it('keeps exactly one copy of each amount across a change', async () => {
+    const wrapper = readyPrice({ amount: 4800, compareAt: 6000, revalidating: true });
+    const before = wrapper.get('[data-part="currentValue"]').element;
+    await wrapper.setProps({ amount: 900 });
+    expect(wrapper.findAll('[data-part="currentValue"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-part="compareAtValue"]')).toHaveLength(1);
+    // And it is the same element: the text is interpolated, nothing is replaced.
+    expect(wrapper.get('[data-part="currentValue"]').element).toBe(before);
+    wrapper.unmount();
+  });
+
+  it('fades the new amount in over the token duration and easing', async () => {
+    const played = recordAnimations();
+    const wrapper = readyPrice({ amount: 4800, compareAt: 6000, revalidating: true });
+    // Nothing while the price mounts. (The tokens only reach the element after mount here, so the
+    // "a value that arrives with the component has not changed" rule is guarded where it can be
+    // real — `ValueText`'s own spec, which mounts with them already in place.)
+    expect(played.calls).toHaveLength(0);
+
+    await wrapper.setProps({ amount: 3600 });
+    expect(played.calls).toHaveLength(1);
+    const fade = played.calls[0]!;
+    expect(fade.el).toBe(wrapper.get('[data-part="currentValue"]').element);
+    // Enter only: from transparent to the element's own settled opacity, which the dim owns.
+    expect(fade.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+    expect(fade.options.duration).toBe(200);
+    expect(fade.options.easing).toBe('cubic-bezier(0.2, 0, 0, 1)');
+    expect(fade.options.fill).toBeUndefined();
+    wrapper.unmount();
+    played.restore();
+  });
+
+  it('fades a changed compare-at too, and only the part that changed', async () => {
+    const played = recordAnimations();
+    const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
+    await wrapper.setProps({ compareAt: 5200 });
+    expect(played.calls).toHaveLength(1);
+    expect(played.calls[0]!.el).toBe(wrapper.get('[data-part="compareAtValue"]').element);
+    wrapper.unmount();
+    played.restore();
+  });
+
+  /** Keyed on the *formatted* text, not the raw amount: a change that formats identically (a
+   *  currency with no minor units re-reading the same major amount) stays completely still. */
+  it('plays nothing when the formatted amount does not change', async () => {
+    const played = recordAnimations();
+    const wrapper = mountWith(Price, {
+      props: { amount: 6990, currency: 'ISK', locale: 'is-IS', revalidating: true },
+    });
+    giveMotionTokens(wrapper.get('[data-part="currentValue"]').element);
+    await wrapper.setProps({ amount: 6990 });
+    expect(played.calls).toHaveLength(0);
+    wrapper.unmount();
+    played.restore();
+  });
+
+  /** Turning the state on brings the spinner and the dim; the amount itself does not move. */
+  it('plays nothing when the refresh starts', async () => {
+    const played = recordAnimations();
+    const wrapper = readyPrice({ amount: 4800 });
+    await wrapper.setProps({ revalidating: true });
+    expect(played.calls).toHaveLength(0);
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$48.00');
+    wrapper.unmount();
+    played.restore();
+  });
+
+  /**
+   * Reduced motion is answered twice over, and either answer is enough: the visitor's own setting,
+   * and `--eldra-duration-base`, which `tokens.css` zeroes under `prefers-reduced-motion: reduce`.
+   * The value still changes — instantly — in every one of these.
+   */
+  it.each([
+    ['the visitor asked for reduced motion', '200ms', true],
+    ['the stylesheet zeroed the duration token', '0ms', false],
+    ['no stylesheet supplies the token at all', '', false],
+  ])('plays no animation when %s', async (_case, duration, reduce) => {
+    const played = recordAnimations();
+    const motion = reduce ? stubReducedMotion() : null;
+    const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true, ...USD } });
+    if (duration !== '')
+      giveMotionTokens(wrapper.get('[data-part="currentValue"]').element, duration);
+
+    await wrapper.setProps({ amount: 3600 });
+    expect(played.calls).toHaveLength(0);
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
+    wrapper.unmount();
+    motion?.restore();
+    played.restore();
+  });
+
+  /**
+   * **Everything about the refresh ends in the same render.** The fresher amount, `aria-busy`, the
+   * dim and the spinner all come from the one prop change, so there is no instant at which the
+   * component says "settled" over a value that is not. (It was not always so: an `out-in`
+   * transition kept the previous amount on screen for a full `duration-base` after this render,
+   * undimmed and un-busy — which is the defect the enter-only fade exists to prevent.)
+   */
+  it('settles the value, the busy flag, the dim and the spinner together', async () => {
+    const wrapper = readyPrice({ amount: 4800, compareAt: 6000, revalidating: true });
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra-revalidating');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+
+    // The shape of a real refresh: the flag clears and the fresher amount arrives together.
+    await wrapper.setProps({ amount: 3600, revalidating: false });
+
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
+    expect(wrapper.attributes('aria-busy')).toBeUndefined();
+    expect(wrapper.get('[data-part="current"]').classes()).not.toContain('eldra-revalidating');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations across a value change', async () => {
+    const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
+    await wrapper.setProps({ amount: 3600, compareAt: 4000, revalidating: false });
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });

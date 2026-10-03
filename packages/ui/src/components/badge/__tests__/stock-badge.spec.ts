@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/axe';
+import { giveMotionTokens, recordAnimations, stubReducedMotion } from '../../../test/motion';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { provideEldraUiMessages } from '../../../composables/useMessages';
 import { isIS } from '../../../messages/is-IS';
 import StockBadge from '../StockBadge.vue';
-import type { StockLevel } from '../types';
+import type { StockBadgeProps, StockLevel } from '../types';
 import { defineComponent, h } from 'vue';
 
 const LEVELS: StockLevel[] = ['in', 'low', 'out', 'preorder'];
@@ -250,6 +251,80 @@ describe('StockBadge — revalidating', () => {
 
   it.each(LEVELS)('has no axe violations while revalidating level %s', async (level) => {
     const wrapper = mountWith(StockBadge, { props: { level, quantity: 3, revalidating: true } });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+/**
+ * The refresh's second half, the same treatment `Price` draws for a changed amount: once a fresher
+ * level lands, its wording fades in rather than the line simply reading differently. One stable
+ * element with the words interpolated into it, and an `Element.animate()` fade played on it after
+ * the change — see `src/utils/valueFade.ts` and `Price`'s own specs for why not a `<Transition>`.
+ */
+describe('StockBadge — the status line changing', () => {
+  const IN_STOCK = 'In stock, ships in 1–2 days';
+
+  function readyBadge(props: Partial<StockBadgeProps>) {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in', ...props } });
+    giveMotionTokens(wrapper.get('[data-part="labelValue"]').element);
+    return wrapper;
+  }
+
+  it('renders the words in their own value node', () => {
+    const wrapper = readyBadge({ revalidating: true });
+    expect(wrapper.get('[data-part="labelValue"]').text()).toBe(IN_STOCK);
+    wrapper.unmount();
+  });
+
+  /** The wording is correct the instant the props change, refreshed or not — see `Price`'s own
+   *  spec for the regression that rule exists for. */
+  it.each([
+    ['a refreshing line', true],
+    ['a line that has never refreshed', false],
+  ])('changes the words in the same tick for %s', async (_case, revalidating) => {
+    const wrapper = readyBadge({ revalidating });
+    await wrapper.setProps({ level: 'out' });
+    expect(wrapper.get('[data-part="labelValue"]').text()).toBe('Sold out');
+    expect(wrapper.findAll('[data-part="labelValue"]')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('fades the new wording in over the token duration, and never on first paint', async () => {
+    const played = recordAnimations();
+    const wrapper = readyBadge({ revalidating: true });
+    expect(played.calls).toHaveLength(0);
+
+    await wrapper.setProps({ level: 'low', quantity: 3 });
+    expect(wrapper.get('[data-part="labelValue"]').text()).toBe('Low stock: only 3 left');
+    expect(played.calls).toHaveLength(1);
+    expect(played.calls[0]!.el).toBe(wrapper.get('[data-part="labelValue"]').element);
+    expect(played.calls[0]!.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+    expect(played.calls[0]!.options.duration).toBe(200);
+    wrapper.unmount();
+    played.restore();
+  });
+
+  it('plays nothing when the refresh starts, and nothing under reduced motion', async () => {
+    const played = recordAnimations();
+    const starting = readyBadge({});
+    await starting.setProps({ revalidating: true });
+    expect(played.calls).toHaveLength(0);
+    starting.unmount();
+
+    const motion = stubReducedMotion();
+    const reduced = readyBadge({ revalidating: true });
+    await reduced.setProps({ level: 'out' });
+    expect(played.calls).toHaveLength(0);
+    expect(reduced.get('[data-part="labelValue"]').text()).toBe('Sold out');
+    reduced.unmount();
+    motion.restore();
+    played.restore();
+  });
+
+  it('has no axe violations across a change', async () => {
+    const wrapper = readyBadge({ revalidating: true });
+    await wrapper.setProps({ level: 'out', revalidating: false });
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });

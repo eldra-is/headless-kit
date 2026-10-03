@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
+import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { StockBadgeProps, StockLevel } from './types';
 
@@ -72,6 +73,11 @@ const text = computed(() => props.message ?? defaultMessage.value);
  * The dim goes on the icon and the label rather than on the root, because CSS opacity composites
  * down the tree and a dimmed root would take the spinner with it — the spinner is the state's own
  * signal and stays at full strength.
+ *
+ * And the change itself is eased the same way `Price` eases a changed amount: `ValueText` (the
+ * inner span the words are rendered into, below) fades them in over `--eldra-duration-base`
+ * whenever they change, on the element that already holds the new wording, with nothing fading
+ * out — see `src/utils/valueFade.ts`.
  */
 const dim = computed(() => (props.revalidating ? 'eldra-revalidating' : ''));
 
@@ -86,6 +92,11 @@ const iconClass = computed(() =>
   partClass(cx('size-4.5 shrink-0', dim.value), props.classes, 'icon')
 );
 const labelClass = computed(() => partClass(dim.value, props.classes, 'label'));
+
+/** The element the fade plays on: an inner span (`ValueText`) carrying the words and nothing else,
+ *  so the fade (0 -> 1 on the span) composites inside the dim (`--eldra-revalidating-opacity` on
+ *  the part) instead of competing with it for the same property. */
+const labelValueClass = computed(() => partClass('', props.classes, 'labelValue'));
 
 /**
  * The same zero-width spinner `Price` draws, for the reason spelled out there: a flex item of
@@ -132,7 +143,9 @@ const srStatusText = computed(() => (props.revalidating ? messages.value.updatin
     >
       <path v-for="d in LEVEL_ICON_PATHS[level]" :key="d" :d="d" />
     </svg>
-    <span data-part="label" :class="labelClass">{{ text }}</span>
+    <span data-part="label" :class="labelClass"
+      ><ValueText data-part="labelValue" :class="labelValueClass" :text="text"
+    /></span>
     <span v-if="revalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true">
       <Spinner class="absolute start-[0.25em] top-0 size-[1em]" />
     </span>

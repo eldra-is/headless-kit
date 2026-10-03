@@ -4,6 +4,7 @@ import { cx, partClass } from '../../utils/cx';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
 import { createNumberFormat, currencyFractionDigits } from '../../utils/number-format';
+import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { PriceProps, PriceSize } from './types';
 
@@ -35,6 +36,14 @@ const isRevalidating = computed(() => props.revalidating && !props.loading);
  * because CSS opacity composites down the tree: a dimmed root would take the spinner with it, and
  * a child cannot be more opaque than its parent. The spinner is the state's own signal and stays
  * at full strength.
+ *
+ * The dim says the amount on screen may be a moment old; the other half of the treatment is that
+ * the amount *changing* is eased rather than simply replaced. `ValueText` (the inner span each
+ * amount is rendered into, below) fades it in over `--eldra-duration-base` whenever its formatted
+ * text changes, on the element that already holds the new text. Nothing fades out: a leaving half
+ * would keep the previous amount on screen after `aria-busy`, the dim and the spinner had already
+ * gone, which on a price is exactly the thing not to do. See `src/utils/valueFade.ts` for the
+ * rest — why one element rather than a keyed `<Transition>`, and how reduced motion is answered.
  */
 const dim = computed(() => (isRevalidating.value ? 'eldra-revalidating' : ''));
 
@@ -220,6 +229,18 @@ const unitClass = computed(() =>
 const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
 
 /**
+ * The two elements the fade plays on: an inner span per money value (`ValueText`), carrying
+ * nothing of its own but the text and whatever `classes.currentValue`/`classes.compareAtValue`
+ * adds. They exist so the fade and the dim are on different elements — opacity composites down the
+ * tree, so the inner span fades 0 -> 1 *inside* the part's own `--eldra-revalidating-opacity`
+ * instead of fighting it for the same property — and nothing else about the price's boxes changes:
+ * an inline span in an inline formatting context adds no width, no line box and no baseline of its
+ * own, and `tabular-nums` is inherited from the part.
+ */
+const currentValueClass = computed(() => partClass('', props.classes, 'currentValue'));
+const compareAtValueClass = computed(() => partClass('', props.classes, 'compareAtValue'));
+
+/**
  * Spec "Price" → States, Loading row: "text skeleton (`surface-strong`) at 35% width" — every
  * other column is blank, so loading replaces the whole price with one shape rather than a
  * skeleton per part. `w-[35%]` is the spec's own literal percentage, not a rem magnitude with a
@@ -309,11 +330,19 @@ const srStatusText = computed(() => (isRevalidating.value ? messages.value.updat
       ><template v-if="isSale"
         ><span data-part="srText" :class="srTextClass">{{ saleLabel }}</span
         >{{ ' ' }}</template
-      ><span data-part="current" :class="currentClass">{{ formattedCurrent }}</span
+      ><span data-part="current" :class="currentClass"
+        ><ValueText
+          data-part="currentValue"
+          :class="currentValueClass"
+          :text="formattedCurrent" /></span
       ><template v-if="isSale"
         >{{ ' ' }}<span data-part="srText" :class="srTextClass">{{ regularLabel }}</span
         >{{ ' '
-        }}<s data-part="compareAt" :class="compareAtClass">{{ formattedCompareAt }}</s></template
+        }}<s data-part="compareAt" :class="compareAtClass"
+          ><ValueText
+            data-part="compareAtValue"
+            :class="compareAtValueClass"
+            :text="formattedCompareAt" /></s></template
       ><span v-if="isRevalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true"
         ><Spinner class="absolute start-[0.25em] top-0 size-[1em]" /></span
       ><template v-if="unitPrice"

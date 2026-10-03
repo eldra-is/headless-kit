@@ -9,23 +9,18 @@ import {
   type MaybeRefOrGetter,
   type Ref,
 } from 'vue';
+import { prefersReducedMotion } from '../../utils/cssTiming';
 import type { CarouselPerViewBreakpoints } from './types';
 
 /**
- * `true` under `prefers-reduced-motion: reduce`. Exported (not folded into `useCarousel` itself)
- * because two independent things read it: `useCarousel` below, to keep autoplay from ever
- * starting, and `Carousel.vue`, to scroll instantly instead of smoothly. `Lightbox` (which reuses
- * this whole module) reads the same signal for its own `←`/`→` stepping.
- *
- * `window.matchMedia` is guarded rather than assumed: this file has no DOM-environment
- * requirement of its own beyond what `useCarousel`'s own refs already need, and a node-environment
- * caller (there are none today, but nothing here should throw if one shows up) gets `false` — the
- * same "motion is fine" default an engine with no media query support would produce.
+ * `true` under `prefers-reduced-motion: reduce`. Defined in `src/utils/cssTiming.ts` and
+ * re-exported here, which is where this package's public entry has always taken it from: three
+ * independent things in this module's own family read it (`useCarousel` below, to keep autoplay
+ * from ever starting; `Carousel.vue`, to scroll instantly instead of smoothly; `Lightbox`, which
+ * reuses this whole module, for its own `←`/`→` stepping), and the package's two JavaScript
+ * animations read it from the util directly.
  */
-export function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
+export { prefersReducedMotion } from '../../utils/cssTiming';
 
 /**
  * Normalises `CarouselProps['perView']` into the three breakpoint slots, `base` always present.

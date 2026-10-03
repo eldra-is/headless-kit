@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
+import { onUnmounted, ref } from 'vue';
+import Button from '../button/Button.vue';
 import Price from './Price.vue';
 
 /**
@@ -32,8 +34,11 @@ const meta = {
           '`from` and per-unit are independent flags that combine freely.',
           '',
           '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `current`,',
-          '`compareAt`, `from`, `unit`, `srText` (the hidden "Sale price"/"Regular price" labels,',
-          'two elements sharing one part name), `skeleton`.',
+          '`currentValue`, `compareAt`, `compareAtValue`, `from`, `unit`, `srText` (the hidden',
+          '"Sale price"/"Regular price" labels, two elements sharing one part name), `skeleton`,',
+          '`spinner`, `srStatus`. `currentValue`/`compareAtValue` are the inner spans holding the',
+          'formatted amounts: the refresh dim sits on the part and the fade on the span, so the',
+          'two are never one element fighting over `opacity`.',
           '',
           '**Sale is automatic.** It turns on only when `compareAt` is greater than `amount`; a',
           '`compareAt` at or below `amount` is ignored. On sale, `current` turns `accent` and',
@@ -61,6 +66,14 @@ const meta = {
           '`loading` wins when both are set. `announce: false` drops that live region for a page',
           'that says it once itself — a refreshing grid of cards would otherwise hold one polite',
           'region per price — and changes nothing else.',
+          '',
+          '**The change is eased too.** The dim is deep on purpose (`--eldra-revalidating-opacity`,',
+          'default `0.75`) so an amount being refreshed reads as unsettled rather than as settled',
+          'text — and when a fresher amount lands it fades in over `duration-base` instead of',
+          'simply appearing. Enter only: the new amount is on screen the instant the prop changes,',
+          'in the same render as `aria-busy`, the dim and the spinner, and fades in from there, so',
+          'a stale amount is never left showing. Under `prefers-reduced-motion: reduce` there is no',
+          'animation at all and the amount never regresses to a skeleton.',
         ].join('\n'),
       },
     },
@@ -134,9 +147,9 @@ export const ReducedMotion: Story = {
 
 /**
  * `revalidating`: the same price, twice — as it renders normally, and while a live value is on
- * its way. The dimmed row is the second one, and the two are exactly the same width, in the same
- * place, with the same line breaks: the spinner is drawn outside the price's own box, so a value
- * being refreshed never moves the page around it.
+ * its way. The dimmed rows are the second and third, and all three are exactly the same width, in
+ * the same place, with the same line breaks: the spinner is drawn outside the price's own box, so
+ * a value being refreshed never moves the page around it.
  */
 export const Revalidating: Story = {
   render: () => ({
@@ -146,6 +159,57 @@ export const Revalidating: Story = {
         <Price :amount="3840" :compare-at="4800" />
         <Price :amount="3840" :compare-at="4800" revalidating />
         <Price size="lg" :amount="1530" from :unit-price="{ amount: 510, per: '100 g' }" revalidating />
+      </div>
+    `,
+  }),
+};
+
+/**
+ * The other half of the refresh, which a still image cannot show: press the button to play the
+ * sequence a prerendered storefront really runs — the built-time amount dims and grows a spinner,
+ * the fresher amount arrives a moment later, and it *fades* in rather than the number simply
+ * reading differently.
+ *
+ * The fade is enter-only and plays on the element that already holds the new amount, so the price
+ * is correct the moment the data is: nothing is left showing the old number, and there is never a
+ * second copy of it for a screen reader to find. Under `prefers-reduced-motion: reduce` the same
+ * press changes the amount with no animation, with the dim and the spinner unchanged.
+ */
+export const ValueChange: Story = {
+  render: () => ({
+    components: { Button, Price },
+    setup() {
+      const SETTLED = { amount: 4800, compareAt: 6000 };
+      const FRESH = { amount: 3990, compareAt: 6000 };
+      const price = ref(SETTLED);
+      const revalidating = ref(false);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      onUnmounted(() => clearTimeout(timer));
+
+      /** Exactly the shape of a real refresh: the flag goes on while the read is in flight, and
+       *  the fresher amount arrives in the same turn it clears. */
+      function refresh(): void {
+        clearTimeout(timer);
+        revalidating.value = true;
+        timer = setTimeout(() => {
+          price.value = price.value.amount === SETTLED.amount ? FRESH : SETTLED;
+          revalidating.value = false;
+        }, 1200);
+      }
+
+      return { price, revalidating, refresh };
+    },
+    template: `
+      <div class="flex flex-col items-start gap-4">
+        <Price
+          size="lg"
+          :amount="price.amount"
+          :compare-at="price.compareAt"
+          :revalidating="revalidating"
+        />
+        <Button size="sm" variant="secondary" :disabled="revalidating" @click="refresh">
+          Refresh the price
+        </Button>
       </div>
     `,
   }),

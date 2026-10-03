@@ -9,11 +9,18 @@ export type PriceSize = 'sm' | 'md' | 'lg';
  * `srText` covers both hidden labels (the "Sale price" before `current` and the "Regular price"
  * before `compareAt`) — two elements sharing one part name, the same shape as a repeated part in
  * any list-like component. Named `srText`, not `srLabel`, to match the same visually-hidden part
- * on `Avatar`/`LogoItem` — see this package's README for the naming rule. */
+ * on `Avatar`/`LogoItem` — see this package's README for the naming rule.
+ *
+ * `currentValue` and `compareAtValue` are the inner spans holding the formatted amounts inside
+ * `current`/`compareAt`. They exist so the refresh dim (on the part) and the fade a changed amount
+ * plays (on the span) are not the same element fighting over `opacity`; they add no box of their
+ * own, and a consumer who only wants to restyle the amount's text can reach either one. */
 export type PricePart =
   | 'root'
   | 'current'
+  | 'currentValue'
   | 'compareAt'
+  | 'compareAtValue'
   | 'from'
   | 'unit'
   | 'srText'
@@ -65,6 +72,13 @@ export interface PriceProps {
    * box, so nothing moves) and `aria-busy="true"` on the root; a visually hidden live region says
    * `messages.updatingPrice`. Distinct from `loading`, which means there is no price yet and shows
    * a skeleton instead — and `loading` wins when both are set.
+   *
+   * Independently of this flag, a changed `amount`/`compareAt` fades in over
+   * `--eldra-duration-base` rather than simply appearing — enter only, on the element that already
+   * holds the new text, so the amount is correct the instant the prop changes and a stale one is
+   * never left on screen; instantly, with no animation at all, under
+   * `prefers-reduced-motion: reduce`. The value never regresses to a skeleton, and there is never
+   * more than one copy of it in the accessibility tree.
    */
   revalidating?: boolean;
   /**

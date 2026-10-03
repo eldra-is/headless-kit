@@ -114,7 +114,7 @@
   --eldra-control-height-lg: 3rem;
   --eldra-focus-width: 2px;
   --eldra-focus-offset: 2px;
-  --eldra-revalidating-opacity: 0.9;
+  --eldra-revalidating-opacity: 0.75;
   --eldra-duration-fast: 150ms;
   --eldra-duration-base: 200ms;
   --eldra-duration-slow: 250ms;

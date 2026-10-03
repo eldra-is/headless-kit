@@ -49,8 +49,11 @@ export interface BadgeProps {
  */
 export type StockLevel = 'in' | 'low' | 'out' | 'preorder';
 
-/** The parts a consumer can restyle through `classes`. */
-export type StockBadgePart = 'root' | 'icon' | 'label' | 'spinner' | 'srStatus';
+/** The parts a consumer can restyle through `classes`. `labelValue` is the inner span holding the
+ *  words inside `label`: it exists so the refresh dim (on `label`) and the fade a changed stock
+ *  line plays (on the span) are not one element fighting over `opacity`. It adds no box of its
+ *  own. */
+export type StockBadgePart = 'root' | 'icon' | 'label' | 'labelValue' | 'spinner' | 'srStatus';
 
 export interface StockBadgeProps {
   /** Picks the colour, icon and default message. */
@@ -65,6 +68,11 @@ export interface StockBadgeProps {
    * `--eldra-revalidating-opacity`, with a small spinner beside it (drawn outside the root's own
    * box, so nothing moves) and `aria-busy="true"` on the root; a visually hidden live region says
    * `messages.updatingStock`.
+   *
+   * Independently of this flag, changed wording (`level`/`message`) fades in over
+   * `--eldra-duration-base` rather than simply appearing — enter only, on the element that already
+   * holds the new words; instantly, with no animation at all, under
+   * `prefers-reduced-motion: reduce`.
    */
   revalidating?: boolean;
   /**
