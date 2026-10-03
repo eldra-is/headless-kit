@@ -127,7 +127,8 @@ so the key's shape is not re-declared per theme:
 ```ts
 import type { StoreCommerce } from '@eldrajs/theme-nuxt/commerce';
 
-const { commerce } = useRuntimeConfig().public.eldra as { commerce: StoreCommerce | null };
+const raw = (useRuntimeConfig().public.eldra as { commerce: StoreCommerce | null | '' }).commerce;
+const commerce: StoreCommerce | null = typeof raw === 'object' ? raw : null;
 ```
 
 `commerce` is `null` when the store has not configured commerce, when the site is built without

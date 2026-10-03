@@ -4,6 +4,13 @@ import { toMinorUnits } from './money';
 import type { StorefrontProductListItem } from './types';
 
 /**
+ * The conversion a caller outside a component gets: no currency, so ISO 4217's default two digits —
+ * the same scale the `<ProductCard>` reading the value falls back to. Module level, so the fallback
+ * path allocates nothing per call and the case has a name.
+ */
+const NO_CURRENCY_MINOR_UNITS = (amount: number): number => toMinorUnits(amount, undefined);
+
+/**
  * `StorefrontProductListItem` → `@eldrajs/ui`'s `ProductCardProduct` — the one mapping
  * `collection-grid`, `product-carousel` and `search` all build their cards through, so the three
  * agree pixel for pixel — `ProductCard` is the shared cell every commerce block renders a product
@@ -48,13 +55,6 @@ import type { StorefrontProductListItem } from './types';
  *
  * Callers normally go through `toProductCardEntries()` below rather than calling this per item.
  */
-/**
- * The conversion a caller outside a component gets: no currency, so ISO 4217's default two digits —
- * the same scale the `<ProductCard>` reading the value falls back to. Module level, so the fallback
- * path allocates nothing per call and the case has a name.
- */
-const NO_CURRENCY_MINOR_UNITS = (amount: number): number => toMinorUnits(amount, undefined);
-
 export function toProductCard(
   item: StorefrontProductListItem,
   opts?: ToProductCardOptions
