@@ -330,6 +330,14 @@ export const enUS = {
     const count = n === 1 ? 'See 1 result' : `See all ${n} results`;
     return query === undefined || query === '' ? count : `${count} for “${query}”`;
   },
+  /**
+   * What a search control's live region says while a request for the current query is still out —
+   * `SearchBar`/`SearchModal` announce this instead of a count (spec "Search bar" → Behaviour,
+   * Announcements). Until a response for *that* query exists there is nothing to count, and
+   * `noResultsFor` would be a wrong answer rather than an empty one — the same distinction the
+   * `loading` and `none` panel views draw, in the channel a screen reader hears.
+   */
+  searchLoading: 'Searching…',
   /** The keyboard hint beside a search control. */
   shortcutHint: 'Press / to search',
   /** The `SearchModal`'s foot, first hint (spec "Search modal" → Anatomy, item 6: "↑↓ to move").

@@ -40,14 +40,14 @@ function response(overrides: Partial<StorefrontSearchResponse> = {}): Storefront
 const formatPrice = (amount: number): string => formatMoney(amount, 'USD');
 
 describe('toSearchBarResults', () => {
-  it('returns an empty, zero-total shape for a null response', () => {
-    expect(toSearchBarResults(null, 3, formatPrice)).toEqual({
-      products: [],
-      collections: [],
-      articles: [],
-      pages: [],
-      total: 0,
-    });
+  /**
+   * `undefined`, not an empty shape. `SearchBar` reads an absent `results` as "nothing yet" (no
+   * panel, and its loading view past 300ms) and a `{ total: 0 }` shape as "nothing found" — so
+   * answering the no-response case with the latter is what made the panel say "No results" for the
+   * whole time the request for the query was in flight.
+   */
+  it('answers undefined — not an empty, zero-total shape — for a null response', () => {
+    expect(toSearchBarResults(null, 3, formatPrice)).toBeUndefined();
   });
 
   it('maps products, articles and pages into the SearchBar contract, carrying the backend total', () => {

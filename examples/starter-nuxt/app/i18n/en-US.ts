@@ -422,6 +422,9 @@ export const enUS = {
   },
   search: {
     searchLabel: 'Search the shop',
+    title: 'Search',
+    idleTitle: 'What are you looking for?',
+    resultsHeading: 'Results for “{query}”',
     typeProducts: 'Products',
     typeJournal: 'Journal',
     typePages: 'Pages',

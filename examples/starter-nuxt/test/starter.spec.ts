@@ -546,6 +546,18 @@ describe('starter theme', () => {
       prerendered: string[];
     };
     expect(buildMeta.prerendered).toContain('/cart');
+
+    // `/search` is the theme's own route too (`app/pages/search.vue`) — the destination every
+    // `SearchBar`/`SearchModal` submit and every "View all" link in the search block names. One file
+    // answers every `?q=`: the query is client-side state the page reads after hydration, so this
+    // HTML is the *idle* state and must not claim, in the artifact a static host serves, to have
+    // found nothing. Asserted on the credential-free build on purpose: a search route that needed a
+    // gateway to exist would be no route at all.
+    const search = readFileSync(output(join('search', 'index.html')), 'utf8');
+    expect(search).not.toContain('data-eldra-not-found');
+    expect(search).toContain('What are you looking for?');
+    expect(search).not.toContain('No results for');
+    expect(buildMeta.prerendered).toContain('/search');
   }, 360_000);
 
   it('supports an exact authenticated Studio origin override', async () => {

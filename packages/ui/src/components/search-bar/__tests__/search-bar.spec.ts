@@ -693,6 +693,31 @@ describe('SearchBar', () => {
       await nextTick();
       expect(wrapper.find('[data-part="liveRegion"]').text()).toBe('');
     });
+
+    /**
+     * The announcement half of the `loading` view. `results` absent is the consumer's "no response
+     * for this query yet" — the panel already draws the loading rows for it — and announcing
+     * "No results for “q”" there is a wrong answer in the one channel that cannot be re-read: a
+     * screen-reader user heard the search fail and then heard it succeed.
+     */
+    it('announces the loading message while no results have arrived, then the count', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount({ results: undefined });
+      const region = () => wrapper.find('[data-part="liveRegion"]');
+      const input = wrapper.find('[data-part="field"]');
+      (input.element as HTMLInputElement).value = 'bowl';
+      await input.trigger('input');
+
+      vi.advanceTimersByTime(400);
+      await nextTick();
+      expect(region().text()).toBe(enUS.searchLoading);
+      expect(region().text()).not.toContain('No results');
+
+      await wrapper.setProps({ results: RESULTS });
+      vi.advanceTimersByTime(400);
+      await nextTick();
+      expect(region().text()).toBe(enUS.resultsCount(RESULTS.total, 'bowl'));
+    });
   });
 
   describe('the keyboard', () => {

@@ -1,8 +1,5 @@
 import type { SearchResultItem, SearchResults } from '@eldrajs/ui';
-import type {
-  StorefrontProductListItem,
-  StorefrontSearchResponse,
-} from '../../app/storefront/types';
+import type { StorefrontSearchProduct, StorefrontSearchResponse } from '../../app/storefront/types';
 
 /**
  * Spec "Search results page" → Do/Don't: "Don't show sold-out products at the top of suggestions.
@@ -10,11 +7,11 @@ import type {
  * `suggestionsPerGroup` cap below, so a sold-out item only displaces an in-stock one when there
  * genuinely aren't enough of the latter to fill the group.
  */
-function isSoldOut(product: StorefrontProductListItem): boolean {
+function isSoldOut(product: StorefrontSearchProduct): boolean {
   return product.available === false || product.stock === 'out';
 }
 
-function rankProducts(products: StorefrontProductListItem[]): StorefrontProductListItem[] {
+function rankProducts(products: StorefrontSearchProduct[]): StorefrontSearchProduct[] {
   const inStock = products.filter((product) => !isSoldOut(product));
   const soldOut = products.filter(isSoldOut);
   return [...inStock, ...soldOut];
@@ -35,6 +32,11 @@ function rankProducts(products: StorefrontProductListItem[]): StorefrontProductL
  * `total` is the *whole* result count the backend reports, not the number of rows returned here —
  * matching `SearchResults.total`'s own contract (the "See all N results" row reads it directly).
  *
+ * **No response, no results object.** `undefined` is `SearchBar`'s "nothing yet" — it shows no panel
+ * and, past 300ms, its loading view. An empty shape with `total: 0` is its "nothing found", which is
+ * a different and wrong answer while the read for the query is still in flight: that is what put
+ * "No results for “bowl”" under the field for the whole second it took to answer.
+ *
  * `formatPrice` is the block's own `useMoney().format` — the store's currency and the page's
  * locale, resolved where a composable can be called. This function is pure, so it takes the
  * formatter rather than reaching for the currency itself: the currency is the platform's, provided
@@ -44,10 +46,8 @@ export function toSearchBarResults(
   response: StorefrontSearchResponse | null,
   suggestionsPerGroup: number,
   formatPrice: (amount: number) => string
-): SearchResults {
-  if (response === null) {
-    return { products: [], collections: [], articles: [], pages: [], total: 0 };
-  }
+): SearchResults | undefined {
+  if (response === null) return undefined;
 
   const products: SearchResultItem[] = rankProducts(response.products)
     .slice(0, suggestionsPerGroup)
@@ -55,7 +55,10 @@ export function toSearchBarResults(
       id: product.productId,
       title: product.title,
       href: product.url,
-      price: formatPrice(product.price.amount),
+      // `SearchResultItem.price` is optional, so a product this storefront could not price keeps its
+      // row and loses only the price. Formatting a `null` as a number would print the store's own
+      // "$0.00" — a real price, and the wrong one (`StorefrontSearchProduct`).
+      price: product.price === null ? undefined : formatPrice(product.price.amount),
       image: product.featuredImage?.src,
       imageAlt: product.featuredImage?.alt,
     }));

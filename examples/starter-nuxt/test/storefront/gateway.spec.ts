@@ -1,6 +1,11 @@
 import { ref } from 'vue';
-import { describe, expect, it } from 'vitest';
-import { createEldraClient, type EldraClient, type EldraHttpRequest } from '@eldrajs/sdk';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  createEldraClient,
+  EldraHttpError,
+  type EldraClient,
+  type EldraHttpRequest,
+} from '@eldrajs/sdk';
 import { createGatewayStorefront } from '../../app/storefront/gateway';
 import type { StorefrontCollectionSelector, StorefrontRoute } from '../../app/storefront/types';
 
@@ -169,6 +174,7 @@ describe('createGatewayStorefront', () => {
   it('search drops results whose targetUrl is missing or unsafe, and never emits a "#" link', async () => {
     const client = {
       catalog: {
+        listProducts: async () => ({ data: [], meta: {} }),
         search: async () => ({
           total: 5,
           results: [
@@ -213,6 +219,238 @@ describe('createGatewayStorefront', () => {
     ];
     expect(everyHref).not.toContain('#');
     expect(everyHref.some((href) => href.startsWith('javascript:'))).toBe(false);
+  });
+
+  /**
+   * The search index is built over the platform's own documents, and a document with no public
+   * route can only be named by its authoring URL — a `/cms/…` path. Those survive `safeHref` (they
+   * are ordinary site paths), so without a rule of their own they reached the modal and the results
+   * page as rows that take a shopper out of the shop and onto a path the site serves no file for.
+   * Core only returns routable results now; this is the theme refusing to depend on that.
+   */
+  it('search drops a result whose destination is an authoring path', async () => {
+    const client = {
+      catalog: {
+        listProducts: async () => ({ data: [], meta: {} }),
+        search: async () => ({
+          total: 6,
+          results: [
+            { id: 'p1', kind: 'PRODUCT', title: 'Routable product', targetUrl: '/products/good' },
+            { id: 'p2', kind: 'PRODUCT', title: 'Authored product', targetUrl: '/cms/products/p2' },
+            { id: 'e1', kind: 'CMS_ENTRY', title: 'Routable story', targetUrl: '/journal/good' },
+            { id: 'e2', kind: 'CMS_ENTRY', title: 'Authored story', targetUrl: '/cms/entries/e2' },
+            { id: 's1', kind: 'CMS_SCHEMA', title: 'Routable page', targetUrl: '/pages/good' },
+            // The prefix itself, with nothing under it: a path the theme cannot route either.
+            { id: 's2', kind: 'CMS_SCHEMA', title: 'Authoring root', targetUrl: '/cms' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('linen'));
+    await settle();
+
+    const response = result.data.value!;
+    expect(response.products.map((product) => product.title)).toEqual(['Routable product']);
+    expect(response.articles.map((article) => article.title)).toEqual(['Routable story']);
+    expect(response.pages.map((page) => page.title)).toEqual(['Routable page']);
+    const everyHref = [
+      ...response.products.map((product) => product.url),
+      ...response.articles.map((article) => article.href),
+      ...response.pages.map((page) => page.href),
+    ];
+    expect(everyHref.some((href) => href.startsWith('/cms'))).toBe(false);
+    // A path that merely *contains* the word is a real storefront route and must survive.
+    expect(response.pages[0]!.href).toBe('/pages/good');
+  });
+
+  /**
+   * A search result carries no money at all, so the mapping has nothing to write but
+   * `{ amount: 0 }` — and a zero that reached a card rendered as the store's own zero amount, a
+   * real price formatted in the store's currency and wrong. The products a search found are priced
+   * from the catalogue by the same batched `id:in:` read the volatile refresh uses, before the
+   * response is published.
+   */
+  it('search prices its products from a batched products-list read, in one request', async () => {
+    const productListQueries: Array<Record<string, unknown>> = [];
+    const client = {
+      catalog: {
+        listProducts: async (query: Record<string, unknown>) => {
+          productListQueries.push(query);
+          return {
+            data: [
+              {
+                id: 'p1',
+                slug: 'merino-crew-sweater',
+                title: 'Merino crew sweater',
+                status: 'ACTIVE',
+                minPrice: 9600,
+                maxPrice: 9600,
+                compareAtPrice: 12000,
+                totalVariants: 1,
+              },
+              {
+                id: 'p2',
+                slug: 'linen-tea-towels-pair',
+                title: 'Linen tea towels',
+                status: 'ARCHIVED',
+                minPrice: 2400,
+                // A price *range*: `mapProductListItem` marks it `from: true` ("From $24.00").
+                maxPrice: 3600,
+                totalVariants: 3,
+              },
+            ],
+            meta: {},
+          };
+        },
+        search: async () => ({
+          total: 2,
+          results: [
+            { id: 'p1', kind: 'PRODUCT', title: 'Merino crew sweater', targetUrl: '/products/a' },
+            { id: 'p2', kind: 'PRODUCT', title: 'Linen tea towels', targetUrl: '/products/b' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('linen'));
+    await settle();
+
+    const products = result.data.value!.products;
+    // The whole snapshot, `from` included: on this path the merge is the product's *first* price,
+    // not a refresh of one already on screen, so dropping the range marker would turn a
+    // "From $24.00" product into an exact $24.00 one.
+    expect(products.map((product) => product.price)).toEqual([
+      { amount: 9600, compareAt: 12000, from: false },
+      { amount: 2400, compareAt: null, from: true },
+    ]);
+    // Availability rides along, which is what lets the suggestion list rank sold-out items last.
+    expect(products.map((product) => product.available)).toEqual([true, false]);
+    expect(products.map((product) => product.stock)).toEqual(['in', 'out']);
+
+    // One request for both ids, through the one repeatable `id:in:` token — never a read per row.
+    expect(productListQueries).toHaveLength(1);
+    expect(productListQueries[0]!.filter).toEqual(['id:in:p1,p2']);
+  });
+
+  /** A gateway refusal, in the shape `@eldrajs/sdk` raises it. */
+  function httpError(status: number): EldraHttpError {
+    return new EldraHttpError({ status, statusText: 'Service Unavailable' } as Response, null);
+  }
+
+  /** A search whose products the pricing read answers with `onPricing`. */
+  function searchWithPricing(onPricing: () => Promise<unknown>): EldraClient {
+    return {
+      catalog: {
+        listProducts: onPricing,
+        search: async () => ({
+          total: 1,
+          results: [
+            { id: 'p1', kind: 'PRODUCT', title: 'Merino crew sweater', targetUrl: '/products/a' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+  }
+
+  /**
+   * A pricing read that cannot answer must not cost the shopper the results themselves — and must
+   * not cost them a *wrong* price either. The product keeps its row with `price: null`, which the
+   * suggestion panel renders without a price; a zero would have been formatted as the store's own
+   * "$0.00", which is the defect this whole path exists to avoid.
+   */
+  it.each([
+    ['the gateway refuses', () => Promise.reject(httpError(503))],
+    ['the network never completes', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ])('search keeps its results, unpriced, when %s', async (_name, onPricing) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const storefront = createGatewayStorefront(searchWithPricing(onPricing), {
+        route: fakeRoute(),
+      });
+      const result = storefront.search.run(ref('linen'));
+      await settle();
+
+      expect(result.error.value).toBeNull();
+      const products = result.data.value!.products;
+      expect(products.map((product) => product.title)).toEqual(['Merino crew sweater']);
+      expect(products.map((product) => product.price)).toEqual([null]);
+      // Not a silent degradation: a page where every row lost its price has to be diagnosable.
+      expect(warn).toHaveBeenCalledWith(
+        '[eldra] search results could not be priced:',
+        expect.any(String)
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  /**
+   * A found id the catalogue read simply did not return — a stale index, a product deleted since it
+   * was written. `applyVolatileSnapshots` leaves an unmatched item exactly as it was, so the row has
+   * to arrive unpriced rather than carrying a placeholder the consumers would format.
+   */
+  it('leaves a product the pricing read did not answer about unpriced', async () => {
+    const client = {
+      catalog: {
+        listProducts: async () => ({ data: [], meta: {} }),
+        search: async () => ({
+          total: 1,
+          results: [
+            { id: 'gone', kind: 'PRODUCT', title: 'Discontinued mug', targetUrl: '/products/a' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('mug'));
+    await settle();
+
+    expect(result.data.value!.products.map((product) => product.price)).toEqual([null]);
+  });
+
+  /**
+   * The other half of the narrowed `catch`: a bug in this file must surface as an error rather than
+   * as a page that quietly lost every price. `RangeError` stands in for one — it is neither an
+   * `EldraHttpError`, an abort, nor the `TypeError` `fetch` rejects with.
+   */
+  it('does not swallow a programming error from the pricing read', async () => {
+    const storefront = createGatewayStorefront(
+      searchWithPricing(() => Promise.reject(new RangeError('filter grammar is wrong'))),
+      { route: fakeRoute() }
+    );
+    const result = storefront.search.run(ref('linen'));
+    await settle();
+
+    expect(result.error.value).toBe('filter grammar is wrong');
+    expect(result.data.value).toBeNull();
+  });
+
+  /** No products in the response: nothing to price, so nothing is asked for. */
+  it('search makes no pricing request when it found no products', async () => {
+    const productListQueries: Array<Record<string, unknown>> = [];
+    const client = {
+      catalog: {
+        listProducts: async (query: Record<string, unknown>) => {
+          productListQueries.push(query);
+          return { data: [], meta: {} };
+        },
+        search: async () => ({
+          total: 1,
+          results: [{ id: 's1', kind: 'CMS_SCHEMA', title: 'Shipping', targetUrl: '/pages/x' }],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('shipping'));
+    await settle();
+
+    expect(result.data.value!.pages).toHaveLength(1);
+    expect(productListQueries).toEqual([]);
   });
 
   it('collectionProducts resolves null for no collection at all, without calling the client', async () => {

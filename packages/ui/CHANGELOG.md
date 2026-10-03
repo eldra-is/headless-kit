@@ -10,9 +10,16 @@ Release-please writes the generated notes from commit messages and does not repl
 - `revalidating` on `Price`, `ProductCard` and `StockBadge`: a value that is already on screen while a fresher one is fetched keeps its text and its place, dimmed to the new `--eldra-revalidating-opacity` token (default `0.75`, from `tokens.json` — the deepest dim at which every colour these values are drawn in still clears 3:1 on every ground the package ships; below 4.5:1 for everything but `text` while the read lasts — raise it to `0.9` for 4.5:1 on `background` and `surface`, `0.94` for `surface-strong` too), with a `1em` spinner drawn beside it outside the component's own box — no width change, no layout shift — plus `aria-busy="true"` and a visually hidden `aria-live="polite"` region reading the new `updatingPrice` / `updatingStock` messages. Distinct from `loading`, which still renders the skeleton and wins when both are set; `ProductCard` passes the flag to its price and stock line and is otherwise unchanged. New parts: `spinner`, `srStatus` on `Price` and `StockBadge`.
 - A refreshed value's **change** is eased as well as its waiting: a changed `Price` amount or compare-at, and a changed `StockBadge` status line, fade in over `--eldra-duration-base`. Enter only — the new value is in the DOM the instant the props change, in the same render as `aria-busy`, the dim and the spinner, and fades in from there; nothing fades out, so a stale value is never left on screen after the component has stopped saying it is busy. One element and one copy throughout, so nothing is added to the accessibility tree; no animation at all under `prefers-reduced-motion: reduce` (checked twice over: the media query, and the duration token `tokens.css` zeroes under it). A value on screen still never regresses to a skeleton. New parts, the inner spans the fade plays on: `currentValue` / `compareAtValue` on `Price`, `labelValue` on `StockBadge` — the dim stays on `current` / `compareAt` / `label` as before, so a `classes` override of those parts is unaffected.
 - `--eldra-shadow-float` / `shadow-float`: a wider, softer shadow than `shadow-sm` for a sticky header once the page has scrolled (from `tokens.json`).
+- `searchLoading` message (`'Searching…'`), used by `SearchBar` and `SearchModal` — see Fixed below.
 
 ### Fixed
 
+- `SearchBar` / `SearchModal`: the live region no longer announces "No results for “q”" while a
+  request for that query is still in flight. With `results` absent — the consumer's "nothing yet",
+  which already drew the loading panel rather than the empty one — the region now announces the new
+  `searchLoading` message, and the count (or a genuine "No results") lands when the response does.
+  The visible panel was already right; the announcement contradicted it for as long as the request
+  took.
 - `Lightbox`: the thumbnail strip has room above the tiles for the current tile's outline, which the strip's own scroll container used to clip.
 - `Carousel`: slide positions are measured relative to the track (the track is now positioned, and
   the slide-start math subtracts the track's own offset when a `classes.track` override removes

@@ -13,10 +13,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
-import type {
-  StorefrontProductListItem,
-  StorefrontSearchResponse,
-} from '../../app/storefront/types';
+import type { StorefrontSearchProduct, StorefrontSearchResponse } from '../../app/storefront/types';
 
 type ResultTypeId = 'products' | 'journal' | 'pages';
 
@@ -28,8 +25,12 @@ const props = defineProps<{
    * `safeHref` for the journal/page rows) and a row whose URL does not survive is dropped rather
    * than rendered with a link to nowhere. `link-as` then follows `isInternalHref` per row, exactly
    * as every CMS-authored link in the theme does.
+   *
+   * A product the storefront could not price is dropped by the same call, for the same kind of
+   * reason — `ProductCardProduct.price` is required (`app/storefront/toProductCard.ts`). The block
+   * counts the cards rather than the rows so a tab never names more products than the grid shows.
    */
-  products: StorefrontProductListItem[];
+  products: StorefrontSearchProduct[];
   articles: StorefrontSearchResponse['articles'];
   pages: StorefrontSearchResponse['pages'];
   currency?: string;

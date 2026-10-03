@@ -4,7 +4,7 @@ import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
-import { chunkIds, collectVolatileTargets } from './volatile';
+import { applyVolatileSnapshots, chunkIds, collectVolatileTargets } from './volatile';
 import { deriveFacets, filterItems, hasActiveFilters } from './facets';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
@@ -24,6 +24,7 @@ import type {
   StorefrontResult,
   StorefrontRoute,
   StorefrontSearch,
+  StorefrontSearchProduct,
   StorefrontSearchResponse,
   StorefrontSource,
   VolatileKey,
@@ -535,8 +536,34 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
 }
 
 /**
- * Every URL in this response is gateway-supplied, so each one goes through `safeHref` here and a
- * result whose `targetUrl` does not survive it is **dropped**, not carried with a placeholder.
+ * The authoring surface's own path prefix. A result pointing inside it is an editing URL, not a
+ * storefront one: the site serves no file for it, so a shopper who follows the row leaves the shop
+ * for a 404.
+ */
+const AUTHORING_PATH = '/cms';
+
+/**
+ * A result's destination, or `null` when the theme cannot route it.
+ *
+ * Two rules, and both are the theme's own rather than the backend's. `safeHref` is the scheme
+ * allowlist every other href in the theme passes through — `javascript:`, `data:`, a
+ * protocol-relative `//host` and a missing value all answer `null`. On top of it, a path under
+ * `/cms` is dropped: the search index is built over the platform's own documents, and a document
+ * that has no public route can only be named by its authoring URL. The backend only returns
+ * routable results now; this stays because a result the theme cannot route is worse than a result
+ * the shopper never saw, and the theme is the side that knows what it can route.
+ */
+function routableResultHref(targetUrl: unknown): string | null {
+  const href = safeHref(targetUrl);
+  if (href === null) return null;
+  if (href === AUTHORING_PATH || href.startsWith(`${AUTHORING_PATH}/`)) return null;
+  return href;
+}
+
+/**
+ * Every URL in this response is gateway-supplied, so each one goes through `routableResultHref`
+ * here and a result whose `targetUrl` does not survive it is **dropped**, not carried with a
+ * placeholder.
  *
  * This used to be `result.targetUrl ?? '#'`, which turned a result with no destination into a card
  * or row linking to nowhere (a link to the current page), and — worse — let any URL the gateway
@@ -547,17 +574,21 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
 function mapSearchResponse(raw: RawSearchResponse, query: string): StorefrontSearchResponse {
   const results = raw.results ?? [];
   const linkedResults = results.flatMap((result) => {
-    const href = safeHref(result.targetUrl);
+    const href = routableResultHref(result.targetUrl);
     return href === null ? [] : [{ result, href }];
   });
-  const products: StorefrontProductListItem[] = linkedResults
+  const products: StorefrontSearchProduct[] = linkedResults
     .filter(({ result }) => result.kind === 'PRODUCT')
     .map(({ result, href }) => ({
       handle: result.id,
       title: result.title,
       url: href,
       featuredImage: null,
-      price: { amount: 0 },
+      // Nothing in a search result is a price. `pricedSearchResponse` reads the real one from the
+      // catalogue before the response reaches a block, and a product it could not price keeps this
+      // `null` all the way out — never a zero, which every consumer would format as the store's own
+      // "$0.00" (`StorefrontSearchProduct`).
+      price: null,
       stock: 'in',
       available: true,
       productId: result.id,
@@ -1113,16 +1144,19 @@ async function relatedProducts(
  */
 async function volatileSnapshots(
   client: EldraClient,
-  ids: readonly string[]
+  ids: readonly string[],
+  signal?: AbortSignal
 ): Promise<VolatileSnapshot[]> {
   const requests = chunkIds(ids)
     .map((chunk) => ({ chunk, filter: inFilter('id', chunk) }))
     .filter(({ filter }) => filter.length > 0)
     .map(async ({ chunk, filter }) => {
-      const raw = (await client.catalog.listProducts({
-        pageSize: chunk.length,
-        filter,
-      })) as unknown as RawProductList;
+      const raw = (await client.catalog.listProducts(
+        { pageSize: chunk.length, filter },
+        // The page's own refresh passes none (`refresh.ts` owns that life cycle); the search read
+        // below passes its own, so a superseded query's pricing request is abandoned with it.
+        signal === undefined ? undefined : { signal }
+      )) as unknown as RawProductList;
       return raw.data ?? [];
     });
   const pages = await Promise.all(requests);
@@ -1137,6 +1171,83 @@ async function volatileSnapshots(
       stock: item.stock,
     };
   });
+}
+
+/**
+ * The products a search found, priced from the catalogue.
+ *
+ * The search endpoint answers with titles, kinds and destinations — it carries no money at all, so
+ * `mapSearchResponse` has nothing to map a price from and writes `{ amount: 0 }`. Left at that,
+ * every product row in the header's search modal and every product on the results page reads as
+ * the store's own zero: a real, formatted price, and the wrong one. A missing price has to look
+ * missing, and the only way to make it look right is to go and get it.
+ *
+ * So it is fetched by exactly the batched read the page's volatile refresh already uses
+ * (`volatileSnapshots` — one `products/list` per 50 ids through a single repeatable `id:in:a,b,c`
+ * token) and folded in by exactly the same merge (`applyVolatileSnapshots`). A searched product's
+ * price is therefore derived the same way a card's is (`mapProductListItem`'s
+ * `minPrice`/`compareAtPrice`), and the two can never disagree about what a price is; availability
+ * comes with it, which is what lets `blocks/search/results.ts` rank sold-out suggestions last.
+ *
+ * It is part of the search read rather than a refresh registered after it, because the refresh
+ * cannot reach a search: it only takes results whose first load ran under the prerender
+ * (`createGatewayResult`'s `ranUnderPrerender`), and a search the shopper types runs long after
+ * hydration. One search, two requests, both awaited before the response is published — a row that
+ * appeared priceless and corrected itself a moment later would be a worse answer than a row that
+ * arrived right.
+ *
+ * **Fail-soft, the way every other read here is.** No products in the response, or a pricing read
+ * that did not come back, leaves every product it could not price at `price: null` — which the
+ * suggestion panel renders without a price and the results page renders no card for
+ * (`StorefrontSearchProduct`). A zero is never published: suggestions with no price are worth more
+ * than suggestions with the wrong one. The same is true, silently, of a found id the catalogue read
+ * simply did not return — `applyVolatileSnapshots` leaves an unmatched item exactly as it was.
+ *
+ * Only the read itself is inside the `try`, and only a *read* failure is swallowed (`isReadFailure`):
+ * a bug in the mapping or the merge must surface as an error, not as a page where every row quietly
+ * lost its price. An abort needs no handling beyond not throwing — the caller drops the whole answer
+ * when its signal fired.
+ */
+async function pricedSearchResponse(
+  client: EldraClient,
+  response: StorefrontSearchResponse,
+  signal: AbortSignal
+): Promise<StorefrontSearchResponse> {
+  const ids = collectVolatileTargets(response);
+  if (ids.length === 0) return response;
+  let snapshots: VolatileSnapshot[];
+  try {
+    snapshots = await volatileSnapshots(client, ids, signal);
+  } catch (caught) {
+    if (!isReadFailure(caught)) throw caught;
+    if (!isAbort(caught)) {
+      console.warn('[eldra] search results could not be priced:', errorMessage(caught));
+    }
+    return response;
+  }
+  return applyVolatileSnapshots(response, snapshots);
+}
+
+/** A superseded query's own request being dropped — `AbortController.abort()` reaches `fetch` as a
+ *  `DOMException` named `AbortError` in every runtime this theme runs in. */
+function isAbort(caught: unknown): boolean {
+  return caught instanceof Error && caught.name === 'AbortError';
+}
+
+/**
+ * Whether a rejection from a gateway read is the **read** failing — something a storefront degrades
+ * around — rather than a bug in this file, which must not be swallowed into a silently priceless
+ * page.
+ *
+ * `EldraHttpError` is the gateway refusing or erroring, and an abort is a request this code dropped
+ * on purpose. A `TypeError` is what `fetch` itself rejects with when the call never completed
+ * (offline, DNS, CORS); it is also the shape of an ordinary programming mistake, so it counts as a
+ * read failure *and* is warned about rather than passing unnoticed. Everything else —
+ * `ReferenceError`, `RangeError`, `SyntaxError`, a thrown non-error — is this code being wrong, and
+ * is re-thrown.
+ */
+function isReadFailure(caught: unknown): boolean {
+  return caught instanceof EldraHttpError || isAbort(caught) || caught instanceof TypeError;
 }
 
 /**
@@ -1341,7 +1452,9 @@ export function createGatewayStorefront(
             {},
             { signal }
           )) as unknown as RawSearchResponse;
-          return mapSearchResponse(raw, query.value);
+          // The search index has no prices in it; `pricedSearchResponse` reads them from the
+          // catalogue before this result is published. See that function's own comment.
+          return await pricedSearchResponse(client, mapSearchResponse(raw, query.value), signal);
         },
         { method: 'search.run', runtime }
       ),

@@ -3,12 +3,14 @@ import { mount, type DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { Badge } from '@eldrajs/ui';
+import { uiEnUS } from '../../../app/i18n/uiMessages';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { computed, nextTick } from 'vue';
+import { computed, nextTick, ref, type Ref } from 'vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
+import type { StorefrontResult, StorefrontSearchResponse } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 
 // `mock.json` is the seed Studio writes when an author inserts the block — media fields
@@ -1354,6 +1356,202 @@ describe('header block (navigation apiId)', () => {
     const dialogs = wrapper.findAll('dialog');
     expect(dialogs.some((d) => d.attributes('open') === '')).toBe(true);
     wrapper.unmount();
+  });
+
+  /**
+   * The header's search overlay. Two defects lived here, both in what the block hands `SearchModal`
+   * rather than in the modal itself:
+   *
+   * - **`pending` is not "a read is in flight."** It is the skeleton flag — "a read in flight with
+   *   *nothing to show*" (`app/storefront/types.ts`) — so it is false for every search after the
+   *   first, and the modal never reached its loading view.
+   * - **`data` holds the *previous* answer while the next read runs.** The very first thing
+   *   `search.run()` answers is the empty query's own `{ total: 0 }`, and a `results` object with a
+   *   zero total is the modal's *"nothing found"* view. So the whole time the request for "bowl" was
+   *   in flight, the overlay read "No results for “bowl”" — then popped the results in.
+   */
+  describe('the search overlay', () => {
+    const ANSWER: StorefrontSearchResponse = {
+      query: 'bowl',
+      total: 1,
+      products: [
+        {
+          handle: 'speckled-latte-mug',
+          title: 'Speckled latte mug',
+          url: '/products/speckled-latte-mug',
+          featuredImage: null,
+          price: { amount: 28, compareAt: null },
+          stock: 'in',
+          available: true,
+          productId: 'speckled-latte-mug',
+        },
+      ],
+      articles: [],
+      pages: [],
+      suggestion: null,
+    };
+    /** The empty query's own answer — what `search.run()` has in `data` before any real search, and
+     *  the value that was being presented as the answer to the query in flight. */
+    const EMPTY: StorefrontSearchResponse = {
+      query: '',
+      total: 0,
+      products: [],
+      articles: [],
+      pages: [],
+      suggestion: null,
+    };
+
+    /** A storefront whose search answers `answer` with `loading` as given, however the field is
+     *  retyped — the gateway's own mid-read shape, held still so it can be asserted. */
+    function mountWithSearch(answer: StorefrontSearchResponse, loading: boolean) {
+      const base = mountOptions(
+        { entry: { id: 'e1', data: resolved.data } },
+        {
+          links: resolved.links,
+        }
+      );
+      const storefront = createDemoStorefront();
+      const result: StorefrontResult<StorefrontSearchResponse> = {
+        data: ref(answer) as Ref<StorefrontSearchResponse | null>,
+        // False on purpose: there is an answer on screen, which is exactly when `pending` is false
+        // and the overlay used to show no loading state at all.
+        pending: ref(false),
+        loading: ref(loading),
+        revalidating: ref(new Set()),
+        error: ref(null),
+        refresh: async () => {},
+      };
+      return mount(Block, {
+        attachTo: document.body,
+        ...base,
+        global: {
+          ...base.global,
+          provide: {
+            ...base.global.provide,
+            [STOREFRONT_KEY]: { ...storefront, search: { run: () => result } },
+          },
+        },
+      });
+    }
+
+    async function openOverlay(wrapper: ReturnType<typeof mountWithSearch>) {
+      await wrapper.get('button[aria-label="Search"]').trigger('click');
+      return wrapper.get('dialog[open] input[type="search"]');
+    }
+
+    it('shows the loading view while the read for the typed query is in flight', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountWithSearch(EMPTY, true);
+      try {
+        const input = await openOverlay(wrapper);
+        await input.setValue('bowl');
+        await nextTick();
+
+        // Before the loading view's own 300ms, and the heart of the defect: the block hands the
+        // modal no `results` at all for a query it has no answer for, so the panel stays empty
+        // instead of answering with the previous read's zero total.
+        expect(document.body.textContent).not.toContain('No results');
+
+        vi.advanceTimersByTime(300);
+        await nextTick();
+
+        expect(document.querySelector('[data-part="loading"]')).not.toBeNull();
+        expect(document.body.textContent).not.toContain('No results');
+
+        // The announcement is the half a screen-reader user gets, and it is debounced 400ms — past
+        // the loading view's own 300ms. It has to agree with the panel: "Searching…", never
+        // "No results for “bowl”" for a read that has not come back.
+        vi.advanceTimersByTime(100);
+        await nextTick();
+        const live = document.querySelector('[data-part="liveRegion"]');
+        expect(live?.textContent).toBe(uiEnUS.searchLoading);
+      } finally {
+        vi.useRealTimers();
+        wrapper.unmount();
+      }
+    });
+
+    it('shows the results once the read for that query has answered', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountWithSearch(ANSWER, false);
+      try {
+        const input = await openOverlay(wrapper);
+        await input.setValue('bowl');
+        await nextTick();
+
+        expect(document.querySelector('[data-part="loading"]')).toBeNull();
+        expect(document.body.textContent).not.toContain('No results');
+        const rows = [...document.querySelectorAll('[role="option"]')];
+        expect(rows.some((row) => row.textContent?.includes('Speckled latte mug'))).toBe(true);
+        // The product's real price, from the catalogue read behind `search.run()`.
+        expect(rows.some((row) => row.textContent?.includes('$28.00'))).toBe(true);
+
+        vi.advanceTimersByTime(400);
+        await nextTick();
+        expect(document.querySelector('[data-part="liveRegion"]')?.textContent).toBe(
+          uiEnUS.resultsCount(1, 'bowl')
+        );
+      } finally {
+        vi.useRealTimers();
+        wrapper.unmount();
+      }
+    });
+
+    /**
+     * A product the storefront could not price (`StorefrontSearchProduct.price === null`: the
+     * pricing read failed, or the catalogue did not answer about this id). `SearchResultItem.price`
+     * is optional, so the row keeps the product and drops the price — never the store's own
+     * "$0.00", which is a real price and the wrong one.
+     */
+    it('renders a row with no price at all for a product it could not price', async () => {
+      const unpriced: StorefrontSearchResponse = {
+        ...ANSWER,
+        products: [{ ...ANSWER.products[0]!, price: null }],
+      };
+      const wrapper = mountWithSearch(unpriced, false);
+      try {
+        const input = await openOverlay(wrapper);
+        await input.setValue('bowl');
+        await nextTick();
+
+        const row = [...document.querySelectorAll('[role="option"]')].find((node) =>
+          node.textContent?.includes('Speckled latte mug')
+        );
+        expect(row).toBeDefined();
+        expect(row?.textContent).not.toContain('0.00');
+        expect(row?.textContent).not.toContain('$');
+      } finally {
+        wrapper.unmount();
+      }
+    });
+
+    /**
+     * Enter with no active option submits the modal's own `method="get"` form, and "See all N
+     * results" is the same destination as a row. Both are `${action}?q=…`, and `action` defaults to
+     * `/search` — the route `app/pages/search.vue` now answers. Until it existed, every one of these
+     * landed the shopper on the not-found shell.
+     */
+    it('submits to /search?q=… — the route the theme serves', async () => {
+      const wrapper = mountWithSearch(ANSWER, false);
+      try {
+        const input = await openOverlay(wrapper);
+        const form = document.querySelector('dialog[open] form[role="search"]')!;
+        expect(form.getAttribute('method')).toBe('get');
+        expect(form.getAttribute('action')).toBe('/search');
+        expect(input.attributes('name')).toBe('q');
+
+        await input.setValue('bowl');
+        await nextTick();
+        // The last row of the panel: the modal's own "See … results" row, whose destination is the
+        // same `${action}?q=…` the form submits to.
+        const rows = [...document.querySelectorAll<HTMLElement>('[role="option"]')];
+        const viewAll = rows[rows.length - 1];
+        expect(viewAll?.textContent).toContain('result');
+        expect(viewAll?.getAttribute('href')).toBe('/search?q=bowl');
+      } finally {
+        wrapper.unmount();
+      }
+    });
   });
 
   it('minimal variant keeps links, account and the call to action only in the drawer', () => {

@@ -820,6 +820,11 @@ export interface Messages {
    * pluralised pair per type, the same `header.cartOne`/`cartMany` shape; `viewAllProducts`/
    * `viewAllJournal`/`viewAllPages` are the "All" tab's own per-section links, each already
    * carrying its own plural noun so no separate one/many pair is needed for them.
+   * `resultsHeading` is the heading the theme's own `/search` route hands the block (an authored
+   * entry writes its own); it carries the `{query}` placeholder the block interpolates.
+   * `title` is the `/search` route's document title and `idleTitle` its `<h1>` before a query has
+   * been asked — the results page's resting state, where a heading written as a template ("Results
+   * for “{query}”") has no query to drop in and must not print an empty one.
    * `noResultsTitle`/`noResultsAdvice`/`didYouMean` are the no-results page's own copy;
    * `popularSearches`/`customersLove` label its two chip/card sections (also reused, alongside
    * `searching`, on the ordinary results page). `headingHintLabel`/`headingHintHelp` and
@@ -829,6 +834,9 @@ export interface Messages {
    */
   search: {
     searchLabel: string;
+    title: string;
+    idleTitle: string;
+    resultsHeading: string;
     typeProducts: string;
     typeJournal: string;
     typePages: string;

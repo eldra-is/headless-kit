@@ -408,6 +408,24 @@ describe('SearchModal — the live region', () => {
     await nextTick();
     expect(wrapper.find('[data-part="liveRegion"]').text()).toBe(enUS.resultsCount(12, 'mer'));
   });
+
+  /** See `SearchBar`'s own version: "No results" is an answer, so it needs one to have arrived. */
+  it('announces the loading message while no results have arrived, then the count', async () => {
+    vi.useFakeTimers();
+    const wrapper = mount({ modelValue: true, results: undefined });
+    const region = () => wrapper.find('[data-part="liveRegion"]');
+    await wrapper.find('[data-part="field"]').setValue('bowl');
+
+    vi.advanceTimersByTime(400);
+    await nextTick();
+    expect(region().text()).toBe(enUS.searchLoading);
+    expect(region().text()).not.toContain('No results');
+
+    await wrapper.setProps({ results: RESULTS });
+    vi.advanceTimersByTime(400);
+    await nextTick();
+    expect(region().text()).toBe(enUS.resultsCount(RESULTS.total, 'bowl'));
+  });
 });
 
 describe('SearchModal — the keyboard', () => {

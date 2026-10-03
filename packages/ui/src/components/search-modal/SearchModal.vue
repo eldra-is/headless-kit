@@ -562,7 +562,8 @@ function onSubmit(): void {
   emit('submit', text.value);
 }
 
-// --- the live region (identical to SearchBar's own) ------------------------------------------------
+// --- the live region (identical to SearchBar's own, including why an absent `results` announces
+// the loading message rather than "No results" — see that file) -------------------------------------
 
 const ANNOUNCE_DELAY_MS = 400;
 const announcement = ref('');
@@ -576,9 +577,15 @@ watch([query, () => props.results], ([value]) => {
     return;
   }
   announceTimer = setTimeout(() => {
-    const total = props.results?.total ?? 0;
-    announcement.value =
-      total > 0 ? m.value.resultsCount(total, value) : m.value.noResultsFor(value);
+    const results = props.results;
+    if (results === undefined) {
+      announcement.value = m.value.searchLoading;
+    } else {
+      announcement.value =
+        results.total > 0
+          ? m.value.resultsCount(results.total, value)
+          : m.value.noResultsFor(value);
+    }
     announceTimer = undefined;
   }, ANNOUNCE_DELAY_MS);
 });

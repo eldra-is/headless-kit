@@ -21,6 +21,8 @@ import ProductDetail from '../../blocks/product-detail/Block.vue';
 import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import productCarouselMock from '../../blocks/product-carousel/mock.json';
+import Search from '../../blocks/search/Block.vue';
+import searchMock from '../../blocks/search/mock.json';
 import { CURRENCY_KEY, LOCALE_KEY } from '@eldrajs/ui';
 import { enUS } from '../../app/i18n/en-US';
 import { formatMoney } from '../../app/storefront/money';
@@ -59,6 +61,28 @@ describe('server rendering', () => {
 
     expect(html).toContain('<header');
     expect(html).toContain('Primary navigation');
+  });
+
+  /**
+   * The `/search` route is prerendered **once** and that one file answers every query: a static host
+   * serves the same `search/index.html` for `/search` and for `/search?q=linen`
+   * (`app/pages/search.vue`). So the markup can only honestly be the idle state — and it has to stay
+   * that way even when the storefront's route already carries a query, because the server render
+   * that produced the file and the browser's first render of it have to be the same markup
+   * (`test/pages/hydration.spec.ts` is the other half).
+   */
+  it('server-renders the search block as idle, even when the route carries a query', async () => {
+    const html = await renderBlockToString(
+      Search,
+      { id: 'ssr-search', data: searchMock as unknown as Record<string, unknown> },
+      { [STOREFRONT_KEY]: createDemoStorefront({ query: 'linen' }) }
+    );
+
+    expect(html).toContain(enUS.search.idleTitle);
+    expect(html).toContain('type="search"');
+    // Neither an answer to the query nor an answer to the empty one.
+    expect(html).not.toContain('Results for');
+    expect(html).not.toContain('No results for');
   });
 
   /**

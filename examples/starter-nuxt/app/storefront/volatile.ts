@@ -91,14 +91,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * is deliberately narrow: a `StorefrontCartLine` also has a `productId` and a `title`, but no
  * `handle` and no `price` object, so it is not one of these.
  */
-function isProductItem(value: unknown): value is StorefrontProductListItem {
+function isProductItem(value: unknown): value is VolatileItem {
   if (!isRecord(value)) return false;
   if (typeof value.handle !== 'string' || typeof value.productId !== 'string') return false;
   const price = value.price;
+  // `null` is the search path's "price unknown" (`StorefrontSearchProduct`) — still a product row,
+  // and the one that most needs this read: it is where its first price comes from. `undefined`
+  // (no `price` key at all) is not, which is what keeps a cart line out.
+  if (price === null) return true;
   return isRecord(price) && typeof price.amount === 'number';
 }
 
-function productItemsOf(data: unknown): readonly StorefrontProductListItem[] {
+function productItemsOf(data: unknown): readonly VolatileItem[] {
   if (isProductItem(data)) return [data];
   if (Array.isArray(data)) return data.filter(isProductItem);
   if (isRecord(data)) {
@@ -133,10 +137,15 @@ function applyToContainer(data: unknown, byId: Map<string, VolatileSnapshot>): u
 }
 
 /**
- * A card, or a full product — which carries an `inventory` the card does not. One working type
- * rather than a cast: the applying code only ever needs to know whether the field is there.
+ * A card, a full product, or a search result — the last of which carries no price yet
+ * (`StorefrontSearchProduct`), and a full product an `inventory` the other two do not. One working
+ * type rather than a cast: the applying code only ever needs to know whether a field is there.
  */
-type VolatileItem = StorefrontProductListItem & { inventory?: number | null };
+type VolatileItem = Omit<StorefrontProductListItem, 'price'> & {
+  /** `null` on the search path, where this merge is the first read rather than a refresh. */
+  price: StorefrontPrice | null;
+  inventory?: number | null;
+};
 
 function applyToList(list: readonly unknown[], byId: Map<string, VolatileSnapshot>): unknown[] {
   let changed = false;
@@ -179,7 +188,8 @@ function applyToItem(item: VolatileItem, byId: Map<string, VolatileSnapshot>): V
 }
 
 /**
- * `amount` and `compareAt` only. `from` is the price *spread* across a product's variants, which
+ * `amount` and `compareAt` only, **for a product that already has a price**. `from` is the price
+ * *spread* across a product's variants, which
  * a card shows as "From $X" — it is a shape of the catalogue, not a value that moves between
  * builds, and taking it off the snapshot would let a refresh of a detail product (whose price has
  * no `from`) grow one.
@@ -187,7 +197,12 @@ function applyToItem(item: VolatileItem, byId: Map<string, VolatileSnapshot>): V
  * `undefined` and `null` both mean "no compare-at price", so a snapshot that spells it the other
  * way round is not a change.
  */
-function applyPrice(current: StorefrontPrice, next: StorefrontPrice): StorefrontPrice {
+function applyPrice(current: StorefrontPrice | null, next: StorefrontPrice): StorefrontPrice {
+  // No price at all yet — the search path, where this merge is the product's *first* price rather
+  // than a refresh of one already on screen. The snapshot is taken whole, `from` included: the
+  // price spread is a shape of the catalogue the page has never had, not a value being refreshed
+  // over one it is already showing, so the rule above does not apply to it.
+  if (current === null) return next;
   const compareAt = next.compareAt ?? null;
   if (current.amount === next.amount && (current.compareAt ?? null) === compareAt) return current;
   return { ...current, amount: next.amount, compareAt };

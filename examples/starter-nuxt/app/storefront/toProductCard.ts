@@ -1,7 +1,13 @@
 import type { ProductCardProduct } from '@eldrajs/ui';
 import { isInternalHref, safeHref } from '../utils/links';
 import { toMinorUnits } from './money';
-import type { StorefrontProductListItem } from './types';
+import type { StorefrontProductListItem, StorefrontSearchProduct } from './types';
+
+/**
+ * The product shapes a card can be built from: a catalogue list row, which always has a price, or a
+ * search result, whose price may be unknown (`StorefrontSearchProduct`).
+ */
+export type ProductCardSource = StorefrontProductListItem | StorefrontSearchProduct;
 
 /**
  * The conversion a caller outside a component gets: no currency, so ISO 4217's default two digits —
@@ -56,11 +62,18 @@ const NO_CURRENCY_MINOR_UNITS = (amount: number): number => toMinorUnits(amount,
  * Callers normally go through `toProductCardEntries()` below rather than calling this per item.
  */
 export function toProductCard(
-  item: StorefrontProductListItem,
+  item: ProductCardSource,
   opts?: ToProductCardOptions
 ): ProductCardProduct | null {
   const url = safeHref(item.url);
   if (url === null) return null;
+  // The second "do not render a card for this item" rule, and it exists for the same reason as the
+  // first: `ProductCardProduct.price` is required, because a commerce card without a price is not a
+  // product card, so there is no "render the card without its price" state to fall back to. A
+  // search result the storefront could not price (`StorefrontSearchProduct`) therefore gets no card
+  // — never one reading the store's own "$0.00". The suggestion panel is the other half of that
+  // decision: `SearchResultItem.price` *is* optional, so a row there keeps the product.
+  if (item.price === null) return null;
   const minor = opts?.minorUnits ?? NO_CURRENCY_MINOR_UNITS;
   const { amount, compareAt, from } = item.price;
   const isSale = compareAt != null && compareAt > amount;
@@ -98,7 +111,7 @@ export interface ToProductCardOptions {
 /** One product's card data plus what the block needs to render its link correctly. */
 export interface ProductCardEntry {
   /** The storefront item, with `url` replaced by its sanitised (`safeHref`) form. */
-  item: StorefrontProductListItem;
+  item: ProductCardSource;
   /** Ready for `<ProductCard :product="…">`. */
   product: ProductCardProduct;
   /** `opts.revalidating`, per card — `<ProductCard :revalidating="entry.revalidating">`. */
@@ -114,14 +127,15 @@ export interface ProductCardEntry {
 
 /**
  * The list form every commerce block builds its card grid/row from: sanitises each item's `url`,
- * drops the items whose URL is unusable, and says per card whether the link routes.
+ * drops the items a card cannot be built for — an unusable URL, or no price at all — and says per
+ * card whether the link routes.
  *
  * One function rather than a `safeHref` call in each of `collection-grid`, `product-carousel` and
  * `search`: three blocks each deciding this for themselves is exactly the asymmetry that let
  * storefront hrefs reach the DOM unchecked while every CMS-authored href was gated.
  */
 export function toProductCardEntries(
-  items: readonly StorefrontProductListItem[] | null | undefined,
+  items: readonly ProductCardSource[] | null | undefined,
   opts?: ToProductCardOptions
 ): ProductCardEntry[] {
   const entries: ProductCardEntry[] = [];
