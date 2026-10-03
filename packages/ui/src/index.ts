@@ -383,6 +383,7 @@ export {
   createNumberFormat,
   currencyFractionDigits,
   currencySymbol,
+  defaultUnitFormat,
   formatCurrency,
   formatNumber,
   formatUnit,

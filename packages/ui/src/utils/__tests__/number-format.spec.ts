@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   createNumberFormat,
   currencySymbol,
+  defaultUnitFormat,
   formatCurrency,
   formatNumber,
   formatUnit,
   parseLocaleNumber,
+  type UnitFormatOptions,
 } from '../number-format';
 
 describe('createNumberFormat', () => {
@@ -91,9 +93,11 @@ describe('formatNumber', () => {
       expected
     );
     // The literal between the grouped integer and the currency symbol is U+00A0 (non-breaking
-    // space), not a plain U+0020 — this Node's ICU data confirms the brief's own note.
-    expect(expected).toContain(' kr.');
-    expect(expected.replace(' ', ' ')).toBe('12.345 kr.');
+    // space), not a plain U+0020, which is why every assertion in this file spells it ` `
+    // rather than typing the character: an invisible one in a `toBe` is a trap, and any tool that
+    // normalises whitespace turns it into an assertion that can never pass.
+    expect(expected).toContain('\u00a0kr.');
+    expect(expected.replace('\u00a0', ' ')).toBe('12.345 kr.');
   });
 
   it('formats a plain decimal under is-IS with . grouping and , decimals', () => {
@@ -137,13 +141,13 @@ function privateRule(
 describe('formatCurrency', () => {
   it('renders the narrow sign by default', () => {
     // "kr", not "ISK" — and the literal between sign and digits is U+00A0, the locale's own.
-    expect(formatCurrency(2800, 'en-US', 'ISK')).toBe('kr 2,800');
+    expect(formatCurrency(2800, 'en-US', 'ISK')).toBe('kr\u00a02,800');
   });
 
   it('renders the locale’s own placement and separators', () => {
     // `is-IS` writes the sign last and groups with "." — and its narrow sign for ISK is the same
     // "kr." as its wide one, which is why this locale could never have caught the defect alone.
-    expect(formatCurrency(2800, 'is-IS', 'ISK')).toBe('2.800 kr.');
+    expect(formatCurrency(2800, 'is-IS', 'ISK')).toBe('2.800\u00a0kr.');
   });
 
   it('writes no minimum fraction digits, which is part of the contract', () => {
@@ -167,12 +171,12 @@ describe('formatCurrency', () => {
     // This is the whole reason `Price` passes `currencyFractionDigits` rather than letting the
     // default stand.
     expect(formatCurrency(2800.4, 'en-US', 'ISK')).toBe(privateRule(2800.4, 'en-US', 'ISK'));
-    expect(formatCurrency(2800.4, 'en-US', 'ISK')).toBe('kr 2,800.4');
-    expect(formatCurrency(2800.4, 'en-US', 'ISK', true, 0)).toBe('kr 2,800');
+    expect(formatCurrency(2800.4, 'en-US', 'ISK')).toBe('kr\u00a02,800.4');
+    expect(formatCurrency(2800.4, 'en-US', 'ISK', true, 0)).toBe('kr\u00a02,800');
   });
 
   it('renders the wide sign when narrowSymbol is false', () => {
-    expect(formatCurrency(2800, 'en-US', 'ISK', false)).toBe('ISK 2,800');
+    expect(formatCurrency(2800, 'en-US', 'ISK', false)).toBe('ISK\u00a02,800');
   });
 
   it('defaults every argument but the value, the same defaults the private helper has', () => {
@@ -262,7 +266,7 @@ describe('formatCurrency — minFraction', () => {
   });
 
   it('leaves a zero-decimal currency alone, there being nothing to pad to', () => {
-    expect(formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)).toBe('kr 2,800');
+    expect(formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)).toBe('kr\u00a02,800');
     expect(formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)).toBe(
       formatCurrency(2800, 'en-US', 'ISK', true, 0)
     );
@@ -397,6 +401,197 @@ describe('currencySymbol', () => {
 
   it('returns the code itself for a code Intl does not recognise, rather than throwing', () => {
     expect(currencySymbol('XYZ1', 'en-US')).toBe('XYZ1');
+  });
+});
+
+/**
+ * The private library's `defaultUnitFormat`, written out from its documented option set the same way
+ * `privateRule` is written out above: `style` from `isCurrency`, `unit` only for a unit, `currency`
+ * and `currencyDisplay` only for a currency, `minimumFractionDigits: 0`,
+ * `maximumFractionDigits: maxFraction`, no `unitDisplay` at all, and `extraOptions` spread **last**
+ * so it overrides any of them.
+ *
+ * It takes `UnitFormatOptions` for convenience but **ignores `minFraction`**, because the private
+ * signature has no such option — which is why no parity case below sets one; `minFraction` is
+ * covered on its own, further down.
+ */
+function privateDefaultUnitFormat(
+  {
+    locale = 'en-US',
+    unit = 'meter',
+    maxFraction = 2,
+    isCurrency = false,
+    currency = 'USD',
+    narrow = false,
+  }: UnitFormatOptions,
+  extraOptions: Intl.NumberFormatOptions = {}
+): Intl.NumberFormat {
+  return new Intl.NumberFormat(locale, {
+    style: isCurrency ? 'currency' : 'unit',
+    ...(!isCurrency ? { unit } : {}),
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxFraction,
+    ...(isCurrency ? { currency, currencyDisplay: narrow ? 'narrowSymbol' : 'symbol' } : {}),
+    ...extraOptions,
+  });
+}
+
+/**
+ * The third ported function, and the one that actually holds the rule: `formatUnit` and
+ * `formatCurrency` are wrappers over it, exactly as the private library's own two are. It is what
+ * lets that library delete its `unit-utils.ts` rather than only its wrappers — so the parity that
+ * matters here is `resolvedOptions()`, not just the formatted string.
+ */
+describe('defaultUnitFormat', () => {
+  const CASES: UnitFormatOptions[] = [
+    {},
+    { locale: 'is-IS' },
+    { unit: 'kilogram' },
+    { unit: 'kilometer-per-hour', locale: 'de-DE' },
+    { maxFraction: 0 },
+    { maxFraction: 3, unit: 'liter' },
+    { isCurrency: true },
+    { isCurrency: true, currency: 'ISK', maxFraction: 0 },
+    { isCurrency: true, currency: 'ISK', narrow: true },
+    { isCurrency: true, currency: 'ISK', narrow: false },
+    { isCurrency: true, currency: 'BHD', maxFraction: 3, locale: 'ar-EG' },
+    { isCurrency: true, currency: 'USD', narrow: true, locale: 'is-IS' },
+    // `narrow` on a unit, which the private helper ignores — it sets no `unitDisplay`.
+    { unit: 'kilogram', narrow: true },
+  ];
+
+  it('returns a real Intl.NumberFormat', () => {
+    expect(defaultUnitFormat()).toBeInstanceOf(Intl.NumberFormat);
+  });
+
+  it('compares only options the private helper has', () => {
+    // `privateDefaultUnitFormat` ignores `minFraction`, so a case setting one would compare our
+    // padded output against its unpadded one and pass for the wrong reason.
+    expect(CASES.every((options) => options.minFraction === undefined)).toBe(true);
+  });
+
+  it('resolves the same options as the private helper, case for case', () => {
+    for (const options of CASES) {
+      expect(defaultUnitFormat(options).resolvedOptions()).toEqual(
+        privateDefaultUnitFormat(options).resolvedOptions()
+      );
+    }
+  });
+
+  it('formats the same, case for case', () => {
+    for (const options of CASES) {
+      for (const value of [0, 2.5, 28, 1234.567, -12]) {
+        expect(defaultUnitFormat(options).format(value)).toBe(
+          privateDefaultUnitFormat(options).format(value)
+        );
+      }
+    }
+  });
+
+  it('lets extraOptions override the rule, applied last', () => {
+    // `{ minimumFractionDigits: 2 }` is exactly what the private `UnitInput` passes, for its
+    // placeholder and for measuring the formatted parts. Outcomes are compared rather than values,
+    // because one case below (`maxFraction: 0`) makes that bag ask for a minimum above the maximum
+    // and both implementations must refuse it — the bag is not validated here, so `Intl`'s own
+    // `RangeError` is the answer, exactly as it is there.
+    const outcome = (format: () => Intl.NumberFormat): string => {
+      try {
+        return format().format(28);
+      } catch (error) {
+        return `threw ${(error as Error).name}`;
+      }
+    };
+    for (const options of CASES) {
+      const extra = { minimumFractionDigits: 2 };
+      expect(outcome(() => defaultUnitFormat(options, extra))).toBe(
+        outcome(() => privateDefaultUnitFormat(options, extra))
+      );
+    }
+    expect(defaultUnitFormat({}, { minimumFractionDigits: 2 }).format(28)).toContain('28.00');
+    expect(outcome(() => defaultUnitFormat({ maxFraction: 0 }, { minimumFractionDigits: 2 }))).toBe(
+      'threw RangeError'
+    );
+    // Even `style` is overridable, because the bag is spread over everything.
+    expect(defaultUnitFormat({ isCurrency: true }, { style: 'decimal' }).format(28)).toBe('28');
+  });
+
+  it('defaults every option the private helper defaults', () => {
+    // `locale = 'en-US'`, `unit = 'meter'`, `maxFraction = 2`, `isCurrency = false`,
+    // `currency = 'USD'`, `narrow = false` — and the options object itself is optional here, which
+    // is the one widening (every call valid against the private signature stays valid).
+    expect(defaultUnitFormat().resolvedOptions()).toEqual(
+      privateDefaultUnitFormat({}).resolvedOptions()
+    );
+    const resolved = defaultUnitFormat().resolvedOptions();
+    expect(resolved.locale).toBe('en-US');
+    expect(resolved.style).toBe('unit');
+    expect(resolved.unit).toBe('meter');
+    expect(resolved.minimumFractionDigits).toBe(0);
+    expect(resolved.maximumFractionDigits).toBe(2);
+  });
+
+  it('never sets unitDisplay, so a unit is always Intl’s own short form', () => {
+    for (const narrow of [true, false]) {
+      expect(defaultUnitFormat({ unit: 'kilogram', narrow }).resolvedOptions().unitDisplay).toBe(
+        'short'
+      );
+    }
+  });
+
+  it('is what formatUnit and formatCurrency format through', () => {
+    expect(
+      formatUnit(28, { isCurrency: true, currency: 'ISK', narrow: true, maxFraction: 0 })
+    ).toBe(
+      defaultUnitFormat({ isCurrency: true, currency: 'ISK', narrow: true, maxFraction: 0 }).format(
+        28
+      )
+    );
+    expect(formatCurrency(28, 'en-US', 'USD')).toBe(
+      defaultUnitFormat({ isCurrency: true, currency: 'USD', narrow: true }).format(28)
+    );
+  });
+
+  it('throws for a code, unit or locale Intl does not recognise', () => {
+    expect(() => defaultUnitFormat({ isCurrency: true, currency: 'XYZ1' })).toThrow(RangeError);
+    expect(() => defaultUnitFormat({ unit: 'furlong' })).toThrow(RangeError);
+    expect(() => defaultUnitFormat({ locale: 'not a locale' })).toThrow(RangeError);
+  });
+});
+
+/**
+ * `maxFraction` defaults to `2` whatever the currency, so asking for three *minimum* digits without
+ * raising the maximum is a mistake a caller makes by passing one argument. `Intl` reports it as
+ * `maximumFractionDigits value is out of range` — naming the parameter they did not set, against a
+ * default they had no reason to suspect — so the pair is refused here instead, saying both numbers.
+ */
+describe('minFraction against maxFraction', () => {
+  it('refuses a minimum above the maximum, naming both', () => {
+    expect(() => defaultUnitFormat({ minFraction: 3 })).toThrow(RangeError);
+    expect(() => defaultUnitFormat({ minFraction: 3 })).toThrow(/minFraction \(3\)/);
+    expect(() => defaultUnitFormat({ minFraction: 3 })).toThrow(/maxFraction \(2\)/);
+  });
+
+  it('refuses it through formatUnit and formatCurrency too', () => {
+    expect(() => formatUnit(28, { minFraction: 3 })).toThrow(/minFraction/);
+    expect(() => formatCurrency(28, 'en-US', 'BHD', true, 2, 3)).toThrow(/minFraction/);
+  });
+
+  it('keeps refusing it rather than caching the refusal', () => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(() => formatUnit(28, { minFraction: 3 })).toThrow(RangeError);
+    }
+  });
+
+  it('accepts the pair a three-decimal currency actually needs', () => {
+    expect(formatCurrency(1234.5, 'en-US', 'BHD', true, 3, 3)).toContain('.500');
+    expect(formatUnit(28, { isCurrency: true, currency: 'BHD', maxFraction: 3, minFraction: 3 })) //
+      .toContain('.000');
+  });
+
+  it('accepts equal values, and any minimum at or below the default', () => {
+    expect(formatCurrency(28, 'en-US', 'USD', true, 2, 2)).toBe('$28.00');
+    expect(formatCurrency(28, 'en-US', 'USD', true, 0, 0)).toBe('$28');
+    expect(formatCurrency(28, 'en-US', 'USD', true, 2, 1)).toBe('$28.0');
   });
 });
 

@@ -137,7 +137,7 @@ describe('Price — formatting', () => {
     // zero-decimal currency integral — no fractional króna to show, and nothing to pad to either
     // — and BHD at three.
     const isk = mountWith(Price, { props: { amount: 2800, currency: 'ISK', locale: 'en-US' } });
-    expect(isk.get('[data-part="current"]').text()).toBe('kr 2,800');
+    expect(isk.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
     isk.unmount();
 
     const bhd = mountWith(Price, {

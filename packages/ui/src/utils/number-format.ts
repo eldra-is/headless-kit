@@ -1,9 +1,16 @@
 /**
- * Locale-aware number formatting and parsing, ported from the private `unit-utils.ts` per the task
- * brief's own contract. Deliberately tiny and stateless, the same shape as `mask.ts`: no caching,
- * no DOM, just `Intl.NumberFormat` wrapped for the three shapes this package needs (a plain
- * decimal, a currency amount, a unit) and the inverse — turning what a person typed in their own
- * locale back into a `number`.
+ * Locale-aware number formatting and parsing, ported from the private library's own `unit-utils.ts`.
+ * Deliberately tiny and no DOM: just `Intl.NumberFormat` wrapped for the three shapes this package
+ * needs (a plain decimal, a currency amount, a unit) and the inverse — turning what a person typed
+ * in their own locale back into a `number`.
+ *
+ * **Stateless but for one memo.** `formatUnit` keeps the formatters it builds in a module-level
+ * `Map`, because it takes a value and returns a string — a caller formatting a grid of prices has no
+ * formatter of its own to hold, and construction costs some 40× a `format()` call. The memo is keyed
+ * on every input that reaches `Intl` and holds nothing but `Intl.NumberFormat` instances, so the
+ * function stays pure and there is no cross-request state on a server; see `unitFormatters`' own
+ * note. Nothing else here caches: `createNumberFormat` and `defaultUnitFormat` hand the formatter
+ * back, so their caller already owns its lifetime.
  */
 
 /** What a formatted number needs: the locale plus the handful of `Intl.NumberFormat` options this
@@ -210,6 +217,11 @@ export interface UnitFormatOptions {
    *
    * So the private library can alias these functions unchanged — it never passes this — while the
    * kit's own display path gets padded amounts out of the same formatter.
+   *
+   * **It must not exceed `maxFraction`, which defaults to `2` whatever the currency.** So a
+   * three-decimal currency needs both passed, and passing only `minFraction: 3` is refused with a
+   * `RangeError` naming both — `Intl`'s own message for that pair blames
+   * `maximumFractionDigits`, a value the caller never set.
    */
   minFraction?: number;
 }
@@ -217,36 +229,100 @@ export interface UnitFormatOptions {
 /**
  * Memoised formatters for `formatUnit`, keyed by every input that can change the output.
  *
- * Constructing an `Intl.NumberFormat` costs some 40× what `format()` costs on it, and these two
- * functions are stateless by design — they take a value and return a string, so a caller formatting
- * a grid of prices cannot hold the formatter itself the way `createNumberFormat` lets it. This is
- * how it gets both: the functions stay pure (same arguments, same answer, no observable state), and
- * the construction happens once per distinct shape. A construction that **throws** caches nothing,
- * so an unrecognised currency code throws on every call, as it must.
+ * Constructing an `Intl.NumberFormat` costs some 40× what `format()` costs on it, and `formatUnit`
+ * takes a value and returns a string — a caller formatting a grid of prices has no formatter of its
+ * own to hold, the way `defaultUnitFormat` and `createNumberFormat` let it. This is how it gets
+ * both: the function stays pure (same arguments, same answer, no observable state), and the
+ * construction happens once per distinct shape. A construction that **throws** caches nothing, so an
+ * unrecognised currency code throws on every call, as it must.
  *
  * Unbounded, deliberately: the key space is a store's locales × its currencies × a handful of digit
- * counts — a few entries that are all still wanted at the end of the page's life. `createNumberFormat`
- * is left uncached; it hands the formatter back, so its caller already owns the lifetime.
+ * counts — a few entries that are all still wanted at the end of the page's life.
  */
 const unitFormatters = new Map<string, Intl.NumberFormat>();
 
 /**
- * A number with a unit or a currency attached, in a locale: the port of the private library's own
- * `formatUnit`, option names and all.
+ * The `Intl.NumberFormat` a `UnitFormatOptions` describes: the port of the private library's own
+ * `defaultUnitFormat`, argument for argument — the options object, the optional second
+ * `Intl.NumberFormatOptions` bag, and the fact that the bag is applied **last** so it can override
+ * anything the rule above it decided.
  *
- * **This is the canonical copy.** The private library is expected to import it from `@eldrajs/ui`
- * and delete its own, so with the arguments that library passes the two must agree character for
- * character in output: `style` is `"currency"` or `"unit"`, `minimumFractionDigits` is `0`,
- * `maximumFractionDigits` is `maxFraction`, a currency carries
- * `currencyDisplay: narrow ? "narrowSymbol" : "symbol"`, and a unit carries no `unitDisplay` of its
- * own. Change none of that here without changing it there. `minFraction` is the one option beyond
- * that library's own, additive and optional: omitted — which is how it calls — the behaviour is
- * exactly the above. See `UnitFormatOptions.minFraction`.
+ * **The third canonical copy, and the one that actually holds the rule.** `formatUnit` and
+ * `formatCurrency` are wrappers over this, exactly as the private library's own two are, which is
+ * what lets that library import all three from `@eldrajs/ui` and delete its `unit-utils.ts`
+ * outright — deleting only the wrappers would leave the sign and digit rule still defined privately,
+ * which is the duplication this port exists to end. The rule, in full: `style` is `"currency"` or
+ * `"unit"`; a unit carries `unit` and no `unitDisplay`, so `Intl`'s own `"short"` applies; a currency
+ * carries `currency` and `currencyDisplay: narrow ? "narrowSymbol" : "symbol"`;
+ * `minimumFractionDigits` is `minFraction` (`0` when omitted, as there) and `maximumFractionDigits`
+ * is `maxFraction`. Change none of it here without changing it there.
+ *
+ * `extraOptions` is what the private library's `UnitInput` passes `{ minimumFractionDigits: 2 }`
+ * through for its placeholder and its part measurement, and it keeps that meaning: a plain
+ * `Intl.NumberFormatOptions` spread over the resolved options, so a caller can override even
+ * `style`. Nothing in this package calls it — `formatUnit` does not forward one, because the
+ * formatter it memoises must be a function of its key alone — but the signature is the private
+ * one's, so an aliasing consumer needs no change.
+ *
+ * Returns the formatter rather than a string, so a caller that formats many values builds it once;
+ * that is also why nothing memoises it. Throws `RangeError` for a currency code, unit identifier or
+ * locale `Intl` does not recognise, and for a `minFraction` above `maxFraction`.
+ */
+export function defaultUnitFormat(
+  options: UnitFormatOptions = {},
+  extraOptions: Intl.NumberFormatOptions = {}
+): Intl.NumberFormat {
+  const {
+    locale = 'en-US',
+    unit = 'meter',
+    maxFraction = 2,
+    isCurrency = false,
+    currency = 'USD',
+    narrow = false,
+    minFraction = 0,
+  } = options;
+
+  // Said here rather than left to `Intl`, which reports this pair as
+  // `maximumFractionDigits value is out of range` — naming the argument a caller passing only
+  // `minFraction` never set, against a default of 2 it has no reason to suspect.
+  if (minFraction > maxFraction) {
+    throw new RangeError(
+      `[@eldrajs/ui] minFraction (${minFraction}) cannot exceed maxFraction (${maxFraction}); ` +
+        'maxFraction defaults to 2 whatever the currency, so pass both for a currency with more ' +
+        'minor-unit digits than that.'
+    );
+  }
+
+  return new Intl.NumberFormat(locale, {
+    style: isCurrency ? 'currency' : 'unit',
+    ...(isCurrency ? {} : { unit }),
+    minimumFractionDigits: minFraction,
+    maximumFractionDigits: maxFraction,
+    // The private helper's own ternary. `unitDisplay` is deliberately never set: `Intl` then uses
+    // `"short"`, and `UnitFormatOptions.narrow` is a currency decision only.
+    ...(isCurrency ? { currency, currencyDisplay: narrow ? 'narrowSymbol' : 'symbol' } : {}),
+    // Last, so it wins — the private helper's own ordering.
+    ...extraOptions,
+  });
+}
+
+/**
+ * A number with a unit or a currency attached, in a locale: the port of the private library's own
+ * `formatUnit`, option names and all — `defaultUnitFormat(options).format(value)`, exactly as the
+ * private one is, with the formatter memoised (see `unitFormatters`).
+ *
+ * **Canonical, with `defaultUnitFormat` and `formatCurrency`.** The private library is expected to
+ * import all three from `@eldrajs/ui` and delete its own, so with the arguments that library passes
+ * the output must agree character for character; the rule itself is written out on
+ * `defaultUnitFormat`. `minFraction` is the one option beyond that library's own, additive and
+ * optional: omitted — which is how it calls — the behaviour is exactly the private one's. See
+ * `UnitFormatOptions.minFraction`.
  *
  * Throws what `Intl.NumberFormat` throws — a `RangeError` for a currency code, unit identifier or
  * locale it does not recognise — because the private helper does, and a public copy that swallowed
- * an error its original raises is not the same function. A caller inside a `computed` must guard
- * it (`Price` does, falling back to a plain decimal plus the raw code).
+ * an error its original raises is not the same function; plus the one `defaultUnitFormat` adds for
+ * `minFraction` above `maxFraction`. A caller inside a `computed` must guard it (`Price` does,
+ * falling back to a plain decimal plus the raw code).
  */
 export function formatUnit(value: number, options: UnitFormatOptions): string {
   const {
@@ -259,25 +335,16 @@ export function formatUnit(value: number, options: UnitFormatOptions): string {
     minFraction = 0,
   } = options;
 
+  // `|` cannot occur in any part of the key: a BCP 47 tag, an ISO 4217 code and an `Intl` unit
+  // identifier are letters, digits and hyphens only, so no two distinct shapes can spell the same
+  // string. (A control character would do as well and reads worse in source.)
   const key = isCurrency
-    ? `c ${locale} ${currency} ${narrow ? 1 : 0} ${minFraction} ${maxFraction}`
-    : `u ${locale} ${unit} ${minFraction} ${maxFraction}`;
+    ? `c|${locale}|${currency}|${narrow ? 1 : 0}|${minFraction}|${maxFraction}`
+    : `u|${locale}|${unit}|${minFraction}|${maxFraction}`;
 
   let formatter = unitFormatters.get(key);
   if (formatter === undefined) {
-    formatter = createNumberFormat({
-      locale,
-      style: isCurrency ? 'currency' : 'unit',
-      unit: isCurrency ? undefined : unit,
-      currency: isCurrency ? currency : undefined,
-      minFraction,
-      maxFraction,
-      // Both displays are set explicitly rather than through `narrow`, which would narrow a unit as
-      // well: `currencyDisplay` to the private helper's own ternary, and `unitDisplay` to
-      // `"short"`, which is exactly what `Intl` uses when that helper leaves it unset.
-      currencyDisplay: isCurrency ? (narrow ? 'narrowSymbol' : 'symbol') : undefined,
-      unitDisplay: isCurrency ? undefined : 'short',
-    });
+    formatter = defaultUnitFormat(options);
     // Only after construction has succeeded: a code `Intl` rejects must keep throwing.
     unitFormatters.set(key, formatter);
   }
@@ -311,12 +378,15 @@ export function formatUnit(value: number, options: UnitFormatOptions): string {
  *   signature. A price list in which one row reads `$96` and the next `$96.50` is ragged, so a
  *   *displayed* amount passes `currencyFractionDigits(currency, locale)` and gets `"$96.00"`. That
  *   is what `Price` and the starter's own money helpers do; a zero-decimal currency is unaffected
- *   (`"kr 2,800"` either way, its own count being `0`).
+ *   (`"kr 2,800"` either way, its own count being `0`). **It must not exceed `maxFraction`**, which
+ *   is the next bullet's trap: `formatCurrency(v, 'en-US', 'BHD', true, 2, 3)` is refused with a
+ *   `RangeError` naming both, rather than `Intl`'s own message blaming a `maximumFractionDigits`
+ *   the caller never set.
  * - **`maxFraction` defaults to `2` whatever the currency.** A zero-decimal currency is unaffected
  *   (`ISK` has no fraction to print), but a three-decimal one is rounded to two unless the caller
  *   says otherwise. Pass `currencyFractionDigits(currency, locale)` for the currency's own count,
  *   which — being the same answer as for `minFraction` — is what a displayed amount passes for
- *   both.
+ *   both; passing only the sixth argument for such a currency is the refusal above.
  *
  * Throws for an unrecognised currency code or locale, the same as `formatUnit` and the same as the
  * private helper; see that function's note.
