@@ -10,9 +10,9 @@ import { createDemoStorefront, DEMO_CART_LINES } from '../../../app/storefront/d
 import { toStorefrontFailure } from '../../../app/storefront/feedback';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
 
-/** The Northwind cart the spec's page story shows: $210.00 over three lines, over the $80
+/** The Northwind cart the spec's page story shows: $210 over three lines, over the $80
  *  free-shipping threshold, so the demo backend charges nothing for shipping. */
-const SUBTOTAL = '$210.00';
+const SUBTOTAL = '$210';
 
 const trackedWrappers: VueWrapper[] = [];
 afterEach(() => {
@@ -113,8 +113,8 @@ describe('cart summary', () => {
       const index = terms.findIndex((term) => term.text() === 'Discount (WINTER15)');
       expect(index).toBeGreaterThanOrEqual(0);
       const value = wrapper.findAll('dd')[index]!;
-      // 10 % of $210.00 in the demo backend, rendered by `Price` with the locale's own minus sign.
-      expect(value.text()).toContain('21.00');
+      // 10 % of $210 in the demo backend, rendered by `Price` with the locale's own minus sign.
+      expect(value.text()).toContain('21');
       expect(value.get('[data-part="current"]').classes()).toContain('text-success');
     });
 

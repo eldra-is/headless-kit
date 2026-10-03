@@ -184,7 +184,7 @@ describe('server rendering', () => {
       });
 
       expect(html).toContain('Merino crew sweater');
-      expect(html).toContain('$96.00');
+      expect(html).toContain('$96');
       expect(html).toContain('In stock, ready to ship');
       expect(html).not.toContain(enUS.storefront.loading);
       expect(html).not.toContain(enUS.storefront.notFound);
@@ -224,6 +224,29 @@ describe('server rendering', () => {
       expect(html).not.toContain('96.00');
     });
 
+    /**
+     * And the sign is the **narrow** one, which is the half a prerendered page cannot correct
+     * later. `is-IS` writes `kr.` either way, so the sign is only a choice on a page in another
+     * locale: an English page of the same krónur store must prerender `kr 96`, never `ISK 96`.
+     * The wide sign is what a hand-built `{ style: 'currency' }` formatter writes, and it reached
+     * the HTML of every price on the page — both the `<Price>` elements and the formatted labels
+     * beside them.
+     */
+    it('server-renders the store’s currency in its narrow sign, not its ISO code', async () => {
+      const commerce = { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 };
+      const html = await renderPageToString(productPage as unknown as PageFixture, {
+        [CURRENCY_KEY]: commerce.currency,
+        [LOCALE_KEY]: 'en-US',
+        [STOREFRONT_KEY]: createDemoStorefront({ commerce }),
+      });
+
+      expect(html).toContain(formatMoney(96, 'ISK', 'en-US'));
+      expect(formatMoney(96, 'ISK', 'en-US')).toBe('kr 96');
+      // Not the code in front of an amount, anywhere: not in a price, not in a button label, not
+      // in the footer's own currency text (which names the code *after* its sign, "ISK kr").
+      expect(html).not.toMatch(/ISK(\s|&nbsp;| )\d/);
+    });
+
     it('server-renders product-carousel with real cards, and no skeleton', async () => {
       const html = await renderBlockToString(ProductCarousel, {
         id: 'ssr-product-carousel',
@@ -231,7 +254,7 @@ describe('server rendering', () => {
       });
 
       expect(html).toContain('Fisherman rib cardigan');
-      expect(html).toContain('$164.00');
+      expect(html).toContain('$164');
       expect(html).toContain('In stock, ships in 1–2 days');
       expect(html).not.toContain('eldra-skeleton');
       expect(html).not.toContain('eldra-revalidating');

@@ -41,8 +41,9 @@
  * The currency selector is different: the spec was written for a multi-currency store, but the
  * platform supports exactly one currency per store today. So its options are derived from the
  * store (`useMoney().currency`, `app/storefront/money.ts`), not from a constant list, and there is
- * at most one of them — `currencyLabel()` names it "ISK kr." style (code + the symbol `Intl`
- * resolves for it in the content locale, falling back to the code alone). With exactly one option
+ * at most one of them — `currencyLabel()` names it "ISK kr" style (code + the narrow sign
+ * `@eldrajs/ui` writes the store's prices with in the content locale, falling back to the code
+ * alone when the locale has no sign distinct from it). With exactly one option
  * there is nothing to select, so it renders as plain text with the same leading icon and a visually
  * hidden "Currency" label, not a `Select` — a native-looking control a visitor could try to open
  * with nothing inside it would be worse than no control at all. With no currency published, the
@@ -217,8 +218,8 @@ const showCurrency = computed(() => data.value.showCurrency ?? true);
  * The currency selector's option list, derived from the store rather than the spec's hard-coded
  * USD/CAD/EUR demo list: the platform supports exactly one currency per store today, so this is
  * either empty (the store publishes none) or a single entry — the store's currency, named "ISK
- * kr." style by `currencyLabel()` (code + whatever symbol `Intl` resolves for it in the content
- * locale). Kept as a list, not a single value, so the day the platform supports more than one
+ * kr" style by `currencyLabel()` (code + the same narrow sign every price on the page is written
+ * with). Kept as a list, not a single value, so the day the platform supports more than one
  * currency, this grows to match and the template's `Select` branch (below) is already there.
  */
 const currencyOptions = computed<SelectOption[]>(() => {

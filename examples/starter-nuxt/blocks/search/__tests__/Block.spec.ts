@@ -644,7 +644,7 @@ describe('search block', () => {
    * A product the storefront could not price (`StorefrontSearchProduct.price === null`: the pricing
    * read failed, or the catalogue did not answer about that id). `ProductCardProduct.price` is
    * required — a commerce card without a price is not a product card — so the results page renders
-   * no card for it rather than one reading the store's own "$0.00", and the Products tab counts the
+   * no card for it rather than one reading the store's own "$0", and the Products tab counts the
    * cards it can draw rather than the rows it was given.
    */
   describe('a product the storefront could not price', () => {

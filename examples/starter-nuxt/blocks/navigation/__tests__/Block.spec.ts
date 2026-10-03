@@ -1484,7 +1484,7 @@ describe('header block (navigation apiId)', () => {
         const rows = [...document.querySelectorAll('[role="option"]')];
         expect(rows.some((row) => row.textContent?.includes('Speckled latte mug'))).toBe(true);
         // The product's real price, from the catalogue read behind `search.run()`.
-        expect(rows.some((row) => row.textContent?.includes('$28.00'))).toBe(true);
+        expect(rows.some((row) => row.textContent?.includes('$28'))).toBe(true);
 
         vi.advanceTimersByTime(400);
         await nextTick();
@@ -1501,7 +1501,7 @@ describe('header block (navigation apiId)', () => {
      * A product the storefront could not price (`StorefrontSearchProduct.price === null`: the
      * pricing read failed, or the catalogue did not answer about this id). `SearchResultItem.price`
      * is optional, so the row keeps the product and drops the price — never the store's own
-     * "$0.00", which is a real price and the wrong one.
+     * "$0", which is a real price and the wrong one.
      */
     it('renders a row with no price at all for a product it could not price', async () => {
       const unpriced: StorefrontSearchResponse = {

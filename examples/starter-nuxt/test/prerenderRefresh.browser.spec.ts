@@ -435,10 +435,10 @@ describe('prerendered commerce data on the generated static site', () => {
       const html = staticHtml(path);
       // In the store's own currency, which the build read from the platform
       // (`test/support/mockGateway.ts` publishes ISK — and says why it is not dollars). A page that
-      // fell back to `@eldrajs/ui`'s ambient default would read `$42.00` here instead.
+      // fell back to `@eldrajs/ui`'s ambient default would read `$42` here instead.
       expect(html, path).toContain('commerce:{currency:"ISK"');
       expect(html, path).toContain(formatMoney(42, 'ISK'));
-      expect(html, path).not.toContain('$42.00');
+      expect(html, path).not.toContain('$42');
       expect(html, path).toContain('Ash glaze mug');
       expect(html, path).not.toContain('eldra-skeleton');
       expect(html, path).not.toContain('eldra-revalidating');

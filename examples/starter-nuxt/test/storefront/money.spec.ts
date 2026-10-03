@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatCurrency } from '@eldrajs/ui';
 import {
   currencyLabel,
   DEFAULT_LOCALE,
@@ -9,21 +10,63 @@ import {
 
 describe('formatMoney', () => {
   it('formats a major-unit amount as itself', () => {
-    // The live defect: a catalog price of 28 is $28.00, not $0.28.
-    expect(formatMoney(28, 'USD')).toBe('$28.00');
-    expect(formatMoney(96.5, 'USD')).toBe('$96.50');
+    // The live defect: a catalog price of 28 is $28, not $0.28.
+    expect(formatMoney(28, 'USD')).toBe('$28');
+    expect(formatMoney(96.5, 'USD')).toBe('$96.5');
   });
 
-  it('takes the fraction digits from the currency, so a zero-decimal one renders none', () => {
-    expect(formatMoney(28, 'ISK', 'is-IS')).not.toMatch(/[.,]\d\d/);
+  /**
+   * Two digit rules, both the formatter's rather than this module's: the **maximum** is the
+   * currency's own count, so a zero-decimal currency renders none at all; the **minimum** is 0, so
+   * a whole amount renders no trailing zeroes either. The second is `formatCurrency`'s documented
+   * contract — the one the private library's currency fields have always had — and this module
+   * follows it rather than keeping a second rule of its own.
+   */
+  it('takes the maximum fraction digits from the currency and the minimum from the util', () => {
+    expect(formatMoney(28, 'ISK', 'is-IS')).not.toMatch(/[.,]\d/);
     expect(formatMoney(28, 'ISK', 'is-IS')).toContain('28');
-    expect(formatMoney(28, 'USD', 'en-US')).toBe('$28.00');
+    // Not even for an amount that has a fraction: krónur have no minor unit to show one in.
+    expect(formatMoney(28.4, 'ISK', 'en-US')).toBe('kr\u00a028');
+    expect(formatMoney(28, 'USD', 'en-US')).toBe('$28');
+    expect(formatMoney(28.5, 'USD', 'en-US')).toBe('$28.5');
+    expect(formatMoney(28.567, 'USD', 'en-US')).toBe('$28.57');
   });
 
   it('formats in the store’s currency, not the locale’s', () => {
     // An Icelandic page of a store that sells in dollars shows dollars, with Icelandic grouping.
     expect(formatMoney(4800, 'USD', 'is-IS')).toContain('4.800');
     expect(formatMoney(4800, 'ISK', 'en-US')).toMatch(/4,800/);
+  });
+
+  /**
+   * The sign, not the digits: this module used to build its own
+   * `Intl.NumberFormat({ style: 'currency' })`, which writes the **wide** sign — so a button label
+   * read "ISK 2,800" beside a `<Price>` reading "kr 2,800" for the same money. Both now go through
+   * `@eldrajs/ui`'s `formatCurrency`, so there is one sign on the page.
+   */
+  it('writes the currency’s narrow sign, the same one every <Price> writes', () => {
+    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr\u00a02,800');
+    expect(formatMoney(2800, 'ISK', 'is-IS')).toBe('2.800\u00a0kr.');
+    expect(formatMoney(28, 'USD', 'en-US')).toBe('$28');
+    // `is-IS` writes `$` for dollars narrow, where its wide sign is the code itself.
+    expect(formatMoney(28, 'USD', 'is-IS')).toBe('28\u00a0$');
+  });
+
+  it('is `@eldrajs/ui`’s own `formatCurrency`, not a second copy of it', () => {
+    // Asserted as an identity across every usable pair the theme can see — with the same narrow
+    // sign and the same fraction cap this module passes — so the day the package's formatter
+    // changes, this module follows it instead of drifting from it.
+    for (const [currency, digits] of [
+      ['ISK', 0],
+      ['USD', 2],
+      ['EUR', 2],
+    ] as const) {
+      for (const locale of ['en-US', 'is-IS']) {
+        expect(formatMoney(2800.5, currency, locale)).toBe(
+          formatCurrency(2800.5, locale, currency, true, digits)
+        );
+      }
+    }
   });
 
   it('defaults only the locale — never the currency', () => {
@@ -40,9 +83,12 @@ describe('formatMoney', () => {
   });
 
   it('falls back to a plain decimal and the raw code rather than throwing', () => {
-    // `Intl.NumberFormat` throws `RangeError` on a code it does not know.
+    // `formatCurrency` throws `RangeError` on a code `Intl` does not know, exactly as the private
+    // helper it ports does — so the guard is this module's, and it is the same shape `<Price>`
+    // falls back to for the identical failure.
     expect(formatMoney(28, 'XYZ1')).toBe('28 XYZ1');
     expect(formatMoney(4800, 'XYZ1')).toBe('4,800 XYZ1');
+    expect(() => formatCurrency(28, 'en-US', 'XYZ1')).toThrow(RangeError);
   });
 });
 
@@ -50,11 +96,11 @@ describe('the formatter cache', () => {
   it('keeps one currency-and-locale pair from answering for another', () => {
     // `resolveFormat` memoizes `Intl.NumberFormat` per pair, which is the one way this module could
     // start returning a cached answer for the wrong store or the wrong page.
-    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.5');
     expect(formatMoney(1234.5, 'USD', 'is-IS')).toBe(formatMoney(1234.5, 'USD', 'is-IS'));
-    expect(formatMoney(1234.5, 'USD', 'is-IS')).not.toBe('$1,234.50');
+    expect(formatMoney(1234.5, 'USD', 'is-IS')).not.toBe('$1,234.5');
     expect(formatMoney(1234, 'ISK', 'is-IS')).toContain('kr');
-    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.5');
     // And the digits each pair resolves stay its own.
     expect(toMinorUnits(28, 'USD', 'en-US')).toBe(2800);
     expect(toMinorUnits(28, 'ISK', 'en-US')).toBe(28);
@@ -85,17 +131,21 @@ describe('toMinorUnits', () => {
 });
 
 describe('currencyLabel', () => {
-  it('names the currency as code plus symbol, in the given locale', () => {
-    // `is-IS` is where `kr.` is actually a sign distinct from the code — the case the footer
-    // ships for an ISK store.
+  it('names the currency as code plus its narrow sign, in the given locale', () => {
+    // The sign is the one the page's own prices carry: `kr.` on an Icelandic page, `kr` on an
+    // English one (the narrow sign for krónur — the wide one there *is* the code).
     expect(currencyLabel('ISK', 'is-IS')).toBe('ISK kr.');
+    expect(currencyLabel('ISK', 'en-US')).toBe('ISK kr');
     expect(currencyLabel('USD', 'en-US')).toBe('USD $');
+    expect(currencyLabel('USD', 'is-IS')).toBe('USD $');
     expect(currencyLabel('EUR', 'en-US')).toBe('EUR €');
   });
 
-  it('falls back to the code alone when Intl has no symbol distinct from it', () => {
-    // `en-US` has no sign for `ISK` beyond the code itself — `ISK ISK` would be noise.
-    expect(currencyLabel('ISK', 'en-US')).toBe('ISK');
+  it('falls back to the code alone when the locale has no sign distinct from it', () => {
+    // `CHF` is written as its own code in both the locales this theme ships, and `CHF CHF` would
+    // be noise. (Krónur used to land here on an `en-US` page; the narrow sign gave it a `kr`.)
+    expect(currencyLabel('CHF', 'en-US')).toBe('CHF');
+    expect(currencyLabel('CHF', 'is-IS')).toBe('CHF');
   });
 
   it('falls back to the code alone for a code Intl does not recognise, rather than throwing', () => {

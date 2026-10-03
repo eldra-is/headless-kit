@@ -219,7 +219,7 @@ describe('add to cart feedback', () => {
     ]);
     // Nothing was learned about stock, so nothing about stock changes.
     expect(statusLine(wrapper).text()).toContain('In stock, ready to ship');
-    expect(addToCart(wrapper).text()).toContain('Add to cart · $96.00');
+    expect(addToCart(wrapper).text()).toContain('Add to cart · $96');
   });
 
   it('reports a request that never reached the gateway the same generic way', async () => {
@@ -259,7 +259,7 @@ describe('add to cart feedback', () => {
     // Another variant chosen is not the variant the backend refused.
     await optionByLabel(wrapper, 'L').setValue();
     await nextTick();
-    expect(addToCart(wrapper).text()).toContain('Add to cart · $96.00');
+    expect(addToCart(wrapper).text()).toContain('Add to cart · $96');
     expect(statusLine(wrapper).text()).toContain('In stock, ready to ship');
   });
 
@@ -317,7 +317,7 @@ describe('product-detail block', () => {
   it('renders the demo product from mock.json with no axe violations', async () => {
     const wrapper = await mountReady(mock);
     expect(wrapper.text()).toContain('Merino crew sweater');
-    expect(wrapper.text()).toContain('$96.00');
+    expect(wrapper.text()).toContain('$96');
     expect(wrapper.text()).toContain('Knitwear');
     expect(wrapper.text()).toContain('Free delivery over $80.');
     expect(await axe(wrapper.element)).toHaveNoViolations();
@@ -366,28 +366,28 @@ describe('product-detail block', () => {
 
   it('computes the saving badge from the two prices', async () => {
     const wrapper = await mountReady(mock);
-    // The demo product is $96.00, was $128.00.
-    expect(wrapper.text()).toContain('Save $32.00');
-    expect(wrapper.text()).toContain('$128.00');
+    // The demo product is $96, was $128.
+    expect(wrapper.text()).toContain('Save $32');
+    expect(wrapper.text()).toContain('$128');
   });
 
   it('renders a whole-unit price as itself, not as a hundredth of it', async () => {
-    // The catalog sends money in major units (`app/storefront/types.ts`), so a $28.00 product
+    // The catalog sends money in major units (`app/storefront/types.ts`), so a $28 product
     // arrives as `28` — dividing it again rendered "$0.28" on a live store.
     const wrapper = await mountReady(mock, {
       storefront: storefrontWith({ price: { amount: 28, compareAt: null } }),
     });
-    expect(wrapper.text()).toContain('$28.00');
+    expect(wrapper.text()).toContain('$28');
     expect(wrapper.text()).not.toContain('$0.28');
     // The same amount inside the button's own label, which formats it rather than rendering
     // `<Price>`: the two must agree.
-    expect(addToCart(wrapper).text()).toContain('Add to cart · $28.00');
+    expect(addToCart(wrapper).text()).toContain('Add to cart · $28');
   });
 
   /**
    * The store's currency is the platform's, and the page's number formatting is the content
    * locale's — two separate decisions, which this is the one spec that exercises together. An
-   * Icelandic page of a store selling in krónur reads "2.800 kr.", never "$2,800.00" and never a
+   * Icelandic page of a store selling in krónur reads "2.800 kr.", never "$2,800" and never a
    * bare "2.800": the amount inside the button's label and the `<Price>` above it both come from
    * the same provide (`CURRENCY_KEY`), so they cannot disagree.
    */
@@ -414,6 +414,32 @@ describe('product-detail block', () => {
       // A zero-decimal currency grows no invented decimals, whichever side formatted it.
       expect(amount).not.toContain(',00');
     }
+  });
+
+  /**
+   * The same store on an **English** page, which is the one case where the sign is a choice: the
+   * narrow sign for krónur is `kr`, the wide one is the code itself. The button's label and the
+   * `<Price>` above it must agree on it, and `kr 2,800` is what the operator's own back office
+   * writes — an `ISK 2,800` here beside a `kr 2,800` in a currency field was the defect.
+   */
+  it('writes the store currency’s narrow sign on a page in another locale', async () => {
+    const wrapper = await mountReady(mock, {
+      locale: 'en-US',
+      commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+      storefront: storefrontWith({ price: { amount: 2800, compareAt: null } }),
+    });
+
+    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr\u00a02,800');
+    expect(addToCart(wrapper).text()).toContain(
+      enUS.product.addToCart.replace('{price}', 'kr\u00a02,800')
+    );
+    const rendered = wrapper.findAll('[data-part="current"]').map((part) => part.text());
+    expect(rendered.length).toBeGreaterThan(0);
+    for (const amount of rendered) {
+      expect(amount).toBe('kr\u00a02,800');
+    }
+    // Not the wide sign, in either half.
+    expect(wrapper.text()).not.toContain('ISK\u00a02,800');
   });
 
   /**
@@ -615,7 +641,7 @@ describe('product-detail block', () => {
     it('reads in stock for the demo product, axe-clean', async () => {
       const wrapper = await mountReady(mock);
       expect(statusLine(wrapper).text()).toContain('In stock, ready to ship');
-      expect(addToCart(wrapper).text()).toContain('Add to cart · $96.00');
+      expect(addToCart(wrapper).text()).toContain('Add to cart · $96');
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
@@ -850,7 +876,7 @@ describe('product-detail block', () => {
       const bar = wrapper.get('[role="region"]');
       expect(bar.attributes('aria-label')).toBe('Quick add');
       expect(bar.text()).toContain('Merino crew sweater');
-      expect(bar.text()).toContain('Oat / XS · $96.00');
+      expect(bar.text()).toContain('Oat / XS · $96');
       // The quick-add button is the one control that exists only below 48rem, where primary
       // actions are at least 2.75rem tall: it takes the package's `lg` size.
       expect(bar.get('button[type="button"]').classes()).toContain('control-h-lg');
@@ -953,13 +979,13 @@ describe('product-detail block', () => {
     it('keeps the price and the stock line, marks both busy and draws a spinner beside each', async () => {
       const { storefront, revalidating } = refreshable();
       const wrapper = await mountReady(mock, { storefront });
-      expect(wrapper.text()).toContain('$96.00');
+      expect(wrapper.text()).toContain('$96');
 
       revalidating.value = new Set(['price', 'stock']);
       await nextTick();
 
       // The value itself is untouched — this state is a dim and a spinner, never a skeleton.
-      expect(wrapper.text()).toContain('$96.00');
+      expect(wrapper.text()).toContain('$96');
       expect(wrapper.text()).toContain('In stock, ready to ship');
       expect(wrapper.find('.eldra-skeleton').exists()).toBe(false);
 
@@ -996,7 +1022,7 @@ describe('product-detail block', () => {
       await nextTick();
 
       expect(wrapper.text()).toContain('Merino crew sweater');
-      expect(wrapper.text()).toContain('$96.00');
+      expect(wrapper.text()).toContain('$96');
       expect(wrapper.text()).not.toContain(enUS.storefront.loading);
       expect(wrapper.text()).not.toContain(enUS.storefront.error);
       expect(wrapper.get('[data-part="root"]').attributes('aria-busy')).toBe('true');

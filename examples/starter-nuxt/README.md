@@ -159,6 +159,14 @@ to every `@eldrajs/ui` component. `app/storefront/money.ts` is the only place th
 converts money, and `useMoney()` is what a block calls — the formatted text in a sentence ("Add to
 cart · 2.800 kr.") and the `<Price>` beside it therefore always agree.
 
+They agree on the **sign**, too, because both come from `@eldrajs/ui`: `formatMoney` is the
+package's `formatCurrency`, so every amount on the page carries the currency's narrow sign
+(`kr 2,800` on an English page, `2.800 kr.` on an Icelandic one, `$28` for dollars) rather than the
+wide one a hand-built `Intl.NumberFormat({ style: 'currency' })` writes (`ISK 2,800`). Nothing in
+`app/**` or `blocks/**` may build a currency formatter of its own — `test/moneyFormatting.spec.ts`
+fails the build if anything does. The footer's currency text follows the same sign as well:
+`currencyLabel()` names the store's currency "ISK kr" style, the code plus that sign.
+
 A store that has not configured commerce publishes no currency, and the build says so once:
 
 ```
