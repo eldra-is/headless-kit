@@ -289,6 +289,7 @@ describe('createGatewayStorefront', () => {
                 maxPrice: 9600,
                 compareAtPrice: 12000,
                 totalVariants: 1,
+                thumbnail: { assetId: 'a-1', url: 'https://cdn.example/merino.jpg' },
               },
               {
                 id: 'p2',
@@ -307,8 +308,21 @@ describe('createGatewayStorefront', () => {
         search: async () => ({
           total: 2,
           results: [
-            { id: 'p1', kind: 'PRODUCT', title: 'Merino crew sweater', targetUrl: '/products/a' },
-            { id: 'p2', kind: 'PRODUCT', title: 'Linen tea towels', targetUrl: '/products/b' },
+            // Two ids per row on purpose: `id` is the index row, `sourceId` the catalog product.
+            {
+              id: 'row-1',
+              sourceId: 'p1',
+              kind: 'PRODUCT',
+              title: 'Merino',
+              targetUrl: '/products/a',
+            },
+            {
+              id: 'row-2',
+              sourceId: 'p2',
+              kind: 'PRODUCT',
+              title: 'Towels',
+              targetUrl: '/products/b',
+            },
           ],
         }),
       },
@@ -330,9 +344,76 @@ describe('createGatewayStorefront', () => {
     expect(products.map((product) => product.available)).toEqual([true, false]);
     expect(products.map((product) => product.stock)).toEqual(['in', 'out']);
 
+    // And the thumbnail, which a search result carries no more of than it carries a price: without
+    // it every product suggestion drew the "no image" placeholder beside its title.
+    expect(products[0]!.featuredImage).toEqual({
+      src: 'https://cdn.example/merino.jpg',
+      alt: 'Merino crew sweater',
+    });
+    expect(products[1]!.featuredImage).toBeNull();
+
+    // The title and the destination stay the index's: the title is what the query matched and what
+    // the panel highlights, and the href is the already-sanitised `targetUrl`.
+    expect(products.map((product) => [product.title, product.url])).toEqual([
+      ['Merino', '/products/a'],
+      ['Towels', '/products/b'],
+    ]);
+
     // One request for both ids, through the one repeatable `id:in:` token — never a read per row.
     expect(productListQueries).toHaveLength(1);
     expect(productListQueries[0]!.filter).toEqual(['id:in:p1,p2']);
+  });
+
+  /**
+   * The contract this read lives or dies by, and the one that shipped wrong: a search result carries
+   * **two** ids, and only one of them is a catalog product.
+   *
+   * `id` names the search-index row; `sourceId` names the document the row is about. The enrichment
+   * sent `id`, so every deployed search issued `products/list?filter=id:in:<index row id>`, got
+   * `{"data":[],"total":0}` back, and rendered every suggestion and every search result card with no
+   * price and no thumbnail — a request that looked perfectly healthy in the network panel. Asserted
+   * on the filter token itself rather than on the rendered price, because that is the sentence that
+   * has to be right and an empty price renders as nothing at all.
+   */
+  it('asks the catalogue by sourceId, never by the search row id', async () => {
+    const productListQueries: Array<Record<string, unknown>> = [];
+    const client = {
+      catalog: {
+        listProducts: async (query: Record<string, unknown>) => {
+          productListQueries.push(query);
+          return { data: [], meta: {} };
+        },
+        search: async () => ({
+          total: 2,
+          results: [
+            {
+              id: '784f3236-5419-4e0f-ba0f-9929a0a69e23',
+              sourceId: '43e660a0-4d43-4af1-8a31-591d7aaa1253',
+              kind: 'PRODUCT',
+              title: 'Ash glaze mug',
+              targetUrl: '/products/ash-glaze-mug',
+            },
+            // A row with no `sourceId` at all is asked about by nothing — never by its own id.
+            { id: 'row-2', kind: 'PRODUCT', title: 'Orphan', targetUrl: '/products/orphan' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('mug'));
+    await settle();
+
+    expect(productListQueries).toHaveLength(1);
+    expect(productListQueries[0]!.filter).toEqual(['id:in:43e660a0-4d43-4af1-8a31-591d7aaa1253']);
+    // The row's own id is the row's key and nothing else; the catalogue has never heard of it.
+    expect(JSON.stringify(productListQueries)).not.toContain(
+      '784f3236-5419-4e0f-ba0f-9929a0a69e23'
+    );
+    expect(result.data.value!.products.map((product) => product.productId)).toEqual([
+      '43e660a0-4d43-4af1-8a31-591d7aaa1253',
+      '',
+    ]);
   });
 
   /** A gateway refusal, in the shape `@eldrajs/sdk` raises it. */
@@ -348,7 +429,13 @@ describe('createGatewayStorefront', () => {
         search: async () => ({
           total: 1,
           results: [
-            { id: 'p1', kind: 'PRODUCT', title: 'Merino crew sweater', targetUrl: '/products/a' },
+            {
+              id: 'row-1',
+              sourceId: 'p1',
+              kind: 'PRODUCT',
+              title: 'Merino',
+              targetUrl: '/products/a',
+            },
           ],
         }),
       },
@@ -375,7 +462,7 @@ describe('createGatewayStorefront', () => {
 
       expect(result.error.value).toBeNull();
       const products = result.data.value!.products;
-      expect(products.map((product) => product.title)).toEqual(['Merino crew sweater']);
+      expect(products.map((product) => product.title)).toEqual(['Merino']);
       expect(products.map((product) => product.price)).toEqual([null]);
       // Not a silent degradation: a page where every row lost its price has to be diagnosable.
       expect(warn).toHaveBeenCalledWith(
@@ -399,7 +486,13 @@ describe('createGatewayStorefront', () => {
         search: async () => ({
           total: 1,
           results: [
-            { id: 'gone', kind: 'PRODUCT', title: 'Discontinued mug', targetUrl: '/products/a' },
+            {
+              id: 'row-1',
+              sourceId: 'gone',
+              kind: 'PRODUCT',
+              title: 'Discontinued mug',
+              targetUrl: '/products/a',
+            },
           ],
         }),
       },

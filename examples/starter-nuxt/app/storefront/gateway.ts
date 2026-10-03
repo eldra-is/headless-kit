@@ -4,7 +4,7 @@ import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
-import { applyVolatileSnapshots, chunkIds, collectVolatileTargets } from './volatile';
+import { chunkIds, collectVolatileTargets } from './volatile';
 import { deriveFacets, filterItems, hasActiveFilters } from './facets';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
@@ -162,7 +162,15 @@ interface RawProductList {
 }
 
 interface RawSearchResult {
+  /** The **search index row's** own id. Unique per row, and not a catalog id: nothing in the
+   *  catalogue answers to it. */
   id: string;
+  /**
+   * The id of the **document the row is about** — for a `PRODUCT` row, the catalog product id.
+   * Required by the gateway's own schema (`dto_Result`), optional here only so a response that
+   * somehow omits it degrades to an unpriced row rather than asking the catalogue about nothing.
+   */
+  sourceId?: string;
   kind: 'PRODUCT' | 'CMS_ENTRY' | 'CMS_SCHEMA' | 'CATEGORY';
   title: string;
   targetUrl?: string;
@@ -580,18 +588,24 @@ function mapSearchResponse(raw: RawSearchResponse, query: string): StorefrontSea
   const products: StorefrontSearchProduct[] = linkedResults
     .filter(({ result }) => result.kind === 'PRODUCT')
     .map(({ result, href }) => ({
+      // The index row's id, used as nothing but the row's key: a search result carries no slug, and
+      // the destination the shopper follows is `targetUrl`, not a handle this theme builds.
       handle: result.id,
       title: result.title,
       url: href,
+      // Neither an image nor a price is in a search result. `enrichedSearchResponse` reads both
+      // from the catalogue before the response reaches a block, and a product it could not reach
+      // keeps `price: null` all the way out — never a zero, which every consumer would format as the
+      // store's own "$0.00" (`StorefrontSearchProduct`).
       featuredImage: null,
-      // Nothing in a search result is a price. `pricedSearchResponse` reads the real one from the
-      // catalogue before the response reaches a block, and a product it could not price keeps this
-      // `null` all the way out — never a zero, which every consumer would format as the store's own
-      // "$0.00" (`StorefrontSearchProduct`).
       price: null,
       stock: 'in',
       available: true,
-      productId: result.id,
+      // **`sourceId`, not `id`.** `id` names the index row; `sourceId` names the catalog product,
+      // and it is the only one of the two the catalogue has ever heard of. Asking
+      // `products/list?filter=id:in:<row id>` answers zero rows every time, which is why every
+      // search suggestion and every search result card shipped without a price or a thumbnail.
+      productId: result.sourceId ?? '',
     }));
   const articles = linkedResults
     .filter(({ result }) => result.kind === 'CMS_ENTRY')
@@ -1147,6 +1161,32 @@ async function volatileSnapshots(
   ids: readonly string[],
   signal?: AbortSignal
 ): Promise<VolatileSnapshot[]> {
+  const rows = await productRowsByIds(client, ids, signal);
+  return rows.map((item) => ({
+    // Deliberately no `inventory`: the products list carries none, and an absent key means
+    // "unknown, keep what the page already shows" rather than "nothing left".
+    id: item.productId,
+    price: item.price,
+    available: item.available,
+    stock: item.stock,
+  }));
+}
+
+/**
+ * The catalogue rows for a set of **catalog product ids**, mapped the ordinary way
+ * (`mapProductListItem`). One products-list request per chunk of 50 (`chunkIds`), each asking for
+ * exactly that chunk through a single repeatable `id:in:a,b,c` token.
+ *
+ * Shared by the volatile refresh above (which keeps only the volatile values) and by the search
+ * enrichment below (which also wants the thumbnail), so a price is derived one way whichever read
+ * asked for it. A chunk whose ids cannot survive the token grammar makes no request at all: asking
+ * without the token would read the whole catalogue and answer with somebody else's products.
+ */
+async function productRowsByIds(
+  client: EldraClient,
+  ids: readonly string[],
+  signal?: AbortSignal
+): Promise<StorefrontProductListItem[]> {
   const requests = chunkIds(ids)
     .map((chunk) => ({ chunk, filter: inFilter('id', chunk) }))
     .filter(({ filter }) => filter.length > 0)
@@ -1154,40 +1194,34 @@ async function volatileSnapshots(
       const raw = (await client.catalog.listProducts(
         { pageSize: chunk.length, filter },
         // The page's own refresh passes none (`refresh.ts` owns that life cycle); the search read
-        // below passes its own, so a superseded query's pricing request is abandoned with it.
+        // below passes its own, so a superseded query's request is abandoned with it.
         signal === undefined ? undefined : { signal }
       )) as unknown as RawProductList;
       return raw.data ?? [];
     });
   const pages = await Promise.all(requests);
-  return pages.flat().map((row) => {
-    const item = mapProductListItem(row);
-    // Deliberately no `inventory`: the products list carries none, and an absent key means
-    // "unknown, keep what the page already shows" rather than "nothing left".
-    return {
-      id: item.productId,
-      price: item.price,
-      available: item.available,
-      stock: item.stock,
-    };
-  });
+  return pages.flat().map(mapProductListItem);
 }
 
 /**
- * The products a search found, priced from the catalogue.
+ * The products a search found, filled in from the catalogue.
  *
- * The search endpoint answers with titles, kinds and destinations — it carries no money at all, so
- * `mapSearchResponse` has nothing to map a price from and writes `{ amount: 0 }`. Left at that,
- * every product row in the header's search modal and every product on the results page reads as
- * the store's own zero: a real, formatted price, and the wrong one. A missing price has to look
- * missing, and the only way to make it look right is to go and get it.
+ * A search result is a title, a kind and a destination. It carries no money and no image at all, so
+ * `mapSearchResponse` has nothing to map either from — and a product row with no price renders as
+ * no price (`StorefrontSearchProduct`), a product row with no image as a placeholder. So the
+ * catalogue is asked, once, for every product the search found: `productRowsByIds` is the same
+ * batched `id:in:` products-list read the volatile refresh uses, and the price that comes back is
+ * derived exactly the way a card's prerendered one is (`mapProductListItem`'s
+ * `minPrice`/`compareAtPrice`/`status`), so the two can never disagree about what a price is.
  *
- * So it is fetched by exactly the batched read the page's volatile refresh already uses
- * (`volatileSnapshots` — one `products/list` per 50 ids through a single repeatable `id:in:a,b,c`
- * token) and folded in by exactly the same merge (`applyVolatileSnapshots`). A searched product's
- * price is therefore derived the same way a card's is (`mapProductListItem`'s
- * `minPrice`/`compareAtPrice`), and the two can never disagree about what a price is; availability
- * comes with it, which is what lets `blocks/search/results.ts` rank sold-out suggestions last.
+ * **It is asked by `sourceId`.** A `PRODUCT` result carries two ids: `id` names the search-index row
+ * and `sourceId` names the catalog product. Asking `filter=id:in:<row id>` answers zero rows every
+ * time — which is exactly what shipped, and why every suggestion and every search result card went
+ * out with no price and no thumbnail while the request itself looked perfectly healthy.
+ *
+ * Four fields are taken from the catalogue row and the rest of the search result is kept: the title
+ * is the index's (it is what the query matched, and what the panel highlights) and the destination
+ * is the index's `targetUrl`, already sanitised.
  *
  * It is part of the search read rather than a refresh registered after it, because the refresh
  * cannot reach a search: it only takes results whose first load ran under the prerender
@@ -1196,28 +1230,27 @@ async function volatileSnapshots(
  * appeared priceless and corrected itself a moment later would be a worse answer than a row that
  * arrived right.
  *
- * **Fail-soft, the way every other read here is.** No products in the response, or a pricing read
- * that did not come back, leaves every product it could not price at `price: null` — which the
- * suggestion panel renders without a price and the results page renders no card for
- * (`StorefrontSearchProduct`). A zero is never published: suggestions with no price are worth more
- * than suggestions with the wrong one. The same is true, silently, of a found id the catalogue read
- * simply did not return — `applyVolatileSnapshots` leaves an unmatched item exactly as it was.
+ * **Fail-soft, the way every other read here is.** No products in the response, a read that did not
+ * come back, or a found id the catalogue did not answer about, all leave that product at
+ * `price: null` — which the suggestion panel renders without a price and the results page renders no
+ * card for. A zero is never published: suggestions with no price are worth more than suggestions
+ * with the wrong one.
  *
  * Only the read itself is inside the `try`, and only a *read* failure is swallowed (`isReadFailure`):
  * a bug in the mapping or the merge must surface as an error, not as a page where every row quietly
  * lost its price. An abort needs no handling beyond not throwing — the caller drops the whole answer
  * when its signal fired.
  */
-async function pricedSearchResponse(
+async function enrichedSearchResponse(
   client: EldraClient,
   response: StorefrontSearchResponse,
   signal: AbortSignal
 ): Promise<StorefrontSearchResponse> {
   const ids = collectVolatileTargets(response);
   if (ids.length === 0) return response;
-  let snapshots: VolatileSnapshot[];
+  let rows: StorefrontProductListItem[];
   try {
-    snapshots = await volatileSnapshots(client, ids, signal);
+    rows = await productRowsByIds(client, ids, signal);
   } catch (caught) {
     if (!isReadFailure(caught)) throw caught;
     if (!isAbort(caught)) {
@@ -1225,7 +1258,22 @@ async function pricedSearchResponse(
     }
     return response;
   }
-  return applyVolatileSnapshots(response, snapshots);
+  if (rows.length === 0) return response;
+  const byId = new Map(rows.map((row) => [row.productId, row]));
+  return {
+    ...response,
+    products: response.products.map((product) => {
+      const row = byId.get(product.productId);
+      if (row === undefined) return product;
+      return {
+        ...product,
+        price: row.price,
+        featuredImage: row.featuredImage ?? null,
+        available: row.available,
+        stock: row.stock,
+      };
+    }),
+  };
 }
 
 /** A superseded query's own request being dropped — `AbortController.abort()` reaches `fetch` as a
@@ -1452,9 +1500,9 @@ export function createGatewayStorefront(
             {},
             { signal }
           )) as unknown as RawSearchResponse;
-          // The search index has no prices in it; `pricedSearchResponse` reads them from the
-          // catalogue before this result is published. See that function's own comment.
-          return await pricedSearchResponse(client, mapSearchResponse(raw, query.value), signal);
+          // The search index carries neither prices nor images; `enrichedSearchResponse` reads
+          // both from the catalogue before this result is published. See its own comment.
+          return await enrichedSearchResponse(client, mapSearchResponse(raw, query.value), signal);
         },
         { method: 'search.run', runtime }
       ),

@@ -37,6 +37,7 @@ import { useListbox } from '../select/useListbox';
 import { matchRange, type MatchParts } from '../select/useOptionList';
 import SearchResultsPanel from '../search-bar/SearchResultsPanel.vue';
 import { claimShortcut, ownsShortcut, releaseShortcut } from '../search-bar/shortcutOwner';
+import Spinner from '../spinner/Spinner.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type {
   SearchModalPart,
@@ -562,30 +563,55 @@ function onSubmit(): void {
   emit('submit', text.value);
 }
 
-// --- the live region (identical to SearchBar's own, including why an absent `results` announces
-// the loading message rather than "No results" — see that file) -------------------------------------
+// --- the live region (identical to SearchBar's own, including why an absent `results`
+// announces the loading message and why a response for the query already announced is not
+// debounced again — see that file) --------------------------------------------------------
 
 const ANNOUNCE_DELAY_MS = 400;
 const announcement = ref('');
 let announceTimer: ReturnType<typeof setTimeout> | undefined;
+/** The query the region is currently speaking about, or `null` while it is silent — what tells a
+ *  response for the query already announced apart from one that arrives mid-pause. */
+let announcedQuery: string | null = null;
 
-watch([query, () => props.results], ([value]) => {
+function stopAnnounceTimer(): void {
   if (announceTimer !== undefined) clearTimeout(announceTimer);
   announceTimer = undefined;
+}
+
+function announceFor(text: string): void {
+  const results = props.results;
+  announcement.value =
+    results === undefined
+      ? m.value.searchLoading
+      : results.total > 0
+        ? m.value.resultsCount(results.total, text)
+        : m.value.noResultsFor(text);
+  announcedQuery = text;
+}
+
+watch([query, () => props.results], ([value], [previousValue]) => {
   if (value === '') {
+    stopAnnounceTimer();
     announcement.value = '';
+    announcedQuery = null;
     return;
   }
-  announceTimer = setTimeout(() => {
-    const results = props.results;
-    if (results === undefined) {
-      announcement.value = m.value.searchLoading;
-    } else {
-      announcement.value =
-        results.total > 0
-          ? m.value.resultsCount(results.total, value)
-          : m.value.noResultsFor(value);
+  if (value === previousValue) {
+    // Only the response changed. If the pause has already elapsed for this query, this *is* the
+    // answer the region was waiting for and it lands with the rows. If the pause is still running,
+    // it is left alone — it will read the newest response when it fires, where restarting it would
+    // push the announcement further away with every response that arrived.
+    if (announcedQuery === value) {
+      stopAnnounceTimer();
+      announceFor(value);
     }
+    return;
+  }
+  // A different query: the pause starts again, which is the whole point of it.
+  stopAnnounceTimer();
+  announceTimer = setTimeout(() => {
+    announceFor(value);
     announceTimer = undefined;
   }, ANNOUNCE_DELAY_MS);
 });
@@ -747,6 +773,27 @@ const clearButtonClass = computed(() =>
   )
 );
 
+/**
+ * The **visible** half of the `loading` view, beside the field rather than only inside the panel (identical to `SearchBar`'s own).
+ *
+ * Spec → Panel views, `loading` gives the panel three skeleton rows; nothing gave the field itself a
+ * signal, so a shopper on a slow connection watched an almost-empty panel with no indication that
+ * anything was happening — while every other in-flight value in this package (`Price`,
+ * `StockBadge`, `Button`, `LoadMore`) draws the one shared `Spinner`. This is that same shape, on
+ * the same 300ms delay as the panel's own loading view so a fast read never flashes it. Decorative:
+ * the state is announced by the live region and by `aria-busy` on the listbox, never by the shape.
+ */
+const busyClass = computed(() =>
+  part(
+    cx(
+      'pointer-events-none absolute inset-y-0 my-auto inline-flex items-center text-muted',
+      // Inset past Clear, which itself sits left of Close (or of "Cancel" on a phone).
+      'end-20 max-md:end-29'
+    ),
+    'busy'
+  )
+);
+
 /** "Close: 2rem ghost icon button (×) … 0.5rem from the right edge" — desktop and tablet only; the
  *  phone variant below replaces it. */
 const closeIconClass = computed(() =>
@@ -856,6 +903,10 @@ const showClear = computed(() => text.value.length > 0);
         @input="onInput"
         @keydown="onKeydown"
       />
+
+      <span v-if="loadingShown" data-part="busy" :class="busyClass">
+        <Spinner class="size-4.5" />
+      </span>
 
       <button
         v-if="showClear"

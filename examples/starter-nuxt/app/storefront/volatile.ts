@@ -95,9 +95,10 @@ function isProductItem(value: unknown): value is VolatileItem {
   if (!isRecord(value)) return false;
   if (typeof value.handle !== 'string' || typeof value.productId !== 'string') return false;
   const price = value.price;
-  // `null` is the search path's "price unknown" (`StorefrontSearchProduct`) — still a product row,
-  // and the one that most needs this read: it is where its first price comes from. `undefined`
-  // (no `price` key at all) is not, which is what keeps a cart line out.
+  // `null` is "price unknown" (`StorefrontSearchProduct`, before `gateway.ts` has filled it in from
+  // the catalogue) — still a product row, and `collectVolatileTargets` is what collects the ids that
+  // read is made from. `undefined` (no `price` key at all) is not a product row, which is what keeps
+  // a cart line out.
   if (price === null) return true;
   return isRecord(price) && typeof price.amount === 'number';
 }
@@ -198,10 +199,11 @@ function applyToItem(item: VolatileItem, byId: Map<string, VolatileSnapshot>): V
  * way round is not a change.
  */
 function applyPrice(current: StorefrontPrice | null, next: StorefrontPrice): StorefrontPrice {
-  // No price at all yet — the search path, where this merge is the product's *first* price rather
-  // than a refresh of one already on screen. The snapshot is taken whole, `from` included: the
-  // price spread is a shape of the catalogue the page has never had, not a value being refreshed
-  // over one it is already showing, so the rule above does not apply to it.
+  // No price at all yet. `isProductItem` accepts such a row, so this merge has to as well — the
+  // predicate and the merge are a pair, and a shape one of them lets through must not make the other
+  // throw. The snapshot is then taken whole, `from` included: the price spread is a shape of the
+  // catalogue the page has never had, not a value being refreshed over one it is already showing, so
+  // the rule above does not apply to it.
   if (current === null) return next;
   const compareAt = next.compareAt ?? null;
   if (current.amount === next.amount && (current.compareAt ?? null) === compareAt) return current;

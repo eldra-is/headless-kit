@@ -713,10 +713,56 @@ describe('SearchBar', () => {
       expect(region().text()).toBe(enUS.searchLoading);
       expect(region().text()).not.toContain('No results');
 
+      // The answer the region was waiting for lands with the rows, not 400ms behind them: the
+      // debounce is the typing pause, and it has already been paid for this query. A screen-reader
+      // user was being told "Searching…" after the list had changed under them.
       await wrapper.setProps({ results: RESULTS });
-      vi.advanceTimersByTime(400);
       await nextTick();
       expect(region().text()).toBe(enUS.resultsCount(RESULTS.total, 'bowl'));
+    });
+
+    /** The pause itself is unchanged: a response that arrives *during* it still waits for it, so a
+     *  fast backend cannot make the region speak on every keystroke. */
+    it('still waits out the typing pause for a response that arrives inside it', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount({ results: undefined });
+      const region = () => wrapper.find('[data-part="liveRegion"]');
+      const input = wrapper.find('[data-part="field"]');
+      (input.element as HTMLInputElement).value = 'bowl';
+      await input.trigger('input');
+
+      vi.advanceTimersByTime(200);
+      await wrapper.setProps({ results: RESULTS });
+      await nextTick();
+      expect(region().text()).toBe('');
+
+      vi.advanceTimersByTime(200);
+      await nextTick();
+      expect(region().text()).toBe(enUS.resultsCount(RESULTS.total, 'bowl'));
+    });
+
+    /**
+     * The visible half of the same state. The panel's three skeleton rows are inside a popup a
+     * closed field does not have, and nothing beside the field itself said anything — so a shopper
+     * on a slow connection saw an almost-empty panel and no sign that a request was out.
+     */
+    it('draws a spinner beside the field and marks the listbox busy while loading', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount({ modelValue: 'wool', results: undefined, loading: true });
+      field(wrapper).focus();
+      await wrapper.find('[data-part="field"]').trigger('focus');
+      await nextTick();
+      expect(wrapper.find('[data-part="busy"]').exists()).toBe(false);
+
+      vi.advanceTimersByTime(300);
+      await nextTick();
+      expect(wrapper.find('[data-part="busy"]').exists()).toBe(true);
+      expect(inPanel(wrapper, '[data-part="listbox"]').attributes('aria-busy')).toBe('true');
+
+      await wrapper.setProps({ results: RESULTS, loading: false });
+      await nextTick();
+      expect(wrapper.find('[data-part="busy"]').exists()).toBe(false);
+      expect(inPanel(wrapper, '[data-part="listbox"]').attributes('aria-busy')).toBeUndefined();
     });
   });
 
