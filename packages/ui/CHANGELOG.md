@@ -10,9 +10,16 @@ Release-please writes the generated notes from commit messages and does not repl
 - `revalidating` on `Price`, `ProductCard` and `StockBadge`: a value that is already on screen while a fresher one is fetched keeps its text and its place, dimmed to the new `--eldra-revalidating-opacity` token (default `0.9`, from `tokens.json`), with a `1em` spinner drawn beside it outside the component's own box — no width change, no layout shift — plus `aria-busy="true"` and a visually hidden `aria-live="polite"` region reading the new `updatingPrice` / `updatingStock` messages. Distinct from `loading`, which still renders the skeleton and wins when both are set; `ProductCard` passes the flag to its price and stock line and is otherwise unchanged. New parts: `spinner`, `srStatus` on `Price` and `StockBadge`.
 - `announce` on `Price`, `StockBadge` and `ProductCard` (default `true`, forwarded by the card): with `announce: false` no `aria-live` region is rendered while `aria-busy`, the dim and the spinner stay — so a refreshing grid announces once at page level instead of once per value.
 - `--eldra-shadow-float` / `shadow-float`: a wider, softer shadow than `shadow-sm` for a sticky header once the page has scrolled (from `tokens.json`).
+- `searchLoading` message (`'Searching…'`), used by `SearchBar` and `SearchModal` — see Fixed below.
 
 ### Fixed
 
+- `SearchBar` / `SearchModal`: the live region no longer announces "No results for “q”" while a
+  request for that query is still in flight. With `results` absent — the consumer's "nothing yet",
+  which already drew the loading panel rather than the empty one — the region now announces the new
+  `searchLoading` message, and the count (or a genuine "No results") lands when the response does.
+  The visible panel was already right; the announcement contradicted it for as long as the request
+  took.
 - `Lightbox`: the thumbnail strip has room above the tiles for the current tile's outline, which the strip's own scroll container used to clip.
 - `Carousel`: slide positions are measured relative to the track (the track is now positioned, and
   the slide-start math subtracts the track's own offset when a `classes.track` override removes

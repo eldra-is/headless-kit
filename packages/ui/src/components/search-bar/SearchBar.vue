@@ -578,6 +578,12 @@ function onSubmit(): void {
  * Spec → Behaviour, Announcements: 'a visually hidden `aria-live="polite"` region announces "4
  * results for mer" … or "No results for teapot", debounced until typing pauses (400ms)'. An empty
  * query "clears the live region".
+ *
+ * **"No results" is an answer, so it needs one.** With `results` absent there is no response for
+ * this query yet — `awaitingFirstResults`, the state the panel draws as `loading` — and announcing
+ * "No results for “q”" there is a wrong answer that corrects itself a second later, in the one
+ * channel that cannot be re-read. The region says `searchLoading` instead, and the count (or the
+ * genuine "No results") lands when the response does, on this same debounce.
  */
 const ANNOUNCE_DELAY_MS = 400;
 const announcement = ref('');
@@ -591,8 +597,13 @@ watch([query, () => props.results], ([text]) => {
     return;
   }
   announceTimer = setTimeout(() => {
-    const total = props.results?.total ?? 0;
-    announcement.value = total > 0 ? m.value.resultsCount(total, text) : m.value.noResultsFor(text);
+    const results = props.results;
+    if (results === undefined) {
+      announcement.value = m.value.searchLoading;
+    } else {
+      announcement.value =
+        results.total > 0 ? m.value.resultsCount(results.total, text) : m.value.noResultsFor(text);
+    }
     announceTimer = undefined;
   }, ANNOUNCE_DELAY_MS);
 });

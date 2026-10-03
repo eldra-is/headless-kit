@@ -120,6 +120,7 @@ export const isIS: UiMessages = {
     const count = singular(n) ? `Sjá ${n} niðurstöðu` : `Sjá allar ${n} niðurstöður`;
     return query === undefined || query === '' ? count : `${count} fyrir „${query}“`;
   },
+  searchLoading: 'Leita…',
   shortcutHint: 'Ýttu á / til að leita',
   searchMoveHint: 'til að fara á milli',
   searchOpenHint: 'til að opna',
