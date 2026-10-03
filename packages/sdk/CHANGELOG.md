@@ -9,6 +9,16 @@ platform repository.
 
 ## Unreleased
 
+- `client.features.getCommerce()` answers what the store sells in: the organisation's own
+  `commerce` settings (`{ currency, taxInclusivePricing, defaultTaxRate }`, exported as
+  `EldraOrganizationCommerce`), or `null` when it publishes none. `EldraOrganizationDetails` grows
+  the same `commerce` field, so a caller that already holds an organisation can read it there
+  instead. A store that has not configured commerce publishes nothing, and that is reported as
+  `null` rather than filled in with a default: a storefront can then render a price as a number
+  with its code instead of showing one currency's amounts under another's symbol. The type is
+  hand-written, like `EldraOrganizationDetails` around it, because the organisation read has to
+  resolve without the generated contract.
+
 - **Breaking:** checkout is the platform's. `client.checkout.handoffUrl({ cartId, checkoutUrl })`
   and the `checkoutUrl` client option are gone, replaced by `await client.checkout.url({ cartId,
 locale })`: the base URL comes from `client.platform.config()` — a new read of

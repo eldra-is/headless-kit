@@ -85,6 +85,7 @@ export type {
   EldraFeatureClient,
   EldraHttpClient,
   EldraHttpRequest,
+  EldraOrganizationCommerce,
   EldraOrganizationDetails,
   EldraOrganizationFeature,
   EldraOrganizationOptions,

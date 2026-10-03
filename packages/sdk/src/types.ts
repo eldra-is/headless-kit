@@ -146,11 +146,32 @@ export interface EldraOrganizationFeature {
   enabled: boolean;
 }
 
+/**
+ * The store's commerce settings, as `GET /organization/v1/{orgId}` publishes them under
+ * `commerce` (the gateway's `dto_OrganizationCommerce`). **Absent on a store that has not
+ * configured commerce**, which is why `features.getCommerce()` answers `null` rather than a
+ * default: a storefront that cannot know what it sells in has to say so, not guess a currency.
+ *
+ * Written by hand for the same reason `EldraOrganizationDetails` below it is: the organisation
+ * read backs every `features.*` method, so its shape has to resolve without the Vite plugin's
+ * generated `contract.ts` augmentation.
+ */
+export interface EldraOrganizationCommerce {
+  /** ISO 4217 code every catalog price is quoted in, e.g. `ISK`. */
+  currency: string;
+  /** Prices already contain VAT; a storefront shows them as they are. */
+  taxInclusivePricing: boolean;
+  /** Fraction, e.g. `0.24` — applies to shipping and to products without their own rate. */
+  defaultTaxRate: number;
+}
+
 export interface EldraOrganizationDetails {
   id: string;
   name: string;
   description?: string;
   features?: EldraOrganizationFeature[];
+  /** See `EldraOrganizationCommerce`: absent, or `null`, until the store configures commerce. */
+  commerce?: EldraOrganizationCommerce | null;
   paymentProviders?: unknown;
   createdAt?: string;
   updatedAt?: string;
@@ -256,6 +277,15 @@ export interface EldraFeatureClient {
     options?: EldraOrganizationOptions,
     context?: EldraRequestContext
   ): Promise<EldraFeatureCapabilities>;
+  /**
+   * What the store sells in: the organisation's own `commerce` settings, or `null` when it
+   * publishes none. Reads the same organisation document the other `features` methods read, so a
+   * caller that already has one can take `commerce` off it instead of calling this.
+   */
+  getCommerce(
+    options?: EldraOrganizationOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraOrganizationCommerce | null>;
 }
 
 export interface EldraClient {
