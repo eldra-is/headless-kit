@@ -52,7 +52,7 @@ precedence.
 | `checkout`  | `url`                                                                                                                  |
 | `orders`    | `get`, `recover`                                                                                                       |
 | `inventory` | `availability`                                                                                                         |
-| `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`                                                              |
+| `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`, `getCommerce`                                               |
 | `platform`  | `config`                                                                                                               |
 
 `checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
@@ -63,6 +63,13 @@ the read failure as `cause` where there was one — when the platform published 
 the config could not be read, and when what was published is not an absolute `http(s)` URL. A
 storefront should treat all three as "no Check out to show" rather than something to report to a
 shopper.
+
+`features.getCommerce()` answers what the store sells in — `{ currency, taxInclusivePricing,
+defaultTaxRate }` — or `null` when the organisation publishes no commerce settings, which is the
+honest answer for a store that has not configured any: a storefront can then render a price as a
+number rather than under a currency symbol nobody chose. It reads the same organisation document the
+rest of the group reads, so a caller already holding an `EldraOrganizationDetails` should take
+`commerce` off it instead of asking again.
 
 Every failed request throws `EldraHttpError` with `status` and the gateway's problem `code`.
 `createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without
