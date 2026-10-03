@@ -35,6 +35,22 @@ const props = defineProps<{
 const spanRef = ref<HTMLElement | null>(null);
 
 /**
+ * The fade currently playing, so the next one can cancel it.
+ *
+ * Two values arriving in quick succession — a refresh landing while an earlier one is still fading
+ * in, a visitor stepping a quantity twice — would otherwise leave two `Animation`s driving the
+ * same `opacity`, and the composited result is whichever the engine applied last, which can be the
+ * *older* one finishing at full opacity after the newer one has restarted from transparent. One
+ * animation at a time means the newest change is always the one on screen.
+ *
+ * A plain closure variable rather than a `ref`: it is a handle this component owns and never
+ * renders from, so making it reactive would add a dependency no template reads (the same reasoning
+ * `Price.vue`'s own `lastWarnedInvalidCurrency` is written with). It is per instance, because
+ * `<script setup>` re-runs per mount.
+ */
+let playing: Animation | null = null;
+
+/**
  * Deliberately no `immediate`: a value arriving with the component has not *changed*, and fading
  * in every price on first paint would be an entrance animation the spec never asks for.
  *
@@ -44,7 +60,10 @@ const spanRef = ref<HTMLElement | null>(null);
  */
 watch(
   () => props.text,
-  () => fadeInChangedValue(spanRef.value),
+  () => {
+    playing?.cancel();
+    playing = fadeInChangedValue(spanRef.value);
+  },
   { flush: 'post' }
 );
 </script>

@@ -60,6 +60,23 @@ describe('prefersReducedMotion', () => {
     expect(prefersReducedMotion()).toBe(true);
   });
 
+  /**
+   * Asked every time, never remembered: a visitor can turn the setting on or off while the page is
+   * open, and the next value change has to see the new answer. (Caching the first one is the
+   * mistake a `const prefersReduced = prefersReducedMotion()` at module scope would make.)
+   */
+  it('answers again on every call when the setting changes mid-session', () => {
+    let reduce = false;
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      () => ({ matches: reduce }) as unknown as MediaQueryList
+    );
+    expect(prefersReducedMotion()).toBe(false);
+    reduce = true;
+    expect(prefersReducedMotion()).toBe(true);
+    reduce = false;
+    expect(prefersReducedMotion()).toBe(false);
+  });
+
   it('is false where matchMedia does not exist', () => {
     vi.stubGlobal('matchMedia', undefined);
     expect(prefersReducedMotion()).toBe(false);

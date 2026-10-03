@@ -865,6 +865,30 @@ describe('Price — the amount changing', () => {
     played.restore();
   });
 
+  /**
+   * **Everything about the refresh ends in the same render.** The fresher amount, `aria-busy`, the
+   * dim and the spinner all come from the one prop change, so there is no instant at which the
+   * component says "settled" over a value that is not. (It was not always so: an `out-in`
+   * transition kept the previous amount on screen for a full `duration-base` after this render,
+   * undimmed and un-busy — which is the defect the enter-only fade exists to prevent.)
+   */
+  it('settles the value, the busy flag, the dim and the spinner together', async () => {
+    const wrapper = readyPrice({ amount: 4800, compareAt: 6000, revalidating: true });
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra-revalidating');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
+
+    // The shape of a real refresh: the flag clears and the fresher amount arrives together.
+    await wrapper.setProps({ amount: 3600, revalidating: false });
+
+    expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
+    expect(wrapper.attributes('aria-busy')).toBeUndefined();
+    expect(wrapper.get('[data-part="current"]').classes()).not.toContain('eldra-revalidating');
+    expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
+    expect(wrapper.get('[data-part="srStatus"]').text()).toBe('');
+    wrapper.unmount();
+  });
+
   it('has no axe violations across a value change', async () => {
     const wrapper = readyPrice({ amount: 3840, compareAt: 4800, revalidating: true });
     await wrapper.setProps({ amount: 3600, compareAt: 4000, revalidating: false });

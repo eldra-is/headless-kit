@@ -72,6 +72,27 @@ describe('ValueText', () => {
     played.restore();
   });
 
+  /**
+   * Two values in quick succession — a refresh landing while an earlier fade is still running, a
+   * visitor stepping a quantity twice — must leave one animation on the element, not a pile of
+   * them driving the same `opacity` with the oldest free to finish last and show the wrong frame.
+   */
+  it('cancels the fade in flight before starting the next one', async () => {
+    const played = recordAnimations();
+    const wrapper = mountValue('$48.00');
+    await wrapper.setProps({ text: '$36.00' });
+    await wrapper.setProps({ text: '$12.00' });
+    await wrapper.setProps({ text: '$9.00' });
+
+    expect(played.calls).toHaveLength(3);
+    expect(played.calls.map((call) => call.cancelled)).toEqual([true, true, false]);
+    // The one still running is the newest value's, and the element shows that value.
+    expect(played.calls.at(-1)!.text).toBe('$9.00');
+    expect(wrapper.text()).toBe('$9.00');
+    wrapper.unmount();
+    played.restore();
+  });
+
   it('plays nothing when the text is set to the value it already has', async () => {
     const played = recordAnimations();
     const wrapper = mountValue('6.990 kr.');

@@ -33,6 +33,9 @@ export interface RecordedAnimation {
   /** The element's text at the moment the animation was played — which is how a spec tells a fade
    *  that shows the new value from one that would have shown the old one. */
   text: string | null;
+  /** Set by the fake `Animation`'s own `cancel()`, so a spec can see that a superseded fade was
+   *  stopped rather than left running beside its replacement. */
+  cancelled: boolean;
 }
 
 /**
@@ -45,15 +48,22 @@ export function recordAnimations(): { calls: RecordedAnimation[]; restore: () =>
   const spy = vi
     .spyOn(Element.prototype, 'animate')
     .mockImplementation(function (this: Element, keyframes, options) {
-      calls.push({
+      const call: RecordedAnimation = {
         el: this,
         text: this.textContent,
         keyframes: (keyframes ?? []) as Keyframe[],
         options: (typeof options === 'number'
           ? { duration: options }
           : (options ?? {})) as KeyframeAnimationOptions,
-      });
-      return { cancel() {}, finished: Promise.resolve() } as unknown as Animation;
+        cancelled: false,
+      };
+      calls.push(call);
+      return {
+        cancel() {
+          call.cancelled = true;
+        },
+        finished: Promise.resolve(),
+      } as unknown as Animation;
     });
   return { calls, restore: () => spy.mockRestore() };
 }

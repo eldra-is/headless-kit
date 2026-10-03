@@ -1036,11 +1036,12 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
     `success`, `warning`, `danger`) still clears **3:1** against all three grounds this package
     ships: worst case 3.60:1 on `background`, 3.41:1 on `surface`, 3.17:1 on `surface-strong`. It
     is **below 4.5:1** (1.4.3) for everything but `text`, and that is the trade this default takes
-    — for the length of the read, with `aria-busy` set while it lasts. All six clear 4.5:1 only at
-    α ≥ 0.86 / 0.89 / 0.94, so a store that needs the AA text ratio unbroken raises the token to
-    `0.9` (the dim is then nearly invisible and the spinner carries the state); one that wants it
-    louder lowers it and gives up the 3:1 floor. Being a token rather than a number in a class is
-    what makes either direction a one-line decision.
+    — for the length of the read, with `aria-busy` set while it lasts. A store that needs 4.5:1
+    unbroken raises the token: `0.9` clears it for all six on `background` and on `surface`, and
+    `surface-strong` needs `0.94` (at either, the dim is nearly invisible and the spinner carries
+    the state on its own). One that wants the state louder lowers it and gives up the 3:1 floor.
+    Being a token rather than a number in a class is what makes either direction a one-line
+    decision.
   - **A changed value fades in.** `Price`'s amount and compare-at, and `StockBadge`'s status line,
     play a 0 → 1 opacity fade over `--eldra-duration-base` when their formatted text changes
     (`src/utils/valueFade.ts`). **Enter only**: the new value is in the DOM the instant the props
