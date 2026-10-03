@@ -133,8 +133,14 @@ const { commerce } = useRuntimeConfig().public.eldra as { commerce: StoreCommerc
 `commerce` is `null` when the store has not configured commerce, when the site is built without
 gateway credentials, or when the read failed — the build prints one warning (naming the cause when
 there was one) and finishes, because a currency nobody can fetch should cost a symbol, not a deploy.
-A theme that formats prices should treat `null` as "render a plain number", never as a currency to
+A theme that formats prices should treat that as "render a plain number", never as a currency to
 guess at; the starter does exactly that in `app/storefront/money.ts`.
+
+One detail of Nuxt's own serialisation matters when you read the key: a `null` public runtime-config
+value reaches the page as an **empty string**, so on a store that published nothing `commerce` is
+`''` rather than `null` (the module's `locale` does the same). Treat anything that is not an object
+as "no currency" — not as a malformed record — and only complain about a record that is present but
+incomplete.
 
 The module supplies no override of its own, on purpose: the platform publishes the currency the
 catalogue's prices are actually in, so a theme-side setting could only ever relabel real amounts.
