@@ -940,6 +940,41 @@ for them. `/404` has the same shape for the same reason.
 mounts `app/app.vue` — and `test/pages/ssr.spec.ts` asserts the same two facts about the server-
 rendered shell: one closed `<dialog>`, and a bag that is still a link.
 
+## The `/search` route
+
+`/search` is the other code route, for the same reasons `/cart` is one. Everything in the theme that
+can submit a search already names it: `@eldrajs/ui`'s `SearchBar` and `SearchModal` default their
+`action` to `/search` and submit `${action}?q=…`, and `blocks/search/Block.vue`'s own chips, "Did you
+mean" link and per-section "View all" links point back at it. `app/pages/search.vue` answers it,
+renders `blocks/search/Block.vue` in its `results-page` variant with an entry the theme owns, and —
+being a concrete route — outranks `app/pages/[...slug].vue`, so the gateway is never asked about it.
+`nuxt.config.ts` lists it in `nitro.prerender.routes` beside `/cart`; without that line the artifact
+has no `search/index.html` and a static host answers 404 however the app would have rendered it.
+
+**One file answers every query.** A static host serves the same `search/index.html` for `/search` and
+for `/search?q=mug`, so the prerendered HTML cannot be about any one query: it is the block's **idle**
+state (the heading, the field, the popular searches), and the query is read out of the URL after
+hydration through `useStorefront().route.query`, which the block already follows. That is why the
+block prints no heading and no no-results stack without a query — the empty query is a real
+`search.run()` answer with `total: 0`, and taking it at face value baked "No results for “”" into
+every search page in the artifact.
+
+**A read in flight is not an answer.** `StorefrontResult.data` keeps the previous answer until the
+next one lands, which is right for a page of prerendered products and wrong for a search panel: the
+first thing `search.run()` ever answers is the empty query's `{ total: 0 }`, and a `results` object
+with a zero total is `SearchBar`/`SearchModal`'s _"nothing found"_ view. So both the header
+(`blocks/navigation/Block.vue`) and the search block compare `StorefrontSearchResponse.query` against
+the query in the field, hand the component `undefined` while those differ — its "nothing yet", which
+draws the loading view past 300ms — and read `loading`, not `pending`, for whether a read is in
+flight. `pending` is the skeleton flag ("a read in flight with _nothing to show_"), so it is false for
+every search after the first one.
+
+Two fields the theme's own entry deliberately leaves absent: `popularSearches` and
+`noResultsCollection` are a merchant's answers, not a theme's. An author who wants them places the
+`search` block on a page of their own. The same two limits as `/cart` apply otherwise — the copy is
+`app/i18n`'s until a storefront settings entry exists, and the route carries no header or footer,
+because the runtime resolves those only as part of a CMS page or route template.
+
 ## 4. Storybook and generated previews
 
 Storybook 10 (`@storybook/vue3-vite`) lives in `examples/starter-nuxt/.storybook/`, with
