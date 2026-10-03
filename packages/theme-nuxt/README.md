@@ -121,24 +121,28 @@ preview bridge. See [examples/starter-nuxt](../../examples/starter-nuxt) for a f
 ## What the store sells in
 
 The module reads the organisation's commerce settings once, during the build, and puts them on the
-runtime config beside the gateway URL and the org id:
+runtime config beside the gateway URL and the org id. `StoreCommerce` is exported for exactly this,
+so the key's shape is not re-declared per theme:
 
 ```ts
-const { commerce } = useRuntimeConfig().public.eldra as {
-  commerce: { currency: string; taxInclusivePricing: boolean; defaultTaxRate: number } | null;
-};
+import type { StoreCommerce } from '@eldrajs/theme-nuxt/commerce';
+
+const { commerce } = useRuntimeConfig().public.eldra as { commerce: StoreCommerce | null };
 ```
 
 `commerce` is `null` when the store has not configured commerce, when the site is built without
-gateway credentials, or when the read failed — the build prints one warning and finishes, because a
-currency nobody can fetch should cost a symbol, not a deploy. A theme that formats prices should
-treat `null` as "render the number and its code", never as a currency to guess at; the starter does
-exactly that in `app/storefront/money.ts`.
+gateway credentials, or when the read failed — the build prints one warning (naming the cause when
+there was one) and finishes, because a currency nobody can fetch should cost a symbol, not a deploy.
+A theme that formats prices should treat `null` as "render a plain number", never as a currency to
+guess at; the starter does exactly that in `app/storefront/money.ts`.
 
-There is no environment override on purpose. The platform publishes the currency the catalogue's
-prices are actually in, so a theme-side `ELDRA_CURRENCY` could only ever relabel real amounts.
-It is read at build rather than in the browser because every price on a prerendered page is
-formatted against it.
+The module supplies no override of its own, on purpose: the platform publishes the currency the
+catalogue's prices are actually in, so a theme-side setting could only ever relabel real amounts.
+(Nuxt's own public-runtime-config environment overriding — `NUXT_PUBLIC_ELDRA_COMMERCE_CURRENCY` and
+its siblings — still applies wherever Nuxt reads runtime config at request time, as it does to every
+other public key. On a prerendered site there is nothing for it to override: the value is baked into
+each page's payload at build.) It is read at build rather than in the browser because every price on
+a prerendered page is formatted against it.
 
 ## Development
 

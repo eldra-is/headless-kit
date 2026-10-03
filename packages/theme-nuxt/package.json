@@ -29,6 +29,10 @@
       "types": "./dist/types.d.mts",
       "import": "./dist/module.mjs"
     },
+    "./commerce": {
+      "types": "./dist/runtime/commerce.d.ts",
+      "import": "./dist/runtime/commerce.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

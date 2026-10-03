@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   NO_CURRENCY_WARNING,
+  READ_TIMEOUT_MS,
   readStoreCommerce,
   type StoreCommerceReader,
 } from '../src/runtime/commerce';
@@ -11,6 +12,10 @@ function reader(getCommerce: StoreCommerceReader['features']['getCommerce']): St
 }
 
 const ISK = { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 };
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('readStoreCommerce', () => {
   it('passes the store’s own currency through to the runtime config', async () => {
@@ -26,18 +31,36 @@ describe('readStoreCommerce', () => {
   });
 
   it('bounds the read, so a gateway that never answers cannot hang the build', async () => {
-    const signals: Array<AbortSignal | undefined> = [];
-
-    await readStoreCommerce(
-      reader(async (_options, context) => {
-        signals.push(context?.signal);
-        return ISK;
-      }),
-      vi.fn()
+    // A gateway that accepts and never answers. Under fake timers, advancing to the bound is what
+    // aborts the signal the read was given — and the abort has to come back as `null`, not as a
+    // throw out of a module `setup`.
+    // Also pins the bound itself: a timeout long enough to outlast any real build would make the
+    // rest of this test pass while bounding nothing.
+    expect(READ_TIMEOUT_MS).toBeLessThanOrEqual(30_000);
+    vi.useFakeTimers();
+    const warn = vi.fn();
+    let signal: AbortSignal | undefined;
+    const pending = readStoreCommerce(
+      reader(
+        (_options, context) =>
+          new Promise((_resolve, reject) => {
+            signal = context?.signal;
+            signal?.addEventListener('abort', () => reject(signal?.reason));
+          })
+      ),
+      warn
     );
 
-    expect(signals).toHaveLength(1);
-    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS - 1);
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signal?.aborted).toBe(true);
+
+    await expect(pending).resolves.toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain(NO_CURRENCY_WARNING);
   });
 
   it('warns once and answers null for a store that publishes no commerce', async () => {
@@ -62,8 +85,10 @@ describe('readStoreCommerce', () => {
     expect(warn).toHaveBeenCalledWith(NO_CURRENCY_WARNING);
   });
 
-  it('survives an unreachable gateway, naming the failure beside the warning', async () => {
-    // The build must finish: a currency nobody can read costs a symbol, not a deploy.
+  it('survives an unreachable gateway, naming the cause in the one warning it prints', async () => {
+    // The build must finish: a currency nobody can read costs a symbol, not a deploy. And it prints
+    // one line, not two — a build log must not read as reporting two separate faults — with the
+    // cause in it, since "not configured" and "refused" are different problems.
     const warn = vi.fn();
 
     await expect(
@@ -72,34 +97,31 @@ describe('readStoreCommerce', () => {
         warn
       )
     ).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledTimes(2);
-    expect(warn.mock.calls[0]?.[0]).toContain('fetch failed');
-    expect(warn).toHaveBeenLastCalledWith(NO_CURRENCY_WARNING);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain(NO_CURRENCY_WARNING);
+    expect(warn.mock.calls[0]?.[0]).toContain('the organisation read failed: fetch failed');
   });
 
-  it('refuses a half-filled answer rather than passing undefined fields on', async () => {
+  it('refuses a half-filled answer rather than passing undefined fields on, and says so', async () => {
     // A theme reads `commerce.taxInclusivePricing` as a boolean; `undefined` would read as "prices
-    // exclude tax" at every call site that tests it.
-    const warn = vi.fn();
-    const partial = { currency: 'ISK' } as unknown as typeof ISK;
+    // exclude tax" at every call site that tests it. Discarding a record the organisation did
+    // publish is worth naming, though — it is not the same as a store that configured nothing.
+    const partials: Array<typeof ISK> = [
+      { currency: 'ISK' } as unknown as typeof ISK,
+      { ...ISK, currency: '' },
+      { ...ISK, defaultTaxRate: '0.24' } as unknown as typeof ISK,
+    ];
 
-    await expect(
-      readStoreCommerce(
-        reader(async () => partial),
-        warn
-      )
-    ).resolves.toBeNull();
-    await expect(
-      readStoreCommerce(
-        reader(async () => ({ ...ISK, currency: '' })),
-        warn
-      )
-    ).resolves.toBeNull();
-    await expect(
-      readStoreCommerce(
-        reader(async () => ({ ...ISK, defaultTaxRate: '0.24' }) as unknown as typeof ISK),
-        warn
-      )
-    ).resolves.toBeNull();
+    for (const partial of partials) {
+      const warn = vi.fn();
+      await expect(
+        readStoreCommerce(
+          reader(async () => partial),
+          warn
+        )
+      ).resolves.toBeNull();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toContain('incomplete commerce record');
+    }
   });
 });
