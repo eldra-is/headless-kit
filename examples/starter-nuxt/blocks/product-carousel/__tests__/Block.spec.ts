@@ -368,26 +368,45 @@ describe('product-carousel block', () => {
   });
 
   describe('keyboard', () => {
-    it('ArrowLeft/ArrowRight move the focused track one slide; arrows disable at the ends', async () => {
+    /**
+     * The row is a composite widget: one tab stop, arrow keys inside (`@eldrajs/ui`'s `Carousel`,
+     * and the spec's own Keyboard rule). The track is not a stop of its own, so the arrows are
+     * driven the way a shopper really drives them — from the card's own link, with focus already
+     * on it. `test/carouselKeyboard.spec.ts` holds the whole rule across all four blocks that
+     * render a `Carousel`; this is the product row's share of it.
+     */
+    it('ArrowRight/ArrowLeft move between cards from inside one; arrows disable at the ends', async () => {
       const wrapper = mountBlock(mock, { attach: true });
       await flushPromises();
       const track = wrapper.get('[data-part="track"]');
-      expect(track.attributes('tabindex')).toBe('0');
+      expect(track.attributes('tabindex')).toBeUndefined();
 
       const prevButton = () => wrapper.get('[data-part="prev"]');
       const nextButton = () => wrapper.get('[data-part="next"]');
-      const slideCount = wrapper.findAll('[aria-roledescription="slide"]').length;
+      const cards = () => Array.from(track.element.children) as HTMLElement[];
+      const cardLink = (index: number) =>
+        cards()[index]!.querySelector<HTMLElement>('[data-part="link"]')!;
+      const slideCount = cards().length;
+      const pressOnFocused = async (key: string) => {
+        (document.activeElement as HTMLElement).dispatchEvent(
+          new KeyboardEvent('keydown', { key, bubbles: true })
+        );
+        await flushPromises();
+      };
 
+      cardLink(0).focus();
       expect(prevButton().attributes('disabled')).toBeDefined();
       expect(nextButton().attributes('disabled')).toBeUndefined();
 
       for (let step = 0; step < slideCount - 1; step += 1) {
-        await track.trigger('keydown', { key: 'ArrowRight' });
+        await pressOnFocused('ArrowRight');
       }
+      expect(document.activeElement).toBe(cardLink(slideCount - 1));
       expect(prevButton().attributes('disabled')).toBeUndefined();
       expect(nextButton().attributes('disabled')).toBeDefined();
 
-      await track.trigger('keydown', { key: 'ArrowLeft' });
+      await pressOnFocused('ArrowLeft');
+      expect(document.activeElement).toBe(cardLink(slideCount - 2));
       expect(nextButton().attributes('disabled')).toBeUndefined();
     });
 
@@ -405,26 +424,51 @@ describe('product-carousel block', () => {
       expect(document.activeElement).toBe(wrapper.get('[data-part="prev"]').element);
     });
 
-    it('Tab reaches every card once, after the heading link and the arrows', async () => {
+    /**
+     * `Tab` stops **once** for the whole row, however many products are in it, and that stop is on
+     * the active card's own entry point. Tabbing used to stop once for the track and then once per
+     * card — seven presses to get past a six-card row, which is what the one-tab-stop rule exists
+     * to stop. The arrow keys are how the other cards are reached (the spec above).
+     */
+    it('takes one tab stop on the active card, and Tab from it leaves the carousel', async () => {
       const wrapper = mountBlock(
         { ...mock, viewAllHref: '/collections/knitwear' },
         { attach: true }
       );
       await flushPromises();
-      const focusables = [
-        ...wrapper.element.querySelectorAll<HTMLElement>('a, button, [tabindex]'),
-      ];
       const cardLinks = wrapper.findAll('[data-part="link"]');
       expect(cardLinks.length).toBe(wrapper.findAllComponents(ProductCard).length);
 
-      // Heading link, then prev/next arrows, then the focusable track, then one link per card.
-      expect(focusables[0]!.tagName).toBe('A');
-      expect(focusables[1]!.getAttribute('data-part')).toBe('prev');
-      expect(focusables[2]!.getAttribute('data-part')).toBe('next');
-      expect(focusables[3]!.getAttribute('data-part')).toBe('track');
-      const trailingLinks = focusables.slice(4);
-      expect(trailingLinks).toHaveLength(cardLinks.length);
-      for (const el of trailingLinks) expect(el.tagName).toBe('A');
+      const track = wrapper.get('[data-part="track"]').element as HTMLElement;
+      const cards = Array.from(track.children) as HTMLElement[];
+      const tabbable = (root: HTMLElement) =>
+        [...root.querySelectorAll<HTMLElement>('a, button:not([disabled]), [tabindex]')].filter(
+          (el) => el.getAttribute('tabindex') !== '-1'
+        );
+
+      // Everything `Tab` stops on in the whole block, in document order: the heading link, the
+      // enabled arrow (previous is disabled at the start, so it is not a stop), and then the first
+      // card's own controls — nothing else inside the track at all, so the next `Tab` after the
+      // last of them leaves the carousel for the page below, and `Shift+Tab` from the first goes
+      // back to the arrow rather than into another card.
+      const stops = tabbable(wrapper.element as HTMLElement);
+      const inside = tabbable(track);
+      expect(stops[0]!.tagName).toBe('A');
+      expect(stops[0]!.getAttribute('href')).toBe('/collections/knitwear');
+      expect(stops[1]!.getAttribute('data-part')).toBe('next');
+      expect(stops.slice(2)).toEqual(inside);
+      expect(inside[0]).toBe(cardLinks[0]!.element);
+      for (const el of inside) expect(cards[0]!.contains(el)).toBe(true);
+
+      // ArrowRight hands that one stop to the next card, and takes it off the first.
+      (cardLinks[0]!.element as HTMLElement).focus();
+      (document.activeElement as HTMLElement).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
+      );
+      await flushPromises();
+      expect(document.activeElement).toBe(cardLinks[1]!.element);
+      expect(tabbable(cards[0]!)).toHaveLength(0);
+      for (const el of tabbable(track)) expect(cards[1]!.contains(el)).toBe(true);
     });
   });
 

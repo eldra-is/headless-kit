@@ -135,15 +135,20 @@ const SUBJECTS: Subject[] = [
 /**
  * `@eldrajs/ui`'s `Carousel` decorates its slides **imperatively after mount** — `useCarousel.ts`
  * `setAttribute`s `data-part="slide"`, `role="group"`, `aria-roledescription="slide"` and an
- * "n of total" label onto whatever children the consumer passed, and adds the `eldra-carousel-slide`
- * sizing class — precisely so a block can hand it plain elements. That is a deliberate progressive
- * enhancement of the package's, not a render the server disagreed with (Vue reports no mismatch for
- * it), and `product-detail`'s gallery and `product-carousel`'s row both go through it. Removing it
- * from both sides is what lets the comparison below stay an exact string equality and still be
- * about the *block's* own markup. Nothing in `blocks/**` writes any of these.
+ * "n of total" label onto whatever children the consumer passed, adds the `eldra-carousel-slide`
+ * sizing class, and parks every slide and every control inside a non-active one at `tabindex="-1"`
+ * (the roving tab stop: one stop for the whole row, on the active slide) — precisely so a block can
+ * hand it plain elements. That is a deliberate progressive enhancement of the package's, not a
+ * render the server disagreed with (Vue reports no mismatch for any of it), and
+ * `product-detail`'s gallery and `product-carousel`'s row both go through it. The `tabindex` pass
+ * is the same kind of thing as the labelling: the server renders the pre-enhancement shape, the
+ * first client render matches it exactly, and the model only moves in `onMounted` afterwards —
+ * which is why the server/client comparison below is still an honest one once it is removed.
+ * Removing it from both sides is what lets that comparison stay an exact string equality and still
+ * be about the *block's* own markup. Nothing in `blocks/**` writes any of these.
  */
 const CAROUSEL_ENHANCEMENT =
-  /\s(?:data-part="slide"|role="group"|aria-roledescription="slide"|aria-label="\d+ of \d+")|\seldra-carousel-slide|eldra-carousel-slide\s/g;
+  /\s(?:data-part="slide"|role="group"|aria-roledescription="slide"|aria-label="\d+ of \d+"|tabindex="(?:0|-1)")|\seldra-carousel-slide|eldra-carousel-slide\s/g;
 
 function withoutPackageEnhancement(html: string): string {
   return html.replace(CAROUSEL_ENHANCEMENT, '');
