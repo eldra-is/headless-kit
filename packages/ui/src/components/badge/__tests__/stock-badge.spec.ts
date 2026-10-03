@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { provideEldraUiMessages } from '../../../composables/useMessages';
 import { isIS } from '../../../messages/is-IS';
 import StockBadge from '../StockBadge.vue';
 import type { StockLevel } from '../types';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
 const LEVELS: StockLevel[] = ['in', 'low', 'out', 'preorder'];
 
@@ -250,6 +250,119 @@ describe('StockBadge — revalidating', () => {
 
   it.each(LEVELS)('has no axe violations while revalidating level %s', async (level) => {
     const wrapper = mountWith(StockBadge, { props: { level, quantity: 3, revalidating: true } });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+/**
+ * The refresh's second half, the same treatment `Price` draws for a changed amount: once this
+ * stock line has refreshed, new wording fades in where the old wording faded out instead of the
+ * line simply reading differently. `@vue/test-utils` stubs `<Transition>` by default and renders
+ * its props as attributes, which is what most of these read; the last one unstubs it to prove
+ * `out-in` keeps exactly one copy of the words in the DOM.
+ */
+describe('StockBadge — the status line changing', () => {
+  function transitionClasses(wrapper: {
+    find: (s: string) => { attributes: () => Record<string, string | undefined> };
+  }): string[] {
+    const attributes = wrapper.find('transition-stub').attributes();
+    return [
+      'enterfromclass',
+      'enteractiveclass',
+      'entertoclass',
+      'leavefromclass',
+      'leaveactiveclass',
+      'leavetoclass',
+    ].flatMap((name) => (attributes[name] ?? '').split(/\s+/).filter(Boolean));
+  }
+
+  it('wraps the words in a value node keyed on them', async () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
+    expect(wrapper.get('[data-part="labelValue"]').text()).toBe('In stock, ships in 1–2 days');
+    const before = wrapper.get('[data-part="labelValue"]').element;
+
+    await wrapper.setProps({ level: 'low', quantity: 3 });
+    const after = wrapper.get('[data-part="labelValue"]');
+    expect(after.text()).toBe('Low stock: only 3 left');
+    expect(after.element).not.toBe(before);
+    wrapper.unmount();
+  });
+
+  it('crossfades out-in with nothing but motion-safe classes', () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
+    const attributes = wrapper.find('transition-stub').attributes();
+    expect(attributes.mode).toBe('out-in');
+    expect(attributes.enterfromclass).toContain('opacity-0');
+    expect(attributes.leaveactiveclass).toContain('duration-base');
+    const classes = transitionClasses(wrapper);
+    expect(classes.length).toBeGreaterThan(0);
+    for (const name of classes) {
+      expect(name, name).toMatch(/^motion-safe:/);
+    }
+    wrapper.unmount();
+  });
+
+  it('wraps the words in a transition only once the line has refreshed', async () => {
+    const wrapper = mountWith(StockBadge, { props: { level: 'in' } });
+    expect(wrapper.find('transition-stub').exists()).toBe(false);
+    await wrapper.setProps({ revalidating: true });
+    expect(transitionClasses(wrapper).length).toBeGreaterThan(0);
+    wrapper.unmount();
+  });
+
+  /** A line that has never refreshed changes in the same tick: `mode="out-in"` costs a render pass,
+   *  so the transition is mounted by a `v-if` rather than left in place with its classes off (see
+   *  `Price`'s own spec for the regression that proved it). */
+  it('changes an un-refreshed status line in the same tick', async () => {
+    const wrapper = mountWith(StockBadge, {
+      props: { level: 'in' },
+      global: { stubs: { transition: false } },
+    });
+    await wrapper.setProps({ level: 'out' });
+    expect(wrapper.get('[data-part="labelValue"]').text()).toBe('Sold out');
+    wrapper.unmount();
+  });
+
+  /** Only the spinner and the dim arrive when the refresh starts; the words do not fade. The
+   *  `<Transition>` has no `appear`, so the child it mounts with gets no entrance class. */
+  it('does not fade the words when the refresh starts', async () => {
+    const wrapper = mountWith(StockBadge, {
+      props: { level: 'in' },
+      global: { stubs: { transition: false } },
+    });
+    await wrapper.setProps({ revalidating: true });
+    const value = wrapper.get('[data-part="labelValue"]');
+    expect(value.text()).toBe('In stock, ships in 1–2 days');
+    expect(value.classes()).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('never has two status lines in the DOM at once while the fade runs', async () => {
+    // Fake animation frames, so each phase of the fade is a deliberate step rather than a race
+    // against Vue's two `requestAnimationFrame`s — see `Price`'s own spec for the same reasoning.
+    // Real timers come back before axe, which needs its own.
+    vi.useFakeTimers();
+    const wrapper = mountWith(StockBadge, {
+      props: { level: 'in', revalidating: true },
+      global: { stubs: { transition: false } },
+    });
+    try {
+      await wrapper.setProps({ level: 'out' });
+      // Mid-leave: `out-in` has not inserted the new wording yet, so there is one line in the DOM.
+      expect(wrapper.findAll('[data-part="labelValue"]')).toHaveLength(1);
+      expect(wrapper.get('[data-part="labelValue"]').text()).toBe('In stock, ships in 1–2 days');
+
+      for (const _phase of ['leave', 'enter']) {
+        await vi.advanceTimersByTimeAsync(100);
+        await nextTick();
+        expect(wrapper.findAll('[data-part="labelValue"]')).toHaveLength(1);
+      }
+      expect(wrapper.get('[data-part="labelValue"]').text()).toBe('Sold out');
+      expect(wrapper.get('[data-part="labelValue"]').classes()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });

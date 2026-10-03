@@ -989,7 +989,7 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   value is real but may be a moment old_ — and `loading` wins when both are set.
 
   While it is on, the value keeps its text and its place, dimmed to `--eldra-revalidating-opacity`
-  (a shared token, default `0.9`, applied through the `eldra-revalidating` utility — per value part,
+  (a shared token, default `0.55`, applied through the `eldra-revalidating` utility — per value part,
   never on the root, because CSS opacity composites and a dimmed root would take the spinner down
   with it); a `1em` spinner — the same shape `Button` draws, from the package's own internal
   `Spinner.vue` — is drawn beside it; the root carries `aria-busy="true"`; and a visually hidden
@@ -1024,20 +1024,57 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   what a grid wants: twelve refreshing cards otherwise hold twenty-four polite regions all speaking
   at once, so the page should pass `announce: false` and announce the refresh once itself.
 
-  The default dim is deliberately shallow — shallow enough to be nearly invisible, which is the
-  intended trade: the spinner is the signal, and the dim is a second, quieter cue. Opacity costs
-  contrast, and these values are drawn in `text`, `muted`, `success`, `warning`, `danger` and
-  `accent`: `0.9` is the strongest dim at which every one of them still clears 4.5:1 (1.4.3) on
-  both `background` and `surface` (at `0.7`, `muted` falls to 3.55:1 and `warning` to 3.25:1). A
-  store that wants the state to read more loudly lowers `--eldra-revalidating-opacity` and takes
-  that trade knowingly — which is the point of it being a token rather than a number in a class.
+  **The change itself is eased, not just the waiting.** The first default dim here was shallow
+  enough to be nearly invisible (`0.9`), and measured on a real prerendered product page it failed
+  the thing the state exists for: the amount read as ordinary settled text for the three seconds
+  the read took, and then the number simply changed — a visitor who looked away never saw it
+  happen, and one who was looking saw it blink. So two things changed together, on an operator
+  ruling (2026-10-03):
+
+  - **The dim is deep** — `0.55`. Deep enough that a refreshing value reads as unsettled at a
+    glance, which costs contrast and is a deliberate trade: at `0.55` the dimmed text no longer
+    clears 4.5:1 (1.4.3) in every colour these values are drawn in (`text`, `muted`, `success`,
+    `warning`, `danger`, `accent`), for as long as the read lasts, with `aria-busy` set while it
+    does. `0.9` is the strongest dim at which all six still clear 4.5:1 on `background` and on
+    `surface` (at `0.7`, `muted` is already 3.55:1 and `warning` 3.25:1) — a store that wants that
+    guarantee back raises the token, which is the point of it being a token rather than a number in
+    a class.
+  - **A changed value crossfades.** `Price`'s amount and compare-at, and `StockBadge`'s status
+    line, are wrapped in a `<Transition mode="out-in">` keyed on their own formatted text: the old
+    text fades out over `--eldra-duration-base` and the new fades in over the same
+    (`src/utils/valueTransition.ts`). It is armed by the first `revalidating` the component ever
+    sees and stays armed — the fresher value almost always arrives in the _same turn_ the flag
+    clears, so a fade gated on the flag itself would miss exactly the change it exists for.
+    Arming is what _mounts_ the transition (a `v-if`), not merely what switches its classes on,
+    and that is a correctness requirement rather than a saving: `out-in` renders a placeholder as
+    soon as the key changes and brings the new child in on a later render pass, so a permanently
+    mounted `<Transition>` makes **every** value change in the package asynchronous whether it is
+    easing anything or not (it did — a cart line total still read the old amount a tick after the
+    stepper click, which the starter's cart spec caught). Nothing fades when a refresh _starts_,
+    because a `<Transition>` without `appear` does not animate the child it mounts with.
+    **Still never a skeleton**: a value on screen stays on screen throughout.
+
+  `mode="out-in"` is load-bearing rather than a cheaper substitute for an overlapping crossfade:
+  with it there is never more than one copy of the value in the DOM, so the accessibility tree
+  holds exactly one price at every instant and nothing is announced twice. The cost is that the two
+  halves are sequential rather than overlapping. Every class involved is `motion-safe:`-gated, so
+  under `prefers-reduced-motion: reduce` the swap is instant with no opacity change and no
+  transition property at all — a CSS gate rather than a `matchMedia` read, so it stays right when a
+  visitor changes the setting without the component re-rendering. The fade sits on an inner span
+  (`currentValue`/`compareAtValue`/`labelValue`) while the dim stays on the value part: both are
+  `opacity`, and one element cannot animate a property another rule is holding at the token's
+  value — composited instead, the span fades 0 → 1 _inside_ the part's dim. Nothing reserves width:
+  the amounts are already `tabular-nums`, so a number whose digit count does not change keeps
+  exactly the width it had.
 
   `ProductCard` draws none of this itself: it passes `revalidating` and `announce` to its `Price`
   and `StockBadge`, the two values a refresh actually changes, and the rest of the card (media,
   title, badges, quick add) stays exactly as it was and fully interactive.
 
   New parts: `spinner` and `srStatus` on `Price` and `StockBadge` — `srStatus`, not `status`,
-  because `LoadMore` already owns a visible `status` part and a collection page renders both.
+  because `LoadMore` already owns a visible `status` part and a collection page renders both — plus
+  the crossfade's own value spans, `currentValue`/`compareAtValue` on `Price` and `labelValue` on
+  `StockBadge`.
 
 ## Deviations
 

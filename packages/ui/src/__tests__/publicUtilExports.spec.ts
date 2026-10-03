@@ -32,8 +32,9 @@ describe('public util exports', () => {
     expect(ui.initialsFromName('Maya Okafor')).toBe('MO');
   });
 
-  it('keeps tagRecipe/listFormat internal (class strings and a join helper, not public API)', () => {
+  it('keeps tagRecipe/listFormat/valueTransition internal (class recipes and a join helper, not public API)', () => {
     expect((ui as Record<string, unknown>).TAG_FILL).toBeUndefined();
     expect((ui as Record<string, unknown>).formatConjunctionList).toBeUndefined();
+    expect((ui as Record<string, unknown>).VALUE_FADE).toBeUndefined();
   });
 });

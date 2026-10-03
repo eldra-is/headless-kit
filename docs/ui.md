@@ -128,6 +128,15 @@ that fails simply turns the flag back off and leaves the value that was already 
 wins when both are set. A grid should pass `announce: false` alongside `revalidating` and announce
 the refresh once at page level — that drops each value's own live region and changes nothing else.
 
+The dim is deliberately deep (`--eldra-revalidating-opacity`, default `0.55`): a value being
+refreshed has to read as unsettled rather than as ordinary settled text, which costs contrast for
+as long as the read lasts and is tunable per store — raise the token for a quieter state. And when
+the fresher value lands it **crossfades** rather than simply appearing: the old amount, or the old
+stock line, fades out and the new one fades in over `--eldra-duration-base`, with exactly one copy
+of the value in the DOM at any instant and nothing new in the accessibility tree. Under
+`prefers-reduced-motion: reduce` the swap is instant. A value that is on screen never turns back
+into a skeleton.
+
 ## Styles
 
 Pick one of three CSS entries, depending on how the consuming project builds CSS:
