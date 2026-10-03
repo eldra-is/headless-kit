@@ -9,7 +9,8 @@ import { CURRENCY_KEY, currencyFractionDigits, useEldraUiLocale } from '@eldrajs
  * Two shapes are needed because `@eldrajs/ui` takes the other convention: `Price`/`ProductCard`
  * read **minor** units (their own `amount` docs say so), so anything handed to one of those
  * components goes through `toMinorUnits` first, while money that has to appear inside a sentence
- * ("Add to cart · 2.800 kr.") is formatted here with `formatMoney`.
+ * ("Add to cart · 2.800 kr.") is formatted here with `formatMoney`. A third shape names the
+ * currency itself rather than an amount in it ("ISK kr."): `currencyLabel`.
  *
  * **The currency is the store's, and it is never guessed.** It comes from the platform — the
  * organisation's own commerce settings, read once at build and put on
@@ -114,6 +115,33 @@ export function formatMoney(
   const { format, code } = resolveFormat(currency, locale);
   const formatted = format(amount);
   return code === '' ? formatted : `${formatted} ${code}`;
+}
+
+/**
+ * A currency *code* as text naming itself, not an amount: `"ISK kr."`, `"USD $"` — the code plus
+ * whatever symbol `Intl` renders for it in `locale`, for a place that names the store's currency
+ * rather than formatting a price in it (the footer's currency selector, with one option now that
+ * the platform publishes one currency).
+ *
+ * Built from the same `Intl.NumberFormat(locale, { style: 'currency', currency: code })`
+ * `resolveFormat` constructs for `formatMoney`, read through `formatToParts` instead of formatted,
+ * so the symbol is whatever that constructor decides is a currency's separate sign in `locale` —
+ * never a hand-maintained code → symbol table. Two fallbacks to the code alone, both honest: the
+ * code appended to itself is noise, so a locale with no symbol distinct from the code (`ISK` in
+ * `en-US`, whose "symbol" part *is* the code) prints just the code; and a code `Intl` rejects
+ * throws at construction, the same failure `formatMoney` catches, with the same fallback.
+ */
+export function currencyLabel(code: string, locale: string = DEFAULT_LOCALE): string {
+  try {
+    const parts = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+    }).formatToParts(0);
+    const symbol = parts.find((part) => part.type === 'currency')?.value;
+    return symbol !== undefined && symbol !== code ? `${code} ${symbol}` : code;
+  } catch {
+    return code;
+  }
 }
 
 /**

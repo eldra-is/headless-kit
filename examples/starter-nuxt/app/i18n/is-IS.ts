@@ -86,11 +86,6 @@ export const isIS = {
       caEnglish: 'Kanada · enska',
       caFrench: 'Kanada · franska',
     },
-    currencyOptions: {
-      usd: 'USD $',
-      cad: 'CAD $',
-      eur: 'EUR €',
-    },
   },
   hero: {
     carouselFallback: 'Úrval í verslun',

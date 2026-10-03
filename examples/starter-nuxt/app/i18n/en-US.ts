@@ -85,11 +85,6 @@ export const enUS = {
       caEnglish: 'Canada · English',
       caFrench: 'Canada · Français',
     },
-    currencyOptions: {
-      usd: 'USD $',
-      cad: 'CAD $',
-      eur: 'EUR €',
-    },
   },
   hero: {
     carouselFallback: 'Featured collection',

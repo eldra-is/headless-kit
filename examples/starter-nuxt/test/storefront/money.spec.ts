@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LOCALE, formatMoney, roundMoney, toMinorUnits } from '../../app/storefront/money';
+import {
+  currencyLabel,
+  DEFAULT_LOCALE,
+  formatMoney,
+  roundMoney,
+  toMinorUnits,
+} from '../../app/storefront/money';
 
 describe('formatMoney', () => {
   it('formats a major-unit amount as itself', () => {
@@ -75,6 +81,29 @@ describe('toMinorUnits', () => {
 
   it('rounds, so a float amount never becomes a fractional minor unit', () => {
     expect(toMinorUnits(8.2 * 3, 'USD')).toBe(2460);
+  });
+});
+
+describe('currencyLabel', () => {
+  it('names the currency as code plus symbol, in the given locale', () => {
+    // `is-IS` is where `kr.` is actually a sign distinct from the code — the case the footer
+    // ships for an ISK store.
+    expect(currencyLabel('ISK', 'is-IS')).toBe('ISK kr.');
+    expect(currencyLabel('USD', 'en-US')).toBe('USD $');
+    expect(currencyLabel('EUR', 'en-US')).toBe('EUR €');
+  });
+
+  it('falls back to the code alone when Intl has no symbol distinct from it', () => {
+    // `en-US` has no sign for `ISK` beyond the code itself — `ISK ISK` would be noise.
+    expect(currencyLabel('ISK', 'en-US')).toBe('ISK');
+  });
+
+  it('falls back to the code alone for a code Intl does not recognise, rather than throwing', () => {
+    expect(currencyLabel('XYZ1')).toBe('XYZ1');
+  });
+
+  it('defaults only the locale — never the code', () => {
+    expect(currencyLabel('USD')).toBe(currencyLabel('USD', DEFAULT_LOCALE));
   });
 });
 

@@ -8,9 +8,11 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
-import type { StorefrontForms } from '../../../app/storefront/types';
+import type { StorefrontCommerce, StorefrontForms } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
+import { currencyLabel } from '../../../app/storefront/money';
 import { enUS } from '../../../app/i18n/en-US';
+import { isIS } from '../../../app/i18n/is-IS';
 
 /**
  * `mock.json` names a collection or product by handle, because a theme cannot know an
@@ -68,9 +70,17 @@ function mountFooter(
     subscribe?: StorefrontForms['subscribe'];
     /** Studio's edit mode — what `useEditing()` reads, and the only state that shows hints. */
     editing?: boolean;
+    /** The content locale — `@eldrajs/ui`'s number locale follows it (`mountOptions`). */
+    locale?: string;
+    /** What the store sells in; the demo store's own `DEMO_COMMERCE` (USD) by default, `null` for
+     *  a store that publishes no currency at all — same shape `product-detail`'s spec uses. */
+    commerce?: StorefrontCommerce | null;
   } = {}
 ) {
-  const base = mountOptions({ entry: { id: 'e1', data } }, { links: linkContext });
+  const base = mountOptions(
+    { entry: { id: 'e1', data } },
+    { links: linkContext, locale: options.locale, commerce: options.commerce }
+  );
   if (options.editing) {
     const context = base.global.provide[ELDRA_KEY] as {
       preview: { active: boolean; mode: string };
@@ -104,7 +114,12 @@ function mountFooter(
   });
 }
 
-/** Both `Select` triggers, in DOM order (locale, then currency — see `Block.vue`'s legal row). */
+/**
+ * Every `Select` trigger in the legal row, in DOM order. The locale selector is always one of
+ * them; the currency selector only joins it once the store's `currencyOptions` carries two or
+ * more entries — with today's one-currency platform, it is a plain-text slot instead (see
+ * `Block.vue`'s legal row), so this is usually a list of one.
+ */
 function selectTriggers(wrapper: ReturnType<typeof mountFooter>) {
   return wrapper.findAll('[role="combobox"]').filter((c) => c.element.tagName === 'BUTTON');
 }
@@ -350,48 +365,88 @@ describe('footer block', () => {
     expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
   });
 
-  it('both selectors expose combobox/listbox roles with aria-expanded, closed by default', () => {
+  it('the locale selector exposes combobox/listbox roles with aria-expanded, closed by default', () => {
     const wrapper = mountFooter(mock);
     const triggers = selectTriggers(wrapper);
-    expect(triggers).toHaveLength(2);
-    for (const trigger of triggers) {
-      expect(trigger.attributes('aria-haspopup')).toBe('listbox');
-      expect(trigger.attributes('aria-expanded')).toBe('false');
-    }
+    // One `Select` only: with the store's one currency (the demo store's default, USD), the
+    // currency slot renders as plain text, not a second combobox — see the tests below.
+    expect(triggers).toHaveLength(1);
+    expect(triggers[0]!.attributes('aria-haspopup')).toBe('listbox');
+    expect(triggers[0]!.attributes('aria-expanded')).toBe('false');
     expect(triggers[0]!.text()).toContain(enUS.footer.localeOptions.usEnglish);
-    expect(triggers[1]!.text()).toContain(enUS.footer.currencyOptions.usd);
   });
 
-  it('the currency selector commits only on Enter — arrow keys alone leave the value unchanged', async () => {
+  it('the locale selector commits only on Enter — arrow keys alone leave the value unchanged', async () => {
     const wrapper = mountFooter(mock);
-    const currencyTrigger = selectTriggers(wrapper)[1]!;
-    currencyTrigger.element.focus();
+    const localeTrigger = selectTriggers(wrapper)[0]!;
+    localeTrigger.element.focus();
 
-    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
-    expect(currencyTrigger.attributes('aria-expanded')).toBe('true');
+    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+    expect(localeTrigger.attributes('aria-expanded')).toBe('true');
     expect(document.querySelector('[role="listbox"]')).toBeTruthy();
 
-    // Moves the active option (USD -> CAD) without committing.
-    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
-    expect(currencyTrigger.text()).toContain(enUS.footer.currencyOptions.usd);
+    // Moves the active option (US English -> Canada English) without committing.
+    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+    expect(localeTrigger.text()).toContain(enUS.footer.localeOptions.usEnglish);
 
-    await currencyTrigger.trigger('keydown', { key: 'Enter' });
-    expect(currencyTrigger.attributes('aria-expanded')).toBe('false');
-    expect(currencyTrigger.text()).toContain(enUS.footer.currencyOptions.cad);
+    await localeTrigger.trigger('keydown', { key: 'Enter' });
+    expect(localeTrigger.attributes('aria-expanded')).toBe('false');
+    expect(localeTrigger.text()).toContain(enUS.footer.localeOptions.caEnglish);
   });
 
-  it('Esc closes a selector without changing its value', async () => {
+  it('Esc closes the locale selector without changing its value', async () => {
     const wrapper = mountFooter(mock);
-    const currencyTrigger = selectTriggers(wrapper)[1]!;
-    const before = currencyTrigger.text();
-    currencyTrigger.element.focus();
+    const localeTrigger = selectTriggers(wrapper)[0]!;
+    const before = localeTrigger.text();
+    localeTrigger.element.focus();
 
-    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
-    await currencyTrigger.trigger('keydown', { key: 'ArrowDown' });
-    await currencyTrigger.trigger('keydown', { key: 'Escape' });
+    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+    await localeTrigger.trigger('keydown', { key: 'Escape' });
 
-    expect(currencyTrigger.attributes('aria-expanded')).toBe('false');
-    expect(currencyTrigger.text()).toBe(before);
+    expect(localeTrigger.attributes('aria-expanded')).toBe('false');
+    expect(localeTrigger.text()).toBe(before);
+  });
+
+  /**
+   * The spec was written for a multi-currency store; the platform supports exactly one currency
+   * today, so there is nothing to select — the slot renders the store's currency as plain text
+   * instead of a `Select`, with the same leading icon and a visually hidden "Currency" label.
+   */
+  describe('the currency slot', () => {
+    it('renders the single store currency as plain text, not a Select, with its leading icon and a visually hidden label', async () => {
+      const wrapper = mountFooter(mock, {
+        locale: 'is-IS',
+        commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+      });
+
+      // Only the locale selector is a combobox — no second one for currency.
+      expect(selectTriggers(wrapper)).toHaveLength(1);
+
+      const label = currencyLabel('ISK', 'is-IS');
+      expect(label).toBe('ISK kr.');
+      const currencyText = wrapper.findAll('p').find((p) => p.text().includes(label));
+      expect(currencyText).toBeTruthy();
+      expect(currencyText!.find('svg').exists()).toBe(true);
+
+      // The content locale is Icelandic here (`locale: 'is-IS'`), so the visually hidden label
+      // is `isIS`'s, not `enUS`'s.
+      const hiddenLabels = wrapper.findAll('.sr-only').map((el) => el.text());
+      expect(hiddenLabels).toContain(isIS.footer.currencyLabel);
+
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders nothing for the currency when the store publishes none', async () => {
+      const wrapper = mountFooter(mock, { commerce: null });
+
+      // Still just the locale selector; no currency text and no currency combobox either.
+      expect(selectTriggers(wrapper)).toHaveLength(1);
+      const hiddenLabels = wrapper.findAll('.sr-only').map((el) => el.text());
+      expect(hiddenLabels).not.toContain(enUS.footer.currencyLabel);
+
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
   });
 
   it('keyboard order: a link precedes the email field, which precedes the subscribe button, which precedes the selectors', () => {
@@ -508,7 +563,9 @@ describe('footer block', () => {
     it('keeps the legal row for the legal line and the selectors', () => {
       const wrapper = mountFooter(SEEDED);
       expect(wrapper.text()).toContain(mock.legalText);
-      expect(wrapper.findAll('[role="combobox"]')).toHaveLength(2);
+      // One combobox (locale); the demo store's one currency (USD) renders as plain text.
+      expect(wrapper.findAll('[role="combobox"]')).toHaveLength(1);
+      expect(wrapper.text()).toContain(currencyLabel('USD', 'en-US'));
     });
 
     it('drops the legal row — and its rule — when there is nothing to put in it', async () => {

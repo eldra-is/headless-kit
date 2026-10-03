@@ -14,13 +14,15 @@
  * (no groups, no newsletter title), so it names the landmark directly with `aria-label` instead —
  * both are real, valid accessible names, this is just which mechanism supplies it.
  *
- * The locale/currency `Select`s render with no `leadingIcon` (spec: decorative "world"/
- * "credit-card" icons). `Select.leadingIcon` needs a synchronous `IconComponent`; this theme's
- * only icon resolution path (`EldraIcon`/`useEldraIcon`) is name-based and asynchronous (an HTTP
- * fetch under Nuxt, with no client-side raw-SVG source to resolve one synchronously from). Wiring
- * one in would mean either forking `@eldrajs/ui`'s `Select` or hand-rolling a second, parallel
- * icon-loading path outside `useEldraIcon` for a purely decorative detail with no acceptance
- * criterion or test coverage — left out rather than doing either.
+ * The locale `Select` renders with no `leadingIcon` (spec: decorative "world" icon).
+ * `Select.leadingIcon` needs a synchronous `IconComponent`; this theme's only icon resolution path
+ * (`EldraIcon`/`useEldraIcon`) is name-based and asynchronous (an HTTP fetch under Nuxt, with no
+ * client-side raw-SVG source to resolve one synchronously from). Wiring one in would mean either
+ * forking `@eldrajs/ui`'s `Select` or hand-rolling a second, parallel icon-loading path outside
+ * `useEldraIcon` for a purely decorative detail with no acceptance criterion or test coverage —
+ * left out rather than doing either. The currency slot below renders its own "credit-card" icon
+ * directly as an `EldraIcon` (not through `Select.leadingIcon`), so that constraint does not apply
+ * to it.
  *
  * Every group/flat/legal destination is a `link` value — a collection, product, page or entry the
  * platform knows, or an external URL — resolved once through `useEldraLink()`. A row whose target
@@ -30,11 +32,22 @@
  * spec's tertiary link, turning `text` with an underline only on hover; legal links keep the
  * package's own underline-at-rest default (spec: "always underlined").
  *
- * The two selectors (country/language, currency) are **not** CMS content — the spec calls their
- * options "mock-independent theme constants" (a handful of example locales/currencies), so they
- * are local constants translated through `useT()` rather than `mock.json` fields. `Select` commits
- * only on `Enter` or a click (its own contract; arrow keys alone only move the active option), so
- * nothing extra is needed here to satisfy "prices reload only after Enter or a click" (3.2.2).
+ * The locale selector is **not** CMS content — the spec calls its options "mock-independent theme
+ * constants" (a handful of example locales), so it is local constants translated through `useT()`
+ * rather than a `mock.json` field. `Select` commits only on `Enter` or a click (its own contract;
+ * arrow keys alone only move the active option), so nothing extra is needed here to satisfy
+ * "prices reload only after Enter or a click" (3.2.2).
+ *
+ * The currency selector is different: the spec was written for a multi-currency store, but the
+ * platform supports exactly one currency per store today. So its options are derived from the
+ * store (`useMoney().currency`, `app/storefront/money.ts`), not from a constant list, and there is
+ * at most one of them — `currencyLabel()` names it "ISK kr." style (code + the symbol `Intl`
+ * resolves for it in the content locale, falling back to the code alone). With exactly one option
+ * there is nothing to select, so it renders as plain text with the same leading icon and a visually
+ * hidden "Currency" label, not a `Select` — a native-looking control a visitor could try to open
+ * with nothing inside it would be worse than no control at all. With no currency published, the
+ * slot renders nothing. The `Select` branch stays for the day the derived list carries two or more
+ * entries; which branch renders is driven by that list's length, not by a separate flag.
  *
  * The newsletter zone posts through `useStorefront().forms.subscribe`. Email format is validated
  * locally (empty/malformed never reaches the storefront); a backend `{ ok: false }` shows the same
@@ -66,6 +79,7 @@ import {
   Link,
   Section,
   Select,
+  useEldraUiLocale,
   VisuallyHidden,
   type FormLayoutSubmitPayload,
   type SelectOption,
@@ -78,6 +92,7 @@ import { useStorefront } from '../../app/composables/useStorefront';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import type { ThemeIconName } from '../../app/icons';
+import { currencyLabel, useMoney } from '../../app/storefront/money';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import type { MessageKey } from '../../app/i18n/messages';
 
@@ -103,6 +118,8 @@ const t = useT();
  */
 const editing = useEditing();
 const storefront = useStorefront();
+const money = useMoney();
+const uiLocale = useEldraUiLocale();
 
 const headingId = `footer-heading-${useUiId()}`;
 
@@ -195,7 +212,24 @@ function socialLinkName(network: string): string {
 
 const showLocale = computed(() => data.value.showLocale ?? true);
 const showCurrency = computed(() => data.value.showCurrency ?? true);
-const hasSelectors = computed(() => showLocale.value || showCurrency.value);
+
+/**
+ * The currency selector's option list, derived from the store rather than the spec's hard-coded
+ * USD/CAD/EUR demo list: the platform supports exactly one currency per store today, so this is
+ * either empty (the store publishes none) or a single entry — the store's currency, named "ISK
+ * kr." style by `currencyLabel()` (code + whatever symbol `Intl` resolves for it in the content
+ * locale). Kept as a list, not a single value, so the day the platform supports more than one
+ * currency, this grows to match and the template's `Select` branch (below) is already there.
+ */
+const currencyOptions = computed<SelectOption[]>(() => {
+  const code = money.currency.value;
+  return code === undefined ? [] : [{ value: code, label: currencyLabel(code, uiLocale.value) }];
+});
+
+/** Whether the currency slot renders anything: `showCurrency` on *and* a currency to show it. */
+const showCurrencySelector = computed(() => showCurrency.value && currencyOptions.value.length > 0);
+
+const hasSelectors = computed(() => showLocale.value || showCurrencySelector.value);
 
 /**
  * The legal row carries the rule that separates it from the zone above, so a row with nothing in it
@@ -208,23 +242,18 @@ const hasLegalRow = computed(
   () => Boolean(data.value.legalText) || legalLinks.value.length > 0 || hasSelectors.value
 );
 
-/** The spec's own example locales/currencies (not CMS content — see file doc). */
+/** The spec's own example locales (not CMS content — see file doc). */
 const LOCALE_VALUES = ['us-en', 'ca-en', 'ca-fr'] as const;
-const CURRENCY_VALUES = ['USD', 'CAD', 'EUR'] as const;
 
 const localeOptions = computed<SelectOption[]>(() => [
   { value: 'us-en', label: t('footer.localeOptions.usEnglish') },
   { value: 'ca-en', label: t('footer.localeOptions.caEnglish') },
   { value: 'ca-fr', label: t('footer.localeOptions.caFrench') },
 ]);
-const currencyOptions = computed<SelectOption[]>(() => [
-  { value: 'USD', label: t('footer.currencyOptions.usd') },
-  { value: 'CAD', label: t('footer.currencyOptions.cad') },
-  { value: 'EUR', label: t('footer.currencyOptions.eur') },
-]);
 
 const locale = ref<string>(LOCALE_VALUES[0]);
-const currency = ref<string>(CURRENCY_VALUES[0]);
+/** Only reached once `currencyOptions` carries two or more entries — see the template. */
+const currency = ref<string>(currencyOptions.value[0]?.value ?? '');
 
 /* ---------------------------------------------------------------------- */
 /* Newsletter                                                              */
@@ -555,8 +584,22 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               :search-placeholder="t('footer.localeSearchPlaceholder')"
             />
           </FieldWrapper>
+          <!--
+            With exactly one currency there is nothing to select — see the file doc comment — so
+            this renders the currency as plain text (same leading icon, a visually hidden
+            "Currency" label) rather than a `Select` a visitor could open onto an empty list. The
+            `Select` branch stays for the day `currencyOptions` carries two or more entries.
+          -->
+          <p
+            v-if="showCurrencySelector && currencyOptions.length === 1"
+            class="text-text @tablet:w-auto flex w-full items-center gap-1.5 text-[0.8125rem] font-medium"
+          >
+            <EldraIcon name="credit-card" size="sm" class="text-muted shrink-0" />
+            <VisuallyHidden>{{ t('footer.currencyLabel') }}</VisuallyHidden>
+            {{ currencyOptions[0]!.label }}
+          </p>
           <FieldWrapper
-            v-if="showCurrency"
+            v-else-if="showCurrencySelector"
             :label="t('footer.currencyLabel')"
             :classes="{ root: 'w-full @tablet:w-auto', label: 'sr-only' }"
           >

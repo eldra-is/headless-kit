@@ -156,12 +156,6 @@ export interface Messages {
       caEnglish: string;
       caFrench: string;
     };
-    /** The currency selector's fixed option set (spec example currencies, not CMS content). */
-    currencyOptions: {
-      usd: string;
-      cad: string;
-      eur: string;
-    };
   };
   /**
    * The hero block's own strings: a fallback accessible name for its `split-carousel` variant's

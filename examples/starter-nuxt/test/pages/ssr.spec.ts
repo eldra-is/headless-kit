@@ -202,9 +202,9 @@ describe('server rendering', () => {
      * serves — not a dollar sign the browser corrects a tick later, and not a bare number.
      *
      * The dollar amounts are listed one by one rather than caught with a `/\$\d/` sweep: this page
-     * also carries a `$` the shopper's currency does not decide — the footer's own currency
-     * selector ("USD $") and an authored FAQ sentence about a $4 gift card. Those are content;
-     * these are prices.
+     * also carries a `$` the shopper's currency does not decide — an authored FAQ sentence about a
+     * $4 gift card. That is content; these are prices. (The footer's own currency text now follows
+     * the same store currency as everything else — `ISK kr.` here, not a separate `$`.)
      */
     it('server-renders the product page in the store’s own currency', async () => {
       const commerce = { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 };
