@@ -24,6 +24,7 @@ import type {
   StorefrontResult,
   StorefrontRoute,
   StorefrontSearch,
+  StorefrontSearchProduct,
   StorefrontSearchResponse,
   StorefrontSource,
   VolatileKey,
@@ -576,17 +577,18 @@ function mapSearchResponse(raw: RawSearchResponse, query: string): StorefrontSea
     const href = routableResultHref(result.targetUrl);
     return href === null ? [] : [{ result, href }];
   });
-  const products: StorefrontProductListItem[] = linkedResults
+  const products: StorefrontSearchProduct[] = linkedResults
     .filter(({ result }) => result.kind === 'PRODUCT')
     .map(({ result, href }) => ({
       handle: result.id,
       title: result.title,
       url: href,
       featuredImage: null,
-      // Nothing in a search result is a price; `pricedSearchResponse` reads the real one from the
-      // catalogue before the response reaches a block. A zero that escaped to a card would render
-      // as the store's own zero amount, so this placeholder must never be the published value.
-      price: { amount: 0 },
+      // Nothing in a search result is a price. `pricedSearchResponse` reads the real one from the
+      // catalogue before the response reaches a block, and a product it could not price keeps this
+      // `null` all the way out — never a zero, which every consumer would format as the store's own
+      // "$0.00" (`StorefrontSearchProduct`).
+      price: null,
       stock: 'in',
       available: true,
       productId: result.id,
@@ -1195,9 +1197,16 @@ async function volatileSnapshots(
  * arrived right.
  *
  * **Fail-soft, the way every other read here is.** No products in the response, or a pricing read
- * that did not come back, leaves the response exactly as it was mapped: suggestions with no usable
- * price are worth more than no suggestions. An abort is the one case that must not be swallowed
- * into a published value, and it is not — the caller drops the whole answer when its signal fired.
+ * that did not come back, leaves every product it could not price at `price: null` — which the
+ * suggestion panel renders without a price and the results page renders no card for
+ * (`StorefrontSearchProduct`). A zero is never published: suggestions with no price are worth more
+ * than suggestions with the wrong one. The same is true, silently, of a found id the catalogue read
+ * simply did not return — `applyVolatileSnapshots` leaves an unmatched item exactly as it was.
+ *
+ * Only the read itself is inside the `try`, and only a *read* failure is swallowed (`isReadFailure`):
+ * a bug in the mapping or the merge must surface as an error, not as a page where every row quietly
+ * lost its price. An abort needs no handling beyond not throwing — the caller drops the whole answer
+ * when its signal fired.
  */
 async function pricedSearchResponse(
   client: EldraClient,
@@ -1206,11 +1215,39 @@ async function pricedSearchResponse(
 ): Promise<StorefrontSearchResponse> {
   const ids = collectVolatileTargets(response);
   if (ids.length === 0) return response;
+  let snapshots: VolatileSnapshot[];
   try {
-    return applyVolatileSnapshots(response, await volatileSnapshots(client, ids, signal));
-  } catch {
+    snapshots = await volatileSnapshots(client, ids, signal);
+  } catch (caught) {
+    if (!isReadFailure(caught)) throw caught;
+    if (!isAbort(caught)) {
+      console.warn('[eldra] search results could not be priced:', errorMessage(caught));
+    }
     return response;
   }
+  return applyVolatileSnapshots(response, snapshots);
+}
+
+/** A superseded query's own request being dropped — `AbortController.abort()` reaches `fetch` as a
+ *  `DOMException` named `AbortError` in every runtime this theme runs in. */
+function isAbort(caught: unknown): boolean {
+  return caught instanceof Error && caught.name === 'AbortError';
+}
+
+/**
+ * Whether a rejection from a gateway read is the **read** failing — something a storefront degrades
+ * around — rather than a bug in this file, which must not be swallowed into a silently priceless
+ * page.
+ *
+ * `EldraHttpError` is the gateway refusing or erroring, and an abort is a request this code dropped
+ * on purpose. A `TypeError` is what `fetch` itself rejects with when the call never completed
+ * (offline, DNS, CORS); it is also the shape of an ordinary programming mistake, so it counts as a
+ * read failure *and* is warned about rather than passing unnoticed. Everything else —
+ * `ReferenceError`, `RangeError`, `SyntaxError`, a thrown non-error — is this code being wrong, and
+ * is re-thrown.
+ */
+function isReadFailure(caught: unknown): boolean {
+  return caught instanceof EldraHttpError || isAbort(caught) || caught instanceof TypeError;
 }
 
 /**

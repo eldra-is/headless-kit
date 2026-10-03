@@ -79,6 +79,25 @@ export interface StorefrontProductListItem {
   productId: string;
 }
 
+/**
+ * A product a **search** found. Every field is a catalogue card's, with one difference: the price
+ * may be unknown.
+ *
+ * The search endpoint carries no money at all, so `search.run()` reads the prices it can from the
+ * catalogue itself (`gateway.ts`'s `pricedSearchResponse`) and leaves this `null` for a product it
+ * could not — a pricing read that failed, or a found id the catalogue did not return (a stale
+ * index, a product deleted since the index was written).
+ *
+ * `null`, never `0`. A zero amount is a *real* price in the store's currency, and every consumer
+ * formats it: the shopper would read "$0.00", which is a worse answer than no answer. What each
+ * surface does with an unknown price is its own decision — `SearchResultItem.price` is optional, so
+ * a suggestion row keeps the product and drops the price; `ProductCardProduct.price` is required, so
+ * `toProductCard()` renders no card at all (see its own comment).
+ */
+export interface StorefrontSearchProduct extends Omit<StorefrontProductListItem, 'price'> {
+  price: StorefrontPrice | null;
+}
+
 export interface StorefrontProductOption {
   name: string;
   label: string;
@@ -187,7 +206,7 @@ export interface StorefrontOrder {
 export interface StorefrontSearchResponse {
   query: string;
   total: number;
-  products: StorefrontProductListItem[];
+  products: StorefrontSearchProduct[];
   articles: Array<{
     title: string;
     href: string;

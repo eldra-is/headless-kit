@@ -3,6 +3,7 @@ import { mount, type DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { Badge } from '@eldrajs/ui';
+import { uiEnUS } from '../../../app/i18n/uiMessages';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
@@ -1456,6 +1457,14 @@ describe('header block (navigation apiId)', () => {
 
         expect(document.querySelector('[data-part="loading"]')).not.toBeNull();
         expect(document.body.textContent).not.toContain('No results');
+
+        // The announcement is the half a screen-reader user gets, and it is debounced 400ms — past
+        // the loading view's own 300ms. It has to agree with the panel: "Searching…", never
+        // "No results for “bowl”" for a read that has not come back.
+        vi.advanceTimersByTime(100);
+        await nextTick();
+        const live = document.querySelector('[data-part="liveRegion"]');
+        expect(live?.textContent).toBe(uiEnUS.searchLoading);
       } finally {
         vi.useRealTimers();
         wrapper.unmount();
@@ -1463,6 +1472,7 @@ describe('header block (navigation apiId)', () => {
     });
 
     it('shows the results once the read for that query has answered', async () => {
+      vi.useFakeTimers();
       const wrapper = mountWithSearch(ANSWER, false);
       try {
         const input = await openOverlay(wrapper);
@@ -1473,6 +1483,43 @@ describe('header block (navigation apiId)', () => {
         expect(document.body.textContent).not.toContain('No results');
         const rows = [...document.querySelectorAll('[role="option"]')];
         expect(rows.some((row) => row.textContent?.includes('Speckled latte mug'))).toBe(true);
+        // The product's real price, from the catalogue read behind `search.run()`.
+        expect(rows.some((row) => row.textContent?.includes('$28.00'))).toBe(true);
+
+        vi.advanceTimersByTime(400);
+        await nextTick();
+        expect(document.querySelector('[data-part="liveRegion"]')?.textContent).toBe(
+          uiEnUS.resultsCount(1, 'bowl')
+        );
+      } finally {
+        vi.useRealTimers();
+        wrapper.unmount();
+      }
+    });
+
+    /**
+     * A product the storefront could not price (`StorefrontSearchProduct.price === null`: the
+     * pricing read failed, or the catalogue did not answer about this id). `SearchResultItem.price`
+     * is optional, so the row keeps the product and drops the price — never the store's own
+     * "$0.00", which is a real price and the wrong one.
+     */
+    it('renders a row with no price at all for a product it could not price', async () => {
+      const unpriced: StorefrontSearchResponse = {
+        ...ANSWER,
+        products: [{ ...ANSWER.products[0]!, price: null }],
+      };
+      const wrapper = mountWithSearch(unpriced, false);
+      try {
+        const input = await openOverlay(wrapper);
+        await input.setValue('bowl');
+        await nextTick();
+
+        const row = [...document.querySelectorAll('[role="option"]')].find((node) =>
+          node.textContent?.includes('Speckled latte mug')
+        );
+        expect(row).toBeDefined();
+        expect(row?.textContent).not.toContain('0.00');
+        expect(row?.textContent).not.toContain('$');
       } finally {
         wrapper.unmount();
       }

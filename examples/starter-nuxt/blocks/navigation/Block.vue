@@ -308,7 +308,10 @@ function toSearchResults(response: StorefrontSearchResponse | null): SearchResul
     id: product.productId,
     title: product.title,
     href: product.url,
-    price: money.format(product.price.amount),
+    // Optional on `SearchResultItem`, and `null` on a product the storefront could not price: the
+    // row keeps the product and drops the price rather than printing the store's own "$0.00"
+    // (`StorefrontSearchProduct`).
+    price: product.price === null ? undefined : money.format(product.price.amount),
     image: product.featuredImage?.src,
     imageAlt: product.featuredImage?.alt,
   }));

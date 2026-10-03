@@ -1,8 +1,5 @@
 import type { SearchResultItem, SearchResults } from '@eldrajs/ui';
-import type {
-  StorefrontProductListItem,
-  StorefrontSearchResponse,
-} from '../../app/storefront/types';
+import type { StorefrontSearchProduct, StorefrontSearchResponse } from '../../app/storefront/types';
 
 /**
  * Spec "Search results page" → Do/Don't: "Don't show sold-out products at the top of suggestions.
@@ -10,11 +7,11 @@ import type {
  * `suggestionsPerGroup` cap below, so a sold-out item only displaces an in-stock one when there
  * genuinely aren't enough of the latter to fill the group.
  */
-function isSoldOut(product: StorefrontProductListItem): boolean {
+function isSoldOut(product: StorefrontSearchProduct): boolean {
   return product.available === false || product.stock === 'out';
 }
 
-function rankProducts(products: StorefrontProductListItem[]): StorefrontProductListItem[] {
+function rankProducts(products: StorefrontSearchProduct[]): StorefrontSearchProduct[] {
   const inStock = products.filter((product) => !isSoldOut(product));
   const soldOut = products.filter(isSoldOut);
   return [...inStock, ...soldOut];
@@ -58,7 +55,10 @@ export function toSearchBarResults(
       id: product.productId,
       title: product.title,
       href: product.url,
-      price: formatPrice(product.price.amount),
+      // `SearchResultItem.price` is optional, so a product this storefront could not price keeps its
+      // row and loses only the price. Formatting a `null` as a number would print the store's own
+      // "$0.00" — a real price, and the wrong one (`StorefrontSearchProduct`).
+      price: product.price === null ? undefined : formatPrice(product.price.amount),
       image: product.featuredImage?.src,
       imageAlt: product.featuredImage?.alt,
     }));

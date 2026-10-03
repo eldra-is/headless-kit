@@ -1,6 +1,11 @@
 import { ref } from 'vue';
-import { describe, expect, it } from 'vitest';
-import { createEldraClient, type EldraClient, type EldraHttpRequest } from '@eldrajs/sdk';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  createEldraClient,
+  EldraHttpError,
+  type EldraClient,
+  type EldraHttpRequest,
+} from '@eldrajs/sdk';
 import { createGatewayStorefront } from '../../app/storefront/gateway';
 import type { StorefrontCollectionSelector, StorefrontRoute } from '../../app/storefront/types';
 
@@ -291,8 +296,9 @@ describe('createGatewayStorefront', () => {
                 title: 'Linen tea towels',
                 status: 'ARCHIVED',
                 minPrice: 2400,
-                maxPrice: 2400,
-                totalVariants: 1,
+                // A price *range*: `mapProductListItem` marks it `from: true` ("From $24.00").
+                maxPrice: 3600,
+                totalVariants: 3,
               },
             ],
             meta: {},
@@ -313,9 +319,12 @@ describe('createGatewayStorefront', () => {
     await settle();
 
     const products = result.data.value!.products;
+    // The whole snapshot, `from` included: on this path the merge is the product's *first* price,
+    // not a refresh of one already on screen, so dropping the range marker would turn a
+    // "From $24.00" product into an exact $24.00 one.
     expect(products.map((product) => product.price)).toEqual([
-      { amount: 9600, compareAt: 12000 },
-      { amount: 2400, compareAt: null },
+      { amount: 9600, compareAt: 12000, from: false },
+      { amount: 2400, compareAt: null, from: true },
     ]);
     // Availability rides along, which is what lets the suggestion list rank sold-out items last.
     expect(products.map((product) => product.available)).toEqual([true, false]);
@@ -326,13 +335,16 @@ describe('createGatewayStorefront', () => {
     expect(productListQueries[0]!.filter).toEqual(['id:in:p1,p2']);
   });
 
-  /** A pricing read that cannot answer must not cost the shopper the results themselves. */
-  it('search keeps its results when the pricing read fails', async () => {
-    const client = {
+  /** A gateway refusal, in the shape `@eldrajs/sdk` raises it. */
+  function httpError(status: number): EldraHttpError {
+    return new EldraHttpError({ status, statusText: 'Service Unavailable' } as Response, null);
+  }
+
+  /** A search whose products the pricing read answers with `onPricing`. */
+  function searchWithPricing(onPricing: () => Promise<unknown>): EldraClient {
+    return {
       catalog: {
-        listProducts: async () => {
-          throw new Error('products list unavailable');
-        },
+        listProducts: onPricing,
         search: async () => ({
           total: 1,
           results: [
@@ -341,15 +353,80 @@ describe('createGatewayStorefront', () => {
         }),
       },
     } as unknown as EldraClient;
+  }
+
+  /**
+   * A pricing read that cannot answer must not cost the shopper the results themselves — and must
+   * not cost them a *wrong* price either. The product keeps its row with `price: null`, which the
+   * suggestion panel renders without a price; a zero would have been formatted as the store's own
+   * "$0.00", which is the defect this whole path exists to avoid.
+   */
+  it.each([
+    ['the gateway refuses', () => Promise.reject(httpError(503))],
+    ['the network never completes', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ])('search keeps its results, unpriced, when %s', async (_name, onPricing) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const storefront = createGatewayStorefront(searchWithPricing(onPricing), {
+        route: fakeRoute(),
+      });
+      const result = storefront.search.run(ref('linen'));
+      await settle();
+
+      expect(result.error.value).toBeNull();
+      const products = result.data.value!.products;
+      expect(products.map((product) => product.title)).toEqual(['Merino crew sweater']);
+      expect(products.map((product) => product.price)).toEqual([null]);
+      // Not a silent degradation: a page where every row lost its price has to be diagnosable.
+      expect(warn).toHaveBeenCalledWith(
+        '[eldra] search results could not be priced:',
+        expect.any(String)
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  /**
+   * A found id the catalogue read simply did not return — a stale index, a product deleted since it
+   * was written. `applyVolatileSnapshots` leaves an unmatched item exactly as it was, so the row has
+   * to arrive unpriced rather than carrying a placeholder the consumers would format.
+   */
+  it('leaves a product the pricing read did not answer about unpriced', async () => {
+    const client = {
+      catalog: {
+        listProducts: async () => ({ data: [], meta: {} }),
+        search: async () => ({
+          total: 1,
+          results: [
+            { id: 'gone', kind: 'PRODUCT', title: 'Discontinued mug', targetUrl: '/products/a' },
+          ],
+        }),
+      },
+    } as unknown as EldraClient;
 
     const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.search.run(ref('mug'));
+    await settle();
+
+    expect(result.data.value!.products.map((product) => product.price)).toEqual([null]);
+  });
+
+  /**
+   * The other half of the narrowed `catch`: a bug in this file must surface as an error rather than
+   * as a page that quietly lost every price. `RangeError` stands in for one — it is neither an
+   * `EldraHttpError`, an abort, nor the `TypeError` `fetch` rejects with.
+   */
+  it('does not swallow a programming error from the pricing read', async () => {
+    const storefront = createGatewayStorefront(
+      searchWithPricing(() => Promise.reject(new RangeError('filter grammar is wrong'))),
+      { route: fakeRoute() }
+    );
     const result = storefront.search.run(ref('linen'));
     await settle();
 
-    expect(result.error.value).toBeNull();
-    expect(result.data.value!.products.map((product) => product.title)).toEqual([
-      'Merino crew sweater',
-    ]);
+    expect(result.error.value).toBe('filter grammar is wrong');
+    expect(result.data.value).toBeNull();
   });
 
   /** No products in the response: nothing to price, so nothing is asked for. */
