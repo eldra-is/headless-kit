@@ -1,8 +1,9 @@
-import { defineNuxtPlugin } from 'nuxt/app';
+import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app';
 import { inject } from 'vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, type UiMessages } from '@eldrajs/ui';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
-import { currencyFor, uiEnUS, uiMessagesFor } from '../i18n/uiMessages';
+import { uiEnUS, uiMessagesFor } from '../i18n/uiMessages';
+import { toStorefrontCommerce, uiCurrencyFor } from '../storefront/commerce';
 
 /**
  * Gives every `@eldrajs/ui` component below the app the message set for the
@@ -18,12 +19,19 @@ import { currencyFor, uiEnUS, uiMessagesFor } from '../i18n/uiMessages';
  * The same provide gives the package the content locale its **numbers** are
  * formatted in (`UnitInput`, `CurrencyInput`, `QuantityStepper`, `Price`), as
  * a getter for the same reason, plus the store **currency** `Price` formats
- * amounts in (`currencyFor`, the same two-locale mapping `uiMessagesFor`
- * uses — `is-IS` sells in `ISK`, everything else in `USD`). All three are
- * separate keys on purpose: the strings a component renders, the locale its
- * numbers are formatted in, and the currency its prices are formatted in are
- * three different decisions, and a component's own `locale`/`currency` prop
- * still wins over any of these.
+ * amounts in. All three are separate keys on purpose: the strings a component
+ * renders, the locale its numbers are formatted in, and the currency its
+ * prices are formatted in are three different decisions, and a component's own
+ * `locale`/`currency` prop still wins over any of these.
+ *
+ * **The currency is the platform's, not the locale's.** It comes from the
+ * organisation's own commerce settings, which `@eldrajs/theme-nuxt` reads once
+ * during the build and puts on `runtimeConfig.public.eldra.commerce`. A store
+ * that publishes none provides the empty string — see `uiCurrencyFor` for why
+ * that, and not `undefined`, is what declines a currency — and every price on
+ * the page then renders as a plain number instead of under a symbol nobody
+ * chose. It is read once here, not through a getter: unlike the locale, it
+ * cannot change while the page is open.
  *
  * `runWithContext` is how a plugin injects an app-level provide from outside a
  * `setup()` scope: @eldrajs/theme-nuxt's own plugin puts the context on
@@ -36,6 +44,10 @@ export default defineNuxtPlugin({
     const context = nuxtApp.vueApp.runWithContext(() =>
       inject<EldraContext | undefined>(ELDRA_KEY, undefined)
     );
+    const publicConfig = useRuntimeConfig().public as unknown as {
+      eldra?: { commerce?: unknown };
+    };
+    const currency = uiCurrencyFor(toStorefrontCommerce(publicConfig.eldra?.commerce)?.currency);
     const messages = {} as UiMessages;
     for (const key of Object.keys(uiEnUS) as (keyof UiMessages)[]) {
       Object.defineProperty(messages, key, {
@@ -45,6 +57,6 @@ export default defineNuxtPlugin({
     }
     nuxtApp.vueApp.provide(MESSAGES_KEY, messages);
     nuxtApp.vueApp.provide(LOCALE_KEY, () => context?.preview.locale ?? undefined);
-    nuxtApp.vueApp.provide(CURRENCY_KEY, () => currencyFor(context?.preview.locale));
+    nuxtApp.vueApp.provide(CURRENCY_KEY, currency);
   },
 });

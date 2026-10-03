@@ -11,11 +11,14 @@ import { createDemoStorefront } from '../../../app/storefront/demo';
 import { createCartStore, type CartOps, type CartSnapshot } from '../../../app/storefront/cart';
 import {
   STOREFRONT_KEY,
+  type StorefrontCommerce,
   type StorefrontProduct,
   type StorefrontResult,
   type VolatileKey,
 } from '../../../app/storefront/types';
 import { enUS } from '../../../app/i18n/en-US';
+import { isIS } from '../../../app/i18n/is-IS';
+import { formatMoney } from '../../../app/storefront/money';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 
@@ -54,9 +57,16 @@ function mountBlock(
     attach?: boolean;
     storefront?: ReturnType<typeof storefrontWith>;
     productHandle?: string | null;
+    /** The page's content locale — `en-US` unless a spec is about another one's formatting. */
+    locale?: string;
+    /** What the store sells in; the demo store's US dollars unless a spec says otherwise. */
+    commerce?: StorefrontCommerce | null;
   } = {}
 ) {
-  const base = mountOptions({ entry: { id: 'e1', data } });
+  const base = mountOptions(
+    { entry: { id: 'e1', data } },
+    { locale: options.locale, commerce: options.commerce }
+  );
   const storefront = options.storefront ?? storefrontWith();
   if (options.productHandle !== undefined) storefront.route.productHandle = options.productHandle;
   const opts = {
@@ -372,6 +382,59 @@ describe('product-detail block', () => {
     // The same amount inside the button's own label, which formats it rather than rendering
     // `<Price>`: the two must agree.
     expect(addToCart(wrapper).text()).toContain('Add to cart · $28.00');
+  });
+
+  /**
+   * The store's currency is the platform's, and the page's number formatting is the content
+   * locale's — two separate decisions, which this is the one spec that exercises together. An
+   * Icelandic page of a store selling in krónur reads "2.800 kr.", never "$2,800.00" and never a
+   * bare "2.800": the amount inside the button's label and the `<Price>` above it both come from
+   * the same provide (`CURRENCY_KEY`), so they cannot disagree.
+   */
+  it('formats money in the store’s currency and the page’s locale', async () => {
+    const wrapper = await mountReady(mock, {
+      locale: 'is-IS',
+      commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+      storefront: storefrontWith({ price: { amount: 2800, compareAt: null } }),
+    });
+
+    const price = formatMoney(2800, 'ISK', 'is-IS');
+    expect(price).toMatch(/^2\.800\s?kr\.$/u);
+    // The label the shopper reads on the button, interpolated from the Icelandic message set.
+    expect(addToCart(wrapper).text()).toContain(isIS.product.addToCart.replace('{price}', price));
+    expect(addToCart(wrapper).text()).not.toContain('$');
+    // And every `<Price>` the block renders — the one above the button and the quick-add bar's —
+    // reads the same amount, because both take the currency from the same provide. (Asserted on
+    // the price parts, not the block's whole text: the authored copy in `mock.json` mentions a
+    // free-delivery threshold in dollars, which is content, not a formatted price.)
+    const rendered = wrapper.findAll('[data-part="current"]').map((part) => part.text());
+    expect(rendered.length).toBeGreaterThan(0);
+    for (const amount of rendered) {
+      expect(amount).toBe(price);
+      // A zero-decimal currency grows no invented decimals, whichever side formatted it.
+      expect(amount).not.toContain(',00');
+    }
+  });
+
+  /**
+   * And the other end of it: a store that has not configured commerce publishes no currency, and
+   * the page must then show its prices as numbers. A guessed symbol is a *wrong* price — `$4.800`
+   * in front of an amount in krónur — where a bare `4.800` is merely an incomplete one, so the
+   * theme declines the currency rather than letting one be assumed (`uiCurrencyFor`,
+   * `app/storefront/commerce.ts`). Both halves of the block's money obey it: the `<Price>` and the
+   * button's own formatted label.
+   */
+  it('renders prices as plain numbers when the store publishes no currency', async () => {
+    const wrapper = await mountReady(mock, {
+      commerce: null,
+      storefront: storefrontWith({ price: { amount: 96, compareAt: null } }),
+    });
+
+    for (const part of wrapper.findAll('[data-part="current"]')) {
+      expect(part.text()).toBe('96');
+    }
+    expect(addToCart(wrapper).text()).toContain('Add to cart · 96');
+    expect(addToCart(wrapper).text()).not.toContain('$');
   });
 
   it('hides the rating below three reviews and when the field is off', async () => {

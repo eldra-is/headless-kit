@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toSearchBarResults } from '../results';
+import { formatMoney } from '../../../app/storefront/money';
 import type {
   StorefrontProductListItem,
   StorefrontSearchResponse,
@@ -31,9 +32,16 @@ function response(overrides: Partial<StorefrontSearchResponse> = {}): Storefront
   };
 }
 
+/**
+ * What `useMoney().format` hands the mapper on a real page: the store's own currency, resolved in
+ * the block's `setup()`. The mapper is pure and takes the formatter, so this spec says which
+ * currency it is formatting in rather than inheriting one from a module-level default.
+ */
+const formatPrice = (amount: number): string => formatMoney(amount, 'USD');
+
 describe('toSearchBarResults', () => {
   it('returns an empty, zero-total shape for a null response', () => {
-    expect(toSearchBarResults(null, 3)).toEqual({
+    expect(toSearchBarResults(null, 3, formatPrice)).toEqual({
       products: [],
       collections: [],
       articles: [],
@@ -65,7 +73,8 @@ describe('toSearchBarResults', () => {
           },
         ],
       }),
-      3
+      3,
+      formatPrice
     );
 
     expect(result.total).toBe(3);
@@ -109,7 +118,7 @@ describe('toSearchBarResults', () => {
       snippet: 'A page.',
     }));
 
-    const result = toSearchBarResults(response({ products, articles, pages }), 2);
+    const result = toSearchBarResults(response({ products, articles, pages }), 2, formatPrice);
     expect(result.products).toHaveLength(2);
     expect(result.articles).toHaveLength(2);
     expect(result.pages).toHaveLength(2);
@@ -125,7 +134,11 @@ describe('toSearchBarResults', () => {
     const inStockA = product({ handle: 'in-stock-a', productId: 'in-stock-a' });
     const inStockB = product({ handle: 'in-stock-b', productId: 'in-stock-b' });
 
-    const result = toSearchBarResults(response({ products: [soldOut, inStockA, inStockB] }), 3);
+    const result = toSearchBarResults(
+      response({ products: [soldOut, inStockA, inStockB] }),
+      3,
+      formatPrice
+    );
     expect(result.products.map((item) => item.id)).toEqual([
       'in-stock-a',
       'in-stock-b',
@@ -143,7 +156,11 @@ describe('toSearchBarResults', () => {
     const inStockA = product({ handle: 'in-stock-a', productId: 'in-stock-a' });
     const inStockB = product({ handle: 'in-stock-b', productId: 'in-stock-b' });
 
-    const result = toSearchBarResults(response({ products: [soldOut, inStockA, inStockB] }), 2);
+    const result = toSearchBarResults(
+      response({ products: [soldOut, inStockA, inStockB] }),
+      2,
+      formatPrice
+    );
     expect(result.products.map((item) => item.id)).toEqual(['in-stock-a', 'in-stock-b']);
   });
 });

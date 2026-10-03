@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_CURRENCY,
-  DEFAULT_LOCALE,
-  formatMoney,
-  roundMoney,
-  toMinorUnits,
-} from '../../app/storefront/money';
+import { DEFAULT_LOCALE, formatMoney, roundMoney, toMinorUnits } from '../../app/storefront/money';
 
 describe('formatMoney', () => {
   it('formats a major-unit amount as itself', () => {
     // The live defect: a catalog price of 28 is $28.00, not $0.28.
-    expect(formatMoney(28)).toBe('$28.00');
-    expect(formatMoney(96.5)).toBe('$96.50');
+    expect(formatMoney(28, 'USD')).toBe('$28.00');
+    expect(formatMoney(96.5, 'USD')).toBe('$96.50');
   });
 
   it('takes the fraction digits from the currency, so a zero-decimal one renders none', () => {
@@ -20,29 +14,67 @@ describe('formatMoney', () => {
     expect(formatMoney(28, 'USD', 'en-US')).toBe('$28.00');
   });
 
-  it('defaults to the theme’s own currency and locale', () => {
-    expect(formatMoney(28)).toBe(formatMoney(28, DEFAULT_CURRENCY, DEFAULT_LOCALE));
+  it('formats in the store’s currency, not the locale’s', () => {
+    // An Icelandic page of a store that sells in dollars shows dollars, with Icelandic grouping.
+    expect(formatMoney(4800, 'USD', 'is-IS')).toContain('4.800');
+    expect(formatMoney(4800, 'ISK', 'en-US')).toMatch(/4,800/);
+  });
+
+  it('defaults only the locale — never the currency', () => {
+    expect(formatMoney(28, 'USD')).toBe(formatMoney(28, 'USD', DEFAULT_LOCALE));
+  });
+
+  it('renders a plain number for a store that publishes no currency', () => {
+    // No currency is not a currency to guess at: a `$` in front of 4800 ISK is a wrong price,
+    // while a bare 4.800 is an incomplete one. And it must not throw — this runs inside
+    // `computed`s, where a throw takes the whole block down.
+    expect(formatMoney(4800, undefined, 'is-IS')).toBe('4.800');
+    expect(formatMoney(4800, undefined, 'en-US')).toBe('4,800');
+    expect(formatMoney(4800, undefined)).not.toContain('$');
   });
 
   it('falls back to a plain decimal and the raw code rather than throwing', () => {
-    // `Intl.NumberFormat` throws `RangeError` on a code it does not know, and this runs inside
-    // `computed`s where a throw takes the whole block down.
+    // `Intl.NumberFormat` throws `RangeError` on a code it does not know.
     expect(formatMoney(28, 'XYZ1')).toBe('28 XYZ1');
+    expect(formatMoney(4800, 'XYZ1')).toBe('4,800 XYZ1');
+  });
+});
+
+describe('the formatter cache', () => {
+  it('keeps one currency-and-locale pair from answering for another', () => {
+    // `resolveFormat` memoizes `Intl.NumberFormat` per pair, which is the one way this module could
+    // start returning a cached answer for the wrong store or the wrong page.
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
+    expect(formatMoney(1234.5, 'USD', 'is-IS')).toBe(formatMoney(1234.5, 'USD', 'is-IS'));
+    expect(formatMoney(1234.5, 'USD', 'is-IS')).not.toBe('$1,234.50');
+    expect(formatMoney(1234, 'ISK', 'is-IS')).toContain('kr');
+    expect(formatMoney(1234.5, 'USD', 'en-US')).toBe('$1,234.50');
+    // And the digits each pair resolves stay its own.
+    expect(toMinorUnits(28, 'USD', 'en-US')).toBe(2800);
+    expect(toMinorUnits(28, 'ISK', 'en-US')).toBe(28);
+    expect(toMinorUnits(28, 'USD', 'en-US')).toBe(2800);
   });
 });
 
 describe('toMinorUnits', () => {
   it('converts for @eldrajs/ui’s minor-unit money inputs', () => {
-    expect(toMinorUnits(28)).toBe(2800);
-    expect(toMinorUnits(96.5)).toBe(9650);
+    expect(toMinorUnits(28, 'USD')).toBe(2800);
+    expect(toMinorUnits(96.5, 'USD')).toBe(9650);
   });
 
   it('uses the currency’s own minor-unit count, not a hard-coded hundred', () => {
     expect(toMinorUnits(28, 'ISK', 'is-IS')).toBe(28);
   });
 
+  it('falls back to two digits with no currency, the same scale <Price> does', () => {
+    // `currencyFractionDigits` answers 2 for an absent/unknown code, so the amount this produces
+    // and the amount the `<Price>` reading it renders agree even with nothing published.
+    expect(toMinorUnits(28, undefined)).toBe(2800);
+    expect(toMinorUnits(28, 'XYZ1')).toBe(2800);
+  });
+
   it('rounds, so a float amount never becomes a fractional minor unit', () => {
-    expect(toMinorUnits(8.2 * 3)).toBe(2460);
+    expect(toMinorUnits(8.2 * 3, 'USD')).toBe(2460);
   });
 });
 

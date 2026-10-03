@@ -437,6 +437,17 @@ export function startMockGateway(options: { missingRouteTemplateSchema?: boolean
         url.pathname === `/cms/v1/schema/route-template/entry/${CATALOG_ROUTE_TEMPLATE.id}`
       ) {
         res.end(JSON.stringify(CATALOG_ROUTE_TEMPLATE));
+      } else if (url.pathname.startsWith('/organization/v1/')) {
+        // What the store sells in — the read the module makes once per build
+        // (`src/runtime/commerce.ts`) so a prerendered price has a currency.
+        res.end(
+          JSON.stringify({
+            id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+            name: 'Mock store',
+            features: [{ feature: 'ECOMMERCE', enabled: true }],
+            commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+          })
+        );
       } else if (url.pathname === '/catalog/v1/products/list') {
         const active = url.searchParams.getAll('filter').includes('status:eq:ACTIVE');
         res.end(

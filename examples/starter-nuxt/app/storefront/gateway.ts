@@ -14,6 +14,7 @@ import type {
   StorefrontCatalog,
   StorefrontCollectionInfo,
   StorefrontCollectionSelector,
+  StorefrontCommerce,
   StorefrontForms,
   StorefrontMedia,
   StorefrontOrder,
@@ -1178,6 +1179,13 @@ export interface GatewayStorefrontOptions {
   route: StorefrontRoute;
   formsEndpoint?: string;
   /**
+   * What the store sells in (`StorefrontCommerce`) — the platform's own answer, which only the app
+   * layer can read (`app/plugins/eldra-storefront.ts`, off the runtime config). Omitted — a
+   * Storybook story, a spec that only wants a mapping — the storefront reports `null`, and every
+   * price renders as a number with no symbol.
+   */
+  commerce?: StorefrontCommerce | null;
+  /**
    * The app layer's prerender/refresh abilities. Omitted — Storybook, a spec that only wants a
    * mapping — every result loads client-side the way it always did, and nothing refreshes.
    */
@@ -1360,6 +1368,7 @@ export function createGatewayStorefront(
 
   return {
     ready: ref(true),
+    commerce: options.commerce ?? null,
     route: options.route,
     catalog,
     cart: createCartStore(createGatewayCartOps(client)),

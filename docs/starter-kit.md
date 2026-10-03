@@ -145,12 +145,16 @@ Three things a theme has to keep on its own side of that boundary:
   surface (the `cta` block's card) marks that surface the same way by hand.
 
 `app/plugins/eldra-ui-messages.ts` provides the package's own strings (`Close`, `Clear`, "opens in
-a new tab", …) for the active content locale, from `app/i18n/uiMessages.ts`, and — as of this
-sub-project — `Price`'s number locale and store currency too (`LOCALE_KEY`/`CURRENCY_KEY`;
-`app/i18n/uiMessages.ts#currencyFor` maps `is-IS` to `ISK` and everything else to `USD`, the same
-two-locale mapping `uiMessagesFor` already used for strings). No block calls `Price` yet — there is
-no product data source this early in the theme — so this is wired ahead of the first one that
-will; `.storybook/eldra.ts` and `test/support/mountBlock.ts` do the same for their environments.
+a new tab", …) for the active content locale, from `app/i18n/uiMessages.ts`, plus `Price`'s number
+locale and the store currency (`LOCALE_KEY`/`CURRENCY_KEY`). The two are different decisions and
+come from different places: the number locale follows the content locale, and the **currency is the
+platform's** — the store's own commerce settings, which `@eldrajs/theme-nuxt` reads once during the
+build and puts on `runtimeConfig.public.eldra.commerce`. A store that publishes none provides no
+currency at all, and the theme's money layer then renders prices as plain numbers rather than
+labelling real amounts with a guessed symbol. `.storybook/eldra.ts` and
+`test/support/mountBlock.ts` do the same for their environments, taking the currency from the demo
+storefront (`DEMO_COMMERCE`, US dollars — what every Northwind amount is quoted in) instead of a
+runtime config.
 
 ### The starter's own blocks
 
@@ -641,14 +645,35 @@ never more than one page load behind.
 
 **Money is major units, everywhere in the storefront layer** — a price of `28` is twenty-eight
 dollars, because that is what the catalog sends. `app/storefront/money.ts` is the only place that
-converts anything: `formatMoney(amount, currency?, locale?)` for money inside a sentence (an "Add to
-cart · $28.00" label), `toMinorUnits` for `@eldrajs/ui`'s `Price`/`ProductCard`, whose own `amount`
-props read minor units, and `roundMoney` for any sum the theme computes itself. `useMoney()` binds
-the first two to the currency and locale the surrounding `@eldrajs/ui` components resolve, so a
-block's formatted text and its `<Price>` elements can never disagree. Both fall back to `USD`/`en-US`
-until a store's own settings are readable from `useStorefront()`. Because the digit count comes from
-the currency, a zero-decimal one (`ISK`) formats and converts correctly instead of growing two
-invented decimal places.
+converts anything: `formatMoney(amount, currency, locale?)` for money inside a sentence (an "Add to
+cart · 2.800 kr." label), `toMinorUnits` for `@eldrajs/ui`'s `Price`/`ProductCard`, whose own
+`amount` props read minor units, and `roundMoney` for any sum the theme computes itself.
+`useMoney()` binds the first two to the currency and locale the surrounding `@eldrajs/ui`
+components resolve, so a block's formatted text and its `<Price>` elements can never disagree — and
+it is the one place a block resolves either. Because the digit count comes from the currency, a
+zero-decimal one (`ISK`) formats and converts correctly instead of growing two invented decimal
+places.
+
+**The currency is the store's, and it is never guessed.** It comes from the platform — the
+organisation's commerce settings, read once at build by `@eldrajs/theme-nuxt` and provided app-wide
+under `CURRENCY_KEY` — so both money helpers take it **explicitly, with no default**: a currency
+inferred from the content locale puts a dollar sign in front of krónur, which is a wrong price
+rather than an incomplete one. A store that has not configured commerce publishes none, and then
+`formatMoney` renders a plain number (`4.800`), an unusable code renders the number plus the code
+(`4,800 XYZ1`), and neither ever throws — these run inside `computed`s, where a throw takes the
+whole block down. `@eldrajs/ui`'s `<Price>` elements follow the same rule, which takes one small
+piece of care: an _absent_ `CURRENCY_KEY` is what the package answers `USD` for, so "no currency"
+is provided as the empty string instead (`uiCurrencyFor`, `app/storefront/commerce.ts`) — a code
+`Intl` must reject, which is exactly how `Price`'s own fallback arrives at a bare number.
+`useStorefront().commerce` carries the whole record for the blocks that need more than the currency:
+`taxInclusivePricing` (whether the amounts on screen already contain VAT) and `defaultTaxRate`.
+
+**`@eldrajs/ui` follow-up:** `useEldraUiCurrency()` should not default to `USD`, and `Price` should
+render a bare number for a code it cannot use rather than the number followed by that code. The
+empty-string sentinel above is a workaround for both: it is what makes the package decline a currency
+at all, and because `Price` still appends the (empty) code it leaves a trailing space in the rendered
+markup and logs one dev warning per component instance. When the package stops guessing,
+`uiCurrencyFor` can be deleted and the plugin can provide `commerce?.currency` directly.
 
 The demo source answers the _whole_ request, not just the paging part: `search.run` honours the query
 text, and `catalog.collectionProducts` honours `sort` and `filters` (category, size, colour,

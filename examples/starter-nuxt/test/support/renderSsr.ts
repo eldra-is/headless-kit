@@ -74,11 +74,20 @@ export async function renderShellToString(
   return renderToString(app);
 }
 
-/** Server-renders a whole page fixture, in the same three landmark regions the route renders. */
-export async function renderPageToString(fixture: PageFixture): Promise<string> {
+/**
+ * Server-renders a whole page fixture, in the same three landmark regions the route renders.
+ *
+ * `provides` replaces individual injections, the same way `renderBlockToString`'s does — the store
+ * currency and number locale (`CURRENCY_KEY`/`LOCALE_KEY`), for the spec that renders a product
+ * page as a store selling in krónur.
+ */
+export async function renderPageToString(
+  fixture: PageFixture,
+  provides: Record<symbol, unknown> = {}
+): Promise<string> {
   const app = createSSRApp(
     defineComponent({ setup: () => () => renderPageFixtureRegions(fixture, 'renderPageToString') })
   );
-  applyProvides(app);
+  applyProvides(app, provides);
   return renderToString(app);
 }

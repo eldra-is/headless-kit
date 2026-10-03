@@ -251,6 +251,17 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           features,
         };
       },
+      getCommerce: async (
+        organizationOptions?: EldraOrganizationOptions,
+        context?: EldraRequestContext
+      ) => {
+        const organization = await getOrganization(organizationOptions, context);
+
+        // Absent on a store that has not configured commerce — reported as `null` rather than
+        // filled in with a default, so a storefront can render a price honestly (a number, no
+        // symbol) instead of showing one currency's amounts under another's sign.
+        return organization.commerce ?? null;
+      },
     },
     catalog: {
       listProducts: <Response = EldraProductList>(

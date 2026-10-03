@@ -150,6 +150,28 @@ button appears when that resolves. If the platform publishes no checkout URL, or
 come back, the cart still adds, updates and persists lines normally; it just has no Check out
 button to show, since there is nowhere to hand the cart off to.
 
+## Prices and the store currency
+
+Nothing to configure here either, and nothing to guess: the organisation's own commerce settings
+say what the store sells in, `@eldrajs/theme-nuxt` reads them once during the build onto
+`runtimeConfig.public.eldra.commerce`, and `app/plugins/eldra-ui-messages.ts` provides the currency
+to every `@eldrajs/ui` component. `app/storefront/money.ts` is the only place the theme formats or
+converts money, and `useMoney()` is what a block calls — the formatted text in a sentence ("Add to
+cart · 2.800 kr.") and the `<Price>` beside it therefore always agree.
+
+A store that has not configured commerce publishes no currency, and the build says so once:
+
+```
+[eldra] the store publishes no currency — prices render as plain numbers
+```
+
+Prices then render as plain numbers — in a `<Price>` element and in a formatted sentence alike,
+never under a symbol the theme picked for you, which would misprice the page rather than merely
+under-describe it. There is no theme-side currency setting on
+purpose: the catalogue's amounts are in the store's currency whatever a theme claims.
+`useStorefront().commerce` also carries `taxInclusivePricing` and `defaultTaxRate`, for a block
+that has to say whether a price includes VAT.
+
 ## Restyling
 
 Two layers, both plain files:

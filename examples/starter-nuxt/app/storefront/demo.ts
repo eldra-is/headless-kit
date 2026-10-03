@@ -10,6 +10,7 @@ import type {
   StorefrontCatalog,
   StorefrontCollectionInfo,
   StorefrontCollectionSelector,
+  StorefrontCommerce,
   StorefrontFacet,
   StorefrontForms,
   StorefrontMedia,
@@ -1063,8 +1064,23 @@ function createDemoResult<T>(
 // createDemoStorefront
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * What the Northwind fixture sells in. Every amount in this file is a US dollar price and the demo
+ * order quotes 8% sales tax on top of its subtotal (`ORDER_TOTALS`: 19.52 on 244), so the demo
+ * store's own settings say exactly that. A spec or story that wants another currency — or a store
+ * that publishes none — passes `createDemoStorefront({ commerce })`.
+ */
+export const DEMO_COMMERCE: StorefrontCommerce = {
+  currency: 'USD',
+  taxInclusivePricing: false,
+  defaultTaxRate: 0.08,
+};
+
 export interface DemoStorefrontOptions {
   orderStatus?: StorefrontOrderStatus;
+  /** What the demo store sells in; `DEMO_COMMERCE` by default, `null` for a store that publishes
+   *  no currency at all. */
+  commerce?: StorefrontCommerce | null;
   recentlyViewed?: string[];
   query?: string;
   collectionHandle?: string;
@@ -1185,6 +1201,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
 
   return {
     ready: ref(true),
+    commerce: options.commerce === undefined ? DEMO_COMMERCE : options.commerce,
     route,
     catalog,
     cart: createCartStore(createDemoCartOps(options.cartLines ?? [])),

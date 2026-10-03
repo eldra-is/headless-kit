@@ -118,6 +118,39 @@ the build continues.
 preview bridge. See [examples/starter-nuxt](../../examples/starter-nuxt) for a full theme and
 [docs/themes.md](../../docs/themes.md) for the integration guide.
 
+## What the store sells in
+
+The module reads the organisation's commerce settings once, during the build, and puts them on the
+runtime config beside the gateway URL and the org id. `StoreCommerce` is exported for exactly this,
+so the key's shape is not re-declared per theme:
+
+```ts
+import type { StoreCommerce } from '@eldrajs/theme-nuxt/commerce';
+
+const raw = (useRuntimeConfig().public.eldra as { commerce: StoreCommerce | null | '' }).commerce;
+const commerce: StoreCommerce | null = typeof raw === 'object' ? raw : null;
+```
+
+`commerce` is `null` when the store has not configured commerce, when the site is built without
+gateway credentials, or when the read failed — the build prints one warning (naming the cause when
+there was one) and finishes, because a currency nobody can fetch should cost a symbol, not a deploy.
+A theme that formats prices should treat that as "render a plain number", never as a currency to
+guess at; the starter does exactly that in `app/storefront/money.ts`.
+
+One detail of Nuxt's own serialisation matters when you read the key: a `null` public runtime-config
+value reaches the page as an **empty string**, so on a store that published nothing `commerce` is
+`''` rather than `null` (the module's `locale` does the same). Treat anything that is not an object
+as "no currency" — not as a malformed record — and only complain about a record that is present but
+incomplete.
+
+The module supplies no override of its own, on purpose: the platform publishes the currency the
+catalogue's prices are actually in, so a theme-side setting could only ever relabel real amounts.
+(Nuxt's own public-runtime-config environment overriding — `NUXT_PUBLIC_ELDRA_COMMERCE_CURRENCY` and
+its siblings — still applies wherever Nuxt reads runtime config at request time, as it does to every
+other public key. On a prerendered site there is nothing for it to override: the value is baked into
+each page's payload at build.) It is read at build rather than in the browser because every price on
+a prerendered page is formatted against it.
+
 ## Development
 
 `src/runtime/**` is compiled by Nuxt at build/dev time, not by `tsc` — it imports `nuxt/app` and

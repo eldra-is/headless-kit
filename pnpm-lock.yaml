@@ -175,6 +175,9 @@ importers:
 
   packages/theme-nuxt:
     dependencies:
+      '@eldrajs/sdk':
+        specifier: workspace:^
+        version: link:../sdk
       '@eldrajs/theme-core':
         specifier: workspace:^
         version: link:../theme-core

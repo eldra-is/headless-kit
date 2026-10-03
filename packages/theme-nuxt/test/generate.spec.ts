@@ -49,6 +49,24 @@ describe('theme-nuxt nuxi generate', () => {
     expect(gateway.requests.some((request) => request.includes('pageSize=100'))).toBe(true);
   });
 
+  /**
+   * The store's currency is read once, at build, and baked into every prerendered page's runtime
+   * config — the whole reason it is read there and not in the browser. A theme formats its prices
+   * from this, so a static page that shipped without it would render every amount bare and then
+   * reflow once the client learned what the store sells in.
+   */
+  it('bakes the store’s currency into the prerendered runtime config', () => {
+    expect(
+      gateway.requests.some((request) =>
+        request.startsWith('/organization/v1/3fa85f64-5717-4562-b3fc-2c963f66afa6')
+      )
+    ).toBe(true);
+
+    for (const page of ['index.html', 'about/index.html', 'products/merino-crew/index.html']) {
+      expect(readFileSync(output(page), 'utf8')).toContain('commerce:{currency:"ISK"');
+    }
+  });
+
   it('prerenders and renders a catalog-backed route template from the public catalog', () => {
     expect(existsSync(output('products/merino-crew/index.html'))).toBe(true);
     // Only active products get a route: the archived one the list endpoint

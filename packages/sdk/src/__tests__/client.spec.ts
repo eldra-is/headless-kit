@@ -5,7 +5,7 @@ import {
   getEldraClient,
   initEldraClient,
 } from '../client';
-import type { EldraHttpRequest } from '../types';
+import type { EldraHttpRequest, EldraOrganizationCommerce } from '../types';
 import { stubHttpClient } from './support';
 
 describe('eldra sdk client', () => {
@@ -370,6 +370,79 @@ describe('eldra sdk client', () => {
     await expect(client.features.isEnabled('ECOMMERCE', { orgId: 'request-org' })).resolves.toBe(
       true
     );
+    expect(capturedRequest?.headers.get('X-Org-Id')).toBe('request-org');
+    expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/request-org');
+  });
+
+  it('reads what the store sells in off the organisation', async () => {
+    let capturedRequest: EldraHttpRequest | undefined;
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async (request) => {
+        capturedRequest = request;
+        return {
+          id: 'org-123',
+          name: 'Acme',
+          features: [{ feature: 'ECOMMERCE', enabled: true }],
+          commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+        };
+      }),
+    });
+
+    const commerce = await client.features.getCommerce();
+
+    expectTypeOf(commerce).toEqualTypeOf<EldraOrganizationCommerce | null>();
+    expect(commerce).toEqual({ currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 });
+    expect(capturedRequest?.method).toBe('GET');
+    expect(capturedRequest?.headers.get('X-Org-Id')).toBe('org-123');
+    expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/org-123');
+  });
+
+  it('answers null for a store that publishes no commerce, rather than a currency', async () => {
+    // The gateway omits `commerce` entirely until a store has configured it, and a storefront
+    // must be able to tell that apart from "sells in dollars" — the whole point of the read.
+    const absent = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async () => ({ id: 'org-123', name: 'Acme', features: [] })),
+    });
+    const explicitNull = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async () => ({
+        id: 'org-123',
+        name: 'Acme',
+        features: [],
+        commerce: null,
+      })),
+    });
+
+    await expect(absent.features.getCommerce()).resolves.toBeNull();
+    await expect(explicitNull.features.getCommerce()).resolves.toBeNull();
+  });
+
+  it('reads commerce for a request-specific org id', async () => {
+    let capturedRequest: EldraHttpRequest | undefined;
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'default-org',
+      httpClient: stubHttpClient(async (request) => {
+        capturedRequest = request;
+        return {
+          id: 'request-org',
+          name: 'Acme',
+          features: [],
+          commerce: { currency: 'EUR', taxInclusivePricing: false, defaultTaxRate: 0 },
+        };
+      }),
+    });
+
+    await expect(client.features.getCommerce({ orgId: 'request-org' })).resolves.toEqual({
+      currency: 'EUR',
+      taxInclusivePricing: false,
+      defaultTaxRate: 0,
+    });
     expect(capturedRequest?.headers.get('X-Org-Id')).toBe('request-org');
     expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/request-org');
   });
