@@ -35,6 +35,11 @@ function rankProducts(products: StorefrontProductListItem[]): StorefrontProductL
  * `total` is the *whole* result count the backend reports, not the number of rows returned here —
  * matching `SearchResults.total`'s own contract (the "See all N results" row reads it directly).
  *
+ * **No response, no results object.** `undefined` is `SearchBar`'s "nothing yet" — it shows no panel
+ * and, past 300ms, its loading view. An empty shape with `total: 0` is its "nothing found", which is
+ * a different and wrong answer while the read for the query is still in flight: that is what put
+ * "No results for “bowl”" under the field for the whole second it took to answer.
+ *
  * `formatPrice` is the block's own `useMoney().format` — the store's currency and the page's
  * locale, resolved where a composable can be called. This function is pure, so it takes the
  * formatter rather than reaching for the currency itself: the currency is the platform's, provided
@@ -44,10 +49,8 @@ export function toSearchBarResults(
   response: StorefrontSearchResponse | null,
   suggestionsPerGroup: number,
   formatPrice: (amount: number) => string
-): SearchResults {
-  if (response === null) {
-    return { products: [], collections: [], articles: [], pages: [], total: 0 };
-  }
+): SearchResults | undefined {
+  if (response === null) return undefined;
 
   const products: SearchResultItem[] = rankProducts(response.products)
     .slice(0, suggestionsPerGroup)

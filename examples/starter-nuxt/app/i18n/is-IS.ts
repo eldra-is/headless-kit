@@ -423,6 +423,9 @@ export const isIS = {
   },
   search: {
     searchLabel: 'Leita í versluninni',
+    title: 'Leit',
+    idleTitle: 'Hvað ertu að leita að?',
+    resultsHeading: 'Niðurstöður fyrir „{query}“',
     typeProducts: 'Vörur',
     typeJournal: 'Tímarit',
     typePages: 'Síður',

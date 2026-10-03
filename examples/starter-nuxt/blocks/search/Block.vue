@@ -29,7 +29,22 @@
  * three times; `showHeader` is the only thing that differs between them (a type-specific panel or
  * tab already names its own content, so it skips the heading/count/"View all" row).
  *
- * **No results.** A `search.run()` response with `total === 0` replaces the normal head/tabs
+ * **Idle, and what a prerendered page may say.** Before a query is asked — `/search` with no `?q=`,
+ * which is also the only state the prerendered `search/index.html` a static host serves can be in,
+ * since one file answers every query — the page shows its heading, the field and the popular
+ * searches, and nothing else. The empty query is a real `search.run()` answer with `total: 0`, so
+ * taking it at face value headed the page "No results for “”", offered spelling advice for
+ * a word nobody typed, and baked all of it into the artifact.
+ *
+ * **A read in flight is not an answer.** `StorefrontResult.data` keeps the previous answer until the
+ * next one lands, so this block compares `StorefrontSearchResponse.query` against the query in the
+ * field and treats anything else as no answer at all — and reads `loading` ("a read is in flight"),
+ * never `pending` ("a read in flight with nothing to show"), which is false for every search after
+ * the first. `SearchBar` is handed `undefined` rather than an empty result shape while that is true:
+ * its "nothing yet", which draws the loading view past 300ms, as against its "nothing found".
+ *
+ * **No results.** A `search.run()` response with `total === 0` **for a query that was asked**
+ * replaces the normal head/tabs
  * content with its own `role="status"` stack (spec → Accessibility: "announced when the page loads
  * after a search"): its own `h1`, advice with an optional "Did you mean" link from the backend's
  * `suggestion`, the popular-search chips again, and up to four `ProductCard`s from
@@ -60,7 +75,6 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
-import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { stripStega } from '@eldrajs/theme-core/stega';
 import { isInternalHref } from '../../app/utils/links';
@@ -68,6 +82,7 @@ import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { toSearchBarResults } from './results';
+import PopularChips from './PopularChips.vue';
 import TypeSection from './TypeSection.vue';
 
 type ResultTypeId = 'products' | 'journal' | 'pages';
@@ -162,6 +177,10 @@ const popularSearches = computed(() =>
     .filter((label) => label !== '')
 );
 const hasPopular = computed(() => popularSearches.value.length > 0);
+/** The chips `PopularChips.vue` renders, each already carrying the one `searchHref()`. */
+const popularChips = computed(() =>
+  popularSearches.value.map((label) => ({ label, href: searchHref(label) }))
+);
 const showPopularHint = computed(() => editing.value && isResultsPage.value && !hasPopular.value);
 
 // --- the query and the one search call ----------------------------------------------------------
@@ -179,6 +198,10 @@ watch(
   }
 );
 
+/** Whether there is a query to answer at all. `/search` with no `?q=` — the idle state, and every
+ *  prerender of this route — has none, and a page with no question on it must not print an answer. */
+const hasQuery = computed(() => searchQuery.value !== '');
+
 /**
  * The heading as it is shown. A heading with no `{query}` placeholder in it is
  * rendered exactly as it was authored, invisible editing payload included, so
@@ -188,15 +211,40 @@ watch(
  * sentence in place would write the shopper's query back over the `{query}`
  * the author put there and lose the placeholder for good.
  */
-const headingText = computed(() =>
-  heading.value.includes(QUERY_PLACEHOLDER)
-    ? stripStega(heading.value).replace(QUERY_PLACEHOLDER, searchQuery.value)
-    : heading.value
-);
+const headingText = computed(() => {
+  if (!heading.value.includes(QUERY_PLACEHOLDER)) return heading.value;
+  // No query to drop in: "Results for “”" is what the shopper would read, and — on `/search`, whose
+  // shell is prerendered with no query at all — what the HTML a static host serves would *say*. The
+  // theme's own idle title takes its place. Studio keeps the authored sentence: an author editing
+  // the page has no query either, and a heading they cannot see is a heading they cannot change.
+  if (!hasQuery.value && !editing.value) return t('search.idleTitle');
+  return stripStega(heading.value).replace(QUERY_PLACEHOLDER, searchQuery.value);
+});
 
 const searchResult = storefront.search.run(searchQuery);
-const response = computed(() => searchResult.data.value);
-const isLoading = computed(() => searchResult.pending.value);
+/**
+ * The answer to the query that is **in the field right now**, or `null` while the read for it is
+ * still in flight.
+ *
+ * `searchResult.data` keeps the previous answer until the next one lands — right for a page of
+ * prerendered products, wrong for a results page the shopper is retyping: the stale answer made
+ * the heading, the summary and the sections describe the query before this one, and because the
+ * first thing `search.run()` ever answers is the empty query's own `{ total: 0 }`, a page whose
+ * first real query was still in flight showed the whole no-results state for it.
+ * `StorefrontSearchResponse.query` is the query its own answer is about, so the two compare
+ * directly.
+ */
+const response = computed(() => {
+  const answer = searchResult.data.value;
+  return answer !== null && answer.query === searchQuery.value ? answer : null;
+});
+/**
+ * `loading`, not `pending`: `pending` is the skeleton flag — "a read in flight with **nothing to
+ * show**" — so it is false for every search after the first one, and neither this page's "Searching…"
+ * line nor `SearchBar`'s own loading view ever appeared. `loading` is "a read is in flight",
+ * narrowed to the reads this page has no answer for.
+ */
+const isLoading = computed(() => response.value === null && searchResult.loading.value);
 
 /** The store's currency and the page's locale, for the suggestion prices below and the
  *  `<ProductCard>`s the no-results state renders (`money.minor`). */
@@ -219,7 +267,16 @@ function countFor(type: ResultTypeId): number {
 const totalCount = computed(() => response.value?.total ?? 0);
 const hasAnswer = computed(() => !isLoading.value && response.value !== null);
 const showResults = computed(() => hasAnswer.value && totalCount.value > 0);
-const showNoResults = computed(() => hasAnswer.value && totalCount.value === 0);
+/**
+ * The no-results state answers a question, so it needs one asked: `hasQuery`. Without that gate the
+ * empty query's own `{ total: 0 }` *is* an answer, and `/search` with no `?q=` — the state a shopper
+ * arrives in, and the one baked into the prerendered HTML a static host serves — headed itself
+ * "No results for “”" and offered spelling advice for a word nobody typed.
+ */
+const showNoResults = computed(() => hasAnswer.value && hasQuery.value && totalCount.value === 0);
+/** Nothing asked yet: the heading and the field, with the popular searches under them as the one
+ *  thing a shopper can act on. The results page's own resting state, not a variant of it. */
+const showIdle = computed(() => isResultsPage.value && !hasQuery.value);
 
 const visibleTypes = computed(() => types.value.filter((config) => countFor(config.type) > 0));
 const showTabs = computed(() => visibleTypes.value.length > 1);
@@ -307,11 +364,6 @@ const sectionClasses = { root: 'pt-8 pb-[var(--eldra-section-md)]' };
 const headingClass =
   'font-heading text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em] break-words ' +
   '[overflow-wrap:anywhere] @tablet:text-h2';
-
-const CHIP_CLASS =
-  'inline-flex min-h-11 items-center gap-2 rounded-full border border-border-strong px-4 ' +
-  'text-body-sm font-medium text-text hover:border-text ' +
-  'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] @tablet:min-h-9';
 </script>
 
 <template>
@@ -355,9 +407,22 @@ const CHIP_CLASS =
           :help="t('search.popularHintHelp')"
         />
 
-        <p v-if="isResultsPage && !showNoResults" role="status" class="text-body-sm text-muted">
+        <!-- The count line answers a query; with none asked there is nothing to count. -->
+        <p
+          v-if="isResultsPage && hasQuery && !showNoResults"
+          role="status"
+          class="text-body-sm text-muted"
+        >
           {{ summaryText }}
         </p>
+
+        <!-- Idle: nothing asked yet. The popular searches are the one thing to act on. -->
+        <PopularChips
+          v-if="showIdle && hasPopular"
+          :heading="t('search.popularSearches')"
+          :items="popularChips"
+          :link-as="resultsLinkAs"
+        />
       </div>
 
       <!-- No results: its own status region and its own h1, replacing the tabs/sections below. -->
@@ -379,22 +444,12 @@ const CHIP_CLASS =
           </Link>
         </p>
 
-        <template v-if="hasPopular">
-          <p class="text-body-sm text-text font-semibold">{{ t('search.popularSearches') }}</p>
-          <ul class="flex flex-wrap gap-2">
-            <li v-for="label in popularSearches" :key="label">
-              <Link
-                :href="searchHref(label)"
-                :as="resultsLinkAs"
-                :underline="false"
-                :classes="{ root: CHIP_CLASS }"
-              >
-                <EldraIcon name="search" size="sm" />
-                {{ label }}
-              </Link>
-            </li>
-          </ul>
-        </template>
+        <PopularChips
+          v-if="hasPopular"
+          :heading="t('search.popularSearches')"
+          :items="popularChips"
+          :link-as="resultsLinkAs"
+        />
 
         <template v-if="hasNoResultsProducts">
           <p class="text-body-sm text-text font-semibold">{{ t('search.customersLove') }}</p>

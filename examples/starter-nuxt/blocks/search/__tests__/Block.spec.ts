@@ -20,10 +20,22 @@ import { enUS } from '../../../app/i18n/en-US';
  *  searches, no no-results collection) at once. */
 const bare = { variant: 'results-page' };
 
-function stubResult<T>(data: T, pending = false): StorefrontResult<T> {
+/**
+ * `pending` and `loading` are the storefront's two in-flight flags and they do not mean the same
+ * thing (`app/storefront/types.ts`): `pending` is "nothing to show yet", `loading` is "a read is in
+ * flight". The block reads `loading`, so a stub that carried only `pending` could not express the
+ * state this spec cares about most — a read in flight *over* a previous answer — and the two are
+ * passed separately here for that reason.
+ */
+function stubResult<T>(
+  data: T,
+  flags: { pending?: boolean; loading?: boolean } = {}
+): StorefrontResult<T> {
   return {
     data: ref(data) as Ref<T | null>,
-    pending: ref(pending),
+    pending: ref(flags.pending ?? false),
+    loading: ref(flags.loading ?? false),
+    revalidating: ref(new Set()),
     error: ref(null),
     refresh: async () => {},
   };
@@ -36,9 +48,15 @@ function stubResult<T>(data: T, pending = false): StorefrontResult<T> {
  * These helpers build a storefront whose `search`/`catalog` are swapped for a controllable stub,
  * keeping everything else (cart, history, forms) the real demo.
  */
-function withSearch(response: StorefrontSearchResponse | null, pending = false): StorefrontSource {
-  const base = createDemoStorefront();
-  return { ...base, search: { run: () => stubResult(response, pending) } };
+function withSearch(
+  response: StorefrontSearchResponse | null,
+  flags: { pending?: boolean; loading?: boolean } = {}
+): StorefrontSource {
+  // The route carries the query the stubbed response answers. A results page is always reached by a
+  // query, and the block only trusts an answer whose own `query` is the one in the field — a stub
+  // whose route said nothing would be an answer to a question the page never asked.
+  const base = createDemoStorefront(response === null ? {} : { query: response.query });
+  return { ...base, search: { run: () => stubResult(response, flags) } };
 }
 
 function withNoResults(): StorefrontSource {
@@ -114,9 +132,9 @@ function pageStatus(wrapper: VueWrapper) {
 describe('search block', () => {
   describe('accessibility', () => {
     it('renders the full mock.json content with no axe violations', async () => {
-      const wrapper = mountSearch(mock);
+      const wrapper = mountSearch(mock, { storefront: createDemoStorefront({ query: 'linen' }) });
       await nextTick();
-      expect(wrapper.text()).toContain('Results for');
+      expect(wrapper.text()).toContain('Results for “linen”');
       expect(wrapper.find('input[type="search"]').attributes('placeholder')).toBe(mock.placeholder);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
@@ -501,6 +519,111 @@ describe('search block', () => {
 
       expect(queries).toEqual(['', 'linen', 'wool', '']);
       expect(wrapper.find('input[type="search"]').element.value).toBe('');
+    });
+  });
+
+  /**
+   * `/search` with no `?q=` — what a shopper reaches from a "Search" link, and the only state the
+   * prerendered `search/index.html` a static host serves can be in, since one file answers every
+   * query (`app/pages/search.vue`).
+   *
+   * The empty query is a real `search.run()` answer with `total: 0`, so the page used to head itself
+   * "No results for “”" and offer spelling advice for a word nobody typed — baked into the
+   * artifact's HTML, which is where a shopper and a crawler both read it first.
+   */
+  describe('idle: no query asked yet', () => {
+    it('heads itself with the idle title, not a no-results answer', async () => {
+      const wrapper = mountSearch(mock);
+      await nextTick();
+
+      const heading = wrapper.get('h1');
+      expect(heading.text()).toBe(enUS.search.idleTitle);
+      expect(wrapper.text()).not.toContain('No results');
+      // Nor the empty interpolation of the authored heading template.
+      expect(wrapper.text()).not.toContain('Results for “”');
+      // Nothing to count, so no count line either.
+      expect(wrapper.find('[role="status"]:not([aria-live])').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('offers the popular searches as links back into the results page', async () => {
+      const wrapper = mountSearch(mock);
+      await nextTick();
+
+      const chips = wrapper
+        .findAll('a')
+        .filter((link) => mock.popularSearches.map((item) => item.label).includes(link.text()));
+      expect(chips.map((chip) => chip.attributes('href'))).toEqual([
+        '/search?q=Merino',
+        '/search?q=Mugs',
+        '/search?q=Tea%20towels',
+        '/search?q=Gift%20cards',
+      ]);
+    });
+
+    it('answers the query as soon as the route carries one', async () => {
+      const storefront = createDemoStorefront();
+      const wrapper = mountSearch(mock, { storefront });
+      await nextTick();
+      expect(wrapper.get('h1').text()).toBe(enUS.search.idleTitle);
+
+      storefront.route.query = 'linen';
+      await nextTick();
+      await nextTick();
+
+      expect(wrapper.get('h1').text()).toBe('Results for “linen”');
+      expect(wrapper.text()).not.toContain(enUS.search.idleTitle);
+    });
+  });
+
+  /**
+   * The state the deployed header and results page both got wrong: a read for the *new* query is in
+   * flight while `data` still holds the answer to the *previous* one. `pending` is false there (there
+   * is something on screen), so a page keyed off `pending` showed no loading state at all, and the
+   * stale answer — the empty query's `{ total: 0 }`, for a first search — was presented as this
+   * query's. "No results for “wool”" is a wrong answer, not an empty one.
+   */
+  describe('a read in flight over a previous answer', () => {
+    const LINEN: StorefrontSearchResponse = {
+      query: 'linen',
+      total: 1,
+      products: [],
+      articles: [ARTICLE_A],
+      pages: [],
+      suggestion: null,
+    };
+
+    /** The gateway's own mid-retype shape: the route (and so the field) says `wool`, the answer in
+     *  hand is `linen`'s, and `loading` says the read for `wool` has not come back. */
+    function retyping(): StorefrontSource {
+      const base = createDemoStorefront({ query: 'wool' });
+      return { ...base, search: { run: () => stubResult(LINEN, { loading: true }) } };
+    }
+
+    it('says it is searching, and shows neither the old answer nor a no-results answer', async () => {
+      const wrapper = mountSearch(mock, { storefront: retyping() });
+      await nextTick();
+
+      expect(pageStatus(wrapper).text()).toBe(enUS.search.searching);
+      expect(wrapper.text()).not.toContain(ARTICLE_A.title);
+      expect(wrapper.text()).not.toContain('No results');
+      expect(wrapper.find('[role="tablist"]').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it("draws the field's own loading view once the request passes 300ms", async () => {
+      vi.useFakeTimers();
+      const wrapper = mountSearch(mock, { attach: true, storefront: retyping() });
+      const input = wrapper.get('input[type="search"]');
+      await input.setValue('wool');
+
+      expect(document.querySelector('[data-part="loading"]')).toBeNull();
+      vi.advanceTimersByTime(300);
+      await nextTick();
+
+      expect(document.querySelector('[data-part="loading"]')).not.toBeNull();
+      // Never the "nothing found" view while the request for it is still out.
+      expect(document.body.textContent).not.toContain('No results');
     });
   });
 });

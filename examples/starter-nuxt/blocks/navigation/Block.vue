@@ -327,7 +327,33 @@ function toSearchResults(response: StorefrontSearchResponse | null): SearchResul
   return { products, collections: [], articles, pages, total: response.total };
 }
 
-const searchResults = computed(() => toSearchResults(searchResult.data.value));
+/**
+ * The response for the query that is **in the field right now**, or `null` while the read for it is
+ * still in flight.
+ *
+ * `searchResult.data` keeps the last answer it got until the next one lands — which is what a page
+ * showing prerendered products wants, and exactly wrong for a search panel. The very first thing
+ * `search.run()` answers is the empty query's own `{ total: 0 }`, so without this check the panel
+ * read "No results for “bowl”" (a `results` object with a zero total is `SearchModal`'s "none"
+ * view) for the whole time the request for "bowl" was in flight, and then popped the results in.
+ * `StorefrontSearchResponse.query` is the query its own answer is about, so the two can be compared
+ * directly rather than tracked alongside.
+ */
+const searchAnswer = computed(() => {
+  const answer = searchResult.data.value;
+  return answer !== null && answer.query === searchQuery.value ? answer : null;
+});
+/** `undefined` while there is no answer for this query — which is how both `SearchBar` and
+ *  `SearchModal` are told "nothing yet", as opposed to "nothing found". */
+const searchResults = computed(() => toSearchResults(searchAnswer.value));
+/**
+ * `loading`, not `pending`: `pending` is the skeleton flag and means "a read in flight with nothing
+ * to show yet", so it is false for every search after the first one (`data` still holds the
+ * previous answer) and the panel never reached its loading view. `loading` is "a read is in
+ * flight", which is the question being asked here — narrowed to the reads this panel has no answer
+ * for, so a background refresh of an answer already on screen does not blank it.
+ */
+const searchLoading = computed(() => searchAnswer.value === null && searchResult.loading.value);
 
 function openSearch(): void {
   searchOpen.value = true;
@@ -998,7 +1024,7 @@ const actionsPositionClass = computed(() =>
                 pill
                 :label="t('header.searchField')"
                 :results="searchResults"
-                :loading="searchResult.pending.value"
+                :loading="searchLoading"
                 :classes="{ root: 'hidden w-64 @content:block' }"
               />
               <Button
@@ -1187,7 +1213,7 @@ const actionsPositionClass = computed(() =>
       v-model="searchOpen"
       v-model:query="searchQuery"
       :results="searchResults"
-      :loading="searchResult.pending.value"
+      :loading="searchLoading"
     />
   </header>
   <!-- The flow the fixed bar left behind — see `barSpacerClasses`. Empty and unlabelled: it is
