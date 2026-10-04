@@ -138,12 +138,33 @@ const instructionsClass = computed(() => partClass('sr-only', props.classes, 'in
  * own comment on its `data-dragging` attribute and `setDocumentSelectionSuppressed`) — all stock
  * Tailwind utilities, the `cursor-*` pair gated on `draggable` so a `draggable: false` track shows
  * neither.
+ *
+ * **Fix (2026-10-04, operator report: a focused card's ring was clipped flat on the top, bottom and
+ * outer edges, with only the inner edge toward its neighbour ever visible).** `overflow-x-auto`
+ * forces `overflow-y` to compute `auto` too — a scroll container cannot mix `visible` with a
+ * non-`visible` axis (CSSOM "Overflow") — so the track clipped every slide's own `eldra-focus` ring
+ * (an outline/box-shadow pair drawn *outside* the slide's border box) at its own padding-box edge
+ * on every side, and at its left/right edges for the first/last slide specifically. `p-[calc(...)]`
+ * reserves exactly the ring's own reach and the matching `-m-[calc(...)]` pulls the track's box back
+ * in by the same amount, so the track's rendered footprint — and every slide's position inside it,
+ * the header's arrows included — is unchanged. The reach is `--eldra-focus-offset` plus
+ * `--eldra-focus-width` (`tailwind.css`'s "The one focus ring"), not a literal `4px`/`p-1`: the
+ * `[--eldra-focus-offset:4px]` override just above raises that variable for every descendant that
+ * inherits it (plain custom properties inherit; every slide, and every focusable control inside one,
+ * reads the track's 4px here instead of the token's own 2px), so a literal guess sized for the
+ * default would still clip the ring by the same amount the override adds. `scroll-px-[calc(...)]`
+ * keeps `scroll-snap-align: start` landing on each slide's own edge rather than the new padding in
+ * front of it — without it the first slide snapped with that padding scrolled *past* the start,
+ * clipping its outer ring all over again on the one axis the track actually scrolls.
  */
 const trackClass = computed(() =>
   partClass(
     cx(
       'relative flex touch-pan-x touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
       'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
+      'p-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+      '-m-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+      'scroll-px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
       props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
       'data-[dragging=true]:snap-none data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
       'eldra-carousel-track'

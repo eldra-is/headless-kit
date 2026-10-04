@@ -1655,3 +1655,13 @@ aria-labelledby` its
   (see `BreadcrumbItem`'s own comment) and can never be collapsed away, so `keepLast: 0` behaves
   the same as `1` rather than losing that guarantee. New regression tests cover `keepLast: 0`,
   `collapseAfter: 0`, `collapseAfter + keepLast >= items.length`, and `keepLast > items.length`.
+- **`Carousel`: a focused slide's own ring is no longer clipped by the track.** `overflow-x-auto`
+  forces `overflow-y` to compute `auto` as well, so the track clipped a slide's `eldra-focus` ring
+  (drawn outside the slide's own box as an outline/box-shadow pair) flat at its own edge on every
+  side, leaving only the inner edge toward a neighbouring slide visible — seen on a focused
+  `ProductCard` in a product row, and the same way on a gallery tile and a testimonial card. The
+  track now carries padding sized from `--eldra-focus-offset` plus `--eldra-focus-width` (the
+  ring's own reach, read from `tailwind.css`'s focus-ring utility rather than assumed), pulled back
+  in by a negative margin of the same size so its rendered footprint — and every slide's position
+  inside it — is unchanged, plus a matching scroll padding so `scroll-snap-align: start` still
+  lands on a slide's own edge instead of the new padding in front of it.

@@ -1427,6 +1427,30 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
+   * Fix (2026-10-04, operator report): a focused slide's `eldra-focus` ring was clipped flat on
+   * every side but the one facing a neighbouring slide. `overflow-x-auto` forces `overflow-y` to
+   * compute `auto` too, so the track clipped the ring (an outline/box-shadow pair drawn outside a
+   * slide's own box) at its own edges. The track now carries matching padding and a negative
+   * margin of the same size (so its rendered footprint is unchanged) plus a matching scroll
+   * padding (so `scroll-snap-align: start` still lands on a slide's own edge, not the new padding
+   * in front of it) — all three sized from the same `--eldra-focus-offset`/`--eldra-focus-width`
+   * pair the ring itself reads, not a literal guess.
+   */
+  it('reserves room for a slide ring with padding, a matching negative margin and scroll padding', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const classes = track(wrapper).className;
+    const reach = 'calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))';
+    expect(classes).toContain(`p-[${reach}]`);
+    expect(classes).toContain(`-m-[${reach}]`);
+    expect(classes).toContain(`scroll-px-[${reach}]`);
+    wrapper.unmount();
+  });
+
+  /**
    * Operator fix (2026-09-26, round 2): "Do NOT preventDefault() the pointerdown (keep native
    * focus/click behaviour)" — round one's `preventDefault()` on every qualifying pointerdown is
    * gone entirely, proven on both a pointerdown that may go on to start a drag (the track's own
