@@ -706,6 +706,12 @@ describe('EldraLayout', () => {
     expect(heading.text()).toBe('Editable');
     heading.element.focus();
     heading.element.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    // Let the field's own theme:text-edited debounce flush before the editor
+    // speaks: a draft is only authoritative for text the editor has been told
+    // about, and keystrokes still inside that window outrank it on purpose
+    // (theme-core's "keeps every keystroke and the caret when the editor
+    // echoes a draft one key behind").
+    await new Promise((resolve) => setTimeout(resolve, 350));
     runtime.acceptExternalUpdate([heroId]);
     await wrapper.setProps({
       blocks: [{ ...hero, data: { heading: updated } }, second],

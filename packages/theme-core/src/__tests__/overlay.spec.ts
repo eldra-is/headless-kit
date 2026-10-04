@@ -199,12 +199,23 @@ describe('createOverlayRuntime', () => {
     expect(document.getSelection()?.focusOffset).toBe('Hello xy'.length);
   });
 
-  it('accepts an authoritative external draft over matching active inline text', () => {
+  it('accepts an authoritative external draft over inline text the editor has seen', () => {
     runtime.setMode('edit');
     const original = document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
     original.focus();
     original.textContent = 'Stale local text';
     original.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    // The editor can only hold an authoritative draft for text it has been
+    // told about, so flush the field's own theme:text-edited debounce first.
+    // Before that flush the local text is newer than anything the editor can
+    // echo, and the test below proves it survives instead.
+    vi.advanceTimersByTime(300);
+    expect(post).toHaveBeenCalledWith(
+      'theme:text-edited',
+      expect.objectContaining({
+        value: 'Stale local text',
+      })
+    );
     runtime.acceptExternalUpdate(['block-1']);
 
     const heading = document.createElement('h2');
@@ -219,6 +230,115 @@ describe('createOverlayRuntime', () => {
     expect(document.querySelector('[data-eldra-field="heading"]')?.textContent).toBe(
       'Accepted external draft'
     );
+  });
+
+  it('keeps every keystroke and the caret when the editor echoes a draft one key behind', () => {
+    runtime.setMode('edit');
+    const stega = (value: string): string =>
+      encodeStega(value, { entryId: 'block-1', fieldPath: 'heading', locale: 'en-US' });
+    const field = (): HTMLElement =>
+      document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
+    const placeCaret = (offset: number): void => {
+      const element = field();
+      const selection = document.getSelection()!;
+      const range = document.createRange();
+      const text = element.firstChild;
+      if (text?.nodeType === Node.TEXT_NODE)
+        range.setStart(text, Math.min(offset, (text as Text).data.length));
+      else range.selectNodeContents(element);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    const caret = (): number => {
+      const selection = document.getSelection()!;
+      if (selection.rangeCount === 0) return -1;
+      const live = selection.getRangeAt(0);
+      const probe = document.createRange();
+      probe.selectNodeContents(field());
+      try {
+        probe.setEnd(live.startContainer, live.startOffset);
+      } catch {
+        return -1;
+      }
+      return probe.toString().length;
+    };
+    // What the browser does for one typed character inside the contenteditable,
+    // followed by the MutationObserver pass the overlay answers it with.
+    const typeChar = (char: string): void => {
+      const element = field();
+      const at = caret();
+      (element.firstChild as Text).insertData(at, char);
+      placeCaret(at + char.length);
+      element.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      runtime.rescan();
+    };
+    // One editor:content-update, exactly as theme-vue delivers it: release the
+    // preservation, let the renderer redraw the field from the draft (which
+    // replaces the text node the caret lives in), rescan, then reconcile.
+    const echo = (value: string): void => {
+      runtime.acceptExternalUpdate(['block-1']);
+      field().textContent = stega(value);
+      runtime.rescan();
+      runtime.reconcileExternalDrafts({ 'block-1': { heading: stega(value) } }, ['block-1']);
+    };
+
+    field().focus();
+    placeCaret('Hello'.length);
+    field().dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+
+    const typed = ' probe';
+    let seenByEditor = 'Hello';
+    for (let index = 0; index < typed.length; index += 1) {
+      typeChar(typed[index]!);
+      const expected = `Hello${typed.slice(0, index + 1)}`;
+      expect(field().textContent).toBe(expected);
+      expect(caret()).toBe(expected.length);
+
+      // The editor echoes the draft it last accepted — one keystroke behind,
+      // because this keystroke's own debounce has not flushed yet. Neither the
+      // character nor the caret may be lost to it.
+      echo(seenByEditor);
+      expect(field().textContent).toBe(expected);
+      expect(caret()).toBe(expected.length);
+
+      // The debounce flushes, the editor catches up, and its acknowledging
+      // echo must not move the caret either.
+      vi.advanceTimersByTime(300);
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({ value: expected })
+      );
+      seenByEditor = expected;
+      echo(seenByEditor);
+      expect(field().textContent).toBe(expected);
+      expect(caret()).toBe(expected.length);
+    }
+
+    expect(field().textContent).toBe('Hello probe');
+  });
+
+  it('does not pull focus back into the frame when the operator is not in it', () => {
+    runtime.setMode('edit');
+    const original = document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
+    original.focus();
+    original.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    // The operator has moved to Studio's own sidebar: the preview document is
+    // no longer the focused one, so a renderer pass that replaces the field
+    // must place no focus at all — taking it would close whatever they opened.
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    const heading = document.createElement('h2');
+    heading.textContent = encodeStega('Hello', {
+      entryId: 'block-1',
+      fieldPath: 'heading',
+      locale: 'en-US',
+    });
+    original.replaceWith(heading);
+    runtime.rescan();
+
+    const replacement = document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
+    expect(replacement).not.toBe(original);
+    expect(document.activeElement).not.toBe(replacement);
   });
 
   it('reconciles an authoritative external scalar into a decorated text node', () => {

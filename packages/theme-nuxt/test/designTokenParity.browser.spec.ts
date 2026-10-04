@@ -139,6 +139,12 @@ describe('real-browser design-token preview/static parity', () => {
         await expect.poll(() => editable.getAttribute('contenteditable')).toBe('true');
         await editable.focus();
         await editable.dispatchEvent('input');
+        // Let the field's own theme:text-edited debounce flush first: inside
+        // that window the overlay owns the text, because the editor has not
+        // been told about the keystroke yet and nothing it echoes can describe
+        // it (theme-core's `hasUnflushedTextEdit`). An accepted external draft
+        // is only authoritative for text the editor has actually seen.
+        await previewPage.waitForTimeout(400);
         await previewPage.evaluate(() => window.postContentDraft?.('Accepted browser draft'));
         await expect.poll(() => editable.textContent()).toBe('Accepted browser draft');
 
