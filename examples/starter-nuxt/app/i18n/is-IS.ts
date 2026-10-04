@@ -131,6 +131,8 @@ export const isIS = {
     cartEmpty: 'Karfa, tóm',
     cartOne: 'Karfa, 1 vara',
     cartMany: 'Karfa, {count} vörur',
+    wishlistOne: 'Óskalisti, 1 vara',
+    wishlistMany: 'Óskalisti, {count} vörur',
     viewAll: 'Sjá allt',
     viewAllOf: 'Sjá allt: {label}',
   },
@@ -491,6 +493,19 @@ export const isIS = {
     drawerHintHelp: 'Kaupendur opna hana með töskuhnappnum; hér sést ekkert fyrr en þeir gera það.',
     drawerHintHosted:
       'Þemað opnar hana þegar á öllum síðum, svo þessi hluti gerir ekkert og má fjarlægja.',
+  },
+  wishlist: {
+    saved: 'Vistað á óskalista',
+    removed: 'Fjarlægt af óskalista',
+    view: 'Skoða óskalista',
+    removedNamed: '{title} fjarlægt. {count} á óskalistanum.',
+    title: 'Óskalistinn þinn',
+    itemCountOne: '1 vara',
+    itemCountMany: '{count} vörur',
+    items: 'Vistaðar vörur',
+    emptyTitle: 'Óskalistinn þinn er tómur',
+    emptyText: 'Ýttu á hjartað á vöru til að vista hana hér til síðari tíma.',
+    continueShopping: 'Halda áfram að versla',
   },
   order: {
     number: 'Pöntun {number}',

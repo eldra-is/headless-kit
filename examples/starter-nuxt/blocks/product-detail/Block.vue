@@ -63,8 +63,9 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
+import { useWishlist } from '../../app/composables/useWishlist';
 import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
-import { CART_ADD_TOAST_ID, isOutOfStock } from '../../app/storefront/feedback';
+import { CART_ADD_TOAST_ID, isOutOfStock, WISHLIST_TOAST_ID } from '../../app/storefront/feedback';
 import { roundMoney, useMoney } from '../../app/storefront/money';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -90,6 +91,9 @@ const { data, entryId } = useBlockData(props, 'product-detail');
 const t = useT();
 const editing = useEditing();
 const storefront = useStorefront();
+/** The saved-for-later list, hydrated after mount — see `useWishlist()` for why the heart is
+ *  never pressed in prerendered HTML. */
+const wishlist = useWishlist();
 const feedback = useStorefrontFeedback();
 const toast = useToast();
 
@@ -355,17 +359,40 @@ const addToCartLabel = computed(() => {
   return t('product.addToCart', { price: formattedPrice.value });
 });
 
-const wishlisted = computed(() =>
-  handle.value === null ? false : storefront.wishlist.has(handle.value)
-);
+/** The theme's own wishlist page (`app/pages/wishlist.vue`) — the same destination the header's
+ *  heart has, and the only place a saved list can be looked at. */
+const WISHLIST_PATH = '/wishlist';
+
+const wishlisted = computed(() => (handle.value === null ? false : wishlist.has(handle.value)));
 const wishlistLabel = computed(() => {
   const title = product.value?.title ?? '';
   return wishlisted.value
     ? t('product.removeFromWishlist', { title })
     : t('product.saveToWishlist', { title });
 });
+/**
+ * Press the heart, and — either way — a sentence. The button's own `aria-pressed` flipping is the
+ * whole of the feedback a sighted mouse user gets otherwise, and it is a 20px outline icon in the
+ * corner of the buy box: the same "the button looks like it did nothing" problem the add-to-cart
+ * toast above exists for.
+ *
+ * A save offers the one thing a shopper might want next — the list itself — the way `cart.added`
+ * offers the cart. `/wishlist` is an ordinary link, not a drawer: there is no hosted wishlist
+ * drawer, and the page is prerendered, so it is the same destination the header's heart has. A
+ * removal offers nothing: the product just left the list, so there is nothing there to go and see,
+ * and pressing the heart again is already the undo.
+ *
+ * One `id` for both, like every other toast in this block: a shopper who presses the heart twice
+ * replaces the sentence in place instead of stacking two that contradict each other.
+ */
 function toggleWishlist(): void {
-  if (handle.value !== null) storefront.wishlist.toggle(handle.value);
+  if (handle.value === null) return;
+  const saved = wishlist.toggle(handle.value);
+  toast.show({
+    id: WISHLIST_TOAST_ID,
+    title: saved ? t('wishlist.saved') : t('wishlist.removed'),
+    action: saved ? { label: t('wishlist.view'), href: WISHLIST_PATH } : undefined,
+  });
 }
 
 const addToCartEl = ref<HTMLElement | null>(null);

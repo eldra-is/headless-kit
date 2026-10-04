@@ -130,6 +130,8 @@ export const enUS = {
     cartEmpty: 'Cart, empty',
     cartOne: 'Cart, 1 item',
     cartMany: 'Cart, {count} items',
+    wishlistOne: 'Wishlist, 1 item',
+    wishlistMany: 'Wishlist, {count} items',
     viewAll: 'View all',
     viewAllOf: 'View all {label}',
   },
@@ -489,6 +491,19 @@ export const enUS = {
     drawerHintHelp: 'Shoppers open it with the bag button; nothing shows here until they do.',
     drawerHintHosted:
       'The theme already opens one on every page, so this block adds nothing and can be removed.',
+  },
+  wishlist: {
+    saved: 'Saved to wishlist',
+    removed: 'Removed from wishlist',
+    view: 'View wishlist',
+    removedNamed: 'Removed {title}. {count} in your wishlist.',
+    title: 'Your wishlist',
+    itemCountOne: '1 item',
+    itemCountMany: '{count} items',
+    items: 'Saved products',
+    emptyTitle: 'Your wishlist is empty',
+    emptyText: 'Press the heart on any product to save it here for later.',
+    continueShopping: 'Continue shopping',
   },
   order: {
     number: 'Order {number}',

@@ -1024,6 +1024,97 @@ Two fields the theme's own entry deliberately leaves absent: `popularSearches` a
 `app/i18n`'s until a storefront settings entry exists, and the route carries no header or footer,
 because the runtime resolves those only as part of a CMS page or route template.
 
+## Wishlist
+
+A shopper can save products for later, and the whole feature is **local to their browser**. There is
+no account behind it and no platform endpoint for one yet: `app/storefront/history.ts`'s
+`createWishlistStore()` keeps a list of storefront handles in `localStorage` under
+`eldra.storefront.wishlist` — the same namespace and the same bare JSON array `recentlyViewed`
+already uses, and the same unversioned shape `@eldrajs/sdk`'s `createCartSession` keeps the cart id
+in. An account-backed wishlist is a later platform feature; when it lands, the store behind
+`useStorefront().wishlist` changes and nothing that reads it has to.
+
+The interface is `items` (handles, newest first), `count`, `has`, `toggle`, `remove`, `clear` and
+`hydrate` (`WishlistStore` in `app/storefront/types.ts`). Three surfaces read it, and all three go
+through **`useWishlist()`** (`app/composables/useWishlist.ts`) rather than touching
+`useStorefront().wishlist` directly:
+
+- **`blocks/product-detail/Block.vue`** — the heart in the buy box (`aria-pressed`, "Save … to
+  wishlist" / "Remove … from wishlist"). Pressing it raises a toast, because `aria-pressed` flipping
+  on a 20px outline icon is not feedback: "Saved to wishlist" with one action, **View wishlist** →
+  `/wishlist`, the same shape the add-to-cart toast has, or "Removed from wishlist" with no action
+  (the product has left the list, so there is nothing to go and see, and pressing the heart again is
+  already the undo). One toast id for both, so pressing twice replaces the sentence instead of
+  leaving two contradicting ones on screen.
+- **`app/pages/wishlist.vue`** — the `/wishlist` route (below).
+- **`blocks/navigation/Block.vue`** — a heart in the header's actions row beside the bag, with the
+  bag's own count pill, linking to `/wishlist`. **It is absent until there is something saved**, and
+  no `block.json` field gates it: `showAccount` exists because `/account` only exists once a store
+  has customer accounts, while `/wishlist` is prerendered in every build and can never lead nowhere.
+  Absent from the `minimal` variant too, which the spec defines as brand, search, cart and a Menu
+  button — the same `variant !== 'minimal'` guard the account icon and the call to action carry. It
+  _does_ render at mobile widths, unlike those two: a shopper who saved something on a phone has no
+  other way back to it, where both of them have a drawer row.
+
+**Hydration is the one rule everything here turns on.** `items` is empty until `hydrate()`, which
+only `useWishlist()` calls, and only in `onMounted`. A saved list is a visitor's own state, and one
+prerendered file is served to all of them — so the HTML a build writes has no pressed hearts, no
+header heart and an empty `/wishlist` page, the browser's first render of that file is identical to
+it by construction, and the saved products arrive a moment later as an ordinary reactive update. The
+same gate the header puts on the cart count and `useRevalidating` puts on the refresh treatment;
+reading storage at construction instead made Vue repaint the buy box and the header on every reload
+for anyone who had ever saved a product. Every mutation calls `hydrate()` first, so a toggle can
+never write an empty list over a saved one.
+
+Hydration also subscribes to the `storage` event, so a save in one tab reaches the header count and
+the wishlist page in the others. There is **one listener for the whole page**, not one per store, and
+`useWishlist()` gives up its interest in `onUnmounted` — the last consumer to leave drops it. Both
+halves are about the same thing: `useStorefront()` builds a fallback storefront _per calling
+component_ when nothing is provided (every Storybook story, every block mount), so a listener per
+store with no way to undo it would leave one behind for each, holding a dead `items` ref.
+
+### The `/wishlist` route
+
+The theme's third code route, for the same reasons `/cart` and `/search` are ones, and prerendered
+by name beside them in `nitro.prerender.routes` — without that line the artifact has no
+`wishlist/index.html` and a static host answers 404 however the app would render it. It carries no
+header and no footer, as they do, because the runtime resolves those only as part of a CMS page or
+route template.
+
+**No block behind it**, and that is the one difference from the other two. A cart or a search panel
+is something a merchant might want inside their own layout, so each is a block the route renders in
+a variant. A saved list has no fields, no variants and nothing to configure — one list of products
+and one empty state — so the page owns its markup rather than earning a `block.json`, a mock entry
+and a generated preview for a surface nobody would compose. The cards are not hand-rolled either:
+they are `@eldrajs/ui`'s `ProductCard` built by `toProductCardEntries()`, the same mapping
+`collection-grid`, `product-carousel` and `search` build theirs with.
+
+**One batched read, by handle.** `catalog.byHandles()` turns the whole saved list into a single
+`filter=slug:in:…` products read — not one request per product — and makes no request at all for an
+empty list, which is what both the prerender and the first client render do. The cards render in the
+order they were saved; a handle the catalogue does not answer about gets no card and is **still
+kept**, because nothing here can tell "this product was deleted" from "we could not ask", and a read
+that failed must never be what empties a shopper's wishlist.
+
+**The read is keyed on the page's own handle list, not on the live wishlist**, and that distinction
+is the difference between a removal costing nothing and a removal costing a round trip.
+`StorefrontResult` watches its sources, so handing it `wishlist.items` directly made every heart
+press re-run the whole batched read — and put the page into its refresh state for the duration, which
+dimmed every card that was staying. The page instead keeps a `ref` that only ever _gains_ handles
+(and only ones it has no row for) plus a map of every row the read has answered, so a removal is a
+local filter and a handle arriving from elsewhere — another tab's save, a client navigation — is still
+fetched.
+
+Each card's heart removes the product and moves focus somewhere deliberate — the next card's own
+heart, the last one when the end of the list went, or the empty state's heading when that was the
+only saved product — the same rule `blocks/cart/Block.vue` follows for a removed line. The removal is
+announced through one polite live region, naming the product and the list's new size ("Removed
+Speckled latte mug. 1 item in your wishlist."). That is mechanism as much as copy: a polite region is
+announced when its content _changes_, so a fixed sentence written into it twice is announced once, and
+every removal after the first was silent. No toast here — the product page's heart raises one because
+nothing on that page changes, and here the list itself does. The empty state's one next step is
+**Continue shopping** → `/`, the only destination a theme can promise exists.
+
 ## 4. Storybook and generated previews
 
 Storybook 10 (`@storybook/vue3-vite`) lives in `examples/starter-nuxt/.storybook/`, with

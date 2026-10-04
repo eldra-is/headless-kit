@@ -377,10 +377,56 @@ export interface StorefrontOrders {
   current(token: Ref<string | null>): StorefrontResult<StorefrontOrder>;
 }
 
+/**
+ * The products a shopper saved for later, by storefront handle. Local to their browser and nothing
+ * more: there is no account behind it (see `docs/starter-kit.md`, "Wishlist"), so the whole store is
+ * `localStorage` — `createWishlistStore()` in `app/storefront/history.ts` is the one implementation,
+ * shared by the gateway and demo sources alike, because there is no gateway half to differ about.
+ *
+ * **Read it through `useWishlist()`** (`app/composables/useWishlist.ts`), never straight off
+ * `useStorefront()`: `items` is empty until `hydrate()` runs in `onMounted`, which is what keeps a
+ * visitor's saved list out of prerendered HTML and makes the browser's first render equal the file
+ * it hydrates. The gate is written up on `createWishlistStore()` itself.
+ */
 export interface WishlistStore {
+  /** Saved handles, newest first. `[]` before `hydrate()` — see above. */
   items: Ref<string[]>;
+  /** `items.value.length`, as a ref so a header can bind a count without reading the array. */
+  count: Readonly<Ref<number>>;
   has(handle: string): boolean;
-  toggle(handle: string): void;
+  /** Saves the handle if it is not saved, removes it if it is. Returns the state it is now in:
+   *  `true` saved, `false` removed — which is the sentence a caller's toast picks from. */
+  toggle(handle: string): boolean;
+  /** Removes it, or does nothing when it was not saved. */
+  remove(handle: string): void;
+  /**
+   * Empties the list. No surface calls it yet — it is here because a wishlist that cannot be
+   * emptied in one gesture is a wishlist whose only way out is pressing twenty hearts, and the two
+   * places that will want it (a "Clear wishlist" control beside the list, and a sign-out that must
+   * not leave one shopper's saved products in front of the next) are the same two
+   * `HistoryStore.clearViews` already exists for. Writing it with the rest is what keeps it on the
+   * same `ensureRead`-then-write path as `toggle` and `remove` rather than bolted on later.
+   */
+  clear(): void;
+  /**
+   * Reads `localStorage` into `items` and starts following the `storage` event for other tabs —
+   * **the gate the whole feature turns on**: nothing of a shopper's saved list is readable until
+   * this has run, so a prerendered page cannot carry it and the browser's first render of that page
+   * matches the file it is hydrating. Called from `onMounted` by `useWishlist()`, which is the only
+   * caller; idempotent, and inert on the server beyond the storage read. A mutation reads storage
+   * for itself first, so nothing can write an empty list over a saved one even unhydrated.
+   *
+   * Paired with `release()`: each call counts one live consumer.
+   */
+  hydrate(): void;
+  /**
+   * Gives up one consumer's interest, from `useWishlist()`'s `onUnmounted`. The last one to leave
+   * drops the shared `storage` listener; `items` is left alone, so a later `hydrate()` picks up
+   * where this left off. It exists because `useStorefront()` builds a fallback storefront per
+   * calling component when nothing is provided (every Storybook story, every block mount), and a
+   * listener per store with no way to undo it leaks one for each.
+   */
+  release(): void;
 }
 
 export interface HistoryStore {

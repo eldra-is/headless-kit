@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import type { HistoryStore, WishlistStore } from './types';
 
 const RECENTLY_VIEWED_KEY = 'eldra.storefront.recentlyViewed';
@@ -94,21 +94,140 @@ export function createHistoryStore(
   };
 }
 
-/** The wishlist toggle `product-detail`, `product-carousel` and `collection-grid` cards share. */
+/**
+ * The one `storage` listener, and every hydrated store's re-read behind it. Module level because
+ * the number of *stores* on a page is not something this file controls (see `createWishlistStore`'s
+ * own cross-tab note below) while the number of listeners it needs is exactly one.
+ */
+const wishlistStorageReaders = new Set<() => void>();
+let wishlistStorageListener: ((event: StorageEvent) => void) | null = null;
+
+function subscribeToWishlistStorage(reread: () => void): () => void {
+  wishlistStorageReaders.add(reread);
+  // `typeof window` rather than a truthiness check: on the server the identifier does not exist at
+  // all, and reading an undeclared one throws.
+  if (wishlistStorageListener === null && typeof window !== 'undefined') {
+    wishlistStorageListener = (event: StorageEvent) => {
+      // `key === null` is the whole store being cleared, which includes this key.
+      if (event.key !== null && event.key !== WISHLIST_KEY) return;
+      for (const run of [...wishlistStorageReaders]) run();
+    };
+    window.addEventListener('storage', wishlistStorageListener);
+  }
+  return () => {
+    wishlistStorageReaders.delete(reread);
+    if (wishlistStorageReaders.size > 0 || wishlistStorageListener === null) return;
+    window.removeEventListener('storage', wishlistStorageListener);
+    wishlistStorageListener = null;
+  };
+}
+
+/**
+ * The wishlist: the product handles a shopper saved for later, kept in their own browser.
+ *
+ * **Local only, on purpose.** There is no account behind it and no platform endpoint for one yet,
+ * so the whole list is `localStorage` under `eldra.storefront.wishlist` — the same namespace and the
+ * same bare JSON array `createHistoryStore` above persists `recentlyViewed` with, and the same
+ * unversioned shape `@eldrajs/sdk`'s `createCartSession` keeps the cart id in. Nothing here is
+ * wrapped in a `{ version, data }` envelope because neither of those is: the value is a list of
+ * strings, every element that is not a string is dropped on read (`readStringList`), and a stored
+ * value this code cannot make sense of degrades to an empty list rather than to an error. A
+ * migration, if the shape ever grows, is a new key — which is also how `recentlyViewed` would do it.
+ *
+ * **Handles, not ids.** A saved product is addressed by its storefront handle, which is what the
+ * catalogue's own `filter=slug:in:…` read takes (`StorefrontCatalog.byHandles`), so the wishlist
+ * page turns the whole list into one batched products read with no extra id bookkeeping — and a
+ * handle is also what every surface that can save a product already has in hand.
+ *
+ * **`items` is empty until `hydrate()`, and that gate is load-bearing.** A shopper's saved list is
+ * their own browser's state, so it is never in the HTML a build wrote: a prerendered page shows no
+ * saved hearts and no header count. If the store read `localStorage` at construction instead, the
+ * browser's *first* render — the one that has to equal the file it is hydrating — would already
+ * know the list, disagree with that markup, and make Vue repaint rather than hydrate. So the read
+ * happens in `onMounted` (`app/composables/useWishlist.ts` is the one place that calls it, and
+ * every surface goes through it), which never runs on the server and runs after the first client
+ * render. It is the same gate `blocks/navigation/Block.vue` puts on the cart count, for the same
+ * reason. `hydrate()` is idempotent, and every mutation reads storage first (`ensureRead` below) so
+ * a toggle on a surface that somehow skipped the composable cannot write an empty list over a saved
+ * one.
+ *
+ * **Cross-tab.** A hydrated store follows the `storage` event, which fires in every *other* tab of
+ * the origin, so saving something in one tab updates the header count and the wishlist page in the
+ * rest. There is **one listener for the whole page** rather than one per store
+ * (`subscribeToWishlistStorage` below): `useStorefront()` builds a fallback demo storefront *per
+ * calling component* when nothing is provided — every Storybook story and every block mount does
+ * that — and a listener per store would leave one behind for each of them, keeping a dead `items`
+ * ref alive and re-reading storage on every event. `release()` is the other half: `useWishlist()`
+ * calls it from `onUnmounted`, and the last consumer leaving takes the listener with it.
+ */
 export function createWishlistStore(): WishlistStore {
-  const items = ref<string[]>(readStringList(WISHLIST_KEY)) as Ref<string[]>;
+  const items = ref<string[]>([]) as Ref<string[]>;
+  /** Has storage been read into `items` yet — separate from whether anyone is listening. */
+  let read = false;
+  /** Live consumers, so the last one to unmount is the one that drops the listener. */
+  let consumers = 0;
+  let unsubscribe: (() => void) | null = null;
+
+  function reread(): void {
+    items.value = readStringList(WISHLIST_KEY);
+  }
+
+  /**
+   * The read on its own, with no subscription: what a mutation needs before it writes, so a toggle
+   * on a store nobody hydrated cannot put `[handle]` over a saved list. It must not subscribe,
+   * because nothing would ever release what it registered.
+   */
+  function ensureRead(): void {
+    if (read) return;
+    read = true;
+    reread();
+  }
+
+  function hydrate(): void {
+    consumers += 1;
+    ensureRead();
+    if (unsubscribe === null) unsubscribe = subscribeToWishlistStorage(reread);
+  }
+
+  function release(): void {
+    if (consumers > 0) consumers -= 1;
+    if (consumers > 0 || unsubscribe === null) return;
+    unsubscribe();
+    unsubscribe = null;
+  }
+
+  function write(next: string[]): void {
+    items.value = next;
+    writeStringList(WISHLIST_KEY, next);
+  }
 
   return {
     items,
+    count: computed(() => items.value.length),
+    hydrate,
+    release,
     has(handle) {
       return items.value.includes(handle);
     },
     toggle(handle) {
-      const next = items.value.includes(handle)
-        ? items.value.filter((existing) => existing !== handle)
-        : [...items.value, handle];
-      items.value = next;
-      writeStringList(WISHLIST_KEY, next);
+      ensureRead();
+      const saved = !items.value.includes(handle);
+      // Newest first, like `recentlyViewed`: the wishlist page renders the list in order, and the
+      // product a shopper just saved is the one they are most likely looking for.
+      write(
+        saved ? [handle, ...items.value] : items.value.filter((existing) => existing !== handle)
+      );
+      return saved;
+    },
+    remove(handle) {
+      ensureRead();
+      if (!items.value.includes(handle)) return;
+      write(items.value.filter((existing) => existing !== handle));
+    },
+    clear() {
+      ensureRead();
+      if (items.value.length === 0) return;
+      write([]);
     },
   };
 }

@@ -277,6 +277,13 @@ export interface Messages {
     cartOne: string;
     /** The cart button's accessible name with more than one item ("Cart, {count} items"). */
     cartMany: string;
+    /**
+     * The wishlist heart's accessible name, pluralised the way the bag's is. There is no "empty"
+     * form beside these two: the heart is not rendered at all with nothing saved
+     * (`blocks/navigation/Block.vue`), so a header that shows it always has a real count.
+     */
+    wishlistOne: string;
+    wishlistMany: string;
     /** The visible text of the mega-menu panel's row linking to the parent item's own
      *  destination — the one the trigger gave up when it became a disclosure. Shown only for a
      *  parent that has a destination at all (a `kind: "none"` heading has none). */
@@ -924,6 +931,45 @@ export interface Messages {
     drawerHintLabel: string;
     drawerHintHelp: string;
     drawerHintHosted: string;
+  };
+  /**
+   * The wishlist's own strings — the saved-for-later list `useWishlist()` keeps in the shopper's
+   * browser (`docs/starter-kit.md`, "Wishlist"). The vocabulary is the spec's ("wishlist", as
+   * `product.saveToWishlist`/`removeFromWishlist` already name the product page's heart), not
+   * "favourites".
+   *
+   * `saved`/`removed` are the two toast titles the heart raises, and `view` is the `saved` toast's
+   * one action — a link to `/wishlist`, the same shape `cart.added`'s "View cart" has. A removal
+   * offers no action: the product is gone from the list, so there is nothing to go and look at,
+   * and an Undo would need a removal to be undoable, which pressing the heart again already is.
+   */
+  wishlist: {
+    saved: string;
+    removed: string;
+    view: string;
+    /**
+     * `app/pages/wishlist.vue`'s own removal announcement — the page's only non-visual feedback for
+     * a heart press, since the list itself is the visible one and there is no toast there.
+     *
+     * It names the product **and** interpolates a `{count}` that is already a rendered
+     * `itemCountOne`/`itemCountMany` phrase ("2 items"), so one message covers both the singular and
+     * the plural without a second key. Naming both is mechanism as well as copy: a polite live
+     * region announces a *change* of content, so a fixed sentence written twice is announced once —
+     * which is how the second and later removals used to be silent.
+     */
+    removedNamed: string;
+    /** `app/pages/wishlist.vue`'s `<h1>` and its `useHead` title. */
+    title: string;
+    /** The count beside that title, pluralised the way `cart.itemCountOne`/`itemCountMany` are. */
+    itemCountOne: string;
+    itemCountMany: string;
+    /** The card grid's own `aria-label` — the list is not under a heading of its own. */
+    items: string;
+    /** The empty state: nothing saved yet, or nothing the catalogue still answers about. Its one
+     *  next step is `continueShopping` → `/`, the one destination a theme can promise exists. */
+    emptyTitle: string;
+    emptyText: string;
+    continueShopping: string;
   };
   /**
    * The order-status block's own strings (spec `02-blocks.md` 3719–3835, "Order status") — the

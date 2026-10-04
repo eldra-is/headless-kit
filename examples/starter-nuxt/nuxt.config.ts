@@ -22,13 +22,19 @@ export default defineNuxtConfig({
     // static preset; it needs no config key here (nitro's PrerenderOptions
     // type has no `fallback` property — a prior `fallback: '200.html'` here
     // was inert and only surfaced once `nuxi typecheck` started running).
-    // `/cart` and `/search` are `app/pages/cart.vue` and `app/pages/search.vue`, code routes rather
-    // than CMS pages, so nothing in the gateway-driven `prerender:routes` hook
-    // (`@eldrajs/theme-nuxt`) ever lists them. Naming them here is what writes `cart/index.html`
-    // and `search/index.html` into the artifact — a static host answers 404 for a path it has no
-    // file for, however the app would render it. One file serves every `?q=`: the query is
-    // client-side state the search page reads after hydration (see `app/pages/search.vue`).
-    prerender: { crawlLinks: false, failOnError: false, routes: ['/404', '/cart', '/search'] },
+    // `/cart`, `/search` and `/wishlist` are `app/pages/cart.vue`, `search.vue` and `wishlist.vue`,
+    // code routes rather than CMS pages, so nothing in the gateway-driven `prerender:routes` hook
+    // (`@eldrajs/theme-nuxt`) ever lists them. Naming them here is what writes `cart/index.html`,
+    // `search/index.html` and `wishlist/index.html` into the artifact — a static host answers 404
+    // for a path it has no file for, however the app would render it. One file serves every `?q=`:
+    // the query is client-side state the search page reads after hydration (see
+    // `app/pages/search.vue`), and one file serves every visitor's wishlist for the same reason —
+    // the saved list is in their own browser (see `app/pages/wishlist.vue`).
+    prerender: {
+      crawlLinks: false,
+      failOnError: false,
+      routes: ['/404', '/cart', '/search', '/wishlist'],
+    },
     hooks: {
       // Nitro always emits `404.html` itself as a blank SPA-fallback shell
       // for static hosts (identical to `200.html`, no server-fetched data —

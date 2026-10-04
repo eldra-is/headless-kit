@@ -54,6 +54,7 @@ import type { SearchResultItem, SearchResults } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
+import { useWishlist } from '../../app/composables/useWishlist';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
@@ -414,6 +415,44 @@ function onCartClick(): void {
   if (cartDrawerAvailable.value)
     storefront.cart.drawerOpen.value = !storefront.cart.drawerOpen.value;
 }
+
+// --- wishlist ----------------------------------------------------------------------------------
+
+/**
+ * The saved-for-later heart, beside the bag. **It is not there at all until there is something in
+ * it**, and not until after mount — so the header in every prerendered file is exactly the header
+ * it has always been, and a visitor who has never saved anything never meets a control for a list
+ * they do not have. `useWishlist()` is what guarantees the second half: `items` is empty until
+ * `onMounted`, which is the same gate `cartCount` above is written up under, and it is why this
+ * needs no `mounted` check of its own.
+ *
+ * No field configures it. A `showWishlist` field would be a merchant promising a feature the theme
+ * either has or does not — unlike `showAccount`, which gates a destination (`/account`) that only
+ * exists once a store has customer accounts. `/wishlist` is this theme's own route, prerendered in
+ * every build, so it always exists and the heart never leads nowhere.
+ *
+ * **Not in `minimal`.** That variant's whole definition is brand, search, cart and a Menu button
+ * (spec "Header" → Variants: "Links, account and call to action live only in the drawer"), which is
+ * why `showAccount` and the call to action are both guarded with `variant !== 'minimal'` below — a
+ * fourth icon there would be the theme deciding the variant means something else. The drawer gets no
+ * wishlist row either, so the variant stays consistent in both directions.
+ *
+ * **It does render at mobile widths**, unlike account and the call to action, which are
+ * `@content:` only. Deliberate, and the bag's own rule: a shopper who saved something on a phone has
+ * no other way back to it, where account and the call to action both have a drawer row.
+ */
+const wishlist = useWishlist();
+const wishlistCount = wishlist.count;
+const wishlistHref = '/wishlist';
+const wishlistAccessibleName = computed(() =>
+  wishlistCount.value === 1
+    ? t('header.wishlistOne')
+    : t('header.wishlistMany', { count: wishlistCount.value })
+);
+/** The bag's own rule: three digits would widen the pill past the icon it sits on. */
+const wishlistBadgeLabel = computed(() =>
+  wishlistCount.value > 99 ? '99+' : String(wishlistCount.value)
+);
 
 // --- current page ------------------------------------------------------------------------------
 
@@ -1073,6 +1112,37 @@ const actionsPositionClass = computed(() =>
               <EldraIcon name="user" size="md" />
             </template>
           </Button>
+
+          <!-- Absent from every prerendered header, from any visitor with nothing saved, and from
+               the `minimal` variant altogether: see `wishlist` in the script above.
+               `EldraRouterLink` because `/wishlist` is this theme's own route — it should route,
+               not reload the document. -->
+          <span v-if="wishlistCount > 0 && variant !== 'minimal'" class="relative inline-flex">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon-only
+              :label="wishlistAccessibleName"
+              :href="wishlistHref"
+              :as="EldraRouterLink"
+            >
+              <template #leadingIcon>
+                <EldraIcon name="heart" size="md" />
+              </template>
+            </Button>
+            <!-- `pointer-events-none`, like the bag's: the count is decorative (the button's own
+                 accessible name carries it) and must not swallow a click meant for the link. -->
+            <Badge
+              aria-hidden="true"
+              tone="primary"
+              pill
+              :label="wishlistBadgeLabel"
+              :classes="{
+                root: 'pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center px-1 text-[0.6875rem] leading-4',
+                label: 'tabular-nums',
+              }"
+            />
+          </span>
 
           <span class="relative inline-flex">
             <Button
