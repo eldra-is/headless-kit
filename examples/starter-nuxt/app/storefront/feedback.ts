@@ -2,6 +2,17 @@ import { EldraHttpError } from '@eldrajs/sdk';
 import type { MessageKey } from '../i18n/messages';
 
 /**
+ * The one toast id for an add-to-cart attempt — success ("Added to cart", `cart.added`) and
+ * failure (`useStorefrontFeedback`'s report) alike, which is what lets a refusal replace a stale
+ * success toast and a later success replace a stale refusal in place, same position, rather than
+ * stacking a second one (`useToast`'s `id` dedupe). Shared between `blocks/product-detail/Block.vue`
+ * (which raises both) and `app/app.vue` (which dismisses it once the cart drawer the toast's own
+ * "View cart" action opens — or the header bag, or anything else — takes over as the confirmation),
+ * so the two can never drift onto different strings.
+ */
+export const CART_ADD_TOAST_ID = 'product-add-to-cart';
+
+/**
  * What a *failed storefront mutation* is, in one shape, and which sentence a shopper is told about
  * it. Framework-free and pure: `app/storefront/cart.ts` records failures through
  * `toStorefrontFailure`, and `app/composables/useStorefrontFeedback.ts` is the one place that turns
