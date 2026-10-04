@@ -1097,8 +1097,14 @@ Every primitive and block spec mounts from its mock/story data and asserts
 `expect(await axe(wrapper.element)).toHaveNoViolations()` (`vitest-axe`, jsdom). Interactive
 primitives and blocks (menu, dialog, drawer, accordion, tabs, carousel, lightbox) additionally carry
 a keyboard test — arrow keys, Escape, Tab order, whatever the control's native interaction model
-requires. Every interactive element carries a focus ring — the package's `eldra-focus` on its own
-components, `app/utils/classes.ts`'s `focusRing` on everything the theme draws itself — and any
+requires. One of those models is shared by four blocks rather than owned by any of them, and has
+its own spec for that reason: `test/carouselKeyboard.spec.ts` covers `@eldrajs/ui`'s `Carousel`
+keyboard across `product-carousel`, `gallery`, `hero`'s `split-carousel` and `testimonials` —
+whether a carousel's slides hold something focusable is what decides it (the active slide owns the
+one tab stop, with `Tab` moving inside that card and out of the carousel; a row of slides with
+nothing focusable keeps the track as the stop), so the choice is only visible against the markup
+each block really ships. Every interactive element carries a focus ring — the package's
+`eldra-focus` on its own components, `app/utils/classes.ts`'s `focusRing` on everything the theme draws itself — and any
 animation is gated behind `motion-safe:`.
 
 **The page-level gate.** A block spec proves the block; `test/pages/*.spec.ts` (one per

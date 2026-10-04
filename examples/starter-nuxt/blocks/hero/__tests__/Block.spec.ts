@@ -239,7 +239,14 @@ describe('hero block', () => {
       ).toHaveLength(0);
     });
 
-    it('the track is focusable; ArrowLeft/ArrowRight move one slide and disable the arrows at the ends', async () => {
+    /**
+     * The slides are linked figures, so the carousel takes one tab stop on the active slide and
+     * the track itself is not focusable (`@eldrajs/ui`'s `Carousel`; the whole rule, and the
+     * unlinked-figure half of it, is in `test/carouselKeyboard.spec.ts`). The arrow keys are
+     * dispatched from a slide rather than from the track for the same reason — that is where the
+     * key event really starts now, and it bubbles to the track's own handler from there.
+     */
+    it('ArrowLeft/ArrowRight move one slide from inside one, and disable the arrows at the ends', async () => {
       const wrapper = mount(
         Block,
         mountOptions({ entry: { id: 'e1', data: { ...withImage, variant: 'split-carousel' } } })
@@ -248,20 +255,32 @@ describe('hero block', () => {
       // there — the DOM only reflects it after the next tick.
       await nextTick();
       const track = wrapper.get('[data-part="track"]');
-      expect(track.attributes('tabindex')).toBe('0');
+      expect(track.attributes('tabindex')).toBeUndefined();
+      const slides = () => Array.from(track.element.children) as HTMLElement[];
       const prevButton = () => wrapper.get('[data-part="prev"]');
       const nextButton = () => wrapper.get('[data-part="next"]');
+      const pressOn = async (index: number, key: string) => {
+        slides()[index]!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        await nextTick();
+      };
+
+      // One entry point: the active slide's own link. A slide that holds a control carries no
+      // `tabindex` of its own — there is nothing for one to do there — and every other slide's
+      // link is parked out of the tab sequence.
+      expect(slides()[0]?.getAttribute('tabindex')).toBeNull();
+      expect(slides()[0]?.querySelector('a[href]')?.getAttribute('tabindex')).toBeNull();
+      expect(slides()[1]?.querySelector('a[href]')?.getAttribute('tabindex')).toBe('-1');
 
       expect(prevButton().attributes('disabled')).toBeDefined();
       expect(nextButton().attributes('disabled')).toBeUndefined();
 
-      await track.trigger('keydown', { key: 'ArrowRight' });
-      await track.trigger('keydown', { key: 'ArrowRight' });
-      await track.trigger('keydown', { key: 'ArrowRight' });
+      await pressOn(0, 'ArrowRight');
+      await pressOn(1, 'ArrowRight');
+      await pressOn(2, 'ArrowRight');
       expect(prevButton().attributes('disabled')).toBeUndefined();
       expect(nextButton().attributes('disabled')).toBeDefined();
 
-      await track.trigger('keydown', { key: 'ArrowLeft' });
+      await pressOn(3, 'ArrowLeft');
       expect(nextButton().attributes('disabled')).toBeUndefined();
     });
 

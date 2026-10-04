@@ -173,24 +173,46 @@ describe('gallery block', () => {
     expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
   });
 
-  it('steps the carousel track with ArrowRight/ArrowLeft and disables arrows at the ends', async () => {
+  /**
+   * Every tile in this variant is a "view larger" `<button>`, so the carousel takes its one tab
+   * stop on the active tile's button and the track itself is not focusable — the arrow keys move
+   * between tiles from there (`@eldrajs/ui`'s `Carousel`; `test/carouselKeyboard.spec.ts` holds
+   * the whole rule, including the gallery's own Enter-opens-the-viewer path).
+   */
+  it('steps between tiles with ArrowRight/ArrowLeft and disables arrows at the ends', async () => {
     const wrapper = mountGallery({ ...withImages, variant: 'carousel' });
     await flushPromises();
     // `Carousel`'s root is a `<section>` named by `ariaLabel` (an implicit ARIA `region` role, not
     // an explicit attribute) — this scopes by the attribute it actually renders.
-    const track = wrapper.get('section[aria-roledescription="carousel"] [tabindex="0"]');
+    const carouselRegion = wrapper.get('section[aria-roledescription="carousel"]');
+    const track = carouselRegion.get('[data-part="track"]');
+    expect(track.attributes('tabindex')).toBeUndefined();
+    const tileButton = (index: number) =>
+      (track.element.children[index] as HTMLElement).querySelector<HTMLButtonElement>('button')!;
+    // One stop for the row: the first tile's own button, every other tile's parked.
+    expect(tileButton(0).getAttribute('tabindex')).toBeNull();
+    expect(tileButton(1).getAttribute('tabindex')).toBe('-1');
+
     const prevArrow = wrapper.get('[data-part="prev"]');
     const nextArrow = wrapper.get('[data-part="next"]');
     expect(prevArrow.attributes('disabled')).toBeDefined();
     expect(nextArrow.attributes('disabled')).toBeUndefined();
 
-    await track.trigger('keydown', { key: 'ArrowRight' });
+    tileButton(0).focus();
+    tileButton(0).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await nextTick();
+    expect(document.activeElement).toBe(tileButton(1));
+    expect(tileButton(0).getAttribute('tabindex')).toBe('-1');
     // Several tiles show at once, so the row renders no "n / total" counter (spec "Carousel" →
     // Product row) — the Lightbox further down keeps its own; the move shows through the arrows'
     // state instead.
-    const carouselRegion = wrapper.get('section[aria-roledescription="carousel"]');
     expect(carouselRegion.find('[data-part="counter"]').exists()).toBe(false);
     expect(prevArrow.attributes('disabled')).toBeUndefined();
+
+    tileButton(1).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    await nextTick();
+    expect(document.activeElement).toBe(tileButton(0));
+    expect(prevArrow.attributes('disabled')).toBeDefined();
   });
 
   it("masonry renders tiles in DOM order with the block's responsive column classes", async () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { cx, partClass } from '../../utils/cx';
+import { useUiId } from '../../utils/id';
 import { useMessages } from '../../composables/useMessages';
 import { carouselPerViewStyle, useCarousel } from './useCarousel';
 import type { CarouselProps } from './types';
@@ -45,7 +46,9 @@ const {
   goTo,
   next,
   prev,
+  trackFocusable,
   onTrackKeydown,
+  focusItem,
   playing,
   pause,
   resume,
@@ -59,6 +62,19 @@ const {
   draggable: () => props.draggable,
   onChange: (value) => emit('change', value),
 });
+
+/**
+ * The keyboard hint a shopper using a screen reader needs, rendered once per carousel and pointed
+ * at by the **root's** own `aria-describedby` — so it is read when focus enters the carousel and
+ * not again on every slide the arrow keys walk through (a description on each slide would repeat
+ * the whole sentence twelve times across one product row).
+ *
+ * Only while the roving model is live (`trackFocusable === false`, i.e. some slide holds something
+ * focusable): a single-slide gallery whose track is itself the one tab stop has nothing to move
+ * "within", and both the paragraph and the reference to it are driven by the same condition, so
+ * the attribute can never point at an id that is not in the document.
+ */
+const instructionsId = useUiId('carousel-instructions');
 
 /**
  * Spec "Carousel" → Behaviour & motion: "If the focused arrow becomes disabled, focus moves to
@@ -82,7 +98,7 @@ watch(canNext, (can) => {
 
 /** Exposed for a caller that needs to drive autoplay from outside — the `Autoplay` story pauses
  *  on mount so its screenshot is never captured mid-transition (see that story's own comment). */
-defineExpose({ pause, resume, toggle, playing, index, count, goTo, next, prev });
+defineExpose({ pause, resume, toggle, playing, index, count, goTo, next, prev, focusItem });
 
 const rootClass = computed(() =>
   partClass(cx('@container flex flex-col gap-4'), props.classes, 'root')
@@ -91,6 +107,10 @@ const rootClass = computed(() =>
 const headerClass = computed(() =>
   partClass(cx('flex items-center justify-between gap-4'), props.classes, 'header')
 );
+
+/** `sr-only` keeps the hint out of the layout entirely — absolutely positioned, so it is not a
+ *  flex item of the root's own `flex-col gap-4` and adds no gap above the header. */
+const instructionsClass = computed(() => partClass('sr-only', props.classes, 'instructions'));
 
 /**
  * Spec "Carousel" → Sizes: "Track focus ring: the standard ring with a 4px `focus-inner` gap
@@ -205,7 +225,17 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
     :class="rootClass"
     aria-roledescription="carousel"
     :aria-label="ariaLabel"
+    :aria-describedby="trackFocusable ? undefined : instructionsId"
   >
+    <p
+      v-if="!trackFocusable"
+      :id="instructionsId"
+      data-part="instructions"
+      :class="instructionsClass"
+    >
+      {{ messages.slideInstructions }}
+    </p>
+
     <div v-if="controls === 'header' || $slots.header" data-part="header" :class="headerClass">
       <slot name="header" />
       <div v-if="controls === 'header'" class="flex shrink-0 items-center gap-2">
@@ -264,11 +294,19 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
     <!-- The track's own children are the default slot's content, unwrapped: `useCarousel`
          annotates whatever real DOM elements land here (see its own comment) rather than this
          component cloning slot vnodes, so a consumer's `<li>`/`<figure>`/component root becomes
-         the slide directly — `data-part="slide"` and all. -->
+         the slide directly — `data-part="slide"`, the roving `tabindex` and all.
+
+         `tabindex` only while no slide holds anything focusable (`trackFocusable`): the track is
+         then the carousel's one tab stop and `←`/`→` step it, which is the spec's own "Track:
+         `tabindex="0"`" case and the `Lightbox` stage's ("Stage / track … focusable"). A product
+         row, a testimonial row, a linked hero figure — anything whose slides hold a link or a
+         button — moves that one stop onto the active slide instead, so `Tab` does not stop twice
+         for one carousel (spec "Keyboard": "Composite widgets … take one tab stop and use arrow
+         keys inside"). `useCarousel`'s own `syncFocusModel` carries the rule; see the README. -->
     <div
       ref="trackRef"
       data-part="track"
-      tabindex="0"
+      :tabindex="trackFocusable ? 0 : undefined"
       :aria-label="messages.slides"
       aria-live="off"
       :class="trackClass"

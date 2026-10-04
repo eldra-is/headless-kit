@@ -141,6 +141,13 @@ export const enUS = {
    * scrollable list" for a product row and "Slides" for a gallery; this package uses the single
    * generic word for both, recorded under Deviations in the README). */
   slides: 'Slides',
+  /** How to operate a `Carousel` whose slides hold their own links or buttons, read once when
+   *  focus enters the carousel (it describes the carousel itself, not each slide — see
+   *  `Carousel.vue`'s own `instructionsId` comment). Spec "Keyboard": a composite widget "take[s]
+   *  one tab stop and use[s] arrow keys inside", which is worth saying out loud to the one visitor
+   *  who cannot see the row of cards it applies to. */
+  slideInstructions:
+    'Use the left and right arrow keys to move between slides. Press Tab to move within the current slide.',
   /** A `Lightbox`'s close button (spec "Lightbox" → Anatomy, part 3: "'Close image viewer'") —
    *  distinct from `close` above, the same way `dismissNotification` is distinct from it for
    *  `Toast`: a full-screen image viewer is not "a dialog" to the person closing it. */

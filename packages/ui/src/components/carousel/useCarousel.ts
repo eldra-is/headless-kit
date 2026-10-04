@@ -78,6 +78,78 @@ export function carouselPerViewStyle(
   };
 }
 
+/**
+ * Everything inside a slide that can take focus, by element rather than by current `tabindex`
+ * value — the same list the private Eldra library's own carousel row parks, plus
+ * `[data-carousel-action]` for an author's explicit nomination.
+ *
+ * **`[tabindex]` is in here on purpose, and the selector must stay value-blind.** `syncFocusModel`
+ * below reads this twice: once to decide *which model the carousel is in* (does any slide hold
+ * something focusable?) and once to park the non-active slides' controls at `tabindex="-1"`. A
+ * selector that excluded `[tabindex="-1"]` would stop matching the very elements the parking pass
+ * had just written, so the model would flip back to "no slide holds anything focusable" on the
+ * next pass and the track would become a second tab stop. Matching any `[tabindex]`, whatever its
+ * value, makes both reads idempotent.
+ */
+const FOCUSABLE_SLIDE_CONTENT_SELECTOR = [
+  '[data-carousel-action]',
+  'a[href]',
+  'area[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  'iframe',
+  'object',
+  'embed',
+  'audio[controls]',
+  'video[controls]',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[tabindex]',
+].join(',');
+
+/**
+ * Controls whose own meaning for `←`/`→` outranks the carousel's (operator ruling: "inside a text
+ * input or a control that consumes arrows … do not intercept"): a caret moving through typed text,
+ * a native `<select>`'s own option stepping, a slider's value, and the ARIA widget roles whose
+ * Authoring Practices pattern already claims the horizontal arrows. `[data-no-arrow-keys]` is the
+ * explicit opt-out for anything else an author builds in a slide, the same shape as `data-no-drag`
+ * for the pointer drag further down.
+ *
+ * This replaces the private library's own guard rather than narrowing it: that one answered the
+ * question by *position* (`event.target !== event.currentTarget` — act only on the slide element
+ * itself), which cannot work now that the arrows have to move between slides from anywhere inside
+ * one, a card's own link included.
+ */
+const ARROW_CONSUMER_SELECTOR = [
+  // Every input type but the seven that own no horizontal arrows at all. A bare `input` claimed
+  // them for a checkbox, a submit button and a file picker as well — so the row simply stopped
+  // moving, with nothing taking its place. What stays, besides the text-like types: `radio`
+  // (a native radio group moves its selection with `←`/`→`, so moving the row as well would fire
+  // two things on one key), `range`, `number` and the date/time family, each of which reads the
+  // horizontal arrows itself. The README and CHANGELOG name the set in the same words.
+  'input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"])' +
+    ':not([type="image"]):not([type="reset"]):not([type="submit"])',
+  'textarea',
+  'select',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[role="combobox"]',
+  '[role="grid"]',
+  '[role="listbox"]',
+  '[role="menu"]',
+  '[role="menubar"]',
+  '[role="radiogroup"]',
+  '[role="slider"]',
+  '[role="spinbutton"]',
+  '[role="tablist"]',
+  '[role="textbox"]',
+  '[role="tree"]',
+  '[role="treegrid"]',
+  'audio[controls]',
+  'video[controls]',
+  '[data-no-arrow-keys]',
+].join(',');
+
 export interface UseCarouselOptions {
   /** The carousel's own outer element, declared and bound to the template (`ref="rootRef"`) by
    *  the caller — the same shape `useDialog`'s own `dialog` option takes, so `<script setup>`'s
@@ -132,8 +204,34 @@ export interface UseCarouselReturn {
   goTo: (target: number) => void;
   next: () => void;
   prev: () => void;
-  /** `ArrowLeft`/`ArrowRight` on the focused track — bind to the track's `keydown`. */
+  /**
+   * `true` while **no** slide holds anything focusable, which is the one case where the track
+   * itself is the carousel's single tab stop (`tabindex="0"`) and `ArrowLeft`/`ArrowRight` step
+   * it: a single-slide image gallery, or a `Lightbox` stage (spec "Lightbox" → Anatomy, part 5:
+   * "Stage / track … focusable"). `false` as soon as any slide holds a link, a button or anything
+   * else focusable — then the roving model below owns the keyboard and the track must not be a tab
+   * stop of its own, or `Tab` would stop twice in a row for one carousel. Bind the track's
+   * `tabindex` to it; `syncFocusModel` carries the whole rule.
+   */
+  trackFocusable: ComputedRef<boolean>;
+  /**
+   * The keyboard for both models — bind it to the **track's** own `keydown` and nothing else: a
+   * key pressed on a slide, or on a link inside a slide, bubbles to the track, so one listener
+   * serves slide content this composable never renders. See the function's own comment for which
+   * branch handles what, and which targets it deliberately keeps its hands off.
+   */
   onTrackKeydown: (event: KeyboardEvent) => void;
+  /**
+   * Makes a slide the active one — moving the carousel's single entry point onto it, focusing
+   * that entry point (the slide's first tab-stop candidate, or the slide element itself when it
+   * holds none) and scrolling it into view, clamped to `[0, count - 1]`. The arrow keys call it;
+   * exposed for a caller driving the same move from a control of its own.
+   *
+   * Under the track-focusable model it behaves exactly like `goTo` — index, scroll, edges and the
+   * change callback all happen — and only the `focus()` is inert, because a slide carries no
+   * `tabindex` in that model and so cannot take focus.
+   */
+  focusItem: (target: number) => void;
   /** The user's own toggle state — `true` unless `autoplay` is off, reduced motion is on, or the
    *  Pause button was pressed. Hovering/focusing the carousel halts the timer without flipping
    *  this (the button's own label reflects intent, not the momentary pause — see `Carousel.vue`). */
@@ -168,9 +266,246 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   const canPrev = computed(() => !atStart.value);
   const canNext = computed(() => !atEnd.value);
 
+  /** `true` once any slide holds something focusable — see `trackFocusable`, its inverse. */
+  const slidesFocusable = ref(false);
+  const trackFocusable = computed(() => !slidesFocusable.value);
+
   function children(): HTMLElement[] {
     const track = trackRef.value;
     return track ? (Array.from(track.children) as HTMLElement[]) : [];
+  }
+
+  function focusableContent(item: HTMLElement): HTMLElement[] {
+    return Array.from(item.querySelectorAll<HTMLElement>(FOCUSABLE_SLIDE_CONTENT_SELECTOR));
+  }
+
+  /**
+   * Whether an element is *rendered* at all, for the entry-point rule below. `checkVisibility()`
+   * answers the whole question (`display: none` on it or on any ancestor, `content-visibility`,
+   * `visibility: hidden`) in one call, which is why no hand-rolled style walk appears here.
+   *
+   * Two guards. **Not connected** — a component mounted into a detached fragment, which is how a
+   * good deal of consumer test code mounts — has no answer to give, and calling it invisible there
+   * would quietly switch every such carousel to "the slide element is the stop". **No
+   * `checkVisibility`** (an older engine, a bare test environment) means the same thing: say yes
+   * rather than guess, because the cost of a wrong "no" is a tab stop moved off a real control.
+   */
+  function isRendered(el: HTMLElement): boolean {
+    if (!el.isConnected) return true;
+    const check = (el as HTMLElement & { checkVisibility?: (options?: object) => boolean })
+      .checkVisibility;
+    if (typeof check !== 'function') return true;
+    return check.call(el, { visibilityProperty: true });
+  }
+
+  /**
+   * The author's own `tabindex` on an element this composable may have parked — the attribute as
+   * it was before `park()` wrote `-1` over it. Every judgement about whether something is a *tab
+   * stop candidate* has to read this rather than the live attribute: the parking pass is this
+   * file's own writing, and reading it back as if the author had written it would make the entry
+   * point depend on which pass ran last.
+   */
+  function authorTabIndex(el: HTMLElement): string | null {
+    return parkedTabIndex.has(el) ? (parkedTabIndex.get(el) ?? null) : el.getAttribute('tabindex');
+  }
+
+  /**
+   * Takes a fresh snapshot of the author's `tabindex` on a control this composable has parked,
+   * driven by the mutation records rather than by comparing values — because the two writes can be
+   * byte-identical: an author marking an already-parked control `tabindex="-1"` (opting it out of
+   * the tab sequence after mount) writes exactly what the parking pass wrote, and no comparison can
+   * tell them apart. **A record can.** Every `tabindex` write this file makes names its element in
+   * `pendingSelfWrites` first, and the scheduled pass runs with the observer disconnected, so a
+   * `tabindex` record that arrives here for an element this pass did **not** just write
+   * (`pendingSelfWrites`) was written by somebody else, and that somebody is the author saying
+   * something new.
+   *
+   * Without this, the opt-out was restored away the moment its slide became active and the control
+   * was then chosen as the entry point: the composable contradicting an instruction it was given.
+   */
+  function adoptAuthorTabIndexWrites(records: MutationRecord[]): void {
+    for (const record of records) {
+      if (record.type !== 'attributes' || record.attributeName !== 'tabindex') continue;
+      const target = record.target;
+      if (
+        target instanceof HTMLElement &&
+        parkedTabIndex.has(target) &&
+        !pendingSelfWrites.has(target)
+      ) {
+        parkedTabIndex.set(target, target.getAttribute('tabindex'));
+      }
+    }
+    pendingSelfWrites.clear();
+  }
+
+  /**
+   * The one place "where does focus land, and is the slide element itself the tab stop?" is
+   * decided — both questions have the same answer, so they are one function.
+   *
+   * `focusableContent` is deliberately value-blind (see its selector's own comment), which makes it
+   * the right list to *park* but the wrong list to *land on*: a card's decorative image link marked
+   * `aria-hidden="true" tabindex="-1"` ahead of the real title link is ordinary markup, and
+   * landing on it puts focus inside `aria-hidden` (axe `aria-hidden-focus`, WCAG 4.1.2) where a
+   * screen reader announces nothing at all. So an entry point must be a real tab stop candidate:
+   * rendered, not inside `aria-hidden="true"`, not `disabled`, and not sitting at the author's own
+   * `tabindex="-1"` (an author's focus target — a heading a skip link moves to, a scroll box — is
+   * focusable on purpose but was never meant to be *tabbed* to).
+   *
+   * `null` means the slide holds nothing to land on, and then the **slide element** is the stop
+   * (`syncFocusModel`) — never nothing. A slide whose only focusable content is an author's
+   * `tabindex="-1"` used to leave the carousel with no tab stop of its own at all, which on a row
+   * whose arrows are hidden because everything already fits made it unreachable by keyboard.
+   */
+  function entryPointOf(own: HTMLElement[]): HTMLElement | null {
+    return own.find(isTabStopCandidate) ?? null;
+  }
+
+  /**
+   * `disabled` is **inherited**: a `<button>` inside a `<fieldset disabled>` carries no attribute of
+   * its own and is not focusable at all, and the same holds for an `<option>` under a disabled
+   * `<optgroup>`. Without this a slide whose only control sits in a disabled fieldset looked like it
+   * had a candidate, so the slide element never took the stop and `focusItem` focused something the
+   * platform refuses to focus — the zero-tab-stop case again, through a different door.
+   *
+   * `closest()` rather than `:disabled`, which would read better: happy-dom answers `false` for a
+   * fieldset-nested button, so the rule would be untestable in this package's own suite — and an
+   * accessibility rule that cannot be tested is the one that regresses. The attribute test stays
+   * beside it for the elements where the selector does not already exclude it (`[tabindex]`,
+   * `[data-carousel-action]`, `[contenteditable]`).
+   */
+  function isEnabled(el: HTMLElement): boolean {
+    return (
+      !el.hasAttribute('disabled') && el.closest('fieldset[disabled], optgroup[disabled]') === null
+    );
+  }
+
+  /** Everything a tab stop must be, for a control (`entryPointOf`) and for a slide element that has
+   *  to stand in for one (`syncFocusModel`) alike. */
+  function isTabStopCandidate(el: HTMLElement): boolean {
+    return (
+      authorTabIndex(el) !== '-1' &&
+      isEnabled(el) &&
+      el.closest('[aria-hidden="true"]') === null &&
+      isRendered(el)
+    );
+  }
+
+  /**
+   * What each parked control's `tabindex` attribute was before this composable wrote `-1` over it,
+   * so becoming the active slide gives its controls back their **natural** tab behaviour rather
+   * than a guess at one: `null` for the overwhelming majority (a link or a button that never had
+   * the attribute at all, where restoring means *removing* it, not writing `"0"` — `tabindex="0"`
+   * on an `<a href>` would pull it out of its natural document order on a page that reorders with
+   * CSS), and the author's own value for a slide that shipped one.
+   *
+   * A `WeakMap` rather than a `data-` attribute of our own: slide content belongs to the consumer,
+   * and an entry costs nothing once the element is gone.
+   */
+  const parkedTabIndex = new WeakMap<HTMLElement, string | null>();
+
+  /**
+   * The elements this composable has written a `tabindex` on since the observer last delivered —
+   * the "that record is ours" list `adoptAuthorTabIndexWrites` reads. Cleared the moment those
+   * records arrive (and at the end of a pass that ran disconnected, whose records never will), so
+   * it never grows and never swallows a later write of the author's.
+   */
+  const pendingSelfWrites = new Set<HTMLElement>();
+
+  /**
+   * Writes a `tabindex` this composable owns, remembering the author's own value the first time —
+   * so `unpark` can give back the exact attribute, its absence included. `park` is the `-1` case;
+   * the slide element's own `0`/`-1` goes through the same door, so a consumer's `tabindex` on a
+   * slide survives the carousel borrowing it.
+   */
+  function manageTabIndex(el: HTMLElement, value: string): void {
+    if (!parkedTabIndex.has(el)) parkedTabIndex.set(el, el.getAttribute('tabindex'));
+    // Unconditionally, even when the value is unchanged: a `setAttribute` queues a record either
+    // way, and a record not named here is read as the author's own writing.
+    pendingSelfWrites.add(el);
+    el.setAttribute('tabindex', value);
+  }
+
+  function park(el: HTMLElement): void {
+    manageTabIndex(el, '-1');
+  }
+
+  function unpark(el: HTMLElement): void {
+    if (!parkedTabIndex.has(el)) return;
+    const original = parkedTabIndex.get(el) ?? null;
+    parkedTabIndex.delete(el);
+    pendingSelfWrites.add(el);
+    if (original === null) el.removeAttribute('tabindex');
+    else el.setAttribute('tabindex', original);
+  }
+
+  /**
+   * **One entry point per carousel, and `Tab` never walks the row.**
+   *
+   * Spec "Keyboard" (`01-core-components.md`): "Composite widgets (tabs, listboxes, menus,
+   * carousels, radio groups) take one tab stop and use arrow keys inside, following the WAI-ARIA
+   * Authoring Practices patterns named in each section." A carousel whose track was focusable
+   * *and* whose every card kept its links in the tab sequence took one stop for the track plus one
+   * per link — a shopper tabbing to the content under a twelve-card row pressed `Tab` thirteen
+   * times to get past it.
+   *
+   * So, re-run on every mount, slot change, subtree change and active-slide change:
+   *
+   * - **No slide holds anything focusable** (a single-slide image gallery, a `Lightbox` stage):
+   *   nothing here is a tab stop, the slides' own `tabindex` is cleared, and `trackFocusable`
+   *   leaves the track itself as the one stop with `←`/`→` stepping it — the spec's own "Track:
+   *   `tabindex="0"`" case, unchanged.
+   * - **Otherwise** the active slide owns the single entry point and the others are parked:
+   *   - the active slide's own controls keep their natural `tabindex`, so `Tab`/`Shift+Tab` move
+   *     through *that card's* link, wishlist and quick-add in DOM order (operator ruling) and the
+   *     last one hands `Tab` straight out of the carousel, because there is nothing tabbable left
+   *     between it and the page below;
+   *   - every other slide's controls are parked at `tabindex="-1"`, which is what keeps `Tab` from
+   *     ever reaching the next card;
+   *   - the slide **element** is a tab stop (`tabindex="0"`) only when it is active *and* holds no
+   *     control of its own — a mixed row (a hero's linked and unlinked figures) then still has
+   *     exactly one entry point on every slide, never two on one and none on another. Every other
+   *     slide element, the active-with-controls one included, is `tabindex="-1"`: reachable by
+   *     `focusItem` and by a click, never by `Tab`.
+   */
+  function syncFocusModel(): void {
+    const kids = children();
+    const content = kids.map(focusableContent);
+    slidesFocusable.value = content.some((list) => list.length > 0);
+    // A consumer's own `classes.slide` may name the package's focus-ring utility; the pass below
+    // owns that class on a slide, so it must not take away one the consumer asked for.
+    const consumerRing = (toValue(options.slideClass) ?? '').split(/\s+/).includes('eldra-focus');
+    kids.forEach((item, i) => {
+      const own = content[i] ?? [];
+      if (!slidesFocusable.value) {
+        unpark(item);
+        item.classList.toggle('eldra-focus', consumerRing);
+        return;
+      }
+      const active = i === index.value;
+      const entry = entryPointOf(own);
+      // The slide element stands in for a control only when there is nothing inside it to take the
+      // stop *and* the slide can hold one itself — the same two tests a candidate passes, because a
+      // carousel inside a visible `aria-hidden="true"` subtree (a decorative duplicate) must hand
+      // focus to nothing at all: "never zero tab stops" is a promise about carousels that are
+      // reachable in the first place, and a tab stop inside `aria-hidden` is the very violation the
+      // entry-point rule removes for controls.
+      //
+      // A slide that *does* hold a control gets no `tabindex` written on it at all: `focusItem`
+      // lands on the control, so the `-1` this used to write had no reader — what it did have was an
+      // effect, since `tabindex="-1"` makes an element mouse-focusable, so clicking a card's
+      // padding focused the `<li>` itself.
+      const stands = entry === null && isTabStopCandidate(item);
+      if (stands) manageTabIndex(item, active ? '0' : '-1');
+      else unpark(item);
+      // The package's own ring, on the one element that can be focused without having a ring of its
+      // own already (every control brings one). Added and removed with the stop, so a slide that
+      // stops being the entry point does not keep a ring for a focus it can no longer take.
+      item.classList.toggle('eldra-focus', stands || consumerRing);
+      for (const el of own) {
+        if (active) unpark(el);
+        else park(el);
+      }
+    });
   }
 
   /**
@@ -231,6 +566,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       else track.removeAttribute('role');
     }
     if (total > 0 && index.value > total - 1) index.value = total - 1;
+    syncFocusModel();
     updateEdges();
   }
 
@@ -299,15 +635,104 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     goTo(index.value - 1);
   }
 
+  /**
+   * The slide a key event came from: the track's own direct child on the path from `event.target`
+   * up, so a key pressed on a product card's link three levels in still answers "slide 2". `-1`
+   * for the track itself and for anything outside it.
+   */
+  function slideIndexOf(target: EventTarget | null): number {
+    const track = trackRef.value;
+    if (!track || !(target instanceof Node)) return -1;
+    let node: Node | null = target;
+    while (node !== null && node.parentNode !== track) node = node.parentNode;
+    return node === null ? -1 : children().indexOf(node as HTMLElement);
+  }
+
+  function consumesArrowKeys(target: EventTarget | null): boolean {
+    return target instanceof Element && target.closest(ARROW_CONSUMER_SELECTOR) !== null;
+  }
+
+  /**
+   * Moves the carousel's single entry point onto a slide and puts real focus on it: the slide's
+   * first control when it has one (a product card's title link), the slide element itself when it
+   * does not (an unlinked figure, which `syncFocusModel` made `tabindex="0"` for exactly this).
+   *
+   * `focus({ preventScroll: true })` first and the scroll second, deliberately: letting the
+   * browser scroll to the newly focused element itself would jump the track by whatever
+   * `scrollIntoView` thinks is right and fight scroll-snap on the way. `scrollToIndex` then does
+   * the move the rest of this file already does for arrows, dots and autoplay — snapping to the
+   * slide's own start, instantly under `prefers-reduced-motion` (see its own comment).
+   */
+  function focusItem(target: number): void {
+    const clamped = clampIndex(target);
+    const item = children()[clamped];
+    if (!item) return;
+    const changed = clamped !== index.value;
+    index.value = clamped;
+    // Synchronously, not through the `index` watcher below: the entry point has to be on this
+    // slide *before* focus lands, or a `Tab` pressed in the same breath would read the old one.
+    syncFocusModel();
+    const entry = entryPointOf(focusableContent(item)) ?? item;
+    entry.focus({ preventScroll: true });
+    scrollToIndex(clamped);
+    updateEdges();
+    if (changed) options.onChange?.(clamped);
+  }
+
+  /**
+   * Both keyboard models, one listener on the track (a slide's own key event bubbles to it).
+   *
+   * - **Track-focusable** (no slide holds anything focusable): `←`/`→` step the track, exactly as
+   *   before — the track is the focused element in that model, so this is the only way its arrows
+   *   can fire at all.
+   * - **Roving**: `←`/`→` move the active slide one step and `Home`/`End` jump to the first/last,
+   *   from anywhere inside a slide (operator ruling) — focus follows onto the new slide's entry
+   *   point, clamped at both ends, never wrapping (the arrows and dots do not wrap either).
+   *   `Enter`/`Space` are deliberately *not* handled: the focused element is the card's own link
+   *   or button by then, and the browser's own activation is both correct and the one the shopper
+   *   expects. `Tab` is not handled either — it is what leaves the carousel, and `syncFocusModel`
+   *   is what makes sure it leaves rather than walking into the next card.
+   *
+   * Nothing is intercepted inside a control that owns the horizontal arrows itself
+   * (`ARROW_CONSUMER_SELECTOR`): typing in a slide's own search field moves the caret, not the
+   * row.
+   */
   function onTrackKeydown(event: KeyboardEvent): void {
+    if (trackFocusable.value) {
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        next();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        prev();
+      }
+      return;
+    }
+    if (consumesArrowKeys(event.target)) return;
+    const from = slideIndexOf(event.target);
+    const current = from >= 0 ? from : index.value;
     if (event.key === 'ArrowRight') {
       event.preventDefault();
-      next();
+      focusItem(current + 1);
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      prev();
+      focusItem(current - 1);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      focusItem(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      focusItem(count.value - 1);
     }
   }
+
+  /**
+   * The entry point follows the carousel wherever it goes, not only where the keyboard took it:
+   * an arrow button, a dot, autoplay, a pointer drag and a plain two-finger scroll all end in a
+   * new `index`, and `Tab` must then land on the card the shopper is actually looking at rather
+   * than one scrolled out of sight.
+   */
+  watch(index, syncFocusModel);
 
   /**
    * The slide whose `offsetLeft` sits closest to a given scroll position — "current index is the
@@ -725,7 +1150,48 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   }
 
   let observer: MutationObserver | undefined;
+  let contentObserver: MutationObserver | undefined;
   let resizeObserver: ResizeObserver | undefined;
+
+  /**
+   * What the subtree observer watches, and why each half is needed: a slide's **children** change
+   * when a product row's cards replace its skeletons, and an **attribute** change to exactly
+   * `tabindex`, `aria-hidden` or `disabled` is the author moving a control in or out of being a
+   * tab-stop candidate (`entryPointOf`). Nothing else — a live price rewriting its own text is a
+   * `characterData` mutation this never asks for, and the attribute filter keeps a class or style
+   * change from waking it either.
+   */
+  const CONTENT_OBSERVER_INIT: MutationObserverInit = {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['tabindex', 'aria-hidden', 'disabled'],
+  };
+
+  /**
+   * One pass per microtask, and the observer is **disconnected while that pass runs**: the pass
+   * writes `tabindex` itself, and an attribute write queues a record even when the value is
+   * unchanged — so observing `tabindex` without this would feed the observer its own writing,
+   * forever. Records lost in that window are this file's own; anything else arrives on the next
+   * one. The dirty flag collapses a burst (twelve cards swapped at once) into a single pass, the
+   * same shape as the scroll-settle and drag paths further up.
+   */
+  let focusSyncQueued = false;
+  function queueFocusSync(): void {
+    if (focusSyncQueued) return;
+    focusSyncQueued = true;
+    queueMicrotask(() => {
+      focusSyncQueued = false;
+      const track = trackRef.value;
+      if (!track || !contentObserver) return;
+      contentObserver.disconnect();
+      syncFocusModel();
+      // Those writes produced records nobody will ever deliver, so the list of "ours" starts empty
+      // again rather than standing in front of the author's next write.
+      pendingSelfWrites.clear();
+      contentObserver.observe(track, CONTENT_OBSERVER_INIT);
+    });
+  }
 
   onMounted(() => {
     annotate();
@@ -743,6 +1209,27 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       if (typeof MutationObserver !== 'undefined') {
         observer = new MutationObserver(annotate);
         observer.observe(track, { childList: true });
+        /**
+         * A slide's *contents* arriving later is just as much a change to the focus model as a
+         * slide arriving: a product row renders four skeletons while its collection loads and then
+         * swaps in cards with a link and a quick-add button each, and a Studio editor adds a link
+         * to a hero figure that had none. Without this pass those controls would sit in the tab
+         * sequence on every card at once — the exact defect the roving model exists to fix — until
+         * something else happened to re-run `annotate`.
+         *
+         * Separate from `observer` above, and the focus pass rather than `annotate`, because this
+         * one fires for every qualifying change anywhere inside the track: re-labelling twelve
+         * cards on each is work for nothing, and `annotate`'s own `count`/`index` reasoning is
+         * about the slides themselves, which only the direct-children observer can see change.
+         *
+         * What it watches and how it avoids feeding itself its own `tabindex` writes are
+         * `CONTENT_OBSERVER_INIT`'s and `queueFocusSync`'s own comments.
+         */
+        contentObserver = new MutationObserver((records) => {
+          adoptAuthorTabIndexWrites(records);
+          queueFocusSync();
+        });
+        contentObserver.observe(track, CONTENT_OBSERVER_INIT);
       }
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => {
@@ -768,6 +1255,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     if (timer !== undefined) clearInterval(timer);
     if (settleTimer !== undefined) clearTimeout(settleTimer);
     observer?.disconnect();
+    contentObserver?.disconnect();
     resizeObserver?.disconnect();
     const track = trackRef.value;
     track?.removeEventListener('scroll', onScroll);
@@ -796,7 +1284,9 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     goTo,
     next,
     prev,
+    trackFocusable,
     onTrackKeydown,
+    focusItem,
     playing,
     pause,
     resume,

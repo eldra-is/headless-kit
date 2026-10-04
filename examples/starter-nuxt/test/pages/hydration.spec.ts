@@ -135,18 +135,35 @@ const SUBJECTS: Subject[] = [
 /**
  * `@eldrajs/ui`'s `Carousel` decorates its slides **imperatively after mount** — `useCarousel.ts`
  * `setAttribute`s `data-part="slide"`, `role="group"`, `aria-roledescription="slide"` and an
- * "n of total" label onto whatever children the consumer passed, and adds the `eldra-carousel-slide`
- * sizing class — precisely so a block can hand it plain elements. That is a deliberate progressive
- * enhancement of the package's, not a render the server disagreed with (Vue reports no mismatch for
- * it), and `product-detail`'s gallery and `product-carousel`'s row both go through it. Removing it
- * from both sides is what lets the comparison below stay an exact string equality and still be
- * about the *block's* own markup. Nothing in `blocks/**` writes any of these.
+ * "n of total" label onto whatever children the consumer passed, adds the `eldra-carousel-slide`
+ * sizing class, and writes the roving tab stop's `tabindex` (one stop for the whole row, on the
+ * active slide; every other slide's controls parked at `-1`) — precisely so a block can hand it
+ * plain elements. That is a deliberate progressive enhancement of the package's, not a render the
+ * server disagreed with (Vue reports no mismatch for any of it), and `product-detail`'s gallery and
+ * `product-carousel`'s row both go through it. The `tabindex` pass is the same kind of thing as the
+ * labelling: the server renders the pre-enhancement shape, the first client render matches it
+ * exactly, and the model only moves in `onMounted` afterwards — which is why removing it from both
+ * sides leaves the comparison below an honest one.
+ *
+ * **The `tabindex` removal is scoped to the carousel's own track**, through a parse rather than the
+ * regex the other four tokens use: `tabindex` is an ordinary attribute a block writes for itself —
+ * `collection-grid`, one of the subjects here, renders a `tabindex="-1"` status line and no
+ * `Carousel` at all — and a blanket strip would quietly delete that block's own markup from both
+ * halves of the comparison, which is exactly the kind of difference this spec exists to catch. Only
+ * attributes inside `[data-part="track"]` go, so what is left really is the *block's* own markup.
+ * Nothing in `blocks/**` writes any of the other four.
  */
 const CAROUSEL_ENHANCEMENT =
   /\s(?:data-part="slide"|role="group"|aria-roledescription="slide"|aria-label="\d+ of \d+")|\seldra-carousel-slide|eldra-carousel-slide\s/g;
 
 function withoutPackageEnhancement(html: string): string {
-  return html.replace(CAROUSEL_ENHANCEMENT, '');
+  // Both halves go through the same parse, so any normalisation the parser does of its own
+  // (attribute quoting, void elements) cancels out and a real difference still shows.
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  for (const el of doc.querySelectorAll('[data-part="track"] [tabindex]')) {
+    el.removeAttribute('tabindex');
+  }
+  return doc.body.innerHTML.replace(CAROUSEL_ENHANCEMENT, '');
 }
 
 /** A route with a product handle on it, the way the slug page fills one in. */
