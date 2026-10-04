@@ -122,11 +122,12 @@ const FOCUSABLE_SLIDE_CONTENT_SELECTOR = [
  * one, a card's own link included.
  */
 const ARROW_CONSUMER_SELECTOR = [
-  // Text-like inputs only. A bare `input` claimed the arrows for a checkbox, a submit button and a
-  // file picker as well, none of which do anything with `←`/`→` — so the row simply stopped moving
-  // with no fallback at all. `radio` is deliberately **not** excluded: a native radio group really
-  // does move its selection with the horizontal arrows, so letting the carousel move as well would
-  // fire two things on one key.
+  // Every input type but the seven that own no horizontal arrows at all. A bare `input` claimed
+  // them for a checkbox, a submit button and a file picker as well — so the row simply stopped
+  // moving, with nothing taking its place. What stays, besides the text-like types: `radio`
+  // (a native radio group moves its selection with `←`/`→`, so moving the row as well would fire
+  // two things on one key), `range`, `number` and the date/time family, each of which reads the
+  // horizontal arrows itself. The README and CHANGELOG name the set in the same words.
   'input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"])' +
     ':not([type="image"]):not([type="reset"]):not([type="submit"])',
   'textarea',
@@ -309,6 +310,35 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   }
 
   /**
+   * Takes a fresh snapshot of the author's `tabindex` on a control this composable has parked,
+   * driven by the mutation records rather than by comparing values — because the two writes can be
+   * byte-identical: an author marking an already-parked control `tabindex="-1"` (opting it out of
+   * the tab sequence after mount) writes exactly what the parking pass wrote, and no comparison can
+   * tell them apart. **A record can.** Every `tabindex` write this file makes names its element in
+   * `pendingSelfWrites` first, and the scheduled pass runs with the observer disconnected, so a
+   * `tabindex` record that arrives here for an element this pass did **not** just write
+   * (`pendingSelfWrites`) was written by somebody else, and that somebody is the author saying
+   * something new.
+   *
+   * Without this, the opt-out was restored away the moment its slide became active and the control
+   * was then chosen as the entry point: the composable contradicting an instruction it was given.
+   */
+  function adoptAuthorTabIndexWrites(records: MutationRecord[]): void {
+    for (const record of records) {
+      if (record.type !== 'attributes' || record.attributeName !== 'tabindex') continue;
+      const target = record.target;
+      if (
+        target instanceof HTMLElement &&
+        parkedTabIndex.has(target) &&
+        !pendingSelfWrites.has(target)
+      ) {
+        parkedTabIndex.set(target, target.getAttribute('tabindex'));
+      }
+    }
+    pendingSelfWrites.clear();
+  }
+
+  /**
    * The one place "where does focus land, and is the slide element itself the tab stop?" is
    * decided — both questions have the same answer, so they are one function.
    *
@@ -327,14 +357,36 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
    * whose arrows are hidden because everything already fits made it unreachable by keyboard.
    */
   function entryPointOf(own: HTMLElement[]): HTMLElement | null {
+    return own.find(isTabStopCandidate) ?? null;
+  }
+
+  /**
+   * `disabled` is **inherited**: a `<button>` inside a `<fieldset disabled>` carries no attribute of
+   * its own and is not focusable at all, and the same holds for an `<option>` under a disabled
+   * `<optgroup>`. Without this a slide whose only control sits in a disabled fieldset looked like it
+   * had a candidate, so the slide element never took the stop and `focusItem` focused something the
+   * platform refuses to focus — the zero-tab-stop case again, through a different door.
+   *
+   * `closest()` rather than `:disabled`, which would read better: happy-dom answers `false` for a
+   * fieldset-nested button, so the rule would be untestable in this package's own suite — and an
+   * accessibility rule that cannot be tested is the one that regresses. The attribute test stays
+   * beside it for the elements where the selector does not already exclude it (`[tabindex]`,
+   * `[data-carousel-action]`, `[contenteditable]`).
+   */
+  function isEnabled(el: HTMLElement): boolean {
     return (
-      own.find(
-        (el) =>
-          authorTabIndex(el) !== '-1' &&
-          !el.hasAttribute('disabled') &&
-          el.closest('[aria-hidden="true"]') === null &&
-          isRendered(el)
-      ) ?? null
+      !el.hasAttribute('disabled') && el.closest('fieldset[disabled], optgroup[disabled]') === null
+    );
+  }
+
+  /** Everything a tab stop must be, for a control (`entryPointOf`) and for a slide element that has
+   *  to stand in for one (`syncFocusModel`) alike. */
+  function isTabStopCandidate(el: HTMLElement): boolean {
+    return (
+      authorTabIndex(el) !== '-1' &&
+      isEnabled(el) &&
+      el.closest('[aria-hidden="true"]') === null &&
+      isRendered(el)
     );
   }
 
@@ -352,6 +404,14 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   const parkedTabIndex = new WeakMap<HTMLElement, string | null>();
 
   /**
+   * The elements this composable has written a `tabindex` on since the observer last delivered —
+   * the "that record is ours" list `adoptAuthorTabIndexWrites` reads. Cleared the moment those
+   * records arrive (and at the end of a pass that ran disconnected, whose records never will), so
+   * it never grows and never swallows a later write of the author's.
+   */
+  const pendingSelfWrites = new Set<HTMLElement>();
+
+  /**
    * Writes a `tabindex` this composable owns, remembering the author's own value the first time —
    * so `unpark` can give back the exact attribute, its absence included. `park` is the `-1` case;
    * the slide element's own `0`/`-1` goes through the same door, so a consumer's `tabindex` on a
@@ -359,6 +419,9 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
    */
   function manageTabIndex(el: HTMLElement, value: string): void {
     if (!parkedTabIndex.has(el)) parkedTabIndex.set(el, el.getAttribute('tabindex'));
+    // Unconditionally, even when the value is unchanged: a `setAttribute` queues a record either
+    // way, and a record not named here is read as the author's own writing.
+    pendingSelfWrites.add(el);
     el.setAttribute('tabindex', value);
   }
 
@@ -370,6 +433,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     if (!parkedTabIndex.has(el)) return;
     const original = parkedTabIndex.get(el) ?? null;
     parkedTabIndex.delete(el);
+    pendingSelfWrites.add(el);
     if (original === null) el.removeAttribute('tabindex');
     else el.setAttribute('tabindex', original);
   }
@@ -407,26 +471,36 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     const kids = children();
     const content = kids.map(focusableContent);
     slidesFocusable.value = content.some((list) => list.length > 0);
+    // A consumer's own `classes.slide` may name the package's focus-ring utility; the pass below
+    // owns that class on a slide, so it must not take away one the consumer asked for.
+    const consumerRing = (toValue(options.slideClass) ?? '').split(/\s+/).includes('eldra-focus');
     kids.forEach((item, i) => {
       const own = content[i] ?? [];
       if (!slidesFocusable.value) {
         unpark(item);
-        item.classList.remove('eldra-focus');
+        item.classList.toggle('eldra-focus', consumerRing);
         return;
       }
       const active = i === index.value;
       const entry = entryPointOf(own);
-      // The slide element takes the stop only when there is nothing inside it to take it. A slide
-      // that *does* hold a control gets no `tabindex` written on it at all: `focusItem` lands on
-      // the control, so the `-1` this used to write had no reader — what it did have was an effect,
-      // since `tabindex="-1"` makes an element mouse-focusable, so clicking a card's padding
-      // focused the `<li>` itself.
-      if (entry === null) manageTabIndex(item, active ? '0' : '-1');
+      // The slide element stands in for a control only when there is nothing inside it to take the
+      // stop *and* the slide can hold one itself — the same two tests a candidate passes, because a
+      // carousel inside a visible `aria-hidden="true"` subtree (a decorative duplicate) must hand
+      // focus to nothing at all: "never zero tab stops" is a promise about carousels that are
+      // reachable in the first place, and a tab stop inside `aria-hidden` is the very violation the
+      // entry-point rule removes for controls.
+      //
+      // A slide that *does* hold a control gets no `tabindex` written on it at all: `focusItem`
+      // lands on the control, so the `-1` this used to write had no reader — what it did have was an
+      // effect, since `tabindex="-1"` makes an element mouse-focusable, so clicking a card's
+      // padding focused the `<li>` itself.
+      const stands = entry === null && isTabStopCandidate(item);
+      if (stands) manageTabIndex(item, active ? '0' : '-1');
       else unpark(item);
       // The package's own ring, on the one element that can be focused without having a ring of its
       // own already (every control brings one). Added and removed with the stop, so a slide that
       // stops being the entry point does not keep a ring for a focus it can no longer take.
-      item.classList.toggle('eldra-focus', entry === null);
+      item.classList.toggle('eldra-focus', stands || consumerRing);
       for (const el of own) {
         if (active) unpark(el);
         else park(el);
@@ -1112,6 +1186,9 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       if (!track || !contentObserver) return;
       contentObserver.disconnect();
       syncFocusModel();
+      // Those writes produced records nobody will ever deliver, so the list of "ours" starts empty
+      // again rather than standing in front of the author's next write.
+      pendingSelfWrites.clear();
       contentObserver.observe(track, CONTENT_OBSERVER_INIT);
     });
   }
@@ -1148,7 +1225,10 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
          * What it watches and how it avoids feeding itself its own `tabindex` writes are
          * `CONTENT_OBSERVER_INIT`'s and `queueFocusSync`'s own comments.
          */
-        contentObserver = new MutationObserver(queueFocusSync);
+        contentObserver = new MutationObserver((records) => {
+          adoptAuthorTabIndexWrites(records);
+          queueFocusSync();
+        });
         contentObserver.observe(track, CONTENT_OBSERVER_INIT);
       }
       if (typeof ResizeObserver !== 'undefined') {

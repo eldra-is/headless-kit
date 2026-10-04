@@ -22,11 +22,14 @@ Release-please writes the generated notes from commit messages and does not repl
   leave the carousel — never into the next card — and `←`/`→` move between slides from anywhere
   inside one, with `Home`/`End` for the ends. Focus follows onto the new slide and the track
   scrolls to it (clamped, never wrapping, instant under reduced motion); `Enter`/`Space` stay with
-  the focused control, and the arrow keys are never taken from a text-like `input`, `textarea`,
-  `select`, `[contenteditable]`, an ARIA role that owns them (`combobox`, `listbox`, `radiogroup`,
-  `slider`, `spinbutton`, `tablist`, `tree`, `grid`, `menu`), media with controls, or an element
-  marked `data-no-arrow-keys` — a checkbox, a submit button or a file picker owns no horizontal
-  arrows, so the row still moves from one.
+  the focused control. The arrow keys are never taken from an `<input>` of any type but
+  `checkbox`/`button`/`submit`/`reset`/`image`/`file`/`color` — so the text-like types, and `radio`,
+  `range` and `number` and the date/time family, each of which reads `←`/`→` itself (a native radio
+  group moves its selection with them, so moving the row as well would fire two things on one key) —
+  nor from a `textarea`, a `select`, `[contenteditable]`, an ARIA role that owns them (`combobox`,
+  `listbox`, `radiogroup`, `slider`, `spinbutton`, `tablist`, `tree`, `treegrid`, `grid`, `menu`,
+  `menubar`, `textbox`), media with controls, or an element marked `data-no-arrow-keys`. A checkbox,
+  a submit button or a file picker owns no horizontal arrows, so the row still moves from one.
 
   Before this, tabbing past a twelve-card row took thirteen presses, with a double stop (the track,
   then immediately the first card's link) to start it — the spec's own Keyboard rule asks a

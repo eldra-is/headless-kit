@@ -556,11 +556,17 @@ it:
   next card. `←`/`→` move between slides from anywhere inside one, `Home`/`End` jump to the
   first/last, focus follows onto the new slide's entry point and the track scrolls to it (clamped,
   never wrapping, instant under reduced motion). `Enter`/`Space` are left to the focused control, so
-  a card's own link navigates the way the browser means it to. Nothing is intercepted inside a
-  control that owns the horizontal arrows itself — a text-like `input` (a checkbox, a submit button
-  or a file picker owns no horizontal arrows and never blocks the row), `textarea`, `select`,
-  `[contenteditable]`, a `combobox`/`listbox`/`radiogroup`/`slider`/`spinbutton`/`tablist`/`tree`/
-  `grid`/`menu` role, media with controls, or anything an author opts out with `data-no-arrow-keys`.
+  a card's own link navigates the way the browser means it to.
+
+  **What the arrows are never taken from**, exactly: every `<input>` except
+  `checkbox`/`button`/`submit`/`reset`/`image`/`file`/`color` — so the text-like types, and also
+  `radio`, `range` and `number` and the date/time family, each of which really does read `←`/`→`
+  itself (a native radio group moves its selection with them, so moving the row as well would fire
+  two things on one key) — plus `textarea`, `select`, `[contenteditable]`, the
+  `combobox`/`listbox`/`radiogroup`/`slider`/`spinbutton`/`tablist`/`tree`/`treegrid`/`grid`/`menu`/
+  `menubar`/`textbox` roles, `audio`/`video` with controls, and anything an author opts out with
+  `data-no-arrow-keys`. A checkbox, a submit button and a file picker own no horizontal arrows, so
+  the row still moves from one.
 
   **Where focus lands, and when the slide element itself is the stop.** The entry point is the
   slide's first _tab stop candidate_: rendered, outside `aria-hidden="true"`, not `disabled`, and
