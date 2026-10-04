@@ -243,14 +243,24 @@ const showUnresolvedCollectionHint = computed(
 const perViewBase = computed(() => (isRecentlyViewed.value ? 2.4 : 1.5));
 const showControls = computed(() => cards.value.length > perViewBase.value);
 
-/** Spec → Layout: "the track bleeds to the block edge" below 48rem, so the peeking next card
- *  reaches the screen edge — negative gutter margin plus matching inline and scroll padding, reset
- *  once the track sits inside the container from 48rem. `--eldra-gutter-mobile` is the same
- *  variable `Container.vue` reads for its own mobile gutter; `blocks/tabs/Block.vue`'s tab row is
- *  the only other `-mx-*` bleed precedent in `blocks/*`. */
+/**
+ * Spec → Layout: "the track bleeds to the block edge" below 48rem, so the peeking next card reaches
+ * the screen edge, and sits inside the container again from 48rem.
+ *
+ * One variable, not the `-mx-/px-/scroll-px-` trio this used to write (fix, 2026-10-04 — the first
+ * card's focus ring was cut off flat on its left edge at desktop). `Carousel` reserves the ring's
+ * own reach as padding on its track, because `overflow-x-auto` makes the track clip its slides'
+ * rings; a `px-*` utility arriving here through `classes.track` is a *different* `tailwind-merge`
+ * group from the `p-*` that reservation used, so both survived the merge and `padding-inline` —
+ * which Tailwind emits after `padding` — simply won: `padding-left: 0` at 48rem and up, with the
+ * ring clipped at the slide's own edge. `--eldra-carousel-bleed` is what the component now reads
+ * for the inline axis (`max(bleed, ring reach)` for the padding, the negative margin that cancels it
+ * and the scroll padding at once), so the bleed composes with the reservation instead of replacing
+ * it and the three can never fall out of step. `--eldra-gutter-mobile` is still the same variable
+ * `Container.vue` reads for its own mobile gutter.
+ */
 const TRACK_BLEED_CLASSES =
-  '-mx-[var(--eldra-gutter-mobile)] px-[var(--eldra-gutter-mobile)] ' +
-  'scroll-px-[var(--eldra-gutter-mobile)] @tablet:mx-0 @tablet:px-0 @tablet:scroll-px-0';
+  '[--eldra-carousel-bleed:var(--eldra-gutter-mobile)] @tablet:[--eldra-carousel-bleed:0px]';
 const carouselClasses = computed<Partial<Record<CarouselPart, string>>>(() => ({
   track: TRACK_BLEED_CLASSES,
   ...(showControls.value ? {} : { prev: 'hidden', next: 'hidden' }),

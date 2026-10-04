@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { compile } from '@tailwindcss/node';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { ref, type Ref } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -816,6 +819,139 @@ describe('product-carousel block', () => {
       expect(
         wrapper.findAllComponents(ProductCard).every((card) => card.props('revalidating') === true)
       ).toBe(true);
+    });
+  });
+
+  /**
+   * **The first card's focus ring, both axes (fix, 2026-10-04).** `Carousel` reserves the ring's
+   * reach as padding on its track, because `overflow-x-auto` forces `overflow-y: auto` too and the
+   * track then clips every slide's ring at its own padding box. This block bleeds that track to the
+   * screen edge below 48rem, and the way it used to do that — `px-[gutter] … @tablet:px-0` through
+   * `classes.track` — took the inline half of the reservation away: `px-*` and `p-*` are different
+   * `tailwind-merge` groups, so both classes survived the merge, and `padding-inline` then won in
+   * the cascade because Tailwind emits every `padding-inline` rule after every `padding` one. On the
+   * deployed site that measured `padding-top: 6px`, `padding-left: 0px` at 1440px, and the first
+   * card's ring was cut off flat down its left edge.
+   *
+   * So this compiles the theme's real stylesheet (the way `test/mainCss.spec.ts` does) over the
+   * **resolved class list of a mounted track** and asks what each axis actually computes to at each
+   * container breakpoint — the question neither a class-list assertion nor jsdom can answer, since
+   * jsdom applies no stylesheet and resolves no container query. Proven by mutation: restoring the
+   * old `-mx-/px-/scroll-px-` bleed trio here fails it on the inline axis at every breakpoint.
+   */
+  describe('the track’s focus-ring reservation', () => {
+    const RING_REACH = 'calc(var(--eldra-focus-offset) + var(--eldra-focus-width))';
+    // `import.meta.dirname`, not `new URL(..., import.meta.url)`: under jsdom Vite's dev
+    // transform rewrites that idiom into a dev-server URL, which no Node read can open —
+    // `test/richTextTypography.spec.ts` carries the same note for the same reason.
+    const assetsDir = `${join(import.meta.dirname, '../../../app/assets')}/`;
+
+    /**
+     * Every utility rule the build emits, in source order, with the container query it sits under.
+     * Only `@layer utilities`: the same stylesheet carries a preflight `padding: 0` and the
+     * rich-text `padding-left` of a blockquote, and neither is on this element.
+     */
+    type Rule = { condition: string; declarations: Array<[string, string]> };
+
+    function flatten(css: string, condition: string, layer: string, out: Rule[]): void {
+      let i = 0;
+      while (i < css.length) {
+        const open = css.indexOf('{', i);
+        if (open === -1) return;
+        let depth = 1;
+        let j = open + 1;
+        while (j < css.length && depth > 0) {
+          if (css[j] === '{') depth += 1;
+          else if (css[j] === '}') depth -= 1;
+          j += 1;
+        }
+        const head = css.slice(i, open).trim();
+        const body = css.slice(open + 1, j - 1);
+        const namedLayer = /@layer\s+([\w-]+)\s*$/.exec(head);
+        if (head.startsWith('@') || namedLayer) {
+          flatten(
+            body,
+            /@container[^{]*$/.test(head) ? head.slice(head.lastIndexOf('@container')) : condition,
+            namedLayer ? namedLayer[1]! : layer,
+            out
+          );
+        } else if (layer === 'utilities') {
+          out.push({
+            condition,
+            declarations: body
+              .split(';')
+              .map((part) => part.trim())
+              .filter((part) => part.includes(':') && !part.includes('{'))
+              .map((part) => {
+                const at = part.indexOf(':');
+                return [part.slice(0, at).trim(), part.slice(at + 1).trim()] as [string, string];
+              }),
+          });
+        }
+        i = j;
+      }
+    }
+
+    /** The last value to win for `properties`, among the rules that apply at `width`. */
+    function resolved(rules: Rule[], width: number, properties: string[]): string | undefined {
+      let value: string | undefined;
+      for (const rule of rules) {
+        const match = /width >= ([\d.]+)rem/.exec(rule.condition);
+        if (match && width < Number(match[1]) * 16) continue;
+        for (const [property, declared] of rule.declarations) {
+          if (properties.includes(property)) value = declared;
+        }
+      }
+      return value;
+    }
+
+    async function trackRules(): Promise<Rule[]> {
+      const wrapper = mountBlock(mock);
+      await flushPromises();
+      const classes = wrapper.get('[data-part="track"]').element.className.split(/\s+/);
+      const compiler = await compile(readFileSync(`${assetsDir}main.css`, 'utf8'), {
+        base: assetsDir,
+        onDependency() {},
+      });
+      const rules: Rule[] = [];
+      flatten(compiler.build(classes), '', '', rules);
+      return rules;
+    }
+
+    /** `max(bleed, reach)` can only be at least the reach; the bare reach is exactly it. */
+    function reservesTheRing(value: string | undefined): boolean {
+      return (
+        value === RING_REACH || (value?.startsWith('max(') === true && value.includes(RING_REACH))
+      );
+    }
+
+    // 375px: the bled width, where the gutter is the inline reservation. 768px and 1440px: the two
+    // container steps above it, where the bleed is off and only the ring's own reach is left.
+    for (const width of [375, 768, 1440]) {
+      it(`reserves the ring on both axes at ${width}px`, async () => {
+        const rules = await trackRules();
+        expect(resolved(rules, width, ['padding', 'padding-block', 'padding-top'])).toBe(
+          RING_REACH
+        );
+        const inline = resolved(rules, width, ['padding', 'padding-inline', 'padding-left']);
+        expect(reservesTheRing(inline)).toBe(true);
+        // Scroll padding has to match the inline padding exactly, or `scroll-snap-align: start`
+        // lands on the padding in front of the first slide instead of the slide's own edge — which
+        // scrolls that padding past the start and clips the ring all over again.
+        expect(resolved(rules, width, ['scroll-padding-inline', 'scroll-padding-left'])).toBe(
+          inline
+        );
+        // And the negative margin that cancels it, so the track's footprint is unchanged.
+        expect(resolved(rules, width, ['margin-inline', 'margin-left'])).toBe(
+          `calc(${inline} * -1)`
+        );
+      });
+    }
+
+    it('bleeds to the gutter below 48rem and sits inside the container above it', async () => {
+      const rules = await trackRules();
+      expect(resolved(rules, 375, ['--eldra-carousel-bleed'])).toBe('var(--eldra-gutter-mobile)');
+      expect(resolved(rules, 768, ['--eldra-carousel-bleed'])).toBe('0px');
     });
   });
 });
