@@ -45,6 +45,18 @@ export interface PriceProps {
   currency?: string;
   /** BCP 47 locale tag, e.g. `"en-US"`, `"is-IS"`. Defaults to `useEldraUiLocale()`. */
   locale?: string;
+  /**
+   * Whether the currency's **narrow** sign is used — `"kr 2,800"` rather than `"ISK 2,800"` under
+   * `en-US`/`ISK`, `"$"` rather than `"US$"` in a locale that distinguishes the two. `true` by
+   * default, the same default `CurrencyInput.narrowSymbol` carries, so a price and a currency
+   * field on the same page can only write the same sign. Set it to `false` for the wide sign,
+   * which for some currency-and-locale pairs is the ISO code itself.
+   *
+   * It changes only the sign: the fraction digits stay the currency's own either way (none for
+   * `ISK`, two for `USD`), and a locale whose narrow and wide signs are the same (`is-IS`'s `kr.`)
+   * is unaffected.
+   */
+  narrowSymbol?: boolean;
   /** See `PriceSize`. */
   size?: PriceSize;
   /** Shows the `labels.from` text before the price, for a product whose variants differ in price. */

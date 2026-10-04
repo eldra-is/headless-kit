@@ -993,13 +993,69 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
 - **`filterNumericBeforeInput`** (`src/utils/numeric-input.ts`) — the `beforeinput` filter that
   keeps a numeric text field numeric, used by `QuantityStepper` and exported for a consumer
   building a numeric control of their own.
-- **`createNumberFormat` / `formatNumber` / `parseLocaleNumber` / `localeSeparators` /
-  `currencyFractionDigits`** (`src/utils/number-format.ts`) — locale-aware number formatting and
-  its inverse, behind the numeric controls and exported for use outside them.
+- **`createNumberFormat` / `formatNumber` / `defaultUnitFormat` / `formatUnit` / `formatCurrency` /
+  `currencySymbol` / `parseLocaleNumber` / `localeSeparators` / `currencyFractionDigits`**
+  (`src/utils/number-format.ts`) — locale-aware number formatting and its inverse, behind the
+  numeric controls and exported for use outside them.
+
+  **`defaultUnitFormat({ locale, unit, maxFraction, isCurrency, currency, narrow, minFraction }, extraOptions?)`**,
+  **`formatUnit(value, { …same options })`** and
+  **`formatCurrency(value, locale = 'en-US', currency = 'USD', narrowSymbol = true, maxFraction = 2, minFraction?)`**
+  are **ports of the private Eldra library's own three helpers, and the canonical copy of them**:
+  that library is expected to import all three and delete its `unit-utils.ts` outright, so the
+  signatures are positional and the option names are its own, against this package's house style, and
+  for the arguments it passes the output must stay identical character for character.
+
+  `defaultUnitFormat` is the one that holds the rule — it returns the `Intl.NumberFormat`, and the
+  other two are wrappers over it exactly as the private library's own two are, which is why porting
+  only the wrappers would have left the sign and digit rule still defined privately. The rule, in
+  full: `style` is `"currency"` or `"unit"`; a unit carries `unit` and **no `unitDisplay`**, so
+  `Intl`'s own `"short"` applies (which is why `UnitFormatOptions.narrow` affects a currency only —
+  unlike `NumberFormatOptions.narrow`, which narrows a unit too); a currency carries `currency` and
+  `currencyDisplay: narrow ? 'narrowSymbol' : 'symbol'`; `minimumFractionDigits` is `minFraction`
+  (`0` when omitted) and `maximumFractionDigits` is `maxFraction`. `extraOptions` is a plain
+  `Intl.NumberFormatOptions` bag spread **last**, so it overrides any of them — that is how the
+  private `UnitInput` asks for `{ minimumFractionDigits: 2 }` on its placeholder.
+  `src/utils/__tests__/number-format.spec.ts` holds parity tables that recompute that rule with
+  `Intl` directly — formatted output _and_ `resolvedOptions()`, `extraOptions` included — and fail if
+  the two ever diverge.
+
+  **`minFraction` is the one addition to the ported signature, and it is display-only: omit it to
+  match input formatting.** Omitted — which is how the private library calls — the behaviour is
+  exactly the contract above, so `28` formats as `"$28"` and `28.5` as `"$28.5"`: the rule a
+  currency _field_ wants, where it shows what a person typed rather than what the minor unit
+  allows. A _displayed_ amount wants the opposite, a price list in which one row reads `$96` and
+  the next `$96.50` being no column of money, so it passes `currencyFractionDigits(currency, locale)`
+  and gets `"$96.00"`. `Price` passes that count as **both** `minFraction` and `maxFraction`; a
+  zero-decimal currency is unaffected by either, its own count being `0`. It **must not exceed
+  `maxFraction`**, which defaults to `2` whatever the currency, so a three-decimal currency needs both
+  passed — asking for `minFraction: 3` alone is refused with a `RangeError` naming both, rather than
+  `Intl`'s own message blaming a `maximumFractionDigits` the caller never set.
+
+  `formatCurrency` is what a theme should reach for when it has to put money in a sentence ("Add to
+  cart · kr 2,800") rather than render a `<Price>`: a hand-built
+  `Intl.NumberFormat({ style: 'currency' })` writes the **wide** sign (`"ISK 2,800"`), which is not
+  the shape this package's own prices and currency fields are in, and that mismatch is exactly the
+  defect it exists to prevent. Note that `maxFraction` defaults to `2` whatever the currency, so a
+  caller that wants the currency's own count passes it — which is what keeps a króna from growing a
+  fraction it has no minor unit for, and `BHD` at three places. It **throws** `RangeError` for a
+  code `Intl` rejects, as the private helper does; a caller inside a `computed` guards it the way
+  `Price` does (plain decimal plus the raw code). `formatUnit` memoises its formatter per distinct
+  shape, so a grid of prices pays for one construction rather than one per amount while the function
+  stays pure; `defaultUnitFormat` and `createNumberFormat` are uncached, because they hand the
+  formatter back and the caller already owns its lifetime.
+
+  **`currencySymbol(currency, locale, narrow = true)`** is this package's own addition rather than a
+  port: the sign on its own — `"kr"`, `"kr."`, `"$"` — read out of `formatToParts` rather than a
+  code → symbol table, for a place that names a currency rather than formatting an amount in it. A
+  currency with no sign distinct from its code in that locale returns the code, so a caller pairing
+  the two should compare them rather than printing `"ISK ISK"`. It never throws.
+
   `currencyFractionDigits` is the one no component here calls: `UnitInput` and `CurrencyInput`
   keep the private library's rule that `maxFraction` is `2` whatever the currency, so it is
   exported for a consumer who wants the currency's own minor unit instead (`0` for ISK, `3` for
   KWD, read from ICU).
+
 - **`frameAspectRatio`** (`src/utils/ratio.ts`) — turns an `ImageRatio` preset into the CSS
   `aspect-ratio` value `Image`'s frame and `Skeleton`'s `media` variant both resolve it to; exported
   so a consumer accepting an `ImageRatio` of their own (`ImageRatio` itself is public) can honour it.
@@ -1050,6 +1106,25 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   `Popover` makes the same `focusOnOpen: false` choice, for the same reason: it has no idea what is
   inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
   the real tab stops that behaviour exists for.
+
+- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `true` by
+  default, the same default `CurrencyInput` already carried, so every currency this package renders
+  is written with the currency's **narrow** sign: `"kr 2,800"` under `en-US`/`ISK`, not
+  `"ISK 2,800"`; `"$"`, not `"US$"`, in a locale that distinguishes the two. The design spec says
+  only that the amount is formatted by `Intl`, which leaves the sign open; a store's own back office
+  writes narrow signs, and a price that disagreed with the currency field the operator typed it into
+  was the defect worth closing by default rather than by opt-in. Set it to `false` for the wide
+  sign; a locale whose two signs are identical (`is-IS` writes `kr.` either way) is unaffected
+  either way. **`ProductCard`'s price follows the same narrow default and has no opt-out** — the prop
+  is `Price`'s alone, not forwarded through the card, so a consumer who needs the wide sign inside a
+  card reaches for `Price` directly.
+
+  `Price` formats every amount through that ported `formatCurrency`, passing
+  `currencyFractionDigits(currency, locale)` as **both** the maximum and the minimum fraction
+  digits. The maximum keeps a zero-decimal currency integral (`"kr 2,800"`, never `"kr 2,800.4"`)
+  and `BHD` at three places; the minimum is why a price reads `"$48.00"` rather than the `"$48"`
+  the same formatter gives a currency _field_, which pads nothing because a field shows what
+  someone typed. One formatter, two rules, and the caller says which.
 
 - **`revalidating` on `Price`, `StockBadge` and `ProductCard`** — a second, distinct busy state for
   a value that is _already on screen_ while a fresher one is fetched, which the spec's own `loading`

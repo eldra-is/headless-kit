@@ -6,6 +6,7 @@ import { isIS } from '../../../messages/is-IS';
 import { axe } from '../../../test/axe';
 import { giveMotionTokens, recordAnimations, stubReducedMotion } from '../../../test/motion';
 import { mountNarrow, mountWith } from '../../../test/mount';
+import { formatCurrency } from '../../../utils/number-format';
 import Price from '../Price.vue';
 import type { PriceProps } from '../types';
 
@@ -103,6 +104,118 @@ describe('Price — formatting', () => {
       props: { amount: 1_234_567, currency: 'BHD', locale: 'en-US' },
     });
     expect(wrapper.get('[data-part="current"]').text()).toBe(expected);
+    wrapper.unmount();
+  });
+
+  /**
+   * A displayed price pads to the currency's own fraction digits, both ways: `formatCurrency` is
+   * called with the currency's count as *both* `maxFraction` and `minFraction`, so `$28.00` keeps
+   * its zeroes and a column of prices lines up. Called the private library's way — without the
+   * sixth argument — that same formatter pads nothing (`"$28"`, `"$28.5"`), which is the rule a
+   * currency *field* wants; this asserts the display side explicitly, because the two rules share
+   * one function and the field rule reaching a price list is the regression to catch.
+   */
+  it('pads to the currency’s own fraction digits, so a price column lines up', () => {
+    const cases: Array<[number, string]> = [
+      [2800, '$28.00'],
+      [2850, '$28.50'],
+      [2857, '$28.57'],
+    ];
+    for (const [amount, expected] of cases) {
+      const wrapper = mountWith(Price, { props: { amount, currency: 'USD', locale: 'en-US' } });
+      expect(wrapper.get('[data-part="current"]').text()).toBe(expected);
+      wrapper.unmount();
+    }
+    // The same formatter, called the way the private library calls it: no padding. Proves the
+    // padding above is this component's sixth argument rather than a formatter-wide change.
+    expect(formatCurrency(28, 'en-US', 'USD')).toBe('$28');
+  });
+
+  it('takes the currency’s own count, not the util’s default of 2, as the cap', () => {
+    // `formatCurrency`'s own default would print 2800.4 krónur as "kr 2,800.4" and round BHD to
+    // two places; this component passes `currencyFractionDigits` instead, which is what keeps a
+    // zero-decimal currency integral — no fractional króna to show, and nothing to pad to either
+    // — and BHD at three.
+    const isk = mountWith(Price, { props: { amount: 2800, currency: 'ISK', locale: 'en-US' } });
+    expect(isk.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
+    isk.unmount();
+
+    const bhd = mountWith(Price, {
+      props: { amount: 1_234_567, currency: 'BHD', locale: 'en-US' },
+    });
+    expect(bhd.get('[data-part="current"]').text()).toContain('.567');
+    bhd.unmount();
+  });
+});
+
+/**
+ * The defect this covers: `<Price>` built its formatter without `narrow`, so an Icelandic store's
+ * price read "ISK 2,800" on an `en-US` page while the `CurrencyInput` the operator typed it into
+ * read "kr 2,800" — the same money in two signs. `narrowSymbol` is `true` by default, the same
+ * default that field carries.
+ */
+describe('Price — narrowSymbol', () => {
+  it('renders the narrow currency sign by default', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 2800, currency: 'ISK', locale: 'en-US' },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
+    wrapper.unmount();
+  });
+
+  it('renders the wide sign when narrowSymbol is false', () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 2800, currency: 'ISK', locale: 'en-US', narrowSymbol: false },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
+    wrapper.unmount();
+  });
+
+  it('reformats when the prop changes, rather than keeping the first formatter', async () => {
+    const wrapper = mountWith(Price, {
+      props: { amount: 2800, currency: 'ISK', locale: 'en-US' },
+    });
+    await wrapper.setProps({ narrowSymbol: false });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
+    wrapper.unmount();
+  });
+
+  it('changes the sign only, never the digits', () => {
+    // Both signs, same number: how many fraction digits a price carries is the currency's
+    // business, not the sign's.
+    for (const narrowSymbol of [true, false]) {
+      const wrapper = mountWith(Price, {
+        props: { amount: 2850, currency: 'USD', locale: 'en-US', narrowSymbol },
+      });
+      expect(wrapper.get('[data-part="current"]').text()).toBe('$28.50');
+      wrapper.unmount();
+    }
+  });
+
+  it('leaves a locale whose two signs are identical untouched', () => {
+    // `is-IS` writes `kr.` either way, which is why every existing is-IS assertion in this file
+    // is unchanged by the new default.
+    for (const narrowSymbol of [true, false]) {
+      const wrapper = mountWith(Price, {
+        props: { amount: 6990, currency: 'ISK', locale: 'is-IS', narrowSymbol },
+      });
+      expect(wrapper.get('[data-part="current"]').text()).toBe('6.990\u00a0kr.');
+      wrapper.unmount();
+    }
+  });
+
+  it('applies to compareAt and the unit-price line too', () => {
+    const wrapper = mountWith(Price, {
+      props: {
+        amount: 2800,
+        compareAt: 3600,
+        currency: 'ISK',
+        locale: 'en-US',
+        unitPrice: { amount: 500, per: '100 g' },
+      },
+    });
+    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('kr\u00a03,600');
+    expect(wrapper.get('[data-part="unit"]').text()).toContain('kr\u00a0500');
     wrapper.unmount();
   });
 });

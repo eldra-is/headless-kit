@@ -148,6 +148,58 @@ the component has stopped saying it is busy, and there is only ever one copy of 
 DOM. Under `prefers-reduced-motion: reduce` there is no animation at all and the value simply
 changes. A value that is on screen never turns back into a skeleton.
 
+## Money and number formatting
+
+Every currency the package renders is written with the currency's **narrow** sign — `kr 2,800`
+under `en-US`/`ISK`, `2.800 kr.` under `is-IS`, `$28.00` for dollars — because that is the sign a
+store's own back office writes, and a price that disagreed with the currency field an operator
+typed it into is a bug the shopper sees. `Price` takes `narrowSymbol`, `true` by default, as
+`CurrencyInput` already did; pass `false` for the wide sign, which for some currency-and-locale pairs
+is the ISO code itself. `ProductCard`'s own price follows the same default and has no opt-out of its
+own — the prop is `Price`'s.
+
+`Price` formats through `formatCurrency` (below), asking it for the currency's own fraction count
+as both the maximum and the minimum: a zero-decimal currency prints none, and a two-decimal one
+pads, so a column of prices lines up (`$48.00`, not `$48`).
+
+A theme that has to put money in a sentence rather than render a `<Price>` — "Add to cart ·
+kr 2,800", a cart line total, a search suggestion — should format it with the package's own
+`formatCurrency` rather than `Intl.NumberFormat`, which writes the wide sign by default and so
+quietly disagrees with every price beside it:
+
+```ts
+import { currencySymbol, formatCurrency } from '@eldrajs/ui';
+
+formatCurrency(28, 'en-US', 'USD'); // "$28"       — a field: shows what was typed
+formatCurrency(28, 'en-US', 'USD', true, 2, 2); // "$28.00"   — a display: padded
+formatCurrency(2800, 'en-US', 'ISK', true, 0, 0); // "kr 2,800"
+currencySymbol('ISK', 'is-IS'); // "kr."
+```
+
+`formatCurrency(value, locale, currency, narrowSymbol, maxFraction, minFraction?)` is positional,
+with those defaults, because it is one of **three ports of the private Eldra library's own helpers,
+and the canonical copy of them** — that library imports `defaultUnitFormat`, `formatUnit` and
+`formatCurrency` from here and keeps none of its own, so each signature is its signature and the
+output has to stay identical for the arguments it passes. `defaultUnitFormat(options, extraOptions?)`
+is the one that holds the rule: it returns the `Intl.NumberFormat`, and the other two are wrappers
+over it, so a caller formatting many values builds the formatter once and a caller needing an option
+the rule does not cover (`{ minimumFractionDigits: 2 }` on a placeholder) passes `extraOptions`,
+which is applied last.
+
+Two things to know about the digits. `minFraction` is the one addition to that library's signature,
+and it is display-only: omit it (as that library does) and the minimum is `0`, so `28` is `"$28"` and
+`28.5` is `"$28.5"` — right for a field, ragged in a price list; pass
+`currencyFractionDigits(currency, locale)` and you get `"$28.00"`. And `maxFraction` defaults to `2`
+whatever the currency, so pass that same count when you want the currency's own — which is what keeps
+krónur integral and `BHD` at three places; `minFraction` must not exceed it, so a three-decimal
+currency needs both. It throws `RangeError` for a code `Intl` rejects, as the original does — guard
+it the way `Price` does if it runs inside a `computed`.
+
+`currencySymbol` is this package's own addition: the sign on its own, for a place that names a
+currency rather than formatting an amount in it. It never throws. All of them sit alongside
+`formatNumber`, `createNumberFormat`, `parseLocaleNumber`, `localeSeparators` and
+`currencyFractionDigits` — see `packages/ui/README.md` for the whole set.
+
 ## Styles
 
 Pick one of three CSS entries, depending on how the consuming project builds CSS:
