@@ -2051,6 +2051,32 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     };
   }
 
+  function sameTextField(a: StegaMeta, b: StegaMeta): boolean {
+    return a.entryId === b.entryId && a.fieldPath === b.fieldPath && a.locale === b.locale;
+  }
+
+  /**
+   * True while the field `meta` names still has its own `theme:text-edited`
+   * debounce armed (`TEXT_EDIT_DEBOUNCE_MS`): the operator has typed into it
+   * and the editor has not been told yet, so **nothing the editor echoes back
+   * can describe those keystrokes** — an `editor:content-update` arriving in
+   * this window is strictly older than the DOM, however authoritative it is
+   * for every other field. Once the debounce flushes, the editor applies the
+   * posted value synchronously and reads the whole draft when it posts, so
+   * every later content update does describe them; this is therefore the exact
+   * window in which the overlay, not the editor, owns the field's text.
+   *
+   * Matched by metadata rather than by element identity on purpose: a renderer
+   * pass can replace the element between the keystroke and the flush, and the
+   * pending timer is still the same unflushed edit.
+   */
+  function hasUnflushedTextEdit(meta: StegaMeta): boolean {
+    for (const span of debounceTimers.keys()) {
+      if (sameTextField(metadataOf(span), meta)) return true;
+    }
+    return false;
+  }
+
   function restoreEditingFocus(): void {
     if (mode !== 'edit' || activeEdit === null) return;
     const replacement = [...root.querySelectorAll<HTMLElement>('[data-eldra-field]')].find(
@@ -2062,10 +2088,24 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       }
     );
     if (replacement === undefined) return;
-    const { caretOffset, value, dirty } = activeEdit;
+    const { caretOffset, value } = activeEdit;
+    // `activeEdit.dirty` alone cannot carry "the editor has not seen this
+    // text": it is retired the moment the DOM matches `value`, which is true
+    // again on the very next mutation pass after a keystroke (and after this
+    // function's own write). A field whose `theme:text-edited` debounce is
+    // still armed has by definition not reached the editor, so it stays dirty
+    // until the flush — that is what lets the stale renderer echo the editor
+    // sends in the meantime be undone here instead of eating the keystroke.
+    const dirty = activeEdit.dirty || hasUnflushedTextEdit(activeEdit.meta);
     const acknowledged = replacement.textContent === value;
     if (dirty && !acknowledged) replacement.textContent = value;
-    if (document.activeElement !== replacement) replacement.focus({ preventScroll: true });
+    // Taking focus is only right when the operator is already in this frame —
+    // the same rule `restoreRichTextSelection` follows. A renderer pass that
+    // replaces the element while they are in Studio's own sidebar or toolbar
+    // must not pull focus back into the preview and close what they opened.
+    const focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+    if (focused && document.activeElement !== replacement)
+      replacement.focus({ preventScroll: true });
     const selection = document.getSelection();
     if (selection === null) return;
     const range = document.createRange();
@@ -2128,6 +2168,13 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       if (field.closest('[data-eldra-rich-text]') !== null) return;
       const meta = metadataOf(field);
       if (!accepted.has(meta.entryId)) return;
+      // The operator has typed into this field and the editor has not been
+      // told yet, so `drafts` cannot describe those keystrokes: writing its
+      // value here would delete them, and replacing the caret's text node
+      // would collapse the caret to the start of the field. The renderer may
+      // already have drawn that stale value; `restoreEditingFocus` has just
+      // undone it, and this must not write it straight back.
+      if (hasUnflushedTextEdit(meta)) return;
       if (!Object.prototype.hasOwnProperty.call(drafts, meta.entryId)) return;
       const draft = drafts[meta.entryId];
       if (draft === undefined) return;
@@ -2849,7 +2896,18 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       reposition();
     },
     acceptExternalUpdate(entryIds) {
-      if (activeEdit !== null && entryIds.includes(activeEdit.meta.entryId)) activeEdit = null;
+      if (activeEdit === null || !entryIds.includes(activeEdit.meta.entryId)) return;
+      // The draft is authoritative for the *text*: retire the dirty flag so
+      // nothing re-asserts a pre-update value over it. Keystrokes the editor
+      // has not been told about yet are not described by this draft at all, so
+      // `restoreEditingFocus` keeps owning those — see `hasUnflushedTextEdit`.
+      //
+      // The record itself is kept rather than dropped, because it is also
+      // where the caret is, and the renderer is about to replace the very text
+      // node the caret lives in; dropping it left the caret collapsed at
+      // offset 0 of the field after every accepted echo, so the next keystroke
+      // landed at the start of the heading.
+      activeEdit = { ...activeEdit, dirty: false };
     },
     reconcileExternalDrafts,
     rescan() {

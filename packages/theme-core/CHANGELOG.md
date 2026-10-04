@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Inline text editing on the canvas no longer loses a keystroke or the caret to the editor's own
+  echo. A `theme:text-edited` post is debounced, so an `editor:content-update` that arrives inside
+  that window carries a draft one keystroke behind the DOM; the overlay used to drop its
+  preservation on `acceptExternalUpdate`, let the renderer draw that stale value over the field
+  (which replaces the text node the caret lives in, collapsing the caret to offset 0 of the field)
+  and then write it a second time in `reconcileExternalDrafts`. A field whose own debounce is still
+  armed is now owned by the overlay — the editor cannot have been told about those keystrokes yet —
+  so the text and the caret are both put back, and `acceptExternalUpdate` retires the dirty flag
+  instead of discarding the record the caret is restored from. An external draft still wins for
+  text the editor has actually seen. `restoreEditingFocus` also no longer takes focus while the
+  preview frame is not the focused one, the same rule `restoreRichTextSelection` already followed.
+
 - `safeLinkHref` is the same allowlist the platform's write side applies, rule for rule, so a value
   a theme renders is a value an author can save and a value that is stored is a value that renders.
   The cap is 2048 **bytes** rather than UTF-16 units; the whole Cc category counts as control
