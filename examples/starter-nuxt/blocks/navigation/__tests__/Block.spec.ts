@@ -1114,6 +1114,37 @@ describe('header block (navigation apiId)', () => {
       expect(countPill(bag)?.textContent?.trim()).toBe('99+');
     });
 
+    /**
+     * Spec "Header" → Layout, "Cart count": at least 1.25rem (`-5`) square, 0.3125rem side
+     * padding, 0.75rem bold tabular figures, a 2px `background` ring, 0.125rem from the top of
+     * the bag and flush right. `Badge`'s own `min-h-6`/`text-badge` must not survive the merge —
+     * that overshoot (1.5rem tall, the wrong type scale) is the defect this change fixes.
+     */
+    it('sizes and positions the pill to spec, with none of Badge’s own oversized defaults left behind', async () => {
+      const wrapper = mountWithCartCount(mock, 2);
+      await nextTick();
+      const badge = countPill(findCartButton(wrapper))!;
+      for (const token of [
+        'min-h-5',
+        'min-w-5',
+        'h-5',
+        'px-[0.3125rem]',
+        'text-xs',
+        'font-bold',
+        'tabular-nums',
+        'leading-none',
+        'ring-2',
+        'ring-background',
+        'top-0.5',
+        'right-0',
+      ]) {
+        expect([...badge.classList]).toContain(token);
+      }
+      for (const stale of ['min-h-6', 'text-badge', '-top-0.5', '-right-0.5', 'px-1']) {
+        expect([...badge.classList]).not.toContain(stale);
+      }
+    });
+
     // The bag's two forms, and the destination of the link form. With no drawer mounted the bag is
     // an anchor to `/cart`, which is `app/pages/cart.vue` — a theme route, prerendered by
     // `nuxt.config.ts`. It used to be an anchor to a path nothing in the theme answered, so the
@@ -1247,6 +1278,21 @@ describe('header block (navigation apiId)', () => {
 
       expect(countPill(findHeart(wrapper)!)?.textContent?.trim()).toBe('2');
       expect(countPill(findCartButtonIn(wrapper)!)?.textContent?.trim()).toBe('5');
+    });
+
+    /** Same override, not two copies that could drift apart (`COUNT_PILL_CLASSES` in the block). */
+    it('shares its pill’s classes with the bag’s, byte for byte', async () => {
+      saveInBrowser('merino-crew-sweater');
+      const wrapper = mountWithCartCount(mock, 3);
+      await nextTick();
+
+      const heartPill = countPill(findHeart(wrapper)!)!;
+      const cartPill = countPill(findCartButtonIn(wrapper)!)!;
+      expect(heartPill.className).toBe(cartPill.className);
+      // And the spec classes are actually on it, not just shared with an equally-wrong sibling.
+      for (const token of ['min-h-5', 'min-w-5', 'h-5', 'ring-2', 'ring-background', 'top-0.5']) {
+        expect([...heartPill.classList]).toContain(token);
+      }
     });
 
     it('is axe-clean with the heart and its pill in the actions row', async () => {

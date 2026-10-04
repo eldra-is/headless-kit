@@ -371,6 +371,26 @@ function openSearch(): void {
 const showAccount = computed(() => data.value.showAccount === true);
 const accountHref = '/account';
 
+// --- cart + wishlist count pills --------------------------------------------------------------
+
+/**
+ * Spec "Header" → Layout, "Cart count": a pill at least 1.25rem wide and tall with 0.3125rem side
+ * padding, 0.75rem bold tabular figures, `primary` fill, `primary-contrast` text, a 2px
+ * `background` ring, sitting 0.125rem from the top of its button and flush right. The same
+ * override styles both the cart and the wishlist pill (spec: "the cart button and its count
+ * badge" — the wishlist one is drawn identically), so it is one constant rather than two copies
+ * that could drift.
+ *
+ * `Badge`'s own root carries `min-h-6` and `text-badge` (1.5rem min height, the package's own
+ * type-style utility); both are stock Tailwind class groups (`min-h`, `font-size`) that
+ * `tailwind-merge` already recognises, so passing this through `classes.root` replaces them
+ * outright — the later class in the merged string always wins a group, with no `!important` and
+ * no need for a `size` prop (`Badge` has none).
+ */
+const COUNT_PILL_CLASSES =
+  'pointer-events-none absolute top-0.5 right-0 min-h-5 min-w-5 h-5 justify-center ' +
+  'px-[0.3125rem] text-xs font-bold tabular-nums leading-none ring-2 ring-background';
+
 // --- cart --------------------------------------------------------------------------------------
 
 /**
@@ -1137,10 +1157,7 @@ const actionsPositionClass = computed(() =>
               tone="primary"
               pill
               :label="wishlistBadgeLabel"
-              :classes="{
-                root: 'pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center px-1 text-[0.6875rem] leading-4',
-                label: 'tabular-nums',
-              }"
+              :classes="{ root: COUNT_PILL_CLASSES }"
             />
           </span>
 
@@ -1165,10 +1182,7 @@ const actionsPositionClass = computed(() =>
               tone="primary"
               pill
               :label="cartBadgeLabel"
-              :classes="{
-                root: 'pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center px-1 text-[0.6875rem] leading-4',
-                label: 'tabular-nums',
-              }"
+              :classes="{ root: COUNT_PILL_CLASSES }"
             />
           </span>
 
