@@ -64,7 +64,7 @@ import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrol
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
-import { isOutOfStock } from '../../app/storefront/feedback';
+import { CART_ADD_TOAST_ID, isOutOfStock } from '../../app/storefront/feedback';
 import { roundMoney, useMoney } from '../../app/storefront/money';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -418,11 +418,11 @@ async function primaryAction(): Promise<void> {
 
   if (failure !== null) {
     if (isOutOfStock(failure)) refusedForStock.value = true;
-    feedback.report(failure, { id: 'product-add-to-cart' });
+    feedback.report(failure, { id: CART_ADD_TOAST_ID });
     return;
   }
   toast.show({
-    id: 'product-add-to-cart',
+    id: CART_ADD_TOAST_ID,
     title: t('cart.added'),
     action: cart.drawerAvailable.value
       ? {

@@ -27,11 +27,12 @@
  * storefront reads in it) twice. Keying by the canonical path makes that move a no-op.
  */
 import { computed, watch } from 'vue';
-import { Link, Toaster } from '@eldrajs/ui';
+import { Link, Toaster, useToast } from '@eldrajs/ui';
 import CartBlock from '../blocks/cart/Block.vue';
 import EldraRouterLink from './components/EldraRouterLink.vue';
 import { useStorefront } from './composables/useStorefront';
 import { useT } from './composables/useT';
+import { CART_ADD_TOAST_ID } from './storefront/feedback';
 
 const t = useT();
 
@@ -58,6 +59,25 @@ watch(
   () => route.fullPath,
   () => {
     cart.drawerOpen.value = false;
+  }
+);
+
+/**
+ * Once the cart drawer is open, the "Added to cart" toast (`blocks/product-detail/Block.vue`,
+ * `CART_ADD_TOAST_ID`) has nothing left to confirm — the shopper is looking at the cart itself,
+ * whether they got there through the toast's own "View cart" action, the header bag, or anything
+ * else that flips `drawerOpen`. Left alone it would sit behind the drawer until its own timer (or,
+ * for the failure toast sharing this id, never) closed it. This belongs in the shell rather than
+ * the block that raised the toast because the drawer is the shell's (see above) and a toast can
+ * outlive the page that raised it (`route.fullPath` watch above unmounts no toast). Only this one
+ * id is dismissed — an unrelated toast (a different cause, a different block) stays exactly where
+ * it is.
+ */
+const toast = useToast();
+watch(
+  () => cart.drawerOpen.value,
+  (open) => {
+    if (open) toast.dismiss(CART_ADD_TOAST_ID);
   }
 );
 
