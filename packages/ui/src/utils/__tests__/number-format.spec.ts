@@ -93,7 +93,7 @@ describe('formatNumber', () => {
       expected
     );
     // The literal between the grouped integer and the currency symbol is U+00A0 (non-breaking
-    // space), not a plain U+0020, which is why every assertion in this file spells it ` `
+    // space), not a plain U+0020, which is why every assertion in this file spells it `\u00a0`
     // rather than typing the character: an invisible one in a `toBe` is a trap, and any tool that
     // normalises whitespace turns it into an assertion that can never pass.
     expect(expected).toContain('\u00a0kr.');
@@ -324,6 +324,41 @@ describe('the formatter cache', () => {
     expect(formatUnit(28, { locale: 'en-US', unit: 'kilogram' })).not.toBe(
       formatUnit(28, { locale: 'en-US', unit: 'meter' })
     );
+  });
+
+  /**
+   * One option at a time against the all-defaults call, so every value in `UNIT_FORMAT_DEFAULTS` is
+   * accounted for: six of the seven must change the output, which they can only do if the key names
+   * the resolved value rather than the one the caller happened to pass. (The constant's completeness
+   * is a compile-time matter — it `satisfies Required<UnitFormatOptions>`, so an option added to the
+   * interface without a default stops the build.)
+   *
+   * `narrow` is the exception and the one case worth stating: a unit's display is pinned to
+   * `"short"`, so it changes nothing here and is deliberately absent from the unit key. Its own
+   * branch is covered above.
+   */
+  it('names every defaulted option that can change the output', () => {
+    const base = formatUnit(28.5, {});
+    const variants: Array<[string, UnitFormatOptions, boolean]> = [
+      ['locale', { locale: 'is-IS' }, true],
+      ['unit', { unit: 'kilogram' }, true],
+      ['maxFraction', { maxFraction: 0 }, true],
+      ['isCurrency', { isCurrency: true }, true],
+      ['currency', { isCurrency: true, currency: 'ISK' }, true],
+      ['minFraction', { minFraction: 2 }, true],
+      // Pinned to `"short"` for a unit, so this one cannot and must not matter.
+      ['narrow', { narrow: true }, false],
+    ];
+    for (const [name, options, differs] of variants) {
+      const formatted = formatUnit(28.5, options);
+      if (differs) {
+        expect(formatted, `${name} should change the output`).not.toBe(
+          name === 'currency' ? formatUnit(28.5, { isCurrency: true }) : base
+        );
+      } else {
+        expect(formatted, `${name} should not change a unit's output`).toBe(base);
+      }
+    }
   });
 });
 
@@ -569,6 +604,36 @@ describe('minFraction against maxFraction', () => {
     expect(() => defaultUnitFormat({ minFraction: 3 })).toThrow(RangeError);
     expect(() => defaultUnitFormat({ minFraction: 3 })).toThrow(/minFraction \(3\)/);
     expect(() => defaultUnitFormat({ minFraction: 3 })).toThrow(/maxFraction \(2\)/);
+  });
+
+  /**
+   * The message exists to stop `Intl` blaming a `maximumFractionDigits` the caller never set. Turned
+   * on whenever the *defaulted* `minFraction: 0` exceeded the maximum, it did the same thing in
+   * reverse: a lone negative `maxFraction` was reported as a `minFraction` problem, naming a `0` the
+   * caller had not passed either. So the guard asks whether `minFraction` was actually given, and a
+   * bad `maxFraction` on its own is left to `Intl`, which names the argument that is wrong.
+   */
+  it('blames maxFraction, not a defaulted minFraction, for a lone bad maximum', () => {
+    for (const bad of [{ maxFraction: -1 }, { maxFraction: 101 }]) {
+      expect(() => defaultUnitFormat(bad)).toThrow(RangeError);
+      expect(() => defaultUnitFormat(bad)).toThrow(/maximumFractionDigits/);
+      expect(() => defaultUnitFormat(bad)).not.toThrow(/minFraction/);
+      expect(() => formatUnit(28, bad)).toThrow(/maximumFractionDigits/);
+      expect(() => formatCurrency(28, 'en-US', 'USD', true, -1)).toThrow(/maximumFractionDigits/);
+    }
+  });
+
+  it('still refuses an explicit minFraction above a bad maximum, with its own message', () => {
+    // Both are wrong, and the caller passed both, so the one naming both is the useful one.
+    expect(() => defaultUnitFormat({ minFraction: 1, maxFraction: -1 })).toThrow(
+      /minFraction \(1\)/
+    );
+  });
+
+  it('treats an explicit undefined as absent, so a forwarded optional cannot trip it', () => {
+    // `formatCurrency` forwards its optional sixth argument straight through.
+    expect(() => defaultUnitFormat({ minFraction: undefined, maxFraction: 2 })).not.toThrow();
+    expect(formatCurrency(28, 'en-US', 'USD', true, 2, undefined)).toBe('$28');
   });
 
   it('refuses it through formatUnit and formatCurrency too', () => {

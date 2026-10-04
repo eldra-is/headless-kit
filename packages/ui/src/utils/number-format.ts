@@ -227,6 +227,41 @@ export interface UnitFormatOptions {
 }
 
 /**
+ * Every default the private library's `defaultUnitFormat` destructures, in one place — because two
+ * functions here need them: the formatter, and `formatUnit`'s memo key, which has to name the
+ * *resolved* value of each or two calls that format alike would land on different entries (and, worse,
+ * two that format differently on the same one). `satisfies Required<UnitFormatOptions>` is what keeps
+ * the set complete: add an option to that interface without a default here and this stops compiling.
+ */
+const UNIT_FORMAT_DEFAULTS = {
+  locale: 'en-US',
+  unit: 'meter',
+  maxFraction: 2,
+  isCurrency: false,
+  currency: 'USD',
+  narrow: false,
+  minFraction: 0,
+} as const satisfies Required<UnitFormatOptions>;
+
+/**
+ * `options` with every absent value filled in from `UNIT_FORMAT_DEFAULTS`. `??` rather than a spread,
+ * so an explicitly passed `undefined` means "default" exactly as the private helper's destructuring
+ * does — which matters, because `formatCurrency` forwards its optional sixth argument straight
+ * through.
+ */
+function resolveUnitFormat(options: UnitFormatOptions): Required<UnitFormatOptions> {
+  return {
+    locale: options.locale ?? UNIT_FORMAT_DEFAULTS.locale,
+    unit: options.unit ?? UNIT_FORMAT_DEFAULTS.unit,
+    maxFraction: options.maxFraction ?? UNIT_FORMAT_DEFAULTS.maxFraction,
+    isCurrency: options.isCurrency ?? UNIT_FORMAT_DEFAULTS.isCurrency,
+    currency: options.currency ?? UNIT_FORMAT_DEFAULTS.currency,
+    narrow: options.narrow ?? UNIT_FORMAT_DEFAULTS.narrow,
+    minFraction: options.minFraction ?? UNIT_FORMAT_DEFAULTS.minFraction,
+  };
+}
+
+/**
  * Memoised formatters for `formatUnit`, keyed by every input that can change the output.
  *
  * Constructing an `Intl.NumberFormat` costs some 40× what `format()` costs on it, and `formatUnit`
@@ -255,7 +290,8 @@ const unitFormatters = new Map<string, Intl.NumberFormat>();
  * `"unit"`; a unit carries `unit` and no `unitDisplay`, so `Intl`'s own `"short"` applies; a currency
  * carries `currency` and `currencyDisplay: narrow ? "narrowSymbol" : "symbol"`;
  * `minimumFractionDigits` is `minFraction` (`0` when omitted, as there) and `maximumFractionDigits`
- * is `maxFraction`. Change none of it here without changing it there.
+ * is `maxFraction`. Change none of it here without changing it there; the defaults live in
+ * `UNIT_FORMAT_DEFAULTS`.
  *
  * `extraOptions` is what the private library's `UnitInput` passes `{ minimumFractionDigits: 2 }`
  * through for its placeholder and its part measurement, and it keeps that meaning: a plain
@@ -266,26 +302,22 @@ const unitFormatters = new Map<string, Intl.NumberFormat>();
  *
  * Returns the formatter rather than a string, so a caller that formats many values builds it once;
  * that is also why nothing memoises it. Throws `RangeError` for a currency code, unit identifier or
- * locale `Intl` does not recognise, and for a `minFraction` above `maxFraction`.
+ * locale `Intl` does not recognise, and for an explicit `minFraction` above `maxFraction`.
  */
 export function defaultUnitFormat(
   options: UnitFormatOptions = {},
   extraOptions: Intl.NumberFormatOptions = {}
 ): Intl.NumberFormat {
-  const {
-    locale = 'en-US',
-    unit = 'meter',
-    maxFraction = 2,
-    isCurrency = false,
-    currency = 'USD',
-    narrow = false,
-    minFraction = 0,
-  } = options;
+  const { locale, unit, maxFraction, isCurrency, currency, narrow, minFraction } =
+    resolveUnitFormat(options);
 
-  // Said here rather than left to `Intl`, which reports this pair as
-  // `maximumFractionDigits value is out of range` — naming the argument a caller passing only
-  // `minFraction` never set, against a default of 2 it has no reason to suspect.
-  if (minFraction > maxFraction) {
+  // Only when the caller actually passed a `minFraction`. `Intl` reports the pair as
+  // `maximumFractionDigits value is out of range`, which names an argument a caller passing only
+  // `minFraction` never set, against a default of 2 it has no reason to suspect — so that case is
+  // answered here. A lone out-of-range `maxFraction` is left to `Intl`, whose message then names the
+  // argument that *is* wrong; blaming the defaulted `minFraction: 0` for it would be the same
+  // misdirection in reverse.
+  if (options.minFraction !== undefined && minFraction > maxFraction) {
     throw new RangeError(
       `[@eldrajs/ui] minFraction (${minFraction}) cannot exceed maxFraction (${maxFraction}); ` +
         'maxFraction defaults to 2 whatever the currency, so pass both for a currency with more ' +
@@ -321,29 +353,26 @@ export function defaultUnitFormat(
  * Throws what `Intl.NumberFormat` throws — a `RangeError` for a currency code, unit identifier or
  * locale it does not recognise — because the private helper does, and a public copy that swallowed
  * an error its original raises is not the same function; plus the one `defaultUnitFormat` adds for
- * `minFraction` above `maxFraction`. A caller inside a `computed` must guard it (`Price` does,
- * falling back to a plain decimal plus the raw code).
+ * an explicit `minFraction` above `maxFraction`. A caller inside a `computed` must guard it (`Price`
+ * does, falling back to a plain decimal plus the raw code).
  */
 export function formatUnit(value: number, options: UnitFormatOptions): string {
-  const {
-    locale = 'en-US',
-    unit = 'meter',
-    maxFraction = 2,
-    isCurrency = false,
-    currency = 'USD',
-    narrow = false,
-    minFraction = 0,
-  } = options;
+  const { locale, unit, maxFraction, isCurrency, currency, narrow, minFraction } =
+    resolveUnitFormat(options);
 
-  // `|` cannot occur in any part of the key: a BCP 47 tag, an ISO 4217 code and an `Intl` unit
-  // identifier are letters, digits and hyphens only, so no two distinct shapes can spell the same
-  // string. (A control character would do as well and reads worse in source.)
+  // Every resolved option that reaches `Intl` for this style, so one entry can never answer for a
+  // shape that formats differently. `narrow` is absent from the unit key because a unit's display is
+  // pinned to `"short"`, and `currency`/`unit` each appear only in the branch that reads them.
+  // `|` cannot occur in any part: a BCP 47 tag, an ISO 4217 code and an `Intl` unit identifier are
+  // letters, digits and hyphens only, so no two distinct shapes can spell the same string. (A
+  // control character would do as well and reads worse in source.)
   const key = isCurrency
     ? `c|${locale}|${currency}|${narrow ? 1 : 0}|${minFraction}|${maxFraction}`
     : `u|${locale}|${unit}|${minFraction}|${maxFraction}`;
 
   let formatter = unitFormatters.get(key);
   if (formatter === undefined) {
+    // `options`, not the resolved copy: the guard above has to see whether `minFraction` was passed.
     formatter = defaultUnitFormat(options);
     // Only after construction has succeeded: a code `Intl` rejects must keep throwing.
     unitFormatters.set(key, formatter);
