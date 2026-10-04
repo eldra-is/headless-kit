@@ -768,12 +768,23 @@ const actionsPositionClass = computed(() =>
     <Container width="wide">
       <!-- `relative` is what an open mega-menu panel measures itself against: this element is the
            header's content box (inside `Container`'s max-width and gutters), so a panel pinned to
-           `left-0 right-0` here spans exactly the bar's own container. -->
+           `left-0 right-0` here spans exactly the bar's own container.
+
+           One `gap-1` (0.25rem) at every width — spec "Header" -> Layout gives that number for the
+           mobile grid's column gap and repeats it for the actions row, and never states a larger
+           one for any breakpoint in between, including the gap between this grid's search and
+           actions columns. A `@tablet:gap-4` lived here before (paired with the tablet height
+           tweak, with no basis in the spec text) and was the actual source of the uneven header: a
+           1rem gap between the search icon and the account/cart cluster against the 0.25rem the
+           actions row's own `gap-1` puts between account and cart, so the three icon buttons read
+           as two pairs rather than one evenly spaced row. The call to action's own closer distance
+           ("sits 0.75rem after the cart") is set on the button itself, not here — see its
+           `@content:ml-2` below. -->
       <nav
         :aria-label="t('header.primary')"
         :class="[
           BAR_HEIGHT_CLASS,
-          '@tablet:gap-4 relative grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1',
+          'relative grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1',
         ]"
       >
         <Button
@@ -1091,13 +1102,16 @@ const actionsPositionClass = computed(() =>
             />
           </span>
 
+          <!-- Spec Header -> Layout, From 64rem: the call to action sits 0.75rem after the cart.
+               0.25rem of that is already the actions row's own gap-1; @content:ml-2 (0.5rem) makes
+               up the rest, so it reads as its own button rather than a fourth icon in the row. -->
           <Button
             v-if="hasCta && variant !== 'minimal'"
             variant="primary"
             size="sm"
             :href="ctaHref"
             :as="ctaLinkAs"
-            :classes="{ container: 'hidden @content:inline-flex' }"
+            :classes="{ container: 'hidden @content:inline-flex @content:ml-2' }"
           >
             {{ ctaLabel }}
           </Button>

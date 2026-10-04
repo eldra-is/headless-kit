@@ -1567,6 +1567,43 @@ describe('header block (navigation apiId)', () => {
     for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
   });
 
+  describe('actions row spacing', () => {
+    // Regression for an uneven header: a `@tablet:gap-4` on the bar's own grid put 1rem between
+    // the search column and this row, against the 0.25rem `gap-1` puts between its own buttons —
+    // so search read as detached from account/cart, which themselves looked glued together.
+    it('puts one 0.25rem gap everywhere in the bar’s grid — never a larger one between columns', () => {
+      const wrapper = mountBlock(resolved.data);
+      const nav = wrapper.get('nav[aria-label="Primary navigation"]');
+      expect(nav.classes()).toContain('gap-1');
+      expect(nav.classes().some((cls) => cls.includes('gap-4'))).toBe(false);
+
+      const actions = wrapper.get('[data-eldra-header-actions]');
+      expect(actions.classes()).toContain('gap-1');
+    });
+
+    it('does not let the account button’s hidden/visible pair sit on a wrapper that keeps a gap slot while it is hidden', () => {
+      const wrapper = mountBlock(resolved.data);
+      const actions = wrapper.get('[data-eldra-header-actions]');
+      const account = wrapper.get('[aria-label="Account"]');
+      // `hidden @content:inline-flex` lands on the button's own root — the flex item the row's
+      // `gap-1` actually counts — not on a wrapper around it. A wrapper carrying `hidden` while
+      // the button inside it carries the visible class would still occupy a gap slot: the parent
+      // check below is what rules that out, not just the classes existing somewhere in the tree.
+      expect(account.classes()).toEqual(expect.arrayContaining(['hidden', '@content:inline-flex']));
+      expect(account.element.parentElement).toBe(actions.element);
+    });
+
+    it('gives the call to action its own 0.75rem from the cart, not only the row’s 0.25rem gap', () => {
+      const wrapper = mountBlock(resolved.data);
+      const actions = wrapper.get('[data-eldra-header-actions]');
+      const cta = wrapper.findAll('a, button').find((el) => el.text() === mock.ctaLabel)!;
+      // 0.5rem of margin on top of the row's own 0.25rem `gap-1` — spec "Header" -> Layout, "From
+      // 64rem": the call to action "sits 0.75rem after the cart".
+      expect(cta.classes()).toContain('@content:ml-2');
+      expect(cta.element.parentElement).toBe(actions.element);
+    });
+  });
+
   describe('empty / editor state', () => {
     /**
      * The header a fresh store actually starts with, copied from the shape every
