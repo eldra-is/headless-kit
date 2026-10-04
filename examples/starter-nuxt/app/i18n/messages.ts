@@ -947,6 +947,17 @@ export interface Messages {
     saved: string;
     removed: string;
     view: string;
+    /**
+     * `app/pages/wishlist.vue`'s own removal announcement — the page's only non-visual feedback for
+     * a heart press, since the list itself is the visible one and there is no toast there.
+     *
+     * It names the product **and** interpolates a `{count}` that is already a rendered
+     * `itemCountOne`/`itemCountMany` phrase ("2 items"), so one message covers both the singular and
+     * the plural without a second key. Naming both is mechanism as well as copy: a polite live
+     * region announces a *change* of content, so a fixed sentence written twice is announced once —
+     * which is how the second and later removals used to be silent.
+     */
+    removedNamed: string;
     /** `app/pages/wishlist.vue`'s `<h1>` and its `useHead` title. */
     title: string;
     /** The count beside that title, pluralised the way `cart.itemCountOne`/`itemCountMany` are. */

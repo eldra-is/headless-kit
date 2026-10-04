@@ -5,7 +5,7 @@
 // `localStorage` in this file is still the in-memory stub installed below — `setLocalStorage`
 // redefines the global, so jsdom's own implementation is never what is being tested, and the two
 // "storage is absent/throwing" cases stay exactly as honest as they were under node.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHistoryStore, createWishlistStore, hashMessage } from '../../app/storefront/history';
 
 function memoryStorage(): Storage {
@@ -123,9 +123,85 @@ describe('createHistoryStore', () => {
   });
 });
 
+/** The key `createWishlistStore` persists under (`app/storefront/history.ts`). */
+const WISHLIST_STORAGE_KEY = 'eldra.storefront.wishlist';
+
 describe('createWishlistStore', () => {
   beforeEach(() => {
     setLocalStorage(memoryStorage());
+  });
+
+  /** Every `storage` registration or removal on `window` since the spy went up. */
+  function storageCalls(spy: { mock: { calls: unknown[][] } }): unknown[][] {
+    return spy.mock.calls.filter(([type]) => type === 'storage');
+  }
+
+  /**
+   * **First two in this describe on purpose.** They count `window.addEventListener('storage')`, and
+   * the listener they are about is module level: registered for the first store that hydrates and
+   * dropped by the last one to release. A test above them that hydrated a store and never released
+   * it would leave it up and make both of these vacuous.
+   *
+   * Why there is one listener rather than one per store: `useStorefront()` builds a fallback demo
+   * storefront *per calling component* when nothing is provided — every Storybook story and every
+   * block mount does that — so a listener per store would leave one behind for each, each holding a
+   * dead `items` ref and re-reading storage on every event.
+   */
+  it('registers one storage listener for any number of stores, and drops it with the last release', () => {
+    const add = vi.spyOn(window, 'addEventListener');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    try {
+      const first = createWishlistStore();
+      const second = createWishlistStore();
+      first.hydrate();
+      second.hydrate();
+      expect(storageCalls(add)).toHaveLength(1);
+
+      // One consumer gone, one still interested: the listener stays.
+      first.release();
+      expect(storageCalls(remove)).toHaveLength(0);
+
+      second.release();
+      expect(storageCalls(remove)).toHaveLength(1);
+
+      // And a store hydrating afterwards registers it again rather than going deaf.
+      const third = createWishlistStore();
+      third.hydrate();
+      expect(storageCalls(add)).toHaveLength(2);
+      third.release();
+    } finally {
+      add.mockRestore();
+      remove.mockRestore();
+    }
+  });
+
+  /** A mutation reads storage for itself but must not subscribe: nothing would ever release what it
+   *  registered. */
+  it('registers nothing for a store nobody hydrated, mutations included', () => {
+    const add = vi.spyOn(window, 'addEventListener');
+    try {
+      const wishlist = createWishlistStore();
+      wishlist.toggle('merino-crew-sweater');
+      wishlist.remove('merino-crew-sweater');
+      wishlist.clear();
+      expect(storageCalls(add)).toHaveLength(0);
+    } finally {
+      add.mockRestore();
+    }
+  });
+
+  /** A released store stops following other tabs — the leak this closes. */
+  it('stops following the storage event once released', () => {
+    const wishlist = createWishlistStore();
+    wishlist.hydrate();
+    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(['from-another-tab']));
+    window.dispatchEvent(new StorageEvent('storage', { key: WISHLIST_STORAGE_KEY }));
+    expect(wishlist.items.value).toEqual(['from-another-tab']);
+
+    wishlist.release();
+    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(['later']));
+    window.dispatchEvent(new StorageEvent('storage', { key: WISHLIST_STORAGE_KEY }));
+    expect(wishlist.items.value).toEqual(['from-another-tab']);
   });
 
   /**
@@ -227,12 +303,12 @@ describe('createWishlistStore', () => {
     expect(wishlist.items.value).toEqual([]);
 
     // What another tab's write leaves behind, and the event the browser then fires here.
-    localStorage.setItem('eldra.storefront.wishlist', JSON.stringify(['from-another-tab']));
-    window.dispatchEvent(new StorageEvent('storage', { key: 'eldra.storefront.wishlist' }));
+    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(['from-another-tab']));
+    window.dispatchEvent(new StorageEvent('storage', { key: WISHLIST_STORAGE_KEY }));
     expect(wishlist.items.value).toEqual(['from-another-tab']);
 
     // `key: null` is the whole origin's storage being cleared, which includes this key.
-    localStorage.removeItem('eldra.storefront.wishlist');
+    localStorage.removeItem(WISHLIST_STORAGE_KEY);
     window.dispatchEvent(new StorageEvent('storage', { key: null }));
     expect(wishlist.items.value).toEqual([]);
   });
@@ -241,7 +317,7 @@ describe('createWishlistStore', () => {
     const wishlist = createWishlistStore();
     wishlist.hydrate();
     wishlist.toggle('mine');
-    localStorage.setItem('eldra.storefront.wishlist', JSON.stringify(['overwritten']));
+    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(['overwritten']));
     window.dispatchEvent(new StorageEvent('storage', { key: 'eldra.storefront.recentlyViewed' }));
     expect(wishlist.items.value).toEqual(['mine']);
   });

@@ -42,7 +42,7 @@
  * The route carries no header and no footer, exactly as `/cart` and `/search` do: the runtime
  * resolves those only as part of a CMS page or route template, and a code route is neither.
  */
-import { computed, nextTick, ref, type Component } from 'vue';
+import { computed, nextTick, ref, watch, type Component } from 'vue';
 import {
   Button,
   Container,
@@ -73,21 +73,68 @@ const money = useMoney();
  *  name→component adapter, the way `blocks/cart/Block.vue` binds its own bag. */
 const HeartIcon: Component = iconComponent('heart');
 
-const result = storefront.catalog.byHandles(wishlist.items);
+/**
+ * **The handles the batched read is keyed on — the page's own list, not the shopper's.**
+ *
+ * `StorefrontResult` watches its sources (`createGatewayResult`), so handing it `wishlist.items`
+ * directly made every heart press re-run the whole products read: `remove()` assigns a new array,
+ * the watcher fires, and the gateway is asked again for rows the page is already holding. Worse than
+ * the request, it put the page into its refresh state for the round trip — `aria-busy` on the list
+ * and `revalidating` on every card — so removing one of ten cards dimmed the other nine.
+ *
+ * This ref only ever *gains* handles, and only ones the page has no row for: a removal therefore
+ * changes nothing the read is watching, and a handle that arrives from somewhere else (another tab's
+ * save, a client navigation) still gets fetched. A handle the catalogue never answers about is asked
+ * for exactly once — it is in `asked` afterwards, which is what keeps this from looping.
+ */
+const asked = ref<string[]>([]);
+const result = storefront.catalog.byHandles(asked);
+
+/**
+ * Every row the read has ever answered, by handle. Keeping them is what makes a removal a local
+ * filter, and it is also how a volatile refresh lands: that refresh reassigns `result.data`, so the
+ * watcher below overwrites each row with the fresher one.
+ */
+const rows = ref<Record<string, StorefrontProductListItem>>({});
+watch(
+  result.data,
+  (data) => {
+    if (data === null || data.length === 0) return;
+    const next = { ...rows.value };
+    for (const item of data) next[item.handle] = item;
+    rows.value = next;
+  },
+  { immediate: true }
+);
+
+/**
+ * Ask for what the page is missing, and nothing else. Driven by both inputs: the saved list changing
+ * (hydration, a save in another tab) and rows arriving.
+ */
+watch(
+  [() => wishlist.items.value, rows],
+  () => {
+    const missing = wishlist.items.value.filter((handle) => rows.value[handle] === undefined);
+    if (missing.length === 0) return;
+    // Already in flight, or already answered with nothing. Either way, asking again changes nothing.
+    if (missing.every((handle) => asked.value.includes(handle))) return;
+    asked.value = [...new Set([...asked.value, ...missing])];
+  },
+  { immediate: true }
+);
 
 /**
  * The saved products, in the order they were saved (newest first) rather than whatever order the
- * catalogue answered in — the list is the shopper's, so it reads like theirs. Dropping a handle the
- * read did not answer about is the other half of the same loop; see the module comment for why the
- * stored list keeps it anyway.
+ * catalogue answered in — the list is the shopper's, so it reads like theirs. Dropping a handle
+ * there is no row for is the other half of the same loop; see the module comment for why the stored
+ * list keeps it anyway.
  */
-const products = computed<StorefrontProductListItem[]>(() => {
-  const found = new Map((result.data.value ?? []).map((item) => [item.handle, item]));
-  return wishlist.items.value.flatMap((handle) => {
-    const item = found.get(handle);
+const products = computed<StorefrontProductListItem[]>(() =>
+  wishlist.items.value.flatMap((handle) => {
+    const item = rows.value[handle];
     return item === undefined ? [] : [item];
-  });
-});
+  })
+);
 
 /** Both refresh states a card can be in, held at `false` until after mount — `useRevalidating`'s
  *  own doc comment has the reasoning, and it is the same one the gate on the wishlist has. */
@@ -146,6 +193,13 @@ const countLabel = computed(() => {
  * The removal is also announced: the card vanishing is the feedback for anyone who can see it, and
  * nothing else about the page says out loud that it happened. No toast — the product page's heart
  * raises one because *nothing* there changes, and here the list itself does.
+ *
+ * **The announcement names the product and the list's new size**, and that is mechanism as much as
+ * copy. A polite live region is announced when its *content changes*, so a fixed sentence written
+ * into it twice is one DOM mutation and one announcement: the second and later removals were
+ * silent, which for the page's only non-visual feedback meant two of three removals simply did not
+ * happen for a screen-reader user. Naming the product and the remaining count makes every removal's
+ * text differ from the one before it, and tells the shopper more at the same time.
  */
 const listEl = ref<HTMLElement | null>(null);
 const emptyEl = ref<HTMLElement | null>(null);
@@ -153,8 +207,9 @@ const announcement = ref('');
 
 async function removeCard(handle: string): Promise<void> {
   const index = cards.value.findIndex((entry) => entry.item.handle === handle);
+  const title = cards.value[index]?.product.title ?? handle;
   wishlist.remove(handle);
-  announcement.value = t('wishlist.removed');
+  announcement.value = t('wishlist.removedNamed', { title, count: countLabel.value });
   await nextTick();
 
   const buttons = Array.from(

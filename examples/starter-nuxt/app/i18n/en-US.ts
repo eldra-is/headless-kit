@@ -496,6 +496,7 @@ export const enUS = {
     saved: 'Saved to wishlist',
     removed: 'Removed from wishlist',
     view: 'View wishlist',
+    removedNamed: 'Removed {title}. {count} in your wishlist.',
     title: 'Your wishlist',
     itemCountOne: '1 item',
     itemCountMany: '{count} items',

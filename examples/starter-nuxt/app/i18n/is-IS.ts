@@ -498,6 +498,7 @@ export const isIS = {
     saved: 'Vistað á óskalista',
     removed: 'Fjarlægt af óskalista',
     view: 'Skoða óskalista',
+    removedNamed: '{title} fjarlægt. {count} á óskalistanum.',
     title: 'Óskalistinn þinn',
     itemCountOne: '1 vara',
     itemCountMany: '{count} vörur',

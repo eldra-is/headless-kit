@@ -65,7 +65,7 @@ import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useWishlist } from '../../app/composables/useWishlist';
 import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
-import { CART_ADD_TOAST_ID, isOutOfStock } from '../../app/storefront/feedback';
+import { CART_ADD_TOAST_ID, isOutOfStock, WISHLIST_TOAST_ID } from '../../app/storefront/feedback';
 import { roundMoney, useMoney } from '../../app/storefront/money';
 import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
@@ -389,7 +389,7 @@ function toggleWishlist(): void {
   if (handle.value === null) return;
   const saved = wishlist.toggle(handle.value);
   toast.show({
-    id: 'product-wishlist',
+    id: WISHLIST_TOAST_ID,
     title: saved ? t('wishlist.saved') : t('wishlist.removed'),
     action: saved ? { label: t('wishlist.view'), href: WISHLIST_PATH } : undefined,
   });

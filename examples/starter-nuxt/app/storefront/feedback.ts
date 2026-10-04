@@ -13,6 +13,17 @@ import type { MessageKey } from '../i18n/messages';
 export const CART_ADD_TOAST_ID = 'product-add-to-cart';
 
 /**
+ * The one toast id for the wishlist heart — "Saved to wishlist" and "Removed from wishlist" alike,
+ * so pressing the heart twice replaces the sentence in place instead of leaving two that contradict
+ * each other on screen. Separate from `CART_ADD_TOAST_ID` on purpose: a save must not dismiss the
+ * confirmation of an add the shopper has not acted on yet, and `app/app.vue`'s drawer dismissal must
+ * not take the wishlist's sentence with it. Named here rather than written inline at the one call
+ * site (`blocks/product-detail/Block.vue`) for the same reason its sibling above is: a bare string
+ * in a block is a string that drifts the moment a second file needs it.
+ */
+export const WISHLIST_TOAST_ID = 'product-wishlist';
+
+/**
  * What a *failed storefront mutation* is, in one shape, and which sentence a shopper is told about
  * it. Framework-free and pure: `app/storefront/cart.ts` records failures through
  * `toStorefrontFailure`, and `app/composables/useStorefrontFeedback.ts` is the one place that turns

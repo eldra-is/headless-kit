@@ -17,6 +17,8 @@ import { describe, expect, it, afterEach } from 'vitest';
 import { nextTick, onServerPrefetch, ref, type Ref } from 'vue';
 import type { Component } from 'vue';
 import type { EldraClient } from '@eldrajs/sdk';
+import Navigation from '../../blocks/navigation/Block.vue';
+import navigationMock from '../../blocks/navigation/mock.json';
 import ProductDetail from '../../blocks/product-detail/Block.vue';
 import productDetailMock from '../../blocks/product-detail/mock.json';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
@@ -46,7 +48,12 @@ import {
 const runs: HydrationRun[] = [];
 afterEach(() => {
   for (const run of runs.splice(0)) run.unmount();
+  // The wishlist cases below put a saved list in `localStorage`, which jsdom keeps for the file.
+  localStorage.clear();
 });
+
+/** Where the wishlist keeps a shopper's saved handles (`app/storefront/history.ts`). */
+const WISHLIST_KEY = 'eldra.storefront.wishlist';
 
 /**
  * A result in the shape `createGatewayResult` hands a block, with the two states that differ
@@ -390,5 +397,72 @@ describe('hydrating a prerendered commerce block', () => {
     await nextTick();
     expect(run.container.innerHTML).toContain('Results for');
     expect(run.container.innerHTML).not.toContain(enUS.search.idleTitle);
+  });
+
+  /**
+   * **The wishlist's half of the same contract, asserted rather than argued.** A shopper's saved
+   * list is in their own browser, and one prerendered file is served to all of them — so the markup
+   * a build wrote carries no heart and no pressed state, and the browser's first render of that file
+   * has to be identical to it even though `localStorage` already holds the list.
+   *
+   * `app/composables/useWishlist.ts` is what makes that true: `WishlistStore.items` stays empty
+   * until `hydrate()`, which only `onMounted` calls. The gate is one edit away from being lost — a
+   * `hydrate()` moved into `setup`, a `watchEffect`, a `v-if` reading storage for itself — and only
+   * a hydration test fails for that reason. `test/pages/ssr.spec.ts` proves the server half; these
+   * two prove the client's first paint agrees with it and that the saved state arrives *after*.
+   */
+  describe('with a wishlist already saved in the browser', () => {
+    it('hydrates a header with no heart, then grows one', async () => {
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(['merino-crew-sweater']));
+      const entry: BlockEntry = {
+        id: 'h-header',
+        data: navigationMock as unknown as Record<string, unknown>,
+      };
+
+      const html = await renderBlockHtml(Navigation, entry);
+      expect(html).not.toContain('Wishlist');
+
+      const run = hydrateBlock(Navigation, entry, html);
+      runs.push(run);
+
+      expect(hydrationWarnings(run)).toEqual([]);
+      expect(withoutPackageEnhancement(run.firstPaint)).toBe(
+        withoutPackageEnhancement(run.expected)
+      );
+      expect(run.firstPaint).not.toContain('Wishlist');
+
+      // `onMounted` ran inside the mount; the render it queued is the next tick, and the store's
+      // read reaches the count through one more.
+      await nextTick();
+      await nextTick();
+      expect(run.container.innerHTML).toContain('Wishlist, 1 item');
+      expect(run.container.innerHTML).toContain('href="/wishlist"');
+    });
+
+    it('hydrates a product page with its heart unpressed, then presses it', async () => {
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(['merino-crew-sweater']));
+      const subject = SUBJECTS[0]!; // product-detail, over the demo catalogue's own product
+      const value = await subject.value();
+
+      const server = gatewayShaped(value);
+      const html = await renderBlockHtml(subject.component, subject.entry, {
+        [STOREFRONT_KEY]: subject.storefront(server.result as StorefrontResult<never>),
+      });
+      expect(html).toContain('aria-pressed="false"');
+      expect(html).not.toContain('aria-pressed="true"');
+
+      const client = gatewayShaped(value, { loading: true });
+      const run = hydrateBlock(subject.component, subject.entry, html, {
+        [STOREFRONT_KEY]: subject.storefront(client.result as StorefrontResult<never>),
+      });
+      runs.push(run);
+
+      expect(hydrationWarnings(run)).toEqual([]);
+      expect(run.firstPaint).toContain('aria-pressed="false"');
+
+      await nextTick();
+      await nextTick();
+      expect(run.container.innerHTML).toContain('aria-pressed="true"');
+    });
   });
 });

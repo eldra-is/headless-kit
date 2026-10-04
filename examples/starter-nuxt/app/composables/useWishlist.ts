@@ -1,4 +1,4 @@
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import { useStorefront } from './useStorefront';
 import type { WishlistStore } from '../storefront/types';
 
@@ -19,13 +19,24 @@ import type { WishlistStore } from '../storefront/types';
  * rather than in each component because three surfaces share it, and `hydrate()` is idempotent, so
  * calling this from all three costs one read.
  *
- * Nothing is returned beyond the store itself: `items`, `count`, `has`, `toggle`, `remove`,
- * `clear` are the whole interface (`app/storefront/types.ts`).
+ * **`release()` on unmount is the other half of that call**, not tidiness: hydration subscribes the
+ * store to the `storage` event for cross-tab saves, and `useStorefront()` builds a *fallback*
+ * storefront per calling component whenever nothing is provided — which is every Storybook story
+ * and every block mount. Without the release each of those would leave a subscription behind
+ * holding a dead `items` ref. The store counts consumers, so the last component to leave is the one
+ * that drops the listener, and a component mounting later re-subscribes.
+ *
+ * The store itself is returned unchanged: `items`, `count`, `has`, `toggle`, `remove`, `clear`,
+ * plus the `hydrate`/`release` pair this composable owns (`app/storefront/types.ts`).
  */
 export function useWishlist(): WishlistStore {
   const wishlist = useStorefront().wishlist;
   onMounted(() => {
     wishlist.hydrate();
+  });
+  // Only ever after an `onMounted` that ran, so the counts cannot go out of step.
+  onUnmounted(() => {
+    wishlist.release();
   });
   return wishlist;
 }

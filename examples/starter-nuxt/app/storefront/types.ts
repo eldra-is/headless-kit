@@ -399,14 +399,34 @@ export interface WishlistStore {
   toggle(handle: string): boolean;
   /** Removes it, or does nothing when it was not saved. */
   remove(handle: string): void;
-  /** Empties the list. */
+  /**
+   * Empties the list. No surface calls it yet — it is here because a wishlist that cannot be
+   * emptied in one gesture is a wishlist whose only way out is pressing twenty hearts, and the two
+   * places that will want it (a "Clear wishlist" control beside the list, and a sign-out that must
+   * not leave one shopper's saved products in front of the next) are the same two
+   * `HistoryStore.clearViews` already exists for. Writing it with the rest is what keeps it on the
+   * same `ensureRead`-then-write path as `toggle` and `remove` rather than bolted on later.
+   */
   clear(): void;
   /**
-   * Reads `localStorage` into `items` and starts following the `storage` event for other tabs.
-   * Idempotent, client-only in effect, and called from `onMounted` by `useWishlist()`; a mutation
-   * calls it first, so nothing can write an empty list over a saved one.
+   * Reads `localStorage` into `items` and starts following the `storage` event for other tabs —
+   * **the gate the whole feature turns on**: nothing of a shopper's saved list is readable until
+   * this has run, so a prerendered page cannot carry it and the browser's first render of that page
+   * matches the file it is hydrating. Called from `onMounted` by `useWishlist()`, which is the only
+   * caller; idempotent, and inert on the server beyond the storage read. A mutation reads storage
+   * for itself first, so nothing can write an empty list over a saved one even unhydrated.
+   *
+   * Paired with `release()`: each call counts one live consumer.
    */
   hydrate(): void;
+  /**
+   * Gives up one consumer's interest, from `useWishlist()`'s `onUnmounted`. The last one to leave
+   * drops the shared `storage` listener; `items` is left alone, so a later `hydrate()` picks up
+   * where this left off. It exists because `useStorefront()` builds a fallback storefront per
+   * calling component when nothing is provided (every Storybook story, every block mount), and a
+   * listener per store with no way to undo it leaks one for each.
+   */
+  release(): void;
 }
 
 export interface HistoryStore {

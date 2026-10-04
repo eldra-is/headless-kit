@@ -430,9 +430,19 @@ function onCartClick(): void {
  * either has or does not — unlike `showAccount`, which gates a destination (`/account`) that only
  * exists once a store has customer accounts. `/wishlist` is this theme's own route, prerendered in
  * every build, so it always exists and the heart never leads nowhere.
+ *
+ * **Not in `minimal`.** That variant's whole definition is brand, search, cart and a Menu button
+ * (spec "Header" → Variants: "Links, account and call to action live only in the drawer"), which is
+ * why `showAccount` and the call to action are both guarded with `variant !== 'minimal'` below — a
+ * fourth icon there would be the theme deciding the variant means something else. The drawer gets no
+ * wishlist row either, so the variant stays consistent in both directions.
+ *
+ * **It does render at mobile widths**, unlike account and the call to action, which are
+ * `@content:` only. Deliberate, and the bag's own rule: a shopper who saved something on a phone has
+ * no other way back to it, where account and the call to action both have a drawer row.
  */
 const wishlist = useWishlist();
-const wishlistCount = computed(() => wishlist.count.value);
+const wishlistCount = wishlist.count;
 const wishlistHref = '/wishlist';
 const wishlistAccessibleName = computed(() =>
   wishlistCount.value === 1
@@ -1103,10 +1113,11 @@ const actionsPositionClass = computed(() =>
             </template>
           </Button>
 
-          <!-- Absent from every prerendered header and from any visitor with nothing saved: see
-               `wishlist` in the script above. `EldraRouterLink` because `/wishlist` is this
-               theme's own route — it should route, not reload the document. -->
-          <span v-if="wishlistCount > 0" class="relative inline-flex">
+          <!-- Absent from every prerendered header, from any visitor with nothing saved, and from
+               the `minimal` variant altogether: see `wishlist` in the script above.
+               `EldraRouterLink` because `/wishlist` is this theme's own route — it should route,
+               not reload the document. -->
+          <span v-if="wishlistCount > 0 && variant !== 'minimal'" class="relative inline-flex">
             <Button
               variant="ghost"
               size="sm"

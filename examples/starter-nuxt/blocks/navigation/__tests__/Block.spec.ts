@@ -166,12 +166,35 @@ function mountWithDrawer(data: Record<string, unknown>, opts: { editing?: boolea
   return { wrapper, storefront };
 }
 
+/**
+ * The count pill drawn over one control's own corner — the `<Badge>` that is its sibling inside the
+ * `relative inline-flex` span the actions row wraps each of them in. `null` when that control has
+ * no pill.
+ *
+ * Scoped to the control rather than found with `wrapper.findComponent(Badge)`, which answers the
+ * *first* badge in the tree: there are two pills in the actions row now (the wishlist heart's comes
+ * before the bag's), so a global lookup silently asserts the wrong element the moment a spec has
+ * something saved as well as something in the cart.
+ */
+/** The bag, in whichever form it rendered: an `<a href="/cart">` while no drawer is mounted, a
+ *  `<button>` once one is. Module level because both the cart and the wishlist specs need it. */
+function findCartButtonIn(wrapper: ReturnType<typeof mountBlock>): DOMWrapper<Element> | undefined {
+  return wrapper
+    .findAll('a, button')
+    .find((control) => control.attributes('aria-label')?.startsWith('Cart'));
+}
+
+function countPill(control: DOMWrapper<Element>): Element | null {
+  const siblings = Array.from(control.element.parentElement?.children ?? []);
+  return siblings.find((element) => element !== control.element) ?? null;
+}
+
 describe('header block (navigation apiId)', () => {
   afterEach(() => {
     window.history.pushState({}, '', '/');
-    // The wishlist heart reads `localStorage`, which jsdom keeps for the whole file — a saved list
-    // left behind would put a second `Badge` in the actions row and the cart assertions below pick
-    // the first one they find.
+    // The wishlist heart reads `localStorage`, which jsdom keeps for the whole file. Hygiene only:
+    // every pill assertion is scoped to its own control (`countPill`), so a list left behind can no
+    // longer be mistaken for the bag's count.
     localStorage.clear();
   });
 
@@ -1050,17 +1073,16 @@ describe('header block (navigation apiId)', () => {
 
   describe('cart button', () => {
     // The demo storefront's `drawerAvailable` is off, so the cart control renders as an `<a
-    // href="/cart">` (Button's own link form), not a `<button>` — search both tags.
-    function findCartButton(wrapper: ReturnType<typeof mountBlock>) {
-      return wrapper
-        .findAll('a, button')
-        .find((b) => b.attributes('aria-label')?.startsWith('Cart'))!;
+    // href="/cart">` (Button's own link form), not a `<button>` — `findCartButtonIn` searches both
+    // tags. Every assertion here is about a header that has a bag, so the non-null is the point.
+    function findCartButton(wrapper: ReturnType<typeof mountBlock>): DOMWrapper<Element> {
+      return findCartButtonIn(wrapper)!;
     }
 
     it('reads "Cart, empty" with nothing in the cart, and shows no badge', () => {
       const wrapper = mountBlock(resolved.data); // demo storefront's cart starts empty
       expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, empty');
-      expect(wrapper.findComponent(Badge).exists()).toBe(false);
+      expect(countPill(findCartButton(wrapper))).toBeNull();
     });
 
     // The count is read only once the block has mounted (the server never knows it), so each of
@@ -1074,20 +1096,22 @@ describe('header block (navigation apiId)', () => {
     it('reads "Cart, {n} items" for more than one, with an aria-hidden badge carrying the count', async () => {
       const wrapper = mountWithCartCount(mock, 2);
       await nextTick();
-      expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 2 items');
-      const badge = wrapper.findComponent(Badge);
-      expect(badge.attributes('aria-hidden')).toBe('true');
-      expect(badge.text()).toBe('2');
+      const bag = findCartButton(wrapper);
+      expect(bag.attributes('aria-label')).toBe('Cart, 2 items');
+      const badge = countPill(bag)!;
+      expect(badge.getAttribute('aria-hidden')).toBe('true');
+      expect(badge.textContent?.trim()).toBe('2');
       // The pill is a sibling drawn over the bag's corner, and with the count it grows across the
       // middle of the button; a pointer on it must still reach the bag underneath.
-      expect(badge.classes()).toContain('pointer-events-none');
+      expect(badge.classList.contains('pointer-events-none')).toBe(true);
     });
 
     it('reads "99+" above 99', async () => {
       const wrapper = mountWithCartCount(mock, 120);
       await nextTick();
-      expect(findCartButton(wrapper).attributes('aria-label')).toBe('Cart, 120 items');
-      expect(wrapper.findComponent(Badge).text()).toBe('99+');
+      const bag = findCartButton(wrapper);
+      expect(bag.attributes('aria-label')).toBe('Cart, 120 items');
+      expect(countPill(bag)?.textContent?.trim()).toBe('99+');
     });
 
     // The bag's two forms, and the destination of the link form. With no drawer mounted the bag is
@@ -1158,7 +1182,24 @@ describe('header block (navigation apiId)', () => {
       const wrapper = mountBlock(resolved.data);
       expect(findHeart(wrapper)).toBeUndefined();
       // The bag's own pill is absent too (an empty cart), so this is the whole actions row.
-      expect(wrapper.findComponent(Badge).exists()).toBe(false);
+      expect(wrapper.findAllComponents(Badge)).toHaveLength(0);
+    });
+
+    /**
+     * Spec "Header" -> Variants, `minimal`: "Brand left; search, cart and a 'Menu' button on the
+     * right at every width. Links, account and call to action live only in the drawer." A fourth
+     * icon there would be the theme deciding that variant means something else — and the drawer has
+     * no wishlist row either, so it would be inconsistent in both directions. `showAccount` and the
+     * call to action carry the same guard.
+     */
+    it('is absent in the minimal variant, however much is saved', async () => {
+      saveInBrowser('merino-crew-sweater');
+      const wrapper = mountBlock({ ...resolved.data, variant: 'minimal' });
+      await nextTick();
+
+      expect(findHeart(wrapper)).toBeUndefined();
+      // The bag is still there, which is what makes this about the heart and not about the row.
+      expect(findCartButtonIn(wrapper)).toBeDefined();
     });
 
     it('appears after mount once something is saved, linking to the wishlist route', async () => {
@@ -1179,12 +1220,12 @@ describe('header block (navigation apiId)', () => {
       const wrapper = mountBlock(resolved.data);
       await nextTick();
 
-      expect(findHeart(wrapper)!.attributes('aria-label')).toBe('Wishlist, 2 items');
-      // The heart is before the bag in the actions row, so this is its pill.
-      const badge = wrapper.findComponent(Badge);
-      expect(badge.attributes('aria-hidden')).toBe('true');
-      expect(badge.text()).toBe('2');
-      expect(badge.classes()).toContain('pointer-events-none');
+      const heart = findHeart(wrapper)!;
+      expect(heart.attributes('aria-label')).toBe('Wishlist, 2 items');
+      const badge = countPill(heart)!;
+      expect(badge.getAttribute('aria-hidden')).toBe('true');
+      expect(badge.textContent?.trim()).toBe('2');
+      expect(badge.classList.contains('pointer-events-none')).toBe(true);
     });
 
     it('reads "99+" above 99, like the bag', async () => {
@@ -1192,8 +1233,20 @@ describe('header block (navigation apiId)', () => {
       const wrapper = mountBlock(resolved.data);
       await nextTick();
 
-      expect(findHeart(wrapper)!.attributes('aria-label')).toBe('Wishlist, 120 items');
-      expect(wrapper.findComponent(Badge).text()).toBe('99+');
+      const heart = findHeart(wrapper)!;
+      expect(heart.attributes('aria-label')).toBe('Wishlist, 120 items');
+      expect(countPill(heart)?.textContent?.trim()).toBe('99+');
+    });
+
+    /** Two pills in one row, each carrying its own control's count — the asymmetry a global badge
+     *  lookup used to hide. */
+    it('keeps its own count apart from the bag’s', async () => {
+      saveInBrowser('merino-crew-sweater', 'speckled-latte-mug');
+      const wrapper = mountWithCartCount(mock, 5);
+      await nextTick();
+
+      expect(countPill(findHeart(wrapper)!)?.textContent?.trim()).toBe('2');
+      expect(countPill(findCartButtonIn(wrapper)!)?.textContent?.trim()).toBe('5');
     });
 
     it('is axe-clean with the heart and its pill in the actions row', async () => {
