@@ -64,6 +64,44 @@ describe('server rendering', () => {
   });
 
   /**
+   * One prerendered header is served to every visitor, so it cannot carry any one of them: the bag
+   * reads "Cart, empty" and the wishlist heart is not in the markup at all — not even for a
+   * browser with a saved list, which is what the storage stub below stands in for. A heart in the
+   * file would also be a heart the first client render has to agree about, and a visitor with
+   * nothing saved would have one pointing at an empty list.
+   */
+  it('server-renders no wishlist heart, with a saved list already in storage', async () => {
+    const saved = new Map([
+      ['eldra.storefront.wishlist', JSON.stringify(['merino-crew-sweater', 'speckled-latte-mug'])],
+    ]);
+    // By hand rather than `vi.stubGlobal`, so `unstubAllGlobals` cannot take this file's
+    // module-level `useRoute` stub with it.
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => saved.get(key) ?? null,
+        setItem: () => {},
+        removeItem: () => {},
+      },
+    });
+    try {
+      const html = await renderBlockToString(
+        Navigation,
+        { id: 'ssr-header-wishlist', data: navigationMock },
+        { [STOREFRONT_KEY]: createDemoStorefront() }
+      );
+
+      expect(html).toContain(enUS.header.cartEmpty);
+      // Neither the control nor its destination. `href="/wishlist"` rather than the bare path: the
+      // block's own template comment names it, and Vue keeps comments in a development SSR render.
+      expect(html).not.toContain('Wishlist');
+      expect(html).not.toContain('href="/wishlist"');
+    } finally {
+      Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+  });
+
+  /**
    * The `/search` route is prerendered **once** and that one file answers every query: a static host
    * serves the same `search/index.html` for `/search` and for `/search?q=linen`
    * (`app/pages/search.vue`). So the markup can only honestly be the idle state — and it has to stay

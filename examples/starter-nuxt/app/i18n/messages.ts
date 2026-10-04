@@ -277,6 +277,13 @@ export interface Messages {
     cartOne: string;
     /** The cart button's accessible name with more than one item ("Cart, {count} items"). */
     cartMany: string;
+    /**
+     * The wishlist heart's accessible name, pluralised the way the bag's is. There is no "empty"
+     * form beside these two: the heart is not rendered at all with nothing saved
+     * (`blocks/navigation/Block.vue`), so a header that shows it always has a real count.
+     */
+    wishlistOne: string;
+    wishlistMany: string;
     /** The visible text of the mega-menu panel's row linking to the parent item's own
      *  destination — the one the trigger gave up when it became a disclosure. Shown only for a
      *  parent that has a destination at all (a `kind: "none"` heading has none). */

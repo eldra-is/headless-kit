@@ -169,6 +169,10 @@ function mountWithDrawer(data: Record<string, unknown>, opts: { editing?: boolea
 describe('header block (navigation apiId)', () => {
   afterEach(() => {
     window.history.pushState({}, '', '/');
+    // The wishlist heart reads `localStorage`, which jsdom keeps for the whole file — a saved list
+    // left behind would put a second `Badge` in the actions row and the cart assertions below pick
+    // the first one they find.
+    localStorage.clear();
   });
 
   it('renders the bare mock.json content — the freshly-inserted state, no images, axe-clean', async () => {
@@ -1129,6 +1133,76 @@ describe('header block (navigation apiId)', () => {
       expect(bag.element.tagName).toBe('BUTTON');
       await bag.trigger('click');
       expect(storefront.cart.drawerOpen.value).toBe(false);
+    });
+  });
+
+  /**
+   * The entry point to `/wishlist`. Two rules decide whether it is in the DOM at all, and both
+   * are about what the header in a prerendered file says: it appears only once something is
+   * saved, and only after mount — so the HTML a build wrote, which every visitor is served, has
+   * the header it always had (`test/pages/ssr.spec.ts` holds that half).
+   */
+  describe('wishlist heart', () => {
+    /** The demo storefront claims no cart drawer, so every action here is `Button`'s link form. */
+    function findHeart(wrapper: ReturnType<typeof mountBlock>) {
+      return wrapper
+        .findAll('a, button')
+        .find((control) => control.attributes('aria-label')?.startsWith('Wishlist'));
+    }
+
+    function saveInBrowser(...handles: string[]): void {
+      localStorage.setItem('eldra.storefront.wishlist', JSON.stringify(handles));
+    }
+
+    it('is absent with nothing saved, and so is its pill', () => {
+      const wrapper = mountBlock(resolved.data);
+      expect(findHeart(wrapper)).toBeUndefined();
+      // The bag's own pill is absent too (an empty cart), so this is the whole actions row.
+      expect(wrapper.findComponent(Badge).exists()).toBe(false);
+    });
+
+    it('appears after mount once something is saved, linking to the wishlist route', async () => {
+      saveInBrowser('merino-crew-sweater');
+      const wrapper = mountBlock(resolved.data);
+      await nextTick();
+
+      const heart = findHeart(wrapper)!;
+      expect(heart.attributes('aria-label')).toBe('Wishlist, 1 item');
+      expect(heart.element.tagName).toBe('A');
+      expect(heart.attributes('href')).toBe('/wishlist');
+      // It is a link to a page, so it claims no popup — the same rule the bag's link form follows.
+      expect(heart.attributes('aria-haspopup')).toBeUndefined();
+    });
+
+    it('carries an aria-hidden count pill that cannot swallow the click', async () => {
+      saveInBrowser('merino-crew-sweater', 'speckled-latte-mug');
+      const wrapper = mountBlock(resolved.data);
+      await nextTick();
+
+      expect(findHeart(wrapper)!.attributes('aria-label')).toBe('Wishlist, 2 items');
+      // The heart is before the bag in the actions row, so this is its pill.
+      const badge = wrapper.findComponent(Badge);
+      expect(badge.attributes('aria-hidden')).toBe('true');
+      expect(badge.text()).toBe('2');
+      expect(badge.classes()).toContain('pointer-events-none');
+    });
+
+    it('reads "99+" above 99, like the bag', async () => {
+      saveInBrowser(...Array.from({ length: 120 }, (_, index) => `product-${index}`));
+      const wrapper = mountBlock(resolved.data);
+      await nextTick();
+
+      expect(findHeart(wrapper)!.attributes('aria-label')).toBe('Wishlist, 120 items');
+      expect(wrapper.findComponent(Badge).text()).toBe('99+');
+    });
+
+    it('is axe-clean with the heart and its pill in the actions row', async () => {
+      saveInBrowser('merino-crew-sweater', 'speckled-latte-mug');
+      const wrapper = mountBlock(resolved.data);
+      await nextTick();
+
+      expect(findHeart(wrapper)).toBeDefined();
+      expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
 
