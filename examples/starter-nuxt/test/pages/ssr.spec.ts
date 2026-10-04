@@ -197,6 +197,47 @@ describe('server rendering', () => {
     });
 
     /**
+     * A shopper's saved list is their own browser's state, so it is never in the file a build
+     * wrote: the prerendered heart is unpressed however many products that visitor has saved.
+     * `createWishlistStore()` is what guarantees it — `items` is empty until `hydrate()`, which
+     * only `onMounted` calls (`app/composables/useWishlist.ts`), and `onMounted` never runs here.
+     *
+     * The storage stub is the whole test: a store that read `localStorage` at construction, the way
+     * this one used to, would server-render `aria-pressed="true"` from the list below and every
+     * hydrating browser would repaint the buy box.
+     */
+    it('server-renders the wishlist heart unpressed, with a saved list already in storage', async () => {
+      const saved = new Map([
+        ['eldra.storefront.wishlist', JSON.stringify(['merino-crew-sweater'])],
+      ]);
+      // Defined and deleted by hand rather than through `vi.stubGlobal`: `unstubAllGlobals` would
+      // also restore this file's module-level `useRoute` stub, which the shell renders need.
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: {
+          getItem: (key: string) => saved.get(key) ?? null,
+          setItem: () => {},
+          removeItem: () => {},
+        },
+      });
+      try {
+        const html = await renderBlockToString(
+          ProductDetail,
+          { id: 'ssr-wishlist', data: productDetailMock as unknown as Record<string, unknown> },
+          { [STOREFRONT_KEY]: createDemoStorefront() }
+        );
+
+        expect(html).toContain(
+          enUS.product.saveToWishlist.replace('{title}', 'Merino crew sweater')
+        );
+        expect(html).toContain('aria-pressed="false"');
+        expect(html).not.toContain('aria-pressed="true"');
+      } finally {
+        Reflect.deleteProperty(globalThis, 'localStorage');
+      }
+    });
+
+    /**
      * The whole point of reading the store's currency at **build** time: a prerendered page is
      * already formatted in it. A store selling in krónur gets krónur in the HTML a static host
      * serves — not a dollar sign the browser corrects a tick later, and not a bare number.

@@ -377,10 +377,36 @@ export interface StorefrontOrders {
   current(token: Ref<string | null>): StorefrontResult<StorefrontOrder>;
 }
 
+/**
+ * The products a shopper saved for later, by storefront handle. Local to their browser and nothing
+ * more: there is no account behind it (see `docs/starter-kit.md`, "Wishlist"), so the whole store is
+ * `localStorage` — `createWishlistStore()` in `app/storefront/history.ts` is the one implementation,
+ * shared by the gateway and demo sources alike, because there is no gateway half to differ about.
+ *
+ * **Read it through `useWishlist()`** (`app/composables/useWishlist.ts`), never straight off
+ * `useStorefront()`: `items` is empty until `hydrate()` runs in `onMounted`, which is what keeps a
+ * visitor's saved list out of prerendered HTML and makes the browser's first render equal the file
+ * it hydrates. The gate is written up on `createWishlistStore()` itself.
+ */
 export interface WishlistStore {
+  /** Saved handles, newest first. `[]` before `hydrate()` — see above. */
   items: Ref<string[]>;
+  /** `items.value.length`, as a ref so a header can bind a count without reading the array. */
+  count: Readonly<Ref<number>>;
   has(handle: string): boolean;
-  toggle(handle: string): void;
+  /** Saves the handle if it is not saved, removes it if it is. Returns the state it is now in:
+   *  `true` saved, `false` removed — which is the sentence a caller's toast picks from. */
+  toggle(handle: string): boolean;
+  /** Removes it, or does nothing when it was not saved. */
+  remove(handle: string): void;
+  /** Empties the list. */
+  clear(): void;
+  /**
+   * Reads `localStorage` into `items` and starts following the `storage` event for other tabs.
+   * Idempotent, client-only in effect, and called from `onMounted` by `useWishlist()`; a mutation
+   * calls it first, so nothing can write an empty list over a saved one.
+   */
+  hydrate(): void;
 }
 
 export interface HistoryStore {

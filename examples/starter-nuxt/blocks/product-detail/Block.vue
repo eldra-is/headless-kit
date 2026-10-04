@@ -63,6 +63,7 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
+import { useWishlist } from '../../app/composables/useWishlist';
 import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
 import { isOutOfStock } from '../../app/storefront/feedback';
 import { roundMoney, useMoney } from '../../app/storefront/money';
@@ -90,6 +91,9 @@ const { data, entryId } = useBlockData(props, 'product-detail');
 const t = useT();
 const editing = useEditing();
 const storefront = useStorefront();
+/** The saved-for-later list, hydrated after mount — see `useWishlist()` for why the heart is
+ *  never pressed in prerendered HTML. */
+const wishlist = useWishlist();
 const feedback = useStorefrontFeedback();
 const toast = useToast();
 
@@ -355,9 +359,7 @@ const addToCartLabel = computed(() => {
   return t('product.addToCart', { price: formattedPrice.value });
 });
 
-const wishlisted = computed(() =>
-  handle.value === null ? false : storefront.wishlist.has(handle.value)
-);
+const wishlisted = computed(() => (handle.value === null ? false : wishlist.has(handle.value)));
 const wishlistLabel = computed(() => {
   const title = product.value?.title ?? '';
   return wishlisted.value
@@ -365,7 +367,8 @@ const wishlistLabel = computed(() => {
     : t('product.saveToWishlist', { title });
 });
 function toggleWishlist(): void {
-  if (handle.value !== null) storefront.wishlist.toggle(handle.value);
+  if (handle.value === null) return;
+  wishlist.toggle(handle.value);
 }
 
 const addToCartEl = ref<HTMLElement | null>(null);

@@ -1,3 +1,10 @@
+// @vitest-environment jsdom
+//
+// jsdom rather than the suite's default node environment, for one reason: the wishlist's cross-tab
+// sync is a `window` `storage` listener, and `window`/`StorageEvent` only exist here. Every
+// `localStorage` in this file is still the in-memory stub installed below — `setLocalStorage`
+// redefines the global, so jsdom's own implementation is never what is being tested, and the two
+// "storage is absent/throwing" cases stay exactly as honest as they were under node.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createHistoryStore, createWishlistStore, hashMessage } from '../../app/storefront/history';
 
@@ -121,38 +128,137 @@ describe('createWishlistStore', () => {
     setLocalStorage(memoryStorage());
   });
 
-  it('toggle adds a handle not yet in the wishlist', () => {
+  /**
+   * The hydration gate (`app/storefront/history.ts`, `app/composables/useWishlist.ts`): a fresh
+   * store knows nothing, whatever the browser already holds, until `hydrate()` — which is what
+   * keeps a visitor's saved list out of the HTML a build wrote and makes the browser's first render
+   * of that file identical to it. Asserted first because every test below depends on it.
+   */
+  it('starts empty and stays empty until hydrate(), even with a saved list in storage', () => {
+    createWishlistStore().toggle('merino-crew-sweater');
+
     const wishlist = createWishlistStore();
+    expect(wishlist.items.value).toEqual([]);
+    expect(wishlist.count.value).toBe(0);
     expect(wishlist.has('merino-crew-sweater')).toBe(false);
-    wishlist.toggle('merino-crew-sweater');
-    expect(wishlist.has('merino-crew-sweater')).toBe(true);
+
+    wishlist.hydrate();
     expect(wishlist.items.value).toEqual(['merino-crew-sweater']);
+    expect(wishlist.count.value).toBe(1);
+    expect(wishlist.has('merino-crew-sweater')).toBe(true);
   });
 
-  it('toggle removes a handle already in the wishlist', () => {
+  it('hydrate is idempotent and does not discard changes made since', () => {
+    createWishlistStore().toggle('stored');
     const wishlist = createWishlistStore();
+    wishlist.hydrate();
+    wishlist.toggle('added');
+    wishlist.hydrate();
+    expect(wishlist.items.value).toEqual(['added', 'stored']);
+  });
+
+  it('toggle adds a handle not yet in the wishlist, newest first, and says it is now saved', () => {
+    const wishlist = createWishlistStore();
+    wishlist.hydrate();
+    expect(wishlist.has('merino-crew-sweater')).toBe(false);
+    expect(wishlist.toggle('merino-crew-sweater')).toBe(true);
+    expect(wishlist.toggle('speckled-latte-mug')).toBe(true);
+    expect(wishlist.has('merino-crew-sweater')).toBe(true);
+    expect(wishlist.items.value).toEqual(['speckled-latte-mug', 'merino-crew-sweater']);
+    expect(wishlist.count.value).toBe(2);
+  });
+
+  it('toggle removes a handle already in the wishlist, and says it is no longer saved', () => {
+    const wishlist = createWishlistStore();
+    wishlist.hydrate();
     wishlist.toggle('merino-crew-sweater');
-    wishlist.toggle('merino-crew-sweater');
+    expect(wishlist.toggle('merino-crew-sweater')).toBe(false);
     expect(wishlist.has('merino-crew-sweater')).toBe(false);
     expect(wishlist.items.value).toEqual([]);
+  });
+
+  it('remove drops one handle and ignores one that was never saved', () => {
+    const wishlist = createWishlistStore();
+    wishlist.hydrate();
+    wishlist.toggle('a');
+    wishlist.toggle('b');
+    wishlist.remove('a');
+    expect(wishlist.items.value).toEqual(['b']);
+    expect(() => wishlist.remove('never-saved')).not.toThrow();
+    expect(wishlist.items.value).toEqual(['b']);
+  });
+
+  it('clear empties the list, in storage as well as in memory', () => {
+    const wishlist = createWishlistStore();
+    wishlist.hydrate();
+    wishlist.toggle('a');
+    wishlist.clear();
+    expect(wishlist.items.value).toEqual([]);
+    const reloaded = createWishlistStore();
+    reloaded.hydrate();
+    expect(reloaded.items.value).toEqual([]);
   });
 
   it('persists across store instances via localStorage', () => {
     createWishlistStore().toggle('merino-crew-sweater');
     const reloaded = createWishlistStore();
+    reloaded.hydrate();
     expect(reloaded.has('merino-crew-sweater')).toBe(true);
+  });
+
+  /**
+   * The defect the mutations' own `hydrate()` call closes: a toggle on a store nobody hydrated
+   * would otherwise write `[handle]` over whatever the browser already held, silently emptying a
+   * shopper's saved list the first time they pressed a heart.
+   */
+  it('a mutation on an un-hydrated store keeps the stored list instead of replacing it', () => {
+    createWishlistStore().toggle('stored');
+    const fresh = createWishlistStore();
+    fresh.toggle('added');
+    expect(fresh.items.value).toEqual(['added', 'stored']);
+    const reloaded = createWishlistStore();
+    reloaded.hydrate();
+    expect(reloaded.items.value).toEqual(['added', 'stored']);
+  });
+
+  it('follows the storage event so another tab saving a product reaches this one', () => {
+    const wishlist = createWishlistStore();
+    wishlist.hydrate();
+    expect(wishlist.items.value).toEqual([]);
+
+    // What another tab's write leaves behind, and the event the browser then fires here.
+    localStorage.setItem('eldra.storefront.wishlist', JSON.stringify(['from-another-tab']));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'eldra.storefront.wishlist' }));
+    expect(wishlist.items.value).toEqual(['from-another-tab']);
+
+    // `key: null` is the whole origin's storage being cleared, which includes this key.
+    localStorage.removeItem('eldra.storefront.wishlist');
+    window.dispatchEvent(new StorageEvent('storage', { key: null }));
+    expect(wishlist.items.value).toEqual([]);
+  });
+
+  it('ignores a storage event about another key', () => {
+    const wishlist = createWishlistStore();
+    wishlist.hydrate();
+    wishlist.toggle('mine');
+    localStorage.setItem('eldra.storefront.wishlist', JSON.stringify(['overwritten']));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'eldra.storefront.recentlyViewed' }));
+    expect(wishlist.items.value).toEqual(['mine']);
   });
 
   it('degrades to empty state instead of throwing when localStorage is absent', () => {
     setLocalStorage(undefined);
     const wishlist = createWishlistStore();
+    expect(() => wishlist.hydrate()).not.toThrow();
     expect(wishlist.items.value).toEqual([]);
     expect(() => wishlist.toggle('a')).not.toThrow();
+    expect(() => wishlist.clear()).not.toThrow();
   });
 
   it('degrades to empty state instead of throwing when localStorage itself throws', () => {
     setLocalStorage(throwingStorage());
     const wishlist = createWishlistStore();
+    expect(() => wishlist.hydrate()).not.toThrow();
     expect(wishlist.items.value).toEqual([]);
     expect(() => wishlist.toggle('a')).not.toThrow();
   });
