@@ -10,6 +10,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/**
+ * The ring's own reach, and the inline reservation that composes a block's bleed with it — written
+ * here exactly as `Carousel.vue` writes them inside its arbitrary values (Tailwind spells a space
+ * `_`), so a change to either side fails here rather than in a screenshot three releases later.
+ */
+const RING_REACH = 'calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))';
+const INLINE_RESERVE = `max(var(--eldra-carousel-bleed,0px),${RING_REACH})`;
+
 /** Three plain `<li>` slides, the shape a product row's own story passes. */
 const THREE_SLIDES = `
   <li>Alpha</li>
@@ -1295,6 +1303,56 @@ describe('Carousel — roving focus', () => {
     wrapper.unmount();
   });
 
+  /**
+   * Fix (2026-10-04, operator report "does the ring paint at all?"). `eldra-focus` is keyed to the
+   * element's *own* `:focus-visible`, and in the roving model a slide that holds a control is not
+   * focusable at all — so the ring a consumer asked for through `classes.slide` was drawn in full
+   * by the computed style with `--eldra-focus-alpha: 0` and could never appear, on any interaction.
+   * `eldra-focus-proxy` (`&:has(:focus-visible)`, `tailwind.css`'s "Proxy focus") is what turns it
+   * on from the card's own link instead. Proven by mutation: dropping the `!stands && consumerRing`
+   * half of the toggle in `syncFocusModel` leaves the class off every slide here.
+   */
+  it("adds eldra-focus-proxy beside a consumer's slide ring when the stop is inside the slide", async () => {
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers', classes: { slide: 'eldra-focus' } },
+      slots: { default: THREE_CARD_SLIDES },
+    });
+    await settle();
+    for (const slide of slidesOf(wrapper)) {
+      expect(slide.classList.contains('eldra-focus')).toBe(true);
+      expect(slide.classList.contains('eldra-focus-proxy')).toBe(true);
+    }
+    wrapper.unmount();
+  });
+
+  /**
+   * The other half of the rule, and why there is never a ring inside a ring: a slide *is* the stop
+   * only when it holds nothing focusable, and then its own `:focus-visible` lights the ring — a
+   * proxy there would also light it from a descendant that cannot be focused in the first place.
+   */
+  it('leaves eldra-focus-proxy off a slide that is itself the tab stop', async () => {
+    // A mixed row (a hero's linked and unlinked figures): the first slide holds nothing focusable,
+    // so it stands in for a control and rings on its own `:focus-visible`; the second holds a link.
+    const wrapper = mountWith(Carousel, {
+      props: { ariaLabel: 'Bestsellers' },
+      slots: {
+        default: `
+          <li><figure>Alpha</figure></li>
+          <li><a href="/bravo">Bravo</a></li>
+        `,
+      },
+    });
+    await settle();
+    const slides = slidesOf(wrapper);
+    expect(slides[0]?.getAttribute('tabindex')).toBe('0');
+    expect(slides[0]?.classList.contains('eldra-focus')).toBe(true);
+    expect(slides[0]?.classList.contains('eldra-focus-proxy')).toBe(false);
+    // And the slide that holds the link rings neither way: its card is what carries a ring.
+    expect(slides[1]?.classList.contains('eldra-focus')).toBe(false);
+    expect(slides[1]?.classList.contains('eldra-focus-proxy')).toBe(false);
+    wrapper.unmount();
+  });
+
   it('has no axe violations with cards in the slides', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers' },
@@ -1443,10 +1501,72 @@ describe('Carousel — pointer drag', () => {
     });
     await settle();
     const classes = track(wrapper).className;
-    const reach = 'calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))';
-    expect(classes).toContain(`p-[${reach}]`);
-    expect(classes).toContain(`-m-[${reach}]`);
-    expect(classes).toContain(`scroll-px-[${reach}]`);
+    expect(classes).toContain(`py-[${RING_REACH}]`);
+    expect(classes).toContain(`-my-[${RING_REACH}]`);
+    expect(classes).toContain(`px-[${INLINE_RESERVE}]`);
+    expect(classes).toContain(`-mx-[${INLINE_RESERVE}]`);
+    expect(classes).toContain(`scroll-px-[${INLINE_RESERVE}]`);
+    // And never the uniform `p-*`/`-m-*` pair this replaced: a consumer's own `px-*` is a different
+    // `tailwind-merge` group from `p-*`, so both survived the merge and `padding-inline` — which
+    // Tailwind emits after `padding` — won in the cascade, leaving `padding-left: 0`.
+    expect(classes).not.toMatch(/(^|\s)-?p-\[/);
+    expect(classes).not.toMatch(/(^|\s)-?m-\[/);
+    wrapper.unmount();
+  });
+
+  /**
+   * Fix (2026-10-04, second operator report: at 1440px the first card's ring was still cut off flat
+   * on its left edge while the top and right ones drew — measured `padding-top: 6px`,
+   * `padding-left: 0px` on the deployed track). The inline gutter a bleeding block needs is a
+   * variable now, not a padding utility it writes itself, so the reservation and the gutter compose
+   * into one `max()` instead of one silently replacing the other. A custom-property declaration
+   * shares a merge group with nothing, so every part of the reservation survives `classes.track`.
+   */
+  it('keeps the whole ring reservation when a consumer sets the bleed through classes.track', async () => {
+    const wrapper = mountWith(Carousel, {
+      props: {
+        ariaLabel: 'Bestsellers',
+        classes: { track: '[--eldra-carousel-bleed:var(--eldra-gutter-mobile)]' },
+      },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const classes = track(wrapper).className;
+    expect(classes).toContain('[--eldra-carousel-bleed:var(--eldra-gutter-mobile)]');
+    for (const reserved of [
+      `py-[${RING_REACH}]`,
+      `-my-[${RING_REACH}]`,
+      `px-[${INLINE_RESERVE}]`,
+      `-mx-[${INLINE_RESERVE}]`,
+      `scroll-px-[${INLINE_RESERVE}]`,
+    ]) {
+      expect(classes).toContain(reserved);
+    }
+    wrapper.unmount();
+  });
+
+  /**
+   * The failure the fix is really about, at the level a class list can see it: the gutter utilities
+   * a block used to pass take `px-*`/`-mx-*`/`scroll-px-*` away from the track — `scroll-px-*`
+   * visibly (same merge group, so `tailwind-merge` drops the package's) and the other two in the
+   * cascade. Nothing stops a consumer writing them, so this records what it costs: the inline axis
+   * is theirs, and with it the ring's reach on that axis.
+   */
+  it("a consumer's own inline padding still takes over the inline axis — the documented reason not to", async () => {
+    const wrapper = mountWith(Carousel, {
+      props: {
+        ariaLabel: 'Bestsellers',
+        classes: {
+          track: 'px-[var(--eldra-gutter-mobile)] scroll-px-[var(--eldra-gutter-mobile)]',
+        },
+      },
+      slots: { default: THREE_SLIDES },
+    });
+    await settle();
+    const classes = track(wrapper).className;
+    expect(classes).not.toContain(`scroll-px-[${INLINE_RESERVE}]`);
+    // The block axis is untouched either way, which is why only the inline one was ever clipped.
+    expect(classes).toContain(`py-[${RING_REACH}]`);
     wrapper.unmount();
   });
 

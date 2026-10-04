@@ -471,14 +471,19 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     const kids = children();
     const content = kids.map(focusableContent);
     slidesFocusable.value = content.some((list) => list.length > 0);
-    // A consumer's own `classes.slide` may name the package's focus-ring utility; the pass below
-    // owns that class on a slide, so it must not take away one the consumer asked for.
-    const consumerRing = (toValue(options.slideClass) ?? '').split(/\s+/).includes('eldra-focus');
+    // A consumer's own `classes.slide` may name the package's focus-ring utilities; the pass below
+    // owns both classes on a slide, so it must not take away one the consumer asked for.
+    const slideClasses = (toValue(options.slideClass) ?? '').split(/\s+/);
+    const consumerRing = slideClasses.includes('eldra-focus');
+    const consumerProxy = slideClasses.includes('eldra-focus-proxy');
     kids.forEach((item, i) => {
       const own = content[i] ?? [];
       if (!slidesFocusable.value) {
         unpark(item);
+        // Nothing inside any slide can take focus, so a slide carrying the ring is itself the stop
+        // and its own `:focus-visible` lights it — no proxy, unless the consumer named one.
         item.classList.toggle('eldra-focus', consumerRing);
+        item.classList.toggle('eldra-focus-proxy', consumerProxy);
         return;
       }
       const active = i === index.value;
@@ -501,6 +506,24 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       // own already (every control brings one). Added and removed with the stop, so a slide that
       // stops being the entry point does not keep a ring for a focus it can no longer take.
       item.classList.toggle('eldra-focus', stands || consumerRing);
+      /*
+       * **A ring on a slide whose entry point is a control inside it (2026-10-04).** `eldra-focus`
+       * is keyed to the element's *own* `:focus-visible`, and a slide that holds a control is not
+       * focusable at all in this model — so a ring a consumer asked for through `classes.slide` sat
+       * there with `--eldra-focus-alpha: 0` for ever, drawn in full by the computed style and
+       * invisible in every screenshot. `eldra-focus-proxy` is the package's own answer to exactly
+       * this shape (spec 1 "Focus ring" -> Proxy focus: "when the focusable element is ... the
+       * stretched link of a card, draw the ring on the visible shape"): a modifier that adds
+       * `&:has(:focus-visible)` to the ring already on the element, the same one a `Checkbox` puts
+       * on its drawn box.
+       *
+       * **Exactly one element rings, decided by where the entry point is**, so there is never a
+       * second ring inside the first: the pass adds its own ring only to a slide that *is* the stop
+       * (nothing inside it to ring instead), and a card that brings its own ring draws it on the
+       * card, where the stretched link lives. The proxy is only ever added beside a ring the
+       * consumer asked for — a row whose cards already ring themselves should not ask for one.
+       */
+      item.classList.toggle('eldra-focus-proxy', consumerProxy || (!stands && consumerRing));
       for (const el of own) {
         if (active) unpark(el);
         else park(el);

@@ -152,19 +152,42 @@ const instructionsClass = computed(() => partClass('sr-only', props.classes, 'in
  * `[--eldra-focus-offset:4px]` override just above raises that variable for every descendant that
  * inherits it (plain custom properties inherit; every slide, and every focusable control inside one,
  * reads the track's 4px here instead of the token's own 2px), so a literal guess sized for the
- * default would still clip the ring by the same amount the override adds. `scroll-px-[calc(...)]`
+ * default would still clip the ring by the same amount the override adds. `scroll-px-[...]`
  * keeps `scroll-snap-align: start` landing on each slide's own edge rather than the new padding in
  * front of it — without it the first slide snapped with that padding scrolled *past* the start,
  * clipping its outer ring all over again on the one axis the track actually scrolls.
+ *
+ * **The reservation is per axis, and the inline one is `max(bleed, reach)` (2026-10-04, second
+ * operator report: at 1440px the first card's ring was still cut off flat on its *left* edge while
+ * the top and right ones drew).** The first version wrote one uniform `p-[reach]`, and a block that
+ * bleeds the track to the screen edge below 48rem (`blocks/product-carousel` in the starter) carries
+ * its own `px-[gutter] … @tablet:px-0` through `classes.track`. `px-*` and `p-*` are different
+ * `tailwind-merge` groups, so both survive the merge — and then `padding-inline` simply wins in the
+ * cascade, because Tailwind emits every `padding-inline` rule *after* every `padding` one. The
+ * measured result on the deployed site: `padding-top: 6px`, `padding-left: 0px`. A consumer could
+ * not fix it on their side either, since the reach is the variable this element itself overrides.
+ *
+ * So the inline gutter is no longer a padding utility a consumer writes at all: a block sets
+ * **`--eldra-carousel-bleed`** (per breakpoint if it likes — `[--eldra-carousel-bleed:1rem]
+ * @tablet:[--eldra-carousel-bleed:0px]`) and the three inline utilities here resolve to
+ * `max(that, reach)` together, so the padding, the negative margin that cancels it and the scroll
+ * padding can never fall out of step, and neither axis can be left below the ring's reach. A custom
+ * property declaration shares a merge group with nothing, so the ring's own reservation survives any
+ * `classes.track`. `max()` rather than `bleed + reach`: the bleed is the page gutter, the track is
+ * already flush with the viewport edge at that width, and widening it by another 6px per side would
+ * give the page a horizontal scrollbar — 1rem of gutter is itself more than enough room for a 6px
+ * ring, and the `max()` is what still reserves the reach for a consumer whose gutter is smaller.
  */
 const trackClass = computed(() =>
   partClass(
     cx(
       'relative flex touch-pan-x touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
       'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
-      'p-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
-      '-m-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
-      'scroll-px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+      'py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+      '-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+      'px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+      '-mx-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+      'scroll-px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
       props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
       'data-[dragging=true]:snap-none data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
       'eldra-carousel-track'

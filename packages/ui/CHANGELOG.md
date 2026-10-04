@@ -75,6 +75,28 @@ Release-please writes the generated notes from commit messages and does not repl
   that positioning). Previously `offsetLeft` was measured from the page, so on any page where the
   track sat away from the left edge the counter snapped back to the previous slide after each
   `next` while the track stayed where it was, and `goTo` overshot by the same offset.
+- **`Carousel`: the ring reservation on the track is per axis now, and a block's own edge-to-edge
+  bleed goes through `--eldra-carousel-bleed` instead of its own padding utilities.** The track
+  reserves room for a slide's focus ring because `overflow-x-auto` makes it clip one; that
+  reservation was a single `p-*`/`-m-*` pair, and a consumer passing a gutter through
+  `classes.track` (`px-[gutter] … @tablet:px-0`) silently took the inline half of it away — `px-*`
+  and `p-*` are different `tailwind-merge` groups, so both classes survived the merge and
+  `padding-inline`, which Tailwind emits after `padding`, simply won. The visible result was a
+  focused first card with its ring drawn on top and right and cut off flat down its left edge. The
+  inline padding, its negative margin and the scroll padding are now one `max(var
+  (--eldra-carousel-bleed, 0px), ring reach)` each, so a bleed composes with the reservation rather
+  than replacing it, and the three can never fall out of step. **If you bled a track with your own
+  `-mx-`/`px-`/`scroll-px-` utilities, set the variable instead** (`[--eldra-carousel-bleed:1rem]
+  @tablet:[--eldra-carousel-bleed:0px]` through `classes.track`); a padding utility of your own
+  still wins on that axis, and still costs the ring its room there.
+- **`Carousel`: a focus ring a consumer puts on the slides with `classes.slide` is visible at last.**
+  `eldra-focus` is keyed to the element's own `:focus-visible`, and in the roving model a slide that
+  holds a control is not focusable at all — so that ring was fully declared, permanently at alpha 0,
+  and could not appear on any interaction. The component now adds `eldra-focus-proxy`
+  (`:has(:focus-visible)`) beside it whenever the slide's entry point is a control inside the slide,
+  which is the same modifier `Checkbox` and `ProductCard` already draw their ring with. Exactly one
+  element still rings: the component's own slide ring is only ever added to a slide that *is* the
+  tab stop, and a card that brings its own ring draws it on the card.
 
 - **Fix (2026-09-27, package bug): `Carousel`'s `perView` now actually reaches a consumer's CSS.**
   The track set `--eldra-carousel-per-view` through interpolated Tailwind arbitrary-property classes
