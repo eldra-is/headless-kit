@@ -926,6 +926,22 @@ export interface Messages {
     drawerHintHosted: string;
   };
   /**
+   * The wishlist's own strings — the saved-for-later list `useWishlist()` keeps in the shopper's
+   * browser (`docs/starter-kit.md`, "Wishlist"). The vocabulary is the spec's ("wishlist", as
+   * `product.saveToWishlist`/`removeFromWishlist` already name the product page's heart), not
+   * "favourites".
+   *
+   * `saved`/`removed` are the two toast titles the heart raises, and `view` is the `saved` toast's
+   * one action — a link to `/wishlist`, the same shape `cart.added`'s "View cart" has. A removal
+   * offers no action: the product is gone from the list, so there is nothing to go and look at,
+   * and an Undo would need a removal to be undoable, which pressing the heart again already is.
+   */
+  wishlist: {
+    saved: string;
+    removed: string;
+    view: string;
+  };
+  /**
    * The order-status block's own strings (spec `02-blocks.md` 3719–3835, "Order status") — the
    * fixed UI chrome around the bound order (`app/storefront/types.ts#StorefrontOrder`), never the
    * editable copy fields (`processingTitle` and its siblings), which stay in `mock.json` like

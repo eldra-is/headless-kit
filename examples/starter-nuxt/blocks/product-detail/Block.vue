@@ -359,6 +359,10 @@ const addToCartLabel = computed(() => {
   return t('product.addToCart', { price: formattedPrice.value });
 });
 
+/** The theme's own wishlist page (`app/pages/wishlist.vue`) — the same destination the header's
+ *  heart has, and the only place a saved list can be looked at. */
+const WISHLIST_PATH = '/wishlist';
+
 const wishlisted = computed(() => (handle.value === null ? false : wishlist.has(handle.value)));
 const wishlistLabel = computed(() => {
   const title = product.value?.title ?? '';
@@ -366,9 +370,29 @@ const wishlistLabel = computed(() => {
     ? t('product.removeFromWishlist', { title })
     : t('product.saveToWishlist', { title });
 });
+/**
+ * Press the heart, and — either way — a sentence. The button's own `aria-pressed` flipping is the
+ * whole of the feedback a sighted mouse user gets otherwise, and it is a 20px outline icon in the
+ * corner of the buy box: the same "the button looks like it did nothing" problem the add-to-cart
+ * toast above exists for.
+ *
+ * A save offers the one thing a shopper might want next — the list itself — the way `cart.added`
+ * offers the cart. `/wishlist` is an ordinary link, not a drawer: there is no hosted wishlist
+ * drawer, and the page is prerendered, so it is the same destination the header's heart has. A
+ * removal offers nothing: the product just left the list, so there is nothing there to go and see,
+ * and pressing the heart again is already the undo.
+ *
+ * One `id` for both, like every other toast in this block: a shopper who presses the heart twice
+ * replaces the sentence in place instead of stacking two that contradict each other.
+ */
 function toggleWishlist(): void {
   if (handle.value === null) return;
-  wishlist.toggle(handle.value);
+  const saved = wishlist.toggle(handle.value);
+  toast.show({
+    id: 'product-wishlist',
+    title: saved ? t('wishlist.saved') : t('wishlist.removed'),
+    action: saved ? { label: t('wishlist.view'), href: WISHLIST_PATH } : undefined,
+  });
 }
 
 const addToCartEl = ref<HTMLElement | null>(null);

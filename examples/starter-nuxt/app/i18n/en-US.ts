@@ -490,6 +490,11 @@ export const enUS = {
     drawerHintHosted:
       'The theme already opens one on every page, so this block adds nothing and can be removed.',
   },
+  wishlist: {
+    saved: 'Saved to wishlist',
+    removed: 'Removed from wishlist',
+    view: 'View wishlist',
+  },
   order: {
     number: 'Order {number}',
     placedOne: 'Placed {date} · 1 item',

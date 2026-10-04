@@ -492,6 +492,11 @@ export const isIS = {
     drawerHintHosted:
       'Þemað opnar hana þegar á öllum síðum, svo þessi hluti gerir ekkert og má fjarlægja.',
   },
+  wishlist: {
+    saved: 'Vistað á óskalista',
+    removed: 'Fjarlægt af óskalista',
+    view: 'Skoða óskalista',
+  },
   order: {
     number: 'Pöntun {number}',
     placedOne: 'Pantað {date} · 1 vara',

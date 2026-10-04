@@ -132,6 +132,9 @@ afterEach(() => {
   // `useToast` is a module-level queue in `@eldrajs/ui`; a toast left in it would leak into the
   // next test.
   useToast().clear();
+  // So would a saved wishlist: it is `localStorage`, which jsdom keeps for the whole file, and the
+  // store hydrates from it on mount (`app/composables/useWishlist.ts`).
+  localStorage.clear();
 });
 
 /** A gateway refusal as `@eldrajs/sdk` throws it, problem body and all. */
@@ -730,6 +733,53 @@ describe('product-detail block', () => {
     expect(wrapper.get('button[aria-pressed]').attributes('aria-label')).toBe(
       'Remove Merino crew sweater from wishlist'
     );
+  });
+
+  /**
+   * The heart's own feedback. `aria-pressed` flipping is all a mouse user gets from a 20px outline
+   * icon in the corner of the buy box — the same "the button looks like it did nothing" problem the
+   * add-to-cart toast exists for, and the reason the save is confirmed in words.
+   */
+  it('confirms a save with a toast offering the wishlist', async () => {
+    const wrapper = await mountReady(mock);
+    await wrapper.get('button[aria-pressed]').trigger('click');
+
+    expect(toasts()).toEqual([{ title: 'Saved to wishlist', variant: 'success' }]);
+    expect(toastAction()).toEqual({ label: 'View wishlist', href: '/wishlist' });
+  });
+
+  /** A removal has nothing to offer: the product just left the list, so there is nothing there to
+   *  go and look at, and pressing the heart again is already the undo. */
+  it('says a removal happened, and offers nothing with it', async () => {
+    const wrapper = await mountReady(mock);
+    await wrapper.get('button[aria-pressed]').trigger('click');
+    await wrapper.get('button[aria-pressed]').trigger('click');
+
+    expect(toasts()).toEqual([{ title: 'Removed from wishlist', variant: 'success' }]);
+    expect(toastAction()).toBeUndefined();
+  });
+
+  /** One `id` for both sentences: two toasts that contradict each other must never be on screen
+   *  together, and the primitive keeps at most three. */
+  it('replaces its own toast instead of stacking contradicting ones', async () => {
+    const wrapper = await mountReady(mock);
+    await wrapper.get('button[aria-pressed]').trigger('click');
+    await wrapper.get('button[aria-pressed]').trigger('click');
+    await wrapper.get('button[aria-pressed]').trigger('click');
+
+    expect(toasts()).toHaveLength(1);
+    expect(toasts()[0]!.title).toBe('Saved to wishlist');
+  });
+
+  /** The list outlives the page: the store writes through to `localStorage`, so a shopper who
+   *  saved a product and navigated away still has it. */
+  it('leaves the saved handle in the browser, not just in the page', async () => {
+    const wrapper = await mountReady(mock);
+    await wrapper.get('button[aria-pressed]').trigger('click');
+
+    expect(JSON.parse(localStorage.getItem('eldra.storefront.wishlist') ?? 'null')).toEqual([
+      'merino-crew-sweater',
+    ]);
   });
 
   it('hides the wishlist button when the field is off', async () => {
