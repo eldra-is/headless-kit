@@ -374,12 +374,26 @@ const accountHref = '/account';
 // --- cart + wishlist count pills --------------------------------------------------------------
 
 /**
- * Spec "Header" → Layout, "Cart count": a pill at least 1.25rem wide and tall with 0.3125rem side
- * padding, 0.75rem bold tabular figures, `primary` fill, `primary-contrast` text, a 2px
- * `background` ring, sitting 0.125rem from the top of its button and flush right. The same
- * override styles both the cart and the wishlist pill (spec: "the cart button and its count
- * badge" — the wishlist one is drawn identically), so it is one constant rather than two copies
- * that could drift.
+ * A count pill is a corner badge: small, and sitting on the icon's own corner, so it reads as an
+ * annotation *on* the glyph rather than a second control beside it. The spec's "1.25rem pill,
+ * flush right with a ring" line was written for 2.75rem buttons; on this theme's 2rem ghost icon
+ * buttons it put the pill beside the icon as a detached blob, so the badge is sized and placed
+ * for the icon instead.
+ *
+ * 0.875rem square (`h-3.5`/`min-w-3.5`, `min-w` so "99+" still widens it), `0.625rem` bold tabular
+ * figures, `primary` fill, `primary-contrast` text (both from the `tone="primary"` prop, not this
+ * constant). No ring: a ring's whole job is separating a pill from what sits *beside* it, and a
+ * corner badge sits *on* the icon by design — a ring here would just push it back off the corner.
+ * `-top-0.5 -right-0.5` sits it at the button's own top-right corner, nudged slightly outside it
+ * (2px past the 2rem button's own edge on each side) rather than tucked inside — `top-0.5
+ * right-0.5` was tried first and measured worse: with real padding and a real glyph the pill is
+ * wider than its 0.875rem floor, so pulled inside the button it still buried roughly a third of
+ * the icon's area under it. Pushed just outside instead, it lands mostly over the button's own
+ * padding and clears the icon by a wide margin. `countPill.browser.spec.ts` measures the overlap
+ * against the icon's real `<svg>` box (not an assumed one) and keeps it well under a quarter of
+ * the icon's area. The same override styles both the cart and the wishlist pill (spec: "the cart
+ * button and its count badge" — the wishlist one is drawn identically), so it is one constant
+ * rather than two copies that could drift.
  *
  * `Badge`'s own root carries `min-h-6` and `text-badge` (1.5rem min height, the package's own
  * type-style utility); both are stock Tailwind class groups (`min-h`, `font-size`) that
@@ -388,8 +402,8 @@ const accountHref = '/account';
  * no need for a `size` prop (`Badge` has none).
  */
 const COUNT_PILL_CLASSES =
-  'pointer-events-none absolute top-0.5 right-0 min-h-5 min-w-5 h-5 justify-center ' +
-  'px-[0.3125rem] text-xs font-bold tabular-nums leading-none ring-2 ring-background';
+  'pointer-events-none absolute -top-0.5 -right-0.5 min-h-3.5 min-w-3.5 h-3.5 justify-center ' +
+  'px-1 text-[0.625rem] font-bold tabular-nums leading-none';
 
 // --- cart --------------------------------------------------------------------------------------
 

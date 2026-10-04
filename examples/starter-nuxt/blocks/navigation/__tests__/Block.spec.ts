@@ -1115,32 +1115,45 @@ describe('header block (navigation apiId)', () => {
     });
 
     /**
-     * Spec "Header" → Layout, "Cart count": at least 1.25rem (`-5`) square, 0.3125rem side
-     * padding, 0.75rem bold tabular figures, a 2px `background` ring, 0.125rem from the top of
-     * the bag and flush right. `Badge`'s own `min-h-6`/`text-badge` must not survive the merge —
-     * that overshoot (1.5rem tall, the wrong type scale) is the defect this change fixes.
+     * A corner badge, not the spec's own "1.25rem, flush right,
+     * ring" pill — that reading put the pill beside the bag's icon rather than on it. 0.875rem
+     * (`-3.5`) square, nudged just outside the button's own top-right corner (`-top-0.5
+     * -right-0.5`: `top-0.5 right-0.5` was tried first and, measured in a real browser, still
+     * buried roughly a third of the icon under it), no ring (a ring separates a pill from what
+     * sits *beside* it; this one sits deliberately *on* the icon's corner). `Badge`'s own
+     * `min-h-6`/`text-badge` must not survive the merge — that overshoot (1.5rem tall, the wrong
+     * type scale) was the original defect.
      */
-    it('sizes and positions the pill to spec, with none of Badge’s own oversized defaults left behind', async () => {
+    it('sizes and positions the pill as a corner badge, with none of Badge’s own oversized defaults left behind', async () => {
       const wrapper = mountWithCartCount(mock, 2);
       await nextTick();
       const badge = countPill(findCartButton(wrapper))!;
       for (const token of [
-        'min-h-5',
-        'min-w-5',
-        'h-5',
-        'px-[0.3125rem]',
-        'text-xs',
+        'min-h-3.5',
+        'min-w-3.5',
+        'h-3.5',
+        'px-1',
+        'text-[0.625rem]',
         'font-bold',
         'tabular-nums',
         'leading-none',
-        'ring-2',
-        'ring-background',
-        'top-0.5',
-        'right-0',
+        '-top-0.5',
+        '-right-0.5',
       ]) {
         expect([...badge.classList]).toContain(token);
       }
-      for (const stale of ['min-h-6', 'text-badge', '-top-0.5', '-right-0.5', 'px-1']) {
+      for (const stale of [
+        'min-h-6',
+        'text-badge',
+        'top-0.5',
+        'right-0.5',
+        'ring-2',
+        'ring-background',
+        'min-h-5',
+        'min-w-5',
+        'h-5',
+        'right-0',
+      ]) {
         expect([...badge.classList]).not.toContain(stale);
       }
     });
@@ -1289,8 +1302,9 @@ describe('header block (navigation apiId)', () => {
       const heartPill = countPill(findHeart(wrapper)!)!;
       const cartPill = countPill(findCartButtonIn(wrapper)!)!;
       expect(heartPill.className).toBe(cartPill.className);
-      // And the spec classes are actually on it, not just shared with an equally-wrong sibling.
-      for (const token of ['min-h-5', 'min-w-5', 'h-5', 'ring-2', 'ring-background', 'top-0.5']) {
+      // And the corner-badge classes are actually on it, not just shared with an equally-wrong
+      // sibling.
+      for (const token of ['min-h-3.5', 'min-w-3.5', 'h-3.5', '-top-0.5', '-right-0.5']) {
         expect([...heartPill.classList]).toContain(token);
       }
     });
