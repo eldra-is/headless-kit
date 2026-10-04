@@ -558,6 +558,18 @@ describe('starter theme', () => {
     expect(search).toContain('What are you looking for?');
     expect(search).not.toContain('No results for');
     expect(buildMeta.prerendered).toContain('/search');
+
+    // `/wishlist` is the theme's own route too (`app/pages/wishlist.vue`) — where the product
+    // page's heart and the header's heart both send a shopper. One file answers every visitor,
+    // because what each of them saved is in their own browser: this HTML is therefore the *empty*
+    // state, and a saved product must never appear in the artifact a static host serves. Asserted
+    // on the credential-free build on purpose: a wishlist route that needed a gateway to exist
+    // would be no route at all.
+    const wishlist = readFileSync(output(join('wishlist', 'index.html')), 'utf8');
+    expect(wishlist).not.toContain('data-eldra-not-found');
+    expect(wishlist).toContain('Your wishlist');
+    expect(wishlist).toContain('Your wishlist is empty');
+    expect(buildMeta.prerendered).toContain('/wishlist');
   }, 360_000);
 
   it('supports an exact authenticated Studio origin override', async () => {

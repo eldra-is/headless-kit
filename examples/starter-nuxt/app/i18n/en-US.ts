@@ -494,6 +494,13 @@ export const enUS = {
     saved: 'Saved to wishlist',
     removed: 'Removed from wishlist',
     view: 'View wishlist',
+    title: 'Your wishlist',
+    itemCountOne: '1 item',
+    itemCountMany: '{count} items',
+    items: 'Saved products',
+    emptyTitle: 'Your wishlist is empty',
+    emptyText: 'Press the heart on any product to save it here for later.',
+    continueShopping: 'Continue shopping',
   },
   order: {
     number: 'Order {number}',

@@ -940,6 +940,18 @@ export interface Messages {
     saved: string;
     removed: string;
     view: string;
+    /** `app/pages/wishlist.vue`'s `<h1>` and its `useHead` title. */
+    title: string;
+    /** The count beside that title, pluralised the way `cart.itemCountOne`/`itemCountMany` are. */
+    itemCountOne: string;
+    itemCountMany: string;
+    /** The card grid's own `aria-label` — the list is not under a heading of its own. */
+    items: string;
+    /** The empty state: nothing saved yet, or nothing the catalogue still answers about. Its one
+     *  next step is `continueShopping` → `/`, the one destination a theme can promise exists. */
+    emptyTitle: string;
+    emptyText: string;
+    continueShopping: string;
   };
   /**
    * The order-status block's own strings (spec `02-blocks.md` 3719–3835, "Order status") — the
