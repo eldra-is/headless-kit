@@ -1110,6 +1110,19 @@ reading storage at construction instead made Vue repaint the buy box and the hea
 for anyone who had ever saved a product. Every mutation calls `hydrate()` first, so a toggle can
 never write an empty list over a saved one.
 
+**The same rule covers the cart, including its _pending_ flag.** The cart store asks for whatever
+cart the browser already remembers as soon as it is created (`init()`, from the storefront plugin's
+`setup`), which is before the app hydrates — so on a reload with a cart in `localStorage` the cart
+is already `pending` while the prerendered file, built with no browser, says nothing is loading.
+That flag is as much the visitor's own state as the count is: `product-detail` reads it behind its
+own after-mount gate (`cartBusy`) for the Add to cart button and the sticky buy bar, having spent a
+while logging one "Hydration completed but contains mismatches" on every product-page reload with a
+cart in it — and nowhere else, because the header's count was gated already. The test that sees it
+is `test/prerenderRefresh.browser.spec.ts`, which is the only place the kit hydrates a real
+generated page in a real browser; a mounted spec never hydrates against server-rendered HTML at
+all. So the rule to apply to anything new that reads the cart, the wishlist, recently-viewed or any
+other browser-held value: **read it behind a mount gate, flags and counts alike.**
+
 Hydration also subscribes to the `storage` event, so a save in one tab reaches the header count and
 the wishlist page in the others. There is **one listener for the whole page**, not one per store, and
 `useWishlist()` gives up its interest in `onUnmounted` — the last consumer to leave drops it. Both

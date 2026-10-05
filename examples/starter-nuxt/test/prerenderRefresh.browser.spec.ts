@@ -12,6 +12,8 @@ import {
   HOME_PAGE_PATH,
   LINKED_HEADER_LABELS,
   PRODUCT_HANDLE,
+  SEEDED_CART_ID,
+  SEEDED_CART_QUANTITY,
   SEEDED_PAGE_PATHS,
   startMockGateway,
   type MockGateway,
@@ -63,6 +65,9 @@ const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 const SKIPPED_FROM_COPY = new Set(['node_modules', '.nuxt', '.output', '.git']);
 /** Long enough that a 200 ms sampler cannot step over the whole refresh. */
 const CATALOG_DELAY_MS = 1500;
+/** Long enough that the restored cart's own read is certainly still in flight while the page
+ *  hydrates — see `MockGateway.cartDelayMs`. */
+const CART_DELAY_MS = 800;
 
 let gateway: MockGateway;
 let statics: StaticServer;
@@ -388,6 +393,7 @@ describe('prerendered commerce data on the generated static site', () => {
     // The build has finished reading the catalog; every answer the browser waits for is held back
     // from here on, so the refresh can be watched rather than inferred.
     gateway.catalogDelayMs = CATALOG_DELAY_MS;
+    gateway.cartDelayMs = CART_DELAY_MS;
     statics = await startStaticServer(join(root, '.output', 'public'));
     browser = await chromium.launch();
   }, 900_000);
@@ -1037,6 +1043,86 @@ describe('prerendered commerce data on the generated static site', () => {
     } finally {
       await page.close();
     }
+  });
+
+  /**
+   * **A reload with a cart already in the browser.**
+   *
+   * Shopper state never reaches a prerendered file: the build has no browser, so every generated
+   * page says "Cart, empty" and nothing on it is waiting for a cart. A returning shopper's browser
+   * does have one — `@eldrajs/sdk`'s `createCartSession` keeps the cart id in `localStorage` — and
+   * the cart store reads it, and asks for the cart, during the storefront plugin's `setup`, which
+   * runs *before* the app hydrates. So for the whole width of that request the cart is `pending`,
+   * and anything that renders `cart.pending` without a mount gate renders the first client frame
+   * differently from the file Nuxt is hydrating: one `Hydration completed but contains mismatches`,
+   * and Vue re-renders that subtree from scratch.
+   *
+   * That is what this measures, and it is why the product page is the one it measures it on: the
+   * home page carries the header, whose count is gated on mount already, and nothing else that
+   * reads the cart — so it was silent while the product page (whose Add to cart button and sticky
+   * bar both took their busy state straight from `cart.pending`) warned on every reload. Both are
+   * asserted, the home page as the control that says the harness would have noticed either way.
+   *
+   * Only a real generate, served the way the host serves it and hydrated by Nuxt itself, can see
+   * this: a mounted spec never hydrates against a server-rendered string, and a `renderSsr` spec
+   * has no `localStorage` and no plugin running before the first client render.
+   */
+  describe('a reload with a cart already in the browser', () => {
+    /** The settled header bag, plus everything `visit` already collects. */
+    async function visitWithCart(path: string): Promise<{ warnings: string[]; cartLabel: string }> {
+      gateway.reset();
+      const page = await browser.newPage();
+      const warnings: string[] = [];
+      page.on('console', (message) => {
+        const text = message.text();
+        if (/hydrat|mismatch/i.test(text) || message.type() === 'error') {
+          warnings.push(`${message.type()}: ${text.slice(0, 200)}`);
+        }
+      });
+      page.on('pageerror', (error) => warnings.push(`pageerror: ${error.message.slice(0, 200)}`));
+      try {
+        // Before any script of the page runs, which is what makes this a *reload* with a cart
+        // rather than a cart added on this visit.
+        await page.addInitScript(
+          ([key, id]) => window.localStorage.setItem(key as string, id as string),
+          ['eldra.cartId', SEEDED_CART_ID]
+        );
+        await page.goto(`${statics.origin}${path}`, { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(CATALOG_DELAY_MS + CART_DELAY_MS + 1500);
+        return {
+          warnings,
+          cartLabel: await page.evaluate(
+            () =>
+              document.querySelector('header [aria-label^="Cart"]')?.getAttribute('aria-label') ??
+              ''
+          ),
+        };
+      } finally {
+        await page.close();
+      }
+    }
+
+    it('says nothing about hydration on a product page, and restores the count after', async () => {
+      // The file itself: no cart of anyone's in it.
+      expect(staticHtml(productPage)).toContain(enUS.header.cartEmpty);
+
+      const visited = await visitWithCart(productPage);
+
+      expect(visited.warnings).toEqual([]);
+      // ...and the restored cart arrives as an ordinary update once the read lands.
+      expect(visited.cartLabel).toBe(
+        enUS.header.cartMany.replace('{count}', String(SEEDED_CART_QUANTITY))
+      );
+    });
+
+    it('says nothing on the home page either, the control', async () => {
+      const visited = await visitWithCart(HOME_PAGE_PATH);
+
+      expect(visited.warnings).toEqual([]);
+      expect(visited.cartLabel).toBe(
+        enUS.header.cartMany.replace('{count}', String(SEEDED_CART_QUANTITY))
+      );
+    });
   });
 
   /**

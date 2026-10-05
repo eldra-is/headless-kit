@@ -166,9 +166,23 @@ const {
   refreshing: () => productResult.loading.value && product.value !== null,
 });
 
+/**
+ * `true` from the first client render onwards, and never on the server — the gate every piece of
+ * **shopper** state on this page is read behind (`cartBusy` below; the wishlist's own store keeps
+ * the same gate internally, see `useWishlist()`).
+ *
+ * The rule it enforces: nothing a visitor's own browser knows may reach the prerendered file, and
+ * nothing may reach the *first* client render either, because that render is what Nuxt hydrates
+ * the file with. A value that differs between the two is a hydration mismatch, and Vue answers one
+ * by throwing that subtree away and rendering it again. Gated like this, the same value arrives a
+ * tick later as an ordinary reactive update.
+ */
+const mounted = ref(false);
+
 /** Spec Field → layout mapping: "Mounting records the product in `history.recordView`" — the
  *  `product-carousel` block's `recently-viewed` source is the other half of this. */
 onMounted(() => {
+  mounted.value = true;
   if (handle.value !== null) storefront.history.recordView(handle.value);
 });
 watch(handle, (next) => {
@@ -352,6 +366,22 @@ watch(
     if (quantity.value > max) quantity.value = max;
   }
 );
+
+/**
+ * The cart's own in-flight state, which is a *shopper's* — and therefore gated on mount (see
+ * `mounted` above). The cart store asks for whatever cart the browser already remembers as soon as
+ * it is created (`app/storefront/cart.ts`'s `init()`, from the storefront plugin's `setup`), so on
+ * a reload with a cart in `localStorage` `pending` is already `true` before the app hydrates —
+ * while the prerendered file, built with no browser and no cart, says it is not. Read straight
+ * through, that put `Button`'s `loading` treatment on the first client render of a page whose HTML
+ * has none of it: one "Hydration completed but contains mismatches" on every reload with a cart,
+ * and the buy bar re-rendered from scratch. The home page never showed it because the header's
+ * count is gated already and nothing else there reads the cart.
+ *
+ * It costs nothing: before mount there is no cart request a visitor could have started, so the
+ * gated value and the real one only ever differ on the render that must not use the real one.
+ */
+const cartBusy = computed(() => mounted.value && storefront.cart.pending.value);
 
 const addToCartLabel = computed(() => {
   if (soldOut.value) return t('product.notifyMe');
@@ -680,7 +710,7 @@ function tabValue(index: number): string {
                   variant="primary"
                   size="lg"
                   block
-                  :loading="storefront.cart.pending.value"
+                  :loading="cartBusy"
                   :label="addToCartLabel"
                 >
                   <template v-if="soldOut" #leadingIcon>
@@ -759,7 +789,7 @@ function tabValue(index: number): string {
         "
         :action-label="addToCartLabel"
         :image="product.images[0] ?? null"
-        :pending="storefront.cart.pending.value"
+        :pending="cartBusy"
         @add="primaryAction"
       />
 
