@@ -247,6 +247,42 @@ function currentSelectionRange(): Range | null {
 }
 
 const STEGA_DELIMITER = '\uFEFF';
+
+/**
+ * `Node.prototype`'s own `textContent` accessor, resolved on first use so that
+ * importing this module where there is no DOM stays harmless. `guardRendererText`
+ * shadows `textContent` on the field elements it marks and needs the platform
+ * pair to read and to write through.
+ */
+let nodeTextContent: PropertyDescriptor | undefined;
+function platformTextContent(): PropertyDescriptor | undefined {
+  if (nodeTextContent === undefined && typeof Node !== 'undefined') {
+    nodeTextContent = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+  }
+  return nodeTextContent;
+}
+
+/** True only for the duration of a `setFieldText` call. Module scope, not
+ * runtime scope: two overlay runtimes over one document install one guard
+ * between them, and either one's repair has to pass through it. */
+let writingFieldText = false;
+
+/**
+ * Write a field's whole text as the overlay, past `guardRendererText`'s filter.
+ * The overlay's own writes are not renderer echoes: `restoreEditingFocus`
+ * repairs a field whose element a renderer pass replaced outright, and that
+ * repair has to land exactly when the filter is refusing the stale value it is
+ * repairing.
+ */
+function setFieldText(span: HTMLElement, value: string): void {
+  writingFieldText = true;
+  try {
+    span.textContent = value;
+  } finally {
+    writingFieldText = false;
+  }
+}
+
 /** A wheel gesture is considered settled this long after its last event. */
 const FRAMING_WHEEL_SETTLE_MS = 200;
 /** Focal/zoom values are stored and posted at 1e-6 \u2014 far below one device
@@ -2163,7 +2199,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       activeEdit.node !== null &&
       activeEdit.node === replacement.firstChild;
     const rewrote = dirty && !acknowledged && !sameNodes;
-    if (rewrote) replacement.textContent = value;
+    if (rewrote) setFieldText(replacement, value);
     const focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
     const selection = document.getSelection();
     // The caret only has to be put back when it has actually been lost: this
@@ -2239,8 +2275,78 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     // it must never gain contenteditable from the overlay — its own
     // TipTap editor (mounted separately by the theme component) owns that.
     if (span.hasAttribute('data-eldra-rich-text')) return;
-    if (mode === 'edit') span.setAttribute('contenteditable', 'true');
-    else span.removeAttribute('contenteditable');
+    if (mode === 'edit') {
+      span.setAttribute('contenteditable', 'true');
+      guardRendererText(span);
+    } else {
+      span.removeAttribute('contenteditable');
+      unguardRendererText(span);
+    }
+  }
+
+  /**
+   * A renderer re-states a field's text on every `editor:content-update`, and
+   * for a field whose whole content is one text run that is
+   * `element.textContent = value` (Vue's `setElementText`; the same call in
+   * every framework whose text patch writes a string child). The browser
+   * answers it by **replacing the text node**, and with it goes the native
+   * undo stack of the contenteditable it lives in: the operator loses ⌘Z for
+   * everything they typed before that echo. Autosave guarantees at least one
+   * echo, which is why undo appeared to work only until the page was saved.
+   *
+   * Two kinds of echo reach a field the operator is editing, and neither has
+   * anything to say to the DOM.
+   *
+   * An echo that re-states the text already on screen. The string the renderer
+   * holds carries the stega payload (`entryId`/`fieldPath`/`locale`), which
+   * `decorateStegaTextNodes` strips out of the DOM, so it never equals the live
+   * text and the renderer's own "did this change?" check cannot see that it did
+   * not. Removing the payload from both sides before comparing makes that echo
+   * the no-op it already was.
+   *
+   * An echo that is simply behind. While `hasUnacknowledgedTextEdit` holds, the
+   * editor cannot have a draft that describes what the operator has typed, so
+   * the renderer's value is stale by construction — `reconcileExternalDrafts`
+   * already refuses it and `restoreEditingFocus` already undoes it. Refusing it
+   * here instead means it never reaches the text node in the first place: the
+   * repair afterwards cost the operator the node, the caret and the undo stack
+   * every time.
+   *
+   * Scoped to the field elements the overlay has marked, and installed only in
+   * edit mode: a published page, and a preview that is not editing, keep the
+   * platform setter untouched. The overlay's own repair writes go through
+   * `setFieldText`, which is not an echo and is not filtered.
+   */
+  const guardedFields = new WeakSet<HTMLElement>();
+  function guardRendererText(span: HTMLElement): void {
+    if (guardedFields.has(span)) return;
+    const read = platformTextContent()?.get;
+    const write = platformTextContent()?.set;
+    if (read === undefined || write === undefined) return;
+    Object.defineProperty(span, 'textContent', {
+      configurable: true,
+      enumerable: false,
+      get(this: HTMLElement): string | null {
+        return read.call(this) as string | null;
+      },
+      set(this: HTMLElement, value: unknown): void {
+        if (writingFieldText) {
+          write.call(this, value);
+          return;
+        }
+        const next = value === null || value === undefined ? '' : String(value);
+        if (stripStega(next) === stripStega((read.call(this) as string | null) ?? '')) return;
+        if (hasUnacknowledgedTextEdit(metadataOf(this))) return;
+        write.call(this, value);
+      },
+    });
+    guardedFields.add(span);
+  }
+
+  function unguardRendererText(span: HTMLElement): void {
+    if (!guardedFields.has(span)) return;
+    Reflect.deleteProperty(span, 'textContent');
+    guardedFields.delete(span);
   }
 
   function ownValueAtPath(value: Record<string, unknown>, path: string): unknown {
@@ -2974,6 +3080,10 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       debounceTimers.clear();
       postedText.clear();
       activeEdit = null;
+      // The renderer's text setter is the theme's own DOM, not the overlay's:
+      // hand every field back the platform one, or a destroyed overlay keeps
+      // filtering writes on a page that has no editing surface left.
+      root.querySelectorAll<HTMLElement>('[data-eldra-field]').forEach(unguardRendererText);
     },
     setMode(nextMode) {
       mode = nextMode;

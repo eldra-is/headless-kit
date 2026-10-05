@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { registerBlockFields } from '../blockFields';
-import { decodeStega } from '../stega';
+import { decodeStega, encodeStega } from '../stega';
 import { encodeEntryDataStega, projectEntryDataLocale } from '../stegaWalk';
 
 afterEach(() => {
@@ -238,6 +238,31 @@ describe('localized preview draft projection', () => {
       fieldPath: 'images.0.caption',
       locale: 'en-US',
     });
+  });
+
+  /**
+   * The encoding is a pure function of the entry id, the field path, the locale
+   * and the visible text — nothing per render, per pass or per revision may get
+   * into it. The renderer compares its own previous string against the new one
+   * to decide whether to write a field's text, so anything that changed per
+   * render would make an echo that changes nothing re-write the field, replace
+   * the text node the operator's caret and undo stack live in, and cost them
+   * both (see the overlay spec's "a renderer echo over the field the operator
+   * is editing").
+   */
+  it('encodes the same field identically on every pass', () => {
+    const once = encodeEntryDataStega('block-1', projectEntryDataLocale(draft, 'en-US'), 'en-US');
+    const twice = encodeEntryDataStega('block-1', projectEntryDataLocale(draft, 'en-US'), 'en-US');
+
+    expect(twice.title).toBe(once.title);
+    expect(twice.title).toBe(
+      encodeStega('Announcement', {
+        entryId: 'block-1',
+        fieldPath: 'title',
+        locale: 'en-US',
+      })
+    );
+    expect(JSON.stringify(twice)).toBe(JSON.stringify(once));
   });
 
   it('keeps non-localized layout structure free of stega metadata', () => {

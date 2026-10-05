@@ -727,6 +727,67 @@ describe('EldraLayout', () => {
     wrapper.unmount();
   });
 
+  /**
+   * The renderer's text patch for a field whose content is one text run is
+   * `element.textContent = value`, which replaces the text node — and the
+   * browser's undo stack for the contenteditable is bound to that node, so
+   * replacing it is what cost the operator ⌘Z on every autosave. This drives
+   * the whole real path: a mounted block, the overlay's decoration, a
+   * keystroke, and three echoes of the draft that keystroke produced.
+   */
+  it('replaces no text node in the edited field across three echoes of the same text', async () => {
+    const field = (value: string): string =>
+      encodeStega(value, { entryId: heroId, fieldPath: 'heading', locale: 'en-US' });
+    const wrapper = mount(EldraLayout, {
+      attachTo: document.body,
+      props: {
+        layout: responsiveLayout(),
+        blocks: [{ ...hero, data: { heading: field('Editable') } }, second],
+      },
+    });
+    await flushPromises();
+    const runtime = createOverlayRuntime({ root: wrapper.element, post: () => undefined });
+    runtime.setMode('edit');
+    runtime.start();
+
+    const heading = wrapper.get<HTMLElement>(
+      '[data-eldra-layout-node="HeroPlacementA"] h1'
+    ).element;
+    // Decorated: the payload is out of the DOM, so the renderer's own string
+    // never equals the live text again.
+    expect(heading.textContent).toBe('Editable');
+
+    heading.focus();
+    heading.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    (heading.firstChild as Text).appendData('!');
+    heading.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 350)); // the post flushes
+    runtime.acceptExternalUpdate([heroId]);
+    runtime.reconcileExternalDrafts({ [heroId]: { heading: field('Editable!') } }, [heroId]);
+    const typedNode = heading.firstChild;
+
+    const records: MutationRecord[] = [];
+    const observer = new MutationObserver((batch) => records.push(...batch));
+    observer.observe(heading, { childList: true, characterData: true, subtree: true });
+    for (let pass = 0; pass < 3; pass += 1) {
+      runtime.acceptExternalUpdate([heroId]);
+      await wrapper.setProps({
+        blocks: [{ ...hero, data: { heading: field('Editable!') } }, second],
+      });
+      await flushPromises();
+      runtime.rescan();
+      runtime.reconcileExternalDrafts({ [heroId]: { heading: field('Editable!') } }, [heroId]);
+      await Promise.resolve();
+    }
+    observer.disconnect();
+
+    expect(records).toEqual([]);
+    expect(heading.firstChild).toBe(typedNode);
+    expect(heading.textContent).toBe('Editable!');
+    runtime.stop();
+    wrapper.unmount();
+  });
+
   it('renders an accepted context draft when an already mounted block prop is stale', async () => {
     const context = {
       designTokens: reactive({ colors: {}, containers: {} }),
