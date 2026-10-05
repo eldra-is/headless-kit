@@ -5,6 +5,24 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Inline canvas editing no longer depends on when the overlay's own `input` handler runs relative
+  to the MutationObserver that sees the keystroke land, nor on how long the editor's round trip
+  takes. `restoreEditingFocus` answers every characterData mutation in the document, so it can run
+  *before* `onInput` — a single `input` listener anywhere on the page registered ahead of the
+  overlay's own puts a microtask checkpoint between the two, and a checkpoint is where queued
+  observer records are delivered. It used to re-place the caret from the remembered offset on every
+  such pass, which put the caret back in front of the character just typed and, because the next
+  record was taken from that moved caret, made every further keystroke insert there too. A caret
+  already sitting in the field's own text node is now left exactly where the browser put it, and a
+  text difference across a node the record was taken against is read as the operator's newer typing
+  rather than something to overwrite.
+- An `editor:content-update` is no longer trusted to describe what the operator typed just because
+  the field's `theme:text-edited` debounce has flushed: the round trip is bounded by nothing the
+  theme controls, and an echo that lands after the next keystroke was posted still carries the older
+  draft. A posted value is now held until the editor echoes it back, and only that acknowledgement
+  hands the field over — held only while the operator is still editing it in a focused frame, so a
+  write the editor refuses cannot own the field indefinitely.
+
 - New bridge message `theme:request-failed` (`{status, path}`) and a new optional
   `EldraClient.onRequestError(listener)` behind it. A preview token is one hash per organization, so
   minting one anywhere else — another browser, another device, a test run — revokes the one a live

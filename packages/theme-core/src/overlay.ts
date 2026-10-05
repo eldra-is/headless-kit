@@ -596,8 +596,21 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     caretOffset: number;
     value: string;
     dirty: boolean;
+    /** The field element and the text node the record was taken against. A
+     * keystroke mutates that node's data in place; a renderer pass replaces
+     * it. That is how `restoreEditingFocus` tells "the operator just typed"
+     * from "the field was re-rendered under them" without depending on
+     * whether `onInput` has run yet. */
+    element: HTMLElement | null;
+    node: ChildNode | null;
   } | null = null;
   const debounceTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+  /**
+   * Per field (`entryId|fieldPath|locale`), the value the overlay last posted
+   * as `theme:text-edited` and has not yet seen the editor echo back. See
+   * `hasUnacknowledgedTextEdit`.
+   */
+  const postedText = new Map<string, string>();
   let framing: {
     entryId: string;
     fieldPath: string;
@@ -2048,6 +2061,8 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       caretOffset: caretOffsetWithin(span),
       value: stripStega(span.textContent ?? ''),
       dirty,
+      element: span,
+      node: span.firstChild,
     };
   }
 
@@ -2055,26 +2070,62 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     return a.entryId === b.entryId && a.fieldPath === b.fieldPath && a.locale === b.locale;
   }
 
-  /**
-   * True while the field `meta` names still has its own `theme:text-edited`
-   * debounce armed (`TEXT_EDIT_DEBOUNCE_MS`): the operator has typed into it
-   * and the editor has not been told yet, so **nothing the editor echoes back
-   * can describe those keystrokes** — an `editor:content-update` arriving in
-   * this window is strictly older than the DOM, however authoritative it is
-   * for every other field. Once the debounce flushes, the editor applies the
-   * posted value synchronously and reads the whole draft when it posts, so
-   * every later content update does describe them; this is therefore the exact
-   * window in which the overlay, not the editor, owns the field's text.
-   *
-   * Matched by metadata rather than by element identity on purpose: a renderer
+  function textEditKey(meta: StegaMeta): string {
+    return `${meta.entryId}|${meta.fieldPath}|${meta.locale ?? ''}`;
+  }
+
+  /** The field `meta` names still has its own `theme:text-edited` debounce
+   * armed, so the editor has not been told about the keystrokes in it at all.
+   * Matched by metadata rather than element identity on purpose: a renderer
    * pass can replace the element between the keystroke and the flush, and the
-   * pending timer is still the same unflushed edit.
-   */
-  function hasUnflushedTextEdit(meta: StegaMeta): boolean {
+   * pending timer is still the same edit. */
+  function hasPendingTextEdit(meta: StegaMeta): boolean {
     for (const span of debounceTimers.keys()) {
       if (sameTextField(metadataOf(span), meta)) return true;
     }
     return false;
+  }
+
+  /**
+   * True while the editor cannot yet have a draft that describes what the
+   * operator has typed into `meta`'s field, which is the window in which the
+   * overlay — not the editor — owns that field's text. Two halves:
+   *
+   * - the field's `theme:text-edited` debounce is still armed, so the editor
+   *   has not been told anything yet; and
+   * - a posted value is still waiting to be echoed back. The round trip is
+   *   not bounded by anything the theme controls (the editor debounces its
+   *   own content update, then the draft write and the re-render take as long
+   *   as the operator's machine and network take), so "wait for the debounce
+   *   to flush" is not enough on its own: an echo that arrives after the next
+   *   keystroke has already flushed still carries the older draft, and
+   *   applying it deletes that keystroke. Ownership therefore ends on the
+   *   acknowledgement itself — `acceptTextEditEcho` sees the posted value come
+   *   back — and not on a timer.
+   *
+   * The posted half is held only while the operator is still editing this
+   * field in this frame, so a write the editor silently refuses cannot own the
+   * field forever: moving the caret elsewhere, or focus leaving the preview,
+   * hands it back.
+   */
+  function hasUnacknowledgedTextEdit(meta: StegaMeta): boolean {
+    if (hasPendingTextEdit(meta)) return true;
+    if (!postedText.has(textEditKey(meta))) return false;
+    const focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+    return focused && activeEdit !== null && sameTextField(activeEdit.meta, meta);
+  }
+
+  /**
+   * Whether an `editor:content-update` may write `value` over `meta`'s field.
+   * A posted value coming back is the acknowledgement this has been waiting
+   * for, and retires it — but only that one: anything typed since keeps the
+   * field, which is why the answer is re-derived afterwards rather than
+   * returned from inside the branch.
+   */
+  function acceptTextEditEcho(meta: StegaMeta, value: string): boolean {
+    const key = textEditKey(meta);
+    if (postedText.get(key) === value) postedText.delete(key);
+    return !hasUnacknowledgedTextEdit(meta);
   }
 
   function restoreEditingFocus(): void {
@@ -2096,17 +2147,73 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     // still armed has by definition not reached the editor, so it stays dirty
     // until the flush — that is what lets the stale renderer echo the editor
     // sends in the meantime be undone here instead of eating the keystroke.
-    const dirty = activeEdit.dirty || hasUnflushedTextEdit(activeEdit.meta);
+    const dirty = activeEdit.dirty || hasUnacknowledgedTextEdit(activeEdit.meta);
     const acknowledged = replacement.textContent === value;
-    if (dirty && !acknowledged) replacement.textContent = value;
+    // Nothing has come between the operator and their field while its element
+    // and text node are the ones this record was taken against: a keystroke
+    // mutates that node's data in place, so a text difference here is the
+    // operator's own newer typing, not an echo drawn over them. Re-asserting
+    // `value` over it would delete the character they just typed — and this
+    // function does run before the overlay's own `input` handler whenever
+    // anything else on the page registered an `input` listener first, because
+    // a listener ahead of it puts a microtask checkpoint between the two and a
+    // checkpoint is where queued MutationObserver records are delivered.
+    const sameNodes =
+      activeEdit.element === replacement &&
+      activeEdit.node !== null &&
+      activeEdit.node === replacement.firstChild;
+    const rewrote = dirty && !acknowledged && !sameNodes;
+    if (rewrote) replacement.textContent = value;
+    const focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+    const selection = document.getSelection();
+    // The caret only has to be put back when it has actually been lost: this
+    // runs from `decorateStegaTextNodes`, so every characterData mutation in
+    // the document reaches it — including the operator's own keystroke, whose
+    // node was mutated in place and whose caret the browser has already
+    // advanced. `caretOffset` is only as fresh as the last `rememberEditing`,
+    // and whether `onInput` has refreshed it yet depends on listener
+    // registration order: a single `input` listener anywhere on the page ahead
+    // of the overlay's own puts a microtask checkpoint between the two, and a
+    // checkpoint is where queued MutationObserver records are delivered, so
+    // this can and does run *before* `onInput`. Re-placing the caret from the
+    // remembered offset then moved it back in front of the character just
+    // typed, and because the next `rememberEditing` recorded that moved caret,
+    // every further keystroke inserted there too.
+    //
+    // A caret sitting in one of the field's own text nodes is therefore left
+    // exactly where it is — nothing re-rendered it, and the browser's position
+    // is newer than anything remembered here. The remembered offset is
+    // refreshed from it instead, so the restore below has a current offset on
+    // the pass that really does need one: the caret collapses onto the field
+    // *element* when the renderer replaces the text node it lived in, lands
+    // outside the field, or disappears, and a rewrite above replaces the node
+    // this function itself just wrote.
+    const caretNode = selection === null ? null : selection.focusNode;
+    const caretSettled =
+      !rewrote && sameNodes && caretNode !== null && replacement.contains(caretNode);
+    if (caretSettled) {
+      // Take the caret offset from what the browser is actually showing, so
+      // the pass that really does have to put one back — the one after a
+      // renderer echo replaced the node — restores the operator's latest
+      // position rather than one from an earlier keystroke. (`value` is left
+      // to `onInput`'s own `rememberEditing`, which runs for every keystroke
+      // whichever side of this pass it lands on.)
+      activeEdit = {
+        meta: metadataOf(replacement),
+        caretOffset: caretOffsetWithin(replacement),
+        value,
+        dirty,
+        element: replacement,
+        node: replacement.firstChild,
+      };
+      return;
+    }
     // Taking focus is only right when the operator is already in this frame —
     // the same rule `restoreRichTextSelection` follows. A renderer pass that
     // replaces the element while they are in Studio's own sidebar or toolbar
     // must not pull focus back into the preview and close what they opened.
-    const focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
     if (focused && document.activeElement !== replacement)
       replacement.focus({ preventScroll: true });
-    const selection = document.getSelection();
     if (selection === null) return;
     const range = document.createRange();
     const text = replacement.firstChild;
@@ -2121,6 +2228,8 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       caretOffset: offset,
       value,
       dirty: dirty && !acknowledged,
+      element: replacement,
+      node: replacement.firstChild,
     };
   }
 
@@ -2168,21 +2277,21 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       if (field.closest('[data-eldra-rich-text]') !== null) return;
       const meta = metadataOf(field);
       if (!accepted.has(meta.entryId)) return;
-      // The operator has typed into this field and the editor has not been
-      // told yet, so `drafts` cannot describe those keystrokes: writing its
-      // value here would delete them, and replacing the caret's text node
-      // would collapse the caret to the start of the field. The renderer may
-      // already have drawn that stale value; `restoreEditingFocus` has just
-      // undone it, and this must not write it straight back.
-      if (hasUnflushedTextEdit(meta)) return;
       if (!Object.prototype.hasOwnProperty.call(drafts, meta.entryId)) return;
       const draft = drafts[meta.entryId];
       if (draft === undefined) return;
       const value = ownValueAtPath(draft, meta.fieldPath);
       if (typeof value !== 'string') return;
+      const cleaned = stripStega(value);
+      // This is also where an echo is recognised as the acknowledgement of
+      // what the overlay posted. Until one arrives, the draft cannot describe
+      // what the operator has typed: writing it would delete those keystrokes,
+      // and replacing the caret's text node would take the caret with it. The
+      // renderer may already have drawn that stale value — `restoreEditingFocus`
+      // has just undone it, and this must not write it straight back.
+      if (!acceptTextEditEcho(meta, cleaned)) return;
       const text = field.firstChild;
       if (field.childNodes.length !== 1 || text?.nodeType !== Node.TEXT_NODE) return;
-      const cleaned = stripStega(value);
       const textNode = text as Text;
       if (textNode.data !== cleaned) textNode.data = cleaned;
     });
@@ -2493,10 +2602,15 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       span,
       setTimeout(() => {
         debounceTimers.delete(span);
+        const meta = metadataOf(span);
+        const value = stripStega(span.textContent ?? '');
+        // Remember it until the editor echoes it back: see
+        // `hasUnacknowledgedTextEdit`.
+        postedText.set(textEditKey(meta), value);
         opts.post('theme:text-edited', {
-          ...metadataOf(span),
+          ...meta,
           ...layoutIdentityOf(span),
-          value: stripStega(span.textContent ?? ''),
+          value,
         });
       }, TEXT_EDIT_DEBOUNCE_MS)
     );
@@ -2858,10 +2972,13 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       framingBadge = null;
       for (const timer of debounceTimers.values()) clearTimeout(timer);
       debounceTimers.clear();
+      postedText.clear();
       activeEdit = null;
     },
     setMode(nextMode) {
       mode = nextMode;
+      // No editing surface outside edit mode, so nothing is owned any more.
+      if (nextMode !== 'edit') postedText.clear();
       if (nextMode !== 'edit') exitFraming();
       // §18 v3: leaving edit mode ends any Studio-hosted edit and takes the
       // editing surface with it. Clearing posts nothing — Studio drove the

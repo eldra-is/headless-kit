@@ -706,13 +706,15 @@ describe('EldraLayout', () => {
     expect(heading.text()).toBe('Editable');
     heading.element.focus();
     heading.element.dispatchEvent(new InputEvent('input', { bubbles: true }));
-    // Let the field's own theme:text-edited debounce flush before the editor
-    // speaks: a draft is only authoritative for text the editor has been told
-    // about, and keystrokes still inside that window outrank it on purpose
-    // (theme-core's "keeps every keystroke and the caret when the editor
-    // echoes a draft one key behind").
+    // Let the field's own theme:text-edited debounce flush, then acknowledge
+    // that post by echoing its value back, before the editor says anything
+    // else: a draft is only authoritative for text the editor has been told
+    // about *and has answered*, and keystrokes still waiting on that answer
+    // outrank it on purpose (theme-core's "keeps every keystroke and the caret
+    // when the editor echoes a draft one key behind").
     await new Promise((resolve) => setTimeout(resolve, 350));
     runtime.acceptExternalUpdate([heroId]);
+    runtime.reconcileExternalDrafts({ [heroId]: { heading: initial } }, [heroId]);
     await wrapper.setProps({
       blocks: [{ ...hero, data: { heading: updated } }, second],
     });

@@ -206,9 +206,11 @@ describe('createOverlayRuntime', () => {
     original.textContent = 'Stale local text';
     original.dispatchEvent(new InputEvent('input', { bubbles: true }));
     // The editor can only hold an authoritative draft for text it has been
-    // told about, so flush the field's own theme:text-edited debounce first.
-    // Before that flush the local text is newer than anything the editor can
-    // echo, and the test below proves it survives instead.
+    // told about *and has answered*: flush the field's own theme:text-edited
+    // debounce, then let the editor acknowledge it by echoing that value back.
+    // Until that acknowledgement the local text is newer than anything the
+    // editor can send — the round trip is bounded by nothing the theme
+    // controls — and the test below proves it survives instead.
     vi.advanceTimersByTime(300);
     expect(post).toHaveBeenCalledWith(
       'theme:text-edited',
@@ -217,6 +219,7 @@ describe('createOverlayRuntime', () => {
       })
     );
     runtime.acceptExternalUpdate(['block-1']);
+    runtime.reconcileExternalDrafts({ 'block-1': { heading: 'Stale local text' } }, ['block-1']);
 
     const heading = document.createElement('h2');
     heading.textContent = encodeStega('Accepted external draft', {
@@ -316,6 +319,105 @@ describe('createOverlayRuntime', () => {
     }
 
     expect(field().textContent).toBe('Hello probe');
+  });
+
+  /**
+   * The overlay answers a keystroke from two places: its own `input` handler
+   * and, through `decorateStegaTextNodes`, the MutationObserver that sees the
+   * character land. Which runs first is not the overlay's to decide — a
+   * microtask checkpoint is where queued observer records are delivered, and
+   * anything else on the page that registered an `input` listener before the
+   * overlay's own puts one between that listener and this one. These drive the
+   * decorate pass first, which is the order the operator's session had.
+   */
+  describe('a decorate pass that runs before the overlay sees the keystroke', () => {
+    const fieldOf = (): HTMLElement =>
+      document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
+    const place = (offset: number): void => {
+      const element = fieldOf();
+      const selection = document.getSelection()!;
+      const range = document.createRange();
+      const text = element.firstChild as Text;
+      range.setStart(text, Math.min(offset, text.data.length));
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    const caret = (): number => {
+      const element = fieldOf();
+      const selection = document.getSelection()!;
+      if (selection.rangeCount === 0) return -1;
+      const live = selection.getRangeAt(0);
+      const probe = document.createRange();
+      probe.selectNodeContents(element);
+      try {
+        probe.setEnd(live.startContainer, live.startOffset);
+      } catch {
+        return -1;
+      }
+      return probe.toString().length;
+    };
+    /** What the browser does for one typed character, with the observer pass
+     * delivered before the overlay's `input` handler. */
+    const typeAhead = (char: string): void => {
+      const element = fieldOf();
+      const at = caret();
+      (element.firstChild as Text).insertData(at, char);
+      place(at + char.length);
+      runtime.rescan();
+      element.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    };
+
+    beforeEach(() => {
+      runtime.setMode('edit');
+      const element = fieldOf();
+      element.focus();
+      place('Hello'.length);
+      element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    });
+
+    it('leaves the character and the caret exactly where the browser put them', () => {
+      typeAhead('!');
+      expect(fieldOf().textContent).toBe('Hello!');
+      expect(caret()).toBe('Hello!'.length);
+      typeAhead('?');
+      expect(fieldOf().textContent).toBe('Hello!?');
+      expect(caret()).toBe('Hello!?'.length);
+    });
+
+    it('still leaves them alone once a value has been posted and not yet echoed', () => {
+      typeAhead('!');
+      // The debounce flushes: the editor has been told 'Hello!' and has not
+      // answered yet, so the field is the overlay's until it does. That must
+      // not turn into a licence to re-assert a snapshot over the operator's
+      // newer typing.
+      vi.advanceTimersByTime(300);
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({ value: 'Hello!' })
+      );
+      typeAhead('?');
+      expect(fieldOf().textContent).toBe('Hello!?');
+      expect(caret()).toBe('Hello!?'.length);
+    });
+
+    it('survives an echo that arrives only after the next keystroke was posted', () => {
+      const stega = (value: string): string =>
+        encodeStega(value, { entryId: 'block-1', fieldPath: 'heading', locale: 'en-US' });
+      typeAhead('!');
+      vi.advanceTimersByTime(300); // posts 'Hello!'
+      typeAhead('?');
+      vi.advanceTimersByTime(300); // posts 'Hello!?'
+      // Only now does the editor's content update for the *first* post arrive —
+      // the round trip is bounded by nothing the theme controls, so waiting for
+      // the debounce to flush is not enough on its own.
+      runtime.acceptExternalUpdate(['block-1']);
+      fieldOf().textContent = stega('Hello!');
+      runtime.rescan();
+      runtime.reconcileExternalDrafts({ 'block-1': { heading: stega('Hello!') } }, ['block-1']);
+      expect(fieldOf().textContent).toBe('Hello!?');
+      expect(caret()).toBe('Hello!?'.length);
+    });
   });
 
   it('does not pull focus back into the frame when the operator is not in it', () => {
