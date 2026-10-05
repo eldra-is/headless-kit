@@ -23,7 +23,7 @@ try {
   if (body) console.log(toHtml(body));
 } catch (error) {
   if (error instanceof EldraHttpError) {
-    console.error(`${error.status} ${error.code ?? ''}`.trim());
+    console.error(`${error.status} ${error.errorId ?? error.code ?? ''}`.trim());
     process.exitCode = 1;
   } else {
     throw error;

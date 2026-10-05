@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.5](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.4...sdk-v0.2.5) (2026-09-25)
+
+
+### Features
+
+* **sdk:** build the analytics tracker script tag from the client configuration ([#34](https://github.com/eldra-is/headless-kit/issues/34)) ([688f7e7](https://github.com/eldra-is/headless-kit/commit/688f7e74584094fd13f9f6f8391e599349a3808c))
+
+## [0.2.4](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.3...sdk-v0.2.4) (2026-09-23)
+
+
+### Features
+
+* **sdk:** default the checkout handoff to the Eldra hosted checkout ([#32](https://github.com/eldra-is/headless-kit/issues/32)) ([b38a1e4](https://github.com/eldra-is/headless-kit/commit/b38a1e498ffd4b6cc6b97a082df6e79779cac410))
+
+## [0.2.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.2...sdk-v0.2.3) (2026-09-23)
+
+
+### Features
+
+* **sdk:** expose the problem errorId on EldraHttpError ([#29](https://github.com/eldra-is/headless-kit/issues/29)) ([5acf5b9](https://github.com/eldra-is/headless-kit/commit/5acf5b928338f4e0a0b4dcbe50a2d0821f09dbab))
+
 ## [0.2.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.1...sdk-v0.2.2) (2026-09-20)
 
 

@@ -9,6 +9,13 @@ platform repository.
 
 ## Unreleased
 
+- `analyticsTrackerScript({ orgId, apiBaseUrl, env })` returns the attributes of the tracker
+  `<script>` tag — `src`, `defer`, `crossorigin`, `data-org`, and `data-api` when `eventOrigin`
+  names a first-party proxy — built from the same configuration the client reads from, so the
+  tracker can never report to a different environment than the one the site renders. It answers
+  `undefined` when no organisation id resolves, which is how a preview or development build opts
+  out of reporting.
+
 - `client.features.getLocales()` answers which content locales the organisation publishes: its own
   `{ default, supported }` record (exported as `EldraOrganizationLocales`, `supported` default-first
   and duplicate-free), or `null` when it has configured none. `EldraOrganizationDetails` grows the

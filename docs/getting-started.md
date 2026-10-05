@@ -26,8 +26,11 @@ its options.
 By default at `https://web.eldra.app/api`. For staging or local development pass `apiBaseUrl`:
 
 ```ts
-createEldraClient({ orgId, apiBaseUrl: 'https://web.staging.eldra.app/api' });
+createEldraClient({ orgId, apiBaseUrl: 'https://web.staging.eu.eldra.app/api' });
 ```
+
+That one setting also decides where checkout lives: `checkout.url()` reads it from the gateway the
+client points at, so a staging cart is handed to the staging checkout with nothing else to set.
 
 Every option can also be a function, so a server-rendered app can read environment at request time:
 
@@ -74,6 +77,24 @@ The API answers a browser only from an origin the organisation has registered â€
 settings, _Storefront origins_. Add `http://localhost:3000` (or whichever port) while developing;
 a request from an unregistered origin fails with `ORIGIN_NOT_REGISTERED`. Server-side calls are
 not subject to this.
+
+## Analytics tracker
+
+The tracker is a script tag served by the same gateway the client reads from. Build it from the
+client's configuration so the two can never point at different environments:
+
+```ts
+// nuxt.config.ts or app.vue
+import { analyticsTrackerScript } from '@eldrajs/sdk';
+
+const tracker = analyticsTrackerScript({ orgId: process.env.ELDRA_ORG_ID, apiBaseUrl });
+useHead({ script: tracker ? [tracker] : [] });
+```
+
+It returns `undefined` when no organisation id is configured, so a preview or development build
+that should not report simply leaves the id unset. Events are only counted from a registered
+storefront origin (see above); an unregistered one is silently ignored. Pass `eventOrigin` when
+the script and the event endpoint are proxied through the storefront's own domain.
 
 ## What the client covers
 
@@ -180,10 +201,13 @@ to an HTML string with `toHtml` from `@eldrajs/rich-text` in any framework. See
 
 `createCartSession()` keeps the cart id in `localStorage`, `createOrderAccessTokens()` keeps order
 tokens in `sessionStorage`; both take an injectable storage and never throw where storage is
-unavailable. The server may forget a cart; on `CART_NOT_FOUND`, drop the stored id and start a new
-cart.
+unavailable. The server may forget a cart; when a request fails with `errorId` `CART_NOT_FOUND`,
+drop the stored id and start a new cart.
 
 ## Errors
 
-Every failed request throws `EldraHttpError` with `status` and `code` â€” the gateway's problem code
-such as `INSUFFICIENT_STOCK` or `CART_DISCOUNT_EXHAUSTED`. Branch on `code`, not on the message.
+Every failed request throws `EldraHttpError` with `status`, `code` and `errorId` from the gateway's
+problem body. `code` is the category, such as `NOT_FOUND` or `CONFLICT`; `errorId` is the specific
+reason, such as `CART_NOT_FOUND`, `CART_INSUFFICIENT_STOCK` or `CART_DISCOUNT_EXHAUSTED`, and
+equals `code` when the gateway has nothing more specific to say. Branch on `errorId`, not on the
+message; the [node script example](../examples/node-script/index.ts) prints both.

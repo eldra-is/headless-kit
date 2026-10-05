@@ -17,6 +17,8 @@ export type {
   EldraContractResponse,
 } from './contract';
 export { createCartSession, createOrderAccessTokens } from './storage';
+export { analyticsTrackerScript } from './tracker';
+export type { EldraTrackerScript, EldraTrackerScriptOptions } from './tracker';
 export type {
   EldraCartSession,
   EldraCartSessionOptions,
