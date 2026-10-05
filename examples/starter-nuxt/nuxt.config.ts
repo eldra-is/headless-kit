@@ -59,10 +59,15 @@ export default defineNuxtConfig({
       },
     },
   },
-  // The Studio preview bridge is embedded only by the local Studio instance.
-  // Keep this an exact origin: it is also emitted into the Pages CSP header.
+  // The Studio preview bridge is embedded only by the Studio instance(s) named here.
+  // Keep these exact origins: they are also emitted into the Pages CSP header. More than one
+  // (comma-separated in `ELDRA_STUDIO_ORIGIN`) lets one build serve a Studio whose origin is
+  // changing — the old and the new origin both allowed until the old one is retired.
   eldra: {
-    studioOrigins: [process.env.ELDRA_STUDIO_ORIGIN ?? 'https://localhost:4311'],
+    studioOrigins: (process.env.ELDRA_STUDIO_ORIGIN ?? 'https://localhost:4311')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0),
     // See app/assets/main.css: the Tailwind adapter's own
     // `virtual:eldra/tailwind-theme.css` entry cannot be resolved from an
     // `@import` inside a Vite-processed CSS file (the Tailwind v4 Vite plugin
