@@ -175,6 +175,42 @@ describe('consumer Tailwind build', () => {
   });
 
   /**
+   * The pills tab list's focus-ring reservation has to survive a *consumer's* build too, and it is
+   * the same trap the carousel fell into one directive earlier: the four utilities that hold the
+   * ring open are arbitrary values over the ring tokens
+   * (`px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]` and its three siblings), so
+   * assembling any of those names at runtime from a shared constant would leave a consumer's
+   * stylesheet with no rule at all — and nothing that measures the rendered page could tell,
+   * because a harness that compiles the *class names it found in the markup* emits them either way.
+   * This compiles what a consumer's own stylesheet says, against `dist/`, and asserts the four
+   * declarations come out of it.
+   *
+   * Two of them (`padding-block`/`margin-block`) are also what `Carousel`'s track writes, so they
+   * would survive here on the carousel's spelling alone; the inline three are `Tabs`' own, and
+   * against an interpolated version they are simply absent.
+   */
+  it.runIf(built)('emits the tab list ring reservation for a consumer', async () => {
+    const { compile } = await import('@tailwindcss/node');
+    const { Scanner } = await import('@tailwindcss/oxide');
+    const compiler = await compile(`@import 'tailwindcss';\n@import '@eldrajs/ui/tailwind.css';`, {
+      base: packageRoot,
+      onDependency() {},
+    });
+    const scanner = new Scanner({ sources: compiler.sources });
+    const css = compiler.build(scanner.scan()).replace(/\s+/g, ' ');
+    const reach = 'calc(var(--eldra-focus-offset) + var(--eldra-focus-width))';
+    for (const declaration of [
+      `padding-block: ${reach}`,
+      `margin-block: calc(${reach} * -1)`,
+      `padding-inline: ${reach}`,
+      `margin-inline: calc(${reach} * -1)`,
+      `scroll-padding-inline: ${reach}`,
+    ]) {
+      expect(css, `${declaration} never reached a consumer stylesheet`).toContain(declaration);
+    }
+  });
+
+  /**
    * The shipped stylesheet must hold no rule for a class nothing renders.
    *
    * `dist/style.css` is compiled from `src/` by Tailwind's own source scan, which reads the files
