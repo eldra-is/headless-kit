@@ -25,6 +25,13 @@ import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { normalizeLocale } from './runtime/locale';
+import {
+  localePathFor,
+  readStoreLocales,
+  resolveLocaleRouting,
+  type EldraLocaleRouting,
+  type StoreLocales,
+} from './runtime/locales';
 import { listAllEntries } from './runtime/resolveRoute';
 
 export interface ModuleOptions {
@@ -121,6 +128,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // answered. Written here as well so the key exists for anything that
       // reads this object during another module's own `setup`.
       commerce: null as StoreCommerce | null,
+      // Which locales the site serves, filled in below from the same platform read. Written here
+      // first for the same reason: the key has to exist before another module's `setup` can look
+      // for it. See `./runtime/locales.ts`.
+      locales: null as StoreLocales | null,
     };
 
     addPlugin(resolver.resolve('./runtime/plugin'));
@@ -133,6 +144,15 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       { name: 'useEldraPreview', from: '@eldrajs/theme-vue' },
     ]);
 
+    /**
+     * How this site's paths and locales line up (`./runtime/locales.ts`). Resolved from the
+     * platform's answer at the end of this `setup`, and read by the `prerender:routes` hook below
+     * — which Nuxt calls once the build starts, long after that `await` has settled. Until then it
+     * is the no-locales shape, which is also the final one for an organisation that configures
+     * none and the behaviour every site had before prefixes existed.
+     */
+    let localeRouting: EldraLocaleRouting = resolveLocaleRouting(null, options.locale);
+
     nuxt.hook('prerender:routes', async (ctx) => {
       if (options.gatewayUrl === '' || options.orgId === '') {
         console.warn('[eldra] ELDRA_GATEWAY_URL / ELDRA_ORG_ID not set — prerendering "/" only');
@@ -141,16 +161,32 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       }
 
       const client = createEldraClient({ gatewayUrl: options.gatewayUrl, orgId: options.orgId });
+      // The *reading* locale, which is the override and nothing else: path segments are not
+      // translated in v1, so one pass over the default locale's documents produces the path list
+      // for every locale and `addRoute` below fans each path out. Reading the page list once per
+      // locale would only re-read the same slugs — Core's localized `slug` map is deliberately
+      // consulted for the default locale alone.
       const locale = normalizeLocale(options.locale);
       const [pages, templates] = await Promise.all([
         listAllEntries(client, options.pageSchema, locale),
         listRouteTemplateEntries(client, options.routeTemplateSchema, locale),
       ]);
       const generated = new Set<string>();
+      /**
+       * One content path, prerendered once per locale: unprefixed for the locale served at `/`,
+       * and once more under every other supported locale's prefix. In the **same** pass that
+       * discovered the path, so a locale can never be a build behind the pages it serves.
+       */
+      const addRoute = (path: string): void => {
+        ctx.routes.add(path);
+        for (const prefixed of localeRouting.prefixed) {
+          ctx.routes.add(localePathFor(path, prefixed, localeRouting));
+        }
+      };
       for (const page of pages) {
         const path = resolvePagePath(page, pages);
         generated.add(path);
-        ctx.routes.add(path);
+        addRoute(path);
       }
       const codeOwned = new Set((options.customPages ?? []).map((page) => page.path));
       const entriesBySchema = new Map<string, Promise<EntryDoc[]>>();
@@ -188,7 +224,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
               continue;
             }
             generated.add(path);
-            ctx.routes.add(path);
+            addRoute(path);
           }
           continue;
         }
@@ -209,7 +245,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             );
           }
           generated.add(path);
-          ctx.routes.add(path);
+          addRoute(path);
         }
       }
     });
@@ -249,20 +285,35 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       { name: 'eldra-sdk-version', content: packageVersion(resolver.resolve('../package.json')) },
     ];
 
-    // The store's currency, once per build — see `./runtime/commerce.ts` for why it is read here
-    // and not in the browser, and why a failure is a warning rather than a failed build. Awaited
-    // last, after every registration above, so one gateway round trip cannot change what this
-    // module installs; the value lands on the runtime-config object written earlier, which Nitro
-    // does not read until the build itself starts.
+    // The store's currency and the organisation's locales, once per build — see
+    // `./runtime/commerce.ts` for why they are read here and not in the browser, and why a failure
+    // is a warning rather than a failed build. Awaited last, after every registration above, so one
+    // gateway round trip cannot change what this module installs; the values land on the
+    // runtime-config object written earlier, which Nitro does not read until the build itself
+    // starts, and on `localeRouting`, which the prerender hook does not read until then either.
     //
     // There is no client when the site has no gateway credentials — the same site the
-    // `prerender:routes` hook below warns about and prerenders "/" for.
-    const commerceClient =
+    // `prerender:routes` hook above warns about and prerenders "/" for.
+    //
+    // Two reads of one document, deliberately. Each is independently fail-soft — a currency the
+    // gateway will not give up must not cost the site its locales, nor the other way round — and
+    // one shared, memoised read would make either failure both. It is two requests at build time,
+    // once.
+    const platformClient =
       options.gatewayUrl === '' || options.orgId === ''
         ? null
         : createEldraCommerceClient({ apiBaseUrl: options.gatewayUrl, orgId: options.orgId });
-    (nuxt.options.runtimeConfig.public.eldra as { commerce: StoreCommerce | null }).commerce =
-      await readStoreCommerce(commerceClient);
+    const [commerce, locales] = await Promise.all([
+      readStoreCommerce(platformClient),
+      readStoreLocales(platformClient),
+    ]);
+    const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
+      commerce: StoreCommerce | null;
+      locales: StoreLocales | null;
+    };
+    runtimeEldra.commerce = commerce;
+    runtimeEldra.locales = locales;
+    localeRouting = resolveLocaleRouting(locales, options.locale);
   },
 });
 
