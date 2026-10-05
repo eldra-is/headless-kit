@@ -7718,8 +7718,8 @@
   },
   "pageSeeds": [
     {
-      "slug": "home",
-      "title": "Home",
+      "slug": "cart",
+      "title": "Your cart",
       "blocks": [
         {
           "type": "announcement-bar",
@@ -7732,214 +7732,148 @@
           }
         },
         {
-          "type": "hero",
+          "type": "@header"
+        },
+        {
+          "type": "breadcrumbs",
           "data": {
-            "variant": "image-right",
-            "eyebrow": "New season",
-            "heading": "Made slowly, used daily",
-            "subheading": "Merino knits, hand-thrown stoneware and kitchen goods from small workshops. Made to be used every day and kept for years.",
-            "primaryCtaLabel": "Shop new arrivals",
-            "primaryCtaHref": "/collections/new",
-            "secondaryCtaLabel": "Our story",
-            "secondaryCtaHref": "/pages/about",
-            "spacing": "md",
-            "slides": []
+            "showHome": true,
+            "homeLabel": "Home",
+            "trail": [],
+            "currentTitle": "Your cart",
+            "showCurrent": true,
+            "container": "wide"
           }
         },
         {
-          "type": "trust-strip",
+          "type": "cart",
           "data": {
-            "variant": "columns",
-            "items": [
-              {
-                "icon": "truck",
-                "title": "Free shipping over $80",
-                "text": "Delivered in 2–4 business days, carbon-neutral."
-              },
-              {
-                "icon": "arrow-back-up",
-                "title": "30-day returns",
-                "text": "Changed your mind? Send it back free of charge.",
-                "linkLabel": "30-day returns",
-                "href": "/pages/returns"
-              },
-              {
-                "icon": "shield-check",
-                "title": "Secure payment",
-                "text": "Encrypted checkout, and we never store card details."
-              },
-              {
-                "icon": "needle-thread",
-                "title": "Made by hand",
-                "text": "In small batches by four family-run workshops."
-              }
-            ],
-            "mobileLayout": "grid",
-            "showPayments": true,
-            "paymentsLabel": "Secure checkout with",
-            "payments": [
-              {
-                "brand": "visa"
-              },
-              {
-                "brand": "mastercard"
-              },
-              {
-                "brand": "paypal"
-              },
-              {
-                "brand": "apple-pay"
-              }
-            ],
-            "background": "surface"
-          }
+            "variant": "page",
+            "emptyTitle": "Your cart is empty",
+            "emptyLinkLabel": "Continue shopping",
+            "emptyLinkHref": "/"
+          },
+          "required": true
         },
         {
           "type": "product-carousel",
           "data": {
-            "heading": "New this season",
-            "variant": "collection",
+            "heading": "Recently viewed",
+            "variant": "recently-viewed",
             "limit": "8",
-            "viewAllLabel": "View all",
             "showSwatches": true,
-            "background": "none",
-            "sourceCollection": {
-              "_type": "collection",
-              "slug": "the-winter-edit"
+            "background": "none"
+          }
+        },
+        {
+          "type": "@footer"
+        }
+      ]
+    },
+    {
+      "slug": "wishlist",
+      "title": "Your wishlist",
+      "blocks": [
+        {
+          "type": "announcement-bar",
+          "data": {
+            "variant": "primary",
+            "message": "Free shipping on orders over $80",
+            "linkLabel": "Details",
+            "linkHref": "/pages/shipping",
+            "dismissable": true
+          }
+        },
+        {
+          "type": "@header"
+        },
+        {
+          "type": "breadcrumbs",
+          "data": {
+            "showHome": true,
+            "homeLabel": "Home",
+            "trail": [],
+            "currentTitle": "Your wishlist",
+            "showCurrent": true,
+            "container": "wide"
+          }
+        },
+        {
+          "type": "wishlist",
+          "data": {
+            "heading": "Your wishlist",
+            "emptyTitle": "Your wishlist is empty",
+            "emptyText": "Press the heart on any product to save it here for later.",
+            "emptyLink": {
+              "kind": "url",
+              "url": "/"
             }
+          },
+          "required": true
+        },
+        {
+          "type": "product-carousel",
+          "data": {
+            "heading": "Recently viewed",
+            "variant": "recently-viewed",
+            "limit": "8",
+            "showSwatches": true,
+            "background": "none"
           }
         },
         {
-          "type": "split-content",
+          "type": "@footer"
+        }
+      ]
+    },
+    {
+      "slug": "search",
+      "title": "Search",
+      "blocks": [
+        {
+          "type": "announcement-bar",
           "data": {
-            "startWith": "image-left",
-            "rows": [
-              {
-                "eyebrow": "The studio",
-                "heading": "Every bowl passes through six pairs of hands",
-                "text": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Our Portland potters throw, trim, glaze and fire in small batches of forty. Slight differences in speckle and rim are the mark of that process, not a flaw."
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "linkLabel": "Inside the studio",
-                "href": "/pages/studio"
-              },
-              {
-                "eyebrow": "The mill",
-                "heading": "Knitted slowly, so it lasts",
-                "text": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Our sweaters are knitted on vintage frames at a third of the usual speed. The tighter stitch holds its shape through ten winters or more."
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "linkLabel": "Visit the mill",
-                "href": "/pages/mill"
-              }
-            ]
+            "variant": "primary",
+            "message": "Free shipping on orders over $80",
+            "linkLabel": "Details",
+            "linkHref": "/pages/shipping",
+            "dismissable": true
           }
         },
         {
-          "type": "testimonials",
+          "type": "@header"
+        },
+        {
+          "type": "breadcrumbs",
           "data": {
-            "variant": "grid",
-            "heading": "Used every day, reviewed honestly",
-            "summary": "4.8 out of 5 from 9,214 verified reviews",
-            "linkLabel": "Read all reviews",
-            "linkHref": "/pages/reviews",
-            "items": [
-              {
-                "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
-                "name": "Hannah Reeve",
-                "meta": "Portland, OR · Speckled latte mug",
-                "rating": "5",
-                "productLabel": "Speckled latte mug",
-                "productHref": "/products/latte-mug"
-              },
-              {
-                "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
-                "name": "Marcus Bell",
-                "meta": "Austin, TX · Lambswool throw",
-                "rating": "5",
-                "productLabel": "Lambswool throw blanket",
-                "productHref": "/products/lambswool-throw"
-              },
-              {
-                "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
-                "name": "Priya Nair",
-                "meta": "Minneapolis, MN · Stoneware dinner plates",
-                "rating": "4",
-                "productLabel": "Stoneware dinner plates",
-                "productHref": "/products/dinner-plates"
-              }
-            ],
-            "sectionBackground": "none"
+            "showHome": true,
+            "homeLabel": "Home",
+            "trail": [],
+            "currentTitle": "Search",
+            "showCurrent": true,
+            "container": "wide"
           }
         },
         {
-          "type": "newsletter",
+          "type": "search",
           "data": {
-            "variant": "centered",
-            "heading": "Letters from the workshop",
-            "text": "New makers, restocks and first pick of our seconds sales, once a month. Take 10% off your first order when you join.",
-            "fieldLabel": "Email address",
-            "placeholder": "name@example.com",
-            "buttonLabel": "Subscribe",
-            "consent": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "One email a month, never shared. Read our "
-                    },
-                    {
-                      "type": "text",
-                      "marks": [
-                        {
-                          "type": "link",
-                          "attrs": {
-                            "href": "/pages/privacy"
-                          }
-                        }
-                      ],
-                      "text": "privacy policy"
-                    },
-                    {
-                      "type": "text",
-                      "text": "; unsubscribe with one click."
-                    }
-                  ]
-                }
-              ]
-            },
-            "requireConsentCheckbox": false,
-            "consentCheckboxLabel": "I'd like to receive emails from Northwind Goods",
-            "successTitle": "You're on the list",
-            "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
-            "list": "letters-from-the-workshop",
-            "sectionBackground": "surface"
+            "variant": "results-page",
+            "heading": "Results for “{query}”"
+          },
+          "required": true
+        },
+        {
+          "type": "product-carousel",
+          "data": {
+            "heading": "Recently viewed",
+            "variant": "recently-viewed",
+            "limit": "8",
+            "showSwatches": true,
+            "background": "none"
           }
+        },
+        {
+          "type": "@footer"
         }
       ]
     }

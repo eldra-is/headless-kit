@@ -1,17 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type {
+  DeclaredPageSeed,
+  DeclaredSeed,
   DeclaredTemplateSeed,
   DeclaredTemplateSeedBlock,
   ManifestTemplateRoles,
 } from '@eldrajs/vite-plugin-theme';
 
 /**
- * The default page templates this theme seeds a site with on its first deploy,
- * built from the sample pages in `pages/*.page.json` so there is exactly one
- * copy of the starter's product, collection and home page — the one Storybook
- * renders (`stories/pages/*.stories.ts`), the one `test/pages/*.spec.ts`
- * exercises, and the one a merchant lands in the page builder with.
+ * The default pages and route templates this theme seeds a site with on its
+ * first deploy, built from the sample pages in `pages/*.page.json` so there is
+ * exactly one copy of the starter's product, collection, home, cart, wishlist
+ * and search page — the one Storybook renders (`stories/pages/*.stories.ts`),
+ * the one `test/pages/*.spec.ts` exercises, and the one a merchant lands in the
+ * page builder with.
  *
  * Read at config time only: `nuxt.config.ts` passes the result to
  * `eldra.templates` / `eldra.templateRoles`, which
@@ -21,7 +24,7 @@ import type {
  * (nothing under `app/` imports this module — only `nuxt.config.ts` and the
  * starter's own tests do).
  *
- * Two shapes leave this file:
+ * Three shapes leave this file:
  *
  * - `starterTemplates()` — one seed per template. Its `blocks` are the
  *   fixture's blocks **minus** `navigation` and `footer`: those two travel
@@ -32,9 +35,20 @@ import type {
  *   collection (`CATALOG_SEED_SHAPE`, `CATALOG_SEED_DROPPED_ITEMS`), binding the
  *   fields the routed object carries itself, so each page renders the object its
  *   route resolved.
+ * - `starterPages()` — one **page** seed per fixture that declares
+ *   `page: { slug }` rather than backing a route template: `/cart`,
+ *   `/wishlist` and `/search`, which used to be code routes under `app/pages/`
+ *   and are now documents a merchant composes. Their blocks are the fixture's
+ *   minus the same two roles, and the one block the page exists for carries
+ *   `required: true`, so Core creates its layout node locked and an author can
+ *   reorder it and edit its copy but never delete it.
  * - `starterTemplateRoles()` — the `navigation` and `footer` block data behind
- *   those roles, taken from the home page fixture (all three fixtures carry
- *   the same header and footer).
+ *   those roles, taken from the home page fixture (every fixture carries the
+ *   same header and footer).
+ *
+ * `starterSeeds()` is the two seed halves in one list, which is what
+ * `eldra.templates` takes (`nuxt.config.ts` and `.storybook/main.ts` both pass
+ * it, so the `.eldra/manifest.json` the two builds write is the same file).
  *
  * Both run their block data through `stripSeedMedia`, because a seed is the
  * write Core makes on deploy and the CMS only accepts `{ assetId: <uuid> }`
@@ -154,6 +168,74 @@ const SEEDS: ReadonlyArray<{
   },
   { fixture: 'home', routePattern: '/', schemaApiId: 'home', title: 'Home' },
 ];
+
+/**
+ * The fixtures that seed a **page** rather than a route template, and — for
+ * each — the one block the page exists for, whose node Core creates locked.
+ *
+ * Naming the block rather than reading a flag out of the fixture keeps the
+ * fixture a plain page document: `pages/cart.page.json` is the same shape a CMS
+ * page has, and "this one cannot be deleted" is a fact about the seed, not
+ * about the page a merchant ends up editing.
+ */
+const PAGE_SEEDS: ReadonlyArray<{ fixture: string; required: string }> = [
+  { fixture: 'cart', required: 'cart' },
+  { fixture: 'wishlist', required: 'wishlist' },
+  { fixture: 'search', required: 'search' },
+];
+
+/** Every seed `eldra.templates` carries: the route templates, then the pages. */
+export function starterSeeds(): DeclaredSeed[] {
+  return [...starterTemplates(), ...starterPages()];
+}
+
+/**
+ * The seeded pages, in manifest declaration order.
+ *
+ * A page seed has no layout: its entry list **is** the page, in the fixture's
+ * own block order, and Core lays it out in one column. So unlike a template
+ * seed — which drops the two role blocks and lets the scanner's
+ * `header`/`footer` switches frame the generated layout — this maps each of
+ * them to a *region placement* where it stands: `navigation` becomes
+ * `{ role: 'header' }` and `footer` becomes `{ role: 'footer' }`, keeping the
+ * announcement bar above the header exactly as the fixture has it. Their block
+ * data still travels once, as `starterTemplateRoles()`, and Core resolves each
+ * placement to the site's own reusable component, so every seeded page and
+ * template shares one header and one footer.
+ *
+ * The slug and title come from the fixture itself rather than from a second
+ * table, so `pages/cart.page.json` is the only place `/cart`'s own identity is
+ * written down.
+ */
+export function starterPages(): DeclaredPageSeed[] {
+  return PAGE_SEEDS.map((seed) => {
+    const fixture = pageFixture(seed.fixture);
+    if (fixture.page === undefined) {
+      throw new Error(
+        `pages/${seed.fixture}.page.json seeds a page, so it must declare "page": { "slug": … }`
+      );
+    }
+    if (!fixture.blocks.some((block) => block.apiId === seed.required)) {
+      throw new Error(
+        `pages/${seed.fixture}.page.json must carry a "${seed.required}" block — it is the block ` +
+          'the page exists for, and the seed marks its node required'
+      );
+    }
+    return {
+      page: { slug: fixture.page.slug },
+      title: fixture.title,
+      blocks: fixture.blocks.map((block) => {
+        const role = roleOf(block.apiId);
+        if (role !== null) return { role };
+        return {
+          apiId: block.apiId,
+          data: stripSeedMedia(block.data, blockFields(block.apiId), block.apiId),
+          ...(block.apiId === seed.required ? { required: true as const } : {}),
+        };
+      }),
+    };
+  });
+}
 
 /** The seed templates, in manifest declaration order. */
 export function starterTemplates(): DeclaredTemplateSeed[] {
@@ -278,7 +360,12 @@ interface PageFixtureBlock {
 }
 
 interface PageFixture {
-  template: string;
+  /** The sample page's own template name — documentation, for a fixture that
+   * backs a route template or no seed at all. */
+  template?: string;
+  /** Set instead of `template` by a fixture that seeds a static **page**: the
+   * slug it is created at (`cart` → `/cart`). */
+  page?: { slug: string };
   title: string;
   blocks: PageFixtureBlock[];
 }
@@ -287,7 +374,14 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const MEDIA_VALUE_KEYS = new Set(['assetId', 'framing']);
 
 function isRoleBlock(apiId: string): boolean {
-  return apiId === ROLE_BLOCKS.header || apiId === ROLE_BLOCKS.footer;
+  return roleOf(apiId) !== null;
+}
+
+/** Which page region a fixture block *is*, or null for an ordinary block. */
+function roleOf(apiId: string): 'header' | 'footer' | null {
+  if (apiId === ROLE_BLOCKS.header) return 'header';
+  if (apiId === ROLE_BLOCKS.footer) return 'footer';
+  return null;
 }
 
 /**

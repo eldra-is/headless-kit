@@ -36,6 +36,9 @@ import homePage from '../../pages/home.page.json';
 import productPage from '../../pages/product.page.json';
 import collectionPage from '../../pages/collection.page.json';
 import articlePage from '../../pages/article.page.json';
+import cartPage from '../../pages/cart.page.json';
+import wishlistPage from '../../pages/wishlist.page.json';
+import searchPage from '../../pages/search.page.json';
 
 // `app/app.vue` reads `useRoute()` as a bare Nuxt auto-import (it is the shell: that is where closing
 // the cart drawer on a route change belongs). A server render only ever calls it, never navigates.
@@ -46,6 +49,12 @@ const FIXTURES: Array<[string, PageFixture]> = [
   ['product', productPage as unknown as PageFixture],
   ['collection', collectionPage as unknown as PageFixture],
   ['article', articlePage as unknown as PageFixture],
+  // The three seeded pages. They matter here more than the others: each of them is a page
+  // `nuxi generate` really does render on the server, where its code-route predecessor rendered
+  // no header and no footer at all.
+  ['cart', cartPage as unknown as PageFixture],
+  ['wishlist', wishlistPage as unknown as PageFixture],
+  ['search', searchPage as unknown as PageFixture],
 ];
 
 describe('server rendering', () => {

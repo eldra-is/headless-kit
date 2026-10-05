@@ -16,7 +16,7 @@ import {
 } from '@eldrajs/theme-core';
 import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
 import eldraTheme, {
-  type DeclaredTemplateSeed,
+  type DeclaredSeed,
   type DeclaredThemeCodePage,
   type ManifestRoute,
   type ManifestTemplateRoles,
@@ -36,10 +36,12 @@ export interface ModuleOptions {
   locale?: string;
   routes?: ManifestRoute[];
   customPages?: DeclaredThemeCodePage[];
-  /** Default templates to seed a site with on its first deploy, at most 8.
-   * A seed is ignored once the site has a template for its route pattern, so
-   * nothing a merchant has edited is overwritten by a later deploy. */
-  templates?: DeclaredTemplateSeed[];
+  /** What to seed a site with on its first deploy: route templates (at most 8)
+   * and static pages (`{ page: { slug }, title, blocks }`, at most 16) in one
+   * list. A seed is ignored once the site has a template for its route pattern,
+   * or a page with its slug, so nothing a merchant has edited is overwritten by
+   * a later deploy. */
+  templates?: DeclaredSeed[];
   /** The block data behind the `header`/`footer` roles the declared
    * `templates` layouts may reference. See that package's changelog for the
    * validation rules. */

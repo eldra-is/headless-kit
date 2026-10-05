@@ -8,7 +8,7 @@ import { execa } from 'execa';
 import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
 import { encodeStega } from '@eldrajs/theme-core/stega';
 import { safeHref } from '../app/utils/links';
-import { starterTemplateRoles, starterTemplates, stripSeedMedia } from '../app/templates';
+import { starterSeeds, starterTemplateRoles, stripSeedMedia } from '../app/templates';
 
 const templateDir = fileURLToPath(new URL('..', import.meta.url));
 // Resolved by package name (a real devDependency of this starter, like a
@@ -852,14 +852,16 @@ function framingFieldIds(fields: ThemeBlockManifestField[], prefix = ''): string
   return out;
 }
 
-describe('seeded templates (app/templates.ts)', () => {
+describe('seeded templates and pages (app/templates.ts)', () => {
   // The seeds and roles as the theme declares them in `nuxt.config.ts`, put through the very
   // scanner the build runs — so every assertion below is about what lands in
   // `.eldra/manifest.json` and, from there, in the deploy Core seeds a site from.
   const scanned = scanTheme({
     themeDir: templateDir,
     framework: 'nuxt',
-    templates: starterTemplates(),
+    // `starterSeeds()` is what `nuxt.config.ts` passes: the three route templates and the three
+    // page seeds in one list, exactly as `eldra.templates` takes them.
+    templates: starterSeeds(),
     templateRoles: starterTemplateRoles(),
   });
 
@@ -872,6 +874,77 @@ describe('seeded templates (app/templates.ts)', () => {
     ).blocks
       .filter((block) => block.apiId !== 'navigation' && block.apiId !== 'footer')
       .map((block) => `${block.apiId}#${block.id}`);
+
+  /**
+   * The emitted page-seed wire shape, which Core decodes strictly — an unknown key fails the whole
+   * manifest ingest, so this asserts the *exact* object rather than a subset.
+   *
+   * Three things in it are easy to lose and impossible to notice afterwards: `type` rather than
+   * `apiId` (the key Core reads), the reserved `@header`/`@footer` placements standing where the
+   * fixture puts the two role blocks, and `required: true` on the one block the page exists for.
+   */
+  it('emits each seeded page as slug, title and its entries in document order', () => {
+    const pageSeeds = scanned.manifest!.pageSeeds!;
+    expect(pageSeeds.map((seed) => [seed.slug, seed.title])).toEqual([
+      ['cart', 'Your cart'],
+      ['wishlist', 'Your wishlist'],
+      ['search', 'Search'],
+    ]);
+    for (const seed of pageSeeds) {
+      expect(Object.keys(seed)).toEqual(['slug', 'title', 'blocks']);
+    }
+    // The announcement bar precedes the header, which is only expressible because a region is a
+    // placement in the page's own order rather than a frame around the blocks.
+    expect(pageSeeds[0]!.blocks.map((entry) => entry.type)).toEqual([
+      'announcement-bar',
+      '@header',
+      'breadcrumbs',
+      'cart',
+      'product-carousel',
+      '@footer',
+    ]);
+    const fixed = pageSeeds.map((seed) =>
+      seed.blocks.filter((entry) => 'required' in entry && entry.required === true)
+    );
+    expect(fixed.map((entries) => entries.map((entry) => entry.type))).toEqual([
+      ['cart'],
+      ['wishlist'],
+      ['search'],
+    ]);
+    // A region placement is the reserved type and nothing else; a block always carries data.
+    for (const seed of pageSeeds) {
+      for (const entry of seed.blocks) {
+        if (entry.type.startsWith('@')) expect(Object.keys(entry)).toEqual(['type']);
+        else expect(Object.keys(entry)).toContain('data');
+      }
+    }
+    // No node ids reach a page seed: there is no layout for one to be referenced from.
+    expect(JSON.stringify(pageSeeds)).not.toContain('"id"');
+  });
+
+  /**
+   * The home page is deliberately **not** a page seed: it stays the `templates` entry Core has
+   * always mapped to the site's root Page, so this manifest's home seed is the one every previous
+   * deploy sent. A second seed for the same slug would be one of the two being silently ignored.
+   */
+  it('leaves the home page to its template seed and never seeds the slug "home"', () => {
+    expect(scanned.manifest!.templates!.map((template) => template.schemaApiId)).toContain('home');
+    expect(scanned.manifest!.pageSeeds!.map((seed) => seed.slug)).not.toContain('home');
+  });
+
+  it('seeds the three pages with the one block each of them exists for, and nothing pinned', () => {
+    const pageSeeds = scanned.manifest!.pageSeeds!;
+    const cart = pageSeeds[0]!.blocks.find((entry) => entry.type === 'cart')!;
+    const search = pageSeeds[2]!.blocks.find((entry) => entry.type === 'search')!;
+
+    // The entry each code route used to build in TypeScript, now the page's own editable copy.
+    expect('data' in cart ? cart.data : {}).toMatchObject({ variant: 'page', emptyLinkHref: '/' });
+    expect('data' in search ? search.data : {}).toMatchObject({ variant: 'results-page' });
+    // `popularSearches` and `noResultsCollection` are a merchant's answers, so the seed ships
+    // neither — the same decision `app/pages/search.vue` documented.
+    expect('data' in search ? Object.keys(search.data) : []).not.toContain('popularSearches');
+    expect('data' in search ? Object.keys(search.data) : []).not.toContain('noResultsCollection');
+  });
 
   it('seeds exactly the product, collection and home templates', () => {
     const templates = scanned.manifest!.templates!;

@@ -1,0 +1,89 @@
+{
+  "page": {
+    "slug": "wishlist"
+  },
+  "title": "Your wishlist",
+  "blocks": [
+    {
+      "apiId": "announcement-bar",
+      "id": "wishlist-announcement",
+      "data": {
+        "variant": "primary",
+        "message": "Free shipping on orders over $80",
+        "linkLabel": "Details",
+        "linkHref": "/pages/shipping",
+        "dismissable": true
+      }
+    },
+    {
+      "apiId": "navigation",
+      "id": "wishlist-navigation",
+      "data": {
+        "variant": "default",
+        "brandText": "Northwind Goods",
+        "links": [],
+        "showSearch": true,
+        "searchStyle": "icon",
+        "showAccount": false,
+        "sticky": true,
+        "transparentOverHero": false
+      }
+    },
+    {
+      "apiId": "breadcrumbs",
+      "id": "wishlist-breadcrumbs",
+      "data": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [],
+        "currentTitle": "Your wishlist",
+        "showCurrent": true,
+        "container": "wide"
+      }
+    },
+    {
+      "apiId": "wishlist",
+      "id": "wishlist-saved",
+      "data": {
+        "heading": "Your wishlist",
+        "emptyTitle": "Your wishlist is empty",
+        "emptyText": "Press the heart on any product to save it here for later.",
+        "emptyLink": {
+          "kind": "url",
+          "url": "/"
+        }
+      }
+    },
+    {
+      "apiId": "product-carousel",
+      "id": "wishlist-carousel",
+      "data": {
+        "heading": "Recently viewed",
+        "variant": "recently-viewed",
+        "limit": "8",
+        "showSwatches": true,
+        "background": "none"
+      }
+    },
+    {
+      "apiId": "footer",
+      "id": "wishlist-footer",
+      "data": {
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "groups": [],
+        "links": [],
+        "showNewsletter": false,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [],
+        "showLocale": true,
+        "showCurrency": true
+      }
+    }
+  ]
+}

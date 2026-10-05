@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `eldra.templates` accepts static **page** seeds beside the route-template seeds it already took —
+  `{ page: { slug }, title, blocks }`, where an entry of `blocks` is either a block
+  (`{ apiId, data, required? }`) or a placement of the site's shared header or footer
+  (`{ role: 'header' | 'footer' }`). See `@eldrajs/vite-plugin-theme`'s changelog for the grammar;
+  this module only widens the option's type and forwards it.
+
 - `useEldraPage` no longer replaces the page with an error alert for the first 401 of a preview
   read. A preview token is one hash per organization, so minting one anywhere else revokes the one
   a live preview is using; the editor answers `theme:request-failed` by minting again and

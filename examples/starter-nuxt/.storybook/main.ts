@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import eldraTheme from '@eldrajs/vite-plugin-theme';
 import { generateStories } from '../scripts/generate-stories.mjs';
-import { starterTemplateRoles, starterTemplates } from '../app/templates';
+import { starterSeeds, starterTemplateRoles } from '../app/templates';
 
 const themeDir = fileURLToPath(new URL('..', import.meta.url));
 
@@ -45,7 +45,7 @@ const config: StorybookConfig = {
         themeDir,
         framework: 'nuxt',
         tailwind: false,
-        templates: starterTemplates(),
+        templates: starterSeeds(),
         templateRoles: starterTemplateRoles(),
       }),
     ];

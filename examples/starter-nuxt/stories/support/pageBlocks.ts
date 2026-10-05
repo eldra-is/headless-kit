@@ -27,6 +27,7 @@ import Announcement from '../../blocks/announcement-bar/Block.vue';
 import Article from '../../blocks/article/Block.vue';
 import ArticleList from '../../blocks/article-list/Block.vue';
 import Breadcrumbs from '../../blocks/breadcrumbs/Block.vue';
+import Cart from '../../blocks/cart/Block.vue';
 import CollectionGrid from '../../blocks/collection-grid/Block.vue';
 import CollectionHeader from '../../blocks/collection-header/Block.vue';
 import Cta from '../../blocks/cta/Block.vue';
@@ -37,15 +38,18 @@ import Navigation from '../../blocks/navigation/Block.vue';
 import Newsletter from '../../blocks/newsletter/Block.vue';
 import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import ProductDetail from '../../blocks/product-detail/Block.vue';
+import Search from '../../blocks/search/Block.vue';
 import SplitContent from '../../blocks/split-content/Block.vue';
 import Testimonials from '../../blocks/testimonials/Block.vue';
 import TrustStrip from '../../blocks/trust-strip/Block.vue';
+import Wishlist from '../../blocks/wishlist/Block.vue';
 
 export const pageBlockComponents: Record<string, Component> = {
   'announcement-bar': Announcement,
   article: Article,
   'article-list': ArticleList,
   breadcrumbs: Breadcrumbs,
+  cart: Cart,
   'collection-grid': CollectionGrid,
   'collection-header': CollectionHeader,
   cta: Cta,
@@ -56,9 +60,11 @@ export const pageBlockComponents: Record<string, Component> = {
   newsletter: Newsletter,
   'product-carousel': ProductCarousel,
   'product-detail': ProductDetail,
+  search: Search,
   'split-content': SplitContent,
   testimonials: Testimonials,
   'trust-strip': TrustStrip,
+  wishlist: Wishlist,
 };
 
 export interface PageFixtureBlock {
@@ -68,7 +74,10 @@ export interface PageFixtureBlock {
 }
 
 export interface PageFixture {
-  template: string;
+  /** The sample page's own template name. A fixture that seeds a static page
+   * carries `page` instead — see `app/templates.ts`. */
+  template?: string;
+  page?: { slug: string };
   title: string;
   blocks: PageFixtureBlock[];
 }
