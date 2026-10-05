@@ -6,7 +6,7 @@ import {
   localeAlternates,
   type LocaleRouter,
 } from '../src/runtime/localeState';
-import { resolveLocaleRouting } from '../src/runtime/locales';
+import { localeDisplayName, resolveLocaleRouting } from '../src/runtime/locales';
 
 const TWO = { default: 'en-US', supported: ['en-US', 'is-IS'] };
 
@@ -37,10 +37,14 @@ function router(path: string): LocaleRouter & { pushed: string[] } {
 function state(path: string, locales = TWO, override?: string) {
   const nav = router(path);
   const preview = previewState();
+  const routing = resolveLocaleRouting(locales, override);
   const locale = createNuxtEldraLocaleState(
-    resolveLocaleRouting(locales, override),
+    routing,
     preview,
-    () => nav
+    () => nav,
+    // Exactly what the runtime plugin passes: one entry per **supported** locale, resolved once on
+    // the server. Which is why anything else has to go through the fallback.
+    Object.fromEntries(routing.supported.map((tag) => [tag, localeDisplayName(tag)]))
   );
   return { locale, preview, nav };
 }
@@ -109,6 +113,32 @@ describe('createNuxtEldraLocaleState', () => {
     expect(searching.locale.switchPath('en-US')).toBe('/search?q=mug');
     searching.locale.select('en-US');
     expect(searching.nav.pushed).toEqual(['/search?q=mug']);
+  });
+
+  /**
+   * **`name()` has to answer for a tag the server never resolved.** The map it reads is built from
+   * `routing.supported`, so the fallback branch is reached by any other tag — a curated label list,
+   * a preview locale the organisation no longer configures — and by **every** call on a site with no
+   * locales at all, where the map is empty. `name()` is public API (`docs/themes.md`,
+   * `packages/theme-nuxt/README.md`, `EldraLocaleState.name`) and all three promise the tag as the
+   * fallback; a throw there is a throw inside a render.
+   */
+  it('names a locale the server did not resolve, and never throws doing it', () => {
+    const { locale } = state('/about');
+    // The two the payload carries.
+    expect(locale.name('en-US')).toBe('American English');
+    expect(locale.name('is-IS')).toContain('slenska');
+    // One it does not: resolved here, with the tag as the fallback.
+    expect(locale.name('fr-FR')).not.toBe('');
+    // A tag `Intl` refuses outright — `RangeError`, inside what a component is rendering.
+    expect(locale.name('not a locale')).toBe('not a locale');
+  });
+
+  it('names a locale on a site that configures none, where the map is empty', () => {
+    const { locale } = state('/about', null as never);
+    expect(locale.supported).toEqual([]);
+    expect(locale.name('is-IS')).toContain('slenska');
+    expect(locale.name('')).toBe('');
   });
 
   it('reads the router lazily, so plugin ordering cannot decide the answer', () => {

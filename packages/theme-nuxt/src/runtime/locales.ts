@@ -242,7 +242,7 @@ export function activeLocaleForPath(path: string, routing: EldraLocaleRouting): 
  */
 export function localePathFor(
   path: string,
-  locale: string | undefined,
+  locale: string | null | undefined,
   routing: EldraLocaleRouting
 ): string {
   const [bare, rest] = splitHref(path);
@@ -266,7 +266,7 @@ export function localePathFor(
  */
 export function localeHref(
   href: string,
-  locale: string | undefined,
+  locale: string | null | undefined,
   routing: EldraLocaleRouting
 ): string {
   const target = matchLocale(locale, routing.prefixed);

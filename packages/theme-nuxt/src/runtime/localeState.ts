@@ -1,7 +1,13 @@
 import type { EldraContext, EldraLocaleState } from '@eldrajs/theme-vue';
 import { reactive } from 'vue';
 import { normalizeLocale } from './locale';
-import { activeLocaleForPath, localeHref, localePathFor, type EldraLocaleRouting } from './locales';
+import {
+  activeLocaleForPath,
+  localeDisplayName,
+  localeHref,
+  localePathFor,
+  type EldraLocaleRouting,
+} from './locales';
 import { canonicalRoutePath } from './routePath';
 
 /** The slice of Nuxt's router this state reads — the committed route, and one navigation. */
