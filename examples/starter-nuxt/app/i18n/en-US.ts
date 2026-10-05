@@ -504,6 +504,8 @@ export const enUS = {
     emptyTitle: 'Your wishlist is empty',
     emptyText: 'Press the heart on any product to save it here for later.',
     continueShopping: 'Continue shopping',
+    editorHintLabel: 'The saved products appear here',
+    editorHintHelp: 'Each visitor sees their own saved list; nothing is saved in the editor.',
   },
   order: {
     number: 'Order {number}',

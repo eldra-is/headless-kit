@@ -27,6 +27,8 @@ import CollectionGrid from '../../blocks/collection-grid/Block.vue';
 import collectionGridMock from '../../blocks/collection-grid/mock.json';
 import Search from '../../blocks/search/Block.vue';
 import searchMock from '../../blocks/search/mock.json';
+import Wishlist from '../../blocks/wishlist/Block.vue';
+import wishlistMock from '../../blocks/wishlist/mock.json';
 import { createDemoStorefront } from '../../app/storefront/demo';
 import { createGatewayStorefront, type StorefrontRuntime } from '../../app/storefront/gateway';
 import { STOREFRONT_KEY } from '../../app/storefront/types';
@@ -463,6 +465,46 @@ describe('hydrating a prerendered commerce block', () => {
       await nextTick();
       await nextTick();
       expect(run.container.innerHTML).toContain('aria-pressed="true"');
+    });
+
+    /**
+     * The wishlist **block** — what `/wishlist` is made of now that the page is a document Core
+     * seeds rather than a route the theme owns. One `wishlist/index.html` is served to every
+     * visitor, so the markup it ships is the empty state, and the browser's first render of that
+     * file has to be the empty state too even though the saved list is already in `localStorage`.
+     * The cards are the update that follows, never part of the file.
+     */
+    it('hydrates a prerendered wishlist as empty, then fills it from the browser', async () => {
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(['merino-crew-sweater']));
+      const entry: BlockEntry = {
+        id: 'h-wishlist',
+        data: wishlistMock as unknown as Record<string, unknown>,
+      };
+
+      const html = await renderBlockHtml(Wishlist, entry, {
+        [STOREFRONT_KEY]: createDemoStorefront(),
+      });
+      expect(html).toContain(enUS.wishlist.emptyTitle);
+      expect(html).not.toContain('Merino crew sweater');
+
+      const run = hydrateBlock(Wishlist, entry, html, {
+        [STOREFRONT_KEY]: createDemoStorefront(),
+      });
+      runs.push(run);
+
+      expect(hydrationWarnings(run)).toEqual([]);
+      expect(run.firstPaint).toContain(enUS.wishlist.emptyTitle);
+      expect(run.firstPaint).not.toContain('Merino crew sweater');
+      expect(withoutPackageEnhancement(run.firstPaint)).toBe(
+        withoutPackageEnhancement(run.expected)
+      );
+
+      // Hydration, then the batched read the hydrated list asks for.
+      await nextTick();
+      await nextTick();
+      await nextTick();
+      expect(run.container.innerHTML).toContain('Merino crew sweater');
+      expect(run.container.innerHTML).not.toContain(enUS.wishlist.emptyTitle);
     });
   });
 });

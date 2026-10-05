@@ -401,6 +401,12 @@ declare global {
       privacyNote?: string;
       sectionBackground?: 'none' | 'surface' | 'surface-strong' | 'primary';
     };
+    wishlist: {
+      heading?: string;
+      emptyTitle?: string;
+      emptyText?: string;
+      emptyLink?: EldraLink;
+    };
   }
 
   type EldraBlockEntry<K extends keyof EldraBlockData> = {

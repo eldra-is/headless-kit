@@ -56,6 +56,7 @@ const expectedBlocks = [
   'timeline',
   'trust-strip',
   'video-embed',
+  'wishlist',
 ];
 
 describe('starter theme', () => {
@@ -101,7 +102,7 @@ describe('starter theme', () => {
       ])
     );
     const expectedFields: Record<string, string[]> = {
-      // Every one of the 33 blocks has its field list here — the map used to cover 31, leaving
+      // Every one of the 34 blocks has its field list here — the map used to cover 31, leaving
       // `announcement-bar` and `newsletter` with only the manifest version rule behind a field
       // rename or reorder, not the explicit list every sibling block has.
       'announcement-bar': ['variant', 'message', 'linkLabel', 'linkHref', 'dismissable'],
@@ -304,6 +305,7 @@ describe('starter theme', () => {
         'privacyNote',
         'sectionBackground',
       ],
+      wishlist: ['heading', 'emptyTitle', 'emptyText', 'emptyLink'],
       timeline: [
         'variant',
         'heading',

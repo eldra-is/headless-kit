@@ -23,6 +23,8 @@ import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import productCarouselMock from '../../blocks/product-carousel/mock.json';
 import Search from '../../blocks/search/Block.vue';
 import searchMock from '../../blocks/search/mock.json';
+import Wishlist from '../../blocks/wishlist/Block.vue';
+import wishlistMock from '../../blocks/wishlist/mock.json';
 import { CURRENCY_KEY, LOCALE_KEY } from '@eldrajs/ui';
 import { enUS } from '../../app/i18n/en-US';
 import { formatMoney } from '../../app/storefront/money';
@@ -96,6 +98,41 @@ describe('server rendering', () => {
       // block's own template comment names it, and Vue keeps comments in a development SSR render.
       expect(html).not.toContain('Wishlist');
       expect(html).not.toContain('href="/wishlist"');
+    } finally {
+      Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+  });
+
+  /**
+   * The same rule for the wishlist **block**, which is what `/wishlist` is made of: one prerendered
+   * file is served to every visitor and what each of them saved is in their own browser, so the
+   * markup a build writes is the empty state and nothing in it is about any one shopper's list —
+   * not even with a saved list already in storage, which is what the stub below stands in for.
+   * `test/pages/hydration.spec.ts` is the other half: the browser's first render of that file is
+   * the same markup, and the cards arrive after it.
+   */
+  it('server-renders the wishlist block as its empty state, with a saved list already in storage', async () => {
+    const saved = new Map([['eldra.storefront.wishlist', JSON.stringify(['merino-crew-sweater'])]]);
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => saved.get(key) ?? null,
+        setItem: () => {},
+        removeItem: () => {},
+      },
+    });
+    try {
+      const html = await renderBlockToString(
+        Wishlist,
+        { id: 'ssr-wishlist', data: wishlistMock as unknown as Record<string, unknown> },
+        { [STOREFRONT_KEY]: createDemoStorefront() }
+      );
+
+      expect(html).toContain(enUS.wishlist.emptyTitle);
+      expect(html).toContain('0 items');
+      // Not the product, not a card, not a heart: nothing in the file is about a saved list.
+      expect(html).not.toContain('Merino crew sweater');
+      expect(html).not.toContain('aria-pressed');
     } finally {
       Reflect.deleteProperty(globalThis, 'localStorage');
     }

@@ -948,7 +948,7 @@ export interface Messages {
     removed: string;
     view: string;
     /**
-     * `app/pages/wishlist.vue`'s own removal announcement — the page's only non-visual feedback for
+     * `blocks/wishlist/Block.vue`'s own removal announcement — the block's only non-visual feedback for
      * a heart press, since the list itself is the visible one and there is no toast there.
      *
      * It names the product **and** interpolates a `{count}` that is already a rendered
@@ -958,7 +958,8 @@ export interface Messages {
      * which is how the second and later removals used to be silent.
      */
     removedNamed: string;
-    /** `app/pages/wishlist.vue`'s `<h1>` and its `useHead` title. */
+    /** The fallback for `blocks/wishlist/Block.vue`'s `<h1>` — what it shows when the page's own
+     *  `heading` field is empty. */
     title: string;
     /** The count beside that title, pluralised the way `cart.itemCountOne`/`itemCountMany` are. */
     itemCountOne: string;
@@ -970,6 +971,13 @@ export interface Messages {
     emptyTitle: string;
     emptyText: string;
     continueShopping: string;
+    /**
+     * The block's one editor-only hint (`EditorPlaceholder`, gated by `useEditing()`): in Studio
+     * nothing is saved, because the editor is not a shopper's browser, so the grid draws its empty
+     * state and would otherwise read as a block that could not find its data.
+     */
+    editorHintLabel: string;
+    editorHintHelp: string;
   };
   /**
    * The order-status block's own strings (spec `02-blocks.md` 3719–3835, "Order status") — the

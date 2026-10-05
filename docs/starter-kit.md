@@ -158,7 +158,7 @@ runtime config.
 
 ### The starter's own blocks
 
-`blocks/` ships 33 blocks, `block.json`'s `category` grouping them the same way Studio's insert
+`blocks/` ships 34 blocks, `block.json`'s `category` grouping them the same way Studio's insert
 palette does:
 
 - **structure** (4) — `navigation` (display name "Header"), `announcement-bar`, `breadcrumbs`,
@@ -167,8 +167,8 @@ palette does:
   `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact` ("Contact and
   map"), `video-embed`, `team`, `timeline`.
 - **content** (7) — `article`, `article-list`, `rich-text`, `gallery`, `image`, `quote`, `tabs`.
-- **commerce** (8) — `collection-header`, `product-carousel`, `collection-grid`, `product-detail`,
-  `cart`, `search`, `order-status`, `trust-strip`.
+- **commerce** (9) — `collection-header`, `product-carousel`, `collection-grid`, `product-detail`,
+  `cart`, `search`, `wishlist`, `order-status`, `trust-strip`.
 
 The ten pre-existing blocks (`navigation`, `footer`, `hero`, `cta`, `feature-grid`, `faq`,
 `testimonials`, `gallery`, `image`, `article`) were rebuilt in place, not renamed; every other
@@ -292,7 +292,7 @@ has to be composed into (`search`'s heading, where `{query}` is replaced with th
 composing from the stripped copy is what stops the overlay offering an edit that would write the
 composed sentence back over the author's template). **Emptiness checks are the same rule and are the
 convention for new blocks** — `stripStega(value).trim() !== ''`, because `trim()` alone leaves the
-payload's bit characters behind and reads a cleared field as filled. The 33 blocks here still write
+payload's bit characters behind and reads a cleared field as filled. The 34 blocks here still write
 `(value ?? '').trim() !== ''` and are being migrated.
 
 **Field types, and the one `reference` shape that is typed.** `block.json`'s field `type` values are

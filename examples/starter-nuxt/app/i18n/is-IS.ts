@@ -506,6 +506,8 @@ export const isIS = {
     emptyTitle: 'Óskalistinn þinn er tómur',
     emptyText: 'Ýttu á hjartað á vöru til að vista hana hér til síðari tíma.',
     continueShopping: 'Halda áfram að versla',
+    editorHintLabel: 'Vistaðar vörur birtast hér',
+    editorHintHelp: 'Hver gestur sér sinn eigin óskalista; ekkert er vistað í ritlinum.',
   },
   order: {
     number: 'Pöntun {number}',

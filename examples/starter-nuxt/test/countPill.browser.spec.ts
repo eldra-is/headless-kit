@@ -184,5 +184,4 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
       await page.close();
     }
   });
-
 });

@@ -158,7 +158,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   controls come from `@eldrajs/ui` (a real dependency, restyled through the `--eldra-*` tokens,
   never forked); everything else is copied source the customer owns — `app/components/ui/` is down
   to just `UiImage` now (every other hand-rolled primitive was replaced, block by block, by the
-  matching `@eldrajs/ui` component). **33 blocks** ship under `blocks/`, `block.json`'s `category`
+  matching `@eldrajs/ui` component). **34 blocks** ship under `blocks/`, `block.json`'s `category`
   grouping them `structure`/`marketing`/`content`/`commerce` (see `docs/starter-kit.md` for the
   full set); four hand-authored sample pages, `pages/*.page.json`
   (`{template,title,blocks:[{apiId,id,data}]}`, the same shape a real CMS page document has),
