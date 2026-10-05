@@ -107,7 +107,7 @@ const rootClass = computed(() => partClass('min-w-0', props.classes, 'root'));
  * no rule at all — the exact failure `carouselPerViewStyle` documents (`useCarousel.ts`), which
  * shipped once because the package's own Storybook scans the very `.vue` file that holds the
  * pattern. `src/__tests__/source-scan.spec.ts` compiles what a consumer's stylesheet says against
- * `dist/` and asserts these four declarations come out of it.
+ * `dist/` and asserts all five of these declarations come out of it.
  */
 const PILLS_RING_RESERVE =
   'py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +

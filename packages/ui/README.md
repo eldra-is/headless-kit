@@ -993,7 +993,9 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   So it answers `string | undefined`, and with no currency from either source `Price` formats the
   amount as a plain number — same `Intl` path, no symbol, no code. Providing `undefined` is itself
   an answer ("this store has no currency") and is silent; having no provider at all warns once per
-  session in dev, since that is an app that never wired the key.
+  session in dev, since that is an app that never wired the key. `''` means the same as `undefined`
+  — both here and in `Price`'s own `currency` prop, so a consumer that unwraps `CURRENCY_KEY` and
+  passes the value down as a prop gets the same plain number either way.
 - **`FieldCheckboxGroup`** — the twelfth `Field*`, for the one root-entry control the spec's list
   of ten left without a way to validate it (see the deviation below).
 - **`filterNumericBeforeInput`** (`src/utils/numeric-input.ts`) — the `beforeinput` filter that
@@ -2053,9 +2055,8 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   wrapper) rather than the `<img>` itself.
 - **Fix (2026-09-25): `UiImage` gained `rounded`/`fill`/`fit`/`classes`,
   and every block that needs a radius, a background fill, or an uncropped view was updated to use
-  them.** The first round's own Deviations entry (above) claimed a block's leftover `rounded-*`/
-  `object-cover`/`object-contain` class was now merely "redundant" once `class`/`style` moved to
-  `Image`'s root — that was wrong. `Image`'s `frame` (not its root) is the part with
+  them.** The entry above claimed a block's leftover `rounded-*`/`object-cover`/`object-contain`
+  class was now merely "redundant" once `class`/`style` moved to `Image`'s root — that was wrong. `Image`'s `frame` (not its root) is the part with
   `overflow-hidden`, so a `rounded-*` class stuck on the root clipped nothing and every rounded
   corner in the starter went square; the hero's `image-background` variant's
   `class="absolute inset-0 h-full w-full object-cover"` landed on the root too, but with no
@@ -2075,7 +2076,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   - **`fit`** (`'cover' | 'contain'`, default `'cover'`) maps to `classes.media`, for a lightbox-
     style full view that must never crop. Used by the gallery block's lightbox, alongside
     `classes.frame: 'max-h-[85vh]'` for the height cap that used to sit on the `<img>` directly.
-    (`fit="contain"`'s own class set was incomplete at first — see the next entry below.)
+    (`fit="contain"`'s own class set was incomplete at first — see the "Second fix" entry below.)
   - **`classes`** passes straight through to `Image`'s own `classes` prop (merged with whatever
     `rounded`/`fill`/`fit` set, caller's value always wins) — the escape hatch for a radius `Image`
     has no preset for (`rounded-full` on the testimonials avatars, `rounded-md` on
@@ -2085,8 +2086,8 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
     the resulting `aspect-ratio: auto` on the background variant, a gallery test asserting the
     lightbox's `object-contain`/`max-h-[85vh]`, and a `UiImage.spec.ts` contract test per prop with
     mutation checks (break the mapping, watch the test fail, restore).
-- **`AvatarGroup` has no `size` prop; every avatar in a group renders `sm`** (2rem). The task
-  API contract's own `AvatarGroupProps` type gives it none, and the spec's anatomy diagram shows a
+- **`AvatarGroup` has no `size` prop; every avatar in a group renders `sm`** (2rem). The API
+  contract's own `AvatarGroupProps` type gives it none, and the spec's anatomy diagram shows a
   compact stacked row rather than naming a size — `sm` is the smallest of the four, the fit for a
   row of up to four overlapping circles plus a "+N" counter, distinct from the single `lg` avatars
   the spec shows elsewhere (a testimonial byline, a journal author card). A consumer who wants a

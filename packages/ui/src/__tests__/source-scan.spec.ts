@@ -176,13 +176,13 @@ describe('consumer Tailwind build', () => {
 
   /**
    * The pills tab list's focus-ring reservation has to survive a *consumer's* build too, and it is
-   * the same trap the carousel fell into one directive earlier: the four utilities that hold the
+   * the same trap the carousel fell into one directive earlier: the five utilities that hold the
    * ring open are arbitrary values over the ring tokens
-   * (`px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]` and its three siblings), so
+   * (`px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]` and its four siblings), so
    * assembling any of those names at runtime from a shared constant would leave a consumer's
    * stylesheet with no rule at all — and nothing that measures the rendered page could tell,
    * because a harness that compiles the *class names it found in the markup* emits them either way.
-   * This compiles what a consumer's own stylesheet says, against `dist/`, and asserts the four
+   * This compiles what a consumer's own stylesheet says, against `dist/`, and asserts the five
    * declarations come out of it.
    *
    * Two of them (`padding-block`/`margin-block`) are also what `Carousel`'s track writes, so they

@@ -102,9 +102,9 @@ function warnNoCurrencyProvider(): void {
   warnedNoCurrencyProvider = true;
   console.warn(
     '[@eldrajs/ui] no currency provider: nothing supplied CURRENCY_KEY ' +
-      '(provideEldraUiCurrency / app.provide(CURRENCY_KEY, …)) and no `currency` prop was passed, ' +
-      'so amounts are formatted as plain numbers with no currency symbol. Provide the store ' +
-      'currency, or provide `undefined` to say the store has none and silence this.'
+      '(provideEldraUiCurrency / app.provide(CURRENCY_KEY, …)), so a component with no `currency` ' +
+      'prop of its own formats amounts as plain numbers with no currency symbol. Provide the ' +
+      'store currency, or provide `undefined` to say the store has none and silence this.'
   );
 }
 

@@ -236,13 +236,23 @@ describe('Price — invalid currency', () => {
     wrapper.unmount();
   });
 
-  it('falls back the same way for an empty currency string', () => {
+  /**
+   * An **empty** `currency` is not an unusable code, it is the absence of one — the retired
+   * sentinel a consumer provided while `useEldraUiCurrency` still defaulted to `USD`. The prop
+   * reads it exactly as the composable does, so there is no code appended, no dangling separator
+   * in the raw text content, and no dev warning: the same plain number a store with no currency
+   * gets through the provide. (The starter's `search`/`product-carousel` blocks unwrap
+   * `CURRENCY_KEY` and pass it down as this prop, which is how one page could have shown clean
+   * numbers in its `<Price>` elements and a trailing space in every card beside them.)
+   */
+  it('treats an empty currency string as no currency, not as a bad code', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const wrapper = mountWith(Price, { props: { amount: 4800, currency: '', locale: 'en-US' } });
     const expectedNumber = new Intl.NumberFormat('en-US').format(48);
-    // `.text()` trims trailing whitespace, so an empty code's trailing separator space is not
-    // visible here; the raw text content still carries it (the fallback shape is unconditional).
     expect(wrapper.get('[data-part="current"]').text()).toBe(expectedNumber);
-    expect(wrapper.get('[data-part="current"]').element.textContent).toBe(`${expectedNumber} `);
+    // The raw content, not `.text()`: trimming is what hid the old trailing separator space.
+    expect(wrapper.get('[data-part="current"]').element.textContent).toBe(expectedNumber);
+    expect(warn).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

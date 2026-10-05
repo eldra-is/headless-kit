@@ -1326,7 +1326,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // immediately followed by typing is the common case (Studio's
       // `editor:rich-text-editing` echo arrives ~14ms later): queue the
       // command it would have posted, the same buffer the retained-focus
-      // retained-focus state uses. `setRichTextEditing`'s
+      // state uses. `setRichTextEditing`'s
       // `applyRichTextEditing(element, true)` flushes it in order once the
       // root is actually marked. Re-post the current selection so Studio
       // gets a fresh chance to activate — but only once per run of queued

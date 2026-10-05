@@ -63,8 +63,19 @@ const locale = computed(() => props.locale ?? ambientLocale.value);
  * neither says. There is no guessed code (`useEldraUiCurrency`): a store whose currency nothing
  * has published gets its amounts as plain numbers, because a dollar sign in front of krónur is a
  * wrong price where a bare number is only an incomplete one.
+ *
+ * `''` is "no currency" here too, exactly as the composable reads it. It is not a code `Intl` can
+ * accept, and it was the only way to decline one while that composable still defaulted — so a
+ * consumer who still provides it, and the starter blocks that unwrap `CURRENCY_KEY` and pass the
+ * value down as this **prop** (`blocks/search`, `blocks/product-carousel`), must get the same
+ * plain number either way. Left to the invalid-code path it instead got a dev warning per instance
+ * and a dangling separator in the DOM, so a page could show clean numbers in its `<Price>` elements
+ * and `"4.800 "` in every `ProductCard` beside them.
  */
-const currency = computed(() => props.currency ?? ambientCurrency.value);
+const currency = computed(() => {
+  const code = props.currency ?? ambientCurrency.value;
+  return code === '' ? undefined : code;
+});
 
 /**
  * Spec "Price" → Properties, `compareAt` row: "Sale state turns on automatically only when

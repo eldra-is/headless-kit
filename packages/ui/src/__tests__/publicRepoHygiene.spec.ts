@@ -185,13 +185,25 @@ const planTaskReference = {
  * thing worth writing down — a comment that says a rule came out of round 2 is a comment that does
  * not say what the rule is.
  *
- * So the wording is forbidden outright and the comments state the rule instead. The patterns are
- * deliberately narrow, because three of the four words have ordinary English senses this kit uses
- * correctly and must keep: "a brief, non-blocking status message" (the design spec's own Toast
- * wording), "a real (if brief) pending transition", "That is the whole brief" inside a fixture
- * testimonial. Only the forms that name a document or a cycle are matched — `the brief`,
- * `brief's`, `task brief`, `round <n>`, `ruling` in any case — which is why this is its own
- * pattern and not a word list.
+ * So the wording is forbidden outright and the comments state the rule instead. The pattern is
+ * deliberately narrow, because every one of these words has an ordinary English sense this kit uses
+ * correctly and must keep — and a package full of money-rounding and transition-timing prose uses
+ * most of them on the same page as the forbidden ones. `REVIEW_WORDING_SAMPLES` below is the whole
+ * boundary, asserted in both directions, so what the pattern does and does not reach is readable
+ * without parsing it:
+ *
+ * - **a round** is review wording when it is numbered and the number *ends the phrase*
+ *   (`round 2)`, `round 11:`, `round 10's`), hyphenated (`round-2`), possessive (`first round's`),
+ *   or introduced as one (`fix round`, `review round`). It is a quantity — and allowed — when a
+ *   word follows the number (`we round 2 decimal places`) or the number is fractional
+ *   (`round 0.5 up`), and `rounded`, `round-trip`, `rounds` and `Math.round` never match at all.
+ *   The trade-off is deliberate and one-sided: "round 2 of the review" slips through, which a
+ *   backstop may do, while nothing a maintainer writes about numbers fails the build.
+ * - **a ruling** is forbidden in every case but `ruling out`, the one ordinary use that turned up.
+ * - **the brief** is forbidden as a document — `the brief`, `the brief's`, `task brief` — and
+ *   allowed as an adjective: `a brief, non-blocking status message` (the design spec's own Toast
+ *   wording) never matches, because only `the`/`task` qualify it, and `the brief pause` does not
+ *   either, because a duration noun after it says which sense it is.
  *
  * `CHANGELOG.md` is scanned here, unlike for `planTaskReference` above, and the difference is the
  * one that entry already argues: "Task 11" in a changelog is that file's own long-standing
@@ -202,10 +214,79 @@ const planTaskReference = {
  */
 const reviewProcessWording = {
   label: 'internal review-process wording (a review round, a ruling, the brief)',
-  pattern: /\bfix round \d|\bround[ -]\d|\brulings?\b|\btask brief\b|\bthe brief\b|\bbrief's\b/i,
+  pattern: new RegExp(
+    [
+      // A round, introduced as one.
+      String.raw`\b(?:fix|review|revision)[ -]round\b`,
+      // ...or numbered, with the number ending the phrase rather than counting something.
+      String.raw`\bround[ -]\d+(?![\d.])(?!\s*[a-z])`,
+      // ...or hyphenated (`round-2 fix`), which is never a quantity.
+      String.raw`\bround-\d`,
+      // ...or possessive (`first round's own entry`), which is never one either.
+      String.raw`\bround's\b`,
+      // A ruling, in any case but the one ordinary English use.
+      String.raw`\brulings?\b(?!\s+out\b)`,
+      // The brief as a document, not as an adjective: only `the`/`task` qualify it, and a duration
+      // noun (or a comma) after it says it is the adjective.
+      String.raw`\b(?:task|the) brief(?:'s)?\b(?!\s*,)` +
+        String.raw`(?!\s+(?:pause|moment|window|delay|interval|flash|burst|period|spell)\b)`,
+    ].join('|'),
+    'i'
+  ),
+};
+
+/**
+ * The pattern's boundary, in both directions — see the block comment above for the reasoning. These
+ * are the sentences a maintainer of this kit would plausibly write, not invented edge cases: the
+ * forbidden column is the wording the 2026-10 sweep actually removed, the allowed column is prose
+ * that was in the repository all along and must stay buildable.
+ */
+const REVIEW_WORDING_SAMPLES = {
+  forbidden: [
+    'fix round 1, ruling 1',
+    'Fix round 2: the navigation logo',
+    'reverse a still-running animation (review round 1, 2026-09-26)',
+    'Operator decision (2026-09-26, round 2)',
+    'generalized round 10, serialized round 11',
+    'Round 11: Studio applies a command literally',
+    "queued while it could not (round 10's own gap)",
+    'the round-2 fix below',
+    "The first round's own Deviations entry (above)",
+    'operator ruling, 2026-09-25',
+    'the same ruling the trust-strip block records',
+    'two open rulings from the re-review',
+    "the brief's part list stops at the tags",
+    'the task brief adds `locale` for display formatting',
+    'see the brief.',
+  ],
+  allowed: [
+    'we round 2 decimal places',
+    'round 0.5 up, away from zero',
+    '`Math.round(value * 100) / 100`',
+    'a round-trip through the gateway',
+    '`rounded-full` on the testimonials avatars',
+    'rounds to the nearest half star',
+    'the 2026 round-up of design decisions',
+    'ruling out the empty case',
+    'A brief, non-blocking status message',
+    'the brief pause while the request lands',
+    'a real (if brief) pending transition',
+    'the product tabs cover this in brief',
+    'That is the whole brief.',
+    'briefly dims the value while it refreshes',
+    'the API contract’s own `AvatarGroupProps` type',
+  ],
 };
 
 describe('public-repo hygiene: no shipped file names a review round, a ruling or the brief', () => {
+  it.each(REVIEW_WORDING_SAMPLES.forbidden)('rejects %s', (sample) => {
+    expect(sample).toMatch(reviewProcessWording.pattern);
+  });
+
+  it.each(REVIEW_WORDING_SAMPLES.allowed)('allows %s', (sample) => {
+    expect(sample).not.toMatch(reviewProcessWording.pattern);
+  });
+
   it(`names no ${reviewProcessWording.label}`, () => {
     expect(offenders(files, reviewProcessWording.pattern)).toEqual([]);
   });

@@ -680,9 +680,9 @@ inferred from the content locale puts a dollar sign in front of krónur, which i
 rather than an incomplete one. A store that has not configured commerce publishes none, and then
 `formatMoney` renders a plain number (`4.800`), an unusable code renders the number plus the code
 (`4,800 XYZ1`), and neither ever throws — these run inside `computed`s, where a throw takes the
-whole block down. `@eldrajs/ui`'s `<Price>` elements follow the same rule and need no workaround to: the package
-guesses no currency either, so the plugin provides `commerce?.currency` as it comes —
-`undefined` when the store published none, which the package reads as "this store has no
+whole block down. `@eldrajs/ui`'s `<Price>` elements follow the same rule, and need no workaround
+to do it: the package guesses no currency either, so the plugin provides `commerce?.currency` as it
+comes — `undefined` when the store published none, which the package reads as "this store has no
 currency" and renders as a plain number. The provide itself always happens, which is the part that
 matters: _no provider at all_ is the case the package warns about in dev, and that is a theme that
 forgot to wire the key, not a store without commerce settings.

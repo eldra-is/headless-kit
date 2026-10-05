@@ -233,10 +233,12 @@ installs it every run. `packages/ui` needs the same Chromium for
 `src/components/tabs/__tests__/tabsRing.browser.spec.ts`, which compiles the package's own Tailwind
 entry over the component's server-rendered markup and measures a focused tab's ring in pixels after
 a real `Tab` press — the kind of defect (a scroll container clipping a ring; `:focus-visible` not
-being what `element.focus()` produces) that no class or declaration assertion can see. It is the one
-spec in that package on `environment: node`, declared per file: under the package's default
-happy-dom, closing Playwright's browser raises an unhandled `ECONNRESET` on the driver connection,
-which vitest reports as a worker crash rather than a test result. `theme-cli`'s tests run
+being what `element.focus()` produces) that no class or declaration assertion can see. It is one of
+two specs in that package declaring `environment: node` per file (the other is
+`src/components/select/__tests__/teleportSsr.spec.ts`, which server-renders with no DOM at all):
+under the package's default happy-dom, closing Playwright's browser raises an unhandled
+`ECONNRESET` on the driver connection, which vitest reports as a worker crash rather than a test
+result. `theme-cli`'s tests run
 `dist/cli.js` as a subprocess, so build that package first too. `examples/starter-nuxt` needs the
 same Chromium for
 `test/prerenderRefresh.browser.spec.ts`, which runs a real `nuxi generate` against a mock gateway

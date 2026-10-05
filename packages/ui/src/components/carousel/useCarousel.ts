@@ -1037,7 +1037,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
        * semantics): a mouse-type pointer's capture retargets its `click` event to the *capturing*
        * element too, not only `pointermove`/`pointerup` — proven with a minimal Playwright repro
        * outside this file before landing the fix here. Requesting capture unconditionally on every
-       * qualifying `pointerdown` (this round's first pass) meant a plain click on a slide's own
+       * qualifying `pointerdown` (the first pass at this) meant a plain click on a slide's own
        * link/button — even one that never moved at all — fired with `event.target` retargeted to
        * the track instead of the link, so the browser's own default action (the link's navigation)
        * had nothing to act on: the decision's "the click stays functional" broke for *every* click in

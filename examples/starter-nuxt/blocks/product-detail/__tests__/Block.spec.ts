@@ -170,6 +170,31 @@ function storefrontWithRefusingCart(thrown: unknown, patch: Partial<StorefrontPr
   return { ...source, cart: createCartStore(ops) };
 }
 
+/**
+ * The demo storefront with a cart whose `add` stays in flight until the test releases it — the one
+ * state `cart.pending` is actually `true` in once the page is up.
+ */
+function storefrontWithHangingAdd(patch: Partial<StorefrontProduct> = {}): {
+  storefront: ReturnType<typeof storefrontWith>;
+  release: () => void;
+} {
+  const source = storefrontWith(patch);
+  let release = (): void => {};
+  const ops: CartOps = {
+    init: async () => emptyCart(),
+    add: () =>
+      new Promise<CartSnapshot>((resolve) => {
+        release = () => resolve(emptyCart());
+      }),
+    setQuantity: async () => emptyCart(),
+    remove: async () => emptyCart(),
+    applyDiscount: async () => ({ ack: { ok: false, reason: 'invalid' as const } }),
+    removeDiscount: async () => emptyCart(),
+    checkoutUrl: ref<string | null>(null),
+  };
+  return { storefront: { ...source, cart: createCartStore(ops) }, release: () => release() };
+}
+
 /** What the single app-wide `Toaster` would render: the live queue, newest last. */
 function toasts(): Array<{ title: string; variant: string }> {
   return useToast().toasts.value.map((item) => ({ title: item.title, variant: item.variant }));
@@ -181,6 +206,41 @@ function toastAction(): ToastAction | undefined {
 }
 
 describe('add to cart feedback', () => {
+  /**
+   * **The other half of the hydration gate.** `cart.pending` is shopper state, so the buy box reads
+   * it behind `cartBusy` — `mounted && cart.pending` — and the gate is what keeps it out of the
+   * first client render (`test/prerenderRefresh.browser.spec.ts` is the guard for that half). The
+   * gate must not cost the state itself: once the page is up, a slow add has to show as busy, which
+   * is exactly what "Add to cart does nothing" was about.
+   *
+   * Nothing pinned that direction, so `cartBusy` could be reduced to `false` — dropping the
+   * `&& cart.pending` half, or the whole computed — with the entire suite still green. This is what
+   * fails then: a mounted wrapper is already past `onMounted`, so `cartBusy` is `cart.pending`, and
+   * `Button`'s own `loading` treatment (`[data-part="spinner"]` plus `aria-busy`) is what a shopper
+   * sees while the request is out.
+   */
+  it('marks the Add to cart button busy while the add is in flight, and clears it after', async () => {
+    const { storefront, release } = storefrontWithHangingAdd();
+    const wrapper = await mountReady(mock, { storefront });
+
+    // Nothing in flight: no spinner, not busy.
+    expect(addToCart(wrapper).find('[data-part="spinner"]').exists()).toBe(false);
+    expect(addToCart(wrapper).attributes('aria-busy')).toBeUndefined();
+
+    await wrapper.get('form').trigger('submit');
+
+    expect(addToCart(wrapper).find('[data-part="spinner"]').exists()).toBe(true);
+    expect(addToCart(wrapper).attributes('aria-busy')).toBe('true');
+
+    release();
+    await flushPromises();
+    await nextTick();
+
+    expect(addToCart(wrapper).find('[data-part="spinner"]').exists()).toBe(false);
+    expect(addToCart(wrapper).attributes('aria-busy')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   /**
    * The defect this guards: the block awaited `cart.add`, the button's `:loading` flipped back, and
    * a 409 `CART_INSUFFICIENT_STOCK` reached nothing a shopper could see — "Add to cart does
