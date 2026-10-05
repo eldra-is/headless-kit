@@ -68,6 +68,7 @@ function context(): { ctx: EldraContext; client: FakeClient } {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
+      encodeEntryDataStega: (_id: string, data: Record<string, unknown>) => data,
     } as unknown as EldraContext['client'],
     designTokens: reactive({ colors: {}, containers: {} }),
     preview: createEldraPreviewState(),
@@ -174,6 +175,53 @@ describe('theme:request-failed', () => {
 
     const [failure] = requestFailures();
     expect((failure!.payload as { path: string }).path).toHaveLength(256);
+    runtime.destroy();
+  });
+});
+
+/**
+ * `preview.tokenRevision` is how `useEldraPage` tells "the editor handed me a
+ * *new* preview token" from "the editor re-initialized" (a locale switch, a
+ * reconnect) or "the editor sent another content update" — which is what
+ * decides whether a 401 is the first failure of a token, still the editor's to
+ * recover from, or the failure of a token it has already replaced.
+ */
+describe('preview.tokenRevision', () => {
+  let originalParent: Window;
+
+  beforeEach(() => {
+    originalParent = window.parent;
+    Object.defineProperty(window, 'parent', {
+      value: { postMessage: vi.fn() },
+      configurable: true,
+    });
+    for (const fn of Object.values(overlay)) fn.mockClear();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'parent', { value: originalParent, configurable: true });
+  });
+
+  const init = (previewToken: string, locale = 'en-US') =>
+    dispatch('editor:init', { mode: 'edit', previewToken, locale, path: '/' });
+
+  it('bumps once per changed token and not at all for a re-init with the same one', async () => {
+    const { ctx } = context();
+    const runtime = startEldraPreview(ctx, { allowedOrigins: [ALLOWED_ORIGIN] });
+    await flushStart();
+    dispatch('editor:hello', { capabilities: [] });
+
+    expect(ctx.preview.tokenRevision).toBe(0);
+    init('token-1');
+    expect(ctx.preview.tokenRevision).toBe(1);
+    // A locale switch re-inits with the same token: the drafts are re-read,
+    // but nothing about the token changed and a 401 after this is still the
+    // same token's first failure.
+    init('token-1', 'is-IS');
+    expect(ctx.preview.tokenRevision).toBe(1);
+    init('token-2');
+    expect(ctx.preview.tokenRevision).toBe(2);
+
     runtime.destroy();
   });
 });

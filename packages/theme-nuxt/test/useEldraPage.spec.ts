@@ -15,7 +15,7 @@
  * `catalogRoutes.spec.ts` cover that).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { nextTick, reactive, ref, type Ref } from 'vue';
 
 type ResolvedLike = {
   page: unknown;
@@ -48,6 +48,17 @@ const state = vi.hoisted(() => ({
   },
   /** Every `loadPayload` the composable asked for. */
   payloadsLoaded: [] as string[],
+  /** When set, the gateway resolver rejects with this status instead of resolving. */
+  failWith: null as number | null,
+  /**
+   * Preview-token recovery: the two counters the composable *watches*, so they
+   * have to be reactive — a test drives a second resolve by bumping
+   * `refreshRevision` the way `editor:init`/`editor:content-update` do, and
+   * says "the editor handed a fresh token over" by bumping `tokenRevision`.
+   * Made reactive in `beforeEach` — `vi.hoisted` runs before `vue` is
+   * imported, so it cannot call `reactive` itself.
+   */
+  signals: { refreshRevision: 0, tokenRevision: 1 },
 }));
 
 vi.mock('nuxt/app', () => ({
@@ -118,18 +129,31 @@ vi.mock('@eldrajs/theme-vue', () => ({
       drafts: {},
       draftSchemaApiIds: {},
       revision: 0,
-      refreshRevision: 0,
+      get refreshRevision() {
+        return state.signals.refreshRevision;
+      },
+      get tokenRevision() {
+        return state.signals.tokenRevision;
+      },
     },
   }),
 }));
 
-vi.mock('../src/runtime/resolveRoute', () => ({
-  EMPTY_ELDRA_ROUTE: EMPTY,
-  resolveEldraRoute: () => {
-    state.resolverCalls += 1;
-    return Promise.resolve(state.resolved);
-  },
-}));
+vi.mock('../src/runtime/resolveRoute', async () => {
+  const { EldraClientError } = await import('@eldrajs/theme-core');
+  return {
+    EMPTY_ELDRA_ROUTE: EMPTY,
+    resolveEldraRoute: () => {
+      state.resolverCalls += 1;
+      if (state.failWith !== null) {
+        return Promise.reject(
+          new EldraClientError(state.failWith, 'Unauthorized', '/api/cms/v1/schema/page/entry')
+        );
+      }
+      return Promise.resolve(state.resolved);
+    },
+  };
+});
 
 // The manifest read itself is a browser fact (`src/runtime/staticRoutes.ts` answers `null` off a
 // browser, which is the whole of its dev/SSR guard); these specs are about what `useEldraPage`
@@ -427,5 +451,104 @@ describe('useEldraPage static-first resolution', () => {
 
     expect(entry.value).toEqual(BUILT.entry);
     expect(state.resolverCalls).toBe(1);
+  });
+});
+
+/**
+ * Preview-token recovery. A preview token is one hash per organization, so
+ * minting one anywhere else — another browser, another device, a probe —
+ * revokes the one this preview is using and every draft read comes back 401.
+ * The editor hears about it (`theme:request-failed`), mints again and re-sends
+ * `editor:init` with a fresh token, which is both the hand-off and the retry.
+ *
+ * So the first 401 is not news to report: reporting it replaced the whole page
+ * with an error alert for the second the recovery takes — and since every
+ * keystroke re-reads the drafts, the operator got a fresh alert per keystroke
+ * with the page gone. It is reported once the *retry* fails, which is a 401
+ * arriving on a token newer than the one the held-back failure belonged to.
+ */
+describe('useEldraPage preview-token failures', () => {
+  beforeEach(() => {
+    state.path = '/products/merino-crew';
+    state.resolved = EMPTY;
+    state.resolverCalls = 0;
+    state.previewActive = false;
+    state.prerendered = null;
+    state.payloads = {};
+    state.payloadsLoaded = [];
+    state.nuxtApp.isHydrating = false;
+    state.nuxtApp.payload.data = {};
+    state.nuxtApp.static.data = {};
+    state.signals = reactive({ refreshRevision: 0, tokenRevision: 1 });
+    state.failWith = null;
+  });
+
+  const flush = async (): Promise<void> => {
+    for (let i = 0; i < 12; i += 1) await Promise.resolve();
+    await nextTick();
+    for (let i = 0; i < 12; i += 1) await Promise.resolve();
+  };
+
+  const mount = async (): Promise<Ref<string | null>> => {
+    const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');
+    const { error } = useEldraPage();
+    await flush();
+    return error;
+  };
+
+  it('holds back the first 401 of a token the editor can still replace', async () => {
+    state.previewActive = true;
+    state.failWith = 401;
+
+    const error = await mount();
+
+    expect(state.resolverCalls).toBeGreaterThan(0);
+    expect(error.value).toBeNull();
+  });
+
+  it('reports a 401 that arrives on a newer token — the retry failed too', async () => {
+    state.previewActive = true;
+    state.failWith = 401;
+    const error = await mount();
+    expect(error.value).toBeNull();
+
+    // The editor minted a fresh token, handed it over and asked for the drafts
+    // again — and the gateway refused that token as well.
+    state.signals.tokenRevision += 1;
+    state.signals.refreshRevision += 1;
+    await flush();
+
+    expect(error.value).toContain('401');
+  });
+
+  it('keeps holding back a 401 on the same token — the editor has not answered yet', async () => {
+    state.previewActive = true;
+    state.failWith = 401;
+    const error = await mount();
+
+    // A keystroke re-reads the drafts with the same (revoked) token. This is
+    // the shape that produced one error alert per keystroke.
+    state.signals.refreshRevision += 1;
+    await flush();
+
+    expect(error.value).toBeNull();
+  });
+
+  it('reports a 401 outside a preview straight away — nobody is going to mint', async () => {
+    state.previewActive = false;
+    state.failWith = 401;
+
+    const error = await mount();
+
+    expect(error.value).toContain('401');
+  });
+
+  it('reports any other status straight away — a new token cannot fix it', async () => {
+    state.previewActive = true;
+    state.failWith = 500;
+
+    const error = await mount();
+
+    expect(error.value).toContain('500');
   });
 });

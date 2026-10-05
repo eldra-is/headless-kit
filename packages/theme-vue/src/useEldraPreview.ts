@@ -107,6 +107,8 @@ export function startEldraPreview(
     // assignment below cannot move to this declaration.
     // eslint-disable-next-line prefer-const
     let overlay: ReturnType<typeof createOverlayRuntime>;
+    /** The preview token the last `editor:init` carried — see `tokenRevision`. */
+    let lastPreviewToken: string | null = null;
     // Every editor:* message whose only effect is an overlay call is owned by
     // theme-core's router, so the behaviour is not re-implemented per
     // framework binding. This composable keeps only the messages that touch
@@ -133,6 +135,15 @@ export function startEldraPreview(
             path: string;
           };
           context.client.enablePreview(init.previewToken);
+          // A *different* token, not merely another init: the editor re-inits
+          // for a locale switch and a reconnect too. `useEldraPage` tells a
+          // first 401 (which the editor may still recover from by minting
+          // again) from the failure of a token it has already replaced by
+          // watching this number.
+          if (init.previewToken !== lastPreviewToken) {
+            lastPreviewToken = init.previewToken;
+            context.preview.tokenRevision += 1;
+          }
           context.preview.active = true;
           context.preview.mode = init.mode;
           context.preview.locale = init.locale;

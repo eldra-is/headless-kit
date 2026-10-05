@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `EldraContext['preview']` gains `tokenRevision`, bumped every time `editor:init` carries a
+  preview token that differs from the one before it — a consumer can tell "a new token arrived"
+  from "another content update arrived" (`refreshRevision` bumps for both). A context assembled by
+  hand must include it; `createEldraPreviewState()` does.
+
 - `startEldraPreview` posts the new `theme:request-failed` bridge message for every failed gateway
   request the preview makes while a preview token is in use (404 excepted — that is a miss the theme
   resolves itself). It is what lets the editor notice that the organization's single preview token

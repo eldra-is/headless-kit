@@ -25,6 +25,7 @@ function context(): EldraContext {
       refreshRevision: 0,
       revision: 0,
       designTokensRevision: 1,
+      tokenRevision: 0,
       richTextRenderRevision: 0,
       editorSupportsSlots: false,
     }),

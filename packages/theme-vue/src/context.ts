@@ -45,6 +45,16 @@ export interface EldraContext {
     revision: number;
     designTokensRevision: number;
     /**
+     * Bumped every time `editor:init` carries a preview token that differs
+     * from the one before it — so a consumer can tell "the editor handed me a
+     * *new* token" apart from "the editor sent another content update"
+     * (`refreshRevision` bumps for both). `useEldraPage` reads it to decide
+     * whether a 401 is the first failure of a token, which the editor may
+     * still recover from, or the failure of a token it has already replaced,
+     * which is the operator's to see.
+     */
+    tokenRevision: number;
+    /**
      * Negotiated from the editor's editor:hello capabilities (the
      * `block-slots` capability), re-negotiated on every hello. Gates the
      * editor-only slot markers, which `EldraLayout` renders — the one
@@ -103,6 +113,7 @@ export function createEldraPreviewState(): EldraContext['preview'] {
     refreshRevision: 0,
     revision: 0,
     designTokensRevision: 0,
+    tokenRevision: 0,
     editorSupportsSlots: false,
     richTextRenderRevision: 0,
     isRichTextRenderDeferred: undefined,
