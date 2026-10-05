@@ -53,6 +53,7 @@ export const componentNames = [
   'ProductCard',
   'QuantityStepper',
   'RadioGroup',
+  'RangeSlider',
   'Rating',
   'SearchBar',
   'SearchModal',

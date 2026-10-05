@@ -1841,3 +1841,106 @@
 @utility animate-eldra-lightbox-in {
   animation: eldra-lightbox-in var(--eldra-duration-slow) var(--eldra-ease-out);
 }
+
+/* --- Range slider ----------------------------------------------------------------------------- */
+
+/* The gutter that keeps a thumb — and its focus ring — inside the control (spec "Range slider" →
+   Anatomy): a thumb is centred on its value, so the one at `min` hangs half its own width past the
+   start of the track, and its ring a further offset-plus-width past that. Padding the group by
+   both is what stops either from leaving the component's box, and therefore from being clipped by
+   a 15rem filter sidebar or a scrolling drawer, without giving the track a different width from
+   the band the pointer measures against.
+
+   Sized from the variables themselves, never from the numbers they happen to hold today: a
+   consumer enlarging the thumb moves the gutter with it, and so does a raised ring token — a
+   `Carousel` sets `--eldra-focus-offset: 4px` for its slides and a plain custom property inherits
+   into everything inside it, which is exactly the case `__tests__/rangeSliderRing.browser.spec.ts`
+   measures (the same lesson as `Tabs`' own list reservation). */
+@utility eldra-range-gutter {
+  padding-inline: calc(
+    var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
+      var(--eldra-focus-width)
+  );
+}
+
+/* The rail: the band a pointer press lands in (spec "Range slider" → Sizes, Rail row: "`target-
+   touch` (2.75rem) below the tablet breakpoint, `target-min` (1.5rem) from it"). The touch size is
+   on the *band*, not on the thumb alone, so there is a 44px-tall target across the whole control
+   rather than two 44px circles that overlap — and therefore fight — when the range is narrow.
+
+   `48rem` is written out rather than `var(--container-tablet)` for the reason this file's header
+   states: a `@container` condition may not contain `var()`. It is the same edge Tailwind's own
+   `@max-tablet:` variant compiles to, measured against the component's own root (`RangeSlider.vue`
+   is a `@container`), which is the spec's own breakpoint rule — the width of the block the control
+   sits in, not the viewport. */
+@utility eldra-range-rail {
+  min-height: var(--eldra-target-min);
+  @container (width < 48rem) {
+    min-height: var(--eldra-target-touch);
+  }
+}
+
+/* The track and the filled range share one height (spec → Anatomy items 3 and 4: "0.375rem tall,
+   `radius-full`"). A literal per-component variable, like `--eldra-carousel-dot-size`: the spec's
+   0.375rem is a bar thickness, which no shared token carries. */
+@utility eldra-range-track {
+  height: var(--eldra-range-track-height, 0.375rem);
+}
+
+/* A thumb (spec → Anatomy item 5: "1.25rem, `background` fill, 1.5px `border-strong` edge,
+   `shadow-sm`", and → States for the hover and dragging halo). Three things live here rather than
+   in the component's classes, because each of them is a literal the spec gives and a variable a
+   consumer should be able to move: the circle's size, its 1.5px edge (no stock Tailwind border step
+   sits between 1px and 2px — the same call `eldra-carousel-dot`'s ring makes), and the halo.
+
+   `::before` is the halo, drawn outside the circle and faded in on hover and while dragging — an
+   outline or a box-shadow would collide with `eldra-focus`, which owns this element's `outline`
+   *and* its `box-shadow`. `::after` is the pointer target, centred on the thumb at `target-min`
+   and growing to `target-touch` below the tablet breakpoint, so the thumb itself satisfies 2.5.8
+   at every width (the rail above is the band that satisfies it across the whole control). Neither
+   pseudo-element paints anything the thumb's own shape does not already say, so both are invisible
+   to assistive technology by construction. */
+@utility eldra-range-thumb {
+  width: var(--eldra-range-thumb-size, 1.25rem);
+  height: var(--eldra-range-thumb-size, 1.25rem);
+  border-width: var(--eldra-range-thumb-border-width, 1.5px);
+  &::before {
+    content: '';
+    position: absolute;
+    inset: calc(-1 * var(--eldra-range-thumb-halo, 0.25rem));
+    border-radius: var(--radius-full);
+    background-color: color-mix(in oklab, var(--color-text), transparent 92%);
+    opacity: 0;
+    transition: opacity var(--eldra-duration-fast) var(--eldra-ease-out);
+  }
+  &:hover::before {
+    opacity: 1;
+  }
+  &[data-dragging='true']::before {
+    opacity: 1;
+    background-color: color-mix(in oklab, var(--color-text), transparent 86%);
+  }
+  &[aria-disabled='true']::before {
+    display: none;
+  }
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--eldra-target-min);
+    height: var(--eldra-target-min);
+    translate: -50% -50%;
+  }
+  @container (width < 48rem) {
+    &::after {
+      width: var(--eldra-target-touch);
+      height: var(--eldra-target-touch);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::before {
+      transition: none;
+    }
+  }
+}

@@ -61,6 +61,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-carousel-slide'
   | 'eldra-carousel-track'
   | 'eldra-carousel-dot'
+  | 'eldra-range-thumb'
 >({
   extend: {
     classGroups: {
@@ -131,7 +132,14 @@ const twMerge = extendTailwindMerge<
       ],
       // Control heights (tailwind.css "Control heights and targets"): whole class names, not a
       // `h-*` suffix, but the same "h" group as Tailwind's own `h-*` scale.
-      h: ['control-h', 'control-h-sm', 'control-h-lg'],
+      h: ['control-h', 'control-h-sm', 'control-h-lg', 'eldra-range-track'],
+      // The Range slider rail's own touch band (tailwind.css "Range slider"): a `min-height` with
+      // a container-query step, in Tailwind's own `min-h` group so a consumer's `min-h-0` on the
+      // rail replaces it rather than landing beside it.
+      'min-h': ['eldra-range-rail'],
+      // The gutter that keeps a thumb inside the control (tailwind.css "Range slider"): a
+      // `padding-inline` in Tailwind's own `px` group, so `classes.group: 'px-0'` replaces it.
+      px: ['eldra-range-gutter'],
       // The Dialog panel's own width (tailwind.css "Dialog"): whole class names rather than a
       // `w-*` suffix, but Tailwind's own "w" group, so a consumer's `classes.panel: 'w-full'`
       // replaces the clamp instead of landing beside it. The two are mutually exclusive (`size`
@@ -301,6 +309,10 @@ const twMerge = extendTailwindMerge<
       // so it gets its own, the same shape as `eldra-carousel-slide` above.
       'eldra-carousel-track': ['eldra-carousel-track'],
       'eldra-carousel-dot': ['eldra-carousel-dot'],
+      // A Range slider thumb's own shape (tailwind.css "Range slider"): the circle's size, its
+      // 1.5px edge, the hover/drag halo and the pointer target in one bundle with no stock
+      // Tailwind equivalent, so it gets its own group, the same shape as `eldra-carousel-dot`.
+      'eldra-range-thumb': ['eldra-range-thumb'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

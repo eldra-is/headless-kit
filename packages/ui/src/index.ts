@@ -43,6 +43,7 @@ export { default as Price } from './components/price/Price.vue';
 export { default as ProductCard } from './components/product-card/ProductCard.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
+export { default as RangeSlider } from './components/range-slider/RangeSlider.vue';
 export { default as Rating } from './components/rating/Rating.vue';
 export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as SearchModal } from './components/search-modal/SearchModal.vue';
@@ -195,6 +196,12 @@ export type {
   RadioGroupProps,
   RadioGroupSize,
 } from './components/radio/types';
+export type {
+  RangeSliderPart,
+  RangeSliderProps,
+  RangeSliderThumb,
+  RangeSliderValue,
+} from './components/range-slider/types';
 export type { RatingPart, RatingProps, RatingSize } from './components/rating/types';
 export type {
   SearchBarPart,
@@ -334,6 +341,24 @@ export {
 // of a plain `$slots.x !== undefined` (slots are not reactive on their own — see its own comment)
 // — exported so a consumer's own wrapper composing this package's parts gets the same behaviour.
 export { useSlotPresence } from './composables/useSlotPresence';
+// The range slider's arithmetic, with no reactivity and no DOM of its own: the step grid (and the
+// float-accumulation rule a fractional step needs), value-to-percent, a pointer position to a
+// value, each thumb's limits against the other, and the keyboard transitions. Exported so a
+// consumer building a range control this package does not ship — a dual histogram filter, a
+// vertical slider — reuses exactly the maths `RangeSlider` is built on.
+export {
+  clampRangeThumb,
+  fractionDigits,
+  nearestRangeThumb,
+  normalizeRangeValue,
+  rangeKeyTransition,
+  rangePositionToValue,
+  rangeStepDigits,
+  rangeThumbLimits,
+  rangeValueToPercent,
+  snapToRangeStep,
+  type RangeSliderMath,
+} from './components/range-slider/useRangeSlider';
 // The scroll-snap carousel's own behaviour — index tracking, previous/next/goTo, edge detection
 // for the arrows, autoplay with the spec's pause rules — with no rendering of its own, so `Task
 // 11`'s `Lightbox` reuses it unchanged for its own track. `resolveCarouselPerView` and
