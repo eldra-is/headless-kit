@@ -72,6 +72,43 @@ describe('responsive layout contract', () => {
     expect(JSON.parse(JSON.stringify(result.document))).toEqual(result.document);
   });
 
+  /**
+   * A node the platform locked because it came from a theme's page seed — a cart
+   * page's cart block (`pageSeeds[].blocks[].required`). It is an authoring rule
+   * and the theme renders it like any other block, but it is **stored on the
+   * node**, and an unknown key fails the whole document: before `locked` was
+   * admitted, every seeded cart, wishlist and search page rendered as
+   * `data-eldra-invalid-layout` instead of as a page.
+   */
+  it('admits a locked block node and renders it like any other', () => {
+    const document = validLayout();
+    // The fixture's one grid, and the first block in it, reached as plain JSON:
+    // `locked` is a key the exported types do not carry (it is stored on the
+    // node and never normalized onto one), which is the whole point here.
+    const root = document.root as unknown as { children: Array<Record<string, unknown>> };
+    const grid = root.children[0] as { children: Array<Record<string, unknown>> };
+    const block = grid.children[0]!;
+    block.locked = true;
+
+    expect(validateLayoutDocument(document, new Set([ENTRY_A, ENTRY_B]))).toBeNull();
+    const result = normalizeLayoutDocument(document, new Set([ENTRY_A, ENTRY_B]));
+    expect(result.blockEntryIds).toEqual([ENTRY_A, ENTRY_B, ENTRY_A]);
+    // Nothing downstream of the validator takes part in it: the normalized node
+    // is the same three keys an unlocked one is, so no renderer can branch on a
+    // rule that belongs to the editor.
+    const normalizedGrid = result.document.root.children[0];
+    expect(normalizedGrid?.type).toBe('grid');
+    if (normalizedGrid?.type === 'grid') {
+      expect(normalizedGrid.children[0]).toEqual({ id: 'BlockA', type: 'block', entryId: ENTRY_A });
+    }
+
+    block.locked = 'yes';
+    expect(validateLayoutDocument(document, new Set([ENTRY_A, ENTRY_B]))).toEqual({
+      path: '/root/children/0/children/0/locked',
+      code: 'INVALID_TYPE',
+    });
+  });
+
   it('resolves scalar and per-side spacing inheritance independently', () => {
     const tablet = resolveLayoutDocument(validLayout(), 'tablet');
     expect(tablet.root.type).toBe('flex');

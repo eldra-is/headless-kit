@@ -19,6 +19,74 @@ export interface DeclaredThemeCodePage {
  * resolved against the catalog at render time, not CMS schemas. */
 export type TemplateSeedSchemaApiId = 'catalog:product' | 'catalog:collection' | 'home';
 
+/** A seed's other target: a static site **Page** at `/<slug>`, rather than a
+ * route template. A seed names one or the other — `schemaApiId`/`routePattern`
+ * for a template, `page` for a page — never both. */
+export interface PageSeedTarget {
+  /** The page's own slug, the whole path it serves (`cart` -> `/cart`). The
+   * pattern is the platform's own slug rule, so the scan refuses what the
+   * deploy would refuse. */
+  slug: string;
+}
+
+/** A page seed's block as a theme declares it: the block it is an instance of
+ * and the data it is seeded with, plus whether the node Core creates for it is
+ * locked. A page seed carries no node ids — it declares no layout, so there is
+ * nothing for an id to be referenced from, and Core mints the nodes itself. */
+export interface DeclaredPageSeedBlock {
+  apiId: string;
+  data: Record<string, unknown>;
+  /**
+   * `true` makes the layout node Core creates **locked**: the author may
+   * reorder it and edit its fields, but not delete it or move it out of the
+   * page root. It is how a page whose whole purpose is one block — a cart, a
+   * search results page — cannot lose that block. Only a page seed's blocks
+   * may carry it; a route template's blocks may not.
+   */
+  required?: true;
+}
+
+/** A page seed's placement of one of the site's two shared regions, in the
+ * page's block order. It carries no data: the block behind the region is
+ * `templateRoles`, and Core resolves the placement to the site's own reusable
+ * component, so every seeded page shares one header and one footer. */
+export interface DeclaredPageSeedRegion {
+  role: 'header' | 'footer';
+}
+
+/** One entry of a page seed's ordered block list. */
+export type DeclaredPageSeedEntry = DeclaredPageSeedBlock | DeclaredPageSeedRegion;
+
+/** A page seed's block as the manifest carries it. `type` is the block's
+ * `apiId`; the key is named for the layout node Core creates from it. */
+export interface ManifestPageSeedBlock {
+  type: string;
+  data: Record<string, unknown>;
+  /** Emitted only when the theme declared it, so a seed of ordinary blocks
+   * keeps emitting the shape it would have had without this key. */
+  required?: true;
+}
+
+/** A shared region's placement as the manifest carries it: the reserved types
+ * `@header` and `@footer`, which cannot collide with a block apiId. */
+export interface ManifestPageSeedRegion {
+  type: '@header' | '@footer';
+}
+
+/** One entry of the emitted `blocks` array, which **is** the page in document
+ * order: Core synthesises the one-column layout from it. */
+export type ManifestPageSeedEntry = ManifestPageSeedBlock | ManifestPageSeedRegion;
+
+/** A static site page the theme seeds, as the manifest carries it: Core creates
+ * the Page (published, at `/<slug>`) on deploy when the organization has no
+ * page with that slug, lays its blocks out in one column in this order, and
+ * locks every `required` one. */
+export interface ManifestPageSeed {
+  slug: string;
+  title: string;
+  blocks: ManifestPageSeedEntry[];
+}
+
 export interface ManifestTemplateSeedBlock {
   id: string;
   apiId: string;
@@ -90,6 +158,20 @@ export interface ManifestTemplateRoles {
   header?: { apiId: string; data: Record<string, unknown> };
   footer?: { apiId: string; data: Record<string, unknown> };
 }
+
+/** A static page seed as a theme declares it: a title, the slug the page is
+ * created at, and the page's content in document order — blocks, and the
+ * placements of the site's shared header and footer among them. There is no
+ * `layout`: the list **is** the page, and Core lays it out in one column. */
+export interface DeclaredPageSeed {
+  page: PageSeedTarget;
+  title: string;
+  blocks: DeclaredPageSeedEntry[];
+}
+
+/** One entry of a theme's `templates` option: a route-template (or home) seed,
+ * or a static page seed. The two are told apart by the target they name. */
+export type DeclaredSeed = DeclaredTemplateSeed | DeclaredPageSeed;
 
 /** A template seed as a theme declares it. */
 export interface DeclaredTemplateSeed {
@@ -257,6 +339,12 @@ export interface ThemeManifest {
    * seed's layout references. Absent rather than empty when the theme
    * declares no roles, for the same reason `templates` is absent when empty. */
   templateRoles?: ManifestTemplateRoles;
+  /** The static Pages the site is seeded with, `/<slug>` each. The home page
+   * is **not** one of them: it keeps being the `templates` entry it has always
+   * been, which Core maps to a Page itself, so this manifest's home seed is
+   * byte-identical to the one themes have always emitted. Absent rather than
+   * empty when the theme seeds no pages, for the same reason `templates` is. */
+  pageSeeds?: ManifestPageSeed[];
   tokens: ThemeDesignTokens | LegacyThemeTokens;
   // No `breakpoints` field here: this type is exactly what is persisted to
   // disk and uploaded (`.eldra/manifest.json`), and Core's ingest validates
@@ -291,8 +379,9 @@ export interface ScanOptions {
   framework?: string;
   routes?: ManifestRoute[];
   customPages?: DeclaredThemeCodePage[];
-  /** Default templates to seed a site with, at most 8. */
-  templates?: DeclaredTemplateSeed[];
+  /** The seeds a site is created with: route templates (at most 8) and static
+   * pages (at most 8). */
+  templates?: DeclaredSeed[];
   /** The block data behind the `header`/`footer` roles the declared
    * `templates` layouts may reference. Required for a role once any template
    * seed's layout places it. */
@@ -307,11 +396,14 @@ export interface EldraThemeOptions {
   framework?: string;
   routes?: ManifestRoute[];
   customPages?: DeclaredThemeCodePage[];
-  /** Default templates to seed a site with on its first deploy, at most 8:
-   * the product and collection pages a merchant gets without building
-   * anything. A seed is ignored once the site has a template for its pattern,
-   * so a merchant's edits are never overwritten. */
-  templates?: DeclaredTemplateSeed[];
+  /** The seeds a site is created with on its first deploy: the route templates
+   * a merchant gets without building anything (the product and collection
+   * pages, the home page), at most 8, and the static **page** seeds beside them
+   * (`{ page: { slug }, title, blocks }`), also at most 8 — a page at
+   * `/<slug>` whose `required` blocks the author cannot delete. A seed is
+   * ignored once the site has a template for its pattern, or a page with its
+   * slug, so a merchant's edits are never overwritten. */
+  templates?: DeclaredSeed[];
   /** The block data behind the `header`/`footer` roles the declared
    * `templates` layouts may reference. Required for a role once any template
    * seed's layout places it. */

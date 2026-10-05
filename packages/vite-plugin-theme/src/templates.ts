@@ -1,8 +1,14 @@
 import { parseDynamicRoutePattern } from '@eldrajs/theme-core';
 import { checkSeedData } from './seedData';
 import type {
+  DeclaredPageSeed,
+  DeclaredPageSeedBlock,
+  DeclaredPageSeedRegion,
+  DeclaredSeed,
   DeclaredTemplateSeed,
   DeclaredTemplateSeedBlock,
+  ManifestPageSeed,
+  ManifestPageSeedEntry,
   ManifestTemplateRoles,
   ManifestTemplateSeed,
   ManifestTemplateSeedBlock,
@@ -12,6 +18,7 @@ import type {
 import { codePointLength, isRecord, stripPlainTextControls } from './util';
 
 const MAX_TEMPLATES = 8;
+const MAX_PAGE_SEEDS = 16;
 const MAX_TEMPLATE_BLOCKS = 50;
 const MAX_TITLE_LENGTH = 80;
 const HOME_ROUTE_PATTERN = '/';
@@ -19,6 +26,19 @@ const CATALOG_SLUG_PARAM = 'slug';
 /** The same id shape layout nodes take everywhere else in the kit. */
 const NODE_ID_PATTERN = /^[a-z][a-z0-9-]{0,47}$/;
 const SCHEMA_API_IDS = new Set(['catalog:product', 'catalog:collection', 'home']);
+/** The target the home seed also emits a page seed for, and the slug it takes:
+ * the site root Page Core has always created from it. */
+const HOME_SCHEMA_API_ID = 'home';
+const HOME_PAGE_SLUG = 'home';
+/** Core's own page-seed slug rule, mirrored exactly so the scan refuses what
+ * the ingest refuses: lowercase words joined by single hyphens, starting with a
+ * letter. The length cap is the kit's own — a slug is one path segment. */
+const PAGE_SLUG_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const MAX_PAGE_SLUG_LENGTH = 64;
+const MAX_PAGE_SEED_BLOCKS = 50;
+/** The two reserved entry types a page seed places a shared region with. They
+ * begin with `@`, which no block apiId may, so they can never collide. */
+const REGION_TYPES = { header: '@header', footer: '@footer' } as const;
 const ROLES = new Set(['header', 'footer']);
 const ROOT_NODE_ID = 'root';
 const ROLE_NODE_IDS = { header: 'role-header', footer: 'role-footer' } as const;
@@ -68,14 +88,65 @@ function nodeBindingsOf(block: DeclaredTemplateSeedBlock | undefined): NodeBindi
   return carried;
 }
 
+/** Which target a declared seed names: a route template (or home), a static
+ * page, both — which is the error the two forms exist to keep apart — or
+ * neither. A page target is the presence of `page`, a template target the
+ * presence of either of the two keys one needs, so a seed that half-declares
+ * one still reports against that form rather than silently becoming the other.
+ */
+function seedTargetOf(entry: Record<string, unknown>): 'template' | 'page' | 'both' | 'none' {
+  const page = entry.page !== undefined;
+  const template = entry.schemaApiId !== undefined || entry.routePattern !== undefined;
+  if (page && template) return 'both';
+  if (page) return 'page';
+  if (template) return 'template';
+  return 'none';
+}
+
+/** The declared entries that name a template target, with their index in the
+ * declared list — the index every error path is written against, so an author
+ * reads it against the array they wrote. Entries naming a page target belong to
+ * `validatePageSeeds`; one naming both is reported here, once, and belongs to
+ * neither. */
+function templateEntriesOf(
+  seeds: ReadonlyArray<DeclaredSeed>,
+  errors: string[]
+): Array<[number, Record<string, unknown>]> {
+  const entries: Array<[number, Record<string, unknown>]> = [];
+  for (const [index, entry] of seeds.entries()) {
+    // A theme's options are plain JS: a stray null or a string in the array
+    // must read as a validation error against its own index, never as a crash
+    // deep inside the scan.
+    if (!isRecord(entry)) {
+      errors.push(`templates[${index}] — must be an object`);
+      continue;
+    }
+    const target = seedTargetOf(entry);
+    if (target === 'page') continue;
+    if (target === 'both') {
+      errors.push(
+        `templates[${index}] — declares both a template target (schemaApiId) and a page target ` +
+          '(page.slug): a seed names one or the other'
+      );
+      continue;
+    }
+    entries.push([index, entry]);
+  }
+  return entries;
+}
+
 /**
  * Validates the theme's declared template seeds against the blocks it ships and
  * returns them in manifest shape: every seed with a layout, and without the
  * `header`/`footer` switches, which steer the generated layout and are never
  * emitted.
+ *
+ * The declared list also carries static **page** seeds (`page: { slug }`);
+ * those are skipped here and validated by `validatePageSeeds`, which reads the
+ * same list. Only the template seeds count against the template cap.
  */
 export function validateTemplateSeeds(
-  seeds: ReadonlyArray<DeclaredTemplateSeed>,
+  seeds: ReadonlyArray<DeclaredSeed>,
   blocks: ReadonlyArray<Record<string, unknown>>,
   errors: string[]
 ): ManifestTemplateSeed[] {
@@ -83,8 +154,9 @@ export function validateTemplateSeeds(
     errors.push('templates — must be an array');
     return [];
   }
-  if (seeds.length > MAX_TEMPLATES) {
-    errors.push(`templates: contains ${seeds.length} templates — exceeds ${MAX_TEMPLATES}`);
+  const entries = templateEntriesOf(seeds, errors);
+  if (entries.length > MAX_TEMPLATES) {
+    errors.push(`templates: contains ${entries.length} templates — exceeds ${MAX_TEMPLATES}`);
   }
   const blockFields = new Map<string, Array<Record<string, unknown>>>();
   for (const block of blocks) {
@@ -97,19 +169,16 @@ export function validateTemplateSeeds(
 
   const normalized: ManifestTemplateSeed[] = [];
   const patterns = new Set<string>();
-  for (const [index, entry] of seeds.slice(0, MAX_TEMPLATES).entries()) {
+  for (const [index, entry] of entries.slice(0, MAX_TEMPLATES)) {
     const at = `templates[${index}]`;
-    // A theme's options are plain JS: a stray null or a string in the array
-    // must read as a validation error against its own index, never as a crash
-    // deep inside the scan. Past this guard the declared type is assumed
-    // again — every field it promises is validated below.
-    if (!isRecord(entry)) {
-      errors.push(`${at} — must be an object`);
-      continue;
-    }
+    // Past the target split the declared type is assumed again — every field
+    // it promises is validated below.
     const seed = entry as unknown as DeclaredTemplateSeed;
     if (!SCHEMA_API_IDS.has(seed.schemaApiId)) {
-      errors.push(`${at}.schemaApiId — must be "catalog:product", "catalog:collection" or "home"`);
+      errors.push(
+        `${at}.schemaApiId — must be "catalog:product", "catalog:collection" or "home" (a static ` +
+          'page seed names `page: { slug }` instead)'
+      );
     } else {
       checkRoutePattern(at, seed, errors);
     }
@@ -139,6 +208,12 @@ export function validateTemplateSeeds(
         continue;
       }
       const block = blockEntry as DeclaredTemplateSeedBlock;
+      // `required` locks the layout node Core creates, and only a page's root
+      // takes a locked node: a route template's layout is rebuilt from the
+      // seed on every reseed, so there would be nothing for a lock to protect.
+      if ((blockEntry as Record<string, unknown>).required !== undefined) {
+        errors.push(`${blockAt}.required — only a page seed's blocks may be required`);
+      }
       const id = typeof block.id === 'string' ? block.id : '';
       if (!NODE_ID_PATTERN.test(id)) {
         errors.push(
@@ -189,6 +264,188 @@ export function validateTemplateSeeds(
     });
   }
   return normalized;
+}
+
+/**
+ * Validates the theme's declared **page** seeds — the entries of the same
+ * `templates` list that name `page: { slug }` instead of a template target —
+ * and returns them in manifest shape.
+ *
+ * A page seed is the simplest seed there is: a slug, a title and the page's
+ * content in document order. There is no `layout` and there are no node ids:
+ * the `blocks` array **is** the page, and Core synthesises the one-column
+ * layout from it. An entry is either
+ *
+ * - a **block** — `{ apiId, data, required? }`, emitted as
+ *   `{ type: apiId, data, required? }`. `required: true` makes the node Core
+ *   creates locked: the author reorders it and edits its fields but cannot
+ *   delete it or move it out of the page root, so a cart page cannot lose its
+ *   cart.
+ * - a **region placement** — `{ role: 'header' | 'footer' }`, emitted as the
+ *   reserved `{ type: '@header' }` / `{ type: '@footer' }`. It carries no data:
+ *   the block behind the region is `templateRoles`, and Core resolves the
+ *   placement to the site's own reusable component, so every seeded page shares
+ *   one header and one footer. A region may sit anywhere in the order — which
+ *   is what lets an announcement bar precede the header — at most once each, and
+ *   only when the theme declares that role.
+ *
+ * The **home** page is not a page seed. It keeps being the `templates` entry it
+ * has always been, which Core maps to the site's root Page itself, so the home
+ * seed on the wire is byte-identical to the one every theme has emitted; a page
+ * seed may therefore not claim the slug `home` while that template seed exists.
+ *
+ * Every rule a seed's data obeys is the one `validateTemplateSeeds` applies —
+ * the same `checkSeedData` walk, because a page seed is the same kind of write
+ * Core makes on deploy.
+ */
+export function validatePageSeeds(
+  seeds: ReadonlyArray<DeclaredSeed>,
+  blocks: ReadonlyArray<Record<string, unknown>>,
+  templates: ReadonlyArray<ManifestTemplateSeed>,
+  roles: ManifestTemplateRoles | undefined,
+  errors: string[]
+): ManifestPageSeed[] {
+  if (!Array.isArray(seeds)) return [];
+  const blockFields = new Map<string, Array<Record<string, unknown>>>();
+  for (const block of blocks) {
+    if (typeof block.apiId !== 'string') continue;
+    blockFields.set(
+      block.apiId,
+      Array.isArray(block.fields) ? (block.fields as Array<Record<string, unknown>>) : []
+    );
+  }
+
+  const normalized: ManifestPageSeed[] = [];
+  const slugs = new Set<string>();
+  // Reserved while the home template seed exists: Core creates the root Page
+  // from that seed, and two seeds for one slug is one of them being ignored.
+  const homeSeeded = templates.some((seed) => seed.schemaApiId === HOME_SCHEMA_API_ID);
+
+  const entries: Array<[number, Record<string, unknown>]> = [];
+  for (const [index, entry] of seeds.entries()) {
+    if (!isRecord(entry)) continue;
+    if (seedTargetOf(entry) !== 'page') continue;
+    entries.push([index, entry]);
+  }
+  if (entries.length > MAX_PAGE_SEEDS) {
+    errors.push(`templates: contains ${entries.length} page seeds — exceeds ${MAX_PAGE_SEEDS}`);
+  }
+
+  for (const [index, entry] of entries.slice(0, MAX_PAGE_SEEDS)) {
+    const at = `templates[${index}]`;
+    const seed = entry as unknown as DeclaredPageSeed;
+    const target: Record<string, unknown> = isRecord(seed.page) ? seed.page : {};
+    const slug = typeof target.slug === 'string' ? target.slug : '';
+    const extra = Object.keys(target).filter((key) => key !== 'slug');
+    if (!PAGE_SLUG_PATTERN.test(slug) || slug.length > MAX_PAGE_SLUG_LENGTH) {
+      errors.push(
+        `${at}.page.slug — invalid slug ${JSON.stringify(target.slug)} (expected ${PAGE_SLUG_PATTERN.source}, at most ${MAX_PAGE_SLUG_LENGTH} characters)`
+      );
+    } else if (slug === HOME_PAGE_SLUG && homeSeeded) {
+      errors.push(
+        `${at}.page.slug — "home" is the home template seed's own page: drop that seed or pick another slug`
+      );
+    } else if (slugs.has(slug)) {
+      errors.push(`${at}.page.slug — duplicate slug ${JSON.stringify(slug)}`);
+    } else {
+      slugs.add(slug);
+    }
+    // A page target is exactly one key: anything else is a theme reaching for
+    // a knob that does not exist (a parent page, a layout) and Core's ingest
+    // refuses an unknown key outright rather than ignoring it.
+    for (const key of extra) {
+      errors.push(`${at}.page.${key} — unknown key (a page seed names only its slug)`);
+    }
+    const title = stripPlainTextControls(seed.title).trim();
+    if (codePointLength(title) < 1 || codePointLength(title) > MAX_TITLE_LENGTH) {
+      errors.push(`${at}.title — must contain 1..${MAX_TITLE_LENGTH} characters`);
+    }
+
+    const seedBlocks = Array.isArray(seed.blocks) ? seed.blocks : [];
+    if (seedBlocks.length < 1 || seedBlocks.length > MAX_PAGE_SEED_BLOCKS) {
+      errors.push(`${at}.blocks — must declare 1..${MAX_PAGE_SEED_BLOCKS} entries`);
+    }
+    const placedRoles = new Set<string>();
+    const normalizedBlocks: ManifestPageSeedEntry[] = [];
+    for (const [blockIndex, blockEntry] of seedBlocks.slice(0, MAX_PAGE_SEED_BLOCKS).entries()) {
+      const blockAt = `${at}.blocks[${blockIndex}]`;
+      if (!isRecord(blockEntry)) {
+        errors.push(`${blockAt} — must be a block or a region placement`);
+        continue;
+      }
+      if (blockEntry.role !== undefined) {
+        const region = checkedRegion(blockAt, blockEntry, roles, placedRoles, errors);
+        if (region !== null) normalizedBlocks.push(region);
+        continue;
+      }
+      const block = blockEntry as DeclaredPageSeedBlock;
+      const fields = blockFields.get(block.apiId);
+      if (fields === undefined) {
+        errors.push(`${blockAt}.apiId — unknown block "${String(block.apiId)}"`);
+      } else if (!isRecord(block.data)) {
+        errors.push(`${blockAt}.data — must be an object`);
+      } else {
+        checkSeedData(
+          (path, message) => `${blockAt}.data — ${path}: ${message}`,
+          fields,
+          block.data,
+          errors
+        );
+      }
+      // `true` or absent, never `false`: "required" is one state a node is in,
+      // and an explicit `false` in a manifest would read as a decision Core
+      // has to carry rather than the absence it actually is.
+      const required = (blockEntry as Record<string, unknown>).required;
+      if (required !== undefined && required !== true) {
+        errors.push(`${blockAt}.required — must be true when present (omit it otherwise)`);
+      }
+      normalizedBlocks.push({
+        type: block.apiId,
+        data: isRecord(block.data) ? block.data : {},
+        ...(required === true ? { required: true } : {}),
+      });
+    }
+    normalized.push({ slug, title, blocks: normalizedBlocks });
+  }
+  return normalized;
+}
+
+/**
+ * One region placement, or null when the theme declared something that is not
+ * one. A region is a placement and nothing else: it names a role the theme
+ * actually declares the block data for (otherwise Core has nothing to resolve
+ * it to), it appears at most once in a page — a page with two headers is one of
+ * them being wrong — and it carries neither data nor `required`, because the
+ * block behind it is `templateRoles` and a shared region is not a node an
+ * author can delete in the first place.
+ */
+function checkedRegion(
+  blockAt: string,
+  entry: Record<string, unknown>,
+  roles: ManifestTemplateRoles | undefined,
+  placed: Set<string>,
+  errors: string[]
+): ManifestPageSeedEntry | null {
+  const role = entry.role as DeclaredPageSeedRegion['role'];
+  if (!ROLES.has(role)) {
+    errors.push(`${blockAt}.role — must be "header" or "footer"`);
+    return null;
+  }
+  const stray = ['apiId', 'data', 'required'].filter((key) => entry[key] !== undefined);
+  for (const key of stray) {
+    errors.push(
+      `${blockAt}.${key} — a region placement carries only its role (the block behind it is templateRoles.${role})`
+    );
+  }
+  if (placed.has(role)) {
+    errors.push(`${blockAt}.role — duplicate role "${role}"`);
+    return null;
+  }
+  placed.add(role);
+  if (roles?.[role] === undefined) {
+    errors.push(`${blockAt}.role — placing the ${role} region needs templateRoles.${role}`);
+  }
+  return { type: REGION_TYPES[role] };
 }
 
 /**

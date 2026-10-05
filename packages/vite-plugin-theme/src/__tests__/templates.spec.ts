@@ -1,8 +1,18 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { scanTheme } from '../scan';
-import { seedLayout, validateTemplateRoles, validateTemplateSeeds } from '../templates';
-import type { DeclaredTemplateSeed, ManifestTemplateRoles } from '../types';
+import {
+  seedLayout,
+  validatePageSeeds,
+  validateTemplateRoles,
+  validateTemplateSeeds,
+} from '../templates';
+import type {
+  DeclaredPageSeed,
+  DeclaredSeed,
+  DeclaredTemplateSeed,
+  ManifestTemplateRoles,
+} from '../types';
 
 const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 
@@ -29,6 +39,31 @@ const validate = (seeds: DeclaredTemplateSeed[]) => {
   const templates = validateTemplateSeeds(seeds, blocks, errors);
   return { templates, errors };
 };
+
+/** Every half of the same declared list, in the order the scan runs them: the
+ *  templates, then the roles (a page seed's region placement needs them), then
+ *  the page seeds. */
+const validateSeeds = (seeds: DeclaredSeed[], roles: ManifestTemplateRoles = bothRoles()) => {
+  const errors: string[] = [];
+  const templates = validateTemplateSeeds(seeds, blocks, errors);
+  const templateRoles = validateTemplateRoles(roles, blocks, templates, errors);
+  const pageSeeds = validatePageSeeds(seeds, blocks, templates, templateRoles, errors);
+  return { templates, pageSeeds, errors };
+};
+
+/** The roles a template seed's layout and a page seed's `@header`/`@footer`
+ *  placements both resolve against — declared by default, since every template
+ *  seed places them and `validateTemplateRoles` requires them once placed. */
+const bothRoles = (): ManifestTemplateRoles => ({
+  header: { apiId: 'hero', data: {} },
+  footer: { apiId: 'hero', data: {} },
+});
+
+const cartSeed = (): DeclaredPageSeed => ({
+  page: { slug: 'cart' },
+  title: 'Your cart',
+  blocks: [{ apiId: 'hero', data: { heading: 'Your cart' }, required: true }],
+});
 
 const validateRoles = (roles: ManifestTemplateRoles | undefined, seeds: DeclaredTemplateSeed[]) => {
   const seedErrors: string[] = [];
@@ -153,7 +188,7 @@ describe('validateTemplateSeeds', () => {
     ]);
 
     expect(errors).toEqual([
-      'templates[0].schemaApiId — must be "catalog:product", "catalog:collection" or "home"',
+      'templates[0].schemaApiId — must be "catalog:product", "catalog:collection" or "home" (a static page seed names `page: { slug }` instead)',
       'templates[1].routePattern — a catalog template needs a static prefix and one ":slug" parameter (got "products/:slug")',
       'templates[2].routePattern — duplicate pattern "/products/:slug"',
       'templates[3].title — must contain 1..80 characters',
@@ -728,5 +763,215 @@ describe('scanTheme templates', () => {
 
     expect(manifest).toBeNull();
     expect(errors).toContain('templateRoles.header.apiId — unknown block "nope"');
+  });
+});
+
+describe('validatePageSeeds', () => {
+  it('emits a page seed as slug, title and its entries in document order', () => {
+    const seed = cartSeed();
+    seed.blocks = [
+      { apiId: 'hero', data: { heading: 'Free shipping' } },
+      { role: 'header' },
+      { apiId: 'hero', data: { heading: 'Your cart' }, required: true },
+      { role: 'footer' },
+    ];
+    const { pageSeeds, errors } = validateSeeds([seed]);
+
+    expect(errors).toEqual([]);
+    expect(pageSeeds).toEqual([
+      {
+        slug: 'cart',
+        title: 'Your cart',
+        blocks: [
+          { type: 'hero', data: { heading: 'Free shipping' } },
+          // A region placement is reserved and carries nothing else: the block
+          // behind it is `templateRoles`. It may sit anywhere in the order,
+          // which is what lets the announcement bar above precede the header.
+          { type: '@header' },
+          { type: 'hero', data: { heading: 'Your cart' }, required: true },
+          { type: '@footer' },
+        ],
+      },
+    ]);
+    // The list *is* the page: no layout, no node ids, no `apiId` — Core builds
+    // the one-column layout from this order, and refuses an unknown key.
+    expect(Object.keys(pageSeeds[0]!)).toEqual(['slug', 'title', 'blocks']);
+    expect(JSON.stringify(pageSeeds)).not.toContain('apiId');
+  });
+
+  it('leaves the home seed alone — it is a template entry, never a page seed', () => {
+    const home: DeclaredTemplateSeed = {
+      routePattern: '/',
+      schemaApiId: 'home',
+      title: 'Home',
+      blocks: [{ id: 'home-hero', apiId: 'hero', data: { heading: 'Made daily' } }],
+    };
+    const { templates, pageSeeds, errors } = validateSeeds([home, cartSeed()]);
+
+    expect(errors).toEqual([]);
+    expect(templates.map((template) => template.schemaApiId)).toEqual(['home']);
+    expect(pageSeeds.map((page) => page.slug)).toEqual(['cart']);
+  });
+
+  it('refuses the slug "home" while the home template seed owns that page', () => {
+    const home: DeclaredTemplateSeed = {
+      routePattern: '/',
+      schemaApiId: 'home',
+      title: 'Home',
+      blocks: [{ id: 'home-hero', apiId: 'hero', data: {} }],
+    };
+
+    expect(validateSeeds([home, { ...cartSeed(), page: { slug: 'home' } }]).errors).toEqual([
+      'templates[1].page.slug — "home" is the home template seed\'s own page: drop that seed or pick another slug',
+    ]);
+    // Without that template seed nothing owns the slug, so it is an ordinary one.
+    expect(validateSeeds([{ ...cartSeed(), page: { slug: 'home' } }]).errors).toEqual([]);
+  });
+
+  it('returns no page seeds for a theme that declares only templates', () => {
+    const { pageSeeds, errors } = validateSeeds([heroSeed()]);
+
+    expect(errors).toEqual([]);
+    expect(pageSeeds).toEqual([]);
+  });
+
+  it('validates a page seed block\u2019s data with the same walk a template seed\u2019s goes through', () => {
+    const seed = cartSeed();
+    seed.blocks.push({
+      apiId: 'gallery',
+      data: { image: { assetId: 'demo-hero', url: '/demo/hero.png' } },
+    });
+
+    expect(validateSeeds([seed]).errors).toEqual([
+      'templates[0].blocks[1].data — image: media values must be {assetId: uuid} — use preview.json for demo imagery',
+    ]);
+  });
+
+  it('errors on a seed that names both targets, and on one that names neither', () => {
+    const { errors } = validateSeeds([
+      { ...heroSeed(), page: { slug: 'cart' } } as unknown as DeclaredSeed,
+      { title: 'Nowhere', blocks: [] } as unknown as DeclaredSeed,
+    ]);
+
+    expect(errors).toEqual([
+      'templates[0] — declares both a template target (schemaApiId) and a page target (page.slug): a seed names one or the other',
+      'templates[1].schemaApiId — must be "catalog:product", "catalog:collection" or "home" (a static page seed names `page: { slug }` instead)',
+      'templates[1].blocks — must declare 1..50 blocks',
+    ]);
+  });
+
+  it('holds a page slug to Core\u2019s own rule and refuses a duplicate or an extra key', () => {
+    const { errors } = validateSeeds([
+      { ...cartSeed(), page: { slug: 'Cart' } },
+      { ...cartSeed(), page: { slug: 'my--cart' } },
+      cartSeed(),
+      cartSeed(),
+      { ...cartSeed(), page: { slug: 'wishlist', parent: 'shop' } as DeclaredPageSeed['page'] },
+    ]);
+
+    expect(errors).toEqual([
+      'templates[0].page.slug — invalid slug "Cart" (expected ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$, at most 64 characters)',
+      'templates[1].page.slug — invalid slug "my--cart" (expected ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$, at most 64 characters)',
+      'templates[3].page.slug — duplicate slug "cart"',
+      'templates[4].page.parent — unknown key (a page seed names only its slug)',
+    ]);
+  });
+
+  it('errors on a title, an entry list and an entry that are not what a page seed may carry', () => {
+    const { errors } = validateSeeds([
+      { ...cartSeed(), title: '  ' },
+      { ...cartSeed(), page: { slug: 'wishlist' }, blocks: [] },
+      {
+        ...cartSeed(),
+        page: { slug: 'search' },
+        blocks: [null as unknown as DeclaredPageSeed['blocks'][number]],
+      },
+      {
+        ...cartSeed(),
+        page: { slug: 'journal' },
+        blocks: [{ apiId: 'gone', data: {} }],
+      },
+    ]);
+
+    expect(errors).toEqual([
+      'templates[0].title — must contain 1..80 characters',
+      'templates[1].blocks — must declare 1..50 entries',
+      'templates[2].blocks[0] — must be a block or a region placement',
+      'templates[3].blocks[0].apiId — unknown block "gone"',
+    ]);
+  });
+
+  it('holds a region placement to a declared role, once per page, with nothing else on it', () => {
+    const { errors } = validateSeeds(
+      [
+        {
+          ...cartSeed(),
+          blocks: [
+            { role: 'header' },
+            { role: 'header' },
+            { role: 'aside' as 'header' },
+            { role: 'footer', apiId: 'hero', data: {}, required: true } as never,
+          ],
+        },
+      ],
+      { header: { apiId: 'hero', data: {} } }
+    );
+
+    expect(errors).toEqual([
+      'templates[0].blocks[1].role — duplicate role "header"',
+      'templates[0].blocks[2].role — must be "header" or "footer"',
+      'templates[0].blocks[3].apiId — a region placement carries only its role (the block behind it is templateRoles.footer)',
+      'templates[0].blocks[3].data — a region placement carries only its role (the block behind it is templateRoles.footer)',
+      'templates[0].blocks[3].required — a region placement carries only its role (the block behind it is templateRoles.footer)',
+      'templates[0].blocks[3].role — placing the footer region needs templateRoles.footer',
+    ]);
+  });
+
+  it('allows `required` only on a page seed\u2019s blocks, and only as true', () => {
+    const template = heroSeed();
+    template.blocks = [
+      {
+        id: 'hero-1',
+        apiId: 'hero',
+        data: {},
+        required: true,
+      } as DeclaredTemplateSeed['blocks'][number],
+    ];
+    const page = cartSeed();
+    page.blocks = [{ apiId: 'hero', data: {}, required: false as unknown as true }];
+
+    expect(validateSeeds([template, page]).errors).toEqual([
+      "templates[0].blocks[0].required — only a page seed's blocks may be required",
+      'templates[1].blocks[0].required — must be true when present (omit it otherwise)',
+    ]);
+  });
+
+  it('errors above sixteen page seeds and validates only the first sixteen', () => {
+    const seeds = Array.from({ length: 17 }, (_, index) => ({
+      ...cartSeed(),
+      page: { slug: `page-${index}` },
+    }));
+    const { pageSeeds, errors } = validateSeeds(seeds);
+
+    expect(errors).toEqual(['templates: contains 17 page seeds — exceeds 16']);
+    expect(pageSeeds).toHaveLength(16);
+  });
+
+  it('counts page seeds against their own cap, never against the templates\u2019 one', () => {
+    const seeds: DeclaredSeed[] = [
+      ...Array.from({ length: 8 }, (_, index) => ({
+        ...heroSeed(),
+        routePattern: `/p${index}/:slug`,
+      })),
+      ...Array.from({ length: 16 }, (_, index) => ({
+        ...cartSeed(),
+        page: { slug: `page-${index}` },
+      })),
+    ];
+    const { templates, pageSeeds, errors } = validateSeeds(seeds);
+
+    expect(errors).toEqual([]);
+    expect(templates).toHaveLength(8);
+    expect(pageSeeds).toHaveLength(16);
   });
 });

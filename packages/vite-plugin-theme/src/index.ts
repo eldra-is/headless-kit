@@ -1,19 +1,34 @@
 export { default } from './plugin';
 export { generateBlockTypes } from './blockTypes';
-export { seedLayout, validateTemplateRoles, validateTemplateSeeds } from './templates';
+export {
+  seedLayout,
+  validatePageSeeds,
+  validateTemplateRoles,
+  validateTemplateSeeds,
+} from './templates';
 export type {
   BlockDefinition,
   BlockField,
   BlockMigration,
+  DeclaredPageSeed,
+  DeclaredPageSeedBlock,
+  DeclaredPageSeedEntry,
+  DeclaredPageSeedRegion,
+  DeclaredSeed,
   DeclaredTemplateSeed,
   DeclaredTemplateSeedBlock,
   DeclaredThemeCodePage,
   EldraThemeOptions,
+  ManifestPageSeed,
+  ManifestPageSeedBlock,
+  ManifestPageSeedEntry,
+  ManifestPageSeedRegion,
   ManifestRoute,
   ManifestTemplateRoles,
   ManifestTemplateSeed,
   ManifestTemplateSeedBlock,
   LegacyThemeTokens,
+  PageSeedTarget,
   ScanOptions,
   ScanResult,
   TemplateSeedBlockNode,

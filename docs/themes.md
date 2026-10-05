@@ -157,12 +157,13 @@ The framework-free half is `@eldrajs/theme-core/links`: `resolveLink(value, cont
 kit's single href allowlist. A wrapper for another framework fills the same context and re-exports
 the same three.
 
-## Seeding default templates
+## Seeding default templates and pages
 
 A theme can ship the pages a site starts with. `@eldrajs/theme-nuxt`'s `eldra.templates` (forwarded
 to `@eldrajs/vite-plugin-theme`, which validates it and writes it into `.eldra/manifest.json`)
 declares at most **8** route templates Core seeds a site with on its **first** deploy — a pattern
-that already has a template on the site is left alone, so a merchant's edits are never overwritten.
+that already has a template on the site is left alone, so a merchant's edits are never overwritten
+— and, in the same list, at most **16** static **page** seeds, each a Page at `/<slug>`.
 
 ```ts
 // nuxt.config.ts
@@ -175,6 +176,21 @@ eldra: {
       blocks: [{ id: 'product-detail', apiId: 'product-detail', data: { /* … */ } }],
       // layout?: a one-column document, generated from `blocks` when omitted
       // header?: false / footer?: false to leave a role out of that generated layout
+    },
+    {
+      // A static page instead of a template: one key, no pattern, no layout.
+      // `blocks` *is* the page, in document order.
+      page: { slug: 'cart' },
+      title: 'Your cart',
+      blocks: [
+        { apiId: 'announcement-bar', data: { /* … */ } },
+        { role: 'header' },          // the site's shared header, placed here
+        { apiId: 'breadcrumbs', data: { /* … */ } },
+        // `required` makes the node Core creates locked: reorderable and
+        // editable, but the author cannot delete it or move it out of the page.
+        { apiId: 'cart', data: { variant: 'page' }, required: true },
+        { role: 'footer' },
+      ],
     },
   ],
   templateRoles: {
@@ -196,7 +212,7 @@ eldra: {
   The scanner does not check that (it validates the write-side media rule only), so a theme whose
   block marks a media field required has to seed a real asset id for it, or leave that block out
   of its seeds; see how the starter handles it in
-  [Seeded templates](starter-kit.md#seeded-templates).
+  [Seeded templates and pages](starter-kit.md#seeded-templates-and-pages).
 - `layout` is optional. Omitted, the scanner generates one flat column: the `header` role, the
   seed's blocks in order, the `footer` role — `header: false` / `footer: false` leave a role out.
   Declared, it is held to that same shape (one flex column of `reusable` and `block` nodes, every
@@ -212,15 +228,36 @@ eldra: {
   document's projection to `EldraLayout`, and the component expands in place with the same
   identity a placement on a page gets — see
   [Reusable page components](theme-reusable-components.md#route-templates).
-- Both keys are omitted from the manifest when a theme declares nothing, so a theme that seeds
+- A **page** seed names `page: { slug }` instead of `schemaApiId`/`routePattern`; a seed declares
+  one target or the other, never both. The slug is the whole path (`cart` → `/cart`) and obeys
+  Core's own rule, `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`. There is no `layout` and there are no node
+  ids: the `blocks` array **is** the page in document order, and Core lays it out in one column.
+  An entry is either a **block** — `{ apiId, data, required? }` — or a placement of one of the
+  site's two shared **regions**, `{ role: 'header' | 'footer' }`, which carries no data of its own
+  (the block behind it is `templateRoles`, and Core resolves the placement to the site's own
+  reusable component so every page shares one header). A region may sit anywhere in the order,
+  which is what lets an announcement bar precede the header; at most one of each per page, and only
+  where the theme declares that role. `required: true` locks the node Core creates — the author
+  reorders it and edits its fields; delete and "move out of the page root" are refused — and it is
+  a page seed's only, never a route template's. Page seeds are emitted as
+  `pageSeeds[] { slug, title, blocks: [{ type, data, required? } | { type: "@header" | "@footer" }] }`,
+  where a block's `type` is its apiId and the two `@` types are reserved.
+- The **home** seed is unchanged and is **not** a page seed: it stays the `templates` entry it has
+  always been, which Core maps to the site's root Page itself, so the home seed on the wire is
+  byte-identical to the one every theme has emitted. A page seed may not claim the slug `home`
+  while that template seed exists.
+- A page seed is created **published**, like a template's entries, and a page whose slug the
+  organization already has is skipped — so a theme that adds a page seed gets it on the next deploy
+  of an existing site without touching the pages that are there.
+- All three keys are omitted from the manifest when a theme declares nothing, so a theme that seeds
   nothing keeps emitting the file shape it always has.
 
 `eldra-theme validate` does not see either option — it validates the theme directory without
 loading `nuxt.config.ts`. The build is what writes them, so check `.eldra/manifest.json` (or run
 the site's own tests) after changing a seed. The starter does all of this in
 `examples/starter-nuxt/app/templates.ts`; see
-[Seeded templates](starter-kit.md#seeded-templates) for how it builds its three seeds out of the
-sample page fixtures.
+[Seeded templates and pages](starter-kit.md#seeded-templates-and-pages) for how it builds its
+three template seeds and its three page seeds out of the sample page fixtures.
 
 ## Layout sizing and container queries
 

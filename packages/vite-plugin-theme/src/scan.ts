@@ -11,7 +11,7 @@ import { dirname, join, relative } from 'node:path';
 import { blockJsonSchema } from './blockSchema';
 import { migrationChecks, validMigrationFieldShape } from './migrations';
 import { checkSeedData } from './seedData';
-import { validateTemplateRoles, validateTemplateSeeds } from './templates';
+import { validatePageSeeds, validateTemplateRoles, validateTemplateSeeds } from './templates';
 import { codePointLength, isRecord, stripPlainTextControls } from './util';
 import type {
   BlockDefinition,
@@ -173,6 +173,16 @@ export function scanTheme(opts: ScanOptions): ScanResult {
   // places — generated or declared — and the theme did not declare the block
   // data for is an error naming that seed.
   const templateRoles = validateTemplateRoles(opts.templateRoles, blocks, templates, errors);
+  // The static page seeds in the same declared list. They are validated after
+  // the roles, because a page seed may *place* the header/footer region and
+  // that placement only resolves to something if the theme declared the role.
+  const pageSeeds = validatePageSeeds(
+    opts.templates ?? [],
+    blocks,
+    templates,
+    templateRoles,
+    errors
+  );
 
   const manifest: ThemeManifest = {
     manifestVersion: 1,
@@ -198,6 +208,10 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     // declares no roles, so a theme that seeds no header/footer keeps
     // emitting the manifest shape an older Core already accepts.
     ...(templateRoles === undefined ? {} : { templateRoles }),
+    // Absent rather than empty for the same reason. The home page is not here:
+    // it stays the `templates` entry it has always been, which Core maps to the
+    // site's root Page itself.
+    ...(pageSeeds.length === 0 ? {} : { pageSeeds }),
     tokens: readTokens(themeDir, errors),
   };
   // Resolved independently of the manifest object above: it must never be

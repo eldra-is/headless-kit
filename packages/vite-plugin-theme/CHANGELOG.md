@@ -5,6 +5,23 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `eldra.templates` now also declares **static page seeds**: an entry naming `page: { slug }`
+  instead of `schemaApiId`/`routePattern` seeds a Page at `/<slug>` (at most 16 of them, counted
+  separately from the 8 route templates). A seed names one target or the other, never both. Its
+  `blocks` array **is** the page in document order — there is no `layout` and there are no node
+  ids; Core lays the entries out in one column — and an entry is either a block
+  (`{ apiId, data, required? }`, emitted as `{ type: apiId, data, required? }`) or a placement of
+  one of the site's shared regions (`{ role: 'header' | 'footer' }`, emitted as the reserved
+  `{ type: '@header' }` / `{ type: '@footer' }`, at most once each and only where the theme declares
+  that `templateRoles` role). A region may sit anywhere in the order, so an announcement bar can
+  precede the header. `required: true` makes the node Core creates locked: the author reorders it
+  and edits its fields, but cannot delete it or move it out of the page root; it is refused on a
+  route template's blocks. Block `data` goes through exactly the walk a template seed's data does.
+  The home page is **not** a page seed — it stays the `templates` entry it has always been, which
+  Core maps to the site's root Page itself, so the home seed on the wire is unchanged, and a page
+  seed may not claim the slug `home` while that template seed exists. `pageSeeds` is absent rather
+  than empty when a theme seeds no pages.
+
 - A seed's `link` value with `kind: "url"` is checked against the platform's href allowlist rather
   than only for being a non-blank string, so a scan refuses what a deploy refuses. A `mock.json` or
   `preview.json` carrying `javascript:…`, a `data:` url, a protocol-relative `//host`, a bare `#`,

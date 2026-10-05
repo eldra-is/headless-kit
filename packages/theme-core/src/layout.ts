@@ -334,7 +334,16 @@ class Validator {
   ): Extract<LayoutNode, { type: 'block' }> {
     // 'slots' is admitted at every version so v1/v2 documents report the
     // version gate (SLOT_VERSION) instead of an unrelated UNKNOWN_KEY.
-    this.keys(object, ['id', 'type', 'entryId', 'style', 'slots'], path);
+    //
+    // 'locked' is a node the platform created from a theme's page seed and will
+    // not let an author delete or move out of the page root (a cart page's cart
+    // block). It is an **authoring** rule, so nothing here renders differently
+    // for it — but it is stored on the node, so it has to be admitted: an
+    // unknown key fails the whole document, and the page a merchant's seeded
+    // cart lives on would render as `data-eldra-invalid-layout`.
+    this.keys(object, ['id', 'type', 'entryId', 'style', 'slots', 'locked'], path);
+    if (has(object, 'locked') && typeof object.locked !== 'boolean')
+      fail(`${path}/locked`, 'INVALID_TYPE');
     if (!has(object, 'entryId')) fail(`${path}/entryId`, 'REQUIRED');
     if (typeof object.entryId !== 'string') fail(`${path}/entryId`, 'INVALID_TYPE');
     if (!UUID.test(object.entryId)) fail(`${path}/entryId`, 'INVALID_VALUE');

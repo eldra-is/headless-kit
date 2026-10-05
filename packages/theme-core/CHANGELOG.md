@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A page layout's `block` node may carry `locked: true` — the platform sets it on a node created
+  from a theme's `pageSeeds[].blocks[].required`, and it is stored on the node. The layout validator
+  used to fail the whole document on it as an unknown key, which rendered every page holding one as
+  `data-eldra-invalid-layout`; it is now admitted (and type-checked as a boolean). Nothing renders
+  differently for it: "the author may not delete this node" is an editing rule, so the normalized
+  node is the same one an unlocked block produces.
+
 - The browser's own undo and redo (⌘Z / ⇧⌘Z) now keep working in a field being edited on the canvas
   while the editor saves and echoes drafts back. A renderer re-states a field's whole text as
   `element.textContent = value`, the browser answers that by replacing the field's text node, and the
