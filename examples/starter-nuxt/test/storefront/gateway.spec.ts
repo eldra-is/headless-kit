@@ -1266,6 +1266,87 @@ describe('createGatewayStorefront', () => {
     ]);
   });
 
+  /**
+   * **Every merchant-written answer is read in the page's own language.** A page served under a
+   * locale prefix renders its CMS content in that locale; if the catalog, search and order reads
+   * did not carry it too, a visitor on `/is-IS/products/x` would read Icelandic page copy around a
+   * product whose own title, description and option names were the default language's. The rule is
+   * applied by wrapping the client once (`withContentLocale`), not per call site, so a read added
+   * later cannot forget it — which is exactly what this asserts: a *handful* of reads driven here,
+   * and `locale` on all of them.
+   */
+  it('sends the active content locale on every catalog, search and order read', async () => {
+    const queries: Array<{ what: string; query: Record<string, unknown> | undefined }> = [];
+    const record =
+      (what: string) =>
+      async (...args: unknown[]) => {
+        queries.push({ what, query: args.at(-2) as Record<string, unknown> | undefined });
+        return { data: [], meta: { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 } };
+      };
+    const client = {
+      catalog: {
+        getProduct: async (_slug: string, query?: Record<string, unknown>) => {
+          queries.push({ what: 'getProduct', query });
+          return { id: 'p1', slug: 'merino-crew-sweater', variants: [] };
+        },
+        getCollection: async (_slug: string, query?: Record<string, unknown>) => {
+          queries.push({ what: 'getCollection', query });
+          return { id: 'c1', slug: 'winter-knitwear', title: 'Winter', productCount: 0 };
+        },
+        listCollectionProducts: record('listCollectionProducts'),
+        listProducts: record('listProducts'),
+        search: async (_q: string, query?: Record<string, unknown>) => {
+          queries.push({ what: 'search', query });
+          return { query: 'mug', total: 0, results: [] };
+        },
+      },
+      orders: {
+        get: async (_token: string, query?: Record<string, unknown>) => {
+          queries.push({ what: 'orders.get', query });
+          return { id: 'o1', orderNumber: 1, status: 'PAID', items: [], totals: {} };
+        },
+      },
+      inventory: {
+        availability: async () => ({ items: [] }),
+      },
+    } as unknown as EldraClient;
+
+    const storefront = createGatewayStorefront(client, {
+      route: fakeRoute(),
+      locale: () => 'is-IS',
+    });
+    storefront.catalog.product(ref('merino-crew-sweater'));
+    storefront.catalog.collection(ref('winter-knitwear'));
+    storefront.catalog.collectionProducts(
+      ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' }),
+      ref({ page: 1, pageSize: 24 })
+    );
+    storefront.catalog.byHandles(ref(['merino-crew-sweater']));
+    storefront.search.run(ref('mug'));
+    storefront.orders.current(ref('token-1'));
+    await settle();
+
+    expect(queries.length).toBeGreaterThanOrEqual(6);
+    for (const { what, query } of queries) {
+      expect(query?.locale, `${what} sent ${JSON.stringify(query)}`).toBe('is-IS');
+    }
+  });
+
+  it('sends no locale at all on a single-locale store, exactly as it always did', async () => {
+    // The overwhelming majority of stores, and every story and mapping spec. An empty `?locale=`
+    // is a locale the gateway answers with 400, so "no locale" has to mean no key.
+    const { client, collectionProductQueries } = recordingClient();
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    storefront.catalog.collectionProducts(
+      ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' }),
+      ref({ page: 1, pageSize: 24 })
+    );
+    await settle();
+
+    expect(collectionProductQueries.length).toBeGreaterThan(0);
+    for (const query of collectionProductQueries) expect(query).not.toHaveProperty('locale');
+  });
+
   it('every result carries an empty `revalidating` set — the prerender contract’s resting state', async () => {
     const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
     const result = storefront.catalog.collectionProducts(

@@ -692,6 +692,15 @@ interface GatewayResultOptions {
   /** The method half of the async-data key: `catalog.product`, `search.run`, … */
   method: string;
   runtime: StorefrontRuntime | undefined;
+  /**
+   * The active content locale, which is **part of the key**: `/products/x` and `/is-IS/products/x`
+   * are one read of one product in two languages, and they must not share a cache entry. Nuxt's
+   * payload plugin writes the destination's keys into `nuxtApp.static.data` on every navigation
+   * and `useAsyncData` reuses an existing entry for a key it has already seen, so without the
+   * locale a shopper switching language would be served the data of the language they left — and,
+   * for the tick both pages are mounted, the two would fight over one entry.
+   */
+  locale?: () => string | undefined;
   /** Arguments that are not reactive sources but still name a different read (`related`'s limit). */
   keyArgs?: readonly unknown[];
   /** Omitted for a result that is not about products (a collection's own info, an order). */
@@ -776,6 +785,7 @@ function createGatewayResult<T>(
             resultKey(options.method, [
               ...sources.map((source) => source.value),
               ...(options.keyArgs ?? []),
+              ...(options.locale?.() === undefined ? [] : [options.locale()]),
             ]),
             // The framework owns this read — it is keyed, deduplicated and awaited by the render
             // itself — so it is deliberately given a controller nothing aborts. A watcher-scoped
@@ -1355,13 +1365,65 @@ export interface GatewayStorefrontOptions {
    * mapping — every result loads client-side the way it always did, and nothing refreshes.
    */
   runtime?: StorefrontRuntime;
+  /**
+   * The active content locale, read fresh on every call (`app/plugins/eldra-storefront.ts` derives
+   * it from the route, so it follows a language switch). Every catalog, search and order read goes
+   * out with it, and it is part of each result's cache key — see `withContentLocale` and
+   * `GatewayResultOptions.locale`. Omitted — a story, a mapping spec, a single-locale store — and
+   * nothing changes: no `locale` parameter and no key suffix, exactly as before.
+   */
+  locale?: () => string | undefined;
+}
+
+/**
+ * The same client, with the active content locale on every read whose answer is **text a merchant
+ * wrote**: products, collections, categories, search, an order's line titles.
+ *
+ * Wrapped once here rather than threaded through the twenty-odd call sites below — including the
+ * module-level helpers that take a `client` of their own — because the rule is one rule, and a
+ * read that forgot it would silently serve a visitor on `/is-IS/...` the default language's copy
+ * while everything around it was translated. A caller that passes its own `locale` still wins;
+ * nothing in this file does, and that is the escape hatch for a read that must not be localized.
+ *
+ * `inventory` is deliberately untouched: stock counts carry no language.
+ */
+function withContentLocale(client: EldraClient, locale: () => string | undefined): EldraClient {
+  const q = <T extends object | undefined>(options: T): T => {
+    const value = locale();
+    return (value === undefined ? options : { locale: value, ...(options ?? {}) }) as T;
+  };
+  const catalog = client.catalog;
+  const orders = client.orders;
+  return {
+    ...client,
+    catalog: {
+      ...catalog,
+      listProducts: (options, context) => catalog.listProducts(q(options), context),
+      getProduct: (productId, options, context) =>
+        catalog.getProduct(productId, q(options), context),
+      listCategories: (options, context) => catalog.listCategories(q(options), context),
+      listCollections: (options, context) => catalog.listCollections(q(options), context),
+      getCollection: (slug, options, context) => catalog.getCollection(slug, q(options), context),
+      listCollectionProducts: (slug, options, context) =>
+        catalog.listCollectionProducts(slug, q(options), context),
+      search: (query, options, context) => catalog.search(query, q(options), context),
+    },
+    orders: {
+      ...orders,
+      get: (orderId, options, context) => orders.get(orderId, q(options), context),
+    },
+  };
 }
 
 export function createGatewayStorefront(
-  client: EldraClient,
+  rawClient: EldraClient,
   options: GatewayStorefrontOptions
 ): StorefrontSource {
   const runtime = options.runtime;
+  const locale = options.locale;
+  // Every read below — and every module-level helper it hands this client to — carries the page's
+  // content locale. See `withContentLocale`.
+  const client = locale === undefined ? rawClient : withContentLocale(rawClient, locale);
   const catalog: StorefrontCatalog = {
     product: (handle) =>
       createGatewayResult(
@@ -1378,6 +1440,7 @@ export function createGatewayStorefront(
         {
           method: 'catalog.product',
           runtime,
+          locale,
           volatile: (current) => detailSnapshots(client, handle.value, current),
         }
       ),
@@ -1393,7 +1456,7 @@ export function createGatewayStorefront(
           )) as unknown as RawCollectionItem;
           return mapCollectionItem(raw);
         },
-        { method: 'catalog.collection', runtime }
+        { method: 'catalog.collection', runtime, locale }
       ),
     collectionProducts: (collection, opts) =>
       createGatewayResult(
@@ -1460,13 +1523,13 @@ export function createGatewayStorefront(
             facets: deriveFacets(scanWindow),
           };
         },
-        { method: 'catalog.collectionProducts', runtime, volatile: 'batch' }
+        { method: 'catalog.collectionProducts', runtime, locale, volatile: 'batch' }
       ),
     related: (handle, limit) =>
       createGatewayResult(
         [handle],
         (signal) => relatedProducts(client, handle.value, limit, signal),
-        { method: 'catalog.related', runtime, keyArgs: [limit], volatile: 'batch' }
+        { method: 'catalog.related', runtime, locale, keyArgs: [limit], volatile: 'batch' }
       ),
     byHandles: (handles) =>
       createGatewayResult(
@@ -1480,7 +1543,7 @@ export function createGatewayStorefront(
           )) as unknown as RawProductList;
           return (raw.data ?? []).map(mapProductListItem);
         },
-        { method: 'catalog.byHandles', runtime, volatile: 'batch' }
+        { method: 'catalog.byHandles', runtime, locale, volatile: 'batch' }
       ),
     volatileByIds: (ids) => volatileSnapshots(client, ids),
     notifyBackInStock: (input) =>
@@ -1510,7 +1573,7 @@ export function createGatewayStorefront(
           // both from the catalogue before this result is published. See its own comment.
           return await enrichedSearchResponse(client, mapSearchResponse(raw, query.value), signal);
         },
-        { method: 'search.run', runtime }
+        { method: 'search.run', runtime, locale }
       ),
   };
 
@@ -1523,7 +1586,7 @@ export function createGatewayStorefront(
           const raw = (await client.orders.get(token.value, {}, { signal })) as unknown as RawOrder;
           return mapOrder(raw);
         },
-        { method: 'orders.current', runtime }
+        { method: 'orders.current', runtime, locale }
       ),
   };
 
