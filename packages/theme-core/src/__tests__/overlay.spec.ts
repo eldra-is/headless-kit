@@ -420,6 +420,114 @@ describe('createOverlayRuntime', () => {
     });
   });
 
+  /**
+   * The browser's own undo stack for a contenteditable is bound to the text
+   * node the typing happened in: replace the node and ⌘Z has nothing left to
+   * undo. A renderer re-states a field's whole text as `element.textContent =
+   * value`, which replaces it, and it does so on every `editor:content-update`
+   * — so every echo, autosave included, used to cost the operator their undo
+   * history. These pin the two echoes that must never reach the DOM at all.
+   */
+  describe('a renderer echo over the field the operator is editing', () => {
+    const fieldOf = (): HTMLElement =>
+      document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
+    const stega = (value: string): string =>
+      encodeStega(value, { entryId: 'block-1', fieldPath: 'heading', locale: 'en-US' });
+    /** The browser's half of one typed character. */
+    const type = (char: string): void => {
+      const element = fieldOf();
+      (element.firstChild as Text).appendData(char);
+      element.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      runtime.rescan();
+    };
+
+    beforeEach(() => {
+      runtime.setMode('edit');
+      const element = fieldOf();
+      element.focus();
+      element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    });
+
+    it('writes nothing when the echo only re-states the text already on screen', () => {
+      type('!');
+      vi.advanceTimersByTime(300); // the post flushes
+      // ...and the editor answers it. The field is nobody's but the renderer's
+      // now, and every autosave from here on re-states the same text.
+      runtime.acceptExternalUpdate(['block-1']);
+      runtime.reconcileExternalDrafts({ 'block-1': { heading: stega('Hello!') } }, ['block-1']);
+
+      const node = fieldOf().firstChild;
+      const records: MutationRecord[] = [];
+      const observer = new MutationObserver((batch) => records.push(...batch));
+      observer.observe(fieldOf(), { childList: true, characterData: true, subtree: true });
+
+      // Three echoes of the operator's own text — three autosaves. The
+      // renderer's string differs from the live text by the stega payload
+      // alone, which is what made its "has this changed?" check say yes.
+      for (let pass = 0; pass < 3; pass += 1) {
+        runtime.acceptExternalUpdate(['block-1']);
+        fieldOf().textContent = stega('Hello!');
+        runtime.rescan();
+        runtime.reconcileExternalDrafts({ 'block-1': { heading: stega('Hello!') } }, ['block-1']);
+      }
+      observer.disconnect();
+
+      expect(records).toEqual([]);
+      expect(fieldOf().firstChild).toBe(node);
+      expect(fieldOf().textContent).toBe('Hello!');
+    });
+
+    it('writes nothing when the echo is behind the keystrokes the editor has not answered', () => {
+      type('!');
+      const node = fieldOf().firstChild;
+      const records: MutationRecord[] = [];
+      const observer = new MutationObserver((batch) => records.push(...batch));
+      observer.observe(fieldOf(), { childList: true, characterData: true, subtree: true });
+
+      // The echo carries the draft from before that keystroke. It used to land
+      // and be undone a pass later by `restoreEditingFocus`; the repair cost
+      // the text node either way.
+      runtime.acceptExternalUpdate(['block-1']);
+      fieldOf().textContent = stega('Hello');
+      runtime.rescan();
+      observer.disconnect();
+
+      expect(records).toEqual([]);
+      expect(fieldOf().firstChild).toBe(node);
+      expect(fieldOf().textContent).toBe('Hello!');
+    });
+
+    it('still lets a change the editor really made through', () => {
+      type('!');
+      vi.advanceTimersByTime(300);
+      runtime.acceptExternalUpdate(['block-1']);
+      runtime.reconcileExternalDrafts({ 'block-1': { heading: stega('Hello!') } }, ['block-1']);
+
+      fieldOf().textContent = stega('Written in the sidebar');
+      runtime.rescan();
+
+      expect(fieldOf().textContent).toBe('Written in the sidebar');
+    });
+
+    it('hands the platform setter back when edit mode ends', () => {
+      const element = fieldOf();
+      runtime.setMode('preview');
+      element.textContent = 'Hello';
+
+      // Not a no-op write any more: the filter is gone, so the payload-free
+      // string lands verbatim and the node is replaced, exactly as a theme
+      // outside the editor expects.
+      expect(Object.getOwnPropertyDescriptor(element, 'textContent')).toBeUndefined();
+    });
+
+    it('hands the platform setter back when the overlay stops', () => {
+      const element = fieldOf();
+      runtime.stop();
+
+      expect(Object.getOwnPropertyDescriptor(element, 'textContent')).toBeUndefined();
+    });
+  });
+
   it('does not pull focus back into the frame when the operator is not in it', () => {
     runtime.setMode('edit');
     const original = document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
@@ -1060,10 +1168,15 @@ describe('rich-text roots (§4.2)', () => {
 
     // The operator edits the heading inline, then clicks into the rich-text
     // editor; meanwhile the renderer applies an accepted draft to the heading.
+    // The debounce flushes on the way out, so the editor has been told about
+    // those keystrokes and the renderer's write is free to land — a field whose
+    // keystrokes the editor has not seen refuses one outright
+    // (`guardRendererText`), which is a different test.
     span.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     span.dispatchEvent(new Event('input', { bubbles: true }));
-    span.textContent = 'Headline from the sidebar';
+    vi.advanceTimersByTime(300);
     paragraph.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    span.textContent = 'Headline from the sidebar';
 
     runtime.rescan();
 

@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The browser's own undo and redo (⌘Z / ⇧⌘Z) now keep working in a field being edited on the canvas
+  while the editor saves and echoes drafts back. A renderer re-states a field's whole text as
+  `element.textContent = value`, the browser answers that by replacing the field's text node, and the
+  undo stack of the contenteditable is bound to that node — so every `editor:content-update`, every
+  autosave included, discarded everything the operator had typed from the undo history. In edit mode
+  the overlay now filters that write on the fields it has marked: an echo that re-states the text
+  already on screen (the renderer's string differs from the live text by the stega payload alone, so
+  its own "has this changed?" check could never see that it had not) and an echo that is behind
+  keystrokes the editor has not answered yet both write nothing at all, instead of landing and being
+  undone a pass later. Anything that really does change the field's text still lands, and a preview
+  that is not editing — like a published page — keeps the platform setter untouched.
 - Inline canvas editing no longer depends on when the overlay's own `input` handler runs relative
   to the MutationObserver that sees the keystroke land, nor on how long the editor's round trip
   takes. `restoreEditingFocus` answers every characterData mutation in the document, so it can run

@@ -76,6 +76,29 @@ describe('projectDrafts', () => {
     expect(stripStega(target.preview.drafts.e1?.heading as string)).toBe('Shop now');
   });
 
+  /**
+   * Vue decides whether to write a field's text by comparing the string it
+   * rendered last with the one it is about to render, and that write replaces
+   * the field's text node — taking the caret and the browser's own undo stack
+   * for the contenteditable with it. So two projections of the same draft have
+   * to produce the identical string, down to the stega payload: anything per
+   * projection in it (a revision, a timestamp, a nonce) would make every echo
+   * that changes nothing cost the operator their undo history.
+   */
+  it('projects the same draft to the identical string every time', () => {
+    const target = context();
+    target.preview.sourceDrafts.e1 = { heading: { 'en-US': 'Shop now' } };
+
+    projectDrafts(target);
+    const first = target.preview.drafts.e1?.heading;
+    // A fresh document object, as `editor:content-update` always delivers.
+    target.preview.sourceDrafts.e1 = { heading: { 'en-US': 'Shop now' } };
+    target.preview.revision += 1;
+    projectDrafts(target);
+
+    expect(target.preview.drafts.e1?.heading).toBe(first);
+  });
+
   it('leaves an unregistered top-level field wrapped (not a guess)', () => {
     // No registerBlockFields call: nothing is registered for 'cta'.
     const target = context();
