@@ -1159,11 +1159,13 @@ describe('header block (navigation apiId)', () => {
     });
 
     // The bag's two forms, and the destination of the link form. With no drawer mounted the bag is
-    // an anchor to `/cart`, which is the site's own cart page — seeded by the theme, prerendered by
-    // `nuxt.config.ts`. It used to be an anchor to a path nothing in the theme answered, so the
-    // site's catch-all asked the gateway for a CMS page called "cart", found none, and every
-    // shopper who clicked the bag landed on the not-found shell.
-    it('links to the cart route when no drawer is mounted, and claims no popup', () => {
+    // an anchor to `/cart`, which is the site's own cart page: the theme seeds it
+    // (`pages/cart.page.json`), the catch-all serves it, and `@eldrajs/theme-nuxt`'s
+    // `prerender:routes` hook writes its file from the page document — nothing names the path in
+    // `nuxt.config.ts`. It used to be an anchor to a path nothing in the theme answered at all, so
+    // the catch-all asked the gateway for a page called "cart", found none, and every shopper who
+    // clicked the bag landed on the not-found shell.
+    it('links to the cart page when no drawer is mounted, and claims no popup', () => {
       const wrapper = mountBlock(resolved.data); // the demo storefront claims no drawer
       const bag = findCartButton(wrapper);
       expect(bag.element.tagName).toBe('A');

@@ -20,7 +20,11 @@ Release-please writes the generated notes from commit messages and does not repl
   The home page is **not** a page seed — it stays the `templates` entry it has always been, which
   Core maps to the site's root Page itself, so the home seed on the wire is unchanged, and a page
   seed may not claim the slug `home` while that template seed exists. `pageSeeds` is absent rather
-  than empty when a theme seeds no pages.
+  than empty when a theme seeds no pages. Every key a page seed cannot take is refused by name
+  rather than dropped — `layout`, `header` and `footer` on the seed, `templates`, `bindings` and
+  `id` on one of its block entries, and anything else at either level — because the manifest is
+  decoded with unknown fields disallowed, so a key swallowed by the scan would fail the entire
+  deploy later with a message about a file the author never wrote.
 
 - A seed's `link` value with `kind: "url"` is checked against the platform's href allowlist rather
   than only for being a non-blank string, so a scan refuses what a deploy refuses. A `mock.json` or

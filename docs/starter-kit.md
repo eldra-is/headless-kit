@@ -790,7 +790,8 @@ page fixtures (§3) turned into the manifest's seed shape. Two kinds travel in t
 
 `catalog:product` / `catalog:collection` are the two reserved schema ids for a **catalog-backed**
 template: it has no CMS schema behind it, and the theme resolves `:slug` against the public catalog
-at render time (`useEldraPage().catalog`, see [themes.md](themes.md#seeding-default-templates)).
+at render time (`useEldraPage().catalog`, see
+[themes.md](themes.md#seeding-default-templates-and-pages)).
 `home` seeds the site's home page and applies only when the site has none.
 
 **Pages** — one static document each, at `/<slug>`:

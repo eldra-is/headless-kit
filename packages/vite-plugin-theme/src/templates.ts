@@ -39,6 +39,55 @@ const MAX_PAGE_SEED_BLOCKS = 50;
 /** The two reserved entry types a page seed places a shared region with. They
  * begin with `@`, which no block apiId may, so they can never collide. */
 const REGION_TYPES = { header: '@header', footer: '@footer' } as const;
+/**
+ * Every key each shape of a page seed may carry. Anything else is refused by
+ * name rather than dropped on the way to the manifest: Core decodes the
+ * manifest with unknown fields disallowed, so a key this swallowed would fail
+ * the **whole** ingest — every block, token and template in that deploy — with
+ * a message about a file the author never wrote. Refusing it here names the
+ * path instead, at the one moment the author can fix it.
+ *
+ * The three that are most tempting are the three a *template* seed does take:
+ * `layout`, `header` and `footer` steer a template's generated layout, and a
+ * page seed has none — its entry list is the page. Likewise `templates` and
+ * `bindings` belong to a template seed's block node, which resolves them
+ * against the object its route matched; a page matches no object.
+ */
+const PAGE_SEED_KEYS = new Set(['page', 'title', 'blocks']);
+const PAGE_SEED_BLOCK_KEYS = new Set(['apiId', 'data', 'required']);
+const PAGE_SEED_REGION_KEYS = new Set(['role']);
+/** Why a key a page seed cannot take exists at all, where there is an answer —
+ * so the error says what to do instead of only what is wrong. `schemaApiId` and
+ * `routePattern` are deliberately absent: a seed carrying either of them beside
+ * `page` is the "names both targets" error and never reaches this list. */
+const PAGE_SEED_KEY_HINTS: Readonly<Record<string, string>> = {
+  layout: 'a page seed declares no layout: its `blocks` are the page, in order',
+  header: 'place the region instead: an entry `{ role: "header" }` among the blocks',
+  footer: 'place the region instead: an entry `{ role: "footer" }` among the blocks',
+  templates: "only a route template's block node takes templates: a page matches no object",
+  bindings: "only a route template's block node takes bindings: a page matches no object",
+  id: 'a page seed emits no node ids — there is no layout to reference one from',
+};
+
+/**
+ * Reports every key `allowed` does not list, with the hint above when there is
+ * one. Called on the page seed, on each of its block entries and on each region
+ * placement, because Core refuses an unknown key at any depth.
+ */
+function checkPageSeedKeys(
+  at: string,
+  value: Record<string, unknown>,
+  allowed: ReadonlySet<string>,
+  errors: string[]
+): void {
+  for (const key of Object.keys(value)) {
+    if (allowed.has(key)) continue;
+    const hint = PAGE_SEED_KEY_HINTS[key];
+    errors.push(
+      `${at}.${key} — unknown key on a page seed${hint === undefined ? '' : ` (${hint})`}`
+    );
+  }
+}
 const ROLES = new Set(['header', 'footer']);
 const ROOT_NODE_ID = 'root';
 const ROLE_NODE_IDS = { header: 'role-header', footer: 'role-footer' } as const;
@@ -334,6 +383,7 @@ export function validatePageSeeds(
   for (const [index, entry] of entries.slice(0, MAX_PAGE_SEEDS)) {
     const at = `templates[${index}]`;
     const seed = entry as unknown as DeclaredPageSeed;
+    checkPageSeedKeys(at, entry, PAGE_SEED_KEYS, errors);
     const target: Record<string, unknown> = isRecord(seed.page) ? seed.page : {};
     const slug = typeof target.slug === 'string' ? target.slug : '';
     const extra = Object.keys(target).filter((key) => key !== 'slug');
@@ -379,6 +429,7 @@ export function validatePageSeeds(
         continue;
       }
       const block = blockEntry as DeclaredPageSeedBlock;
+      checkPageSeedKeys(blockAt, blockEntry, PAGE_SEED_BLOCK_KEYS, errors);
       const fields = blockFields.get(block.apiId);
       if (fields === undefined) {
         errors.push(`${blockAt}.apiId — unknown block "${String(block.apiId)}"`);
@@ -437,6 +488,15 @@ function checkedRegion(
       `${blockAt}.${key} — a region placement carries only its role (the block behind it is templateRoles.${role})`
     );
   }
+  // The three above get their own message because each is a key a *block* entry
+  // really does take; anything else is refused the way every other unknown key
+  // on a page seed is.
+  checkPageSeedKeys(
+    blockAt,
+    entry,
+    new Set([...PAGE_SEED_REGION_KEYS, ...PAGE_SEED_BLOCK_KEYS]),
+    errors
+  );
   if (placed.has(role)) {
     errors.push(`${blockAt}.role — duplicate role "${role}"`);
     return null;

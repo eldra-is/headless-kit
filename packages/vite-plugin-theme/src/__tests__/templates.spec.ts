@@ -9,6 +9,7 @@ import {
 } from '../templates';
 import type {
   DeclaredPageSeed,
+  DeclaredPageSeedBlock,
   DeclaredSeed,
   DeclaredTemplateSeed,
   ManifestTemplateRoles,
@@ -924,6 +925,67 @@ describe('validatePageSeeds', () => {
       'templates[0].blocks[3].data — a region placement carries only its role (the block behind it is templateRoles.footer)',
       'templates[0].blocks[3].required — a region placement carries only its role (the block behind it is templateRoles.footer)',
       'templates[0].blocks[3].role — placing the footer region needs templateRoles.footer',
+    ]);
+  });
+
+  /**
+   * Core decodes the manifest with unknown fields disallowed, so a key swallowed here fails the
+   * **whole** ingest — every block, token and template in that deploy — with a message about a file
+   * the theme author never wrote. These three are the tempting ones: `layout`, `header` and
+   * `footer` are exactly what a *template* seed takes to steer its generated layout, and a page
+   * seed has none of them because its entry list is the page.
+   */
+  it('refuses a page seed key it does not understand, and says what to do instead', () => {
+    const { errors } = validateSeeds([
+      {
+        ...cartSeed(),
+        layout: { version: 1 },
+        header: false,
+        footer: true,
+        somethingElse: 1,
+      } as unknown as DeclaredSeed,
+    ]);
+
+    expect(errors).toEqual([
+      'templates[0].layout — unknown key on a page seed (a page seed declares no layout: its `blocks` are the page, in order)',
+      'templates[0].header — unknown key on a page seed (place the region instead: an entry `{ role: "header" }` among the blocks)',
+      'templates[0].footer — unknown key on a page seed (place the region instead: an entry `{ role: "footer" }` among the blocks)',
+      'templates[0].somethingElse — unknown key on a page seed',
+    ]);
+  });
+
+  /**
+   * `templates` and `bindings` belong to a *route template's* block node, where they resolve
+   * against the object the route matched. A page matches no object, so a page seed's block carrying
+   * either would be a binding that can never resolve — and a key Core refuses outright.
+   */
+  it('refuses templates/bindings and a node id on a page seed\u2019s block entry', () => {
+    const page = cartSeed();
+    page.blocks = [
+      {
+        id: 'cart-1',
+        apiId: 'hero',
+        data: {},
+        templates: { heading: '{{ title }}' },
+        bindings: { heading: 'title' },
+      } as unknown as DeclaredPageSeedBlock,
+    ];
+
+    expect(validateSeeds([page]).errors).toEqual([
+      'templates[0].blocks[0].id — unknown key on a page seed (a page seed emits no node ids — there is no layout to reference one from)',
+      "templates[0].blocks[0].templates — unknown key on a page seed (only a route template's block node takes templates: a page matches no object)",
+      "templates[0].blocks[0].bindings — unknown key on a page seed (only a route template's block node takes bindings: a page matches no object)",
+    ]);
+  });
+
+  it('refuses an unknown key on a region placement too, beside the three it explains', () => {
+    const page = cartSeed();
+    page.blocks = [
+      { role: 'header', entryId: 'x' } as unknown as DeclaredPageSeed['blocks'][number],
+    ];
+
+    expect(validateSeeds([page]).errors).toEqual([
+      'templates[0].blocks[0].entryId — unknown key on a page seed',
     ]);
   });
 

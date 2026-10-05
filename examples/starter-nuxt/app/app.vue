@@ -94,7 +94,7 @@ const DRAWER_ENTRY_ID = 'theme-cart-drawer';
  * Every field is left to the block's own default except the empty state's destination: `/` always
  * exists, where `/collections/all` (what `mock.json` seeds an authored cart block with) is a route
  * only some stores have. Author-editable copy for this surface arrives with the storefront settings
- * entry (`docs/starter-kit.md`, "The cart drawer and the `/cart` route").
+ * entry (`docs/starter-kit.md`, "The cart drawer and the `/cart` page").
  */
 const drawerEntry = computed(
   () =>

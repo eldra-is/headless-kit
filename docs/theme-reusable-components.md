@@ -54,7 +54,7 @@ existing exact-origin bridge.
 A route template's version-1 layout may hold the same
 `{ id, type: 'reusable', componentId }` placements beside its `template-block`
 leaves — that is how a seeded template's header and footer **roles** reach the
-site's own shared components (see [themes.md](themes.md#seeding-default-templates)).
+site's own shared components (see [themes.md](themes.md#seeding-default-templates-and-pages)).
 
 A template, like a Page, reaches the theme in **two shapes**, and both render the
 same template:
