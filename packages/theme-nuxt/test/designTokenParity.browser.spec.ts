@@ -138,13 +138,17 @@ describe('real-browser design-token preview/static parity', () => {
         await editable.waitFor();
         await expect.poll(() => editable.getAttribute('contenteditable')).toBe('true');
         await editable.focus();
+        const edited = await editable.textContent();
         await editable.dispatchEvent('input');
-        // Let the field's own theme:text-edited debounce flush first: inside
-        // that window the overlay owns the text, because the editor has not
-        // been told about the keystroke yet and nothing it echoes can describe
-        // it (theme-core's `hasUnflushedTextEdit`). An accepted external draft
-        // is only authoritative for text the editor has actually seen.
+        // Let the field's own theme:text-edited debounce flush, then answer
+        // that post by echoing its value back: inside that window the overlay
+        // owns the text, because the editor has not been told about the
+        // keystroke — or has not answered yet — and nothing it sends in the
+        // meantime can describe it (theme-core's
+        // `hasUnacknowledgedTextEdit`). An accepted external draft is only
+        // authoritative for text the editor has actually caught up with.
         await previewPage.waitForTimeout(400);
+        await previewPage.evaluate((value) => window.postContentDraft?.(value), edited ?? '');
         await previewPage.evaluate(() => window.postContentDraft?.('Accepted browser draft'));
         await expect.poll(() => editable.textContent()).toBe('Accepted browser draft');
 
