@@ -165,6 +165,27 @@ export interface EldraOrganizationCommerce {
   defaultTaxRate: number;
 }
 
+/**
+ * The organisation's configured **content** locales, as the public organisation read publishes
+ * them: which locale a document's untagged content belongs to, and every locale its fields may
+ * carry a value for.
+ *
+ * Hand-written for the same reason `EldraOrganizationCommerce` above it is — the organisation read
+ * backs every `features.*` method and has to resolve without the Vite plugin's generated
+ * `contract.ts`.
+ *
+ * `supported` is default-first and always contains `default`. An organisation that has configured
+ * none publishes no `locales` at all, which `features.getLocales()` reports as `null`: a consumer
+ * can then behave exactly as it did before locales existed (one unprefixed site, the gateway's own
+ * default locale on every read) rather than inventing a tag nobody chose.
+ */
+export interface EldraOrganizationLocales {
+  /** The locale served unprefixed, e.g. `en-US`. */
+  default: string;
+  /** Every configured locale, `default` first, e.g. `["en-US", "is-IS"]`. */
+  supported: string[];
+}
+
 export interface EldraOrganizationDetails {
   id: string;
   name: string;
@@ -172,6 +193,8 @@ export interface EldraOrganizationDetails {
   features?: EldraOrganizationFeature[];
   /** See `EldraOrganizationCommerce`: absent, or `null`, until the store configures commerce. */
   commerce?: EldraOrganizationCommerce | null;
+  /** See `EldraOrganizationLocales`: absent, or `null`, until the organisation configures any. */
+  locales?: EldraOrganizationLocales | null;
   paymentProviders?: unknown;
   createdAt?: string;
   updatedAt?: string;
@@ -286,6 +309,21 @@ export interface EldraFeatureClient {
     options?: EldraOrganizationOptions,
     context?: EldraRequestContext
   ): Promise<EldraOrganizationCommerce | null>;
+  /**
+   * Which content locales the organisation publishes: `{ default, supported }`, or `null` when it
+   * has configured none. Reads the same organisation document the other `features` methods read,
+   * so a caller that already has one can take `locales` off it instead of calling this.
+   *
+   * The answer is validated rather than passed through: a record without a non-empty string
+   * `default`, or whose `supported` is not an array of non-empty strings, is reported as `null` —
+   * the same answer as "none configured". A consumer uses this to decide which locale lives at
+   * which URL, and half an answer there would route real visitors to paths no content exists at.
+   * `default` is always first in `supported`, and duplicates are collapsed.
+   */
+  getLocales(
+    options?: EldraOrganizationOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraOrganizationLocales | null>;
 }
 
 export interface EldraClient {

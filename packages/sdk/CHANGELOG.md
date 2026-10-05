@@ -9,6 +9,16 @@ platform repository.
 
 ## Unreleased
 
+- `client.features.getLocales()` answers which content locales the organisation publishes: its own
+  `{ default, supported }` record (exported as `EldraOrganizationLocales`, `supported` default-first
+  and duplicate-free), or `null` when it has configured none. `EldraOrganizationDetails` grows the
+  same `locales` field, so a caller holding an organisation can read it there instead. The answer is
+  validated, not passed through — a record missing a usable `default`, or whose `supported` is not an
+  array of non-empty strings, reads the same as "none configured": whoever reads this decides which
+  locale lives at which URL, and half an answer would route real visitors to paths no content
+  exists at. The type is hand-written, like `EldraOrganizationCommerce` beside it, because the
+  organisation read has to resolve without the generated contract.
+
 - `client.features.getCommerce()` answers what the store sells in: the organisation's own
   `commerce` settings (`{ currency, taxInclusivePricing, defaultTaxRate }`, exported as
   `EldraOrganizationCommerce`), or `null` when it publishes none. `EldraOrganizationDetails` grows

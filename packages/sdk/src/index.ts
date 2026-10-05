@@ -88,6 +88,7 @@ export type {
   EldraOrganizationCommerce,
   EldraOrganizationDetails,
   EldraOrganizationFeature,
+  EldraOrganizationLocales,
   EldraOrganizationOptions,
   EldraPageMeta,
   EldraPaginated,
