@@ -75,11 +75,11 @@ Shared rules for every block in this part:
 
 ### Header · `header`
 
-The store's top bar: brand, primary links with optional mega-menus, search, account, cart and one call to action. Below 64rem of block width it collapses into a menu drawer.
+The store's top bar: brand, primary links with optional mega-menus, search, wishlist, cart and one call to action. There is no account control: the platform has no customer login yet, and an icon that leads nowhere is worse than none. Below 64rem of block width it collapses into a menu drawer.
 
 **Container** `wide` · **Section background** default `background` (transparent over a Hero `image-background` when `transparentOverHero` is on) · **Section spacing** none (the bar sets its own height)
 
-**Uses** Button (ghost icon for menu, search, account, cart and close; primary sm for the call to action; primary full width in the drawer), Link, Drawer (left, on the native `<dialog>`), SearchModal (or SearchBar in `inline` search style), Image (feature cards), and the cart count badge.
+**Uses** Button (ghost icon for menu, search, wishlist, cart and close; primary sm for the call to action; primary full width in the drawer), Link, Drawer (left, on the native `<dialog>`), SearchModal (or SearchBar in `inline` search style), Image (feature cards), and the cart and wishlist count badges.
 
 ![Header — 1280 · default story · Knitwear mega-menu open](images/blocks/header--1280-default-story-knitwear-mega-menu-open.png)
 *Desktop: the Knitwear trigger is expanded (weight 600, 2px underline, chevron up). The panel spans the full width below the bar with three groups and two feature cards.*
@@ -116,7 +116,6 @@ The store's top bar: brand, primary links with optional mega-menus, search, acco
 | `links[].features[].link` | link | yes | — | |
 | `showSearch` | bool | no | on | Shows the search control. It opens SearchModal (also on `/` and `⌘K` / `Ctrl+K`). |
 | `searchStyle` | select | no | `icon` | `icon`: a ghost icon button that opens SearchModal. `field`: a pill-shaped search trigger that looks like a field ("Search the shop", with a `⌘K` hint) and opens the same modal. It shows from 64rem only; below that the icon button shows. `inline`: `centered` variant only, a SearchBar in the bar with live results in a panel below it (from 64rem; below that the icon button shows). |
-| `showAccount` | bool | no | off | Off until a store has customer accounts. Hidden in the bar below 64rem and in `minimal`. Always listed in the drawer. |
 | `cta` | link | no | none | One primary button (label and link). Hidden in the bar below 64rem, where it becomes the full-width drawer button. |
 | `sticky` | bool | no | on | The header stays at the top while scrolling. |
 | `transparentOverHero` | bool | no | off | Only takes effect when the next block is a Hero with variant `image-background`. Otherwise it is ignored. |
@@ -127,13 +126,13 @@ The cart count is not a field: it comes from the cart.
 
 | variant | What changes |
 |---|---|
-| `default` | Brand left, links inline after it, then search, account, cart and call to action on the right. |
-| `centered` | From 64rem: search on the left, brand centred, account and cart (and the call to action when set) on the right. The links sit on a second row, centred, under a `border` hairline. Below 64rem it is identical to `default`. |
-| `minimal` | Brand left; search, cart and a "Menu" button on the right at every width. Links, account and call to action live only in the drawer. Good for landing pages and small catalogues. |
+| `default` | Brand left, links inline after it, then search, wishlist, cart and call to action on the right. |
+| `centered` | From 64rem: search on the left, brand centred, wishlist and cart (and the call to action when set) on the right. The links sit on a second row, centred, under a `border` hairline. Below 64rem it is identical to `default`. |
+| `minimal` | Brand left; search, cart and a "Menu" button on the right at every width. Links and the call to action live only in the drawer; the wishlist heart is not shown. Good for landing pages and small catalogues. |
 
 **Layout**
 
-- **Below 48rem**: the bar is 4rem tall with 1rem gutters. Grid columns `auto minmax(0, 1fr) auto auto`: menu button, brand (left aligned), search, actions (cart). The column gap is 0.25rem. The menu button is pulled 0.5rem into the gutter. Icon buttons are 2.75rem square with 1.25rem icons. Account and call to action are hidden. The drawer comes in from the left, `min(22rem, 100%)` wide, over the `overlay` scrim.
+- **Below 48rem**: the bar is 4rem tall with 1rem gutters. Grid columns `auto minmax(0, 1fr) auto auto`: menu button, brand (left aligned), search, actions (wishlist, cart). The column gap is 0.25rem. The menu button is pulled 0.5rem into the gutter. Icon buttons are 2.75rem square with 1.25rem icons. The call to action is hidden. The drawer comes in from the left, `min(22rem, 100%)` wide, over the `overlay` scrim.
 - **48–64rem**: same as mobile with 1.5rem gutters; icon buttons are 2.5rem. In `minimal`, the menu button shows a "Menu" text label next to its icon (auto width, 0.75rem side padding).
 - **From 64rem**: the bar is 4.5rem tall with 2rem gutters inside the wide container (80rem). Grid `auto minmax(0, 1fr) auto auto`: brand, links, search, actions. The menu button is hidden. The links start 2rem after the brand and are 0.25rem apart. Each link is 2.5rem tall with 0.75rem side padding, 0.875rem text at weight 500. Actions are 0.25rem apart. The call to action (Button primary sm: 2rem tall, 0.875rem text) sits 0.75rem after the cart.
 - **Brand**: heading font, 1.25rem, weight 700, letter-spacing −0.02em, line-height 1, min height 2.75rem, 0.25rem side padding, `radius-sm` corners (for the focus ring).
@@ -149,7 +148,7 @@ The cart count is not a field: it comes from the cart.
   - Body: 0.5rem top, 1rem sides, 1.5rem bottom padding; it scrolls.
   - List: each top-level item has a `border` hairline below it. Top-level rows are full width and at least 3.5rem tall, in the heading font at 1.25rem, weight 600, with a trailing chevron on items that have groups.
   - Expanded item: a grid of its groups (1.25rem gap, 1.25rem bottom padding). Group titles are 0.25rem above their links, and links are 2.75rem tall. Feature cards are not shown in the drawer.
-  - Foot: 1rem padding, 0.5rem gap, `border` hairline above. It holds the call to action as Button primary, full width (2.75rem tall below 48rem), then a utility row: links of at least 2.75rem, 0.875rem weight 500, icon plus label, 0.25rem × 1rem gaps. The row holds Account when `showAccount` is on. The Northwind story also shows a "Find the studio" link; that is store content, not a field.
+  - Foot: 1rem padding, 0.5rem gap, `border` hairline above. It holds the call to action as Button primary, full width (2.75rem tall below 48rem), then a utility row: links of at least 2.75rem, 0.875rem weight 500, icon plus label, 0.25rem × 1rem gaps. The Northwind story shows a "Find the studio" link there; that is store content, not a field.
 
 **States**
 
@@ -176,7 +175,7 @@ The cart count is not a field: it comes from the cart.
 - `links[].groups` → the mega-menu panel's groups (bar) and the expandable group list (drawer).
 - `links[].features` → the feature cards on the right of the panel (bar only).
 - `showSearch` / `searchStyle` → the search control.
-- `showAccount` → the account icon button in the bar (from 64rem) and the Account utility link in the drawer.
+- the wishlist store → the heart icon button linking to `/wishlist`, always in the bar (except `minimal`) whether or not anything is saved; its count badge appears from one item, read after mount so prerendered output carries no shopper state.
 - The cart count → the cart button and its count badge.
 - `cta` → the button after the cart (from 64rem) and the full-width drawer foot button.
 - `variant` → the bar layout.
@@ -186,7 +185,7 @@ The cart count is not a field: it comes from the cart.
 **Keyboard & accessibility**
 
 - **Landmarks**: a skip link ("Skip to content") comes first in the page. It is visually hidden until focused, then shown 1rem from the top left. Next is `<header>` (banner), which contains `<nav aria-label="Primary">`. Only one "Primary" navigation is exposed at a time: the bar's list from 64rem, the drawer's list below that (and at every width in `minimal`).
-- **Tab order**: skip link → brand → links (when a mega-menu is open, its panel's links come right after its trigger: put the panel directly after the trigger in reading order) → search → account → cart → call to action. Below 64rem: menu button → brand → search → cart.
+- **Tab order**: skip link → brand → links (when a mega-menu is open, its panel's links come right after its trigger: put the panel directly after the trigger in reading order) → search → wishlist → cart → call to action. Below 64rem: menu button → brand → search → wishlist → cart.
 - **Mega-menus** are non-modal disclosures, never dialogs: the disclosure navigation menu pattern with its arrow-key extension. Each trigger is a `<button type="button" aria-expanded="false|true" aria-controls="{panel id}">` with the label as its name and a decorative chevron (`aria-hidden`). Each group's list is labelled by its group title (`aria-labelledby`). There is no `role="menu"` and no `aria-activedescendant`: these are navigation links, so focus moves to the links themselves and every one of them stays in the tab sequence.
   - `Enter` / `Space` on the trigger toggles its panel.
   - `Down` / `Up` on the trigger open the panel if it is closed and move focus into it, to its first or last link.
@@ -203,7 +202,7 @@ The cart count is not a field: it comes from the cart.
   - On close, focus returns to the menu button.
   - Items with groups are disclosure buttons (`aria-expanded`, `aria-controls`); `Enter` / `Space` expands or collapses them in place.
 - **Search**: the search control is a `<button aria-label="Search" aria-haspopup="dialog">` (the `field` style shows the text "Search the shop" as its name). It opens SearchModal, the native `<dialog>` opened as a modal, with focus in the search input. On close, focus returns to the control. `/` (when focus is not in a text field) and `⌘K` / `Ctrl+K` (anywhere) open the same modal. The `inline` style uses SearchBar instead: a combobox with a non-modal results listbox (see SearchBar for its keys).
-- **Icon buttons** have `aria-label`s: "Search", "Account". The cart label includes the count ("Cart, 2 items", "Cart, 1 item", "Cart, empty") and updates when the count changes. The visual count badge is `aria-hidden`.
+- **Icon buttons** have `aria-label`s: "Search", and the wishlist heart "Wishlist" when empty or with its count ("Wishlist, 3 items", "Wishlist, 1 item"). The cart label includes the count ("Cart, 2 items", "Cart, 1 item", "Cart, empty") and updates when the count changes. The visual count badge is `aria-hidden`.
 - **Targets**: icon buttons 2.5rem (2.75rem below 48rem of block width); links 2.5rem tall; second-level links 2.25rem (2.75rem in the drawer); drawer top-level rows 3.5rem; call to action 2rem in the bar and 2.75rem in the drawer on narrow screens.
 - **Sticky header and focus**: when `sticky` is on, the page sets its scroll padding at the top to the header's height (5rem), so focused or anchored content never ends up hidden under the bar (2.4.11).
 - **Transparent mode** keeps the standard focus ring: the `focus-inner` infill stays visible on the scrim and photo, so no override is needed.
@@ -215,13 +214,13 @@ The cart count is not a field: it comes from the cart.
   - Knitwear (mega-menu). Groups: **Women**: Sweaters, Cardigans, Scarves & wraps, Hats & gloves. **Men**: Sweaters, Cardigans, Scarves, Socks. **Collections**: Merino essentials, Heavy winter knits, Undyed wool, Shop all knitwear. Features: "New season knitwear" (folded walnut merino cardigan), "Care & repair guide" (darning kit with sage wool).
   - Ceramics (mega-menu). Group **Tableware**: Plates, Bowls, Mugs & cups.
   - Kitchen, Journal, Visit the studio.
-- Call to action "Shop gifts". Cart count 2. Drawer utility links: Account, Find the studio.
+- Call to action "Shop gifts". Cart count 2, wishlist empty. Drawer utility links: Find the studio.
 
 **Acceptance criteria**
 
 - [ ] Header text `text` on `background` is 16.9:1; group titles `muted` on `background` are 7.4:1; the count badge `primary-contrast` on `primary` is 15.6:1; the call to action `primary-contrast` on `primary` is 15.6:1 (1.4.3).
 - [ ] In transparent mode, all bar text and icons are `primary-contrast` on the Hero's `overlay` scrim, at 6.2:1 or better on any photo. Transparent mode never applies unless the next block is Hero `image-background` (1.4.3, 1.4.11).
-- [ ] Icons that carry meaning (search, account, cart, menu, close, chevrons) are at least 3:1 against their ground (1.4.11). Hairlines are decorative `border` and never the only boundary of a control.
+- [ ] Icons that carry meaning (search, wishlist, cart, menu, close, chevrons) are at least 3:1 against their ground (1.4.11). Hairlines are decorative `border` and never the only boundary of a control.
 - [ ] Every interactive part (skip link, brand, links, mega-menu triggers, second-level links, feature links, icon buttons, call to action, drawer rows, drawer close, utility links) shows the standard focus ring, and the ring is not hidden under the sticky bar (2.4.7, 2.4.11, 2.4.13).
 - [ ] `Enter` / `Space` toggles a mega-menu, and `Down` / `Up` on a trigger open it and move focus to the panel's first or last link. Inside a panel, `Down` / `Up` and `Home` / `End` walk its links in reading order without wrapping, and `Tab` still moves through the same links in the same order. `Right` / `Left` and `Home` / `End` travel the bar's own items, carrying an open panel with them. `Esc` from the trigger or inside the panel closes it and returns focus to the trigger, and the panel also closes as soon as focus leaves the trigger-and-panel pair. Opening one closes the other. Nothing opens only on hover (2.1.1, 1.4.13, 2.4.3).
 - [ ] The menu drawer is a native `<dialog>` opened as a modal. Focus moves to the first menu link, `Tab` stays inside, `Esc` closes it, focus returns to the menu button, and the page behind does not scroll. There is no other keyboard trap anywhere in the header (2.1.2, 2.4.3).
