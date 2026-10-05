@@ -151,6 +151,73 @@ other public key. On a prerendered site there is nothing for it to override: the
 each page's payload at build.) It is read at build rather than in the browser because every price on
 a prerendered page is formatted against it.
 
+## Which locales the site serves
+
+The module reads the organisation's configured content locales once, during the build, and puts
+them on the runtime config beside `commerce`. `StoreLocales` is exported for exactly this:
+
+```ts
+import type { StoreLocales } from '@eldrajs/theme-nuxt/locales';
+
+const raw = (useRuntimeConfig().public.eldra as { locales: StoreLocales | null | '' }).locales;
+const locales: StoreLocales | null = typeof raw === 'object' ? raw : null;
+```
+
+`locales` is `{ default, supported }` with `supported` default-first, or `null` — for an
+organisation that has configured none, for a site built without gateway credentials, and for a read
+that failed (that last one, and only that one, prints a warning naming the cause). `null` means the
+site behaves exactly as it did before locales existed: one unprefixed site, no language switcher.
+The same empty-string serialisation note as `commerce` applies, which is what the `typeof` guard
+above is for.
+
+A theme rarely needs to read the key itself: the module turns it into routing (see below) and
+`useEldraLocale()` is the composable that answers "which locale is this page, and what are the
+others".
+
+## Locale-prefixed routing
+
+With two or more locales the site serves the default locale at `/` and every other supported
+locale under a path prefix — `/is-IS/products/ash-glaze-mug`. The first path segment selects the
+locale (matched case-insensitively, canonicalised to the spelling the organisation stored) and the
+rest of the path resolves exactly as it does unprefixed; every gateway read made for that page
+carries that `locale`. `/<default-locale>/…` is deliberately **not** generated and resolves as an
+unknown path, because the default locale lives at `/` only.
+
+Path segments are not translated: a page is at its default-locale slug under every prefix, so
+`/is-IS/about` is the Icelandic rendering of the same document `/about` serves. The prerender pass
+therefore lists each content path once and writes it once per locale — pages, route templates,
+catalog routes and the seeded `cart`/`wishlist`/`search` pages alike.
+
+`eldra.locale` / `ELDRA_LOCALE` keeps the meaning it always had: an override of the **default**
+locale. Naming one of the organisation's supported locales moves that locale to `/` and prefixes
+the others; naming anything else (or deploying against an organisation with no locales) changes no
+URL and still forwards the value on every read.
+
+The module gives every page `<html lang>` and a `rel="alternate" hreflang` link per supported
+locale (plus `x-default` for the unprefixed path) on its own — a theme adds nothing for either.
+
+```vue
+<script setup lang="ts">
+// Auto-imported, like `useEldraPage`.
+const { active, defaultLocale, supported, name, path, switchPath, select } = useEldraLocale();
+
+// `path()` prefixes one same-site destination for the active locale, and is idempotent.
+const cartHref = computed(() => path('/cart'));
+// `switchPath()` is the same page in another language, query and fragment included;
+// `select()` navigates there.
+</script>
+```
+
+`name(locale)` is that locale's own name ("íslenska (Ísland)") for a switcher's option label. It is
+resolved **once, on the server**, and carried in the payload: `Intl.DisplayNames` is ICU data and a
+renderer and a browser need not have the same of it — Node answers "íslenska (Ísland)" for `is-IS`
+where a reduced-ICU browser build answers "Icelandic (Iceland)" — so a page that let each side
+compute its own labels would hydrate into a mismatch and repaint.
+
+Links are already handled where the kit owns them: `useEldraLink()` resolves a `link` field's href
+under the active locale, and a theme's router-link component should put every internal `to`
+through `path()` once (the starter's `app/components/EldraRouterLink.vue` is the reference).
+
 ## Development
 
 `src/runtime/**` is compiled by Nuxt at build/dev time, not by `tsc` — it imports `nuxt/app` and

@@ -170,7 +170,8 @@ function asyncDataStub(payload: Record<string, unknown> = {}) {
 /** The wiring `app/plugins/eldra-storefront.ts` does: one storefront, one page refresh. */
 function wire(
   client: EldraClient,
-  prerender?: <T>(key: string, load: () => Promise<T | null>) => StorefrontPrerenderHandle<T>
+  prerender?: <T>(key: string, load: () => Promise<T | null>) => StorefrontPrerenderHandle<T>,
+  locale?: () => string | undefined
 ): { storefront: StorefrontSource; refresher: VolatileRefresher } {
   // The refresh runs when this spec says so, not on a schedule of its own. It reaches the
   // storefront declared below through the closure, exactly as the plugin's does.
@@ -181,6 +182,7 @@ function wire(
   const storefront = createGatewayStorefront(client, {
     route: fakeRoute(),
     runtime: { prerender, register: refresher.register },
+    locale,
   });
   return { storefront, refresher };
 }
@@ -241,6 +243,32 @@ describe('gateway storefront — prerendered results', () => {
       'storefront:catalog.collectionProducts:[{"slug":"winter-knitwear"},{"page":1,"pageSize":24}]',
       'storefront:catalog.related:["merino-crew-sweater",8]',
     ]);
+  });
+
+  /**
+   * **One read of one product in two languages is two keys.** The key is what the value travels to
+   * the browser in, and Nuxt's payload plugin writes the destination's keys into
+   * `nuxtApp.static.data` on every navigation while `useAsyncData` reuses an entry for a key it
+   * has already seen — so a shared key would serve a shopper who switched language the data of the
+   * language they left, and for the tick both pages are mounted the two would fight over one
+   * entry. The unprefixed site keeps the key it always had, so no existing artifact's payload is
+   * invalidated.
+   */
+  it('keys a read by its locale as well, so two languages are two payload entries', async () => {
+    const icelandic = asyncDataStub();
+    wire(fakeClient().client, icelandic.prerender, () => 'is-IS').storefront.catalog.product(
+      ref('merino-crew-sweater')
+    );
+    await icelandic.settleAll();
+
+    const english = asyncDataStub();
+    wire(fakeClient().client, english.prerender).storefront.catalog.product(
+      ref('merino-crew-sweater')
+    );
+    await english.settleAll();
+
+    expect(icelandic.keys).toEqual(['storefront:catalog.product:["merino-crew-sweater","is-IS"]']);
+    expect(english.keys).toEqual(['storefront:catalog.product:["merino-crew-sweater"]']);
   });
 
   it('paints the payload’s own value while hydrating, without calling the gateway', async () => {

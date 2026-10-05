@@ -411,6 +411,19 @@ function withExtraNodes<T>(children: readonly T[], extra: ReadonlyArray<{ id: st
  */
 export const HOME_PAGE_PATH = '/';
 
+/**
+ * **Two locales, deliberately.** `@eldrajs/theme-nuxt` serves the default locale at `/` and every
+ * other supported one under a path prefix, so a two-locale organisation is what makes the generated
+ * artifact contain both halves of that rule — the unprefixed site *and* a prefixed copy of every
+ * content path. A static host answers 404 for a path it has no file for, however well the app
+ * would have rendered it, so only a real `nuxi generate` can see that half go missing.
+ *
+ * `en-US` is the default, so every existing request assertion holds unchanged: an unprefixed read
+ * carries no `locale` at all, exactly as it did before locales existed.
+ */
+export const DEFAULT_LOCALE = 'en-US';
+export const PREFIXED_LOCALE = 'is-IS';
+
 /** The paths the theme's own page seeds serve, which the generate must emit a file for. */
 export const SEEDED_PAGE_PATHS = starterPages().map((seed) => `/${seed.page.slug}`);
 
@@ -631,6 +644,7 @@ export function startMockGateway(): Promise<MockGateway> {
             { feature: 'ECOMMERCE', enabled: true },
           ],
           commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+          locales: { default: DEFAULT_LOCALE, supported: [DEFAULT_LOCALE, PREFIXED_LOCALE] },
         });
       } else if (url.pathname === '/cms/v1/schema/page/entry') {
         answer(listResponse(pages));

@@ -18,10 +18,12 @@ import {
 // monorepo sibling exists to reach into at all.
 import {
   createEldraLinkState,
+  createEldraLocaleState,
   createEldraPreviewState,
   ELDRA_KEY,
   type EldraContext,
   type EldraLinkState,
+  type EldraLocaleState,
 } from '@eldrajs/theme-vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
 import { uiMessagesFor } from '../../app/i18n/uiMessages';
@@ -48,6 +50,12 @@ export function mountOptions(
     locale?: string;
     links?: Partial<EldraLinkState>;
     /**
+     * Which content locale this page is, and how a destination is spelled in it. One unprefixed
+     * site by default — what a single-locale store is, and what every block spec but
+     * `test/localePrefix.spec.ts` is about.
+     */
+    locales?: Partial<EldraLocaleState>;
+    /**
      * What the store sells in, for a spec about money: the demo store's own `DEMO_COMMERCE` (US
      * dollars) by default, `null` for a store that publishes no currency at all. Both the
      * storefront's `commerce` and `@eldrajs/ui`'s `CURRENCY_KEY` come from this one value, the
@@ -69,7 +77,7 @@ export function mountOptions(
     props,
     global: {
       provide: {
-        [ELDRA_KEY]: createTestEldraContext(locale, options.links),
+        [ELDRA_KEY]: createTestEldraContext(locale, options.links, options.locales),
         // The same wiring `app/plugins/eldra-ui-messages.ts` does on a real
         // page: `@eldrajs/ui`'s own strings and number locale follow the
         // content locale, and its store currency comes from the store — the
@@ -94,7 +102,8 @@ export function mountOptions(
 
 function createTestEldraContext(
   locale = 'en-US',
-  links: Partial<EldraLinkState> = {}
+  links: Partial<EldraLinkState> = {},
+  locales: Partial<EldraLocaleState> = {}
 ): EldraContext {
   const context: EldraContext = {
     client: createTestEldraClient(),
@@ -104,6 +113,7 @@ function createTestEldraContext(
     // real destination passes the site's own route templates and targets, the
     // way `@eldrajs/theme-nuxt` fills them from the resolved route.
     links: Object.assign(createEldraLinkState(), links),
+    locales: Object.assign(createEldraLocaleState(), locales),
     preview: createEldraPreviewState(),
   };
   context.preview.locale = locale;

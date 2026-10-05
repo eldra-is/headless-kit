@@ -138,6 +138,7 @@ const state = vi.hoisted(() => ({
     pageSchema: 'page',
     routeTemplateSchema: 'route-template',
     locale: '' as string | null,
+    locales: '' as unknown,
   },
   ctx: undefined as unknown,
 }));
@@ -167,10 +168,12 @@ vi.mock('@eldrajs/theme-vue', () => ({ useEldra: () => state.ctx }));
 
 async function renderPage(
   client: EldraClient,
-  config: { locale: string | null },
+  config: { locale: string | null; locales?: unknown; path?: string },
   preview: { active: boolean; locale: string | null }
 ): Promise<void> {
   state.config.locale = config.locale;
+  state.config.locales = config.locales ?? '';
+  state.route.path = config.path ?? '/products/merino-crew';
   state.ctx = {
     client,
     links: { pages: [], templates: [], targets: new Map() },
@@ -189,6 +192,80 @@ describe('useEldraPage', () => {
 
     expect(calls.map((call) => call.path)).toContain('/catalog/v1/products/merino-crew');
     expect(localeKeys(calls)).toEqual([]);
+  });
+
+  it('reads a locale-prefixed path as that locale, at the unprefixed slug', async () => {
+    // The prefix selects the locale and is not part of the path the content lives at: segments are
+    // not translated, so `/en-US/products/merino-crew` is the same document `/products/...` serves,
+    // read with `locale=en-US`. A read that kept the prefix would ask the gateway for a slug no
+    // product has.
+    const { client, calls } = recordingClient();
+
+    await renderPage(
+      client,
+      {
+        locale: '',
+        locales: { default: 'is-IS', supported: ['is-IS', 'en-US'] },
+        path: '/en-US/products/merino-crew',
+      },
+      { active: false, locale: null }
+    );
+
+    const product = calls.find((call) => call.path === '/catalog/v1/products/merino-crew');
+    expect(product?.query).toEqual({ locale: 'en-US' });
+    expect(calls.every((call) => !call.path.includes('en-US/'))).toBe(true);
+  });
+
+  it('sends no locale on the unprefixed path, however many the organisation has', async () => {
+    // The default locale lives at `/`, and the gateway's own default is the same document. A site
+    // that configured no override has never sent a locale on that path, and starting to now would
+    // change every request on every existing site without changing an answer.
+    const { client, calls } = recordingClient();
+
+    await renderPage(
+      client,
+      { locale: '', locales: { default: 'is-IS', supported: ['is-IS', 'en-US'] } },
+      { active: false, locale: null }
+    );
+
+    expect(localeKeys(calls)).toEqual([]);
+  });
+
+  it('treats the default locale’s own prefix as an unknown path, not a second copy', async () => {
+    // `/is-IS/...` is never generated, so it must resolve as the path it is — which has no page —
+    // rather than as another spelling of the site root.
+    const { client, calls } = recordingClient();
+
+    await renderPage(
+      client,
+      {
+        locale: '',
+        locales: { default: 'is-IS', supported: ['is-IS', 'en-US'] },
+        path: '/is-IS/products/merino-crew',
+      },
+      { active: false, locale: null }
+    );
+
+    expect(calls.map((call) => call.path)).not.toContain('/catalog/v1/products/merino-crew');
+    expect(localeKeys(calls)).toEqual([]);
+  });
+
+  it('lets the preview bridge’s locale win over the path’s', async () => {
+    // Studio drives the content locale, and the preview frame's path need not name it at all.
+    const { client, calls } = recordingClient();
+
+    await renderPage(
+      client,
+      {
+        locale: '',
+        locales: { default: 'is-IS', supported: ['is-IS', 'en-US'] },
+        path: '/en-US/products/merino-crew',
+      },
+      { active: true, locale: 'is-IS' }
+    );
+
+    const product = calls.find((call) => call.path === '/catalog/v1/products/merino-crew');
+    expect(product?.query).toEqual({ locale: 'is-IS' });
   });
 
   it('falls back to the configured locale when the preview bridge sends a blank one', async () => {

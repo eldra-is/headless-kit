@@ -7,9 +7,11 @@ import { toStorefrontCommerce } from '../storefront/commerce';
 
 /**
  * Gives every `@eldrajs/ui` component below the app the message set for the
- * active content locale (`useEldra().preview.locale`, the same source
- * `useT()` reads) — so the package's own strings follow Studio's locale
- * switch instead of being pinned to English at build time.
+ * active content locale (`useEldra().locales.active`, the same source `useT()`
+ * reads) — so the package's own strings follow the locale the page is served
+ * under, and Studio's locale switch, instead of being pinned to English at
+ * build time. `preview.locale` is the fallback for a context assembled without
+ * the locale slice.
  *
  * The provided object is a set of getters rather than a snapshot. `useMessages`
  * reads the injected object inside a `computed`, so touching `preview.locale`
@@ -50,15 +52,24 @@ export default defineNuxtPlugin({
       eldra?: { commerce?: unknown };
     };
     const currency = toStorefrontCommerce(publicConfig.eldra?.commerce)?.currency;
+    // The page's own content locale, read through a getter on every access for the same reason
+    // the message getters below exist: it changes when the visitor changes language, and the
+    // package reads both inside a `computed`.
+    const activeLocale = (): string | undefined =>
+      context?.locales?.active ?? context?.preview.locale ?? undefined;
     const messages = {} as UiMessages;
     for (const key of Object.keys(uiEnUS) as (keyof UiMessages)[]) {
       Object.defineProperty(messages, key, {
         enumerable: true,
-        get: () => uiMessagesFor(context?.preview.locale)[key],
+        get: () => uiMessagesFor(activeLocale())[key],
       });
     }
     nuxtApp.vueApp.provide(MESSAGES_KEY, messages);
-    nuxtApp.vueApp.provide(LOCALE_KEY, () => context?.preview.locale ?? undefined);
+    // The same value is the locale every `Intl` format in the theme runs in — `@eldrajs/ui`'s
+    // `Price`/`CurrencyInput` and, through `useEldraUiLocale()`, `app/storefront/money.ts`. So a
+    // page served under `/is-IS` prints "2.800 kr." where the same money reads "kr 2,800" on the
+    // English one, while the currency itself stays the store's.
+    nuxtApp.vueApp.provide(LOCALE_KEY, activeLocale);
     nuxtApp.vueApp.provide(CURRENCY_KEY, currency);
   },
 });

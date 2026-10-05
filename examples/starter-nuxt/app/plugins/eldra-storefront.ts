@@ -80,6 +80,9 @@ export default defineNuxtPlugin({
     // The catalog object a route template matched, when this path is served by one
     // (`schemaApiId: 'catalog:product' | 'catalog:collection'`); `null` on every other route.
     const { catalog } = useEldraPage();
+    // Which content locale this page is — the locale its path prefix names, or the one a Studio
+    // preview is driving (`@eldrajs/theme-nuxt`, auto-imported like `useEldraPage`).
+    const activeLocale = useEldraLocale();
 
     function firstOf(value: string | string[] | undefined | null): string | null {
       if (Array.isArray(value)) return value[0] ?? null;
@@ -239,6 +242,20 @@ export default defineNuxtPlugin({
       // eldra-ui-messages.ts` provides the currency half to `@eldrajs/ui`; this puts the whole
       // record on `useStorefront()` for the blocks that need the tax-inclusive flag.
       commerce: toStorefrontCommerce(publicConfig.eldra?.commerce),
+      // The page's own content locale, read fresh on every call so it follows a language switch.
+      // Every catalog, search and order read carries it, and it is part of each result's cache key
+      // — see `withContentLocale` in `app/storefront/gateway.ts`.
+      //
+      // `undefined` for the locale served at `/`, which is the same rule `@eldrajs/theme-nuxt`
+      // applies to its own CMS reads (`localeForPath`): that locale's content *is* what the gateway
+      // answers without a `locale`, so sending it would change every request every existing site
+      // makes without changing one answer — and would change every prerendered payload's keys with
+      // it. So a single-locale store, and the default half of a multi-locale one, send exactly what
+      // they sent before locales existed.
+      locale: () =>
+        activeLocale.active === null || activeLocale.active === activeLocale.defaultLocale
+          ? undefined
+          : activeLocale.active,
       formsEndpoint: publicConfig.formsEndpoint,
       runtime,
     });

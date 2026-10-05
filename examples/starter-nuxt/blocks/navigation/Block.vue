@@ -38,7 +38,7 @@
  * text rather than a dead anchor; a row with no label at all renders nothing.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue';
-import { useEldraLink } from '@eldrajs/theme-vue';
+import { useEldraLink, useEldraLocale } from '@eldrajs/theme-vue';
 import type { ResolvedLink } from '@eldrajs/theme-vue';
 import {
   Badge,
@@ -59,7 +59,7 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { isInternalHref } from '../../app/utils/links';
+import { isInternalHref, SEARCH_PATH } from '../../app/utils/links';
 import { focusRing } from '../../app/utils/classes';
 import { useMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
@@ -303,12 +303,35 @@ const searchResult = storefront.search.run(searchQuery);
 /** The store's own currency and the page's locale — never a currency guessed from either. */
 const money = useMoney();
 
+/**
+ * **The header's search has to stay in the page's language, and nothing else puts it there.**
+ *
+ * Three destinations, none of which `EldraRouterLink` can reach:
+ *
+ *  1. `SearchBar`/`SearchModal` render a real `<form role="search" method="get" :action>`, so
+ *     pressing Enter with no active option is a native document submit. Left to its default the
+ *     action is `/search`, and a shopper searching from `/is-IS/products/x` lands on the **English**
+ *     results page.
+ *  2. The overlay's "See all N results" row is built by `SearchModal` as `${action}?q=…`, so it
+ *     follows from the same prop — one value fixes both.
+ *  3. Every result row's href comes off the storefront (`/products/<slug>`, `/journal/…`,
+ *     `/pages/…`) and is rendered as a plain `<a>` inside the library's results panel, which takes
+ *     no `linkAs`. So `toSearchResults` below prefixes each one itself.
+ *
+ * The path is `app/utils/links.ts`'s `SEARCH_PATH`, shared with `blocks/search/Block.vue`, which
+ * points at the same page and prefixes it the same way. `path()` is idempotent and is the identity
+ * on a single-locale site, so a row whose href already carries a prefix, and every store with one
+ * locale, are untouched.
+ */
+const activeLocale = useEldraLocale();
+const searchAction = computed(() => activeLocale.path(SEARCH_PATH));
+
 function toSearchResults(response: StorefrontSearchResponse | null): SearchResults | undefined {
   if (response === null) return undefined;
   const products: SearchResultItem[] = response.products.map((product) => ({
     id: product.productId,
     title: product.title,
-    href: product.url,
+    href: activeLocale.path(product.url),
     // Optional on `SearchResultItem`, and `null` on a product the storefront could not price: the
     // row keeps the product and drops the price rather than printing the store's own "$0.00"
     // (`StorefrontSearchProduct`).
@@ -319,14 +342,14 @@ function toSearchResults(response: StorefrontSearchResponse | null): SearchResul
   const articles: SearchResultItem[] = response.articles.map((article, index) => ({
     id: `article-${index}`,
     title: article.title,
-    href: article.href,
+    href: activeLocale.path(article.href),
     image: article.image?.src,
     imageAlt: article.image?.alt,
   }));
   const pages: SearchResultItem[] = response.pages.map((page, index) => ({
     id: `page-${index}`,
     title: page.title,
-    href: page.href,
+    href: activeLocale.path(page.href),
   }));
   return { products, collections: [], articles, pages, total: response.total };
 }
@@ -1110,6 +1133,7 @@ const actionsPositionClass = computed(() =>
                 v-model="searchQuery"
                 size="md"
                 pill
+                :action="searchAction"
                 :label="t('header.searchField')"
                 :results="searchResults"
                 :loading="searchLoading"
@@ -1303,6 +1327,7 @@ const actionsPositionClass = computed(() =>
     <SearchModal
       v-model="searchOpen"
       v-model:query="searchQuery"
+      :action="searchAction"
       :results="searchResults"
       :loading="searchLoading"
     />

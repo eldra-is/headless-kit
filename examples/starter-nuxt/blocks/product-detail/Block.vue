@@ -57,7 +57,7 @@ import {
   useToast,
   type FormLayoutSubmitPayload,
 } from '@eldrajs/ui';
-import { EldraRichText } from '@eldrajs/theme-vue';
+import { EldraRichText, useEldraLocale } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
@@ -392,6 +392,16 @@ const addToCartLabel = computed(() => {
 /** The site's own wishlist page (`/wishlist`, seeded from `pages/wishlist.page.json`) — the same destination the header's
  *  heart has, and the only place a saved list can be looked at. */
 const WISHLIST_PATH = '/wishlist';
+/** The site's own cart page, for the toast that offers it when no drawer is hosted. */
+const CART_PATH = '/cart';
+/**
+ * Both toasts below hand `@eldrajs/ui`'s `Toast` a `{ label, href }` action, which it renders as a
+ * plain `<a href>` — no router, so no `EldraRouterLink` to put the active locale's prefix on it.
+ * These two are therefore prefixed here: a shopper saving a product on `/is-IS/products/x` must be
+ * offered `/is-IS/wishlist`, not the English list. `path()` is the identity on a single-locale
+ * site and in Storybook.
+ */
+const activeLocale = useEldraLocale();
 
 const wishlisted = computed(() => (handle.value === null ? false : wishlist.has(handle.value)));
 const wishlistLabel = computed(() => {
@@ -421,7 +431,9 @@ function toggleWishlist(): void {
   toast.show({
     id: WISHLIST_TOAST_ID,
     title: saved ? t('wishlist.saved') : t('wishlist.removed'),
-    action: saved ? { label: t('wishlist.view'), href: WISHLIST_PATH } : undefined,
+    action: saved
+      ? { label: t('wishlist.view'), href: activeLocale.path(WISHLIST_PATH) }
+      : undefined,
   });
 }
 
@@ -488,7 +500,7 @@ async function primaryAction(): Promise<void> {
             cart.drawerOpen.value = true;
           },
         }
-      : { label: t('cart.viewCart'), href: '/cart' },
+      : { label: t('cart.viewCart'), href: activeLocale.path(CART_PATH) },
   });
 }
 

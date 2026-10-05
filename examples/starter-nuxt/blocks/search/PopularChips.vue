@@ -6,7 +6,7 @@
  * says) and the no-results state's own `role="status"` stack. Not a block of its own (no
  * `block.json`): a plain colocated component, the same shape `TypeSection.vue` has.
  *
- * Every chip arrives with its href already built, by the one `searchHref()` in `Block.vue` — a
+ * Every chip arrives with its href already built, by the one `searchQueryHref()` call in `Block.vue` — a
  * second place writing `?q=` is a second place for it to be written differently.
  */
 import type { Component } from 'vue';

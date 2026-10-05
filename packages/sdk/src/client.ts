@@ -15,6 +15,7 @@ import type {
   EldraHttpRequest,
   EldraOrganizationDetails,
   EldraOrganizationFeature,
+  EldraOrganizationLocales,
   EldraOrganizationOptions,
   EldraPlatformConfig,
   EldraPlatformReadOptions,
@@ -261,6 +262,17 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         // filled in with a default, so a storefront can render a price honestly (a number, no
         // symbol) instead of showing one currency's amounts under another's sign.
         return organization.commerce ?? null;
+      },
+      getLocales: async (
+        organizationOptions?: EldraOrganizationOptions,
+        context?: EldraRequestContext
+      ) => {
+        const organization = await getOrganization(organizationOptions, context);
+
+        // Absent on an organisation that has configured none — reported as `null` rather than
+        // guessed, so a consumer behaves exactly as it did before locales existed instead of
+        // routing visitors to prefixes no content answers.
+        return toOrganizationLocales(organization.locales);
       },
     },
     catalog: {
@@ -538,6 +550,35 @@ function resolveRequestOrgId(
     throw new Error('Missing Web Studio organization ID.');
   }
   return orgId;
+}
+
+/**
+ * The organisation's content locales, or `null`.
+ *
+ * Validated rather than passed through, and the validation is deliberately strict: whoever reads
+ * this decides which locale lives at which URL, so half an answer — a `default` that is not a
+ * string, a `supported` array with a blank entry — would put real visitors on paths no content
+ * exists at. Anything that is not a whole, usable record reads the same as "none configured".
+ *
+ * `default` is normalised to the front of `supported` (the gateway documents it there, and a
+ * consumer that trusted the order would otherwise prefix the default locale), and duplicates are
+ * collapsed while the remaining order is kept.
+ */
+function toOrganizationLocales(
+  value: EldraOrganizationLocales | null | undefined
+): EldraOrganizationLocales | null {
+  if (value === null || typeof value !== 'object') return null;
+  const defaultLocale = typeof value.default === 'string' ? value.default.trim() : '';
+  if (defaultLocale === '') return null;
+  if (!Array.isArray(value.supported)) return null;
+  const supported = [defaultLocale];
+  for (const entry of value.supported) {
+    if (typeof entry !== 'string') return null;
+    const locale = entry.trim();
+    if (locale === '') return null;
+    if (!supported.includes(locale)) supported.push(locale);
+  }
+  return { default: defaultLocale, supported };
 }
 
 function mapOrganizationFeatures(

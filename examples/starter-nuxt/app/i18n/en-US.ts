@@ -65,8 +65,7 @@ export const enUS = {
     emailInvalid: 'Enter a valid email address.',
     emailError: 'Something went wrong. Try again.',
     subscribed: "You're on the list.",
-    localeLabel: 'Country and language',
-    localeSearchPlaceholder: 'Search countries',
+    localeLabel: 'Language',
     currencyLabel: 'Currency',
     social: {
       instagram: 'Instagram',
@@ -80,11 +79,6 @@ export const enUS = {
     groupsHintLabel: 'Add a link group',
     groupsHintHelp: 'Up to four groups of up to eight links each',
     newsletterHintLabel: 'Turn on the newsletter form',
-    localeOptions: {
-      usEnglish: 'United States · English',
-      caEnglish: 'Canada · English',
-      caFrench: 'Canada · Français',
-    },
   },
   hero: {
     carouselFallback: 'Featured collection',

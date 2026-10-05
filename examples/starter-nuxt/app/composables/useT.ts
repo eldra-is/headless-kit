@@ -13,19 +13,33 @@ const LOCALES: Record<string, Messages> = {
 export type Translate = (key: MessageKey, params?: Record<string, string | number>) => string;
 
 /**
- * `useT()` picks the active locale's messages from the Eldra context
- * (`useEldra().preview.locale`), falling back to `en-US` both when no
- * context is provided (e.g. a composable called outside `provideEldra()`,
- * or in a unit test that mounts a component with no Eldra provide) and when
- * the context's locale is unset or not one of the shipped locales.
+ * `useT()` picks the **active content locale's** messages from the Eldra
+ * context, falling back to `en-US` both when no context is provided (e.g. a
+ * composable called outside `provideEldra()`, or in a unit test that mounts a
+ * component with no Eldra provide) and when the active locale is unset or not
+ * one of the shipped locales.
+ *
+ * Two sources, in order. `context.locales.active` is the page's own locale —
+ * the one its URL prefix names, or the one a Studio preview is driving — which
+ * is what a visitor reading `/is-IS/...` must see the UI strings in.
+ * `preview.locale` is the fallback for a context assembled without the locale
+ * slice at all (an adapter one version behind, a test that provides only the
+ * preview state), where it is still the only answer there is.
+ *
+ * **A locale with no message set of its own falls back to `en-US`, not to
+ * nothing.** The theme ships two sets and an organisation may configure any
+ * number of locales; the content on such a page is still that locale's, and
+ * English chrome around real Icelandic (or Polish, or Portuguese) copy is the
+ * honest outcome of shipping two sets — a key rendered as `nav.menu` would not
+ * be.
  *
  * `useEldra()` — like Vue's own `inject()` it wraps — only works while a
  * component instance is active, i.e. called synchronously from `useT()`
  * itself (which callers invoke from `setup()`, the normal composable
  * convention). The returned `t` function only *reads* the already-resolved
- * context's `preview.locale`, which stays correct however/whenever `t` is
- * then called (a template expression, an event handler, …) — and still
- * reactive, since `preview` is a `reactive()` object.
+ * context, which stays correct however/whenever `t` is then called (a template
+ * expression, an event handler, …) — and still reactive, since both slices are
+ * `reactive()` objects.
  *
  * No vue-i18n dependency: this is a plain lookup + `{param}` interpolation
  * over the two `satisfies Messages` locale files.
@@ -33,7 +47,7 @@ export type Translate = (key: MessageKey, params?: Record<string, string | numbe
 export function useT(): Translate {
   const context = tryUseEldra();
   return (key, params) => {
-    const locale = context?.preview.locale ?? DEFAULT_LOCALE;
+    const locale = context?.locales?.active ?? context?.preview.locale ?? DEFAULT_LOCALE;
     const messages = LOCALES[locale] ?? LOCALES[DEFAULT_LOCALE]!;
     return interpolate(resolveKey(messages, key), params);
   };

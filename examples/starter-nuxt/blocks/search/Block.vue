@@ -70,6 +70,7 @@ import {
   Tabs,
 } from '@eldrajs/ui';
 import type { SearchResultType } from '@eldrajs/ui';
+import { useEldraLocale } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
@@ -77,7 +78,7 @@ import { useT } from '../../app/composables/useT';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { stripStega } from '@eldrajs/theme-core/stega';
-import { isInternalHref } from '../../app/utils/links';
+import { isInternalHref, searchQueryHref, SEARCH_PATH } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
 import type { MessageKey } from '../../app/i18n/messages';
@@ -99,15 +100,21 @@ const t = useT();
 const storefront = useStorefront();
 const headingId = `search-heading-${useUiId()}`;
 
-/** The results page this block's own links point back to — `SearchBar`'s own default `action`. */
-const RESULTS_URL = '/search';
 /** What the author writes in `heading` to have the shopper's query dropped into the sentence. */
 const QUERY_PLACEHOLDER = '{query}';
-const resultsLinkAs = isInternalHref(RESULTS_URL) ? EldraRouterLink : undefined;
-
-function searchHref(query: string): string {
-  return `${RESULTS_URL}?q=${encodeURIComponent(query)}`;
-}
+const resultsLinkAs = isInternalHref(SEARCH_PATH) ? EldraRouterLink : undefined;
+/**
+ * The search page in the language the shopper is reading. `SearchBar`'s `action` is a real
+ * `<form action>` — the no-JavaScript submit path, a document navigation the router never sees —
+ * so it is prefixed here rather than by `EldraRouterLink`, which only the chips and the "see all"
+ * link pass through. Submitting from `/is-IS/products/x` has to land on `/is-IS/search`, not back
+ * in the default language. `path()` is the identity on a single-locale site.
+ *
+ * The path itself is `app/utils/links.ts`'s, because the header points at the same page and the
+ * two must not disagree about it.
+ */
+const activeLocale = useEldraLocale();
+const resultsAction = computed(() => activeLocale.path(SEARCH_PATH));
 
 /** `CURRENCY_KEY`/`LOCALE_KEY` (`@eldrajs/ui`), unwrapped once and passed to every `ProductCard`
  *  explicitly — the same pattern `product-carousel`'s own Block.vue follows. */
@@ -178,9 +185,9 @@ const popularSearches = computed(() =>
     .filter((label) => label !== '')
 );
 const hasPopular = computed(() => popularSearches.value.length > 0);
-/** The chips `PopularChips.vue` renders, each already carrying the one `searchHref()`. */
+/** The chips `PopularChips.vue` renders, each already carrying the one `searchQueryHref()`. */
 const popularChips = computed(() =>
-  popularSearches.value.map((label) => ({ label, href: searchHref(label) }))
+  popularSearches.value.map((label) => ({ label, href: searchQueryHref(label) }))
 );
 const showPopularHint = computed(() => editing.value && isResultsPage.value && !hasPopular.value);
 
@@ -421,7 +428,7 @@ const headingClass =
           <SearchBar
             v-model="searchQuery"
             size="lg"
-            :action="RESULTS_URL"
+            :action="resultsAction"
             :label="t('search.searchLabel')"
             :placeholder="placeholder"
             :results="barResults"
@@ -470,7 +477,7 @@ const headingClass =
           <Link
             v-if="suggestion"
             variant="inline"
-            :href="searchHref(suggestion)"
+            :href="searchQueryHref(suggestion)"
             :as="resultsLinkAs"
           >
             {{ t('search.didYouMean', { suggestion }) }}
@@ -534,7 +541,7 @@ const headingClass =
               :label="typeLabel(config)"
               :count="countFor(config.type)"
               :view-all-text="viewAllText(config)"
-              :view-all-href="searchHref(query)"
+              :view-all-href="searchQueryHref(query)"
               :view-all-link-as="resultsLinkAs"
             />
           </TabPanel>
@@ -552,7 +559,7 @@ const headingClass =
               :label="typeLabel(config)"
               :count="countFor(config.type)"
               :view-all-text="viewAllText(config)"
-              :view-all-href="searchHref(query)"
+              :view-all-href="searchQueryHref(query)"
               :view-all-link-as="resultsLinkAs"
             />
           </TabPanel>
@@ -573,7 +580,7 @@ const headingClass =
             :label="typeLabel(config)"
             :count="countFor(config.type)"
             :view-all-text="viewAllText(config)"
-            :view-all-href="searchHref(query)"
+            :view-all-href="searchQueryHref(query)"
             :view-all-link-as="resultsLinkAs"
           />
         </template>

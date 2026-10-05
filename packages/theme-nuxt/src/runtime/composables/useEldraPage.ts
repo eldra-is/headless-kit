@@ -13,6 +13,12 @@ import { computed, getCurrentInstance, ref, watch, type ComputedRef, type Ref } 
 import type { CatalogRouteRef } from '../catalog';
 import { overlayPreviewDrafts } from '../drafts';
 import { normalizeLocale } from '../locale';
+import {
+  localeForPath,
+  resolveLocaleRouting,
+  resolveStoreLocales,
+  stripLocalePrefix,
+} from '../locales';
 import { isStudioPreviewFrame } from '../origins';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 import { canonicalRoutePath } from '../routePath';
@@ -47,14 +53,40 @@ export function useEldraPage(): {
     pageSchema: string;
     routeTemplateSchema: string;
     locale: string | null;
+    locales: unknown;
     studioOrigins: string[];
   };
   const error = ref<string | null>(null);
-  // A site that configures no locale still carries `""` in the public runtime
-  // config, and an empty `?locale=` is a locale the gateway rejects rather than
-  // the absence of one — so a blank value on either side means "no locale".
-  const runtimeLocale = (): string | undefined =>
-    normalizeLocale(ctx.preview.active ? ctx.preview.locale : null) ?? normalizeLocale(cfg.locale);
+  /**
+   * How this site's paths and locales line up (`../locales.ts`). Resolved once: the runtime config
+   * is baked into the artifact, so it cannot change while a page is open.
+   */
+  const routing = resolveLocaleRouting(resolveStoreLocales(cfg.locales), cfg.locale);
+
+  /**
+   * One request path, split into the locale it names and the path the content is stored at.
+   *
+   * The **full** path stays the identity everything else keys by — the async-data key, the
+   * prerendered-route lookup, the watch — because `/about` and `/is-IS/about` are two routes with
+   * two payloads. Only the gateway reads see the stripped path and the locale, because the content
+   * is one document: path segments are not translated, so the Icelandic rendering of `/about` is
+   * the same entry read with `locale=is-IS`.
+   */
+  const routeTarget = (path: string): { path: string; locale: string | undefined } => ({
+    path: stripLocalePrefix(path, routing),
+    locale: localeForPath(path, routing),
+  });
+
+  /**
+   * The locale this resolution's reads carry.
+   *
+   * A Studio preview's locale wins: the editor is looking at one locale of a draft and says which,
+   * and the preview frame's own path may not name it at all. Otherwise it is the path's — which,
+   * for an unprefixed path, is `eldra.locale` and nothing else (a blank one means "no locale",
+   * since an empty `?locale=` is a locale the gateway rejects rather than the absence of one).
+   */
+  const runtimeLocale = (path: string): string | undefined =>
+    normalizeLocale(ctx.preview.active ? ctx.preview.locale : null) ?? routeTarget(path).locale;
 
   /**
    * Whether the build is allowed to answer this route on its own — see `../staticRoutes.ts`.
@@ -164,7 +196,12 @@ export function useEldraPage(): {
       }
     }
     try {
-      const route = await resolveEldraRoute(ctx.client, cfg, path, runtimeLocale());
+      const route = await resolveEldraRoute(
+        ctx.client,
+        cfg,
+        routeTarget(path).path,
+        runtimeLocale(path)
+      );
       heldPreviewAuthFailure = null;
       return { route, holdPrevious: false };
     } catch (cause) {

@@ -1,15 +1,18 @@
 export {
   ELDRA_KEY,
   createEldraLinkState,
+  createEldraLocaleState,
   createEldraPreviewState,
   provideEldra,
   useEldra,
   type EldraContext,
   type EldraLinkState,
+  type EldraLocaleState,
   type SlotGeometry,
   type SlotGeometryReporter,
 } from './context';
 export { useEldraLink } from './useEldraLink';
+export { useEldraLocale } from './useEldraLocale';
 export {
   linkTargetKeys,
   resolveLink,

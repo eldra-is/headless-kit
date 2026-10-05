@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
-import { ELDRA_KEY } from '@eldrajs/theme-vue';
+import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EditorPlaceholder } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
@@ -75,11 +75,22 @@ function mountFooter(
     /** What the store sells in; the demo store's own `DEMO_COMMERCE` (USD) by default, `null` for
      *  a store that publishes no currency at all — same shape `product-detail`'s spec uses. */
     commerce?: StorefrontCommerce | null;
+    /**
+     * The site's content locales. One unprefixed site by default, which is a store that has
+     * configured a single locale — and the state in which this block renders **no** language
+     * switcher at all, because there is nothing to switch between.
+     */
+    locales?: Partial<EldraLocaleState>;
   } = {}
 ) {
   const base = mountOptions(
     { entry: { id: 'e1', data } },
-    { links: linkContext, locale: options.locale, commerce: options.commerce }
+    {
+      links: linkContext,
+      locale: options.locale,
+      commerce: options.commerce,
+      locales: options.locales,
+    }
   );
   if (options.editing) {
     const context = base.global.provide[ELDRA_KEY] as {
@@ -115,14 +126,42 @@ function mountFooter(
 }
 
 /**
- * Every `Select` trigger in the legal row, in DOM order. The locale selector is always one of
- * them; the currency selector only joins it once the store's `currencyOptions` carries two or
- * more entries — with today's one-currency platform, it is a plain-text slot instead (see
- * `Block.vue`'s legal row), so this is usually a list of one.
+ * Every `Select` trigger in the legal row, in DOM order. **Neither selector is always there:** the
+ * language switcher appears only once the organisation serves more than one locale (pass
+ * `locales: twoLocales()`), and the currency slot becomes a `Select` only once a store can sell in
+ * more than one currency — with today's one-currency platform it is a plain-text slot instead (see
+ * `Block.vue`'s legal row). So on a single-locale store this list is empty.
  */
 function selectTriggers(wrapper: ReturnType<typeof mountFooter>) {
   return wrapper.findAll('[role="combobox"]').filter((c) => c.element.tagName === 'BUTTON');
 }
+
+/**
+ * An organisation serving English at `/` and Icelandic under a prefix, with the page itself on the
+ * English one. `select` records rather than navigates: there is no router under a block mount, and
+ * what the switcher owes the visitor is exactly that call.
+ */
+function twoLocales(active = 'en-US'): Partial<EldraLocaleState> & { chosen: string[] } {
+  const chosen: string[] = [];
+  return {
+    chosen,
+    active,
+    defaultLocale: 'en-US',
+    supported: ['en-US', 'is-IS'],
+    name: localeName,
+    path: (href: string) => href,
+    switchPath: (locale: string) => (locale === 'en-US' ? '/' : `/${locale}`),
+    select: (locale: string) => chosen.push(locale),
+  };
+}
+
+/**
+ * Each locale's own name, which on a real page is resolved once on the server and carried in the
+ * payload (`useEldraLocale().name`) — the block never computes it, because `Intl.DisplayNames` is
+ * ICU data the renderer and the browser do not always share.
+ */
+const localeName = (tag: string): string =>
+  new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
 
 describe('footer block', () => {
   it('renders the default variant (merged data — no preview.json exists for this block) with no axe violations', async () => {
@@ -365,47 +404,112 @@ describe('footer block', () => {
     expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
   });
 
-  it('the locale selector exposes combobox/listbox roles with aria-expanded, closed by default', () => {
-    const wrapper = mountFooter(mock);
-    const triggers = selectTriggers(wrapper);
-    // One `Select` only: with the store's one currency (the demo store's default, USD), the
-    // currency slot renders as plain text, not a second combobox — see the tests below.
-    expect(triggers).toHaveLength(1);
-    expect(triggers[0]!.attributes('aria-haspopup')).toBe('listbox');
-    expect(triggers[0]!.attributes('aria-expanded')).toBe('false');
-    expect(triggers[0]!.text()).toContain(enUS.footer.localeOptions.usEnglish);
-  });
+  /**
+   * The switcher's options are the organisation's own content locales, each named in **its own**
+   * language — a visitor hunting for their language is hunting for the word they write it with.
+   * The block used to ship a `us-en / ca-en / ca-fr` demo list, which named three locales no store
+   * has and switched to none of them.
+   */
+  describe('the language switcher', () => {
+    it('offers every locale the organisation serves, named in its own language', async () => {
+      const wrapper = mountFooter(mock, { locales: twoLocales() });
+      const triggers = selectTriggers(wrapper);
+      // One `Select` only: with the store's one currency (the demo store's default, USD), the
+      // currency slot renders as plain text, not a second combobox — see the tests below.
+      expect(triggers).toHaveLength(1);
+      expect(triggers[0]!.attributes('aria-haspopup')).toBe('listbox');
+      expect(triggers[0]!.attributes('aria-expanded')).toBe('false');
+      // The page is on `en-US`, so that is what the closed trigger shows.
+      expect(triggers[0]!.text()).toContain(localeName('en-US'));
 
-  it('the locale selector commits only on Enter — arrow keys alone leave the value unchanged', async () => {
-    const wrapper = mountFooter(mock);
-    const localeTrigger = selectTriggers(wrapper)[0]!;
-    localeTrigger.element.focus();
+      triggers[0]!.element.focus();
+      await triggers[0]!.trigger('keydown', { key: 'ArrowDown' });
+      const options = [...document.querySelectorAll('[role="option"]')].map((node) =>
+        (node.textContent ?? '').trim()
+      );
+      // Each in its own language, which is the whole point: "íslenska (Ísland)", never "Icelandic".
+      expect(options).toEqual([localeName('en-US'), localeName('is-IS')]);
+      expect(localeName('is-IS')).toContain('íslenska');
+    });
 
-    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
-    expect(localeTrigger.attributes('aria-expanded')).toBe('true');
-    expect(document.querySelector('[role="listbox"]')).toBeTruthy();
+    it('names itself "Language" for a screen reader', () => {
+      const wrapper = mountFooter(mock, { locales: twoLocales() });
+      expect(wrapper.findAll('.sr-only').map((el) => el.text())).toContain(enUS.footer.localeLabel);
+      expect(enUS.footer.localeLabel).toBe('Language');
+    });
 
-    // Moves the active option (US English -> Canada English) without committing.
-    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
-    expect(localeTrigger.text()).toContain(enUS.footer.localeOptions.usEnglish);
+    /**
+     * **Nothing to switch between is no control.** Most stores configure one locale, and every
+     * Storybook story and unit mount is in that state; a combobox a visitor can open onto a single
+     * option is worse than no combobox, which is the same judgement the currency slot already
+     * makes.
+     */
+    it('renders nothing at all on a single-locale store', async () => {
+      const single = mountFooter(mock, {
+        locales: { active: 'en-US', defaultLocale: 'en-US', supported: ['en-US'] },
+      });
+      expect(selectTriggers(single)).toHaveLength(0);
+      expect(single.findAll('.sr-only').map((el) => el.text())).not.toContain(
+        enUS.footer.localeLabel
+      );
 
-    await localeTrigger.trigger('keydown', { key: 'Enter' });
-    expect(localeTrigger.attributes('aria-expanded')).toBe('false');
-    expect(localeTrigger.text()).toContain(enUS.footer.localeOptions.caEnglish);
-  });
+      expect(await axe(single.element)).toHaveNoViolations();
 
-  it('Esc closes the locale selector without changing its value', async () => {
-    const wrapper = mountFooter(mock);
-    const localeTrigger = selectTriggers(wrapper)[0]!;
-    const before = localeTrigger.text();
-    localeTrigger.element.focus();
+      // And with no locale state at all — a story, or a context one version behind. Mounted last,
+      // because a second `<footer>` on `document.body` is a second `contentinfo` landmark and axe
+      // reports the pair rather than this footer.
+      expect(selectTriggers(mountFooter(mock))).toHaveLength(0);
+    });
 
-    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
-    await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
-    await localeTrigger.trigger('keydown', { key: 'Escape' });
+    it('commits only on Enter — arrow keys alone navigate nowhere', async () => {
+      const locales = twoLocales();
+      const wrapper = mountFooter(mock, { locales });
+      const localeTrigger = selectTriggers(wrapper)[0]!;
+      localeTrigger.element.focus();
 
-    expect(localeTrigger.attributes('aria-expanded')).toBe('false');
-    expect(localeTrigger.text()).toBe(before);
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      expect(localeTrigger.attributes('aria-expanded')).toBe('true');
+      expect(document.querySelector('[role="listbox"]')).toBeTruthy();
+
+      // Moves the active option (English -> Icelandic) without choosing it.
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      expect(locales.chosen).toEqual([]);
+
+      await localeTrigger.trigger('keydown', { key: 'Enter' });
+      expect(localeTrigger.attributes('aria-expanded')).toBe('false');
+      // The one thing the switcher owes the visitor: the same page under the chosen locale. The
+      // trigger still reads English because the value *is* the page's locale, and in a block mount
+      // no navigation happens — which is also why a local `ref` of the choice would be a lie.
+      expect(locales.chosen).toEqual(['is-IS']);
+      expect(localeTrigger.text()).toContain(localeName('en-US'));
+    });
+
+    it('Esc closes it without navigating', async () => {
+      const locales = twoLocales();
+      const wrapper = mountFooter(mock, { locales });
+      const localeTrigger = selectTriggers(wrapper)[0]!;
+      localeTrigger.element.focus();
+
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      await localeTrigger.trigger('keydown', { key: 'Escape' });
+
+      expect(localeTrigger.attributes('aria-expanded')).toBe('false');
+      expect(locales.chosen).toEqual([]);
+    });
+
+    /** Choosing the locale the page is already in is not a navigation. */
+    it('does not navigate when the visitor re-chooses the locale they are on', async () => {
+      const locales = twoLocales('is-IS');
+      const wrapper = mountFooter(mock, { locales });
+      const localeTrigger = selectTriggers(wrapper)[0]!;
+      localeTrigger.element.focus();
+
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      await localeTrigger.trigger('keydown', { key: 'Enter' });
+
+      expect(locales.chosen).toEqual([]);
+    });
   });
 
   /**
@@ -420,8 +524,9 @@ describe('footer block', () => {
         commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
       });
 
-      // Only the locale selector is a combobox — no second one for currency.
-      expect(selectTriggers(wrapper)).toHaveLength(1);
+      // No combobox at all: this store serves one locale (so no language switcher) and one
+      // currency (so no currency Select either).
+      expect(selectTriggers(wrapper)).toHaveLength(0);
 
       const label = currencyLabel('ISK', 'is-IS');
       expect(label).toBe('ISK kr.');
@@ -440,8 +545,8 @@ describe('footer block', () => {
     it('renders nothing for the currency when the store publishes none', async () => {
       const wrapper = mountFooter(mock, { commerce: null });
 
-      // Still just the locale selector; no currency text and no currency combobox either.
-      expect(selectTriggers(wrapper)).toHaveLength(1);
+      // No currency text and no combobox of either kind.
+      expect(selectTriggers(wrapper)).toHaveLength(0);
       const hiddenLabels = wrapper.findAll('.sr-only').map((el) => el.text());
       expect(hiddenLabels).not.toContain(enUS.footer.currencyLabel);
 
@@ -450,7 +555,8 @@ describe('footer block', () => {
   });
 
   it('keyboard order: a link precedes the email field, which precedes the subscribe button, which precedes the selectors', () => {
-    const wrapper = mountFooter(mock);
+    // Two locales, so there is a switcher in the legal row to order the newsletter against.
+    const wrapper = mountFooter(mock, { locales: twoLocales() });
     const focusable = Array.from(
       wrapper.element.querySelectorAll('a, input, button, select, [tabindex]')
     );
@@ -563,8 +669,9 @@ describe('footer block', () => {
     it('keeps the legal row for the legal line and the selectors', () => {
       const wrapper = mountFooter(SEEDED);
       expect(wrapper.text()).toContain(mock.legalText);
-      // One combobox (locale); the demo store's one currency (USD) renders as plain text.
-      expect(wrapper.findAll('[role="combobox"]')).toHaveLength(1);
+      // The demo store's one currency (USD) renders as plain text, and a single-locale store has
+      // no language switcher — so the legal row is kept by the legal line and the currency alone.
+      expect(wrapper.findAll('[role="combobox"]')).toHaveLength(0);
       expect(wrapper.text()).toContain(currencyLabel('USD', 'en-US'));
     });
 
