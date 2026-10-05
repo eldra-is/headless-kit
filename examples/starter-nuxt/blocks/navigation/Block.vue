@@ -445,12 +445,18 @@ function onCartClick(): void {
 // --- wishlist ----------------------------------------------------------------------------------
 
 /**
- * The saved-for-later heart, beside the bag. **It is not there at all until there is something in
- * it**, and not until after mount — so the header in every prerendered file is exactly the header
- * it has always been, and a visitor who has never saved anything never meets a control for a list
- * they do not have. `useWishlist()` is what guarantees the second half: `items` is empty until
- * `onMounted`, which is the same gate `cartCount` above is written up under, and it is why this
- * needs no `mounted` check of its own.
+ * The saved-for-later heart, beside the bag. **It is in every header but `minimal`, saved list or
+ * not** — the way into `/wishlist` is part of the bar exactly as the bag is, and a shopper who has
+ * saved nothing is precisely the shopper who has never been shown that the list exists. The heart
+ * gated itself on `wishlistCount > 0` first, and that made it a control you could only find once
+ * you had already found it.
+ *
+ * **The count badge is the only shopper state here**, and it keeps the after-mount gate: `items` is
+ * empty until `onMounted` (`useWishlist()`, the same gate `cartCount` above is written up under),
+ * so a count can never reach a prerendered file and the browser's first render of that file agrees
+ * with it. The heart itself carries nothing of the visitor's, which is why it may render on the
+ * server — one header, identical for everyone, with the badge arriving a moment later for whoever
+ * has one.
  *
  * No field configures it. A `showWishlist` field would be a merchant promising a feature the theme
  * either has or does not: `/wishlist` is this theme's own route, prerendered in every build, so it
@@ -469,11 +475,17 @@ function onCartClick(): void {
 const wishlist = useWishlist();
 const wishlistCount = wishlist.count;
 const wishlistHref = '/wishlist';
-const wishlistAccessibleName = computed(() =>
-  wishlistCount.value === 1
-    ? t('header.wishlistOne')
-    : t('header.wishlistMany', { count: wishlistCount.value })
-);
+/** The bag's three forms, with a plainer empty one: nothing saved reads as just "Wishlist" — the
+ *  control's own name, no count to read out — where the bag says "Cart, empty", which is worth
+ *  saying about a bag a visitor may have just filled and says nothing about a list they have never
+ *  used. A number appears only once there is one, so the name in a prerendered file is the same for
+ *  every visitor. */
+const wishlistAccessibleName = computed(() => {
+  const count = wishlistCount.value;
+  if (count === 0) return t('header.wishlistEmpty');
+  if (count === 1) return t('header.wishlistOne');
+  return t('header.wishlistMany', { count });
+});
 /** The bag's own rule: three digits would widen the pill past the icon it sits on. */
 const wishlistBadgeLabel = computed(() =>
   wishlistCount.value > 99 ? '99+' : String(wishlistCount.value)
@@ -1121,11 +1133,10 @@ const actionsPositionClass = computed(() =>
         </div>
 
         <div data-eldra-header-actions :class="['flex items-center gap-1', actionsPositionClass]">
-          <!-- Absent from every prerendered header, from any visitor with nothing saved, and from
-               the `minimal` variant altogether: see `wishlist` in the script above.
-               `EldraRouterLink` because `/wishlist` is this theme's own route — it should route,
-               not reload the document. -->
-          <span v-if="wishlistCount > 0 && variant !== 'minimal'" class="relative inline-flex">
+          <!-- In every header but `minimal`, prerendered ones included: see `wishlist` in the
+               script above. `EldraRouterLink` because `/wishlist` is this theme's own route — it
+               should route, not reload the document. -->
+          <span v-if="variant !== 'minimal'" class="relative inline-flex">
             <Button
               variant="ghost"
               size="sm"
@@ -1138,9 +1149,11 @@ const actionsPositionClass = computed(() =>
                 <EldraIcon name="heart" size="md" />
               </template>
             </Button>
-            <!-- `pointer-events-none`, like the bag's: the count is decorative (the button's own
-                 accessible name carries it) and must not swallow a click meant for the link. -->
+            <!-- The bag's own two rules: no badge at zero, and `pointer-events-none`, because the
+                 count is decorative (the button's accessible name carries it) and must not swallow
+                 a click meant for the link. -->
             <Badge
+              v-if="wishlistCount > 0"
               aria-hidden="true"
               tone="primary"
               pill

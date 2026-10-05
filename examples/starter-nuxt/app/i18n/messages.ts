@@ -276,10 +276,13 @@ export interface Messages {
     /** The cart button's accessible name with more than one item ("Cart, {count} items"). */
     cartMany: string;
     /**
-     * The wishlist heart's accessible name, pluralised the way the bag's is. There is no "empty"
-     * form beside these two: the heart is not rendered at all with nothing saved
-     * (`blocks/navigation/Block.vue`), so a header that shows it always has a real count.
+     * The wishlist heart's accessible name, in the bag's own three forms — the heart is in every
+     * header but `minimal` whether or not anything is saved (`blocks/navigation/Block.vue`), so it
+     * needs a name at zero too. `wishlistEmpty` is deliberately just the control's name, with no
+     * "empty" to read out: a list nobody has used yet has nothing to report, where a bag the
+     * visitor may have just filled does.
      */
+    wishlistEmpty: string;
     wishlistOne: string;
     wishlistMany: string;
     /** The visible text of the mega-menu panel's row linking to the parent item's own

@@ -129,6 +129,7 @@ export const enUS = {
     cartEmpty: 'Cart, empty',
     cartOne: 'Cart, 1 item',
     cartMany: 'Cart, {count} items',
+    wishlistEmpty: 'Wishlist',
     wishlistOne: 'Wishlist, 1 item',
     wishlistMany: 'Wishlist, {count} items',
     viewAll: 'View all',

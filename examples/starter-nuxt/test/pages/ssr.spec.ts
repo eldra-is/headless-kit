@@ -75,13 +75,13 @@ describe('server rendering', () => {
   });
 
   /**
-   * One prerendered header is served to every visitor, so it cannot carry any one of them: the bag
-   * reads "Cart, empty" and the wishlist heart is not in the markup at all — not even for a
-   * browser with a saved list, which is what the storage stub below stands in for. A heart in the
-   * file would also be a heart the first client render has to agree about, and a visitor with
-   * nothing saved would have one pointing at an empty list.
+   * One prerendered header is served to every visitor, so it cannot carry any one of them — but the
+   * heart is not any one of them. It is a way into `/wishlist`, the same for everybody, so it is in
+   * the file; what cannot be is the **count**, not even for a browser with a saved list, which is
+   * what the storage stub below stands in for. So the bag reads "Cart, empty", the heart reads
+   * "Wishlist" with no number, and the first client render has the same two names to agree about.
    */
-  it('server-renders no wishlist heart, with a saved list already in storage', async () => {
+  it('server-renders the wishlist heart with no count, with a saved list already in storage', async () => {
     const saved = new Map([
       ['eldra.storefront.wishlist', JSON.stringify(['merino-crew-sweater', 'speckled-latte-mug'])],
     ]);
@@ -103,10 +103,13 @@ describe('server rendering', () => {
       );
 
       expect(html).toContain(enUS.header.cartEmpty);
-      // Neither the control nor its destination. `href="/wishlist"` rather than the bare path: the
-      // block's own template comment names it, and Vue keeps comments in a development SSR render.
-      expect(html).not.toContain('Wishlist');
-      expect(html).not.toContain('href="/wishlist"');
+      // The control and its destination are both in the file.
+      expect(html).toContain(`aria-label="${enUS.header.wishlistEmpty}"`);
+      expect(html).toContain('href="/wishlist"');
+      // The count is not, under either plural form, and no badge came with it. Two saved products
+      // are in storage while this renders, so these are the assertions the gate is worth.
+      expect(html).not.toContain(enUS.header.wishlistOne);
+      expect(html).not.toContain(enUS.header.wishlistMany.replace('{count}', '2'));
     } finally {
       Reflect.deleteProperty(globalThis, 'localStorage');
     }

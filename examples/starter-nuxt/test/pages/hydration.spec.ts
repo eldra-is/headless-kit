@@ -404,7 +404,7 @@ describe('hydrating a prerendered commerce block', () => {
   /**
    * **The wishlist's half of the same contract, asserted rather than argued.** A shopper's saved
    * list is in their own browser, and one prerendered file is served to all of them — so the markup
-   * a build wrote carries no heart and no pressed state, and the browser's first render of that file
+   * a build wrote carries no count and no pressed state, and the browser's first render of that file
    * has to be identical to it even though `localStorage` already holds the list.
    *
    * `app/composables/useWishlist.ts` is what makes that true: `WishlistStore.items` stays empty
@@ -414,7 +414,7 @@ describe('hydrating a prerendered commerce block', () => {
    * two prove the client's first paint agrees with it and that the saved state arrives *after*.
    */
   describe('with a wishlist already saved in the browser', () => {
-    it('hydrates a header with no heart, then grows one', async () => {
+    it('hydrates a header whose heart carries no count, then takes one', async () => {
       localStorage.setItem(WISHLIST_KEY, JSON.stringify(['merino-crew-sweater']));
       const entry: BlockEntry = {
         id: 'h-header',
@@ -422,7 +422,9 @@ describe('hydrating a prerendered commerce block', () => {
       };
 
       const html = await renderBlockHtml(Navigation, entry);
-      expect(html).not.toContain('Wishlist');
+      // The heart is in the file — it is nobody's state — and its name has no number in it.
+      expect(html).toContain('aria-label="Wishlist"');
+      expect(html).not.toContain('Wishlist, 1 item');
 
       const run = hydrateBlock(Navigation, entry, html);
       runs.push(run);
@@ -431,7 +433,7 @@ describe('hydrating a prerendered commerce block', () => {
       expect(withoutPackageEnhancement(run.firstPaint)).toBe(
         withoutPackageEnhancement(run.expected)
       );
-      expect(run.firstPaint).not.toContain('Wishlist');
+      expect(run.firstPaint).not.toContain('Wishlist, 1 item');
 
       // `onMounted` ran inside the mount; the render it queued is the next tick, and the store's
       // read reaches the count through one more.

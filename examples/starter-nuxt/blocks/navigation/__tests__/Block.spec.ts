@@ -1207,10 +1207,11 @@ describe('header block (navigation apiId)', () => {
   });
 
   /**
-   * The entry point to `/wishlist`. Two rules decide whether it is in the DOM at all, and both
-   * are about what the header in a prerendered file says: it appears only once something is
-   * saved, and only after mount — so the HTML a build wrote, which every visitor is served, has
-   * the header it always had (`test/pages/ssr.spec.ts` holds that half).
+   * The entry point to `/wishlist`. One rule decides whether it is in the DOM at all — the
+   * variant — because a way into the list belongs in the bar whether or not this visitor has used
+   * it. What a prerendered file must not carry is the *count*, and that is the badge's rule, not
+   * the heart's: `test/pages/ssr.spec.ts` and `test/pages/hydration.spec.ts` hold the halves of it
+   * that only a server render and a real hydration can see.
    */
   describe('wishlist heart', () => {
     /** The demo storefront claims no cart drawer, so every action here is `Button`'s link form. */
@@ -1224,10 +1225,16 @@ describe('header block (navigation apiId)', () => {
       localStorage.setItem('eldra.storefront.wishlist', JSON.stringify(handles));
     }
 
-    it('is absent with nothing saved, and so is its pill', () => {
+    it('is there with nothing saved, named without a count and carrying no pill', () => {
       const wrapper = mountBlock(resolved.data);
-      expect(findHeart(wrapper)).toBeUndefined();
-      // The bag's own pill is absent too (an empty cart), so this is the whole actions row.
+      const heart = findHeart(wrapper)!;
+      // No number in the name, so the prerendered header reads the same for every visitor — and
+      // the destination is there from the first paint, not grown later.
+      expect(heart.attributes('aria-label')).toBe('Wishlist');
+      expect(heart.attributes('href')).toBe('/wishlist');
+      expect(countPill(heart)).toBeNull();
+      // The bag's own pill is absent too (an empty cart), so this is the whole actions row: two
+      // icons, no badges.
       expect(wrapper.findAllComponents(Badge)).toHaveLength(0);
     });
 
@@ -1238,7 +1245,7 @@ describe('header block (navigation apiId)', () => {
      * wishlist row either, so it would be inconsistent in both directions. The call to action
      * carries the same guard.
      */
-    it('is absent in the minimal variant, however much is saved', async () => {
+    it('is absent in the minimal variant, saved list or not', async () => {
       saveInBrowser('merino-crew-sweater');
       const wrapper = mountBlock({ ...resolved.data, variant: 'minimal' });
       await nextTick();
@@ -1248,7 +1255,7 @@ describe('header block (navigation apiId)', () => {
       expect(findCartButtonIn(wrapper)).toBeDefined();
     });
 
-    it('appears after mount once something is saved, linking to the wishlist route', async () => {
+    it('takes its count after mount once something is saved, linking to the wishlist route', async () => {
       saveInBrowser('merino-crew-sweater');
       const wrapper = mountBlock(resolved.data);
       await nextTick();
@@ -1317,6 +1324,14 @@ describe('header block (navigation apiId)', () => {
       await nextTick();
 
       expect(findHeart(wrapper)).toBeDefined();
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /** And with no count on it either — an icon-only link whose whole accessible name is the
+     *  control's own, which is the state every prerendered page is served in. */
+    it('is axe-clean with nothing saved, where the heart carries no pill', async () => {
+      const wrapper = mountBlock(resolved.data);
+      expect(findHeart(wrapper)!.attributes('aria-label')).toBe('Wishlist');
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
@@ -1886,6 +1901,7 @@ describe('header block (navigation apiId)', () => {
       'menu-2': 'M4 6l16 0',
       'chevron-down': 'M6 9l6 6l6 -6',
       search: 'M21 21l-6 -6',
+      heart: 'M19.5 12.572l-7.5 7.428l-7.5 -7.428',
       'shopping-bag': 'M9 11v-5a3 3 0 0 1 6 0v5',
     };
 

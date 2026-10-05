@@ -1092,10 +1092,14 @@ through **`useWishlist()`** (`app/composables/useWishlist.ts`) rather than touch
   leaving two contradicting ones on screen.
 - **`blocks/wishlist/Block.vue`** — the block the `/wishlist` page is made of (below).
 - **`blocks/navigation/Block.vue`** — a heart in the header's actions row beside the bag, with the
-  bag's own count pill, linking to `/wishlist`. **It is absent until there is something saved**, and
+  bag's own count pill, linking to `/wishlist`. **It is there whether or not anything is saved**, and
   no `block.json` field gates it: `/wishlist` is a page the theme seeds into every site, so the heart
-  can never lead nowhere.
-  Absent from the `minimal` variant too, which the spec defines as brand, search, cart and a Menu
+  can never lead nowhere. It gated itself on a non-empty list first, which made it a way in you
+  could only find once you had already found it. Only the **count** is the visitor's own state, so
+  only the badge waits for the saved list (below); with nothing saved the heart's accessible name is
+  simply `header.wishlistEmpty` — "Wishlist", no number — rather than the bag's "Cart, empty", which
+  is worth saying about a bag and says nothing about a list nobody has used.
+  Absent from the `minimal` variant, which the spec defines as brand, search, cart and a Menu
   button — the same `variant !== 'minimal'` guard the call to action carries. It _does_ render at
   mobile widths, unlike the call to action: a shopper who saved something on a phone has no other
   way back to it, where the call to action has a drawer row.
@@ -1103,8 +1107,9 @@ through **`useWishlist()`** (`app/composables/useWishlist.ts`) rather than touch
 **Hydration is the one rule everything here turns on.** `items` is empty until `hydrate()`, which
 only `useWishlist()` calls, and only in `onMounted`. A saved list is a visitor's own state, and one
 prerendered file is served to all of them — so the HTML a build writes has no pressed hearts, no
-header heart and an empty `/wishlist` page, the browser's first render of that file is identical to
-it by construction, and the saved products arrive a moment later as an ordinary reactive update. The
+count on the header's heart and an empty `/wishlist` page, the browser's first render of that file is
+identical to it by construction, and the saved products arrive a moment later as an ordinary
+reactive update. The
 same gate the header puts on the cart count and `useRevalidating` puts on the refresh treatment;
 reading storage at construction instead made Vue repaint the buy box and the header on every reload
 for anyone who had ever saved a product. Every mutation calls `hydrate()` first, so a toggle can

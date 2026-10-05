@@ -75,6 +75,17 @@ async function pageFor(html: string): Promise<Page> {
   return page;
 }
 
+/**
+ * The **bag's** pill, named by the control it annotates rather than by "the `aria-hidden` span in
+ * the actions row": the wishlist heart is that row's other pilled control and sits there in every
+ * header now, saved list or not, so a row-wide lookup only happens to be unique because this
+ * harness leaves the wishlist empty. `:has(> …)` pins it to the `relative inline-flex` span the bag
+ * and its badge share (`blocks/navigation/Block.vue`), and `span` rather than `[aria-hidden]` alone
+ * keeps the bag's own `aria-hidden` `<svg>` out of it.
+ */
+const BAG_PILL =
+  'header [data-eldra-header-actions] span:has(> [aria-label^="Cart"]) > span[aria-hidden="true"]';
+
 interface Rect {
   x: number;
   y: number;
@@ -109,9 +120,7 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
     const html = await renderHeaderWithCartCount(1);
     const page = await pageFor(html);
     try {
-      // `span`, not `[aria-hidden="true"]` alone: the bag's own icon is an `aria-hidden` `<svg>`
-      // right beside it, inside the same actions row.
-      const pill = page.locator('header [data-eldra-header-actions] span[aria-hidden="true"]');
+      const pill = page.locator(BAG_PILL);
       expect((await pill.textContent())?.trim()).toBe('1');
       const box = await pill.boundingBox();
       if (box === null) throw new Error('the pill never laid out');
@@ -132,7 +141,7 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
     const html = await renderHeaderWithCartCount(1);
     const page = await pageFor(html);
     try {
-      const pill = page.locator('header [data-eldra-header-actions] span[aria-hidden="true"]');
+      const pill = page.locator(BAG_PILL);
       const pillBox = await pill.boundingBox();
       if (pillBox === null) throw new Error('the pill never laid out');
 
@@ -167,7 +176,7 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
     const html = await renderHeaderWithCartCount(120);
     const page = await pageFor(html);
     try {
-      const pill = page.locator('header [data-eldra-header-actions] span[aria-hidden="true"]');
+      const pill = page.locator(BAG_PILL);
       expect((await pill.textContent())?.trim()).toBe('99+');
       const overflow = await pill.evaluate((el) => ({
         scrollWidth: el.scrollWidth,
