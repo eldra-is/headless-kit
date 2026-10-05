@@ -32,10 +32,23 @@
  * `focus` that forwards to it, giving this component the same `.focus()` contract a plain `<a>`
  * already has. Harmless to every other caller (`Button`'s/`Link`'s own `as`, `Pagination`, …):
  * `defineExpose` only affects what a parent's template `ref` sees, never props/slots/rendering.
+ *
+ * **Every destination that routes through here keeps the page's language.** This is the one
+ * component every same-site link in the theme passes through, so it is where the active locale's
+ * path prefix is added (`useEldraLocale().path`, `@eldrajs/theme-vue`): on `/is-IS/products/x` a
+ * `/cart` link becomes `/is-IS/cart`, so a visitor cannot be dropped back into the default
+ * language by following an ordinary link. The rewrite is idempotent and only touches paths on this
+ * site, so a destination that already carries a prefix (a `link` field resolved by `useEldraLink`,
+ * which prefixes too) and anything that is not such a path are both left exactly as they are — and
+ * on a single-locale site, in Storybook and in unit tests `path()` is the identity.
  */
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { useEldraLocale } from '@eldrajs/theme-vue';
 
-defineProps<{ to: string }>();
+const props = defineProps<{ to: string }>();
+
+const locale = useEldraLocale();
+const destination = computed(() => locale.path(props.to));
 
 const nuxtLink = ref<{ $el?: HTMLElement } | null>(null);
 
@@ -45,5 +58,5 @@ defineExpose({
 </script>
 
 <template>
-  <NuxtLink ref="nuxtLink" :to="to"><slot /></NuxtLink>
+  <NuxtLink ref="nuxtLink" :to="destination"><slot /></NuxtLink>
 </template>

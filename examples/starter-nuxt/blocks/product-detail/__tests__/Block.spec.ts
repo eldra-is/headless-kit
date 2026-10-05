@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
 import { computed, defineComponent, h, nextTick, ref } from 'vue';
-import { ELDRA_KEY } from '@eldrajs/theme-vue';
+import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EldraHttpError } from '@eldrajs/sdk';
 import { useToast, type ToastAction } from '@eldrajs/ui';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -61,11 +61,13 @@ function mountBlock(
     locale?: string;
     /** What the store sells in; the demo store's US dollars unless a spec says otherwise. */
     commerce?: StorefrontCommerce | null;
+    /** The page's locale routing — one unprefixed site unless a spec is about a prefixed one. */
+    locales?: Partial<EldraLocaleState>;
   } = {}
 ) {
   const base = mountOptions(
     { entry: { id: 'e1', data } },
-    { locale: options.locale, commerce: options.commerce }
+    { locale: options.locale, commerce: options.commerce, locales: options.locales }
   );
   const storefront = options.storefront ?? storefrontWith();
   if (options.productHandle !== undefined) storefront.route.productHandle = options.productHandle;
@@ -746,6 +748,36 @@ describe('product-detail block', () => {
 
     expect(toasts()).toEqual([{ title: 'Saved to wishlist', variant: 'success' }]);
     expect(toastAction()).toEqual({ label: 'View wishlist', href: '/wishlist' });
+  });
+
+  /**
+   * **The toast's offer has to be in the language the shopper is reading.** `@eldrajs/ui`'s `Toast`
+   * renders a `{ label, href }` action as a plain `<a href>` — no router, so `EldraRouterLink` is
+   * not in the path and cannot prefix it. A shopper saving a product on `/is-IS/products/...` who
+   * followed an unprefixed offer would land on the English wishlist, which is also a page whose
+   * saved list is the same `localStorage` — so the mistake looks like nothing but a language
+   * change, and nothing else in this suite sees it. The add-to-cart toast's own fallback
+   * destination (no drawer hosted) is the same decision.
+   */
+  it('offers the wishlist and the cart in the active locale', async () => {
+    const locales = {
+      active: 'is-IS',
+      defaultLocale: 'en-US',
+      supported: ['en-US', 'is-IS'],
+      path: (href: string) => (href.startsWith('/') ? `/is-IS${href}` : href),
+    };
+    const wrapper = await mountReady(mock, { locales });
+    await wrapper.get('button[aria-pressed]').trigger('click');
+
+    expect(toastAction()).toEqual({ label: 'View wishlist', href: '/is-IS/wishlist' });
+
+    // And the cart offer, on the prerendered state where no drawer is hosted and the toast's
+    // action is a link rather than a button.
+    useToast().clear();
+    const noDrawer = await mountReady(mock, { locales });
+    await addToCart(noDrawer).trigger('click');
+    await flushPromises();
+    expect(toastAction()).toEqual({ label: 'View cart', href: '/is-IS/cart' });
   });
 
   /** A removal has nothing to offer: the product just left the list, so there is nothing there to

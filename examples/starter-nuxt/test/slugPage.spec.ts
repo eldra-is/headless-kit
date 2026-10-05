@@ -31,6 +31,17 @@ vi.mock('@eldrajs/theme-vue', () => ({
       '<div class="zone"><span v-for="b in blocks" :key="b.id" :data-block="b.schemaApiId" /></div>',
   },
   getBlockSchemaApiId: (entry: { schemaApiId?: string }) => entry.schemaApiId ?? null,
+  // `EldraRouterLink` (the not-found shell's "back home" button) reads the active content locale
+  // to prefix its destination. One unprefixed site is this mock's answer, which is what the
+  // branch-priority cases here are about.
+  useEldraLocale: () => ({
+    active: null,
+    defaultLocale: null,
+    supported: [],
+    path: (href: string) => href,
+    switchPath: () => '/',
+    select: () => {},
+  }),
 }));
 
 const { default: SlugPage } = await import('../app/pages/[...slug].vue');

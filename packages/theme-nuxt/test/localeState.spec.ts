@@ -102,10 +102,14 @@ describe('createNuxtEldraLocaleState', () => {
     // This state is built in a plugin that may run before Nuxt installs the router. Nothing reads
     // the locale during plugin setup, and by the time anything does the router is there.
     const preview = previewState();
-    let nav: LocaleRouter | undefined;
-    const locale = createNuxtEldraLocaleState(resolveLocaleRouting(TWO), preview, () => nav);
+    const installed: { router?: LocaleRouter } = {};
+    const locale = createNuxtEldraLocaleState(
+      resolveLocaleRouting(TWO),
+      preview,
+      () => installed.router
+    );
     expect(locale.active).toBe('en-US');
-    nav = router('/is-IS/about');
+    installed.router = router('/is-IS/about');
     expect(locale.active).toBe('is-IS');
   });
 });

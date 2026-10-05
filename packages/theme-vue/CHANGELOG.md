@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `useEldraLink()` now spells every resolved same-site href in the active content locale, children
+  included — a navigation resolved on `/is-IS/...` points into `/is-IS/...` instead of dropping the
+  visitor back into the default language. The rewrite is idempotent, so a theme's router-link
+  component may prefix as well without the two compounding, and it short-circuits entirely on a
+  page in the locale served at `/`.
+
 - `EldraContext` gains an optional `locales` slice (`EldraLocaleState`) and `useEldraLocale()`
   reads it: which content locale the page is in, which locales the site serves, and three helpers
   for spelling a destination in one of them (`path`, `switchPath`, `select`). It lives on the theme

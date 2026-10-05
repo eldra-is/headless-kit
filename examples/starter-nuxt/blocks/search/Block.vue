@@ -70,6 +70,7 @@ import {
   Tabs,
 } from '@eldrajs/ui';
 import type { SearchResultType } from '@eldrajs/ui';
+import { useEldraLocale } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
@@ -104,6 +105,15 @@ const RESULTS_URL = '/search';
 /** What the author writes in `heading` to have the shopper's query dropped into the sentence. */
 const QUERY_PLACEHOLDER = '{query}';
 const resultsLinkAs = isInternalHref(RESULTS_URL) ? EldraRouterLink : undefined;
+/**
+ * The search page in the language the shopper is reading. `SearchBar`'s `action` is a real
+ * `<form action>` — the no-JavaScript submit path, a document navigation the router never sees —
+ * so it is prefixed here rather than by `EldraRouterLink`, which only the chips and the "see all"
+ * link pass through. Submitting from `/is-IS/products/x` has to land on `/is-IS/search`, not back
+ * in the default language. `path()` is the identity on a single-locale site.
+ */
+const activeLocale = useEldraLocale();
+const resultsAction = computed(() => activeLocale.path(RESULTS_URL));
 
 function searchHref(query: string): string {
   return `${RESULTS_URL}?q=${encodeURIComponent(query)}`;
@@ -421,7 +431,7 @@ const headingClass =
           <SearchBar
             v-model="searchQuery"
             size="lg"
-            :action="RESULTS_URL"
+            :action="resultsAction"
             :label="t('search.searchLabel')"
             :placeholder="placeholder"
             :results="barResults"
