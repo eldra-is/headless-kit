@@ -18,6 +18,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ### Changed
 
+- **Internal review wording is gone from every file this package ships, and the hygiene spec now guards against it.** Roughly two hundred doc comments, README paragraphs and test names attributed a rule to the review cycle or the planning document it came out of rather than stating the rule: the starter's `UiImage` props each named a numbered review pass and a numbered decision inside it, a dozen components named an operator's verdict as the authority for a deviation, and some fifty comments gave a prop's provenance as the private implementation document instead of the fact. None of it resolves to anything a reader outside the private planning repository has, and each one replaced the thing worth writing down. The comments now say what the rule is; where the attribution mattered it is a dated decision rather than an ordinal. `publicRepoHygiene.spec.ts` grew a third pattern family for that vocabulary — narrow on purpose, and its boundary is pinned by thirty sample sentences asserted in both directions, so the ordinary English senses this kit uses correctly (a short, non-blocking status message; a momentary pending transition; rounding a number to two decimal places) still pass — and its scan widened from this package's `src/` to **every** package's source, this package's `scripts/`, and the design spec, the trees the previous "the only tree not reached" claim had missed. This file's own "Task N" convention is unchanged and still exempt, for the reason that entry already gives; this entry deliberately describes the forbidden vocabulary rather than spelling it, exactly as the spec's own source does for the private npm scope.
+
+- **No currency is guessed any more: `useEldraUiCurrency()` has no default code, and an amount with no currency is rendered as a plain number.** It answered `USD` for a store that had provided none, which is the one wrong answer available — a dollar sign in front of krónur is a *wrong* price, where a bare number is merely an incomplete one. It now returns `string | undefined`, and `Price` (and `ProductCard` through it) formats the amount through the same `Intl` path with `style: 'decimal'`: no symbol, and no code appended either, since there is no code to print. A code `Intl` **rejects** is unchanged — still the number plus the raw code (`"1,234 XYZ1"`), the one thing a reader can act on — and so is the minor-unit scale with no currency: 2, ISO 4217's own default and what `currencyFractionDigits` already answered for a code it could not use.
+  - **Providing `undefined` is meaningful**, and different from not providing at all: it says this store has no currency, and nothing is logged. A store whose currency the platform has not published can now say so directly instead of providing `''` — a code `Intl` must reject — purely to decline one, which is what consumers had to do while the default stood. The retired `''` keeps working, and means the same thing, wherever a currency is read: through the provide, and through `Price`/`ProductCard`'s own `currency` prop, which a consumer that unwraps `CURRENCY_KEY` itself passes it down as.
+  - **No provider at all** warns once per session in dev (never in a production build), naming `CURRENCY_KEY` / `provideEldraUiCurrency` so an unwired app is told rather than quietly shown dollars.
+  - **`DEFAULT_UI_CURRENCY` is gone** from the root entry; there is no default currency for it to name. `DEFAULT_UI_LOCALE` stays — grouping and a decimal point are a formatting convention, not a claim about what the money is. The public `formatCurrency(value, locale, currency = 'USD', …)` util keeps its own positional default: it is a byte-identical port of the private library's helper, and that signature is the whole point of it.
+
 - **`Carousel` takes one tab stop for the whole row.** A carousel whose slides hold their own links
   or buttons (a product row, a gallery of tiles, a linked hero figure) no longer puts its track in
   the tab sequence, and no longer leaves every card's controls in it: the **active slide** owns the
@@ -58,6 +65,8 @@ Release-please writes the generated notes from commit messages and does not repl
   slide. Rendered only in the model it describes (slides holding something focusable).
 
 ### Fixed
+
+- **`Tabs` no longer clips a focused pill's focus ring at the scrolling list's edge.** The tab list is `overflow-x-auto`, which forces `overflow-y` to compute `auto` as well, so it clips anything a tab paints outside its own border box — on every side, not just the two it scrolls on. The design spec's answer is padding on the list with a matching negative margin, and that was written as the literal `0.25rem` the two ring tokens add up to by default, leaving the ring flush against the clip edge with no slack: raise `--eldra-focus-offset` or `--eldra-focus-width` — a restyle, or simply a `Tabs` inside a `Carousel` slide, since the track sets `--eldra-focus-offset: 4px` and custom properties inherit — and the ring was cut off flat by the difference on three edges at once. The reservation is now `calc(var(--eldra-focus-offset) + var(--eldra-focus-width))`, per axis, with `scroll-padding` to match so the inline half cannot be scrolled out of the visible box; the list's rendered footprint is unchanged. The underline variant is untouched and reserves nothing, its tabs carrying the spec's own inset ring. Measured in a real browser with real `Tab` presses, in pixels (`tabsRing.browser.spec.ts`) — it needs Chromium, like the kit's other browser specs.
 
 - **`Price` now formats through `formatCurrency`, so it writes the same sign and the same digits as every other currency in the kit.** Its formatter was built by hand, without the narrow display, so an Icelandic store's price read `"ISK 2,800"` on an `en-US` page while the `CurrencyInput` the operator typed that price into read `"kr 2,800"` — the same money in two signs, on the same storefront. One thing changes for a store, and it reaches `ProductCard` through its own `Price` as well:
   - **The sign.** The new `narrowSymbol` prop is `true` by default, the same default `CurrencyInput` already carried; pass `false` for the previous wide sign. This changes what a store sees only where its currency and content locale differ in their signs (`ISK` under `en-US`, `USD` under `is-IS`, `CAD`/`AUD` under `en-US`); a locale whose two signs are identical — `is-IS` writes `kr.` either way — is unaffected.
@@ -493,7 +502,7 @@ Release-please writes the generated notes from commit messages and does not repl
   second path risked firing selection twice. Each panel is `role="tabpanel"
 aria-labelledby` its
   tab, `hidden` when inactive, and gets `tabindex="0"` only when it holds no focusable content of
-  its own (the brief's "panel focusability rule" — see the README's Deviations entry).
+  its own (the API contract's "panel focusability rule" — see the README's Deviations entry).
 
   `underline` (default) draws a per-tab indicator bar, and `pills` a per-tab filled background —
   the spec's "the indicator does not slide" means there is no shared, position-animated element to
@@ -537,7 +546,7 @@ aria-labelledby` its
   `root`, `panel`, `header`, `title`, `count`, `close`, `body`, `footer`; slots `default`
   (scrolling body) and `footer` (fixed); props `modelValue` (two-way), `side` (`"right"` default /
   `"left"`), `title` (visible `<h2>`, `aria-labelledby`), `ariaLabel` (the accessible name with no
-  visible heading — the menu drawer: `ariaLabel="Menu"` — the brief's own `label` renamed to match
+  visible heading — the menu drawer: `ariaLabel="Menu"` — the API contract's own `label` renamed to match
   this package's "accessible-name-only props are `ariaLabel`" convention), `count` (appends "(3)"
   in `muted` next to `title`), `width` (a CSS length feeding `--eldra-drawer-width`, default
   `28rem`, always capped at the viewport), `messages`, `classes`; emits `update:modelValue`,
@@ -648,7 +657,7 @@ aria-labelledby` its
   (`data-section-bg`, `SECTION_KEY`'s nesting warning) and the `EditorPlaceholder`-icon-via-`Icon`
   entry that earlier tasks recorded in their own reports but never actually added to the file.
   `ProductCard`'s title link now uses `outline-none`, matching `stretchedLink.ts`'s own
-  `STRETCHED_LINK_OUTLINE` ruling, instead of the `outline-hidden` it shipped with (a double-ring
+  `STRETCHED_LINK_OUTLINE` decision, instead of the `outline-hidden` it shipped with (a double-ring
   bug under forced colours that Task 12's own report flagged for a later task to fix, since
   `ProductCard` merged after `ContentCard`/`FeatureCard` despite landing as the earlier-numbered
   task). `docs/ui.md` gained a full one-line-per-component list; `docs/starter-kit.md` reflects the
@@ -676,7 +685,7 @@ aria-labelledby` its
 
   See `README.md`'s Deviations section for the shared stretched-link file (and the note for
   `ProductCard`, landing in the same wave, to reuse it), the `outline-none` vs. `outline-hidden`
-  ruling, and the `formatDate` locale behaviour.
+  decision, and the `formatDate` locale behaviour.
 - **`EmptyState` and `EditorPlaceholder`** — the ninth component of the "display, commerce and
   layout" sub-project (design spec's "Empty and error states" section). `EmptyState` is the shared
   "nothing here / no results / error" panel shown inside a block: an icon circle, a required
@@ -702,7 +711,7 @@ aria-labelledby` its
   (1.5px dashed boundary, distinct from `EmptyState`'s own 1px one).
 
   See `README.md`'s Deviations section for the default-icon-per-variant choice, the
-  `empty`/`noResults`-have-no-built-in-action ruling, and the new `tryAgain` message key.
+  `empty`/`noResults`-have-no-built-in-action decision, and the new `tryAgain` message key.
 - **`Container` and `Section`** — the layout primitives every block is built from (design spec's
   "Container and section" section). `Section` sets the background (`none`/`surface`/
   `surface-strong`/`primary`/`accent`) and the vertical `spacing` (`none`/`sm`/`md`/`lg`, from the
@@ -761,8 +770,8 @@ aria-labelledby` its
   `src/utils/listFormat.ts#formatConjunctionList` (`Intl.ListFormat` per locale, with its English
   Oxford comma stripped to match the spec's own example, and a hand-written fallback for a runtime
   with no `Intl.ListFormat` at all). See `README.md`'s Deviations section for the `max` clamp, the
-  fixed `sm` group size (the brief's own `AvatarGroupProps` type has no `size` prop) and the
-  Oxford-comma ruling.
+  fixed `sm` group size (the API contract's own `AvatarGroupProps` type has no `size` prop) and the
+  Oxford-comma decision.
 - **`LogoItem`** — the seventh component of the "display, commerce and layout" sub-project (design
   spec's Logo item section). One logo in a stockist/press logo cloud: `name` (used as the logo
   image's `alt`, never "logo", and as the wordmark text), an optional `logo` (`ImageMedia | null`;
@@ -819,7 +828,7 @@ aria-labelledby` its
   spec's own 8-part anatomy: when `product.stock` is set (and the product is not sold out), a
   `StockBadge` status line renders above quick add — see the README's Deviations section for why,
   and for the corner "Sold out" badge being a plain `Badge` rather than `StockBadge` despite the
-  task brief's own framing. New messages: `quickAdd`, `quickAddLabel`, `newBadge`,
+  API contract's own framing. New messages: `quickAdd`, `quickAddLabel`, `newBadge`,
   `loadingProduct`, `swatchesAvailable`, in both `en-US`/`is-IS`.
 - **`Image`** — the fifth component of the "display, commerce and layout" sub-project (design
   spec's Image section). The responsive media frame every card and block builds on: a fixed aspect
@@ -845,16 +854,16 @@ aria-labelledby` its
   `data-*` markers land on the media element they describe. New `noImage`/`noImageAvailable`
   messages. The starter's `UiImage` (`examples/starter-nuxt/app/components/ui/UiImage.vue`) is now
   a thin wrapper over `Image` rather than its own hand-rolled `<img>` — see `README.md`'s
-  Deviations section for the framing-contract ruling and why it is a wrapper, not a replacement.
-  Fix round 1: `UiImage` gained `rounded`/`fill`/`fit`/`classes`, mapped onto
+  Deviations section for the framing-contract decision and why it is a wrapper, not a replacement.
+  Follow-up: `UiImage` gained `rounded`/`fill`/`fit`/`classes`, mapped onto
   `Image`'s `rounded` prop and `classes.frame`/`classes.media`, so every block that needs a
   radius (`hero`, `gallery`, `feature-grid`, `testimonials`, `image`), a background fill
   (`hero`'s `image-background` variant) or an uncropped view (the gallery lightbox) still gets
   one now that a caller's plain `class`/`style` land on `Image`'s root rather than the `<img>`
   itself — see `README.md`'s Deviations section.
-  Fix round 2: the navigation block's logo (not a CMS-framed image — no
+  Second follow-up: the navigation block's logo (not a CMS-framed image — no
   `framing`, no `entryId`/`fieldPath`) no longer goes through `UiImage` at all, since its bare
-  `class="h-8 w-auto"` had the same class-lands-on-the-root problem round 1 fixed everywhere else;
+  `class="h-8 w-auto"` had the same class-lands-on-the-root problem the first pass fixed everywhere else;
   it is a plain `<img>` now. `fit="contain"` also shrink-wraps the frame (`classes.frame` gains
   `w-auto max-w-full`) and constrains the media on both axes (`classes.media` becomes
   `object-contain h-auto w-auto max-w-full max-h-[inherit]`) instead of only changing

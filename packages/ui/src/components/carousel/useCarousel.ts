@@ -109,7 +109,7 @@ const FOCUSABLE_SLIDE_CONTENT_SELECTOR = [
 ].join(',');
 
 /**
- * Controls whose own meaning for `←`/`→` outranks the carousel's (operator ruling: "inside a text
+ * Controls whose own meaning for `←`/`→` outranks the carousel's (operator decision: "inside a text
  * input or a control that consumes arrows … do not intercept"): a caret moving through typed text,
  * a native `<select>`'s own option stepping, a slider's value, and the ARIA widget roles whose
  * Authoring Practices pattern already claims the horizontal arrows. `[data-no-arrow-keys]` is the
@@ -177,11 +177,11 @@ export interface UseCarouselOptions {
    *  at all. */
   slideClass?: MaybeRefOrGetter<string | undefined>;
   /**
-   * Enables mouse/pen pointer drag on the track (operator ruling: "the carousel should
+   * Enables mouse/pen pointer drag on the track (operator decision: "the carousel should
    * be draggable/swipeable"). Touch already swipes for free through native scroll-snap — this
    * only adds the equivalent for a pointer type that has no native swipe gesture of its own.
    * Defaults to `true` when omitted, which is what `Lightbox` relies on: it passes no option of
-   * its own and still drags, per the same ruling ("Lightbox inherits it through `useCarousel`").
+   * its own and still drags, per the same decision ("Lightbox inherits it through `useCarousel`").
    * `Carousel.vue` exposes this as its own `draggable` prop, default `true`.
    */
   draggable?: MaybeRefOrGetter<boolean | undefined>;
@@ -456,7 +456,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
    *   `tabindex="0"`" case, unchanged.
    * - **Otherwise** the active slide owns the single entry point and the others are parked:
    *   - the active slide's own controls keep their natural `tabindex`, so `Tab`/`Shift+Tab` move
-   *     through *that card's* link, wishlist and quick-add in DOM order (operator ruling) and the
+   *     through *that card's* link, wishlist and quick-add in DOM order (operator decision) and the
    *     last one hands `Tab` straight out of the carousel, because there is nothing tabbable left
    *     between it and the page below;
    *   - every other slide's controls are parked at `tabindex="-1"`, which is what keeps `Tab` from
@@ -709,7 +709,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
    *   before — the track is the focused element in that model, so this is the only way its arrows
    *   can fire at all.
    * - **Roving**: `←`/`→` move the active slide one step and `Home`/`End` jump to the first/last,
-   *   from anywhere inside a slide (operator ruling) — focus follows onto the new slide's entry
+   *   from anywhere inside a slide (operator decision) — focus follows onto the new slide's entry
    *   point, clamped at both ends, never wrapping (the arrows and dots do not wrap either).
    *   `Enter`/`Space` are deliberately *not* handled: the focused element is the card's own link
    *   or button by then, and the browser's own activation is both correct and the one the shopper
@@ -815,7 +815,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
    *  machine below) — not merely a `pointerdown` that never moved. Folded into `suspended` the
    *  same way `hovered`/`focusedWithin` are, rather than calling `pause()`: a drag is a momentary
    *  interruption, not the shopper asking to stop the slideshow, so the Pause/Play button's own
-   *  label must not flip (operator ruling: "autoplay pauses during a drag and resumes
+   *  label must not flip (operator decision: "autoplay pauses during a drag and resumes
    *  after"). */
   const dragging = ref(false);
   const suspended = computed(
@@ -882,7 +882,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     hidden.value = typeof document !== 'undefined' && document.hidden;
   }
 
-  // --- Pointer drag (operator ruling) ------------------------------------------------
+  // --- Pointer drag (operator decision) ------------------------------------------------
   //
   // Touch already swipes the track for free through native scroll-snap (spec "Carousel" →
   // Behaviour & motion: "Scrolling is native: touch, trackpad and shift-wheel all work"); this
@@ -892,17 +892,17 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   //   pointerdown (primary button, mouse/pen, not on an editable/range control or an explicit
   //   `data-no-drag` opt-out — see `isNoDragTarget`)
   //     -> remember the start position; not yet "dragging", and pointer capture is NOT requested
-  //        yet either (see the threshold branch below for why). Operator fix (2026-09-26, round 2):
+  //        yet either (see the threshold branch below for why). Operator fix (2026-09-26):
   //        "we are not able to drag on a card, we have to place the cursor between cards" — a
   //        slide's own link/button (a `ProductCard`'s stretched title link covers the whole card) is
-  //        tracked exactly like the track's bare background now; the previous round's blanket
+  //        tracked exactly like the track's bare background now; the earlier blanket
   //        bail-out on any interactive descendant is what caused the complaint. This never calls
   //        `preventDefault()` — see `onTrackPointerDown`'s own comment for why keeping the
   //        pointerdown's native effect (focus, the eventual click) matters.
   //   pointermove, |dx| < 6px
   //     -> still not dragging: `scrollLeft` is untouched, nothing was prevented, and the pointer is
   //        not captured, so a plain click or tap-to-focus on whatever the gesture started over still
-  //        lands exactly as if this file did not exist (ruling: "the click stays functional").
+  //        lands exactly as if this file did not exist (decision: "the click stays functional").
   //   pointermove, |dx| >= 6px (first time)
   //     -> now dragging: `data-dragging="true"` goes on the track (the CSS this attribute
   //        drives — `data-[dragging=true]:snap-none:scroll-auto:select-none`/`:cursor-grabbing` —
@@ -942,11 +942,11 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   }
 
   /**
-   * Operator ruling (2026-09-26, round 2): a drag may start on *any* pointer press inside the
+   * Operator decision (2026-09-26): a drag may start on *any* pointer press inside the
    * track — buttons and links included — except an editable or range control (typing/selecting a
    * value must never be hijacked into a swipe) or an element an author has explicitly opted out
    * with `data-no-drag`. `input` alone already covers `input[type="range"]`; both are named here
-   * because the ruling names both. Renamed from the previous round's `isInteractiveDescendant`,
+   * because the decision names both. Renamed from the earlier `isInteractiveDescendant`,
    * which this replaces rather than narrows — that function refused *every* link/button, which is
    * the exact behaviour the operator reported as broken ("we have to place the cursor between
    * cards").
@@ -985,7 +985,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
   // The last two pointermove samples (position + `event.timeStamp`), used only to compute the
   // release velocity — the *instantaneous* speed of the final movement, not the average speed of
   // the whole gesture, which is what lets a slow drag ending in a fast flick still count as one
-  // (spec ruling: "a fast flick of > 0.5 px/ms advances one slide in the flick direction").
+  // (spec decision: "a fast flick of > 0.5 px/ms advances one slide in the flick direction").
   let dragSampleX = 0;
   let dragSampleT = 0;
   let dragPrevSampleX = 0;
@@ -999,8 +999,8 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
     if (isNoDragTarget(event.target)) return;
     const track = trackRef.value;
     if (!track) return;
-    // Operator fix (2026-09-26, round 2): unlike the previous round, this deliberately does NOT
-    // call `preventDefault()` — the ruling is explicit: "Do NOT preventDefault() the pointerdown
+    // Operator fix (2026-09-26): unlike the earlier shape, this deliberately does NOT
+    // call `preventDefault()` — the decision is explicit: "Do NOT preventDefault() the pointerdown
     // (keep native focus/click behaviour)". A pointer press that reaches this point may still turn
     // out to be nothing more than a click or a focus move on a slide's own button/link (below the
     // 6px threshold, see `onTrackPointerMove`), and preventing the pointerdown's default would have
@@ -1037,10 +1037,10 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
        * semantics): a mouse-type pointer's capture retargets its `click` event to the *capturing*
        * element too, not only `pointermove`/`pointerup` — proven with a minimal Playwright repro
        * outside this file before landing the fix here. Requesting capture unconditionally on every
-       * qualifying `pointerdown` (this round's first pass) meant a plain click on a slide's own
+       * qualifying `pointerdown` (the first pass at this) meant a plain click on a slide's own
        * link/button — even one that never moved at all — fired with `event.target` retargeted to
        * the track instead of the link, so the browser's own default action (the link's navigation)
-       * had nothing to act on: the ruling's "the click stays functional" broke for *every* click in
+       * had nothing to act on: the decision's "the click stays functional" broke for *every* click in
        * the carousel, not only ones that followed a drag. Requesting capture here instead — the
        * gesture is already a confirmed drag by this line — means a sub-threshold press never
        * captures at all, so its `click` keeps the real link/button as its target and the browser's
@@ -1056,7 +1056,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
           // arriving if the cursor leaves the track's own bounds mid-drag, not a requirement.
         }
       }
-      // The other half of the operator fix (round 2): `onTrackPointerDown` no longer prevents the
+      // The other half of the operator fix: `onTrackPointerDown` no longer prevents the
       // pointerdown's default, so a press over selectable text has already anchored a native
       // selection by the time a real drag is confirmed here. Clearing it the instant the gesture
       // commits to being a drag (not on every pointerdown, which would also fire for a press that

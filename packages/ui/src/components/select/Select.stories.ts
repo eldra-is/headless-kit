@@ -83,7 +83,7 @@ const meta = {
           '`bottom left` above it — the corner the entrance grows from).',
           '',
           '**Entrance**: the panel fades in and scales from 98% over `duration-base`, growing out',
-          'of that corner. No slide (operator ruling — see the README’s Deviations); closing is',
+          'of that corner. No slide (operator decision — see the README’s Deviations); closing is',
           'instant, and under reduced motion the panel simply appears.',
           '',
           '**Forced colours.** The active row’s fill and the selected row’s weight both disappear',

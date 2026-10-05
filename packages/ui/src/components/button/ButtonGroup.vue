@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<ButtonGroupProps>(), {
  *
  * It is also a container-query context (`@container`), kept for other components that key off a
  * `@container` ancestor. `Button` itself no longer grows at any container width — see the
- * operator ruling recorded under Deviations in the README — but the root stays block-level `flex`
+ * operator decision recorded under Deviations in the README — but the root stays block-level `flex`
  * rather than `inline-flex` regardless: `container-type: inline-size` applies inline-size
  * containment, and a shrink-to-fit box would then measure itself as zero.
  */

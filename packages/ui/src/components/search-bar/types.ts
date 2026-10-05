@@ -43,7 +43,7 @@ export type SearchSelectType = SearchResultType | 'viewAll';
 /**
  * The parts a consumer can restyle through `classes`, named as the spec's anatomy names them.
  *
- * Four are not in the brief's list but are in the spec's own anatomy, and a part the component
+ * Four are not in the API contract's list but are in the spec's own anatomy, and a part the component
  * draws and a consumer cannot reach is not a part: `listbox` (the panel is the popup box; the
  * listbox is the element inside it that owns the options, so the no-results message and the
  * loading rows can be siblings of it rather than invalid children), `chip` (anatomy item 9),

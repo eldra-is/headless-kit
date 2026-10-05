@@ -116,7 +116,7 @@ describe('Dialog — open and close', () => {
     wrapper.unmount();
   });
 
-  /** Fix round 2, the operator's own finding: a closed `Dialog` must render nothing, not sit on
+  /** Fix, from the operator's own finding: a closed `Dialog` must render nothing, not sit on
    *  screen because a `display` utility on the root beat the UA's own `display: none`. */
   it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: false } });

@@ -1,7 +1,7 @@
 import type { UiMessages } from '../../composables/useMessages';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them
- *  (spec "Lightbox" → Anatomy) plus the task brief's own `thumbnails`/`thumbnail` pair, which the
+ *  (spec "Lightbox" → Anatomy) plus the API contract's own `thumbnails`/`thumbnail` pair, which the
  *  spec describes ("With thumbnails" variant) but does not number. */
 export type LightboxPart =
   | 'root'

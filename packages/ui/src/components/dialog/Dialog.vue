@@ -86,7 +86,7 @@ defineExpose({ close, isTop });
 const rootClass = computed(() =>
   partClass(
     cx(
-      // `hidden open:block`, not a bare `m-auto` alone (fix round 2, the operator's own finding):
+      // `hidden open:block`, not a bare `m-auto` alone (fix, from the operator's own finding):
       // the UA stylesheet's `dialog:not([open]) { display: none }` only wins on specificity, and
       // origin always beats specificity in the cascade — any author `display` utility on this
       // element, however unspecific, overrides it once the dialog closes. `hidden` sets
@@ -147,7 +147,7 @@ const titleClass = computed(() =>
 /**
  * Spec "Dialog" → States: rest transparent, hover `text` at 6% over the panel, active 11% and
  * "moves down 1px". The 1px move is the same literal `Button`'s own press state replaced with a 2%
- * shrink instead (operator ruling, 2026-09-25, recorded under Deviations in the README): a 1px
+ * shrink instead (operator decision, 2026-09-25, recorded under Deviations in the README): a 1px
  * translate reads as a rendering artefact, not a press, and `src/__tests__/source-scan.spec.ts`
  * fails the build on any shipped `active:` translate/top/margin-top class for exactly that reason.
  * `active:scale-[0.98]` needs no `transition-*`/`duration-*` utility of its own — `eldra-focus`

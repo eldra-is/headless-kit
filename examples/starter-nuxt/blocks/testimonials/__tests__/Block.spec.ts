@@ -305,7 +305,7 @@ describe('testimonials block', () => {
    * Northwind Goods is a Portland, Oregon studio selling in USD with "free shipping across the US"
    * and "free US returns" (`global-constraints.md`, "Copy" — asserted whole-page in
    * `test/pages/product.spec.ts`). The mock's reviewer locations were five European cities, which
-   * read as a different store's customers; the T19 ruling normalised the timeline block's copy for
+   * read as a different store's customers; the same decision normalised the timeline block's copy for
    * exactly this reason (Bergen → Oregon) and `test/pages/article.spec.ts` asserts "never Bergen".
    */
   it('places its reviewers in the US, matching the shared page facts', () => {

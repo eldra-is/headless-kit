@@ -50,7 +50,7 @@ const INSERTING = new Set([
  * `parseLocaleNumber`'s job, on blur, and it is the one that refuses `"-"`.
  *
  * The group separator is accepted **only on a field that takes decimals**, and this asymmetry is
- * deliberate (operator ruling). On a decimal field the separator is useful: someone pasting
+ * deliberate (operator decision). On a decimal field the separator is useful: someone pasting
  * `"1,234.50"` means 1234.5, and stripping the comma out of the paste would give 123450. On a
  * **whole-number** field it is a trap, because the same character means different things in
  * different locales — `1,5` typed into a quantity under `en-US` reads as "one thousand five" to

@@ -98,6 +98,45 @@ export const PRODUCTS: MockProduct[] = [
   product('walnut-spoon', 'Walnut spoon', 18),
 ];
 
+/**
+ * A cart a browser is already carrying — the shopper state a reload restores before anything on
+ * the page has mounted.
+ *
+ * The id is what `@eldrajs/sdk`'s `createCartSession` keeps in `localStorage` under `eldra.cartId`,
+ * so seeding that key and loading a page is exactly a shopper's second visit: the cart store's
+ * `init()` reads the id during the storefront plugin's `setup`, asks for this cart, and the answer
+ * lands some time after the page has hydrated. Two lines, so the header's count pill reads a number
+ * no empty cart could produce.
+ */
+export const SEEDED_CART_ID = 'aa11bb22-0000-4000-8000-000000000000';
+export const SEEDED_CART_QUANTITY = 2;
+
+function seededCart(): Record<string, unknown> {
+  const row = PRODUCTS[0]!;
+  const unit = row.minPrice;
+  return {
+    id: SEEDED_CART_ID,
+    currency: 'ISK',
+    items: [
+      {
+        id: 'cart-line-1',
+        productId: row.id,
+        productSlug: row.slug,
+        variantId: row.variants[0]!.id,
+        title: row.title,
+        price: unit,
+        quantity: SEEDED_CART_QUANTITY,
+      },
+    ],
+    totals: {
+      subtotal: unit * SEEDED_CART_QUANTITY,
+      discount: 0,
+      taxAmount: 0,
+      total: unit * SEEDED_CART_QUANTITY,
+    },
+  };
+}
+
 const COLLECTIONS = [
   {
     id: 'col-winter',
@@ -499,6 +538,15 @@ export interface MockGateway {
   requests: string[];
   /** Milliseconds every `/catalog/v1/**` answer is held back. Settable between phases. */
   catalogDelayMs: number;
+  /**
+   * Milliseconds every `/shopping-cart/v1/**` answer is held back. Settable between phases, and
+   * the reason it exists: the cart read a restored cart id triggers is issued during the
+   * storefront plugin's `setup` and must still be **in flight** while the page hydrates, which is
+   * the window any un-gated read of the cart's `pending` flag would render differently in. On a
+   * loopback server with no delay that window is a millisecond wide, so a spec about it would pass
+   * or fail by timing rather than by behaviour.
+   */
+  cartDelayMs: number;
   /** Forget every request recorded so far — call between the generate and the browser run. */
   reset(): void;
   close(): Promise<void>;
@@ -507,7 +555,7 @@ export interface MockGateway {
 export function startMockGateway(): Promise<MockGateway> {
   return new Promise((resolve) => {
     const requests: string[] = [];
-    const state = { catalogDelayMs: 0 };
+    const state = { catalogDelayMs: 0, cartDelayMs: 0 };
     const templates = routeTemplateEntries();
     const pages = pageEntries();
 
@@ -536,12 +584,27 @@ export function startMockGateway(): Promise<MockGateway> {
           res.statusCode = status;
           res.end(JSON.stringify(body));
         };
-        if (url.pathname.startsWith('/catalog/v1/') && state.catalogDelayMs > 0) {
-          setTimeout(send, state.catalogDelayMs);
+        const delay = url.pathname.startsWith('/catalog/v1/')
+          ? state.catalogDelayMs
+          : url.pathname.startsWith('/shopping-cart/v1/')
+            ? state.cartDelayMs
+            : 0;
+        if (delay > 0) {
+          setTimeout(send, delay);
           return;
         }
         send();
       };
+
+      // The platform's own config is **not** org-scoped (`orgScoped: false` in the SDK), so it is
+      // answered before the org-id guard below — it carries no `X-Org-Id` and a real gateway does
+      // not ask for one. `client.checkout.url()` reads it to build the cart hand-off, which is the
+      // one thing a restored cart asks for beyond the cart itself; without an answer here that
+      // read is a 400 in the browser's console on every page with a cart in it.
+      if (url.pathname === '/platform/v1/config') {
+        answer({ checkoutUrl: 'https://checkout.example' });
+        return;
+      }
 
       if (req.headers['x-org-id'] !== ORG_ID) {
         answer({ error: 'missing org id' }, 400);
@@ -556,11 +619,10 @@ export function startMockGateway(): Promise<MockGateway> {
         // `runtimeConfig.public.eldra.commerce`, which is where every price on a generated page
         // takes its currency from.
         //
-        // **ISK, deliberately not USD.** `USD` is also `@eldrajs/ui`'s own ambient default
-        // (`DEFAULT_UI_CURRENCY`), so a dollar-priced fixture renders identically whether the
-        // platform's answer reached the page or the component library's fallback did — the one
-        // thing the generated-site tests are here to tell apart. A zero-decimal currency makes it
-        // visible twice over: the symbol differs *and* the minor-unit scale does.
+        // **ISK, deliberately not USD.** A dollar-priced fixture would render identically whether
+        // the platform's answer reached the page or nothing did — the one thing the generated-site
+        // tests are here to tell apart. A zero-decimal currency makes it visible twice over: the
+        // symbol differs *and* the minor-unit scale does.
         answer({
           id: ORG_ID,
           name: 'Northwind Goods',
@@ -592,6 +654,12 @@ export function startMockGateway(): Promise<MockGateway> {
         answer(listResponse(rows.map(listItemOf)));
       } else if (url.pathname === '/inventory/v1/stock/availability') {
         answer(availabilityOf(await readJsonBody(req)));
+      } else if (segments[0] === 'shopping-cart' && segments[2] === 'cart') {
+        // The one cart this mock knows, and only by the id a test seeded. Any other id is a cart
+        // the gateway has forgotten — which the store answers by clearing `eldra.cartId` and
+        // carrying on with an empty cart, so a stale seed cannot silently look like a live one.
+        const id = decodeURIComponent(segments[3] ?? '');
+        answer(id === SEEDED_CART_ID ? seededCart() : {}, id === SEEDED_CART_ID ? 200 : 404);
       } else if (url.pathname === '/catalog/v1/collections') {
         answer(listResponse(COLLECTIONS));
       } else if (
@@ -627,6 +695,12 @@ export function startMockGateway(): Promise<MockGateway> {
         },
         set catalogDelayMs(value: number) {
           state.catalogDelayMs = value;
+        },
+        get cartDelayMs() {
+          return state.cartDelayMs;
+        },
+        set cartDelayMs(value: number) {
+          state.cartDelayMs = value;
         },
         reset() {
           requests.length = 0;

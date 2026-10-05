@@ -86,7 +86,7 @@ describe('theme-nuxt runtime', () => {
   });
 
   it('overlays a shared block draft inside a reusable placement on a route template', () => {
-    // Ruling 3: a reusable component draft from Studio's bridge has to reach a
+    // A reusable component draft from Studio's bridge has to reach a
     // placement inside a *template* the way it reaches one inside a page. It
     // does — the projection and its component's block entries ride on the
     // template document exactly as they ride on a page document, and nothing in

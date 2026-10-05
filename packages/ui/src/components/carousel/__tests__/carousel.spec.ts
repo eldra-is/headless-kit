@@ -665,7 +665,7 @@ describe('Carousel — roving focus', () => {
     expect(track(wrapper).getAttribute('tabindex')).toBeNull();
     expect(tabbableIn(track(wrapper))).toEqual(controlsOf(slides[0]!));
     // Both of the active card's controls, in DOM order: `Tab` moves within the card (operator
-    // ruling), and the last of them is the last tabbable thing in the track, so the next `Tab`
+    // decision), and the last of them is the last tabbable thing in the track, so the next `Tab`
     // leaves the carousel instead of walking into slide 2.
     expect(tabbableIn(track(wrapper))).toHaveLength(2);
     // No `tabindex` is written onto a slide that holds controls: the entry point is the control,
@@ -833,7 +833,7 @@ describe('Carousel — roving focus', () => {
     link(0).focus();
     expect(document.activeElement).toBe(link(0));
 
-    // From the card's own link, not from the slide element — the ruling's "from anywhere inside a
+    // From the card's own link, not from the slide element — the decision's "from anywhere inside a
     // card", which is where focus really is once the entry point is a link.
     link(0).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await settle();
@@ -1571,7 +1571,7 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
-   * Operator fix (2026-09-26, round 2): "Do NOT preventDefault() the pointerdown (keep native
+   * Operator fix (2026-09-26): "Do NOT preventDefault() the pointerdown (keep native
    * focus/click behaviour)" — round one's `preventDefault()` on every qualifying pointerdown is
    * gone entirely, proven on both a pointerdown that may go on to start a drag (the track's own
    * background) and one landing directly on a slide's own link (round one refused to track this
@@ -1602,7 +1602,7 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
-   * Operator ruling (2026-09-26, round 2): "we are not able to drag on a card, we have to place the
+   * Operator decision (2026-09-26): "we are not able to drag on a card, we have to place the
    * cursor between cards ... if it's a clickable entry we should cancel the click ... if we swipe
    * over some offset. That way the click stays functional but we can still swipe." Starting the
    * pointerdown directly on a slide's own link, then crossing the 6px threshold, both starts the
@@ -1640,7 +1640,7 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
-   * The other half of the same ruling: "the click stays functional" below the threshold, even when
+   * The other half of the same decision: "the click stays functional" below the threshold, even when
    * the pointerdown that may have started a drag landed directly on the link itself.
    */
   it('a sub-threshold drag starting directly on a slide’s own link leaves its click alone', async () => {
@@ -1694,7 +1694,7 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
-   * `data-no-drag` — an author's explicit opt-out (ruling: "and any element with `data-no-drag`"),
+   * `data-no-drag` — an author's explicit opt-out (decision: "and any element with `data-no-drag`"),
    * for a slide's own control that needs every pointer gesture for itself (a swatch picker, an
    * embedded range slider) even though it is neither an editable nor a `<input>`-family element.
    * Proven by mutation: dropping `[data-no-drag]` from `isNoDragTarget`'s selector turns
@@ -1723,7 +1723,7 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
-   * Operator fix (2026-09-26, round 2): the other half of "while dragging we are highlighting
+   * Operator fix (2026-09-26): the other half of "while dragging we are highlighting
    * stuff" now that `onTrackPointerDown` no longer prevents the pointerdown's default — a press over
    * selectable text has already anchored a native selection by the time a real drag is confirmed, so
    * `onTrackPointerMove` clears it (`window.getSelection()?.removeAllRanges()`) the instant the
@@ -1954,7 +1954,7 @@ describe('Carousel — pointer drag', () => {
   });
 
   /**
-   * Operator ruling (2026-09-26, round 2): "buttons and links included" — a drag starting directly
+   * Operator decision (2026-09-26): "buttons and links included" — a drag starting directly
    * on a slide's own button behaves exactly like one starting on its own link (the dedicated link
    * specs above): crossing the threshold drags the track and cancels the button's own click.
    * Proven by mutation: reinstating round one's `isInteractiveDescendant` bail-out in

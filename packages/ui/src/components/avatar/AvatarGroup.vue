@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<AvatarGroupProps>(), {
 const messages = useMessages();
 
 /**
- * `AvatarGroupProps` has no `size` prop (the task brief's own type gives it none) — every avatar
+ * `AvatarGroupProps` has no `size` prop (the API contract's own type gives it none) — every avatar
  * in a group renders at `sm` (2rem), the compact size the spec's anatomy diagram shows for a
  * stacked group of up to three plus a counter, distinct from the single lg avatars the spec shows
  * elsewhere (a testimonial's byline, an author card).

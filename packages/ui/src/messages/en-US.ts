@@ -295,7 +295,7 @@ export const enUS = {
   /**
    * `Rating`'s linked-variant visible count text (spec "Rating" → Anatomy, part 3: "'(128)' on
    * cards; '128 reviews' underlined when linked") — the one piece of `Rating`'s own text the task
-   * brief's two named keys (`rating`, `noReviews`) do not cover: the card form's `"(128)"` is a
+   * API contract's two named keys (`rating`, `noReviews`) do not cover: the card form's `"(128)"` is a
    * literal parenthesised number with no word to pluralise, but the linked form's visible text is a
    * real English/Icelandic sentence fragment and so must come from `useMessages()` like every other
    * word this package renders.
@@ -413,7 +413,7 @@ export const enUS = {
   pageN: (n: number, current = false) => (current ? `Page ${n}, current page` : `Page ${n}`),
   /**
    * `Pagination`'s compact-form status (spec "Pagination" → Anatomy, part 6: "Page 2 of 12"). Not
-   * one of the message keys the task brief names explicitly, but the compact form has no other way
+   * one of the message keys the API contract names explicitly, but the compact form has no other way
    * to say it: unlike `pageN`, the sentence needs the total baked in, and generating it from two
    * separate calls would leave "of" untranslated. Recorded under the README's Deviations entry.
    */

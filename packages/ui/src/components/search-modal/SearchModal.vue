@@ -711,7 +711,7 @@ const part = (base: string, name: SearchModalPart): string => partClass(base, pr
  * only the ceiling `eldra-search-modal-max-height` already gives it — so short content (the idle
  * view) would otherwise leave a visible gap under a short panel instead of filling the screen.
  *
- * `hidden open:flex`, not a bare `flex` (fix round 2, the operator's own finding — see `Dialog`'s
+ * `hidden open:flex`, not a bare `flex` (fix, from the operator's own finding — see `Dialog`'s
  * own rootClass comment for the full mechanism): the same author-beats-UA-origin trap left a closed
  * `SearchModal` painting its full box.
  */

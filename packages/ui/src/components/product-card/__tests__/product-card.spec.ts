@@ -92,7 +92,7 @@ describe('ProductCard — the stretched link', () => {
     wrapper.unmount();
   });
 
-  it('underlines the title at rest, thickening on hover (operator ruling: all links underlined)', () => {
+  it('underlines the title at rest, thickening on hover (operator decision: all links underlined)', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     const link = wrapper.get('[data-part="link"]').classes();
     expect(link).toContain('underline');
@@ -711,7 +711,7 @@ describe('ProductCard — revalidating', () => {
 
   it('renders inside a narrow container while revalidating', () => {
     const wrapper = mountNarrow(ProductCard, {
-      props: { product: REFRESHABLE, revalidating: true },
+      props: { product: REFRESHABLE, revalidating: true, currency: 'USD', locale: 'en-US' },
     });
     expect(wrapper.get('[data-part="price"]').text()).toContain('$38.40');
     wrapper.unmount();

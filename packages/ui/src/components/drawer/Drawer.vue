@@ -132,7 +132,7 @@ const closeLabel = computed(() => {
  * moves its panel child fully off-screen and back regardless of the panel's own width, while the
  * `::backdrop` — a sibling box, not a descendant — is untouched and simply stays in place.
  *
- * `hidden open:flex`, not a bare `flex` (fix round 2, the operator's own finding — see `Dialog`'s
+ * `hidden open:flex`, not a bare `flex` (fix, from the operator's own finding — see `Dialog`'s
  * own rootClass comment for the full mechanism): a bare `flex` here is exactly what left a closed
  * `Drawer` sitting on screen, panel and all, instead of vanishing — the UA's own `display: none`
  * for a closed `<dialog>` loses to *any* author `display` utility regardless of specificity, so

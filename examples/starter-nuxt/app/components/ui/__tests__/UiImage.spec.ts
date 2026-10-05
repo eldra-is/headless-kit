@@ -128,7 +128,9 @@ describe('UiImage', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  describe('rounded (fix round 1, ruling 1)', () => {
+  // A radius belongs on the frame, which is the element that clips its content — never on the
+  // media inside it, where `overflow-hidden` would have nothing to round.
+  describe('rounded', () => {
     it('applies no radius class by default', () => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
       const frame = wrapper.get('[data-part="frame"]');
@@ -142,7 +144,9 @@ describe('UiImage', () => {
     });
   });
 
-  describe('fill (fix round 1, ruling 2)', () => {
+  // `fill` is for a background image: the frame's height comes from its positioned ancestor, so
+  // nothing may try to derive one from media this wrapper has no intrinsic size for.
+  describe('fill', () => {
     it('fills the nearest positioned ancestor: absolute inset-0 h-full w-full on root, h-full w-full on frame', () => {
       const wrapper = mount(UiImage, {
         props: { src: '/demo/hero.svg', alt: 'Hero', fill: true },
@@ -175,7 +179,7 @@ describe('UiImage', () => {
     });
   });
 
-  describe('fit (fix round 1 ruling 3, contain fully implemented in fix round 2 ruling 2)', () => {
+  describe('fit', () => {
     it('defaults to cover: the frame stays w-full, the media stays h-full w-full object-cover — unchanged', () => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
       const frame = wrapper.get('[data-part="frame"]');
@@ -187,8 +191,8 @@ describe('UiImage', () => {
     });
 
     /**
-     * Fix round 2 ruling 2: `contain` is not just `object-contain` on the media. `Image`'s
-     * `frame` is unconditionally `w-full overflow-hidden`, so a tall (portrait) image under
+     * `contain` is not just `object-contain` on the media. `Image`'s `frame` is unconditionally
+     * `w-full overflow-hidden`, so a tall (portrait) image under
      * `h-full w-full` still computes its box from the frame's full width scaled by its own
      * intrinsic ratio — if that scaled height exceeds a height cap on the frame (the lightbox's
      * `max-h-[85vh]`), the frame's `overflow-hidden` clips it instead of shrinking it, the
@@ -236,7 +240,9 @@ describe('UiImage', () => {
     });
   });
 
-  describe('classes pass-through (fix round 1, ruling 3/4)', () => {
+  // The caller's own value for a part always wins over whatever `rounded`/`fill`/`fit` set, so a
+  // radius with no preset and a frame-level size constraint both stay reachable.
+  describe('classes pass-through', () => {
     it('forwards an arbitrary classes.frame to the frame, merged with rounded', () => {
       const wrapper = mount(UiImage, {
         props: {

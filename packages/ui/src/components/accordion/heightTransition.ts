@@ -3,7 +3,7 @@ import { parseCssDurationMs, prefersReducedMotion, readCssVar } from '../../util
 /**
  * The Web Animations API height animation `AccordionItem.vue` plays on its panel element (spec
  * "Accordion" → Behaviour & motion, operator override 2026-09-26: "the accordion should have some
- * expand transition" — see the README's Deviations entry for the full ruling and why a CSS-only
+ * expand transition" — see the README's Deviations entry for the full decision and why a CSS-only
  * height animation was rejected here the same way it was for the original fade). Isolated in its
  * own file for the same reason `detailsExclusivity.ts` is: a runtime DOM capability that needs
  * feature detection and reads better tested on its own than inlined into the component.
@@ -38,7 +38,7 @@ export interface PanelHeightAnimator {
  * during the opening animation, or a second click while closing (`AccordionItem.vue`'s own
  * `onSummaryClick` covers exactly when each happens).
  *
- * Fixes review round 1 (2026-09-26): "one animation owner per item." The original shape (a bare
+ * Fixes an early review finding (2026-09-26): "one animation owner per item." The original shape (a bare
  * `animatePanelHeight(panel, from, to, ...)` call per direction, each independently capturing and
  * restoring `panel.style.overflow` around its own `Element.animate()` call) let two overlapping
  * calls race: a click during the opening animation started a *second*, independent call before the
@@ -83,7 +83,7 @@ export function createPanelHeightAnimator(panel: HTMLElement): PanelHeightAnimat
   ): Promise<void> {
     const reversing = currentAnimation !== null;
     // Read the live height BEFORE cancelling: `getBoundingClientRect()` still reflects the running
-    // animation's current frame at this point, which is exactly the continuity the ruling asks for
+    // animation's current frame at this point, which is exactly the continuity the decision asks for
     // ("reads the panel's CURRENT rendered height as the start value").
     const fromPx = reversing ? panel.getBoundingClientRect().height : freshFromPx;
     if (reversing) {

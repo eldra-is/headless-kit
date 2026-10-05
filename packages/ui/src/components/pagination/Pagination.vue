@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<PaginationProps>(), {
 });
 
 /**
- * Controller ruling: without `hrefForPage` the controls are `<button type="button">` elements
+ * Controller decision: without `hrefForPage` the controls are `<button type="button">` elements
  * that emit `update:page` instead of real links — see `types.ts`'s own comment on `hrefForPage`
  * and the README's Deviations entry.
  */

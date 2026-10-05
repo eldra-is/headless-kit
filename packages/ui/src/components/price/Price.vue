@@ -57,7 +57,25 @@ const ambientCurrency = useEldraUiCurrency();
 const messages = useMessages();
 
 const locale = computed(() => props.locale ?? ambientLocale.value);
-const currency = computed(() => props.currency ?? ambientCurrency.value);
+
+/**
+ * The currency to format in: the prop, else whatever an ancestor provided — and `undefined` when
+ * neither says. There is no guessed code (`useEldraUiCurrency`): a store whose currency nothing
+ * has published gets its amounts as plain numbers, because a dollar sign in front of krónur is a
+ * wrong price where a bare number is only an incomplete one.
+ *
+ * `''` is "no currency" here too, exactly as the composable reads it. It is not a code `Intl` can
+ * accept, and it was the only way to decline one while that composable still defaulted — so a
+ * consumer who still provides it, and the starter blocks that unwrap `CURRENCY_KEY` and pass the
+ * value down as this **prop** (`blocks/search`, `blocks/product-carousel`), must get the same
+ * plain number either way. Left to the invalid-code path it instead got a dev warning per instance
+ * and a dangling separator in the DOM, so a page could show clean numbers in its `<Price>` elements
+ * and `"4.800 "` in every `ProductCard` beside them.
+ */
+const currency = computed(() => {
+  const code = props.currency ?? ambientCurrency.value;
+  return code === '' ? undefined : code;
+});
 
 /**
  * Spec "Price" → Properties, `compareAt` row: "Sale state turns on automatically only when
@@ -71,15 +89,24 @@ const isSale = computed(() => props.compareAt != null && props.compareAt > props
  * (cents)"). `currencyFractionDigits` reads the currency's own minor-unit count from ICU data —
  * 2 for `USD`, 0 for `ISK` — so `toMajor` divides by the right power of ten whatever the currency,
  * and a zero-decimal currency's minor units equal its major units untouched.
+ *
+ * With **no currency** there is nothing to ask, so the count is ISO 4217's own default of 2 —
+ * which is also what `currencyFractionDigits` answers for a code it cannot use, so the scale a
+ * caller converted *into* minor units with is the scale this converts back out of either way.
  */
-const fractionDigits = computed(() => currencyFractionDigits(currency.value, locale.value));
+const ISO_4217_DEFAULT_FRACTION_DIGITS = 2;
+const fractionDigits = computed(() =>
+  currency.value === undefined
+    ? ISO_4217_DEFAULT_FRACTION_DIGITS
+    : currencyFractionDigits(currency.value, locale.value)
+);
 function toMajor(minorUnits: number): number {
   return minorUnits / 10 ** fractionDigits.value;
 }
 
 /**
  * `Intl.NumberFormat`'s constructor throws `RangeError` for a currency code it does not recognise
- * — an unknown or malformed ISO 4217 code (`'XYZ1'`, `''`) — and this runs inside a `computed`,
+ * — an unknown or malformed ISO 4217 code (`'XYZ1'`) — and this runs inside a `computed`,
  * where a throw breaks the whole render, not just the price ("never throw from a computed" — the
  * same rule `src/utils/date.ts#formatDate` follows for a malformed date, for the identical reason).
  * On failure, fall back to a plain decimal formatter and append the raw code after the number
@@ -119,18 +146,30 @@ function warnInvalidCurrency(code: string): void {
  *   `$96.50` is not a column of money. A zero-decimal currency is unaffected by either — its own
  *   count is `0`, so `"kr 2,800"` stays exactly that.
  *
- * `invalid` records whether the currency code is one `Intl` rejects: `formatCurrency` throws for
- * such a code exactly as the private helper does, and this runs inside a `computed`, where a throw
- * breaks the whole render rather than just the price. So the code is probed once per
- * locale/currency/sign change rather than per amount, and `formatAmount` below falls back to a
- * plain decimal with the raw code appended (`"1,234 XYZ1"`).
+ * `suffix` is what `formatAmount` appends after the number, and it is empty in all but one of the
+ * three cases. A code `Intl` **rejects** is the exception: `formatCurrency` throws for such a code
+ * exactly as the private helper does, and this runs inside a `computed`, where a throw breaks the
+ * whole render rather than just the price — so the code is probed once per locale/currency/sign
+ * change rather than per amount, and the fallback is a plain decimal with the raw code appended
+ * (`"1,234 XYZ1"`), which is the one thing a reader can still act on. **No** currency is not that
+ * case: there is no code to print, so the amount is a plain decimal and nothing follows it.
  */
-const currencyFormat = computed<{ format: (major: number) => string; invalid: boolean }>(() => {
+const currencyFormat = computed<{ format: (major: number) => string; suffix: string }>(() => {
+  const code = currency.value;
+
+  // No currency at all: the same `Intl` path, `style: 'decimal'`, and nothing appended. There is
+  // no code to print and a dangling separator would reach the DOM and the accessible text of
+  // every price on the page.
+  if (code === undefined) {
+    const formatter = createNumberFormat({ locale: locale.value, style: 'decimal' });
+    return { format: (major) => formatter.format(major), suffix: '' };
+  }
+
   const format = (major: number): string =>
     formatCurrency(
       major,
       locale.value,
-      currency.value,
+      code,
       props.narrowSymbol,
       fractionDigits.value,
       fractionDigits.value
@@ -138,18 +177,17 @@ const currencyFormat = computed<{ format: (major: number) => string; invalid: bo
 
   try {
     format(0);
-    return { format, invalid: false };
+    return { format, suffix: '' };
   } catch {
-    warnInvalidCurrency(currency.value);
+    warnInvalidCurrency(code);
     const formatter = createNumberFormat({ locale: locale.value, style: 'decimal' });
-    return { format: (major) => formatter.format(major), invalid: true };
+    return { format: (major) => formatter.format(major), suffix: ` ${code}` };
   }
 });
 
 function formatAmount(minorUnits: number): string {
-  const { format, invalid } = currencyFormat.value;
-  const formatted = format(toMajor(minorUnits));
-  return invalid ? `${formatted} ${currency.value}` : formatted;
+  const { format, suffix } = currencyFormat.value;
+  return `${format(toMajor(minorUnits))}${suffix}`;
 }
 
 const formattedCurrent = computed(() => formatAmount(props.amount));

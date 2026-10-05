@@ -90,7 +90,7 @@ const meta = {
           '**Initial focus** is the close button (the opposite of a plain `Dialog`’s own rule),',
           'and it returns to the opener on close.',
           '',
-          '**Draggable** (operator ruling, inherited from `useCarousel` unchanged): grabbing the',
+          '**Draggable** (operator decision, inherited from `useCarousel` unchanged): grabbing the',
           'image stage with a mouse or pen changes pages the same way `Carousel`’s own track',
           'drags, snapping to the nearest image on release and biased one further by a fast flick.',
           'Thumbnails sit outside the stage and are unaffected.',

@@ -669,7 +669,7 @@ describe('Button — states', () => {
   });
 
   /**
-   * The press is a scale, not a 1px move (operator ruling, 2026-09-25 — README Deviations). The
+   * The press is a scale, not a 1px move (operator decision, 2026-09-25 — README Deviations). The
    * spec's States table says "moves down 1px"; a 1px translate is below the threshold at which a
    * press reads as tactile, so the whole control shrinks to 98% instead.
    */
@@ -733,7 +733,7 @@ describe('Button — states', () => {
   });
 
   it('leaves no press translate anywhere in the component source', async () => {
-    // The whole point of the ruling is that the 1px move is gone, and a single leftover variant
+    // The whole point of the decision is that the 1px move is gone, and a single leftover variant
     // string would bring it back for exactly that variant — which no rendered-class assertion
     // above would notice if the variant is one nobody thought to list.
     const { readFileSync } = await import('node:fs');

@@ -131,7 +131,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Switch`            | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
    | `Tab`               | none — reads only the shared tokens from layer 1, plus `VariantPicker`'s `text-variant-pill` type style (no per-component variable of its own; see that component's row)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
    | `TabPanel`          | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-   | `Tabs`              | none — reads only the shared tokens from layer 1; the new `eldra-scrollbar-hide` utility the tab list uses has no variable of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+   | `Tabs`              | none — reads only the shared tokens from layer 1; the `eldra-scrollbar-hide` utility the tab list uses has no variable of its own. The pills list's own padding, the negative margin that cancels it and its scroll padding are all `calc(var(--eldra-focus-offset) + var(--eldra-focus-width))` — the focus ring's own reach, so raising either ring token widens the room the scrolling list keeps for a focused pill's ring instead of letting it clip (the underline variant reserves nothing: its tabs ring _inside_ their own box, per the design spec, and padding that list vertically would push its hairline off the tabs). Set a gutter through `classes.list` only if it is wider than that reach — a `px-*`/`-mx-*`/`scroll-px-*` utility of your own replaces the reservation on that axis rather than composing with it, the way `--eldra-carousel-bleed` does for the carousel                                                                                                                                                          |
    | `Textarea`          | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
    | `Toast`             | `--eldra-toast-title-size` (default `0.9375rem`), `--eldra-toast-title-line` (default `1.4`) — the title's own size/line, sitting between two type-scale steps with no token of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `Toaster`           | `--eldra-toast-width` (default `24rem`) — the fixed region's own width, always capped at `100vw - 2rem` inside the utility itself, the same shape as `Dialog`'s own width variables                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -609,11 +609,11 @@ in their own right, as they always were — and `Shift+Tab` from the first reach
 the same way. "Leaves the carousel" means it never walks into another card, not that the carousel's
 own controls are skipped.
 
-**Pointer drag** (operator ruling): touch already swipes the track for free through native
+**Pointer drag** (operator decision): touch already swipes the track for free through native
 scroll-snap; `draggable` (default `true`) adds the mouse/pen equivalent. `pointerdown` on the
 track — the primary button, anywhere except an editable/range control (`input`, `textarea`,
 `select`, `[contenteditable]`, `input[type="range"]`) or an element opted out with `data-no-drag` —
-starts tracking the pointer, buttons and links included (fix, 2026-09-26, round 2: a `ProductCard`'s
+starts tracking the pointer, buttons and links included (fix, 2026-09-26: a `ProductCard`'s
 stretched title link covers the whole card, so a blanket "no interactive descendant" rule left no
 way to drag from a card at all — the operator's own words: "we are not able to drag on a card, we
 have to place the cursor between cards"). The `pointerdown` itself is never `preventDefault()`ed, so
@@ -987,7 +987,15 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   one's own `locale` prop wins over it.
 - **`provideEldraUiCurrency` / `useEldraUiCurrency` / `CURRENCY_KEY`**
   (`src/composables/useLocale.ts`) — `LOCALE_KEY`'s sibling, the store currency `Price` formats
-  with by default, `USD` with nothing provided; `Price`'s own `currency` prop wins over it.
+  with by default; `Price`'s own `currency` prop wins over it. **There is no default code**, unlike
+  the locale pair: a component library a shop of any kind installs cannot guess a currency, and a
+  dollar sign in front of krónur is a _wrong_ price where a bare number is only an incomplete one.
+  So it answers `string | undefined`, and with no currency from either source `Price` formats the
+  amount as a plain number — same `Intl` path, no symbol, no code. Providing `undefined` is itself
+  an answer ("this store has no currency") and is silent; having no provider at all warns once per
+  session in dev, since that is an app that never wired the key. `''` means the same as `undefined`
+  — both here and in `Price`'s own `currency` prop, so a consumer that unwraps `CURRENCY_KEY` and
+  passes the value down as a prop gets the same plain number either way.
 - **`FieldCheckboxGroup`** — the twelfth `Field*`, for the one root-entry control the spec's list
   of ten left without a way to validate it (see the deviation below).
 - **`filterNumericBeforeInput`** (`src/utils/numeric-input.ts`) — the `beforeinput` filter that
@@ -1176,7 +1184,7 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   the thing the state exists for: the amount read as ordinary settled text for the three seconds
   the read took, and then the number simply changed — a visitor who looked away never saw it
   happen, and one who was looking saw it blink. So two things changed together, on an operator
-  ruling (2026-10-03):
+  decision (2026-10-03):
 
   - **The dim is deep enough to see** — `0.75`, a quarter of the way out rather than a tenth. That
     is the deepest dim at which every colour these values are drawn in (`text`, `muted`, `accent`,
@@ -1380,7 +1388,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   non-numeric keystroke land and strip it on the reformat.
 
 - **`UnitInput` and `CurrencyInput` are ports, and the behaviour is the private library's**
-  (operator ruling, 2026-09-25). "The currency input, unit input should function identical to how
+  (operator decision, 2026-09-25). "The currency input, unit input should function identical to how
   they do in the private ui." The field is formatted **while it is typed into** — there is no
   editing mode and no focus-dependent text — because that is what a merchant already knows these
   fields to do; a field that showed a plain number under the caret and a formatted one on blur was
@@ -1535,7 +1543,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   of the text colour, thickening to 2px at full colour on hover, held through `:active`) on every
   variant; `underline: false` restores the old standalone-only shape — no underline at rest, 1px
   appearing on hover, 2px on `:active` — for a navigation bar whose own design removes it. The same
-  ruling reaches three other places that render a link-shaped affordance without going through
+  decision reaches three other places that render a link-shaped affordance without going through
   `Link` itself, all updated alongside it: `Breadcrumb`'s trail links (`linkClass` — see that
   component's own Deviations entry below) and the stretched title links `ContentCard`, `FeatureCard`
   and `ProductCard` build from `stretchedLink.ts` (underlined at rest now, thickening on hover via
@@ -1749,7 +1757,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   trigger, so the `Tab` walk into it is `usePopover`'s `tabRedirect` rather than the browser's.
   [Layering](#layering) has the whole list, including why that redirect is not a focus trap and
   what a teleport target of your own has to avoid. `teleport: false` restores the old shape.
-- **`MultiSelect`'s parts include the footer's.** The brief's part list stops at the tags; the
+- **`MultiSelect`'s parts include the footer's.** The API contract's part list stops at the tags; the
   spec's anatomy draws a footer ("live count · Clear (link button) · Done (primary sm)") and its
   acceptance criteria test it, so `footer`, `footerCount`, `footerClear` and `footerDone` are parts
   as well. `optionCheck` is reused for an option's **checkbox** — it is the mark that says a row is
@@ -1793,7 +1801,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   ungrouped floating-point grammar (digits and a single `.`); it cannot hold a locale-grouped
   string like `is-IS`'s `"1.234"` (`.` as the group separator) — assigning one is either silently
   rejected by the browser's value-sanitisation algorithm or misread as the decimal `1.234`. The
-  task brief explicitly asks this control to parse a typed value with `parseLocaleNumber`, which
+  API contract explicitly asks this control to parse a typed value with `parseLocaleNumber`, which
   only makes sense for text the browser has not already mangled. `inputmode="numeric"` and
   `role="spinbutton"` with `aria-valuenow`/`-valuemin`/`-valuemax` (the ARIA APG's own pattern for
   this shape of control) satisfy the spec's 4.1.2 note ("The input exposes its value, min and max
@@ -1811,7 +1819,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   group is what gives the two outer corners' square first/last children the "inner radius is
   `radius-md` minus 1px" look the Sizes table asks for, without a literal px.
 - **`locale` is not part of the design spec's own Properties table for "Quantity stepper"** — the
-  task brief adds it (default `"en-US"`) for display formatting and for parsing a typed value.
+  API contract adds it (default `"en-US"`) for display formatting and for parsing a typed value.
   `src/utils/number-format.ts` (`createNumberFormat`, `formatNumber`, `parseLocaleNumber`) is the
   general-purpose utility behind it, exported from the package root for use outside this control.
 - **`VariantPicker`'s sold-out diagonal lines are inline SVG, not CSS-only utilities.** A first
@@ -1843,12 +1851,12 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   which is what `aria-controls` points at (and what always renders while the panel shows: a
   `role="combobox"` must point at something real). The no-results message and the loading rows are
   its siblings. `Select` solved the same conflict the same way.
-- **Four parts beyond the brief's list, all in the spec's own anatomy**: `listbox` (above), `chip`
+- **Four parts beyond the API contract's list, all in the spec's own anatomy**: `listbox` (above), `chip`
   (anatomy item 9), `clearRecent` (the idle view's "Clear recent searches" row) and `liveRegion`
   (anatomy item 11), plus `itemArrow` for the Sizes table's "Active arrow". A part the component
   draws and a consumer cannot reach is not a part.
 - **`SearchBar`'s `select` event carries `(item, type)`**, where `type` is one of the four result
-  types or `"viewAll"`. The spec writes the payload as `{ type, url }` and the brief as `(item)`;
+  types or `"viewAll"`. The spec writes the payload as `{ type, url }` and the API contract as `(item)`;
   two arguments carry both without making a consumer destructure a synthetic object, and `item`
   is the same object the `item` slot receives.
 - **Articles and pages share one group.** The spec's `results` view names three groups — Products
@@ -1857,7 +1865,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   rows between them. `resultTypes` still filters each of the two independently.
 - **A row's sub line has nowhere to come from.** The spec's reference image shows a second line
   under each title ("Knitwear · 4 colours", "Journal · 4 min read") and a `muted` meta on
-  collections ("48 products"), but the `SearchResults` shape this package ships (the brief's, kept
+  collections ("48 products"), but the `SearchResults` shape this package ships (the API contract's, kept
   exactly) carries only `title`, `href` and a product's `price`. The `item` slot is how a store
   draws more; nothing was invented in the type.
 - **An idle panel with nothing in it does not open.** The spec says the panel opens on focus, and
@@ -1989,7 +1997,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   renders, instead of depending on an inline `<a>`'s content-fitted focus box. Matches the design
   spec's own reference image, whose "Focus-visible (linked)" panel draws the ring around the whole
   rating, stars included, not just the link text.
-- **`Rating` adds one message beyond the task brief's named two (`rating`, `noReviews`):
+- **`Rating` adds one message beyond the API contract's named two (`rating`, `noReviews`):
   `reviewCount(n)`.** The spec's Anatomy names the linked variant's visible count text verbatim —
   "'(128)' on cards; '128 reviews' underlined when linked" — and the card form's `"(128)"` is a
   literal parenthesised number with no word to translate, but the linked form's "128 reviews" is a
@@ -2024,7 +2032,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   read-only control keeps whatever cursor it already had (`cursor-not-allowed`, `cursor-progress`,
   or `Select`/`MultiSelect`'s read-only `cursor-default`), and the `UnitInput` drag handle keeps its
   own `cursor-ns-resize`. `Link` needed nothing — an `<a>` is a pointer already.
-- **The starter's `UiImage` is a thin wrapper over `Image`, not a replacement** (ruling, 2026-09-25;
+- **The starter's `UiImage` is a thin wrapper over `Image`, not a replacement** (decision, 2026-09-25;
   the plan's own wording said "replace `UiImage`"). `Image` must stay standalone of
   `@eldrajs/theme-vue` (this package never depends on a theme package), but the starter's
   `examples/starter-nuxt/app/components/ui/UiImage.vue` carries Studio's preview-overlay framing
@@ -2045,11 +2053,10 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   `style` on the root, not the media element, and `Image` already derives an equivalent style from
   `focal`/`zoom`. `class`/`style` passed to `UiImage` land on `Image`'s root (the figure/frame
   wrapper) rather than the `<img>` itself.
-- **Fix round 1 (2026-09-25): `UiImage` gained `rounded`/`fill`/`fit`/`classes`,
+- **Fix (2026-09-25): `UiImage` gained `rounded`/`fill`/`fit`/`classes`,
   and every block that needs a radius, a background fill, or an uncropped view was updated to use
-  them.** The first round's own Deviations entry (above) claimed a block's leftover `rounded-*`/
-  `object-cover`/`object-contain` class was now merely "redundant" once `class`/`style` moved to
-  `Image`'s root — that was wrong. `Image`'s `frame` (not its root) is the part with
+  them.** The entry above claimed a block's leftover `rounded-*`/`object-cover`/`object-contain`
+  class was now merely "redundant" once `class`/`style` moved to `Image`'s root — that was wrong. `Image`'s `frame` (not its root) is the part with
   `overflow-hidden`, so a `rounded-*` class stuck on the root clipped nothing and every rounded
   corner in the starter went square; the hero's `image-background` variant's
   `class="absolute inset-0 h-full w-full object-cover"` landed on the root too, but with no
@@ -2069,7 +2076,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   - **`fit`** (`'cover' | 'contain'`, default `'cover'`) maps to `classes.media`, for a lightbox-
     style full view that must never crop. Used by the gallery block's lightbox, alongside
     `classes.frame: 'max-h-[85vh]'` for the height cap that used to sit on the `<img>` directly.
-    (`fit="contain"`'s own class set was incomplete at first — see the fix round 2 entry below.)
+    (`fit="contain"`'s own class set was incomplete at first — see the "Second fix" entry below.)
   - **`classes`** passes straight through to `Image`'s own `classes` prop (merged with whatever
     `rounded`/`fill`/`fit` set, caller's value always wins) — the escape hatch for a radius `Image`
     has no preset for (`rounded-full` on the testimonials avatars, `rounded-md` on
@@ -2079,8 +2086,8 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
     the resulting `aspect-ratio: auto` on the background variant, a gallery test asserting the
     lightbox's `object-contain`/`max-h-[85vh]`, and a `UiImage.spec.ts` contract test per prop with
     mutation checks (break the mapping, watch the test fail, restore).
-- **`AvatarGroup` has no `size` prop; every avatar in a group renders `sm`** (2rem). The task
-  brief's own `AvatarGroupProps` type gives it none, and the spec's anatomy diagram shows a
+- **`AvatarGroup` has no `size` prop; every avatar in a group renders `sm`** (2rem). The API
+  contract's own `AvatarGroupProps` type gives it none, and the spec's anatomy diagram shows a
   compact stacked row rather than naming a size — `sm` is the smallest of the four, the fit for a
   row of up to four overlapping circles plus a "+N" counter, distinct from the single `lg` avatars
   the spec shows elsewhere (a testimonial byline, a journal author card). A consumer who wants a
@@ -2094,7 +2101,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   passes `max="10"` still sees at most four circles; the warning matches the same
   dev-only-when-overriding-a-caller convention `Badge`/`Button`/`Chip`/`Image`/`Price`/`Section`
   already use.
-- **`AvatarGroup`'s accessible sentence strips `Intl.ListFormat`'s own Oxford comma** (task brief:
+- **`AvatarGroup`'s accessible sentence strips `Intl.ListFormat`'s own Oxford comma** (API contract:
   "Icelandic list joining: use `Intl.ListFormat` with the message locale where available"). Node's
   (and every major browser's) English "long conjunction" CLDR pattern joins three or more items as
   "a, b, and c", but the spec's own example — `aria-label="Makers: Ingrid, Tomas, Maya and 4
@@ -2116,7 +2123,7 @@ more"` — has no comma before "and". Icelandic's own pattern already has no suc
   visual to restyle. `classes.root` always reaches the one element that is actually the cell,
   whichever tag that turns out to be.
 - **No `external` prop; whether the hidden link context appears is judged from `href` itself.**
-  `LogoItemProps` (task brief) has no `external` boolean the way `LinkProps` does, but the spec's
+  `LogoItemProps` (the API contract) has no `external` boolean the way `LinkProps` does, but the spec's
   own default for `linkContext` is conditional on the href — `" (stockist site)"` "when `href` is
   external" — so the component has to decide this on its own. `isExternalHref` in `LogoItem.vue`
   treats an absolute URL (a scheme like `https:`, or a protocol-relative `//`) as external and
@@ -2132,18 +2139,18 @@ more"` — has no comma before "and". Icelandic's own pattern already has no suc
   "reuse what matches, one new variable for what doesn't" shape `text-card-title`/`text-stepper-value`
   already use, just spread across two donor styles instead of one.
 - **`LogoItem`'s link stays without an underline, even after the operator's "all link elements are
-  underlined" ruling below (`Link`, `Breadcrumb`, card titles).** Reviewed as part of that same
+  underlined" decision below (`Link`, `Breadcrumb`, card titles).** Reviewed as part of that same
   change and deliberately left alone: the linked cell's own text is the greyscale/wordmark brand
   mark or an image, not a run of body copy — underlining a wordmark reads as a broken heading, not
   a link affordance, and the cell's non-colour affordance is already its own hover/focus treatment
   (opacity rising to 100%, the `eldra-focus` ring, the 4rem target) rather than a text decoration.
   `Rating`'s linked variant needed no change either: its `count` text ("128 reviews") was already
   underlined at rest before this task (`decoration-1 decoration-current/55`), not hover-gated.
-- **Fix round 2 (2026-09-25): the navigation logo dropped `UiImage` entirely, and
-  `fit="contain"` now also shrink-wraps the frame.** Two open findings from the round 1 re-review:
+- **Second fix (2026-09-25): the navigation logo dropped `UiImage` entirely, and
+  `fit="contain"` now also shrink-wraps the frame.** Two findings the first fix left open:
   - **The navigation block's logo was still routed through `UiImage`** with a bare
-    `class="h-8 w-auto"`, the exact class-lands-on-the-root problem round 1 fixed everywhere else —
-    missed because round 1's own scope named five blocks and not this one. The logo is not a
+    `class="h-8 w-auto"`, the exact class-lands-on-the-root problem the first pass fixed everywhere else —
+    missed because the first fix's own scope named five blocks and not this one. The logo is not a
     CMS-framed image at all (no `framing`, no `entryId`/`fieldPath`), so it no longer goes through
     `UiImage`: `blocks/navigation/Block.vue` now renders a plain
     `<img :src="data.logo.url" :alt="data.brand" class="h-8 w-auto" loading="eager"
@@ -2180,7 +2187,7 @@ max-h-[inherit]` — `max-h-[inherit]` reads the _frame's_ own `max-height` back
   generic default to fall back to. "Try again" is the one action every failed fetch shares, so
   `error` is the only variant with a built-in default (see `EmptyState.vue`'s own comment).
 - **`EmptyState`'s built-in "Try again" button label is a new `tryAgain` message key**
-  (`src/messages/en-US.ts`/`is-IS.ts`), not part of the task brief's own message vocabulary. It is
+  (`src/messages/en-US.ts`/`is-IS.ts`), not part of the API contract's own message vocabulary. It is
   chrome this component renders itself (spec → Default copy, "Try again"), the same category as
   every other message key here, so it goes through `useMessages()` like the rest rather than being
   hard-coded English.
@@ -2189,17 +2196,17 @@ max-h-[inherit]` — `max-h-[inherit]` reads the _frame's_ own `max-height` back
   any of `Icon`'s four sizes or its fixed 1.75 stroke) is hand-drawn**, the same split `Badge`
   (hand-drawn) versus every other icon-taking component (via `Icon`) already establishes.
 - **`ProductCard`'s media-corner "Sold out" is a plain outline `Badge`, not `StockBadge`.** The
-  task brief's own framing ("a sale/new Badge and a StockBadge stack in the media corner")
+  API contract's own framing ("a sale/new Badge and a StockBadge stack in the media corner")
   reads as though both components land there, but the design spec's anatomy line is explicit
   ("Badge stack ... Badge sale / new / outline 'Sold out'") and its States table describes the
   sold-out badge as "inset 1px `border-strong`" — exactly `Badge`'s own `outline` recipe
   (`bg-background text-text border-border-strong`), which `StockBadge` has no equivalent of (it
   is bare inline text and an icon, no fill or border at all). The corner stack is therefore
   `Badge :outline`, matching the spec's literal styling; `StockBadge` composes elsewhere (next
-  bullet), which is what gives the brief's "Composes ... Badge/StockBadge ..." line a real,
+  bullet), which is what gives the API contract's "Composes ... Badge/StockBadge ..." line a real,
   distinct component for each half.
 - **`ProductCardProduct.stock` and the `stockLine` part are an addition beyond the spec's own
-  8-part anatomy.** The anatomy diagram draws no stock-status row at all, but the brief's own
+  8-part anatomy.** The anatomy diagram draws no stock-status row at all, but the API contract's own
   `ProductCardProduct` type carries a `stock?: StockLevel | null` field distinct from
   `available`, and composing `StockBadge` needed a real use beyond the outline "Sold out" badge
   above (which is `Badge`, not `StockBadge` — see the previous bullet). When `stock` is set (and
@@ -2231,7 +2238,7 @@ max-h-[inherit]` — `max-h-[inherit]` reads the _frame's_ own `max-height` back
 - **The hover zoom scales from the image's centre, not its authored focal point.** The spec says
   the zoom scales "from the image's focal point", which `Image`'s own `focal`/`zoom` props exist
   for — but they drive a _static_ crop, not a `:hover` transition, and `ProductCardProduct` (the
-  task brief's own type) carries no per-image focal data for the card to read. The hover scale is
+  API contract's own type) carries no per-image focal data for the card to read. The hover scale is
   a plain `group-hover:scale-[1.03]` CSS transform with the default `transform-origin: center`,
   which only matters visually for an image whose subject sits noticeably off-centre.
 - **`ProductCard`'s loading state renders a `<div role="group">`, not `<article role="group">`.**
@@ -2266,7 +2273,7 @@ role="group" aria-busy aria-label="messages.loading">`, not the `<article>` its 
   showing the sale badge at all, not only of what number it prints.
 - **`Dialog`'s close button "moves down 1px" active state (spec "Dialog" → States) is a 2%
   `scale-[0.98]`, not a 1px translate — the same substitution `Button`'s own press state made
-  (operator ruling, 2026-09-25).** A 1px move reads as a rendering artefact rather than a press,
+  (operator decision, 2026-09-25).** A 1px move reads as a rendering artefact rather than a press,
   and `src/__tests__/source-scan.spec.ts` fails the shipped stylesheet on any `active:` translate,
   `top`, or `margin-top` utility for exactly that reason — first caught here when this component's
   literal reading of the spec's own words tripped that guard.
@@ -2325,7 +2332,7 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
 - **`TabPanel` gives `tabindex="0"` only to a panel with no focusable content of its own**, not
   unconditionally as the spec's own Accessibility line reads literally ("`tabindex="0"`" with no
   qualifier). This is the ARIA APG tabs pattern's own narrower rule — a panel that already
-  contains a link or a button needs no second stop for the same content — and the task brief
+  contains a link or a button needs no second stop for the same content — and the API contract
   names it outright as "the panel focusability rule"; `TabPanel.vue` checks its own rendered DOM
   for a focusable descendant on mount and after every update.
 - **`Tab` and the `items` API carry no `disabled`.** The spec's "Tabs" section — Properties,
@@ -2343,7 +2350,7 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `variant-picker/`.
 - **`Accordion`'s panel animates height on expand and collapse, through the Web Animations API, not
   CSS** (operator override, 2026-09-26: "the accordion should have some expand transition" —
-  supersedes the original "fades, does not animate height" ruling below it in earlier versions of
+  supersedes the original "fades, does not animate height" decision below it in earlier versions of
   this file). The spec's own Behaviour & motion text only asked for a fade ("Panel: fades in over
   `duration-base` `ease-out` when opened"), and a CSS grid-rows height animation was the original
   design and was rejected for it: making one work at all requires the panel to stay in the layout
@@ -2404,17 +2411,17 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   addition), so both the probe and the fallback read/write `name` through `getAttribute`/
   `setAttribute` rather than the property, which is what Vue's own `:name` binding sets in every
   engine regardless of whether that engine also exposes it as a property.
-- **`Drawer`'s `label` becomes `ariaLabel`.** The brief's own prop name is an accessible-name-only
+- **`Drawer`'s `label` becomes `ariaLabel`.** The API contract's own prop name is an accessible-name-only
   prop — it never renders as visible text, it only becomes the `<dialog>`'s `aria-label` when there
   is no `title` to be `aria-labelledby` instead (the menu drawer) — and this package's own naming
   rule for that shape is `ariaLabel`, not the bare noun (`title` is reserved for _visible_ text
-  everywhere else in the package). Matches operator ruling, 2026-09-25.
+  everywhere else in the package). Matches operator decision, 2026-09-25.
 - **`Drawer`'s full-screen mobile variant is a plain `@media (width < 48rem)` query baked into the
   `eldra-drawer-width` utility itself, never a `@container` query.** The design spec's own Global
   Constraints name exactly two rules in the whole spec that measure the **viewport** rather than
   the enclosing block — form-field text below a 48rem viewport, and "the full-screen variants of
   Drawer, Lightbox and Search modal" below a 48rem viewport — and this is the second one (operator
-  ruling, 2026-09-25). Every other responsive rule in this package measures a container
+  decision, 2026-09-25). Every other responsive rule in this package measures a container
   (`@max-tablet`, `@two-col`, …); this one measures the screen a real device has, because a drawer
   covering "the whole screen" is a statement about the device, not about whatever page-builder
   column happens to contain it. `48rem` is Tailwind's own `md` breakpoint, the same edge
@@ -2504,14 +2511,14 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
 - **No show delay, on hover or on focus.** The spec's own Behaviour bullet says it twice ("No
   delay on focus; none needed on hover") and the acceptance criteria repeat it ("appears ... with
   no delay on focus"); `Tooltip` shows on the very hover/focus event with no timer at all. The
-  task brief's own test note ("hover (delay, fake timers)") is read as "prove there is no delay",
+  API contract's own test note ("hover (delay, fake timers)") is read as "prove there is no delay",
   not as a requirement for one — `__tests__/tooltip.spec.ts` uses fake timers to advance past a
   hover event and assert the bubble is already visible before any time has passed.
 - **"Focus within it" (spec → States, Shown) reads as _keyboard_ focus, and activating the trigger
   dismisses the tooltip like `Esc` does — neither is in the design spec's own text.** An operator
   report ("hover and click the element, the tooltip gets stuck and does not disappear on
   hover-out") traced to `focusWithin` counting any `focusin`, including the one a mouse click gives
-  its own target — so `mouseleave` alone could no longer hide it. The controller's ruling narrows
+  its own target — so `mouseleave` alone could no longer hide it. The controller's decision narrows
   "focus within it" to `keyboardFocusWithin`, gated on `element.matches(':focus-visible')` behind a
   `supportsFocusVisible` feature test (`supportsFocusVisible.ts`, mirroring `Textarea`'s
   `supportsFieldSizing`), falling back to a same-page "was the last input a key or a pointer" flag
@@ -2570,7 +2577,7 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   leaving, and the existing hover/focus pause logic, which currently assumes `toasts` and "what's
   on screen" are the same list. That is a second, parallel list-lifecycle to get right beside the
   one `useToast` already owns, not a CSS utility — meaningfully more than the ~40-line budget this
-  review round set, and risk (a reordering, a leaked timer, a `clear()` racing an exit) for a purely
+  component's budget allowed, and risk (a reordering, a leaked timer, a `clear()` racing an exit) for a purely
   cosmetic 150ms fade. The entrance animation (fade + a 0.5rem rise over `duration-base`) ships as
   specified; `Toaster` removes a dismissed toast from the DOM immediately instead.
 - **`Toaster`'s own anatomy has only two named parts, `root` and `list`, even though a danger toast
@@ -2600,12 +2607,12 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   slide, and its track is not focusable at all** — against the spec's own Carousel section, which
   gives the track `tabindex="0"` unconditionally ("Track: `tabindex="0"` with a label") and spells
   the tab order out as "the header arrows, then the track, then the links inside the cards".
-  Operator ruling, and the spec's own general Keyboard rule says the opposite in the stronger
+  Operator decision, and the spec's own general Keyboard rule says the opposite in the stronger
   place: "Composite widgets (tabs, listboxes, menus, carousels, radio groups) take one tab stop and
   use arrow keys inside, following the WAI-ARIA Authoring Practices." Both halves of the Carousel
   section's own wording produce a double stop (the track, then immediately the first card's link)
   and then one stop per card after it — thirteen presses to get past a twelve-card row, which is
-  what the ruling calls bad practice. The track keeps `tabindex="0"` in exactly the case the
+  what the decision calls bad practice. The track keeps `tabindex="0"` in exactly the case the
   section's wording was written for and where nothing else can take the stop: a single-slide image
   gallery whose slides hold nothing focusable, and the `Lightbox` stage ("Stage / track … focusable")
   — decided by content, since `CarouselProps` carries nothing that tells the component which
@@ -2624,7 +2631,7 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   table is a controls/dots/counter combination, not a discriminant `useCarousel` can read), and the
   same track this composable drives is shared by both. One consistent rule for every slide, applied
   by `useCarousel` itself rather than duplicated per call site, was judged better than inventing a
-  prop the type brief for this task does not have — a screen reader user hears "group, slide, 1 of
+  prop this package's own type does not have — a screen reader user hears "group, slide, 1 of
   4" on a product row's cards, slightly more verbose than the spec's plain list items, never less
   informative. The same gap means the **arrow buttons carry the gallery's own accessible names**
   ("Previous slide"/"Next slide", `messages.previous`/`.next`) **on a product row too**, rather than
@@ -2638,7 +2645,7 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   whatever a caller happened to name the whole carousel; the plain generic word reads correctly for
   both variants and needs no `messages` key of its own beyond `slides`.
 - **The Pause/Play button's accessible name is its visible text ("Pause"/"Play"), not the spec's
-  longer "Pause slideshow"/"Play slideshow".** The task brief's own message-key guidance names the
+  longer "Pause slideshow"/"Play slideshow".** The API contract's own message-key guidance names the
   pair `pause`/`play`, one string each — this package uses that one string for both the visible
   label and the accessible name (a native `<button>`'s default accessible name is already its own
   text content) rather than adding a second, longer key purely for the ARIA name.
@@ -2678,19 +2685,19 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   `pointerup`/`pointercancel`/`lostpointercapture` alike. Touch was never affected by either fix —
   it swipes through native scroll-snap panning, which is exactly what the `touch-action` change
   above restores. (The `preventDefault()`-on-`pointerdown` half of this fix was itself replaced the
-  same day — see the round-2 fix below.)
-- **Fix (2026-09-26, round 2, operator report: "we are not able to drag on a card, we have to place
+  same day — see the later fix below.)
+- **Fix (2026-09-26, a second operator report: "we are not able to drag on a card, we have to place
   the cursor between cards. If it's a clickable entry we should cancel the click ... if we swipe
   over some offset. That way the click stays functional but we can still swipe."): a drag may now
   start on any pointer press inside the track — buttons and links included — not only the track's
-  bare background between slides.** The previous round's `isInteractiveDescendant` bailed out of
+  bare background between slides.** The earlier `isInteractiveDescendant` bailed out of
   tracking a pointerdown on _any_ `a[href]`/`button`/`input`/`[role="button"]`/etc., which is exactly
   why dragging never started on a `ProductCard` (its title link is stretched over the whole card).
   Replaced with `isNoDragTarget`, which only excludes an editable/range control (`input`, `textarea`,
   `select`, `[contenteditable]`, `input[type="range"]`) or an explicit `data-no-drag` opt-out. The
-  round-1 `preventDefault()` on every qualifying `pointerdown` is gone too — it was what stopped a
+  earlier `preventDefault()` on every qualifying `pointerdown` is gone too — it was what stopped a
   slide's own link/button from focusing or clicking normally below the 6px threshold, which the
-  ruling requires ("Do NOT preventDefault() the pointerdown — keep native focus/click behaviour").
+  decision requires ("Do NOT preventDefault() the pointerdown — keep native focus/click behaviour").
   In its place, `onTrackPointerMove` clears any text selection the bare `mousedown` already started
   (`window.getSelection()?.removeAllRanges()`) the instant the gesture crosses the threshold, which
   is the only moment a selection anchor stops being wanted. The click-cancelling half of the state
@@ -2727,7 +2734,7 @@ null>`, not a Vue `InjectionKey`, despite matching this package's `*_KEY` naming
   the `LongTitles` story and a dedicated `Breadcrumb.spec.ts` case both prove stays correct. The
   chevron's own size is unchanged (0.375rem, `size-1.5`, already the spec's own number); only the
   horizontal margin moved from `mr-0.5` (0.125rem, right only) to `mx-1` (0.25rem, both sides).
-- **Fix, round 2 (2026-09-26): the round-1 fix above still centred the two kinds of separator
+- **Second fix (2026-09-26): the fix above still centred the two kinds of separator
   against two different reference boxes — `self-center` against a link's real 1.5rem `target-min`
   height, the fixed `mt-1.875` against the current page's plain 1.3125rem text line — so they never
   quite lined up (a pixel review of the built `navigation-breadcrumb--default`/`--long-titles`
@@ -2758,9 +2765,9 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   to reconcile. Stroke width (`1.75`) and colour (`text-muted`, inherited via `currentColor`) are
   unchanged.
 - **`Breadcrumb`'s trail links are underlined at rest, not only on hover — the same operator
-  ruling as `Link`'s own Deviations entry above ("all link elements... underline by default").**
+  decision as `Link`'s own Deviations entry above ("all link elements... underline by default").**
   The spec's own States row for the Link part ("`muted`, underline hidden (transparent)" at rest)
-  predates that ruling; `linkClass` now carries `Link`'s own shared rest recipe (1px at 55% of the
+  predates that decision; `linkClass` now carries `Link`'s own shared rest recipe (1px at 55% of the
   text colour, thickening to 2px on hover) instead of the old no-underline-until-hover shape. The
   current page (`currentClass`) is unaffected — it was never a link and carries no underline in
   either state.
@@ -2784,7 +2791,7 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   URL is omitted from its `ListItem`, matching both schema.org's own guidance for a list's last entry
   and this component's rule that the last item is never a link regardless of what `href` it carries.
 - **`Pagination` renders as `<button>` elements emitting `update:page` without `hrefForPage`,
-  rather than the spec's own literal default `?page={n}`** (controller ruling). A consumer
+  rather than the spec's own literal default `?page={n}`** (controller decision). A consumer
   driving pagination from in-memory state (a client-side filtered grid, a `Load more`-adjacent
   paged view with no server round trip) has no URL to build, and the spec's own default would have
   forced one anyway. With `hrefForPage` given, every control — page, previous, next — renders as a
@@ -2901,7 +2908,7 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   after — a local decorator, not a change to `useCarousel` itself.
 - **Every slide's `Image` (the element that actually carries a `src`) only exists in the DOM while
   the viewer is open — `v-if="model"` on `Image` itself, the slide `<div>` wrapping it staying
-  mounted throughout (fix round 1, corrected below).** An earlier draft of this component instead
+  mounted throughout (fix, corrected below).** An earlier draft of this component instead
   relied on the closed `<dialog>`'s own `display: none`, reasoning that "a UA fetches nothing
   inside an element with no layout box" — **true for `loading="lazy"`, false for an eager `<img>`**:
   a plain (non-lazy) `<img>`, which `priority` forces, begins fetching the moment it is _connected_
@@ -2923,7 +2930,7 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   message key), not `Carousel`'s own "Slides."** Every other string this component renders already
   says "image" rather than "slide" (see `previousImage`/`imageOf`/`goToImage` above) — the track's
   label was the one place that still reused `Carousel`'s `slides` key by oversight, caught by code
-  review (fix round 1) since nothing asserted its value.
+  review (fix) since nothing asserted its value.
 - **The stage's own 4rem side padding (spec "Sizes": "room for the arrows") lives on each slide,
   not on the scrolling track.** Padding on the track itself (an `overflow-x-auto` element) does not
   shrink what a scroll-snapped, 100%-wide slide's own `clientWidth` shows at rest — it only shifts

@@ -372,7 +372,7 @@ describe('inside an open native <dialog>', () => {
    * `showModal()`-modal. `topLayerDialog`'s own walk starts from the nearest ancestor dialog and
    * returns as soon as it finds one in the top layer — which, for a trigger inside the *inner* of
    * two stacked modals, is the inner one, found first. This is the "confirm it picks the top one"
-   * half of the stack ruling: not a new branch in `topLayerDialog` (nesting already made this work),
+   * half of the stack decision: not a new branch in `topLayerDialog` (nesting already made this work),
    * but a test proving the existing walk actually resolves to the top when both ancestors are
    * legitimately modal, not only in the modal-vs-non-modal case above.
    */

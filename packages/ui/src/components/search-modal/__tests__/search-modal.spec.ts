@@ -238,7 +238,7 @@ describe('SearchModal — open and close (useDialog)', () => {
     dialog.unmount();
   });
 
-  /** Fix round 2, the operator's own finding — the same closed-modal-renders-nothing bug the
+  /** Fix, from the operator's own finding — the same closed-modal-renders-nothing bug the
    *  Drawer `Cart` story surfaced, guarded for every modal root the same way. */
   it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {
     const wrapper = mount({ modelValue: false });

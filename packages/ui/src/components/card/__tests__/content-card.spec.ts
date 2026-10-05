@@ -263,7 +263,7 @@ describe('ContentCard — stretched link and focus ring', () => {
     wrapper.unmount();
   });
 
-  it('underlines the title at rest, thickening on hover via the root group (operator ruling: all links underlined)', () => {
+  it('underlines the title at rest, thickening on hover via the root group (operator decision: all links underlined)', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x' });
     expect(wrapper.get('[data-part="root"]').classes()).toContain('group');
     const titleLink = wrapper.get('[data-part="titleLink"]').classes();

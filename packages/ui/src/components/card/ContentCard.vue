@@ -143,7 +143,7 @@ const titleClass = computed(() =>
  * The stretched link itself (spec → Anatomy, part 2.2: "Title: heading containing the stretched
  * link"). Deviation, operator direction 2026-09-26 (see the README's Deviations entry): "all link
  * elements" get the rest-state underline, including a stretched card title — the spec's own States
- * row ("title underlined 1px" on hover only) predates that ruling. `group-hover:decoration-2`
+ * row ("title underlined 1px" on hover only) predates that decision. `group-hover:decoration-2`
  * (spec → States, Hover: "title underlined 1px" thickening, the same recipe `Link`'s own rest
  * variant uses) reads the card root's own `group`, not a `:hover` on this element directly — see
  * `stretchedLink.ts`'s own comment for why. `STRETCHED_LINK_OUTLINE` (`outline-none`) is

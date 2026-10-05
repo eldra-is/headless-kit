@@ -163,7 +163,7 @@ describe('Lightbox — captions', () => {
 });
 
 describe('Lightbox — images mount only while open', () => {
-  // Fix round 1, Major finding: an eager `<img>` starts fetching the instant it is connected to
+  // Fix: Major finding: an eager `<img>` starts fetching the instant it is connected to
   // the DOM, regardless of `display: none` on the closed `<dialog>` ancestor — so every slide's
   // `Image` (the element that actually carries a `src`) must not exist at all until `model` is
   // `true`. The slide *wrapper* (`data-part="slide"`) stays mounted throughout, since
@@ -407,7 +407,7 @@ describe('Lightbox — open and close (useDialog)', () => {
     wrapper.unmount();
   });
 
-  /** Fix round 2, the operator's own finding — the same closed-modal-renders-nothing bug the Drawer
+  /** Fix, from the operator's own finding — the same closed-modal-renders-nothing bug the Drawer
    *  `Cart` story surfaced, guarded for every modal root the same way. */
   it('renders nothing while closed — hidden open:flex on the root, not a bare flex', async () => {
     const wrapper = mountWith(Lightbox, {

@@ -295,7 +295,7 @@ describe('QuantityStepper — keyboard', () => {
   });
 
   /**
-   * Fix round 1, item 3: after `Enter` commits, the field stays focused (no blur happens), and
+   * Fix: item 3: after `Enter` commits, the field stays focused (no blur happens), and
    * `isEditing` must stay true so `displayValue` keeps reading `editingText` rather than snapping
    * back to the freshly committed, formatted number the instant a further keystroke arrives. Before
    * the fix, the next character typed after `Enter` was silently overwritten by the reactive
@@ -320,7 +320,7 @@ describe('QuantityStepper — keyboard', () => {
 
 describe('QuantityStepper — commits only a real change', () => {
   /**
-   * Fix round 1, item 1: `commit()` used to emit `change` and announce unconditionally, so
+   * Fix: item 1: `commit()` used to emit `change` and announce unconditionally, so
    * focusing and blurring (or pressing `Enter`) with no edit at all fired a spurious `change` and
    * a "settled update" announcement for an update that never happened — mirrors the guard `step()`
    * already had for a button press at a limit.
@@ -721,7 +721,7 @@ describe('QuantityStepper — numeric-only typing', () => {
 
 /**
  * The group separator is refused on this control, and the editing text is ungrouped so that never
- * costs anything (operator ruling). `1,5` typed into a quantity used to leave the field showing
+ * costs anything (operator decision). `1,5` typed into a quantity used to leave the field showing
  * something an Icelandic customer reads as "one point five" while the value committed was fifteen.
  */
 describe('QuantityStepper — the group separator', () => {

@@ -6,7 +6,7 @@ const PHONE = '(###) ###-####';
 const POSTCODE = 'A#A #A#';
 
 describe('defaultCharacterMeaning', () => {
-  it('is the three placeholder characters the brief names', () => {
+  it('is the three placeholder characters the API contract names', () => {
     expect(Object.keys(defaultCharacterMeaning).sort()).toEqual(['#', '*', 'A']);
     expect(defaultCharacterMeaning['#'].test('7')).toBe(true);
     expect(defaultCharacterMeaning['#'].test('a')).toBe(false);

@@ -3,7 +3,7 @@ import { inject } from 'vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, type UiMessages } from '@eldrajs/ui';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { uiEnUS, uiMessagesFor } from '../i18n/uiMessages';
-import { toStorefrontCommerce, uiCurrencyFor } from '../storefront/commerce';
+import { toStorefrontCommerce } from '../storefront/commerce';
 
 /**
  * Gives every `@eldrajs/ui` component below the app the message set for the
@@ -27,10 +27,12 @@ import { toStorefrontCommerce, uiCurrencyFor } from '../storefront/commerce';
  * **The currency is the platform's, not the locale's.** It comes from the
  * organisation's own commerce settings, which `@eldrajs/theme-nuxt` reads once
  * during the build and puts on `runtimeConfig.public.eldra.commerce`. A store
- * that publishes none provides the empty string — see `uiCurrencyFor` for why
- * that, and not `undefined`, is what declines a currency — and every price on
- * the page then renders as a plain number instead of under a symbol nobody
- * chose. It is read once here, not through a getter: unlike the locale, it
+ * that publishes none provides `undefined`, which `@eldrajs/ui` reads as "this
+ * store has no currency" rather than as "nobody wired the provide" — so every
+ * price on the page renders as a plain number instead of under a symbol nobody
+ * chose, and the package logs nothing. The provide happens either way, which is
+ * the part that matters: no provider at all is the case the package warns
+ * about. It is read once here, not through a getter: unlike the locale, it
  * cannot change while the page is open.
  *
  * `runWithContext` is how a plugin injects an app-level provide from outside a
@@ -47,7 +49,7 @@ export default defineNuxtPlugin({
     const publicConfig = useRuntimeConfig().public as unknown as {
       eldra?: { commerce?: unknown };
     };
-    const currency = uiCurrencyFor(toStorefrontCommerce(publicConfig.eldra?.commerce)?.currency);
+    const currency = toStorefrontCommerce(publicConfig.eldra?.commerce)?.currency;
     const messages = {} as UiMessages;
     for (const key of Object.keys(uiEnUS) as (keyof UiMessages)[]) {
       Object.defineProperty(messages, key, {

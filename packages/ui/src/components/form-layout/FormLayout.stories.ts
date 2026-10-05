@@ -63,7 +63,7 @@ const meta = {
           '',
           '**It is a `@container`**, measured on the form itself — the two-column breakpoint above',
           'reads it. The design spec also grows md Buttons to a 2.75rem touch target below 48rem;',
-          'this package overrides that (operator ruling, README Deviations), so every Button inside',
+          'this package overrides that (operator decision, README Deviations), so every Button inside',
           'a FormLayout stays on the shared 2.5rem control height instead.',
           '',
           '**Submitting is guarded**: on `submit` the form asks the DOM which fields are invalid',

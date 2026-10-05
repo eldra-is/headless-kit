@@ -93,7 +93,7 @@ describe('FeatureCard — linked', () => {
     wrapper.unmount();
   });
 
-  it('underlines the title at rest, thickening on hover via the root group (operator ruling: all links underlined)', () => {
+  it('underlines the title at rest, thickening on hover via the root group (operator decision: all links underlined)', () => {
     const wrapper = mountCard({
       icon: IconTruck,
       title: 'Free shipping over $80',

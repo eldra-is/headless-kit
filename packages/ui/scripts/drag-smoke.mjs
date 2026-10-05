@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Real-browser smoke test for Carousel/Lightbox pointer drag and touch swipe (operator fix,
 // 2026-09-26: "swiping/dragging ... is very broken — it starts and then kind of cancels; while
-// dragging we are highlighting stuff"; round 2, same day: "we are not able to drag on a card, we
+// dragging we are highlighting stuff"; then, the same day: "we are not able to drag on a card, we
 // have to place the cursor between cards ... if it's a clickable entry we should cancel the click
 // ... if we swipe over some offset. That way the click stays functional but we can still swipe.").
 // happy-dom (the unit test environment) has no real layout or native scroll-snap/touch-action
@@ -23,7 +23,7 @@
 //   (b) a touch swipe (`hasTouch: true`, raw CDP `Input.dispatchTouchEvent`) advances the active
 //       slide through native scroll-snap panning, proving the `touch-action: pan-x pan-y` fix;
 //   (c) a mouse drag starting directly ON a product card's own title link still drags the track
-//       (proving the round-2 fix), never navigates the page, and never selects text;
+//       (proving the later fix), never navigates the page, and never selects text;
 //   (d) a plain click on a product card's title link, with no pointer movement at all, still
 //       reaches the link with its default untouched — the click is only ever cancelled after a
 //       real drag.
@@ -131,7 +131,7 @@ async function selectionText(page) {
 
 /** A point inside the track that is not over any of a slide's own content — used to prove a drag
  *  still works starting from plain track background, distinct from `productCardLinkPoint` below,
- *  which deliberately targets a slide's own stretched link (operator fix, 2026-09-26, round 2: a
+ *  which deliberately targets a slide's own stretched link (operator fix, 2026-09-26: a
  *  drag must also start ON a card, not only in the gap between cards). Two shapes of track exist in
  *  this package: `Carousel`'s own "peek" tracks (several partial slides visible, `ProductCard`'s
  *  whole card is a stretched link) need the *gap* between two slides; `Lightbox`'s track is always
@@ -158,7 +158,7 @@ async function dragStartPoint(page) {
 }
 
 /** The bounding-box centre of the *first* slide's own title link (`ProductCard`'s stretched
- *  `[data-part="link"]`, spec "Product card" → Anatomy) — the exact point the operator's round-2
+ *  `[data-part="link"]`, spec "Product card" → Anatomy) — the exact point the operator's own
  *  complaint names: "we are not able to drag on a card, we have to place the cursor between
  *  cards." `dragStartPoint` above deliberately avoids this same point (to keep proving a drag
  *  starting elsewhere on the track still works); this proves the fix's whole point, that starting
@@ -173,7 +173,7 @@ async function productCardLinkPoint(page) {
 
 /** `startOverride` lets a caller drag from a specific point (`productCardLinkPoint` above) instead
  *  of the plain-background `dragStartPoint`; `page.url()` before/after proves the link's own
- *  navigation never fired (operator ruling: "the click stays functional but we can still swipe" —
+ *  navigation never fired (operator decision: "the click stays functional but we can still swipe" —
  *  a real drag must resolve as a drag, never as a navigation). */
 async function mouseDragSmoke(page, label, startOverride) {
   const before = { scrollLeft: await trackScrollLeft(page), index: await activeIndex(page) };
@@ -233,7 +233,7 @@ async function mouseDragSmoke(page, label, startOverride) {
 }
 
 /**
- * The other half of the round-2 ruling: "if it's a clickable entry we should cancel the click ...
+ * The other half of the second of those decisions: "if it's a clickable entry we should cancel the click ...
  * if we swipe over some offset. That way the click stays functional but we can still swipe." A
  * plain click on the card's title link, with no pointer movement at all, must never have already
  * had its default prevented by the drag machinery — it is only ever cancelled *after* a real drag
@@ -360,7 +360,7 @@ async function main() {
     }
 
     // (d) Carousel ProductRow — a mouse drag starting directly ON a product card's own title link
-    // (operator fix, 2026-09-26, round 2: "we are not able to drag on a card, we have to place the
+    // (operator fix, 2026-09-26: "we are not able to drag on a card, we have to place the
     // cursor between cards").
     {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });

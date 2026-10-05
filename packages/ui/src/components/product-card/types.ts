@@ -11,7 +11,7 @@ import type { StockLevel } from '../badge/types';
 export type ProductCardRatio = '4x5' | '1x1' | '3x4';
 
 /**
- * One product, exactly the task brief's own `ProductCardProduct` type. `price` mirrors `Price`'s
+ * One product, exactly the API contract's own `ProductCardProduct` type. `price` mirrors `Price`'s
  * own minor-units/`compareAt`/`from` inputs verbatim, so it passes straight through; `colours` is
  * the swatch-dot data (`swatch` is a colour string from product data, the one per-item colour the
  * design spec allows — see `VariantPicker`'s own precedent); `badge` is the caller's own sale/new
@@ -110,7 +110,10 @@ export interface ProductCardProps {
    * on each value, the dim and the spinners are unaffected.
    */
   announce?: boolean;
-  /** `Price`'s own `currency` prop, passed straight through. Defaults to `useEldraUiCurrency()`. */
+  /**
+   * `Price`'s own `currency` prop, passed straight through. Defaults to `useEldraUiCurrency()`,
+   * which has no default code: with no currency from either, the price is a plain number.
+   */
   currency?: string;
   /** `Price`'s own `locale` prop, passed straight through. Defaults to `useEldraUiLocale()`. */
   locale?: string;
