@@ -6,11 +6,14 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { enUS } from '../app/i18n/en-US';
+import { isIS } from '../app/i18n/is-IS';
 import { formatMoney } from '../app/storefront/money';
 import {
   COLLECTION_HANDLE,
+  DEFAULT_LOCALE,
   HOME_PAGE_PATH,
   LINKED_HEADER_LABELS,
+  PREFIXED_LOCALE,
   PRODUCT_HANDLE,
   SEEDED_PAGE_PATHS,
   startMockGateway,
@@ -441,6 +444,146 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(search).toContain(enUS.search.idleTitle);
     expect(search).not.toContain('No results for');
     expect(search).toContain('<header');
+  });
+
+  /**
+   * **The whole site, once per locale.** The organisation serves `en-US` at `/` and `is-IS` under a
+   * prefix (`test/support/mockGateway.ts`), so `@eldrajs/theme-nuxt`'s `prerender:routes` hook has
+   * to write a prefixed copy of every content path it discovered — pages, the seeded
+   * `cart`/`wishlist`/`search`, the catalog-backed product and collection routes. A static host
+   * answers 404 for a path it has no file for, however well the app would have rendered it, so if
+   * the fan-out stops happening the entire Icelandic site is a 404 and nothing in the mounted
+   * suites can see it.
+   */
+  it('prerenders every content path under the non-default locale too', () => {
+    const prefixed = [
+      '',
+      ...SEEDED_PAGE_PATHS,
+      `/products/${PRODUCT_HANDLE}`,
+      `/collections/${COLLECTION_HANDLE}`,
+    ];
+    for (const path of prefixed) {
+      const file = join(`/${PREFIXED_LOCALE}${path}`, 'index.html');
+      expect(existsInOutput(file), file).toBe(true);
+    }
+
+    // The default locale lives at `/` only: `/en-US/...` is never generated, so a visitor who
+    // types it gets the honest 404 a path with no content behind it should give, rather than a
+    // second copy of the site competing with the canonical one for every search ranking.
+    expect(existsInOutput(join(`/${DEFAULT_LOCALE}`, 'index.html'))).toBe(false);
+  });
+
+  /**
+   * `<html lang>` and the `hreflang` set are `@eldrajs/theme-nuxt`'s, not this theme's — nothing in
+   * `app/` writes either — and they are the two things a crawler reads to learn that these URLs are
+   * one page in two languages rather than duplicates of each other.
+   */
+  it('declares each page’s language and names its alternates', () => {
+    const english = staticHtml(HOME_PAGE_PATH);
+    const icelandic = staticHtml(`/${PREFIXED_LOCALE}`);
+
+    expect(english).toMatch(new RegExp(`<html[^>]*\\slang="${DEFAULT_LOCALE}"`));
+    expect(icelandic).toMatch(new RegExp(`<html[^>]*\\slang="${PREFIXED_LOCALE}"`));
+
+    for (const html of [english, icelandic]) {
+      expect(html).toContain(`rel="alternate" hreflang="${DEFAULT_LOCALE}" href="/"`);
+      expect(html).toContain(
+        `rel="alternate" hreflang="${PREFIXED_LOCALE}" href="/${PREFIXED_LOCALE}"`
+      );
+      expect(html).toContain('rel="alternate" hreflang="x-default" href="/"');
+    }
+
+    const cart = staticHtml(`/${PREFIXED_LOCALE}/cart`);
+    expect(cart).toContain(`rel="alternate" hreflang="${DEFAULT_LOCALE}" href="/cart"`);
+    expect(cart).toContain(
+      `rel="alternate" hreflang="${PREFIXED_LOCALE}" href="/${PREFIXED_LOCALE}/cart"`
+    );
+  });
+
+  /**
+   * **A prefixed page is Icelandic all the way down**, in the file a static host serves with no
+   * JavaScript at all: the theme's own UI strings, the money formatting, and every link out of it.
+   * The three come from three different places — `useT()`, `@eldrajs/ui`'s number locale, and the
+   * router-link component — and each of them used to read the default locale on every page.
+   */
+  it('serves a prefixed page in that language, with every link staying inside it', () => {
+    const cart = staticHtml(`/${PREFIXED_LOCALE}/cart`);
+    expect(cart).not.toContain('data-eldra-not-found');
+    // The theme's own UI strings are Icelandic — the shell's skip link and the header's own
+    // vocabulary, which no author can edit. (The block *content* on the page is not: that is the
+    // merchant's copy, and this mock serves one locale of it.)
+    expect(cart).toContain(isIS.nav.skipToContent);
+    expect(cart).not.toContain(enUS.nav.skipToContent);
+    expect(cart).toContain(isIS.header.wishlistEmpty);
+
+    // Every same-site href in the **body** is under the prefix — the header bag and heart, the
+    // footer's legal links, the brand wordmark; the skip link's `#main` is not a path. The head is
+    // excluded on purpose: its `hreflang` alternates name the *other* locale's spelling of this
+    // page, which is the whole job of an alternate.
+    const body = cart.slice(cart.indexOf('<body'));
+    const hrefs = [...body.matchAll(/href="([^"]*)"/g)].map((match) => match[1] ?? '');
+    const internal = hrefs.filter((href) => href.startsWith('/') && !href.startsWith('/_'));
+    expect(internal.length).toBeGreaterThan(3);
+    for (const href of internal) {
+      expect(href, `${href} leaves the ${PREFIXED_LOCALE} site`).toMatch(
+        new RegExp(`^/${PREFIXED_LOCALE}(/|$|\\?)`)
+      );
+    }
+
+    // The store still sells in ISK; only the formatting follows the page.
+    const product = staticHtml(`/${PREFIXED_LOCALE}/products/${PRODUCT_HANDLE}`);
+    expect(product).toContain(formatMoney(42, 'ISK', PREFIXED_LOCALE));
+    expect(staticHtml(`/products/${PRODUCT_HANDLE}`)).toContain(
+      formatMoney(42, 'ISK', DEFAULT_LOCALE)
+    );
+    expect(formatMoney(42, 'ISK', PREFIXED_LOCALE)).not.toBe(
+      formatMoney(42, 'ISK', DEFAULT_LOCALE)
+    );
+  });
+
+  /**
+   * The footer's language switcher, in the prerendered file: its options are the organisation's own
+   * locales, each named in its own language, and choosing one is a navigation to the same page
+   * under that locale. The list it used to ship was a `us-en / ca-en / ca-fr` demo set that
+   * switched to nothing.
+   */
+  it('offers the organisation’s own locales in the footer switcher', () => {
+    const english = staticHtml(HOME_PAGE_PATH);
+    const names = (tag: string): string =>
+      new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
+
+    expect(english).toContain(enUS.footer.localeLabel);
+    expect(english).toContain(names(DEFAULT_LOCALE));
+    expect(staticHtml(`/${PREFIXED_LOCALE}`)).toContain(isIS.footer.localeLabel);
+    // The retired demo list must not be anywhere in the artifact.
+    expect(english).not.toContain('Canada · Français');
+  });
+
+  /**
+   * The post-hydration refresh is the storefront's, and on a prefixed page it has to re-read the
+   * catalog **in that locale** — otherwise the page would be built in Icelandic and corrected into
+   * English a second later, in the browser, where no static assertion can see it.
+   *
+   * **No `warnings` assertion on any prefixed page, and that is a property of the harness, not of
+   * the site.** Playwright's bundled Chromium is a reduced-ICU build: `Intl.NumberFormat('is-IS',
+   * …)` formats ISK as "kr 42" there where Node writes "42 kr.", and `Intl.DateTimeFormat('is-IS')`
+   * answers in English. Every page of this theme carries the footer's currency label, so no
+   * prerendered page in a non-English locale can hydrate byte-identically under this browser
+   * however correct the site is — a visitor's browser has full ICU and agrees with the renderer.
+   * `test/localePrefix.spec.ts` hydrates the prefixed header and footer in jsdom, where both halves
+   * share one ICU, which is the comparison that *is* meaningful. The same reason is why
+   * `useEldraLocale().name` resolves its labels on the server and carries them in the payload
+   * rather than letting each side compute its own: that one is not a harness artifact, because a
+   * real browser's ICU need not know every locale's display names either.
+   */
+  it('refreshes a prefixed page’s catalog reads in that locale', async () => {
+    const visited = await visit(`/${PREFIXED_LOCALE}/products/${PRODUCT_HANDLE}`);
+    const catalogReads = visited.requests.filter((request) => request.startsWith('/catalog/'));
+
+    expect(catalogReads.length).toBeGreaterThan(0);
+    for (const request of catalogReads) {
+      expect(request, request).toContain(`locale=${PREFIXED_LOCALE}`);
+    }
   });
 
   it('builds every block on a CMS page route exactly once', async () => {

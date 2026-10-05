@@ -85,9 +85,13 @@ describe('useEldraLocale', () => {
       active: null,
       defaultLocale: null,
       supported: [],
+      name: expect.any(Function),
       path: expect.any(Function),
       switchPath: expect.any(Function),
       select: expect.any(Function),
     });
+    // The tag, not `Intl.DisplayNames`: this state serves no locales, so nothing asks it — and a
+    // renderer-dependent answer has no business in the shape a story and a test share.
+    expect(createEldraLocaleState().name('is-IS')).toBe('is-IS');
   });
 });

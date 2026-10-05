@@ -233,18 +233,23 @@ export function activeLocaleForPath(path: string, routing: EldraLocaleRouting): 
 
 /**
  * `path` as it is spelled under `locale`: unprefixed for the default locale, prefixed for every
- * other one. Any prefix `path` already carries is replaced, so this is also how the switcher turns
- * the page a visitor is on into the same page in another language.
+ * other one. Any prefix it already carries is replaced, so this is also how a switcher turns the
+ * page a visitor is on into the same page in another language.
+ *
+ * A query and a fragment ride along untouched, which is what makes that switch keep the page the
+ * visitor was actually looking at: `/is-IS/search?q=mug` is their search, and landing on
+ * `/search` after choosing English would have thrown the query away.
  */
 export function localePathFor(
   path: string,
   locale: string | undefined,
   routing: EldraLocaleRouting
 ): string {
-  const base = stripLocalePrefix(path, routing);
+  const [bare, rest] = splitHref(path);
+  const base = stripLocalePrefix(bare, routing);
   const target = matchLocale(locale, routing.prefixed);
-  if (target === undefined) return base;
-  return base === '/' ? `/${target}` : `/${target}${base}`;
+  if (target === undefined) return `${base}${rest}`;
+  return base === '/' ? `/${target}${rest}` : `/${target}${base}${rest}`;
 }
 
 /**
@@ -267,12 +272,44 @@ export function localeHref(
   const target = matchLocale(locale, routing.prefixed);
   if (target === undefined) return href;
   if (!href.startsWith('/') || href.startsWith('//')) return href;
-  const cut = href.search(/[?#]/);
-  const path = cut === -1 ? href : href.slice(0, cut);
-  const rest = cut === -1 ? '' : href.slice(cut);
+  const [path, rest] = splitHref(href);
   const segment = path.replace(/^\/+/, '').split('/', 1)[0] ?? '';
   if (segment !== '' && matchLocale(segment, routing.supported) !== undefined) return href;
   return path === '/' ? `/${target}${rest}` : `/${target}${path}${rest}`;
+}
+
+/**
+ * One locale's name **in that locale** — "íslenska (Ísland)", "American English" — for a language
+ * switcher's option label: a visitor hunting for their language is hunting for the word they write
+ * it with.
+ *
+ * The tag itself is the fallback twice over: for a runtime that has no name for it (`of()` answers
+ * the tag back), and for one that refuses the tag outright (`Intl` throws `RangeError` for a
+ * malformed one, and callers run this inside a render).
+ *
+ * **The answer is ICU data, and a renderer and a browser do not always have the same of it.** Node
+ * answers "íslenska (Ísland)" for `is-IS` where a reduced-ICU browser build answers "Icelandic
+ * (Iceland)" — so a switcher that rendered this during SSR and recomputed it on the client would
+ * hydrate into a mismatch and repaint, on every page carrying a footer. That is why the runtime
+ * plugin resolves these **once, on the server**, and carries them in the payload (`useState`)
+ * rather than letting each side compute its own.
+ */
+export function localeDisplayName(locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: 'language' }).of(locale) ?? locale;
+  } catch {
+    return locale;
+  }
+}
+
+/**
+ * One href cut into its path and everything after it. Only the path is ever rewritten by the
+ * functions above; a query and a fragment are carried through unparsed, because nothing here has
+ * any business interpreting them.
+ */
+function splitHref(href: string): [path: string, rest: string] {
+  const cut = href.search(/[?#]/);
+  return cut === -1 ? [href, ''] : [href.slice(0, cut), href.slice(cut)];
 }
 
 /** The stored spelling of `candidate` in `locales`, matched case-insensitively. */

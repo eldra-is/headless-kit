@@ -193,19 +193,26 @@ locale. Naming one of the organisation's supported locales moves that locale to 
 the others; naming anything else (or deploying against an organisation with no locales) changes no
 URL and still forwards the value on every read.
 
-The module gives every page `<html lang>` and a `rel="alternate" hreflang"` link per supported
+The module gives every page `<html lang>` and a `rel="alternate" hreflang` link per supported
 locale (plus `x-default` for the unprefixed path) on its own — a theme adds nothing for either.
 
 ```vue
 <script setup lang="ts">
 // Auto-imported, like `useEldraPage`.
-const { active, defaultLocale, supported, path, switchPath, select } = useEldraLocale();
+const { active, defaultLocale, supported, name, path, switchPath, select } = useEldraLocale();
 
 // `path()` prefixes one same-site destination for the active locale, and is idempotent.
 const cartHref = computed(() => path('/cart'));
-// `switchPath()` is the same page in another language; `select()` navigates there.
+// `switchPath()` is the same page in another language, query and fragment included;
+// `select()` navigates there.
 </script>
 ```
+
+`name(locale)` is that locale's own name ("íslenska (Ísland)") for a switcher's option label. It is
+resolved **once, on the server**, and carried in the payload: `Intl.DisplayNames` is ICU data and a
+renderer and a browser need not have the same of it — Node answers "íslenska (Ísland)" for `is-IS`
+where a reduced-ICU browser build answers "Icelandic (Iceland)" — so a page that let each side
+compute its own labels would hydrate into a mismatch and repaint.
 
 Links are already handled where the kit owns them: `useEldraLink()` resolves a `link` field's href
 under the active locale, and a theme's router-link component should put every internal `to`

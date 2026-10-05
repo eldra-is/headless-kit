@@ -7,13 +7,13 @@ import {
   startEldraPreview,
   type EldraContext,
 } from '@eldrajs/theme-vue';
-import { defineNuxtPlugin, useHead, useRuntimeConfig } from 'nuxt/app';
+import { defineNuxtPlugin, useHead, useRuntimeConfig, useState } from 'nuxt/app';
 import { reactive } from 'vue';
 import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import 'virtual:eldra/tokens.css';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
-import { resolveLocaleRouting, resolveStoreLocales } from './locales';
+import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
 import { resolveBridgeOrigins } from './origins';
 import { canonicalRoutePath } from './routePath';
 import { primePrerenderedRoutes } from './staticRoutes';
@@ -44,11 +44,23 @@ export default defineNuxtPlugin({
     // ordered before it. Nothing reads the locale state during plugin setup, so a getter is enough
     // — and it keeps the state honest after a client navigation, which is the whole point of it.
     const router = (): LocaleRouter | undefined => (nuxtApp as { $router?: LocaleRouter }).$router;
+    /**
+     * Each supported locale's own name, resolved **once on the server** and carried to the browser
+     * in the payload. `Intl.DisplayNames` is ICU data and the two sides do not always have the same
+     * of it — Node answers "íslenska (Ísland)" for `is-IS` where a reduced-ICU browser build
+     * answers "Icelandic (Iceland)" — so a switcher that let each side compute its own labels
+     * hydrated into a mismatch and repainted, on every page carrying a footer. `useState` runs its
+     * initialiser only for a key the payload does not already hold, which is exactly the transfer
+     * this needs.
+     */
+    const localeNames = useState<Record<string, string>>('eldra-locale-names', () =>
+      Object.fromEntries(routing.supported.map((locale) => [locale, localeDisplayName(locale)]))
+    );
     const context: EldraContext = {
       client,
       designTokens: reactive(normalizeThemeDesignTokens(manifest.tokens)),
       links: createEldraLinkState(),
-      locales: createNuxtEldraLocaleState(routing, preview, router),
+      locales: createNuxtEldraLocaleState(routing, preview, router, localeNames.value),
       preview,
     };
     nuxtApp.vueApp.provide(ELDRA_KEY, context);

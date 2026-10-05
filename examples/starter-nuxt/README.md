@@ -180,6 +180,33 @@ purpose: the catalogue's amounts are in the store's currency whatever a theme cl
 `useStorefront().commerce` also carries `taxInclusivePricing` and `defaultTaxRate`, for a block
 that has to say whether a price includes VAT.
 
+## Languages
+
+Nothing to configure. The organisation's configured content locales reach the theme through
+`@eldrajs/theme-nuxt`: the default locale is served at `/` and every other supported locale under a
+path prefix (`/is-IS/products/ash-glaze-mug`), with the same slug and the same page document read in
+that locale. The build prerenders every content path once per locale, and each page declares its own
+`<html lang>` and an `hreflang` alternate for the others.
+
+What the theme does with it:
+
+- the **footer's language switcher** lists the organisation's locales, each named in its own
+  language, and renders nothing at all when there is only one;
+- **every link keeps the language** — `app/components/EldraRouterLink.vue` adds the prefix once for
+  the whole theme, since it is the component `@eldrajs/ui`'s `Link`/`Button` route through;
+- the **UI strings and all number formatting** follow the page's locale (`app/i18n/*`,
+  `useT()`), while the **currency stays the store's**;
+- the **storefront** reads the catalog, search and orders in that locale too.
+
+The theme ships `en-US` and `is-IS` message sets. A configured locale with no set of its own gets
+English chrome around its own content — add a file under `app/i18n/` and register it in
+`app/composables/useT.ts` and `app/i18n/uiMessages.ts` to change that. A store with one locale
+behaves exactly as it did before any of this: no prefixes, no switcher, no `locale` on any read.
+
+`ELDRA_LOCALE` still means what it meant — an override of which locale lives at `/`.
+`docs/starter-kit.md` section 6 has the rules a customer editing blocks needs; `docs/themes.md` has
+the routing itself.
+
 ## Restyling
 
 Two layers, both plain files:

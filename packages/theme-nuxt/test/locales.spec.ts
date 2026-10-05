@@ -244,6 +244,20 @@ describe('path and locale', () => {
     expect(localePathFor('/', 'is-IS', routing)).toBe('/is-IS');
     expect(localePathFor('/is-IS', 'en-US', routing)).toBe('/');
   });
+
+  it('carries the query and fragment across a language switch', () => {
+    // This is the switcher's own call, and it is what keeps the page a visitor was looking at:
+    // dropping `?q=mug` would land them on the search page's empty state in the new language, and
+    // dropping a collection's filters would silently un-filter the grid.
+    expect(localePathFor('/search?q=mug', 'is-IS', routing)).toBe('/is-IS/search?q=mug');
+    expect(localePathFor('/is-IS/search?q=mug', 'en-US', routing)).toBe('/search?q=mug');
+    expect(localePathFor('/is-IS/collections/x?minPrice=10&size=m', 'en-US', routing)).toBe(
+      '/collections/x?minPrice=10&size=m'
+    );
+    expect(localePathFor('/about#team', 'is-IS', routing)).toBe('/is-IS/about#team');
+    expect(localePathFor('/?page=2', 'is-IS', routing)).toBe('/is-IS?page=2');
+    expect(localePathFor('/is-IS?page=2', 'en-US', routing)).toBe('/?page=2');
+  });
 });
 
 describe('localeHref', () => {

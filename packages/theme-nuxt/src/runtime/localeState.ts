@@ -6,7 +6,8 @@ import { canonicalRoutePath } from './routePath';
 
 /** The slice of Nuxt's router this state reads — the committed route, and one navigation. */
 export interface LocaleRouter {
-  currentRoute: { value: { path: string } };
+  /** `fullPath` where the router has one; `path` is the fallback for a stub that does not. */
+  currentRoute: { value: { path: string; fullPath?: string } };
   push: (path: string) => unknown;
 }
 
@@ -28,9 +29,29 @@ export interface LocaleRouter {
 export function createNuxtEldraLocaleState(
   routing: EldraLocaleRouting,
   preview: EldraContext['preview'],
-  router: () => LocaleRouter | undefined
+  router: () => LocaleRouter | undefined,
+  /**
+   * Each locale's own name, **resolved once on the server and carried in the payload** — see
+   * `localeDisplayName` for why neither side may compute its own. A locale the map does not name
+   * (one that only exists client-side) falls through to that function.
+   */
+  names: Readonly<Record<string, string>> = {}
 ): EldraLocaleState {
   const currentPath = (): string => canonicalRoutePath(router()?.currentRoute.value.path ?? '/');
+  /**
+   * The same route **with its query and fragment** — what a language switch has to carry over, so a
+   * shopper on `/search?q=mug` or a filtered collection page lands on the page they were looking
+   * at rather than its empty state. The locale itself is never read from here: `active` wants the
+   * path alone.
+   */
+  const currentHref = (): string => {
+    const route = router()?.currentRoute.value;
+    const full = route?.fullPath ?? route?.path ?? '/';
+    const cut = full.search(/[?#]/);
+    return cut === -1
+      ? canonicalRoutePath(full)
+      : canonicalRoutePath(full.slice(0, cut)) + full.slice(cut);
+  };
   const active = (): string | null =>
     normalizeLocale(preview.locale) ?? activeLocaleForPath(currentPath(), routing) ?? null;
   // A **getter**, not a `computed`. A computed caches its first evaluation together with the
@@ -44,10 +65,11 @@ export function createNuxtEldraLocaleState(
     },
     defaultLocale: routing.default ?? null,
     supported: routing.supported,
+    name: (locale: string) => names[locale] ?? localeDisplayName(locale),
     path: (href: string) => localeHref(href, active(), routing),
-    switchPath: (locale: string) => localePathFor(currentPath(), locale, routing),
+    switchPath: (locale: string) => localePathFor(currentHref(), locale, routing),
     select: (locale: string) => {
-      void router()?.push(localePathFor(currentPath(), locale, routing));
+      void router()?.push(localePathFor(currentHref(), locale, routing));
     },
   }) as EldraLocaleState;
 }

@@ -21,9 +21,12 @@ function previewState(): EldraContext['preview'] {
 
 function router(path: string): LocaleRouter & { pushed: string[] } {
   const pushed: string[] = [];
+  const cut = path.search(/[?#]/);
   return {
     pushed,
-    currentRoute: { value: { path } },
+    // `fullPath` carries the query, `path` does not — the same split Vue Router makes, because the
+    // two answers are read for different questions (the locale, and where a switch should land).
+    currentRoute: { value: { path: cut === -1 ? path : path.slice(0, cut), fullPath: path } },
     push: (to: string) => {
       pushed.push(to);
       return Promise.resolve();
@@ -96,6 +99,16 @@ describe('createNuxtEldraLocaleState', () => {
     // The default locale has no prefix, so switching back is a navigation to the bare path.
     icelandic.locale.select('en-US');
     expect(icelandic.nav.pushed).toEqual(['/products/mug']);
+  });
+
+  it('keeps the query across a language switch', () => {
+    // A shopper switching language on a search or a filtered collection page has to land on the
+    // page they were looking at, not on its empty state.
+    const searching = state('/is-IS/search?q=mug');
+    expect(searching.locale.active).toBe('is-IS');
+    expect(searching.locale.switchPath('en-US')).toBe('/search?q=mug');
+    searching.locale.select('en-US');
+    expect(searching.nav.pushed).toEqual(['/search?q=mug']);
   });
 
   it('reads the router lazily, so plugin ordering cannot decide the answer', () => {

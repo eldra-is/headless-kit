@@ -16,8 +16,11 @@ Release-please writes the generated notes from commit messages and does not repl
   pages included. The key's type ships as `StoreLocales` (`@eldrajs/theme-nuxt/locales`, a new
   subpath export beside `./commerce`), a new auto-imported `useEldraLocale()` answers which locale
   the page is and prefixes a destination for it, and the module writes `<html lang>` plus an
-  `hreflang` alternate per locale (and `x-default`) itself. `eldra.locale` / `ELDRA_LOCALE` keeps
-  its meaning as an override of the **default** locale: naming a supported locale moves it to `/`,
+  `hreflang` alternate per locale (and `x-default`) itself. `useEldraLocale().name(locale)` is that
+  locale's own name for a switcher's label, resolved **on the server** and carried in the payload —
+  `Intl.DisplayNames` is ICU data and a renderer and a browser need not have the same of it, so a
+  page that let each side compute its own labels would hydrate into a mismatch and repaint.
+  `eldra.locale` / `ELDRA_LOCALE` keeps its meaning as an override of the **default** locale: naming a supported locale moves it to `/`,
   naming anything else changes no URL and is still forwarded on every read. An organisation with no
   locales, a site built without gateway credentials and a failed read all behave exactly as every
   site did before this: one unprefixed site, no switcher — and only the failed read prints a

@@ -157,6 +157,85 @@ The framework-free half is `@eldrajs/theme-core/links`: `resolveLink(value, cont
 kit's single href allowlist. A wrapper for another framework fills the same context and re-exports
 the same three.
 
+## Content locales and locale-prefixed routing
+
+An organisation configures the content locales it publishes in. `@eldrajs/theme-nuxt` reads them
+once during the build (`runtimeConfig.public.eldra.locales`, typed as `StoreLocales` from
+`@eldrajs/theme-nuxt/locales`) and serves the **default locale at `/`** with every other supported
+locale under a path prefix:
+
+```
+/products/ash-glaze-mug        the default locale
+/is-IS/products/ash-glaze-mug  the same page, same slug, read with locale=is-IS
+```
+
+The first path segment selects the locale — matched case-insensitively, canonicalised to the
+spelling the organisation stored — and the rest of the path resolves exactly as it does unprefixed.
+`/<default-locale>/…` is deliberately **not** generated and resolves as an unknown path, because the
+default locale lives at `/` only and two URLs for one page compete with each other.
+
+**Path segments are not translated.** A page keeps its default-locale slug under every prefix, so
+the prerender pass lists each content path once and writes it once per locale: pages, route
+templates, catalog routes and any seeded static pages alike. An organisation serving `en-US` and
+`is-IS` therefore gets `/cart` and `/is-IS/cart`, `/products/x` and `/is-IS/products/x`, and so on.
+
+`<html lang>` and a `rel="alternate" hreflang` link per supported locale (plus `x-default` for the
+unprefixed path) are written by the module, on every page. A theme adds nothing for either.
+
+Everything else a theme needs is one composable, auto-imported beside `useEldraPage`:
+
+```vue
+<script setup lang="ts">
+const { active, defaultLocale, supported, name, path, switchPath, select } = useEldraLocale();
+</script>
+```
+
+- `active` is the page's locale (the prefix's, or the one a Studio preview is driving); `null` on a
+  site whose organisation configures none.
+- `supported` is every locale the site serves, `defaultLocale` first. A language switcher renders
+  only when it holds more than one — one option is not a choice.
+- `name(locale)` is that locale's own name ("íslenska (Ísland)"), resolved **on the server** and
+  carried in the payload: `Intl.DisplayNames` is ICU data and a renderer and a browser need not
+  have the same of it, so a page that let each side compute its own labels would hydrate into a
+  mismatch and repaint.
+- `path(href)` puts the active locale's prefix on one same-site destination, and is **idempotent** —
+  a destination may pass through more than one prefixer.
+- `switchPath(locale)` is the page the visitor is on, spelled in another language — query and
+  fragment included, so a switch on `/search?q=mug` keeps the search; `select(locale)` navigates
+  there.
+
+It lives on the theme context rather than in a Nuxt composable so a **block** reaches it through the
+same single `inject` it already uses — a block has to render in a Storybook story and a unit mount
+with no router anywhere. Outside a themed app, and on a single-locale site, every answer is the
+one-unprefixed-site answer and `path()` is the identity, so a block reads it with no branch.
+
+**Every gateway read on a prefixed route carries that `locale`** — the page, the route template,
+the entry, the catalog object, and (in the starter) the storefront's own catalog, search and order
+reads. An unprefixed route carries whatever `eldra.locale` asked for and nothing more, which is
+`undefined` on almost every site: that locale's content is what the gateway answers without a
+`locale`, so sending it would change every request an existing site makes without changing one
+answer.
+
+`eldra.locale` / `ELDRA_LOCALE` keeps the meaning it always had — an override of the **default**
+locale. Naming one of the organisation's supported locales moves that locale to `/` and prefixes the
+others; naming anything else, or deploying against an organisation with no locales, changes no URL
+and is still forwarded on every read.
+
+An organisation with no configured locales, a site built without gateway credentials and a failed
+read all behave exactly as every theme did before this existed: one unprefixed site, no switcher.
+
+### Links keep the language
+
+`useEldraLink()` resolves a `link` field's href under the active locale, and a theme's own
+router-link component should put every internal destination through `path()` once — the starter's
+`app/components/EldraRouterLink.vue` is the reference, and because it is the component
+`@eldrajs/ui`'s `Link`/`Button` are given as `as`, one place carries the rule for the whole theme.
+Both rewrites are idempotent, so the two cannot compound into `/is-IS/is-IS/…`.
+
+Two kinds of destination need prefixing by hand, because no router is in their path: a real
+`<form action>` (a no-JavaScript submit) and an href a component renders as a plain `<a>` without
+taking an `as` (a toast action, say).
+
 ## Seeding default templates and pages
 
 A theme can ship the pages a site starts with. `@eldrajs/theme-nuxt`'s `eldra.templates` (forwarded

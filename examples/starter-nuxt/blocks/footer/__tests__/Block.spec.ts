@@ -148,13 +148,18 @@ function twoLocales(active = 'en-US'): Partial<EldraLocaleState> & { chosen: str
     active,
     defaultLocale: 'en-US',
     supported: ['en-US', 'is-IS'],
+    name: localeName,
     path: (href: string) => href,
     switchPath: (locale: string) => (locale === 'en-US' ? '/' : `/${locale}`),
     select: (locale: string) => chosen.push(locale),
   };
 }
 
-/** What `Intl.DisplayNames` writes for a tag in its own language — the switcher's option labels. */
+/**
+ * Each locale's own name, which on a real page is resolved once on the server and carried in the
+ * payload (`useEldraLocale().name`) — the block never computes it, because `Intl.DisplayNames` is
+ * ICU data the renderer and the browser do not always share.
+ */
 const localeName = (tag: string): string =>
   new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
 

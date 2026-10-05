@@ -2,13 +2,16 @@
 import { mount } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
 import { describe, expect, it } from 'vitest';
-import { createEldraLocaleState, type EldraLocaleState } from '@eldrajs/theme-vue';
+import { createEldraLocaleState, ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { localeHref, localePathFor, resolveLocaleRouting } from '@eldrajs/theme-nuxt/locales';
 import { Button, Link } from '@eldrajs/ui';
 import EldraRouterLink from '../app/components/EldraRouterLink.vue';
 import { mountOptions } from './support/mountBlock';
+import { hydrateBlock, hydrationWarnings, renderBlockHtml } from './support/hydrate';
+import FooterBlock from '../blocks/footer/Block.vue';
 import NavigationBlock from '../blocks/navigation/Block.vue';
 import SearchBlock from '../blocks/search/Block.vue';
+import footerMock from '../blocks/footer/mock.json';
 import navigationMock from '../blocks/navigation/mock.json';
 import searchMock from '../blocks/search/mock.json';
 
@@ -187,5 +190,39 @@ describe('@eldrajs/ui’s own link wrappers', () => {
     );
 
     expect(hrefs(wrapper.html())).toEqual(['/is-IS/journal', '/is-IS/cart']);
+  });
+});
+
+/**
+ * **A prefixed page has to hydrate into the markup it was prerendered as.** The language switcher
+ * and every prefixed href are rendered on the server and computed again in the browser, and
+ * anything that comes out differently repaints the page on arrival.
+ *
+ * Both halves here run under **one** ICU, so what this compares is the theme's own logic — the
+ * switcher's value and option set, the prefixing of every destination — and not the test runner's
+ * locale data. The other hazard, a label whose text depends on *whose* ICU answered, is why
+ * `useEldraLocale().name` is resolved on the server and carried in the payload instead; no
+ * single-runtime test can see that one, and `test/prerenderRefresh.browser.spec.ts` carries the
+ * note about it.
+ */
+describe('a prefixed page hydrates into what it was rendered as', () => {
+  const twoLocales = (): Partial<EldraLocaleState> => ({
+    ...icelandic(),
+    name: (tag: string) => new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag,
+  });
+
+  it.each([
+    ['footer', FooterBlock, footerMock],
+    ['header', NavigationBlock, navigationMock],
+  ])('%s', async (_name, component, mock) => {
+    const base = mountOptions({ entry: { id: 'b', data: {} } }, { locales: twoLocales() });
+    const provides = { [ELDRA_KEY]: base.global.provide[ELDRA_KEY] } as Record<symbol, unknown>;
+    const entry = { id: 'b', data: mock as Record<string, unknown> };
+
+    const html = await renderBlockHtml(component, entry, provides);
+    const run = hydrateBlock(component, entry, html, provides);
+
+    expect(hydrationWarnings(run)).toEqual([]);
+    expect(run.firstPaint).toBe(run.expected);
   });
 });

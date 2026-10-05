@@ -244,9 +244,18 @@ export default defineNuxtPlugin({
       commerce: toStorefrontCommerce(publicConfig.eldra?.commerce),
       // The page's own content locale, read fresh on every call so it follows a language switch.
       // Every catalog, search and order read carries it, and it is part of each result's cache key
-      // — see `withContentLocale` in `app/storefront/gateway.ts`. `undefined` on a single-locale
-      // store, which is what every read sent before locales existed.
-      locale: () => activeLocale.active ?? undefined,
+      // — see `withContentLocale` in `app/storefront/gateway.ts`.
+      //
+      // `undefined` for the locale served at `/`, which is the same rule `@eldrajs/theme-nuxt`
+      // applies to its own CMS reads (`localeForPath`): that locale's content *is* what the gateway
+      // answers without a `locale`, so sending it would change every request every existing site
+      // makes without changing one answer — and would change every prerendered payload's keys with
+      // it. So a single-locale store, and the default half of a multi-locale one, send exactly what
+      // they sent before locales existed.
+      locale: () =>
+        activeLocale.active === null || activeLocale.active === activeLocale.defaultLocale
+          ? undefined
+          : activeLocale.active,
       formsEndpoint: publicConfig.formsEndpoint,
       runtime,
     });

@@ -55,6 +55,17 @@ export interface EldraLocaleState {
   /** Every locale the site serves, `defaultLocale` first. Empty on a site that configures none. */
   supported: readonly string[];
   /**
+   * One locale's name **in that locale** — "íslenska (Ísland)", "American English" — for a language
+   * switcher's option label, with the tag itself as the fallback.
+   *
+   * It is on the state rather than left to the caller because the answer is ICU data and a renderer
+   * and a browser do not always have the same of it: Node answers "íslenska (Ísland)" for `is-IS`
+   * where a reduced-ICU browser build answers "Icelandic (Iceland)". An adapter therefore resolves
+   * these **once, on the server**, and carries them to the browser, so a switcher that renders one
+   * does not hydrate into a mismatch and repaint.
+   */
+  name: (locale: string) => string;
+  /**
    * One same-site destination (`/products/x`, `/search?q=mug`) under the active locale. Anything
    * that is not a path on this site — an absolute URL, `mailto:`, `#main` — and anything already
    * spelled in one of the site's locales comes back untouched.
@@ -180,6 +191,9 @@ export function createEldraLocaleState(): EldraLocaleState {
     active: null,
     defaultLocale: null,
     supported: [] as readonly string[],
+    // The tag, not `Intl.DisplayNames`: this state serves no locales, so nothing asks — and a
+    // renderer-dependent answer has no business in the shape a test and a story share.
+    name: (locale: string) => locale,
     path: (href: string) => href,
     switchPath: () => '/',
     select: () => {},

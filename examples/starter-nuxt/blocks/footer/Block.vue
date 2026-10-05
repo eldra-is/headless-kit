@@ -228,33 +228,17 @@ function socialLinkName(network: string): string {
 const activeLocale = useEldraLocale();
 
 /**
- * `Intl.DisplayNames` is constructed per locale, not per render: this runs inside a `computed` that
- * every footer render reads, and the constructor is the expensive part of the lookup. A store has a
- * handful of locales, so the cache is a few entries that never need evicting.
+ * Each option is labelled with the locale's **own** name — "íslenska (Ísland)", not "Icelandic" —
+ * which `useEldraLocale().name` answers from `Intl.DisplayNames` with the tag as the fallback.
+ *
+ * The lookup is not done here, and that is the whole point: it is ICU data, and the renderer and
+ * the browser do not always have the same of it (Node answers "íslenska (Ísland)" for `is-IS` where
+ * a reduced-ICU browser build answers "Icelandic (Iceland)"), so a block that computed its own
+ * labels shipped a prerendered footer that hydrated into a mismatch and repainted — on every page
+ * of the site. The adapter resolves them once, on the server, and carries them to the browser.
  */
-const localeNames = new Map<string, string>();
-
-/**
- * One locale's name **in that locale** — "íslenska (Ísland)", "American English". The tag itself is
- * the fallback twice over: for a runtime that has no name for it (`of()` answers the tag back), and
- * for one that refuses the tag outright (`Intl` throws `RangeError` for a malformed one, and this
- * runs inside a `computed` where a throw takes the whole footer down).
- */
-function localeDisplayName(tag: string): string {
-  const cached = localeNames.get(tag);
-  if (cached !== undefined) return cached;
-  let name = tag;
-  try {
-    name = new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
-  } catch {
-    name = tag;
-  }
-  localeNames.set(tag, name);
-  return name;
-}
-
 const localeOptions = computed<SelectOption[]>(() =>
-  activeLocale.supported.map((tag) => ({ value: tag, label: localeDisplayName(tag) }))
+  activeLocale.supported.map((tag) => ({ value: tag, label: activeLocale.name(tag) }))
 );
 
 /**

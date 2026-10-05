@@ -1239,10 +1239,25 @@ first use.
 
 `app/i18n/en-US.ts` and `app/i18n/is-IS.ts` each export a `satisfies Messages` object with the
 identical key shape (`app/i18n/messages.ts` declares it, and a test asserts both locale files agree
-on their key set). `useT()` (`app/composables/useT.ts`) reads the active locale off the Eldra
-preview context (`useEldra().preview.locale`), falling back to `en-US` when there is no context —
-outside a themed page, in a unit test, in Storybook — and returns a `t(key, params)` function with
-plain `{param}` interpolation. There is no `vue-i18n` dependency.
+on their key set). `useT()` (`app/composables/useT.ts`) reads the **active content locale** off the
+Eldra context (`useEldraLocale().active` — the locale the page's URL prefix names, or the one a
+Studio preview is driving, with `preview.locale` as the fallback for a context assembled without the
+locale slice), and returns a `t(key, params)` function with plain `{param}` interpolation. There is
+no `vue-i18n` dependency.
+
+It falls back to `en-US` when there is no context at all — outside a themed page, in a unit test, in
+Storybook — **and for a configured locale the theme ships no message set for**. An organisation may
+configure any number of locales; this theme ships two. The content on such a page is still that
+locale's, and English chrome around real Icelandic (or Polish, or Portuguese) copy is the honest
+outcome of shipping two sets, where a key rendered as `nav.menu` would not be. Adding a locale means
+adding a file here and registering it in `useT()`'s own `LOCALES` map and in
+`app/i18n/uiMessages.ts`.
+
+The same active locale is what every `Intl` format on the page runs in: `app/plugins/
+eldra-ui-messages.ts` provides it to `@eldrajs/ui` under `LOCALE_KEY`, which is where `<Price>`,
+`<CurrencyInput>` and `app/storefront/money.ts` all read it from. The **currency** does not follow
+the locale — it is the store's, from the platform — so a page served under `/is-IS` prints
+"2.800 kr." where the same money reads "kr 2,800" on the English one.
 
 No hard-coded UI copy in primitives, blocks, or pages — every visible string, `aria-label`, and
 `sr-only` label goes through `t(...)`. Content copy from a block's `mock.json` is data, not UI copy,
@@ -1260,6 +1275,45 @@ once per commerce block namespace; `editor` holds the hint strings every block's
 `EditorPlaceholder` reads (shown only under `useEditing()`), also shared rather than duplicated.
 `nav`, `notFound`, `loading` and `error` are the page-chrome strings `app/app.vue` and the 404 page
 use directly.
+
+## 6. Content locales
+
+The organisation's configured content locales reach the theme through
+`@eldrajs/theme-nuxt` — the default locale at `/`, every other supported locale under a path prefix
+(`/is-IS/products/ash-glaze-mug`). `docs/themes.md` has the whole rule; what the starter adds on top
+of it is four things, and a customer editing this theme should know all four.
+
+**The footer's language switcher** (`blocks/footer/Block.vue`, behind the block's own `showLocale`
+field) lists `useEldraLocale().supported`, each option labelled with the locale's own name through
+`useEldraLocale().name` — "íslenska (Ísland)", not "Icelandic", because a visitor hunting for their
+language is hunting for the word they write it with. Its value is the page's locale and choosing one
+is a navigation (`select`), so there is no local state: a `ref` of the choice would show the new
+language immediately and then disagree with the page if the navigation were slow or refused. With
+one locale it renders nothing at all — most stores, and every Storybook story — which is the same
+judgement the currency slot beside it already makes. The label computation is deliberately _not_ in
+the block: `Intl.DisplayNames` is ICU data the renderer and the browser need not share, so the
+adapter resolves the names once on the server and carries them in the payload.
+
+**Every link keeps the language.** `app/components/EldraRouterLink.vue` is the one component every
+internal destination passes through — `@eldrajs/ui`'s `Link`/`Button` hand their `href` to whatever
+`as` they are given — so that is where the active locale's prefix is added, once, for the whole
+theme. `useEldraLink()` prefixes what it resolves as well; both rewrites are idempotent, so the two
+cannot compound. Two destinations are prefixed by hand because no router is in their path: the
+search block's `<form action>` (the no-JavaScript submit) and the product-detail toasts'
+`{label, href}` actions, which `@eldrajs/ui`'s `Toast` renders as a plain `<a>`. **If you add a
+destination of either kind, put it through `useEldraLocale().path()`.**
+
+**The storefront reads the catalog in the page's language.** `app/plugins/eldra-storefront.ts`
+hands `createGatewayStorefront` a `locale` getter and `app/storefront/gateway.ts` wraps the SDK
+client once (`withContentLocale`), so every catalog, search and order read carries it and no call
+site has to remember — `inventory` is left alone, because stock counts carry no language. The locale
+is part of each result's async-data key too: one read of one product in two languages is two values,
+and the key is what they travel to the browser in.
+
+**A locale with no message set falls back to English chrome** — see section 5.
+
+Nothing here is reached on a store with one configured locale: the switcher does not render, no path
+is prefixed, no read carries a `locale`, and the artifact is byte-for-byte what it was.
 
 ## Testing and accessibility gates
 
