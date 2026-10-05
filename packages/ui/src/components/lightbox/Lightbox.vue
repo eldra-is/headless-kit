@@ -79,7 +79,7 @@ const {
   // `{ base: 1 }` into "100% of the track, no gap" for free (spec "Sizes", Track row).
   slideLabel: () => m.value.imageOf,
   // Always on — unlike `Carousel`, this component has no `draggable` prop of its own (operator
-  // ruling: "Lightbox inherits it through `useCarousel`"). Dragging on the stage moves
+  // decision: "Lightbox inherits it through `useCarousel`"). Dragging on the stage moves
   // between images; the prev/next arrows and the thumbnail strip sit outside `trackRef`, so a
   // drag never reaches (and never needs to suppress a click on) either.
   draggable: true,
@@ -118,7 +118,7 @@ watch(canNext, (can) => {
 
 /**
  * Opens at `index` (spec "Behaviour & motion": "Opens at index") by moving the track there
- * **without animation**, regardless of `prefers-reduced-motion` (operator ruling) — the spec's own
+ * **without animation**, regardless of `prefers-reduced-motion` (operator decision) — the spec's own
  * "moving between images scrolls smoothly" describes navigation *after* the viewer is already
  * open, not the initial jump into a gallery at image 4, which would otherwise visibly sweep past
  * every image in between as the viewer fades in.
@@ -214,7 +214,7 @@ const rootClass = computed(() =>
       // viewport" line, and `closeClass` below for the one measurement that actually does change
       // at that edge (the close button, exactly like `Drawer`'s own).
       //
-      // `hidden open:block`, not bare (fix round 2, the operator's own finding — see `Dialog`'s own
+      // `hidden open:block`, not bare (fix, from the operator's own finding — see `Dialog`'s own
       // rootClass comment for the full mechanism): without it a closed viewer still painted its
       // full-viewport ground, because an author `display` utility beats the UA's own `display: none`
       // for a closed `<dialog>` regardless of specificity. `open:block`, not `open:flex` like
@@ -483,7 +483,7 @@ const thumbnailClass = computed(() =>
                `trackRef.value.children.length`, and keeping that count constant across open/close
                means neither depends on the `MutationObserver` timing a v-if on the wrapper itself
                would introduce. Only the `<Image>` inside it — the element that actually carries a
-               `src` — is gated on `model` (fix round 1, Major finding: an eager `<img>` starts
+               `src` — is gated on `model` (fix, Major finding: an eager `<img>` starts
                fetching the instant it is connected to the DOM, `display: none` on an ancestor
                `<dialog>` notwithstanding; a plain `<img>` is not "lazy" merely by sitting inside a
                closed dialog). Every slide stays `priority` (eager) once it exists — by definition

@@ -260,7 +260,7 @@ describe('Drawer — open and close (useDialog)', () => {
     wrapper.unmount();
   });
 
-  /** Fix round 2, the operator's own finding: the Drawer `Cart` story "opens as a dialog; once
+  /** Fix, from the operator's own finding: the Drawer `Cart` story "opens as a dialog; once
    *  closed it just sits on the right-hand side, not as a dialog" — a bare `flex` on the root beat
    *  the UA's own `display: none` for a closed `<dialog>`. */
   it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {

@@ -238,7 +238,7 @@ export const Loading: Story = { args: { ratio: '4x3', loading: true } };
 
 /** `media.type: 'video'` renders a `<video controls playsinline>` instead of an `<img>` — no
  * `autoplay`, so pause is the browser's own native keyboard-operable controls (spec "Image" →
- * Behaviour & motion / Accessibility, 2.1.1 / 2.2.2). Kept light per the task brief: an empty `src`
+ * Behaviour & motion / Accessibility, 2.1.1 / 2.2.2). Kept light per the API contract: an empty `src`
  * is enough to show the frame/controls structure, since this package ships no video asset of its
  * own and the harness runs offline. */
 export const Video: Story = {

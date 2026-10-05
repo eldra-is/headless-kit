@@ -148,7 +148,7 @@ export const FIELD_LEADING_ICON =
  * plus a populated `suffix` slot as first-class ("the clear button and the `suffix` slot share it,
  * so a field with both keeps them on one row"), and this constant is `Input`'s and `SearchBar`'s
  * row too — dropping the gap here would silently change `Input`'s rendered output for that
- * combination, which review round 1 caught. Only `UnitInput`'s two-action pair (see
+ * combination, which an early review caught. Only `UnitInput`'s two-action pair (see
  * `FIELD_TRAILING_PAD_PAIR` above) wants flush icons, and it overrides this locally
  * (`cx(FIELD_SUFFIX_ROW, isActionPair && 'gap-0')` — `gap-*` is a stock tailwind-merge group, so no
  * merge-group registration is needed) rather than changing the shared default.

@@ -101,7 +101,7 @@ describe('filterNumericBeforeInput — typing', () => {
   });
 
   /**
-   * The group separator is a decimal field's, never a whole-number field's (operator ruling). The
+   * The group separator is a decimal field's, never a whole-number field's (operator decision). The
    * character means different things in different locales — `1,5` reads as "one thousand five" to
    * the parser and as "one point five" to an Icelandic customer — so a quantity field committed 15
    * while showing something that looked like 1.5.

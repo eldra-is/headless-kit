@@ -52,7 +52,7 @@ const resolvedSrc = computed<string | undefined>(() => {
 });
 
 /**
- * Image error fallback (task brief: "listen to the `<img>` `error` event and fall back to
+ * Image error fallback (API contract: "listen to the `<img>` `error` event and fall back to
  * initials/icon"). Reset whenever `src` itself changes, so a previously broken image does not
  * keep a freshly-set working one stuck on the fallback.
  */

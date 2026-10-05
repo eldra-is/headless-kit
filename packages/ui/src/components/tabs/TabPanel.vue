@@ -22,7 +22,7 @@ const el = ref<HTMLDivElement | null>(null);
  * Spec "Tabs" → Accessibility gives every panel `tabindex="0"`; the APG tabs pattern's own reason
  * for that is narrower — a panel needs to be a `Tab` stop only when it has no focusable content of
  * its own to land on instead, or the sequence gets two stops for the same thing. This is the
- * brief's "panel focusability rule": `hasFocusable` starts `true` (so the panel is reachable from
+ * API contract's "panel focusability rule": `hasFocusable` starts `true` (so the panel is reachable from
  * the very first paint, before this can run) and `checkFocusable` narrows it to the real answer
  * once there is a live DOM to ask, re-run on every update so a panel whose content changes (an
  * empty panel that later gets a button) keeps the rule accurate.

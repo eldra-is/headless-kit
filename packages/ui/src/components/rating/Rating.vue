@@ -46,7 +46,7 @@ const linkAttrs = computed(() => {
  * Spec "Rating" → Accessibility: "Rated 4.5 out of 5, 128 reviews" — the static wrapper's
  * `aria-label`. The linked variant's accessible name reuses this same sentence via `aria-label` on
  * the `<a>` itself, rather than the spec's separately worded ", rated 4.5 out of 5" appended to the
- * visible value/count text. The task brief scopes the new message vocabulary to exactly `rating`
+ * visible value/count text. The API contract scopes the new message vocabulary to exactly `rating`
  * and `noReviews`; reusing one tested sentence for both forms honours that budget and gives every
  * screen reader an unambiguous single name instead of two overlapping fragments (the visible value
  * and count are marked `aria-hidden` in both forms for the same reason — see the template).

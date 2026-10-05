@@ -908,7 +908,7 @@ describe('Select — placement and width', () => {
     await press(triggerOf(below));
     expect(panel(below).classes()).toContain('animate-eldra-popover-in');
     expect(panel(below).attributes('style')).toContain('--eldra-popover-origin: top left');
-    // The slide the entrance used to carry is gone (operator ruling: fade and scale only), so the
+    // The slide the entrance used to carry is gone (operator decision: fade and scale only), so the
     // variable that drove it must not be written either — a panel still setting it would claim the
     // package animates something it no longer animates.
     expect(panel(below).attributes('style')).not.toContain('--eldra-popover-slide');

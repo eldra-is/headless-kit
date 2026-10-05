@@ -32,7 +32,7 @@ export interface PaginationProps {
    * Builds each link's URL from a page number. Given, every page/previous/next control renders as
    * a real `<a href>` (or the `linkAs` component, receiving the destination as `to` — the same
    * contract `Link`'s own `as` uses). **Without it, the controls render as `<button type="button">`
-   * elements that emit `update:page` instead** — a controller ruling recorded under the README's
+   * elements that emit `update:page` instead** — a controller decision recorded under the README's
    * Deviations entry, since a consumer driving pagination from in-memory state has no URL to build.
    */
   hrefForPage?: (page: number) => string;

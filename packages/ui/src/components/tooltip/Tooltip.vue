@@ -63,7 +63,7 @@ import type { TooltipProps } from './types';
  * click elsewhere, and `Esc` must never move focus off the trigger).
  *
  * **Focus only holds it open when the focus is keyboard-visible (operator report / controller
- * ruling).** A mouse click also focuses its target; counting *any* `focusin` toward "focus within
+ * decision).** A mouse click also focuses its target; counting *any* `focusin` toward "focus within
  * the wrapper" left the bubble stuck open after a click, since `mouseleave` alone could no longer
  * hide it. `focusWithin` (any focus in the wrapper, for the Dismissed state's "focus leaves the
  * wrapper" clear below) and `keyboardFocusWithin` (the subset that also keeps `visible` true) are
@@ -102,7 +102,7 @@ const keyboardFocusWithin = ref(false);
 /**
  * Spec → States, Dismissed: "hidden until the pointer leaves or focus leaves the wrapper, then
  * resets." Esc sets this while the tooltip is showing, and so does activating the trigger (operator
- * report / controller ruling — see `onRootPointerDown`/`onRootClick`/`onRootKeyDown` below); it is
+ * report / controller decision — see `onRootPointerDown`/`onRootClick`/`onRootKeyDown` below); it is
  * not itself an opacity state, but a mask over `wantsOpen` below until one of the two watchers
  * underneath clears it.
  */
@@ -123,7 +123,7 @@ const visible = computed(() => wantsOpen.value && !dismissed.value);
  *
  * Fires on *either* edge of `hoveringTrigger`, not only the falling one: Esc's own case (already
  * hovering when dismissed, leaves, then re-enters) clears on the leaving edge exactly as before, but
- * the operator report / controller ruling's click-dismissal can also fire while the pointer was
+ * the operator report / controller decision's click-dismissal can also fire while the pointer was
  * never hovering at all (an `Enter`/`Space` activation while only keyboard-focused, say) — the
  * pointer then has nothing to "leave", and only a *later* `mouseenter` — a rising edge — is the
  * "re-hover" that clears it. Without this, that dismissal would stay stuck until an unrelated
@@ -145,7 +145,7 @@ function onRootMouseLeave(): void {
   hoveringTrigger.value = false;
 }
 
-// --- keyboard vs pointer focus (operator report / controller ruling) -----------------------------
+// --- keyboard vs pointer focus (operator report / controller decision) -----------------------------
 
 /**
  * Same-page "was the last input a key or a pointer" — the fallback `isKeyboardFocus` reaches for
@@ -200,7 +200,7 @@ function onBubbleMouseLeave(): void {
 }
 
 /**
- * Spec → States, Dismissed, extended by the operator report / controller ruling: activating the
+ * Spec → States, Dismissed, extended by the operator report / controller decision: activating the
  * trigger dismisses the tooltip exactly like `Esc` does — a clicked button should not keep its
  * label floating, and a mouse click also focuses its target, which is precisely how it used to stay
  * stuck open (see the doc comment above). `pointerdown` covers a mouse press or touch; `click`

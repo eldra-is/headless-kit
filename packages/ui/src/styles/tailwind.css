@@ -275,7 +275,7 @@
 
 /* --- Rating --------------------------------------------------------------------------------- */
 
-/* A half star's filled overlay (spec "Rating" → Anatomy, part 1: "half-filled"; task brief: "half
+/* A half star's filled overlay (spec "Rating" → Anatomy, part 1: "half-filled"; the API contract: "half
    star via a clipped overlay"). Stacked absolutely over the same star's full outline icon
    (`RatingStars.vue`), clipped to its own left half so the outline shows through the unfilled
    half rather than leaving blank space. `50%`/`0` are the shape's own geometry, not a design
@@ -1135,11 +1135,11 @@
    is instant.
 
    The spec ("Select" -> Behaviour & motion, Opening) writes it as a fade plus a 0.25rem slide plus
-   a *vertical* scale, and that is what shipped first. Operator ruling, 2026-09-25: drop the slide
+   a *vertical* scale, and that is what shipped first. Operator decision, 2026-09-25: drop the slide
    and scale both axes. The slide is what made the panel read as a separate object arriving from
    somewhere rather than as the control opening out, and a `scaleY`-only entrance stretches the type
    inside the panel while it plays. Recorded under Deviations in the README. The `SearchBar`'s panel
-   had no entrance at all before that ruling; it now plays the same one.
+   had no entrance at all before that decision; it now plays the same one.
 
    The origin is a custom property the panel sets inline from the placement it resolved to
    (`usePopover`'s `panelStyle`): `top left` below the control, `bottom left` above it, so the panel
@@ -1563,7 +1563,7 @@
    at 100% of the viewport") plus the full-screen mobile variant (spec "Drawer" → Mobile: "On any
    viewport narrower than the drawer's width, the drawer is full width and full height"; Global
    Constraints: the full-screen variants of Drawer, Lightbox and Search modal are one of only two
-   rules in the whole spec measured on the **viewport**, not a container — operator ruling,
+   rules in the whole spec measured on the **viewport**, not a container — operator decision,
    2026-09-25). `--eldra-drawer-width` is a literal per-component variable (the spec's own 28rem
    default sits between two tokens and has none of its own, the same shape as `--eldra-dialog-
    width`), set from the `width` prop on the panel's own inline style; the viewport cap lives

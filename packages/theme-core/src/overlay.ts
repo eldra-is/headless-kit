@@ -573,24 +573,24 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
    * the whole composition is posted once, on `compositionend`. */
   let composition: { key: string; root: HTMLElement; from: number; to: number } | null = null;
   /**
-   * §18 v3 (floating toolbar follow-up; generalized round 10, serialized
-   * round 11): an ordered, per-field buffer of the commands a `beforeinput`
+   * §18 v3 (the floating-toolbar follow-up, generalized and then serialized):
+   * an ordered, per-field buffer of the commands a `beforeinput`
    * would have posted while its root could not yet accept one — either not
-   * marked editing at all yet (round 10: a click immediately followed by
+   * marked editing at all yet (a click immediately followed by
    * typing, before Studio's `editor:rich-text-editing` echo arrives ~14ms
-   * later) or marked but with no resolvable selection (round 7: the window
+   * later) or marked but with no resolvable selection (the window
    * between the theme's own content-update re-render and
    * `editor:rich-text-applied` restoring the caret).
    *
-   * Round 11: Studio applies a `theme:rich-text-command` literally at the
+   * Why one at a time: Studio applies a `theme:rich-text-command` literally at the
    * `from`/`to` it was posted with — no position tracking between messages —
    * so flushing more than one entry at the *same* frozen position reverses
    * typed order and misplaces a later structural command. Only one entry is
    * ever in flight: `awaitingRevision` is the revision of the entry most
    * recently posted but not yet acked, or `null` once nothing has posted at
    * all for the current buffer. The *next* entry posts only once
-   * `restoreRichTextSelection` runs for a revision at or beyond it (round
-   * 12; see `flushNextPendingRichTextIntent`) — an ack strictly behind it
+   * `restoreRichTextSelection` runs for a revision at or beyond it (`>=`, not
+   * `===`; see `flushNextPendingRichTextIntent`) — an ack strictly behind it
    * neither advances nor posts. A run of plain typed characters (`insertText`)
    * coalesces into one entry while queuing (`queueRichTextIntent`), so the
    * common case (typing) still reaches Studio as a single command, not N
@@ -1325,7 +1325,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // any captured state — but the keystroke still happened, and a click
       // immediately followed by typing is the common case (Studio's
       // `editor:rich-text-editing` echo arrives ~14ms later): queue the
-      // command it would have posted (round 10), the same buffer round 7's
+      // command it would have posted, the same buffer the retained-focus
       // retained-focus state uses. `setRichTextEditing`'s
       // `applyRichTextEditing(element, true)` flushes it in order once the
       // root is actually marked. Re-post the current selection so Studio
@@ -1427,8 +1427,8 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   const RICH_TEXT_INTENT_BUFFER_MAX = 64;
 
   /**
-   * §18 v3 (floating toolbar follow-up; generalized round 10, serialized
-   * round 11): append the command `event`'s `inputType` maps to onto `key`'s
+   * §18 v3 (the floating-toolbar follow-up, generalized and then serialized):
+   * append the command `event`'s `inputType` maps to onto `key`'s
    * ordered buffer, for `flushNextPendingRichTextIntent` to post one at a
    * time once the root can accept them. Nothing is queued for an inputType
    * with no command name — the same ones `classifyBeforeInput` would call
@@ -1619,8 +1619,8 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   }
 
   /**
-   * §18 v3 (floating toolbar follow-up; generalized round 10; serialized
-   * round 11; round 12: release on `>=`, not `===`): post exactly the next
+   * §18 v3 (the floating-toolbar follow-up, generalized and then serialized;
+   * release on `>=`, not `===`): post exactly the next
    * entry of `element`'s queued buffer, if it is this trigger's turn —
    * Studio applies a `theme:rich-text-command` literally at the `from`/`to`
    * it carries, with no position tracking between messages, so more than one
@@ -1683,7 +1683,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   }
 
   /**
-   * §18 v3 (floating toolbar follow-up, round 10): flush `element`'s queued
+   * §18 v3 (the floating-toolbar follow-up): flush `element`'s queued
    * buffer against whatever the DOM selection already is inside it, for the
    * "root just got marked editing" trigger — `editor:rich-text-editing`
    * carries no position. The keystrokes that filled the buffer were
@@ -1709,7 +1709,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
    * Put the caret (or the range) back at the document positions Studio
    * reports, after a re-render replaced the nodes it used to live in.
    * `ackRevision` is the revision of the `editor:rich-text-applied` this
-   * restore is running for (round 11) — passed through to
+   * restore is running for — passed through to
    * `flushNextPendingRichTextIntent`, which uses it to decide whether this
    * is the ack the next queued entry, if any, was waiting on.
    */
@@ -3235,9 +3235,9 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // it on a single-placement page).
       editingRichTextIdentity = richTextIdentityOf(element);
       applyRichTextEditing(element, true);
-      // §18 v3 (floating toolbar follow-up, round 10): the root just became
+      // §18 v3 (the floating-toolbar follow-up): the root just became
       // able to accept commands — flush whatever a click-then-type burst
-      // queued while it could not (round 10's own gap) or Studio's
+      // queued while it could not (that same gap) or Studio's
       // acceptRichTextApplied hasn't restored a selection for yet. A no-op
       // when nothing is queued, including the common case where Studio marks
       // the field before the operator has typed anything at all.

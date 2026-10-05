@@ -77,12 +77,12 @@ const ratingCount = computed(() => props.product.rating?.count ?? 0);
 /**
  * An additional stock status line beyond the spec's own 8-part anatomy, which draws no row for
  * `ProductCardProduct.stock` at all. It exists so that field — and the `StockBadge` half of this
- * task's "Composes ... Badge/StockBadge ..." brief — has a real use beyond the sold-out badge
- * (which is a plain `Badge`, not `StockBadge` — see that computed's own comment): a caller with a
- * more granular signal than plain `available` (low stock, a pre-order date) renders it as its own
- * line above the quick-add control, in the same place a "Only 3 left" line sits on most storefront
- * cards. Suppressed while sold out, where the disabled quick-add button already carries the same
- * "unavailable" meaning and a second line would repeat it.
+ * component's own "Composes ... Badge/StockBadge ..." contract — has a real use beyond the
+ * sold-out badge (which is a plain `Badge`, not `StockBadge` — see that computed's own comment): a
+ * caller with a more granular signal than plain `available` (low stock, a pre-order date) renders
+ * it as its own line above the quick-add control, in the same place a "Only 3 left" line sits on
+ * most storefront cards. Suppressed while sold out, where the disabled quick-add button already
+ * carries the same "unavailable" meaning and a second line would repeat it.
  */
 const showStockLine = computed(() => props.product.stock != null && !isSoldOut.value);
 const stockLevel = computed(() => props.product.stock ?? 'in');
@@ -263,7 +263,7 @@ const swatchOverflowClass = computed(() =>
  * standard 0.75rem (`space-3`) rhythm the rest of the card uses between `media`/`body`, so
  * `mt-5` (1.25rem = 0.75rem + 0.5rem) rather than a second, separately-tracked margin.
  *
- * `relative z-10` (task brief): the quick-add control sits above the title link's card-covering
+ * `relative z-10` (the API contract): the quick-add control sits above the title link's card-covering
  * `::after` (which carries no `z-index` of its own, so the browser's default stacking order would
  * otherwise let source order decide, and the link is later in the DOM here) — this is what makes
  * "clicking quick add never navigates" true regardless of DOM order.

@@ -126,7 +126,7 @@ export interface SelectProps {
  * A `MultiSelect`'s parts: every part of a `Select` plus the ones only a multi-select draws.
  *
  * `optionCheck` is reused for an option's **checkbox** — it is the mark that says "this row is
- * chosen" in both controls, so a consumer styles it once. The footer parts are not in the brief's
+ * chosen" in both controls, so a consumer styles it once. The footer parts are not in the API contract's
  * list but are in the spec's anatomy ("footer: live count · Clear (link button) · Done (primary
  * sm)"), and a part the component draws and a consumer cannot reach is not a part.
  *

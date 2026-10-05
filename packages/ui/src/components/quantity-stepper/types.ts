@@ -1,4 +1,4 @@
-/** The parts a consumer can restyle through `classes`, named as the task brief's contract names
+/** The parts a consumer can restyle through `classes`, named as this package's own contract names
  * them (spec "Quantity stepper" → Anatomy draws the same four controls plus the error row every
  * other field in this package shows the same way). */
 export type QuantityStepperPart = 'root' | 'decrease' | 'input' | 'increase' | 'error';
@@ -28,7 +28,7 @@ export interface QuantityStepperProps {
   id?: string;
   /**
    * The BCP 47 locale for display formatting and for parsing a typed value (`parseLocaleNumber`) —
-   * not part of the design spec's own Properties table, which the task brief adds. Defaults to
+   * not part of the design spec's own Properties table, which the API contract adds. Defaults to
    * whatever `provideEldraUiLocale` set for the app, and to `"en-US"` with nothing provided.
    */
   locale?: string;

@@ -215,7 +215,7 @@ const sizeClass = computed(() => {
 });
 
 /**
- * The press (operator ruling, 2026-09-25; recorded under Deviations in the README). The design
+ * The press (operator decision, 2026-09-25; recorded under Deviations in the README). The design
  * spec's States table says a pressed button "moves down 1px", and a 1px downward translate is what
  * this shipped. A 1px move is below the threshold at which a press reads as tactile — it looks
  * like a rendering artefact rather than a button being pushed — so the press is a scale instead:

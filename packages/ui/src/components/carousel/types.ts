@@ -78,7 +78,7 @@ export interface CarouselProps {
   autoplay?: number;
   /**
    * Enables mouse/pen pointer drag on the track — grab the track and drag it, released with a
-   * snap to the nearest slide (operator ruling: "the carousel should be
+   * snap to the nearest slide (operator decision: "the carousel should be
    * draggable/swipeable"). Default `true`. Touch already swipes for free through native
    * scroll-snap regardless of this prop; it only governs the added pointer-drag behaviour. See
    * `useCarousel`'s own drag state machine for the mechanics.

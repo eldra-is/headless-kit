@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 // happy-dom's global `URL` refuses the `file:` scheme that `import.meta.url` is here; Node's own
 // `URL` under another name resolves it (the same workaround `source-scan.spec.ts` and
 // `custom-utility-coverage.spec.ts` document).
@@ -62,6 +62,43 @@ function collectFiles(dir: string, out: string[]): string[] {
   return out;
 }
 
+/**
+ * Every other workspace package's `src/` (and its `README.md`, where it has one) — this package's
+ * own tree is collected separately above, by the path it already used.
+ */
+function otherPackageSources(): string[] {
+  const packagesDir = join(monorepoRoot, 'packages');
+  const out: string[] = [];
+  for (const entry of readdirSync(packagesDir)) {
+    const dir = join(packagesDir, entry);
+    if (!statSync(dir).isDirectory() || dir === packageRoot.replace(/\/$/, '')) continue;
+    const src = join(dir, 'src');
+    if (existsSync(src)) collectFiles(src, out);
+    const readme = join(dir, 'README.md');
+    if (existsSync(readme)) out.push(readme);
+  }
+  return out;
+}
+
+/**
+ * Every scanned file whose contents match `pattern`, as `path — the text that matched` lines.
+ *
+ * One assertion per pattern over the whole tree, rather than `it.each(files)`. The scan started at
+ * one package's `src/` and now covers every package, the starter, `docs/` and the design spec —
+ * some 1,300 files — and a test case per file per pattern was five thousand cases whose only
+ * output was a name, enough extra scheduling to time out two unrelated browser specs sharing the
+ * run. A failure here names every offender and the text it matched, which is what a reader
+ * actually needs.
+ */
+function offenders(scanned: readonly string[], pattern: RegExp): string[] {
+  const found: string[] = [];
+  for (const file of scanned) {
+    const match = pattern.exec(readFileSync(file, 'utf8'));
+    if (match !== null) found.push(`${relative(monorepoRoot, file)} — ${JSON.stringify(match[0])}`);
+  }
+  return found;
+}
+
 const files = [
   ...collectFiles(join(packageRoot, 'src'), []),
   join(packageRoot, 'README.md'),
@@ -74,12 +111,24 @@ const files = [
   // `stories/`, `nuxt.config.ts` and the starter's own `README.md` get exactly the same guard.
   ...collectFiles(join(monorepoRoot, 'examples/starter-nuxt'), []),
   // The repository's own `docs/` tree, for the same reason: it is the public documentation this
-  // kit links from every README, and it is the *only* tree the two checks above did not reach.
+  // kit links from every README.
   // Being outside the guard is exactly how two internal references survived in it — a private
   // report filename cited as the evidence for a Studio 400, and "the … project's Task 1 report"
   // cited as the evidence for a Tailwind resolution finding — both dangling pointers for every
   // external reader, both in files this branch was editing heavily.
   ...collectFiles(join(monorepoRoot, 'docs'), []),
+  // This package's own `scripts/` and the **other packages'** source, for the third time over the
+  // same reason — and this is the half the "only tree the checks above did not reach" claim got
+  // wrong. A 2026-10 sweep for internal review wording found it spread right across the kit:
+  // review-cycle labels in `theme-core`'s overlay narrative, a plan/task reference in
+  // `vite-plugin-theme`, and the operator-report quotes in this package's own `drag-smoke.mjs`.
+  // Every one of those files is as readable on the public repository as `src/` is, and none of
+  // them was guarded.
+  ...collectFiles(join(packageRoot, 'scripts'), []),
+  ...otherPackageSources(),
+  // The design spec the whole kit is built to, which ships in the repository and is linked from
+  // `CLAUDE.md` and both READMEs.
+  ...collectFiles(join(monorepoRoot, 'eldra-starter-spec'), []),
 ];
 
 const privateNpmScope = ['@eldra', 'is/'].join('-'); // never write this contiguously above
@@ -120,6 +169,48 @@ const planTaskReference = {
   pattern: /\btask[- ]\d+|\bplan-\d/i,
 };
 
+/**
+ * **Internal review wording**, the third family after the artifact *filenames* and the bare
+ * plan/task *references* above — and the one that survived both for longest, because it reads like
+ * ordinary prose until you try to resolve it.
+ *
+ * A 2026-10 sweep found it in roughly two hundred places across the kit: the starter's `UiImage`
+ * and its spec naming the review cycle and the numbered decision each prop came out of ("fix round
+ * 1, ruling 1"), a dozen components recording "operator ruling" as the authority for a deviation,
+ * `theme-core`'s overlay narrative carrying the iteration a fix landed in ("generalized round 10,
+ * serialized round 11"), and fifty doc comments attributing a prop or a part list to "the task
+ * brief". None of it resolves to anything an external reader has: a review happened in a private
+ * repository, a "ruling" was a line in a review comment, a "brief" was a planning document, and a
+ * "round" is an ordinal in a process nobody outside it can count. Worse, each one *replaces* the
+ * thing worth writing down — a comment that says a rule came out of round 2 is a comment that does
+ * not say what the rule is.
+ *
+ * So the wording is forbidden outright and the comments state the rule instead. The patterns are
+ * deliberately narrow, because three of the four words have ordinary English senses this kit uses
+ * correctly and must keep: "a brief, non-blocking status message" (the design spec's own Toast
+ * wording), "a real (if brief) pending transition", "That is the whole brief" inside a fixture
+ * testimonial. Only the forms that name a document or a cycle are matched — `the brief`,
+ * `brief's`, `task brief`, `round <n>`, `ruling` in any case — which is why this is its own
+ * pattern and not a word list.
+ *
+ * `CHANGELOG.md` is scanned here, unlike for `planTaskReference` above, and the difference is the
+ * one that entry already argues: "Task 11" in a changelog is that file's own long-standing
+ * narrated-history convention, the way many changelogs cite internal ticket numbers, and a reader
+ * takes it as a label on shipped work. "Fix round 2" and "the brief's own type" are not labels on
+ * anything — they are the same unresolvable attribution as in a doc comment, in a file npm ships
+ * to every consumer.
+ */
+const reviewProcessWording = {
+  label: 'internal review-process wording (a review round, a ruling, the brief)',
+  pattern: /\bfix round \d|\bround[ -]\d|\brulings?\b|\btask brief\b|\bthe brief\b|\bbrief's\b/i,
+};
+
+describe('public-repo hygiene: no shipped file names a review round, a ruling or the brief', () => {
+  it(`names no ${reviewProcessWording.label}`, () => {
+    expect(offenders(files, reviewProcessWording.pattern)).toEqual([]);
+  });
+});
+
 describe('public-repo hygiene: no private scope or internal hostname in shipped files', () => {
   const changelogPath = join(packageRoot, 'CHANGELOG.md');
 
@@ -127,22 +218,14 @@ describe('public-repo hygiene: no private scope or internal hostname in shipped 
     expect(files.length).toBeGreaterThan(50);
   });
 
-  it.each(files)('%s carries none of the forbidden patterns', (file) => {
-    const contents = readFileSync(file, 'utf8');
-    for (const { label, pattern } of forbidden) {
-      expect(contents, `${file} contains ${label}`).not.toMatch(pattern);
-    }
+  it.each(forbidden)('no shipped file carries $label', ({ pattern }) => {
+    expect(offenders(files, pattern)).toEqual([]);
   });
 
-  it.each(files.filter((file) => file !== changelogPath))(
-    '%s carries no bare plan/task reference',
-    (file) => {
-      const contents = readFileSync(file, 'utf8');
-      expect(contents, `${file} contains ${planTaskReference.label}`).not.toMatch(
-        planTaskReference.pattern
-      );
-    }
-  );
+  it(`no shipped file but the changelog carries ${planTaskReference.label}`, () => {
+    const scanned = files.filter((file) => file !== changelogPath);
+    expect(offenders(scanned, planTaskReference.pattern)).toEqual([]);
+  });
 });
 
 /**
@@ -172,11 +255,8 @@ describe('public-repo hygiene: the starter and docs name no internal process wor
     expect(starterFiles.length).toBeGreaterThan(50);
   });
 
-  it.each(starterFiles)('%s carries none of it', (file) => {
-    const contents = readFileSync(file, 'utf8');
-    expect(contents, `${file} contains ${starterProcessWording.label}`).not.toMatch(
-      starterProcessWording.pattern
-    );
+  it(`names no ${starterProcessWording.label}`, () => {
+    expect(offenders(starterFiles, starterProcessWording.pattern)).toEqual([]);
   });
 });
 
@@ -213,12 +293,7 @@ describe('public-repo hygiene: no shipped file names a removed component', () =>
     }
   });
 
-  it.each(shipped)('%s names none of them', (file) => {
-    const contents = readFileSync(file, 'utf8');
-    for (const name of removedComponents) {
-      expect(contents, `${file} still mentions the removed ${name}`).not.toMatch(
-        new RegExp(`\\b${name}\\b`)
-      );
-    }
+  it.each(removedComponents)('no shipped file still mentions the removed %s', (name) => {
+    expect(offenders(shipped, new RegExp(`\\b${name}\\b`))).toEqual([]);
   });
 });

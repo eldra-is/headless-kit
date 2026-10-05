@@ -92,7 +92,7 @@ describe('ProductCard — the stretched link', () => {
     wrapper.unmount();
   });
 
-  it('underlines the title at rest, thickening on hover (operator ruling: all links underlined)', () => {
+  it('underlines the title at rest, thickening on hover (operator decision: all links underlined)', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     const link = wrapper.get('[data-part="link"]').classes();
     expect(link).toContain('underline');

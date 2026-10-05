@@ -56,7 +56,7 @@ const meta = {
           '',
           '**Locale**: `locale` (default `"en-US"`) formats the displayed value and drives',
           "`parseLocaleNumber` for a typed value — not part of the design spec's own Properties",
-          'table, added per the task brief.',
+          'table, added per the API contract.',
           '',
           '**CSS variables**: `--eldra-stepper-radius` (default `var(--eldra-radius-md)`).',
         ].join('\n'),

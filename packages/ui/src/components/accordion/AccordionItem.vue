@@ -39,7 +39,7 @@ const panelRef = ref<HTMLDivElement>();
  * The one height-animation owner for this item's panel (`heightTransition.ts`), created lazily —
  * `panelRef` is `undefined` until mount, and this never runs before it — and memoized: every
  * open/close for this item's whole lifetime goes through the same instance, which is what lets it
- * reverse a still-running animation instead of racing it (review round 1, 2026-09-26: "one
+ * reverse a still-running animation instead of racing it (an early review, 2026-09-26: "one
  * animation owner per item").
  */
 let heightAnimator: PanelHeightAnimator | null = null;
@@ -138,7 +138,7 @@ function onToggle(event: Event): void {
  * above) — `model`/`update:modelValue`/the re-emitted `toggle` all still go through that one path,
  * completely unchanged.
  *
- * Three cases, all reached through the same `details.open`/`closing` pair (fix, review round 1,
+ * Three cases, all reached through the same `details.open`/`closing` pair (fix, from an early review,
  * 2026-09-26 — "one animation owner per item", see `heightTransition.ts`'s own comment for the bug
  * this replaced):
  *

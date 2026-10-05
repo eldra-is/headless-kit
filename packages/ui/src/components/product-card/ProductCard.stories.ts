@@ -107,7 +107,7 @@ const meta = {
           "**`stockLine`** is an addition beyond the spec's own 8-part anatomy: when",
           '`product.stock` is set (and the product is not sold out), a `StockBadge` status line',
           'renders above quick add — giving the `StockBadge` half of this component\'s "composes',
-          'Badge/StockBadge" brief a real use beyond the sold-out badge, which is a plain `Badge`.',
+          'Badge/StockBadge" contract a real use beyond the sold-out badge, which is a plain `Badge`.',
           '',
           '**Loading** renders a skeleton — media, three text lines, a button bar — as a',
           '`role="group"` `aria-busy="true"` region named "Loading product", in place of the whole',

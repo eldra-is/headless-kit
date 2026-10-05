@@ -215,7 +215,7 @@ describe('consumer Tailwind build', () => {
    *
    * `dist/style.css` is compiled from `src/` by Tailwind's own source scan, which reads the files
    * there rather than the class strings a component actually builds. So the `Button` doc comment
-   * that named the 1px press translate it had replaced — in prose, explaining the ruling — put a
+   * that named the 1px press translate it had replaced — in prose, explaining the decision — put a
    * real rule for that class into the stylesheet every consumer ships, for a class that is on no
    * element. It is a small rule, but it is a lie about what the package draws, and nothing else in
    * the suite could see it: every other assertion is about what a component renders, and this is
@@ -223,7 +223,7 @@ describe('consumer Tailwind build', () => {
    *
    * The scan is wider than the component tree, which is the part that is easy to miss: automatic
    * source detection starts at the **package root**, so `README.md` and `CHANGELOG.md` feed it too
-   * — and both named the old class while explaining the ruling, which is what kept the rule alive
+   * — and both named the old class while explaining the decision, which is what kept the rule alive
    * after the component comment was cleaned. Nothing under this package may write that class name
    * out, prose included; this assertion is what says so.
    */

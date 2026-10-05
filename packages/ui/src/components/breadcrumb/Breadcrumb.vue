@@ -50,7 +50,7 @@ function linkAttrs(item: BreadcrumbItem): Record<string, unknown> {
  * This also sidesteps a sharper bug a raw `keepLast: 0` produces on its own: `Array.prototype.
  * slice`'s negative-zero hazard. `slice(-0)` is specified to behave as `slice(0)` (`-0` is not
  * `< 0`), so a bare `props.items.slice(-props.keepLast)` at `keepLast: 0` returned the *whole*
- * array instead of an empty one — review round 1 caught this: the current page leaked into
+ * array instead of an empty one — an early review caught this: the current page leaked into
  * `middleItems` as a demoted, non-current item, and `endItems` duplicated the entire trail on top
  * of it, so every label rendered twice above the 48rem collapse threshold. Every slice below is
  * either unconditional-length-based (`items.length - effectiveKeepLast.value`, never negative
@@ -207,7 +207,7 @@ const ellipsisItemClass = computed(() =>
  * rather than the spec's own CSS-drawn two-border technique (operator direction, 2026-09-25,
  * predates this fix).
  *
- * Review t14 (round 2): the previous fix still centred the separator before a link/the ellipsis and
+ * A later review: the previous fix still centred the separator before a link/the ellipsis and
  * the one before the current page against two *different* reference boxes — `self-center` against
  * the sibling link's own 1.5rem `target-min` box for the former, a hand-tuned `mt-1.875` against the
  * text's 1.3125rem line-height for the latter — so the two never quite lined up (24px vs. 21px is
@@ -254,7 +254,7 @@ function separatorClass(): string {
  * Deviation, operator direction 2026-09-26 (see the README's Deviations entry): the spec's own
  * States row reads "Link: `muted`, underline hidden (transparent)" at rest, underline appearing on
  * hover — the same no-underline-until-hover shape `Link`'s own standalone variant used to have.
- * The operator's "all link elements" underline-at-rest ruling applies here too, so this now uses
+ * The operator's "all link elements" underline-at-rest decision applies here too, so this now uses
  * `Link`'s own shared rest recipe instead (1px at 55% of the text colour, thickening to 2px at
  * hover) — copied here rather than imported because `Link` also bundles a weight-600/`inline-flex`
  * layout and an optional arrow that this component's plain trail links never want. `inline-flex
@@ -280,7 +280,7 @@ const linkClass = computed(() =>
 /**
  * Spec "Breadcrumb" → States, "Current page": "none / `text`, weight 500 / none."
  *
- * Review t14 (round 2): carries the same `inline-flex items-center target-min` frame `linkClass`
+ * A later review: carries the same `inline-flex items-center target-min` frame `linkClass`
  * gives the trail's links — see `separatorClass`'s own comment above for why that shared 1.5rem
  * frame, not the frame-less plain `<span>` this used to be, is what lets one separator recipe stay
  * correct whether this item wraps onto one line or several.

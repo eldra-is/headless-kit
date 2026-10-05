@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 
 /**
  * A closed modal root (`Dialog`/`Drawer`/`Lightbox`/`SearchModal`'s own `<dialog>`) must render
- * nothing (fix round 2, the operator's own finding): the UA stylesheet's own
+ * nothing (fix, from the operator's own finding): the UA stylesheet's own
  * `dialog:not([open]) { display: none }` only wins on *specificity*, and cascade *origin* is
  * compared before specificity — an author rule always beats a user-agent one, so any author
  * `display` utility on the element, however unspecific, overrides that default the moment the

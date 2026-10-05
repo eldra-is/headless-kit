@@ -45,7 +45,7 @@ const rootAttrs = computed(() => {
     : { href: props.href };
   if (props.external) {
     attrs.target = '_blank';
-    // Resolution 2: the brief's `noopener noreferrer`, one step past the spec text's own
+    // Resolution 2: the API contract's `noopener noreferrer`, one step past the spec text's own
     // `noopener` — see the task report for why.
     attrs.rel = 'noopener noreferrer';
   }
@@ -97,7 +97,7 @@ const UNDERLINE_REST =
  * The `underline: false` opt-out (spec's own "no underline at rest" standalone shape, kept
  * available to every variant): no underline at rest, 1px at the spec offset appearing on hover,
  * 2px through `:active`. For a navigation bar whose design removes the rest-state underline — the
- * one case the operator's ruling explicitly carves out.
+ * one case the operator's decision explicitly carves out.
  */
 const STANDALONE_LAYOUT = 'inline-flex items-center gap-1 target-min font-semibold';
 const UNDERLINE_OPT_OUT =

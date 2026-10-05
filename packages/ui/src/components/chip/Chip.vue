@@ -77,7 +77,7 @@ const effectiveSelected = computed(() =>
 /**
  * **A removable chip's root is never the selection toggle, whatever `selectable` says.**
  *
- * The brief's rule is simple on its face — "a selectable chip is a `<button>`; the remove control
+ * The API contract's rule is simple on its face — "a selectable chip is a `<button>`; the remove control
  * is a separate `<button>`" — but taken literally for a chip that is *both* `selectable` and
  * `removable` it would nest a real `<button>` (remove) inside a real `<button>` (root), which is
  * invalid HTML (interactive content cannot contain interactive content) and exactly the trap the
@@ -93,7 +93,7 @@ const isInteractiveRoot = computed(() => props.selectable && !props.removable);
 
 /**
  * A removable, non-interactive root still needs to be reachable: "`Backspace`/`Delete` on a
- * focused removable chip's root … emits `remove`" (task brief) is only possible if the root can be
+ * focused removable chip's root … emits `remove`" (the API contract) is only possible if the root can be
  * focused at all. `tabindex="0"` does that without giving the element a role it is not (it stays a
  * plain `<span>`, named by its own visible text) — the same lightweight pattern a chip-input's own
  * tag row uses elsewhere, rather than inventing an ARIA role this shape does not have.

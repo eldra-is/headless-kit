@@ -157,7 +157,7 @@ const checkoutAs = computed(() =>
 
 /** Spec Accessibility: "The payment icons are one image labelled 'We accept Visa, Mastercard,
  *  PayPal and Apple Pay'" — one `role="img"`, not four named marks. Tabler ships no
- *  `brand-apple-pay`, so Apple Pay is `brand-apple` (the same ruling the `trust-strip` block
+ *  `brand-apple-pay`, so Apple Pay is `brand-apple` (the same decision the `trust-strip` block
  *  records); the name above is what says which methods these are. */
 /** Typed against the theme's own icon set, so a name it does not bundle is a type error. */
 const PAYMENT_ICONS: ThemeIconName[] = [

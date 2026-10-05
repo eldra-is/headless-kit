@@ -65,7 +65,7 @@ const emit = defineEmits<{
 
 const m = useMessages();
 /**
- * Not part of the design spec's own Properties table — the task brief adds `locale` for display
+ * Not part of the design spec's own Properties table — the API contract adds `locale` for display
  * formatting and typed-value parsing. Unset, it follows whatever `provideEldraUiLocale` set for
  * the app (`en-US` with nothing provided), so one provide sets the locale of every numeric field.
  */

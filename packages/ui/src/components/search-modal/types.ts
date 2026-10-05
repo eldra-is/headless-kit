@@ -26,7 +26,7 @@ export type {
  * (`root`, `form`, `field`, `leadingIcon`, `clear`, `close`, `results`, `footer`), plus every part
  * of the reused `SearchResultsPanel` (`panel`, `listbox`, `section`, … `liveRegion`) — `classes` is
  * forwarded straight into that child, so a consumer restyles the frame and the rows through one
- * prop, the rows named exactly as `SearchBar`'s own anatomy already names them (controller ruling:
+ * prop, the rows named exactly as `SearchBar`'s own anatomy already names them (controller decision:
  * "align with SearchBar's part names where the same thing is meant").
  *
  * `results` is the frame's own bounding box around the reused panel (`min-h-0 flex-1 overflow-

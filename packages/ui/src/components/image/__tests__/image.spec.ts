@@ -80,7 +80,7 @@ describe('Image — ratio', () => {
   });
 
   /**
-   * Fix round 1 ruling 2 (hero `image-background`'s "fill" mode, wired through the starter's
+   * A follow-up fix (hero `image-background`'s "fill" mode, wired through the starter's
    * `UiImage`): `ratio="auto"` must not fight a caller's own `classes.frame` sizing override —
    * the frame's `aspect-ratio: auto` has no effect once the frame's height comes from somewhere
    * else (a `classes.frame: 'h-full'` override filling a positioned ancestor), so nothing here
@@ -394,7 +394,7 @@ describe('Image — narrow container', () => {
 });
 
 /**
- * Fix round 1 ruling 5 (kept light, as the ruling asked): spec "Image" → Behaviour & motion,
+ * A follow-up fix, kept deliberately light: spec "Image" → Behaviour & motion,
  * "no autoplay with sound" and 2.2.2's keyboard-pause requirement both come from the browser's own
  * native `<video controls>` here — there is no `autoplay` attribute at all, so pause is native
  * controls the keyboard already operates, and captions are the caller's own `<track>` responsibility

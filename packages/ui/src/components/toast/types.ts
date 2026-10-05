@@ -6,7 +6,7 @@ export type ToastVariant = 'success' | 'warning' | 'danger';
 /**
  * One action a toast offers (spec "Toast" -> Properties, `action` row): "One action: a link
  * ('View cart (3)') or a button ('Try again')." A discriminated union rather than one interface
- * with two optional fields, matching the brief's own type verbatim — `href` and `onActivate` are
+ * with two optional fields, matching the API contract's own type verbatim — `href` and `onActivate` are
  * mutually exclusive, never both given for the same toast.
  */
 export type ToastAction =

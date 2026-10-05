@@ -46,8 +46,8 @@ function flushAnimationSettling(): Promise<void> {
  * whose `cancel` were a no-op would let a superseded animation's own `.then()` chain sit forever
  * unsettled, which would hide exactly the "does the superseded call's callback still wrongly fire"
  * class of bug (`onSummaryClick`'s `if (!closing) return;` guard, and `heightTransition.ts`'s own
- * `if (currentAnimation !== animation) return;`) that review round 1's ruling is about. Exposes
- * `cancel`/`finished`/`onfinish` per that ruling's own requirement.
+ * `if (currentAnimation !== animation) return;`) that an early review's decision is about. Exposes
+ * `cancel`/`finished`/`onfinish` per that decision's own requirement.
  */
 interface FakeAnimation {
   cancel: ReturnType<typeof vi.fn>;
@@ -463,7 +463,7 @@ describe('AccordionItem — height animation (operator, 2026-09-26)', () => {
     wrapper.unmount();
   });
 
-  it('a click during the OPENING animation reverses it to closing, cancelling the first animation and settling with no inline overflow/height stuck (review round 1 regression)', async () => {
+  it('a click during the OPENING animation reverses it to closing, cancelling the first animation and settling with no inline overflow/height stuck (an early review regression)', async () => {
     const wrapper = mountWith(AccordionItem, {
       props: { title: 'Materials & care', modelValue: false },
       slots: { default: 'Body' },

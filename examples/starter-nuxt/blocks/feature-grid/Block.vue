@@ -16,7 +16,7 @@
  * uses. Only one `<a>` renders per item (the title's), so links never nest and every item link
  * plus the head link are reachable with `Tab` in DOM order (spec → Keyboard & accessibility).
  * `classes.titleLink` and the head `Link`'s own `underline="false"` both give up the "underlined at
- * rest" default (`@eldrajs/ui`'s package-wide ruling) for the same "no underline until hover" shape
+ * rest" default (`@eldrajs/ui`'s package-wide decision) for the same "no underline until hover" shape
  * spec's own States row wants ("Link hover: the standalone link underlines…") — the existing
  * feature-grid block's long-standing opt-out from `Link`'s rest-state underline, carried forward
  * here onto the two places a link actually renders. `classes.cue` adds `mt-auto`, which

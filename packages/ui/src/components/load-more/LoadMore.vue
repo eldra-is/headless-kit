@@ -53,7 +53,7 @@ const meterFillClass =
  * Spec → Sizes: "Load more button: outline button" — the same recipe `Button`'s own `outline`
  * variant draws (`control-h`, `text-button-md`, the `eldra-focus` ring, the 98%-scale press), hand
  * rolled rather than composing `<Button>` because this part needs its own literal `data-part`
- * (`button`, per the task's controller ruling) and `Button`'s root hard-codes `data-part="container"`
+ * (`button`, per the task's controller decision) and `Button`'s root hard-codes `data-part="container"`
  * with no way to override it — the same reason `Drawer`'s own close button is hand-rolled instead
  * of a wrapped `<Button icon-only>` (see that component's own comment).
  */

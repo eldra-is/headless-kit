@@ -1,7 +1,7 @@
 /**
  * Whether this runtime tells a keyboard focus apart from a mouse/touch one through
  * `:focus-visible` — the browser's own answer to `Tooltip`'s "focus holds it open" rule (spec →
- * States, Shown: "focus within it"), which the operator report and the controller's ruling on it
+ * States, Shown: "focus within it"), which the operator report and the controller's decision on it
  * narrowed to *keyboard* focus: a mouse click also focuses its target, and treating that as "focus
  * within" is exactly what left the bubble stuck open after a click.
  *

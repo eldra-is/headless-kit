@@ -118,12 +118,8 @@ interface Measured {
 let browser: Browser;
 let css: string;
 
-/**
- * One page per case: a fresh document is the only way to press `Tab` from the top again. They are
- * closed together by `browser.close()` in `afterAll` rather than one at a time — closing a page
- * while its own last screenshot request is still in flight raises an unhandled `ECONNRESET` on the
- * driver connection, which vitest reports as a worker crash rather than a test failure.
- */
+/** One page per case; the caller closes it. A fresh document is the only way to press `Tab` from
+ *  the top of the tab order again. */
 async function openWith(variant: 'pills' | 'underline', selected: string, rootStyle = '') {
   const page = await browser.newPage({
     viewport: { width: 800, height: 400 },
@@ -222,62 +218,58 @@ beforeAll(async () => {
   browser = await chromium.launch();
 }, 120_000);
 
+// Generous, and deliberately not the default 10s: this runs alongside the kit's other browser
+// specs in one `pnpm test`, and tearing a browser down while three other Chromiums and 250 workers
+// are competing for the machine is not a 10s operation.
 afterAll(async () => {
   await browser?.close();
-});
+}, 60_000);
 
 describe('a focused pill in a scrolling tab list', () => {
-  it('paints no ring until something is focused', async () => {
-    const page = await openWith('pills', 'knitwear');
-    const pixels = await ringPixels(page, await restingTab(page));
-    // Page colour on every side: `eldra-focus` declares its shadow at all times, so this is what
-    // says the ring assertions below are measuring focus rather than something always painted.
-    expect(Math.min(...Object.values(pixels))).toBeGreaterThan(RING);
-  });
-
   /**
-   * `Tab`, never `.focus()`. The roving tabindex gives the list exactly one entry point — the
-   * selected tab — so one press from the top of the document lands on it, wherever in the row it is
-   * and however far the browser has to scroll the list to show it.
-   */
-  it.each([
-    ['the first pill', 'knitwear'],
-    ['the last pill', 'lighting'],
-  ])('reaches %s with one real Tab press, and it takes a visible ring', async (_label, value) => {
-    const page = await openWith('pills', value);
-    await page.keyboard.press('Tab');
-    const state = await measure(page);
-    expect(state.focusedLabel).toBe(ITEMS.find((item) => item.value === value)!.title);
-    expect(state.focusVisible).toBe(true);
-    expect(state.alpha).toBe('1');
-  });
-
-  /**
-   * The geometry: every edge of the ring's box has to be inside the box that clips it. `0` is a
-   * pass — the reservation is exactly the ring's reach, by construction — and the pixel assertions
-   * below are what keep "exactly flush" honest.
+   * One page per case, closed as soon as it has answered — a fresh document is the only way to
+   * press `Tab` from the top again, and every assertion about one configuration is made on the one
+   * page rather than on a page each: five browser pages in a suite that already runs three other
+   * Chromiums is worth keeping to five.
+   *
+   * `Tab`, never `.focus()`: `:focus-visible` is the whole question. The roving tabindex gives the
+   * list exactly one entry point — the selected tab — so one press from the top of the document
+   * lands on it, wherever in the row it is and however far the browser has to scroll to show it.
+   *
+   * Four things are asserted per configuration, in the order they have to hold:
+   *
+   * 1. with nothing focused, no ring is painted anywhere around the tab — `eldra-focus` declares
+   *    its shadow at all times, so this is what says the rest is measuring focus;
+   * 2. the press reaches the selected pill and it is `:focus-visible` with the ring's alpha at `1`;
+   * 3. every edge of the ring's box is inside the box that clips it (`0` slack is a pass: the
+   *    reservation is exactly the ring's reach, by construction);
+   * 4. and the ring's own band is really painted outside each of those four edges, which is what
+   *    keeps "exactly flush" honest.
    */
   it.each([
     ['at the start of the scroll', 'knitwear'],
     ['at the end of the scroll', 'lighting'],
-  ])('keeps the ring box inside the list, %s', async (_label, value) => {
+  ])("keeps a focused pill's ring inside the list, %s", async (_label, value) => {
     const page = await openWith('pills', value);
-    await page.keyboard.press('Tab');
-    const state = await measure(page);
-    for (const [edge, slack] of Object.entries(state.slack)) {
-      expect(`${edge}: ${slack >= 0}`).toBe(`${edge}: true`);
-    }
-  });
+    try {
+      const resting = await ringPixels(page, await restingTab(page));
+      expect(Math.min(...Object.values(resting))).toBeGreaterThan(RING);
 
-  it.each([
-    ['at the start of the scroll', 'knitwear'],
-    ['at the end of the scroll', 'lighting'],
-  ])('draws ring pixels outside every edge of the focused pill, %s', async (_label, value) => {
-    const page = await openWith('pills', value);
-    await page.keyboard.press('Tab');
-    const pixels = await ringPixels(page, await measure(page));
-    for (const [edge, brightness] of Object.entries(pixels)) {
-      expect(`${edge}: ${brightness < RING}`).toBe(`${edge}: true`);
+      await page.keyboard.press('Tab');
+      const state = await measure(page);
+      expect(state.focusedLabel).toBe(ITEMS.find((item) => item.value === value)!.title);
+      expect(state.focusVisible).toBe(true);
+      expect(state.alpha).toBe('1');
+
+      for (const [edge, slack] of Object.entries(state.slack)) {
+        expect(`${edge} slack: ${slack >= 0}`).toBe(`${edge} slack: true`);
+      }
+      const pixels = await ringPixels(page, state);
+      for (const [edge, brightness] of Object.entries(pixels)) {
+        expect(`${edge} pixel: ${brightness < RING}`).toBe(`${edge} pixel: true`);
+      }
+    } finally {
+      await page.close();
     }
   });
 
@@ -286,22 +278,27 @@ describe('a focused pill in a scrolling tab list', () => {
    * `Carousel`'s own track sets for its slides, and a plain custom property inherits, so a `Tabs`
    * anywhere inside one resolves a 6px reach. Against the old literal `p-1` that is a 2px band of
    * page colour where the ring should be, on three edges at once. Proven by mutation: putting
-   * `gap-2 -m-1 p-1` back on the list fails this case (and only this case) on exactly those edges.
+   * `gap-2 -m-1 p-1` back on the list fails these two cases (and only these) on exactly those
+   * edges.
    */
   it.each([
     ['at the start of the scroll', 'knitwear'],
     ['at the end of the scroll', 'lighting'],
   ])('holds the ring open when the ring tokens are raised, %s', async (_label, value) => {
     const page = await openWith('pills', value, '--eldra-focus-offset:4px');
-    await page.keyboard.press('Tab');
-    const state = await measure(page);
-    expect(state.reach).toBe(6);
-    for (const [edge, slack] of Object.entries(state.slack)) {
-      expect(`${edge} slack: ${slack >= 0}`).toBe(`${edge} slack: true`);
-    }
-    const pixels = await ringPixels(page, state);
-    for (const [edge, brightness] of Object.entries(pixels)) {
-      expect(`${edge} pixel: ${brightness < RING}`).toBe(`${edge} pixel: true`);
+    try {
+      await page.keyboard.press('Tab');
+      const state = await measure(page);
+      expect(state.reach).toBe(6);
+      for (const [edge, slack] of Object.entries(state.slack)) {
+        expect(`${edge} slack: ${slack >= 0}`).toBe(`${edge} slack: true`);
+      }
+      const pixels = await ringPixels(page, state);
+      for (const [edge, brightness] of Object.entries(pixels)) {
+        expect(`${edge} pixel: ${brightness < RING}`).toBe(`${edge} pixel: true`);
+      }
+    } finally {
+      await page.close();
     }
   });
 });
@@ -326,5 +323,6 @@ describe('a focused tab in the underline variant', () => {
     // And the ring is painted inside the tab: the pixel just *outside* its edge is page colour.
     const outside = await ringPixels(page, state);
     expect(outside.top).toBeGreaterThan(RING);
+    await page.close();
   });
 });

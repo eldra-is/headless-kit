@@ -123,7 +123,7 @@ const instructionsClass = computed(() => partClass('sr-only', props.classes, 'in
  * JavaScript for the *programmatic* scrolls (arrows, dots, autoplay) `scroll-behavior` alone does
  * not cover — see that file's own comment.
  *
- * `touch-pan-x touch-pan-y` (spec-adjacent, operator ruling; fixed 2026-09-26 — was `touch-pan-y`
+ * `touch-pan-x touch-pan-y` (spec-adjacent, operator decision; fixed 2026-09-26 — was `touch-pan-y`
  * alone). Tailwind's `touch-pan-*` utilities compose into one `touch-action` (each sets its own
  * `--tw-pan-*` variable, the declared property reads both), so this is `touch-action: pan-x
  * pan-y`, not "pan-y, then pan-x overriding it" — declaring only `pan-y` told the browser to

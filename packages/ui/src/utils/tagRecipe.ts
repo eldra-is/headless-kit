@@ -4,7 +4,7 @@
  * with a 0.875rem icon (hover `text` at 11%)."
  *
  * `MultiSelect.vue`'s own tag row and `Chip`'s `sm` size (`src/components/chip/Chip.vue`) draw the
- * exact same pill, so the class strings live here once rather than twice — the task brief for
+ * exact same pill, so the class strings live here once rather than twice — the API contract for
  * `Chip` asks for it explicitly ("reuse the tag recipe: extract it into a shared constant if that
  * avoids duplicating class strings"). It sits in `utils/`, not under either component's folder, so
  * neither one appears to depend on the other: `MultiSelect` shipped first and `Chip` reuses its

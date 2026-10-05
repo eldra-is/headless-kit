@@ -103,7 +103,7 @@ const meta = {
           'and always pauses while the pointer is over the carousel, while focus is inside it, or',
           'while the tab is hidden — resuming afterwards unless the button itself paused it.',
           '',
-          '**Draggable** (`draggable`, default `true`, operator ruling): touch already swipes the',
+          '**Draggable** (`draggable`, default `true`, operator decision): touch already swipes the',
           'track natively; grabbing it with a mouse or pen (`cursor-grab`/`cursor-grabbing`) does',
           'the same, snapping to the nearest slide on release, biased one slide further by a fast',
           "flick. Starting the drag on a slide's own link/button is left alone, so its click still",

@@ -2307,7 +2307,7 @@ describe('native rich-text editing (§18 v3)', () => {
   // --- retained-focus beforeinput: queued intent (§18 v3 floating toolbar
   // follow-up) ---------------------------------------------------------------
   //
-  // Live round 9 finding: an Enter (or any keystroke) that arrives between
+  // A live finding: an Enter (or any keystroke) that arrives between
   // the theme's own content-update re-render and Studio's
   // editor:rich-text-applied restoring the caret finds the root focused but
   // no resolvable selection at all — classifyBeforeInput returns the shared
@@ -2401,7 +2401,7 @@ describe('native rich-text editing (§18 v3)', () => {
     expect(posted('theme:rich-text-command')).toHaveLength(0);
   });
 
-  it('flushes two structural inputs from the retained-focus window one at a time, only after each is acked (round 11: serialized, not batched)', async () => {
+  it('flushes two structural inputs from the retained-focus window one at a time, only after each is acked (serialized, not batched)', async () => {
     richTextRoot.focus();
     document.getSelection()!.removeAllRanges();
 
@@ -2430,7 +2430,7 @@ describe('native rich-text editing (§18 v3)', () => {
     ]);
   });
 
-  it('releases the next queued entry on an applied at or beyond the awaited revision, not just an exact match (round 12)', async () => {
+  it('releases the next queued entry on an applied at or beyond the awaited revision, not just an exact match', async () => {
     richTextRoot.focus();
     document.getSelection()!.removeAllRanges();
 
@@ -2542,20 +2542,20 @@ describe('native rich-text editing (§18 v3)', () => {
     expect(posted('theme:rich-text-command')).toHaveLength(0);
   });
 
-  // --- click-then-type on an unmarked root: queued buffer (round 10) -------
+  // --- click-then-type on an unmarked root: the queued buffer -------------
   //
-  // Live round 10 finding: typing immediately after clicking into a
+  // A live finding: typing immediately after clicking into a
   // rich-text root lost the keystrokes — the root is document.activeElement
   // but not yet marked data-eldra-rich-text-editing (Studio's
   // editor:rich-text-editing echo arrives ~14ms later), so the unmarked-root
   // guard prevented every beforeinput and only re-posted the selection.
-  // Same class as round 7/8's toolbar-then-Enter gap; the fix generalizes
+  // Same class as the toolbar-then-Enter gap above; the fix generalizes
   // that single-slot mechanism into the same ordered, per-field buffer,
   // flushed either when the root is marked (here) or when
-  // restoreRichTextSelection places a selection (round 7), whichever comes
+  // restoreRichTextSelection places a selection, whichever comes
   // first.
 
-  it('coalesces a click-then-type burst of plain characters into one insertFromPaste (round 11), reposting the selection once, flushed on mark', () => {
+  it('coalesces a click-then-type burst of plain characters into one insertFromPaste, reposting the selection once, flushed on mark', () => {
     runtime.setRichTextEditing(target, false);
     richTextRoot.focus();
     select(textNodeFor('Rich '), 2);
@@ -2675,7 +2675,7 @@ describe('native rich-text editing (§18 v3)', () => {
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     // A real paste (inputType insertFromPaste, not insertText) never
-    // coalesces with its neighbors — unlike round 10's cap test, 65 plain
+    // coalesces with its neighbors — unlike the cap test above, 65 plain
     // typed characters would now coalesce into a single entry and never
     // reach the cap at all, so 65 distinct pastes exercise it instead.
     for (let i = 0; i < 65; i += 1) {
@@ -2688,7 +2688,7 @@ describe('native rich-text editing (§18 v3)', () => {
     runtime.setRichTextEditing(target, true);
 
     // Only the oldest surviving entry (i === 1 — i === 0 was dropped) posts;
-    // round 11 flushes one at a time, not the whole buffer, so this is also
+    // The queue flushes one at a time, not the whole buffer, so this is also
     // proof the cap kept the *order* of the 64 survivors, not just the count.
     expect(posted('theme:rich-text-command')).toEqual([
       { ...identity, name: 'insertFromPaste', from: 17, to: 17, text: '1', revision: 1 },

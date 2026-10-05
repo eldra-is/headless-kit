@@ -674,7 +674,7 @@ describe("scanTheme mock.json media contract (Studio seeds an inserted block's e
     expect(scanTheme({ themeDir: dir }).errors).toEqual([]);
   });
 
-  it('rejects the Storybook fixture shape ({assetId: "demo-<name>", url, altText}) — the task-9b Finding 2 regression', () => {
+  it('rejects the Storybook fixture shape ({assetId: "demo-<name>", url, altText})', () => {
     const dir = makeMediaTheme([mediaField], {
       image: { assetId: 'demo-hero', url: '/demo/hero.svg', altText: 'A cup of coffee' },
     });

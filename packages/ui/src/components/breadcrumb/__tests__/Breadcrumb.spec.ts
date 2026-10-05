@@ -100,7 +100,7 @@ describe('Breadcrumb — landmark and current page', () => {
 });
 
 describe('Breadcrumb — link underline', () => {
-  it('underlines every trail link at rest, not only on hover (operator ruling: all links underlined)', () => {
+  it('underlines every trail link at rest, not only on hover (operator decision: all links underlined)', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: PRODUCT_TRAIL } });
     const links = wrapper.findAll('[data-part="link"]');
     expect(links.length).toBeGreaterThan(0);
@@ -130,13 +130,13 @@ describe('Breadcrumb — separator geometry', () => {
     { label: 'Current page' },
   ];
 
-  /** Review t14 (round 2): the two separators used to carry different class recipes — `self-center`
+  /** A later review: the two separators used to carry different class recipes — `self-center`
    *  before a link/the ellipsis, a hand-tuned `mt-1.875` before the current page — centred against
    *  two different reference boxes (24px vs. 21px), which is exactly what left them visibly
    *  misaligned in the required baselines. This asserts the fix at the level the review asked for:
    *  every separator in the trail carries the *identical* class recipe, with no per-position branch
    *  to drift apart again — not merely "which one Tailwind class name is present", which the
-   *  previous round's tests already passed while the pixels were still wrong. */
+   *  earlier tests already passed while the pixels were still wrong. */
   it('gives every separator in the trail the identical class recipe — no per-position branch', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
     const separators = wrapper.findAll('[data-part="separator"]');
@@ -279,7 +279,7 @@ describe('Breadcrumb — collapse rule', () => {
 });
 
 /**
- * Fix round 1 (review of `ebeec99`, Major finding): `keepLast: 0` reached a bare
+ * Fix (review of `ebeec99`, Major finding): `keepLast: 0` reached a bare
  * `props.items.slice(-props.keepLast)`, and `slice(-0)` is specified to behave as `slice(0)` — the
  * whole array — not an empty one, because `-0` is not `< 0`. The current page leaked into
  * `middleItems` as a demoted, non-current item and `endItems` duplicated the entire trail on top

@@ -222,7 +222,7 @@ interface ProjectedBlockField {
   fieldId: string;
   type: string;
   /** Only emitted when true: `EldraRichText` reads it to default an omitted
-   * `locale` prop to the preview's active content locale (I16 Task 8 review). */
+   * `locale` prop to the preview's active content locale. */
   localized?: boolean;
   metadata?: Record<string, unknown>;
 }

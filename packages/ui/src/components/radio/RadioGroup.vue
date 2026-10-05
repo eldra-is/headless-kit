@@ -216,7 +216,7 @@ function radioClass(option: RadioGroupOption): string {
 /**
  * The dot (spec "Radio group" → Sizes: "0.5rem dot"). One fixed size regardless of `size`, the
  * same choice `Checkbox` makes for its tick — only the circle around it grows. No `data-part` of
- * its own: the brief's part list has no entry for it, unlike `Checkbox`'s `check`.
+ * its own: the API contract's part list has no entry for it, unlike `Checkbox`'s `check`.
  */
 function dotClass(option: RadioGroupOption): string {
   return cx(

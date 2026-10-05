@@ -1,7 +1,7 @@
 /**
  * `Rating`'s own rounding and star-fill logic (spec "Rating" → Properties, `value` row: "Stars
  * round to the nearest 0.5; the value shows one decimal (4.0, 4.5)."), pulled out of the component
- * so the rounding boundary — the one guard the task brief calls out for mutation testing — has a
+ * so the rounding boundary — the one guard the API contract calls out for mutation testing — has a
  * unit test with nothing else in the render path to obscure a broken mutant.
  */
 
@@ -12,7 +12,7 @@
  *
  * The boundary case is exactness at `x.25`/`x.75`: `Math.round` breaks ties up for positive
  * numbers, so `4.25 * 2 = 8.5` rounds to `9` (→ `4.5`) while `4.24 * 2 = 8.48` rounds to `8`
- * (→ `4.0`) — the task brief's own two guard cases.
+ * (→ `4.0`) — the API contract's own two guard cases.
  */
 export function roundRatingToHalf(value: number): number {
   const clamped = Math.min(5, Math.max(0, value));

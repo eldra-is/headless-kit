@@ -2,7 +2,7 @@
  * Joins a list of strings the way a short list naturally reads: comma-separated, with the last
  * item introduced by the locale's own conjunction word and no comma before it —
  * `AvatarGroup`'s accessible sentence is the one caller (spec "Avatar" → Accessibility:
- * `aria-label="Makers: Ingrid, Tomas, Maya and 4 more"`, no Oxford comma before "and"; task brief:
+ * `aria-label="Makers: Ingrid, Tomas, Maya and 4 more"`, no Oxford comma before "and"; the API contract:
  * "Icelandic list joining: use `Intl.ListFormat` with the message locale where available").
  *
  * `Intl.ListFormat` is the right primitive for this locale by locale, but its English "long

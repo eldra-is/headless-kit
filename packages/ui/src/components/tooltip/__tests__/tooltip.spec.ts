@@ -229,7 +229,7 @@ describe('Tooltip — hoverable (WCAG 1.4.13)', () => {
   });
 });
 
-describe('Tooltip — pointer activation dismisses it (operator report / controller ruling)', () => {
+describe('Tooltip — pointer activation dismisses it (operator report / controller decision)', () => {
   /**
    * The bug: hovering a trigger shows the tooltip; a mouse click also focuses the trigger, and
    * `focusWithin` alone used to count that as "focus within the wrapper" — so leaving with the
@@ -287,7 +287,7 @@ describe('Tooltip — pointer activation dismisses it (operator report / control
   });
 });
 
-describe('Tooltip — keyboard focus vs. pointer focus (operator report / controller ruling)', () => {
+describe('Tooltip — keyboard focus vs. pointer focus (operator report / controller decision)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -524,7 +524,7 @@ describe('Tooltip — teleport', () => {
   });
 
   it('never registers with the Select/MultiSelect open registry', () => {
-    // Regression guard for the controller ruling: a Tooltip must never join the "only one open at
+    // Regression guard for the controller decision: a Tooltip must never join the "only one open at
     // a time" registry `Select`/`MultiSelect`/`SearchBar` share — showing one must never close
     // somebody else's open Select. Read statically (an `import` line, not just a prose mention —
     // this file's own doc comment names both by design), since importing either module at all,
