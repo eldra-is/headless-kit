@@ -274,6 +274,18 @@ const perView = computed(() =>
 const cardRatio = computed(() => (isRecentlyViewed.value ? '1x1' : '4x5'));
 
 /**
+ * Inside a carousel the slide is the card's width, full stop. `ProductCard` carries the spec's
+ * grid recommendation ("minimum 14rem recommended", spec "Product card" → Sizes) as a hard
+ * `min-w-56`, which is right in a grid whose columns are sized for it and wrong in a slide whose
+ * width is `(track − gaps) / perView`: at six per view on a 1228px track a slide is 189px, so a
+ * 224px card ran 35px past its slide, swallowed the 16px gap and overlapped the next card — the
+ * operator saw the recently-viewed row drawn with no space between its tiles. `min-w-0` wins over
+ * the component's own `min-w-56` through `partClass`'s tailwind-merge, so the card fills exactly
+ * its slide on every variant and at every container width.
+ */
+const CARD_CLASSES = { root: 'min-w-0' } as const;
+
+/**
  * While pending, `Carousel`'s own accessible name announces the loading state instead of
  * claiming to be the (not yet populated) product row — `storefront.loading` is the shared
  * commerce-block vocabulary (`app/i18n/messages.ts`), not a string this block owns itself.
@@ -427,6 +439,7 @@ const showBlock = computed(() =>
             <ProductCard
               :product="entry.product"
               :ratio="cardRatio"
+              :classes="CARD_CLASSES"
               :show-swatches="!isRecentlyViewed && showSwatchesField"
               :show-rating="!isRecentlyViewed"
               :quick-add="false"
