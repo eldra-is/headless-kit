@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-import { mkdirSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { chromium, type Browser, type Page } from '@playwright/test';
 import { compile } from '@tailwindcss/node';
 import { flushPromises, mount } from '@vue/test-utils';
@@ -35,15 +34,6 @@ import { createDemoStorefront } from '../app/storefront/demo';
 const assetsDir = `${join(import.meta.dirname, '../app/assets')}/`;
 /** 1440px, the width the operator's screenshots showed the pill at. */
 const VIEWPORT = { width: 1440, height: 900 };
-/** Where the operator's review ledger keeps this change's screenshot. Written by the test itself
- *  (outside the repo tree on purpose — a ledger artefact, not a committed fixture, alongside the
- *  ledger's other `*-live*.png` entries), so a reviewer can see the actions row the assertions
- *  below are describing without re-running anything. An absolute path on purpose: the ledger's
- *  location is fixed by the review workflow, not by where this worktree happens to sit on disk. */
-const LEDGER_SCREENSHOT =
-  '/Users/nokkvi/Documents/eldra/web-studio/cms-ecommerce/web-studio-web/.superpowers/sdd/' +
-  '2026-09-30-link-field-and-navigation/refs/count-pills-r19.png';
-
 /** Renders the header with a fixed cart count, against the theme's real stylesheet. */
 async function renderHeaderWithCartCount(count: number): Promise<string> {
   const base = mountOptions({ entry: { id: 'e1', data: mock } });
@@ -195,20 +185,4 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
     }
   });
 
-  /**
-   * The operator's own review artefact: a screenshot of the actions row (bag + its corner badge)
-   * at the viewport the defect was reported at, written to the review ledger so this change can
-   * be checked without re-running the suite.
-   */
-  it('writes the actions row to the review ledger', async () => {
-    const html = await renderHeaderWithCartCount(3);
-    const page = await pageFor(html);
-    try {
-      const actions = page.locator('header [data-eldra-header-actions]');
-      mkdirSync(dirname(LEDGER_SCREENSHOT), { recursive: true });
-      await actions.screenshot({ path: LEDGER_SCREENSHOT });
-    } finally {
-      await page.close();
-    }
-  });
 });
