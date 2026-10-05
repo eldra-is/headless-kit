@@ -140,6 +140,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // The route key a theme's catch-all page gives `<NuxtPage>`; see `./runtime/routePath`.
       { name: 'eldraRouteKey', from: resolver.resolve('./runtime/routePath') },
       { name: 'useEldra', from: '@eldrajs/theme-vue' },
+      // The active content locale and the path helpers around it. Re-exported from theme-vue
+      // rather than defined here: the state lives on the theme context so a **block** can read it
+      // through one `inject` with no Nuxt around it (a Storybook story, a unit mount), and this
+      // module is what fills it from the route.
+      { name: 'useEldraLocale', from: '@eldrajs/theme-vue' },
       { name: 'useEldraEntry', from: '@eldrajs/theme-vue' },
       { name: 'useEldraPreview', from: '@eldrajs/theme-vue' },
     ]);

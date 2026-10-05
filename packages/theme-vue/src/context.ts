@@ -31,9 +31,50 @@ export interface EldraLinkState {
   targets: Map<string, LinkTargetInfo>;
 }
 
+/**
+ * Which content locale the page a visitor is looking at is, and what the others are — the slice an
+ * adapter fills from the site's own routing so a **block** can read it without reaching for the
+ * router or the runtime config.
+ *
+ * It lives on the theme context rather than in a framework composable for the same reason the link
+ * state does: a block must render in a Storybook story and a unit test with no Nuxt around it, so
+ * everything it needs arrives through one `inject`. `useEldraLocale()` is the accessor.
+ *
+ * `path` is the one every link goes through and it is **idempotent** — see the adapter's own
+ * implementation (`@eldrajs/theme-nuxt`'s `localeHref`): a destination can pass through more than
+ * one prefixer, and a second prefix would produce a path nothing on the site answers.
+ */
+export interface EldraLocaleState {
+  /**
+   * The active content locale, or `null` on a site that configures none. In a Studio preview this
+   * is the locale the editor is driving, which wins over the one the path names.
+   */
+  active: string | null;
+  /** The locale served at `/`, unprefixed. `null` on a site that configures none. */
+  defaultLocale: string | null;
+  /** Every locale the site serves, `defaultLocale` first. Empty on a site that configures none. */
+  supported: readonly string[];
+  /**
+   * One same-site destination (`/products/x`, `/search?q=mug`) under the active locale. Anything
+   * that is not a path on this site — an absolute URL, `mailto:`, `#main` — and anything already
+   * spelled in one of the site's locales comes back untouched.
+   */
+  path: (href: string) => string;
+  /** The page the visitor is on, spelled in `locale`. The default locale's spelling has no prefix. */
+  switchPath: (locale: string) => string;
+  /** Go to `switchPath(locale)` — what a language switcher calls when its value changes. */
+  select: (locale: string) => void;
+}
+
 export interface EldraContext {
   client: EldraClient;
   links: EldraLinkState;
+  /**
+   * Optional so a context assembled before locales existed still type-checks and still renders:
+   * every reader treats its absence as "one unprefixed site, no switcher", which is what such a
+   * site is.
+   */
+  locales?: EldraLocaleState;
   preview: {
     active: boolean;
     mode: 'preview' | 'edit';
@@ -126,6 +167,25 @@ export function createEldraPreviewState(): EldraContext['preview'] {
  * the same reason `createEldraPreviewState` is: a missing field is a runtime
  * error rather than a type error once the object is assembled elsewhere.
  */
+/**
+ * The locale slice of a context with no router behind it — a Storybook story, a unit-test mount, a
+ * site whose organisation configures no locales. Every answer is the one-unprefixed-site answer,
+ * so a block written against `useEldraLocale()` renders identically in all three.
+ *
+ * An adapter that *has* routing builds its own (see `@eldrajs/theme-nuxt`'s runtime plugin): the
+ * active locale and the paths are derived from the route, which this layer knows nothing about.
+ */
+export function createEldraLocaleState(): EldraLocaleState {
+  return reactive({
+    active: null,
+    defaultLocale: null,
+    supported: [] as readonly string[],
+    path: (href: string) => href,
+    switchPath: () => '/',
+    select: () => {},
+  });
+}
+
 export function createEldraLinkState(): EldraLinkState {
   return reactive({ pages: [], templates: [], targets: new Map<string, LinkTargetInfo>() });
 }
@@ -135,6 +195,10 @@ export function provideEldra(opts: { client: EldraClient; designTokens?: unknown
     client: opts.client,
     designTokens: reactive(normalizeThemeDesignTokens(opts.designTokens ?? { colors: {} })),
     links: createEldraLinkState(),
+    // The one-unprefixed-site state. A provider with real routing behind it (an adapter's own
+    // plugin) replaces it; a story or a test keeps it, and every block then renders the same
+    // markup it does on a single-locale site.
+    locales: createEldraLocaleState(),
     preview: createEldraPreviewState(),
   };
   provide(ELDRA_KEY, context);

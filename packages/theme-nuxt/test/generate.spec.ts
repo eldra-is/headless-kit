@@ -50,6 +50,88 @@ describe('theme-nuxt nuxi generate', () => {
   });
 
   /**
+   * **Every content path, once per locale.** The organisation serves `is` at `/` and `en-US` under
+   * a prefix (`test/mockGateway.ts`), so each path the discovery pass found has to exist twice —
+   * static pages, the dynamic article, and the catalog-backed product alike. If the fan-out ever
+   * stops happening, a static host answers 404 for every prefixed URL on the site while the app
+   * would have rendered them perfectly, and nothing but a generate run can see it.
+   */
+  it('prerenders every content path once per locale', () => {
+    for (const path of [
+      'index.html',
+      'about/index.html',
+      'articles/hello-dynamic/index.html',
+      'products/merino-crew/index.html',
+    ]) {
+      expect(existsSync(output(path)), path).toBe(true);
+      expect(existsSync(output(join('en-US', path))), `en-US/${path}`).toBe(true);
+    }
+
+    // The default locale lives at `/` only. `/is/...` is never generated, so a visitor who types
+    // it gets the honest 404 a path with no content behind it should give — not a second copy of
+    // the site competing with the canonical one.
+    expect(existsSync(output('is/index.html'))).toBe(false);
+
+    // A code-owned route is Nuxt's own page, not content: prefixing it would name a path the code
+    // route does not match.
+    expect(existsSync(output('en-US/articles/code-owned/index.html'))).toBe(false);
+  });
+
+  /**
+   * **A prefixed page is the same document in another language**, read with that locale and nothing
+   * else changed: one document, one slug, a `locale` on every read.
+   */
+  it('reads a prefixed route’s content in that locale', () => {
+    expect(gateway.requests).toContain('/catalog/v1/products/merino-crew?locale=en-US');
+    expect(
+      gateway.requests.some((request) =>
+        request.startsWith('/cms/v1/schema/article/entry/unique/slug/hello-dynamic?locale=en-US')
+      )
+    ).toBe(true);
+    // The prefix is not part of the slug the gateway is asked for.
+    expect(gateway.requests.some((request) => request.includes('en-US%2F'))).toBe(false);
+    expect(gateway.requests.some((request) => request.includes('/en-US/'))).toBe(false);
+
+    const prefixed = readFileSync(output('products/merino-crew/index.html'), 'utf8');
+    expect(prefixed).toContain('Product: Merino crew');
+  });
+
+  /**
+   * `<html lang>` and the `hreflang` set are the module's, not a theme's: the fixture theme's
+   * `app.vue` is `<NuxtPage />` and nothing else, so anything in the head here was written by the
+   * runtime plugin.
+   */
+  it('writes the document language and an hreflang alternate per locale', () => {
+    const home = readFileSync(output('index.html'), 'utf8');
+    const prefixed = readFileSync(output('en-US/index.html'), 'utf8');
+
+    expect(home).toMatch(/<html[^>]*\slang="is"/);
+    expect(prefixed).toMatch(/<html[^>]*\slang="en-US"/);
+
+    // Both spellings of the page name the same pair, so either one tells a crawler about the
+    // other — and `x-default` names the unprefixed path, which is the one with no language in it.
+    for (const html of [home, prefixed]) {
+      expect(html).toContain('rel="alternate" hreflang="is" href="/"');
+      expect(html).toContain('rel="alternate" hreflang="en-US" href="/en-US"');
+      expect(html).toContain('rel="alternate" hreflang="x-default" href="/"');
+    }
+
+    const about = readFileSync(output('en-US/about/index.html'), 'utf8');
+    expect(about).toContain('rel="alternate" hreflang="is" href="/about"');
+    expect(about).toContain('rel="alternate" hreflang="en-US" href="/en-US/about"');
+  });
+
+  /**
+   * The locales reach the artifact the same way the currency does, so the browser knows the set
+   * without a request — which is what the language switcher's options are built from.
+   */
+  it('bakes the organisation’s locales into the prerendered runtime config', () => {
+    for (const page of ['index.html', 'en-US/index.html']) {
+      expect(readFileSync(output(page), 'utf8')).toContain('locales:{default:"is"');
+    }
+  });
+
+  /**
    * The store's currency is read once, at build, and baked into every prerendered page's runtime
    * config — the whole reason it is read there and not in the browser. A theme formats its prices
    * from this, so a static page that shipped without it would render every amount bare and then

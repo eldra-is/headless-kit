@@ -439,13 +439,21 @@ export function startMockGateway(options: { missingRouteTemplateSchema?: boolean
         res.end(JSON.stringify(CATALOG_ROUTE_TEMPLATE));
       } else if (url.pathname.startsWith('/organization/v1/')) {
         // What the store sells in — the read the module makes once per build
-        // (`src/runtime/commerce.ts`) so a prerendered price has a currency.
+        // (`src/runtime/commerce.ts`) so a prerendered price has a currency — and which content
+        // locales it serves (`src/runtime/locales.ts`), which is what decides how many paths the
+        // prerender pass writes.
+        //
+        // `is` is the default here on purpose: the fixture also sets `eldra.locale: 'is'`, so this
+        // is the ordinary shape — an override naming a locale the organisation supports keeps that
+        // locale at `/` and prefixes the other one, and every unprefixed read still carries
+        // `?locale=is` exactly as it did before locales existed.
         res.end(
           JSON.stringify({
             id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
             name: 'Mock store',
             features: [{ feature: 'ECOMMERCE', enabled: true }],
             commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+            locales: { default: 'is', supported: ['is', 'en-US'] },
           })
         );
       } else if (url.pathname === '/catalog/v1/products/list') {

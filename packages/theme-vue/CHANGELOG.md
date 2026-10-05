@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `EldraContext` gains an optional `locales` slice (`EldraLocaleState`) and `useEldraLocale()`
+  reads it: which content locale the page is in, which locales the site serves, and three helpers
+  for spelling a destination in one of them (`path`, `switchPath`, `select`). It lives on the theme
+  context rather than in a framework composable so a **block** reaches it through the same single
+  `inject` it already uses — a block has to render in a Storybook story and a unit mount with no
+  router anywhere. `createEldraLocaleState()` is the one-unprefixed-site state every context starts
+  with (`provideEldra` seeds it), and an adapter with real routing replaces it;
+  `useEldraLocale()` answers the same shape outside a themed app, so a block can read it with no
+  branch. An adapter one version behind simply serves one unprefixed site.
+
 - `EldraContext['preview']` gains `tokenRevision`, bumped every time `editor:init` carries a
   preview token that differs from the one before it — a consumer can tell "a new token arrived"
   from "another content update arrived" (`refreshRevision` bumps for both). A context assembled by
