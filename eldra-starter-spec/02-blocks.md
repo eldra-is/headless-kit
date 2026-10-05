@@ -3066,7 +3066,7 @@ Shows a collection's products as a filterable, sortable card grid, with a filter
 ![Collection grid — 360 · freshly inserted (no collection)](images/blocks/collection-grid--360-freshly-inserted-no-collection.png)
 *States: no products match the filters (chips stay, Clear filters button); freshly inserted with no collection bound (editor placeholder "Choose a collection").*
 
-Uses: Product card (with Badge, Price and swatch summary), Button (outline for Filter and Load more, primary for Show N products and Clear filters, link style for Clear all and Show all, ghost icon for close), Select (sm for Sort by and Columns on desktop; md with a leading sort icon on mobile), Checkbox (Category, Availability, and under each colour dot), Field + Input (price range, with a "$" prefix), removable chips (the chip used by Multi-select), count badge, Drawer, Pagination, Empty state, Skeleton, Progress bar.
+Uses: Product card (with Badge, Price and swatch summary), Button (outline for Filter and Load more, primary for Show N products and Clear filters, link style for Clear all and Show all, ghost icon for close), Select (sm for Sort by and Columns on desktop; md with a leading sort icon on mobile), Checkbox (Category, Availability, and under each colour dot), Range slider (the price range, with its own typed min and max fields), removable chips (the chip used by Multi-select), count badge, Drawer, Pagination, Empty state, Skeleton, Progress bar.
 
 **Fields**
 
@@ -3082,6 +3082,8 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 | `filters[].source` | select | yes | — | `category` · `option:size` · `option:colour` · `price` · `availability` |
 | `filters[].label` | string | no | the source's name | Overrides the group title. |
 | `filters[].collapsed` | bool | no | off | Start closed. A group with an active value always starts open. |
+| `filters[].slider` | bool | no | on | Price only. Off falls back to the two typed fields alone, for a store whose prices sit in a few tight clusters a track cannot separate. |
+| `priceStep` | number | no | one unit of the store currency (ISK 100, USD 1) | The price slider's `step`. |
 | `showColumnSelect` | bool | no | on | Desktop only (from 64rem block width). |
 | `emptyTitle` | string | no | "No products match these filters" | |
 | `emptyText` | text | no | "Try removing a filter or widening the price range." | The block appends a sentence naming the active filters. |
@@ -3103,7 +3105,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
   - **Category and Availability**: Checkboxes with 1rem labels and the count "(18)" in `muted`, tabular figures.
   - **Size**: pill checkboxes in a wrapping row, 0.5rem gaps, each 2.5rem tall and at least 2.75rem wide (0 0.75rem padding). In the desktop sidebar they shrink to 2.5rem × 2.5rem minimum (0 0.5rem padding).
   - **Colour**: a 2-column grid (gaps 0.25rem × 0.75rem). Each row is at least 2.75rem tall (2.25rem in the desktop sidebar): a 1.5rem dot in the colour, outlined by a 1px inset `border-strong` line, then the colour name 0.5rem to its right. A real checkbox sits over the dot.
-  - **Price**: a 3-column grid (`1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned): "Min" Field, the word "to" (0.875rem `muted`), "Max" Field. Each Input shows a `muted` "$" prefix 0.75rem from its start; the text starts 1.75rem in.
+  - **Price**: a Range slider across the full group width with its `inputs` row on, so the span can be dragged or typed. Its `min` and `max` are the collection's own price bounds from the backend (not 0 and a round number), its `step` is `priceStep`, and `formatValue` is the store's currency formatter, so both thumbs announce and both fields read "$1,200" rather than "1200". The legend names the currency ("Price range in US dollars"), so the fields need no "$" prefix of their own. With `filters[].slider` off, the group is the two fields alone: a 3-column grid (`1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned) of the "Min" Field, the word "to" (0.875rem `muted`) and the "Max" Field, each Input showing a `muted` "$" prefix 0.75rem from its start with the text starting 1.75rem in.
 - **Load more**: centred, 3rem below the grid, items 1rem apart: "Showing 6 of 48 products" (0.875rem `muted`), the Progress bar (`min(15rem, 100%)` wide), then **Load more products** (outline).
 
 **States**
@@ -3127,6 +3129,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 - The root is a `<section>` labelled with the collection name ("Winter knitwear products"). The grid has a visually hidden `h2` "Products". Card titles are `h3`. In the sidebar, the filters are an `<aside>` labelled "Filters"; each group trigger is a `<button>` inside an `h3`, with `aria-expanded` and `aria-controls`.
 - Each group body is a `<fieldset>` with a visually hidden `<legend>` (Category, Size, Colour, Price range in US dollars, Availability). Each group's count badge has the accessible name "1 selected".
 - Colour filters are real checkboxes laid over the dot. The checked state shows as a 2px `text` ring around the dot (2px gap) **plus** a bold, underlined name, so it never relies on colour alone. Hover adds a 1px `border-strong` ring. The standard focus ring is drawn around the dot at a 3px offset so it clears the checked ring. Size filters are pill checkboxes: checked is a `primary` fill with `primary-contrast` text and weight 600.
+- The price group is a Range slider: two `role="slider"` thumbs named "Minimum price" and "Maximum price" — named explicitly, since the group's own legend is the longer "Price range in US dollars" — with each thumb's `aria-valuetext` formatted as a price. Its typed fields take the same two names. Dragging a thumb is never the only way to set a price: the arrow keys move it, and the fields accept an exact figure.
 - The result count is `role="status"` with `aria-live="polite"` and is updated after filtering finishes ("12 products").
 - Each chip's remove button (1.5rem circle) is labelled "Remove filter Size: M". After removing a chip, focus moves to the next chip, or to the count (programmatically focusable) when none are left. **Clear all** also moves focus to the count. The chip list is labelled "Active filters".
 - The filter drawer is a native `<dialog>` opened as a modal. The **Filter** button has `aria-haspopup="dialog"`, and its count badge is labelled "3 active". Focus starts on the close button ("Close filters", marked autofocus). `Esc` closes the drawer, clicking the `overlay` scrim closes it, and focus returns to the Filter button. The page does not scroll behind it.
@@ -3141,10 +3144,11 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 | `Enter` / `Space` | Toggle a group, check a checkbox or pill, press a button. |
 | `Esc` | Close the filter drawer or an open Select. Inside an open filter group, `Esc` collapses it and returns focus to its trigger. |
 | `↓` / `↑`, `Enter` | Move and choose in the Sort and Columns Selects. |
+| `←` / `→` / `↑` / `↓` on a price thumb | Move that end of the price range by the slider's step (`Shift`, `PageUp` / `PageDown` for the large step; `Home` / `End` for that thumb's own limit). |
 
 **Default content (Northwind Goods)**
 
-Collection "Winter knitwear", 48 products. Chips: Size: M · Colour: Oat · Availability: In stock. Filter values: Category Knitwear (18), Ceramics (14), Kitchen (16) · Size XS, S, M, L, XL · Colour Oat, Charcoal, Clay, Moss, Stone, Natural · Price Min $0, Max $180 · Availability In stock (41), Include back-order (7). Cards: Merino crew sweater $96.00 (was $128.00, Sale) · Fisherman rib cardigan $164.00 (New) · Lambswool throw blanket $148.00 · Ribbed lambswool beanie $38.00 · Linen tea towels, pair $24.00 (Sold out) · Speckled latte mug $28.00. Empty: "No products match these filters". Load more: "Showing 6 of 48 products" · **Load more products**. Drawer: "Filter" · **Clear all** · **Show 12 products**.
+Collection "Winter knitwear", 48 products. Chips: Size: M · Colour: Oat · Availability: In stock. Filter values: Category Knitwear (18), Ceramics (14), Kitchen (16) · Size XS, S, M, L, XL · Colour Oat, Charcoal, Clay, Moss, Stone, Natural · Price range $24 to $180 (the collection's own bounds), both thumbs at an end, step $1 · Availability In stock (41), Include back-order (7). Cards: Merino crew sweater $96.00 (was $128.00, Sale) · Fisherman rib cardigan $164.00 (New) · Lambswool throw blanket $148.00 · Ribbed lambswool beanie $38.00 · Linen tea towels, pair $24.00 (Sold out) · Speckled latte mug $28.00. Empty: "No products match these filters". Load more: "Showing 6 of 48 products" · **Load more products**. Drawer: "Filter" · **Clear all** · **Show 12 products**.
 
 **Acceptance criteria**
 
@@ -3155,6 +3159,7 @@ Collection "Winter knitwear", 48 products. Chips: Size: M · Colour: Oat · Avai
 - [ ] The standard focus ring shows on every Filter button, trigger, checkbox, pill, colour dot, chip remove button, Select, card (ring around the whole card), pagination item and button (2.4.7, 2.4.11, 2.4.13).
 - [ ] The filter drawer is a native modal `<dialog>`: background inert, focus contained, `Esc` and scrim click close it, focus returns to the Filter button, the page does not scroll behind it (2.1.2, 2.4.3).
 - [ ] Filtering in the drawer changes nothing on the page until **Show N products** is pressed (3.2.2).
+- [ ] The price thumbs cannot cross, both are reachable with `Tab` and show the focus ring, and their typed fields commit on blur or `Enter` only — never on a keystroke — clamped to the collection's bounds and to each other (2.1.1, 2.4.7, 3.2.2).
 - [ ] The count is a polite status and announces "12 products" (or "0 products") after each filter change (4.1.3).
 - [ ] After removing a chip, focus lands on the next chip or on the count; after Clear all, on the count. Focus is never lost to the page top (2.4.3).
 - [ ] Group triggers expose `aria-expanded` and control their panel; each group is a fieldset with a legend; each chip remove button names its filter (1.3.1, 4.1.2).

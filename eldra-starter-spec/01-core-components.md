@@ -12,7 +12,7 @@ It is framework-neutral. Build the components in whatever stack the project uses
 2. [Foundations](#foundations): colour, typography, spacing and layout, radius and shadow, motion, focus ring, iconography, imagery, voice
 3. [Accessibility requirements (WCAG 2.2 AA)](#accessibility-requirements-wcag-22-aa)
 4. [Component conventions](#component-conventions)
-5. [Actions and forms](#actions-and-forms): Button, Link, Input, Textarea, Field wrapper, Form layout, Checkbox, Radio group, Switch, Select, Multi-select, Quantity stepper, Variant picker, Search bar
+5. [Actions and forms](#actions-and-forms): Button, Link, Input, Textarea, Field wrapper, Form layout, Checkbox, Radio group, Switch, Select, Multi-select, Quantity stepper, Range slider, Variant picker, Search bar
 6. [Display, commerce and layout](#display-commerce-and-layout): Badge, Price, Rating, Avatar, Logo item, Product card, Content card, Feature card, Container and section, Image, Skeleton, Empty and error states
 7. [Overlays, navigation and feedback](#overlays-navigation-and-feedback): Dialog, Drawer, Lightbox, Search modal, Accordion, Tabs, Tooltip, Toast, Breadcrumb, Pagination, Carousel
 8. [Definition of done](#definition-of-done)
@@ -1838,6 +1838,139 @@ Use md in forms and sm in cart drawers and cart lines on desktop. Blocks may enl
 - Do clamp typed values instead of showing an error for "0" or "99".
 - Don't let the stepper reach 0 to remove an item. Use a Remove button.
 - Don't hide the input. People with many items want to type.
+
+---
+
+### Range slider
+
+Two thumbs on one track for choosing a span of numbers — the price filter on a collection grid is the one every store has. Both ends stay visible, the filled part between them shows what is selected, and the exact numbers can be typed when dragging is too coarse. For a single number use a **Quantity stepper** (a count) or an **Input** (a measurement); for a span whose ends come from a fixed list of values, use two **Selects**.
+
+This is the one core component with no reference image yet, so the anatomy and the tables below are the whole description (the spec convention holds either way: where text and image disagree, the text wins).
+
+**Anatomy**
+
+```
+Price                                           ← label, names the group and both thumbs
+          ╭───╮                 ╭───╮
+   ───────┤ ● ├█████████████████┤ ● ├────────   track · range · minimum thumb · maximum thumb
+          ╰───╯                 ╰───╯
+   ┌───────────────┐   to   ┌───────────────┐
+   │ $1,200        │        │ $4,800        │   inputs row (optional)
+   └───────────────┘        └───────────────┘
+```
+
+1. **Label**: the visible name of the whole control ("Price"). Inside a Field wrapper it is that wrapper's label; on its own it is the component's own `label`.
+2. **Rail**: the full-width band that pointer presses land in, `target-touch` tall below the tablet breakpoint and `target-min` from it. The rail is the touch target, not the thumb: a press anywhere in it moves the nearer thumb to that value.
+3. **Track**: the unfilled bar, 0.375rem tall, `radius-full`, `surface-strong`.
+4. **Range**: the filled part between the two thumbs, `primary`, same height and radius.
+5. **Thumbs**: two `<button type="button" role="slider">` circles, 1.25rem, `background` fill, 1.5px `border-strong` edge, `shadow-sm`. The first is the minimum, the second the maximum.
+6. **Inputs** (optional): a 3-column row (`1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned) — the minimum field, the word "to" (0.875rem `muted`), the maximum field. Both are `control-height` text fields with numeric keypads.
+
+**Properties**
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `value` | [number, number] | `[min, max]` | The selected span, lowest first (two-way). The two can meet but never cross. |
+| `min` | number | `0` | The lowest value either thumb can reach. |
+| `max` | number | `100` | The highest value either thumb can reach. |
+| `step` | number | `1` | The granularity of every move: an arrow key, a pointer press and a typed value all land on a multiple of it, counted from `min` — or on either bound, which is a stop of its own. A store picks a sensible unit of its currency (ISK 100, USD 1). |
+| `largeStep` | number | `step` × 10 | The coarse move, for `Shift` + an arrow and for `PageUp` / `PageDown`. |
+| `label` | string | none | The visible group label ("Price"). |
+| `minLabel` | string | "Minimum \<label\>" | The minimum thumb's and minimum field's name. The label joins as written, so a "price" label reads "Minimum price"; set this to name the end exactly. |
+| `maxLabel` | string | "Maximum \<label\>" | The maximum thumb's and maximum field's name. |
+| `formatValue` | function | none | `(value) => string`, used for every number the control speaks or prints: both `aria-valuetext`s and both fields' resting text. A store passes its currency formatter, so a thumb announces "$1,200" rather than "1200". |
+| `inputs` | boolean | `false` | Render the typed row under the track. |
+| `disabled` | boolean | `false` | The whole control: both thumbs, the rail and both fields. |
+
+**Events**
+
+- `value` (two-way) reports every move while it happens: each arrow key, each step of a drag, each committed typed value. A filter panel that reads it live gets a live count.
+- `change`: fires once the move is over — on pointer release, on the key release that ends an arrow-key run, and on a typed value committing. This is the event that should start a request; `value` on its own would fire one per pixel.
+
+**Sizes**
+
+One size. The parts are fixed in rem and the control takes the full width of its container.
+
+| Part | Value |
+| --- | --- |
+| Rail height | `target-touch` (2.75rem) below the tablet breakpoint, `target-min` (1.5rem) from it |
+| Track / range height | 0.375rem, `radius-full` |
+| Thumb | 1.25rem circle, 1.5px edge, `radius-full`; its own hit area is `target-min` square at every width and `target-touch` below the tablet breakpoint |
+| Label | 0.875rem, weight 500, `text`; 0.5rem above the rail |
+| Inputs row | `control-height` (2.5rem) fields, 0.75rem below the rail; 1rem field text below a 48rem viewport, like every other field |
+
+**States**
+
+| State | Track | Range | Thumb | Fields |
+| --- | --- | --- | --- | --- |
+| Default | `surface-strong` | `primary` | `background` fill, 1.5px `border-strong`, `shadow-sm` | the Input default |
+| Thumb hover | none | none | a 0.25rem halo of `text` at 8%, edge `text` | none |
+| Dragging | none | none | the halo at 14%; the thumb does not grow | none |
+| Focus-visible (thumb or field) | none | none | the standard focus ring, drawn outside the circle | the standard ring, as any text field |
+| At its limit | none | none | the thumb stops; nothing is dimmed and nothing loses focus | a typed value past the limit lands on it |
+| Disabled | `surface-strong` | `border` | `surface-strong` fill, 1.5px `border`, no shadow, cursor not-allowed; `aria-disabled="true"`, ignores keys and presses, and **stays focusable** so a keyboard visitor can still read the range | disabled, `muted` |
+
+**Behaviour & motion**
+
+- The two values are kept in order at all times. The minimum thumb cannot pass the maximum thumb and the maximum cannot pass the minimum; each stops where the other one is. They may land on the same value — an empty span is a real answer ("exactly $40").
+- Every move snaps to the nearest stop — a multiple of `step` counted from `min`, or either bound — and is then clamped into `[min, max]` and against the other thumb. The bounds are stops because they come from the catalogue, not from the step: with a step of 3 over a 0–10 range the stops are 0, 3, 6, 9 and 10, so the dearest product can actually be included. A fractional `step` (0.1) must not accumulate rounding error over a long run of key presses: 0.1 twenty times is 2, never 1.9999999999999998.
+- A press on the rail moves the **nearer** thumb to the pressed value and keeps dragging it until the pointer is released, so a press is just a drag with no distance. With both thumbs on the same value, the press moves whichever one can travel towards the pointer.
+- Dragging follows the pointer outside the rail and above or below it, and keeps the thumb it started on even when the pointer passes the other thumb — the dragged thumb parks against its neighbour rather than swapping.
+- Neither the thumbs nor the filled range animate their position, by pointer or by key: the value is the thing, and a thumb that slides in after an arrow key reads as a control lagging behind its own number (it is also the focus ring's own rule — the ring owns the transitions of the element it sits on, and the thumb is that element). The one motion the control has is the thumb's hover and dragging halo, which fades in over `duration-fast` with `ease-out` and appears instantly with reduced motion.
+- A typed value commits on **blur** or **`Enter`**, never on a keystroke: a shopper typing "1200" must not filter at "1", "12" and "120" on the way. On commit it is snapped, clamped to `[min, max]` and clamped against the other thumb. A field left empty falls back to that end of the range (`min` for the minimum field, `max` for the maximum), which is how a shopper clears half of the filter. Text that is not a number at all reverts to the value the thumb already had.
+- While a field has focus it shows exactly what was typed, ungrouped and unformatted. The moment it loses focus it shows `formatValue`'s text again, so the pair reads as a price rather than as digits.
+
+**Keyboard**
+
+| Key | Action |
+| --- | --- |
+| `Tab` / `Shift+Tab` | Order: minimum thumb → maximum thumb → minimum field → maximum field. Two tab stops on the track, not one: both ends must be reachable, so this is not a roving-tabindex composite. |
+| `ArrowRight` / `ArrowUp` | Increase the focused thumb by `step`. |
+| `ArrowLeft` / `ArrowDown` | Decrease it by `step`. |
+| `Shift` + any of those arrows | Move by `largeStep` instead. |
+| `PageUp` / `PageDown` | Move by `largeStep`. |
+| `Home` | The focused thumb's own lowest value: `min` for the minimum thumb, the minimum's current value for the maximum thumb. |
+| `End` | Its own highest value: the maximum's current value for the minimum thumb, `max` for the maximum thumb. |
+| Digits in a field | Type an exact value, committed on blur or `Enter`. |
+| `Enter` in a field | Commit without leaving the field. |
+
+**Accessibility**
+
+- Each thumb is a `<button type="button">` with `role="slider"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax` and `aria-valuetext`. The two `aria-value`*min/max* are the thumb's **own** limits, not the pair's: the minimum thumb's maximum is the maximum thumb's current value and vice versa, so the limit a screen reader announces is the limit the thumb actually has (the WAI-ARIA Authoring Practices' multi-thumb slider pattern).
+- `aria-valuetext` is `formatValue`'s text ("$1,200"), so the announcement is a price and not a bare number. With no `formatValue` it is the plain number and `aria-valuenow` alone would do.
+- Each thumb is named by `aria-label`, built from the visible label: "Minimum price", "Maximum price". The label is not repeated inside the thumb, and the two names differ, so "minimum" and "maximum" are never guessed from position.
+- The rail and its thumbs sit in a `role="group"` named by the visible label, so the pair is announced as one control before either end is read.
+- Each field takes the same name as the thumb it mirrors. The word "to" between them is `aria-hidden`: it is punctuation, and both fields are already named.
+- No live region. A slider announces its own value as it changes, and a second announcement per press is noise.
+- Contrast: the thumb edge `border-strong` is 4.5:1 on `background` (1.4.11); the boundary between the filled range (`primary`) and the track (`surface-strong`) is 13.8:1, so where the span starts and ends is visible without colour (the thumbs mark both ends as well). Label `text` 16.9:1, the "to" word `muted` 7.4:1 (1.4.3). The disabled control is exempt, and says why in the text beside it.
+- Targets: the rail is `target-touch` tall below the tablet breakpoint and `target-min` from it, and each thumb's own hit area follows the same two values (2.5.8).
+- Pointer: dragging is not the only way to set a value — the arrow keys do it, and `inputs` lets it be typed (2.5.7 is about dragging movements having a single-pointer alternative; a press on the rail is that alternative even with no fields).
+
+**Acceptance criteria**
+
+- [ ] The two values never cross: driving either thumb into the other with the pointer, with arrow keys and by typing all stop it at the other's value (1.3.1).
+- [ ] Every move lands on a multiple of `step` counted from `min`, and a `step` of 0.1 does not drift over twenty presses.
+- [ ] `ArrowRight`/`ArrowUp` and `ArrowLeft`/`ArrowDown` move by `step`; `Shift` with any of them, and `PageUp`/`PageDown`, move by `largeStep`; `Home` and `End` go to that thumb's own limits (2.1.1).
+- [ ] Both thumbs are reachable with `Tab`, in visual order, and each shows the focus ring (2.4.3, 2.4.7, 2.4.11, 2.4.13).
+- [ ] Each thumb exposes `role="slider"` with `aria-valuenow`/`-valuemin`/`-valuemax` and an `aria-valuetext` formatted by `formatValue`, and is named "Minimum \<label\>" / "Maximum \<label\>" (4.1.2).
+- [ ] The group is named by the visible label (1.3.1, 2.5.3).
+- [ ] A typed value commits on blur or `Enter` only — never on a keystroke — and is snapped, clamped to `[min, max]` and clamped to the other thumb. An emptied field falls back to that end of the range (3.2.2).
+- [ ] The fields and the thumbs are one value: moving a thumb rewrites the field, committing a field moves the thumb.
+- [ ] `change` fires once per finished move (pointer release, key release, field commit), not once per step.
+- [ ] The rail is at least 2.75rem tall below the tablet breakpoint and at least 1.5rem from it, and each thumb's hit area matches (2.5.8).
+- [ ] The thumb edge is ≥ 3:1 on `background` and the filled range is ≥ 3:1 against the track (1.4.11).
+- [ ] Nothing about a thumb's position is animated, and with reduced motion the hover halo appears instantly.
+- [ ] At 320px and 200% zoom the track, the thumbs and both fields fit with no horizontal scroll, and the fields' text is 1rem below a 48rem viewport (1.4.4, 1.4.10).
+- [ ] The disabled control is not operable by pointer or keyboard, and the fields are disabled with it.
+
+**Do / Don't**
+
+- Do pass `formatValue` whenever the numbers are money. A thumb that says "4800" where the page says "$48.00" is a different number to a shopper.
+- Do turn `inputs` on wherever the range is wide. A 0–48,000 price range cannot be dragged to an exact figure.
+- Do apply `change`, not the live value, to anything that costs a request.
+- Don't let the thumbs swap places under a drag. The thumb being dragged is the thumb that moves.
+- Don't show a value in a tooltip that only appears while dragging. The numbers belong where they can be read at rest: in the fields, or beside the label.
+- Don't use a range slider for two or three choices. That is a Radio group.
 
 ---
 
