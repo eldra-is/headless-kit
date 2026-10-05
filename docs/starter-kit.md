@@ -442,8 +442,11 @@ the previous content into a `<fieldId>__vN` legacy field rather than discarding 
 retired this way when the commerce blocks moved to collection references — `product-carousel`'s
 `sourceHandle` (version 2 → 3), `collection-grid`'s `collectionHandle` (2 → 3) and
 `collection-header`'s `collectionHandle` (1 → 2, the same change that added its `collection`
-reference; _adding_ a field needs no bump). Nothing in the theme reads a retired field, which is
-the point: a stale handle must not stand in for the collection an author picked.
+reference; _adding_ a field needs no bump). `navigation`'s `showAccount` is the fourth (3 → 4): the
+platform has no customer login, so the header offers no account control and the field that gated one
+is gone, with whatever an entry held kept as `showAccount__v3`. Nothing in the theme reads a retired
+field, which is the point: a stale handle must not stand in for the collection an author picked, and
+a stale setting must not switch a control back on.
 
 **Sample pages (`pages/*.page.json`).** Four fixtures — `home.page.json`, `product.page.json`,
 `collection.page.json`, `article.page.json` — are this starter's channel for showing a realistic
@@ -837,7 +840,7 @@ Seven rules the file exists to keep:
 - **The seeded header and footer carry no destinations.** A theme cannot know an organisation's own
   collections, pages or policy documents, so the fixtures leave every link field in `navigation` and
   `footer` empty — the header's `links` and `cta`, the footer's `groups`, `links`, `legalLinks` and
-  `social` — and `showAccount` is off (its declared default) until a store has customer accounts.
+  `social`.
   Every _setting_ stays, because a setting is a decision the theme can make: brand, variant, search
   style, sticky, the selectors, the newsletter copy. A seeded demo link resolves to nothing on a
   fresh organisation and renders as a label, or as a path to a page nobody has written — which is
@@ -1090,13 +1093,12 @@ through **`useWishlist()`** (`app/composables/useWishlist.ts`) rather than touch
 - **`blocks/wishlist/Block.vue`** — the block the `/wishlist` page is made of (below).
 - **`blocks/navigation/Block.vue`** — a heart in the header's actions row beside the bag, with the
   bag's own count pill, linking to `/wishlist`. **It is absent until there is something saved**, and
-  no `block.json` field gates it: `showAccount` exists because `/account` only exists once a store
-  has customer accounts, while `/wishlist` is a page the theme seeds into every site and therefore
+  no `block.json` field gates it: `/wishlist` is a page the theme seeds into every site, so the heart
   can never lead nowhere.
   Absent from the `minimal` variant too, which the spec defines as brand, search, cart and a Menu
-  button — the same `variant !== 'minimal'` guard the account icon and the call to action carry. It
-  _does_ render at mobile widths, unlike those two: a shopper who saved something on a phone has no
-  other way back to it, where both of them have a drawer row.
+  button — the same `variant !== 'minimal'` guard the call to action carries. It _does_ render at
+  mobile widths, unlike the call to action: a shopper who saved something on a phone has no other
+  way back to it, where the call to action has a drawer row.
 
 **Hydration is the one rule everything here turns on.** `items` is empty until `hydrate()`, which
 only `useWishlist()` calls, and only in `onMounted`. A saved list is a visitor's own state, and one

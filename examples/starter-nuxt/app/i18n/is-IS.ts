@@ -127,7 +127,6 @@ export const isIS = {
     openMenu: 'Opna valmynd',
     search: 'Leita',
     searchField: 'Leita í versluninni',
-    account: 'Mín síða',
     cartEmpty: 'Karfa, tóm',
     cartOne: 'Karfa, 1 vara',
     cartMany: 'Karfa, {count} vörur',

@@ -1233,10 +1233,10 @@ describe('header block (navigation apiId)', () => {
 
     /**
      * Spec "Header" -> Variants, `minimal`: "Brand left; search, cart and a 'Menu' button on the
-     * right at every width. Links, account and call to action live only in the drawer." A fourth
-     * icon there would be the theme deciding that variant means something else — and the drawer has
-     * no wishlist row either, so it would be inconsistent in both directions. `showAccount` and the
-     * call to action carry the same guard.
+     * right at every width. Links … and call to action live only in the drawer." A third icon there
+     * would be the theme deciding that variant means something else — and the drawer has no
+     * wishlist row either, so it would be inconsistent in both directions. The call to action
+     * carries the same guard.
      */
     it('is absent in the minimal variant, however much is saved', async () => {
       saveInBrowser('merino-crew-sweater');
@@ -1743,7 +1743,7 @@ describe('header block (navigation apiId)', () => {
     });
   });
 
-  it('minimal variant keeps links, account and the call to action only in the drawer', () => {
+  it('minimal variant keeps the links and the call to action only in the drawer', () => {
     const wrapper = mountBlock({ ...resolved.data, variant: 'minimal' });
     expect(wrapper.find('ul.list-none.items-center').exists()).toBe(false);
     expect(wrapper.findAll('button').some((b) => b.text() === 'Menu')).toBe(true);
@@ -1759,7 +1759,8 @@ describe('header block (navigation apiId)', () => {
   describe('actions row spacing', () => {
     // Regression for an uneven header: a `@tablet:gap-4` on the bar's own grid put 1rem between
     // the search column and this row, against the 0.25rem `gap-1` puts between its own buttons —
-    // so search read as detached from account/cart, which themselves looked glued together.
+    // so search read as detached from the wishlist/cart cluster, which themselves looked glued
+    // together.
     it('puts one 0.25rem gap everywhere in the bar’s grid — never a larger one between columns', () => {
       const wrapper = mountBlock(resolved.data);
       const nav = wrapper.get('nav[aria-label="Primary navigation"]');
@@ -1770,18 +1771,6 @@ describe('header block (navigation apiId)', () => {
       expect(actions.classes()).toContain('gap-1');
     });
 
-    it('does not let the account button’s hidden/visible pair sit on a wrapper that keeps a gap slot while it is hidden', () => {
-      const wrapper = mountBlock(resolved.data);
-      const actions = wrapper.get('[data-eldra-header-actions]');
-      const account = wrapper.get('[aria-label="Account"]');
-      // `hidden @content:inline-flex` lands on the button's own root — the flex item the row's
-      // `gap-1` actually counts — not on a wrapper around it. A wrapper carrying `hidden` while
-      // the button inside it carries the visible class would still occupy a gap slot: the parent
-      // check below is what rules that out, not just the classes existing somewhere in the tree.
-      expect(account.classes()).toEqual(expect.arrayContaining(['hidden', '@content:inline-flex']));
-      expect(account.element.parentElement).toBe(actions.element);
-    });
-
     it('gives the call to action its own 0.75rem from the cart, not only the row’s 0.25rem gap', () => {
       const wrapper = mountBlock(resolved.data);
       const actions = wrapper.get('[data-eldra-header-actions]');
@@ -1789,6 +1778,11 @@ describe('header block (navigation apiId)', () => {
       // 0.5rem of margin on top of the row's own 0.25rem `gap-1` — spec "Header" -> Layout, "From
       // 64rem": the call to action "sits 0.75rem after the cart".
       expect(cta.classes()).toContain('@content:ml-2');
+      // And the row's only hidden/visible pair lands on the button's own root — the flex item the
+      // row's `gap-1` actually counts — not on a wrapper around it. A wrapper carrying `hidden`
+      // while the button inside it carries the visible class would still occupy a gap slot: the
+      // parent check is what rules that out, not just the classes existing somewhere in the tree.
+      expect(cta.classes()).toEqual(expect.arrayContaining(['hidden', '@content:inline-flex']));
       expect(cta.element.parentElement).toBe(actions.element);
     });
   });
@@ -1796,9 +1790,9 @@ describe('header block (navigation apiId)', () => {
   describe('empty / editor state', () => {
     /**
      * The header a fresh store actually starts with, copied from the shape every
-     * `pages/*.page.json` seeds: brand, search, cart — no links, no call to action, and accounts
-     * off until the store has them. `mock.json` keeps its demo links because it is the state an
-     * author sees the moment they *insert* the block, not the state a deploy seeds.
+     * `pages/*.page.json` seeds: brand, search, cart — no links and no call to action.
+     * `mock.json` keeps its demo links because it is the state an author sees the moment they
+     * *insert* the block, not the state a deploy seeds.
      */
     const SEEDED = {
       variant: 'default',
@@ -1806,12 +1800,11 @@ describe('header block (navigation apiId)', () => {
       links: [],
       showSearch: true,
       searchStyle: 'icon',
-      showAccount: false,
       sticky: true,
       transparentOverHero: false,
     };
 
-    it('renders the seeded header as brand and actions only — no links, no CTA, no account, axe-clean', async () => {
+    it('renders the seeded header as brand and actions only — no links, no CTA, axe-clean', async () => {
       const wrapper = mountBlock(SEEDED);
       expect(wrapper.text()).toContain('Northwind Goods');
       // The bar's link list is not drawn at all with nothing in it, so no empty `<ul>` is left
@@ -1819,14 +1812,12 @@ describe('header block (navigation apiId)', () => {
       expect(wrapper.find('ul.list-none.items-center').exists()).toBe(false);
       expect(wrapper.find('button[aria-label="Search"]').exists()).toBe(true);
       expect(wrapper.find('[aria-label="Cart, empty"]').exists()).toBe(true);
-      expect(wrapper.find('[aria-label="Account"]').exists()).toBe(false);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
     it('draws no Menu button and no drawer when the drawer would be empty', () => {
-      // The drawer holds links, the call to action and the account row. With none of the three
-      // there is nothing to open, and a Menu button that opens an empty sheet is a control that
-      // does nothing.
+      // The drawer holds the links and the call to action. With neither there is nothing to open,
+      // and a Menu button that opens an empty sheet is a control that does nothing.
       const wrapper = mountBlock(SEEDED);
       expect(wrapper.find('button[aria-label="Open menu"]').exists()).toBe(false);
       // `dialog[aria-label="Menu"]` is the drawer itself; the search overlay's own `<dialog>`
@@ -1837,7 +1828,6 @@ describe('header block (navigation apiId)', () => {
 
     it('keeps the Menu button as soon as the drawer has something to show', () => {
       for (const data of [
-        { ...SEEDED, showAccount: true },
         { ...SEEDED, links: [{ kind: 'url', url: '/journal', label: 'Journal' }] },
         { ...SEEDED, ctaLabel: 'Shop', cta: { kind: 'url', url: '/collections/all' } },
       ]) {
@@ -1846,13 +1836,23 @@ describe('header block (navigation apiId)', () => {
       }
     });
 
-    it('treats an entry with no showAccount value as off, matching the field’s declared default', () => {
-      // `block.json` declares `default: false`, so an entry that was written before the field
-      // existed — or by anything that omits it — must read as off rather than inheriting the old
-      // "on unless turned off" behaviour.
-      const { showAccount: _omitted, ...withoutTheField } = SEEDED;
-      const wrapper = mountBlock(withoutTheField);
-      expect(wrapper.find('[aria-label="Account"]').exists()).toBe(false);
+    /**
+     * `showAccount` is retired as of `block.json` version 4 — the platform has no customer login,
+     * so an account icon in the bar leads nowhere — and Core keeps whatever an entry held as
+     * `showAccount__v3`. Nothing in the block reads either id, which is the point: a header
+     * configured while the field existed renders exactly the header a fresh one does, and the
+     * stashed value cannot bring a Menu button back for a drawer row that no longer exists.
+     */
+    it('ignores a retired showAccount an entry still carries, under either id', () => {
+      for (const stored of [{ showAccount: true }, { showAccount__v3: true }]) {
+        const wrapper = mountBlock({ ...SEEDED, ...stored });
+        expect(
+          wrapper.findAll('a, button').some((control) => control.attributes('href') === '/account')
+        ).toBe(false);
+        expect(wrapper.text()).not.toContain('Account');
+        expect(wrapper.find('button[aria-label="Open menu"]').exists()).toBe(false);
+        expect(wrapper.find('dialog[aria-label="Menu"]').exists()).toBe(false);
+      }
     });
 
     it('shows the "Add a link" editor hint only while editing, with no links', () => {
@@ -1886,7 +1886,6 @@ describe('header block (navigation apiId)', () => {
       'menu-2': 'M4 6l16 0',
       'chevron-down': 'M6 9l6 6l6 -6',
       search: 'M21 21l-6 -6',
-      user: 'M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2',
       'shopping-bag': 'M9 11v-5a3 3 0 0 1 6 0v5',
     };
 

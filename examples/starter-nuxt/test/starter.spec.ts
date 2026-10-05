@@ -158,7 +158,6 @@ describe('starter theme', () => {
         'links',
         'showSearch',
         'searchStyle',
-        'showAccount',
         'ctaLabel',
         'cta',
         'sticky',
@@ -1069,8 +1068,6 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     expect(roles.header!.data.links).toEqual([]);
     expect(roles.header!.data.cta).toBeUndefined();
     expect(roles.header!.data.ctaLabel).toBeUndefined();
-    // No customer accounts yet, so the account control is off until a store turns it on.
-    expect(roles.header!.data.showAccount).toBe(false);
     expect(roles.footer!.data.groups).toEqual([]);
     expect(roles.footer!.data.links).toEqual([]);
     expect(roles.footer!.data.legalLinks).toEqual([]);
@@ -1084,11 +1081,7 @@ describe('seeded templates and pages (app/templates.ts)', () => {
       ) as { blocks: Array<{ apiId: string; data: Record<string, unknown> }> };
       const header = fixture.blocks.find((block) => block.apiId === 'navigation')!;
       const footer = fixture.blocks.find((block) => block.apiId === 'footer')!;
-      expect({
-        page: name,
-        links: header.data.links,
-        showAccount: header.data.showAccount,
-      }).toEqual({ page: name, links: [], showAccount: false });
+      expect({ page: name, links: header.data.links }).toEqual({ page: name, links: [] });
       expect({ page: name, groups: footer.data.groups, legal: footer.data.legalLinks }).toEqual({
         page: name,
         groups: [],
@@ -1097,12 +1090,23 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     }
   });
 
-  it('declares showAccount off by default, so a header entry that omits it has no account control', () => {
+  /**
+   * The retirement half of the same decision: the platform has no customer login, so the header
+   * offers no account control at all and `showAccount` is gone from the schema as of version 4.
+   * A removed field is declared by the `version` bump and nothing else — `@eldrajs/vite-plugin-theme`
+   * accepts no `migrations` step for one (a step must carry `renames` or `convertToLink`), and Core's
+   * own retirement pass stashes whatever an entry held as `showAccount__v3`.
+   */
+  it('ships no showAccount field, at a version that tells Core to retire it', () => {
     const navigation = scanned.manifest!.blocks.find((block) => block.apiId === 'navigation')!;
-    const showAccount = navigation.fields.find((field) => field.fieldId === 'showAccount')!;
-    expect(showAccount.default).toBe(false);
-    // The setting itself stays, so a store with customer accounts can turn it on.
-    expect(showAccount.type).toBe('bool');
+    expect(navigation.fields.map((field) => field.fieldId)).not.toContain('showAccount');
+    expect(navigation.version).toBe(4);
+    // No step names it: a retire has no rename to declare.
+    const named = (navigation.migrations ?? []).flatMap((step) => [
+      ...(step.renames ?? []).map((rename) => rename.from),
+      ...(step.convertToLink ?? []).map((conversion) => conversion.from),
+    ]);
+    expect(named).not.toContain('showAccount');
   });
 
   it('seeds Core-valid data: every seed block and both roles pass the mock.json rules', () => {

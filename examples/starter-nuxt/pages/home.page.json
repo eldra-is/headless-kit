@@ -22,7 +22,6 @@
         "links": [],
         "showSearch": true,
         "searchStyle": "icon",
-        "showAccount": false,
         "sticky": true,
         "transparentOverHero": false
       }

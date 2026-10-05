@@ -3537,10 +3537,10 @@
     {
       "apiId": "navigation",
       "name": "Header",
-      "description": "The store's top bar: brand, primary links with optional mega-menus, search, account, cart and one call to action.",
+      "description": "The store's top bar: brand, primary links with optional mega-menus, search, cart and one call to action.",
       "icon": "layout-navbar",
       "category": "structure",
-      "version": 3,
+      "version": 4,
       "groups": [
         {
           "groupId": "brand",
@@ -3682,14 +3682,6 @@
             ]
           },
           "helpText": "icon: a ghost icon button. field: a pill field-like trigger, from 64rem only. inline: a live search bar in the bar, centered variant only, from 64rem only."
-        },
-        {
-          "fieldId": "showAccount",
-          "name": "Show account",
-          "type": "bool",
-          "groupId": "actions",
-          "default": false,
-          "helpText": "Off by default — turn it on once the store has customer accounts. Shown in the bar from 64rem, and always in the drawer."
         },
         {
           "fieldId": "ctaLabel",
@@ -3911,7 +3903,6 @@
         ],
         "showSearch": true,
         "searchStyle": "icon",
-        "showAccount": true,
         "ctaLabel": "Shop gifts",
         "cta": {
           "kind": "collection",
@@ -7691,7 +7682,6 @@
         "links": [],
         "showSearch": true,
         "searchStyle": "icon",
-        "showAccount": false,
         "sticky": true,
         "transparentOverHero": false
       }

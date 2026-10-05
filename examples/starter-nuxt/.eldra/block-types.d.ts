@@ -237,7 +237,6 @@ declare global {
       links?: Array<EldraLink>;
       showSearch?: boolean;
       searchStyle?: 'icon' | 'field' | 'inline';
-      showAccount?: boolean;
       ctaLabel?: string;
       cta?: EldraLink;
       sticky?: boolean;

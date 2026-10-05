@@ -269,8 +269,6 @@ export interface Messages {
     search: string;
     /** The `field` style trigger's visible text, and the search field's placeholder. */
     searchField: string;
-    /** The account icon button's accessible name, and the drawer's Account utility link text. */
-    account: string;
     /** The cart button's accessible name with no items ("Cart, empty"). */
     cartEmpty: string;
     /** The cart button's accessible name with exactly one item ("Cart, 1 item"). */

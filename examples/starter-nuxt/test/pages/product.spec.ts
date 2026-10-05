@@ -118,8 +118,8 @@ describe('product sample page', () => {
     const wrapper = await mountProductPage();
     const html = wrapper.html();
     // The header's first focusable control. It used to be the Menu button, which the seeded header
-    // no longer draws: with no links, no call to action and accounts off there is nothing to put in
-    // the drawer, so the brand wordmark is the first thing the tab order reaches.
+    // no longer draws: with no links and no call to action there is nothing to put in the drawer,
+    // so the brand wordmark is the first thing the tab order reaches.
     const header = html.indexOf('data-eldra-header-focus');
     const breadcrumb = html.indexOf('aria-label="Breadcrumb"');
     const gallery = html.indexOf('aria-label="Product images"');

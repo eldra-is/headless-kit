@@ -178,7 +178,6 @@
   ],
   "showSearch": true,
   "searchStyle": "icon",
-  "showAccount": true,
   "ctaLabel": "Shop gifts",
   "cta": {
     "kind": "collection",

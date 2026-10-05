@@ -114,8 +114,8 @@ export async function mountPageWithSkipLink(
 /**
  * The same fixture with one link authored onto its header.
  *
- * The seeded header carries no links, no call to action and `showAccount: false` — a theme cannot
- * know an organisation's own destinations, so it ships none (`pages/*.page.json`). With nothing to
+ * The seeded header carries no links and no call to action — a theme cannot know an organisation's
+ * own destinations, so it ships none (`pages/*.page.json`). With nothing to
  * put in the drawer the header draws no Menu button and no drawer at all
  * (`blocks/navigation/Block.vue`), so a page spec about the *mobile menu* has to author a header
  * first: the drawer is the mobile route to a header a merchant has filled in, and that is the state

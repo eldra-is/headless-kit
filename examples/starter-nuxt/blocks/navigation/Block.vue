@@ -363,14 +363,6 @@ function openSearch(): void {
   searchOpen.value = true;
 }
 
-// --- account -----------------------------------------------------------------------------------
-
-/** `=== true`, not `!== false`: `showAccount`'s declared default in `block.json` is `false`, so an
- *  entry that carries no value for it must read as off — a store has no customer accounts until it
- *  says it does, and an account icon that leads nowhere is worse than none. */
-const showAccount = computed(() => data.value.showAccount === true);
-const accountHref = '/account';
-
 // --- cart + wishlist count pills --------------------------------------------------------------
 
 /**
@@ -461,19 +453,18 @@ function onCartClick(): void {
  * needs no `mounted` check of its own.
  *
  * No field configures it. A `showWishlist` field would be a merchant promising a feature the theme
- * either has or does not — unlike `showAccount`, which gates a destination (`/account`) that only
- * exists once a store has customer accounts. `/wishlist` is this theme's own route, prerendered in
- * every build, so it always exists and the heart never leads nowhere.
+ * either has or does not: `/wishlist` is this theme's own route, prerendered in every build, so it
+ * always exists and the heart never leads nowhere.
  *
  * **Not in `minimal`.** That variant's whole definition is brand, search, cart and a Menu button
- * (spec "Header" → Variants: "Links, account and call to action live only in the drawer"), which is
- * why `showAccount` and the call to action are both guarded with `variant !== 'minimal'` below — a
- * fourth icon there would be the theme deciding the variant means something else. The drawer gets no
- * wishlist row either, so the variant stays consistent in both directions.
+ * (spec "Header" → Variants: "Links … and call to action live only in the drawer"), which is why
+ * the call to action carries the same `variant !== 'minimal'` guard below — a third icon there
+ * would be the theme deciding the variant means something else. The drawer gets no wishlist row
+ * either, so the variant stays consistent in both directions.
  *
- * **It does render at mobile widths**, unlike account and the call to action, which are
- * `@content:` only. Deliberate, and the bag's own rule: a shopper who saved something on a phone has
- * no other way back to it, where account and the call to action both have a drawer row.
+ * **It does render at mobile widths**, unlike the call to action, which is `@content:` only.
+ * Deliberate, and the bag's own rule: a shopper who saved something on a phone has no other way
+ * back to it, where the call to action has a drawer row.
  */
 const wishlist = useWishlist();
 const wishlistCount = wishlist.count;
@@ -802,14 +793,12 @@ const menuButtonHiddenClass = computed(() =>
 );
 const linksVisible = computed(() => variant.value !== 'minimal' && links.value.length > 0);
 /**
- * The drawer holds the links, the call to action and the account row — nothing else. A header with
- * no links, no CTA and accounts off (the shape this theme seeds a fresh store with) therefore has
- * an empty drawer, and a Menu button that opens one is a control that does nothing: the bar renders
- * brand and actions only, and the button goes with the drawer it has nothing to show from.
+ * The drawer holds the links and the call to action — nothing else. A header with neither (the
+ * shape this theme seeds a fresh store with) therefore has an empty drawer, and a Menu button that
+ * opens one is a control that does nothing: the bar renders brand and actions only, and the button
+ * goes with the drawer it has nothing to show from.
  */
-const drawerHasContent = computed(
-  () => links.value.length > 0 || hasCta.value || showAccount.value
-);
+const drawerHasContent = computed(() => links.value.length > 0 || hasCta.value);
 
 const brandPositionClass = computed(() =>
   variant.value === 'centered'
@@ -848,10 +837,10 @@ const actionsPositionClass = computed(() =>
            one for any breakpoint in between, including the gap between this grid's search and
            actions columns. A `@tablet:gap-4` lived here before (paired with the tablet height
            tweak, with no basis in the spec text) and was the actual source of the uneven header: a
-           1rem gap between the search icon and the account/cart cluster against the 0.25rem the
-           actions row's own `gap-1` puts between account and cart, so the three icon buttons read
-           as two pairs rather than one evenly spaced row. The call to action's own closer distance
-           ("sits 0.75rem after the cart") is set on the button itself, not here — see its
+           1rem gap between the search icon and the wishlist/cart cluster against the 0.25rem the
+           actions row's own `gap-1` puts between the heart and the bag, so the three icon buttons
+           read as two pairs rather than one evenly spaced row. The call to action's own closer
+           distance ("sits 0.75rem after the cart") is set on the button itself, not here — see its
            `@content:ml-2` below. -->
       <nav
         :aria-label="t('header.primary')"
@@ -1132,21 +1121,6 @@ const actionsPositionClass = computed(() =>
         </div>
 
         <div data-eldra-header-actions :class="['flex items-center gap-1', actionsPositionClass]">
-          <Button
-            v-if="showAccount && variant !== 'minimal'"
-            variant="ghost"
-            size="sm"
-            icon-only
-            :label="t('header.account')"
-            :href="accountHref"
-            :classes="{ container: 'hidden @content:inline-flex' }"
-            :as="EldraRouterLink"
-          >
-            <template #leadingIcon>
-              <EldraIcon name="user" size="md" />
-            </template>
-          </Button>
-
           <!-- Absent from every prerendered header, from any visitor with nothing saved, and from
                the `minimal` variant altogether: see `wishlist` in the script above.
                `EldraRouterLink` because `/wishlist` is this theme's own route — it should route,
@@ -1310,17 +1284,6 @@ const actionsPositionClass = computed(() =>
         >
           {{ ctaLabel }}
         </Button>
-        <Link
-          v-if="showAccount"
-          :href="accountHref"
-          :as="EldraRouterLink"
-          variant="standalone"
-          :underline="false"
-          :classes="{ root: 'flex min-h-11 items-center gap-2 text-sm font-medium' }"
-          @click="drawerOpen = false"
-        >
-          {{ t('header.account') }}
-        </Link>
       </template>
     </Drawer>
 
