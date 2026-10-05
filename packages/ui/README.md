@@ -987,7 +987,13 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   one's own `locale` prop wins over it.
 - **`provideEldraUiCurrency` / `useEldraUiCurrency` / `CURRENCY_KEY`**
   (`src/composables/useLocale.ts`) — `LOCALE_KEY`'s sibling, the store currency `Price` formats
-  with by default, `USD` with nothing provided; `Price`'s own `currency` prop wins over it.
+  with by default; `Price`'s own `currency` prop wins over it. **There is no default code**, unlike
+  the locale pair: a component library a shop of any kind installs cannot guess a currency, and a
+  dollar sign in front of krónur is a _wrong_ price where a bare number is only an incomplete one.
+  So it answers `string | undefined`, and with no currency from either source `Price` formats the
+  amount as a plain number — same `Intl` path, no symbol, no code. Providing `undefined` is itself
+  an answer ("this store has no currency") and is silent; having no provider at all warns once per
+  session in dev, since that is an app that never wired the key.
 - **`FieldCheckboxGroup`** — the twelfth `Field*`, for the one root-entry control the spec's list
   of ten left without a way to validate it (see the deviation below).
 - **`filterNumericBeforeInput`** (`src/utils/numeric-input.ts`) — the `beforeinput` filter that

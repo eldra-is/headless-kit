@@ -18,6 +18,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ### Changed
 
+- **No currency is guessed any more: `useEldraUiCurrency()` has no default code, and an amount with no currency is rendered as a plain number.** It answered `USD` for a store that had provided none, which is the one wrong answer available — a dollar sign in front of krónur is a *wrong* price, where a bare number is merely an incomplete one. It now returns `string | undefined`, and `Price` (and `ProductCard` through it) formats the amount through the same `Intl` path with `style: 'decimal'`: no symbol, and no code appended either, since there is no code to print. A code `Intl` **rejects** is unchanged — still the number plus the raw code (`"1,234 XYZ1"`), the one thing a reader can act on — and so is the minor-unit scale with no currency: 2, ISO 4217's own default and what `currencyFractionDigits` already answered for a code it could not use.
+  - **Providing `undefined` is meaningful**, and different from not providing at all: it says this store has no currency, and nothing is logged. A store whose currency the platform has not published can now say so directly instead of providing `''` — a code `Intl` must reject — purely to decline one, which is what consumers had to do while the default stood.
+  - **No provider at all** warns once per session in dev (never in a production build), naming `CURRENCY_KEY` / `provideEldraUiCurrency` so an unwired app is told rather than quietly shown dollars.
+  - **`DEFAULT_UI_CURRENCY` is gone** from the root entry; there is no default currency for it to name. `DEFAULT_UI_LOCALE` stays — grouping and a decimal point are a formatting convention, not a claim about what the money is. The public `formatCurrency(value, locale, currency = 'USD', …)` util keeps its own positional default: it is a byte-identical port of the private library's helper, and that signature is the whole point of it.
+
 - **`Carousel` takes one tab stop for the whole row.** A carousel whose slides hold their own links
   or buttons (a product row, a gallery of tiles, a linked hero figure) no longer puts its track in
   the tab sequence, and no longer leaves every card's controls in it: the **active slide** owns the

@@ -59,8 +59,9 @@ describe('eldra-ui-messages', () => {
 
   it('declines a currency when the store publishes none, rather than leaving one to be guessed', () => {
     // Absent, explicitly null and a half-filled record are the same answer: nothing to format
-    // with. It is provided as `''` — not left absent — because an absent provide is exactly what
-    // `@eldrajs/ui` answers `USD` for; see `uiCurrencyFor` (`app/storefront/commerce.ts`).
+    // with. The provide still happens, carrying `undefined` — which `@eldrajs/ui` reads as "this
+    // store has no currency", distinct from the no-provider-at-all case it warns about. So the
+    // key must be *present* and its value absent, not the other way round.
     for (const eldra of [
       {},
       { commerce: null },
@@ -71,7 +72,9 @@ describe('eldra-ui-messages', () => {
       { commerce: { ...ISK, currency: '' } },
       { commerce: { ...ISK, taxInclusivePricing: 'yes' } },
     ]) {
-      expect(provideWith(eldra).get(CURRENCY_KEY)).toBe('');
+      const provided = provideWith(eldra);
+      expect(provided.has(CURRENCY_KEY)).toBe(true);
+      expect(provided.get(CURRENCY_KEY)).toBeUndefined();
     }
   });
 

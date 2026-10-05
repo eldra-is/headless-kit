@@ -680,19 +680,14 @@ inferred from the content locale puts a dollar sign in front of krónur, which i
 rather than an incomplete one. A store that has not configured commerce publishes none, and then
 `formatMoney` renders a plain number (`4.800`), an unusable code renders the number plus the code
 (`4,800 XYZ1`), and neither ever throws — these run inside `computed`s, where a throw takes the
-whole block down. `@eldrajs/ui`'s `<Price>` elements follow the same rule, which takes one small
-piece of care: an _absent_ `CURRENCY_KEY` is what the package answers `USD` for, so "no currency"
-is provided as the empty string instead (`uiCurrencyFor`, `app/storefront/commerce.ts`) — a code
-`Intl` must reject, which is exactly how `Price`'s own fallback arrives at a bare number.
+whole block down. `@eldrajs/ui`'s `<Price>` elements follow the same rule and need no workaround to: the package
+guesses no currency either, so the plugin provides `commerce?.currency` as it comes —
+`undefined` when the store published none, which the package reads as "this store has no
+currency" and renders as a plain number. The provide itself always happens, which is the part that
+matters: _no provider at all_ is the case the package warns about in dev, and that is a theme that
+forgot to wire the key, not a store without commerce settings.
 `useStorefront().commerce` carries the whole record for the blocks that need more than the currency:
 `taxInclusivePricing` (whether the amounts on screen already contain VAT) and `defaultTaxRate`.
-
-**`@eldrajs/ui` follow-up:** `useEldraUiCurrency()` should not default to `USD`, and `Price` should
-render a bare number for a code it cannot use rather than the number followed by that code. The
-empty-string sentinel above is a workaround for both: it is what makes the package decline a currency
-at all, and because `Price` still appends the (empty) code it leaves a trailing space in the rendered
-markup and logs one dev warning per component instance. When the package stops guessing,
-`uiCurrencyFor` can be deleted and the plugin can provide `commerce?.currency` directly.
 
 The demo source answers the _whole_ request, not just the paging part: `search.run` honours the query
 text, and `catalog.collectionProducts` honours `sort` and `filters` (category, size, colour,

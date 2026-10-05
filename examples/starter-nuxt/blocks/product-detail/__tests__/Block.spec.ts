@@ -449,9 +449,9 @@ describe('product-detail block', () => {
    * And the other end of it: a store that has not configured commerce publishes no currency, and
    * the page must then show its prices as numbers. A guessed symbol is a *wrong* price — `$4.800`
    * in front of an amount in krónur — where a bare `4.800` is merely an incomplete one, so the
-   * theme declines the currency rather than letting one be assumed (`uiCurrencyFor`,
-   * `app/storefront/commerce.ts`). Both halves of the block's money obey it: the `<Price>` and the
-   * button's own formatted label.
+   * theme provides no currency rather than letting one be assumed, and `@eldrajs/ui` guesses none
+   * of its own. Both halves of the block's money obey it: the `<Price>` and the button's own
+   * formatted label.
    */
   it('renders prices as plain numbers when the store publishes no currency', async () => {
     const wrapper = await mountReady(mock, {

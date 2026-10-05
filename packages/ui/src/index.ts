@@ -262,10 +262,11 @@ export {
 } from './composables/useMessages';
 
 // The number locale, the same provide/inject shape as the messages: `UnitInput`, `CurrencyInput`
-// and `QuantityStepper` format with it unless their own `locale` prop says otherwise.
+// and `QuantityStepper` format with it unless their own `locale` prop says otherwise. The currency
+// pair beside it has no `DEFAULT_UI_*` constant on purpose — there is no currency a component
+// library may guess (see `useEldraUiCurrency`).
 export {
   CURRENCY_KEY,
-  DEFAULT_UI_CURRENCY,
   DEFAULT_UI_LOCALE,
   LOCALE_KEY,
   provideEldraUiCurrency,

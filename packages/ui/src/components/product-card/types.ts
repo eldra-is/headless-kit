@@ -110,7 +110,10 @@ export interface ProductCardProps {
    * on each value, the dim and the spinners are unaffected.
    */
   announce?: boolean;
-  /** `Price`'s own `currency` prop, passed straight through. Defaults to `useEldraUiCurrency()`. */
+  /**
+   * `Price`'s own `currency` prop, passed straight through. Defaults to `useEldraUiCurrency()`,
+   * which has no default code: with no currency from either, the price is a plain number.
+   */
   currency?: string;
   /** `Price`'s own `locale` prop, passed straight through. Defaults to `useEldraUiLocale()`. */
   locale?: string;

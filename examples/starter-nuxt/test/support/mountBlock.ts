@@ -25,7 +25,6 @@ import {
 } from '@eldrajs/theme-vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
 import { uiMessagesFor } from '../../app/i18n/uiMessages';
-import { uiCurrencyFor } from '../../app/storefront/commerce';
 import { createDemoStorefront } from '../../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontCommerce } from '../../app/storefront/types';
 
@@ -78,7 +77,7 @@ export function mountOptions(
         // locale.
         [MESSAGES_KEY]: uiMessagesFor(locale),
         [LOCALE_KEY]: locale,
-        [CURRENCY_KEY]: uiCurrencyFor(storefront.commerce?.currency),
+        [CURRENCY_KEY]: storefront.commerce?.currency,
         // The same wiring `app/plugins/eldra-storefront.ts` does on a real page: a commerce block
         // reads `useStorefront()`, never the client directly, so every block test sees the
         // Northwind demo catalogue (`app/storefront/demo.ts`) instead of a live gateway.

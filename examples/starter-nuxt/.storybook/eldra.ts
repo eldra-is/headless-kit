@@ -4,7 +4,6 @@ import { createEldraClient } from '@eldrajs/theme-core';
 import { provideEldra } from '@eldrajs/theme-vue';
 import { provideEldraUiCurrency, provideEldraUiLocale, provideEldraUiMessages } from '@eldrajs/ui';
 import { uiMessagesFor } from '../app/i18n/uiMessages';
-import { uiCurrencyFor } from '../app/storefront/commerce';
 import { createDemoStorefront, DEMO_CART_LINES } from '../app/storefront/demo';
 import { STOREFRONT_KEY } from '../app/storefront/types';
 
@@ -68,7 +67,7 @@ export const withEldraContext: Decorator = (story, storyContext) => ({
       cartLines: isCartStory ? DEMO_CART_LINES : undefined,
     });
     if (isCartStory) storefront.cart.drawerOpen.value = true;
-    provideEldraUiCurrency(uiCurrencyFor(storefront.commerce?.currency));
+    provideEldraUiCurrency(storefront.commerce?.currency);
     provide(STOREFRONT_KEY, storefront);
     return {};
   },

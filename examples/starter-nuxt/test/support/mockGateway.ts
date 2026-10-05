@@ -556,11 +556,10 @@ export function startMockGateway(): Promise<MockGateway> {
         // `runtimeConfig.public.eldra.commerce`, which is where every price on a generated page
         // takes its currency from.
         //
-        // **ISK, deliberately not USD.** `USD` is also `@eldrajs/ui`'s own ambient default
-        // (`DEFAULT_UI_CURRENCY`), so a dollar-priced fixture renders identically whether the
-        // platform's answer reached the page or the component library's fallback did — the one
-        // thing the generated-site tests are here to tell apart. A zero-decimal currency makes it
-        // visible twice over: the symbol differs *and* the minor-unit scale does.
+        // **ISK, deliberately not USD.** A dollar-priced fixture would render identically whether
+        // the platform's answer reached the page or nothing did — the one thing the generated-site
+        // tests are here to tell apart. A zero-decimal currency makes it visible twice over: the
+        // symbol differs *and* the minor-unit scale does.
         answer({
           id: ORG_ID,
           name: 'Northwind Goods',

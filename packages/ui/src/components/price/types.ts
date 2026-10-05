@@ -41,7 +41,11 @@ export interface PriceProps {
    * is ignored entirely (spec "Price" → Properties, `compareAt` row).
    */
   compareAt?: number | null;
-  /** ISO 4217 currency code, e.g. `"USD"`, `"ISK"`. Defaults to `useEldraUiCurrency()`. */
+  /**
+   * ISO 4217 currency code, e.g. `"USD"`, `"ISK"`. Defaults to `useEldraUiCurrency()`, and with
+   * no currency from either the amount is rendered as a plain number — there is no default code
+   * (see that composable).
+   */
   currency?: string;
   /** BCP 47 locale tag, e.g. `"en-US"`, `"is-IS"`. Defaults to `useEldraUiLocale()`. */
   locale?: string;

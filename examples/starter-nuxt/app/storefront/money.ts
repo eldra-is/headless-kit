@@ -1,9 +1,9 @@
-import { computed, inject, toValue, type ComputedRef } from 'vue';
+import type { ComputedRef } from 'vue';
 import {
-  CURRENCY_KEY,
   currencyFractionDigits,
   currencySymbol,
   formatCurrency,
+  useEldraUiCurrency,
   useEldraUiLocale,
 } from '@eldrajs/ui';
 
@@ -31,7 +31,8 @@ import {
  * `@eldrajs/ui`'s `CURRENCY_KEY` by `app/plugins/eldra-ui-messages.ts`. So both helpers take it
  * **explicitly, with no default**: a currency guessed from the content locale renders real amounts
  * under the wrong sign, which is worse than rendering them with no sign at all. A store that
- * publishes none formats its prices as a plain number (see `formatMoney`).
+ * publishes none formats its prices as a plain number (see `formatMoney`), exactly as the
+ * package's own `<Price>` does for the same answer.
  */
 
 /** The one locale the theme formats money in until the storefront can say otherwise. */
@@ -188,20 +189,19 @@ export function roundMoney(amount: number): number {
 /**
  * The store currency, or `undefined` when the platform published none.
  *
- * Reads the very provide `@eldrajs/ui`'s own components read (`CURRENCY_KEY`), so a `<Price>` and
- * a formatted sentence beside it can never disagree — but **without the package's fallback**.
- * `useEldraUiCurrency()` answers `USD` for an absent currency, which is the right ambient default
- * for a component library and the wrong answer for this theme: a store whose currency the platform
- * does not know must show its prices as numbers, not as dollars. (The same reasoning does not
- * apply to the number locale: grouping and decimal separators have a sane default, and
- * `useEldraUiLocale()`'s is the theme's own.)
+ * `@eldrajs/ui`'s own composable, under the theme's name for it: it reads the very provide the
+ * package's components read (`CURRENCY_KEY`), so a `<Price>` and a formatted sentence beside it
+ * can never disagree, and it guesses no code — a store whose currency the platform does not know
+ * shows its prices as numbers, not as dollars. (The same reasoning does not apply to the number
+ * locale: grouping and decimal separators have a sane default, and `useEldraUiLocale()`'s is the
+ * theme's own.)
+ *
+ * Kept as a named wrapper rather than inlined at the two call sites because "the store's currency"
+ * is the theme's own vocabulary, and because this is where a theme that resolved it differently —
+ * per market, say — would say so once.
  */
 export function useStoreCurrency(): ComputedRef<string | undefined> {
-  const provided = inject(CURRENCY_KEY, undefined);
-  return computed(() => {
-    const currency = toValue(provided);
-    return currency === undefined || currency === '' ? undefined : currency;
-  });
+  return useEldraUiCurrency();
 }
 
 /**

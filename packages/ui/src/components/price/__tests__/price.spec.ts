@@ -315,9 +315,49 @@ describe('Price — invalid currency', () => {
 });
 
 describe('Price — ambient locale and currency', () => {
-  it('defaults to USD / en-US with nothing provided', () => {
-    const wrapper = mountWith(Price, { props: { amount: 4800 } });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('$48.00');
+  /**
+   * **No currency is guessed.** The locale has a sane default (`en-US`, so grouping and the
+   * decimal point are decided), the currency does not: a `USD` fallback would put a dollar sign
+   * in front of krónur, which is a *wrong* price where a bare number is only an incomplete one.
+   * So with nothing provided the amount is formatted through the same `Intl` path with
+   * `style: 'decimal'` — no symbol, and no code appended either, since there is no code to print.
+   *
+   * The minor-unit scale is ISO 4217's own default of 2 (there being no currency to ask), the same
+   * count `currencyFractionDigits` falls back to, so `4800` is still forty-eight of something.
+   */
+  it('formats a plain number, with no symbol and no code, when no currency is provided', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Price, { props: { amount: 4800, locale: 'en-US' } });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('48');
+    expect(visibleText(wrapper)).toBe('48');
+    wrapper.unmount();
+    warn.mockRestore();
+  });
+
+  /** The number locale still has its own default — that half is a formatting convention, not a
+   *  claim about what the money is. */
+  it('still defaults the number locale to en-US', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Price, { props: { amount: 123456789 } });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('1,234,567.89');
+    wrapper.unmount();
+    warn.mockRestore();
+  });
+
+  /**
+   * A provider that supplies `undefined` has *answered* — this store has no currency — so the
+   * amount is a plain number and nothing is logged. Only the absence of a provider altogether is
+   * a wiring mistake, and that case is covered in `useLocale.spec.ts` (where the once-per-session
+   * guard can be observed from a clean module registry).
+   */
+  it('takes a provided undefined as "this store has no currency", silently', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Price, {
+      props: { amount: 4800, locale: 'en-US' },
+      global: { provide: { [CURRENCY_KEY as symbol]: undefined } },
+    });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('48');
+    expect(warn).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
@@ -366,7 +406,9 @@ describe('Price — sale', () => {
   });
 
   it('renders the compare-at as a real <s> element', () => {
-    const wrapper = mountWith(Price, { props: { amount: 3840, compareAt: 4800 } });
+    const wrapper = mountWith(Price, {
+      props: { amount: 3840, compareAt: 4800, currency: 'USD', locale: 'en-US' },
+    });
     expect(wrapper.get('[data-part="compareAt"]').element.tagName).toBe('S');
     expect(wrapper.get('[data-part="compareAt"]').text()).toBe('$48.00');
     wrapper.unmount();
@@ -395,7 +437,9 @@ describe('Price — sale', () => {
   });
 
   it('reads "Sale price $38.40 Regular price $48.00" in that order', () => {
-    const wrapper = mountWith(Price, { props: { amount: 3840, compareAt: 4800 } });
+    const wrapper = mountWith(Price, {
+      props: { amount: 3840, compareAt: 4800, currency: 'USD', locale: 'en-US' },
+    });
     expect(wrapper.text().replace(/\s+/g, ' ')).toBe('Sale price $38.40 Regular price $48.00');
     wrapper.unmount();
   });
@@ -457,7 +501,12 @@ describe('Price — unit price', () => {
 
   it('renders the formatted per-unit amount and per text on one line', () => {
     const wrapper = mountWith(Price, {
-      props: { amount: 1530, unitPrice: { amount: 510, per: '100 g' } },
+      props: {
+        amount: 1530,
+        unitPrice: { amount: 510, per: '100 g' },
+        currency: 'USD',
+        locale: 'en-US',
+      },
     });
     expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.10 / 100 g');
     wrapper.unmount();
@@ -478,6 +527,8 @@ describe('Price — unit price', () => {
         compareAt: 1800,
         from: true,
         unitPrice: { amount: 510, per: '100 g' },
+        currency: 'USD',
+        locale: 'en-US',
       },
     });
     expect(wrapper.get('[data-part="from"]').text()).toBe('From');
@@ -635,6 +686,8 @@ describe('Price — narrow container', () => {
         compareAt: 1800,
         from: true,
         unitPrice: { amount: 510, per: '100 g' },
+        currency: 'USD',
+        locale: 'en-US',
       },
     });
     expect(wrapper.element.tagName).toBe('P');
@@ -828,7 +881,14 @@ describe('Price — revalidating', () => {
 
   it('renders inside a narrow container while revalidating', () => {
     const wrapper = mountNarrow(Price, {
-      props: { amount: 1530, compareAt: 1800, from: true, revalidating: true },
+      props: {
+        amount: 1530,
+        compareAt: 1800,
+        from: true,
+        revalidating: true,
+        currency: 'USD',
+        locale: 'en-US',
+      },
     });
     expect(wrapper.get('[data-part="current"]').text()).toBe('$15.30');
     wrapper.unmount();
