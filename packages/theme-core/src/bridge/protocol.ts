@@ -340,6 +340,23 @@ export interface BridgePayloads {
   };
   'theme:height-changed': { height: number };
   'theme:error': { message: string; scope: 'bridge' | 'data' | 'render' };
+  /**
+   * A gateway request the theme made for this preview failed with an HTTP
+   * status (theme → editor). Posted once per failed request, and only while
+   * a preview token is in use *and* the token that request carried is still
+   * the one the client holds — a failure belonging to a token the editor has
+   * since replaced is the editor's own retry in flight, not news. A 404 is
+   * never posted: it is a miss the theme resolves itself (an unknown route, a
+   * link target that no longer exists), not a preview that stopped working.
+   *
+   * The editor's reason for wanting it: a preview token is one hash per
+   * organization, so minting one anywhere (another browser, another device, a
+   * test run) invalidates every other open builder's token and the gateway
+   * answers its draft reads with 401. Without this message the builder simply
+   * shows no drafts and says nothing. `status` is what the editor branches on;
+   * `path` is the request path (no query, no token) for diagnostics.
+   */
+  'theme:request-failed': { status: number; path: string };
   'theme:drop-candidate': {
     layoutNodeId: string;
     placement: 'before' | 'after' | 'inside';
@@ -416,6 +433,7 @@ export const KNOWN_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'theme:slots-rendered',
   'theme:height-changed',
   'theme:error',
+  'theme:request-failed',
   'theme:drop-candidate',
   'theme:node-dropped',
   'theme:framing-target',

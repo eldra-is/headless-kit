@@ -125,6 +125,24 @@ export interface EldraClient {
   enablePreview(token: string): void; // switches to draft perspective (X-Preview-Token + no-store)
   disablePreview(): void;
   readonly previewEnabled: boolean;
+  /**
+   * Subscribe to failed gateway requests; returns an unsubscribe.
+   *
+   * **Optional**, like `EldraCatalogReader.listCategories`: it arrived after
+   * this interface was published and a hand-written client — a test double, a
+   * custom transport — predates it. A caller that cannot find it simply never
+   * hears about a failure, which is what every caller did before.
+   *
+   * The one consumer is `startEldraPreview`, which turns a failure into the
+   * `theme:request-failed` bridge message so the editor can recover a revoked
+   * preview token. A listener is notified **only while the preview token the
+   * failed request carried is still the one the client holds** — a 401 for a
+   * token the editor has since replaced is its own retry in flight, and
+   * reporting it would make a successful recovery look like a second failure.
+   * Listener errors are contained: one throwing must not break the request's
+   * own rejection, and must not stop the others from being notified.
+   */
+  onRequestError?(listener: (error: EldraClientError) => void): () => void;
   /** stega-encode all string leaves of an entry-shaped data doc (exported for draft re-stega in B6).
    * `apiId` (the entry's own schemaApiId, when known) skips encoding a registered
    * `select` field's resolved value, top-level or nested inside a `list`'s composite

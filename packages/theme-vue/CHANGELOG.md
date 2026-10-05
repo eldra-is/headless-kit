@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `startEldraPreview` posts the new `theme:request-failed` bridge message for every failed gateway
+  request the preview makes while a preview token is in use (404 excepted — that is a miss the theme
+  resolves itself). It is what lets the editor notice that the organization's single preview token
+  has been revoked by a mint elsewhere, hand over a fresh one and have the drafts reappear, instead
+  of the canvas silently showing none.
+
 - New `useEldraLink()`: returns `(value) => ResolvedLink | null`, which resolves a `link` field's
   value against the site's own pages and route templates. Keep the returned function — it closes
   over the reactive theme context, so a row re-resolves when its target arrives or a preview draft

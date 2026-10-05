@@ -408,6 +408,81 @@ describe('createEldraClient', () => {
     await expect(failure).rejects.toBeInstanceOf(EldraClientError);
   });
 
+  // Preview-token recovery: the editor cannot see the gateway's answer to a
+  // theme-side read, so a failure has to be reported to it. The client is the
+  // one place every read passes through.
+  describe('onRequestError', () => {
+    const failure = (status: number) => new Response('nope', { status, statusText: 'nope' });
+
+    it('reports a failed request to every listener, with status and path', async () => {
+      const first = vi.fn();
+      const second = vi.fn();
+      const c = client();
+      c.onRequestError?.(first);
+      c.onRequestError?.(second);
+      fetchMock.mockResolvedValue(failure(401));
+
+      await expect(c.getEntries('page')).rejects.toBeInstanceOf(EldraClientError);
+      expect(first).toHaveBeenCalledOnce();
+      expect(first.mock.calls[0]![0]).toMatchObject({
+        status: 401,
+        path: '/cms/v1/schema/page/entry',
+      });
+      expect(second).toHaveBeenCalledOnce();
+    });
+
+    it('stops reporting after the returned unsubscribe', async () => {
+      const listener = vi.fn();
+      const c = client();
+      const stop = c.onRequestError!(listener);
+      stop();
+      fetchMock.mockResolvedValue(failure(500));
+
+      await expect(c.getEntries('page')).rejects.toBeInstanceOf(EldraClientError);
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('suppresses a failure whose preview token was already replaced', async () => {
+      const listener = vi.fn();
+      const c = client();
+      c.onRequestError?.(listener);
+      c.enablePreview('revoked-token');
+      // The editor's recovery lands while the read is still in flight — the
+      // rejection that follows belongs to the token it just replaced.
+      fetchMock.mockImplementation(async () => {
+        c.enablePreview('fresh-token');
+        return failure(401);
+      });
+
+      await expect(c.getEntries('page')).rejects.toBeInstanceOf(EldraClientError);
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('still reports when the token is unchanged across the request', async () => {
+      const listener = vi.fn();
+      const c = client();
+      c.onRequestError?.(listener);
+      c.enablePreview('revoked-token');
+      fetchMock.mockResolvedValue(failure(401));
+
+      await expect(c.getEntries('page')).rejects.toBeInstanceOf(EldraClientError);
+      expect(listener).toHaveBeenCalledOnce();
+    });
+
+    it('rejects normally when a listener throws', async () => {
+      const second = vi.fn();
+      const c = client();
+      c.onRequestError?.(() => {
+        throw new Error('listener blew up');
+      });
+      c.onRequestError?.(second);
+      fetchMock.mockResolvedValue(failure(401));
+
+      await expect(c.getEntries('page')).rejects.toMatchObject({ status: 401 });
+      expect(second).toHaveBeenCalledOnce();
+    });
+  });
+
   it('fetches typescript definitions as text with query params', async () => {
     fetchMock.mockResolvedValue(new Response('export interface CMSPage {}', { status: 200 }));
     const dts = await client().getTypeScriptDefinitions({

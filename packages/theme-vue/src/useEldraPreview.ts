@@ -218,12 +218,29 @@ export function startEldraPreview(
     const stopRichTextRenderState = overlay.onRichTextRenderState(() => {
       context.preview.richTextRenderRevision += 1;
     });
+    // A preview token is one hash per organization: minting one anywhere else
+    // (another browser, another device, a test run) invalidates the one this
+    // preview is using and the gateway answers every draft read with 401. The
+    // editor can mint a fresh one and hand it back through `editor:init`, but
+    // only if it is told — so every failed gateway request made *with* a
+    // preview token is reported as `theme:request-failed`. A 404 is left out:
+    // it is a miss the theme resolves itself (an unknown route, a link target
+    // that no longer exists), not a preview that stopped working.
+    const stopRequestErrors =
+      context.client.onRequestError?.((error) => {
+        if (!context.client.previewEnabled || error.status === 404) return;
+        bridge.post('theme:request-failed', {
+          status: error.status,
+          path: error.path.slice(0, 256),
+        });
+      }) ?? (() => undefined);
     destroyRuntime = () => {
       context.client.disablePreview();
       context.preview.active = false;
       context.preview.editorSupportsSlots = false;
       context.preview.slotGeometryReporter = undefined;
       stopRichTextRenderState();
+      stopRequestErrors();
       context.preview.isRichTextRenderDeferred = undefined;
       active.value = false;
       // Closes the framing and rich-text gates on the overlay (exiting any

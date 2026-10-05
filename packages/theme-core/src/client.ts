@@ -20,6 +20,7 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
   const stegaEnabled = opts.stega === true;
   let previewToken: string | null = null;
+  const requestErrorListeners = new Set<(error: EldraClientError) => void>();
 
   function buildUrl(path: string, query?: EntryQuery, extra?: Record<string, string>): URL {
     const url = new URL(gatewayUrl + path);
@@ -40,11 +41,31 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     if (previewToken !== null) headers.set('X-Preview-Token', previewToken);
     const merged: RequestInit = { ...init, headers };
     if (previewToken !== null) merged.cache = 'no-store'; // draft responses must never be cached
+    // The token this request actually carries. A failure is only reported to
+    // listeners while it is still the token the client holds: after the editor
+    // recovers a revoked token (`enablePreview` with a new one), the reads that
+    // were already in flight with the old one still reject, and reporting
+    // those would read as "the fresh token failed too" and stop the recovery
+    // that just worked.
+    const tokenAtRequest = previewToken;
     const res = await doFetch(url.toString(), merged);
     if (!res.ok) {
-      throw new EldraClientError(res.status, res.statusText, url.pathname);
+      const error = new EldraClientError(res.status, res.statusText, url.pathname);
+      if (previewToken === tokenAtRequest) notifyRequestError(error);
+      throw error;
     }
     return res;
+  }
+
+  function notifyRequestError(error: EldraClientError): void {
+    for (const listener of [...requestErrorListeners]) {
+      try {
+        listener(error);
+      } catch {
+        // A listener is observational: its failure must neither replace the
+        // request's own rejection nor hide the error from the other listeners.
+      }
+    }
   }
 
   function maybeStega(entry: EntryDoc, locale: string | null): EntryDoc {
@@ -148,6 +169,12 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     },
     get previewEnabled() {
       return previewToken !== null;
+    },
+    onRequestError(listener) {
+      requestErrorListeners.add(listener);
+      return () => {
+        requestErrorListeners.delete(listener);
+      };
     },
     encodeEntryDataStega,
   };

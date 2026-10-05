@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- New bridge message `theme:request-failed` (`{status, path}`) and a new optional
+  `EldraClient.onRequestError(listener)` behind it. A preview token is one hash per organization, so
+  minting one anywhere else — another browser, another device, a test run — revokes the one a live
+  preview is using and the gateway answers every draft read with 401. The editor cannot see that
+  answer, so the client now reports a failed request and `startEldraPreview` forwards it; Studio
+  mints a fresh token and re-sends `editor:init`, which is both the hand-off and the retry. A
+  failure is reported only while the preview token that request carried is still the one the client
+  holds, so the editor's own recovery — whose in-flight reads reject against the replaced token —
+  does not read as a second failure. `onRequestError` is optional on the interface: a hand-written
+  client predating it simply reports nothing, as every client did before.
+
 - Inline text editing on the canvas no longer loses a keystroke or the caret to the editor's own
   echo. A `theme:text-edited` post is debounced, so an `editor:content-update` that arrives inside
   that window carries a draft one keystroke behind the DOM; the overlay used to drop its
