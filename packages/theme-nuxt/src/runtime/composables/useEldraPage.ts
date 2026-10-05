@@ -1,4 +1,4 @@
-import type { EntryDoc } from '@eldrajs/theme-core';
+import { EldraClientError, type EntryDoc } from '@eldrajs/theme-core';
 import { useEldra } from '@eldrajs/theme-vue';
 import {
   clearNuxtData,
@@ -106,7 +106,48 @@ export function useEldraPage(): {
     return prerendered.has(key.slice(PAGE_KEY_PREFIX.length)) ? undefined : EMPTY_ELDRA_ROUTE;
   };
 
-  const resolveCurrentRoute = async (): Promise<ResolvedEldraRoute> => {
+  /**
+   * How long a 401 on a preview read is held back while the editor is given a
+   * chance to mint a fresh preview token. A preview token is one hash per
+   * organization, so minting one anywhere else revokes the one this preview is
+   * using — and the editor answers `theme:request-failed` by minting again and
+   * re-sending `editor:init`, usually within a second. Reporting the first
+   * failure immediately replaced the whole page with an error alert for that
+   * second, which is what the operator saw: the page gone, only the alert, and
+   * (because every keystroke re-reads the drafts) a new alert per keystroke.
+   *
+   * The grace window is the fallback for an editor that is not going to
+   * recover at all — an older Studio, or one that has given up — so a stuck
+   * preview still says so instead of quietly serving stale content forever.
+   */
+  const PREVIEW_AUTH_RECOVERY_GRACE_MS = 10_000;
+  /** The first held-back 401 since the last success: which token, and when. */
+  let heldPreviewAuthFailure: { tokenRevision: number; at: number } | null = null;
+
+  /**
+   * Whether this 401 is still the editor's to fix. The first one is: the token
+   * it handed over has been revoked and it has not heard about it yet. A 401
+   * that arrives on a *newer* token means the editor already minted and that
+   * one was refused too — the retry failed, and the operator has to see it.
+   */
+  const holdPreviewAuthFailure = (cause: unknown): boolean => {
+    if (!ctx.preview.active) return false;
+    if (!(cause instanceof EldraClientError) || cause.status !== 401) return false;
+    const tokenRevision = ctx.preview.tokenRevision;
+    const now = Date.now();
+    if (heldPreviewAuthFailure === null) {
+      heldPreviewAuthFailure = { tokenRevision, at: now };
+      return true;
+    }
+    if (tokenRevision > heldPreviewAuthFailure.tokenRevision) return false;
+    return now - heldPreviewAuthFailure.at <= PREVIEW_AUTH_RECOVERY_GRACE_MS;
+  };
+
+  const resolveRouteOutcome = async (): Promise<{
+    route: ResolvedEldraRoute;
+    /** Keep whatever is on screen: this resolution has no honest answer yet. */
+    holdPrevious: boolean;
+  }> => {
     error.value = null;
     const path = activePath();
     // Everything `cachedRoute` answers, asked again with the manifest awaited. It gets here when
@@ -117,18 +158,24 @@ export function useEldraPage(): {
     if (buildAnswersRoutes()) {
       const prerendered = await prerenderedRoutes();
       if (prerendered !== null) {
-        if (!prerendered.has(path)) return EMPTY_ELDRA_ROUTE;
+        if (!prerendered.has(path)) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: false };
         const fromBuild = await prerenderedRouteData(path);
-        if (fromBuild !== undefined) return fromBuild;
+        if (fromBuild !== undefined) return { route: fromBuild, holdPrevious: false };
       }
     }
     try {
-      return await resolveEldraRoute(ctx.client, cfg, path, runtimeLocale());
+      const route = await resolveEldraRoute(ctx.client, cfg, path, runtimeLocale());
+      heldPreviewAuthFailure = null;
+      return { route, holdPrevious: false };
     } catch (cause) {
+      if (holdPreviewAuthFailure(cause)) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: true };
       error.value = cause instanceof Error ? cause.message : String(cause);
-      return EMPTY_ELDRA_ROUTE;
+      return { route: EMPTY_ELDRA_ROUTE, holdPrevious: false };
     }
   };
+
+  const resolveCurrentRoute = async (): Promise<ResolvedEldraRoute> =>
+    (await resolveRouteOutcome()).route;
 
   const { data: resolvedRoute, pending } = useAsyncData<ResolvedEldraRoute>(
     () => routeDataKey(activePath()),
@@ -153,10 +200,13 @@ export function useEldraPage(): {
     const path = activePath();
     const activeKey = routeDataKey(path);
     clearNuxtData((key) => key.startsWith(PAGE_KEY_PREFIX) && key !== activeKey);
-    void resolveCurrentRoute().then((next) => {
-      if (request === previewRefreshRequest && path === activePath()) {
-        previewResolvedRoute.value = next;
-      }
+    void resolveRouteOutcome().then(({ route, holdPrevious }) => {
+      if (request !== previewRefreshRequest || path !== activePath()) return;
+      // A held-back 401 (see `holdPreviewAuthFailure`) must not blank the page:
+      // what is on screen is the last honest answer, and the editor is about
+      // to hand over a fresh token and ask for this resolution again.
+      if (holdPrevious) return;
+      previewResolvedRoute.value = route;
     });
   };
   watch(() => ctx.preview.refreshRevision, resolvePreviewRoute);

@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `useEldraPage` no longer replaces the page with an error alert for the first 401 of a preview
+  read. A preview token is one hash per organization, so minting one anywhere else revokes the one
+  a live preview is using; the editor answers `theme:request-failed` by minting again and
+  re-sending `editor:init`, usually within a second, and reporting that first failure blanked the
+  page for exactly that second — and, because every keystroke re-reads the drafts, produced one
+  alert per keystroke with the page gone. The first failure is held back (what is on screen stays,
+  rather than collapsing to the not-found shell) and the error is reported once a 401 arrives on a
+  *newer* token — the retry failed too — or after a 10s grace window, so a preview nobody is going
+  to recover still says so.
+
 - `runtimeConfig.public.eldra` now carries `commerce` — `{ currency, taxInclusivePricing,
 defaultTaxRate }`, or `null` — read once from the organisation during the build, so a prerendered
   page's prices are formatted in the currency the store actually sells in instead of one the theme

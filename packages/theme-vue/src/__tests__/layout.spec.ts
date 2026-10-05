@@ -738,6 +738,7 @@ describe('EldraLayout', () => {
         refreshRevision: 0,
         revision: 0,
         designTokensRevision: 0,
+        tokenRevision: 0,
       }),
     } as unknown as EldraContext;
     const wrapper = mount(EldraLayout, {

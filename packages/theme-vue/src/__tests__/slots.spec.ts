@@ -28,6 +28,7 @@ const context = {
     refreshRevision: 0,
     revision: 0,
     designTokensRevision: 0,
+    tokenRevision: 0,
   }),
 } as unknown as EldraContext;
 
@@ -82,6 +83,7 @@ function previewContext(overrides: Partial<EldraContext['preview']> = {}): Eldra
       refreshRevision: 0,
       revision: 0,
       designTokensRevision: 0,
+      tokenRevision: 0,
       editorSupportsSlots: false,
       ...overrides,
     }),

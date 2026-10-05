@@ -43,6 +43,7 @@ function context(): EldraContext {
       refreshRevision: 0,
       revision: 0,
       designTokensRevision: 0,
+      tokenRevision: 0,
       richTextRenderRevision: 0,
       editorSupportsSlots: false,
     }),
