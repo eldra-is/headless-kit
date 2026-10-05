@@ -359,7 +359,7 @@ const addToCartLabel = computed(() => {
   return t('product.addToCart', { price: formattedPrice.value });
 });
 
-/** The theme's own wishlist page (`app/pages/wishlist.vue`) — the same destination the header's
+/** The site's own wishlist page (`/wishlist`, seeded from `pages/wishlist.page.json`) — the same destination the header's
  *  heart has, and the only place a saved list can be looked at. */
 const WISHLIST_PATH = '/wishlist';
 

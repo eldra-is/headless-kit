@@ -1,6 +1,6 @@
 import { chromium, type Browser, type Page } from '@playwright/test';
 import { execa } from 'execa';
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ import {
   HOME_PAGE_PATH,
   LINKED_HEADER_LABELS,
   PRODUCT_HANDLE,
+  SEEDED_PAGE_PATHS,
   startMockGateway,
   type MockGateway,
 } from './support/mockGateway';
@@ -70,6 +71,7 @@ let root: string;
 let scratch: string;
 
 const output = (path: string): string => join(root, '.output', 'public', path);
+const existsInOutput = (path: string): boolean => existsSync(output(path));
 const productPage = `/products/${PRODUCT_HANDLE}`;
 const collectionPage = `/collections/${COLLECTION_HANDLE}`;
 
@@ -395,6 +397,50 @@ describe('prerendered commerce data on the generated static site', () => {
     await statics?.close();
     await gateway?.close();
     if (scratch !== undefined) rmSync(scratch, { recursive: true, force: true });
+  });
+
+  /**
+   * **The seeded pages reach the artifact, and nothing names them by hand.** `/cart`, `/wishlist`
+   * and `/search` were code routes listed in `nitro.prerender.routes`; they are CMS pages now, so
+   * the only thing that writes `cart/index.html` is `@eldrajs/theme-nuxt`'s `prerender:routes` hook
+   * listing every published page's own path. A static host answers 404 for a path it has no file
+   * for, however the app would render it — so if this breaks, the header's bag, the drawer's "View
+   * cart", the wishlist heart and every search submit all land on a 404 on the deployed site, and
+   * no unit test in the suite can see it.
+   *
+   * Each file also has to carry what the code routes never could: a header, a footer, and the one
+   * block the page exists for.
+   */
+  it('prerenders every seeded page from the gateway\u2019s own page list', () => {
+    expect(SEEDED_PAGE_PATHS).toEqual(['/cart', '/wishlist', '/search']);
+    for (const path of SEEDED_PAGE_PATHS) {
+      expect(existsInOutput(join(path, 'index.html')), `${path}/index.html`).toBe(true);
+    }
+
+    const cart = staticHtml('/cart');
+    expect(cart).not.toContain('data-eldra-not-found');
+    // The layout rendered at all: a node carrying `locked: true` (Core's own mark on a seed's
+    // `required` block) must not fail `@eldrajs/theme-core`'s layout validator.
+    expect(cart).not.toContain('data-eldra-invalid-layout');
+    expect(cart).toContain(enUS.cart.title);
+    expect(cart).toContain('Your cart is empty');
+    // The two things the code route had none of, because the runtime resolves them only as part of
+    // a page: the banner and the contentinfo.
+    expect(cart).toContain('<header');
+    expect(cart).toContain('<footer');
+    expect(cart).toContain(LINKED_HEADER_LABELS.collection);
+
+    const wishlist = staticHtml('/wishlist');
+    expect(wishlist).not.toContain('data-eldra-not-found');
+    expect(wishlist).toContain(enUS.wishlist.emptyTitle);
+    expect(wishlist).toContain('<header');
+
+    // One file answers every `?q=`, so it is the idle state — never "No results for".
+    const search = staticHtml('/search');
+    expect(search).not.toContain('data-eldra-not-found');
+    expect(search).toContain(enUS.search.idleTitle);
+    expect(search).not.toContain('No results for');
+    expect(search).toContain('<header');
   });
 
   it('builds every block on a CMS page route exactly once', async () => {

@@ -530,7 +530,7 @@ describe('search block', () => {
   /**
    * `/search` with no `?q=` — what a shopper reaches from a "Search" link, and the only state the
    * prerendered `search/index.html` a static host serves can be in, since one file answers every
-   * query (`app/pages/search.vue`).
+   * query (`pages/search.page.json` seeds that page).
    *
    * The empty query is a real `search.run()` answer with `total: 0`, so the page used to head itself
    * "No results for “”" and offer spelling advice for a word nobody typed — baked into the

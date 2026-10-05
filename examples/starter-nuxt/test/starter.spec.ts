@@ -494,6 +494,7 @@ describe('starter theme', () => {
     // assertions live in "seeded templates" below; this one proves the config wiring.
     const built = JSON.parse(readFileSync(output('.eldra/manifest.json'), 'utf8')) as {
       templates?: Array<{ routePattern: string }>;
+      pageSeeds?: Array<{ slug: string }>;
       templateRoles?: { header?: { apiId: string }; footer?: { apiId: string } };
     };
     expect(built.templates?.map((template) => template.routePattern)).toEqual([
@@ -501,6 +502,7 @@ describe('starter theme', () => {
       '/collections/:slug',
       '/',
     ]);
+    expect(built.pageSeeds?.map((seed) => seed.slug)).toEqual(['cart', 'wishlist', 'search']);
     expect([built.templateRoles?.header?.apiId, built.templateRoles?.footer?.apiId]).toEqual([
       'navigation',
       'footer',
@@ -530,48 +532,25 @@ describe('starter theme', () => {
     expect(notFound).toContain('data-eldra-not-found');
     expect(notFound).toContain('href="/"');
 
-    // `/cart` is the theme's own route (`app/pages/cart.vue`), the destination the header's bag
-    // names whenever no cart drawer is mounted. Nothing gateway-driven ever lists it, so it is
-    // prerendered by name from `nuxt.config.ts`; without that file a static host answers 404 and
-    // the bag lands every shopper on the not-found shell, whatever the app would have rendered.
-    // Asserted on the *credential-free* build on purpose: a cart route that needed a gateway to
-    // exist would be no route at all.
-    const cart = readFileSync(output(join('cart', 'index.html')), 'utf8');
-    expect(cart).not.toContain('data-eldra-not-found');
-    expect(cart).toContain('Your cart');
-    expect(cart).toContain('Your cart is empty');
-    // The prerendered route list the deployed site reads back at runtime
-    // (`@eldrajs/theme-nuxt`'s `staticRoutes.ts`) has to carry it too.
+    // **No page path is prerendered by name any more.** `/cart`, `/search` and `/wishlist` were
+    // listed in `nitro.prerender.routes` while they were code routes under `app/pages/`; they are
+    // CMS pages now, so the only thing that writes a file for them is `@eldrajs/theme-nuxt`'s
+    // `prerender:routes` hook listing every published page's own path — which needs a gateway, and
+    // is asserted against one in `test/prerenderRefresh.browser.spec.ts`.
+    //
+    // A credential-free build therefore writes `/` and `/404` and nothing else, and that is the
+    // honest answer: naming the three paths here as well would bake the not-found shell into the
+    // artifact under names a visitor can reach, on every build whose gateway has no such page.
     const metaDir = output(join('_nuxt', 'builds', 'meta'));
     const [metaFile] = readdirSync(metaDir);
     const buildMeta = JSON.parse(readFileSync(join(metaDir, metaFile ?? ''), 'utf8')) as {
       prerendered: string[];
     };
-    expect(buildMeta.prerendered).toContain('/cart');
-
-    // `/search` is the theme's own route too (`app/pages/search.vue`) — the destination every
-    // `SearchBar`/`SearchModal` submit and every "View all" link in the search block names. One file
-    // answers every `?q=`: the query is client-side state the page reads after hydration, so this
-    // HTML is the *idle* state and must not claim, in the artifact a static host serves, to have
-    // found nothing. Asserted on the credential-free build on purpose: a search route that needed a
-    // gateway to exist would be no route at all.
-    const search = readFileSync(output(join('search', 'index.html')), 'utf8');
-    expect(search).not.toContain('data-eldra-not-found');
-    expect(search).toContain('What are you looking for?');
-    expect(search).not.toContain('No results for');
-    expect(buildMeta.prerendered).toContain('/search');
-
-    // `/wishlist` is the theme's own route too (`app/pages/wishlist.vue`) — where the product
-    // page's heart and the header's heart both send a shopper. One file answers every visitor,
-    // because what each of them saved is in their own browser: this HTML is therefore the *empty*
-    // state, and a saved product must never appear in the artifact a static host serves. Asserted
-    // on the credential-free build on purpose: a wishlist route that needed a gateway to exist
-    // would be no route at all.
-    const wishlist = readFileSync(output(join('wishlist', 'index.html')), 'utf8');
-    expect(wishlist).not.toContain('data-eldra-not-found');
-    expect(wishlist).toContain('Your wishlist');
-    expect(wishlist).toContain('Your wishlist is empty');
-    expect(buildMeta.prerendered).toContain('/wishlist');
+    expect(buildMeta.prerendered.sort()).toEqual(['/', '/404']);
+    for (const path of ['cart', 'search', 'wishlist']) {
+      expect(existsSync(output(join(path, 'index.html'))), `${path}/index.html`).toBe(false);
+    }
+    expect(result.stderr + result.stdout).toContain('prerendering "/" only');
   }, 360_000);
 
   it('supports an exact authenticated Studio origin override', async () => {
@@ -941,7 +920,7 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     expect('data' in cart ? cart.data : {}).toMatchObject({ variant: 'page', emptyLinkHref: '/' });
     expect('data' in search ? search.data : {}).toMatchObject({ variant: 'results-page' });
     // `popularSearches` and `noResultsCollection` are a merchant's answers, so the seed ships
-    // neither — the same decision `app/pages/search.vue` documented.
+    // neither — the same decision the code route this page replaced documented.
     expect('data' in search ? Object.keys(search.data) : []).not.toContain('popularSearches');
     expect('data' in search ? Object.keys(search.data) : []).not.toContain('noResultsCollection');
   });

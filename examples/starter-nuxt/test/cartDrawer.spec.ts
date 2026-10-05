@@ -7,13 +7,13 @@
 // for `/cart`.
 //
 // This is the one spec that mounts the app shell itself. Everything it asserts is about the shell
-// and a page agreeing with each other (one drawer between them, a bag that opens it, a `/cart` route
-// that still renders the page variant), which neither a block spec nor a page spec can see.
-// `app/app.vue` and `app/pages/cart.vue` read `useRoute()`/`useHead()` as bare Nuxt auto-imports, so —
-// as in `cartPage.spec.ts` — both are stubbed before those modules are imported. The route stub is a
-// plain reactive object this file writes to, which is how a navigation is driven here: `app.vue`
-// watches `route.fullPath`, so moving it is exactly what the router does to the shell when the shopper
-// follows any link. `<NuxtPage>` is registered per mount as whatever stands in for the page.
+// and a page agreeing with each other (one drawer between them, a bag that opens it, a `/cart` page
+// that still renders the page variant beside the hosted drawer), which neither a block spec nor a
+// page spec can see. `app/app.vue` reads `useRoute()`/`useHead()` as bare Nuxt auto-imports, so both
+// are stubbed before that module is imported. The route stub is a plain reactive object this file
+// writes to, which is how a navigation is driven here: `app.vue` watches `route.fullPath`, so moving
+// it is exactly what the router does to the shell when the shopper follows any link. `<NuxtPage>` is
+// registered per mount as whatever stands in for the page.
 import { defineComponent, h, reactive, type Component } from 'vue';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -23,6 +23,7 @@ import { mountOptions } from './support/mountBlock';
 import CartBlock from '../blocks/cart/Block.vue';
 import NavigationBlock from '../blocks/navigation/Block.vue';
 import navigationMock from '../blocks/navigation/mock.json';
+import cartPageFixture from '../pages/cart.page.json';
 import { createDemoStorefront, DEMO_CART_LINES } from '../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontSource } from '../app/storefront/types';
 import { enUS } from '../app/i18n/en-US';
@@ -34,7 +35,6 @@ const route = reactive({ fullPath: '/' });
 vi.stubGlobal('useRoute', () => route);
 
 const { default: App } = await import('../app/app.vue');
-const { default: CartPage } = await import('../app/pages/cart.vue');
 
 /** What an author's own `cart` block looks like on a page: the `drawer` variant, placed in the
  *  layout, with no idea that the theme already hosts one. */
@@ -51,6 +51,23 @@ const HeaderPage = defineComponent({
     h(NavigationBlock as never, { entry: { id: 'header', data: navigationMock } }),
     h('main', { id: 'main' }, 'A page'),
   ],
+});
+
+/**
+ * The seeded `/cart` page, as the catch-all renders it: the `page`-variant `cart` block from
+ * `pages/cart.page.json` inside `<main id="main">`. `/cart` was a code route under `app/pages/`
+ * until it became a page document, and the shell still has to agree with it about the one drawer
+ * between them — so the stand-in carries the seed's own data rather than an invented entry.
+ */
+const SEEDED_CART_ENTRY = {
+  id: 'seeded-cart',
+  data: cartPageFixture.blocks.find((block) => block.apiId === 'cart')!.data,
+};
+
+const CartPage = defineComponent({
+  name: 'CartPageStub',
+  setup: () => () =>
+    h('main', { id: 'main' }, [h(CartBlock as never, { entry: SEEDED_CART_ENTRY })]),
 });
 
 const AuthoredCartPage = defineComponent({
@@ -252,7 +269,7 @@ describe('the theme hosts one cart drawer', () => {
     expect(cartDialogs()).toHaveLength(1);
   });
 
-  it('keeps the /cart route rendering the page variant beside it, axe-clean', async () => {
+  it('keeps the /cart page rendering the page variant beside it, axe-clean', async () => {
     const { wrapper } = await mountShell(CartPage);
 
     const heading = wrapper.get('main#main h1');

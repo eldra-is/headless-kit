@@ -15,7 +15,7 @@
  * The **cart drawer** is here for the same "exactly one host" reason, and for one more: a shopper
  * must be able to open their cart from the header on every route, so it cannot be something an
  * author places on a page — `blocks/cart/Block.vue` in its `drawer` variant, mounted once, with the
- * entry the theme owns rather than a CMS document (`app/pages/cart.vue` builds its `page`-variant
+ * entry the theme owns rather than a CMS document (the seeded `/cart` page carries its `page`-variant
  * entry the same way). The rules behind the three `cart.drawer*` flags this file sets live in one
  * place, on `CartStore` in `app/storefront/cart.ts`; `/cart` stays exactly what it was.
  *
@@ -83,7 +83,7 @@ watch(
 
 /**
  * An `EldraBlockEntry` needs an id. This one is the theme's own, not a CMS entry id, and never
- * reaches the gateway; it is kept distinct from `app/pages/cart.vue`'s `theme-cart` so the two
+ * reaches the gateway; it is the shell's own, distinct from any cart block on a page, so the two
  * theme-owned cart entries stay tellable apart while debugging — on `/cart` both are mounted. The ids
  * in the rendered markup do not come from here: every one of them is Vue's own `useId()`, derived
  * from the component's position in the tree (`app/composables/useUiId.ts`).

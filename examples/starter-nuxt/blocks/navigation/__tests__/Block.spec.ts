@@ -1159,7 +1159,7 @@ describe('header block (navigation apiId)', () => {
     });
 
     // The bag's two forms, and the destination of the link form. With no drawer mounted the bag is
-    // an anchor to `/cart`, which is `app/pages/cart.vue` — a theme route, prerendered by
+    // an anchor to `/cart`, which is the site's own cart page — seeded by the theme, prerendered by
     // `nuxt.config.ts`. It used to be an anchor to a path nothing in the theme answered, so the
     // site's catch-all asked the gateway for a CMS page called "cart", found none, and every
     // shopper who clicked the bag landed on the not-found shell.
@@ -1715,7 +1715,7 @@ describe('header block (navigation apiId)', () => {
     /**
      * Enter with no active option submits the modal's own `method="get"` form, and "See all N
      * results" is the same destination as a row. Both are `${action}?q=…`, and `action` defaults to
-     * `/search` — the route `app/pages/search.vue` now answers. Until it existed, every one of these
+     * `/search` — the page the theme seeds (`pages/search.page.json`). Until it existed, every one of these
      * landed the shopper on the not-found shell.
      */
     it('submits to /search?q=… — the route the theme serves', async () => {

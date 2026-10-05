@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { seedLayout } from '@eldrajs/vite-plugin-theme';
-import { starterTemplateRoles, starterTemplates } from '../../app/templates';
+import { starterPages, starterTemplateRoles, starterTemplates } from '../../app/templates';
 
 /**
  * A mock Eldra gateway for the starter's own `nuxi generate` + static-serve tests — the same
@@ -31,7 +31,10 @@ import { starterTemplateRoles, starterTemplates } from '../../app/templates';
  *  2. a seed node carrying `templates`/`bindings` becomes a `template-block` node naming its
  *     `apiId`, its block entry addressed by uuid (`routeTemplateEntries`);
  *  3. a CMS **page** document is a **version-2** layout envelope of ordinary `block` nodes, and a
- *     no-parent page whose slug is `home` is the site root `/` (`pageEntries`).
+ *     no-parent page whose slug is `home` is the site root `/` (`pageEntries`);
+ *  4. a theme's **page seed** becomes such a page — one per `pageSeeds[]` entry, its blocks in the
+ *     seed's own order, each `@header`/`@footer` placement resolved to the site's own role
+ *     component and each `required` block's node carrying `locked: true` (`pageEntries`).
  */
 
 const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
@@ -369,46 +372,112 @@ function withExtraNodes<T>(children: readonly T[], extra: ReadonlyArray<{ id: st
  */
 export const HOME_PAGE_PATH = '/';
 
+/** The paths the theme's own page seeds serve, which the generate must emit a file for. */
+export const SEEDED_PAGE_PATHS = starterPages().map((seed) => `/${seed.page.slug}`);
+
+/** One page document: a v2 envelope of ordinary `block` nodes over the blocks given. A node with
+ *  `locked` is one Core created from a seed's `required` block — stored on the node, and the reason
+ *  `@eldrajs/theme-core`'s layout validator has to admit the key. */
+function pageEntry(
+  id: string,
+  title: string,
+  slug: string,
+  blocks: ReadonlyArray<{
+    id: string;
+    apiId: string;
+    data: Record<string, unknown>;
+    locked?: true;
+  }>,
+  uuidOffset: number
+): { id: string; data: Record<string, unknown> } {
+  const entryIdOf = new Map(
+    blocks.map((block, index) => [block.id, blockUuid(uuidOffset + index)])
+  );
+  return {
+    id,
+    data: {
+      title,
+      slug,
+      layout: {
+        version: 2,
+        root: {
+          id: 'root',
+          type: 'flex',
+          layout: { direction: { normal: 'column' } },
+          children: blocks.map((block) => ({
+            id: block.id,
+            type: 'block',
+            entryId: entryIdOf.get(block.id),
+            ...(block.locked === true ? { locked: true } : {}),
+          })),
+        },
+      },
+      blocks: blocks.map((block) => ({
+        id: entryIdOf.get(block.id),
+        schemaApiId: block.apiId,
+        data: block.data,
+      })),
+    },
+  };
+}
+
 function pageEntries(): Array<{ id: string; data: Record<string, unknown> }> {
   const seed = starterTemplates().find((candidate) => candidate.schemaApiId === 'home');
   if (seed === undefined) throw new Error('mockGateway: the starter no longer seeds a home page');
   const roles = starterTemplateRoles();
-  const blocks = [
+  const home = [
     { id: 'role-header', apiId: roles.header.apiId, data: linkedHeaderData(roles.header.data) },
     ...seed.blocks,
     { id: 'role-footer', apiId: roles.footer.apiId, data: roles.footer.data },
   ];
-  const entryIdOf = new Map(
-    blocks.map((block, index) => [block.id, blockUuid(PAGE_BLOCK_UUID_OFFSET + index)])
-  );
   return [
-    {
-      id: 'page-home',
-      data: {
-        title: seed.title,
-        // No parent and the slug `home` is the site root — see `resolvePagePath`.
-        slug: 'home',
-        layout: {
-          version: 2,
-          root: {
-            id: 'root',
-            type: 'flex',
-            layout: { direction: { normal: 'column' } },
-            children: blocks.map((block) => ({
-              id: block.id,
-              type: 'block',
-              entryId: entryIdOf.get(block.id),
-            })),
-          },
-        },
-        blocks: blocks.map((block) => ({
-          id: entryIdOf.get(block.id),
-          schemaApiId: block.apiId,
-          data: block.data,
-        })),
-      },
-    },
+    // No parent and the slug `home` is the site root — see `resolvePagePath`.
+    pageEntry('page-home', seed.title, 'home', home, PAGE_BLOCK_UUID_OFFSET),
+    ...seededPageEntries(roles),
   ];
+}
+
+/**
+ * The theme's own page seeds as the CMS page entries a deployed site holds — `/cart`, `/wishlist`
+ * and `/search`, which were code routes under `app/pages/` until the theme started seeding them.
+ *
+ * Core behaviour **4** of the four this file hand-encodes (module header): a `@header`/`@footer`
+ * placement resolves to the site's own role component (a mock has none, so the role's block data is
+ * inlined where the placement stands, exactly as `routeTemplateEntries` does it), and a `required`
+ * block's node is created `locked: true`. Get the first wrong and the generated page carries no
+ * header; get the second wrong and nothing fails here — which is the point of writing it down, since
+ * the key has to survive `@eldrajs/theme-core`'s layout validator for the page to render at all.
+ */
+function seededPageEntries(
+  roles: ReturnType<typeof starterTemplateRoles>
+): Array<{ id: string; data: Record<string, unknown> }> {
+  return starterPages().map((seed, seedIndex) => {
+    const blocks = seed.blocks.map((entry, index) => {
+      if ('role' in entry) {
+        const role = roles[entry.role]!;
+        return {
+          id: `role-${entry.role}`,
+          apiId: role.apiId,
+          data: entry.role === 'header' ? linkedHeaderData(role.data) : role.data,
+        };
+      }
+      return {
+        id: `${seed.page.slug}-${index}`,
+        apiId: entry.apiId,
+        data: entry.data,
+        ...(entry.required === true ? { locked: true as const } : {}),
+      };
+    });
+    return pageEntry(
+      `page-${seed.page.slug}`,
+      seed.title,
+      seed.page.slug,
+      blocks,
+      // One uuid range per page, after the home page's, so no two pages' block
+      // entry ids collide — the mount counter keys by entry id.
+      PAGE_BLOCK_UUID_OFFSET + 100 * (seedIndex + 1)
+    );
+  });
 }
 
 /** `field:op:value` tokens, as much of the grammar as the storefront actually sends. */

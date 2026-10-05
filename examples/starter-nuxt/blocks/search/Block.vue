@@ -196,7 +196,7 @@ const routeQuery = computed(() => (storefront.route.query ?? '').trim());
  *
  * **It starts empty even when the route already carries a query**, and that is the whole point.
  * `/search` is prerendered once, with no query at all, so the HTML a static host serves for
- * `/search?q=mug` is the idle state (`app/pages/search.vue`). A first client render that already
+ * `/search?q=mug` is the idle state (the page `pages/search.page.json` seeds). A first client render that already
  * knew the query would disagree with that markup: Vue would patch it and repaint the block instead
  * of hydrating it, and the shopper would see the idle heading flash. `onMounted` never runs on the
  * server and runs *after* the first client render, which makes the two equal by construction — the

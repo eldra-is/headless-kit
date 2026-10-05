@@ -22,18 +22,25 @@ export default defineNuxtConfig({
     // static preset; it needs no config key here (nitro's PrerenderOptions
     // type has no `fallback` property — a prior `fallback: '200.html'` here
     // was inert and only surfaced once `nuxi typecheck` started running).
-    // `/cart`, `/search` and `/wishlist` are `app/pages/cart.vue`, `search.vue` and `wishlist.vue`,
-    // code routes rather than CMS pages, so nothing in the gateway-driven `prerender:routes` hook
-    // (`@eldrajs/theme-nuxt`) ever lists them. Naming them here is what writes `cart/index.html`,
-    // `search/index.html` and `wishlist/index.html` into the artifact — a static host answers 404
-    // for a path it has no file for, however the app would render it. One file serves every `?q=`:
-    // the query is client-side state the search page reads after hydration (see
-    // `app/pages/search.vue`), and one file serves every visitor's wishlist for the same reason —
-    // the saved list is in their own browser (see `app/pages/wishlist.vue`).
+    //
+    // `/404` is the only path named by hand. `/cart`, `/search` and `/wishlist`
+    // used to be listed here too, because they were code routes under
+    // `app/pages/` and nothing gateway-driven knew about them; they are CMS
+    // pages now (`pages/*.page.json` seeds them — see `app/templates.ts`), so
+    // `@eldrajs/theme-nuxt`'s `prerender:routes` hook lists every published
+    // page's own path and writes `cart/index.html`, `search/index.html` and
+    // `wishlist/index.html` from the documents themselves. Naming them here as
+    // well would prerender a path the gateway may have no page for and bake the
+    // not-found shell into the artifact under a name a visitor can reach.
+    //
+    // One file still serves every `?q=` and every visitor's wishlist: the query
+    // is client-side state the search block reads after hydration, and a saved
+    // list lives in the shopper's own browser (`blocks/search/Block.vue`,
+    // `blocks/wishlist/Block.vue`).
     prerender: {
       crawlLinks: false,
       failOnError: false,
-      routes: ['/404', '/cart', '/search', '/wishlist'],
+      routes: ['/404'],
     },
     hooks: {
       // Nitro always emits `404.html` itself as a blank SPA-fallback shell

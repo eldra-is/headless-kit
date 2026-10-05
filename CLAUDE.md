@@ -160,11 +160,14 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   to just `UiImage` now (every other hand-rolled primitive was replaced, block by block, by the
   matching `@eldrajs/ui` component). **34 blocks** ship under `blocks/`, `block.json`'s `category`
   grouping them `structure`/`marketing`/`content`/`commerce` (see `docs/starter-kit.md` for the
-  full set); four hand-authored sample pages, `pages/*.page.json`
-  (`{template,title,blocks:[{apiId,id,data}]}`, the same shape a real CMS page document has),
-  render every block in a fixture in one place and back both a Storybook page story
-  (`stories/pages/*.stories.ts`) and a page-level test (`test/pages/*.spec.ts` — whole-page axe,
-  one `<h1>`, unique ids across block instances). Commerce blocks (`product-detail`,
+  full set); seven hand-authored sample pages, `pages/*.page.json`
+  (`{template,title,blocks:[{apiId,id,data}]}`, the same shape a real CMS page document has, with
+  `page: {slug}` in place of `template` on the three that seed a static Page — `/cart`,
+  `/wishlist` and `/search`, which Core creates with the one block each exists for `required`, i.e.
+  locked against deletion), render every block in a fixture in one place and back both a Storybook
+  page story (`stories/pages/*.stories.ts`) and a page-level test (`test/pages/*.spec.ts` —
+  whole-page axe, one `<h1>`, unique ids across block instances; the three seeded pages share
+  `test/pages/seededPages.spec.ts`). Commerce blocks (`product-detail`,
   `collection-grid`, `cart`, `search`, `order-status`, and the rest) read product/cart/search/order
   data through `useStorefront()` (`app/storefront/**`'s own view types, `STOREFRONT_KEY`) — a real
   gateway-backed implementation in the Nuxt app (`app/plugins/eldra-storefront.ts`), a demo Northwind

@@ -150,7 +150,7 @@ describe('server rendering', () => {
   /**
    * The `/search` route is prerendered **once** and that one file answers every query: a static host
    * serves the same `search/index.html` for `/search` and for `/search?q=linen`
-   * (`app/pages/search.vue`). So the markup can only honestly be the idle state — and it has to stay
+   * (the page `pages/search.page.json` seeds). So the markup can only honestly be the idle state — and it has to stay
    * that way even when the storefront's route already carries a query, because the server render
    * that produced the file and the browser's first render of it have to be the same markup
    * (`test/pages/hydration.spec.ts` is the other half).

@@ -361,7 +361,7 @@ describe('hydrating a prerendered commerce block', () => {
   /**
    * `/search` is the one route whose prerendered file answers *every* URL: a static host serves the
    * same `search/index.html` for `/search` and for `/search?q=linen`, so the markup it ships knows
-   * no query at all (`app/pages/search.vue`). The browser's first render has to be that same markup
+   * no query at all (`pages/search.page.json` seeds that page). The browser's first render has to be that same markup
    * even though the address bar — and therefore `useStorefront().route.query` — already carries the
    * query, which is why `blocks/search/Block.vue` adopts it in `onMounted` rather than at setup.
    *

@@ -769,15 +769,18 @@ crash) when it hasn't. Wire a real endpoint by adding it to `nuxt.config.ts`'s `
 [`examples/starter-nuxt/README.md`](../examples/starter-nuxt/README.md#storefront-forms) for the
 exact snippet.
 
-## Seeded templates
+## Seeded templates and pages
 
 A site deployed from this theme is not empty: `nuxt.config.ts`'s `eldra.templates` and
-`eldra.templateRoles` declare the default **route templates** Core creates on the site's first
-deploy, so a merchant who installs the theme has working product, collection and home pages before
+`eldra.templateRoles` declare what Core creates on the site's first deploy, so a merchant who
+installs the theme has working product, collection, home, cart, wishlist and search pages before
 touching the page builder — and can then edit them like any other page.
 
 `app/templates.ts` builds them, and there is nothing to hand-author: each seed is one of the sample
-page fixtures (§3) turned into the manifest's seed shape.
+page fixtures (§3) turned into the manifest's seed shape. Two kinds travel in the one
+`eldra.templates` list (`starterSeeds()`), told apart by the target each names.
+
+**Route templates** — a pattern, resolved per object:
 
 | Seed       | `routePattern`       | `schemaApiId`        | Built from                   |
 | ---------- | -------------------- | -------------------- | ---------------------------- |
@@ -790,7 +793,21 @@ template: it has no CMS schema behind it, and the theme resolves `:slug` against
 at render time (`useEldraPage().catalog`, see [themes.md](themes.md#seeding-default-templates)).
 `home` seeds the site's home page and applies only when the site has none.
 
-Six rules the file exists to keep:
+**Pages** — one static document each, at `/<slug>`:
+
+| Seed     | Slug       | Fixed block | Built from                 |
+| -------- | ---------- | ----------- | -------------------------- |
+| Cart     | `cart`     | `cart`      | `pages/cart.page.json`     |
+| Wishlist | `wishlist` | `wishlist`  | `pages/wishlist.page.json` |
+| Search   | `search`   | `search`    | `pages/search.page.json`   |
+
+Those three were code routes under `app/pages/` until the grammar could express them; the sections
+below have the whole story. A page seed is skipped when the organisation already has a page with
+that slug, exactly as a template seed is skipped for a pattern that already has a template, so an
+existing site picks up a newly added page on its next deploy and nothing a merchant has edited is
+overwritten.
+
+Seven rules the file exists to keep:
 
 - **The header and footer are roles, not blocks.** Each seed's `blocks` are its fixture's blocks
   **minus** `navigation` and `footer`; those two travel once, as `eldra.templateRoles`
@@ -803,6 +820,19 @@ Six rules the file exists to keep:
   `reusableComponentProjection`, which expands the header component where its node sits, between
   the template's own blocks — see
   [Reusable page components](theme-reusable-components.md#route-templates).
+- **A page seed places those regions rather than being framed by them.** A page seed declares no
+  layout at all — its entry list _is_ the page, in the fixture's own order, and Core lays it out in
+  one column — so the two role blocks become _placements_ where the fixture puts them
+  (`{ role: 'header' }` / `{ role: 'footer' }`, emitted as the reserved `@header` / `@footer`
+  types). That is what keeps the announcement bar above the header, which a frame around the blocks
+  could not express. Their block data still travels once, as `eldra.templateRoles`, so a seeded page
+  and a seeded template share one header and one footer.
+- **One block per seeded page is `required`, and that is why the page can exist at all.** A page
+  seed may mark a block `required: true`; Core creates its layout node **locked**, so an author
+  reorders it and edits its fields but cannot delete it or move it out of the page root. `/cart`'s
+  `cart` block, `/wishlist`'s `wishlist` block and `/search`'s `search` block each carry it —
+  without it a merchant could delete the cart off the cart page, which is precisely the objection
+  that kept those three as code routes. Only a page seed's blocks may carry it.
 - **The seeded header and footer carry no destinations.** A theme cannot know an organisation's own
   collections, pages or policy documents, so the fixtures leave every link field in `navigation` and
   `footer` empty — the header's `links` and `cta`, the footer's `groups`, `links`, `legalLinks` and
@@ -833,9 +863,10 @@ Six rules the file exists to keep:
   the field, failing the build rather than seeding an entry Core would refuse to publish. No
   starter block has such a field today; the guard is there so adding one is a build error rather
   than a broken first deploy.
-- **Ids come from the fixture.** A seed block keeps the fixture block's own `id`
-  (`product-detail`, `home-hero`, …), which is what the generated layout's `block` nodes
-  reference.
+- **Ids come from the fixture — on a template seed.** A seed block keeps the fixture block's own
+  `id` (`product-detail`, `home-hero`, …), which is what the generated layout's `block` nodes
+  reference. A **page** seed emits no ids: it declares no layout, so there would be nothing for one
+  to be referenced from, and Core mints the nodes itself.
 - **A catalog seed names no product or collection.** The sample pages name one — that is what
   makes them a realistic page — but a template renders whatever its route resolved, so the seeds
   for `/products/:slug` and `/collections/:slug` drop everything that names the fixture's own
@@ -866,7 +897,7 @@ never renders a seeded template — it is there because that instance writes the
 `.eldra/manifest.json` the Nuxt build writes, and without it the checked-in file flips between
 "with seeds" and "without" depending on which build ran last.
 
-## The cart drawer and the `/cart` route
+## The cart drawer and the `/cart` page
 
 The cart is a **side drawer the theme hosts**, not a block an author places. `app/app.vue` mounts one
 `blocks/cart/Block.vue` in its `drawer` variant beside the `Toaster`, so it exists on every route and
@@ -934,45 +965,53 @@ otherwise, while the add that triggered it succeeds either way. Nothing runs on 
 a prerender, and nothing needs a guard for that — the cart id is browser state, so there is no cart
 to resolve a URL for until the page is in a browser.
 
-`/cart` stays, and stays a route: `app/pages/cart.vue` is theme **code**, not a page an author
-composes. A shopper's cart is their own session: there is nothing to lay out, and a site must not be
-able to lose its cart by deleting a page. Being a concrete route it also outranks
-`app/pages/[...slug].vue`, so the gateway is never asked about `/cart`. It is the drawer's own "View
-cart" destination, the deep link somebody can bookmark or be sent, and the no-JavaScript fallback
-above.
+`/cart` is a **page the theme seeds**, not a route it owns: `pages/cart.page.json` (above, "Seeded
+templates and pages"). It is the drawer's own "View cart" destination, the deep link somebody can
+bookmark or be sent, and the no-JavaScript fallback above — and now also a document an author can
+compose. It used to be `app/pages/cart.vue`, a code route, on the argument that a shopper's cart is
+their own session and a site must not be able to lose its cart by deleting a page. The first half
+was never the whole story (a cart page is a page like any other: a header to leave it by, a
+breadcrumb trail, a carousel under the empty state), and the second is now a rule rather than an
+absence — the seed marks the `cart` block `required`, so Core creates its node locked and the one
+thing on the page that cannot be deleted is the cart.
 
-Two things make it real on a deployed site, and both are easy to drop:
+What makes it real on a deployed site:
 
-- `nuxt.config.ts` lists `/cart` in `nitro.prerender.routes`. Nothing gateway-driven ever will — the
-  module's `prerender:routes` hook lists CMS pages and route templates — so without that line the
-  artifact has no `cart/index.html` and a static host answers 404 however the app would have
-  rendered it. `test/starter.spec.ts` asserts the file and the build manifest's prerendered list on
-  the credential-free build; `test/prerenderRefresh.browser.spec.ts` opens the drawer from the bag on
-  a generated site, then sends the router to `/cart` and lands on the prerendered page.
-- The page renders `blocks/cart/Block.vue` in its `page` variant, with an entry the theme owns
-  rather than a CMS entry. That is one implementation of the line items, the totals and the empty
-  state, shared with the drawer and with the block an author can place on a page.
+- **The page document.** `@eldrajs/theme-nuxt`'s `prerender:routes` hook lists every published
+  page's own path, so `cart/index.html` is written from the document itself. Nothing names `/cart`
+  in `nitro.prerender.routes` any more — a path named there would be prerendered even on a build
+  whose gateway has no such page, baking the not-found shell into the artifact under a name a
+  visitor can reach. `test/prerenderRefresh.browser.spec.ts` runs a real `nuxi generate` against the
+  mock gateway and asserts the file, its header and its footer; `test/starter.spec.ts` asserts the
+  other half, that a credential-free build prerenders `/` and `/404` and nothing else.
+- **The catch-all serves it.** `resolveRoute()` (`@eldrajs/theme-core`) matches a published page by
+  slug _before_ any route template, so `app/pages/[...slug].vue` renders the cart page with the
+  site's own header and footer resolved into it — the two things the code route could not have,
+  because the runtime resolves them only as part of a page or a template.
+- **One cart implementation.** The page's `cart` block is `blocks/cart/Block.vue` in its `page`
+  variant: the same line items, totals and empty state as the drawer, and as the block an author can
+  place anywhere else.
 
-Two limits worth knowing. The copy is the theme's `app/i18n` strings, not something an author can
-edit — editable copy for this surface belongs with a storefront settings entry, which does not exist
-yet. And the route carries no header or footer: those are the site's own reusable components, and the
-runtime resolves them only as part of a CMS page or route template, so a code route has no way to ask
-for them. `/404` has the same shape for the same reason.
+The copy is the page's own fields now, which is the point of the move: the empty state's heading and
+its "Continue shopping" destination (`/`, the one route every store has) are seeded from the fixture
+and editable in Studio, where the code route built them in TypeScript from `app/i18n`. The chrome
+the block renders itself — "Your cart", the item count, the column headings — is still the theme's.
 
 `test/cartDrawer.spec.ts` is where the shell and a page are mounted together — the only spec that
 mounts `app/app.vue` — and `test/pages/ssr.spec.ts` asserts the same two facts about the server-
 rendered shell: one closed `<dialog>`, and a bag that is still a link.
 
-## The `/search` route
+## The `/search` page
 
-`/search` is the other code route, for the same reasons `/cart` is one. Everything in the theme that
-can submit a search already names it: `@eldrajs/ui`'s `SearchBar` and `SearchModal` default their
-`action` to `/search` and submit `${action}?q=…`, and `blocks/search/Block.vue`'s own chips, "Did you
-mean" link and per-section "View all" links point back at it. `app/pages/search.vue` answers it,
-renders `blocks/search/Block.vue` in its `results-page` variant with an entry the theme owns, and —
-being a concrete route — outranks `app/pages/[...slug].vue`, so the gateway is never asked about it.
-`nuxt.config.ts` lists it in `nitro.prerender.routes` beside `/cart`; without that line the artifact
-has no `search/index.html` and a static host answers 404 however the app would have rendered it.
+`/search` is a seeded page too (`pages/search.page.json`), for the same reasons `/cart` is one.
+Everything in the theme that can submit a search already names it: `@eldrajs/ui`'s `SearchBar` and
+`SearchModal` default their `action` to `/search` and submit `${action}?q=…`, and
+`blocks/search/Block.vue`'s own chips, "Did you mean" link and per-section "View all" links point
+back at it. The page renders that block in its `results-page` variant, with the `required` mark on
+its node — so the destination every search submit in the theme names cannot be deleted out from
+under them — and `cart/index.html`'s story is this one's too: the page document is what writes
+`search/index.html`, through the module's `prerender:routes` hook, with no hand-named prerender
+entry anywhere.
 
 **One file answers every query.** A static host serves the same `search/index.html` for `/search` and
 for `/search?q=mug`, so the prerendered HTML cannot be about any one query: it is the block's **idle**
@@ -1018,11 +1057,12 @@ without a price is not a product card — so `toProductCard()` renders no card, 
 already gives an unusable URL, and the results page counts the cards it can draw rather than the rows
 it was handed.
 
-Two fields the theme's own entry deliberately leaves absent: `popularSearches` and
-`noResultsCollection` are a merchant's answers, not a theme's. An author who wants them places the
-`search` block on a page of their own. The same two limits as `/cart` apply otherwise — the copy is
-`app/i18n`'s until a storefront settings entry exists, and the route carries no header or footer,
-because the runtime resolves those only as part of a CMS page or route template.
+Two fields the seed deliberately leaves absent: `popularSearches` and `noResultsCollection` are a
+merchant's answers, not a theme's. The page carries the fields, empty, so an author fills them in
+where their shoppers' own searches are — rather than a theme inventing four popular searches and a
+fallback collection it cannot know. Everything else about the page is the seed's: the results
+heading is a field, and the header, breadcrumbs, carousel and footer around the block are blocks an
+author can edit, move or add to like any other page's.
 
 ## Wishlist
 
@@ -1046,11 +1086,12 @@ through **`useWishlist()`** (`app/composables/useWishlist.ts`) rather than touch
   (the product has left the list, so there is nothing to go and see, and pressing the heart again is
   already the undo). One toast id for both, so pressing twice replaces the sentence instead of
   leaving two contradicting ones on screen.
-- **`app/pages/wishlist.vue`** — the `/wishlist` route (below).
+- **`blocks/wishlist/Block.vue`** — the block the `/wishlist` page is made of (below).
 - **`blocks/navigation/Block.vue`** — a heart in the header's actions row beside the bag, with the
   bag's own count pill, linking to `/wishlist`. **It is absent until there is something saved**, and
   no `block.json` field gates it: `showAccount` exists because `/account` only exists once a store
-  has customer accounts, while `/wishlist` is prerendered in every build and can never lead nowhere.
+  has customer accounts, while `/wishlist` is a page the theme seeds into every site and therefore
+  can never lead nowhere.
   Absent from the `minimal` variant too, which the spec defines as brand, search, cart and a Menu
   button — the same `variant !== 'minimal'` guard the account icon and the call to action carry. It
   _does_ render at mobile widths, unlike those two: a shopper who saved something on a phone has no
@@ -1073,21 +1114,31 @@ halves are about the same thing: `useStorefront()` builds a fallback storefront 
 component_ when nothing is provided (every Storybook story, every block mount), so a listener per
 store with no way to undo it would leave one behind for each, holding a dead `items` ref.
 
-### The `/wishlist` route
+### The `/wishlist` page and its block
 
-The theme's third code route, for the same reasons `/cart` and `/search` are ones, and prerendered
-by name beside them in `nitro.prerender.routes` — without that line the artifact has no
-`wishlist/index.html` and a static host answers 404 however the app would render it. It carries no
-header and no footer, as they do, because the runtime resolves those only as part of a CMS page or
-route template.
+`/wishlist` is the third seeded page (`pages/wishlist.page.json`), and the block it is made of is
+`blocks/wishlist/`. Both are new: the surface used to be `app/pages/wishlist.vue`, a code route that
+owned its own markup on the argument that a saved list "has no fields, no variants and nothing to
+configure" and therefore did not earn a block.
 
-**No block behind it**, and that is the one difference from the other two. A cart or a search panel
-is something a merchant might want inside their own layout, so each is a block the route renders in
-a variant. A saved list has no fields, no variants and nothing to configure — one list of products
-and one empty state — so the page owns its markup rather than earning a `block.json`, a mock entry
-and a generated preview for a surface nobody would compose. The cards are not hand-rolled either:
-they are `@eldrajs/ui`'s `ProductCard` built by `toProductCardEntries()`, the same mapping
-`collection-grid`, `product-carousel` and `search` build theirs with.
+What changed is not the list — it is still one grid and one empty state — but what a page is allowed
+to be. A code route carries no header and no footer, because the runtime resolves those only as part
+of a page or a route template, so `/wishlist` had no navigation to leave it by and nothing a
+merchant could put beside the grid. As a page it has both, and as a block the grid can also be
+placed anywhere else. Its node is seeded `required`, so the page cannot lose the list the header's
+heart points at.
+
+Four fields, each falling back to the theme's own localized copy, so a freshly inserted block
+renders exactly what the route did: `heading` (the `<h1>`, with the saved count beside it),
+`emptyTitle`, `emptyText` and `emptyLink` — a `link`, so an author can point "Continue shopping" at
+a collection, a page or a product and have it keep resolving when that object is renamed. The seed
+names `/`, the one destination every store has. The link is deliberately **not** localized: a
+destination is one decision rather than a translation (the rule `link` fields follow everywhere), so
+its visible label is the theme's own words unless the author types their own.
+
+The cards are not hand-rolled: they are `@eldrajs/ui`'s `ProductCard` built by
+`toProductCardEntries()`, the same mapping `collection-grid`, `product-carousel` and `search` build
+theirs with.
 
 **One batched read, by handle.** `catalog.byHandles()` turns the whole saved list into a single
 `filter=slug:in:…` products read — not one request per product — and makes no request at all for an
@@ -1096,14 +1147,14 @@ order they were saved; a handle the catalogue does not answer about gets no card
 kept**, because nothing here can tell "this product was deleted" from "we could not ask", and a read
 that failed must never be what empties a shopper's wishlist.
 
-**The read is keyed on the page's own handle list, not on the live wishlist**, and that distinction
+**The read is keyed on the block's own handle list, not on the live wishlist**, and that distinction
 is the difference between a removal costing nothing and a removal costing a round trip.
 `StorefrontResult` watches its sources, so handing it `wishlist.items` directly made every heart
-press re-run the whole batched read — and put the page into its refresh state for the duration, which
-dimmed every card that was staying. The page instead keeps a `ref` that only ever _gains_ handles
-(and only ones it has no row for) plus a map of every row the read has answered, so a removal is a
-local filter and a handle arriving from elsewhere — another tab's save, a client navigation — is still
-fetched.
+press re-run the whole batched read — and put the block into its refresh state for the duration,
+which dimmed every card that was staying. The block instead keeps a `ref` that only ever _gains_
+handles (and only ones it has no row for) plus a map of every row the read has answered, so a
+removal is a local filter and a handle arriving from elsewhere — another tab's save, a client
+navigation — is still fetched.
 
 Each card's heart removes the product and moves focus somewhere deliberate — the next card's own
 heart, the last one when the end of the list went, or the empty state's heading when that was the
@@ -1112,8 +1163,12 @@ announced through one polite live region, naming the product and the list's new 
 Speckled latte mug. 1 item in your wishlist."). That is mechanism as much as copy: a polite region is
 announced when its content _changes_, so a fixed sentence written into it twice is announced once, and
 every removal after the first was silent. No toast here — the product page's heart raises one because
-nothing on that page changes, and here the list itself does. The empty state's one next step is
-**Continue shopping** → `/`, the only destination a theme can promise exists.
+nothing on that page changes, and here the list itself does.
+
+**In Studio the grid is empty**, because the editor is not a shopper's browser, which would read as a
+block that could not find its data. One `EditorPlaceholder` above it says what it will hold on the
+live site — editor-only, gated on `useEditing()` like every other hint in the theme, the same shape
+the cart block's closed-drawer hint has.
 
 ## 4. Storybook and generated previews
 
