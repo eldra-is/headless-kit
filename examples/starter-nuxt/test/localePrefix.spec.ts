@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick, ref, type Ref } from 'vue';
 import { describe, expect, it } from 'vitest';
 import { createEldraLocaleState, ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { localeHref, localePathFor, resolveLocaleRouting } from '@eldrajs/theme-nuxt/locales';
 import { Button, Link } from '@eldrajs/ui';
 import EldraRouterLink from '../app/components/EldraRouterLink.vue';
 import { mountOptions } from './support/mountBlock';
+import { isIS } from '../app/i18n/is-IS';
+import { STOREFRONT_KEY } from '../app/storefront/types';
+import type { StorefrontResult, StorefrontSearchResponse } from '../app/storefront/types';
+import { createDemoStorefront } from '../app/storefront/demo';
 import { hydrateBlock, hydrationWarnings, renderBlockHtml } from './support/hydrate';
 import FooterBlock from '../blocks/footer/Block.vue';
 import NavigationBlock from '../blocks/navigation/Block.vue';
@@ -151,6 +155,116 @@ describe('the header’s own destinations', () => {
     expect(internal).toContain('/is-IS/collections/knitwear');
     for (const href of internal) {
       expect(href, href).toMatch(/^\/is-IS(\/|$|\?)/);
+    }
+  });
+});
+
+/**
+ * **The header's search is three destinations, and `EldraRouterLink` can reach none of them.**
+ * `SearchBar`/`SearchModal` render a real `<form method="get" :action>` (the no-JavaScript submit),
+ * the overlay's "See all N results" row is built by the library as `${action}?q=…`, and every
+ * result row is a plain `<a>` in a panel that takes no `linkAs`. All three used to point at the
+ * default language's `/search` and `/products/…` from a prefixed page — the header search is the
+ * common way into a catalogue, and `showSearch: true` with `searchStyle: 'icon'` is the shipped
+ * default, so this was the likeliest way of all to be thrown back into English mid-visit.
+ */
+describe('the header’s search', () => {
+  const QUERY = 'mug';
+  const ANSWER: StorefrontSearchResponse = {
+    query: QUERY,
+    total: 1,
+    products: [
+      {
+        handle: 'ash-glaze-mug',
+        title: 'Ash glaze mug',
+        url: '/products/ash-glaze-mug',
+        featuredImage: null,
+        price: { amount: 42, compareAt: null },
+        stock: 'in',
+        available: true,
+        productId: 'ash-glaze-mug',
+      },
+    ],
+    articles: [{ title: 'On glazes', href: '/journal/on-glazes' }],
+    pages: [{ title: 'Care', href: '/pages/care' }],
+    suggestion: null,
+  };
+
+  /** The header with a search answer already in hand, on a page served under `/is-IS`. */
+  function mountHeader(data: Record<string, unknown>) {
+    const base = mountOptions({ entry: { id: 'nav', data } }, { locales: icelandic() });
+    const result: StorefrontResult<StorefrontSearchResponse> = {
+      data: ref(ANSWER) as Ref<StorefrontSearchResponse | null>,
+      pending: ref(false),
+      loading: ref(false),
+      revalidating: ref(new Set()),
+      error: ref(null),
+      refresh: async () => {},
+    };
+    return mount(NavigationBlock, {
+      attachTo: document.body,
+      ...base,
+      global: {
+        ...base.global,
+        provide: {
+          ...base.global.provide,
+          [STOREFRONT_KEY]: { ...createDemoStorefront(), search: { run: () => result } },
+        },
+      },
+    });
+  }
+
+  it('submits the overlay’s form into the active locale, and offers its rows there', async () => {
+    const wrapper = mountHeader(navigationMock as Record<string, unknown>);
+    try {
+      // The search trigger, not the menu drawer's: both are `aria-haspopup="dialog"`. Its label is
+      // Icelandic here, which is itself part of the rule under test one layer up.
+      await wrapper.get(`button[aria-label="${isIS.header.search}"]`).trigger('click');
+      await nextTick();
+
+      // 1. The native submit path.
+      const form = document.querySelector('dialog[open] form[role="search"]');
+      expect(form?.getAttribute('action')).toBe('/is-IS/search');
+
+      // The panel only has rows for a query it has an answer for, so type the one `ANSWER` is
+      // about — the same precondition `blocks/navigation/__tests__/Block.spec.ts` sets up.
+      const input = wrapper.get('dialog[open] input[type="search"]');
+      await input.setValue(QUERY);
+      await nextTick();
+
+      const rows = [...document.querySelectorAll<HTMLElement>('[role="option"][href]')];
+      const hrefs = rows.map((row) => row.getAttribute('href') ?? '');
+      expect(hrefs.length).toBeGreaterThan(1);
+
+      // 2. The library's own "See all N results" row, built from the same `action`.
+      expect(hrefs[hrefs.length - 1]).toBe(`/is-IS/search?q=${QUERY}`);
+
+      // 3. Every result row the storefront supplied — a product, an article and a page.
+      expect(hrefs).toContain('/is-IS/products/ash-glaze-mug');
+      expect(hrefs).toContain('/is-IS/journal/on-glazes');
+      expect(hrefs).toContain('/is-IS/pages/care');
+      for (const href of hrefs) {
+        expect(href, `${href} leaves the is-IS site`).toMatch(/^\/is-IS(\/|$|\?)/);
+      }
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it('submits the inline field into the active locale too', () => {
+    // `searchStyle: 'field'` renders `SearchBar` in the bar itself, with its own `<form action>`.
+    const wrapper = mountHeader({
+      ...(navigationMock as Record<string, unknown>),
+      searchStyle: 'field',
+    });
+    try {
+      const actions = wrapper
+        .findAll('form[role="search"]')
+        .map((form) => form.attributes('action'));
+      expect(actions.length).toBeGreaterThan(0);
+      for (const action of actions) expect(action).toBe('/is-IS/search');
+    } finally {
+      wrapper.unmount();
     }
   });
 });
