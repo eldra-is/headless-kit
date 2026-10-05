@@ -66,8 +66,7 @@ export const isIS = {
     emailInvalid: 'Sláðu inn gilt netfang.',
     emailError: 'Eitthvað fór úrskeiðis. Reyndu aftur.',
     subscribed: 'Skráning tókst.',
-    localeLabel: 'Land og tungumál',
-    localeSearchPlaceholder: 'Leita að löndum',
+    localeLabel: 'Tungumál',
     currencyLabel: 'Gjaldmiðill',
     social: {
       instagram: 'Instagram',
@@ -81,11 +80,6 @@ export const isIS = {
     groupsHintLabel: 'Bættu við tenglahópi',
     groupsHintHelp: 'Að hámarki fjórir hópar með átta tenglum hver',
     newsletterHintLabel: 'Kveiktu á póstlistaforminu',
-    localeOptions: {
-      usEnglish: 'Bandaríkin · enska',
-      caEnglish: 'Kanada · enska',
-      caFrench: 'Kanada · franska',
-    },
   },
   hero: {
     carouselFallback: 'Úrval í verslun',

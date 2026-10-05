@@ -123,10 +123,12 @@ export interface Messages {
     emailError: string;
     /** The newsletter success status line. */
     subscribed: string;
-    /** Visually hidden label for the country/language selector. */
+    /**
+     * Visually hidden label for the language switcher. The options are not strings: each is the
+     * locale's own name from `Intl.DisplayNames` (see `blocks/footer/Block.vue`), which is why
+     * only the label is here.
+     */
     localeLabel: string;
-    /** Placeholder and accessible name of the country/language selector's search field. */
-    localeSearchPlaceholder: string;
     /** Visually hidden label for the currency selector. */
     currencyLabel: string;
     /** Display names for `social[].network`, used in the icon button's accessible name. */
@@ -150,12 +152,6 @@ export interface Messages {
     groupsHintLabel: string;
     groupsHintHelp: string;
     newsletterHintLabel: string;
-    /** The country/language selector's fixed option set (spec example locales, not CMS content). */
-    localeOptions: {
-      usEnglish: string;
-      caEnglish: string;
-      caFrench: string;
-    };
   };
   /**
    * The hero block's own strings: a fallback accessible name for its `split-carousel` variant's

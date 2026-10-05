@@ -769,7 +769,9 @@ describe('product-detail block', () => {
     const wrapper = await mountReady(mock, { locales });
     await wrapper.get('button[aria-pressed]').trigger('click');
 
-    expect(toastAction()).toEqual({ label: 'View wishlist', href: '/is-IS/wishlist' });
+    // The copy is Icelandic too: `useT()` reads the same active locale, so the label and the
+    // destination of one offer can never disagree about which language the shopper is in.
+    expect(toastAction()).toEqual({ label: isIS.wishlist.view, href: '/is-IS/wishlist' });
 
     // And the cart offer, on the prerendered state where no drawer is hosted and the toast's
     // action is a link rather than a button.
@@ -777,7 +779,7 @@ describe('product-detail block', () => {
     const noDrawer = await mountReady(mock, { locales });
     await addToCart(noDrawer).trigger('click');
     await flushPromises();
-    expect(toastAction()).toEqual({ label: 'View cart', href: '/is-IS/cart' });
+    expect(toastAction()).toEqual({ label: isIS.cart.viewCart, href: '/is-IS/cart' });
   });
 
   /** A removal has nothing to offer: the product just left the list, so there is nothing there to

@@ -32,11 +32,18 @@
  * spec's tertiary link, turning `text` with an underline only on hover; legal links keep the
  * package's own underline-at-rest default (spec: "always underlined").
  *
- * The locale selector is **not** CMS content — the spec calls its options "mock-independent theme
- * constants" (a handful of example locales), so it is local constants translated through `useT()`
- * rather than a `mock.json` field. `Select` commits only on `Enter` or a click (its own contract;
- * arrow keys alone only move the active option), so nothing extra is needed here to satisfy
- * "prices reload only after Enter or a click" (3.2.2).
+ * The locale selector is **not** CMS content, and it is not a theme constant either: its options are
+ * the organisation's own content locales (`useEldraLocale().supported`, read once at build onto the
+ * runtime config by `@eldrajs/theme-nuxt`). The spec called them "mock-independent theme constants"
+ * and the block shipped a `us-en / ca-en / ca-fr` demo list, which named three locales no store has
+ * and switched to none of them. Each option is labelled with the locale's **own** name through
+ * `Intl.DisplayNames(tag, { type: 'language' })` — "íslenska (Ísland)", not "Icelandic" — because a
+ * visitor looking for their language is looking for it written the way they write it; the raw tag is
+ * the fallback for a locale the runtime has no name for. Choosing one navigates to the same page
+ * under that locale (`select()`), and with a single locale there is nothing to choose, so it renders
+ * nothing at all — the same rule the currency slot already follows. `Select` commits only on `Enter`
+ * or a click (its own contract; arrow keys alone only move the active option), so nothing extra is
+ * needed here to satisfy "prices reload only after Enter or a click" (3.2.2).
  *
  * The currency selector is different: the spec was written for a multi-currency store, but the
  * platform supports exactly one currency per store today. So its options are derived from the
@@ -68,7 +75,7 @@
  * actually fires.
  */
 import { computed, nextTick, ref, watch } from 'vue';
-import { useEldraLink } from '@eldrajs/theme-vue';
+import { useEldraLink, useEldraLocale } from '@eldrajs/theme-vue';
 import type { ResolvedLink } from '@eldrajs/theme-vue';
 import {
   Button,
@@ -211,7 +218,53 @@ function socialLinkName(network: string): string {
   return t('footer.socialLinkName', { brand: data.value.brandText, network: t(key) });
 }
 
-const showLocale = computed(() => data.value.showLocale ?? true);
+/**
+ * The site's own locales, and which one this page is in.
+ *
+ * `supported` is empty on a store that has configured none and on every render outside a Nuxt site
+ * (a story, a unit mount), which is the same thing as far as this block is concerned: nothing to
+ * switch between.
+ */
+const activeLocale = useEldraLocale();
+
+/**
+ * `Intl.DisplayNames` is constructed per locale, not per render: this runs inside a `computed` that
+ * every footer render reads, and the constructor is the expensive part of the lookup. A store has a
+ * handful of locales, so the cache is a few entries that never need evicting.
+ */
+const localeNames = new Map<string, string>();
+
+/**
+ * One locale's name **in that locale** — "íslenska (Ísland)", "American English". The tag itself is
+ * the fallback twice over: for a runtime that has no name for it (`of()` answers the tag back), and
+ * for one that refuses the tag outright (`Intl` throws `RangeError` for a malformed one, and this
+ * runs inside a `computed` where a throw takes the whole footer down).
+ */
+function localeDisplayName(tag: string): string {
+  const cached = localeNames.get(tag);
+  if (cached !== undefined) return cached;
+  let name = tag;
+  try {
+    name = new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
+  } catch {
+    name = tag;
+  }
+  localeNames.set(tag, name);
+  return name;
+}
+
+const localeOptions = computed<SelectOption[]>(() =>
+  activeLocale.supported.map((tag) => ({ value: tag, label: localeDisplayName(tag) }))
+);
+
+/**
+ * The switcher renders only when there is a choice to make. A single-locale store — which is most
+ * of them, and every Storybook story — gets no control at all rather than a combobox a visitor can
+ * open onto one option, exactly as the currency slot does.
+ */
+const showLocale = computed(
+  () => (data.value.showLocale ?? true) && localeOptions.value.length > 1
+);
 const showCurrency = computed(() => data.value.showCurrency ?? true);
 
 /**
@@ -243,16 +296,18 @@ const hasLegalRow = computed(
   () => Boolean(data.value.legalText) || legalLinks.value.length > 0 || hasSelectors.value
 );
 
-/** The spec's own example locales (not CMS content — see file doc). */
-const LOCALE_VALUES = ['us-en', 'ca-en', 'ca-fr'] as const;
-
-const localeOptions = computed<SelectOption[]>(() => [
-  { value: 'us-en', label: t('footer.localeOptions.usEnglish') },
-  { value: 'ca-en', label: t('footer.localeOptions.caEnglish') },
-  { value: 'ca-fr', label: t('footer.localeOptions.caFrench') },
-]);
-
-const locale = ref<string>(LOCALE_VALUES[0]);
+/**
+ * The selector's value is the page's own locale, and setting it is a navigation — there is no local
+ * state to keep. The page the visitor lands on is this same page under the chosen locale's prefix,
+ * which is what re-renders this footer with the new value; a `ref` of its own would have shown the
+ * choice immediately and then disagreed with the page if the navigation was refused or slow.
+ */
+const locale = computed<string>({
+  get: () => activeLocale.active ?? '',
+  set: (value) => {
+    if (value !== '' && value !== activeLocale.active) activeLocale.select(value);
+  },
+});
 /** Only reached once `currencyOptions` carries two or more entries — see the template. */
 const currency = ref<string>(currencyOptions.value[0]?.value ?? '');
 
@@ -577,13 +632,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
             :label="t('footer.localeLabel')"
             :classes="{ root: 'w-full @tablet:w-auto', label: 'sr-only' }"
           >
-            <Select
-              v-model="locale"
-              :options="localeOptions"
-              placement="above"
-              searchable
-              :search-placeholder="t('footer.localeSearchPlaceholder')"
-            />
+            <!-- Not `searchable`: a store has a handful of content locales, and a search field
+                 over three options is one more thing between a visitor and their language. -->
+            <Select v-model="locale" :options="localeOptions" placement="above" />
           </FieldWrapper>
           <!--
             With exactly one currency there is nothing to select — see the file doc comment — so
