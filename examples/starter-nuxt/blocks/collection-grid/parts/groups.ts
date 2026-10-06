@@ -291,3 +291,25 @@ const CURRENCY_PRICE_STEP: Readonly<Record<string, number>> = { ISK: 100 };
 export function defaultPriceStep(currency: string | undefined): number {
   return CURRENCY_PRICE_STEP[currency ?? ''] ?? 1;
 }
+
+/**
+ * How many stops a track needs to be worth dragging. Below this the step is the control's whole
+ * range, so the thumbs can only sit at either end.
+ */
+const MIN_PRICE_STOPS = 10;
+
+/**
+ * The currency's own step, narrowed to one the catalogue can hold.
+ *
+ * A step is a granularity, not a unit of faith: a store selling in krónur whose whole collection
+ * spans 50 of them gets a two-stop track from ISK's 100, and every value between the ends — a
+ * typed figure, a bound out of a shared URL — then snaps to one end or the other. So a default
+ * step the span cannot hold ten of falls back to one unit, which every span can.
+ *
+ * Only the default is fitted. An author who sets `priceStep` themselves gets exactly that.
+ */
+export function fitPriceStep(step: number, span: PriceSpan): number {
+  const width = span.max - span.min;
+  if (!(width > 0)) return step;
+  return Math.floor(width / MIN_PRICE_STOPS) >= step ? step : 1;
+}

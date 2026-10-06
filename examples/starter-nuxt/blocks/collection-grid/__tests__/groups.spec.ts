@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultPriceStep,
+  fitPriceStep,
   formatPriceRange,
   groupValuesFor,
   hasPriceRange,
@@ -193,5 +194,22 @@ describe('defaultPriceStep', () => {
     expect(defaultPriceStep('ISK')).toBe(100);
     // A store that publishes no currency still gets a usable grid.
     expect(defaultPriceStep(undefined)).toBe(1);
+  });
+});
+
+describe('fitPriceStep', () => {
+  /** A step the span cannot hold ten of leaves a two-stop track, where every value between the
+   *  ends — a typed figure, a bound out of a shared URL — snaps to one end or the other. */
+  it('falls back to one unit when the catalogue’s span is smaller than ten steps', () => {
+    expect(fitPriceStep(100, { min: 18, max: 68 })).toBe(1);
+    expect(fitPriceStep(100, { min: 1200, max: 48000 })).toBe(100);
+    expect(fitPriceStep(100, { min: 0, max: 1000 })).toBe(100);
+    expect(fitPriceStep(100, { min: 0, max: 999 })).toBe(1);
+  });
+
+  it('leaves a one-unit step and a collapsed span alone', () => {
+    expect(fitPriceStep(1, { min: 24, max: 180 })).toBe(1);
+    expect(fitPriceStep(1, { min: 5, max: 5 })).toBe(1);
+    expect(fitPriceStep(100, { min: 5, max: 5 })).toBe(100);
   });
 });

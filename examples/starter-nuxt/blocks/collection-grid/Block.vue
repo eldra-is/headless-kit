@@ -92,6 +92,7 @@ import FilterGroups from './parts/FilterGroups.vue';
 import {
   defaultPriceStep,
   FILTER_SOURCES,
+  fitPriceStep,
   formatPriceRange,
   GROUP_KIND,
   groupValuesFor,
@@ -512,17 +513,6 @@ const availabilityLabels = computed(() => ({
 }));
 
 /**
- * The price slider's step: the author's `priceStep`, else one unit of the store currency (ISK 100,
- * USD 1 — `defaultPriceStep`). A non-positive or non-integer field value is no step at all, so it
- * falls back rather than handing the slider a grid it cannot land on.
- */
-const priceStep = computed(() => {
-  const own = data.value.priceStep;
-  if (typeof own === 'number' && Number.isFinite(own) && own > 0) return own;
-  return defaultPriceStep(money.currency.value);
-});
-
-/**
  * The span the price control works across: **the catalogue's own bounds**, from the facets (spec:
  * "not 0 and a round number"), which are counted with every filter *except* price applied and so
  * stay still while the shopper drags.
@@ -551,6 +541,18 @@ const priceSpan = computed<PriceSpan>(() =>
     max: priceMax.value,
   })
 );
+
+/**
+ * The price slider's step: the author's `priceStep`, else one unit of the store currency (ISK 100,
+ * USD 1 — `defaultPriceStep`), narrowed to a step this catalogue's own span can actually hold
+ * (`fitPriceStep`). A non-positive or non-integer field value is no step at all, so it falls back
+ * rather than handing the slider a grid it cannot land on.
+ */
+const priceStep = computed(() => {
+  const own = data.value.priceStep;
+  if (typeof own === 'number' && Number.isFinite(own) && own > 0) return own;
+  return fitPriceStep(defaultPriceStep(money.currency.value), priceSpan.value);
+});
 
 const groups = computed<FilterGroup[]>(() => {
   const rows = (data.value.filters ?? []) as FilterField[];

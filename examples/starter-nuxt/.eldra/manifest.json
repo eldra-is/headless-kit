@@ -1264,7 +1264,7 @@
       "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
       "icon": "layout-grid",
       "category": "commerce",
-      "version": 3,
+      "version": 4,
       "fields": [
         {
           "fieldId": "collection",
@@ -1396,6 +1396,7 @@
                     "metadata": {
                       "options": [
                         "category",
+                        "collection",
                         "option:size",
                         "option:colour",
                         "price",
@@ -1418,11 +1419,24 @@
                     "name": "Start closed",
                     "type": "bool",
                     "helpText": "A group with an active value always starts open."
+                  },
+                  {
+                    "fieldId": "slider",
+                    "name": "Price slider",
+                    "type": "bool",
+                    "default": true,
+                    "helpText": "Price only. Off shows the two typed fields alone, for prices that sit in a few tight clusters."
                   }
                 ]
               }
             }
           }
+        },
+        {
+          "fieldId": "priceStep",
+          "name": "Price step",
+          "type": "int",
+          "helpText": "The price slider's step. Leave empty for one unit of the store currency (ISK 100, USD 1)."
         },
         {
           "fieldId": "showColumnSelect",

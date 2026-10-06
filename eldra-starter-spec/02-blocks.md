@@ -3079,7 +3079,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 | `paginationStyle` | select | yes | `load-more` | `load-more` · `pages` |
 | `sortOptions` | list | no | Featured, Best selling, Price low to high, Price high to low, Newest | Which sort options to offer, in order. |
 | `filters` | list | no | Category, Size, Colour, Price, Availability | Filter groups, in order. |
-| `filters[].source` | select | yes | — | `category` · `option:size` · `option:colour` · `price` · `availability` |
+| `filters[].source` | select | yes | — | `category` · `collection` · `option:size` · `option:colour` · `price` · `availability` |
 | `filters[].label` | string | no | the source's name | Overrides the group title. |
 | `filters[].collapsed` | bool | no | off | Start closed. A group with an active value always starts open. |
 | `filters[].slider` | bool | no | on | Price only. Off falls back to the two typed fields alone, for a store whose prices sit in a few tight clusters a track cannot separate. |
@@ -3102,7 +3102,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 - **48–64rem**: as below 48rem, with 1.5rem gutters. The grid uses `columns`, capped at 3 (the 4-column setting shows 3 here). Grid gaps 3rem by 1.5rem.
 - **From 64rem**: a `15rem | 1fr` layout with a 3rem gap, aligned to the top. The sidebar is sticky 1.5rem from the top of the viewport. The mobile top bar is hidden. The toolbar is a wrapping row: the count on the left; on the right, **Sort by** and **Columns** Selects at size sm (2rem, `control-height-sm`), each with a visible `muted` 0.875rem label (weight 500) to its left, 0.5rem apart, the two controls 1.5rem apart. The toolbar has 1rem padding below and a `border` rule. Chips follow 1rem below the rule, then the grid 1.5rem further down. The Columns select appears only from 64rem and only when `showColumnSelect` is on.
 - **Filter groups (sidebar and drawer share them)**: each group has a `border` rule below it (the first also above it). The trigger is a full-width button at least 3rem tall, 0.5rem vertical padding, 1rem text weight 600, left-aligned, with the count badge ("1") pushed to the right 0.5rem before a chevron. The chevron turns 180° when the group is open (`duration-base`, `ease-out`). The open panel has 1.25rem bottom padding; its options are 0.5rem apart.
-  - **Category and Availability**: Checkboxes with 1rem labels and the count "(18)" in `muted`, tabular figures.
+  - **Category, Collection and Availability**: Checkboxes with 1rem labels and the count "(18)" in `muted`, tabular figures. A value the store counts 0 of is shown disabled (dimmed, not operable), never hidden — counts are computed without that group's own filter applied, so a 0 means another group rules it out. A value the shopper has already ticked is never disabled. Availability offers the two values the backend counts, **In stock** and **Out of stock**.
   - **Size**: pill checkboxes in a wrapping row, 0.5rem gaps, each 2.5rem tall and at least 2.75rem wide (0 0.75rem padding). In the desktop sidebar they shrink to 2.5rem × 2.5rem minimum (0 0.5rem padding).
   - **Colour**: a 2-column grid (gaps 0.25rem × 0.75rem). Each row is at least 2.75rem tall (2.25rem in the desktop sidebar): a 1.5rem dot in the colour, outlined by a 1px inset `border-strong` line, then the colour name 0.5rem to its right. A real checkbox sits over the dot.
   - **Price**: a Range slider across the full group width with its `inputs` row on, so the span can be dragged or typed. Its `min` and `max` are the collection's own price bounds from the backend (not 0 and a round number), its `step` is `priceStep`, and `formatValue` is the store's currency formatter, so both thumbs announce and both fields read "$1,200" rather than "1200". The legend names the currency ("Price range in US dollars"), so the fields need no "$" prefix of their own. With `filters[].slider` off, the group is the two fields alone: a 3-column grid (`1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned) of the "Min" Field, the word "to" (0.875rem `muted`) and the "Max" Field, each Input showing a `muted` "$" prefix 0.75rem from its start with the text starting 1.75rem in.
@@ -3122,12 +3122,12 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 
 **Field → layout mapping**
 
-`collection` → cards, counts and filter values · `columns` → grid columns · `pageSize` → cards per page or per Load more step · `paginationStyle` → Pagination or the Load more group · `sortOptions` → Sort options · `filters[]` → filter groups (sidebar and drawer) · each active value → a chip in the active-filter list · `showColumnSelect` → the Columns select · `emptyTitle` / `emptyText` → Empty state.
+`collection` → cards, counts and filter values · `filters[].slider` → the price Range slider or its two-field fallback · `priceStep` → the slider's step · `columns` → grid columns · `pageSize` → cards per page or per Load more step · `paginationStyle` → Pagination or the Load more group · `sortOptions` → Sort options · `filters[]` → filter groups (sidebar and drawer) · each active value → a chip in the active-filter list · `showColumnSelect` → the Columns select · `emptyTitle` / `emptyText` → Empty state.
 
 **Keyboard & accessibility**
 
 - The root is a `<section>` labelled with the collection name ("Winter knitwear products"). The grid has a visually hidden `h2` "Products". Card titles are `h3`. In the sidebar, the filters are an `<aside>` labelled "Filters"; each group trigger is a `<button>` inside an `h3`, with `aria-expanded` and `aria-controls`.
-- Each group body is a `<fieldset>` with a visually hidden `<legend>` (Category, Size, Colour, Price range in US dollars, Availability). Each group's count badge has the accessible name "1 selected".
+- Each group body is a `<fieldset>` with a visually hidden `<legend>` (Category, Collection, Size, Colour, Price range in US dollars, Availability). Each group's count badge has the accessible name "1 selected".
 - Colour filters are real checkboxes laid over the dot. The checked state shows as a 2px `text` ring around the dot (2px gap) **plus** a bold, underlined name, so it never relies on colour alone. Hover adds a 1px `border-strong` ring. The standard focus ring is drawn around the dot at a 3px offset so it clears the checked ring. Size filters are pill checkboxes: checked is a `primary` fill with `primary-contrast` text and weight 600.
 - The price group is a Range slider: two `role="slider"` thumbs named "Minimum price" and "Maximum price" — named explicitly, since the group's own legend is the longer "Price range in US dollars" — with each thumb's `aria-valuetext` formatted as a price. Its typed fields take the same two names. Dragging a thumb is never the only way to set a price: the arrow keys move it, and the fields accept an exact figure.
 - The result count is `role="status"` with `aria-live="polite"` and is updated after filtering finishes ("12 products").
@@ -3148,7 +3148,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 
 **Default content (Northwind Goods)**
 
-Collection "Winter knitwear", 48 products. Chips: Size: M · Colour: Oat · Availability: In stock. Filter values: Category Knitwear (18), Ceramics (14), Kitchen (16) · Size XS, S, M, L, XL · Colour Oat, Charcoal, Clay, Moss, Stone, Natural · Price range $24 to $180 (the collection's own bounds), both thumbs at an end, step $1 · Availability In stock (41), Include back-order (7). Cards: Merino crew sweater $96.00 (was $128.00, Sale) · Fisherman rib cardigan $164.00 (New) · Lambswool throw blanket $148.00 · Ribbed lambswool beanie $38.00 · Linen tea towels, pair $24.00 (Sold out) · Speckled latte mug $28.00. Empty: "No products match these filters". Load more: "Showing 6 of 48 products" · **Load more products**. Drawer: "Filter" · **Clear all** · **Show 12 products**.
+Collection "Winter knitwear", 48 products. Chips: Size: M · Colour: Oat · Availability: In stock. Filter values: Category Knitwear (18), Ceramics (14), Kitchen (16) · Size XS, S, M, L, XL · Colour Oat, Charcoal, Clay, Moss, Stone, Natural · Price range $24 to $180 (the collection's own bounds), both thumbs at an end, step $1 · Availability In stock (41), Out of stock (7). Cards: Merino crew sweater $96.00 (was $128.00, Sale) · Fisherman rib cardigan $164.00 (New) · Lambswool throw blanket $148.00 · Ribbed lambswool beanie $38.00 · Linen tea towels, pair $24.00 (Sold out) · Speckled latte mug $28.00. Empty: "No products match these filters". Load more: "Showing 6 of 48 products" · **Load more products**. Drawer: "Filter" · **Clear all** · **Show 12 products**.
 
 **Acceptance criteria**
 
@@ -3171,8 +3171,8 @@ Collection "Winter knitwear", 48 products. Chips: Size: M · Colour: Oat · Avai
 
 **Do / Don't**
 
-- **Do** show real counts next to filter values and hide values with 0 results, unless they are selected.
-- **Do** keep selected filters in the URL so results can be shared and the back button works.
+- **Do** show real counts next to filter values, computed without that group's own filter applied, and show a value the count has emptied as disabled rather than hiding it. A value the shopper has selected is never disabled.
+- **Do** keep selected filters in the URL so results can be shared and the back button works: one key per group (`?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`), the price range as a single `<min>-<max>` value.
 - **Don't** apply drawer filters on every tap on mobile. Batch them behind **Show N products**.
 - **Don't** mark availability with colour alone. Sold-out cards get the outline badge and a faded image.
 - **Don't** use infinite scroll with no button. Load more keeps the footer reachable and the position predictable.

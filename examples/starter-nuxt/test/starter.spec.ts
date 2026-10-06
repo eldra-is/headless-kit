@@ -360,6 +360,7 @@ describe('starter theme', () => {
         'paginationStyle',
         'sortOptions',
         'filters',
+        'priceStep',
         'showColumnSelect',
         'emptyTitle',
         'emptyText',
