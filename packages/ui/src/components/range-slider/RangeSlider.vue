@@ -29,7 +29,7 @@ import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';
-import { FIELD_BASE, FIELD_SIZE } from '../input/classes';
+import { FIELD_BASE, FIELD_DISABLED, FIELD_LIVE, FIELD_SIZE } from '../input/classes';
 import type { RangeSliderProps, RangeSliderThumb, RangeSliderValue } from './types';
 import {
   clampRangeThumb,
@@ -432,11 +432,21 @@ const INPUTS_BASE = 'mt-3 grid grid-cols-[1fr_auto_1fr] items-end gap-2';
 const SEPARATOR_BASE = 'self-center text-center text-body-sm text-muted';
 /**
  * The fields are the spec's own Input box at `md` (`components/input/classes.ts` — the shared
- * recipe `SearchBar` and `UnitInput` draw from, never a second copy of it), centred and with
- * tabular figures so the two columns of digits line up.
+ * recipe `Input`, `SearchBar` and `UnitInput` draw from, never a second copy of it), centred and
+ * with tabular figures so the two columns of digits line up. Those two utilities are the whole
+ * delta; everything else about the box, its **states included**, comes from the recipes.
+ *
+ * The state recipe is not optional. `FIELD_BASE` carries `eldra-field-border`, which sets a border
+ * *width* and no colour at all — the colour lives in `FIELD_LIVE`/`FIELD_INVALID`/`FIELD_DISABLED`/
+ * `FIELD_READONLY`, exactly as `Input.vue` and `UnitInput.vue` compose it. A field that draws the
+ * base without one of them falls through to Tailwind's preflight `border: 0 solid`, whose colour is
+ * `currentcolor`: these two fields rendered a near-black `text` boundary at rest (heavier than
+ * every other field beside them in a filter panel), never took `FIELD_LIVE`'s hover/focus
+ * `border-text` change because they were already at it, and lost the kit's dashed `border-border`
+ * disabled signal. `src/__tests__/fieldStateRecipes.spec.ts` is the gate that stops the next
+ * partial copy.
  */
 const INPUT_BASE = `${FIELD_BASE} ${FIELD_SIZE.md} text-center tabular-nums`;
-const INPUT_DISABLED = 'cursor-not-allowed bg-surface-strong text-muted';
 
 const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'root'));
 const labelClass = computed(() => partClass(LABEL_BASE, props.classes, 'label'));
@@ -454,7 +464,7 @@ const thumbClass = computed(() =>
 const inputsClass = computed(() => partClass(INPUTS_BASE, props.classes, 'inputs'));
 const separatorClass = computed(() => partClass(SEPARATOR_BASE, props.classes, 'separator'));
 const inputClass = computed(() =>
-  partClass(cx(INPUT_BASE, props.disabled && INPUT_DISABLED), props.classes, 'input')
+  partClass(cx(INPUT_BASE, props.disabled ? FIELD_DISABLED : FIELD_LIVE), props.classes, 'input')
 );
 </script>
 
