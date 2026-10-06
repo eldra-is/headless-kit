@@ -596,9 +596,13 @@ describe('category projection', () => {
         slug: 'rich',
         title: 'Rich',
         parentId: null,
-        description: { type: 'doc', content: [] },
+        description: 'Everything for the car.',
         productCount: 12,
       },
+      // A description the model does not have, and one that is not text: neither is a description,
+      // and inventing the key would bind a text template to nothing (or to `[object Object]`).
+      { id: 'cat-bare', slug: 'bare', title: 'Bare', parentId: null },
+      { id: 'cat-odd', slug: 'odd', title: 'Odd', parentId: null, description: { type: 'doc' } },
     ]);
     expect(projectCategoryNode(tree.get('rich')!).data).toEqual({
       slug: 'rich',
@@ -606,9 +610,11 @@ describe('category projection', () => {
       path: 'rich',
       ancestors: [],
       children: [],
-      description: { type: 'doc', content: [] },
+      description: 'Everything for the car.',
       productCount: 12,
     });
+    expect(projectCategoryNode(tree.get('bare')!).data).not.toHaveProperty('description');
+    expect(projectCategoryNode(tree.get('odd')!).data).not.toHaveProperty('description');
   });
 });
 

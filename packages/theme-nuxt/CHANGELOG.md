@@ -14,9 +14,9 @@ Release-please writes the generated notes from commit messages and does not repl
   trailing extra segment are each the not-found shell rather than a redirect. `useEldraPage()`'s
   `catalog` is `{ kind: 'category', slug, path }` there — the leaf's slug and the whole path — and
   the resolved entry carries the binding paths `slug`, `title`, `path`, `ancestors[]` and
-  `children[]`, plus `description` and `productCount` only when the catalog read carried them (the
-  category model may have neither, and an invented key would bind a template to an empty value on
-  every site without one).
+  `children[]`, plus `description` (plain text, like a collection's) and `productCount` only when the catalog read
+  carried them (the category model may have neither, and an invented key would bind a template to an
+  empty value on every site without one).
 - `prerender:routes` adds one route per **canonical** category path, times the site's locales, the
   same way it fans out collections. A category the list cannot place — no slug, or a parent the list
   does not hold — gets no route, and neither does the subtree under it: a path built over that gap

@@ -235,7 +235,10 @@ export function buildCategoryTree(
  * carried them**, which is the one place this projection differs from the
  * product's and the collection's. The catalog category model may have neither,
  * and a key invented here would bind a template to an empty value for every
- * category on every site that does not have one.
+ * category on every site that does not have one. `description` is **plain
+ * text** — a string, like a collection's and unlike a product's rich-text
+ * document — so a non-string is no description at all rather than something a
+ * text template would render as `[object Object]`.
  */
 export function projectCategoryNode(node: CatalogCategoryNode): EntryDoc {
   const description = node.raw.description;
@@ -248,9 +251,7 @@ export function projectCategoryNode(node: CatalogCategoryNode): EntryDoc {
       path: node.path,
       ancestors: node.ancestors.map(plainRef),
       children: node.children.map(plainRef),
-      // Rich text, handed to the theme's rich-text renderer unchanged — the same
-      // contract a product's own `description` has.
-      ...(description === undefined || description === null ? {} : { description }),
+      ...(typeof description === 'string' && description !== '' ? { description } : {}),
       ...(typeof productCount === 'number' ? { productCount } : {}),
     },
   };

@@ -133,8 +133,8 @@ const { template, entry, catalog, layout, blocks } = useEldraPage();
 // entry.data carries the binding paths a catalog template addresses —
 // product: slug, title, description, status, categoryId, tags, variants[], images[]
 // collection: slug, title, description, productCount, image
-// category: slug, title, path, ancestors[], children[] (+ description/productCount when the
-//           catalog read carries them)
+// category: slug, title, path, ancestors[], children[] (+ description as plain text, and
+//           productCount, when the catalog read carries them)
 </script>
 ```
 
