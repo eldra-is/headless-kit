@@ -442,11 +442,15 @@ the previous content into a `<fieldId>__vN` legacy field rather than discarding 
 retired this way when the commerce blocks moved to collection references — `product-carousel`'s
 `sourceHandle` (version 2 → 3), `collection-grid`'s `collectionHandle` (2 → 3) and
 `collection-header`'s `collectionHandle` (1 → 2, the same change that added its `collection`
-reference; _adding_ a field needs no bump). `collection-grid` is at version 4 for a different reason, and it is the one additive change that
-still needs a bump: `filters[].slider` is a **new child of an existing list's composite**, and
-`storageCompatible` compares a list item's children by count and id, so the scanner cannot tell an
-addition from a replacement and requires the bump either way (a top-level addition, like the
-`priceStep` field in the same change, needs none). `navigation`'s `showAccount` is the fourth
+reference; _adding_ a field needs no bump). **An addition under an existing list item is the
+one "additive" change that is not free**, and it is why `collection-grid`'s price-slider toggle is
+the block-level `priceSlider` rather than a `filters[].slider`: `storageCompatible` compares a list
+item's children by count and id, so the scanner cannot tell an addition from a replacement and
+demands the bump either way — which would retire every author's configured `filters` list and empty
+the filter panel on live collection pages until somebody rebuilt it. Top-level additions
+(`priceSlider`, `priceStep`) and a new **option** on an existing `select` (the `collection` filter
+source) both cost nothing: the scanner compares type, localization and cardinality, not an enum's
+members. `navigation`'s `showAccount` is the fourth
 retirement (3 → 4): the
 platform has no customer login, so the header offers no account control and the field that gated one
 is gone, with whatever an entry held kept as `showAccount__v3`. Nothing in the theme reads a retired
@@ -790,8 +794,9 @@ grammar lives.
   their own. A thumb parked on the catalogue's own end is **no bound**, so a filter can be dragged
   back off, and the move applies once it is over (pointer release, the key release that ends an
   arrow-key run, a typed field committing) — one request and one URL write per gesture.
-  `filters[].slider` off keeps the two typed fields alone, for prices that sit in a few tight
-  clusters a track cannot separate.
+  `priceSlider` off keeps the two typed fields alone, for prices that sit in a few tight clusters
+  a track cannot separate — a block-level field rather than one on the price `filters[]` row, see
+  below.
 - **A value nothing is left for is disabled, not hidden** — see the counting rule above. A value
   the shopper has already selected is never disabled, and one the facets stop listing altogether is
   kept so the filter stays removable.

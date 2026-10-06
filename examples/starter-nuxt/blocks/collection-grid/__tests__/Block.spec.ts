@@ -579,12 +579,13 @@ describe('collection-grid block', () => {
       expect(thumbs[0]!.attributes('aria-label')).toBe(enUS.grid.minPriceLabel);
     });
 
-    /** `filters[].slider` off: the two typed fields alone, which is what a store whose prices sit
-     *  in a few tight clusters sets (spec Fields). */
+    /** `priceSlider` off: the two typed fields alone, which is what a store whose prices sit in a
+     *  few tight clusters sets (spec Fields). */
     it('falls back to the two fields when the author turns the slider off', async () => {
       const wrapper = mountGrid({
         ...mock,
-        filters: [{ source: 'price', label: 'Price', slider: false }],
+        priceSlider: false,
+        filters: [{ source: 'price', label: 'Price' }],
       });
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, PRICE_LEGEND);

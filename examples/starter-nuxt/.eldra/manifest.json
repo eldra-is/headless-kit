@@ -1264,7 +1264,7 @@
       "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
       "icon": "layout-grid",
       "category": "commerce",
-      "version": 4,
+      "version": 3,
       "fields": [
         {
           "fieldId": "collection",
@@ -1419,18 +1419,18 @@
                     "name": "Start closed",
                     "type": "bool",
                     "helpText": "A group with an active value always starts open."
-                  },
-                  {
-                    "fieldId": "slider",
-                    "name": "Price slider",
-                    "type": "bool",
-                    "default": true,
-                    "helpText": "Price only. Off shows the two typed fields alone, for prices that sit in a few tight clusters."
                   }
                 ]
               }
             }
           }
+        },
+        {
+          "fieldId": "priceSlider",
+          "name": "Price slider",
+          "type": "bool",
+          "default": true,
+          "helpText": "Off shows the price group's two typed fields alone, for prices that sit in a few tight clusters."
         },
         {
           "fieldId": "priceStep",

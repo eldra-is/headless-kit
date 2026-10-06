@@ -50,8 +50,8 @@ export interface FilterGroup {
   legend: string;
   values: FilterGroupValue[];
   /**
-   * `price` only (`filters[].slider`, default on): the range slider, or the two typed fields alone
-   * for a store whose prices sit in a few tight clusters a track cannot separate.
+   * `price` only (the block's `priceSlider` field, default on): the range slider, or the two typed
+   * fields alone for a store whose prices sit in a few tight clusters a track cannot separate.
    */
   slider?: boolean;
 }

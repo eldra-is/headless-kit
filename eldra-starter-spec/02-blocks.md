@@ -3082,7 +3082,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 | `filters[].source` | select | yes | — | `category` · `collection` · `option:size` · `option:colour` · `price` · `availability` |
 | `filters[].label` | string | no | the source's name | Overrides the group title. |
 | `filters[].collapsed` | bool | no | off | Start closed. A group with an active value always starts open. |
-| `filters[].slider` | bool | no | on | Price only. Off falls back to the two typed fields alone, for a store whose prices sit in a few tight clusters a track cannot separate. |
+| `priceSlider` | bool | no | on | Off falls the price group back to the two typed fields alone, for a store whose prices sit in a few tight clusters a track cannot separate. A block-level field rather than one on the price `filters[]` row: a new child under an existing list item forces a block version bump, which retires every author's configured filter list. |
 | `priceStep` | number | no | one unit of the store currency (ISK 100, USD 1) | The price slider's `step`. |
 | `showColumnSelect` | bool | no | on | Desktop only (from 64rem block width). |
 | `emptyTitle` | string | no | "No products match these filters" | |
@@ -3105,7 +3105,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
   - **Category, Collection and Availability**: Checkboxes with 1rem labels and the count "(18)" in `muted`, tabular figures. A value the store counts 0 of is shown disabled (dimmed, not operable), never hidden — counts are computed without that group's own filter applied, so a 0 means another group rules it out. A value the shopper has already ticked is never disabled. Availability offers the two values the backend counts, **In stock** and **Out of stock**.
   - **Size**: pill checkboxes in a wrapping row, 0.5rem gaps, each 2.5rem tall and at least 2.75rem wide (0 0.75rem padding). In the desktop sidebar they shrink to 2.5rem × 2.5rem minimum (0 0.5rem padding).
   - **Colour**: a 2-column grid (gaps 0.25rem × 0.75rem). Each row is at least 2.75rem tall (2.25rem in the desktop sidebar): a 1.5rem dot in the colour, outlined by a 1px inset `border-strong` line, then the colour name 0.5rem to its right. A real checkbox sits over the dot.
-  - **Price**: a Range slider across the full group width with its `inputs` row on, so the span can be dragged or typed. Its `min` and `max` are the collection's own price bounds from the backend (not 0 and a round number), its `step` is `priceStep`, and `formatValue` is the store's currency formatter, so both thumbs announce and both fields read "$1,200" rather than "1200". The legend names the currency ("Price range in US dollars"), so the fields need no "$" prefix of their own. With `filters[].slider` off, the group is the two fields alone: a 3-column grid (`1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned) of the "Min" Field, the word "to" (0.875rem `muted`) and the "Max" Field, each Input showing a `muted` "$" prefix 0.75rem from its start with the text starting 1.75rem in.
+  - **Price**: a Range slider across the full group width with its `inputs` row on, so the span can be dragged or typed. Its `min` and `max` are the collection's own price bounds from the backend (not 0 and a round number), its `step` is `priceStep`, and `formatValue` is the store's currency formatter, so both thumbs announce and both fields read "$1,200" rather than "1200". The legend names the currency ("Price range in US dollars"), so the fields need no "$" prefix of their own. With `priceSlider` off, the group is the two fields alone: a 3-column grid (`1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned) of the "Min" Field, the word "to" (0.875rem `muted`) and the "Max" Field, each Input showing a `muted` "$" prefix 0.75rem from its start with the text starting 1.75rem in.
 - **Load more**: centred, 3rem below the grid, items 1rem apart: "Showing 6 of 48 products" (0.875rem `muted`), the Progress bar (`min(15rem, 100%)` wide), then **Load more products** (outline).
 
 **States**
@@ -3122,7 +3122,7 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 
 **Field → layout mapping**
 
-`collection` → cards, counts and filter values · `filters[].slider` → the price Range slider or its two-field fallback · `priceStep` → the slider's step · `columns` → grid columns · `pageSize` → cards per page or per Load more step · `paginationStyle` → Pagination or the Load more group · `sortOptions` → Sort options · `filters[]` → filter groups (sidebar and drawer) · each active value → a chip in the active-filter list · `showColumnSelect` → the Columns select · `emptyTitle` / `emptyText` → Empty state.
+`collection` → cards, counts and filter values · `priceSlider` → the price Range slider or its two-field fallback · `priceStep` → the slider's step · `columns` → grid columns · `pageSize` → cards per page or per Load more step · `paginationStyle` → Pagination or the Load more group · `sortOptions` → Sort options · `filters[]` → filter groups (sidebar and drawer) · each active value → a chip in the active-filter list · `showColumnSelect` → the Columns select · `emptyTitle` / `emptyText` → Empty state.
 
 **Keyboard & accessibility**
 

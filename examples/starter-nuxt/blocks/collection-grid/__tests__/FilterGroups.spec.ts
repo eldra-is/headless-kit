@@ -30,7 +30,7 @@ const PRICE: FilterGroup = {
   slider: true,
 };
 
-/** The same group with `filters[].slider` off: the two typed fields alone. */
+/** The same group with the block's `priceSlider` off: the two typed fields alone. */
 const PRICE_FIELDS: FilterGroup = { ...PRICE, slider: false };
 
 const CATEGORY: FilterGroup = {

@@ -415,7 +415,7 @@ const COUNT = 'text-muted tabular-nums';
           @change="onSlideCommit"
         />
 
-        <!-- Price, without one (`filters[].slider` off): Min, the word "to", Max. -->
+        <!-- Price, without one (the block's `priceSlider` off): Min, the word "to", Max. -->
         <div v-else class="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <FieldWrapper :id="fieldId(group.source, 'min')" :label="t('grid.minLabel')">
             <!-- The currency prefix is drawn after the control on purpose: `Input`'s own root is

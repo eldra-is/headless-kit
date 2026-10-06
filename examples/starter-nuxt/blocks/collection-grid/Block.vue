@@ -128,8 +128,6 @@ interface FilterField {
   source?: string;
   label?: string;
   collapsed?: boolean;
-  /** `price` only: off falls the group back to the two typed fields alone. */
-  slider?: boolean;
 }
 
 const props = defineProps<{ entry: EldraBlockEntry<'collection-grid'> }>();
@@ -548,6 +546,19 @@ const priceSpan = computed<PriceSpan>(() =>
  * (`fitPriceStep`). A non-positive or non-integer field value is no step at all, so it falls back
  * rather than handing the slider a grid it cannot land on.
  */
+/**
+ * The price group's control: the range slider (the default), or its two typed fields alone — what
+ * a store whose prices sit in a few tight clusters a track cannot separate sets.
+ *
+ * A block-level field rather than one on the `filters[]` row it describes, even though it is about
+ * the price group: a new child under an existing list item is a storage-shape change to the
+ * scanner (`storageCompatible` compares a list item's children by count and id, so it cannot tell
+ * an addition from a replacement), and the version bump it demands makes Core retire every
+ * author's configured `filters` list. A top-level addition costs nothing — and there is one price
+ * group at most, so the two shapes say the same thing.
+ */
+const priceSlider = computed(() => data.value.priceSlider !== false);
+
 const priceStep = computed(() => {
   const own = data.value.priceStep;
   if (typeof own === 'number' && Number.isFinite(own) && own > 0) return own;
@@ -578,7 +589,7 @@ const groups = computed<FilterGroup[]>(() => {
       collapsed: row.collapsed === true,
       legend: legends.value[source],
       values,
-      ...(source === 'price' ? { slider: row.slider !== false } : {}),
+      ...(source === 'price' ? { slider: priceSlider.value } : {}),
     });
   }
   return out;
