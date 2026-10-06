@@ -3,12 +3,12 @@ import { createCartSession, EldraHttpError, type EldraClient } from '@eldrajs/sd
 import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
-import { roundMoney } from './money';
+import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
-import { deriveFacets, filterItems, hasActiveFilters } from './facets';
-import type { ProductFacetAttributes } from './facets';
+import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
+  CatalogFacets,
   StorefrontAck,
   StorefrontCartLine,
   StorefrontCartTotals,
@@ -57,16 +57,6 @@ interface RawThumbnail {
   altText?: string;
 }
 
-interface RawProductOptionSwatchValue {
-  key: string;
-  name: string;
-}
-
-interface RawProductOptionSwatch {
-  key: string;
-  values?: RawProductOptionSwatchValue[] | null;
-}
-
 interface RawProductListItem {
   id: string;
   slug: string;
@@ -77,7 +67,53 @@ interface RawProductListItem {
   compareAtPrice?: number;
   thumbnail?: RawThumbnail;
   totalVariants: number;
-  options?: RawProductOptionSwatch[] | null;
+}
+
+/** One row of the whole-store category list, which is how a category slug becomes a catalog id. */
+interface RawCategory {
+  id: string;
+  slug: string;
+  title: string;
+}
+
+/**
+ * The `facets` object `facets=true` adds to a product list (`catalogweb_WebProductFacets`), as
+ * loosely as this file reads every other response: every field optional, because a gateway that
+ * answers an older contract answers none of them and the panel has to degrade rather than throw.
+ *
+ * `price` is in **minor** units here — the same units as the `minPrice`/`maxPrice` parameters it is
+ * counted over, and deliberately unlike a row's own major-unit `minPrice`. `mapFacets` converts.
+ *
+ * `availability` is **absent, not zeroed**, when the platform could not read stock, which is a
+ * different answer from "nothing is in stock": the panel hides that group rather than offering two
+ * zeroes (`CatalogFacets.availability`).
+ */
+interface RawFacetTerm {
+  id?: string;
+  slug?: string;
+  title?: string;
+  count?: number;
+}
+
+interface RawFacetOptionValue {
+  value?: string;
+  label?: string;
+  swatch?: string;
+  count?: number;
+}
+
+interface RawFacetOption {
+  key?: string;
+  name?: string;
+  values?: RawFacetOptionValue[] | null;
+}
+
+interface RawProductFacets {
+  price?: { min?: number; max?: number } | null;
+  categories?: RawFacetTerm[] | null;
+  collections?: RawFacetTerm[] | null;
+  availability?: { in_stock?: number; out_of_stock?: number } | null;
+  options?: RawFacetOption[] | null;
 }
 
 interface RawMediaItem {
@@ -160,6 +196,8 @@ interface RawPageMeta {
 interface RawProductList {
   data: RawProductListItem[] | null;
   meta: RawPageMeta;
+  /** Present only when the read asked for it (`facets=true`). */
+  facets?: RawProductFacets | null;
 }
 
 interface RawSearchResult {
@@ -279,50 +317,6 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
     available: raw.status === 'ACTIVE',
     productId: raw.id,
   };
-}
-
-/**
- * The facet attributes a **product list row** carries, for the client-side facet pass
- * (`app/storefront/facets.ts`) that stands in until the gateway filters and counts facets itself.
- *
- * One family and one only: the row's `options` (`dto_ProductListItem.options` —
- * `[{key, values: [{key, name}]}]`), which is every variant option the product is made in. That is
- * enough for the `option:*` groups to list real values with real counts *and* for the pass to
- * filter on them, which has to be true together — a value the panel offers that the pass cannot
- * match is a filter that changes the chips and the URL and nothing else.
- *
- * A row carries no category and no collection membership, so those stay unknown (`undefined`,
- * which the pass reads as "ignore this filter", never as "matches nothing"): the category and
- * collection groups list nothing on the live site until Core answers a `facets` object. A row
- * whose `options` field is absent altogether leaves even the option bag unknown.
- */
-function listRowAttributes(raw: RawProductListItem): ProductFacetAttributes {
-  const options = raw.options;
-  if (options === undefined || options === null) return {};
-  const bag: Record<string, ProductFacetOptionValueInput[]> = {};
-  for (const option of options) {
-    bag[option.key] = (option.values ?? []).map((value) => ({
-      value: value.key,
-      label: value.name,
-    }));
-  }
-  return { options: bag };
-}
-
-/** The shape `listRowAttributes` writes into its bag — `facets.ts`'s own option value. */
-type ProductFacetOptionValueInput = { value: string; label: string };
-
-/**
- * The per-product attributes for a set of rows, by the handle a `StorefrontProductListItem`
- * carries — the lookup `filterItems` and `deriveFacets` both take, built once per read so the two
- * see exactly the same answer.
- */
-function attributesByHandle(
-  rows: readonly RawProductListItem[]
-): (item: StorefrontProductListItem) => ProductFacetAttributes | undefined {
-  const byHandle = new Map<string, ProductFacetAttributes>();
-  for (const row of rows) byHandle.set(row.slug, listRowAttributes(row));
-  return (item) => byHandle.get(item.handle);
 }
 
 /**
@@ -1114,17 +1108,199 @@ const GATEWAY_SORT: Readonly<Record<string, string>> = {
   'price-desc': '-minPrice',
 };
 
+// ---------------------------------------------------------------------------------------------
+// The shopper's facets as the catalog list's own query parameters
+// ---------------------------------------------------------------------------------------------
+
 /**
- * How many products one filtered collection read may scan before it stops.
+ * **The shopper's filters, as `GET /catalog/v1/collections/{slug}/products` takes them** (contract
+ * 3.7.0; the same parameters are on `GET /catalog/v1/products/list`, plus a `collectionId` the
+ * collection-scoped read has no use for). One request, filtered and counted by the platform, for
+ * the whole collection rather than the page this read happened to fetch.
  *
- * The gateway does not filter on facets (see `collectionProducts`), so a filtered view is a
- * client-side pass over pages this read fetches itself. Unbounded, that is a request per 24
- * products for a catalogue of any size; bounded at one page, a filter would hide every matching
- * product past the first page. 200 items — nine reads at the starter's default page size — is the
- * documented middle (`docs/starter-kit.md`), and the follow-up is server-side facet filters in
- * Core, after which this whole path collapses back to one request.
+ * Three conversions are the whole of it, and each is a bug if it is skipped:
+ *
+ * - **`price` is major units in the URL and minor units in the parameters.** The block's
+ *   `"<min>-<max>"` is whole units of the store currency, which is what a shopper typed and what
+ *   the chips read back; `minPrice`/`maxPrice` are minor, like the `facets.price` span they are
+ *   counted over. So they go through `toMinorUnits` with the store's own fraction digits — ISK has
+ *   none, USD two — rather than a hard-coded ×100.
+ * - **`category` is a slug in the URL and a uuid in the request.** The block's values are the facet
+ *   terms' slugs (a filtered view has to stay linkable and readable), while `categoryId` takes
+ *   catalog ids, so the slugs are resolved through the store's own category list — see
+ *   `readCategoryIds`.
+ * - **`availability` is one value, not a set.** Both boxes ticked is every product, which is no
+ *   filter at all, so nothing is sent; one box is sent as the platform's own
+ *   `in_stock`/`out_of_stock` spelling, which `canonicalAvailabilityValues` also folds the retired
+ *   hyphenated one into.
+ *
+ * `option` is the one parameter whose grammar is its own: `option=<key>:<value>`, repeated, OR'd
+ * within a key and AND'd across keys — which is exactly the panel's own semantics, so the
+ * `option:<key>` filter source maps straight onto it.
+ *
+ * A clause this mapping cannot express is left out rather than guessed at (an unknown category
+ * slug, a price bound that is not a number, a `collection` clause on a read that has no
+ * `collectionId` parameter — see `collectionProducts`), which is the storefront's standing
+ * "unknown, not unmatched" rule: a filter nothing can honour must not empty a shopper's grid.
  */
-const FACET_SCAN_CAP = 200;
+interface CatalogFilterQuery {
+  minPrice?: number;
+  maxPrice?: number;
+  categoryId?: string[];
+  availability?: string;
+  option?: string[];
+}
+
+/** `"<min>-<max>"` in whole major units → one bound in minor units, or nothing to send. */
+function priceParam(raw: string | undefined, currency: string | undefined): number | undefined {
+  if (raw === undefined || raw === '') return undefined;
+  const amount = Number(raw);
+  if (!Number.isFinite(amount) || amount < 0) return undefined;
+  return toMinorUnits(amount, currency);
+}
+
+/**
+ * The store's category slugs mapped to their catalog ids.
+ *
+ * `GET /catalog/v1/categories` answers the whole list — a storefront's categories are a handful of
+ * rows, and the read takes no filter — so one request answers for every slug a shopper can tick,
+ * now or later. Read once per storefront (see `createGatewayStorefront`), which means a shopper
+ * arriving on a shared `?category=ceramics` link pays for it once and nobody else pays at all.
+ *
+ * A failure is **not** swallowed: it fails the collection read, which the block already draws as an
+ * error over the last good page. The alternative is a request that quietly drops the category the
+ * chips, the URL and the active-filter row all say is applied — the exact bug the filters this
+ * mapping sends exist to avoid.
+ */
+async function readCategoryIds(
+  client: EldraClient,
+  signal: AbortSignal
+): Promise<ReadonlyMap<string, string>> {
+  const rows = (await client.catalog.listCategories({}, { signal })) as unknown as
+    | RawCategory[]
+    | null;
+  const out = new Map<string, string>();
+  for (const row of rows ?? []) {
+    if (typeof row.slug === 'string' && row.slug !== '' && typeof row.id === 'string') {
+      out.set(row.slug, row.id);
+    }
+  }
+  return out;
+}
+
+/**
+ * `filters` as the catalog list takes it. `categoryIdsOnce` is only awaited when there is a
+ * category clause to resolve, so an unfiltered read — and every filtered read that touches no
+ * category — makes exactly the one request it always made.
+ */
+async function catalogFilterQuery(
+  filters: Record<string, string[]> | undefined,
+  currency: string | undefined,
+  categoryIdsOnce: () => Promise<ReadonlyMap<string, string>>
+): Promise<CatalogFilterQuery> {
+  const query: CatalogFilterQuery = {};
+  if (filters === undefined) return query;
+  const option: string[] = [];
+  for (const [source, selected] of Object.entries(filters)) {
+    if (selected.length === 0) continue;
+    if (source === 'price') {
+      const [min = '', max = ''] = (selected[0] ?? '').split('-');
+      const minPrice = priceParam(min, currency);
+      const maxPrice = priceParam(max, currency);
+      if (minPrice !== undefined) query.minPrice = minPrice;
+      if (maxPrice !== undefined) query.maxPrice = maxPrice;
+      continue;
+    }
+    if (source === 'availability') {
+      const known = canonicalAvailabilityValues(selected);
+      // Both values is every product: no parameter, so the request is identical to an unfiltered
+      // one — and the platform never spends the cross-service stock read on a filter that excludes
+      // nothing.
+      if (known.length === 1) query.availability = known[0];
+      continue;
+    }
+    if (source === 'category') {
+      const ids = await categoryIdsOnce();
+      const matched = selected
+        .map((slug) => ids.get(slug))
+        .filter((id): id is string => id !== undefined);
+      if (matched.length > 0) query.categoryId = matched;
+      continue;
+    }
+    if (source.startsWith(OPTION_SOURCE_PREFIX)) {
+      const key = source.slice(OPTION_SOURCE_PREFIX.length);
+      if (key === '') continue;
+      for (const value of selected) {
+        if (value !== '') option.push(`${key}:${value}`);
+      }
+      continue;
+    }
+    // `collection` lands here, and so does a source some other theme invented: see
+    // `collectionProducts` for why a collection cannot narrow a collection's own products.
+  }
+  if (option.length > 0) query.option = option;
+  return query;
+}
+
+/**
+ * The response's `facets` object as the view type the filter panel reads (`CatalogFacets`), or
+ * `undefined` for a gateway that answered none — which the panel draws as the groups it can fill
+ * without values, never as a scope with nothing in it.
+ *
+ * Only two things happen here. `price` is converted from the platform's minor units to the major
+ * units every money field in `types.ts` carries (`fromMinorUnits`), and `availability` is carried
+ * over **only when the platform sent it**: an absent one means stock could not be read at all,
+ * which is not the same answer as two zeroes, and the panel hides that group rather than offering a
+ * filter whose counts are unknown.
+ */
+function mapFacets(
+  raw: RawProductFacets | null | undefined,
+  currency: string | undefined
+): CatalogFacets | undefined {
+  if (raw === null || raw === undefined) return undefined;
+  const availability = raw.availability;
+  return {
+    price: {
+      min: fromMinorUnits(raw.price?.min ?? 0, currency),
+      max: fromMinorUnits(raw.price?.max ?? 0, currency),
+    },
+    categories: mapFacetTerms(raw.categories),
+    collections: mapFacetTerms(raw.collections),
+    ...(availability === null || availability === undefined
+      ? {}
+      : {
+          availability: {
+            in_stock: availability.in_stock ?? 0,
+            out_of_stock: availability.out_of_stock ?? 0,
+          },
+        }),
+    options: (raw.options ?? [])
+      .filter((option) => typeof option.key === 'string' && option.key !== '')
+      .map((option) => ({
+        key: option.key!,
+        name: option.name ?? option.key!,
+        values: (option.values ?? [])
+          .filter((value) => typeof value.value === 'string' && value.value !== '')
+          .map((value) => ({
+            value: value.value!,
+            label: value.label ?? value.value!,
+            ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
+            count: value.count ?? 0,
+          })),
+      })),
+  };
+}
+
+function mapFacetTerms(raw: RawFacetTerm[] | null | undefined): CatalogFacets['categories'] {
+  return (raw ?? [])
+    .filter((term) => typeof term.slug === 'string' && term.slug !== '')
+    .map((term) => ({
+      id: term.id ?? term.slug!,
+      slug: term.slug!,
+      title: term.title ?? term.slug!,
+      count: term.count ?? 0,
+    }));
+}
 
 // ---------------------------------------------------------------------------------------------
 // Collection selectors — a slug goes straight to the gateway, an id needs a lookup first
@@ -1136,8 +1312,7 @@ const FACET_SCAN_CAP = 200;
  *
  * `{ slug }` needs no lookup. `{ id }` — what a CMS `reference` field stores,
  * and all a depth-0 read or a page builder draft overlay carries — is resolved
- * through the collection list's `filter` query (`field:op:value` tokens, the
- * same vocabulary `collectionProducts` uses for its own facet filters), because
+ * through the collection list's `filter` query (`field:op:value` tokens), because
  * the gateway has no by-id collection route. A gateway that does not honour the
  * token answers with some other collection or with nothing; either way an
  * unmatched id resolves to `null`, so the block shows its empty state and, in
@@ -1469,6 +1644,28 @@ export function createGatewayStorefront(
   // Every read below — and every module-level helper it hands this client to — carries the page's
   // content locale. See `withContentLocale`.
   const client = locale === undefined ? rawClient : withContentLocale(rawClient, locale);
+  // What the store sells in, which is the scale every price parameter and the facets' own span are
+  // expressed in (`CatalogFilterQuery`, `mapFacets`). `undefined` for a store that published none —
+  // the same answer `<Price>` renders a plain number for, and the same two-decimal fallback.
+  const currency = options.commerce?.currency;
+
+  /**
+   * The store's category slugs → catalog ids, read at most once for the life of this storefront and
+   * only when a category filter actually needs them (`readCategoryIds`).
+   *
+   * The in-flight read is what is cached, so two grids filtering at once share one request; a
+   * failure — including an abort, which is what a shopper changing their mind mid-request produces
+   * — drops the cache so the next read tries again rather than inheriting the first one's error.
+   */
+  let categoryIds: Promise<ReadonlyMap<string, string>> | null = null;
+  const categoryIdsOnce = (signal: AbortSignal) => (): Promise<ReadonlyMap<string, string>> => {
+    categoryIds ??= readCategoryIds(client, signal).catch((caught: unknown) => {
+      categoryIds = null;
+      throw caught;
+    });
+    return categoryIds;
+  };
+
   const catalog: StorefrontCatalog = {
     product: (handle) =>
       createGatewayResult(
@@ -1510,71 +1707,35 @@ export function createGatewayStorefront(
           const slug = await resolveCollectionSlug(client, collection.value, signal);
           if (slug === null) return null;
           const { page, pageSize, sort, filters } = opts.value;
-          // No `filter` token is built from `opts.filters`: the shopper's facets
-          // (`category`, `option:size`, `price`, `availability`) are not fields
-          // this endpoint filters on — it takes `id`, `slug`, `status` and
-          // `createdAt` — so every facet the block sent used to make the request
-          // a 400. They are applied client-side instead, over the page(s) this
-          // read fetched (the `read` below, then `facets.ts`), which is what the
-          // demo source has always done; a `filter` token goes back in the moment
-          // the gateway grows a facet parameter.
           const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
-          const read = (which: number): Promise<RawProductList> =>
-            client.catalog.listCollectionProducts(
-              slug,
-              {
-                page: which,
-                pageSize,
-                sort: gatewaySort === undefined ? undefined : [gatewaySort],
-              },
-              { signal }
-            ) as unknown as Promise<RawProductList>;
-
-          if (!hasActiveFilters(filters)) {
-            const raw = await read(page);
-            const rows = raw.data ?? [];
-            const items = rows.map(mapProductListItem);
-            // `dto_ProductListResult` — the contract type behind `GET
-            // /catalog/v1/collections/{slug}/products` (checked against
-            // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
-            // declares only `data`/`meta` and takes no `facets=true`: no facets/aggregations field
-            // exists on this response today, so the facets are **derived** off the rows themselves
-            // (`deriveFacets`, the fallback the server replaces) rather than read from a field that
-            // is not there, and a family a product row cannot carry (`category`, `collection`)
-            // simply has no values.
-            return {
-              items,
-              total: raw.meta.total,
-              facets: deriveFacets(items, { attributesFor: attributesByHandle(rows) }),
-            };
-          }
-
-          // Filtered: the pass has to see more than the page the shopper is on, or a filter would
-          // silently hide every product past the first page. Pages are read in order until the
-          // scan cap is reached or the collection runs out — `sort` is the gateway's, so the
-          // scanned window is in the right order and the filtered set can be paged from it.
-          const maxPages = Math.max(1, Math.ceil(FACET_SCAN_CAP / Math.max(pageSize, 1)));
-          const scannedRows: RawProductListItem[] = [];
-          for (let which = 1; which <= maxPages; which += 1) {
-            const raw = await read(which);
-            const rows = raw.data ?? [];
-            scannedRows.push(...rows);
-            if (rows.length < pageSize) break;
-            if (scannedRows.length >= FACET_SCAN_CAP) break;
-            if (scannedRows.length >= raw.meta.total) break;
-          }
-          const scanRows = scannedRows.slice(0, FACET_SCAN_CAP);
-          const scanWindow = scanRows.map(mapProductListItem);
-          const attributesFor = attributesByHandle(scanRows);
-          const matching = filterItems(scanWindow, filters, attributesFor);
-          const start = (page - 1) * pageSize;
+          // The shopper's facets are the endpoint's own query parameters (contract 3.7.0, see
+          // `CatalogFilterQuery`), so one request answers the filtered page, the filtered `total`
+          // and — with `facets=true` — the counts the panel draws its groups from, over the whole
+          // collection rather than the rows this read could reach.
+          //
+          // The one filter source that cannot be expressed is `collection`: there is no
+          // `collectionId` parameter on a collection's own product list (the scope already *is* one
+          // collection, and `collectionId` is an OR, so adding the picked one would widen the scope
+          // rather than narrow it). The `collections` facet is still answered there and still
+          // honest — it says which other collections these products are also in — but a theme
+          // offering it as a filter is offering an intersection the platform does not read yet.
+          const filterQuery = await catalogFilterQuery(filters, currency, categoryIdsOnce(signal));
+          const raw = (await client.catalog.listCollectionProducts(
+            slug,
+            {
+              page,
+              pageSize,
+              sort: gatewaySort === undefined ? undefined : [gatewaySort],
+              ...filterQuery,
+              facets: true,
+            },
+            { signal }
+          )) as unknown as RawProductList;
+          const facets = mapFacets(raw.facets, currency);
           return {
-            items: matching.slice(start, start + pageSize),
-            total: matching.length,
-            // Counted over the scanned window rather than the filtered set, the way a facet count
-            // is meant to read: how many products *that value* would return — which is also why
-            // `filters` goes in, so each family's own filter is left out of its own counts.
-            facets: deriveFacets(scanWindow, { filters, attributesFor }),
+            items: (raw.data ?? []).map(mapProductListItem),
+            total: raw.meta.total,
+            ...(facets === undefined ? {} : { facets }),
           };
         },
         { method: 'catalog.collectionProducts', runtime, locale, volatile: 'batch' }
