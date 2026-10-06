@@ -3,7 +3,9 @@ import { useEldra } from '@eldrajs/theme-vue';
 import {
   clearNuxtData,
   loadPayload,
+  setResponseStatus,
   useAsyncData,
+  useRequestEvent,
   useRoute,
   useRouter,
   useRuntimeConfig,
@@ -48,6 +50,16 @@ export function useEldraPage(): {
 } {
   const route = useRoute();
   const activePath = createActivePath(route, useRouter());
+  /**
+   * This render's request, captured **now**, while the Nuxt context is still the current one.
+   *
+   * `useRequestEvent()` reads `useNuxtApp()`, and the resolution below runs inside an
+   * `useAsyncData` handler — after `await`s, where that context is gone unless a site turns
+   * `experimental.asyncContext` on. Asking for it there threw out of the `catch` that was reporting
+   * the failure, which turned the failure back into an empty resolution: the very not-found shell
+   * `reportServerFailure` exists to prevent. `undefined` in the browser.
+   */
+  const requestEvent = useRequestEvent();
   const ctx = useEldra();
   const cfg = useRuntimeConfig().public.eldra as {
     pageSchema: string;
@@ -55,8 +67,9 @@ export function useEldraPage(): {
     locale: string | null;
     locales: unknown;
     studioOrigins: string[];
+    gatewayUrl: string;
+    orgId: string;
   };
-  const error = ref<string | null>(null);
   /**
    * How this site's paths and locales line up (`../locales.ts`). Resolved once: the runtime config
    * is baked into the artifact, so it cannot change while a page is open.
@@ -175,12 +188,31 @@ export function useEldraPage(): {
     return now - heldPreviewAuthFailure.at <= PREVIEW_AUTH_RECOVERY_GRACE_MS;
   };
 
+  /**
+   * A route the server could not resolve must not be answered `200`.
+   *
+   * `nuxi generate` writes **nothing** for a route whose response is not 200 and names it in the
+   * prerender log instead (nitro's prerenderer marks it failed before it reaches `writeFile`), so
+   * this is what keeps a page the gateway could not be asked about *out* of the artifact rather
+   * than baked into it as the theme's not-found shell under a path a visitor can reach. Set
+   * `nitro.prerender.failOnError` to stop the build on it as well.
+   *
+   * It is deliberately silent for a build with **no credentials at all** (`ELDRA_GATEWAY_URL` /
+   * `ELDRA_ORG_ID` unset, the same pair the module tests before it says it is prerendering `/`
+   * only): there every route fails by definition, and producing the static shell — the not-found
+   * page included — is the whole point of that build.
+   */
+  const reportServerFailure = (): void => {
+    if (!import.meta.server || cfg.gatewayUrl === '' || cfg.orgId === '') return;
+    if (requestEvent === undefined) return;
+    setResponseStatus(requestEvent, 500, 'Eldra route resolution failed');
+  };
+
   const resolveRouteOutcome = async (): Promise<{
     route: ResolvedEldraRoute;
     /** Keep whatever is on screen: this resolution has no honest answer yet. */
     holdPrevious: boolean;
   }> => {
-    error.value = null;
     const path = activePath();
     // Everything `cachedRoute` answers, asked again with the manifest awaited. It gets here when
     // the manifest had not been read yet — the very first navigation of a page load can outrun it
@@ -206,8 +238,17 @@ export function useEldraPage(): {
       return { route, holdPrevious: false };
     } catch (cause) {
       if (holdPreviewAuthFailure(cause)) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: true };
-      error.value = cause instanceof Error ? cause.message : String(cause);
-      return { route: EMPTY_ELDRA_ROUTE, holdPrevious: false };
+      reportServerFailure();
+      // The failure is part of the **resolution**, not of this call: see
+      // `ResolvedEldraRoute.error`. Returning it here is what lets every other `useEldraPage()`
+      // for this route tell "the gateway could not answer" apart from "there is no such page".
+      return {
+        route: {
+          ...EMPTY_ELDRA_ROUTE,
+          error: cause instanceof Error ? cause.message : String(cause),
+        },
+        holdPrevious: false,
+      };
     }
   };
 
@@ -265,6 +306,12 @@ export function useEldraPage(): {
   const active = computed(
     () => previewResolvedRoute.value ?? resolvedRoute.value ?? EMPTY_ELDRA_ROUTE
   );
+  /**
+   * Why the resolution on screen has no document, read off the resolution itself rather than
+   * remembered by this call — see `ResolvedEldraRoute.error`. `null` for a route that honestly
+   * has none, which is what the theme draws its not-found shell for.
+   */
+  const error = computed<string | null>(() => active.value.error ?? null);
   const page = computed(() => {
     void ctx.preview.revision;
     return overlayPreviewDrafts(
@@ -327,7 +374,7 @@ export function useEldraPage(): {
     reusableComponentProjection,
     links: linkState,
     pending,
-    error,
+    error: error as Ref<string | null>,
   };
 }
 

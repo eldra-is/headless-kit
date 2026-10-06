@@ -1025,6 +1025,39 @@ crash) when it hasn't. Wire a real endpoint by adding it to `nuxt.config.ts`'s `
 [`examples/starter-nuxt/README.md`](../examples/starter-nuxt/README.md#storefront-forms) for the
 exact snippet.
 
+### A route the gateway could not answer is never written
+
+A storefront's reads fail one at a time: a gateway under load answers one of them `500` and the rest
+normally. That is a different thing from a `404` — a `404` says the object is gone, a `500` says
+nobody could be asked — and for a prerendered route the difference is the whole page.
+
+`useEldraPage()` is called **twice** on every page here: once by `app/plugins/eldra-storefront.ts`,
+for the `{kind, slug}` a catalog route template matched, and once by `app/pages/[...slug].vue` for
+the page it renders. Both calls use one async-data key, so Nuxt builds one entry around the
+**first** handler and hands the second call that entry — which is why a failure the composable used
+to remember in its own `ref` reached the plugin and nothing else. The page's `error` stayed `null`
+over an empty resolution, which is exactly what "there is no such page" looks like, so the page drew
+its not-found shell and `nuxi generate` wrote it: a "Page not found" document under
+`collections/<slug>/index.html` for a collection with six products in it, exit code 0, nothing in
+the build log. Every link to that collection — the header's included — then landed on a dead end
+that looked deliberate.
+
+Two things close it, and both are the module's and the theme's, not a block's:
+
+- The failure travels **with the resolution** (`ResolvedEldraRoute.error`), so every caller of a
+  route sees it and the theme's error branch is reachable on a real content route again.
+- On the server such a route is answered **500** rather than 200. Nitro marks a non-200 route failed
+  before it writes anything, so the wrong page is never in the artifact, and
+  `nitro.prerender.failOnError` (on, in `nuxt.config.ts`) turns the other half — an artifact that is
+  simply missing a product or collection page — into a failed build rather than a deployable one. A
+  transient gateway failure is a build to re-run, not a dead link a shopper finds.
+  A build with **no credentials at all** is exempt, because there every route fails by definition and
+  producing the static shell is the whole point of that build (`test/starter.spec.ts` pins it:
+  `/` and `/404` and nothing else).
+
+`test/prerenderFailure.spec.ts` is the guard — a real `nuxi generate` against a mock gateway that
+fails exactly one read.
+
 ## Seeded templates and pages
 
 A site deployed from this theme is not empty: `nuxt.config.ts`'s `eldra.templates` and

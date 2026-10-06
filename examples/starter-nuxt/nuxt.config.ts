@@ -37,9 +37,18 @@ export default defineNuxtConfig({
     // is client-side state the search block reads after hydration, and a saved
     // list lives in the shopper's own browser (`blocks/search/Block.vue`,
     // `blocks/wishlist/Block.vue`).
+    //
+    // **`failOnError`, for the same reason the list above names nothing.** A route the gateway
+    // could not be asked about is answered 500 by the theme rather than 200
+    // (`@eldrajs/theme-nuxt`'s `useEldraPage`), so Nitro writes no file for it and names it in the
+    // prerender log — which is already enough to stop a not-found shell being baked over a
+    // collection that exists. Failing the build as well is what stops the *other* half: an
+    // artifact that is simply missing a product or a collection page, deployed because the
+    // generate still exited 0. A transient gateway failure is then a build to re-run, not a dead
+    // link a shopper finds.
     prerender: {
       crawlLinks: false,
-      failOnError: false,
+      failOnError: true,
       routes: ['/404'],
     },
     hooks: {

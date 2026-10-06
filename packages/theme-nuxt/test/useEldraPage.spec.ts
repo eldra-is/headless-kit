@@ -25,6 +25,7 @@ type ResolvedLike = {
 };
 
 const EMPTY: ResolvedLike = { page: null, template: null, entry: null, catalog: null };
+const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
 const state = vi.hoisted(() => ({
   resolved: { page: null, template: null, entry: null, catalog: null } as unknown,
@@ -59,6 +60,17 @@ const state = vi.hoisted(() => ({
    * imported, so it cannot call `reactive` itself.
    */
   signals: { refreshRevision: 0, tokenRevision: 1 },
+  /**
+   * Nuxt's own one-entry-per-key async data, which is the whole point of the mock below: the
+   * **first** registration's handler is the only one that ever runs, and every later
+   * `useEldraPage()` for the same route is handed that entry's refs
+   * (`nuxt/dist/app/composables/asyncData.js` — a call whose key already has an `_init` entry
+   * reuses it rather than rebuilding it around its own handler).
+   */
+  asyncDataEntries: new Map<
+    string,
+    { handler: () => Promise<unknown>; data: Ref<unknown>; pending: Ref<boolean> }
+  >(),
 }));
 
 vi.mock('nuxt/app', () => ({
@@ -76,10 +88,21 @@ vi.mock('nuxt/app', () => ({
   }),
   useRuntimeConfig: () => ({
     public: {
-      eldra: { pageSchema: 'page', routeTemplateSchema: 'route-template', locale: null },
+      eldra: {
+        pageSchema: 'page',
+        routeTemplateSchema: 'route-template',
+        locale: null,
+        gatewayUrl: 'https://gateway.example/api',
+        orgId: ORG_ID,
+      },
     },
   }),
   clearNuxtData: () => {},
+  // Server-only, and `import.meta.server` is false under vitest, so these are never reached here —
+  // the response status a failed resolution sets is proven where it matters, on a real
+  // `nuxi generate` (`examples/starter-nuxt/test/prerenderFailure.spec.ts`).
+  useRequestEvent: () => undefined,
+  setResponseStatus: () => {},
   loadPayload: (path: string) => {
     state.payloadsLoaded.push(path);
     return Promise.resolve(state.payloads[path] ?? null);
@@ -105,15 +128,27 @@ vi.mock('nuxt/app', () => ({
     };
     const resolvedKey = typeof key === 'function' ? (key as () => string)() : (key as string);
     const cached = options?.getCachedData?.(resolvedKey, state.nuxtApp, { cause: 'initial' });
-    const data = ref(cached ?? options?.default?.() ?? null);
-    const pending = ref(cached === undefined);
+    // One entry per key, and the handler it was built with is the one that runs — Nuxt's own
+    // behaviour, and the reason a second consumer of a route cannot be handed anything but this
+    // value (see `state.asyncDataEntries`).
+    const existing = state.asyncDataEntries.get(resolvedKey);
+    const entry = existing ?? {
+      handler,
+      data: ref(cached ?? options?.default?.() ?? null),
+      pending: ref(cached === undefined),
+    };
+    if (existing === undefined) state.asyncDataEntries.set(resolvedKey, entry);
     if (cached === undefined) {
-      void Promise.resolve(handler()).then((value) => {
-        data.value = value;
-        pending.value = false;
+      entry.pending.value = true;
+      void Promise.resolve(entry.handler()).then((value) => {
+        entry.data.value = value;
+        entry.pending.value = false;
       });
+    } else {
+      entry.data.value = cached;
+      entry.pending.value = false;
     }
-    return { data, pending };
+    return { data: entry.data, pending: entry.pending };
   },
 }));
 
@@ -163,6 +198,12 @@ vi.mock('../src/runtime/staticRoutes', () => ({
   knownPrerenderedRoutes: () => state.prerendered,
   prerenderedRoutes: () => Promise.resolve(state.prerendered),
 }));
+
+// Each test gets Nuxt's data layer empty, the way a fresh page load does — an entry left behind
+// would hand the next test the previous one's handler.
+beforeEach(() => {
+  state.asyncDataEntries.clear();
+});
 
 const PROJECTION = (placementId: string): Record<string, unknown> => ({
   bindings: [
@@ -550,5 +591,74 @@ describe('useEldraPage preview-token failures', () => {
     const error = await mount();
 
     expect(error.value).toContain('500');
+  });
+});
+
+/**
+ * **A route is resolved once and read by more than one caller.** The starter's storefront plugin
+ * calls `useEldraPage()` for the catalog route it matched, and `app/pages/[...slug].vue` calls it
+ * again for the page it renders — one async-data key, so Nuxt builds one entry, around the
+ * **first** handler, and hands the second caller that entry
+ * (`nuxt/dist/app/composables/asyncData.js`; the mock above models exactly that).
+ *
+ * So a failure the composable remembered in its own `ref` reached only whichever call registered
+ * first — the plugin's, which nothing renders — while the page component's `error` stayed `null`
+ * over an empty resolution. The page then drew its **not-found** shell, and `nuxi generate` wrote
+ * it to disk: a collection that exists, prerendered as "Page not found", with no error in the
+ * build log and exit code 0. The failure therefore travels with the resolution
+ * (`ResolvedEldraRoute.error`).
+ */
+describe('useEldraPage shared resolution', () => {
+  beforeEach(() => {
+    state.path = '/collections/the-winter-edit';
+    state.resolved = EMPTY;
+    state.resolverCalls = 0;
+    state.previewActive = false;
+    state.prerendered = null;
+    state.payloads = {};
+    state.payloadsLoaded = [];
+    state.nuxtApp.isHydrating = false;
+    state.nuxtApp.payload.data = {};
+    state.nuxtApp.static.data = {};
+    state.signals = reactive({ refreshRevision: 0, tokenRevision: 1 });
+    state.failWith = null;
+  });
+
+  const flush = async (): Promise<void> => {
+    for (let i = 0; i < 12; i += 1) await Promise.resolve();
+    await nextTick();
+    for (let i = 0; i < 12; i += 1) await Promise.resolve();
+  };
+
+  it('reports a failed resolution to every caller of the route, not just the first', async () => {
+    state.failWith = 500;
+    const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');
+
+    // The storefront plugin, which reads `catalog` and renders nothing.
+    const plugin = useEldraPage();
+    // The page component, whose `error` is the one the theme's error branch draws.
+    const pageCall = useEldraPage();
+    await flush();
+
+    expect(state.resolverCalls).toBeGreaterThan(0);
+    expect(plugin.error.value).toContain('500');
+    expect(pageCall.error.value).toContain('500');
+    // And it is still not a page: an error must not be rendered as content either.
+    expect(pageCall.page.value).toBeNull();
+    expect(pageCall.template.value).toBeNull();
+  });
+
+  it('leaves a genuine not-found resolution with no error for any caller', async () => {
+    state.resolved = EMPTY;
+    const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');
+
+    const plugin = useEldraPage();
+    const pageCall = useEldraPage();
+    await flush();
+
+    expect(plugin.error.value).toBeNull();
+    expect(pageCall.error.value).toBeNull();
+    expect(pageCall.page.value).toBeNull();
+    expect(pageCall.template.value).toBeNull();
   });
 });

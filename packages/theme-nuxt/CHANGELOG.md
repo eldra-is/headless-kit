@@ -5,6 +5,20 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A route the gateway could not be asked about is no longer rendered as the not-found page.**
+  `useEldraPage()`'s resolution failure now travels with the resolution itself rather than in the
+  calling composable's own `error` ref: `useAsyncData` keeps one entry per route key and runs only
+  the **first** caller's handler, so a theme that calls `useEldraPage()` twice on a page (a plugin
+  for the catalog route beside the page component — which the starter does) saw the failure in one
+  of them and an ordinary empty resolution in the other. That is indistinguishable from "there is
+  no such page", so a transient gateway failure drew the theme's not-found shell, and `nuxi
+  generate` wrote it to disk under a path a visitor can reach, with exit code 0. On the server such
+  a route is now answered `500` as well, so Nitro writes no file for it and names it in the
+  prerender list (pair it with `nitro.prerender.failOnError` to stop the build); a build with no
+  `ELDRA_GATEWAY_URL` / `ELDRA_ORG_ID` is exempt and still produces its static shell. The resolved
+  route's new optional `error` field is set only for a failure — a genuine not-found (no match, or a
+  404 from the gateway) carries none, exactly as before.
+
 - **Locale-prefixed routing.** `runtimeConfig.public.eldra` now carries `locales` — the
   organisation's own `{ default, supported }` record, read once during the build, or `null` — and
   the module serves the default locale at `/` with every other supported locale under a path

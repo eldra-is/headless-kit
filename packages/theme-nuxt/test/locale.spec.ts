@@ -149,6 +149,11 @@ vi.mock('nuxt/app', () => ({
   loadPayload: () => Promise.resolve(null),
   useRuntimeConfig: () => ({ public: { eldra: state.config } }),
   clearNuxtData: () => {},
+  // Server-only; `import.meta.server` is false under vitest, so a failed resolution's response
+  // status is never set here (it is proven on a real `nuxi generate` —
+  // `examples/starter-nuxt/test/prerenderFailure.spec.ts`).
+  useRequestEvent: () => undefined,
+  setResponseStatus: () => {},
   useAsyncData: (
     _key: unknown,
     handler: () => Promise<unknown>,

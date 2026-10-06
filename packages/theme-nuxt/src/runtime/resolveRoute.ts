@@ -31,6 +31,21 @@ export interface ResolvedEldraRoute {
     templates: EntryDoc[];
     targets: Map<string, LinkTargetInfo>;
   };
+  /**
+   * Why this resolution carries no document — set **only** when the reason is a failure, never
+   * for a route that honestly has no page (no match, or a 404 from the gateway).
+   *
+   * It travels with the resolution because the resolution is *shared*. `useAsyncData` keeps one
+   * entry per key and the **first** registration's handler is the only one that ever runs
+   * (`nuxt/dist/app/composables/asyncData.js`: a later call with the same key reuses the existing
+   * entry), so a second `useEldraPage()` for the same route — a plugin's, beside the page
+   * component's — is handed this value and nothing else. A failure kept in the composable's own
+   * `ref` therefore reached only whichever call happened to register first, and every other
+   * consumer saw an empty route, which is indistinguishable from "there is no such page". That is
+   * how a transient gateway failure was rendered — and, under `nuxi generate`, written to disk —
+   * as the not-found shell over a collection that exists.
+   */
+  error?: string;
 }
 
 export const EMPTY_ELDRA_ROUTE: ResolvedEldraRoute = {

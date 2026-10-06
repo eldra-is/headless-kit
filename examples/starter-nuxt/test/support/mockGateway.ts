@@ -789,18 +789,31 @@ export interface MockGateway {
    * or fail by timing rather than by behaviour.
    */
   cartDelayMs: number;
+  /**
+   * One pathname this gateway answers with a 500 instead of its real answer, or `null` for none.
+   *
+   * A storefront's reads fail one at a time in the wild — a gateway under load answers one of them
+   * 500 and the rest normally — and that is a different thing from a 404: a 404 is "there is no
+   * such object", a 500 is "nobody could be asked". Only a failure this narrow can show what a
+   * build does with the difference, which is what `test/prerenderFailure.spec.ts` is about.
+   */
+  failPath: string | null;
   /** Forget every request recorded so far — call between the generate and the browser run. */
   reset(): void;
   close(): Promise<void>;
 }
 
 export function startMockGateway(
-  options: { catalogContract?: MockCatalogContract } = {}
+  options: { catalogContract?: MockCatalogContract; failPath?: string } = {}
 ): Promise<MockGateway> {
   setMockCatalogContract(options.catalogContract ?? '3.8.0');
   return new Promise((resolve) => {
     const requests: string[] = [];
-    const state = { catalogDelayMs: 0, cartDelayMs: 0 };
+    const state = {
+      catalogDelayMs: 0,
+      cartDelayMs: 0,
+      failPath: options.failPath ?? null,
+    } as { catalogDelayMs: number; cartDelayMs: number; failPath: string | null };
     const templates = routeTemplateEntries();
     const pages = pageEntries();
 
@@ -840,6 +853,14 @@ export function startMockGateway(
         }
         send();
       };
+
+      // The one read this gateway has been told to fail (`MockGateway.failPath`). Before the
+      // org-id guard and before every route below, because the point is a failure that reaches the
+      // caller whatever it was asking for.
+      if (state.failPath !== null && url.pathname === state.failPath) {
+        answer({ error: 'mock gateway failure' }, 500);
+        return;
+      }
 
       // The platform's own config is **not** org-scoped (`orgScoped: false` in the SDK), so it is
       // answered before the org-id guard below — it carries no `X-Org-Id` and a real gateway does
@@ -972,6 +993,12 @@ export function startMockGateway(
         },
         set cartDelayMs(value: number) {
           state.cartDelayMs = value;
+        },
+        get failPath() {
+          return state.failPath;
+        },
+        set failPath(value: string | null) {
+          state.failPath = value;
         },
         reset() {
           requests.length = 0;
