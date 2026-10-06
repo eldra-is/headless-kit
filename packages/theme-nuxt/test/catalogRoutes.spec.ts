@@ -281,7 +281,7 @@ describe('catalog-backed route resolution', () => {
   });
 
   /**
-   * **Canonical only, no redirects** (the cross-repo contract): a leaf on its own, a wrong parent
+   * **Canonical only, no redirects**: a leaf on its own, a wrong parent
    * and a trailing extra segment are each the not-found shell rather than a redirect to the page
    * the visitor probably meant.
    */

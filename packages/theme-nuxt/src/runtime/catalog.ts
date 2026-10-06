@@ -227,7 +227,7 @@ export function buildCategoryTree(
 
 /**
  * A placed category as the binding paths a `catalog:category` route template
- * addresses (the cross-repo contract's own list): `slug`, `title`, `path`,
+ * addresses: `slug`, `title`, `path`,
  * `ancestors[]` and `children[]` are always present, because a template binds
  * them and an absent path renders as nothing.
  *
