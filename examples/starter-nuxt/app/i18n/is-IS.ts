@@ -348,6 +348,8 @@ export const isIS = {
     minPriceLabel: 'Lágmarksverð',
     maxPriceLabel: 'Hámarksverð',
     showAllValues: 'Sýna allar {count}',
+    underValue: 'Undir {value}',
+    impliedByValue: 'fylgir {value}',
     filter: 'Sía',
     nActive: '{count} virkar',
     filters: 'Síur',

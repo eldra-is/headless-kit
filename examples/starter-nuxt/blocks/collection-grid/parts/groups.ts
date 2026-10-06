@@ -12,7 +12,7 @@
  * (`parsePriceRange`/`rangeFromSlider`) is provable without mounting anything.
  */
 import { IN_STOCK, OUT_OF_STOCK } from '../../../app/storefront/facets';
-import type { CatalogFacets } from '../../../app/storefront/types';
+import type { CatalogFacetTerm, CatalogFacets } from '../../../app/storefront/types';
 
 /** The six `filters[].source` options `block.json` declares. */
 export type FilterSource =
@@ -39,6 +39,23 @@ export interface FilterGroupValue {
    * never disabled, whatever it counts, or the filter could not be removed again.
    */
   disabled?: boolean;
+  /**
+   * **The value of the row this one sits under**, for a `category` group the store answers as a tree
+   * (`CatalogFacetTerm.parentId`). Absent on every other family and on every top row, which is what
+   * a flat group is: nothing carries a parent, so nothing indents.
+   *
+   * One level, ever. A category three deep is rendered under its top-most listed ancestor rather
+   * than at its own depth — a filter panel is not a tree view, and a 15rem sidebar has no third
+   * indent to give (see `nestCategoryTerms`).
+   */
+  parent?: string;
+  /**
+   * This row is covered by its ticked parent rather than by a filter of its own: the parent's id is
+   * what the request carries, and the platform expands it to the descendants. Drawn ticked and
+   * inoperable, with a hidden note naming the parent, because the shopper's way back out is the
+   * parent they ticked — the one control that can still change.
+   */
+  implied?: boolean;
 }
 
 export interface FilterGroup {
@@ -117,10 +134,20 @@ export function groupValuesFor(
   selected: readonly string[],
   availability: AvailabilityLabels
 ): FilterGroupValue[] {
-  const out: FilterGroupValue[] = rawValuesFor(source, facets, availability).map((value) => ({
-    ...value,
-    ...(value.count === 0 && !selected.includes(value.value) ? { disabled: true } : {}),
-  }));
+  const out: FilterGroupValue[] = rawValuesFor(source, facets, availability).map((value) => {
+    // A row its ticked parent already covers is neither operable nor countable on its own: the
+    // request carries the parent's id and the platform expands it, so this row's own count describes
+    // a filter nobody sent. It is drawn ticked and inoperable instead (`FilterGroupValue.implied`),
+    // which is also why the `disabled` rule below does not get a say — an implied row is disabled
+    // whatever it counts.
+    if (value.parent !== undefined && selected.includes(value.parent)) {
+      return { ...value, implied: true, disabled: true };
+    }
+    return {
+      ...value,
+      ...(value.count === 0 && !selected.includes(value.value) ? { disabled: true } : {}),
+    };
+  });
   const listed = new Set(out.map((value) => value.value));
   for (const value of selected) {
     if (!listed.has(value)) {
@@ -156,9 +183,12 @@ function rawValuesFor(
   availability: AvailabilityLabels
 ): FilterGroupValue[] {
   if (facets === undefined || source === 'price') return [];
-  if (source === 'category' || source === 'collection') {
-    const terms = source === 'category' ? facets.categories : facets.collections;
-    return terms.map((term) => ({ value: term.slug, label: term.title, count: term.count }));
+  if (source === 'category') {
+    return nestCategoryTerms(facets.categories, facets.categoryCounts === 'rolled-up');
+  }
+  if (source === 'collection') {
+    // Flat, and not by omission: a collection is a curated list, not a level of anything.
+    return facets.collections.map(flatTermValue);
   }
   if (source === 'availability') {
     // No `availability` facet at all means the store could not read stock, not that nothing is in
@@ -179,6 +209,87 @@ function rawValuesFor(
     count: value.count,
     ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
   }));
+}
+
+function flatTermValue(term: CatalogFacetTerm): FilterGroupValue {
+  return { value: term.slug, label: term.title, count: term.count };
+}
+
+/**
+ * How deep the walk up a term's ancestors may go before it stops. A guard against a `parentId` cycle
+ * in the data, not a product decision — this runs inside a `computed`, where a hang is the block.
+ */
+const MAX_CATEGORY_DEPTH = 6;
+
+/**
+ * **The category family as rows the panel can draw: each parent followed by its children, indented
+ * one level.**
+ *
+ * The terms arrive as a tree (`CatalogFacetTerm.parentId`) with every ancestor present — the
+ * storefront completes them, since a facet counted over the categories products are *assigned* to
+ * names only the leaves (`app/storefront/categories.ts`'s `completeCategoryTerms`). A source that
+ * places nothing answers no `parentId` at all, and the family then comes out exactly as flat as it
+ * always was: the whole of this is skipped, not approximated.
+ *
+ * **One level of indent, ever.** A category three deep is rendered under its top-most listed
+ * ancestor, not at its own depth: a filter panel is not a tree view, every indent costs a 15rem
+ * sidebar a column of label width, and a shopper ticking a grandchild gets the same filter either
+ * way. Nothing is dropped — only flattened.
+ *
+ * **A parent's count is rolled up** from the descendants on screen, which is the only honest number
+ * while the platform counts assignments: a synthesised `Tableware` row counts 0 of its own, and
+ * `Cups (6) · Bowls (4)` under a row reading `Tableware (0)` is a row the shopper reads as empty and
+ * the panel disables. `rolledUp` turns the sum off, for the day the platform counts ancestors
+ * itself — its number is deduplicated and a sum over siblings cannot be, since a product in Cups and
+ * in Bowls is one product and two counts (`CatalogFacets.categoryCounts`).
+ */
+export function nestCategoryTerms(
+  terms: readonly CatalogFacetTerm[],
+  rolledUp: boolean
+): FilterGroupValue[] {
+  if (!terms.some((term) => term.parentId !== undefined)) return terms.map(flatTermValue);
+  const byId = new Map(terms.map((term) => [term.id, term] as const));
+
+  /** The top-most ancestor of a term that is **listed here** — the term itself for a top row. */
+  const topOf = (term: CatalogFacetTerm): CatalogFacetTerm => {
+    let top = term;
+    const seen = new Set<string>([term.id]);
+    for (let depth = 0; depth < MAX_CATEGORY_DEPTH; depth += 1) {
+      const parentId = top.parentId;
+      if (parentId === null || parentId === undefined || seen.has(parentId)) break;
+      const parent = byId.get(parentId);
+      if (parent === undefined) break;
+      seen.add(parentId);
+      top = parent;
+    }
+    return top;
+  };
+
+  // Input order decides the order of the top rows, and a child follows the row it sits under. The
+  // storefront appends the ancestors it synthesised after the counted terms, so a parent the facets
+  // never named lands after the roots they did — which is the order a shopper reads as "the families
+  // the catalogue counted, then the one above them".
+  const tops: CatalogFacetTerm[] = [];
+  const childrenOf = new Map<string, CatalogFacetTerm[]>();
+  for (const term of terms) {
+    const top = topOf(term);
+    if (top.id === term.id) {
+      tops.push(term);
+      continue;
+    }
+    const siblings = childrenOf.get(top.id);
+    if (siblings === undefined) childrenOf.set(top.id, [term]);
+    else siblings.push(term);
+  }
+
+  const out: FilterGroupValue[] = [];
+  for (const top of tops) {
+    const children = childrenOf.get(top.id) ?? [];
+    const rolled = children.reduce((sum, child) => sum + child.count, top.count);
+    out.push({ value: top.slug, label: top.title, count: rolledUp ? top.count : rolled });
+    for (const child of children) out.push({ ...flatTermValue(child), parent: top.slug });
+  }
+  return out;
 }
 
 /**

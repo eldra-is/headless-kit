@@ -674,7 +674,8 @@ export interface Messages {
    * `<legend>`s (`legend*`) and their count badge (`nSelected`), the price range's own labels
    * (`minLabel`/`maxLabel` and the word `to` between the two inputs; the amounts themselves are
    * formatted by the store's own currency formatter, never by a string here) and
-   * the "Show all 14" link for a group with 12 or more values (`showAllValues`); the Filter button
+   * the "Show all 14" link for a group with 12 or more values (`showAllValues`), the nested category
+   * group's own name and its implied children's hidden note (`underValue`/`impliedByValue`); the Filter button
    * (`filter`) with its count badge (`nActive`), the sidebar landmark (`filters`), the active-filter
    * list (`activeFilters`, `removeFilter`, `clearAll`); the polite result count, pluralised the way
    * `header.cartOne`/`cartMany` are (`oneProduct`/`nProducts`) and its filtering state
@@ -713,6 +714,14 @@ export interface Messages {
     minPriceLabel: string;
     maxPriceLabel: string;
     showAllValues: string;
+    /**
+     * The nested `role="group"` a category's children sit in, named after the parent ("Under
+     * Tableware"), and the hidden note on a child row a ticked parent already covers ("included in
+     * Tableware"). Both exist only for a store whose categories are a tree; a flat group draws
+     * neither.
+     */
+    underValue: string;
+    impliedByValue: string;
     filter: string;
     nActive: string;
     filters: string;

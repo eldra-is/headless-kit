@@ -347,6 +347,8 @@ export const enUS = {
     minPriceLabel: 'Minimum price',
     maxPriceLabel: 'Maximum price',
     showAllValues: 'Show all {count}',
+    underValue: 'Under {value}',
+    impliedByValue: 'included in {value}',
     filter: 'Filter',
     nActive: '{count} active',
     filters: 'Filters',

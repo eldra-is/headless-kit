@@ -21,7 +21,12 @@
  *
  * The three checkbox shapes, and why only one of them is hand-drawn:
  *  - **Category / Availability** are the package `Checkbox` as it comes, with the store's count in
- *    `muted` tabular figures inside the label (so the accessible name reads "Knitwear (18)").
+ *    `muted` tabular figures inside the label (so the accessible name reads "Knitwear (18)"). A
+ *    `category` group the store answers as a tree draws its children one indent in, inside a nested
+ *    `role="group"` named after the parent ("Under Tableware") — a real grouping for a screen reader
+ *    and **no extra tab stop**, which is why it is a `role` on a wrapper rather than a tree widget:
+ *    every row stays an ordinary checkbox in source order, so `Tab`, `Esc` and the "Show all 14"
+ *    button behave exactly as they do in a flat group (see `checkboxRows`).
  *  - **Size** is the same package `Checkbox` restyled through its own `classes` parts into a pill:
  *    the drawn `box` becomes the pill itself (`absolute inset-0`, which is where the real
  *    `<input>` already lives, so the whole pill is the target and the package's own proxy focus
@@ -141,6 +146,38 @@ const hasHiddenValues = (group: FilterGroup): boolean =>
   group.values.length >= COLLAPSE_FROM && expanded.value[group.source] !== true;
 function showAllValues(group: FilterGroup): void {
   expanded.value = { ...expanded.value, [group.source]: true };
+}
+
+/** One top row of a checkbox group, with the rows that sit under it (empty in a flat group). */
+interface CheckboxRow {
+  value: FilterGroupValue;
+  children: FilterGroupValue[];
+}
+
+/**
+ * The visible values re-read as parent rows and their children — the one place the flat
+ * `group.values` list becomes nesting, so everything else (the count badge, the 12-or-more collapse,
+ * `Esc`, the chips) keeps working on the flat list it always did.
+ *
+ * A child whose parent is **not** in the visible slice becomes a top row of its own rather than
+ * disappearing: the collapse cuts the list at eight values, and a row the shopper can see has to be
+ * a row they can tick.
+ */
+function checkboxRows(group: FilterGroup): CheckboxRow[] {
+  const visible = visibleValues(group);
+  const rows: CheckboxRow[] = [];
+  const byValue = new Map<string, CheckboxRow>();
+  for (const value of visible) {
+    const parent = value.parent === undefined ? undefined : byValue.get(value.parent);
+    if (parent !== undefined) {
+      parent.children.push(value);
+      continue;
+    }
+    const row: CheckboxRow = { value, children: [] };
+    rows.push(row);
+    byValue.set(value.value, row);
+  }
+  return rows;
 }
 
 /** Local mirrors so a keystroke is sanitised before it leaves the component (and before it can
@@ -343,17 +380,41 @@ const COUNT = 'text-muted tabular-nums';
       >
         <VisuallyHidden as="legend">{{ group.legend }}</VisuallyHidden>
 
-        <!-- Category and Availability: plain checkboxes with the store's own count. -->
+        <!-- Category and Availability: plain checkboxes with the store's own count. A category
+             group the store answers as a tree nests its children one indent in, inside a
+             `role="group"` named after the parent — no extra tab stop (see `checkboxRows`). -->
         <div v-if="group.kind === 'checkbox'" class="flex flex-col gap-2">
-          <Checkbox
-            v-for="value in visibleValues(group)"
-            :key="value.value"
-            :model-value="isChecked(group.source, value.value)"
-            :disabled="value.disabled"
-            @change="emit('toggle', group.source, value.value, $event)"
-          >
-            {{ value.label }} <span :class="COUNT">({{ value.count }})</span>
-          </Checkbox>
+          <template v-for="row in checkboxRows(group)" :key="row.value.value">
+            <Checkbox
+              :model-value="isChecked(group.source, row.value.value)"
+              :disabled="row.value.disabled"
+              @change="emit('toggle', group.source, row.value.value, $event)"
+            >
+              {{ row.value.label }} <span :class="COUNT">({{ row.value.count }})</span>
+            </Checkbox>
+            <div
+              v-if="row.children.length > 0"
+              role="group"
+              :aria-label="t('grid.underValue', { value: row.value.label })"
+              class="ms-6 flex flex-col gap-2"
+            >
+              <Checkbox
+                v-for="child in row.children"
+                :key="child.value"
+                :model-value="child.implied === true || isChecked(group.source, child.value)"
+                :disabled="child.disabled"
+                @change="emit('toggle', group.source, child.value, $event)"
+              >
+                {{ child.label }} <span :class="COUNT">({{ child.count }})</span>
+                <!-- Ticked because the parent is, not because this row is a filter of its own: the
+                     request carries the parent's id and the platform expands it. Said out loud,
+                     because a ticked-and-disabled box with no explanation reads as a dead end. -->
+                <VisuallyHidden v-if="child.implied === true">
+                  {{ t('grid.impliedByValue', { value: row.value.label }) }}
+                </VisuallyHidden>
+              </Checkbox>
+            </div>
+          </template>
         </div>
 
         <!-- Size: pill checkboxes in a wrapping row. -->
