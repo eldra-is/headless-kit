@@ -104,12 +104,15 @@ function mountGroups(
     max: string;
     dense: boolean;
     priceStep: number;
+    currency: string;
   }> = {},
-  mountExtras: { attachTo?: Element } = {}
+  mountExtras: { attachTo?: Element; locale?: string } = {}
 ) {
   // `mountOptions` carries the locale/messages/storefront provides every block subtree needs; the
-  // `entry` prop it builds is for a `Block.vue` and is simply unused by this part.
-  const base = mountOptions({ entry: { id: 'e1', data: {} } });
+  // `entry` prop it builds is for a `Block.vue` and is simply unused by this part. The `locale` is
+  // the one the money fields parse and format against — `CurrencyInput` reads it off the ambient
+  // provide, so a spec about a zero-decimal currency sets it here rather than on the control.
+  const base = mountOptions({ entry: { id: 'e1', data: {} } }, { locale: mountExtras.locale });
   // Each group trigger's chevron is an `EldraIcon`, which resolves through `useEldraIcon` — outside
   // Nuxt that needs an injected fetcher (the same synchronous, network-free stub every other spec
   // that renders an icon by name uses).
@@ -122,11 +125,13 @@ function mountGroups(
       priceSpan: SPAN,
       priceStep: overrides.priceStep ?? 1,
       formatPrice: (amount: number) => `$${amount}`,
+      // What the store sells in, for the two `CurrencyInput`s the price group's fields are.
+      currency: overrides.currency ?? 'USD',
       idPrefix: 'grid-test',
       dense: overrides.dense ?? false,
     },
     global: base.global,
-    ...mountExtras,
+    ...(mountExtras.attachTo === undefined ? {} : { attachTo: mountExtras.attachTo }),
   });
 }
 
@@ -339,18 +344,61 @@ describe('collection-grid filter groups', () => {
       expect(sanitizeAmount('1234567890123')).toBe('123456789');
     });
 
-    it('emits the sanitised range, never the raw keystroke', async () => {
+    /**
+     * The fields are the store's own money fields, so what reaches the range is the **number
+     * `CurrencyInput` parsed**, not the characters that were typed: a sign, a grouping mark or a
+     * stray letter never leave the control, and the theme's whole-unit grammar is what comes out.
+     *
+     * It commits on blur or `Enter` like the slider's own fields, not per keystroke — a money field
+     * reformats as it is typed, and a request per character is a request per character.
+     */
+    it('commits the parsed figure on blur, never on a keystroke', async () => {
       const wrapper = mountGroups([PRICE_FIELDS]);
-      const inputs = wrapper.findAll('input');
+      const inputs = wrapper.findAll('input[data-input]');
       expect(inputs).toHaveLength(2);
 
-      await inputs[0]!.setValue('$0');
-      await inputs[1]!.setValue('18o0');
+      await inputs[0]!.setValue('$50');
+      await inputs[1]!.setValue('1,250');
+      expect(wrapper.emitted('update:range')).toBeUndefined();
 
-      expect(wrapper.emitted('update:range')).toEqual([
-        [{ min: '0', max: '' }],
-        [{ min: '0', max: '180' }],
-      ]);
+      await inputs[1]!.trigger('blur');
+      expect(wrapper.emitted('update:range')).toEqual([[{ min: '50', max: '1250' }]]);
+    });
+
+    it('commits on Enter too', async () => {
+      const wrapper = mountGroups([PRICE_FIELDS]);
+      const min = wrapper.get('input[data-input="min"]');
+      await min.setValue('96');
+      await min.trigger('keydown', { key: 'Enter' });
+      expect(wrapper.emitted('update:range')).toEqual([[{ min: '96', max: '' }]]);
+    });
+
+    /**
+     * **A zero-decimal currency.** ISK has no minor unit, so a typed `2.800` is two thousand eight
+     * hundred krónur — the dot is that locale's *grouping* mark, not a decimal point. A generic
+     * numeric field read it as 2.8 and sent `price=3`; the money field parses it against the store's
+     * own locale and currency, which is the whole reason these are `CurrencyInput`s.
+     */
+    it('parses a zero-decimal currency in its own locale', async () => {
+      const wrapper = mountGroups([PRICE_FIELDS], { currency: 'ISK' }, { locale: 'is-IS' });
+      const min = wrapper.get('input[data-input="min"]');
+      await min.setValue('2.800');
+      await min.trigger('blur');
+      expect(wrapper.emitted('update:range')).toEqual([[{ min: '2800', max: '' }]]);
+    });
+
+    /** And the theme's grammar is whole units either way: a dollar store's cents are not carried by
+     *  the URL, so a typed `49.99` commits as 50 rather than offering a precision nothing keeps. */
+    it('rounds a dollar amount to the whole units the URL carries', async () => {
+      const wrapper = mountGroups([PRICE_FIELDS]);
+      const min = wrapper.get('input[data-input="min"]');
+      await min.setValue('49.99');
+      await min.trigger('blur');
+      expect(wrapper.emitted('update:range')).toEqual([[{ min: '50', max: '' }]]);
+    });
+
+    it('is axe-clean with the two money fields', async () => {
+      expect(await axe(mountGroups([PRICE_FIELDS]).element)).toHaveNoViolations();
     });
   });
 

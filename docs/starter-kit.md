@@ -894,17 +894,31 @@ the storefront's `facets`, never CMS content. The sources are `category`, `colle
 `option:<key>`, `price` and `availability`; `parts/groups.ts` is the one place a source is reconciled
 with the facets' own vocabulary (`options[].key`), and the one place the price grammar lives.
 
-- **Price is `@eldrajs/ui`'s `RangeSlider`** with its typed fields on: `min`/`max` are the
+- **Price is `@eldrajs/ui`'s `RangeSlider`** with its typed row on: `min`/`max` are the
   collection's own bounds from the facets, `step` is the `priceStep` field (default: one unit of
   the store currency, ISK 100 — narrowed to a step the catalogue's span can hold ten of, so a
   50-króna collection does not get a two-stop track), and `formatValue` is the store's own currency
-  formatter, so both thumbs announce "$1,200" and both fields read it. The group's hidden legend
-  names the currency ("Price range in USD"), which is why those fields carry no currency prefix of
-  their own. A thumb parked on the catalogue's own end is **no bound**, so a filter can be dragged
-  back off, and the move applies once it is over (pointer release, the key release that ends an
-  arrow-key run, a typed field committing) — one request and one URL write per gesture.
-  `priceSlider` off keeps the two typed fields alone, for prices that sit in a few tight clusters
-  a track cannot separate — a block-level field rather than one on the price `filters[]` row, see
+  formatter, so both thumbs announce "kr 2.800" rather than "2800". A thumb parked on the
+  catalogue's own end is **no bound**, so a filter can be dragged back off, and the move applies
+  once it is over (pointer release, the key release that ends an arrow-key run, a typed field
+  committing) — one request and one URL write per gesture.
+- **The two price fields are the store's own money fields** — `@eldrajs/ui`'s `CurrencyInput`,
+  filled into `RangeSlider`'s `inputs` slot — not the generic number fields the control ships with.
+  A shopper filtering by price is typing money, and a money field is the one that already knows how:
+  the currency sign where the locale puts it, that locale's grouping and decimal marks (a typed
+  `2.800` is two thousand eight hundred krónur, not 2.8), a caret that stays put while the text
+  reformats, and an empty field that reads as empty rather than as zero. The currency is handed in
+  from `useMoney()`; the **locale is ambient** (`provideEldraUiLocale`, set once by
+  `app/plugins/eldra-ui-messages.ts`), so a Studio locale switch reaches the fields with nothing
+  passed. `maxFraction` is **0** in both shapes, because the theme's price grammar is whole major
+  units end to end — `?price=50-150`, `sanitizeAmount`'s digits-only filter, the `minPrice`/`maxPrice`
+  parameters — so a field offering cents would offer a precision the URL cannot carry.
+  Every write goes through the slot's own `commit`, which snaps to the step grid and clamps to the
+  span and against the other thumb, so the fields and the thumbs are one value; the fields
+  deliberately take no `min`/`max` of their own, since a field that _refused_ the keystroke would
+  stop a shopper typing "1250" at the "1". They commit on **blur or `Enter`**, never per keystroke.
+  `priceSlider` off keeps those two fields alone, for prices that sit in a few tight clusters a
+  track cannot separate — a block-level field rather than one on the price `filters[]` row, see
   below.
 - **`options` is one row for every variant option the store has** — the shipped seed, and what a
   merchant should leave alone. The storefront's facets answer one family per option key with its own

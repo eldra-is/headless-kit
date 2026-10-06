@@ -673,7 +673,8 @@ export interface Messages {
    * (`sectionLabel`), the grid's visually hidden `h2` (`products`), the filter groups' hidden
    * `<legend>`s (`legend*`) and their count badge (`nSelected`), the price range's own labels
    * (`minLabel`/`maxLabel` and the word `to` between the two inputs; the amounts themselves are
-   * formatted by the store's own currency formatter, never by a string here) and
+   * formatted by the store's own money field — `@eldrajs/ui`'s `CurrencyInput` — and by its own
+   * currency formatter for the thumbs, never by a string here) and
    * the "Show all 14" link for a group with 12 or more values (`showAllValues`), the nested category
    * group's own name and its implied children's hidden note (`underValue`/`impliedByValue`); the Filter button
    * (`filter`) with its count badge (`nActive`), the sidebar landmark (`filters`), the active-filter

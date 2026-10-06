@@ -46,8 +46,8 @@ import {
   Badge,
   Button,
   Checkbox,
+  CurrencyInput,
   FieldWrapper,
-  Input,
   RangeSlider,
   VisuallyHidden,
 } from '@eldrajs/ui';
@@ -82,8 +82,19 @@ const props = withDefaults(
     priceSpan: PriceSpan;
     /** The slider's `step`: the `priceStep` field, defaulting to one unit of the store currency. */
     priceStep: number;
-    /** The store's own currency formatter, for both thumbs' `aria-valuetext` and both fields. */
+    /**
+     * The store's own currency formatter, for both thumbs' `aria-valuetext` — the one number only
+     * the control can say. The fields format themselves (`CurrencyInput`), so this is no longer
+     * their resting text.
+     */
     formatPrice: (amount: number) => string;
+    /**
+     * What the store sells in, ISO 4217 — the one thing `CurrencyInput` does not read from an
+     * ambient provide (its locale it does). `undefined` on a store that published no currency, which
+     * is the same `undefined` every `<Price>` on the page gets and which the control renders as a
+     * plain number rather than guessing a sign.
+     */
+    currency?: string;
     /** Namespaces every `id` this component mints, so the sidebar and the drawer never collide. */
     idPrefix: string;
     /** The 15rem sidebar's tighter targets (spec Layout: pills 2.5rem, colour rows 2.25rem). */
@@ -180,29 +191,57 @@ function checkboxRows(group: FilterGroup): CheckboxRow[] {
   return rows;
 }
 
-/** Local mirrors so a keystroke is sanitised before it leaves the component (and before it can
- *  become a request), while an externally cleared range still reaches the inputs. */
-const minValue = ref(props.min);
-const maxValue = ref(props.max);
-watch(
-  () => props.min,
-  (value) => {
-    minValue.value = value;
-  }
-);
-watch(
-  () => props.max,
-  (value) => {
-    maxValue.value = value;
-  }
-);
-function onMin(raw: string): void {
-  minValue.value = sanitizeAmount(raw);
-  emit('update:range', { min: minValue.value, max: maxValue.value });
+/**
+ * **The price fields are the store's own money fields** (`@eldrajs/ui`'s `CurrencyInput`), not
+ * generic number fields, in both of the price group's shapes.
+ *
+ * A shopper filtering by price is typing money, and a money field is the one that already knows
+ * how: the store's currency sign where the locale puts it, the locale's own grouping and decimal
+ * marks, a caret that stays put while the text reformats around it, and an empty field that reads
+ * as empty rather than as zero. The panel used to draw bare numeric `Input`s with the currency
+ * named only in the group's hidden legend, which is readable but is not what the rest of the store
+ * looks like — every other amount on the page goes through `<Price>` or `formatMoney`.
+ *
+ * **Whole major units, so `maxFraction` is 0.** The theme's price grammar is whole units end to end
+ * — `?price=50-150`, `sanitizeAmount`'s digits-only filter, the `minPrice`/`maxPrice` parameters —
+ * so a field that accepted `12.50` would offer a precision the URL cannot carry and the request
+ * would silently round it.
+ *
+ * The locale is **ambient**: `UnitInput` reads `provideEldraUiLocale`, which the app sets once
+ * (`app/plugins/eldra-ui-messages.ts`), so a Studio locale switch reaches these fields with nothing
+ * passed here. The currency is not ambient to that control, so it is handed in (`currency`).
+ */
+
+/** An amount as the theme's `PriceRange` spells it: `''` for no bound, else whole units. */
+function amountText(amount: number | null): string {
+  if (amount === null || !Number.isFinite(amount)) return '';
+  return sanitizeAmount(String(Math.max(0, Math.round(amount))));
 }
-function onMax(raw: string): void {
-  maxValue.value = sanitizeAmount(raw);
-  emit('update:range', { min: minValue.value, max: maxValue.value });
+
+/** The reverse: a `PriceRange` end as a money field's value. `null` is an empty field. */
+function amountOf(text: string): number | null {
+  return text === '' ? null : Number(text);
+}
+
+/**
+ * The two **typed** fields' own numbers, for the `priceSlider: false` shape. Local, because a money
+ * field reformats as it is typed and a commit per keystroke would both snap the figure under the
+ * caret and fire a request per character; the committed range re-seeds them, so Clear all and a
+ * removed chip still reach the fields.
+ */
+const minAmount = ref<number | null>(amountOf(props.min));
+const maxAmount = ref<number | null>(amountOf(props.max));
+watch(
+  () => [props.min, props.max] as const,
+  ([min, max]) => {
+    minAmount.value = amountOf(min);
+    maxAmount.value = amountOf(max);
+  }
+);
+
+/** Spec → Behaviour & motion: a typed value commits on **blur or `Enter`**, never on a keystroke. */
+function commitAmounts(): void {
+  emit('update:range', { min: amountText(minAmount.value), max: amountText(maxAmount.value) });
 }
 
 /**
@@ -234,6 +273,19 @@ function onSlide(value: [number, number]): void {
   sliding.value = true;
   sliderPair.value = value;
 }
+
+/**
+ * The slider row's two money fields, mirroring the thumbs.
+ *
+ * Local for the same reason the built-in fields keep their own text: a field reformats as it is
+ * typed, and `RangeSlider`'s `commit` snaps to the step grid and clamps against the other thumb, so
+ * calling it per keystroke would move the figure under the caret. It re-seeds from the control's own
+ * pair, so a drag, an arrow key, Clear all and a removed chip all reach the fields.
+ */
+const typedPair = ref<[number | null, number | null]>([sliderPair.value[0], sliderPair.value[1]]);
+watch(sliderPair, (pair) => {
+  typedPair.value = [pair[0], pair[1]];
+});
 
 /**
  * Spec → Events: `change` is "once the move is over", which is when a filter should apply.
@@ -331,6 +383,21 @@ function colourNameClasses(checked: boolean): string {
 /** The count beside a Category/Collection/Availability value: `muted`, tabular figures (spec
  *  Layout). */
 const COUNT = 'text-muted tabular-nums';
+
+/**
+ * The slider row's two money fields: centred, tabular figures, which is what the built-in fields
+ * they replace carried (spec → Anatomy item 6) and what keeps the two columns of digits aligned.
+ * Through `classes`, the control's own sanctioned extension point — nothing about the field box,
+ * its states or its decorations is restated here.
+ */
+const PRICE_FIELD = { control: 'text-center tabular-nums' } as const;
+
+/*
+ * `data-input="min"`/`"max"` on all four money fields: the same anatomy name the `RangeSlider`
+ * fields they replace carried, so the one hook the panel's own rules and specs address a price field
+ * by does not depend on which shape the group is in or on a locale-dependent label.
+ * `CurrencyInput` forwards unknown attributes to its inner `<input>`, which is where it belongs.
+ */
 </script>
 
 <template>
@@ -469,9 +536,13 @@ const COUNT = 'text-muted tabular-nums';
           </label>
         </div>
 
-        <!-- Price, with a slider: the range across the group's full width, its typed fields on, so
-             the span can be dragged, arrowed or typed (spec Layout → Price). The legend names the
-             currency, which is why these fields carry no "$" prefix of their own. -->
+        <!-- Price, with a slider: the range across the group's full width, its typed row filled with
+             the store's own money fields, so the span can be dragged, arrowed or typed (spec Layout
+             → Price). `formatValue` stays for what only the control can say — both thumbs'
+             `aria-valuetext`, so a thumb announces "kr 2.800" rather than "2800" — while the fields
+             format themselves. Every write goes through the row's own `commit`, so the fields and
+             the thumbs are one value: it snaps to the step grid, clamps to the catalogue's span and
+             against the other thumb, and raises the one `change` this component acts on. -->
         <RangeSlider
           v-else-if="group.slider !== false"
           inputs
@@ -484,28 +555,72 @@ const COUNT = 'text-muted tabular-nums';
           :max-label="t('grid.maxPriceLabel')"
           @update:model-value="onSlide"
           @change="onSlideCommit"
-        />
+        >
+          <!-- `min`/`max` are deliberately **not** passed to the fields: `commit` already snaps to
+               the step grid, clamps to the catalogue's span and clamps against the other thumb, and
+               it does so on commit. A field that refused the keystroke instead would stop a shopper
+               typing "1250" at the "1", and would then disagree with a thumb a drag can park
+               anywhere. The fields keep `step`, so an arrow key in a field moves by the store's own
+               price step. -->
+          <template #inputs="{ labels, step, disabled, commit }">
+            <CurrencyInput
+              v-model="typedPair[0]"
+              data-input="min"
+              :currency="currency"
+              :max-fraction="0"
+              :step="step"
+              :disabled="disabled"
+              :aria-label="labels.min"
+              :classes="PRICE_FIELD"
+              @blur="commit(0, typedPair[0])"
+              @keydown.enter.prevent="commit(0, typedPair[0])"
+            />
+            <span class="text-muted text-body-sm self-center text-center" aria-hidden="true">
+              {{ labels.separator }}
+            </span>
+            <CurrencyInput
+              v-model="typedPair[1]"
+              data-input="max"
+              :currency="currency"
+              :max-fraction="0"
+              :step="step"
+              :disabled="disabled"
+              :aria-label="labels.max"
+              :classes="PRICE_FIELD"
+              @blur="commit(1, typedPair[1])"
+              @keydown.enter.prevent="commit(1, typedPair[1])"
+            />
+          </template>
+        </RangeSlider>
 
-        <!-- Price, without one (the block's `priceSlider` off): Min, the word "to", Max. -->
-        <!-- No currency sign inside either field: the group's own legend names the currency
-             ("Price range in ISK"), which is what the slider's fields rely on too. A literal "$"
-             here was the one place the panel still said dollars on a store that sells in krónur. -->
+        <!-- Price, without one (the block's `priceSlider` off): Min, the word "to", Max — the same
+             money fields, each named by a visible label its `FieldWrapper` owns. They commit on blur
+             or Enter like the slider's, rather than on every keystroke: a request per character is
+             one per character, and a money field reformats as it is typed. -->
         <div v-else class="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <FieldWrapper :id="fieldId(group.source, 'min')" :label="t('grid.minLabel')">
-            <Input
-              :model-value="minValue"
-              inputmode="numeric"
+            <CurrencyInput
+              v-model="minAmount"
+              data-input="min"
+              :currency="currency"
+              :max-fraction="0"
+              :step="priceStep"
               autocomplete="off"
-              @update:model-value="onMin"
+              @blur="commitAmounts"
+              @keydown.enter.prevent="commitAmounts"
             />
           </FieldWrapper>
           <span class="text-muted text-body-sm pb-2 text-center">{{ t('grid.to') }}</span>
           <FieldWrapper :id="fieldId(group.source, 'max')" :label="t('grid.maxLabel')">
-            <Input
-              :model-value="maxValue"
-              inputmode="numeric"
+            <CurrencyInput
+              v-model="maxAmount"
+              data-input="max"
+              :currency="currency"
+              :max-fraction="0"
+              :step="priceStep"
               autocomplete="off"
-              @update:model-value="onMax"
+              @blur="commitAmounts"
+              @keydown.enter.prevent="commitAmounts"
             />
           </FieldWrapper>
         </div>

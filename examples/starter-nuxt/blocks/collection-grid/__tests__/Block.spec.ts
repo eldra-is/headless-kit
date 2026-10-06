@@ -9,7 +9,6 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
-import { formatMoney } from '../../../app/storefront/money';
 import { createGatewayStorefront } from '../../../app/storefront/gateway';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
@@ -612,11 +611,19 @@ describe('collection-grid block', () => {
       const inputs = panel.findAll('input');
       expect(inputs).toHaveLength(2);
 
+      // The two fields are the store's own money fields, so they commit on blur or `Enter` like the
+      // slider's — not per keystroke. The chip still reads the amount through the theme's own
+      // formatter, which keeps the currency's fraction digits where the field drops them.
       await inputs[0]!.setValue('50');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+
+      await inputs[0]!.trigger('blur');
       await wrapper.vm.$nextTick();
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
         'Price: $50.00'
       );
+      expect((inputs[0]!.element as HTMLInputElement).value).toBe('$50');
     });
   });
 
@@ -1198,12 +1205,14 @@ describe('collection-grid block', () => {
     const noPrice: CatalogFacets = { ...FACETS };
     delete noPrice.price;
 
-    /** The loaded products' own span, which is what the control falls back to. */
+    /**
+     * The loaded products' own span, which is what the control falls back to — written the way the
+     * fields write it: `CurrencyInput` over the theme's whole-unit price grammar, so no fraction
+     * digits — unlike the theme's own `formatMoney`, which keeps the currency's and is what the
+     * chips and `<Price>` read.
+     */
     const amounts = PRODUCTS.map((item) => item.price.amount);
-    const loadedSpan = [
-      formatMoney(Math.min(...amounts), 'USD'),
-      formatMoney(Math.max(...amounts), 'USD'),
-    ];
+    const loadedSpan = [`$${Math.min(...amounts)}`, `$${Math.max(...amounts)}`];
 
     it('spans the loaded products rather than nothing at all', async () => {
       const stub = createStub(PRODUCTS, { facets: noPrice });
@@ -1213,9 +1222,11 @@ describe('collection-grid block', () => {
       const fields = wrapper
         .findAll('input[data-input]')
         .map((input) => (input.element as HTMLInputElement).value);
-      // The sidebar's pair, then the drawer's copy of it.
+      // The sidebar's pair, then the drawer's copy of it. The fields are `CurrencyInput`s over the
+      // theme's whole-unit price grammar, so they show the amount with no fraction digits — the
+      // chips and `<Price>` keep the currency's own fraction digits.
       expect(fields).toEqual([...loadedSpan, ...loadedSpan]);
-      expect(fields).not.toContain(formatMoney(0, 'USD'));
+      expect(fields).not.toContain('$0');
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
@@ -2319,7 +2330,7 @@ describe('collection-grid block', () => {
       const priceInputs = wrapper
         .findAll('input[data-input]')
         .map((input) => (input.element as HTMLInputElement).value);
-      expect(priceInputs).toEqual(['$50.00', '$150.00', '$24.00', '$180.00']);
+      expect(priceInputs).toEqual(['$50', '$150', '$24', '$180']);
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('$50');
     });
 
