@@ -138,13 +138,15 @@ function rawValuesFor(
     return terms.map((term) => ({ value: term.slug, label: term.title, count: term.count }));
   }
   if (source === 'availability') {
+    // No `availability` facet at all means the store could not read stock, not that nothing is in
+    // stock (`CatalogFacets.availability`). With no values the group is dropped altogether by the
+    // block, which is the only honest answer: two zeroes would offer a shopper a filter whose
+    // counts are unknown, and a request carrying it is an error rather than an empty page.
+    const counts = facets.availability;
+    if (counts === undefined) return [];
     return [
-      { value: 'in_stock', label: availability.inStock, count: facets.availability.in_stock },
-      {
-        value: 'out_of_stock',
-        label: availability.outOfStock,
-        count: facets.availability.out_of_stock,
-      },
+      { value: 'in_stock', label: availability.inStock, count: counts.in_stock },
+      { value: 'out_of_stock', label: availability.outOfStock, count: counts.out_of_stock },
     ];
   }
   const option = facets.options.find((candidate) => candidate.key === OPTION_KEY[source]);

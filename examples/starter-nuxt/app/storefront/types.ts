@@ -204,7 +204,15 @@ export interface CatalogFacets {
   price: { min: number; max: number };
   categories: CatalogFacetTerm[];
   collections: CatalogFacetTerm[];
-  availability: { in_stock: number; out_of_stock: number };
+  /**
+   * **Absent when the source could not read stock at all** — which is a different answer from
+   * "nothing is in stock", and the reason this one field is optional while the rest are not. The
+   * platform omits it rather than sending two zeroes when its inventory read fails, so a filter
+   * panel hides the availability group instead of offering a shopper two values it would be lying
+   * about. (An availability *filter* in that state is an error, not an empty answer: see
+   * `StorefrontResult.error`.)
+   */
+  availability?: { in_stock: number; out_of_stock: number };
   options: CatalogFacetOption[];
 }
 
