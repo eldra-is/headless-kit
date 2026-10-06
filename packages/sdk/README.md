@@ -71,6 +71,29 @@ number rather than under a currency symbol nobody chose. It reads the same organ
 rest of the group reads, so a caller already holding an `EldraOrganizationDetails` should take
 `commerce` off it instead of asking again.
 
+## Retrying what the gateway refused for now
+
+The gateway rate-limits a client by requests per minute, so a static build of a real catalogue —
+thousands of reads from one address in a few minutes — meets that limit routinely. A `429` is not an
+answer, and neither is a `503` while the gateway restarts or a connection the network drops, so the
+client asks again: **idempotent requests only** (`GET`/`HEAD`/`OPTIONS` — a `POST` that timed out may
+well have been applied), at most five attempts including the first, honouring `Retry-After` (seconds
+or HTTP-date, up to a minute) and otherwise waiting 250 ms doubled per attempt, capped at 5 s, with
+jitter. Every other status — a `404`, a `422`, a `401` — is returned on the first answer, as before.
+The caller's `AbortSignal` ends it immediately, during a wait as much as during a request.
+
+```ts
+const eldra = createEldraClient({
+  orgId: 'your-organisation-id',
+  retry: { attempts: 5, baseDelayMs: 250, maxDelayMs: 5000 }, // the defaults
+});
+
+// One request, no waiting:
+createEldraClient({ orgId: 'your-organisation-id', retry: { attempts: 0 } });
+```
+
+A consumer-supplied `httpClient` replaces the transport, so the retry is that client's own.
+
 Every failed request throws `EldraHttpError` with `status`, the problem's category `code` (such as
 `NOT_FOUND`) and its specific `errorId` (such as `CART_NOT_FOUND`); branch on `errorId`.
 `createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without

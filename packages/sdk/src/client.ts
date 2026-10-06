@@ -1,3 +1,4 @@
+import { fetchWithRetry, resolveRetryPolicy } from './retry';
 import type {
   EldraCatalogGetProductOptions,
   EldraCatalogListProductsOptions,
@@ -40,6 +41,7 @@ import type {
   EldraStockAvailabilityInput,
   EldraRequestContext,
   EldraRequestOptions,
+  EldraRetryOptions,
   RuntimeEnv,
   RuntimeValue,
 } from './types';
@@ -113,7 +115,7 @@ export function getEldraClient(): EldraClient {
 }
 
 export function createEldraClient(options: EldraClientOptions): EldraClient {
-  const httpClient = options.httpClient ?? createFetchHttpClient(options.fetch);
+  const httpClient = options.httpClient ?? createFetchHttpClient(options.fetch, options.retry);
 
   const request = <T = unknown>(requestOptions: InternalRequestOptions) =>
     httpClient<T>(createHttpRequest(options, requestOptions));
@@ -658,7 +660,11 @@ function createHttpRequest(
   };
 }
 
-function createFetchHttpClient(fetchImpl: typeof fetch | undefined): EldraHttpClient {
+function createFetchHttpClient(
+  fetchImpl: typeof fetch | undefined,
+  retry: EldraRetryOptions | undefined
+): EldraHttpClient {
+  const retryPolicy = resolveRetryPolicy(retry);
   return async <T = unknown>(request: EldraHttpRequest) => {
     const resolvedFetch = fetchImpl ?? globalThis.fetch;
     if (!resolvedFetch) {
@@ -667,12 +673,21 @@ function createFetchHttpClient(fetchImpl: typeof fetch | undefined): EldraHttpCl
       );
     }
 
-    const response = await resolvedFetch(request.url, {
-      method: request.method,
-      headers: request.headers,
-      body: request.body,
-      signal: request.signal,
-    });
+    // Every request this client makes without a consumer-supplied transport
+    // passes through here, which is why the retry lives here and nowhere else:
+    // a rate limit met halfway through a static build is waited out once, for
+    // every caller, rather than fought by each of them.
+    const response = await fetchWithRetry(
+      resolvedFetch,
+      request.url,
+      {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        signal: request.signal,
+      },
+      retryPolicy
+    );
     const body = await readResponseBody(response);
     if (!response.ok) {
       throw new EldraHttpError(response, body);

@@ -96,6 +96,7 @@ export type {
   EldraPaginated,
   EldraRequestContext,
   EldraRequestOptions,
+  EldraRetryOptions,
   RuntimeEnv,
   RuntimeValue,
 } from './types';

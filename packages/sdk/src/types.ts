@@ -33,6 +33,28 @@ export interface EldraHttpRequest {
 
 export type EldraHttpClient = <T = unknown>(request: EldraHttpRequest) => Promise<T>;
 
+/**
+ * How hard the client tries again when the gateway says "not now" — a `429`
+ * from its rate limit, a `503` while it restarts, or a dropped connection.
+ * Only idempotent requests are ever repeated; see `retry.ts` for the rules.
+ * Ignored when a consumer supplies its own `httpClient`: the retry belongs to
+ * the transport, and a replaced transport is the consumer's own.
+ */
+export interface EldraRetryOptions {
+  /**
+   * Total attempts per request, the first included. Default 5. `0` or `1`
+   * disables retrying: one request, no waiting.
+   */
+  attempts?: number;
+  /** First backoff window, doubling per attempt. Default 250 ms. */
+  baseDelayMs?: number;
+  /**
+   * Ceiling on the computed backoff. Default 5000 ms. A `Retry-After` the
+   * gateway sends is honoured beyond it (up to a minute).
+   */
+  maxDelayMs?: number;
+}
+
 export interface EldraClientOptions {
   apiBaseUrl?: RuntimeValue<string>;
   orgId?: RuntimeValue<string>;
@@ -42,6 +64,8 @@ export interface EldraClientOptions {
   headers?: RuntimeValue<HeadersInit>;
   httpClient?: EldraHttpClient;
   fetch?: typeof fetch;
+  /** See `EldraRetryOptions`; defaults documented there. */
+  retry?: EldraRetryOptions;
 }
 
 export interface EldraPaginationOptions {

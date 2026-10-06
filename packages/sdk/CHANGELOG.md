@@ -9,6 +9,18 @@ platform repository.
 
 ## Unreleased
 
+- **A request that answered `429` or `503` is retried instead of failing.** The gateway rate-limits a
+  client by requests per minute, which a static build of a real catalogue meets routinely. The
+  default `fetch` transport now repeats an **idempotent** request (`GET`/`HEAD`/`OPTIONS` — never a
+  `POST`, which may already have been applied), and one whose connection dropped (`fetch failed`,
+  `ECONNRESET` and the rest), honouring `Retry-After` in seconds or as an HTTP-date (up to a minute)
+  and otherwise waiting `250 ms × 2^attempt` capped at 5 s with jitter, for at most five attempts
+  including the first. Configurable as `retry: { attempts, baseDelayMs, maxDelayMs }` on
+  `createEldraClient` (`EldraRetryOptions`); `{ attempts: 0 }` is one request and no waiting. Every
+  other status is unchanged, and a consumer-supplied `httpClient` is left alone — the retry belongs
+  to the transport, and a replaced transport is the consumer's own. A caller's `AbortSignal` ends a
+  retry during the wait as well as during the request, rejecting with the signal's own reason.
+
 - `categoryId`, `collectionId` and `option` are sent as repeated query parameters, one entry per
   value, like `filter` — the gateway declares all four `explode: true` (contract 3.7.0). Each is an
   OR over its values, so the comma-joined form was one value nothing matched: a storefront filtering

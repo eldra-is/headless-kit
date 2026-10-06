@@ -2,16 +2,19 @@
 // size-limit's own config schema rejects unknown JSON keys ("comment" included), so a plain JSON
 // file has nowhere to record *why* a limit sits where it does.
 module.exports = [
+  // Raised from 2.5 kB / 3 kB when the transport grew its retry (`src/retry.ts`):
+  // a `429` from the gateway's rate limit is waited out rather than failed, which
+  // is what a static build of a real catalogue needs and is worth ~0.7 kB brotlied.
   {
     name: '@eldrajs/sdk — createEldraClient',
     path: 'packages/sdk/dist/index.js',
     import: '{ createEldraClient }',
-    limit: '2.5 kB',
+    limit: '3.5 kB',
   },
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    limit: '3 kB',
+    limit: '4 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',
