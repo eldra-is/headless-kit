@@ -232,7 +232,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
  * Ids are the slugs here. The demo keeps product ids and variant ids deliberately distinct (see
  * `DemoProductDef.variantId`) because a *request* sends both and they must not pass by accident; a
  * category id is only ever looked up against this list, so a readable id is worth more than a fake
- * uuid — and `completeCategoryTerms` keys on ids either way.
+ * uuid — and every lookup that matters (`categoryTrailFor`, `ancestorsOf`) keys on ids either way.
  */
 const DEMO_CATEGORIES: readonly CategoryRow[] = [
   { id: 'home', slug: 'home', title: 'Home', parentId: null },
@@ -267,7 +267,7 @@ const PRODUCT_ATTRIBUTES = new Map<string, ProductFacetAttributes>();
 function registerAttributes(handle: string, def: DemoProductDef): void {
   PRODUCT_ATTRIBUTES.set(handle, {
     // The `id` is what a parent clause is resolved through — `matchesClause` walks a product's own
-    // category up the tree — and what `completeCategoryTerms` places the facet's terms by.
+    // category up the tree — and what `categoryTermsOf` places the facet's own terms by.
     category: { id: def.category, slug: def.category, title: CATEGORY_TITLES[def.category] },
     options: {
       size: (def.sizes ?? []).map((size) => ({ value: size, label: size.toUpperCase() })),

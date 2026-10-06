@@ -934,6 +934,73 @@ describe('collection-grid block', () => {
       expect(patches[0]).toMatchObject({ page: null, sort: 'featured', category: ['knitwear'] });
     });
 
+    /**
+     * **The patch is where a colliding option key did its damage**, and it is the only place that can
+     * see this: `publishState` writes the option keys *after* the four keys it always writes, so a
+     * source whose query key belongs to something else lands last and wins.
+     *
+     * A store with an option keyed `sort` therefore stripped the shopper's sort out of the URL on
+     * every state write — any filter toggle, a column change, removing a chip, Clear all — so a shared
+     * link fell back to the default sort and the back button lost it. One keyed `category` cleared the
+     * category they had just ticked, which `adoptRouteState` then read back as absent, reverting the
+     * tick on screen.
+     *
+     * Refusing the key where it is *read* (the author's row, the URL, the groups) left all of that
+     * intact, and a test asserting the absent group passed straight over it — which is why this one
+     * asserts the patch.
+     */
+    it('never writes an option key that belongs to another filter or to the route', async () => {
+      const source = createDemoStorefront();
+      const patches: Array<Record<string, unknown>> = [];
+      const route = {
+        ...source.route,
+        setQuery(patch: Record<string, string | string[] | null>) {
+          patches.push(patch);
+        },
+      };
+      const catalog: StorefrontCatalog = {
+        ...source.catalog,
+        collectionProducts(collection, opts) {
+          const result = source.catalog.collectionProducts(collection, opts);
+          // Two option keys the grid and the page already own — `sort` is the route's, `category` is
+          // a filter source's — beside one that is really the store's.
+          const data = computed(() => {
+            const answer = result.data.value;
+            if (answer?.facets === undefined) return answer;
+            return {
+              ...answer,
+              facets: {
+                ...answer.facets,
+                options: [
+                  { key: 'sort', name: 'Sort', values: [{ value: 'y', label: 'Y', count: 2 }] },
+                  { key: 'category', name: 'Kind', values: [{ value: 'z', label: 'Z', count: 2 }] },
+                  ...answer.facets.options,
+                ],
+              },
+            };
+          });
+          return { ...result, data };
+        },
+      };
+      const wrapper = mountGrid(
+        { ...mock, filters: [{ source: 'category', label: 'Category' }, { source: 'options' }] },
+        { source: { ...source, route, catalog } }
+      );
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      await panelFor(wrapper, enUS.grid.legendCategory)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+
+      expect(patches).toHaveLength(1);
+      // The shopper's sort survives and the category they ticked reaches the URL — neither key was
+      // overwritten by an option of the same name.
+      expect(patches[0]).toMatchObject({ sort: 'featured', category: ['knitwear'] });
+      // And the price range is still the one string the price control writes, never a selection list.
+      expect(patches[0]!.price).toBeNull();
+    });
+
     it('reads the current page back from the route for the pages style', async () => {
       const source = createDemoStorefront();
       source.route.page = 3;

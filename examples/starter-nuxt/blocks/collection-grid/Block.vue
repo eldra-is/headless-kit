@@ -956,13 +956,29 @@ function publishState(): void {
   // patch built only from what is selected would leave in the URL for ever. The option keys come
   // from everything the block knows of — the author's rows, the facets, and the selection itself, so
   // a key the store has since stopped offering can still be cleared rather than sticking for ever.
-  const sources = new Set<FilterSource>(managedSources(readableOptionKeys(selection.value)));
-  for (const option of facets.value?.options ?? []) sources.add(optionSourceFor(option.key));
+  //
+  // **Every one of those three goes through `usableOptionKey` first**, and this is the place it
+  // matters most: a source whose query key belongs to something else would be *written* here, after
+  // the four keys above, so it lands last and wins. A store with an option keyed `sort` stripped the
+  // shopper's sort out of the URL on every state write; one keyed `category` cleared the category
+  // they had just ticked, which `adoptRouteState` then read back as absent, reverting the tick on
+  // screen. Refusing the key in the three places it is *read* was not enough — the patch is where the
+  // damage was.
+  const sources = new Set<FilterSource>();
+  const add = (source: FilterSource): void => {
+    const key = optionKeyOf(source);
+    if (key !== null && usableOptionKey(key) === null) return;
+    sources.add(source);
+  };
+  for (const source of managedSources(readableOptionKeys(selection.value))) add(source);
+  for (const option of facets.value?.options ?? []) add(optionSourceFor(option.key));
   for (const source of Object.keys(selection.value)) {
-    if (isFilterSource(source)) sources.add(source);
+    if (isFilterSource(source)) add(source);
   }
   for (const source of sources) {
-    if (source === 'price') continue;
+    // By its **query key**, not by the source: the price range is already in the patch above as one
+    // `<min>-<max>` string, and nothing may overwrite it with a selection list.
+    if (queryKeyFor(source) === 'price') continue;
     patch[queryKeyFor(source)] = selection.value[source] ?? null;
   }
   route.setQuery(patch);

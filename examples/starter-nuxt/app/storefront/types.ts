@@ -158,10 +158,15 @@ export interface CatalogFacetTerm {
    *
    * `undefined` means "this source cannot place the term", which is not the same answer as `null`
    * ("it is a root"): the panel then renders the family flat, exactly as it did before any of this
-   * existed. Set on the `categories` facet by both sources — from the platform's own facet term when
-   * it carries one, else from the store's category list (`app/storefront/categories.ts`'s
-   * `completeCategoryTerms`, which also appends the ancestor terms a facet counted over *assigned*
-   * categories never names). Never set on `collections`: collections are a flat vocabulary.
+   * existed.
+   *
+   * **Only a source that placed its own terms sets it.** The gateway carries the platform's own facet
+   * `parentId` through (public contract 3.8.0, which omits the key for a root; it is normalised to
+   * `null` once any term in the family is placed), and the demo source fills it from its own fixture
+   * tree. It is never synthesised from the store's category list to fill a gap: a parent row is only
+   * worth drawing where the platform can also *filter* by one, which is what `categoryCounts` below
+   * says and why the two are read together. Never set on `collections`: collections are a flat
+   * vocabulary.
    */
   parentId?: string | null;
 }
