@@ -217,12 +217,15 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           // Catalog records are merchant data the theme does not control, so a
           // single unusable or colliding slug is skipped with a warning naming
           // it — never a failed build for every other product on the site.
+          // A category template generates one route per **canonical path**
+          // (`/categories/<root>/<child>`), which is the only path its route
+          // answers — see `catalogDocRoutes`.
           let catalogPromise = catalogByKind.get(catalogKind);
           if (catalogPromise === undefined) {
             catalogPromise = listCatalogDocs(client, catalogKind, locale);
             catalogByKind.set(catalogKind, catalogPromise);
           }
-          for (const path of catalogDocRoutes(await catalogPromise, pattern)) {
+          for (const path of catalogDocRoutes(catalogKind, await catalogPromise, pattern)) {
             if (codeOwned.has(path)) continue;
             if (generated.has(path)) {
               console.warn(`[eldra] skipped ${path}: another route already generates this path`);

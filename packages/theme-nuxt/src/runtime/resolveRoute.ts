@@ -119,7 +119,19 @@ export async function resolveEldraRoute(
         page: null,
         template,
         entry,
-        catalog: { kind: catalogKind, slug: slugValue },
+        // A category is addressed by its canonical path, so the route context
+        // carries both: the **leaf's** slug, which is what a surface filtering
+        // by one category needs, and the path, which is what a link back to this
+        // page is built from. The two other kinds are one segment, and the
+        // resolved projection carries no path for them.
+        catalog:
+          catalogKind === 'category'
+            ? {
+                kind: catalogKind,
+                slug: plainString(entry.data.slug),
+                path: plainString(entry.data.path),
+              }
+            : { kind: catalogKind, slug: slugValue },
         links: await linkState(client, pages, templates, template, locale),
       };
     }

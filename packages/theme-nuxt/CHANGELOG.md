@@ -5,6 +5,28 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Category pages.** A route template whose `schemaApiId` is `catalog:category` is now resolved
+  against the store's category tree. Its pattern ends in a catch-all parameter and its `slugField`
+  is `path` (`/categories/:path*`), and a category is addressed by its **canonical path** — the
+  slugs of its ancestors, root first, then its own (`/categories/billinn/bilstolar`). There is no
+  read that takes a path, so the whole category list is read and the path's segments are walked down
+  the tree by slug; **only the canonical path resolves**, so a leaf on its own, a wrong parent and a
+  trailing extra segment are each the not-found shell rather than a redirect. `useEldraPage()`'s
+  `catalog` is `{ kind: 'category', slug, path }` there — the leaf's slug and the whole path — and
+  the resolved entry carries the binding paths `slug`, `title`, `path`, `ancestors[]` and
+  `children[]`, plus `description` and `productCount` only when the catalog read carried them (the
+  category model may have neither, and an invented key would bind a template to an empty value on
+  every site without one).
+- `prerender:routes` adds one route per **canonical** category path, times the site's locales, the
+  same way it fans out collections. A category the list cannot place — no slug, or a parent the list
+  does not hold — gets no route, and neither does the subtree under it: a path built over that gap
+  addresses a different category.
+- A `link` field pointing at a **category** now resolves to the canonical path. The category targets
+  are read as one whole tree rather than in `id:in:` chunks, because a chunked read keyed on the
+  wanted ids alone discards the ancestors the path is built from; a target the tree cannot place
+  carries no path and renders as plain text rather than as a link the site answers with its
+  not-found shell. A reader with no `listCategories` resolves none, exactly as before.
+
 - **A route the gateway could not be asked about is no longer rendered as the not-found page.**
   `useEldraPage()`'s resolution failure now travels with the resolution itself rather than in the
   calling composable's own `error` ref: `useAsyncData` keeps one entry per route key and runs only

@@ -120,23 +120,45 @@ pins it for the page's lifetime.
 
 ## Catalog-backed route templates
 
-A route template whose `schemaApiId` is `catalog:product` or `catalog:collection` is backed by the
-store's catalog rather than a CMS schema: the module prerenders one route per active product or
-collection, and `useEldraPage()` resolves the object by the slug in the path.
+A route template whose `schemaApiId` is `catalog:product`, `catalog:collection` or
+`catalog:category` is backed by the store's catalog rather than a CMS schema: the module prerenders
+one route per active product, collection or category, and `useEldraPage()` resolves the object from
+the path.
 
 ```vue
 <script setup lang="ts">
 const { template, entry, catalog, layout, blocks } = useEldraPage();
-// catalog is { kind: 'product' | 'collection', slug } here, and null on every other route.
+// catalog is { kind: 'product' | 'collection' | 'category', slug, path? } here, and null on every
+// other route. `path` is set for a category and for nothing else.
 // entry.data carries the binding paths a catalog template addresses —
 // product: slug, title, description, status, categoryId, tags, variants[], images[]
 // collection: slug, title, description, productCount, image
+// category: slug, title, path, ancestors[], children[] (+ description/productCount when the
+//           catalog read carries them)
 </script>
 ```
 
 A slug the catalog does not know resolves to the empty route, so the theme renders its not-found
 shell. During generation a slug that cannot become a route is skipped with a warning naming it and
 the build continues.
+
+### Categories are nested, and canonical only
+
+A category route's pattern ends in a **catch-all** parameter — `/categories/:path*` — and its
+`slugField` is `path`. The parameter matches one or more segments and carries them joined with `/`:
+a category's canonical path is the slugs of its ancestors, root first, then its own
+(`/categories/billinn/bilstolar`).
+
+There is no read that takes a path, so the whole category list is read once per request and the
+path's segments are walked down the tree by slug. **Only the canonical path resolves** — a leaf on
+its own, a wrong parent and a trailing extra segment are each the not-found shell rather than a
+redirect — and the prerender pass generates exactly those canonical paths, one per category, times
+the site's locales. A category the list cannot place (no slug, or a parent the list does not hold)
+has no route at all, and neither has the subtree under it.
+
+A `link` field pointing at a category resolves through the same path: `collectLinkTargets` reads the
+tree whole for that reason, and a target it cannot place renders as plain text rather than as a link
+to a path the site answers with its not-found shell.
 
 `studioOrigins` must be explicit — this module never supplies a broad fallback origin for the
 preview bridge. See [examples/starter-nuxt](../../examples/starter-nuxt) for a full theme and

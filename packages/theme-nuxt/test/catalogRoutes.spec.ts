@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EldraClientError, type CatalogDoc, type EldraClient } from '@eldrajs/theme-core';
 import {
+  buildCategoryTree,
   catalogDocRoutes,
   listCatalogDocs,
   projectCatalogEntry,
+  projectCategoryNode,
   type CatalogRouteKind,
 } from '../src/runtime/catalog';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute } from '../src/runtime/resolveRoute';
@@ -29,6 +31,29 @@ const COLLECTION_TEMPLATE = {
     slugField: 'slug',
   },
 };
+
+const CATEGORY_TEMPLATE = {
+  id: 'rt-category',
+  data: {
+    title: 'Category template',
+    routePattern: '/categories/:path*',
+    schemaApiId: 'catalog:category',
+    slugField: 'path',
+  },
+};
+
+/**
+ * The category list as `GET /catalog/v1/categories` answers it: one row per category, a tree by
+ * `parentId`, no trail anywhere. Two roots, one of them three levels deep, which is what makes a
+ * nested canonical path testable.
+ */
+const CATEGORIES = [
+  { id: 'cat-car', slug: 'billinn', title: 'Bílinn', parentId: null },
+  { id: 'cat-seats', slug: 'bilstolar', title: 'Bílstólar', parentId: 'cat-car' },
+  { id: 'cat-baby', slug: 'barnasaeti', title: 'Barnasæti', parentId: 'cat-seats' },
+  { id: 'cat-mats', slug: 'mottur', title: 'Mottur', parentId: 'cat-car' },
+  { id: 'cat-home', slug: 'heimilid', title: 'Heimilið', parentId: null },
+];
 
 const MERINO_CREW = {
   id: 'prod-merino',
@@ -92,6 +117,7 @@ function stubClient(
     getCollection?: (slug: string) => unknown;
     listProducts?: (page: number) => ReturnType<typeof listPage>;
     listCollections?: (page: number) => ReturnType<typeof listPage>;
+    listCategories?: ((page: number) => ReturnType<typeof listPage>) | null;
   } = {}
 ): { client: EldraClient; calls: ClientCalls } {
   const calls: ClientCalls = { paths: [], queries: [] };
@@ -140,6 +166,19 @@ function stubClient(
         record('/catalog/v1/collections', query);
         return handlers.listCollections?.(Number(query?.page ?? 1)) ?? listPage([], 1, false);
       },
+      // `null` stands for a reader that predates the method: the key is dropped
+      // entirely, so `client.catalog.listCategories` is `undefined`.
+      ...(handlers.listCategories === null
+        ? {}
+        : {
+            async listCategories(query?: Record<string, unknown>) {
+              record('/catalog/v1/categories', query);
+              return (
+                handlers.listCategories?.(Number(query?.page ?? 1)) ??
+                listPage(CATEGORIES, 1, false)
+              );
+            },
+          }),
     },
   } as unknown as EldraClient;
   return { client, calls };
@@ -207,6 +246,69 @@ describe('catalog-backed route resolution', () => {
     expect(resolved.catalog).toEqual({ kind: 'collection', slug: 'the-winter-edit' });
     expect(resolved.entry?.data.productCount).toBe(24);
     expect(calls.paths).toContain('/catalog/v1/collections/the-winter-edit');
+  });
+
+  /**
+   * The whole point of the catch-all: a nested category is resolved by walking the path's segments
+   * down the tree, and the route context carries both halves — the leaf's slug for a surface that
+   * filters by one category, the canonical path for a link back to this page.
+   */
+  it('resolves a nested category by walking the canonical path down the tree', async () => {
+    const { client, calls } = stubClient({
+      entries: { page: [], 'route-template': [CATEGORY_TEMPLATE] },
+      entry: { 'rt-category': CATEGORY_TEMPLATE },
+    });
+
+    const resolved = await resolveEldraRoute(
+      client,
+      SCHEMAS,
+      '/categories/billinn/bilstolar/barnasaeti',
+      undefined
+    );
+
+    expect(resolved.catalog).toEqual({
+      kind: 'category',
+      slug: 'barnasaeti',
+      path: 'billinn/bilstolar/barnasaeti',
+    });
+    expect(resolved.entry?.id).toBe('cat-baby');
+    expect(resolved.entry?.data.ancestors).toEqual([
+      { slug: 'billinn', title: 'Bílinn', path: 'billinn' },
+      { slug: 'bilstolar', title: 'Bílstólar', path: 'billinn/bilstolar' },
+    ]);
+    expect(resolved.entry?.data.children).toEqual([]);
+    expect(calls.paths).toContain('/catalog/v1/categories');
+  });
+
+  /**
+   * **Canonical only, no redirects** (the cross-repo contract): a leaf on its own, a wrong parent
+   * and a trailing extra segment are each the not-found shell rather than a redirect to the page
+   * the visitor probably meant.
+   */
+  it.each([
+    ['a leaf without its ancestors', '/categories/bilstolar'],
+    ['a wrong parent', '/categories/heimilid/bilstolar'],
+    ['a trailing extra segment', '/categories/billinn/bilstolar/nope'],
+    ['the bare prefix', '/categories'],
+  ])('answers the not-found shell for %s', async (_label, path) => {
+    const { client } = stubClient({
+      entries: { page: [], 'route-template': [CATEGORY_TEMPLATE] },
+      entry: { 'rt-category': CATEGORY_TEMPLATE },
+    });
+
+    expect(await resolveEldraRoute(client, SCHEMAS, path, undefined)).toEqual(EMPTY_ELDRA_ROUTE);
+  });
+
+  it('resolves no category at all through a reader that has no listCategories', async () => {
+    const { client } = stubClient({
+      entries: { page: [], 'route-template': [CATEGORY_TEMPLATE] },
+      entry: { 'rt-category': CATEGORY_TEMPLATE },
+      listCategories: null,
+    });
+
+    expect(await resolveEldraRoute(client, SCHEMAS, '/categories/billinn', undefined)).toEqual(
+      EMPTY_ELDRA_ROUTE
+    );
   });
 
   it('rethrows a non-404 catalog failure so the theme can show its error branch', async () => {
@@ -295,7 +397,7 @@ describe('catalog prerender listing', () => {
     // order — it lists once per kind and maps per template, so there is no
     // list-and-map helper to call instead.
     const docs = await listCatalogDocs(client, kind);
-    const paths = catalogDocRoutes(docs, pattern, (message) => warnings.push(message));
+    const paths = catalogDocRoutes(kind, docs, pattern, (message) => warnings.push(message));
     return { paths, calls };
   };
 
@@ -401,5 +503,156 @@ describe('catalog prerender listing', () => {
 
     expect(paths).toEqual(['/products/one']);
     expect(calls.paths).toHaveLength(2);
+  });
+});
+
+describe('category tree', () => {
+  it('keys every placeable category by its canonical path, root slug first', () => {
+    expect([...buildCategoryTree(CATEGORIES).keys()]).toEqual([
+      'billinn',
+      'billinn/bilstolar',
+      'billinn/bilstolar/barnasaeti',
+      'billinn/mottur',
+      'heimilid',
+    ]);
+  });
+
+  it('places a category with its ancestors and its direct children only', () => {
+    const node = buildCategoryTree(CATEGORIES).get('billinn/bilstolar')!;
+    expect(node.id).toBe('cat-seats');
+    expect(node.ancestors).toEqual([{ slug: 'billinn', title: 'Bílinn', path: 'billinn' }]);
+    expect(node.children).toEqual([
+      { slug: 'barnasaeti', title: 'Barnasæti', path: 'billinn/bilstolar/barnasaeti' },
+    ]);
+    // The root's children are its own, never its grandchildren.
+    expect(buildCategoryTree(CATEGORIES).get('billinn')!.children).toEqual([
+      { slug: 'bilstolar', title: 'Bílstólar', path: 'billinn/bilstolar' },
+      { slug: 'mottur', title: 'Mottur', path: 'billinn/mottur' },
+    ]);
+  });
+
+  /**
+   * A row with no slug cannot be spelled into a path and a row whose parent the list does not hold
+   * cannot have a canonical path at all — a path built over that gap would address a different
+   * category — so both are dropped, and dropping a parent drops its subtree with it. A missing
+   * **title** is not one of those: it follows the projection's standing rule and reads as `''`,
+   * because a category the merchant really has must still have its page.
+   */
+  it('drops a row it cannot place, and the subtree under it', () => {
+    const tree = buildCategoryTree([
+      { id: 'a', slug: 'a', title: 'A', parentId: null },
+      { id: 'b', slug: '', title: 'No slug', parentId: 'a' },
+      { id: 'c', slug: 'c', title: '', parentId: 'a' },
+      { id: 'd', slug: 'd', title: 'D', parentId: 'gone' },
+      { id: 'e', slug: 'e', title: 'E', parentId: 'b' },
+    ]);
+    expect([...tree.keys()]).toEqual(['a', 'a/c']);
+    expect(tree.get('a')!.children).toEqual([{ slug: 'c', title: '', path: 'a/c' }]);
+  });
+
+  it('stops rather than hangs on a parent cycle', () => {
+    const tree = buildCategoryTree([
+      { id: 'x', slug: 'x', title: 'X', parentId: 'y' },
+      { id: 'y', slug: 'y', title: 'Y', parentId: 'x' },
+      { id: 'z', slug: 'z', title: 'Z', parentId: null },
+    ]);
+    expect([...tree.keys()]).toEqual(['z']);
+  });
+
+  it('lets the first row win a duplicate path', () => {
+    const tree = buildCategoryTree([
+      { id: 'first', slug: 'dup', title: 'First', parentId: null },
+      { id: 'second', slug: 'dup', title: 'Second', parentId: null },
+    ]);
+    expect(tree.size).toBe(1);
+    expect(tree.get('dup')!.id).toBe('first');
+  });
+});
+
+describe('category projection', () => {
+  it('always carries the binding paths a template addresses', () => {
+    const node = buildCategoryTree(CATEGORIES).get('billinn/mottur')!;
+    expect(projectCategoryNode(node)).toEqual({
+      id: 'cat-mats',
+      data: {
+        slug: 'mottur',
+        title: 'Mottur',
+        path: 'billinn/mottur',
+        ancestors: [{ slug: 'billinn', title: 'Bílinn', path: 'billinn' }],
+        children: [],
+      },
+    });
+  });
+
+  /**
+   * `description` and `productCount` are the two fields the catalog category model may not have at
+   * all, so they are carried only when the read carried them: a key invented here would bind a
+   * template to an empty value on every site whose categories have neither.
+   */
+  it('carries description and productCount only when the read did', () => {
+    const tree = buildCategoryTree([
+      {
+        id: 'cat-rich',
+        slug: 'rich',
+        title: 'Rich',
+        parentId: null,
+        description: { type: 'doc', content: [] },
+        productCount: 12,
+      },
+    ]);
+    expect(projectCategoryNode(tree.get('rich')!).data).toEqual({
+      slug: 'rich',
+      title: 'Rich',
+      path: 'rich',
+      ancestors: [],
+      children: [],
+      description: { type: 'doc', content: [] },
+      productCount: 12,
+    });
+  });
+});
+
+describe('category prerender listing', () => {
+  const categoryRoutes = async (
+    docs: Array<Record<string, unknown>>,
+    warnings: string[] = []
+  ): Promise<{ paths: string[]; calls: ClientCalls }> => {
+    const { client, calls } = stubClient({ listCategories: () => listPage(docs, 1, false) });
+    const listed = await listCatalogDocs(client, 'category');
+    return {
+      paths: catalogDocRoutes('category', listed, '/categories/:path*', (message) =>
+        warnings.push(message)
+      ),
+      calls,
+    };
+  };
+
+  /** One route per canonical path — which is the only path the category route answers. */
+  it('adds one prerendered route per canonical category path', async () => {
+    const { paths, calls } = await categoryRoutes(CATEGORIES);
+    expect(paths).toEqual([
+      '/categories/billinn',
+      '/categories/billinn/bilstolar',
+      '/categories/billinn/bilstolar/barnasaeti',
+      '/categories/billinn/mottur',
+      '/categories/heimilid',
+    ]);
+    expect(calls.paths).toEqual(['/catalog/v1/categories']);
+  });
+
+  it('encodes a non-ASCII slug the same way the matcher reads it back', async () => {
+    const { paths } = await categoryRoutes([
+      { id: 'a', slug: 'bílinn', title: 'Bílinn', parentId: null },
+      { id: 'b', slug: 'bílstólar', title: 'Bílstólar', parentId: 'a' },
+    ]);
+    expect(paths).toEqual([
+      '/categories/b%C3%ADlinn',
+      '/categories/b%C3%ADlinn/b%C3%ADlst%C3%B3lar',
+    ]);
+  });
+
+  it('generates nothing for a reader with no listCategories', async () => {
+    const { client } = stubClient({ listCategories: null });
+    expect(await listCatalogDocs(client, 'category')).toEqual([]);
   });
 });

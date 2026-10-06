@@ -127,7 +127,12 @@ describe('collectLinkTargets', () => {
       title: 'Knitwear',
     });
     // The category tree carries `name`, not `title`.
-    expect(targets.get('category:cat-1')).toEqual({ slug: 'tableware', title: 'Tableware' });
+    expect(targets.get('category:cat-1')).toEqual({
+      slug: 'tableware',
+      title: 'Tableware',
+      // A root's canonical path is its own slug.
+      path: 'tableware',
+    });
     // One read each, however many links named the same collection.
     expect(paths.filter((path) => path === '/catalog/v1/collections')).toHaveLength(1);
   });
@@ -209,14 +214,16 @@ describe('collectLinkTargets', () => {
       ids.map((id) => `category:${id}`)
     );
 
-    expect(targets.get('category:cat-39')).toEqual({ slug: 'cat-39' });
+    expect(targets.get('category:cat-39')).toEqual({ slug: 'cat-39', path: 'cat-39' });
     expect(targets.size).toBe(40);
     expect(paths.filter((path) => path === '/catalog/v1/categories')).toHaveLength(2);
   });
 
-  it('asks the category read for the ids it wants, and keeps only those', async () => {
-    // The tree is served whole today, so the filter may be ignored — every row
-    // it did not ask about would otherwise land in the page's payload.
+  it('reads the whole category tree and keeps only the ids it wants', async () => {
+    // The tree is read whole on purpose — a category's destination is its
+    // canonical path, which can only be built from its ancestors — so only the
+    // wanted ids are stored, or every other row would land in the page's
+    // payload.
     const { client } = stubClient({
       listCategories: () =>
         listPage([
@@ -226,6 +233,33 @@ describe('collectLinkTargets', () => {
     });
     const targets = await collectLinkTargets(client, ['category:cat-wanted']);
     expect([...targets.keys()]).toEqual(['category:cat-wanted']);
+  });
+
+  /**
+   * **A category target carries its canonical path**, which is what a catch-all category route
+   * (`/categories/:path*`) is addressed by: a chunked read keyed on the wanted ids alone would
+   * discard the ancestors the path is built from, and the link would resolve to the leaf slug —
+   * a 404 on a canonical-only route. A row the tree cannot place carries no path rather than one
+   * built over the gap.
+   */
+  it("fills a category target's canonical path from the tree", async () => {
+    const { client } = stubClient({
+      listCategories: () =>
+        listPage([
+          { id: 'cat-car', slug: 'billinn', title: 'Bílinn' },
+          { id: 'cat-seats', slug: 'bilstolar', title: 'Bílstólar', parentId: 'cat-car' },
+          { id: 'cat-orphan', slug: 'orphan', title: 'Orphan', parentId: 'gone' },
+        ]),
+    });
+
+    const targets = await collectLinkTargets(client, ['category:cat-seats', 'category:cat-orphan']);
+
+    expect(targets.get('category:cat-seats')).toEqual({
+      slug: 'bilstolar',
+      title: 'Bílstólar',
+      path: 'billinn/bilstolar',
+    });
+    expect(targets.has('category:cat-orphan')).toBe(false);
   });
 
   it('leaves a target unknown when its read fails, rather than throwing', async () => {

@@ -262,7 +262,7 @@ eldra: {
   templates: [
     {
       routePattern: '/products/:slug',
-      schemaApiId: 'catalog:product',   // or 'catalog:collection', or 'home'
+      schemaApiId: 'catalog:product',   // or 'catalog:collection', 'catalog:category', or 'home'
       title: 'Product',
       blocks: [{ id: 'product-detail', apiId: 'product-detail', data: { /* … */ } }],
       // layout?: a one-column document, generated from `blocks` when omitted
@@ -291,9 +291,15 @@ eldra: {
 }
 ```
 
-- `schemaApiId` is one of `catalog:product`, `catalog:collection` or `home`. The two `catalog:*`
-  ids are **not** CMS schemas: the template is resolved by looking `:slug` up in the public
-  catalog, which is why a catalog seed's pattern must be a static prefix plus a trailing `:slug`.
+- `schemaApiId` is one of `catalog:product`, `catalog:collection`, `catalog:category` or `home`.
+  The three `catalog:*` ids are **not** CMS schemas: the template is resolved against the public
+  catalog, which is why a catalog seed's pattern must be a static prefix plus a trailing parameter.
+  A product or collection seed's parameter is `:slug` — one segment, looked up by slug. A
+  **category** seed's is the catch-all `:path*` and its `slugField` is `path`: a category is
+  addressed by its canonical path, the slugs of its ancestors root first then its own
+  (`/categories/billinn/bilstolar`), so the parameter matches one or more segments and carries them
+  joined with `/`. Canonical only — a leaf on its own, a wrong parent or a trailing extra segment is
+  the theme's not-found shell, never a redirect. `*` is allowed nowhere else in a pattern.
   A `home` seed's pattern is exactly `/`.
 - `blocks[].data` is a seed in the same shape as a block's `mock.json`, and is held to the same
   rule: a media field is either absent or `{ assetId: <uuid> }` (demo imagery belongs in

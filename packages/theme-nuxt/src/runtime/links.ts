@@ -1,5 +1,6 @@
 import type { CatalogDoc, EldraClient, EntryDoc } from '@eldrajs/theme-core';
 import type { LinkTargetInfo } from '@eldrajs/theme-core/links';
+import { buildCategoryTree } from './catalog';
 import { localeQuery } from './locale';
 
 /** One `id:in:` token stays well inside a URL length the gateway accepts and
@@ -71,15 +72,18 @@ export async function collectLinkTargets(
   // `listCategories` is optional on the reader: one that does not have it
   // resolves no category targets, and those links render without a destination
   // exactly as they do where no route template serves them.
+  //
+  // **Categories are read whole, once**, rather than in `id:in:` chunks like the
+  // other two: a category's destination is its *canonical path*, and a path can
+  // only be built from the row's ancestors — which a chunked read keyed on the
+  // wanted ids throws away. The list is a handful of rows and the gateway serves
+  // the tree as a whole anyway, so this costs one request and makes a category
+  // link resolve under a catch-all route template (`/categories/:path*`) instead
+  // of rendering as text.
   const listCategories = client.catalog.listCategories?.bind(client.catalog);
-  if (listCategories !== undefined) {
-    for (const chunk of chunks(byType.get('category'))) {
-      reads.push(
-        readInto(targets, 'category', chunk, async (query) =>
-          toPage(await listCategories({ ...query, filter: [idFilter(chunk)] }))
-        )
-      );
-    }
+  const wantedCategories = byType.get('category') ?? [];
+  if (listCategories !== undefined && wantedCategories.length > 0) {
+    reads.push(readCategoriesInto(targets, wantedCategories, listCategories, locale));
   }
   if ((byType.get('entry') ?? []).length > 0) {
     for (const schemaApiId of sources.entrySchemaApiIds ?? []) {
@@ -184,6 +188,43 @@ function chunks(ids: readonly string[] | undefined): string[][] {
     result.push((ids ?? []).slice(start, start + CHUNK_SIZE));
   }
   return result;
+}
+
+/**
+ * The wanted categories as targets carrying their **canonical path** — the slug
+ * chain from the root, joined with `/`, which is what a catch-all category route
+ * is addressed by (`@eldrajs/theme-core`'s `LinkTargetInfo.path`).
+ *
+ * The whole list is paged in and the tree is built from all of it; only the
+ * wanted ids are then stored, so a gateway that serves more than was asked for
+ * cannot put its catalogue into the page's payload. A row the tree cannot place
+ * — a missing field, or a parent the list does not hold — is left unknown rather
+ * than given a path over the gap, because such a path addresses a different
+ * category. A failed read leaves every one of them unknown, the same way the
+ * chunked reads do: those links render unlinked.
+ */
+async function readCategoriesInto(
+  into: Map<string, LinkTargetInfo>,
+  wanted: readonly string[],
+  listCategories: NonNullable<EldraClient['catalog']['listCategories']>,
+  locale?: string
+): Promise<void> {
+  const ids = new Set(wanted);
+  const docs: CatalogDoc[] = [];
+  try {
+    for (let page = 1; page <= MAX_PAGES; page += 1) {
+      const list = await listCategories({ ...localeQuery(locale), page, pageSize: PAGE_SIZE });
+      docs.push(...list.data);
+      if (list.meta?.hasNext !== true || list.data.length === 0) break;
+    }
+  } catch {
+    // Left unknown on purpose: the links pointing here render unlinked.
+    return;
+  }
+  for (const node of buildCategoryTree(docs).values()) {
+    if (!ids.has(node.id) || into.has(`category:${node.id}`)) continue;
+    into.set(`category:${node.id}`, { ...toTargetInfo(node.raw), path: node.path });
+  }
 }
 
 function toTargetInfo(doc: CatalogDoc): LinkTargetInfo {
