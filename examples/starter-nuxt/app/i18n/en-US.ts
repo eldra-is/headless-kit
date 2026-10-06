@@ -346,7 +346,6 @@ export const enUS = {
     maxLabel: 'Max',
     minPriceLabel: 'Minimum price',
     maxPriceLabel: 'Maximum price',
-    pricePrefix: '$',
     showAllValues: 'Show all {count}',
     filter: 'Filter',
     nActive: '{count} active',

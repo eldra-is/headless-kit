@@ -347,7 +347,6 @@ export const isIS = {
     maxLabel: 'Hám.',
     minPriceLabel: 'Lágmarksverð',
     maxPriceLabel: 'Hámarksverð',
-    pricePrefix: '$',
     showAllValues: 'Sýna allar {count}',
     filter: 'Sía',
     nActive: '{count} virkar',

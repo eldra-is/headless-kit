@@ -644,9 +644,10 @@ const chips = computed<ActiveFilterChip[]>(() => {
     const label = group?.label ?? defaultGroupLabel(source);
     if (source === 'price') {
       if (priceMin.value === '' && priceMax.value === '') continue;
-      const prefix = t('grid.pricePrefix');
-      const from = priceMin.value === '' ? '' : `${prefix}${priceMin.value}`;
-      const to = priceMax.value === '' ? '' : `${prefix}${priceMax.value}`;
+      // The store's own currency formatter, the same one the slider's thumbs and fields speak
+      // with — never a hard-coded sign, which read "$50" beside a legend saying ISK.
+      const from = priceMin.value === '' ? '' : money.format(Number(priceMin.value));
+      const to = priceMax.value === '' ? '' : money.format(Number(priceMax.value));
       out.push({
         key: 'price',
         label: `${label}: ${from} ${t('grid.to')} ${to}`.replace(/\s+/g, ' ').trim(),

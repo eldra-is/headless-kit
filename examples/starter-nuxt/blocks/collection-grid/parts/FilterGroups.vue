@@ -422,41 +422,26 @@ const COUNT = 'text-muted tabular-nums';
         />
 
         <!-- Price, without one (the block's `priceSlider` off): Min, the word "to", Max. -->
+        <!-- No currency sign inside either field: the group's own legend names the currency
+             ("Price range in ISK"), which is what the slider's fields rely on too. A literal "$"
+             here was the one place the panel still said dollars on a store that sells in krónur. -->
         <div v-else class="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <FieldWrapper :id="fieldId(group.source, 'min')" :label="t('grid.minLabel')">
-            <!-- The currency prefix is drawn after the control on purpose: `Input`'s own root is
-                 positioned, so a prefix written before it would be painted underneath. -->
-            <div class="relative">
-              <Input
-                :model-value="minValue"
-                inputmode="numeric"
-                autocomplete="off"
-                :classes="{ control: 'ps-7' }"
-                @update:model-value="onMin"
-              />
-              <span
-                class="text-muted pointer-events-none absolute start-3 top-1/2 -translate-y-1/2"
-                aria-hidden="true"
-                >{{ t('grid.pricePrefix') }}</span
-              >
-            </div>
+            <Input
+              :model-value="minValue"
+              inputmode="numeric"
+              autocomplete="off"
+              @update:model-value="onMin"
+            />
           </FieldWrapper>
           <span class="text-muted text-body-sm pb-2 text-center">{{ t('grid.to') }}</span>
           <FieldWrapper :id="fieldId(group.source, 'max')" :label="t('grid.maxLabel')">
-            <div class="relative">
-              <Input
-                :model-value="maxValue"
-                inputmode="numeric"
-                autocomplete="off"
-                :classes="{ control: 'ps-7' }"
-                @update:model-value="onMax"
-              />
-              <span
-                class="text-muted pointer-events-none absolute start-3 top-1/2 -translate-y-1/2"
-                aria-hidden="true"
-                >{{ t('grid.pricePrefix') }}</span
-              >
-            </div>
+            <Input
+              :model-value="maxValue"
+              inputmode="numeric"
+              autocomplete="off"
+              @update:model-value="onMax"
+            />
           </FieldWrapper>
         </div>
 

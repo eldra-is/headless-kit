@@ -557,7 +557,7 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
 
       const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
-      expect(list.text()).toContain('Price: $50 to $150');
+      expect(list.text()).toContain('Price: $50.00 to $150.00');
 
       await list.get('[data-part="removeButton"]').trigger('click');
       await wrapper.vm.$nextTick();
@@ -596,7 +596,7 @@ describe('collection-grid block', () => {
       await inputs[0]!.setValue('50');
       await wrapper.vm.$nextTick();
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Price: $50'
+        'Price: $50.00'
       );
     });
   });
@@ -1544,7 +1544,7 @@ describe('collection-grid block', () => {
       expect(chips).toContain('Category: Knitwear');
       expect(chips).toContain('Collection: The winter edit');
       expect(chips).toContain('Colour: Oat');
-      expect(chips).toContain('Price: $50 to $150');
+      expect(chips).toContain('Price: $50.00 to $150.00');
 
       // And the grid itself is filtered — the demo source applies the same pass the gateway does.
       expect(countLine(wrapper).text()).toBe('4 products');
@@ -1583,7 +1583,7 @@ describe('collection-grid block', () => {
       expect(thumbs[0]!.attributes('aria-valuenow')).toBe('50');
       expect(thumbs[1]!.attributes('aria-valuenow')).toBe('150');
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Price: $50 to $150'
+        'Price: $50.00 to $150.00'
       );
     });
 

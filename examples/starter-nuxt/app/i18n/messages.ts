@@ -672,7 +672,8 @@ export interface Messages {
    * Everything the block writes itself: the `<section>` label naming the collection
    * (`sectionLabel`), the grid's visually hidden `h2` (`products`), the filter groups' hidden
    * `<legend>`s (`legend*`) and their count badge (`nSelected`), the price range's own labels
-   * (`minLabel`/`maxLabel`, the decorative `pricePrefix`, the word `to` between the two inputs) and
+   * (`minLabel`/`maxLabel` and the word `to` between the two inputs; the amounts themselves are
+   * formatted by the store's own currency formatter, never by a string here) and
    * the "Show all 14" link for a group with 12 or more values (`showAllValues`); the Filter button
    * (`filter`) with its count badge (`nActive`), the sidebar landmark (`filters`), the active-filter
    * list (`activeFilters`, `removeFilter`, `clearAll`); the polite result count, pluralised the way
@@ -705,13 +706,12 @@ export interface Messages {
     availabilityOutOfStock: string;
     price: string;
     to: string;
-    /** The two-field fallback's own short labels (`filters[].slider` off). */
+    /** The two-field fallback's own short labels (the block's `priceSlider` off). */
     minLabel: string;
     maxLabel: string;
     /** The range slider's two thumbs and its two typed fields ("Minimum price"). */
     minPriceLabel: string;
     maxPriceLabel: string;
-    pricePrefix: string;
     showAllValues: string;
     filter: string;
     nActive: string;
