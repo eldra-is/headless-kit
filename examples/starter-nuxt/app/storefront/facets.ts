@@ -1,21 +1,21 @@
 /**
- * The shopper's facets, applied over a list of products — the one implementation both storefront
- * sources run — and the facets a source derives from the products it fetched.
+ * The shopper's facets, applied over a list of products, and the facets counted over that same list
+ * — **the demo storefront's half of the filter contract**, and the vocabulary both halves share.
  *
  * `collection-grid` sends `filters` keyed by its own `filters[].source` ids (see that block's
  * `requestFiltersFor`): `category`, `collection`, `option:size`, `option:colour`, `availability`,
  * and `price` as a single `"<min>-<max>"` string in whole major units with either end allowed to be
- * empty. `createDemoStorefront` used to answer that request with a private copy of this pass while
- * `createGatewayStorefront` dropped every facet before its list read — so the demo filtered and
- * the real site did not: `?price=50-150` still showed the $48 bowl, with the chips, the URL and
- * the active-filter row all insisting it had been filtered.
+ * empty. `createDemoStorefront` answers the whole of that request from its own fixture through
+ * `filterItems` and `deriveFacets`, which is what lets a Storybook story, a sample page and a spec
+ * filter for real with no gateway behind them — and what keeps a shopper from being shown a filter
+ * that moves the chips, the URL and the active-filter row while the grid stays as it was.
  *
- * The gateway's list endpoints filter on `id`/`slug`/`status`/`createdAt` only and answer no
- * `facets` object (a facet token is a 400, not an empty list — see `gateway.ts`), so until they
- * grow the filter parameters and the aggregation the honest answer is to apply the same pass, and
- * count the same facets, client-side over what was fetched. `deriveFacets` is therefore **the
- * fallback the server replaces**: its result is the `CatalogFacets` shape the platform publishes,
- * so the day the gateway answers one, the derivation goes and nothing above it changes.
+ * `createGatewayStorefront` does neither: the catalog list filters and counts server-side
+ * (`gateway.ts`, public contract 3.7.0), over the whole collection rather than the rows one read
+ * could reach. What it still shares is `canonicalAvailability*` — which spellings the `availability`
+ * family has, including the retired hyphenated one a shared link may carry — because that is the
+ * theme's own vocabulary rather than any one backend's, and `collection-grid` reads a URL through it
+ * too.
  *
  * Everything here is pure: no Vue, no client, no module state — which is what lets
  * `test/storefront/facets.spec.ts` pin every bound on its own.
@@ -254,10 +254,10 @@ export interface DeriveFacetsOptions {
 }
 
 /**
- * **The client-side fallback for the platform's `facets` object**, counted over the products a
- * source actually fetched.
+ * **The `facets` object counted in the client**, over the products a source holds — the demo
+ * storefront's answer, where the fixture *is* the whole catalogue.
  *
- * It answers the same `CatalogFacets` shape the gateway will, under the same two rules
+ * It answers the same `CatalogFacets` shape the platform does, under the same two rules
  * (`types.ts`): a family's counts are computed with that family's own filter left out, and the
  * price bounds with every filter except price applied. So ticking one colour leaves the other
  * colours countable, and dragging a price thumb never moves the track.
@@ -265,8 +265,8 @@ export interface DeriveFacetsOptions {
  * What it can see is bounded by what it was given. The vocabulary — which values exist, in which
  * order, under which labels — comes from the items themselves and from `attributesFor`, so a
  * backend that tells a source nothing about categories produces no category values rather than
- * invented ones, and a value that only exists beyond the fetched window is simply not there. That
- * is the limit the server-side facets remove.
+ * invented ones, and a value that only exists beyond the list is simply not there. That is the one
+ * limit a count made where the whole catalogue lives does not have.
  */
 export function deriveFacets(
   items: readonly StorefrontProductListItem[],

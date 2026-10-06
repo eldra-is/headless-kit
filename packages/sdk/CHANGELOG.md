@@ -9,6 +9,11 @@ platform repository.
 
 ## Unreleased
 
+- `categoryId`, `collectionId` and `option` are sent as repeated query parameters, one entry per
+  value, like `filter` — the gateway declares all four `explode: true` (contract 3.7.0). Each is an
+  OR over its values, so the comma-joined form was one value nothing matched: a storefront filtering
+  on two categories, two collections or two option values saw an empty list instead of all of them.
+
 - `analyticsTrackerScript({ orgId, apiBaseUrl, env })` returns the attributes of the tracker
   `<script>` tag — `src`, `defer`, `crossorigin`, `data-org`, and `data-api` when `eventOrigin`
   names a first-party proxy — built from the same configuration the client reads from, so the

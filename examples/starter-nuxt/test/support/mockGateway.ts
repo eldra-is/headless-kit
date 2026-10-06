@@ -137,6 +137,10 @@ function seededCart(): Record<string, unknown> {
   };
 }
 
+/** The store's categories, by the id every product row carries — what `GET /catalog/v1/categories`
+ *  answers, and therefore how a `?category=` slug becomes the `categoryId` the list takes. */
+const CATEGORY_SLUGS: Record<string, string> = { 'cat-tableware': 'tableware' };
+
 const COLLECTIONS = [
   {
     id: 'col-winter',
@@ -209,7 +213,10 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   }
 }
 
-const listResponse = (data: unknown[]): Record<string, unknown> => ({
+const listResponse = (
+  data: unknown[],
+  extra: Record<string, unknown> = {}
+): Record<string, unknown> => ({
   data,
   meta: {
     hasNext: false,
@@ -217,9 +224,10 @@ const listResponse = (data: unknown[]): Record<string, unknown> => ({
     page: 1,
     pageSize: 100,
     rows: data.length,
-    total: data.length,
+    total: (extra.total as number | undefined) ?? data.length,
     totalPages: 1,
   },
+  ...(extra.facets === undefined ? {} : { facets: extra.facets }),
 });
 
 /**
@@ -532,6 +540,120 @@ function seededPageEntries(
   });
 }
 
+/**
+ * **The storefront filter parameters, as the catalog list declares them** (contract 3.7.0): the
+ * half of the shopper's facets a generated page's grid actually sends. `minPrice`/`maxPrice` are
+ * inclusive and in minor units — this store sells in krónur, which have none, so they read as the
+ * same numbers the shopper typed — `categoryId`/`collectionId` are repeatable and OR'd, `option` is
+ * a repeatable `<key>:<value>`, and `availability` is one of two values read off `availabilityOf`
+ * (every variant of every product in this fixture is in stock).
+ */
+interface ProductQuery {
+  minPrice?: number;
+  maxPrice?: number;
+  categoryIds: string[];
+  collectionIds: string[];
+  availability?: string;
+  options: Array<{ key: string; value: string }>;
+}
+
+/** Which filter family a clause belongs to, for the one rule a facet count obeys. */
+type FilterFamily = 'price' | 'category' | 'collection' | 'availability' | `option:${string}`;
+
+function parseProductQuery(url: URL): ProductQuery {
+  const bound = (name: string): number | undefined => {
+    const raw = url.searchParams.get(name);
+    if (raw === null) return undefined;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : undefined;
+  };
+  return {
+    minPrice: bound('minPrice'),
+    maxPrice: bound('maxPrice'),
+    categoryIds: url.searchParams.getAll('categoryId'),
+    collectionIds: url.searchParams.getAll('collectionId'),
+    availability: url.searchParams.get('availability') ?? undefined,
+    options: url.searchParams.getAll('option').flatMap((token) => {
+      const at = token.indexOf(':');
+      return at <= 0 ? [] : [{ key: token.slice(0, at), value: token.slice(at + 1) }];
+    }),
+  };
+}
+
+/** Every variant of every product in this fixture is in stock (see `availabilityOf`). */
+const inStock = (_row: MockProduct): boolean => true;
+
+/** Which collections a product is in — this fixture has one, holding everything. */
+const collectionsOf = (_row: MockProduct): string[] => COLLECTIONS.map((row) => row.id);
+
+/**
+ * One product against the query, with one family optionally left out — which is the whole of the
+ * "a facet count ignores its own filter" rule the real platform applies.
+ */
+function matchesProductQuery(
+  row: MockProduct,
+  query: ProductQuery,
+  ignore?: FilterFamily
+): boolean {
+  if (ignore !== 'price') {
+    if (query.minPrice !== undefined && row.maxPrice < query.minPrice) return false;
+    if (query.maxPrice !== undefined && row.minPrice > query.maxPrice) return false;
+  }
+  if (ignore !== 'category' && query.categoryIds.length > 0) {
+    if (!query.categoryIds.includes(row.categoryId)) return false;
+  }
+  if (ignore !== 'collection' && query.collectionIds.length > 0) {
+    if (!collectionsOf(row).some((id) => query.collectionIds.includes(id))) return false;
+  }
+  if (ignore !== 'availability' && query.availability !== undefined) {
+    if ((query.availability === 'in_stock') !== inStock(row)) return false;
+  }
+  for (const { key, value } of query.options) {
+    if (ignore === `option:${key}`) continue;
+    // No product in this fixture declares a variant option, so any option clause matches nothing.
+    if (value !== '') return false;
+  }
+  return true;
+}
+
+/**
+ * The `facets` object `facets=true` asks for: the scope's price bounds and its category, collection
+ * and availability counts, each counted with its own family's filter left out. There are no option
+ * axes in this fixture, so `options` is empty rather than invented.
+ */
+function facetsOf(rows: MockProduct[], query: ProductQuery): Record<string, unknown> {
+  const scope = (ignore: FilterFamily): MockProduct[] =>
+    rows.filter((row) => matchesProductQuery(row, query, ignore));
+  const prices = scope('price').map((row) => row.minPrice);
+  const categoryScope = scope('category');
+  const collectionScope = scope('collection');
+  const availabilityScope = scope('availability');
+  const categoryIds = [...new Set(rows.map((row) => row.categoryId))];
+  return {
+    price: {
+      min: prices.length === 0 ? 0 : Math.min(...prices),
+      max: prices.length === 0 ? 0 : Math.max(...prices),
+    },
+    categories: categoryIds.map((id) => ({
+      id,
+      slug: CATEGORY_SLUGS[id] ?? id,
+      title: CATEGORY_SLUGS[id] ?? id,
+      count: categoryScope.filter((row) => row.categoryId === id).length,
+    })),
+    collections: COLLECTIONS.map((collection) => ({
+      id: collection.id,
+      slug: collection.slug,
+      title: collection.title,
+      count: collectionScope.filter((row) => collectionsOf(row).includes(collection.id)).length,
+    })),
+    availability: {
+      in_stock: availabilityScope.filter(inStock).length,
+      out_of_stock: availabilityScope.filter((row) => !inStock(row)).length,
+    },
+    options: [],
+  };
+}
+
 /** `field:op:value` tokens, as much of the grammar as the storefront actually sends. */
 function matchesFilters(row: MockProduct, filters: string[]): boolean {
   for (const token of filters) {
@@ -658,14 +780,25 @@ export function startMockGateway(): Promise<MockGateway> {
         const id = segments[segments.length - 1];
         const template = templates.find((entry) => entry.id === id);
         answer(template ?? {}, template === undefined ? 404 : 200);
+      } else if (url.pathname === '/catalog/v1/categories') {
+        // The whole list, which is what the endpoint answers and what the storefront resolves a
+        // `?category=<slug>` against before it can send a `categoryId`.
+        answer(Object.entries(CATEGORY_SLUGS).map(([id, slug]) => ({ id, slug, title: slug })));
       } else if (url.pathname === '/catalog/v1/products/list') {
         const pageSize = Number(url.searchParams.get('pageSize') ?? '100');
-        const categoryId = url.searchParams.get('categoryId');
-        const rows = PRODUCTS.filter(
-          (row) =>
-            matchesFilters(row, filters) && (categoryId === null || row.categoryId === categoryId)
-        ).slice(0, Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 100);
-        answer(listResponse(rows.map(listItemOf)));
+        const query = parseProductQuery(url);
+        const matching = PRODUCTS.filter(
+          (row) => matchesFilters(row, filters) && matchesProductQuery(row, query)
+        );
+        const rows = matching.slice(0, Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 100);
+        answer(
+          listResponse(rows.map(listItemOf), {
+            total: matching.length,
+            ...(url.searchParams.get('facets') === 'true'
+              ? { facets: facetsOf(PRODUCTS, query) }
+              : {}),
+          })
+        );
       } else if (url.pathname === '/inventory/v1/stock/availability') {
         answer(availabilityOf(await readJsonBody(req)));
       } else if (segments[0] === 'shopping-cart' && segments[2] === 'cart') {
@@ -683,7 +816,20 @@ export function startMockGateway(): Promise<MockGateway> {
       ) {
         const collection = COLLECTIONS.find((row) => row.slug === decodeURIComponent(segments[3]));
         if (collection === undefined) answer({}, 404);
-        else answer(listResponse(PRODUCTS.map(listItemOf)));
+        else {
+          // The shopper's facets are the endpoint's own parameters, so the filtering, the `total`
+          // and the `facets` counts all happen here rather than in the theme.
+          const query = parseProductQuery(url);
+          const matching = PRODUCTS.filter((row) => matchesProductQuery(row, query));
+          answer(
+            listResponse(matching.map(listItemOf), {
+              total: matching.length,
+              ...(url.searchParams.get('facets') === 'true'
+                ? { facets: facetsOf(PRODUCTS, query) }
+                : {}),
+            })
+          );
+        }
       } else if (segments[0] === 'catalog' && segments[2] === 'collections') {
         const collection = COLLECTIONS.find((row) => row.slug === decodeURIComponent(segments[3]));
         answer(collection ?? {}, collection === undefined ? 404 : 200);

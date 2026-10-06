@@ -9,6 +9,7 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
+import { formatMoney } from '../../../app/storefront/money';
 import { createGatewayStorefront } from '../../../app/storefront/gateway';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
@@ -109,6 +110,10 @@ function createStub(
     /** The facets a *filtered* request answers with — most backends compute them over the result
      *  set, so a value the shopper has ticked can stop being listed. */
     filteredFacets?: CatalogFacets;
+    /** How the store describes its scope at all, for the families it cannot count. */
+    facets?: CatalogFacets;
+    /** The `filters` keys this scope cannot narrow by, as a storefront declares them. */
+    unfilterable?: readonly string[];
   } = {}
 ): Stub {
   const base = createDemoStorefront();
@@ -128,7 +133,10 @@ function createStub(
         return {
           items: filtered ? items.slice(0, filteredCount) : items.slice(0, opts.value.pageSize),
           total: filtered ? filteredCount : items.length,
-          facets: filtered ? (options.filteredFacets ?? FACETS) : FACETS,
+          facets: filtered
+            ? (options.filteredFacets ?? options.facets ?? FACETS)
+            : (options.facets ?? FACETS),
+          ...(options.unfilterable === undefined ? {} : { unfilterable: options.unfilterable }),
         };
       });
       return {
@@ -1049,6 +1057,157 @@ describe('collection-grid block', () => {
     });
   });
 
+  /**
+   * A store whose stock cannot be read answers **no** `availability` facet rather than two zeroes
+   * (`CatalogFacets.availability`). The group it feeds is dropped, because the alternative is
+   * offering a shopper two counts nobody can stand behind — and a request carrying an availability
+   * filter in that state is an error, not an empty page. Every other group still draws.
+   */
+  describe('a store whose stock cannot be read', () => {
+    const noStock: CatalogFacets = { ...FACETS };
+    delete noStock.availability;
+
+    it('drops the availability group and keeps the rest of the panel', async () => {
+      const stub = createStub(PRODUCTS, { facets: noStock });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      // The sidebar and the drawer draw the same groups, so each legend appears twice.
+      const legends = [
+        ...new Set(
+          groupTriggers(wrapper).map((trigger) =>
+            wrapper
+              .get(`#${trigger.attributes('aria-controls')!}`)
+              .get('legend')
+              .text()
+          )
+        ),
+      ];
+      expect(legends).not.toContain(enUS.grid.legendAvailability);
+      expect(legends).toEqual([
+        enUS.grid.legendCategory,
+        enUS.grid.legendSize,
+        enUS.grid.legendColour,
+        PRICE_LEGEND,
+      ]);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  /**
+   * **A group whose scope cannot narrow by it is not offered**
+   * (`StorefrontCollectionProducts.unfilterable`).
+   *
+   * Counting a family and filtering on it are different capabilities: the platform reports which
+   * other collections a collection's products are also in, but has no parameter for the
+   * intersection, so the `collection` group would draw real counts and then change the chips, the
+   * URL and nothing else. The storefront says which sources its scope cannot honour and the panel
+   * drops those groups — the author's `filters[]` row included, because an author cannot know which
+   * scope their grid will be read in. A scope that honours the source keeps it.
+   */
+  /**
+   * **A scope the platform could not span leaves `price` out of its facets**, which is a different
+   * answer from a span of 0 to 0: the control then falls back to the widest span this block has seen
+   * for the collection (`loadedPriceSpan`). Written as a 0–0 span instead, the track is dead and both
+   * fields read `$0.00` — and the fallback is wiped at the same time, because it only runs while the
+   * facets have no span of their own.
+   */
+  describe('facets with no price span', () => {
+    const noPrice: CatalogFacets = { ...FACETS };
+    delete noPrice.price;
+
+    /** The loaded products' own span, which is what the control falls back to. */
+    const amounts = PRODUCTS.map((item) => item.price.amount);
+    const loadedSpan = [
+      formatMoney(Math.min(...amounts), 'USD'),
+      formatMoney(Math.max(...amounts), 'USD'),
+    ];
+
+    it('spans the loaded products rather than nothing at all', async () => {
+      const stub = createStub(PRODUCTS, { facets: noPrice });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      const fields = wrapper
+        .findAll('input[data-input]')
+        .map((input) => (input.element as HTMLInputElement).value);
+      // The sidebar's pair, then the drawer's copy of it.
+      expect(fields).toEqual([...loadedSpan, ...loadedSpan]);
+      expect(fields).not.toContain(formatMoney(0, 'USD'));
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  describe('a filter source the scope cannot narrow by', () => {
+    const WITH_COLLECTION = {
+      ...mock,
+      filters: [
+        { source: 'category', label: 'Category' },
+        { source: 'collection', label: 'Collection' },
+        { source: 'price', label: 'Price' },
+      ],
+    };
+
+    const legendsOf = (wrapper: VueWrapper) => [
+      ...new Set(
+        groupTriggers(wrapper).map((trigger) =>
+          wrapper
+            .get(`#${trigger.attributes('aria-controls')!}`)
+            .get('legend')
+            .text()
+        )
+      ),
+    ];
+
+    it('keeps the group in a scope that honours it', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(WITH_COLLECTION, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      expect(legendsOf(wrapper)).toEqual([
+        enUS.grid.legendCategory,
+        enUS.grid.legendCollection,
+        PRICE_LEGEND,
+      ]);
+      // And it filters: ticking a value reaches the request.
+      const { panel } = panelFor(wrapper, enUS.grid.legendCollection);
+      await panel.get('input[type="checkbox"]').setValue(true);
+      expect(stub.requests.at(-1)?.filters?.collection).toEqual(['the-winter-edit']);
+    });
+
+    it('drops the group, and its chip, in a scope that cannot', async () => {
+      const stub = createStub(PRODUCTS, { unfilterable: ['collection'] });
+      const wrapper = mountGrid(WITH_COLLECTION, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      expect(legendsOf(wrapper)).toEqual([enUS.grid.legendCategory, PRICE_LEGEND]);
+      expect(wrapper.text()).not.toContain('Collection');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /**
+     * A shared link can still carry the key — the source is filterable in another scope, so neither
+     * the request nor the query string is rewritten — and the chip is what would otherwise promise
+     * a filter this scope ignores.
+     */
+    it('shows no chip for a value a shared link carries for it', async () => {
+      const stub = createStub(PRODUCTS, { filteredCount: 4, unfilterable: ['collection'] });
+      const source: StorefrontSource = {
+        ...stub.source,
+        route: { ...stub.source.route, filters: { collection: ['the-winter-edit'] } },
+      };
+      const wrapper = mountGrid(WITH_COLLECTION, { source });
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      expect(filterButton(wrapper).find('[data-part="hiddenSuffix"]').exists()).toBe(false);
+      // Still sent — this stub answers a filtered request with four of the twelve — because the
+      // storefront that declared the source unfilterable is the one already ignoring it, and the
+      // key is meaningful in a scope that can honour it.
+      expect(cards(wrapper)).toHaveLength(4);
+    });
+  });
+
   describe('a selected value the facets stop listing', () => {
     /**
      * Facets are normally computed over the current result set, so ticking one value can remove
@@ -1328,8 +1487,12 @@ describe('collection-grid block', () => {
    * $48 "Speckled stoneware bowl": the block read the range off the URL and sent it correctly, and
    * `createGatewayStorefront` dropped every facet before its list read, so the grid answered with the
    * unfiltered collection under a URL, chips and an active-filter row that all said otherwise. This
-   * is that URL, end to end — the block's own seeding, the gateway's request, the facet pass, the
-   * count line — with only the HTTP call faked.
+   * is that URL, end to end — the block's own seeding, the `minPrice`/`maxPrice` parameters the
+   * gateway now sends, the platform's own `total` and its `facets` — with only the HTTP call faked.
+   *
+   * The store sells in krónur, which have no minor unit, so the parameters this asserts read as the
+   * same numbers the shopper typed; `test/storefront/gateway.spec.ts` is where the conversion itself
+   * is pinned.
    */
   describe('over the gateway storefront, with a price range in the URL', () => {
     const CATALOGUE: Array<{ slug: string; title: string; price: number }> = [
@@ -1340,14 +1503,24 @@ describe('collection-grid block', () => {
       { slug: 'shearling-slippers', title: 'Shearling slippers', price: 151 },
     ];
 
+    /** The gateway's own filtering: the `minPrice`/`maxPrice` parameters, inclusive both ends. */
+    function gatewayRows(query: Record<string, unknown>) {
+      const min = query.minPrice as number | undefined;
+      const max = query.maxPrice as number | undefined;
+      return CATALOGUE.filter(
+        (row) => (min === undefined || row.price >= min) && (max === undefined || row.price <= max)
+      );
+    }
+
     function gatewaySource(filters: Record<string, string[]>): StorefrontSource {
       const client = {
         catalog: {
           listCollectionProducts: async (_slug: string, query: Record<string, unknown>) => {
             const page = (query.page as number | undefined) ?? 1;
             const pageSize = (query.pageSize as number | undefined) ?? 24;
+            const matching = gatewayRows(query);
             const start = (page - 1) * pageSize;
-            const rows = CATALOGUE.slice(start, start + pageSize).map((row) => ({
+            const rows = matching.slice(start, start + pageSize).map((row) => ({
               id: `${row.slug}::default`,
               slug: row.slug,
               title: row.title,
@@ -1358,10 +1531,19 @@ describe('collection-grid block', () => {
             }));
             return {
               data: rows,
+              // The platform's own span, counted with every filter *except* price applied — which
+              // is why the track still spans the whole collection under a range.
+              facets: {
+                price: { min: 48, max: 151 },
+                categories: [],
+                collections: [],
+                availability: { in_stock: CATALOGUE.length, out_of_stock: 0 },
+                options: [],
+              },
               meta: {
                 page,
                 pageSize,
-                total: CATALOGUE.length,
+                total: matching.length,
                 totalPages: 1,
                 rows: rows.length,
                 hasNext: false,
@@ -1372,6 +1554,7 @@ describe('collection-grid block', () => {
         },
       } as unknown as EldraClient;
       return createGatewayStorefront(client, {
+        commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
         route: {
           productHandle: null,
           collectionHandle: 'the-winter-edit',

@@ -177,15 +177,13 @@ export interface CatalogFacetOption {
  *
  * The shape is the platform's own (`facets` on `GET /catalog/v1/collections/{slug}/products` and
  * `GET /catalog/v1/products/list`, requested with `facets=true`), carried here as a view type so a
- * block reads one shape whichever storefront filled it in. **Nothing in the kit asks the gateway
- * for it yet**: both sources derive it themselves for now — `createGatewayStorefront` over the rows
- * it fetched and `createDemoStorefront` over its fixture, both through `deriveFacets`
- * (`app/storefront/facets.ts`) — and the gateway implementation replaces that derivation with the
- * response's own `facets` the moment the platform answers one. What a consumer sees does not
- * change on that day; the numbers simply start describing the whole catalogue rather than the rows
- * one read could reach.
+ * block reads one shape whichever storefront filled it in. `createGatewayStorefront` reads the
+ * response's own object, so its numbers describe the **whole collection** rather than the rows one
+ * read could reach; `createDemoStorefront` counts its own fixture by the same rules
+ * (`app/storefront/facets.ts`). A source that cannot describe its scope at all answers no facets,
+ * and the panel then draws only the groups it can fill without values.
  *
- * Two rules the derivation and the server agree on, because the filter UI is built on them:
+ * Two rules every source agrees on, because the filter UI is built on them:
  *
  * - **Counts ignore the facet's own filter.** A count says how many products *that value* would
  *   return, so it is computed over the scope with every other filter applied and this family's
@@ -201,10 +199,27 @@ export interface CatalogFacetOption {
  * a slider a hundred times too wide on a two-decimal currency and a `?price=` nothing matches.
  */
 export interface CatalogFacets {
-  price: { min: number; max: number };
+  /**
+   * The scope's own lowest and highest price, in **major** units, counted with every filter except
+   * price applied.
+   *
+   * **Absent when the source could not span the scope at all** — the platform omits the key when the
+   * scope minus the price filter holds nothing — which is not the same answer as a span of 0 to 0. A
+   * price control handed a 0–0 span is a dead track labelled with the store's currency; absent, the
+   * panel falls back to the widest span it has seen for this collection instead.
+   */
+  price?: { min: number; max: number };
   categories: CatalogFacetTerm[];
   collections: CatalogFacetTerm[];
-  availability: { in_stock: number; out_of_stock: number };
+  /**
+   * **Absent when the source could not read stock at all** — which is a different answer from
+   * "nothing is in stock", and the reason this one field is optional while the rest are not. The
+   * platform omits it rather than sending two zeroes when its inventory read fails, so a filter
+   * panel hides the availability group instead of offering a shopper two values it would be lying
+   * about. (An availability *filter* in that state is an error, not an empty answer: see
+   * `StorefrontResult.error`.)
+   */
+  availability?: { in_stock: number; out_of_stock: number };
   options: CatalogFacetOption[];
 }
 
@@ -221,6 +236,24 @@ export interface StorefrontCollectionProducts {
   items: StorefrontProductListItem[];
   total: number;
   facets?: CatalogFacets;
+  /**
+   * **The `filters` keys this answer's own scope cannot narrow by.** Absent — the usual answer —
+   * means every source the caller sent was honoured.
+   *
+   * Describing a scope and *filtering* it are different capabilities, and a backend can offer the
+   * first without the second: the platform counts the other collections a collection's products are
+   * also in, but has no way to ask for the intersection, because its collection parameter is an OR
+   * over a list and the scope already is one collection. A source named here is therefore one whose
+   * counts may be perfectly real and whose filter would still change nothing.
+   *
+   * The filter panel **hides a group it names**, even one the author configured, because the
+   * alternative is a control that moves the chips and the URL and leaves the grid exactly as it was
+   * — the defect the whole server-side filter path exists to remove. A source is named by the same
+   * key the `filters` bag uses (`collection`, `option:size`), and a scope that can honour everything
+   * says nothing rather than listing every key it knows: a storefront that has never heard of this
+   * field is indistinguishable from one answering "all of them", which is the safe reading.
+   */
+  unfilterable?: readonly string[];
 }
 
 export interface StorefrontCartLine {

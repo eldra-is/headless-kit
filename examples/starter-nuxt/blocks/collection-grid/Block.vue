@@ -394,6 +394,17 @@ const total = computed(() => products.data.value?.total ?? 0);
 /** The storefront's own description of the scope it answered from — values, labels, swatches and
  *  counts for every group (`CatalogFacets`). `undefined` from a source that cannot describe it. */
 const facets = computed(() => products.data.value?.facets);
+/**
+ * The filter sources **this scope** cannot narrow by, as the storefront declares them
+ * (`StorefrontCollectionProducts.unfilterable`) — the platform can count the other collections a
+ * collection's products are in without being able to ask for the intersection, so a group fed by
+ * real counts can still be a filter that does nothing.
+ *
+ * Their groups and their chips are both dropped below. Nothing is removed from the request or from
+ * the query string: the source may be perfectly filterable in another scope, so a shared link stays
+ * meaningful, and the storefront that declared it unfilterable is already the one ignoring it.
+ */
+const unfilterableSources = computed(() => new Set(products.data.value?.unfilterable ?? []));
 const pending = products.pending;
 
 /** A collection the storefront could only have found by id, and did not — a
@@ -531,13 +542,21 @@ const availabilityLabels = computed(() => ({
  */
 const facetPriceSpan = computed<PriceSpan | null>(() => facets.value?.price ?? null);
 const loadedPriceSpan = ref<PriceSpan | null>(null);
-watch([facetPriceSpan, items], ([facet, loaded]) => {
-  if (facet !== null) {
-    loadedPriceSpan.value = null;
-    return;
-  }
-  loadedPriceSpan.value = widenPriceSpan(loadedPriceSpan.value, priceSpanOf(loaded));
-});
+// `immediate`, because the facets can arrive *with* the products and already have no span of their
+// own: the platform omits `price` when the scope minus the price filter holds nothing, and a
+// prerendered page hands this block its answer before the first render. Waiting for a change left
+// the fallback unset and the control spanning 0 to 0.
+watch(
+  [facetPriceSpan, items],
+  ([facet, loaded]) => {
+    if (facet !== null) {
+      loadedPriceSpan.value = null;
+      return;
+    }
+    loadedPriceSpan.value = widenPriceSpan(loadedPriceSpan.value, priceSpanOf(loaded));
+  },
+  { immediate: true }
+);
 watch(selected, () => {
   loadedPriceSpan.value = null;
 });
@@ -580,6 +599,9 @@ const groups = computed<FilterGroup[]>(() => {
   for (const row of rows) {
     if (!isFilterSource(row.source)) continue;
     const source = row.source;
+    // A source this scope cannot narrow by is not offered, however the author configured it: see
+    // `unfilterableSources`.
+    if (unfilterableSources.value.has(source)) continue;
     const values = groupValuesFor(
       source,
       facets.value,
@@ -616,13 +638,20 @@ const groupBySource = computed(
  */
 const activeSources = computed<FilterSource[]>(() => {
   const out: FilterSource[] = [];
+  // A source this scope cannot narrow by is left out of the chips as well as the panel: a chip for
+  // a filter nothing applies is the same false claim with less to click (`unfilterableSources`).
+  const offered = (source: FilterSource): boolean => !unfilterableSources.value.has(source);
   for (const row of (data.value.filters ?? []) as FilterField[]) {
-    if (isFilterSource(row.source) && !out.includes(row.source)) out.push(row.source);
+    if (isFilterSource(row.source) && offered(row.source) && !out.includes(row.source)) {
+      out.push(row.source);
+    }
   }
   for (const source of Object.keys(selection.value) as FilterSource[]) {
-    if (isFilterSource(source) && !out.includes(source)) out.push(source);
+    if (isFilterSource(source) && offered(source) && !out.includes(source)) out.push(source);
   }
-  if (!out.includes('price')) out.push('price');
+  // Price last, and through the same guard: a storefront that declared it unfilterable would
+  // otherwise keep a price chip and an active count for a group that is not on screen.
+  if (!out.includes('price') && offered('price')) out.push('price');
   return out;
 });
 

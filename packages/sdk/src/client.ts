@@ -748,14 +748,26 @@ function buildUrl(apiBaseUrl: string, path: string, query: object | undefined): 
 
 /**
  * Query parameters the gateway declares as repeatable (`explode: true`): one
- * `key=` entry per value, never a comma-joined one. `filter` is the only one
- * today, and it has to be — a filter token is `[groupIndex:]field:op:value`
+ * `key=` entry per value, never a comma-joined one. Every other array
+ * parameter (`sort`, `fields`) is declared `explode: false` and stays
+ * comma-separated.
+ *
+ * `filter` has to be in here — a filter token is `[groupIndex:]field:op:value`
  * whose value may itself contain commas (`slug:in:a,b`), so joining several
  * tokens into one parameter runs them together and every token after the first
- * is lost. Every other array parameter (`sort`, `fields`) is declared
- * `explode: false` and stays comma-separated.
+ * is lost. The catalog product filters (`categoryId`, `collectionId`, `option`
+ * on `GET /catalog/v1/products/list` and
+ * `GET /catalog/v1/collections/{slug}/products`) are declared the same way, and
+ * each is an OR over its values: comma-joined, `categoryId=a,b` is one id the
+ * catalogue has never heard of, so a shopper ticking two categories would see
+ * nothing rather than both.
  */
-const REPEATED_QUERY_KEYS: ReadonlySet<string> = new Set(['filter']);
+const REPEATED_QUERY_KEYS: ReadonlySet<string> = new Set([
+  'filter',
+  'categoryId',
+  'collectionId',
+  'option',
+]);
 
 function appendQueryValue(searchParams: URLSearchParams, key: string, value: unknown): void {
   if (value === undefined || value === null || value === '') {

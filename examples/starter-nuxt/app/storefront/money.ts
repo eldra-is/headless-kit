@@ -178,6 +178,26 @@ export function toMinorUnits(
 }
 
 /**
+ * The minor units the **platform's own facets** count in, back to the major units every money field
+ * in `types.ts` carries — the exact inverse of `toMinorUnits`, over the same currency's own
+ * minor-unit count (`ISK` has none: 2800 krónur stays 2800, `USD` 2800 is $28).
+ *
+ * It exists for one answer, and the comment belongs with the helper rather than the call site: the
+ * catalog's `facets.price` span is counted over the same `minPrice`/`maxPrice` parameters it is
+ * filtered by, so it arrives in minor units while `CatalogFacets.price` — the span a price slider
+ * is drawn across and the shopper's own bounds are written in — is major like everything else.
+ * Handing the slider the raw span draws a track a hundred times too wide on a two-decimal currency
+ * and writes a `?price=` nothing matches.
+ */
+export function fromMinorUnits(
+  amount: number,
+  currency: string | undefined,
+  locale: string = DEFAULT_LOCALE
+): number {
+  return amount / 10 ** resolveFormat(currency, locale).digits;
+}
+
+/**
  * Rounds a sum back to two decimals. Major-unit arithmetic is floating point (`28.99 * 3` is
  * `86.96999999999998`), so every total the theme computes itself — a line total, a cart subtotal,
  * a percentage discount — is rounded before it is shown or added to another amount.
