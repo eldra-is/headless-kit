@@ -384,7 +384,20 @@ const initialPrice = routePriceRange();
 const priceMin = ref(initialPrice.min);
 const priceMax = ref(initialPrice.max);
 
-const sortOptions = computed<SelectOption[]>(() => {
+/**
+ * The author's own sort rows this block's strings can name at all — `data.value.sortOptions` run
+ * through `SORT_LABEL`, with no regard yet for what this scope's own read can or cannot honour.
+ * `sort`'s own settling below needs exactly this, and nothing more: `data.value` is the block's own
+ * field data, so this is the same on the server's render and on whatever reads it before any
+ * network call has gone out, which is what lets `sort` reach its final value — stably, with
+ * nothing left to correct — before `products` further down even exists. (`sort` feeds
+ * `requestOptions`, one of `products`'s own reactive sources, so a `sort.value` write *after*
+ * `products` exists is a second, real request under it — seen once, the hard way: a page that
+ * should ask for its collection once asked twice, because a later correction changed the very
+ * value the first request's key was built from.) The render-facing `sortOptions`, further down,
+ * narrows this once the scope has actually answered.
+ */
+const configuredSortOptions = computed<SelectOption[]>(() => {
   const SORT_LABEL: Record<string, string> = {
     featured: t('grid.sortFeatured'),
     'best-selling': t('grid.sortBestSelling'),
@@ -403,12 +416,12 @@ const sortOptions = computed<SelectOption[]>(() => {
     }));
 });
 const sort = ref(
-  route.sort !== null && sortOptions.value.some((option) => option.value === route.sort)
+  route.sort !== null && configuredSortOptions.value.some((option) => option.value === route.sort)
     ? route.sort
     : ''
 );
 watch(
-  sortOptions,
+  configuredSortOptions,
   (options) => {
     if (options.length === 0) {
       sort.value = '';
@@ -503,6 +516,41 @@ const facets = computed(() => products.data.value?.facets);
  * meaningful, and the storefront that declared it unfilterable is already the one ignoring it.
  */
 const unfilterableSources = computed(() => new Set(products.data.value?.unfilterable ?? []));
+/**
+ * `configuredSortOptions`, minus whichever of them this scope just declared it cannot honour
+ * (`StorefrontCollectionProducts.unsortable`) — the platform gateway reads no sales data to order
+ * by, on either of its two scopes, so a shopper picking `best-selling` there would see nothing move
+ * and the control would look broken. A plain `computed` reading `products.data.value` straight
+ * through, same as `unfilterableSources` above: both sides of a hydration read the *same*,
+ * already-settled answer at render time (the "one synchronous turn" the server's render and the
+ * client's hydration of it share), so this never disagrees with what either one painted. The demo
+ * storefront declares nothing, so Storybook and the sample pages keep every option. This is what
+ * the template's own `:options` binds to — `sort`'s own settling above never reads it.
+ */
+const sortOptions = computed<SelectOption[]>(() => {
+  const unsortable = products.data.value?.unsortable;
+  if (unsortable === undefined) return configuredSortOptions.value;
+  return configuredSortOptions.value.filter((option) => !unsortable.includes(option.value));
+});
+/**
+ * The one correction `configuredSortOptions`'s own settling above could not make, because it
+ * cannot know the answer yet: a `sort` already pointed at an id this scope just declared
+ * `unsortable` — a URL carrying `?sort=best-selling`, say — falls back here to the first option
+ * still offered, the same way an id this grid never configured at all already does. `immediate`,
+ * so this is this watch's *own* first, synchronous run (not a later re-trigger of some earlier
+ * one), settled the moment `products.data.value` is — which keeps it a no-op, writing nothing and
+ * asking nothing again, for every page whose `sort` was never pointed at the one id this matters
+ * for in the first place.
+ */
+watch(
+  sortOptions,
+  (options) => {
+    if (options.length > 0 && !options.some((option) => option.value === sort.value)) {
+      sort.value = options[0]!.value;
+    }
+  },
+  { immediate: true }
+);
 const pending = products.pending;
 
 /** A collection the storefront could only have found by id, and did not — a

@@ -1153,6 +1153,17 @@ const GATEWAY_SORT: Readonly<Record<string, string>> = {
   'price-desc': '-minPrice',
 };
 
+/**
+ * **The one sort id this gateway can never honour, on either list it reads** (`StorefrontCollectionProducts.unsortable`).
+ * `best-selling` is absent from `GATEWAY_SORT` above for the same reason it is declared here: the
+ * platform gateway's product list carries no sales figures to order by, on the collection-scoped
+ * read and the catalogue-wide one alike — unlike `collection`
+ * (`COLLECTION_SCOPE_UNFILTERABLE` below), which only one of the two scopes cannot honour. `featured`
+ * maps to nothing in `GATEWAY_SORT` too, but it is not unsortable: it *is* the collection's own
+ * default order, which the endpoint already answers in.
+ */
+const GATEWAY_UNSORTABLE: readonly string[] = ['best-selling'];
+
 // ---------------------------------------------------------------------------------------------
 // The shopper's facets as the catalog list's own query parameters
 // ---------------------------------------------------------------------------------------------
@@ -1865,6 +1876,7 @@ export function createGatewayStorefront(
       /** `null` for the catalogue-wide read; a slug resolver for a collection-scoped one. */
       slug: (signal: AbortSignal) => Promise<string | null | false>;
       unfilterable?: readonly string[];
+      unsortable?: readonly string[];
       collectionIdsFor?: (slugs: readonly string[]) => Promise<ReadonlyMap<string, string>>;
     }
   ): StorefrontResult<StorefrontCollectionProducts> =>
@@ -1912,6 +1924,7 @@ export function createGatewayStorefront(
           items: (raw.data ?? []).map(mapProductListItem),
           total: raw.meta.total,
           ...(scope.unfilterable === undefined ? {} : { unfilterable: scope.unfilterable }),
+          ...(scope.unsortable === undefined ? {} : { unsortable: scope.unsortable }),
           ...(facets === undefined ? {} : { facets }),
         };
       },
@@ -1971,17 +1984,22 @@ export function createGatewayStorefront(
         // The one source this scope cannot narrow by is declared rather than dropped: see
         // `COLLECTION_SCOPE_UNFILTERABLE`.
         unfilterable: COLLECTION_SCOPE_UNFILTERABLE,
+        // `best-selling` on this scope too — see `GATEWAY_UNSORTABLE`.
+        unsortable: GATEWAY_UNSORTABLE,
       });
       return result;
     },
     // `false` for the slug: not "no scope" (which is `null`, and answers nothing) but "the whole
     // catalogue", which is a different endpoint. Nothing is `unfilterable` here — that list does take
     // a `collectionId`, so the `collection` group filters for real (`StorefrontCatalog.products`).
+    // `best-selling` is still `unsortable`, the same as the collection-scoped read: this list has no
+    // more sales data to order by than the other one does (`GATEWAY_UNSORTABLE`).
     products: (opts) =>
       productListResult([opts], opts, {
         method: 'catalog.products',
         slug: () => Promise.resolve(false as const),
         collectionIdsFor,
+        unsortable: GATEWAY_UNSORTABLE,
       }),
     related: (handle, limit) =>
       createGatewayResult(

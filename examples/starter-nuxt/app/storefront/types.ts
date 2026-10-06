@@ -301,6 +301,22 @@ export interface StorefrontCollectionProducts {
    * field is indistinguishable from one answering "all of them", which is the safe reading.
    */
   unfilterable?: readonly string[];
+  /**
+   * **The block's own sort ids this answer's scope cannot honour.** Absent — the usual answer —
+   * means every sort id the grid offers does something real.
+   *
+   * The same shape as `unfilterable`, for the same reason: a backend can read a sort id the grid
+   * knows about and simply have nothing to order by it. `best-selling` is the one example today —
+   * the theme offers it because a storefront's catalogue can have sales data to sort by, but the
+   * platform gateway's product list exposes none, so picking it would move nothing and the control
+   * would look broken. Described rather than silently dropped, because the grid has to know which
+   * of its own options are real: `blocks/collection-grid` drops a named id from "Sort by" once this
+   * answer arrives, and a shared link naming it falls back to the first option that is left, the
+   * same way it falls back from any sort id it does not recognise at all. A scope that can honour
+   * every sort id it offers says nothing, which also reads correctly for a source that has never
+   * heard of this field.
+   */
+  unsortable?: readonly string[];
 }
 
 export interface StorefrontCartLine {

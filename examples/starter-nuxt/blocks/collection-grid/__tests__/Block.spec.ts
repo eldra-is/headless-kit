@@ -113,6 +113,8 @@ function createStub(
     facets?: CatalogFacets;
     /** The `filters` keys this scope cannot narrow by, as a storefront declares them. */
     unfilterable?: readonly string[];
+    /** The block's own sort ids this scope cannot honour, as a storefront declares them. */
+    unsortable?: readonly string[];
   } = {}
 ): Stub {
   const base = createDemoStorefront();
@@ -136,6 +138,7 @@ function createStub(
             ? (options.filteredFacets ?? options.facets ?? FACETS)
             : (options.facets ?? FACETS),
           ...(options.unfilterable === undefined ? {} : { unfilterable: options.unfilterable }),
+          ...(options.unsortable === undefined ? {} : { unsortable: options.unsortable }),
         };
       });
       return {
@@ -1298,6 +1301,67 @@ describe('collection-grid block', () => {
       // storefront that declared the source unfilterable is the one already ignoring it, and the
       // key is meaningful in a scope that can honour it.
       expect(cards(wrapper)).toHaveLength(4);
+    });
+  });
+
+  /**
+   * **A "Sort by" option the scope cannot honour is dropped the same way** (`StorefrontCollectionProducts.unsortable`).
+   * `mock.json` seeds `best-selling` alongside `featured`/`price-asc`/`price-desc`/`newest`; the
+   * platform gateway reads no sales data to order by, so a storefront built on it declares the id
+   * rather than leaving a control that moves the selected value and the URL and changes nothing in
+   * the grid.
+   */
+  describe('a sort id the scope cannot honour', () => {
+    const optionLabels = () =>
+      [...document.querySelectorAll('[role="option"]')].map((el) => el.textContent?.trim());
+
+    it('offers it in a scope that honours it (the demo)', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
+      await wrapper.vm.$nextTick();
+      const trigger = comboboxes(wrapper)[0]!;
+      trigger.element.focus();
+      await trigger.trigger('keydown', { key: 'ArrowDown' });
+
+      expect(optionLabels()).toEqual([
+        'Featured',
+        'Best selling',
+        'Price low to high',
+        'Price high to low',
+        'Newest',
+      ]);
+    });
+
+    it('drops it, and the author’s own row for it, in a scope that cannot', async () => {
+      const stub = createStub(PRODUCTS, { unsortable: ['best-selling'] });
+      const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
+      await wrapper.vm.$nextTick();
+      const trigger = comboboxes(wrapper)[0]!;
+      trigger.element.focus();
+      await trigger.trigger('keydown', { key: 'ArrowDown' });
+
+      expect(optionLabels()).toEqual([
+        'Featured',
+        'Price low to high',
+        'Price high to low',
+        'Newest',
+      ]);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /** The same fallback a `route.sort` this block never configured already takes — see "ignores a
+     *  seeded route sort that is not one of the block's own sort options" above. */
+    it('falls back to the first remaining option when a shared URL names it', async () => {
+      const stub = createStub(PRODUCTS, { unsortable: ['best-selling'] });
+      const source: StorefrontSource = {
+        ...stub.source,
+        route: { ...stub.source.route, sort: 'best-selling' },
+      };
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+
+      expect(comboboxes(wrapper)[1]!.text()).toContain('Featured');
+      expect(stub.requests.some((request) => request.sort === 'best-selling')).toBe(false);
     });
   });
 

@@ -796,6 +796,23 @@ Four things worth knowing before a shop goes live:
   memoised per storefront (unlike the categories, which are read whole: a store's collections are a
   merchandising list that grows without bound). The demo storefront filters its own fixture by
   collection in both scopes, so a Storybook story or a sample page keeps the group.
+- **A "Sort by" option the scope cannot honour is declared the same way, and the grid drops it.**
+  `StorefrontCollectionProducts.unsortable` names the block's own sort ids — `featured`,
+  `best-selling`, `price-asc`, `price-desc`, `newest` — this answer's scope has nothing real to order
+  by; `collection-grid` removes a named id from "Sort by" once the result arrives, the author's
+  `sortOptions` row included, for the same reason `unfilterable` hides a filter group: a control that
+  moves the selected value and the URL and changes nothing in the grid is the defect this whole path
+  removes. A URL naming a now-unsortable id falls back to the first option still offered, the same
+  path a `sort` id this grid never configured already falls back through.
+
+  The platform gateway declares `['best-selling']` on **both** scopes — the collection-scoped read and
+  the catalogue-wide one alike — because neither reads sales figures to order by; this is the one case
+  where the two scopes agree, unlike `unfilterable`'s `collection`, which only one of them cannot honour.
+  `featured` is not in that list even though it also maps to no gateway sort parameter: it _is_ the
+  collection's own default order, which the endpoint already answers in. The demo storefront declares
+  nothing, so Storybook and the sample pages keep every option, `best-selling` included. An author
+  whose own storefront does carry sales data keeps the option in the schema and the seeds — nothing
+  here removes it from either, only from a scope that says it cannot honour it.
 
 A clause the mapping cannot express is left out rather than guessed at — a price bound that is not a
 number, a `collection` clause, or **a category slug this store has no category for** (a stale shared

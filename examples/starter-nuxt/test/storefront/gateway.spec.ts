@@ -192,6 +192,9 @@ describe('createGatewayStorefront', () => {
       // The one source a collection's own product list cannot narrow by, declared rather than
       // dropped so the panel can stop offering it (`COLLECTION_SCOPE_UNFILTERABLE`).
       unfilterable: ['collection'],
+      // The one sort id neither scope reads sales data for, declared the same way
+      // (`GATEWAY_UNSORTABLE`).
+      unsortable: ['best-selling'],
       items: [
         expect.objectContaining({
           handle: 'merino-crew-sweater',
@@ -634,7 +637,12 @@ describe('createGatewayStorefront', () => {
     expect(result.error.value).toBeNull();
     // No `facets` on the answer — a gateway that cannot describe its scope — so none is invented:
     // the panel then draws the groups it can fill without values (`StorefrontCollectionProducts`).
-    expect(result.data.value).toEqual({ items: [], total: 0, unfilterable: ['collection'] });
+    expect(result.data.value).toEqual({
+      items: [],
+      total: 0,
+      unfilterable: ['collection'],
+      unsortable: ['best-selling'],
+    });
     expect(result.data.value).not.toHaveProperty('facets');
   });
 
@@ -2043,6 +2051,14 @@ describe('createGatewayStorefront', () => {
     it('declares nothing unfilterable', async () => {
       const calls = catalogueClient();
       expect((await read(calls.client))?.unfilterable).toBeUndefined();
+    });
+
+    /** Unlike `unfilterable`, `best-selling` is declared unsortable on *this* scope too — the
+     *  catalogue-wide list has no more sales data to order by than the collection-scoped one does
+     *  (`GATEWAY_UNSORTABLE`). */
+    it('declares best-selling unsortable', async () => {
+      const calls = catalogueClient();
+      expect((await read(calls.client))?.unsortable).toEqual(['best-selling']);
     });
 
     it('sends a collection clause as a collectionId, resolved by slug', async () => {
