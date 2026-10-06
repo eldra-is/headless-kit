@@ -137,10 +137,90 @@ export interface StorefrontCollectionInfo {
   productCount: number;
 }
 
-export interface StorefrontFacet {
-  source: string;
+/**
+ * One term of a `categories` / `collections` facet.
+ *
+ * `slug` is the value a filter is expressed with — it is what goes in the URL and in the request —
+ * while `title` is what the shopper reads and `id` is the catalog object's own id. The server-side
+ * facets carry a real `id`; the client-side fallback (`app/storefront/facets.ts`) has none to carry
+ * and repeats the slug there, so nothing may treat `id` as a catalog id without knowing which
+ * source filled it in.
+ */
+export interface CatalogFacetTerm {
+  id: string;
+  slug: string;
+  title: string;
+  count: number;
+}
+
+/** One value of a variant-option facet. `swatch` is a CSS colour from the store — content, never
+ *  a design token — and is absent for an option that is not a colour. */
+export interface CatalogFacetOptionValue {
+  value: string;
   label: string;
-  values: Array<{ value: string; label: string; count: number; swatch?: string }>;
+  swatch?: string;
+  count: number;
+}
+
+/** One variant option, by the key a filter names it with (`colour`, `size`). */
+export interface CatalogFacetOption {
+  key: string;
+  name: string;
+  values: CatalogFacetOptionValue[];
+}
+
+/**
+ * **How a catalog read describes the scope it answered from**: the price span it spans, every
+ * category, collection and variant-option value in it, and how many products each one would
+ * return. This is what the filter UI draws its groups from — values, labels, swatches and counts —
+ * so a shopper is never offered a filter the catalogue cannot honour.
+ *
+ * The shape is the platform's own (`facets` on `GET /catalog/v1/collections/{slug}/products` and
+ * `GET /catalog/v1/products/list`, requested with `facets=true`), carried here as a view type so a
+ * block reads one shape whichever storefront filled it in. **Nothing in the kit asks the gateway
+ * for it yet**: both sources derive it themselves for now — `createGatewayStorefront` over the rows
+ * it fetched and `createDemoStorefront` over its fixture, both through `deriveFacets`
+ * (`app/storefront/facets.ts`) — and the gateway implementation replaces that derivation with the
+ * response's own `facets` the moment the platform answers one. What a consumer sees does not
+ * change on that day; the numbers simply start describing the whole catalogue rather than the rows
+ * one read could reach.
+ *
+ * Two rules the derivation and the server agree on, because the filter UI is built on them:
+ *
+ * - **Counts ignore the facet's own filter.** A count says how many products *that value* would
+ *   return, so it is computed over the scope with every other filter applied and this family's
+ *   own left out — ticking "Oat" must not zero every other colour. A value whose count is 0 under
+ *   the other filters is still listed, and the UI disables it rather than hiding it.
+ * - **Price bounds are the scope's own**, with every filter applied *except* price — so dragging
+ *   the price thumbs never moves the track under the shopper's hand.
+ *
+ * `price` is in **major units**, like every other money field in this file — and **unlike the
+ * platform's own facets**, whose `price` is in the same minor units as the `minPrice`/`maxPrice`
+ * parameters it is counted over. The gateway implementation converts on the way in, the same way
+ * it converts the shopper's bounds on the way out; handing this type a minor-unit span would draw
+ * a slider a hundred times too wide on a two-decimal currency and a `?price=` nothing matches.
+ */
+export interface CatalogFacets {
+  price: { min: number; max: number };
+  categories: CatalogFacetTerm[];
+  collections: CatalogFacetTerm[];
+  availability: { in_stock: number; out_of_stock: number };
+  options: CatalogFacetOption[];
+}
+
+/**
+ * What `catalog.collectionProducts` answers with: the page of cards, the size of the filtered set,
+ * and — when the source can describe its scope at all — the facets above.
+ *
+ * `facets` is optional because describing the scope is a separate capability from listing it: a
+ * source reading a backend that cannot aggregate answers `undefined` and the filter panel then
+ * shows only the groups it can draw without values (the price range, from the loaded items). It is
+ * never an empty-but-present object standing in for "unknown".
+ */
+export interface StorefrontCollectionProducts {
+  items: StorefrontProductListItem[];
+  total: number;
+  facets?: CatalogFacets;
 }
 
 export interface StorefrontCartLine {
@@ -344,11 +424,7 @@ export interface StorefrontCatalog {
   collectionProducts(
     collection: Ref<StorefrontCollectionSelector | null>,
     opts: Ref<{ page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }>
-  ): StorefrontResult<{
-    items: StorefrontProductListItem[];
-    total: number;
-    facets: StorefrontFacet[];
-  }>;
+  ): StorefrontResult<StorefrontCollectionProducts>;
   related(handle: Ref<string | null>, limit: number): StorefrontResult<StorefrontProductListItem[]>;
   byHandles(handles: Ref<string[]>): StorefrontResult<StorefrontProductListItem[]>;
   /**

@@ -107,7 +107,9 @@ declare global {
       pageSize: '12' | '24' | '48';
       paginationStyle: 'load-more' | 'pages';
       sortOptions?: Array<{ option: 'featured' | 'best-selling' | 'price-asc' | 'price-desc' | 'newest'; label?: string }>;
-      filters?: Array<{ source: 'category' | 'option:size' | 'option:colour' | 'price' | 'availability'; label?: string; collapsed?: boolean }>;
+      filters?: Array<{ source: 'category' | 'collection' | 'option:size' | 'option:colour' | 'price' | 'availability'; label?: string; collapsed?: boolean }>;
+      priceSlider?: boolean;
+      priceStep?: number;
       showColumnSelect?: boolean;
       emptyTitle?: string;
       emptyText?: string;

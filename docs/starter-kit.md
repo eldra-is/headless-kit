@@ -442,7 +442,16 @@ the previous content into a `<fieldId>__vN` legacy field rather than discarding 
 retired this way when the commerce blocks moved to collection references — `product-carousel`'s
 `sourceHandle` (version 2 → 3), `collection-grid`'s `collectionHandle` (2 → 3) and
 `collection-header`'s `collectionHandle` (1 → 2, the same change that added its `collection`
-reference; _adding_ a field needs no bump). `navigation`'s `showAccount` is the fourth (3 → 4): the
+reference; _adding_ a field needs no bump). **An addition under an existing list item is the
+one "additive" change that is not free**, and it is why `collection-grid`'s price-slider toggle is
+the block-level `priceSlider` rather than a `filters[].slider`: `storageCompatible` compares a list
+item's children by count and id, so the scanner cannot tell an addition from a replacement and
+demands the bump either way — which would retire every author's configured `filters` list and empty
+the filter panel on live collection pages until somebody rebuilt it. Top-level additions
+(`priceSlider`, `priceStep`) and a new **option** on an existing `select` (the `collection` filter
+source) both cost nothing: the scanner compares type, localization and cardinality, not an enum's
+members. `navigation`'s `showAccount` is the fourth
+retirement (3 → 4): the
 platform has no customer login, so the header offers no account control and the field that gated one
 is gone, with whatever an entry held kept as `showAccount__v3`. Nothing in the theme reads a retired
 field, which is the point: a stale handle must not stand in for the collection an author picked, and
@@ -581,8 +590,9 @@ prerendered route under the _payload's_ path — query stripped — and restores
 URL only once the app's `<Suspense>` has resolved (`hasDeferredRoute`, in Nuxt's own router plugin).
 So a block built during hydration sees `route.filters` empty however the visitor arrived, and a
 block that seeds its URL-backed state once and never looks again is inert on the deployed site:
-`/collections/<slug>?minPrice=50&maxPrice=150` rendered the whole collection, both price inputs
-blank, with the chips and the URL insisting otherwise, and no request but the volatile batch.
+`/collections/<slug>?price=50-150` rendered the whole collection, both price thumbs at the ends of
+the catalogue's own span, with the chips and the URL insisting otherwise, and no request but the
+volatile batch.
 `collection-grid` therefore **adopts the route after mount** (`adoptRouteState`) and watches it from
 there — which is also what makes Back/Forward and a shared link work. Two rules keep that honest and
 are worth copying into any block that reads the URL: adopt _after_ mount, never during `setup`, so
@@ -690,17 +700,17 @@ forgot to wire the key, not a store without commerce settings.
 `taxInclusivePricing` (whether the amounts on screen already contain VAT) and `defaultTaxRate`.
 
 The demo source answers the _whole_ request, not just the paging part: `search.run` honours the query
-text, and `catalog.collectionProducts` honours `sort` and `filters` (category, size, colour,
-availability and a price range in whole dollars) and returns the filtered `total`, with facet counts
-computed over the collection's own items so the filter UI never offers a value that returns nothing.
-That matters beyond tidiness — the scaffolded site and the collection sample page are both
-demo-backed, so a demo that ignored `filters` would show a shopper their filter changing the URL, the
-chips and the active-filter row while the grid and the count stayed exactly as they were. The facet
-pass itself is **one implementation, shared** — `app/storefront/facets.ts`, pure and framework-free
-— so the demo and the gateway filter by exactly the same rules (price bounds inclusive and in major
-units, `availability` read off the item's own stock, values OR-ed within a source and AND-ed across
-sources). The demo supplies the per-product attributes a product card does not carry; see the
-gateway's own paragraph below for what that means on the live site.
+text, and `catalog.collectionProducts` honours `sort` and `filters` (category, collection, size,
+colour, availability and a price range in whole major units) and returns the filtered `total`, plus
+the `facets` object that describes what it answered from. That matters beyond tidiness — the
+scaffolded site and the collection sample page are both demo-backed, so a demo that ignored
+`filters` would show a shopper their filter changing the URL, the chips and the active-filter row
+while the grid and the count stayed exactly as they were. The facet pass itself is **one
+implementation, shared** — `app/storefront/facets.ts`, pure and framework-free — so the demo and the
+gateway filter and count by exactly the same rules (price bounds inclusive and in major units,
+`availability` read off the item's own stock as `in_stock`/`out_of_stock`, values OR-ed within a
+source and AND-ed across sources). The demo supplies the per-product attributes a product card does
+not carry; see the gateway's own paragraph below for what that means on the live site.
 
 `catalog.collectionProducts` takes a `StorefrontCollectionSelector` — `{ slug }` or `{ id }` — not a
 bare handle, because a `reference` field stores the collection's id and may hand the block nothing
@@ -727,13 +737,15 @@ category holds nothing else. Its sort ids map to the sort fields the endpoint kn
 `best-selling` to none: `featured` _is_ the collection's own order, and the contract exposes no sales
 figures).
 
-**The collection grid's facets are applied client-side, over the results the gateway returned.**
-`category`, `option:*`, `price` and `availability` are not fields that endpoint filters on, so no
-`filter` token is built from them; sending one is a 400, and dropping them silently is worse —
-`?minPrice=50&maxPrice=150` used to leave the $48 product on screen under a URL, chips and an
-active-filter row that all claimed it had been filtered. `createGatewayStorefront` now runs the same
-`app/storefront/facets.ts` pass the demo does over the page it fetched, and reports the filtered
-count as `total`, which is what the grid's count line and `LoadMore`'s "Showing X of Y" read.
+**The collection grid's facets are applied — and counted — client-side, over the results the
+gateway returned.** `category`, `collection`, `option:*`, `price` and `availability` are not fields
+that endpoint filters on, and it answers no `facets` object, so no `filter` token is built from them;
+sending one is a 400, and dropping them silently is worse — `?price=50-150` used to leave the $48
+product on screen under a URL, chips and an active-filter row that all claimed it had been filtered.
+`createGatewayStorefront` runs the same `app/storefront/facets.ts` pass the demo does over the page
+it fetched, reports the filtered count as `total` (which is what the grid's count line and
+`LoadMore`'s "Showing X of Y" read), and derives the `facets` object the filter panel draws its
+groups from (`deriveFacets`).
 
 Two consequences worth knowing before a shop with a long collection goes live:
 
@@ -743,19 +755,67 @@ Two consequences worth knowing before a shop with a long collection goes live:
   Beyond the cap a filtered view describes only the first 200 products of the collection **in the
   gateway's current sort order**. Raise or lower the constant for your own catalogue; an unfiltered
   read is untouched either way (one request, the gateway's own `total`).
-- **`facets` are counted off the fetched rows** (`deriveFacets`) rather than read from a response
-  field that does not exist — `dto_ProductListResult` declares only `data`/`meta`. In practice that
-  is the colour group: `category`, `size` and `availability` are store vocabularies (which values
-  exist, in which order, under which labels) that a product-list row does not carry, so those groups
-  list nothing rather than inventing values. A facet the rows cannot answer is treated as _unknown_
-  and ignored — ticking a size never empties the grid on the live site — while `price` and
-  `availability`, which read the item itself, filter exactly as they do in the demo.
+- **`facets` are derived off the fetched rows** (`deriveFacets`) rather than read from a response
+  field that does not exist — `dto_ProductListResult` declares only `data`/`meta` and takes no
+  `facets=true`. What a row can answer is its price (the span), its own stock (the availability
+  counts) and `options` (`dto_ProductListItem.options`, every variant option value the product is
+  made in, which is what makes the size and colour groups real on the live site: the pass filters on
+  the same values it counts). What it cannot answer is its category or its collection membership, so
+  those two groups list nothing rather than inventing values. A family the rows cannot answer is
+  treated as _unknown_ and ignored — ticking a category never empties the grid on the live site.
+- **Counts leave their own family's filter out** and the price bounds leave only price out, in the
+  derivation exactly as in the platform's own facets (`CatalogFacets` in `app/storefront/types.ts`
+  states both rules). That is what makes a multi-select panel usable: ticking "Oat" must not zero
+  every other colour, and dragging a price thumb must not move the track under the shopper's hand.
+  A value another filter rules out keeps its place with a count of 0, and the panel disables it
+  rather than hiding it.
 
-**Core follow-up:** server-side facet filtering (and facet counts) on the catalog list endpoints
+**Core follow-up:** server-side facet filtering and facet counts on the catalog list endpoints
 (`internal/modules/catalog/repository/{collection_query,product_list}.go` filter on
-`id`/`slug`/`status`/`createdAt` only). When those land, the block's filters become `filter` tokens
-again, `total` and `facets` come from the response, and this whole client-side pass — scan cap
-included — goes away.
+`id`/`slug`/`status`/`createdAt` only, and neither read answers a `facets` object). When those land,
+the block's filters become real query parameters, `total` and `facets` come from the response, and
+this whole client-side pass — scan cap included — goes away. Nothing above
+`catalog.collectionProducts` changes on that day: `CatalogFacets` is already the shape the platform
+publishes, so the gateway source stops deriving it and reads the response's own instead.
+
+**The filter panel reads the facets and writes the query string.** `collection-grid`'s `filters[]`
+field names the groups and their order; everything in them — values, labels, swatches, counts — is
+the storefront's `facets`, never CMS content. The six sources are `category`, `collection`,
+`option:size`, `option:colour`, `price` and `availability`; `parts/groups.ts` is the one place a
+source is reconciled with the facets' own vocabulary (`options[].key`), and the one place the price
+grammar lives.
+
+- **Price is `@eldrajs/ui`'s `RangeSlider`** with its typed fields on: `min`/`max` are the
+  collection's own bounds from the facets, `step` is the `priceStep` field (default: one unit of
+  the store currency, ISK 100 — narrowed to a step the catalogue's span can hold ten of, so a
+  50-króna collection does not get a two-stop track), and `formatValue` is the store's own currency
+  formatter, so both thumbs announce "$1,200" and both fields read it. The group's hidden legend
+  names the currency ("Price range in USD"), which is why those fields carry no currency prefix of
+  their own. A thumb parked on the catalogue's own end is **no bound**, so a filter can be dragged
+  back off, and the move applies once it is over (pointer release, the key release that ends an
+  arrow-key run, a typed field committing) — one request and one URL write per gesture.
+  `priceSlider` off keeps the two typed fields alone, for prices that sit in a few tight clusters
+  a track cannot separate — a block-level field rather than one on the price `filters[]` row, see
+  below.
+- **The option sources are mapped to two literal store keys**, `size` and `colour`
+  (`parts/groups.ts`'s `OPTION_KEY`). The values come from the row's own `option.key`, so a store
+  whose option is keyed `color` or `Size` gets a group with no values, which the block then drops
+  silently. Rename the key in `OPTION_KEY` (and in the `filters[].source` option list) for a store
+  that spells its options differently.
+- **A value nothing is left for is disabled, not hidden** — see the counting rule above. A value
+  the shopper has already selected is never disabled, and one the facets stop listing altogether is
+  kept so the filter stays removable.
+- **The query string is the state**:
+  `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`
+  (plus `sort`, `columns` and `page`). One key per group, the option sources under their bare option
+  key, the price range as the single `<min>-<max>` string the request itself takes. It goes out
+  through `route.setQuery()` and comes back through `route.filters` — no router and no Nuxt global
+  inside `blocks/**` — so a filtered view is linkable and the back button works, while the
+  prerendered page stays the unfiltered one (see "A query string is not in the route while a
+  prerendered page hydrates" above). Two spellings are **retired**: the price pair
+  `?minPrice=…&maxPrice=…` is not read any more (a link carrying it renders the unfiltered
+  collection), while the pre-rename `?availability=in-stock` still is — it is folded into
+  `in_stock` on the way in, and a value from no vocabulary at all is dropped rather than guessed.
 
 `forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
 back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts

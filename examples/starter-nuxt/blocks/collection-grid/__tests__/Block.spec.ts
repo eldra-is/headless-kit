@@ -13,9 +13,10 @@ import { createGatewayStorefront } from '../../../app/storefront/gateway';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
+  CatalogFacets,
   StorefrontCatalog,
+  StorefrontCollectionProducts,
   StorefrontCollectionSelector,
-  StorefrontFacet,
   StorefrontProductListItem,
   StorefrontResult,
   StorefrontSource,
@@ -35,43 +36,48 @@ const bare = {
   paginationStyle: 'load-more',
 };
 
-const FACETS: StorefrontFacet[] = [
-  {
-    source: 'category',
-    label: 'Category',
-    values: [
-      { value: 'knitwear', label: 'Knitwear', count: 18 },
-      { value: 'ceramics', label: 'Ceramics', count: 14 },
-      { value: 'kitchen', label: 'Kitchen', count: 16 },
-      { value: 'discontinued', label: 'Discontinued', count: 0 },
-    ],
-  },
-  {
-    source: 'size',
-    label: 'Size',
-    values: [
-      { value: 'xs', label: 'XS', count: 6 },
-      { value: 's', label: 'S', count: 10 },
-      { value: 'm', label: 'M', count: 14 },
-    ],
-  },
-  {
-    source: 'colour',
-    label: 'Colour',
-    values: [
-      { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
-      { value: 'charcoal', label: 'Charcoal', count: 8, swatch: '#3a3a3a' },
-    ],
-  },
-  {
-    source: 'availability',
-    label: 'Availability',
-    values: [
-      { value: 'in-stock', label: 'In stock', count: 41 },
-      { value: 'backorder', label: 'Include back-order', count: 7 },
-    ],
-  },
-];
+/**
+ * How a store describes the scope the grid is showing (`CatalogFacets`): the price span the slider
+ * works across, the category and collection terms, the availability counts and every variant
+ * option value with its own count. `discontinued` counts zero on purpose — the panel offers it
+ * disabled rather than hiding it, which is what keeps controls from moving under the pointer.
+ */
+const FACETS: CatalogFacets = {
+  price: { min: 24, max: 180 },
+  categories: [
+    { id: 'cat-knitwear', slug: 'knitwear', title: 'Knitwear', count: 18 },
+    { id: 'cat-ceramics', slug: 'ceramics', title: 'Ceramics', count: 14 },
+    { id: 'cat-kitchen', slug: 'kitchen', title: 'Kitchen', count: 16 },
+    { id: 'cat-discontinued', slug: 'discontinued', title: 'Discontinued', count: 0 },
+  ],
+  collections: [
+    { id: 'col-the-winter-edit', slug: 'the-winter-edit', title: 'The winter edit', count: 48 },
+    { id: 'col-best-sellers', slug: 'best-sellers', title: 'Best sellers', count: 24 },
+  ],
+  availability: { in_stock: 41, out_of_stock: 7 },
+  options: [
+    {
+      key: 'size',
+      name: 'size',
+      values: [
+        { value: 'xs', label: 'XS', count: 6 },
+        { value: 's', label: 'S', count: 10 },
+        { value: 'm', label: 'M', count: 14 },
+      ],
+    },
+    {
+      key: 'colour',
+      name: 'colour',
+      values: [
+        { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
+        { value: 'charcoal', label: 'Charcoal', count: 8, swatch: '#3a3a3a' },
+      ],
+    },
+  ],
+};
+
+/** The price group's hidden legend, which names the store's currency (the demo store's USD). */
+const PRICE_LEGEND = enUS.grid.legendPrice.replace('{currency}', 'USD');
 
 interface Stub {
   source: StorefrontSource;
@@ -102,7 +108,7 @@ function createStub(
     filteredCount?: number;
     /** The facets a *filtered* request answers with — most backends compute them over the result
      *  set, so a value the shopper has ticked can stop being listed. */
-    filteredFacets?: StorefrontFacet[];
+    filteredFacets?: CatalogFacets;
   } = {}
 ): Stub {
   const base = createDemoStorefront();
@@ -132,11 +138,7 @@ function createStub(
         revalidating,
         error,
         refresh: async () => {},
-      } as unknown as StorefrontResult<{
-        items: StorefrontProductListItem[];
-        total: number;
-        facets: StorefrontFacet[];
-      }>;
+      } as unknown as StorefrontResult<StorefrontCollectionProducts>;
     },
   };
   return { source: { ...base, catalog }, pending, loading, revalidating, error, requests };
@@ -323,7 +325,7 @@ describe('collection-grid block', () => {
         enUS.grid.legendCategory,
         enUS.grid.legendSize,
         enUS.grid.legendColour,
-        enUS.grid.legendPrice,
+        PRICE_LEGEND,
         enUS.grid.legendAvailability,
       ]) {
         const { trigger, panel } = panelFor(wrapper, legend);
@@ -351,12 +353,20 @@ describe('collection-grid block', () => {
       }
     });
 
-    it('hides a filter value the store counts zero of', async () => {
+    /**
+     * Facet counts leave their own family's filter out, so a zero means "another filter rules this
+     * out" — and a control that disappears the moment a neighbour is ticked moves every control
+     * after it under the shopper's pointer. So it stays, disabled (contract §4).
+     */
+    it('offers a filter value the store counts zero of disabled, not hidden', async () => {
       const wrapper = mountGrid(mock, { source: createStub().source });
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
       expect(panel.text()).toContain('Knitwear (18)');
-      expect(panel.text()).not.toContain('Discontinued');
+      expect(panel.text()).toContain('Discontinued (0)');
+      const boxes = panel.findAll('input[type="checkbox"]');
+      expect(boxes[0]!.attributes('disabled')).toBeUndefined();
+      expect(boxes.at(-1)!.attributes('disabled')).toBeDefined();
     });
 
     it('drawer-only renders no sidebar at any width', async () => {
@@ -529,16 +539,65 @@ describe('collection-grid block', () => {
       expect(document.activeElement).toBe(countLine(wrapper).element);
     });
 
+    /** The slider's own typed fields commit on `Enter`, and a committed range is one chip reading
+     *  both bounds (a bound left at the catalogue's own end is no bound at all). */
     it('the price range is one removable chip reading both bounds', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();
-      const { panel } = panelFor(wrapper, enUS.grid.legendPrice);
-      const inputs = panel.findAll('input');
-      await inputs[0]!.setValue('0');
-      await inputs[1]!.setValue('180');
+      const { panel } = panelFor(wrapper, PRICE_LEGEND);
+
+      const min = panel.get('input[data-input="min"]');
+      await min.trigger('focus');
+      await min.setValue('50');
+      await min.trigger('keydown', { key: 'Enter' });
+      const max = panel.get('input[data-input="max"]');
+      await max.trigger('focus');
+      await max.setValue('150');
+      await max.trigger('keydown', { key: 'Enter' });
+      await wrapper.vm.$nextTick();
 
       const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
-      expect(list.text()).toContain('Price: $0 to $180');
+      expect(list.text()).toContain('Price: $50.00 to $150.00');
+
+      await list.get('[data-part="removeButton"]').trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+    });
+
+    /** Both thumbs span the collection's own prices, from the storefront's facets — never 0 and a
+     *  round number (spec Layout → Price). */
+    it('spans the collection’s own price bounds', async () => {
+      const wrapper = mountGrid(mock, { source: createStub().source });
+      await wrapper.vm.$nextTick();
+      const { panel } = panelFor(wrapper, PRICE_LEGEND);
+      const thumbs = panel.findAll('[role="slider"]');
+      expect(thumbs).toHaveLength(2);
+      expect(thumbs[0]!.attributes('aria-valuenow')).toBe('24');
+      expect(thumbs[1]!.attributes('aria-valuenow')).toBe('180');
+      // Spoken as money, in the store's own currency.
+      expect(thumbs[0]!.attributes('aria-valuetext')).toBe('$24.00');
+      expect(thumbs[0]!.attributes('aria-label')).toBe(enUS.grid.minPriceLabel);
+    });
+
+    /** `priceSlider` off: the two typed fields alone, which is what a store whose prices sit in a
+     *  few tight clusters sets (spec Fields). */
+    it('falls back to the two fields when the author turns the slider off', async () => {
+      const wrapper = mountGrid({
+        ...mock,
+        priceSlider: false,
+        filters: [{ source: 'price', label: 'Price' }],
+      });
+      await wrapper.vm.$nextTick();
+      const { panel } = panelFor(wrapper, PRICE_LEGEND);
+      expect(panel.findAll('[role="slider"]')).toHaveLength(0);
+      const inputs = panel.findAll('input');
+      expect(inputs).toHaveLength(2);
+
+      await inputs[0]!.setValue('50');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
+        'Price: $50.00'
+      );
     });
   });
 
@@ -998,7 +1057,10 @@ describe('collection-grid block', () => {
      * narrowing every request with no control left to undo it (and with results still non-empty
      * there is no empty-state "Clear filters" button to fall back on either).
      */
-    const withoutColour = FACETS.filter((facet) => facet.source !== 'colour');
+    const withoutColour: CatalogFacets = {
+      ...FACETS,
+      options: FACETS.options.filter((option) => option.key !== 'colour'),
+    };
 
     it('still renders its chip, and the chip removes it', async () => {
       const stub = createStub(PRODUCTS, { filteredCount: 4, filteredFacets: withoutColour });
@@ -1262,7 +1324,7 @@ describe('collection-grid block', () => {
   /**
    * The block over the *real* gateway storefront, not a stub of it.
    *
-   * `/collections/the-winter-edit?sort=featured&columns=3&minPrice=50&maxPrice=150` still showed the
+   * `/collections/the-winter-edit?sort=featured&columns=3&price=50-150` still showed the
    * $48 "Speckled stoneware bowl": the block read the range off the URL and sent it correctly, and
    * `createGatewayStorefront` dropped every facet before its list read, so the grid answered with the
    * unfiltered collection under a URL, chips and an active-filter row that all said otherwise. This
@@ -1326,7 +1388,7 @@ describe('collection-grid block', () => {
 
     it('drops the $48 card and counts only what the range keeps', async () => {
       const wrapper = mountGrid(mock, {
-        source: gatewaySource({ minPrice: ['50'], maxPrice: ['150'] }),
+        source: gatewaySource({ price: ['50-150'] }),
       });
       await flushPromises();
       await wrapper.vm.$nextTick();
@@ -1350,6 +1412,227 @@ describe('collection-grid block', () => {
   });
 
   /**
+   * **The query string a filtered view is linkable by** (contract §4):
+   * `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`.
+   *
+   * One key per group, written through the one writer a block may call (`route.setQuery`) — no
+   * router, no Nuxt global in `blocks/**` — and read back out of `route.filters` on the next page
+   * load. The prerendered page is always the unfiltered one, so this is the whole of how a
+   * filtered view survives being shared.
+   */
+  describe('the query string a filtered view is linkable by', () => {
+    const FILTERED = {
+      ...mock,
+      filters: [
+        { source: 'category', label: 'Category' },
+        { source: 'collection', label: 'Collection' },
+        { source: 'option:colour', label: 'Colour' },
+        { source: 'price', label: 'Price' },
+        { source: 'availability', label: 'Availability' },
+      ],
+    };
+
+    /** The demo route writes a `setQuery` patch straight back into `route.filters`, which is what
+     *  a real page does by way of the URL. */
+    function tick(wrapper: VueWrapper, legend: string, index = 0) {
+      const boxes = panelFor(wrapper, legend).panel.findAll('input[type="checkbox"]');
+      return boxes[index]!.setValue(true);
+    }
+
+    it('writes one key per group and the price as a single range', async () => {
+      const source = createDemoStorefront();
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+
+      // The price first: the facets' span narrows with every other filter applied (it is counted
+      // with every filter but price), so a floor typed after them would be clamped into whatever
+      // the remaining products cost.
+      const min = panelFor(wrapper, PRICE_LEGEND).panel.get('input[data-input="min"]');
+      await min.trigger('focus');
+      await min.setValue('50');
+      await min.trigger('keydown', { key: 'Enter' });
+      await wrapper.vm.$nextTick();
+      await tick(wrapper, enUS.grid.legendCategory);
+      await tick(wrapper, enUS.grid.legendCollection);
+      await tick(wrapper, enUS.grid.legendColour);
+      await tick(wrapper, enUS.grid.legendAvailability);
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters).toEqual({
+        category: ['knitwear'],
+        collection: ['the-winter-edit'],
+        colour: ['oat'],
+        availability: ['in_stock'],
+        price: ['50-'],
+      });
+    });
+
+    it('clears a key the shopper empties rather than leaving it in the URL', async () => {
+      const source = createDemoStorefront();
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+
+      await tick(wrapper, enUS.grid.legendCategory);
+      expect(source.route.filters.category).toEqual(['knitwear']);
+
+      const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
+      await list.get('[data-part="removeButton"]').trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.category).toBeUndefined();
+      expect(source.route.filters).toEqual({});
+    });
+
+    /**
+     * A link shared before the platform's `in_stock`/`out_of_stock` vocabulary landed. The pass
+     * still reads the old spelling, so the grid filters — but the block has to fold it into the
+     * current one, or the panel grows an untranslated third checkbox beside the two real ones with
+     * neither of them ticked, and the chip quotes the raw word.
+     */
+    it('folds a legacy availability spelling into the vocabulary the panel offers', async () => {
+      const source = createDemoStorefront({ filters: { availability: ['in-stock'] } });
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const boxes = panelFor(wrapper, enUS.grid.legendAvailability).panel.findAll(
+        'input[type="checkbox"]'
+      );
+      expect(boxes).toHaveLength(2);
+      expect((boxes[0]!.element as HTMLInputElement).checked).toBe(true);
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
+        `Availability: ${enUS.grid.availabilityInStock}`
+      );
+      expect(wrapper.text()).not.toContain('in-stock');
+      // And the request carries the current spelling, so the next write leaves a current URL.
+      expect(source.route.filters.availability).toEqual(['in-stock']);
+      await boxes[1]!.setValue(true);
+      await wrapper.vm.$nextTick();
+      expect(source.route.filters.availability).toEqual(['in_stock', 'out_of_stock']);
+    });
+
+    /** The other half of the round trip: the same bag, on a fresh page load, restores the whole
+     *  panel — the ticked values, the thumbs and the chips — and filters the first request. */
+    it('restores the panel and the request from that query on the next load', async () => {
+      const source = createDemoStorefront({
+        filters: {
+          category: ['knitwear'],
+          collection: ['the-winter-edit'],
+          colour: ['oat'],
+          availability: ['in_stock'],
+          price: ['50-150'],
+        },
+      });
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const checked = (legend: string) =>
+        panelFor(wrapper, legend)
+          .panel.findAll('input[type="checkbox"]')
+          .filter((box) => (box.element as HTMLInputElement).checked).length;
+      expect(checked(enUS.grid.legendCategory)).toBe(1);
+      expect(checked(enUS.grid.legendCollection)).toBe(1);
+      expect(checked(enUS.grid.legendColour)).toBe(1);
+      expect(checked(enUS.grid.legendAvailability)).toBe(1);
+
+      const thumbs = panelFor(wrapper, PRICE_LEGEND).panel.findAll('[role="slider"]');
+      expect(thumbs[0]!.attributes('aria-valuenow')).toBe('50');
+      expect(thumbs[1]!.attributes('aria-valuenow')).toBe('150');
+
+      const chips = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text();
+      expect(chips).toContain('Category: Knitwear');
+      expect(chips).toContain('Collection: The winter edit');
+      expect(chips).toContain('Colour: Oat');
+      expect(chips).toContain('Price: $50.00 to $150.00');
+
+      // And the grid itself is filtered — the demo source applies the same pass the gateway does.
+      expect(countLine(wrapper).text()).toBe('4 products');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  /**
+   * **A price range the shopper applied survives the next nudge of either thumb** — over the real
+   * demo storefront, because the bug this pins only exists in the composition.
+   *
+   * The facets' price span is counted with every filter *except* price (contract §1), so ticking a
+   * colour narrows it; the track is then widened back to hold the shopper's own bounds, or their
+   * range would read back as the one price the remaining products cost. On
+   * `?price=50-150&colour=oat` the track's extent therefore *is* 50–150, both thumbs sit on "an
+   * end", and deriving both bounds from the pair read the untouched one as "no bound": one
+   * ArrowRight on the minimum wrote `51-` and the ceiling was gone from the URL, the chip and the
+   * request while the track still ended at 150.
+   */
+  describe('an applied price range, with another group narrowing the facets', () => {
+    function applied() {
+      return createDemoStorefront({ filters: { price: ['50-150'], colour: ['oat'] } });
+    }
+
+    function priceThumbs(wrapper: VueWrapper) {
+      return panelFor(wrapper, PRICE_LEGEND).panel.findAll('[role="slider"]');
+    }
+
+    it('renders the thumbs at the applied values, not at the catalogue’s own ends', async () => {
+      const source = applied();
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const thumbs = priceThumbs(wrapper);
+      expect(thumbs[0]!.attributes('aria-valuenow')).toBe('50');
+      expect(thumbs[1]!.attributes('aria-valuenow')).toBe('150');
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
+        'Price: $50.00 to $150.00'
+      );
+    });
+
+    it('keeps the ceiling when the minimum is nudged', async () => {
+      const source = applied();
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const min = priceThumbs(wrapper)[0]!;
+      await min.trigger('keydown', { key: 'ArrowRight' });
+      await min.trigger('keyup', { key: 'ArrowRight' });
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.price).toEqual(['51-150']);
+    });
+
+    it('keeps the floor when the maximum is nudged', async () => {
+      const source = applied();
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const max = priceThumbs(wrapper)[1]!;
+      await max.trigger('keydown', { key: 'ArrowLeft' });
+      await max.trigger('keyup', { key: 'ArrowLeft' });
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.price).toEqual(['50-149']);
+    });
+
+    /** And the bound can still be dropped on purpose: a thumb the shopper takes all the way out is
+     *  "no bound", which is the gesture the rule above must not swallow. */
+    it('still drops a bound dragged out to the catalogue’s own end', async () => {
+      const source = createDemoStorefront({ filters: { price: ['50-150'] } });
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const min = priceThumbs(wrapper)[0]!;
+      await min.trigger('keydown', { key: 'Home' });
+      await min.trigger('keyup', { key: 'Home' });
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.price).toEqual(['-150']);
+    });
+  });
+
+  /**
    * The other direction of the URL round-trip: a query the block did not write.
    *
    * Back/Forward, a shared link to the same collection with a different range, and — the one that
@@ -1366,18 +1649,19 @@ describe('collection-grid block', () => {
       expect(countLine(wrapper).text()).toBe('12 products');
       expect(stub.requests.at(-1)?.filters).toBeUndefined();
 
-      stub.source.route.filters = { minPrice: ['50'], maxPrice: ['150'] };
+      stub.source.route.filters = { price: ['50-150'] };
       await wrapper.vm.$nextTick();
       await flushPromises();
 
       expect(stub.requests.at(-1)?.filters).toEqual({ price: ['50-150'] });
       expect(countLine(wrapper).text()).toBe('4 products');
-      // The sidebar's inputs are the applied state and show the range; the drawer's are its pending
-      // copy, which is seeded from the applied state when it opens, so they stay empty until then.
+      // The sidebar's slider fields are the applied state and read the range as money; the
+      // drawer's are its pending copy, seeded from the applied state only when it opens, so until
+      // then they read the catalogue's own span — which is what "no bound" looks like.
       const priceInputs = wrapper
-        .findAll('input[inputmode="numeric"]')
+        .findAll('input[data-input]')
         .map((input) => (input.element as HTMLInputElement).value);
-      expect(priceInputs).toEqual(['50', '150', '', '']);
+      expect(priceInputs).toEqual(['$50.00', '$150.00', '$24.00', '$180.00']);
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('$50');
     });
 

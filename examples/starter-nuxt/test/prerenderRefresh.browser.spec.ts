@@ -297,7 +297,14 @@ async function navigateFrom(from: string, go: (page: Page) => Promise<void>): Pr
   }
 }
 
-/** What the collection grid shows: its card titles, its count line, and its two price inputs. */
+/**
+ * What the collection grid shows: its card titles, its count line, and where its two price thumbs
+ * are.
+ *
+ * The thumbs rather than the typed fields beside them: a field's resting text is the store's own
+ * currency formatting ("4.200 kr."), while `aria-valuenow` is the number the filter is made of —
+ * which is what a URL carries and what this spec is about.
+ */
 interface GridState {
   titles: string[];
   count: string;
@@ -317,8 +324,8 @@ function readGrid(page: Page): Promise<GridState> {
     const status = [...(section?.querySelectorAll('p[role="status"]') ?? [])]
       .map((node) => (node as HTMLElement).textContent?.trim() ?? '')
       .filter((text) => text !== '');
-    const price = [...(section?.querySelectorAll('aside input[inputmode="numeric"]') ?? [])].map(
-      (input) => (input as HTMLInputElement).value
+    const price = [...(section?.querySelectorAll('aside [role="slider"]') ?? [])].map(
+      (thumb) => thumb.getAttribute('aria-valuenow') ?? ''
     );
     return { titles, count: status[0] ?? '', price };
   }, GRID_SECTION);
@@ -1271,8 +1278,8 @@ describe('prerendered commerce data on the generated static site', () => {
   /**
    * The facets a visitor arrives with, on a generated page.
    *
-   * `app/storefront/facets.ts` filters the gateway's results, and the block reads `minPrice`/
-   * `maxPrice` off the storefront route — and none of that reached a deployed site, because on a
+   * `app/storefront/facets.ts` filters the gateway's results, and the block reads `price` off the
+   * storefront route — and none of that reached a deployed site, because on a
    * prerendered page the URL's query is not in the route the block is built under. Nuxt hydrates a
    * prerendered route under the **payload's** path (`hasDeferredRoute` in its own router plugin:
    * the query arrives only after `app:suspense:resolve`), so the block seeded its filter state from
@@ -1285,12 +1292,14 @@ describe('prerendered commerce data on the generated static site', () => {
    * not happen on a generated page.
    */
   describe('collection facets from the URL', () => {
-    /** 42, 52 and 44 of the seven — the prices `test/support/mockGateway.ts` seeds. The range
-     *  inputs are major units, so they read the same whatever the store's currency is. */
+    /** 42, 52 and 44 of the seven — the prices `test/support/mockGateway.ts` seeds. The range is
+     *  in major units, so it reads the same whatever the store's currency is. */
     const IN_RANGE = ['Ash glaze mug', 'Brass candle holder', 'Linen napkin set'];
+    /** The seven products' own span (18–68), which is what the unfiltered thumbs sit at. */
+    const SPAN = ['18', '68'];
 
     it('renders the filtered set on a hard load, with the range in the inputs', async () => {
-      const visited = await visitCollection(`${collectionPage}/?minPrice=40&maxPrice=60`);
+      const visited = await visitCollection(`${collectionPage}/?price=40-60`);
 
       expect(visited.grid.titles).toEqual(IN_RANGE);
       expect(visited.grid.count).toBe(enUS.grid.nProducts.replace('{count}', '3'));
@@ -1306,7 +1315,7 @@ describe('prerendered commerce data on the generated static site', () => {
       // The server rendered the unfiltered page; the client applies the query after mounting, so
       // the first paint is still the server's and Vue has nothing to complain about.
       expect(visited.warnings).toEqual([]);
-      expect(visited.url).toBe(`${statics.origin}${collectionPage}/?minPrice=40&maxPrice=60`);
+      expect(visited.url).toBe(`${statics.origin}${collectionPage}/?price=40-60`);
     });
 
     it('re-reads and re-renders when the query changes under the block', async () => {
@@ -1325,7 +1334,7 @@ describe('prerendered commerce data on the generated static site', () => {
         await page.waitForTimeout(CATALOG_DELAY_MS + 1500);
         const before = await readGrid(page);
         expect(before.titles).toHaveLength(7);
-        expect(before.price).toEqual(['', '']);
+        expect(before.price).toEqual(SPAN);
 
         gateway.reset();
         await page.evaluate(
@@ -1333,7 +1342,7 @@ describe('prerendered commerce data on the generated static site', () => {
             (window as unknown as { __eldraPush: (path: string) => Promise<unknown> }).__eldraPush(
               to
             ),
-          `${collectionPage}?minPrice=40&maxPrice=60`
+          `${collectionPage}?price=40-60`
         );
         await page.waitForTimeout(CATALOG_DELAY_MS + 2500);
 
@@ -1347,7 +1356,7 @@ describe('prerendered commerce data on the generated static site', () => {
             request.startsWith(`/catalog/v1/collections/${COLLECTION_HANDLE}/products`)
           )
         ).toBe(true);
-        expect(page.url()).toBe(`${statics.origin}${collectionPage}?minPrice=40&maxPrice=60`);
+        expect(page.url()).toBe(`${statics.origin}${collectionPage}?price=40-60`);
         expect(warnings).toEqual([]);
       } finally {
         await page.close();

@@ -17,9 +17,10 @@
  * the block writes its state out through `route.setQuery()` — the one writer `StorefrontRoute`
  * exposes — and the page turns that into a URL. It reads back only what that interface can give
  * back: `route.page`, which is what makes the `pages` style's numbered links real navigation rather
- * than component state. Filters and sort have no reader on `StorefrontRoute` today, so they survive
- * as this component's own state for the life of the page; restoring them from a shared URL needs a
- * reader added to `StorefrontRoute`, not worked around here.
+ * than component state. Filters, the price range, the sort and the column count are read back the
+ * same way — `route.filters` is the generic bag every query key but the five typed ones lands in
+ * (`QUERY_KEY` below is this block's own spelling of them) — so a shared URL restores the whole
+ * grid state and the prerendered page stays the unfiltered one.
  *
  * **Two requests, not one.** The grid's request is driven by the *applied* selection. The drawer's
  * "Show N products" button needs the count for the *pending* one before it is applied — the spec is
@@ -85,17 +86,27 @@ import {
   selectorSlug,
 } from '../../app/storefront/collectionSelector';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
+import { canonicalAvailabilityValues } from '../../app/storefront/facets';
 import { safeHref } from '../../app/utils/links';
 import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
 import FilterGroups from './parts/FilterGroups.vue';
 import {
-  FACET_SOURCE,
+  defaultPriceStep,
+  FILTER_SOURCES,
+  fitPriceStep,
+  formatPriceRange,
   GROUP_KIND,
+  groupValuesFor,
   isFilterSource,
-  visibleFacetValues,
+  parsePriceRange,
+  priceSpanOf,
+  spanWithRange,
+  widenPriceSpan,
   type FilterGroup,
   type FilterSelection,
   type FilterSource,
+  type PriceRange,
+  type PriceSpan,
 } from './parts/groups';
 
 /**
@@ -238,22 +249,52 @@ const sectionLabel = computed(() =>
  * `publishState()`; `adoptRouteState()` below is the other direction, for the moves the block does
  * not make itself.
  */
+/**
+ * **The query key each filter source is spelled with**, in both directions: what `publishState()`
+ * writes and what the block reads back out of `route.filters`.
+ *
+ * `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`
+ * — one key per group, the option sources by their bare option key (the `option:` prefix is the
+ * *field's* vocabulary, not a shopper's URL), and the price range as the single `<min>-<max>`
+ * string the storefront request already uses, so the URL, the request and the chip all read one
+ * value. A filtered view is therefore linkable, and the back button works.
+ */
+const QUERY_KEY: Record<FilterSource, string> = {
+  category: 'category',
+  collection: 'collection',
+  'option:size': 'size',
+  'option:colour': 'colour',
+  price: 'price',
+  availability: 'availability',
+};
+
 function initialFilterSelection(): FilterSelection {
   const out: FilterSelection = {};
-  const category = route.filters.category;
-  if (category && category.length > 0) out.category = category;
-  const size = route.filters.size;
-  if (size && size.length > 0) out['option:size'] = size;
-  const colour = route.filters.colour;
-  if (colour && colour.length > 0) out['option:colour'] = colour;
-  const availability = route.filters.availability;
-  if (availability && availability.length > 0) out.availability = availability;
+  for (const source of FILTER_SOURCES) {
+    if (source === 'price') continue;
+    const values = route.filters[QUERY_KEY[source]];
+    if (values === undefined || values.length === 0) continue;
+    // `availability` is the one source with a vocabulary of its own rather than the store's, so a
+    // spelling from a link shared before the platform's `in_stock`/`out_of_stock` landed is folded
+    // into the current one here. The block's own state then only ever holds values the panel
+    // offers: an unfolded `in-stock` ticked nothing and rendered an untranslated third checkbox
+    // (and chip) beside the two real ones. A value from no vocabulary at all is dropped — the pass
+    // ignores it too (`facets.ts`), so a chip for it would promise a filter nothing applies.
+    const next = source === 'availability' ? canonicalAvailabilityValues(values) : [...values];
+    if (next.length > 0) out[source] = next;
+  }
   return out;
 }
 
+/** The price range the URL carries, sanitised the way a typed one is. */
+function routePriceRange(): PriceRange {
+  return parsePriceRange(route.filters[QUERY_KEY.price]?.[0]);
+}
+
 const selection = ref<FilterSelection>(initialFilterSelection());
-const priceMin = ref(route.filters.minPrice?.[0] ?? '');
-const priceMax = ref(route.filters.maxPrice?.[0] ?? '');
+const initialPrice = routePriceRange();
+const priceMin = ref(initialPrice.min);
+const priceMax = ref(initialPrice.max);
 
 const sortOptions = computed<SelectOption[]>(() => {
   const SORT_LABEL: Record<string, string> = {
@@ -330,7 +371,8 @@ function requestFiltersFor(
   for (const [source, selected] of Object.entries(values)) {
     if (selected && selected.length > 0) out[source] = [...selected];
   }
-  if (min !== '' || max !== '') out.price = [`${min}-${max}`];
+  const price = formatPriceRange({ min, max });
+  if (price !== null) out.price = [price];
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -349,7 +391,9 @@ const products = storefront.catalog.collectionProducts(selected, requestOptions)
 const items = computed(() => products.data.value?.items ?? []);
 const money = useMoney();
 const total = computed(() => products.data.value?.total ?? 0);
-const facets = computed(() => products.data.value?.facets ?? []);
+/** The storefront's own description of the scope it answered from — values, labels, swatches and
+ *  counts for every group (`CatalogFacets`). `undefined` from a source that cannot describe it. */
+const facets = computed(() => products.data.value?.facets);
 const pending = products.pending;
 
 /** A collection the storefront could only have found by id, and did not — a
@@ -443,19 +487,92 @@ const skeletonCount = computed(() =>
 // Filter groups
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * The price group's hidden legend names the store's currency — which is what lets its two fields
+ * drop the "$" prefix the two-field fallback still draws (spec Layout → Price). A store that
+ * publishes no currency gets the plain noun rather than a sentence with a hole in it.
+ */
+const priceLegend = computed(() =>
+  money.currency.value === undefined
+    ? t('grid.legendPriceAny')
+    : t('grid.legendPrice', { currency: money.currency.value })
+);
+
 const legends = computed<Record<FilterSource, string>>(() => ({
   category: t('grid.legendCategory'),
+  collection: t('grid.legendCollection'),
   'option:size': t('grid.legendSize'),
   'option:colour': t('grid.legendColour'),
-  price: t('grid.legendPrice'),
+  price: priceLegend.value,
   availability: t('grid.legendAvailability'),
 }));
 
-/** A group's title when the author set none and the store offers no facet label of its own — the
- *  legend, which is already the source's own name (`price`'s legend is a sentence, so not that). */
+/** A group's title when the author set none — the legend, which is already the source's own name
+ *  (`price`'s legend names the currency, so not that). */
 function defaultGroupLabel(source: FilterSource): string {
   return source === 'price' ? t('grid.price') : legends.value[source];
 }
+
+/** The two `availability` values' own names: the facets carry counts, never labels. */
+const availabilityLabels = computed(() => ({
+  inStock: t('grid.availabilityInStock'),
+  outOfStock: t('grid.availabilityOutOfStock'),
+}));
+
+/**
+ * The span the price control works across: **the catalogue's own bounds**, from the facets (spec:
+ * "not 0 and a round number"), which are counted with every filter *except* price applied and so
+ * stay still while the shopper drags.
+ *
+ * The fallback, for a storefront that answers no facets, is the span of the loaded products — and
+ * that one does move, because narrowing the price narrows the products. `widenPriceSpan` keeps the
+ * widest span seen for this collection, so the track cannot ratchet shut around the thumbs; it is
+ * dropped when the collection changes, since the next one's prices are its own.
+ */
+const facetPriceSpan = computed<PriceSpan | null>(() => facets.value?.price ?? null);
+const loadedPriceSpan = ref<PriceSpan | null>(null);
+watch([facetPriceSpan, items], ([facet, loaded]) => {
+  if (facet !== null) {
+    loadedPriceSpan.value = null;
+    return;
+  }
+  loadedPriceSpan.value = widenPriceSpan(loadedPriceSpan.value, priceSpanOf(loaded));
+});
+watch(selected, () => {
+  loadedPriceSpan.value = null;
+});
+const EMPTY_SPAN: PriceSpan = { min: 0, max: 0 };
+const priceSpan = computed<PriceSpan>(() =>
+  spanWithRange(facetPriceSpan.value ?? loadedPriceSpan.value ?? EMPTY_SPAN, {
+    min: priceMin.value,
+    max: priceMax.value,
+  })
+);
+
+/**
+ * The price slider's step: the author's `priceStep`, else one unit of the store currency (ISK 100,
+ * USD 1 — `defaultPriceStep`), narrowed to a step this catalogue's own span can actually hold
+ * (`fitPriceStep`). A non-positive or non-integer field value is no step at all, so it falls back
+ * rather than handing the slider a grid it cannot land on.
+ */
+/**
+ * The price group's control: the range slider (the default), or its two typed fields alone — what
+ * a store whose prices sit in a few tight clusters a track cannot separate sets.
+ *
+ * A block-level field rather than one on the `filters[]` row it describes, even though it is about
+ * the price group: a new child under an existing list item is a storage-shape change to the
+ * scanner (`storageCompatible` compares a list item's children by count and id, so it cannot tell
+ * an addition from a replacement), and the version bump it demands makes Core retire every
+ * author's configured `filters` list. A top-level addition costs nothing — and there is one price
+ * group at most, so the two shapes say the same thing.
+ */
+const priceSlider = computed(() => data.value.priceSlider !== false);
+
+const priceStep = computed(() => {
+  const own = data.value.priceStep;
+  if (typeof own === 'number' && Number.isFinite(own) && own > 0) return own;
+  return fitPriceStep(defaultPriceStep(money.currency.value), priceSpan.value);
+});
 
 const groups = computed<FilterGroup[]>(() => {
   const rows = (data.value.filters ?? []) as FilterField[];
@@ -463,23 +580,25 @@ const groups = computed<FilterGroup[]>(() => {
   for (const row of rows) {
     if (!isFilterSource(row.source)) continue;
     const source = row.source;
-    const facetKey = FACET_SOURCE[source];
-    const facet =
-      facetKey === undefined ? undefined : facets.value.find((f) => f.source === facetKey);
-    const values =
-      source === 'price' ? [] : visibleFacetValues(facet, selection.value[source] ?? []);
-    // A group whose store has nothing to offer is not a group. Price is the exception: its two
-    // inputs exist whether or not the store reports a range. A group that still carries a selection
-    // always has values — `visibleFacetValues` keeps them — so it can never be dropped out from
-    // under an applied filter.
+    const values = groupValuesFor(
+      source,
+      facets.value,
+      selection.value[source] ?? [],
+      availabilityLabels.value
+    );
+    // A group whose store has nothing to offer is not a group. Price is the exception: its control
+    // exists whether or not the store reports a range. A group that still carries a selection
+    // always has values — `groupValuesFor` keeps them — so it can never be dropped out from under
+    // an applied filter.
     if (source !== 'price' && values.length === 0) continue;
     out.push({
       source,
-      label: (row.label ?? '').trim() || facet?.label || defaultGroupLabel(source),
+      label: (row.label ?? '').trim() || defaultGroupLabel(source),
       kind: GROUP_KIND[source],
       collapsed: row.collapsed === true,
       legend: legends.value[source],
       values,
+      ...(source === 'price' ? { slider: priceSlider.value } : {}),
     });
   }
   return out;
@@ -525,9 +644,10 @@ const chips = computed<ActiveFilterChip[]>(() => {
     const label = group?.label ?? defaultGroupLabel(source);
     if (source === 'price') {
       if (priceMin.value === '' && priceMax.value === '') continue;
-      const prefix = t('grid.pricePrefix');
-      const from = priceMin.value === '' ? '' : `${prefix}${priceMin.value}`;
-      const to = priceMax.value === '' ? '' : `${prefix}${priceMax.value}`;
+      // The store's own currency formatter, the same one the slider's thumbs and fields speak
+      // with — never a hard-coded sign, which read "$50" beside a legend saying ISK.
+      const from = priceMin.value === '' ? '' : money.format(Number(priceMin.value));
+      const to = priceMax.value === '' ? '' : money.format(Number(priceMax.value));
       out.push({
         key: 'price',
         label: `${label}: ${from} ${t('grid.to')} ${to}`.replace(/\s+/g, ' ').trim(),
@@ -587,7 +707,7 @@ const emptyText = computed(() => {
  * filters inert — **arriving with a query on a prerendered page**. Nuxt hydrates a prerendered
  * route under the *payload's* path, query and all stripped, and only restores the real URL once
  * the app's `<Suspense>` has resolved (`hasDeferredRoute` in its router plugin). So
- * `?minPrice=50&maxPrice=150` simply is not in the route while the block is being built: seeding
+ * `?price=50-150` simply is not in the route while the block is being built: seeding
  * once left the inputs blank, the request unfiltered and the grid showing everything, under chips
  * and a URL that said otherwise.
  *
@@ -601,10 +721,9 @@ const emptyText = computed(() => {
 function adoptRouteState(): void {
   const next = initialFilterSelection();
   if (!sameSelection(next, selection.value)) selection.value = next;
-  const min = route.filters.minPrice?.[0] ?? '';
-  if (min !== priceMin.value) priceMin.value = min;
-  const max = route.filters.maxPrice?.[0] ?? '';
-  if (max !== priceMax.value) priceMax.value = max;
+  const range = routePriceRange();
+  if (range.min !== priceMin.value) priceMin.value = range.min;
+  if (range.max !== priceMax.value) priceMax.value = range.max;
   if (
     route.sort !== null &&
     route.sort !== sort.value &&
@@ -640,17 +759,19 @@ onMounted(() => {
 
 function publishState(): void {
   pagesLoaded.value = 1;
-  route.setQuery({
+  const patch: Record<string, string | string[] | null> = {
     page: null,
     sort: sort.value === '' ? null : sort.value,
     columns: columnsChoice.value,
-    category: selection.value.category ?? null,
-    size: selection.value['option:size'] ?? null,
-    colour: selection.value['option:colour'] ?? null,
-    availability: selection.value.availability ?? null,
-    minPrice: priceMin.value === '' ? null : priceMin.value,
-    maxPrice: priceMax.value === '' ? null : priceMax.value,
-  });
+    [QUERY_KEY.price]: formatPriceRange({ min: priceMin.value, max: priceMax.value }),
+  };
+  // Every source, selected or not: a key the shopper has just emptied has to be cleared, which a
+  // patch built only from what is selected would leave in the URL for ever.
+  for (const source of FILTER_SOURCES) {
+    if (source === 'price') continue;
+    patch[QUERY_KEY[source]] = selection.value[source] ?? null;
+  }
+  route.setQuery(patch);
 }
 
 const countText = computed(() => {
@@ -686,12 +807,12 @@ function onToggle(source: FilterSource, value: string, checked: boolean): void {
   selection.value = toggleIn(selection.value, source, value, checked);
   publishState();
 }
-function onMin(value: string): void {
-  priceMin.value = value;
-  publishState();
-}
-function onMax(value: string): void {
-  priceMax.value = value;
+/** Both bounds at once, from whichever price control set them — one state change, so one URL
+ *  write and one request per gesture. */
+function onRange(range: PriceRange): void {
+  if (range.min === priceMin.value && range.max === priceMax.value) return;
+  priceMin.value = range.min;
+  priceMax.value = range.max;
   publishState();
 }
 function onSort(value: string): void {
@@ -775,6 +896,10 @@ function openDrawer(): void {
 }
 function onPendingToggle(source: FilterSource, value: string, checked: boolean): void {
   pendingSelection.value = toggleIn(pendingSelection.value, source, value, checked);
+}
+function onPendingRange(range: PriceRange): void {
+  pendingMin.value = range.min;
+  pendingMax.value = range.max;
 }
 function clearPending(): void {
   pendingSelection.value = {};
@@ -894,10 +1019,12 @@ function hrefForPage(page: number): string {
               :selection="selection"
               :min="priceMin"
               :max="priceMax"
+              :price-span="priceSpan"
+              :price-step="priceStep"
+              :format-price="money.format"
               :id-prefix="`collection-grid-sidebar-${uid}`"
               @toggle="onToggle"
-              @update:min="onMin"
-              @update:max="onMax"
+              @update:range="onRange"
             />
           </aside>
 
@@ -1096,10 +1223,12 @@ function hrefForPage(page: number): string {
             :selection="pendingSelection"
             :min="pendingMin"
             :max="pendingMax"
+            :price-span="priceSpan"
+            :price-step="priceStep"
+            :format-price="money.format"
             :id-prefix="`collection-grid-drawer-${uid}`"
             @toggle="onPendingToggle"
-            @update:min="pendingMin = $event"
-            @update:max="pendingMax = $event"
+            @update:range="onPendingRange"
           />
           <template #footer>
             <div class="grid grid-cols-[auto_1fr] items-center gap-3">
