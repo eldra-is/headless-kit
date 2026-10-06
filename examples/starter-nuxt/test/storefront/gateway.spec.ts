@@ -188,6 +188,9 @@ describe('createGatewayStorefront', () => {
 
     expect(result.error.value).toBeNull();
     expect(result.data.value).toEqual({
+      // The one source a collection's own product list cannot narrow by, declared rather than
+      // dropped so the panel can stop offering it (`COLLECTION_SCOPE_UNFILTERABLE`).
+      unfilterable: ['collection'],
       items: [
         expect.objectContaining({
           handle: 'merino-crew-sweater',
@@ -630,7 +633,7 @@ describe('createGatewayStorefront', () => {
     expect(result.error.value).toBeNull();
     // No `facets` on the answer — a gateway that cannot describe its scope — so none is invented:
     // the panel then draws the groups it can fill without values (`StorefrontCollectionProducts`).
-    expect(result.data.value).toEqual({ items: [], total: 0 });
+    expect(result.data.value).toEqual({ items: [], total: 0, unfilterable: ['collection'] });
     expect(result.data.value).not.toHaveProperty('facets');
   });
 
@@ -1066,10 +1069,20 @@ describe('createGatewayStorefront', () => {
      * other collections these products are in — but the platform does not read the intersection
      * yet, so nothing is sent for it (`docs/starter-kit.md`).
      */
-    it('sends nothing for a collection filter, which this read cannot express', async () => {
+    it('sends nothing for a collection filter, and says the scope cannot narrow by it', async () => {
       const params = await paramsFor({ collection: ['the-autumn-edit'], 'option:colour': ['oat'] });
       expect(params.has('collectionId')).toBe(false);
       expect(params.getAll('option')).toEqual(['colour:oat']);
+
+      // Declared, not silently dropped: the panel hides the group rather than offering a filter
+      // that moves the chips and the URL and leaves the grid as it was.
+      const storefront = createGatewayStorefront(httpRecorder().client, { route: fakeRoute() });
+      const result = storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        ref({ page: 1, pageSize: 24 })
+      );
+      await drain();
+      expect(result.data.value?.unfilterable).toEqual(['collection']);
     });
 
     it('asks for facets on an unfiltered read too, so the panel has groups to draw', async () => {

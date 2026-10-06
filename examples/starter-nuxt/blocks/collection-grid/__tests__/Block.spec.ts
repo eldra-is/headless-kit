@@ -111,6 +111,8 @@ function createStub(
     filteredFacets?: CatalogFacets;
     /** How the store describes its scope at all, for the families it cannot count. */
     facets?: CatalogFacets;
+    /** The `filters` keys this scope cannot narrow by, as a storefront declares them. */
+    unfilterable?: readonly string[];
   } = {}
 ): Stub {
   const base = createDemoStorefront();
@@ -133,6 +135,7 @@ function createStub(
           facets: filtered
             ? (options.filteredFacets ?? options.facets ?? FACETS)
             : (options.facets ?? FACETS),
+          ...(options.unfilterable === undefined ? {} : { unfilterable: options.unfilterable }),
         };
       });
       return {
@@ -1087,6 +1090,87 @@ describe('collection-grid block', () => {
         PRICE_LEGEND,
       ]);
       expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  /**
+   * **A group whose scope cannot narrow by it is not offered**
+   * (`StorefrontCollectionProducts.unfilterable`).
+   *
+   * Counting a family and filtering on it are different capabilities: the platform reports which
+   * other collections a collection's products are also in, but has no parameter for the
+   * intersection, so the `collection` group would draw real counts and then change the chips, the
+   * URL and nothing else. The storefront says which sources its scope cannot honour and the panel
+   * drops those groups — the author's `filters[]` row included, because an author cannot know which
+   * scope their grid will be read in. A scope that honours the source keeps it.
+   */
+  describe('a filter source the scope cannot narrow by', () => {
+    const WITH_COLLECTION = {
+      ...mock,
+      filters: [
+        { source: 'category', label: 'Category' },
+        { source: 'collection', label: 'Collection' },
+        { source: 'price', label: 'Price' },
+      ],
+    };
+
+    const legendsOf = (wrapper: VueWrapper) => [
+      ...new Set(
+        groupTriggers(wrapper).map((trigger) =>
+          wrapper
+            .get(`#${trigger.attributes('aria-controls')!}`)
+            .get('legend')
+            .text()
+        )
+      ),
+    ];
+
+    it('keeps the group in a scope that honours it', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(WITH_COLLECTION, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      expect(legendsOf(wrapper)).toEqual([
+        enUS.grid.legendCategory,
+        enUS.grid.legendCollection,
+        PRICE_LEGEND,
+      ]);
+      // And it filters: ticking a value reaches the request.
+      const { panel } = panelFor(wrapper, enUS.grid.legendCollection);
+      await panel.get('input[type="checkbox"]').setValue(true);
+      expect(stub.requests.at(-1)?.filters?.collection).toEqual(['the-winter-edit']);
+    });
+
+    it('drops the group, and its chip, in a scope that cannot', async () => {
+      const stub = createStub(PRODUCTS, { unfilterable: ['collection'] });
+      const wrapper = mountGrid(WITH_COLLECTION, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      expect(legendsOf(wrapper)).toEqual([enUS.grid.legendCategory, PRICE_LEGEND]);
+      expect(wrapper.text()).not.toContain('Collection');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /**
+     * A shared link can still carry the key — the source is filterable in another scope, so neither
+     * the request nor the query string is rewritten — and the chip is what would otherwise promise
+     * a filter this scope ignores.
+     */
+    it('shows no chip for a value a shared link carries for it', async () => {
+      const stub = createStub(PRODUCTS, { filteredCount: 4, unfilterable: ['collection'] });
+      const source: StorefrontSource = {
+        ...stub.source,
+        route: { ...stub.source.route, filters: { collection: ['the-winter-edit'] } },
+      };
+      const wrapper = mountGrid(WITH_COLLECTION, { source });
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      expect(filterButton(wrapper).find('[data-part="hiddenSuffix"]').exists()).toBe(false);
+      // Still sent — this stub answers a filtered request with four of the twelve — because the
+      // storefront that declared the source unfilterable is the one already ignoring it, and the
+      // key is meaningful in a scope that can honour it.
+      expect(cards(wrapper)).toHaveLength(4);
     });
   });
 

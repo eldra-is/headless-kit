@@ -771,20 +771,33 @@ Four things worth knowing before a shop goes live:
   rather than an unfiltered page (an unfiltered one would read like a shop with nothing out of
   stock), so the grid reports it and keeps the page the shopper was looking at — the same treatment
   every other failed read over visible results gets.
-- **A `collection` group inside a collection grid cannot narrow anything yet.** There is no
-  `collectionId` parameter on `GET /catalog/v1/collections/{slug}/products`: the scope already _is_
-  one collection, and the parameter is an OR, so a second id would widen the scope rather than
-  intersect it. The `collections` facet is still answered there and still honest — it names the other
-  collections these products are in — so the group draws with real counts, but ticking a value sends
-  nothing. The source is **opt-in and not in the shipped seed**; leave it out until the platform
-  reads the intersection. (`collectionId` does exist on `GET /catalog/v1/products/list`, which this
-  theme has no faceted grid over.)
+- **A source the scope cannot narrow by is declared, and the panel hides its group.**
+  `StorefrontCollectionProducts.unfilterable` names the `filters` keys this answer's own scope cannot
+  honour, and `collection-grid` drops those groups and their chips — the author's `filters[]` row
+  included, because an author cannot know which scope their grid will be read in. Describing a family
+  and filtering on it are different capabilities, so a group fed by real counts can still be a filter
+  that moves the chips, the URL and nothing else, which is the defect this whole path removes. The
+  request and the query string are left alone: the source is meaningful in another scope, so a shared
+  link keeps working, and the storefront that declared it unfilterable is already the one ignoring it.
+  A storefront that can honour everything says nothing, which is also how one that has never heard of
+  the field reads.
 
-A clause the mapping cannot express is left out rather than guessed at — an unknown category slug, a
-price bound that is not a number, a `collection` clause — which is the storefront's standing
-"unknown, not unmatched" rule: a filter nothing can honour must not empty a shopper's grid. The one
-clause that is never dropped quietly is a category whose lookup _failed_: that fails the read, so the
-grid shows its error rather than a page that ignores a filter the chips say is applied.
+  Today that is exactly one source, `collection`, on a collection-scoped grid: there is no
+  `collectionId` parameter on `GET /catalog/v1/collections/{slug}/products` — the scope already _is_
+  one collection, and the parameter is an OR, so a second id would widen rather than intersect — while
+  the `collections` facet there is still answered and still honest, naming the other collections these
+  products are in. A read scoped to the whole catalogue (`GET /catalog/v1/products/list`, which does
+  take `collectionId`) would declare nothing; this theme has no faceted grid over it yet. The demo
+  storefront filters its own fixture by collection, so a Storybook story or a sample page keeps the
+  group.
+
+A clause the mapping cannot express is left out rather than guessed at — a price bound that is not a
+number, a `collection` clause, or **a category slug this store has no category for** (a stale shared
+link, a category since unpublished), which the request omits rather than sending as something that
+matches nothing. That is the storefront's standing "unknown, not unmatched" rule: a filter nothing can
+honour must not empty a shopper's grid. The one clause that is never dropped quietly is a category
+whose lookup _failed_: that fails the read, so the grid shows its error rather than a page that
+ignores a filter the chips say is applied.
 
 `app/storefront/facets.ts` belongs to the **demo** storefront: it filters and counts that fixture, so
 Storybook, the sample pages and the specs filter for real without a gateway. The gateway source hands

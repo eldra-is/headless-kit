@@ -1151,6 +1151,23 @@ interface CatalogFilterQuery {
   option?: string[];
 }
 
+/**
+ * **What a collection's own product list cannot filter by** (`StorefrontCollectionProducts`).
+ *
+ * `collection`, and only that: there is no `collectionId` parameter on
+ * `GET /catalog/v1/collections/{slug}/products`. The scope already *is* one collection, and the
+ * parameter the product list has is an OR over a list of ids — so a second id would widen the scope
+ * rather than intersect it, and there is no token for the intersection either. The `collections`
+ * facet is still answered on that route and still honest: it says which other collections these
+ * products are also in, which is worth reading and is not a filter.
+ *
+ * It is declared rather than silently dropped because the panel has to know: a group whose filter
+ * changes the chips, the URL and nothing else is the defect this whole path exists to remove. A read
+ * scoped to the **whole catalogue** (`GET /catalog/v1/products/list`, which does take `collectionId`)
+ * would declare nothing here; this theme has no faceted grid over it yet.
+ */
+const COLLECTION_SCOPE_UNFILTERABLE: readonly string[] = ['collection'];
+
 /** `"<min>-<max>"` in whole major units → one bound in minor units, or nothing to send. */
 function priceParam(raw: string | undefined, currency: string | undefined): number | undefined {
   if (raw === undefined || raw === '') return undefined;
@@ -1712,14 +1729,8 @@ export function createGatewayStorefront(
           // The shopper's facets are the endpoint's own query parameters (contract 3.7.0, see
           // `CatalogFilterQuery`), so one request answers the filtered page, the filtered `total`
           // and — with `facets=true` — the counts the panel draws its groups from, over the whole
-          // collection rather than the rows this read could reach.
-          //
-          // The one filter source that cannot be expressed is `collection`: there is no
-          // `collectionId` parameter on a collection's own product list (the scope already *is* one
-          // collection, and `collectionId` is an OR, so adding the picked one would widen the scope
-          // rather than narrow it). The `collections` facet is still answered there and still
-          // honest — it says which other collections these products are also in — but a theme
-          // offering it as a filter is offering an intersection the platform does not read yet.
+          // collection rather than the rows this read could reach. The one source it cannot narrow
+          // by is declared rather than dropped: see `COLLECTION_SCOPE_UNFILTERABLE`.
           const filterQuery = await catalogFilterQuery(filters, currency, categoryIdsOnce);
           const raw = (await client.catalog.listCollectionProducts(
             slug,
@@ -1736,6 +1747,7 @@ export function createGatewayStorefront(
           return {
             items: (raw.data ?? []).map(mapProductListItem),
             total: raw.meta.total,
+            unfilterable: COLLECTION_SCOPE_UNFILTERABLE,
             ...(facets === undefined ? {} : { facets }),
           };
         },

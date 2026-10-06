@@ -229,6 +229,24 @@ export interface StorefrontCollectionProducts {
   items: StorefrontProductListItem[];
   total: number;
   facets?: CatalogFacets;
+  /**
+   * **The `filters` keys this answer's own scope cannot narrow by.** Absent — the usual answer —
+   * means every source the caller sent was honoured.
+   *
+   * Describing a scope and *filtering* it are different capabilities, and a backend can offer the
+   * first without the second: the platform counts the other collections a collection's products are
+   * also in, but has no way to ask for the intersection, because its collection parameter is an OR
+   * over a list and the scope already is one collection. A source named here is therefore one whose
+   * counts may be perfectly real and whose filter would still change nothing.
+   *
+   * The filter panel **hides a group it names**, even one the author configured, because the
+   * alternative is a control that moves the chips and the URL and leaves the grid exactly as it was
+   * — the defect the whole server-side filter path exists to remove. A source is named by the same
+   * key the `filters` bag uses (`collection`, `option:size`), and a scope that can honour everything
+   * says nothing rather than listing every key it knows: a storefront that has never heard of this
+   * field is indistinguishable from one answering "all of them", which is the safe reading.
+   */
+  unfilterable?: readonly string[];
 }
 
 export interface StorefrontCartLine {
