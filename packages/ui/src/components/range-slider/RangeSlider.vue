@@ -30,7 +30,13 @@ import { useUiId } from '../../utils/id';
 import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';
 import { FIELD_BASE, FIELD_DISABLED, FIELD_LIVE, FIELD_SIZE } from '../input/classes';
-import type { RangeSliderProps, RangeSliderThumb, RangeSliderValue } from './types';
+import type {
+  RangeSliderEnd,
+  RangeSliderInputsSlotProps,
+  RangeSliderProps,
+  RangeSliderThumb,
+  RangeSliderValue,
+} from './types';
 import {
   clampRangeThumb,
   nearestRangeThumb,
@@ -450,6 +456,47 @@ function onInputEnter(thumb: RangeSliderThumb): void {
   commitInput(thumb);
 }
 
+/* -------------------------------------------------------------- the inputs slot */
+
+/**
+ * **What a replacement field applies one end of the range through** — `commitInput`'s own rules
+ * without its text handling, since a consumer's field owns its own text.
+ *
+ * It is the same two calls the built-in field's blur makes (`setThumb`, then `commitChange`), so a
+ * slotted currency field and a dragged thumb cannot end up disagreeing about what the range is, and
+ * `change` fires once per commit either way. The clamped number is returned for the same reason
+ * `commitInput` reads it rather than re-reading `value`: a controlled parent has not applied the
+ * write yet, and an `Enter` commit leaves the field focused.
+ */
+function commitEnd(end: RangeSliderEnd, next: number | null): number {
+  const thumb: RangeSliderThumb = end === 0 ? 'min' : 'max';
+  // `null` is an emptied field, which falls back to that end of the range — the gesture that clears
+  // half a filter, and the same fallback `commitInput` gives an emptied built-in field.
+  const fallback = thumb === 'min' ? props.min : props.max;
+  const applied = setThumb(thumb, next ?? fallback);
+  commitChange();
+  return applied;
+}
+
+defineSlots<{
+  /**
+   * The typed row under the track, for a consumer whose numbers are not generic numbers (a store's
+   * own currency field). Omitted, the built-in min / "to" / max fields render — they are this slot's
+   * default content, not a separate code path. Only drawn at all when `inputs` is set.
+   */
+  inputs?: (props: RangeSliderInputsSlotProps) => unknown;
+}>();
+
+const inputsSlotProps = computed<RangeSliderInputsSlotProps>(() => ({
+  value: value.value,
+  min: props.min,
+  max: props.max,
+  step: props.step,
+  disabled: props.disabled,
+  labels: { min: minName.value, max: maxName.value, separator: m.value.to },
+  commit: commitEnd,
+}));
+
 /**
  * `editing` turns off here, not in `commitInput`: an `Enter` commit leaves the field focused, and
  * resetting it there would let the reactive `:value` binding overwrite the next keystroke (the
@@ -606,26 +653,28 @@ const inputClass = computed(() =>
     <!-- The typed row (spec → Anatomy item 6). Each field takes the name of the thumb it mirrors;
          the word between them is punctuation, so it is hidden from assistive technology. -->
     <div v-if="inputs" data-part="inputs" :class="inputsClass">
-      <template v-for="(thumb, index) in thumbs" :key="thumb.thumb">
-        <span v-if="index === 1" data-part="separator" :class="separatorClass" aria-hidden="true">
-          {{ m.to }}
-        </span>
-        <input
-          data-part="input"
-          :data-input="thumb.thumb"
-          type="text"
-          :inputmode="digits > 0 ? 'decimal' : 'numeric'"
-          :class="inputClass"
-          :value="inputText(thumb.thumb)"
-          :aria-label="thumb.name"
-          :disabled="disabled || undefined"
-          @beforeinput="onBeforeInput"
-          @input="onInput($event, thumb.thumb)"
-          @focus="onInputFocus(thumb.thumb)"
-          @blur="onInputBlur(thumb.thumb)"
-          @keydown.enter.prevent="onInputEnter(thumb.thumb)"
-        />
-      </template>
+      <slot name="inputs" v-bind="inputsSlotProps">
+        <template v-for="(thumb, index) in thumbs" :key="thumb.thumb">
+          <span v-if="index === 1" data-part="separator" :class="separatorClass" aria-hidden="true">
+            {{ m.to }}
+          </span>
+          <input
+            data-part="input"
+            :data-input="thumb.thumb"
+            type="text"
+            :inputmode="digits > 0 ? 'decimal' : 'numeric'"
+            :class="inputClass"
+            :value="inputText(thumb.thumb)"
+            :aria-label="thumb.name"
+            :disabled="disabled || undefined"
+            @beforeinput="onBeforeInput"
+            @input="onInput($event, thumb.thumb)"
+            @focus="onInputFocus(thumb.thumb)"
+            @blur="onInputBlur(thumb.thumb)"
+            @keydown.enter.prevent="onInputEnter(thumb.thumb)"
+          />
+        </template>
+      </slot>
     </div>
   </div>
 </template>

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+import CurrencyInput from '../currency-input/CurrencyInput.vue';
 import RangeSlider from './RangeSlider.vue';
 
 /**
@@ -205,6 +206,76 @@ export const FractionalStep: Story = {
       <div class="flex flex-col gap-4">
         <RangeSlider v-model="value" label="Metres" :min="0" :max="10" :step="0.1" inputs />
         <p class="text-body-sm text-muted">Selected: {{ value[0] }} to {{ value[1] }} m</p>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * **A store's own currency fields, through the `inputs` slot.**
+ *
+ * The built-in fields are generic number fields, and money is not a generic number: a price filter
+ * wants the symbol, the store's grouping and the caret behaviour a money field has. So the row is
+ * replaceable and the *value* is not — `commit(end, next)` applies the same snap, the same clamp
+ * against the bounds and against the other thumb, and emits the same `change` a built-in field's
+ * blur does, so these fields and the thumbs cannot disagree about the range.
+ *
+ * Note what the fields are bound to: a **local** number per field, written on every keystroke, and
+ * `commit` called only on blur or `Enter` (spec → Behaviour & motion). Committing per keystroke
+ * would snap and clamp a half-typed number under the customer's caret.
+ */
+export const CurrencyFields: Story = {
+  render: () => ({
+    components: { RangeSlider, CurrencyInput },
+    setup() {
+      const value = ref<[number, number]>([1200, 4800]);
+      const typed = ref<[number | null, number | null]>([1200, 4800]);
+      watch(value, (next) => {
+        typed.value = [next[0], next[1]];
+      });
+      return { value, typed };
+    },
+    template: `
+      <div class="flex flex-col gap-4">
+        <RangeSlider
+          v-model="value"
+          label="Price"
+          :min="0"
+          :max="6000"
+          :step="100"
+          inputs
+        >
+          <template #inputs="{ labels, min, max, step, disabled, commit }">
+            <CurrencyInput
+              v-model="typed[0]"
+              currency="USD"
+              :max-fraction="0"
+              :min="min"
+              :max="max"
+              :step="step"
+              :disabled="disabled"
+              :label="labels.min"
+              @blur="commit(0, typed[0])"
+              @keydown.enter.prevent="commit(0, typed[0])"
+            />
+            <span class="self-center text-center text-body-sm text-muted" aria-hidden="true">
+              {{ labels.separator }}
+            </span>
+            <CurrencyInput
+              v-model="typed[1]"
+              currency="USD"
+              :max-fraction="0"
+              :min="min"
+              :max="max"
+              :step="step"
+              :disabled="disabled"
+              :label="labels.max"
+              @blur="commit(1, typed[1])"
+              @keydown.enter.prevent="commit(1, typed[1])"
+            />
+          </template>
+        </RangeSlider>
+        <p class="text-body-sm text-muted">Selected: {{ value[0] }} to {{ value[1] }}</p>
       </div>
     `,
   }),

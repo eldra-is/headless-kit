@@ -197,6 +197,8 @@ export type {
   RadioGroupSize,
 } from './components/radio/types';
 export type {
+  RangeSliderEnd,
+  RangeSliderInputsSlotProps,
   RangeSliderPart,
   RangeSliderProps,
   RangeSliderThumb,

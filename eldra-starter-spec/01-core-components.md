@@ -1879,7 +1879,7 @@ Price                                           ← label, names the group and b
 | `minLabel` | string | "Minimum \<label\>" | The minimum thumb's and minimum field's name. The label joins as written, so a "price" label reads "Minimum price"; set this to name the end exactly. |
 | `maxLabel` | string | "Maximum \<label\>" | The maximum thumb's and maximum field's name. |
 | `formatValue` | function | none | `(value) => string`, used for every number the control speaks or prints: both `aria-valuetext`s and both fields' resting text. A store passes its currency formatter, so a thumb announces "$1,200" rather than "1200". |
-| `inputs` | boolean | `false` | Render the typed row under the track. |
+| `inputs` | boolean | `false` | Render the typed row under the track. The built-in fields are generic number fields; a store supplies its **own currency fields** in their place through the row's slot, which hands the fields the bounds, the step, the two thumbs' names and one `commit(end, value)` that applies either end under exactly the rules a built-in field's blur does — so the fields and the thumbs stay one value. |
 | `disabled` | boolean | `false` | The whole control: both thumbs, the rail and both fields. |
 
 **Events**

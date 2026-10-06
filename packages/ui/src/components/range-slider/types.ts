@@ -21,6 +21,52 @@ export type RangeSliderPart =
 /** Which end of the range a value, a thumb or a field belongs to. */
 export type RangeSliderThumb = 'min' | 'max';
 
+/** Which end of the range a slot's `commit` is addressing: `0` the minimum, `1` the maximum. */
+export type RangeSliderEnd = 0 | 1;
+
+/**
+ * What the `inputs` slot is handed — everything a replacement field needs to be *this* control's
+ * field rather than a second source of truth beside it.
+ *
+ * The slot exists because the numbers a control like this edits are often not generic numbers. A
+ * store filtering by price wants its own currency field — grouping, the symbol, the store's
+ * fraction digits, the caret behaviour money fields have — and the built-in fields cannot be that
+ * without this package deciding a consumer's money formatting for them. So the row is replaceable
+ * and the *value* is not: `commit` applies the same rules the built-in fields do (snap to the step
+ * grid, clamp to `[min, max]`, clamp against the other thumb, then emit `change`), so a slotted
+ * field and a dragged thumb cannot disagree about what the range is.
+ */
+export interface RangeSliderInputsSlotProps {
+  /** The current span as the control holds it: snapped into the bounds, lowest first. */
+  value: RangeSliderValue;
+  min: number;
+  max: number;
+  step: number;
+  disabled: boolean;
+  /**
+   * The names the two thumbs already carry (`minLabel`/`maxLabel`, else the `minimum`/`maximum`
+   * message joined with `label`) and the word between the fields. A replacement field should name
+   * itself with the same string its thumb does, or a screen reader hears two different names for
+   * one end of the range.
+   */
+  labels: { min: string; max: string; separator: string };
+  /**
+   * **Apply one end of the range**, exactly as a built-in field's blur or `Enter` does: `next` is
+   * snapped to the step grid, clamped to the bounds and clamped against the other thumb, the model
+   * is updated and `change` is emitted. `null` is an emptied field, which falls back to that end of
+   * the range — the gesture that clears half a filter.
+   *
+   * It returns the number that was actually applied, which is what a controlled field should show:
+   * a parent has not applied the write yet when this returns, and an `Enter` commit leaves the
+   * field focused, so re-reading `value` would show the old number until the parent's update
+   * arrived.
+   *
+   * Call it on **blur or `Enter`**, never per keystroke (spec "Range slider" → Behaviour & motion):
+   * a commit per character would snap and clamp a half-typed number.
+   */
+  commit: (end: RangeSliderEnd, next: number | null) => number;
+}
+
 /** The selected span, lowest first. The two may meet but never cross. */
 export type RangeSliderValue = [number, number];
 
@@ -57,7 +103,11 @@ export interface RangeSliderProps {
    * digits as `step` has.
    */
   formatValue?: (value: number) => string;
-  /** Render the typed min / "to" / max row under the track. */
+  /**
+   * Render the typed min / "to" / max row under the track. The fields are generic number fields;
+   * a consumer with its own (a currency field, say) replaces them through the `inputs` slot while
+   * this prop still decides whether the row exists at all — see `RangeSliderInputsSlotProps`.
+   */
   inputs?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<RangeSliderPart, string>>;

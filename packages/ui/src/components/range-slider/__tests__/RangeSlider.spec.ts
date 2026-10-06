@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { h, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import RangeSlider from '../RangeSlider.vue';
-import type { RangeSliderThumb, RangeSliderValue } from '../types';
+import type { RangeSliderInputsSlotProps, RangeSliderThumb, RangeSliderValue } from '../types';
 
 type Wrapper = ReturnType<typeof mountWith<typeof RangeSlider>>;
 
@@ -803,6 +803,173 @@ describe('RangeSlider — a drag that ends without a pointerup', () => {
     await rail.trigger('pointermove', { clientX: 180 });
     await settle();
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[80, 80]]);
+    wrapper.unmount();
+  });
+});
+
+/**
+ * **The `inputs` slot.** The typed row is replaceable because money is not a generic number — a
+ * price filter wants its store's own currency field — and the *value* is not replaceable with it:
+ * `commit` is the same two calls a built-in field's blur makes, so a slotted field and a dragged
+ * thumb cannot disagree about what the range is.
+ */
+describe('RangeSlider — the inputs slot', () => {
+  /**
+   * A replacement row: two plain fields that commit on blur and on `Enter`, nothing else.
+   *
+   * Built with `h` rather than a template string because the slot is a **scoped** one and the
+   * runtime template compiler these mounts use accepts no TypeScript in its expressions — a render
+   * function also makes it obvious that `commit` is the only way the row reaches the value.
+   */
+  const slotted = (props: Record<string, unknown>): Wrapper => {
+    const holder: { wrapper?: Wrapper } = {};
+    const seen: { applied?: number } = {};
+    holder.wrapper = mountWith(RangeSlider, {
+      props: {
+        ...props,
+        'onUpdate:modelValue': (value: RangeSliderValue) => {
+          void holder.wrapper?.setProps({ modelValue: value });
+        },
+      },
+      slots: {
+        inputs: (slot: RangeSliderInputsSlotProps) => {
+          const { value, min, max, step, disabled, labels, commit } = slot;
+          seen.applied = commit(0, value[0]);
+          return [
+            h(
+              'span',
+              { 'data-test': 'state' },
+              `${value[0]}-${value[1]}|${min}|${max}|${step}|${String(disabled)}`
+            ),
+            h('span', { 'data-test': 'labels' }, `${labels.min}/${labels.max}/${labels.separator}`),
+            h('span', { 'data-test': 'applied' }, String(seen.applied)),
+            h('input', {
+              'data-test': 'min',
+              'aria-label': labels.min,
+              onBlur: (event: FocusEvent) =>
+                commit(0, Number((event.target as HTMLInputElement).value)),
+            }),
+            h('input', {
+              'data-test': 'max',
+              'aria-label': labels.max,
+              onKeydown: (event: KeyboardEvent) => {
+                if (event.key === 'Enter') {
+                  commit(1, Number((event.target as HTMLInputElement).value));
+                }
+              },
+            }),
+            h('button', { 'data-test': 'clear-min', onClick: () => commit(0, null) }, 'clear'),
+          ];
+        },
+      },
+    });
+    return holder.wrapper;
+  };
+
+  it('replaces the built-in fields and keeps the row’s own part', () => {
+    const wrapper = slotted({ modelValue: [20, 80], min: 0, max: 100, inputs: true });
+    expect(wrapper.find('[data-part="inputs"]').exists()).toBe(true);
+    // The built-in fields are the slot's *default content*, so supplying it replaces them.
+    expect(wrapper.find('[data-input="min"]').exists()).toBe(false);
+    expect(wrapper.find('[data-input="max"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="min"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  /** Nothing renders the row at all without `inputs` — the slot does not override that decision. */
+  it('is not rendered without the inputs prop', () => {
+    const wrapper = slotted({ modelValue: [20, 80], min: 0, max: 100 });
+    expect(wrapper.find('[data-part="inputs"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="min"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('hands the slot the control’s own numbers and the thumbs’ own names', () => {
+    const wrapper = slotted({
+      modelValue: [20, 80],
+      min: 0,
+      max: 100,
+      step: 5,
+      disabled: true,
+      label: 'Price',
+      inputs: true,
+    });
+    expect(wrapper.find('[data-test="state"]').text()).toBe('20-80|0|100|5|true');
+    // The same names the thumbs carry, or a screen reader hears two names for one end.
+    const names = wrapper.find('[data-test="labels"]').text();
+    expect(names).toBe('Minimum Price/Maximum Price/to');
+    expect(thumb(wrapper, 'min').getAttribute('aria-label')).toBe('Minimum Price');
+    wrapper.unmount();
+  });
+
+  /** `commit` snaps to the step grid and clamps to the bounds, exactly as a built-in field does. */
+  it('snaps and clamps a committed value', async () => {
+    const wrapper = slotted({ modelValue: [20, 80], min: 0, max: 100, step: 10, inputs: true });
+    const min = wrapper.find('[data-test="min"]');
+    (min.element as HTMLInputElement).value = '37';
+    await min.trigger('blur');
+    await settle();
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[40, 80]]);
+    // Past the far bound: clamped to it, not sent through.
+    (min.element as HTMLInputElement).value = '9999';
+    await min.trigger('blur');
+    await settle();
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[80, 80]]);
+    wrapper.unmount();
+  });
+
+  /** The two cannot cross from a field either: the maximum stops at the minimum's value. */
+  it('clamps a committed value against the other thumb', async () => {
+    const wrapper = slotted({ modelValue: [40, 80], min: 0, max: 100, step: 10, inputs: true });
+    const max = wrapper.find('[data-test="max"]');
+    (max.element as HTMLInputElement).value = '10';
+    await max.trigger('keydown', { key: 'Enter' });
+    await settle();
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[40, 40]]);
+    wrapper.unmount();
+  });
+
+  /** `null` is an emptied field: that end falls back to the bound, which clears half a filter. */
+  it('reads null as an emptied field', async () => {
+    const wrapper = slotted({ modelValue: [40, 80], min: 0, max: 100, step: 10, inputs: true });
+    await wrapper.find('[data-test="clear-min"]').trigger('click');
+    await settle();
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[0, 80]]);
+    wrapper.unmount();
+  });
+
+  /** `change` is the commit event, once per commit — the same contract the built-in field has. */
+  it('emits change once per commit, with the applied pair', async () => {
+    const wrapper = slotted({ modelValue: [20, 80], min: 0, max: 100, step: 10, inputs: true });
+    const min = wrapper.find('[data-test="min"]');
+    (min.element as HTMLInputElement).value = '50';
+    await min.trigger('blur');
+    await settle();
+    expect(wrapper.emitted('change')).toEqual([[[50, 80]]]);
+    wrapper.unmount();
+  });
+
+  /**
+   * It returns what was **applied**, not what was asked for — which is what a controlled field has
+   * to show: the parent has not written back when `commit` returns, and an `Enter` commit leaves
+   * the field focused, so re-reading `value` would show the old number.
+   */
+  it('returns the number it applied', () => {
+    const wrapper = slotted({ modelValue: [23, 80], min: 0, max: 100, step: 10, inputs: true });
+    // The slot calls `commit(0, value[0])` while rendering: 23 snaps to 20.
+    expect(wrapper.find('[data-test="applied"]').text()).toBe('20');
+    wrapper.unmount();
+  });
+
+  it('is axe-clean with a replacement row', async () => {
+    const wrapper = slotted({
+      modelValue: [20, 80],
+      min: 0,
+      max: 100,
+      label: 'Price',
+      inputs: true,
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });

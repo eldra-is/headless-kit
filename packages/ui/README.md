@@ -669,6 +669,42 @@ rangeKeyTransition('PageUp', false, 'min', [1200, 4800], math); // the next valu
 snapToRangeStep(4830, math); // 4800 — or either bound, each of which is a stop of its own
 ```
 
+**The typed row is replaceable, and the value is not.** `RangeSlider`'s built-in min / "to" / max
+fields are generic number fields, and money is not a generic number — a price filter wants the
+store's own currency field. So `inputs` keeps deciding whether the row exists and the `inputs` slot
+decides what is in it, while every write still goes through the control:
+
+```vue
+<RangeSlider v-model="range" label="Price" :min="span.min" :max="span.max" :step="step" inputs>
+  <template #inputs="{ labels, min, max, step, disabled, commit }">
+    <CurrencyInput
+      v-model="typedMin"
+      :currency="currency"
+      :max-fraction="0"
+      :min="min"
+      :max="max"
+      :step="step"
+      :disabled="disabled"
+      :label="labels.min"
+      @blur="commit(0, typedMin)"
+      @keydown.enter.prevent="commit(0, typedMin)"
+    />
+    <span aria-hidden="true">{{ labels.separator }}</span>
+    <!-- …the same for the maximum, through `commit(1, …)` -->
+  </template>
+</RangeSlider>
+```
+
+`commit(end, next)` applies that end exactly as a built-in field's blur does — snapped to the step
+grid, clamped to the bounds, clamped against the other thumb, `change` emitted once — and returns
+the number it actually applied, which is what a controlled field should show (the parent has not
+written back when it returns, and an `Enter` commit leaves the field focused). `null` is an emptied
+field and falls back to that end of the range. Two rules about _when_: bind the field to a **local**
+number and call `commit` on **blur or `Enter` only**, never per keystroke, or a half-typed figure is
+snapped and clamped under the customer's caret; and name the field with `labels.min`/`labels.max`,
+the strings its thumb already uses, or a screen reader hears two different names for one end of the
+range.
+
 Two rules in there are not obvious and are the reason these are worth importing rather than
 rewriting. **Both bounds are stops**, not just the multiples of `step`: a price filter's bounds come
 from the catalogue and owe the step nothing, so with a step of 3 over a 0-10 range the stops are 0,
