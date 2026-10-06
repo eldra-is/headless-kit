@@ -480,6 +480,40 @@ describe('prerendered commerce data on the generated static site', () => {
   });
 
   /**
+   * **A category page is prerendered at its canonical path, and at no other.**
+   *
+   * The fixture's tree is `Tableware` over `Cups`, so the only two paths the category template
+   * answers are `/categories/tableware` and `/categories/tableware/cups` — a leaf on its own is not
+   * one of them, and a static host answers a path it has no file for with a 404, which is exactly
+   * the canonical-only rule the route is built on. No unit test can see this: the pattern is a
+   * catch-all, the path is the storefront's own walk up the tree, and only a real generate writes
+   * the files.
+   */
+  it('prerenders each category at its canonical path and nowhere else', () => {
+    expect(existsInOutput(join('/categories/tableware', 'index.html'))).toBe(true);
+    expect(existsInOutput(join('/categories/tableware/cups', 'index.html'))).toBe(true);
+    // The leaf without its ancestor, which is the mistake a merchant's old link makes.
+    expect(existsInOutput(join('/categories/cups', 'index.html'))).toBe(false);
+    // And the prefix itself, which is not a category.
+    expect(existsInOutput(join('/categories', 'index.html'))).toBe(false);
+
+    const leaf = staticHtml('/categories/tableware/cups');
+    expect(leaf).not.toContain('data-eldra-not-found');
+    expect(leaf).not.toContain('data-eldra-invalid-layout');
+    // The title is the routed category's, bound on the seed's own layout node.
+    expect(leaf).toContain('Cups');
+    // The trail's ancestor crumb, linking to that ancestor's own canonical path.
+    expect(leaf).toContain('href="/categories/tableware"');
+    expect(leaf).toContain('<header');
+    expect(leaf).toContain('<footer');
+
+    // The parent's page is where the strip of children is drawn, each child linking to its own page.
+    const root = staticHtml('/categories/tableware');
+    expect(root).not.toContain('data-eldra-not-found');
+    expect(root).toContain('href="/categories/tableware/cups"');
+  });
+
+  /**
    * **The whole site, once per locale.** The organisation serves `en-US` at `/` and `is-IS` under a
    * prefix (`test/support/mockGateway.ts`), so `@eldrajs/theme-nuxt`'s `prerender:routes` hook has
    * to write a prefixed copy of every content path it discovered — pages, the seeded
@@ -494,6 +528,7 @@ describe('prerendered commerce data on the generated static site', () => {
       ...SEEDED_PAGE_PATHS,
       `/products/${PRODUCT_HANDLE}`,
       `/collections/${COLLECTION_HANDLE}`,
+      '/categories/tableware/cups',
     ];
     for (const path of prefixed) {
       const file = join(`/${PREFIXED_LOCALE}${path}`, 'index.html');
