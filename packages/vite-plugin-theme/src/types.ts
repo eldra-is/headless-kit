@@ -14,10 +14,15 @@ export interface DeclaredThemeCodePage {
   description?: string;
 }
 
-/** The two catalog ids a route template may name instead of a CMS schema, plus
- * the home seed. `catalog:product` / `catalog:collection` are reserved ids
- * resolved against the catalog at render time, not CMS schemas. */
-export type TemplateSeedSchemaApiId = 'catalog:product' | 'catalog:collection' | 'home';
+/** The three catalog ids a route template may name instead of a CMS schema,
+ * plus the home seed. `catalog:product` / `catalog:collection` /
+ * `catalog:category` are reserved ids resolved against the catalog at render
+ * time, not CMS schemas. */
+export type TemplateSeedSchemaApiId =
+  | 'catalog:product'
+  | 'catalog:collection'
+  | 'catalog:category'
+  | 'home';
 
 /** A seed's other target: a static site **Page** at `/<slug>`, rather than a
  * route template. A seed names one or the other — `schemaApiId`/`routePattern`

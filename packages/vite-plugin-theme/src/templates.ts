@@ -23,9 +23,24 @@ const MAX_TEMPLATE_BLOCKS = 50;
 const MAX_TITLE_LENGTH = 80;
 const HOME_ROUTE_PATTERN = '/';
 const CATALOG_SLUG_PARAM = 'slug';
+/**
+ * A category seed's own parameter, and it is a different shape: a category is
+ * addressed by its **canonical path** — the slugs of its ancestors, root first,
+ * then its own — so the pattern's trailing parameter is the catch-all `:path*`
+ * and the field it is resolved by is `path`. Core enforces the same pairing in
+ * route-template entry validation and in the manifest seed's target check, so a
+ * seed this accepted and the deploy refused would be a scan that lied.
+ */
+const CATEGORY_PATH_PARAM = 'path';
+const CATEGORY_SCHEMA_API_ID = 'catalog:category';
 /** The same id shape layout nodes take everywhere else in the kit. */
 const NODE_ID_PATTERN = /^[a-z][a-z0-9-]{0,47}$/;
-const SCHEMA_API_IDS = new Set(['catalog:product', 'catalog:collection', 'home']);
+const SCHEMA_API_IDS = new Set([
+  'catalog:product',
+  'catalog:collection',
+  CATEGORY_SCHEMA_API_ID,
+  'home',
+]);
 /** The target the home seed also emits a page seed for, and the slug it takes:
  * the site root Page Core has always created from it. */
 const HOME_SCHEMA_API_ID = 'home';
@@ -225,8 +240,8 @@ export function validateTemplateSeeds(
     const seed = entry as unknown as DeclaredTemplateSeed;
     if (!SCHEMA_API_IDS.has(seed.schemaApiId)) {
       errors.push(
-        `${at}.schemaApiId — must be "catalog:product", "catalog:collection" or "home" (a static ` +
-          'page seed names `page: { slug }` instead)'
+        `${at}.schemaApiId — must be "catalog:product", "catalog:collection", "catalog:category" ` +
+          'or "home" (a static page seed names `page: { slug }` instead)'
       );
     } else {
       checkRoutePattern(at, seed, errors);
@@ -681,16 +696,25 @@ function checkRoutePattern(at: string, seed: DeclaredTemplateSeed, errors: strin
     }
     return;
   }
+  const category = seed.schemaApiId === CATEGORY_SCHEMA_API_ID;
+  const parameter = category ? `:${CATEGORY_PATH_PARAM}*` : `:${CATALOG_SLUG_PARAM}`;
   const parsed = parseDynamicRoutePattern(seed.routePattern);
   if (parsed === null) {
     errors.push(
-      `${at}.routePattern — a catalog template needs a static prefix and one ":${CATALOG_SLUG_PARAM}" parameter (got ${JSON.stringify(seed.routePattern)})`
+      `${at}.routePattern — a catalog template needs a static prefix and one "${parameter}" parameter (got ${JSON.stringify(seed.routePattern)})`
     );
     return;
   }
-  if (parsed.paramName !== CATALOG_SLUG_PARAM) {
+  // The two halves are checked together on purpose: a category seed carrying
+  // ":slug" and a product seed carrying ":path*" are each a pattern the deploy
+  // refuses, and naming the whole expected parameter is what tells an author
+  // which of the two they wrote.
+  const expectedName = category ? CATEGORY_PATH_PARAM : CATALOG_SLUG_PARAM;
+  if (parsed.paramName !== expectedName || parsed.catchAll !== category) {
     errors.push(
-      `${at}.routePattern — a catalog template is resolved by slug, so its parameter must be ":${CATALOG_SLUG_PARAM}" (got ":${parsed.paramName}")`
+      category
+        ? `${at}.routePattern — a category template is resolved by its canonical path, so its parameter must be the catch-all "${parameter}" (got ":${parsed.paramName}${parsed.catchAll ? '*' : ''}")`
+        : `${at}.routePattern — a catalog template is resolved by slug, so its parameter must be "${parameter}" (got ":${parsed.paramName}${parsed.catchAll ? '*' : ''}")`
     );
   }
 }

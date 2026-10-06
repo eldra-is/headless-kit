@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A route template seed may now target `catalog:category`, and its pattern's trailing parameter is
+  the **catch-all** `:path*` (`/categories/:path*`) rather than `:slug`: a category is addressed by
+  its canonical path — the slugs of its ancestors, root first, then its own. The pairing is checked
+  both ways, so a category seed carrying `:slug` and a product or collection seed carrying a
+  catch-all are each refused by name, with the parameter the target actually takes. Core enforces
+  the same pairing on the route-template entry and on the manifest's seed target, so a pattern the
+  scan accepted and the deploy refused would be a scan that lied.
+
 - `eldra.templates` now also declares **static page seeds**: an entry naming `page: { slug }`
   instead of `schemaApiId`/`routePattern` seeds a Page at `/<slug>` (at most 16 of them, counted
   separately from the 8 route templates). A seed names one target or the other, never both. Its

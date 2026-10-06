@@ -189,7 +189,7 @@ describe('validateTemplateSeeds', () => {
     ]);
 
     expect(errors).toEqual([
-      'templates[0].schemaApiId — must be "catalog:product", "catalog:collection" or "home" (a static page seed names `page: { slug }` instead)',
+      'templates[0].schemaApiId — must be "catalog:product", "catalog:collection", "catalog:category" or "home" (a static page seed names `page: { slug }` instead)',
       'templates[1].routePattern — a catalog template needs a static prefix and one ":slug" parameter (got "products/:slug")',
       'templates[2].routePattern — duplicate pattern "/products/:slug"',
       'templates[3].title — must contain 1..80 characters',
@@ -222,11 +222,43 @@ describe('validateTemplateSeeds', () => {
     expect(validate([catalog('/collections/:handle')]).errors).toEqual([
       'templates[0].routePattern — a catalog template is resolved by slug, so its parameter must be ":slug" (got ":handle")',
     ]);
+    // A catch-all belongs to a category seed and to nothing else: a product or
+    // collection is one slug, and this list's read takes one.
+    expect(validate([catalog('/collections/:slug*')]).errors).toEqual([
+      'templates[0].routePattern — a catalog template is resolved by slug, so its parameter must be ":slug" (got ":slug*")',
+    ]);
     expect(validate([catalog('/collections')]).errors).toEqual([
       'templates[0].routePattern — a catalog template needs a static prefix and one ":slug" parameter (got "/collections")',
     ]);
     expect(validate([catalog('/')]).errors).toEqual([
       'templates[0].routePattern — a catalog template needs a static prefix and one ":slug" parameter (got "/")',
+    ]);
+  });
+
+  /**
+   * A category is addressed by its canonical path — the slugs of its ancestors, root first, then
+   * its own — so its seed's trailing parameter is the catch-all `:path*` and nothing else. Core
+   * enforces the same pairing on the route-template entry and on the manifest's seed target, so a
+   * pattern this accepted and the deploy refused would be a scan that lied.
+   */
+  it('holds a category seed to the catch-all ":path*" parameter', () => {
+    const category = (routePattern: string): DeclaredTemplateSeed => ({
+      ...heroSeed(),
+      routePattern,
+      schemaApiId: 'catalog:category',
+      title: 'Category',
+    });
+
+    expect(validate([category('/categories/:path*')]).errors).toEqual([]);
+    expect(validate([category('/shop/categories/:path*')]).errors).toEqual([]);
+    expect(validate([category('/categories/:path')]).errors).toEqual([
+      'templates[0].routePattern — a category template is resolved by its canonical path, so its parameter must be the catch-all ":path*" (got ":path")',
+    ]);
+    expect(validate([category('/categories/:slug*')]).errors).toEqual([
+      'templates[0].routePattern — a category template is resolved by its canonical path, so its parameter must be the catch-all ":path*" (got ":slug*")',
+    ]);
+    expect(validate([category('/categories')]).errors).toEqual([
+      'templates[0].routePattern — a catalog template needs a static prefix and one ":path*" parameter (got "/categories")',
     ]);
   });
 
@@ -856,7 +888,7 @@ describe('validatePageSeeds', () => {
 
     expect(errors).toEqual([
       'templates[0] — declares both a template target (schemaApiId) and a page target (page.slug): a seed names one or the other',
-      'templates[1].schemaApiId — must be "catalog:product", "catalog:collection" or "home" (a static page seed names `page: { slug }` instead)',
+      'templates[1].schemaApiId — must be "catalog:product", "catalog:collection", "catalog:category" or "home" (a static page seed names `page: { slug }` instead)',
       'templates[1].blocks — must declare 1..50 blocks',
     ]);
   });
