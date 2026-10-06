@@ -1,8 +1,29 @@
+/**
+ * How hard the client tries again when the gateway says "not now" — a `429`
+ * from its rate limit, a `503` while it restarts, or a dropped connection.
+ * Only idempotent requests are ever repeated; see `retry.ts` for the rules.
+ */
+export interface EldraRetryOptions {
+  /**
+   * Total attempts per request, the first included. Default 5. `0` or `1`
+   * disables retrying: one request, no waiting.
+   */
+  attempts?: number;
+  /** First backoff window, doubling per attempt. Default 250 ms. */
+  baseDelayMs?: number;
+  /**
+   * Ceiling on the computed backoff. Default 5000 ms. A `Retry-After` the
+   * gateway sends is honoured beyond it (up to a minute).
+   */
+  maxDelayMs?: number;
+}
+
 export interface EldraClientOptions {
   gatewayUrl: string; // web-gateway origin, no path suffix
   orgId: string; // sent as X-Org-Id on every request
   stega?: boolean; // default false; encoding also requires enablePreview()
   fetch?: typeof globalThis.fetch; // injectable for tests/SSR
+  retry?: EldraRetryOptions; // see EldraRetryOptions; defaults documented there
 }
 
 export class EldraClientError extends Error {

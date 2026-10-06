@@ -5,6 +5,21 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A gateway read that answered `429` or `503` is retried instead of failing.** The gateway
+  rate-limits a client by requests per minute, which a static build of a real site meets routinely:
+  `429 too many requests; slow down and try again` used to surface as a failed route resolution and,
+  under `nitro.prerender.failOnError`, as a failed build. `createEldraClient` now repeats an
+  **idempotent** request (`GET`/`HEAD`/`OPTIONS` — a `POST` that timed out may well have been
+  applied) that answered `429` or `503`, and one whose connection dropped (`fetch failed`,
+  `ECONNRESET` and the rest), honouring `Retry-After` in seconds or as an HTTP-date (up to a minute)
+  and otherwise waiting `250 ms × 2^attempt` capped at 5 s with jitter, for at most five attempts
+  including the first. Configurable as `retry: { attempts, baseDelayMs, maxDelayMs }` on
+  `createEldraClient`; `{ attempts: 0 }` is one request and no waiting. Every other status is
+  unchanged — a `404` is still a `404` on the first answer, and a preview `401` still reaches
+  `onRequestError` immediately, so the editor's preview-token recovery is untouched. A caller's
+  `AbortSignal` ends a retry during the wait as well as during the request, rejecting with the
+  signal's own reason.
+
 - **A route template's trailing parameter may be a catch-all: `/categories/:path*`.** It must be the
   last segment, it matches **one or more** segments, and the parameter's value is the remainder
   joined with `/` and no leading slash (`/categories/billinn/bilstolar` → `path:

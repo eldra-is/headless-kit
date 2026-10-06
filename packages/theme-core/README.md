@@ -22,4 +22,30 @@ const page = await client.getEntry('page', 'home');
 const title = stripStega(page.data.title);
 ```
 
+## Retrying what the gateway refused for now
+
+The gateway rate-limits a client by requests per minute, so a static build of a real site — a
+`nuxi generate` is thousands of reads from one address in a few minutes — meets that limit
+routinely. A `429` is not an answer, and neither is a `503` while the gateway restarts or a
+connection the network drops, so the client asks again: **idempotent requests only**
+(`GET`/`HEAD`/`OPTIONS` — a `POST` that timed out may well have been applied), at most five attempts
+including the first, honouring `Retry-After` (seconds or HTTP-date, up to a minute) and otherwise
+waiting 250 ms doubled per attempt, capped at 5 s, with jitter. Every other status — a `404`, a
+`401` — is reported on the first answer, as before, so the preview's own token recovery is
+unaffected.
+
+```ts
+const client = createEldraClient({
+  gatewayUrl: 'https://api.example.com',
+  orgId: 'org_123',
+  retry: { attempts: 5, baseDelayMs: 250, maxDelayMs: 5000 }, // the defaults
+});
+
+// One request, no waiting:
+createEldraClient({ gatewayUrl: '…', orgId: '…', retry: { attempts: 0 } });
+```
+
+A Nuxt theme sets this once, as `eldra.retry` in `nuxt.config.ts` — see
+[@eldrajs/theme-nuxt](../theme-nuxt/README.md).
+
 See [docs/themes.md](../../docs/themes.md) for the full theme integration guide.

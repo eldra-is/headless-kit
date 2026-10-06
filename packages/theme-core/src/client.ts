@@ -1,4 +1,5 @@
 import { isBlockFieldSelect } from './blockFields';
+import { fetchWithRetry, resolveRetryPolicy } from './retry';
 import { encodeEntryDataStega } from './stegaWalk';
 import type {
   CatalogDoc,
@@ -18,6 +19,7 @@ export * from './clientTypes'; // the interface block from **Interfaces** lives 
 export function createEldraClient(opts: EldraClientOptions): EldraClient {
   const gatewayUrl = opts.gatewayUrl.replace(/\/+$/, '');
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  const retryPolicy = resolveRetryPolicy(opts.retry);
   const stegaEnabled = opts.stega === true;
   let previewToken: string | null = null;
   const requestErrorListeners = new Set<(error: EldraClientError) => void>();
@@ -48,7 +50,10 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     // those would read as "the fresh token failed too" and stop the recovery
     // that just worked.
     const tokenAtRequest = previewToken;
-    const res = await doFetch(url.toString(), merged);
+    // Every read passes through here, which is why the retry lives here and
+    // nowhere else: a rate limit met halfway through a static build is waited
+    // out once, for every caller, rather than fought by each of them.
+    const res = await fetchWithRetry(doFetch, url.toString(), merged, retryPolicy);
     if (!res.ok) {
       const error = new EldraClientError(res.status, res.statusText, url.pathname);
       if (previewToken === tokenAtRequest) notifyRequestError(error);
