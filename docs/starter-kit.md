@@ -888,10 +888,9 @@ the whole server-side filter path exists to remove.
 
 **The filter panel reads the facets and writes the query string.** `collection-grid`'s `filters[]`
 field names the groups and their order; everything in them — values, labels, swatches, counts — is
-the storefront's `facets`, never CMS content. The six sources are `category`, `collection`,
-`option:size`, `option:colour`, `price` and `availability`; `parts/groups.ts` is the one place a
-source is reconciled with the facets' own vocabulary (`options[].key`), and the one place the price
-grammar lives.
+the storefront's `facets`, never CMS content. The sources are `category`, `collection`, `options`,
+`option:<key>`, `price` and `availability`; `parts/groups.ts` is the one place a source is reconciled
+with the facets' own vocabulary (`options[].key`), and the one place the price grammar lives.
 
 - **Price is `@eldrajs/ui`'s `RangeSlider`** with its typed fields on: `min`/`max` are the
   collection's own bounds from the facets, `step` is the `priceStep` field (default: one unit of
@@ -905,11 +904,22 @@ grammar lives.
   `priceSlider` off keeps the two typed fields alone, for prices that sit in a few tight clusters
   a track cannot separate — a block-level field rather than one on the price `filters[]` row, see
   below.
-- **The option sources are mapped to two literal store keys**, `size` and `colour`
-  (`parts/groups.ts`'s `OPTION_KEY`). The values come from the row's own `option.key`, so a store
-  whose option is keyed `color` or `Size` gets a group with no values, which the block then drops
-  silently. Rename the key in `OPTION_KEY` (and in the `filters[].source` option list) for a store
-  that spells its options differently.
+- **`options` is one row for every variant option the store has** — the shipped seed, and what a
+  merchant should leave alone. The storefront's facets answer one family per option key with its own
+  name and values (`facets.options[]`), so the block draws a group per key, in the facets' order,
+  labelled by the facet's `name`; a key with no values draws no group. That is what makes a store
+  selling by `fabric`, or spelling its colour option `color`, filterable with no page edit and no code
+  change: the keys are the merchant's own. An explicit `option:<key>` row still works and **wins** for
+  that key — the way to rename one group or pin where it sits — so "Size first, then whatever else
+  this store sells by" is two rows. The two keys this theme has its own strings for (`size`, `colour`)
+  keep them, so an Icelandic store reads "Stærð" rather than a raw store key; every other key reads
+  the store's own name. The control is chosen by the **values**: an option whose values carry a
+  `swatch` draws the colour dots (a swatch is a colour only the dot can show), everything else draws
+  pills. A key the facets stop naming while a shopper has it ticked keeps its group, so the filter
+  stays removable from the panel as well as from the chip.
+  The URL is unchanged: `?colour=oat&size=m`, the bare option key, since the `option:` prefix is the
+  field's vocabulary and never a shopper's. A query key the store has no option for is **not** read as
+  one — `?ref=newsletter` would otherwise become a filter nobody set, in the shopper's own URL.
 - **The `category` group nests**, when the store's categories are a tree — parent rows with their
   children one indent in, a ticked parent carrying its whole subtree. See "The category tree" above
   for where the placement, the counts and the order come from.
@@ -921,7 +931,10 @@ grammar lives.
 - **The query string is the state**:
   `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`
   (plus `sort`, `columns` and `page`). One key per group, the option sources under their bare option
-  key, the price range as the single `<min>-<max>` string the request itself takes. It goes out
+  key, the price range as the single `<min>-<max>` string the request itself takes. An option key is
+  read back only once the store has said it has that option, which is the first read answering — so
+  a shared `?fabric=linen` is adopted after mount like every other filter (the prerendered page is
+  the unfiltered one either way). It goes out
   through `route.setQuery()` and comes back through `route.filters` — no router and no Nuxt global
   inside `blocks/**` — so a filtered view is linkable and the back button works, while the
   prerendered page stays the unfiltered one (see "A query string is not in the route while a

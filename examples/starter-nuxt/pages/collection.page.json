@@ -136,12 +136,7 @@
             "label": "Category"
           },
           {
-            "source": "option:size",
-            "label": "Size"
-          },
-          {
-            "source": "option:colour",
-            "label": "Colour"
+            "source": "options"
           },
           {
             "source": "price",

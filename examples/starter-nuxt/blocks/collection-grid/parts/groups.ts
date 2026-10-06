@@ -3,10 +3,10 @@
  * `filters[]` field and the storefront's facets) and `parts/FilterGroups.vue` (which renders them
  * in both the sidebar and the drawer).
  *
- * `filters[].source` is the *field's* vocabulary (`option:size`, `option:colour`) while the
- * storefront's `CatalogFacets` is the *store's* (`options[].key` = `size`, `colour`) —
- * `groupValuesFor` is the one place those two are reconciled, together with the rule that decides
- * which values a group offers at all.
+ * `filters[].source` is the *field's* vocabulary (`options`, `option:size`) while the storefront's
+ * `CatalogFacets` is the *store's* (`options[].key` = `size`, `colour`) — `groupValuesFor` is the one
+ * place those two are reconciled, together with the rule that decides which values a group offers at
+ * all.
  *
  * Everything here is pure, so the price arithmetic a slider and a URL share
  * (`parsePriceRange`/`rangeFromSlider`) is provable without mounting anything.
@@ -14,14 +14,37 @@
 import { IN_STOCK, OUT_OF_STOCK } from '../../../app/storefront/facets';
 import type { CatalogFacetTerm, CatalogFacets } from '../../../app/storefront/types';
 
-/** The six `filters[].source` options `block.json` declares. */
+/**
+ * One variant option, by the key the store names it with: `option:size`, `option:colour`,
+ * `option:fabric` — **any** key, not a list this theme maintains. The keys belong to the merchant's
+ * own product options, so a store that spells its colour option `color` or sells by `fabric` is a
+ * store this block filters for without a code change.
+ */
+export type OptionFilterSource = `option:${string}`;
+
+/**
+ * **What a rendered group filters on.** `options` is deliberately not here: it is a *field* value
+ * that stands for "one group per option key the store has" (`FilterFieldSource`), and the block
+ * expands it into the `option:<key>` sources below before a group exists.
+ */
 export type FilterSource =
   | 'category'
   | 'collection'
-  | 'option:size'
-  | 'option:colour'
   | 'price'
-  | 'availability';
+  | 'availability'
+  | OptionFilterSource;
+
+/**
+ * What an author may put in `filters[].source` — every rendered source, plus `options`.
+ *
+ * **`options` is a meta source**: one group per option key the storefront's facets answer, labelled by
+ * the facet's own `name`, in the facets' order. It exists because a merchant's option keys are theirs,
+ * not the theme's — an author cannot list `option:size` and `option:colour` by hand without knowing
+ * what the store sells by, and a store that adds `fabric` next season would need the page edited to
+ * offer it. An explicit `option:<key>` row still works and **wins** for that key: that is how an
+ * author pins one option's position in the panel or renames its group.
+ */
+export type FilterFieldSource = FilterSource | 'options';
 
 /** How a group draws its values (spec `02-blocks.md` "Collection grid" → Layout, Filter groups). */
 export type FilterGroupKind = 'checkbox' | 'size' | 'colour' | 'price';
@@ -77,29 +100,61 @@ export interface FilterGroup {
 /** Selected values per `filters[].source`. The price range lives in its own two strings. */
 export type FilterSelection = Partial<Record<FilterSource, string[]>>;
 
-export const FILTER_SOURCES: readonly FilterSource[] = [
+/** The `filters[].source` prefix one variant option is named with. */
+export const OPTION_SOURCE = 'option:';
+
+/**
+ * The four sources that are **one group each, always** — everything a URL and a request can carry
+ * besides the open-ended option keys. The block enumerates these when it reads the query string and
+ * when it clears it; the option keys it enumerates from the facets and from its own selection, since
+ * there is no closed list of them.
+ */
+export const FIXED_FILTER_SOURCES = [
   'category',
   'collection',
-  'option:size',
-  'option:colour',
   'price',
   'availability',
-];
+] as const satisfies readonly FilterSource[];
 
-export const GROUP_KIND: Record<FilterSource, FilterGroupKind> = {
-  category: 'checkbox',
-  collection: 'checkbox',
-  'option:size': 'size',
-  'option:colour': 'colour',
-  price: 'price',
-  availability: 'checkbox',
-};
+/** The option key a source names, or `null` for a source that is not an option. */
+export function optionKeyOf(source: string): string | null {
+  if (!source.startsWith(OPTION_SOURCE)) return null;
+  const key = source.slice(OPTION_SOURCE.length);
+  return key === '' ? null : key;
+}
 
-/** `filters[].source` → the `CatalogFacets.options` key it reads, for the option sources only. */
-const OPTION_KEY: Partial<Record<FilterSource, string>> = {
-  'option:size': 'size',
-  'option:colour': 'colour',
-};
+/** `option:<key>` for one of the store's own option keys. */
+export function optionSourceFor(key: string): OptionFilterSource {
+  return `${OPTION_SOURCE}${key}`;
+}
+
+/**
+ * **The query key a source is spelled with**, in both directions: what the block writes and what it
+ * reads back. An option is its bare key (`?colour=oat`) — the `option:` prefix is the *field's*
+ * vocabulary, never a shopper's URL.
+ */
+export function queryKeyFor(source: FilterSource): string {
+  return optionKeyOf(source) ?? source;
+}
+
+/**
+ * How a group draws its values — **decided by the values, for an option.**
+ *
+ * A swatch is a colour the store sent as data, and the only control that can show one is the dot
+ * (`FilterGroups.vue` draws it itself for exactly that reason), so an option whose values carry one is
+ * a colour group whatever it is keyed; every other option is pills. That is what lets an arbitrary
+ * option key render correctly without this file knowing the key at all — the two hard-coded `size`/
+ * `colour` keys it used to carry meant a store spelling its option `color` got a group with no values
+ * and no group.
+ */
+export function groupKindFor(
+  source: FilterSource,
+  values: readonly FilterGroupValue[]
+): FilterGroupKind {
+  if (source === 'price') return 'price';
+  if (optionKeyOf(source) === null) return 'checkbox';
+  return values.some((value) => value.swatch !== undefined) ? 'colour' : 'size';
+}
 
 /**
  * Spec States → "Many items": "a group with 12 or more values shows the first 8, then a 'Show all
@@ -109,7 +164,14 @@ export const COLLAPSE_FROM = 12;
 export const COLLAPSED_COUNT = 8;
 
 export function isFilterSource(value: unknown): value is FilterSource {
-  return typeof value === 'string' && (FILTER_SOURCES as readonly string[]).includes(value);
+  if (typeof value !== 'string') return false;
+  if ((FIXED_FILTER_SOURCES as readonly string[]).includes(value)) return true;
+  return optionKeyOf(value) !== null;
+}
+
+/** Whether a `filters[].source` is one this block understands — `isFilterSource`, plus `options`. */
+export function isFilterFieldSource(value: unknown): value is FilterFieldSource {
+  return value === 'options' || isFilterSource(value);
 }
 
 /** The two `availability` values, as this theme's own strings name them. */
@@ -202,7 +264,7 @@ function rawValuesFor(
       { value: OUT_OF_STOCK, label: availability.outOfStock, count: counts.out_of_stock },
     ];
   }
-  const option = facets.options.find((candidate) => candidate.key === OPTION_KEY[source]);
+  const option = facets.options.find((candidate) => candidate.key === optionKeyOf(source));
   return (option?.values ?? []).map((value) => ({
     value: value.value,
     label: value.label,

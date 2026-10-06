@@ -211,6 +211,13 @@ function mountGrid(
 
 /** The result count — the block's polite status line. */
 const countLine = (wrapper: VueWrapper) => wrapper.get('p[role="status"][tabindex="-1"]');
+
+/**
+ * How many filter groups `mock.json` actually renders: Category, Size, Colour, Price, Availability.
+ * Five, from **four** rows — `options` is one row standing for every variant option the store has, so
+ * the count is not `mock.filters.length` and the spec says so rather than quietly agreeing.
+ */
+const SEEDED_GROUPS = 5;
 /** The grid's single visually hidden live region for the volatile refresh. The count line above
  *  and `LoadMore`'s own "Showing N of M" are the block's other `role="status"` elements, and both
  *  are visible — this is the only hidden one. */
@@ -324,11 +331,15 @@ describe('collection-grid block', () => {
       expect(aside.classes().join(' ')).toContain('var(--eldra-header-height,0px)');
     });
 
+    /**
+     * `mock.json` ships four rows for five groups: `options` is one row standing for every variant
+     * option the store has, which in the demo catalogue is Size and Colour.
+     */
     it('renders one group per filters[] entry, each a fieldset with a hidden legend', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();
       // Sidebar and drawer render the same five groups, so ten triggers in the DOM.
-      expect(groupTriggers(wrapper)).toHaveLength(mock.filters.length * 2);
+      expect(groupTriggers(wrapper)).toHaveLength(SEEDED_GROUPS * 2);
       for (const legend of [
         enUS.grid.legendCategory,
         enUS.grid.legendSize,
@@ -354,7 +365,7 @@ describe('collection-grid block', () => {
       const triggers = groupTriggers(wrapper);
       for (const [heading, trigger] of [
         [headings[0]!, triggers[0]!],
-        [headings[1]!, triggers[mock.filters.length]!], // the drawer's own first trigger
+        [headings[1]!, triggers[SEEDED_GROUPS]!], // the drawer's own first trigger
       ] as const) {
         const relation = heading.element.compareDocumentPosition(trigger.element);
         expect(relation & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -1051,7 +1062,11 @@ describe('collection-grid block', () => {
       context.preview.locale = 'is-IS';
       await wrapper.vm.$nextTick();
 
-      expect(removeLabel()).toBe('Fjarlægja síuna Size: M');
+      // `mock.json`'s `options` row carries no label of its own, so the group's title is the theme's
+      // own string for that option key — which is exactly what has to follow the switch. (An author
+      // who types a label into an explicit `option:size` row gets that label in both locales, since a
+      // string a merchant wrote is not the theme's to translate.)
+      expect(removeLabel()).toBe(`Fjarlægja síuna ${isIS.grid.legendSize}: M`);
       expect(loadMoreLine()).toContain('Sýni 12 af 12');
       expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '12'));
     });
@@ -1205,6 +1220,154 @@ describe('collection-grid block', () => {
       // storefront that declared the source unfilterable is the one already ignoring it, and the
       // key is meaningful in a scope that can honour it.
       expect(cards(wrapper)).toHaveLength(4);
+    });
+  });
+
+  /**
+   * **`options`** — one `filters[]` row standing for every variant option the store has, labelled and
+   * ordered by the store itself. It exists because a merchant's option keys are theirs, not the
+   * theme's: an author cannot list `option:size`/`option:colour` by hand without knowing what the
+   * store sells by, and a store that adds `fabric` next season would otherwise need the page edited
+   * before shoppers could filter by it.
+   */
+  describe('the `options` filter source', () => {
+    /** Three option keys, one of them not in this theme's own strings and one with nothing in it. */
+    const THREE_OPTIONS: CatalogFacets = {
+      ...FACETS,
+      options: [
+        {
+          key: 'size',
+          name: 'size',
+          values: [{ value: 'm', label: 'M', count: 4 }],
+        },
+        {
+          key: 'fabric',
+          name: 'Fabric',
+          values: [
+            { value: 'linen', label: 'Linen', count: 7 },
+            { value: 'wool', label: 'Wool', count: 2 },
+          ],
+        },
+        {
+          key: 'colour',
+          name: 'colour',
+          values: [{ value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' }],
+        },
+        // A key the store names but has no values for — nothing to offer, so no group.
+        { key: 'finish', name: 'Finish', values: [] },
+      ],
+    };
+
+    const WITH_OPTIONS = {
+      ...mock,
+      filters: [{ source: 'category', label: 'Category' }, { source: 'options' }],
+    };
+
+    /** The group titles in the sidebar, in order. */
+    function sidebarLabels(wrapper: VueWrapper): string[] {
+      return wrapper
+        .get('aside')
+        .findAll('h3 button')
+        .map((button) => button.find('span').text());
+    }
+
+    it('draws one group per option key the facets answer, in their order', async () => {
+      const stub = createStub(PRODUCTS, { facets: THREE_OPTIONS });
+      const wrapper = mountGrid(WITH_OPTIONS, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      // Size and Colour by this theme's own strings (the two keys it has words for), `Fabric` by the
+      // store's own facet name — the only place a merchant's option name exists.
+      expect(sidebarLabels(wrapper)).toEqual([
+        'Category',
+        enUS.grid.legendSize,
+        'Fabric',
+        enUS.grid.legendColour,
+      ]);
+    });
+
+    it('draws no group for an option key with no values', async () => {
+      const stub = createStub(PRODUCTS, { facets: THREE_OPTIONS });
+      const wrapper = mountGrid(WITH_OPTIONS, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      expect(sidebarLabels(wrapper)).not.toContain('Finish');
+    });
+
+    /** Swatches are a colour the store sent as data, and the dot is the only control that can show
+     *  one — so an option carrying them is a colour group whatever it is keyed. */
+    it('draws a swatch option as colour dots and the rest as pills', async () => {
+      const stub = createStub(PRODUCTS, { facets: THREE_OPTIONS });
+      const wrapper = mountGrid(WITH_OPTIONS, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      const colour = panelFor(wrapper, enUS.grid.legendColour).panel;
+      expect(colour.find('[style*="background-color"]').exists()).toBe(true);
+      const fabric = panelFor(wrapper, 'Fabric').panel;
+      expect(fabric.find('[style*="background-color"]').exists()).toBe(false);
+      expect(fabric.findAll('input[type="checkbox"]')).toHaveLength(2);
+    });
+
+    /**
+     * An explicit row **wins** for its key: that is how an author pins one option's position in the
+     * panel or renames its group, while `options` still covers everything else the store sells by.
+     */
+    it('lets an explicit option row override the label and the position', async () => {
+      const stub = createStub(PRODUCTS, { facets: THREE_OPTIONS });
+      const wrapper = mountGrid(
+        {
+          ...mock,
+          filters: [
+            { source: 'option:fabric', label: 'Material' },
+            { source: 'category', label: 'Category' },
+            { source: 'options' },
+          ],
+        },
+        { source: stub.source }
+      );
+      await wrapper.vm.$nextTick();
+      expect(sidebarLabels(wrapper)).toEqual([
+        'Material',
+        'Category',
+        enUS.grid.legendSize,
+        enUS.grid.legendColour,
+      ]);
+    });
+
+    /** `?colour=oat&size=m` — the same bare-key URL the explicit sources always wrote, both ways. */
+    it('round-trips every option key through the query string', async () => {
+      const source = createDemoStorefront({ filters: { colour: ['oat'], size: ['m'] } });
+      const wrapper = mountGrid(WITH_OPTIONS, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+
+      const ticked = (legend: string) =>
+        panelFor(wrapper, legend)
+          .panel.findAll('input[type="checkbox"]')
+          .filter((box) => (box.element as HTMLInputElement).checked).length;
+      expect(ticked(enUS.grid.legendColour)).toBe(1);
+      expect(ticked(enUS.grid.legendSize)).toBe(1);
+
+      // And back out: untick the size and the key is cleared, the colour left alone.
+      const sizes = panelFor(wrapper, enUS.grid.legendSize).panel;
+      const checked = sizes
+        .findAll('input[type="checkbox"]')
+        .find((box) => (box.element as HTMLInputElement).checked)!;
+      await checked.setValue(false);
+      await wrapper.vm.$nextTick();
+      expect(source.route.filters.size).toBeUndefined();
+      expect(source.route.filters.colour).toEqual(['oat']);
+    });
+
+    /**
+     * A query key that is not a filter at all — a campaign tag, an analytics parameter — must not
+     * become `option:ref`, draw a chip and go out in the request: a filter nobody set, promised to
+     * the shopper in their own URL. Only a key the store actually has an option for is read.
+     */
+    it('ignores a query key the store has no option for', async () => {
+      const source = createDemoStorefront({ filters: { ref: ['newsletter'] } });
+      const wrapper = mountGrid(WITH_OPTIONS, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
     });
   });
 

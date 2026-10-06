@@ -92,16 +92,21 @@ import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue'
 import FilterGroups from './parts/FilterGroups.vue';
 import {
   defaultPriceStep,
-  FILTER_SOURCES,
+  FIXED_FILTER_SOURCES,
   fitPriceStep,
   formatPriceRange,
-  GROUP_KIND,
+  groupKindFor,
   groupValuesFor,
+  isFilterFieldSource,
   isFilterSource,
+  optionKeyOf,
+  optionSourceFor,
   parsePriceRange,
   priceSpanOf,
+  queryKeyFor,
   spanWithRange,
   widenPriceSpan,
+  type FilterFieldSource,
   type FilterGroup,
   type FilterSelection,
   type FilterSource,
@@ -250,29 +255,74 @@ const sectionLabel = computed(() =>
  * not make itself.
  */
 /**
- * **The query key each filter source is spelled with**, in both directions: what `publishState()`
- * writes and what the block reads back out of `route.filters`.
- *
- * `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`
- * — one key per group, the option sources by their bare option key (the `option:` prefix is the
- * *field's* vocabulary, not a shopper's URL), and the price range as the single `<min>-<max>`
- * string the storefront request already uses, so the URL, the request and the chip all read one
- * value. A filtered view is therefore linkable, and the back button works.
+ * **The author's own `filters[]` rows**, as sources this block understands — `options` included, which
+ * is the one that is not a group but a stand-in for every option key the store has. Read in several
+ * places (the groups, the chips, the query keys), and the only place the field's raw shape is
+ * validated.
  */
-const QUERY_KEY: Record<FilterSource, string> = {
-  category: 'category',
-  collection: 'collection',
-  'option:size': 'size',
-  'option:colour': 'colour',
-  price: 'price',
-  availability: 'availability',
-};
+const filterFields = computed(() =>
+  ((data.value.filters ?? []) as FilterField[]).filter(
+    (row): row is FilterField & { source: FilterFieldSource } => isFilterFieldSource(row.source)
+  )
+);
 
-function initialFilterSelection(): FilterSelection {
+/** Whether the author asked for every option key the store has (`options`). */
+const wantsEveryOption = computed(() => filterFields.value.some((row) => row.source === 'options'));
+
+/**
+ * The query keys the four fixed sources own, which no option key may shadow: a store whose option is
+ * keyed `category` filters by its own `?category=` and not by two different things at once.
+ */
+const FIXED_RESERVED_KEYS = new Set<string>(FIXED_FILTER_SOURCES);
+
+/** The option keys the author named themselves — final at setup time, unlike everything else. */
+function explicitOptionKeys(): string[] {
+  const keys: string[] = [];
+  for (const row of filterFields.value) {
+    const key = optionKeyOf(row.source);
+    if (key !== null && !keys.includes(key)) keys.push(key);
+  }
+  return keys;
+}
+
+/**
+ * **The option keys a URL may be read through**, which is the one thing an open-ended source
+ * vocabulary costs: there is no closed list to enumerate when reading the query string.
+ *
+ * A key is readable only when the store is known to have an option for it — an explicit
+ * `option:<key>` row, or, under `options`, a key the storefront's facets actually answer. **Not any
+ * unknown query key**: `?ref=newsletter` would otherwise become `option:ref`, draw a chip and go out
+ * in the request, a filter nobody set and promised to the shopper in their own URL.
+ *
+ * The facets are only known after a read has answered, which is exactly when a query string is read
+ * anyway: the prerendered page is always the unfiltered one and `adoptRouteState()` is what picks the
+ * query up after mount (see its own comment). A key already in the selection stays readable whatever
+ * the facets say now, so a later read that cannot describe the family does not silently drop a filter
+ * the chips and the URL both show.
+ */
+function readableOptionKeys(selected: FilterSelection): string[] {
+  const keys = explicitOptionKeys();
+  const add = (key: string | null): void => {
+    if (key !== null && !keys.includes(key)) keys.push(key);
+  };
+  if (wantsEveryOption.value) {
+    for (const option of facets.value?.options ?? []) add(option.key);
+    for (const source of Object.keys(selected)) add(optionKeyOf(source));
+  }
+  return keys;
+}
+
+/** Every filter source a query key is read into, price excluded (it has its own two bounds). */
+function managedSources(optionKeys: readonly string[]): FilterSource[] {
+  const out: FilterSource[] = FIXED_FILTER_SOURCES.filter((source) => source !== 'price');
+  for (const key of optionKeys) out.push(optionSourceFor(key));
+  return out;
+}
+
+function filterSelectionFromRoute(optionKeys: readonly string[]): FilterSelection {
   const out: FilterSelection = {};
-  for (const source of FILTER_SOURCES) {
-    if (source === 'price') continue;
-    const values = route.filters[QUERY_KEY[source]];
+  for (const source of managedSources(optionKeys)) {
+    const values = route.filters[queryKeyFor(source)];
     if (values === undefined || values.length === 0) continue;
     // `availability` is the one source with a vocabulary of its own rather than the store's, so a
     // spelling from a link shared before the platform's `in_stock`/`out_of_stock` landed is folded
@@ -286,9 +336,18 @@ function initialFilterSelection(): FilterSelection {
   return out;
 }
 
+/**
+ * The selection a page is **created** with: the author's own option rows and nothing else, because
+ * no read has answered yet. Everything else arrives through `adoptRouteState()` after mount — which
+ * is the same reason the first paint is the unfiltered collection either way.
+ */
+function initialFilterSelection(): FilterSelection {
+  return filterSelectionFromRoute(explicitOptionKeys());
+}
+
 /** The price range the URL carries, sanitised the way a typed one is. */
 function routePriceRange(): PriceRange {
-  return parsePriceRange(route.filters[QUERY_KEY.price]?.[0]);
+  return parsePriceRange(route.filters.price?.[0]);
 }
 
 const selection = ref<FilterSelection>(initialFilterSelection());
@@ -509,19 +568,36 @@ const priceLegend = computed(() =>
     : t('grid.legendPrice', { currency: money.currency.value })
 );
 
-const legends = computed<Record<FilterSource, string>>(() => ({
-  category: t('grid.legendCategory'),
-  collection: t('grid.legendCollection'),
-  'option:size': t('grid.legendSize'),
-  'option:colour': t('grid.legendColour'),
-  price: priceLegend.value,
-  availability: t('grid.legendAvailability'),
-}));
+/**
+ * A group's hidden `<legend>`.
+ *
+ * The four fixed sources are the theme's own words. An option's is **the store's**: the facet's own
+ * `name` for that key, which is the only place a merchant's "Fabric" exists — with the two keys this
+ * theme does have strings for (`size`, `colour`) still preferred, so a store using the ordinary keys
+ * reads a translated group title rather than a raw store string, and so the Icelandic site says
+ * "Stærð". A key with no facet name and no string of this theme's falls back to the key itself, which
+ * is at least the merchant's own word.
+ */
+function legendFor(source: FilterSource): string {
+  if (source === 'price') return priceLegend.value;
+  if (source === 'category') return t('grid.legendCategory');
+  if (source === 'collection') return t('grid.legendCollection');
+  if (source === 'availability') return t('grid.legendAvailability');
+  const key = optionKeyOf(source);
+  if (key === 'size') return t('grid.legendSize');
+  if (key === 'colour') return t('grid.legendColour');
+  return optionNames.value.get(key ?? '') ?? key ?? source;
+}
+
+/** Each option key's own display name, as the storefront's facets report it. */
+const optionNames = computed(
+  () => new Map((facets.value?.options ?? []).map((option) => [option.key, option.name] as const))
+);
 
 /** A group's title when the author set none — the legend, which is already the source's own name
  *  (`price`'s legend names the currency, so not that). */
 function defaultGroupLabel(source: FilterSource): string {
-  return source === 'price' ? t('grid.price') : legends.value[source];
+  return source === 'price' ? t('grid.price') : legendFor(source);
 }
 
 /** The two `availability` values' own names: the facets carry counts, never labels. */
@@ -593,15 +669,53 @@ const priceStep = computed(() => {
   return fitPriceStep(defaultPriceStep(money.currency.value), priceSpan.value);
 });
 
+/**
+ * **The author's rows expanded into rendered sources**, which is the whole of what `options` means: in
+ * its place, one `option:<key>` row per option key the storefront's facets answer, in the facets'
+ * order, carrying no label of its own (the group then takes the store's own name for that key).
+ *
+ * A key an explicit `option:<key>` row already names is **not** expanded again: that row wins, wherever
+ * the author put it and whatever they called it. So "Size first, then whatever else this store sells
+ * by" is two rows, and the common case — "every option, in the store's order" — is one.
+ */
+const expandedFilterRows = computed<Array<FilterField & { source: FilterSource }>>(() => {
+  const explicitKeys = new Set(
+    filterFields.value.map((row) => optionKeyOf(row.source)).filter((key) => key !== null)
+  );
+  const out: Array<FilterField & { source: FilterSource }> = [];
+  for (const row of filterFields.value) {
+    if (row.source !== 'options') {
+      out.push({ ...row, source: row.source });
+      continue;
+    }
+    // The facets' own keys, in the facets' order — plus any key the shopper already has a filter on
+    // that the facets have stopped naming. That second half is the standing rule that a group
+    // carrying a selection is never dropped out from under an applied filter: facets are computed
+    // over the current result set on most backends, so a narrowing filter can remove the very family
+    // it was set in, and a group that vanished would leave the shopper no control to undo it.
+    for (const key of [
+      ...(facets.value?.options ?? []).map((option) => option.key),
+      ...Object.keys(selection.value)
+        .map(optionKeyOf)
+        .filter((key): key is string => key !== null),
+    ]) {
+      if (explicitKeys.has(key) || out.some((done) => done.source === optionSourceFor(key))) {
+        continue;
+      }
+      out.push({ ...row, label: undefined, source: optionSourceFor(key) });
+    }
+  }
+  return out;
+});
+
 const groups = computed<FilterGroup[]>(() => {
-  const rows = (data.value.filters ?? []) as FilterField[];
   const out: FilterGroup[] = [];
-  for (const row of rows) {
-    if (!isFilterSource(row.source)) continue;
+  for (const row of expandedFilterRows.value) {
     const source = row.source;
     // A source this scope cannot narrow by is not offered, however the author configured it: see
     // `unfilterableSources`.
     if (unfilterableSources.value.has(source)) continue;
+    if (out.some((group) => group.source === source)) continue;
     const values = groupValuesFor(
       source,
       facets.value,
@@ -616,9 +730,11 @@ const groups = computed<FilterGroup[]>(() => {
     out.push({
       source,
       label: (row.label ?? '').trim() || defaultGroupLabel(source),
-      kind: GROUP_KIND[source],
+      // Decided by the values for an option — a swatch is a colour only the dot can show — so an
+      // arbitrary option key draws the right control without this block knowing the key.
+      kind: groupKindFor(source, values),
       collapsed: row.collapsed === true,
-      legend: legends.value[source],
+      legend: legendFor(source),
       values,
       ...(source === 'price' ? { slider: priceSlider.value } : {}),
     });
@@ -641,10 +757,8 @@ const activeSources = computed<FilterSource[]>(() => {
   // A source this scope cannot narrow by is left out of the chips as well as the panel: a chip for
   // a filter nothing applies is the same false claim with less to click (`unfilterableSources`).
   const offered = (source: FilterSource): boolean => !unfilterableSources.value.has(source);
-  for (const row of (data.value.filters ?? []) as FilterField[]) {
-    if (isFilterSource(row.source) && offered(row.source) && !out.includes(row.source)) {
-      out.push(row.source);
-    }
+  for (const row of expandedFilterRows.value) {
+    if (offered(row.source) && !out.includes(row.source)) out.push(row.source);
   }
   for (const source of Object.keys(selection.value) as FilterSource[]) {
     if (isFilterSource(source) && offered(source) && !out.includes(source)) out.push(source);
@@ -748,7 +862,7 @@ const emptyText = computed(() => {
  * (write the URL → the route changes → this reads it back) settles instead of re-requesting.
  */
 function adoptRouteState(): void {
-  const next = initialFilterSelection();
+  const next = filterSelectionFromRoute(readableOptionKeys(selection.value));
   if (!sameSelection(next, selection.value)) selection.value = next;
   const range = routePriceRange();
   if (range.min !== priceMin.value) priceMin.value = range.min;
@@ -783,7 +897,12 @@ function sameSelection(a: FilterSelection, b: FilterSelection): boolean {
 
 onMounted(() => {
   adoptRouteState();
-  watch(() => [route.filters, route.sort, route.columns], adoptRouteState, { deep: true });
+  // The facets are in there because they are what makes an option key *readable* at all
+  // (`readableOptionKeys`): a shared `?fabric=linen` can only be adopted once the store has said it
+  // has a `fabric` option, which is the first read answering.
+  watch(() => [route.filters, route.sort, route.columns, facets.value], adoptRouteState, {
+    deep: true,
+  });
 });
 
 function publishState(): void {
@@ -792,13 +911,20 @@ function publishState(): void {
     page: null,
     sort: sort.value === '' ? null : sort.value,
     columns: columnsChoice.value,
-    [QUERY_KEY.price]: formatPriceRange({ min: priceMin.value, max: priceMax.value }),
+    price: formatPriceRange({ min: priceMin.value, max: priceMax.value }),
   };
   // Every source, selected or not: a key the shopper has just emptied has to be cleared, which a
-  // patch built only from what is selected would leave in the URL for ever.
-  for (const source of FILTER_SOURCES) {
+  // patch built only from what is selected would leave in the URL for ever. The option keys come
+  // from everything the block knows of — the author's rows, the facets, and the selection itself, so
+  // a key the store has since stopped offering can still be cleared rather than sticking for ever.
+  const sources = new Set<FilterSource>(managedSources(readableOptionKeys(selection.value)));
+  for (const option of facets.value?.options ?? []) sources.add(optionSourceFor(option.key));
+  for (const source of Object.keys(selection.value)) {
+    if (isFilterSource(source)) sources.add(source);
+  }
+  for (const source of sources) {
     if (source === 'price') continue;
-    patch[QUERY_KEY[source]] = selection.value[source] ?? null;
+    patch[queryKeyFor(source)] = selection.value[source] ?? null;
   }
   route.setQuery(patch);
 }

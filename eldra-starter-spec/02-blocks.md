@@ -3078,8 +3078,8 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 | `pageSize` | select | yes | `24` | `12` · `24` · `48` |
 | `paginationStyle` | select | yes | `load-more` | `load-more` · `pages` |
 | `sortOptions` | list | no | Featured, Best selling, Price low to high, Price high to low, Newest | Which sort options to offer, in order. |
-| `filters` | list | no | Category, Size, Colour, Price, Availability | Filter groups, in order. |
-| `filters[].source` | select | yes | — | `category` · `collection` · `option:size` · `option:colour` · `price` · `availability` |
+| `filters` | list | no | Category, Options, Price, Availability | Filter groups, in order. `options` is one row for all of them, so the seeded five groups come from four rows. |
+| `filters[].source` | select | yes | — | `category` · `collection` · `options` (one group per variant option the store has, labelled and ordered by the store — a key with no values draws none) · `option:<key>` (one named option; wins over `options` for that key, for renaming it or pinning where it sits) · `price` · `availability` |
 | `filters[].label` | string | no | the source's name | Overrides the group title. |
 | `filters[].collapsed` | bool | no | off | Start closed. A group with an active value always starts open. |
 | `priceSlider` | bool | no | on | Off falls the price group back to the two typed fields alone, for a store whose prices sit in a few tight clusters a track cannot separate. A block-level field rather than one on the price `filters[]` row: a new child under an existing list item forces a block version bump, which retires every author's configured filter list. |
