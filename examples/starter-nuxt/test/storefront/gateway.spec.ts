@@ -968,6 +968,40 @@ describe('createGatewayStorefront', () => {
       expect((await paramsFor({ availability: ['backorder'] })).has('availability')).toBe(false);
     });
 
+    /**
+     * The lookup's answer belongs to every read, not to the one that asked first, so it is not tied
+     * to a read's abort signal: a shopper ticking a second category while the first read is still in
+     * flight aborts that read, and a lookup that aborted with it would reject in the hands of the
+     * read that replaced it — an error over a page whose filter was perfectly answerable.
+     */
+    it('does not abort the category lookup with the read that started it', async () => {
+      const calls = recordingClient([], { categories: CATEGORIES });
+      let aborted = 0;
+      const client = {
+        catalog: {
+          ...(calls.client as unknown as { catalog: Record<string, unknown> }).catalog,
+          listCategories: async (_query: unknown, context?: { signal?: AbortSignal }) => {
+            if (context?.signal !== undefined) aborted += 1;
+            calls.categoryReads.push(calls.categoryReads.length + 1);
+            return CATEGORIES.map((row) => ({ ...row, title: row.slug }));
+          },
+        },
+      } as unknown as EldraClient;
+      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+      const opts = ref({ page: 1, pageSize: 24, filters: { category: ['ceramics'] } });
+      const result = storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        opts
+      );
+      // A second gesture before the first read has answered, which is what aborts the first.
+      opts.value = { page: 1, pageSize: 24, filters: { category: ['textiles'] } };
+      await settle();
+
+      expect(aborted).toBe(0);
+      expect(result.error.value).toBeNull();
+      expect(calls.collectionProductQueries.at(-1)?.categoryId).toEqual(['cat-textiles']);
+    });
+
     it('reads the store’s categories once, however many slugs are ticked', async () => {
       const calls = recordingClient([], { categories: CATEGORIES });
       const storefront = createGatewayStorefront(calls.client, {

@@ -2505,7 +2505,7 @@ export interface operations {
             query?: {
                 /** @description Include only the products a customer can buy, or only the ones they cannot, at the organisation's default inventory location. Read from the same source as POST /inventory/v1/stock/availability. Fails rather than ignoring the filter when stock cannot be read. */
                 availability?: "in_stock" | "out_of_stock";
-                /** @description Repeatable. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not. */
+                /** @description Repeatable, at most 50. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not. */
                 categoryId?: string[] | null;
                 /** @description Add a 'facets' object to the response: the scope's price bounds and the category, collection, availability and option-value counts. Omitted entirely unless true, so an existing caller sees an unchanged shape. */
                 facets?: boolean;
@@ -2520,7 +2520,7 @@ export interface operations {
                 maxPrice?: number;
                 /** @description Lowest variant price to include, in minor currency units, inclusive. A product matches when ANY of its variants is priced inside the range, so a product priced 500 and 50000 does not answer a 1000-2000 filter. */
                 minPrice?: number;
-                /** @description Repeatable, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd. */
+                /** @description Repeatable, at most 50, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd. */
                 option?: string[] | null;
                 /** @description 1-based page number */
                 page?: number;
@@ -2797,9 +2797,9 @@ export interface operations {
             query?: {
                 /** @description Include only the products a customer can buy, or only the ones they cannot, at the organisation's default inventory location. Read from the same source as POST /inventory/v1/stock/availability. Fails rather than ignoring the filter when stock cannot be read. */
                 availability?: "in_stock" | "out_of_stock";
-                /** @description Repeatable. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not. */
+                /** @description Repeatable, at most 50. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not. */
                 categoryId?: string[] | null;
-                /** @description Repeatable. Include products in any of these collections (OR). Only an ACTIVE collection matches, so an id that is not publicly visible matches nothing rather than revealing membership. */
+                /** @description Repeatable, at most 50. Include products in any of these collections (OR). Only an ACTIVE collection matches, so an id that is not publicly visible matches nothing rather than revealing membership. */
                 collectionId?: string[] | null;
                 /** @description Add a 'facets' object to the response: the scope's price bounds and the category, collection, availability and option-value counts. Omitted entirely unless true, so an existing caller sees an unchanged shape. */
                 facets?: boolean;
@@ -2814,7 +2814,7 @@ export interface operations {
                 maxPrice?: number;
                 /** @description Lowest variant price to include, in minor currency units, inclusive. A product matches when ANY of its variants is priced inside the range, so a product priced 500 and 50000 does not answer a 1000-2000 filter. */
                 minPrice?: number;
-                /** @description Repeatable, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd. */
+                /** @description Repeatable, at most 50, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd. */
                 option?: string[] | null;
                 /** @description 1-based page number */
                 page?: number;

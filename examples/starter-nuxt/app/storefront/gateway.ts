@@ -1167,18 +1167,19 @@ function priceParam(raw: string | undefined, currency: string | undefined): numb
  * now or later. Read once per storefront (see `createGatewayStorefront`), which means a shopper
  * arriving on a shared `?category=ceramics` link pays for it once and nobody else pays at all.
  *
+ * **It carries no abort signal**, deliberately, because its answer belongs to every read rather than
+ * to the one that happened to ask first: a shopper ticking a second category while the first read is
+ * still resolving aborts that read, and a lookup tied to its signal would reject in the hands of the
+ * read that replaced it — an error over a page whose filter was perfectly answerable. It is one
+ * small request that finishes on its own.
+ *
  * A failure is **not** swallowed: it fails the collection read, which the block already draws as an
  * error over the last good page. The alternative is a request that quietly drops the category the
  * chips, the URL and the active-filter row all say is applied — the exact bug the filters this
  * mapping sends exist to avoid.
  */
-async function readCategoryIds(
-  client: EldraClient,
-  signal: AbortSignal
-): Promise<ReadonlyMap<string, string>> {
-  const rows = (await client.catalog.listCategories({}, { signal })) as unknown as
-    | RawCategory[]
-    | null;
+async function readCategoryIds(client: EldraClient): Promise<ReadonlyMap<string, string>> {
+  const rows = (await client.catalog.listCategories({})) as unknown as RawCategory[] | null;
   const out = new Map<string, string>();
   for (const row of rows ?? []) {
     if (typeof row.slug === 'string' && row.slug !== '' && typeof row.id === 'string') {
@@ -1654,12 +1655,12 @@ export function createGatewayStorefront(
    * only when a category filter actually needs them (`readCategoryIds`).
    *
    * The in-flight read is what is cached, so two grids filtering at once share one request; a
-   * failure — including an abort, which is what a shopper changing their mind mid-request produces
-   * — drops the cache so the next read tries again rather than inheriting the first one's error.
+   * failure drops the cache so the next read tries again rather than inheriting the first one's
+   * error.
    */
   let categoryIds: Promise<ReadonlyMap<string, string>> | null = null;
-  const categoryIdsOnce = (signal: AbortSignal) => (): Promise<ReadonlyMap<string, string>> => {
-    categoryIds ??= readCategoryIds(client, signal).catch((caught: unknown) => {
+  const categoryIdsOnce = (): Promise<ReadonlyMap<string, string>> => {
+    categoryIds ??= readCategoryIds(client).catch((caught: unknown) => {
       categoryIds = null;
       throw caught;
     });
@@ -1719,7 +1720,7 @@ export function createGatewayStorefront(
           // rather than narrow it). The `collections` facet is still answered there and still
           // honest — it says which other collections these products are also in — but a theme
           // offering it as a filter is offering an intersection the platform does not read yet.
-          const filterQuery = await catalogFilterQuery(filters, currency, categoryIdsOnce(signal));
+          const filterQuery = await catalogFilterQuery(filters, currency, categoryIdsOnce);
           const raw = (await client.catalog.listCollectionProducts(
             slug,
             {

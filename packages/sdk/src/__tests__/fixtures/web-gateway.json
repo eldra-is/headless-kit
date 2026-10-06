@@ -4200,12 +4200,12 @@
             }
           },
           {
-            "description": "Repeatable. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
+            "description": "Repeatable, at most 50. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
             "explode": true,
             "in": "query",
             "name": "categoryId",
             "schema": {
-              "description": "Repeatable. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
+              "description": "Repeatable, at most 50. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
               "items": {
                 "format": "uuid",
                 "type": "string"
@@ -4231,15 +4231,16 @@
             }
           },
           {
-            "description": "Repeatable, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
+            "description": "Repeatable, at most 50, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
             "explode": true,
             "in": "query",
             "name": "option",
             "schema": {
-              "description": "Repeatable, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
+              "description": "Repeatable, at most 50, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
               "items": {
                 "type": "string"
               },
+              "maxItems": 50,
               "type": [
                 "array",
                 "null"
@@ -4533,12 +4534,12 @@
             }
           },
           {
-            "description": "Repeatable. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
+            "description": "Repeatable, at most 50. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
             "explode": true,
             "in": "query",
             "name": "categoryId",
             "schema": {
-              "description": "Repeatable. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
+              "description": "Repeatable, at most 50. Include products in any of these categories (OR). A product matches through any of its category memberships, primary or not.",
               "items": {
                 "format": "uuid",
                 "type": "string"
@@ -4564,15 +4565,16 @@
             }
           },
           {
-            "description": "Repeatable, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
+            "description": "Repeatable, at most 50, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
             "explode": true,
             "in": "query",
             "name": "option",
             "schema": {
-              "description": "Repeatable, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
+              "description": "Repeatable, at most 50, each '<optionKey>:<value>' such as option=colour:oat. Values of the same key are OR'd; different keys are AND'd.",
               "items": {
                 "type": "string"
               },
+              "maxItems": 50,
               "type": [
                 "array",
                 "null"
@@ -4607,16 +4609,17 @@
             }
           },
           {
-            "description": "Repeatable. Include products in any of these collections (OR). Only an ACTIVE collection matches, so an id that is not publicly visible matches nothing rather than revealing membership.",
+            "description": "Repeatable, at most 50. Include products in any of these collections (OR). Only an ACTIVE collection matches, so an id that is not publicly visible matches nothing rather than revealing membership.",
             "explode": true,
             "in": "query",
             "name": "collectionId",
             "schema": {
-              "description": "Repeatable. Include products in any of these collections (OR). Only an ACTIVE collection matches, so an id that is not publicly visible matches nothing rather than revealing membership.",
+              "description": "Repeatable, at most 50. Include products in any of these collections (OR). Only an ACTIVE collection matches, so an id that is not publicly visible matches nothing rather than revealing membership.",
               "items": {
                 "format": "uuid",
                 "type": "string"
               },
+              "maxItems": 50,
               "type": [
                 "array",
                 "null"
