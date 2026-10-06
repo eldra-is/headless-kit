@@ -350,12 +350,11 @@ describe('eldra sdk inventory and catalog extras', () => {
   });
 
   /**
-   * `filter` is the one query parameter the gateway declares repeatable
-   * (`explode: true` on every list endpoint in
-   * `src/__tests__/fixtures/web-gateway.json`); `sort` and `fields` are
-   * `explode: false`. Comma-joining filter tokens ran them into one parameter —
-   * a token's own value may contain commas (`slug:in:a,b`) — and everything
-   * after the first token was silently dropped by the gateway.
+   * `filter` is repeatable on every list endpoint in
+   * `src/__tests__/fixtures/web-gateway.json` (`explode: true`), while `sort`
+   * and `fields` are `explode: false`. Comma-joining filter tokens ran them into
+   * one parameter — a token's own value may contain commas (`slug:in:a,b`) — and
+   * everything after the first token was silently dropped by the gateway.
    */
   it('repeats the filter parameter per token and keeps sort comma-separated', async () => {
     const { client, requests } = recording({ data: [], meta: {} });

@@ -705,12 +705,13 @@ colour, availability and a price range in whole major units) and returns the fil
 the `facets` object that describes what it answered from. That matters beyond tidiness — the
 scaffolded site and the collection sample page are both demo-backed, so a demo that ignored
 `filters` would show a shopper their filter changing the URL, the chips and the active-filter row
-while the grid and the count stayed exactly as they were. The facet pass itself is **one
-implementation, shared** — `app/storefront/facets.ts`, pure and framework-free — so the demo and the
-gateway filter and count by exactly the same rules (price bounds inclusive and in major units,
-`availability` read off the item's own stock as `in_stock`/`out_of_stock`, values OR-ed within a
-source and AND-ed across sources). The demo supplies the per-product attributes a product card does
-not carry; see the gateway's own paragraph below for what that means on the live site.
+while the grid and the count stayed exactly as they were. The pass and the counting live in
+`app/storefront/facets.ts` — pure, framework-free and the demo's own, since the gateway source hands
+both to the platform (see its paragraph below) — under the same rules the platform applies: price
+bounds inclusive and in major units, `availability` read off the item's own stock as
+`in_stock`/`out_of_stock`, values OR-ed within a source and AND-ed across sources, and a family's
+counts computed with that family's own filter left out. The demo supplies the per-product attributes
+a product card does not carry.
 
 `catalog.collectionProducts` takes a `StorefrontCollectionSelector` — `{ slug }` or `{ id }` — not a
 bare handle, because a `reference` field stores the collection's id and may hand the block nothing
@@ -728,55 +729,67 @@ the field or operator set, so treat this list as what the gateway accepted when 
 check a 400 against it). A token the gateway does not accept is a 400, not an empty list, so the
 tokens this theme builds live in one place in `app/storefront/gateway.ts`. `byHandles` asks for its
 whole set in one `slug:in:a,b` token (bare tokens are AND'd, so one `eq` per handle would match
-nothing), and `filter` is the one query parameter the gateway declares repeatable
-(`explode: true`) — `@eldrajs/sdk` sends one `filter=` per token for it and keeps `sort`/`fields`
-comma-separated. `related` has no relatedness endpoint to call, so it reads the current product and
+nothing). `filter` is one of the query parameters the gateway declares repeatable
+(`explode: true`), along with the catalog's `categoryId`, `collectionId` and `option` — `@eldrajs/sdk`
+sends one entry per value for those four and keeps `sort`/`fields` comma-separated. `related` has no relatedness endpoint to call, so it reads the current product and
 lists the same `categoryId` (the documented query parameter on `GET /catalog/v1/products/list`), the
 product itself excluded, falling back to the newest active products when it has no category or the
 category holds nothing else. Its sort ids map to the sort fields the endpoint knows (`featured` and
 `best-selling` to none: `featured` _is_ the collection's own order, and the contract exposes no sales
 figures).
 
-**The collection grid's facets are applied — and counted — client-side, over the results the
-gateway returned.** `category`, `collection`, `option:*`, `price` and `availability` are not fields
-that endpoint filters on, and it answers no `facets` object, so no `filter` token is built from them;
-sending one is a 400, and dropping them silently is worse — `?price=50-150` used to leave the $48
-product on screen under a URL, chips and an active-filter row that all claimed it had been filtered.
-`createGatewayStorefront` runs the same `app/storefront/facets.ts` pass the demo does over the page
-it fetched, reports the filtered count as `total` (which is what the grid's count line and
-`LoadMore`'s "Showing X of Y" read), and derives the `facets` object the filter panel draws its
-groups from (`deriveFacets`).
+**The collection grid's facets are the catalog list's own query parameters** (public contract
+3.7.0). `catalog.collectionProducts` sends them and asks for `facets=true`, so one request answers
+the filtered page, the filtered `total` (what the count line and `LoadMore`'s "Showing X of Y" read)
+and the counts the panel draws its groups from — over the **whole collection**, not the rows one read
+could reach. They are not `filter` tokens and never were: `filter` is the `field:op:value` vocabulary
+above, and a facet sent through it is a 400.
 
-Two consequences worth knowing before a shop with a long collection goes live:
+| the block's filter        | the parameter                         | the conversion that matters                                                                                                                     |
+| ------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `price` (`"<min>-<max>"`) | `minPrice`, `maxPrice`                | whole **major** units in the URL, **minor** in the request — the store's own fraction digits, so ISK 50 is `50` and USD 50 is `5000`            |
+| `category` (slugs)        | `categoryId` (repeatable, OR)         | the slug is resolved to a catalog id through `GET /catalog/v1/categories`, read once per storefront and only when a category is actually ticked |
+| `option:<key>`            | `option=<key>:<value>` (repeatable)   | OR within a key, AND across keys — the panel's own semantics                                                                                    |
+| `availability`            | `availability=in_stock\|out_of_stock` | both boxes ticked is every product, so nothing is sent                                                                                          |
+| `collection` (slugs)      | —                                     | not expressible on a collection's own product list; see below                                                                                   |
 
-- **A filtered read scans up to 200 products** (`FACET_SCAN_CAP` in `app/storefront/gateway.ts` —
-  nine reads at the starter's default page size of 24). One gateway page would hide every match
-  beyond page one; no bound at all would mean a request per 24 products for a catalogue of any size.
-  Beyond the cap a filtered view describes only the first 200 products of the collection **in the
-  gateway's current sort order**. Raise or lower the constant for your own catalogue; an unfiltered
-  read is untouched either way (one request, the gateway's own `total`).
-- **`facets` are derived off the fetched rows** (`deriveFacets`) rather than read from a response
-  field that does not exist — `dto_ProductListResult` declares only `data`/`meta` and takes no
-  `facets=true`. What a row can answer is its price (the span), its own stock (the availability
-  counts) and `options` (`dto_ProductListItem.options`, every variant option value the product is
-  made in, which is what makes the size and colour groups real on the live site: the pass filters on
-  the same values it counts). What it cannot answer is its category or its collection membership, so
-  those two groups list nothing rather than inventing values. A family the rows cannot answer is
-  treated as _unknown_ and ignored — ticking a category never empties the grid on the live site.
-- **Counts leave their own family's filter out** and the price bounds leave only price out, in the
-  derivation exactly as in the platform's own facets (`CatalogFacets` in `app/storefront/types.ts`
-  states both rules). That is what makes a multi-select panel usable: ticking "Oat" must not zero
-  every other colour, and dragging a price thumb must not move the track under the shopper's hand.
-  A value another filter rules out keeps its place with a count of 0, and the panel disables it
-  rather than hiding it.
+Four things worth knowing before a shop goes live:
 
-**Core follow-up:** server-side facet filtering and facet counts on the catalog list endpoints
-(`internal/modules/catalog/repository/{collection_query,product_list}.go` filter on
-`id`/`slug`/`status`/`createdAt` only, and neither read answers a `facets` object). When those land,
-the block's filters become real query parameters, `total` and `facets` come from the response, and
-this whole client-side pass — scan cap included — goes away. Nothing above
-`catalog.collectionProducts` changes on that day: `CatalogFacets` is already the shape the platform
-publishes, so the gateway source stops deriving it and reads the response's own instead.
+- **The price span and the counts come from the platform, in major units.** `facets.price` arrives in
+  the same minor units as the parameters it is counted over, and the gateway source converts it to
+  the major units every money field in `app/storefront/types.ts` carries. Everything else passes
+  through: the terms keep their catalog ids (which is what a `categoryId` filter needs), the option
+  values keep their labels and swatches.
+- **Counts leave their own family's filter out** and the price bounds leave only price out — the
+  platform's rules, stated on `CatalogFacets` and relied on by the panel. That is what makes a
+  multi-select panel usable: ticking "Oat" must not zero every other colour, and dragging a price
+  thumb must not move the track under the shopper's hand. A value another filter rules out keeps its
+  place with a count of 0, and the panel disables it rather than hiding it.
+- **No `availability` facet means stock could not be read at all** — which is not the same answer as
+  "nothing is in stock", so the platform omits the object rather than sending two zeroes and the
+  panel **drops the availability group**. An availability _filter_ in that state is a request error
+  rather than an unfiltered page (an unfiltered one would read like a shop with nothing out of
+  stock), so the grid reports it and keeps the page the shopper was looking at — the same treatment
+  every other failed read over visible results gets.
+- **A `collection` group inside a collection grid cannot narrow anything yet.** There is no
+  `collectionId` parameter on `GET /catalog/v1/collections/{slug}/products`: the scope already _is_
+  one collection, and the parameter is an OR, so a second id would widen the scope rather than
+  intersect it. The `collections` facet is still answered there and still honest — it names the other
+  collections these products are in — so the group draws with real counts, but ticking a value sends
+  nothing. The source is **opt-in and not in the shipped seed**; leave it out until the platform
+  reads the intersection. (`collectionId` does exist on `GET /catalog/v1/products/list`, which this
+  theme has no faceted grid over.)
+
+A clause the mapping cannot express is left out rather than guessed at — an unknown category slug, a
+price bound that is not a number, a `collection` clause — which is the storefront's standing
+"unknown, not unmatched" rule: a filter nothing can honour must not empty a shopper's grid. The one
+clause that is never dropped quietly is a category whose lookup _failed_: that fails the read, so the
+grid shows its error rather than a page that ignores a filter the chips say is applied.
+
+`app/storefront/facets.ts` belongs to the **demo** storefront: it filters and counts that fixture, so
+Storybook, the sample pages and the specs filter for real without a gateway. The gateway source hands
+both jobs to the platform and shares only the one thing that is not a backend's to decide — the
+`in_stock`/`out_of_stock` vocabulary, which the panel reads a shared URL through as well.
 
 **The filter panel reads the facets and writes the query string.** `collection-grid`'s `filters[]`
 field names the groups and their order; everything in them — values, labels, swatches, counts — is
@@ -804,7 +817,9 @@ grammar lives.
   that spells its options differently.
 - **A value nothing is left for is disabled, not hidden** — see the counting rule above. A value
   the shopper has already selected is never disabled, and one the facets stop listing altogether is
-  kept so the filter stays removable.
+  kept so the filter stays removable. A whole **group** with no values is dropped, which is how a
+  store the facets cannot describe a family of (no availability counts, an option key it does not
+  have) stops offering it.
 - **The query string is the state**:
   `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`
   (plus `sort`, `columns` and `page`). One key per group, the option sources under their bare option
