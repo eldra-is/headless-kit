@@ -647,6 +647,26 @@ too, and "We couldn't load this right now." is reserved for a page that has noth
 new state this adds is the honest opposite: a read that answers `null` without failing — a link to a
 product the catalogue no longer has — says so (`storefront.notFound`) instead of rendering nothing.
 
+**A list of cards says it once, over the list.** `collection-grid` is the one block where the
+per-card treatment was too quiet to read: two dimmed values per card, twenty-four cards, and a
+shopper who has just ticked a filter cannot tell whether anything happened. So for a whole read
+over cards already on screen it covers **the results area alone** with one scrim — the page
+background at 65%, a centred spinner, the same "Updating…" the count line reads
+(`[data-eldra-grid-updating]`) — and keeps the dimmed-value + spinner treatment for the volatile
+price/stock refresh, which is a different state and still the right size for it. Two indicators for
+one state read as the page stuttering, so the block masks the per-card flag while the scrim is up
+(`showCardRefresh` in its `Block.vue`). The cards do not move, the list takes `inert` so none of
+them can be clicked mid-update, the scrim is `aria-hidden` (the count's `role="status"` and the
+list's `aria-busy` already carry the state), and it carries no transition, so
+`prefers-reduced-motion` only ever changes the spinner. The sidebar and the drawer are deliberately
+outside it: filter changes are **coalesced** — the control, the chips and the URL move at once, the
+read they drive waits `FILTER_DEBOUNCE_MS` (350 ms), and a run of ticks therefore reaches the
+storefront as one request, with "Updating…" showing from the first one. Sort, Columns, Load more,
+Clear all, a removed chip and the drawer's own apply flush that window instead of waiting it out, so
+each of those is one request carrying everything pending; the drawer's live "Show N products" count
+has the same window. A block with its own live filters should follow the same shape; nothing in
+`app/storefront/**` is involved, it is the block's own state.
+
 **You do not rebuild the site to make a price correct.** Two mechanisms cover the gap from opposite
 ends. The refresh above covers the minutes after a visitor loads a page. Underneath it, a change to
 a variant's price or compare-at price, or a product's availability flipping, enqueues a site rebuild
@@ -796,6 +816,7 @@ Four things worth knowing before a shop goes live:
   memoised per storefront (unlike the categories, which are read whole: a store's collections are a
   merchandising list that grows without bound). The demo storefront filters its own fixture by
   collection in both scopes, so a Storybook story or a sample page keeps the group.
+
 - **A "Sort by" option the scope cannot honour is declared the same way, and the grid drops it.**
   `StorefrontCollectionProducts.unsortable` names the block's own sort ids — `featured`,
   `best-selling`, `price-asc`, `price-desc`, `newest` — this answer's scope has nothing real to order
