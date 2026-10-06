@@ -1870,9 +1870,9 @@ Price                                           ← label, names the group and b
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `value` | [number, number] | `[min, max]` | The selected span, lowest first (two-way). The two can meet but never cross. |
+| `value` | [number, number] | `[min, max]` | The selected span, lowest first (two-way). The two can meet but never cross. A control nobody is reporting the value to tracks `[min, max]` until something moves it, so a filter whose bounds load after it renders spans the range it was given rather than the one it was born with. |
 | `min` | number | `0` | The lowest value either thumb can reach. |
-| `max` | number | `100` | The highest value either thumb can reach. |
+| `max` | number | `100` | The highest value either thumb can reach. Below `min` it is treated as `min` — an empty range at the bottom of the scale — because a thumb cannot report a value outside its own limits without lying to a screen reader. |
 | `step` | number | `1` | The granularity of every move: an arrow key, a pointer press and a typed value all land on a multiple of it, counted from `min` — or on either bound, which is a stop of its own. A store picks a sensible unit of its currency (ISK 100, USD 1). |
 | `largeStep` | number | `step` × 10 | The coarse move, for `Shift` + an arrow and for `PageUp` / `PageDown`. |
 | `label` | string | none | The visible group label ("Price"). |
@@ -1919,6 +1919,8 @@ One size. The parts are fixed in rem and the control takes the full width of its
 - Neither the thumbs nor the filled range animate their position, by pointer or by key: the value is the thing, and a thumb that slides in after an arrow key reads as a control lagging behind its own number (it is also the focus ring's own rule — the ring owns the transitions of the element it sits on, and the thumb is that element). The one motion the control has is the thumb's hover and dragging halo, which fades in over `duration-fast` with `ease-out` and appears instantly with reduced motion.
 - A typed value commits on **blur** or **`Enter`**, never on a keystroke: a shopper typing "1200" must not filter at "1", "12" and "120" on the way. On commit it is snapped, clamped to `[min, max]` and clamped against the other thumb. A field left empty falls back to that end of the range (`min` for the minimum field, `max` for the maximum), which is how a shopper clears half of the filter. Text that is not a number at all reverts to the value the thumb already had.
 - While a field has focus it shows exactly what was typed, ungrouped and unformatted. The moment it loses focus it shows `formatValue`'s text again, so the pair reads as a price rather than as digits.
+- The fields are the same box as **Input**, in the same states: the same boundary at rest, the same hover and focus change, the same disabled treatment. A fractional `step` also asks for the decimal keypad on a phone, since a decimal separator the field accepts has to be on the keyboard that opens.
+- A drag ends when the pointer is released, when the gesture is cancelled, and whenever the control loses the pointer without either — the thumb must never follow a pointer that is no longer pressed. A second contact landing while a drag is in flight is ignored rather than handed the thumb.
 
 **Keyboard**
 

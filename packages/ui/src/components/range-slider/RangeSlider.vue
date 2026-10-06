@@ -21,7 +21,7 @@
  * dragging it — a press is a drag of no distance — and the two thumbs' own (deliberately
  * overlapping, 44px) targets can never argue about which one a press belongs to.
  */
-import { computed, ref } from 'vue';
+import { computed, ref, watch, watchEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
@@ -88,13 +88,42 @@ const locale = useEldraUiLocale();
 
 const labelId = useUiId('range-slider-label');
 
+/**
+ * The bounds and the two step sizes, as every rule in `useRangeSlider.ts` wants them.
+ *
+ * `max` is floored at `min`, which is what makes inverted bounds coherent rather than nonsense: a
+ * `min` above `max` used to pass straight through, and each thumb then reported an `aria-valuenow`
+ * below its own `aria-valuemin` and an `aria-valuemin` above its own `aria-valuemax`. Flooring
+ * collapses the control to an empty range at `min` — a real state the component already handles
+ * (both thumbs on one value, nothing movable) — and the pair is announced consistently.
+ * `normalizeRangeValue` has always defended the *value* the same way; this is the same defence for
+ * the bounds.
+ */
 const math = computed<RangeSliderMath>(() => ({
   min: props.min,
-  max: props.max,
+  max: Math.max(props.min, props.max),
   step: props.step,
   // `withDefaults` cannot express "ten times another prop", so the default is resolved here.
   largeStep: props.largeStep ?? props.step * LARGE_STEP_FACTOR,
 }));
+
+/**
+ * Inverted bounds are always a mistake at the call site (a facet response read the wrong way
+ * round, two props swapped), and the collapse above hides the symptom — so the mistake is named
+ * once in dev, where it can be fixed, and costs a production bundle nothing. The same shape
+ * `Section`'s own nesting warning uses.
+ */
+if (import.meta.env?.DEV) {
+  let warned = false;
+  watchEffect(() => {
+    if (warned || props.max >= props.min) return;
+    warned = true;
+    console.warn(
+      `[@eldrajs/ui] <RangeSlider> has max (${props.max}) below min (${props.min}). The control ` +
+        'is drawn as an empty range at min until the two are the right way round.'
+    );
+  });
+}
 
 /** How many fraction digits the step grid can land on — the fields' own formatting precision. */
 const digits = computed(() => rangeStepDigits(math.value));
@@ -116,6 +145,35 @@ const value = computed<RangeSliderValue>(() => normalizeRangeValue(model.value, 
 function valueOf(thumb: RangeSliderThumb): number {
   return thumb === 'min' ? value.value[0] : value.value[1];
 }
+
+/**
+ * Whether anything has moved this control yet. `false` until the first move that actually changes
+ * the value, by key, by pointer or by a committed field.
+ */
+const touched = ref(false);
+
+/**
+ * An **unbound** slider follows its bounds until something moves it.
+ *
+ * `useControllableModel`'s uncontrolled fallback is called once, so a slider mounted before its
+ * bounds arrive — `<RangeSlider :min="facets.price.min" :max="facets.price.max" inputs />`, the
+ * price filter's own shape, since the facets come from the backend after the first render — kept
+ * the `[0, 100]` pair it started with, and `normalizeRangeValue` then snapped that into the new
+ * bounds: a filter collapsed at the cheapest product instead of spanning the catalogue. Re-seeding
+ * is what the Properties table's "`value` defaults to `[min, max]`" means for a slider whose
+ * bounds load late.
+ *
+ * It stops at the first real move, so a late facet refresh can never overwrite a shopper's own
+ * choice, and it never touches a slider the parent controls — there, the pair is the parent's to
+ * re-seed.
+ */
+watch(
+  () => [props.min, props.max] as const,
+  ([min, max]) => {
+    if (props.modelValue !== undefined || touched.value) return;
+    model.value = [min, Math.max(min, max)];
+  }
+);
 
 /** Spec → Properties, `formatValue`: used for every number the control speaks or prints. */
 function formatDisplay(amount: number): string {
@@ -218,6 +276,7 @@ function setThumb(thumb: RangeSliderThumb, next: number): number {
   const clamped = clampRangeThumb(next, thumb, current, math.value);
   const was = thumb === 'min' ? current[0] : current[1];
   if (clamped !== was) {
+    touched.value = true;
     const pair: RangeSliderValue = thumb === 'min' ? [clamped, current[1]] : [current[0], clamped];
     model.value = pair;
     pendingChange.value = pair;
@@ -247,6 +306,12 @@ function onPointerDown(event: PointerEvent): void {
   // `button` is 0 for the primary button and for every touch and pen contact; a secondary or
   // middle press is not a drag.
   if (props.disabled || (event.button !== undefined && event.button !== 0)) return;
+  // A drag already in flight owns the control: a second contact (the other finger of a pinch over
+  // the control, a mouse press during a touch drag) must not hand the thumb over mid-gesture.
+  // Written against the state this component owns rather than against `event.isPrimary`, whose
+  // `PointerEventInit` default is `false` — a guard on that rejects every synthetic press, in this
+  // package's own tests and in a consumer's.
+  if (dragging.value !== null) return;
   const rect = railRect();
   if (rect === null) return;
   const target = rangePositionToValue(event.clientX, rect, math.value);
@@ -284,6 +349,15 @@ function onPointerMove(event: PointerEvent): void {
   setThumb(thumb, rangePositionToValue(event.clientX, rect, math.value));
 }
 
+/**
+ * The end of a drag, however it ends: `pointerup`, `pointercancel`, and `lostpointercapture`.
+ *
+ * The last one is not redundant. Capture can be revoked with no pointer event following it at all —
+ * another element calling `setPointerCapture` for the same pointer, an OS or browser gesture (an
+ * edge swipe), the captured element being removed — and without it `dragging` would stay set, so the
+ * next bare `pointermove` across the rail would drag a thumb with no button held. (It also fires
+ * right after an ordinary `pointerup`, which this already handles: `dragging` is `null` by then.)
+ */
 function onPointerUp(): void {
   if (dragging.value === null) return;
   dragging.value = null;
@@ -499,6 +573,7 @@ const inputClass = computed(() =>
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
         @pointercancel="onPointerUp"
+        @lostpointercapture="onPointerUp"
       >
         <div data-part="track" :class="trackClass">
           <div data-part="range" :class="rangeClass" :style="rangeStyle" />
@@ -539,7 +614,7 @@ const inputClass = computed(() =>
           data-part="input"
           :data-input="thumb.thumb"
           type="text"
-          inputmode="numeric"
+          :inputmode="digits > 0 ? 'decimal' : 'numeric'"
           :class="inputClass"
           :value="inputText(thumb.thumb)"
           :aria-label="thumb.name"

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
@@ -672,6 +672,137 @@ describe('RangeSlider — classes', () => {
     expect(wrapper.find('[data-part="root"]').classes()).toContain('@container');
     expect(wrapper.find('[data-part="rail"]').classes()).toContain('eldra-range-rail');
     expect(thumb(wrapper, 'min').classList.contains('eldra-range-thumb')).toBe(true);
+    wrapper.unmount();
+  });
+});
+
+describe('RangeSlider — bounds that arrive after mount', () => {
+  it('follows its bounds while unbound and untouched', async () => {
+    // The price-filter shape: no `v-model`, and `facets.price` lands after the first render.
+    const wrapper = mountWith(RangeSlider, { props: { label: 'Price', min: 0, max: 100 } });
+    expect(thumb(wrapper, 'max').getAttribute('aria-valuenow')).toBe('100');
+
+    await wrapper.setProps({ min: 1200, max: 48_000 });
+    expect(thumb(wrapper, 'min').getAttribute('aria-valuenow')).toBe('1200');
+    expect(thumb(wrapper, 'max').getAttribute('aria-valuenow')).toBe('48000');
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[1200, 48_000]]);
+    wrapper.unmount();
+  });
+
+  it('stops following once something has moved it', async () => {
+    const wrapper = mountWith(RangeSlider, { props: { label: 'Price', min: 0, max: 100 } });
+    press(thumb(wrapper, 'max'), 'PageDown');
+    await settle();
+    expect(thumb(wrapper, 'max').getAttribute('aria-valuenow')).toBe('90');
+
+    await wrapper.setProps({ max: 200 });
+    // A late facet refresh must not overwrite a shopper's own choice.
+    expect(thumb(wrapper, 'max').getAttribute('aria-valuenow')).toBe('90');
+    wrapper.unmount();
+  });
+
+  it('leaves a controlled slider to its parent', async () => {
+    const wrapper = mountWith(RangeSlider, {
+      props: { label: 'Price', min: 0, max: 100, modelValue: [20, 60] as [number, number] },
+    });
+    await wrapper.setProps({ min: 0, max: 1000 });
+    expect(thumb(wrapper, 'max').getAttribute('aria-valuenow')).toBe('60');
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    wrapper.unmount();
+  });
+});
+
+describe('RangeSlider — inverted bounds', () => {
+  it('draws an empty range at min, with a coherent value pair', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(RangeSlider, { props: { label: 'Price', min: 50, max: 10 } });
+    for (const which of ['min', 'max'] as const) {
+      const element = thumb(wrapper, which);
+      // `aria-valuenow` below `aria-valuemin`, or `aria-valuemin` above `aria-valuemax`, is what
+      // the raw props used to report.
+      expect(element.getAttribute('aria-valuenow')).toBe('50');
+      expect(element.getAttribute('aria-valuemin')).toBe('50');
+      expect(element.getAttribute('aria-valuemax')).toBe('50');
+    }
+    // Nothing is movable, so nothing is reported.
+    press(thumb(wrapper, 'min'), 'ArrowRight');
+    press(thumb(wrapper, 'max'), 'End');
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    wrapper.unmount();
+    warn.mockRestore();
+  });
+
+  it('names the mistake once in dev', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(RangeSlider, { props: { label: 'Price', min: 50, max: 10 } });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain('max (10) below min (50)');
+    wrapper.unmount();
+    warn.mockRestore();
+  });
+
+  it('says nothing for bounds that are the right way round, or equal', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ok = mountWith(RangeSlider, { props: { min: 0, max: 100 } });
+    const collapsed = mountWith(RangeSlider, { props: { min: 40, max: 40 } });
+    expect(warn).not.toHaveBeenCalled();
+    ok.unmount();
+    collapsed.unmount();
+    warn.mockRestore();
+  });
+});
+
+describe('RangeSlider — the keypad the fields ask for', () => {
+  it('is numeric on a whole-number grid and decimal where the step has digits', () => {
+    const whole = mountWith(RangeSlider, { props: { inputs: true, step: 1 } });
+    expect(field(whole, 'min').getAttribute('inputmode')).toBe('numeric');
+    whole.unmount();
+
+    // A decimal separator the `beforeinput` filter accepts has to be on the keypad that opens.
+    const fractional = mountWith(RangeSlider, {
+      props: { inputs: true, min: 0, max: 10, step: 0.1 },
+    });
+    expect(field(fractional, 'min').getAttribute('inputmode')).toBe('decimal');
+    fractional.unmount();
+  });
+});
+
+describe('RangeSlider — a drag that ends without a pointerup', () => {
+  it('ends on lostpointercapture, and reports the move once', async () => {
+    const wrapper = mountModel({ modelValue: [20, 80], min: 0, max: 100 });
+    layOutRail(wrapper);
+    const rail = wrapper.find('[data-part="rail"]');
+    await rail.trigger('pointerdown', { clientX: 50 });
+    await settle();
+    expect(wrapper.emitted('change')).toBeUndefined();
+
+    // Capture revoked with no pointer event following it: another element taking the same pointer,
+    // an OS gesture, the element being removed.
+    await rail.trigger('lostpointercapture');
+    expect(wrapper.emitted('change')).toHaveLength(1);
+
+    // And the drag is really over: a bare move with no button held drags nothing.
+    const moves = wrapper.emitted('update:modelValue')?.length ?? 0;
+    await rail.trigger('pointermove', { clientX: 150 });
+    expect(wrapper.emitted('update:modelValue')).toHaveLength(moves);
+    wrapper.unmount();
+  });
+
+  it('does not hand the thumb over to a second contact mid-gesture', async () => {
+    const wrapper = mountModel({ modelValue: [20, 80], min: 0, max: 100 });
+    layOutRail(wrapper);
+    const rail = wrapper.find('[data-part="rail"]');
+    // A drag of the minimum thumb is in flight...
+    await rail.trigger('pointerdown', { clientX: 50 });
+    await settle();
+    // ...and a second contact lands next to the maximum thumb.
+    await rail.trigger('pointerdown', { clientX: 150 });
+    await settle();
+    // The drag still owns the minimum thumb: a move past the maximum parks it there rather than
+    // dragging the maximum thumb away.
+    await rail.trigger('pointermove', { clientX: 180 });
+    await settle();
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[80, 80]]);
     wrapper.unmount();
   });
 });
