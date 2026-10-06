@@ -146,10 +146,10 @@
     },
     {
       "fieldId": "showCategory",
-      "name": "Show category trail",
+      "name": "Show the product's category",
       "type": "bool",
       "default": true,
-      "helpText": "Turn it off when the page already has a Breadcrumbs block, so the trail never shows twice."
+      "helpText": "One label above the title — the category this product sits in. The trail from Home down to it is the Breadcrumbs block's; turn one of the two off if a page should name the category only once."
     }
   ]
 }

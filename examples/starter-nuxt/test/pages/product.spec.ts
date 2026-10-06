@@ -26,6 +26,7 @@ import {
 } from '../support/mountPage';
 import productPage from '../../pages/product.page.json';
 import type { PageFixture } from '../support/mountPage';
+import { createDemoStorefront } from '../../app/storefront/demo';
 
 const fixture = productPage as unknown as PageFixture;
 
@@ -327,6 +328,68 @@ describe('product sample page', () => {
 
   it('has no axe violations', async () => {
     const wrapper = await mountProductPage();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  /**
+   * **Both category fields on at once, which is now the default pair.** `breadcrumbs`' `fromProduct`
+   * is on unless an author turns it off, and so is `product-detail`'s `showCategory` — and a product
+   * route template an author builds themselves, or a seeded one whose merchant turned
+   * `showCategory` back on, carries both. The two must not be two trails: `breadcrumbs` owns the
+   * trail from Home down to the category, `product-detail` names the category as a single label
+   * beside the title. Before that split the page had the same levels twice, in two `<nav>`s both
+   * named "Breadcrumb".
+   *
+   * The fixture is reshaped to the two defaults rather than to its own values: `breadcrumbs` loses
+   * `fromProduct` (the shape a document seeded before the field carries) and `product-detail` loses
+   * both `showCategory: false` and its pinned `productHandle`, so each block falls back to the route
+   * — which is what a catalog seed does anyway (`app/templates.ts`). A product two levels deep in
+   * the demo tree is what tells a trail from a label.
+   */
+  it('draws the trail once and the category label once when both fields are on', async () => {
+    const bothOn: PageFixture = {
+      ...fixture,
+      blocks: fixture.blocks.map((block) => {
+        if (block.apiId === 'breadcrumbs') {
+          const { fromProduct: _fromProduct, ...rest } = block.data as Record<string, unknown>;
+          return { ...block, data: rest };
+        }
+        if (block.apiId === 'product-detail') {
+          const {
+            showCategory: _showCategory,
+            productHandle: _productHandle,
+            ...rest
+          } = block.data as Record<string, unknown>;
+          return { ...block, data: rest };
+        }
+        return block;
+      }),
+    };
+    const wrapper = await mountPage(bothOn, {
+      storefront: createDemoStorefront({ productHandle: 'speckled-latte-mug' }),
+    });
+    await flushPromises();
+
+    // One breadcrumb landmark on the page, and it carries the whole trail.
+    const trails = wrapper.findAll('nav[aria-label="Breadcrumb"]');
+    expect(trails).toHaveLength(1);
+    expect(trails[0]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/',
+      '/products?category=home',
+      '/products?category=ceramics',
+    ]);
+
+    // And exactly one category link outside it: `product-detail`'s leaf label, never a second trail.
+    const categoryLinks = wrapper
+      .findAll('a')
+      .filter((link) => link.attributes('href')?.startsWith('/products?category=') === true);
+    const outsideTheTrail = categoryLinks.filter(
+      (link) => trails[0]!.element.contains(link.element) === false
+    );
+    expect(outsideTheTrail.map((link) => link.attributes('href'))).toEqual([
+      '/products?category=ceramics',
+    ]);
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });

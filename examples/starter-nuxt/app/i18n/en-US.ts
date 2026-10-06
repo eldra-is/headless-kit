@@ -376,7 +376,6 @@ export const enUS = {
       'Products, filters and counts come from the store. Pick a collection and the filters to show.',
   },
   product: {
-    breadcrumb: 'Breadcrumb',
     images: 'Product images',
     information: 'Product information',
     tabsLabel: 'Product details',

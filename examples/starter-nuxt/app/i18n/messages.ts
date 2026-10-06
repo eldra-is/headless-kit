@@ -762,8 +762,6 @@ export interface Messages {
    * (`useEditing()`) for a block inserted outside a product template with no product picked.
    */
   product: {
-    /** The category trail's `<nav aria-label>`. */
-    breadcrumb: string;
     /** The gallery group's accessible name. */
     images: string;
     /** The information column's accessible name. */

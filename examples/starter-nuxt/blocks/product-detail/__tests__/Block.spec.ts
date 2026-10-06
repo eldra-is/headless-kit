@@ -541,8 +541,35 @@ describe('product-detail block', () => {
     expect(tooFew.find('a[href="#reviews"]').exists()).toBe(false);
   });
 
-  it('drops the category trail when showCategory is off', async () => {
-    const wrapper = await mountReady({ ...mock, showCategory: false });
+  /**
+   * **`showCategory` is one label, not a trail.** The trail — Home down to the category — belongs to
+   * `breadcrumbs`, which is also on by default, and drawing the whole trail here as well put the
+   * same levels on the page twice inside two `<nav>`s both named "Breadcrumb". A product two levels
+   * deep in the demo's tree (`speckled-latte-mug`: Home › Ceramics) is what tells the two apart:
+   * only the leaf is drawn, and there is no breadcrumb landmark in this block at all.
+   */
+  it('names the product’s own category once, as a label and not a trail', async () => {
+    const wrapper = await mountReady(
+      { ...mock, productHandle: 'speckled-latte-mug' },
+      { productHandle: 'speckled-latte-mug' }
+    );
+    const categoryLinks = wrapper
+      .findAll('a')
+      .filter((link) => link.attributes('href')?.startsWith('/products?category=') === true);
+    expect(categoryLinks.map((link) => link.attributes('href'))).toEqual([
+      '/products?category=ceramics',
+    ]);
+    expect(categoryLinks[0]!.text()).toBe('Ceramics');
+    expect(wrapper.find('nav[aria-label="Breadcrumb"]').exists()).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('drops the category label when showCategory is off', async () => {
+    const wrapper = await mountReady(
+      { ...mock, productHandle: 'speckled-latte-mug', showCategory: false },
+      { productHandle: 'speckled-latte-mug' }
+    );
+    expect(wrapper.html()).not.toContain('/products?category=');
     expect(wrapper.find('nav[aria-label="Breadcrumb"]').exists()).toBe(false);
   });
 

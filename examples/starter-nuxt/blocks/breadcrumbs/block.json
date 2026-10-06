@@ -55,7 +55,7 @@
       "name": "Add the product's category trail",
       "type": "bool",
       "default": true,
-      "description": "On a product page, appends the store's own category trail (root category down to the product's) after the levels above. It does nothing on any other page. Turn it off here if you would rather Product detail drew the trail with its own \"Show category trail\"."
+      "description": "On a product page, appends the store's own category trail (root category down to the product's) after the levels above. It does nothing on any other page. Product detail names the product's category as a single label rather than a trail, so the two do not repeat each other; turn this off if a page should name the category only once."
     },
     {
       "fieldId": "currentTitle",

@@ -213,15 +213,27 @@ const sizeGuideAs = computed(() =>
   sizeGuideHref.value !== null && isInternalHref(sizeGuideHref.value) ? EldraRouterLink : undefined
 );
 
-/** The trail comes from the store, not from a field, but it still ends up in an `href`, so it goes
- *  through the same `safeHref` gate every author-supplied destination in this theme passes; a level
- *  whose destination does not survive it is dropped rather than rendered as a broken link. */
-const categoryTrail = computed(() =>
-  (product.value?.categoryTrail ?? []).flatMap((level) => {
-    const href = safeHref(level.href);
-    return href === null ? [] : [{ label: level.label, href }];
-  })
-);
+/**
+ * **The product's own category, as one label — never a trail.**
+ *
+ * The *trail* belongs to `breadcrumbs`, which is the block whose job a trail is and the one that
+ * can put the page-tree levels above the catalogue in front of it. Drawing the whole trail here as
+ * well meant a page carrying both blocks — the default, since `showCategory` is on unless an author
+ * turns it off and so is `breadcrumbs`' `fromProduct` — had the same levels twice, in two `<nav>`s
+ * both named "Breadcrumb". One leaf label beside the title is the thing this block actually wants:
+ * which shelf this product sits on. See `docs/starter-kit.md`, "The category tree", for how the two
+ * fields relate.
+ *
+ * The leaf comes from the store, not from a field, but it still ends up in an `href`, so it goes
+ * through the same `safeHref` gate every author-supplied destination in this theme passes; a
+ * destination that does not survive it drops the label rather than rendering a broken link.
+ */
+const categoryLeaf = computed<{ label: string; href: string } | null>(() => {
+  const leaf = (product.value?.categoryTrail ?? []).at(-1);
+  if (leaf === undefined || !leaf.label) return null;
+  const href = safeHref(leaf.href);
+  return href === null ? null : { label: leaf.label, href };
+});
 
 /** Spec States, Minimal row: "With no reviews, the rating is hidden" — and the `showRating` field's
  *  own note, "Hidden anyway when the product has fewer than 3 reviews": an average over one or two
@@ -604,29 +616,17 @@ function tabValue(index: number): string {
         >
           <div class="flex flex-col gap-2">
             <!--
-              A hand-drawn trail rather than `@eldrajs/ui`'s `Breadcrumb`: that component always
-              renders its last item as the current page (`aria-current="page"`, never a link — see
-              `BreadcrumbItem`'s own comment), and here the last level is the parent category, not
-              this page. Spec Layout wants every level to stay a link, so the trail is a `<nav>`
-              named "Breadcrumb" over package `Link`s instead.
+              One label, not a trail, and deliberately not a `<nav>`: a second landmark named
+              "Breadcrumb" beside the `breadcrumbs` block's own is the duplication this used to
+              ship (see `categoryLeaf`). It stays a link because the destination is useful — the
+              catalogue filtered by that category — and `p` rather than a bare `Link` so the line
+              keeps its own type size whatever the link's tone does.
             -->
-            <nav
-              v-if="showCategory && categoryTrail.length > 0"
-              :aria-label="t('product.breadcrumb')"
-            >
-              <ol class="text-muted flex flex-wrap items-center gap-1 text-[0.875rem]">
-                <li
-                  v-for="(level, index) in categoryTrail"
-                  :key="level.href"
-                  class="flex items-center gap-1"
-                >
-                  <span v-if="index > 0" aria-hidden="true">/</span>
-                  <Link :href="level.href" :as="EldraRouterLink" tone="muted">
-                    {{ level.label }}
-                  </Link>
-                </li>
-              </ol>
-            </nav>
+            <p v-if="showCategory && categoryLeaf !== null" class="text-[0.875rem]">
+              <Link :href="categoryLeaf.href" :as="EldraRouterLink" tone="muted">
+                {{ categoryLeaf.label }}
+              </Link>
+            </p>
 
             <h1 :id="titleId" :class="TITLE_CLASS">{{ product.title }}</h1>
 

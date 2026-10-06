@@ -377,7 +377,6 @@ export const isIS = {
       'Vörur, síur og fjöldi koma úr vefbúðinni. Veldu vörulista og hvaða síur eiga að birtast.',
   },
   product: {
-    breadcrumb: 'Leiðarslóð',
     images: 'Myndir af vörunni',
     information: 'Upplýsingar um vöruna',
     tabsLabel: 'Nánar um vöruna',

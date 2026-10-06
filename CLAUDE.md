@@ -178,8 +178,10 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `blocks/<apiId>/{block.json,Block.vue,mock.json,preview.json?,preview.png,__tests__/}`
   is the block contract — `mock.json` is exactly the seed Studio writes when an author inserts the
   block, so a media field is absent there (never a fixture object; `eldra-theme validate` enforces
-  `{assetId: uuid}` or absent), and the optional sibling `preview.json` carries demo imagery as a
-  story/preview-only overlay merged onto `mock.json` — and neither `blocks/**` nor
+  `{assetId: uuid}` or absent), and the optional sibling `preview.json` is a story/preview-only overlay
+  merged onto `mock.json` — demo imagery mostly, but any field a story or the preview tile should
+  render differently from a fresh insert (`breadcrumbs` has no media and carries one to turn
+  `fromProduct` off) — and neither `blocks/**` nor
   `app/components/ui/**` may call Nuxt globals
   (`useRoute`, `useHead`, `NuxtLink`, `$fetch`, `useAsyncData`) or rely on Nuxt auto-imports — every
   `vue`/`@eldrajs/*` import is explicit, which is what lets a block render in Storybook with no

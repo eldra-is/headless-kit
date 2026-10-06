@@ -59,9 +59,13 @@ const showHome = computed(() => data.value.showHome !== false);
  * beside it also turns Product detail's own `showCategory` off — so a live product page had no
  * category trail in either place.
  *
- * Nothing is duplicated by the flip: the option can only add crumbs on a **product route**, which
- * is served by the product route template, and that template's seed is the one that carries
- * `showCategory: false` (`pages/product.page.json`).
+ * **How this relates to `product-detail`'s `showCategory`, which is also on by default.** That
+ * field names the product's category as **one label** above the title, never a trail (see that
+ * block's own `categoryLeaf`), so the two do not repeat each other: the trail from Home down to the
+ * category is this block's, the shelf the product sits on is that block's. What a page with both on
+ * does show twice is the leaf's own name — once as the last crumb here, once as that label — which
+ * is why both fields say to turn one of the two off if a page should name the category only once.
+ * This block cannot know what else is on the page, so neither default can guarantee more than that.
  *
  * `preview.json` turns it off for the generated story and the preview tile alone, because the demo
  * storefront's route *is* a product by default (`app/storefront/demo.ts`) — so without the overlay

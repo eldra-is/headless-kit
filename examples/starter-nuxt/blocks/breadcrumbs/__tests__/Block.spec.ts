@@ -7,6 +7,7 @@ import { Container } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
@@ -29,6 +30,15 @@ const deepTrailData = {
   showCurrent: true,
   container: 'wide',
 };
+
+/**
+ * What a story and the `preview.png` render: `mock.json` with `preview.json` shallow-merged on top
+ * (`scripts/generate-stories.mjs`). This block's overlay carries no media — it turns `fromProduct`
+ * off, because the demo storefront's route is a product by default and the tile is about the
+ * authored levels. Mounted here for the reason every block with an overlay mounts its merged shape:
+ * a mistyped key in the overlay would otherwise only show up as a preview hash moving.
+ */
+const merged = { ...mock, ...preview };
 
 /** A top-level page: nothing to build a trail from at all. */
 const topLevelPageData = {
@@ -86,6 +96,19 @@ describe('breadcrumbs block', () => {
     const wrapper = mountBlock(mock);
     expect(wrapper.text()).toContain(mock.homeLabel);
     for (const level of mock.trail) expect(wrapper.text()).toContain(level.label);
+    expect(wrapper.text()).toContain(mock.currentTitle);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders the story/preview overlay the same way, with the store’s trail off', async () => {
+    expect(merged.fromProduct).toBe(false);
+    // On a product route, which is what the demo storefront's own route is: still only the
+    // authored levels, because the overlay turned the store's trail off.
+    const wrapper = mountOnProduct(merged, 'speckled-latte-mug');
+    await flushPromises();
+    expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((link) => link.props('to'))).toEqual(
+      ['/', '/collections/knitwear', '/collections/mens-sweaters']
+    );
     expect(wrapper.text()).toContain(mock.currentTitle);
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
