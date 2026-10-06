@@ -82,6 +82,22 @@ describe('groupValuesFor', () => {
     expect(values.at(-1)).toEqual({ value: 'moss', label: 'moss', count: 0 });
   });
 
+  /**
+   * A store whose stock cannot be read answers **no** `availability` facet rather than two zeroes
+   * (`CatalogFacets.availability`), and a group with no values is one the block does not render —
+   * so the shopper is never offered a filter whose counts are unknown and whose request is an
+   * error. A value they have already ticked is still kept, or the filter could not be removed.
+   */
+  it('offers nothing for availability when the facets omit it, bar a value already ticked', () => {
+    const { availability: _omitted, ...noStock } = FACETS;
+    expect(groupValuesFor('availability', noStock, [], AVAILABILITY)).toEqual([]);
+    expect(groupValuesFor('availability', noStock, ['in_stock'], AVAILABILITY)).toEqual([
+      { value: 'in_stock', label: 'in_stock', count: 0 },
+    ]);
+    // Every other group still draws: only the one family the store cannot count goes.
+    expect(groupValuesFor('category', noStock, [], AVAILABILITY)).toHaveLength(2);
+  });
+
   it('offers nothing at all without facets, and nothing for price either way', () => {
     expect(groupValuesFor('category', undefined, [], AVAILABILITY)).toEqual([]);
     expect(groupValuesFor('price', FACETS, [], AVAILABILITY)).toEqual([]);

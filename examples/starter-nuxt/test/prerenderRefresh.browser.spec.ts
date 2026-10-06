@@ -1306,12 +1306,17 @@ describe('prerendered commerce data on the generated static site', () => {
       expect(visited.grid.price).toEqual(['40', '60']);
       // The build's payload holds the *unfiltered* result, so a filtered view has to read live —
       // under a key of its own (the filters are part of it), which is what makes it miss the
-      // payload rather than silently reuse it.
-      expect(
-        visited.requests.some((request) =>
-          request.startsWith(`/catalog/v1/collections/${COLLECTION_HANDLE}/products`)
-        )
-      ).toBe(true);
+      // payload rather than silently reuse it. The range goes out as the endpoint's own
+      // `minPrice`/`maxPrice` (minor units, and this store sells in krónur, which have none), and
+      // `facets=true` is what fills the panel's groups.
+      const read = visited.requests.find((request) =>
+        request.startsWith(`/catalog/v1/collections/${COLLECTION_HANDLE}/products`)
+      );
+      expect(read).toBeDefined();
+      const sent = new URL(read!, statics.origin).searchParams;
+      expect(sent.get('minPrice')).toBe('40');
+      expect(sent.get('maxPrice')).toBe('60');
+      expect(sent.get('facets')).toBe('true');
       // The server rendered the unfiltered page; the client applies the query after mounting, so
       // the first paint is still the server's and Vue has nothing to complain about.
       expect(visited.warnings).toEqual([]);

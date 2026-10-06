@@ -7,15 +7,19 @@ import {
   type EldraHttpRequest,
 } from '@eldrajs/sdk';
 import { createGatewayStorefront } from '../../app/storefront/gateway';
-import type { StorefrontCollectionSelector, StorefrontRoute } from '../../app/storefront/types';
+import type {
+  CatalogFacets,
+  StorefrontCollectionSelector,
+  StorefrontRoute,
+} from '../../app/storefront/types';
 
 /**
  * `createGatewayStorefront`'s own spec: the route it is handed is exactly the route a block reads
  * back (`storefront.route`, never a copy), `catalog.collectionProducts` maps the gateway's real
- * response shape, and — since the endpoint filters on `id`/`slug`/`status`/`createdAt` only, with
- * no facets/aggregations field on the response (checked against
- * `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`) — it applies the shopper's
- * facets itself, over the results it fetched (`app/storefront/facets.ts`).
+ * response shape, and the shopper's facets go out as the catalog list's own query parameters —
+ * `minPrice`/`maxPrice`, `categoryId`, `availability`, `option`, `facets=true` (contract 3.7.0,
+ * `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`) — with the response's
+ * `facets` read back as the view type the filter panel draws from.
  */
 function fakeRoute(): StorefrontRoute {
   return {
@@ -38,6 +42,8 @@ interface ClientCalls {
   collectionQueries: Array<Record<string, unknown>>;
   collectionProductQueries: Array<Record<string, unknown>>;
   productListQueries: Array<Record<string, unknown>>;
+  /** One entry per `GET /catalog/v1/categories` — the read a category slug becomes an id through. */
+  categoryReads: number[];
 }
 
 /** A client whose collection list answers with `collections` — the by-id path's
@@ -48,15 +54,22 @@ function recordingClient(
   options: {
     product?: Record<string, unknown>;
     products?: (query: Record<string, unknown>) => Array<Record<string, unknown>>;
+    /** The store's whole category list, which is how a `category` slug becomes a `categoryId`. */
+    categories?: Array<{ id: string; slug: string }>;
   } = {}
 ): ClientCalls {
   const productSlugs: string[] = [];
   const collectionQueries: Array<Record<string, unknown>> = [];
   const collectionProductQueries: Array<Record<string, unknown>> = [];
   const productListQueries: Array<Record<string, unknown>> = [];
+  const categoryReads: number[] = [];
   const meta = { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 };
   const client = {
     catalog: {
+      listCategories: async () => {
+        categoryReads.push(categoryReads.length + 1);
+        return (options.categories ?? []).map((row) => ({ ...row, title: row.slug }));
+      },
       listCollections: async (query: Record<string, unknown>) => {
         collectionQueries.push(query);
         return {
@@ -81,6 +94,7 @@ function recordingClient(
     collectionQueries,
     collectionProductQueries,
     productListQueries,
+    categoryReads,
   };
 }
 
@@ -97,10 +111,32 @@ function listRow(slug: string): Record<string, unknown> {
   };
 }
 
+/**
+ * A store selling in krónur, which is the currency every assertion below that is not *about* the
+ * minor-unit conversion is written in: ISK has no minor unit, so a price parameter and the facets'
+ * own span read as the same number the shopper typed. `USD_COMMERCE` is the other half of that
+ * pair, where a hundred-fold mistake is visible.
+ */
+const ISK_COMMERCE = { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 };
+const USD_COMMERCE = { currency: 'USD', taxInclusivePricing: false, defaultTaxRate: 0 };
+
 function fakeClient(): EldraClient {
   return {
     catalog: {
       listCollectionProducts: async () => ({
+        facets: {
+          price: { min: 9600, max: 9600 },
+          categories: [{ id: 'cat-1', slug: 'knitwear', title: 'Knitwear', count: 1 }],
+          collections: [],
+          availability: { in_stock: 1, out_of_stock: 0 },
+          options: [
+            {
+              key: 'colour',
+              name: 'Colour',
+              values: [{ value: 'oat', label: 'Oat', count: 1, swatch: '#d8cbb0' }],
+            },
+          ],
+        },
         data: [
           {
             id: 'merino-crew-sweater::oat::m',
@@ -140,8 +176,11 @@ describe('createGatewayStorefront', () => {
     expect(storefront.route).toBe(route);
   });
 
-  it('collectionProducts maps the gateway response, with no facet the rows can answer', async () => {
-    const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
+  it('collectionProducts maps the gateway response, facets and all', async () => {
+    const storefront = createGatewayStorefront(fakeClient(), {
+      route: fakeRoute(),
+      commerce: ISK_COMMERCE,
+    });
     const collection = ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' });
     const opts = ref({ page: 1, pageSize: 24 });
     const result = storefront.catalog.collectionProducts(collection, opts);
@@ -160,15 +199,22 @@ describe('createGatewayStorefront', () => {
         }),
       ],
       total: 1,
-      // Derived off the row: one product, so the price span is its own and the `in_stock` count is
-      // 1. `categories`/`collections` stay empty — a product list row carries neither (see
-      // `listRowAttributes`) — and `options` is empty because this row declares none.
+      // The response's own `facets`, not a derivation: the terms carry the catalog ids a
+      // `categoryId` filter needs, the option values keep their labels and swatches, and the price
+      // span is the store's own (krónur here, so minor and major read alike — the conversion has
+      // its own test).
       facets: {
         price: { min: 9600, max: 9600 },
-        categories: [],
+        categories: [{ id: 'cat-1', slug: 'knitwear', title: 'Knitwear', count: 1 }],
         collections: [],
         availability: { in_stock: 1, out_of_stock: 0 },
-        options: [],
+        options: [
+          {
+            key: 'colour',
+            name: 'Colour',
+            values: [{ value: 'oat', label: 'Oat', count: 1, swatch: '#d8cbb0' }],
+          },
+        ],
       },
     });
   });
@@ -582,17 +628,10 @@ describe('createGatewayStorefront', () => {
     expect(calls.collectionQueries).toEqual([{ limit: 1, filter: [`id:eq:${id}`] }]);
     expect(calls.productSlugs).toEqual(['winter-knitwear']);
     expect(result.error.value).toBeNull();
-    expect(result.data.value).toEqual({
-      items: [],
-      total: 0,
-      facets: {
-        price: { min: 0, max: 0 },
-        categories: [],
-        collections: [],
-        availability: { in_stock: 0, out_of_stock: 0 },
-        options: [],
-      },
-    });
+    // No `facets` on the answer — a gateway that cannot describe its scope — so none is invented:
+    // the panel then draws the groups it can fill without values (`StorefrontCollectionProducts`).
+    expect(result.data.value).toEqual({ items: [], total: 0 });
+    expect(result.data.value).not.toHaveProperty('facets');
   });
 
   /**
@@ -721,9 +760,12 @@ describe('createGatewayStorefront', () => {
     expect(result.data.value?.map((item) => item.handle)).toEqual(['stoneware-mug']);
   });
 
-  it('collectionProducts sends a sort field the endpoint knows, and no facet filter at all', async () => {
-    const calls = recordingClient();
-    const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+  it('collectionProducts sends a sort field the endpoint knows, never a filter token', async () => {
+    const calls = recordingClient([], { categories: [{ id: 'cat-1', slug: 'knitwear' }] });
+    const storefront = createGatewayStorefront(calls.client, {
+      route: fakeRoute(),
+      commerce: ISK_COMMERCE,
+    });
     const collection = ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' });
     const opts = ref({
       page: 1,
@@ -734,7 +776,19 @@ describe('createGatewayStorefront', () => {
     storefront.catalog.collectionProducts(collection, opts);
     await settle();
 
-    expect(calls.collectionProductQueries).toEqual([{ page: 1, pageSize: 24, sort: ['minPrice'] }]);
+    // The facets are their own parameters now; `filter` stays the `field:op:value` vocabulary and
+    // carries none of them.
+    expect(calls.collectionProductQueries).toEqual([
+      {
+        page: 1,
+        pageSize: 24,
+        sort: ['minPrice'],
+        minPrice: 20,
+        maxPrice: 80,
+        categoryId: ['cat-1'],
+        facets: true,
+      },
+    ]);
     expect(calls.collectionProductQueries[0]).not.toHaveProperty('filter');
   });
 
@@ -745,7 +799,9 @@ describe('createGatewayStorefront', () => {
       const collection = ref<StorefrontCollectionSelector | null>({ slug: 'winter-knitwear' });
       storefront.catalog.collectionProducts(collection, ref({ page: 1, pageSize: 24, sort }));
       await settle();
-      expect(calls.collectionProductQueries).toEqual([{ page: 1, pageSize: 24, sort: undefined }]);
+      expect(calls.collectionProductQueries).toEqual([
+        { page: 1, pageSize: 24, sort: undefined, facets: true },
+      ]);
     }
   });
 
@@ -779,6 +835,414 @@ describe('createGatewayStorefront', () => {
 
     expect(calls.collectionQueries).toEqual([]);
     expect(calls.productSlugs).toEqual(['winter-knitwear']);
+  });
+
+  /**
+   * **The shopper's facets, as the catalog list's own query parameters** (contract 3.7.0).
+   *
+   * Every one of them used to be dropped on the floor: the endpoint filtered on
+   * `id`/`slug`/`status`/`createdAt` only, so `?price=50-150` reached the gateway as a plain paged
+   * read, the $48 bowl stayed on screen, and the kit filtered a 200-product window client-side to
+   * cover for it. These are the parameters that replaced all of that, asserted at the URL the SDK
+   * actually sends rather than at the query object — `categoryId` and `option` are repeatable
+   * (`explode: true`), and a comma-joined pair is one value the catalogue has never heard of.
+   */
+  describe('collectionProducts sends the shopper’s facets as query parameters', () => {
+    const ORG = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+    const BASE = 'https://api.example.test/api';
+    const CATEGORIES = [
+      { id: 'cat-ceramics', slug: 'ceramics', title: 'Ceramics' },
+      { id: 'cat-textiles', slug: 'textiles', title: 'Textiles' },
+    ];
+
+    /** A real `@eldrajs/sdk` client over a recorded transport, so the query string is the one a
+     *  deployed site would send — repeatable parameters, encoding and all. */
+    function httpRecorder(): { client: EldraClient; urls: string[] } {
+      const urls: string[] = [];
+      const client = createEldraClient({
+        apiBaseUrl: BASE,
+        orgId: ORG,
+        httpClient: (async (request: EldraHttpRequest) => {
+          urls.push(request.url);
+          if (request.url.includes('/catalog/v1/categories')) return CATEGORIES;
+          return { data: [], meta: { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 } };
+        }) as never,
+      });
+      return { client, urls };
+    }
+
+    /** Long enough for the category lookup *and* the list read to have both resolved. */
+    async function drain(): Promise<void> {
+      for (let i = 0; i < 200; i += 1) await Promise.resolve();
+    }
+
+    async function urlsFor(
+      filters: Record<string, string[]>,
+      commerce = USD_COMMERCE
+    ): Promise<string[]> {
+      const { client, urls } = httpRecorder();
+      const storefront = createGatewayStorefront(client, { route: fakeRoute(), commerce });
+      storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        ref({ page: 1, pageSize: 24, filters })
+      );
+      await drain();
+      return urls;
+    }
+
+    /** The list read's query, by parameter — `getAll`, because three of them repeat. */
+    async function paramsFor(
+      filters: Record<string, string[]>,
+      commerce = USD_COMMERCE
+    ): Promise<URLSearchParams> {
+      const urls = await urlsFor(filters, commerce);
+      return new URL(urls.at(-1)!).searchParams;
+    }
+
+    it('sends every filter at once, in one request the gateway can answer', async () => {
+      const urls = await urlsFor({
+        price: ['50-150'],
+        category: ['ceramics', 'textiles'],
+        'option:colour': ['oat', 'clay'],
+        'option:size': ['m'],
+        availability: ['in_stock'],
+      });
+
+      // The category slugs are resolved first — the one read that buys every `categoryId` this
+      // storefront will ever need — and then the collection's products, filtered.
+      expect(urls).toEqual([
+        `${BASE}/catalog/v1/categories`,
+        `${BASE}/catalog/v1/collections/the-winter-edit/products` +
+          '?page=1&pageSize=24&minPrice=5000&maxPrice=15000' +
+          '&categoryId=cat-ceramics&categoryId=cat-textiles&availability=in_stock' +
+          '&option=colour%3Aoat&option=colour%3Aclay&option=size%3Am&facets=true',
+      ]);
+    });
+
+    /**
+     * The URL carries whole major units, the parameters minor ones — the same units as the
+     * `facets.price` span they are counted over. Reading the shopper's 50 as 50 cents is a
+     * hundred-fold error on every two-decimal store, and skipping the conversion on a store with no
+     * minor unit is the same error the other way.
+     */
+    it('converts the price range to the store currency’s minor units', async () => {
+      const usd = await paramsFor({ price: ['50-150'] });
+      expect(usd.get('minPrice')).toBe('5000');
+      expect(usd.get('maxPrice')).toBe('15000');
+
+      const isk = await paramsFor({ price: ['50-150'] }, ISK_COMMERCE);
+      expect(isk.get('minPrice')).toBe('50');
+      expect(isk.get('maxPrice')).toBe('150');
+    });
+
+    it('sends one bound when the shopper set one, and neither for a range that is not a number', async () => {
+      const floor = await paramsFor({ price: ['50-'] });
+      expect(floor.get('minPrice')).toBe('5000');
+      expect(floor.has('maxPrice')).toBe(false);
+
+      const ceiling = await paramsFor({ price: ['-150'] });
+      expect(ceiling.has('minPrice')).toBe(false);
+      expect(ceiling.get('maxPrice')).toBe('15000');
+
+      const nonsense = await paramsFor({ price: ['cheap-ish'] });
+      expect(nonsense.has('minPrice')).toBe(false);
+      expect(nonsense.has('maxPrice')).toBe(false);
+    });
+
+    /**
+     * Both boxes ticked is every product, so it is no filter at all: sending it would make the
+     * platform spend a cross-service stock read to exclude nothing, and would turn a page that
+     * cannot read stock into an error for no reason. One box is sent in the platform's own
+     * spelling, which the retired hyphenated one folds into.
+     */
+    it('sends one availability value, never both, and never an unknown one', async () => {
+      expect((await paramsFor({ availability: ['in_stock'] })).get('availability')).toBe(
+        'in_stock'
+      );
+      expect((await paramsFor({ availability: ['out-of-stock'] })).get('availability')).toBe(
+        'out_of_stock'
+      );
+      expect(
+        (await paramsFor({ availability: ['in_stock', 'out_of_stock'] })).has('availability')
+      ).toBe(false);
+      expect((await paramsFor({ availability: ['backorder'] })).has('availability')).toBe(false);
+    });
+
+    it('reads the store’s categories once, however many slugs are ticked', async () => {
+      const calls = recordingClient([], { categories: CATEGORIES });
+      const storefront = createGatewayStorefront(calls.client, {
+        route: fakeRoute(),
+        commerce: USD_COMMERCE,
+      });
+      const opts = ref({ page: 1, pageSize: 24, filters: { category: ['ceramics'] } });
+      storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        opts
+      );
+      await settle();
+      opts.value = { page: 1, pageSize: 24, filters: { category: ['ceramics', 'textiles'] } };
+      await settle();
+
+      expect(calls.categoryReads).toHaveLength(1);
+      expect(calls.collectionProductQueries.map((query) => query.categoryId)).toEqual([
+        ['cat-ceramics'],
+        ['cat-ceramics', 'cat-textiles'],
+      ]);
+    });
+
+    it('never reads the categories for a request that filters on none', async () => {
+      const calls = recordingClient([], { categories: CATEGORIES });
+      const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+      storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        ref({ page: 1, pageSize: 24, filters: { 'option:colour': ['oat'] } })
+      );
+      await settle();
+
+      expect(calls.categoryReads).toEqual([]);
+      expect(calls.collectionProductQueries[0]).toEqual({
+        page: 1,
+        pageSize: 24,
+        sort: undefined,
+        option: ['colour:oat'],
+        facets: true,
+      });
+    });
+
+    /**
+     * A slug this store has no category for — a stale shared link, a category since unpublished —
+     * is left out rather than sent as something the catalogue would read as a different filter, and
+     * a request left with nothing to filter on is the request an unfiltered page makes. That is the
+     * storefront's standing "unknown, not unmatched" rule: a filter nothing can honour must not
+     * empty a shopper's grid.
+     */
+    it('drops a category slug the store does not have', async () => {
+      const mixed = await paramsFor({ category: ['ceramics', 'knitwear'] });
+      expect(mixed.getAll('categoryId')).toEqual(['cat-ceramics']);
+
+      const unknown = await paramsFor({ category: ['knitwear'] });
+      expect(unknown.has('categoryId')).toBe(false);
+      expect(unknown.get('facets')).toBe('true');
+    });
+
+    /**
+     * There is no `collectionId` parameter on a collection's own product list: the scope already
+     * *is* one collection, and the parameter is an OR, so a second id would widen the scope rather
+     * than narrow it. The `collections` facet is still answered and still honest — it names the
+     * other collections these products are in — but the platform does not read the intersection
+     * yet, so nothing is sent for it (`docs/starter-kit.md`).
+     */
+    it('sends nothing for a collection filter, which this read cannot express', async () => {
+      const params = await paramsFor({ collection: ['the-autumn-edit'], 'option:colour': ['oat'] });
+      expect(params.has('collectionId')).toBe(false);
+      expect(params.getAll('option')).toEqual(['colour:oat']);
+    });
+
+    it('asks for facets on an unfiltered read too, so the panel has groups to draw', async () => {
+      const urls = await urlsFor({});
+      expect(urls).toEqual([
+        `${BASE}/catalog/v1/collections/the-winter-edit/products?page=1&pageSize=24&facets=true`,
+      ]);
+    });
+  });
+
+  /**
+   * The response's `facets` object as the view type the panel reads (`CatalogFacets`).
+   *
+   * One conversion and one omission carry it: the platform counts its price span in the same minor
+   * units as the parameters it is filtered by, while every money field in `types.ts` is major; and
+   * an absent `availability` means stock could not be read at all, which is not two zeroes.
+   */
+  describe('collectionProducts reads the response’s facets', () => {
+    const FACETS = {
+      price: { min: 2400, max: 16400 },
+      categories: [{ id: 'cat-1', slug: 'ceramics', title: 'Ceramics', count: 12 }],
+      collections: [{ id: 'col-1', slug: 'the-winter-edit', title: 'The winter edit', count: 48 }],
+      availability: { in_stock: 44, out_of_stock: 4 },
+      options: [
+        {
+          key: 'colour',
+          name: 'Colour',
+          values: [
+            { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
+            { value: 'clay', label: 'Clay', count: 0 },
+          ],
+        },
+      ],
+    };
+
+    function clientWithFacets(facets: unknown): EldraClient {
+      return {
+        catalog: {
+          listCollectionProducts: async () => ({
+            data: [],
+            meta: { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 },
+            ...(facets === undefined ? {} : { facets }),
+          }),
+        },
+      } as unknown as EldraClient;
+    }
+
+    async function facetsFor(
+      facets: unknown,
+      commerce = USD_COMMERCE
+    ): Promise<CatalogFacets | undefined> {
+      const storefront = createGatewayStorefront(clientWithFacets(facets), {
+        route: fakeRoute(),
+        commerce,
+      });
+      const result = storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        ref({ page: 1, pageSize: 24 })
+      );
+      await settle();
+      expect(result.error.value).toBeNull();
+      return result.data.value?.facets;
+    }
+
+    it('converts the price span to major units and passes the counts through', async () => {
+      expect(await facetsFor(FACETS)).toEqual({
+        // $24–$164, from the platform's own 2400–16400 minor units.
+        price: { min: 24, max: 164 },
+        categories: [{ id: 'cat-1', slug: 'ceramics', title: 'Ceramics', count: 12 }],
+        collections: [
+          { id: 'col-1', slug: 'the-winter-edit', title: 'The winter edit', count: 48 },
+        ],
+        availability: { in_stock: 44, out_of_stock: 4 },
+        options: [
+          {
+            key: 'colour',
+            name: 'Colour',
+            values: [
+              { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
+              { value: 'clay', label: 'Clay', count: 0 },
+            ],
+          },
+        ],
+      });
+
+      // The same span on a store with no minor unit is the same number, not a hundredth of it.
+      expect((await facetsFor(FACETS, ISK_COMMERCE))?.price).toEqual({ min: 2400, max: 16400 });
+    });
+
+    it('leaves availability out when the platform could not read stock', async () => {
+      const { availability: _omitted, ...noStock } = FACETS;
+      const facets = await facetsFor(noStock);
+
+      expect(facets).not.toHaveProperty('availability');
+      expect(facets?.availability).toBeUndefined();
+      // Every other family still arrives: only the one the platform could not count is missing.
+      expect(facets?.categories).toHaveLength(1);
+      expect(facets?.options[0]?.values).toHaveLength(2);
+    });
+
+    it('answers no facets at all for a gateway that sent none', async () => {
+      expect(await facetsFor(undefined)).toBeUndefined();
+      expect(await facetsFor(null)).toBeUndefined();
+    });
+
+    it('falls back to the stable key or slug for a field the response leaves out', async () => {
+      const facets = await facetsFor({
+        categories: [{ slug: 'ceramics', count: 2 }],
+        options: [{ key: 'size', values: [{ value: 'm' }] }],
+      });
+
+      expect(facets?.price).toEqual({ min: 0, max: 0 });
+      expect(facets?.categories).toEqual([
+        { id: 'ceramics', slug: 'ceramics', title: 'ceramics', count: 2 },
+      ]);
+      expect(facets?.collections).toEqual([]);
+      expect(facets?.options).toEqual([
+        { key: 'size', name: 'size', values: [{ value: 'm', label: 'm', count: 0 }] },
+      ]);
+    });
+  });
+
+  /**
+   * **A filtered read that fails keeps the page the shopper is looking at.**
+   *
+   * The platform refuses an `availability` filter it cannot answer rather than quietly dropping it —
+   * an unfiltered page would read to a shopper like a shop with nothing out of stock — so this is
+   * the one filter that can turn a working grid into an error. The grid's own answer is already the
+   * right one: the error is reported and the last good page stays on screen
+   * (`blocks/collection-grid` draws the toast, never an empty grid).
+   */
+  it('reports a failed filtered read and keeps the last good page', async () => {
+    let reads = 0;
+    const client = {
+      catalog: {
+        listCollectionProducts: async () => {
+          reads += 1;
+          if (reads > 1) {
+            throw new EldraHttpError(
+              { status: 503, statusText: 'Service Unavailable' } as Response,
+              { detail: 'inventory is unreachable' }
+            );
+          }
+          return {
+            data: [
+              {
+                id: 'p1',
+                slug: 'ash-glaze-mug',
+                title: 'Ash glaze mug',
+                status: 'ACTIVE',
+                minPrice: 42,
+                maxPrice: 42,
+                totalVariants: 1,
+              },
+            ],
+            meta: { page: 1, pageSize: 24, total: 1, totalPages: 1, rows: 1 },
+          };
+        },
+      },
+    } as unknown as EldraClient;
+    const storefront = createGatewayStorefront(client, {
+      route: fakeRoute(),
+      commerce: ISK_COMMERCE,
+    });
+    const opts = ref<{
+      page: number;
+      pageSize: number;
+      filters?: Record<string, string[]>;
+    }>({ page: 1, pageSize: 24 });
+    const result = storefront.catalog.collectionProducts(
+      ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+      opts
+    );
+    await settle();
+    expect(result.data.value?.items.map((item) => item.handle)).toEqual(['ash-glaze-mug']);
+
+    opts.value = { page: 1, pageSize: 24, filters: { availability: ['in_stock'] } };
+    await settle();
+
+    expect(result.error.value).toBe('Web Studio request failed with 503 Service Unavailable');
+    expect(result.data.value?.items.map((item) => item.handle)).toEqual(['ash-glaze-mug']);
+    expect(result.pending.value).toBe(false);
+  });
+
+  /** The category lookup is part of the filtered read, so its failure is the read's failure — not a
+   *  request that silently drops the category the chips say is applied. */
+  it('reports a failed category lookup rather than dropping the filter', async () => {
+    const client = {
+      catalog: {
+        listCategories: async () => {
+          throw new Error('categories are unreachable');
+        },
+        listCollectionProducts: async () => ({
+          data: [],
+          meta: { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 },
+        }),
+      },
+    } as unknown as EldraClient;
+    const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+    const result = storefront.catalog.collectionProducts(
+      ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+      ref({ page: 1, pageSize: 24, filters: { category: ['ceramics'] } })
+    );
+    await settle();
+
+    expect(result.error.value).toBe('categories are unreachable');
+    expect(result.data.value).toBeNull();
   });
   /**
    * `volatileByIds` — the batched read the prerender/refresh contract is built on
@@ -859,251 +1323,6 @@ describe('createGatewayStorefront', () => {
     // Every id unusable: asking without the token would read the whole catalogue.
     expect(await storefront.catalog.volatileByIds(['a,b', 'x:y'])).toEqual([]);
     expect(calls.productListQueries).toEqual([]);
-  });
-
-  /**
-   * The facet pass over the gateway's own results (`app/storefront/facets.ts`).
-   *
-   * The endpoint filters on `id`/`slug`/`status`/`createdAt` only, so every facet the block sends
-   * used to be dropped on the floor: `?minPrice=50&maxPrice=150` reached the gateway as a plain
-   * paged read and the $48 bowl stayed on screen, under a URL, chips and an active-filter row that
-   * all claimed otherwise. The same pass the demo runs now runs over the fetched page.
-   */
-  describe('collectionProducts applies the shopper’s facets client-side', () => {
-    /** A collection of `prices.length` products, `$<price>` each, paged the way the gateway pages. */
-    function pagedClient(prices: number[]): {
-      client: EldraClient;
-      queries: Array<{ page: number; pageSize: number }>;
-    } {
-      const queries: Array<{ page: number; pageSize: number }> = [];
-      const client = {
-        catalog: {
-          listCollectionProducts: async (_slug: string, query: Record<string, unknown>) => {
-            const page = (query.page as number | undefined) ?? 1;
-            const pageSize = (query.pageSize as number | undefined) ?? 24;
-            queries.push({ page, pageSize });
-            const start = (page - 1) * pageSize;
-            const rows = prices.slice(start, start + pageSize).map((price, index) => ({
-              id: `p${start + index}`,
-              slug: `p${start + index}`,
-              title: `Product ${start + index}`,
-              status: 'ACTIVE',
-              minPrice: price,
-              maxPrice: price,
-              totalVariants: 1,
-            }));
-            return {
-              data: rows,
-              meta: {
-                page,
-                pageSize,
-                total: prices.length,
-                totalPages: Math.ceil(prices.length / pageSize),
-                rows: rows.length,
-                hasNext: start + rows.length < prices.length,
-                hasPrev: page > 1,
-              },
-            };
-          },
-        },
-      } as unknown as EldraClient;
-      return { client, queries };
-    }
-
-    /** Long enough for the filtered path's sequential page reads to have all resolved. */
-    async function drain(): Promise<void> {
-      for (let i = 0; i < 400; i += 1) await Promise.resolve();
-    }
-
-    async function load(
-      client: EldraClient,
-      opts: { page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }
-    ) {
-      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
-      const result = storefront.catalog.collectionProducts(
-        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
-        ref(opts)
-      );
-      await drain();
-      expect(result.error.value).toBeNull();
-      return result.data.value!;
-    }
-
-    it('drops the $48 product a 50–150 range excludes and keeps the $50 one, with a filtered total', async () => {
-      const { client, queries } = pagedClient([48, 50, 150, 151]);
-      const data = await load(client, { page: 1, pageSize: 24, filters: { price: ['50-150'] } });
-
-      expect(data.items.map((item) => item.price.amount)).toEqual([50, 150]);
-      expect(data.total).toBe(2);
-      // One page held the whole collection, so nothing more was asked for.
-      expect(queries).toEqual([{ page: 1, pageSize: 24 }]);
-    });
-
-    it('reads past page one when the first page is full and a filter is set', async () => {
-      // 30 products: 24 on page one (four of them under the floor), 6 on page two (two under it).
-      const prices = Array.from({ length: 30 }, (_, i) => (i % 6 === 0 ? 10 : 100));
-      const { client, queries } = pagedClient(prices);
-      const data = await load(client, { page: 1, pageSize: 24, filters: { price: ['50-'] } });
-
-      expect(queries).toEqual([
-        { page: 1, pageSize: 24 },
-        { page: 2, pageSize: 24 },
-      ]);
-      // 25 of the 30 are $100 — the count a shopper sees, and more than one gateway page holds.
-      expect(data.total).toBe(25);
-      expect(data.items).toHaveLength(24);
-      expect(data.items.every((item) => item.price.amount === 100)).toBe(true);
-    });
-
-    it('pages the filtered set itself, so page two is the filtered items 25 and up', async () => {
-      const prices = Array.from({ length: 30 }, (_, i) => (i % 6 === 0 ? 10 : 100));
-      const { client } = pagedClient(prices);
-      const data = await load(client, { page: 2, pageSize: 24, filters: { price: ['50-'] } });
-
-      expect(data.total).toBe(25);
-      expect(data.items.map((item) => item.handle)).toEqual(['p29']);
-    });
-
-    it('stops at the documented 200-item scan cap rather than walking a whole catalogue', async () => {
-      const { client, queries } = pagedClient(Array.from({ length: 1000 }, () => 100));
-      const data = await load(client, { page: 1, pageSize: 24, filters: { price: ['50-'] } });
-
-      // ceil(200 / 24) reads, and not one more.
-      expect(queries).toHaveLength(9);
-      expect(queries.at(-1)).toEqual({ page: 9, pageSize: 24 });
-      expect(data.total).toBe(200);
-      expect(data.items).toHaveLength(24);
-    });
-
-    it('leaves the unfiltered read exactly as it was: one page, the gateway’s own total', async () => {
-      const { client, queries } = pagedClient(Array.from({ length: 1000 }, () => 100));
-      const data = await load(client, { page: 1, pageSize: 24 });
-
-      expect(queries).toEqual([{ page: 1, pageSize: 24 }]);
-      expect(data.items).toHaveLength(24);
-      expect(data.total).toBe(1000);
-    });
-
-    it('treats an empty filter bag as no filter at all', async () => {
-      const { client, queries } = pagedClient(Array.from({ length: 100 }, () => 100));
-      const data = await load(client, { page: 1, pageSize: 24, filters: { colour: [] } });
-
-      expect(queries).toEqual([{ page: 1, pageSize: 24 }]);
-      expect(data.total).toBe(100);
-    });
-
-    /**
-     * A facet the product list cannot answer (`category`, `option:*` carry no attributes on a list
-     * row) must not empty the grid — `facets.ts`'s "unknown, not unmatched" rule, seen from here.
-     */
-    it('shows the collection unfiltered for a facet the gateway’s rows cannot answer', async () => {
-      const { client } = pagedClient([48, 50, 150]);
-      const data = await load(client, {
-        page: 1,
-        pageSize: 24,
-        filters: { 'option:size': ['m'], category: ['ceramics'] },
-      });
-
-      expect(data.items).toHaveLength(3);
-      expect(data.total).toBe(3);
-    });
-
-    /**
-     * `dto_ProductListItem.options` is the one facet family a product list row *can* answer, so the
-     * option groups are real on the live site: the pass filters on them and `deriveFacets` counts
-     * them off the same rows. Both halves have to be true together — a value the panel offers that
-     * the pass cannot match is a filter that moves the chips and the URL and nothing else.
-     */
-    it('filters and counts the option facets a product list row carries', async () => {
-      const rows = [
-        { slug: 'oat-sweater', colour: 'oat', size: 'm' },
-        { slug: 'moss-sweater', colour: 'moss', size: 'm' },
-        { slug: 'moss-beanie', colour: 'moss', size: 's' },
-      ];
-      const client = {
-        catalog: {
-          listCollectionProducts: async () => ({
-            data: rows.map((row, index) => ({
-              id: `p${index}`,
-              slug: row.slug,
-              title: row.slug,
-              status: 'ACTIVE',
-              minPrice: 100,
-              maxPrice: 100,
-              totalVariants: 1,
-              options: [
-                { key: 'colour', values: [{ key: row.colour, name: row.colour.toUpperCase() }] },
-                { key: 'size', values: [{ key: row.size, name: row.size.toUpperCase() }] },
-              ],
-            })),
-            meta: {
-              page: 1,
-              pageSize: 24,
-              total: rows.length,
-              totalPages: 1,
-              rows: rows.length,
-              hasNext: false,
-              hasPrev: false,
-            },
-          }),
-        },
-      } as unknown as EldraClient;
-
-      const data = await load(client, {
-        page: 1,
-        pageSize: 24,
-        filters: { 'option:colour': ['moss'] },
-      });
-
-      expect(data.items.map((item) => item.handle)).toEqual(['moss-sweater', 'moss-beanie']);
-      expect(data.total).toBe(2);
-      const facets = data.facets!;
-      const valuesOf = (key: string) => facets.options.find((option) => option.key === key)!.values;
-      // The colour counts ignore the colour filter (contract §1), so Oat is still pickable and
-      // Moss still counts both its products…
-      expect(valuesOf('colour')).toEqual([
-        { value: 'oat', label: 'OAT', count: 1 },
-        { value: 'moss', label: 'MOSS', count: 2 },
-      ]);
-      // …while the size counts *are* narrowed by it: both sizes still exist, counted over Moss.
-      expect(valuesOf('size')).toEqual([
-        { value: 'm', label: 'M', count: 1 },
-        { value: 's', label: 'S', count: 1 },
-      ]);
-      expect(facets.availability).toEqual({ in_stock: 2, out_of_stock: 0 });
-      // A row carries no category and no collection membership — those wait for Core.
-      expect(facets.categories).toEqual([]);
-      expect(facets.collections).toEqual([]);
-
-      // A value another family's filter excludes keeps its place with a count of 0, which is what
-      // the panel disables rather than hides: nothing in size S is Oat.
-      const narrowed = await load(client, {
-        page: 1,
-        pageSize: 24,
-        filters: { 'option:size': ['s'] },
-      });
-      expect(narrowed.facets!.options.find((option) => option.key === 'colour')!.values).toEqual([
-        { value: 'oat', label: 'OAT', count: 0 },
-        { value: 'moss', label: 'MOSS', count: 1 },
-      ]);
-    });
-
-    it('keeps the sort the gateway applied across the pages it scanned', async () => {
-      const prices = Array.from({ length: 30 }, (_, i) => 10 + i);
-      const { client, queries } = pagedClient(prices);
-      const data = await load(client, {
-        page: 1,
-        pageSize: 24,
-        sort: 'price-asc',
-        filters: { price: ['20-'] },
-      });
-
-      expect(queries).toHaveLength(2);
-      // $10–$39 across two gateway pages; the floor keeps $20 and up, still ascending.
-      expect(data.items.map((item) => item.price.amount)).toEqual(
-        Array.from({ length: 20 }, (_, i) => 20 + i)
-      );
-    });
   });
 
   /**

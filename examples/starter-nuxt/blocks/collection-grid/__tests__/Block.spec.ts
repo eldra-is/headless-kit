@@ -109,6 +109,8 @@ function createStub(
     /** The facets a *filtered* request answers with — most backends compute them over the result
      *  set, so a value the shopper has ticked can stop being listed. */
     filteredFacets?: CatalogFacets;
+    /** How the store describes its scope at all, for the families it cannot count. */
+    facets?: CatalogFacets;
   } = {}
 ): Stub {
   const base = createDemoStorefront();
@@ -128,7 +130,9 @@ function createStub(
         return {
           items: filtered ? items.slice(0, filteredCount) : items.slice(0, opts.value.pageSize),
           total: filtered ? filteredCount : items.length,
-          facets: filtered ? (options.filteredFacets ?? FACETS) : FACETS,
+          facets: filtered
+            ? (options.filteredFacets ?? options.facets ?? FACETS)
+            : (options.facets ?? FACETS),
         };
       });
       return {
@@ -1049,6 +1053,43 @@ describe('collection-grid block', () => {
     });
   });
 
+  /**
+   * A store whose stock cannot be read answers **no** `availability` facet rather than two zeroes
+   * (`CatalogFacets.availability`). The group it feeds is dropped, because the alternative is
+   * offering a shopper two counts nobody can stand behind — and a request carrying an availability
+   * filter in that state is an error, not an empty page. Every other group still draws.
+   */
+  describe('a store whose stock cannot be read', () => {
+    const noStock: CatalogFacets = { ...FACETS };
+    delete noStock.availability;
+
+    it('drops the availability group and keeps the rest of the panel', async () => {
+      const stub = createStub(PRODUCTS, { facets: noStock });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      // The sidebar and the drawer draw the same groups, so each legend appears twice.
+      const legends = [
+        ...new Set(
+          groupTriggers(wrapper).map((trigger) =>
+            wrapper
+              .get(`#${trigger.attributes('aria-controls')!}`)
+              .get('legend')
+              .text()
+          )
+        ),
+      ];
+      expect(legends).not.toContain(enUS.grid.legendAvailability);
+      expect(legends).toEqual([
+        enUS.grid.legendCategory,
+        enUS.grid.legendSize,
+        enUS.grid.legendColour,
+        PRICE_LEGEND,
+      ]);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
   describe('a selected value the facets stop listing', () => {
     /**
      * Facets are normally computed over the current result set, so ticking one value can remove
@@ -1328,8 +1369,12 @@ describe('collection-grid block', () => {
    * $48 "Speckled stoneware bowl": the block read the range off the URL and sent it correctly, and
    * `createGatewayStorefront` dropped every facet before its list read, so the grid answered with the
    * unfiltered collection under a URL, chips and an active-filter row that all said otherwise. This
-   * is that URL, end to end — the block's own seeding, the gateway's request, the facet pass, the
-   * count line — with only the HTTP call faked.
+   * is that URL, end to end — the block's own seeding, the `minPrice`/`maxPrice` parameters the
+   * gateway now sends, the platform's own `total` and its `facets` — with only the HTTP call faked.
+   *
+   * The store sells in krónur, which have no minor unit, so the parameters this asserts read as the
+   * same numbers the shopper typed; `test/storefront/gateway.spec.ts` is where the conversion itself
+   * is pinned.
    */
   describe('over the gateway storefront, with a price range in the URL', () => {
     const CATALOGUE: Array<{ slug: string; title: string; price: number }> = [
@@ -1340,14 +1385,24 @@ describe('collection-grid block', () => {
       { slug: 'shearling-slippers', title: 'Shearling slippers', price: 151 },
     ];
 
+    /** The gateway's own filtering: the `minPrice`/`maxPrice` parameters, inclusive both ends. */
+    function gatewayRows(query: Record<string, unknown>) {
+      const min = query.minPrice as number | undefined;
+      const max = query.maxPrice as number | undefined;
+      return CATALOGUE.filter(
+        (row) => (min === undefined || row.price >= min) && (max === undefined || row.price <= max)
+      );
+    }
+
     function gatewaySource(filters: Record<string, string[]>): StorefrontSource {
       const client = {
         catalog: {
           listCollectionProducts: async (_slug: string, query: Record<string, unknown>) => {
             const page = (query.page as number | undefined) ?? 1;
             const pageSize = (query.pageSize as number | undefined) ?? 24;
+            const matching = gatewayRows(query);
             const start = (page - 1) * pageSize;
-            const rows = CATALOGUE.slice(start, start + pageSize).map((row) => ({
+            const rows = matching.slice(start, start + pageSize).map((row) => ({
               id: `${row.slug}::default`,
               slug: row.slug,
               title: row.title,
@@ -1358,10 +1413,19 @@ describe('collection-grid block', () => {
             }));
             return {
               data: rows,
+              // The platform's own span, counted with every filter *except* price applied — which
+              // is why the track still spans the whole collection under a range.
+              facets: {
+                price: { min: 48, max: 151 },
+                categories: [],
+                collections: [],
+                availability: { in_stock: CATALOGUE.length, out_of_stock: 0 },
+                options: [],
+              },
               meta: {
                 page,
                 pageSize,
-                total: CATALOGUE.length,
+                total: matching.length,
                 totalPages: 1,
                 rows: rows.length,
                 hasNext: false,
@@ -1372,6 +1436,7 @@ describe('collection-grid block', () => {
         },
       } as unknown as EldraClient;
       return createGatewayStorefront(client, {
+        commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
         route: {
           productHandle: null,
           collectionHandle: 'the-winter-edit',
