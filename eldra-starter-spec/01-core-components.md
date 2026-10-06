@@ -1863,7 +1863,7 @@ Price                                           ← label, names the group and b
 2. **Rail**: the full-width band that pointer presses land in, `target-touch` tall below the tablet breakpoint and `target-min` from it. The rail is the touch target, not the thumb: a press anywhere in it moves the nearer thumb to that value.
 3. **Track**: the unfilled bar, 0.375rem tall, `radius-full`, `surface-strong`.
 4. **Range**: the filled part between the two thumbs, `primary`, same height and radius.
-5. **Thumbs**: two `<button type="button" role="slider">` circles, 1.25rem, `background` fill, 1.5px `border-strong` edge, `shadow-sm`. The first is the minimum, the second the maximum.
+5. **Thumbs**: two `role="slider"` circles, 1.25rem, `background` fill, 1.5px `border-strong` edge, `shadow-sm`. The first is the minimum, the second the maximum. Each is a plain focusable element (`<div tabindex="0">`), **not a button**: `slider` is not one of the roles ARIA-in-HTML allows on a `<button>`, and a slider has no use for `Enter`/`Space` activation anyway.
 6. **Inputs** (optional): a 3-column row (`1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned) — the minimum field, the word "to" (0.875rem `muted`), the maximum field. Both are `control-height` text fields with numeric keypads.
 
 **Properties**
@@ -1936,7 +1936,7 @@ One size. The parts are fixed in rem and the control takes the full width of its
 
 **Accessibility**
 
-- Each thumb is a `<button type="button">` with `role="slider"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax` and `aria-valuetext`. The two `aria-value`*min/max* are the thumb's **own** limits, not the pair's: the minimum thumb's maximum is the maximum thumb's current value and vice versa, so the limit a screen reader announces is the limit the thumb actually has (the WAI-ARIA Authoring Practices' multi-thumb slider pattern).
+- Each thumb carries `role="slider"`, `tabindex="0"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax` and `aria-valuetext`. The two `aria-value`*min/max* are the thumb's **own** limits, not the pair's: the minimum thumb's maximum is the maximum thumb's current value and vice versa, so the limit a screen reader announces is the limit the thumb actually has (the WAI-ARIA Authoring Practices' multi-thumb slider pattern).
 - `aria-valuetext` is `formatValue`'s text ("$1,200"), so the announcement is a price and not a bare number. With no `formatValue` it is the plain number and `aria-valuenow` alone would do.
 - Each thumb is named by `aria-label`, built from the visible label: "Minimum price", "Maximum price". The label is not repeated inside the thumb, and the two names differ, so "minimum" and "maximum" are never guessed from position.
 - The rail and its thumbs sit in a `role="group"` named by the visible label, so the pair is announced as one control before either end is read.

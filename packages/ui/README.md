@@ -121,6 +121,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `ProductCard`       | none of its own — it composes `Image`/`Badge`/`StockBadge`/`Price`/`Button`, each restyled through its own row above                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `QuantityStepper`   | `--eldra-stepper-radius` (default `var(--eldra-radius-md)`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
    | `RadioGroup`        | `--eldra-radio-card-border-width` (default `1px`) and `--eldra-radio-card-radius` (default `radius-md`) for the card boundary; `--eldra-checkbox-border-width`/`-invalid` for the radio circle itself, shared with `Checkbox`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+   | `RangeSlider`       | `--eldra-range-thumb-size` (default `1.25rem`), `--eldra-range-thumb-border-width` (default `1.5px`), `--eldra-range-thumb-halo` (default `0.25rem`, the hover/dragging ring drawn outside the thumb) and `--eldra-range-track-height` (default `0.375rem`), read by the `eldra-range-thumb`/`-track`/`-gutter` utilities — the gutter that keeps a thumb and its focus ring inside the control is `calc()`-ed from the thumb size and the two focus-ring tokens, so enlarging either moves it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
    | `Rating`            | none — the half-star overlay (`eldra-rating-half`) is a fixed `clip-path`, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `SearchBar`         | `--eldra-search-panel-max-height` (default `32rem`, clamped to `70vh`), `--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-search-kbd-line`, `--eldra-input-radius`, `--eldra-field-border-width`, `--eldra-z-popover`, and `--eldra-popover-origin` (set by the panel itself from the placement it resolved to: `top left` below the field, `bottom left` above it)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `SearchModal`       | `--eldra-search-modal-width` (default `40rem`), `--eldra-search-modal-max-height` (default `40rem`) — both clamped to the viewport inside their own utility, which also carries the full-screen-below-a-48rem-_viewport_ media query; `--eldra-search-modal-field-size` (default `1.0625rem`), `--eldra-search-modal-foot-size`/`-line` (defaults `0.75rem`/`1.4`), `--eldra-search-modal-kbd-size` (default `0.6875rem`) — none with a token of their own; plus everything `SearchBar`'s reused `SearchResultsPanel` reads (`--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-control-line-height`)                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -637,6 +638,44 @@ edge-swipe), the captured element becoming disabled — and without this the dra
 autoplay's suspension) would stay stuck forever with no further user action guaranteed to clear it.
 It is handled identically to `pointercancel`, since there is nothing left to release by the time it
 fires.
+
+`RangeSlider`'s arithmetic is exported the same way, as pure functions rather than a composable:
+the control's state is two numbers the component already holds through `useControllableModel`, so
+there is nothing for a `use*` wrapper to own. What is worth sharing is the awkward half — the step
+grid, and the rules that keep two thumbs from crossing.
+
+```ts
+import {
+  clampRangeThumb,
+  nearestRangeThumb,
+  normalizeRangeValue,
+  rangeKeyTransition,
+  rangePositionToValue,
+  rangeThumbLimits,
+  rangeValueToPercent,
+  snapToRangeStep,
+} from '@eldrajs/ui';
+
+const math = { min: 1200, max: 48_000, step: 100, largeStep: 1000 };
+
+normalizeRangeValue([4800, 1200], math); // [1200, 4800] — ordered, snapped, inside the bounds
+rangeValueToPercent(4800, math); // where that end sits along the track, 0-100
+rangePositionToValue(clientX, track.getBoundingClientRect(), math); // a press, snapped to the grid
+nearestRangeThumb(3000, [1200, 4800]); // 'min' — which thumb a press at that value should move
+rangeThumbLimits('min', [1200, 4800], math); // { lo: 1200, hi: 4800 } — also the thumb's aria-value*
+clampRangeThumb(9000, 'min', [1200, 4800], math); // 4800 — it stops where the other thumb is
+rangeKeyTransition('PageUp', false, 'min', [1200, 4800], math); // the next value, or null for a key
+// ...this control does not own (`Tab` above all)
+snapToRangeStep(4830, math); // 4800 — or either bound, each of which is a stop of its own
+```
+
+Two rules in there are not obvious and are the reason these are worth importing rather than
+rewriting. **Both bounds are stops**, not just the multiples of `step`: a price filter's bounds come
+from the catalogue and owe the step nothing, so with a step of 3 over a 0-10 range the stops are 0,
+3, 6, 9 **and** 10 — snapping to the grid alone leaves the dearest product permanently filtered
+out. And every result is **rounded to the digits the inputs are written with** (`fractionDigits`,
+`rangeStepDigits`), because a `0.1` step added twenty times is `1.9999999999999998` in binary
+floating point, and that number reaches the page, `aria-valuenow` and the field beside it.
 
 ### Layering
 
