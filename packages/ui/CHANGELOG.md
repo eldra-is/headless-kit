@@ -1701,3 +1701,13 @@ aria-labelledby` its
   in by a negative margin of the same size so its rendered footprint — and every slide's position
   inside it — is unchanged, plus a matching scroll padding so `scroll-snap-align: start` still
   lands on a slide's own edge instead of the new padding in front of it.
+- **`RangeSlider`'s own `inputs`-slot example (README, `CurrencyFields` story) now matches the
+  wiring a consumer should actually ship**, not an unsafe shape. It passed the slot's `min`/`max`
+  straight to the replacement field, which would have refused a keystroke `commit` was always
+  going to clamp anyway (typing "1250" by way of "1" stops dead); used a visible `label`, doubling
+  the name the row already shows beside the separator; and called `commit(end, next)` for its side
+  effect without assigning the return back to the field's own model, which is the one thing that
+  keeps a replacement field honest when a typed value snaps onto the thumb's current position —
+  `commit` writes nothing and `change` never fires, so a field left showing its own stale number
+  would keep a figure the control never applied. No component code changed; the example and the
+  story now drop the field-level `min`/`max`, use `aria-label`, and assign `commit`'s return back.

@@ -221,8 +221,13 @@ export const FractionalStep: Story = {
  * blur does, so these fields and the thumbs cannot disagree about the range.
  *
  * Note what the fields are bound to: a **local** number per field, written on every keystroke, and
- * `commit` called only on blur or `Enter` (spec → Behaviour & motion). Committing per keystroke
- * would snap and clamp a half-typed number under the customer's caret.
+ * `commit` called only on blur or `Enter` (spec → Behaviour & motion), with its return assigned
+ * straight back into that same local number — `commit` has already applied the value by the time
+ * it returns, and the parent has not written it back yet. Committing per keystroke would snap and
+ * clamp a half-typed number under the customer's caret. Also note what is **not** passed: no
+ * field-level `min`/`max` (`commit` already clamps on commit, and a field that refused the
+ * keystroke would stop a customer typing "1250" at the "1") and `aria-label`, not a visible
+ * `label` — the row already shows the figure beside the separator.
  */
 export const CurrencyFields: Story = {
   render: () => ({
@@ -245,18 +250,16 @@ export const CurrencyFields: Story = {
           :step="100"
           inputs
         >
-          <template #inputs="{ labels, min, max, step, disabled, commit }">
+          <template #inputs="{ labels, step, disabled, commit }">
             <CurrencyInput
               v-model="typed[0]"
               currency="USD"
               :max-fraction="0"
-              :min="min"
-              :max="max"
               :step="step"
               :disabled="disabled"
-              :label="labels.min"
-              @blur="commit(0, typed[0])"
-              @keydown.enter.prevent="commit(0, typed[0])"
+              :aria-label="labels.min"
+              @blur="typed[0] = commit(0, typed[0])"
+              @keydown.enter.prevent="typed[0] = commit(0, typed[0])"
             />
             <span class="self-center text-center text-body-sm text-muted" aria-hidden="true">
               {{ labels.separator }}
@@ -265,13 +268,11 @@ export const CurrencyFields: Story = {
               v-model="typed[1]"
               currency="USD"
               :max-fraction="0"
-              :min="min"
-              :max="max"
               :step="step"
               :disabled="disabled"
-              :label="labels.max"
-              @blur="commit(1, typed[1])"
-              @keydown.enter.prevent="commit(1, typed[1])"
+              :aria-label="labels.max"
+              @blur="typed[1] = commit(1, typed[1])"
+              @keydown.enter.prevent="typed[1] = commit(1, typed[1])"
             />
           </template>
         </RangeSlider>

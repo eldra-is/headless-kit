@@ -676,18 +676,16 @@ decides what is in it, while every write still goes through the control:
 
 ```vue
 <RangeSlider v-model="range" label="Price" :min="span.min" :max="span.max" :step="step" inputs>
-  <template #inputs="{ labels, min, max, step, disabled, commit }">
+  <template #inputs="{ labels, step, disabled, commit }">
     <CurrencyInput
       v-model="typedMin"
       :currency="currency"
       :max-fraction="0"
-      :min="min"
-      :max="max"
       :step="step"
       :disabled="disabled"
-      :label="labels.min"
-      @blur="commit(0, typedMin)"
-      @keydown.enter.prevent="commit(0, typedMin)"
+      :aria-label="labels.min"
+      @blur="typedMin = commit(0, typedMin)"
+      @keydown.enter.prevent="typedMin = commit(0, typedMin)"
     />
     <span aria-hidden="true">{{ labels.separator }}</span>
     <!-- …the same for the maximum, through `commit(1, …)` -->
@@ -697,13 +695,23 @@ decides what is in it, while every write still goes through the control:
 
 `commit(end, next)` applies that end exactly as a built-in field's blur does — snapped to the step
 grid, clamped to the bounds, clamped against the other thumb, `change` emitted once — and returns
-the number it actually applied, which is what a controlled field should show (the parent has not
-written back when it returns, and an `Enter` commit leaves the field focused). `null` is an emptied
-field and falls back to that end of the range. Two rules about _when_: bind the field to a **local**
-number and call `commit` on **blur or `Enter` only**, never per keystroke, or a half-typed figure is
-snapped and clamped under the customer's caret; and name the field with `labels.min`/`labels.max`,
-the strings its thumb already uses, or a screen reader hears two different names for one end of the
-range.
+the number it actually applied, which is what a controlled field should show. **Assign that return
+back to the field's own model** (`typedMin = commit(0, typedMin)`), not just call `commit` for its
+side effect: the parent has not written the new value back when `commit` returns, and an `Enter`
+commit leaves the field focused, so a field left showing its own stale `typedMin` can keep a figure
+the control never actually applied — most visibly when a typed value snaps onto the thumb's
+*current* value, which writes nothing and fires no `change` at all. `null` is an emptied field and
+falls back to that end of the range.
+
+Three more rules about the replacement field itself. Bind it to a **local** number and call
+`commit` on **blur or `Enter` only**, never per keystroke, or a half-typed figure is snapped and
+clamped under the customer's caret. Pass it **no `min`/`max` of its own**: `commit` already clamps
+to the bounds on commit, and a field that refuses the keystroke instead stops a customer typing
+"1250" at the "1", then disagrees with a thumb a drag can park anywhere. And name it with
+`aria-label="labels.min"`/`labels.max` rather than a visible `label` — those are the strings its
+thumb already uses, and the row already shows the figure beside the separator, so a second visible
+label would double it up; a screen reader must still hear the one name the thumb has, or it hears
+two different names for one end of the range.
 
 Two rules in there are not obvious and are the reason these are worth importing rather than
 rewriting. **Both bounds are stops**, not just the multiples of `step`: a price filter's bounds come
