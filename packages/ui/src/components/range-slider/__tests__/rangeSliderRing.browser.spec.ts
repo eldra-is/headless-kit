@@ -59,10 +59,10 @@ const stylesDir = fileURLToPath(new URL('../../../styles/', import.meta.url));
  * package's default happy-dom, closing the browser raises an unhandled `ECONNRESET` that vitest
  * reports as a worker crash rather than a test result.
  */
-async function render(): Promise<string> {
+async function render(value: [number, number] = [0, 60]): Promise<string> {
   return renderToString(
     createSSRApp(() =>
-      h(RangeSlider, { label: 'Price', modelValue: [0, 60], min: 0, max: 100, inputs: true })
+      h(RangeSlider, { label: 'Price', modelValue: value, min: 0, max: 100, inputs: true })
     )
   );
 }
@@ -126,6 +126,23 @@ async function openWith(width: number, rootStyle = ''): Promise<Page> {
   });
   await page.setContent(
     `<style>${css}</style><main style="padding:40px"><div style="width:${width}px;${rootStyle}">${await render()}</div></main>`,
+    { waitUntil: 'domcontentloaded' }
+  );
+  return page;
+}
+
+/**
+ * The same markup at a real 320px viewport with **no page padding at all** — the narrowest reflow
+ * WCAG 1.4.10 asks about, and the filter drawer's own width on a phone. `openWith`'s 40px of
+ * `<main>` padding would absorb exactly the overflow this measures.
+ */
+async function openFullWidth(width: number, value: [number, number] = [0, 100]): Promise<Page> {
+  const page = await browser.newPage({
+    viewport: { width, height: 500 },
+    reducedMotion: 'reduce',
+  });
+  await page.setContent(
+    `<style>${css}\nhtml,body{margin:0;padding:0}</style>${await render(value)}`,
     { waitUntil: 'domcontentloaded' }
   );
   return page;
@@ -351,6 +368,63 @@ describe('the range slider pointer target', () => {
       expect(state.target).toEqual({ width: MIN_TARGET, height: MIN_TARGET });
       expect(state.railHeight).toBeGreaterThanOrEqual(24);
       expect(state.railHeight).toBeLessThan(44);
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+describe('the range slider at a 320px viewport', () => {
+  /**
+   * **Reflow (1.4.10), and the section's own acceptance line.** Each thumb's pointer target is a
+   * `::after` box centred on the thumb, so below the tablet width it reaches
+   * `--eldra-target-touch / 2` = 22px past the end of the track — further than the focus ring's own
+   * 4px. The gutter has to reserve whichever of the two is larger, per side, or the maximum thumb at
+   * `max` pushes the difference out of the document and a phone gains a horizontal scrollbar with
+   * nothing to pan to.
+   *
+   * Both thumbs sit at a bound here (`[0, 100]`, the default a freshly rendered filter has): the
+   * minimum thumb's target overhangs the start, which is not scrollable in a left-to-right document,
+   * and the maximum thumb's overhangs the end, which is. Only the second one shows up in
+   * `scrollWidth`, so the case that would catch this has to put a thumb at `max`.
+   *
+   * Measured as the document's own overflow rather than as a slack number: that is the condition
+   * the success criterion states, and it is what the ring-slack assertions above could not see.
+   * Proven by mutation: with the gutter at the ring's reach alone
+   * (`max()` dropped, leaving `calc(thumb/2 + offset + width)`), `scrollWidth` is 328 against a
+   * `clientWidth` of 320, and hiding only `[data-part="thumb"]::after` accounts for all 8px.
+   */
+  it('fits with no horizontal scroll, thumb targets included', async () => {
+    const page = await openFullWidth(320);
+    try {
+      const overflow = await page.evaluate(() => {
+        const root = document.documentElement;
+        return {
+          scrollWidth: root.scrollWidth,
+          clientWidth: root.clientWidth,
+          // The widest box in the tree, for a failure that says which part is responsible.
+          widest: Math.max(
+            ...[...document.querySelectorAll('*')].map((el) => el.getBoundingClientRect().right)
+          ),
+        };
+      });
+      expect(`scrollWidth ${overflow.scrollWidth} / clientWidth ${overflow.clientWidth}`).toBe(
+        `scrollWidth ${overflow.clientWidth} / clientWidth ${overflow.clientWidth}`
+      );
+      expect(overflow.widest).toBeLessThanOrEqual(overflow.clientWidth);
+    } finally {
+      await page.close();
+    }
+  });
+
+  /** And the thumb target is still the full 44px there — the gutter grew, the target did not shrink. */
+  it('keeps the 44px thumb target while it fits', async () => {
+    const page = await openFullWidth(320);
+    try {
+      await page.keyboard.press('Tab');
+      const state = await measure(page);
+      expect(state.target).toEqual({ width: TOUCH, height: TOUCH });
+      expect(state.railHeight).toBeGreaterThanOrEqual(44);
     } finally {
       await page.close();
     }

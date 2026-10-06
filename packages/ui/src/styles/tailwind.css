@@ -1844,23 +1844,45 @@
 
 /* --- Range slider ----------------------------------------------------------------------------- */
 
-/* The gutter that keeps a thumb — and its focus ring — inside the control (spec "Range slider" →
-   Anatomy): a thumb is centred on its value, so the one at `min` hangs half its own width past the
-   start of the track, and its ring a further offset-plus-width past that. Padding the group by
-   both is what stops either from leaving the component's box, and therefore from being clipped by
-   a 15rem filter sidebar or a scrolling drawer, without giving the track a different width from
-   the band the pointer measures against.
+/* The gutter that keeps a thumb — its focus ring and its pointer target included — inside the
+   control (spec "Range slider" → Anatomy): a thumb is centred on its value, so the one at `min`
+   hangs half its own width past the start of the track, and **two** things hang further still. Its
+   ring reaches `--eldra-focus-offset` + `--eldra-focus-width` past the circle; its 2.5.8 target
+   (the `::after` box below) is centred on the circle too, so it reaches half the target from the
+   thumb's centre — 22px of it below the tablet width, where that target is `--eldra-target-touch`.
+
+   The gutter is therefore the **larger** of the two reaches, per side. With only the ring's
+   allowance, the maximum thumb at `max` pushed its target 8px past the end of the document at a
+   320px viewport: a horizontal scrollbar on a phone with nothing to pan to, against WCAG 1.4.10
+   and the spec section's own 320px acceptance line (`__tests__/rangeSliderRing.browser.spec.ts`
+   measures `scrollWidth` against `clientWidth` there, which is the condition the criterion states).
+   Clipping the control is not the alternative: that would cut the focus ring, which is the other
+   thing this reservation exists to protect.
 
    Sized from the variables themselves, never from the numbers they happen to hold today: a
-   consumer enlarging the thumb moves the gutter with it, and so does a raised ring token — a
-   `Carousel` sets `--eldra-focus-offset: 4px` for its slides and a plain custom property inherits
-   into everything inside it, which is exactly the case `__tests__/rangeSliderRing.browser.spec.ts`
-   measures (the same lesson as `Tabs`' own list reservation). */
+   consumer enlarging the thumb or the targets moves the gutter with them, and so does a raised ring
+   token — a `Carousel` sets `--eldra-focus-offset: 4px` for its slides and a plain custom property
+   inherits into everything inside it (the same lesson as `Tabs`' own list reservation).
+
+   `48rem` is written out for the reason this file's header states, and it is the same edge the
+   target itself switches on below, so the two can never disagree about which target is in force. */
 @utility eldra-range-gutter {
-  padding-inline: calc(
-    var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
-      var(--eldra-focus-width)
+  padding-inline: max(
+    calc(
+      var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
+        var(--eldra-focus-width)
+    ),
+    calc(var(--eldra-target-min) / 2)
   );
+  @container (width < 48rem) {
+    padding-inline: max(
+      calc(
+        var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
+          var(--eldra-focus-width)
+      ),
+      calc(var(--eldra-target-touch) / 2)
+    );
+  }
 }
 
 /* The rail: the band a pointer press lands in (spec "Range slider" → Sizes, Rail row: "`target-
