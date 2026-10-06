@@ -8,6 +8,7 @@ import {
   type ProductFacetAttributes,
   type ProductFacetTerm,
 } from './facets';
+import { buildCategoryIndex, categoryTrailFor, type CategoryRow } from './categories';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -58,7 +59,7 @@ function demoImage(index: number, alt: string): StorefrontMedia {
 // Catalogue
 // ---------------------------------------------------------------------------------------------
 
-/** The `category` facet's own values (`CATEGORY_TITLES`). */
+/** The `category` facet's own values — the fixture's **leaves** (`DEMO_CATEGORIES`). */
 type DemoCategory = 'knitwear' | 'ceramics' | 'kitchen';
 
 interface DemoProductDef {
@@ -217,6 +218,32 @@ const PRODUCT_DEFS: DemoProductDef[] = [
  * number). Populated as items are built, which is why every item is created through
  * `buildListItem`/`buildCollectionItems` and never by hand.
  */
+/**
+ * **The fixture's category tree**, in the shape `GET /catalog/v1/categories` answers: one row per
+ * category, a tree by `parentId`.
+ *
+ * Two levels and one shallow branch on purpose, because that is the shape a real store has and the
+ * shape both features need to be exercised at all: `Home` holds `Ceramics` and `Kitchen`, while
+ * `Knitwear` is a root with nothing under it. So a product page's trail is two crumbs for a mug
+ * (`Home / Ceramics`) and one for a sweater (`Knitwear`), and the collection grid's category group
+ * draws one parent row with two indented children beside one plain row — with `Home` itself counting
+ * nothing directly, which is exactly the parent a flat facet never names.
+ *
+ * Ids are the slugs here. The demo keeps product ids and variant ids deliberately distinct (see
+ * `DemoProductDef.variantId`) because a *request* sends both and they must not pass by accident; a
+ * category id is only ever looked up against this list, so a readable id is worth more than a fake
+ * uuid — and `completeCategoryTerms` keys on ids either way.
+ */
+const DEMO_CATEGORIES: readonly CategoryRow[] = [
+  { id: 'home', slug: 'home', title: 'Home', parentId: null },
+  { id: 'knitwear', slug: 'knitwear', title: 'Knitwear', parentId: null },
+  { id: 'ceramics', slug: 'ceramics', title: 'Ceramics', parentId: 'home' },
+  { id: 'kitchen', slug: 'kitchen', title: 'Kitchen', parentId: 'home' },
+];
+
+/** The tree indexed both ways, for the trail and for placing the facet's own terms. */
+const CATEGORY_INDEX = buildCategoryIndex(DEMO_CATEGORIES);
+
 /** What a `category` facet value is called where a shopper reads it. */
 const CATEGORY_TITLES: Record<DemoCategory, string> = {
   knitwear: 'Knitwear',
@@ -304,12 +331,11 @@ function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct
     variantId: def.variantId,
     images: [demoImage(index + 1, def.title), demoImage(index + 7, `${def.title}, alternate view`)],
     options: isMerino ? MERINO_OPTIONS : [],
-    categoryTrail: isMerino
-      ? [
-          { label: 'Knitwear', href: '/collections/knitwear' },
-          { label: 'Sweaters', href: '/collections/knitwear/sweaters' },
-        ]
-      : [{ label: 'Shop', href: '/collections/all' }],
+    // Walked up the fixture's own tree from the product's category, exactly as
+    // `createGatewayStorefront` walks the store's: `Home / Ceramics` for a mug, `Knitwear` for a
+    // sweater, and each level a link into the catalogue filtered by it. Hand-written levels used to
+    // stand here, pointing at `/collections/knitwear/sweaters` — a route this theme has never served.
+    categoryTrail: categoryTrailFor(CATEGORY_INDEX, def.category),
     description: isMerino
       ? 'A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk.'
       : `${def.title}, from Northwind Goods' Portland studio.`,
@@ -1135,7 +1161,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
           // than over one fetched page: the vocabulary is every value the collection holds, and
           // each family's counts leave that family's own filter out (`deriveFacets`), so ticking
           // one colour narrows the sizes and leaves the other colours countable.
-          facets: deriveFacets(all, { filters, attributesFor }),
+          facets: deriveFacets(all, { filters, attributesFor, categories: CATEGORY_INDEX }),
         };
       }),
     related: (handle, limit) =>

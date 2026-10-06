@@ -32,16 +32,8 @@
       "data": {
         "showHome": true,
         "homeLabel": "Home",
-        "trail": [
-          {
-            "label": "Knitwear",
-            "href": "/collections/knitwear"
-          },
-          {
-            "label": "Sweaters",
-            "href": "/collections/mens-sweaters"
-          }
-        ],
+        "trail": [],
+        "fromProduct": true,
         "currentTitle": "Merino crew sweater",
         "showCurrent": true,
         "container": "content"

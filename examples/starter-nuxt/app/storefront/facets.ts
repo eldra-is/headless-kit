@@ -20,6 +20,7 @@
  * Everything here is pure: no Vue, no client, no module state — which is what lets
  * `test/storefront/facets.spec.ts` pin every bound on its own.
  */
+import { completeCategoryTerms, EMPTY_CATEGORY_INDEX, type CategoryIndex } from './categories';
 import type {
   CatalogFacetOption,
   CatalogFacetOptionValue,
@@ -251,6 +252,17 @@ export interface DeriveFacetsOptions {
   filters?: Record<string, string[]>;
   /** The per-product attributes a card does not carry (`category`, `collections`, `options`). */
   attributesFor?: ProductFacetAttributesFor;
+  /**
+   * The store's category tree, so the `categories` family comes out **placed**: every term carries
+   * its `parentId` and every missing ancestor is appended as a term of its own, which is what lets
+   * the filter panel draw the parent rows a count over *assigned* categories never names
+   * (`completeCategoryTerms`). Omitted — a source with no tree to declare — and the family is flat,
+   * exactly as it was.
+   *
+   * The counts stay **direct** either way (`CatalogFacets.categoryCounts`): rolling a parent's
+   * number up is the panel's job, since only it knows which descendants are on screen.
+   */
+  categories?: CategoryIndex;
 }
 
 /**
@@ -272,7 +284,7 @@ export function deriveFacets(
   items: readonly StorefrontProductListItem[],
   options: DeriveFacetsOptions = {}
 ): CatalogFacets {
-  const { filters, attributesFor } = options;
+  const { filters, attributesFor, categories = EMPTY_CATEGORY_INDEX } = options;
   const attributesOf = (item: StorefrontProductListItem): ProductFacetAttributes =>
     attributesFor?.(item) ?? NOTHING_KNOWN;
   /** The scope one family counts against: every filter but its own. */
@@ -281,10 +293,13 @@ export function deriveFacets(
 
   return {
     price: priceBounds(scopeWithout('price')),
-    categories: termFacet(items, scopeWithout('category'), (item) => {
-      const term = attributesOf(item).category;
-      return term === undefined ? [] : [term];
-    }),
+    categories: completeCategoryTerms(
+      termFacet(items, scopeWithout('category'), (item) => {
+        const term = attributesOf(item).category;
+        return term === undefined ? [] : [term];
+      }),
+      categories
+    ),
     collections: termFacet(
       items,
       scopeWithout('collection'),

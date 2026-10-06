@@ -77,7 +77,7 @@ const product = (
   slug,
   title,
   status: 'ACTIVE',
-  categoryId: 'cat-tableware',
+  categoryId: 'cat-cups',
   minPrice: price,
   maxPrice: price,
   variants: [{ id: `var-${slug}`, sku: slug.toUpperCase(), price, status: 'ACTIVE' }],
@@ -137,9 +137,28 @@ function seededCart(): Record<string, unknown> {
   };
 }
 
-/** The store's categories, by the id every product row carries — what `GET /catalog/v1/categories`
- *  answers, and therefore how a `?category=` slug becomes the `categoryId` the list takes. */
-const CATEGORY_SLUGS: Record<string, string> = { 'cat-tableware': 'tableware' };
+/**
+ * The store's categories — what `GET /catalog/v1/categories` answers, which is how a `?category=`
+ * slug becomes the `categoryId` the list takes **and** where a product's breadcrumb trail comes from.
+ *
+ * Two levels, because one level cannot prove a trail: `Tableware` holds `Cups`, every product sits in
+ * `Cups`, and a prerendered product page therefore has to render `Tableware / Cups` from this read
+ * alone. The platform's facets here carry no `parentId` (this fixture answers the contract the
+ * storefront was written against), so the grid's category tree is the one completed from this list.
+ */
+interface MockCategory {
+  id: string;
+  slug: string;
+  title: string;
+  parentId: string | null;
+}
+
+const CATEGORIES: MockCategory[] = [
+  { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', parentId: null },
+  { id: 'cat-cups', slug: 'cups', title: 'Cups', parentId: 'cat-tableware' },
+];
+
+const CATEGORY_BY_ID = new Map(CATEGORIES.map((row) => [row.id, row]));
 
 const COLLECTIONS = [
   {
@@ -157,6 +176,10 @@ const detailOf = (row: MockProduct): Record<string, unknown> => ({
   title: row.title,
   status: row.status,
   categoryId: row.categoryId,
+  // The field the public contract names for the trail's starting point, beside the one `related`
+  // already read. Both, with the same value, is what a live response looks like.
+  primaryCategoryId: row.categoryId,
+  categoryIds: [row.categoryId],
   description: { text: `${row.title} — thrown by hand, glazed in ash.` },
   mediaLinks: [],
   options: [],
@@ -634,10 +657,13 @@ function facetsOf(rows: MockProduct[], query: ProductQuery): Record<string, unkn
       min: prices.length === 0 ? 0 : Math.min(...prices),
       max: prices.length === 0 ? 0 : Math.max(...prices),
     },
+    // Counted over the categories products are **assigned** to, which is the leaf: `Tableware` is
+    // never named here, and the grid's parent row is the one the storefront completes from the
+    // category list. No `parentId`, deliberately — see `CATEGORIES`.
     categories: categoryIds.map((id) => ({
       id,
-      slug: CATEGORY_SLUGS[id] ?? id,
-      title: CATEGORY_SLUGS[id] ?? id,
+      slug: CATEGORY_BY_ID.get(id)?.slug ?? id,
+      title: CATEGORY_BY_ID.get(id)?.title ?? id,
       count: categoryScope.filter((row) => row.categoryId === id).length,
     })),
     collections: COLLECTIONS.map((collection) => ({
@@ -781,9 +807,10 @@ export function startMockGateway(): Promise<MockGateway> {
         const template = templates.find((entry) => entry.id === id);
         answer(template ?? {}, template === undefined ? 404 : 200);
       } else if (url.pathname === '/catalog/v1/categories') {
-        // The whole list, which is what the endpoint answers and what the storefront resolves a
-        // `?category=<slug>` against before it can send a `categoryId`.
-        answer(Object.entries(CATEGORY_SLUGS).map(([id, slug]) => ({ id, slug, title: slug })));
+        // The whole list, which is what the endpoint answers, what the storefront resolves a
+        // `?category=<slug>` against before it can send a `categoryId`, and the only place a
+        // product's ancestors exist.
+        answer(CATEGORIES);
       } else if (url.pathname === '/catalog/v1/products/list') {
         const pageSize = Number(url.searchParams.get('pageSize') ?? '100');
         const query = parseProductQuery(url);

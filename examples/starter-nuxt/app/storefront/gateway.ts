@@ -6,6 +6,13 @@ import { createHistoryStore, createWishlistStore } from './history';
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
+import {
+  buildCategoryIndex,
+  categoryTrailFor,
+  completeCategoryTerms,
+  EMPTY_CATEGORY_INDEX,
+  type CategoryIndex,
+} from './categories';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
   CatalogFacets,
@@ -69,11 +76,17 @@ interface RawProductListItem {
   totalVariants: number;
 }
 
-/** One row of the whole-store category list, which is how a category slug becomes a catalog id. */
+/**
+ * One row of the whole-store category list — how a category slug becomes a catalog id, and, through
+ * `parentId`, the whole tree a product's breadcrumb trail and the grid's nested category facet are
+ * walked from (`app/storefront/categories.ts`). `parentId` is absent on a root and on a gateway
+ * answering a contract that had no tree, which `buildCategoryIndex` reads the same way: a root.
+ */
 interface RawCategory {
   id: string;
   slug: string;
   title: string;
+  parentId?: string | null;
 }
 
 /**
@@ -93,6 +106,13 @@ interface RawFacetTerm {
   slug?: string;
   title?: string;
   count?: number;
+  /**
+   * The platform's own placement of a `categories` term in the tree — `null` for a root. Absent on
+   * the contract this file was written against, which is why the tree is otherwise completed from
+   * the category list; a response that carries it is also one whose counts are rolled up, and both
+   * halves are then the platform's (see `mapFacets` and `CatalogFacets.categoryCounts`).
+   */
+  parentId?: string | null;
 }
 
 interface RawFacetOptionValue {
@@ -160,6 +180,19 @@ interface RawProductDetails {
    * a product that has a category and omits it otherwise. `related` uses it to
    * find products of the same kind — see `relatedProducts`. */
   categoryId?: string;
+  /**
+   * **The category the breadcrumb trail is walked up from** — the one of `categoryIds` the merchant
+   * marked primary. Preferred over `categoryId` above where both are present (they are the same id
+   * on every response seen so far; this one is the field the public contract names), and a product
+   * with no category carries neither.
+   */
+  primaryCategoryId?: string;
+  /**
+   * Every category this product is in. Read by nothing here yet — the trail is one path, not a set,
+   * and a product in Cups and in Gifts has one crumb — but declared so the next reader of this file
+   * knows the response carries it rather than inferring the catalogue only ever assigns one.
+   */
+  categoryIds?: string[] | null;
   description?: Record<string, unknown>;
   mediaLinks?: RawMediaItem[] | null;
   options?: RawProductOption[] | null;
@@ -389,7 +422,13 @@ function variantStock(
 
 function mapProductDetails(
   raw: RawProductDetails,
-  stock: StockByVariant | null
+  stock: StockByVariant | null,
+  /**
+   * The store's category tree, for the breadcrumb trail. `null` from a read that could not reach the
+   * category list, which leaves the trail empty rather than failing the product page: see the
+   * `catalog.product` fetcher.
+   */
+  categories: CategoryIndex | null
 ): StorefrontProduct {
   const variants = raw.variants ?? [];
   // Spec Do/Don't, "Don't pre-select a sold-out variant": the variant the page opens on is the
@@ -434,7 +473,16 @@ function mapProductDetails(
         ),
       })),
     })),
-    categoryTrail: [],
+    // Root ancestor down to the product's own category, each level a link into the catalogue
+    // filtered by it (`app/storefront/categories.ts`). `[]` for a product with no category, a
+    // category the list does not hold, and a category read that failed — three honest absences, one
+    // of which used to be the only answer this mapping had: it read `result.breadcrumb`, a field of
+    // the *search* response that no product read has ever carried, so every product page shipped
+    // with no category crumb at all.
+    categoryTrail:
+      categories === null
+        ? []
+        : categoryTrailFor(categories, raw.primaryCategoryId ?? raw.categoryId),
     description: (() => {
       const text = raw.description?.text;
       return typeof text === 'string' ? text : '';
@@ -1128,7 +1176,7 @@ const GATEWAY_SORT: Readonly<Record<string, string>> = {
  * - **`category` is a slug in the URL and a uuid in the request.** The block's values are the facet
  *   terms' slugs (a filtered view has to stay linkable and readable), while `categoryId` takes
  *   catalog ids, so the slugs are resolved through the store's own category list — see
- *   `readCategoryIds`.
+ *   `readCategories`.
  * - **`availability` is one value, not a set.** Both boxes ticked is every product, which is no
  *   filter at all, so nothing is sent; one box is sent as the platform's own
  *   `in_stock`/`out_of_stock` spelling, which `canonicalAvailabilityValues` also folds the retired
@@ -1177,12 +1225,19 @@ function priceParam(raw: string | undefined, currency: string | undefined): numb
 }
 
 /**
- * The store's category slugs mapped to their catalog ids.
+ * The store's whole category tree — ids, slugs, titles and `parentId` — indexed both ways
+ * (`app/storefront/categories.ts`).
  *
  * `GET /catalog/v1/categories` answers the whole list — a storefront's categories are a handful of
- * rows, and the read takes no filter — so one request answers for every slug a shopper can tick,
- * now or later. Read once per storefront (see `createGatewayStorefront`), which means a shopper
- * arriving on a shared `?category=ceramics` link pays for it once and nobody else pays at all.
+ * rows, and the read takes no filter — so one request answers for every slug a shopper can tick and
+ * every ancestor a trail can name, now or later. Read once per storefront (see
+ * `createGatewayStorefront`), which means a shopper arriving on a shared `?category=ceramics` link
+ * pays for it once and nobody else pays at all.
+ *
+ * Three readers, and they want different halves of it: the `category` filter resolves slugs to the
+ * `categoryId` the list takes (`idBySlug`), `catalog.product` walks a product's `primaryCategoryId`
+ * up to its root for the breadcrumb trail, and the collection grid's category facet borrows the tree
+ * to place and name the parent rows the platform's own counts never mention.
  *
  * **It carries no abort signal**, deliberately, because its answer belongs to every read rather than
  * to the one that happened to ask first: a shopper ticking a second category while the first read is
@@ -1190,31 +1245,26 @@ function priceParam(raw: string | undefined, currency: string | undefined): numb
  * read that replaced it — an error over a page whose filter was perfectly answerable. It is one
  * small request that finishes on its own.
  *
- * A failure is **not** swallowed: it fails the collection read, which the block already draws as an
- * error over the last good page. The alternative is a request that quietly drops the category the
- * chips, the URL and the active-filter row all say is applied — the exact bug the filters this
- * mapping sends exist to avoid.
+ * A failure is swallowed by its two *decorative* readers and by neither of the other two. A trail
+ * nobody can read is a product page without a category crumb, and a facet tree nobody can read is a
+ * flat category group — both are pages. A **filter** that quietly dropped the category the chips, the
+ * URL and the active-filter row all say is applied is a lie, so that one fails the collection read,
+ * which the block already draws as an error over the last good page.
  */
-async function readCategoryIds(client: EldraClient): Promise<ReadonlyMap<string, string>> {
+async function readCategories(client: EldraClient): Promise<CategoryIndex> {
   const rows = (await client.catalog.listCategories({})) as unknown as RawCategory[] | null;
-  const out = new Map<string, string>();
-  for (const row of rows ?? []) {
-    if (typeof row.slug === 'string' && row.slug !== '' && typeof row.id === 'string') {
-      out.set(row.slug, row.id);
-    }
-  }
-  return out;
+  return buildCategoryIndex(rows);
 }
 
 /**
- * `filters` as the catalog list takes it. `categoryIdsOnce` is only awaited when there is a
+ * `filters` as the catalog list takes it. `categoriesOnce` is only awaited when there is a
  * category clause to resolve, so an unfiltered read — and every filtered read that touches no
  * category — makes exactly the one request it always made.
  */
 async function catalogFilterQuery(
   filters: Record<string, string[]> | undefined,
   currency: string | undefined,
-  categoryIdsOnce: () => Promise<ReadonlyMap<string, string>>
+  categoriesOnce: () => Promise<CategoryIndex>
 ): Promise<CatalogFilterQuery> {
   const query: CatalogFilterQuery = {};
   if (filters === undefined) return query;
@@ -1238,9 +1288,9 @@ async function catalogFilterQuery(
       continue;
     }
     if (source === 'category') {
-      const ids = await categoryIdsOnce();
+      const { idBySlug } = await categoriesOnce();
       const matched = selected
-        .map((slug) => ids.get(slug))
+        .map((slug) => idBySlug.get(slug))
         .filter((id): id is string => id !== undefined);
       if (matched.length > 0) query.categoryId = matched;
       continue;
@@ -1284,6 +1334,13 @@ function mapFacets(
   if (raw === null || raw === undefined) return undefined;
   const price = raw.price;
   const availability = raw.availability;
+  // **The one signal that says whose tree and whose counts these are.** The platform adds `parentId`
+  // on its category terms and the ancestor roll-ups together, so a term that can place itself is a
+  // term that has already been counted up — and a client-side sum over listed children would then
+  // double-count a product that sits in two sibling categories. A response with no placement at all
+  // is the contract this file was written against: the counts are per *assigned* category, and the
+  // panel rolls them up itself (`CatalogFacets.categoryCounts`).
+  const placed = (raw.categories ?? []).some((term) => term.parentId !== undefined);
   return {
     ...(price === null || price === undefined
       ? {}
@@ -1293,7 +1350,8 @@ function mapFacets(
             max: fromMinorUnits(price.max ?? 0, currency),
           },
         }),
-    categories: mapFacetTerms(raw.categories),
+    categories: mapFacetTerms(raw.categories, placed),
+    ...(placed ? { categoryCounts: 'rolled-up' as const } : {}),
     collections: mapFacetTerms(raw.collections),
     ...(availability === null || availability === undefined
       ? {}
@@ -1320,7 +1378,15 @@ function mapFacets(
   };
 }
 
-function mapFacetTerms(raw: RawFacetTerm[] | null | undefined): CatalogFacets['categories'] {
+/**
+ * `placed` carries the platform's own `parentId` through (categories only). It is deliberately *not*
+ * defaulted to `null`: an absent `parentId` means "this source cannot place the term", which the
+ * panel renders flat, while `null` means "it is a root" — see `CatalogFacetTerm.parentId`.
+ */
+function mapFacetTerms(
+  raw: RawFacetTerm[] | null | undefined,
+  placed = false
+): CatalogFacets['categories'] {
   return (raw ?? [])
     .filter((term) => typeof term.slug === 'string' && term.slug !== '')
     .map((term) => ({
@@ -1328,7 +1394,29 @@ function mapFacetTerms(raw: RawFacetTerm[] | null | undefined): CatalogFacets['c
       slug: term.slug!,
       title: term.title ?? term.slug!,
       count: term.count ?? 0,
+      ...(placed ? { parentId: term.parentId ?? null } : {}),
     }));
+}
+
+/**
+ * The facets with their `categories` family completed into a tree — the parent rows the panel nests
+ * under, which a facet counted over *assigned* categories never names (`completeCategoryTerms`).
+ *
+ * **It spends a request only while the platform cannot place its own terms.** A response that already
+ * carries `parentId` (`categoryCounts: 'rolled-up'`) is left exactly as it came and the category list
+ * is not read at all, so this costs nothing the day Core ships the tree on its facets. Until then it
+ * is the one cached read per storefront the `category` *filter* already pays for, and a failure is
+ * swallowed: a flat category group is a page, and the group's own counts and labels are the
+ * platform's either way.
+ */
+async function withCategoryTree(
+  facets: CatalogFacets,
+  categoriesOnce: () => Promise<CategoryIndex>
+): Promise<CatalogFacets> {
+  if (facets.categoryCounts === 'rolled-up' || facets.categories.length === 0) return facets;
+  const index = await categoriesOnce().catch(() => EMPTY_CATEGORY_INDEX);
+  if (index.byId.size === 0) return facets;
+  return { ...facets, categories: completeCategoryTerms(facets.categories, index) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1583,7 +1671,9 @@ async function detailSnapshots(
   const raw = (await client.catalog.getProduct(handle, {})) as unknown as RawProductDetails;
   // The refresh is the half of the design that matters on a prerendered page: the build-time read
   // gave the stock the product had when the page was generated, and this corrects it after mount.
-  const fresh = mapProductDetails(raw, await readStock(client, raw));
+  // No category tree: this read is for the refresh's four volatile values and nothing else, and a
+  // trail is content — it is already on the page from the build (`VolatileKey`).
+  const fresh = mapProductDetails(raw, await readStock(client, raw), null);
   return [
     {
       id,
@@ -1679,20 +1769,25 @@ export function createGatewayStorefront(
   const currency = options.commerce?.currency;
 
   /**
-   * The store's category slugs → catalog ids, read at most once for the life of this storefront and
-   * only when a category filter actually needs them (`readCategoryIds`).
+   * The store's category tree, read at most once for the life of this storefront and only when
+   * something actually needs it: a category filter to resolve, a product page's breadcrumb trail, or
+   * a category facet the platform could not place its own terms in (`readCategories`).
    *
-   * The in-flight read is what is cached, so two grids filtering at once share one request; a
-   * failure drops the cache so the next read tries again rather than inheriting the first one's
-   * error.
+   * The in-flight read is what is cached, so a product page and a grid asking at once share one
+   * request; a failure drops the cache so the next read tries again rather than inheriting the first
+   * one's error. Which callers swallow that failure and which let it through is on `readCategories`.
+   *
+   * It is read on the **server** during a prerender, inside the same `useAsyncData` the product or
+   * collection read runs under, so a generated product page carries its trail in the page payload
+   * and the browser fetches nothing to draw the crumb.
    */
-  let categoryIds: Promise<ReadonlyMap<string, string>> | null = null;
-  const categoryIdsOnce = (): Promise<ReadonlyMap<string, string>> => {
-    categoryIds ??= readCategoryIds(client).catch((caught: unknown) => {
-      categoryIds = null;
+  let categories: Promise<CategoryIndex> | null = null;
+  const categoriesOnce = (): Promise<CategoryIndex> => {
+    categories ??= readCategories(client).catch((caught: unknown) => {
+      categories = null;
       throw caught;
     });
-    return categoryIds;
+    return categories;
   };
 
   const catalog: StorefrontCatalog = {
@@ -1706,7 +1801,16 @@ export function createGatewayStorefront(
             {},
             { signal }
           )) as unknown as RawProductDetails;
-          return mapProductDetails(raw, await readStock(client, raw, signal));
+          // Stock and the category tree in parallel: neither needs the other, and the trail must not
+          // add a serial round trip to every product page. The tree's failure is swallowed here — a
+          // product page without a category crumb is a product page, while a product page that 500s
+          // because the category list was unreachable is not — which is the opposite of what the
+          // `category` *filter* does with the same read (`readCategories`).
+          const [stock, tree] = await Promise.all([
+            readStock(client, raw, signal),
+            categoriesOnce().catch(() => null),
+          ]);
+          return mapProductDetails(raw, stock, tree);
         },
         {
           method: 'catalog.product',
@@ -1742,7 +1846,7 @@ export function createGatewayStorefront(
           // and — with `facets=true` — the counts the panel draws its groups from, over the whole
           // collection rather than the rows this read could reach. The one source it cannot narrow
           // by is declared rather than dropped: see `COLLECTION_SCOPE_UNFILTERABLE`.
-          const filterQuery = await catalogFilterQuery(filters, currency, categoryIdsOnce);
+          const filterQuery = await catalogFilterQuery(filters, currency, categoriesOnce);
           const raw = (await client.catalog.listCollectionProducts(
             slug,
             {
@@ -1754,7 +1858,12 @@ export function createGatewayStorefront(
             },
             { signal }
           )) as unknown as RawProductList;
-          const facets = mapFacets(raw.facets, currency);
+          const mapped = mapFacets(raw.facets, currency);
+          // The category family is completed into a tree the panel can nest — parent rows included,
+          // which a facet counted over *assigned* categories never names. Free once the platform
+          // places its own terms; see `withCategoryTree`.
+          const facets =
+            mapped === undefined ? undefined : await withCategoryTree(mapped, categoriesOnce);
           return {
             items: (raw.data ?? []).map(mapProductListItem),
             total: raw.meta.total,

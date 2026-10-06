@@ -187,9 +187,16 @@ function wire(
   return { storefront, refresher };
 }
 
-/** A few turns of the microtask/scheduler queue — long enough for a watcher to re-run a load. */
+/**
+ * A few turns of the microtask/scheduler queue — long enough for a watcher to re-run a load.
+ *
+ * The count is slack, not a guard: it has to exceed the await depth of the deepest read these tests
+ * drive, which is `catalog.product` (the detail read, then the stock read and the category-tree read
+ * in parallel, each of which fails over a fake client that offers neither service — and a rejection
+ * caught and re-thrown costs turns of its own). Nothing here asserts on how many turns a read takes.
+ */
 async function settle(): Promise<void> {
-  for (let turn = 0; turn < 6; turn += 1) await nextTick();
+  for (let turn = 0; turn < 16; turn += 1) await nextTick();
 }
 
 function deferred<T>(): {

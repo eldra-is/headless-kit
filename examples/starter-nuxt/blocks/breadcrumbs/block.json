@@ -51,6 +51,13 @@
       }
     },
     {
+      "fieldId": "fromProduct",
+      "name": "Add the product's category trail",
+      "type": "bool",
+      "default": false,
+      "description": "On a product page, appends the store's own category trail (root category down to the product's) after the levels above. Turn off Product detail's own \"Show category trail\" so it never shows twice."
+    },
+    {
       "fieldId": "currentTitle",
       "name": "Current page title",
       "type": "string",

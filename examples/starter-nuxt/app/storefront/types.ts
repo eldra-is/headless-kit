@@ -151,6 +151,19 @@ export interface CatalogFacetTerm {
   slug: string;
   title: string;
   count: number;
+  /**
+   * **The id of this term's parent category, or `null` for a root** — what makes the `categories`
+   * facet a tree rather than a flat list, and what `collection-grid` draws its indented parent rows
+   * from.
+   *
+   * `undefined` means "this source cannot place the term", which is not the same answer as `null`
+   * ("it is a root"): the panel then renders the family flat, exactly as it did before any of this
+   * existed. Set on the `categories` facet by both sources — from the platform's own facet term when
+   * it carries one, else from the store's category list (`app/storefront/categories.ts`'s
+   * `completeCategoryTerms`, which also appends the ancestor terms a facet counted over *assigned*
+   * categories never names). Never set on `collections`: collections are a flat vocabulary.
+   */
+  parentId?: string | null;
 }
 
 /** One value of a variant-option facet. `swatch` is a CSS colour from the store — content, never
@@ -210,6 +223,22 @@ export interface CatalogFacets {
    */
   price?: { min: number; max: number };
   categories: CatalogFacetTerm[];
+  /**
+   * **Whether a category term's `count` already includes its descendants'.**
+   *
+   * `'direct'` — the answer today, and what an absent field reads as — means each count is the
+   * products *assigned to that category*, so a parent row the panel synthesised counts 0 and a
+   * parent a merchant assigned nothing to directly counts 0 as well. `collection-grid` therefore
+   * rolls a parent's number up from its listed descendants before it draws or disables anything.
+   *
+   * `'rolled-up'` means the platform has counted the ancestors itself and its numbers are the whole
+   * answer, descendants deduplicated — which a client-side sum cannot be, since a product in two
+   * sibling categories is one product and two counts. The panel then uses the counts as they came.
+   * The gateway source reads this off the response rather than a contract version: the platform adds
+   * `parentId` on its facet terms and the ancestor counts together, so a term that can place itself
+   * is a term that has been counted up (`gateway.ts`'s `mapFacets`).
+   */
+  categoryCounts?: 'direct' | 'rolled-up';
   collections: CatalogFacetTerm[];
   /**
    * **Absent when the source could not read stock at all** — which is a different answer from

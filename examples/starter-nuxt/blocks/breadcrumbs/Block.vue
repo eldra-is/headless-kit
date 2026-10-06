@@ -9,8 +9,24 @@
  * author fills by hand, root first, with `currentTitle` standing in for "the page title" the spec
  * assumes is always available.
  *
- * Resolved item order: `homeLabel` (when `showHome`) → `trail`, in order → `currentTitle` (when
- * `showCurrent` and non-empty). Spec "Empty (freshly inserted)" row: on a top-level page (empty
+ * **`fromProduct` is the one level this block can fill by itself**: on a product page, the store's
+ * own category trail for the product the route resolved — root category down to the product's own,
+ * each level a link into the catalogue filtered by it
+ * (`app/storefront/categories.ts`). It exists because the seeded product
+ * *template* has no authored `trail` and cannot have one: a template renders whatever product its
+ * `:slug` matched, so `app/templates.ts` empties the list, and the breadcrumbs on a merchant's first
+ * product page were the Home crumb alone — one item, which is fewer than two, which is nothing.
+ *
+ * It reads `storefront.catalog.product()` for the route's own handle, which is the **same result**
+ * `product-detail` on the same page creates: identical method, identical sources, therefore an
+ * identical prerender key, so Nuxt's `useAsyncData` answers both from one read and the trail rides
+ * to the browser in the page payload with the rest of the product. Nothing is fetched when the
+ * option is off or the route names no product (the source is `null`, which makes no request).
+ *
+ * Resolved item order: `homeLabel` (when `showHome`) → `trail`, in order → the product's category
+ * trail (when `fromProduct`) → `currentTitle` (when `showCurrent` and non-empty). The authored levels
+ * come first because they are the page-tree levels *above* the catalogue, while a category is the
+ * level nearest the product. Spec "Empty (freshly inserted)" row: on a top-level page (empty
  * `trail`, no `currentTitle`) there is nothing to show a trail *between*, so with fewer than two
  * resolved items nothing renders live at all — only the editor sees a hint explaining why.
  */
@@ -19,6 +35,7 @@ import { Breadcrumb, Container, EditorPlaceholder } from '@eldrajs/ui';
 import type { BreadcrumbItem } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
+import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -26,9 +43,11 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 const props = defineProps<{ entry: EldraBlockEntry<'breadcrumbs'> }>();
 const { data } = useBlockData(props, 'breadcrumbs');
 const editing = useEditing();
+const storefront = useStorefront();
 const t = useT();
 
 const showHome = computed(() => data.value.showHome !== false);
+const fromProduct = computed(() => data.value.fromProduct === true);
 const homeLabel = computed(() => data.value.homeLabel || 'Home');
 const showCurrent = computed(() => data.value.showCurrent !== false);
 const currentTitle = computed(() => data.value.currentTitle?.trim() ?? '');
@@ -47,10 +66,35 @@ const trailItems = computed<BreadcrumbItem[]>(() =>
   })
 );
 
+/**
+ * The product the route resolved, or `null` — `null` whenever `fromProduct` is off, so a page that
+ * does not want the store's trail makes no read at all. **A source that is final at setup time**
+ * (`StorefrontResult`'s own rule): `route.productHandle` is the committed route's, settled before any
+ * block is created, so this result's key is the one the prerender left a payload under.
+ */
+const productHandle = computed<string | null>(() =>
+  fromProduct.value ? storefront.route.productHandle : null
+);
+const productResult = storefront.catalog.product(productHandle);
+
+/**
+ * The store's category trail for that product, through the same `safeHref` gate the authored levels
+ * pass. Empty for every honest absence — no product, a product with no category, a category read
+ * that failed — and an empty one simply leaves the trail as the author's own.
+ */
+const productTrailItems = computed<BreadcrumbItem[]>(() =>
+  (productResult.data.value?.categoryTrail ?? []).flatMap((level) => {
+    const href = safeHref(level.href);
+    if (href === null || !level.label) return [];
+    return [{ label: level.label, href }];
+  })
+);
+
 const items = computed<BreadcrumbItem[]>(() => {
   const resolved: BreadcrumbItem[] = [];
   if (showHome.value) resolved.push({ label: homeLabel.value, href: '/' });
   resolved.push(...trailItems.value);
+  resolved.push(...productTrailItems.value);
   if (showCurrent.value && currentTitle.value !== '') {
     resolved.push({ label: currentTitle.value });
   }
