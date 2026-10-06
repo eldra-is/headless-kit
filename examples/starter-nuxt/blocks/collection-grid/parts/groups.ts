@@ -266,15 +266,34 @@ export function sliderValueFor(range: PriceRange, span: PriceSpan): [number, num
 }
 
 /**
- * The pair written back out of the slider. **A thumb parked on the span's own end is "no bound"**,
- * not a bound that happens to equal it: that is what lets a shopper drag a filter back off, keeps
- * the URL free of a range nobody asked for, and keeps the request identical to one made before any
- * filter existed.
+ * The range written back out of the slider, once a move is over.
+ *
+ * **The applied range is the source of truth, and only the end that moved is rewritten.** One
+ * gesture moves one thumb — a drag, an arrow-key run, a typed field — so the other end keeps the
+ * string the shopper already applied, character for character. Deriving *both* ends from the pair
+ * is what made a nudge of one thumb erase the other bound: the span the thumbs are drawn across is
+ * widened to hold the shopper's own bounds (`spanWithRange`, because the facets' span is counted
+ * with every filter but price and can narrow inside their range), so on `?price=50-150&colour=oat`
+ * both thumbs sit on "an end" and reading either as "no bound" threw away a filter the shopper had
+ * set, on screen, in the URL and in the request.
+ *
+ * For the end that *did* move, **a thumb parked on the span's own end is "no bound"** — not a bound
+ * that happens to equal it. That is what lets a shopper drag a filter back off, keeps the URL free
+ * of a range nobody asked for, and keeps the request identical to one made before any filter
+ * existed.
  */
-export function rangeFromSlider(value: readonly [number, number], span: PriceSpan): PriceRange {
+export function rangeFromSlider(
+  value: readonly [number, number],
+  span: PriceSpan,
+  applied: PriceRange = NO_PRICE_RANGE
+): PriceRange {
+  // Where the thumbs stood before this move: anything still there is an end nobody touched.
+  const [wasMin, wasMax] = sliderValueFor(applied, span);
   return {
-    min: value[0] <= span.min ? '' : String(Math.round(value[0])),
-    max: value[1] >= span.max ? '' : String(Math.round(value[1])),
+    min:
+      value[0] === wasMin ? applied.min : value[0] <= span.min ? '' : String(Math.round(value[0])),
+    max:
+      value[1] === wasMax ? applied.max : value[1] >= span.max ? '' : String(Math.round(value[1])),
   };
 }
 

@@ -1525,6 +1525,86 @@ describe('collection-grid block', () => {
   });
 
   /**
+   * **A price range the shopper applied survives the next nudge of either thumb** — over the real
+   * demo storefront, because the bug this pins only exists in the composition.
+   *
+   * The facets' price span is counted with every filter *except* price (contract §1), so ticking a
+   * colour narrows it; the track is then widened back to hold the shopper's own bounds, or their
+   * range would read back as the one price the remaining products cost. On
+   * `?price=50-150&colour=oat` the track's extent therefore *is* 50–150, both thumbs sit on "an
+   * end", and deriving both bounds from the pair read the untouched one as "no bound": one
+   * ArrowRight on the minimum wrote `51-` and the ceiling was gone from the URL, the chip and the
+   * request while the track still ended at 150.
+   */
+  describe('an applied price range, with another group narrowing the facets', () => {
+    function applied() {
+      return createDemoStorefront({ filters: { price: ['50-150'], colour: ['oat'] } });
+    }
+
+    function priceThumbs(wrapper: VueWrapper) {
+      return panelFor(wrapper, PRICE_LEGEND).panel.findAll('[role="slider"]');
+    }
+
+    it('renders the thumbs at the applied values, not at the catalogue’s own ends', async () => {
+      const source = applied();
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const thumbs = priceThumbs(wrapper);
+      expect(thumbs[0]!.attributes('aria-valuenow')).toBe('50');
+      expect(thumbs[1]!.attributes('aria-valuenow')).toBe('150');
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
+        'Price: $50 to $150'
+      );
+    });
+
+    it('keeps the ceiling when the minimum is nudged', async () => {
+      const source = applied();
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const min = priceThumbs(wrapper)[0]!;
+      await min.trigger('keydown', { key: 'ArrowRight' });
+      await min.trigger('keyup', { key: 'ArrowRight' });
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.price).toEqual(['51-150']);
+    });
+
+    it('keeps the floor when the maximum is nudged', async () => {
+      const source = applied();
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const max = priceThumbs(wrapper)[1]!;
+      await max.trigger('keydown', { key: 'ArrowLeft' });
+      await max.trigger('keyup', { key: 'ArrowLeft' });
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.price).toEqual(['50-149']);
+    });
+
+    /** And the bound can still be dropped on purpose: a thumb the shopper takes all the way out is
+     *  "no bound", which is the gesture the rule above must not swallow. */
+    it('still drops a bound dragged out to the catalogue’s own end', async () => {
+      const source = createDemoStorefront({ filters: { price: ['50-150'] } });
+      const wrapper = mountGrid(mock, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const min = priceThumbs(wrapper)[0]!;
+      await min.trigger('keydown', { key: 'Home' });
+      await min.trigger('keyup', { key: 'Home' });
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.price).toEqual(['-150']);
+    });
+  });
+
+  /**
    * The other direction of the URL round-trip: a query the block did not write.
    *
    * Back/Forward, a shared link to the same collection with a different range, and — the one that

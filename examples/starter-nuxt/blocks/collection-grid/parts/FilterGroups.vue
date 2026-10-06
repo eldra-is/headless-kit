@@ -198,11 +198,17 @@ function onSlide(value: [number, number]): void {
   sliderPair.value = value;
 }
 
-/** Spec → Events: `change` is "once the move is over", which is when a filter should apply. */
+/**
+ * Spec → Events: `change` is "once the move is over", which is when a filter should apply.
+ *
+ * The applied range goes in with the pair: one gesture moves one thumb, so the end that did not
+ * move keeps the bound the shopper already set rather than being re-derived from a track whose
+ * extent may be their own bounds (see `rangeFromSlider`).
+ */
 function onSlideCommit(value: [number, number]): void {
   sliding.value = false;
   sliderPair.value = value;
-  emit('update:range', rangeFromSlider(value, props.priceSpan));
+  emit('update:range', rangeFromSlider(value, props.priceSpan, { min: props.min, max: props.max }));
 }
 
 const panelId = (source: FilterSource): string => `${props.idPrefix}-panel-${slug(source)}`;

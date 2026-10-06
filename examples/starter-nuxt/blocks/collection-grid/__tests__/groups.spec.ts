@@ -123,15 +123,50 @@ describe('the slider’s own pair', () => {
     expect(sliderValueFor({ min: '', max: '150' }, span)).toEqual([24, 150]);
   });
 
-  /** A thumb on the span's own end is "no bound", which is what lets a filter be dragged off
-   *  again — and what keeps an untouched control out of the URL entirely. */
-  it('reads a thumb at either end back as no bound', () => {
-    expect(rangeFromSlider([24, 180], span)).toEqual({ min: '', max: '' });
-    expect(rangeFromSlider([50, 180], span)).toEqual({ min: '50', max: '' });
-    expect(rangeFromSlider([24, 150], span)).toEqual({ min: '', max: '150' });
+  /** A thumb the shopper moved to the span's own end is "no bound", which is what lets a filter be
+   *  dragged off again — and what keeps an untouched control out of the URL entirely. */
+  it('reads a thumb moved to either end back as no bound', () => {
+    expect(rangeFromSlider([24, 180], span, { min: '50', max: '150' })).toEqual({
+      min: '',
+      max: '',
+    });
+    expect(rangeFromSlider([50, 180], span, { min: '50', max: '150' })).toEqual({
+      min: '50',
+      max: '',
+    });
+    expect(rangeFromSlider([24, 150], span, { min: '50', max: '150' })).toEqual({
+      min: '',
+      max: '150',
+    });
     expect(rangeFromSlider([50, 150], span)).toEqual({ min: '50', max: '150' });
     // Outside the span (a stale pair, a span that moved) is still no bound, never a bound beyond it.
     expect(rangeFromSlider([10, 400], span)).toEqual({ min: '', max: '' });
+  });
+
+  /**
+   * **The end that did not move keeps the bound the shopper applied**, whatever the track's extent
+   * says about it.
+   *
+   * The track is widened to hold their own bounds (`spanWithRange`), because the facets' price span
+   * is counted with every filter *but* price and can narrow inside their range. So on
+   * `?price=50-150&colour=oat` both thumbs sit on "an end", and deriving both ends from the pair
+   * read the untouched one as "no bound": one ArrowRight on the minimum wrote `51-` and the $150
+   * ceiling was gone — from the URL, the chip and the request — with the track still ending at 150.
+   */
+  it('never rewrites the end a gesture did not touch', () => {
+    const narrowed = { min: 50, max: 150 };
+    const applied = { min: '50', max: '150' };
+    expect(rangeFromSlider([51, 150], narrowed, applied)).toEqual({ min: '51', max: '150' });
+    expect(rangeFromSlider([50, 149], narrowed, applied)).toEqual({ min: '50', max: '149' });
+    // Half a range is the same story: the open end stays open.
+    expect(rangeFromSlider([60, 180], span, { min: '50', max: '' })).toEqual({
+      min: '60',
+      max: '',
+    });
+    expect(rangeFromSlider([24, 140], span, { min: '', max: '150' })).toEqual({
+      min: '',
+      max: '140',
+    });
   });
 });
 
