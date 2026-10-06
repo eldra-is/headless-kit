@@ -6,13 +6,7 @@ import { createHistoryStore, createWishlistStore } from './history';
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
-import {
-  buildCategoryIndex,
-  categoryTrailFor,
-  completeCategoryTerms,
-  EMPTY_CATEGORY_INDEX,
-  type CategoryIndex,
-} from './categories';
+import { buildCategoryIndex, categoryTrailFor, type CategoryIndex } from './categories';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
   CatalogFacets,
@@ -1454,26 +1448,6 @@ function mapFacetTerms(
     }));
 }
 
-/**
- * The facets with their `categories` family completed into a tree — the parent rows the panel nests
- * under, which a facet counted over *assigned* categories never names (`completeCategoryTerms`).
- *
- * **It spends a request only while the platform cannot place its own terms.** A response that already
- * carries `parentId` (contract 3.8.0 — `categoryCounts: 'rolled-up'`) is left exactly as it came,
- * order included, and the category list is not read at all. Against an older gateway it is the one
- * cached read per storefront the `category` *filter* already pays for, and a failure is swallowed: a
- * flat category group is a page, and the group's own counts and labels are the platform's either way.
- */
-async function withCategoryTree(
-  facets: CatalogFacets,
-  categoriesOnce: () => Promise<CategoryIndex>
-): Promise<CatalogFacets> {
-  if (facets.categoryCounts === 'rolled-up' || facets.categories.length === 0) return facets;
-  const index = await categoriesOnce().catch(() => EMPTY_CATEGORY_INDEX);
-  if (index.byId.size === 0) return facets;
-  return { ...facets, categories: completeCategoryTerms(facets.categories, index) };
-}
-
 // ---------------------------------------------------------------------------------------------
 // Collection selectors — a slug goes straight to the gateway, an id needs a lookup first
 // ---------------------------------------------------------------------------------------------
@@ -1928,12 +1902,12 @@ export function createGatewayStorefront(
           : await client.catalog.listCollectionProducts(slug, query, {
               signal,
             })) as unknown as RawProductList;
-        const mapped = mapFacets(raw.facets, currency);
-        // The category family is completed into a tree the panel can nest — parent rows included,
-        // which a facet counted over *assigned* categories never names. Free once the platform
-        // places its own terms; see `withCategoryTree`.
-        const facets =
-          mapped === undefined ? undefined : await withCategoryTree(mapped, categoriesOnce);
+        // The facets pass through as the platform sent them. A family it did not place and did not
+        // count up is **not** completed from the category list here: a synthesised parent row is a
+        // filter such a gateway cannot honour, and the panel keeps that family flat instead (see
+        // `parts/groups.ts`'s `rawValuesFor`). The only thing the category read is spent on is a
+        // `category` *filter*'s slug→id lookup and a product's breadcrumb trail.
+        const facets = mapFacets(raw.facets, currency);
         return {
           items: (raw.data ?? []).map(mapProductListItem),
           total: raw.meta.total,

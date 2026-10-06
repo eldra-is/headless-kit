@@ -37,7 +37,7 @@ import { starterPages, starterTemplateRoles, starterTemplates } from '../../app/
  *     component and each `required` block's node carrying `locked: true` (`pageEntries`).
  */
 
-const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+export const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
 /** A stable v4-shaped uuid per block index — a layout node's `entryId` must be one. */
 const blockUuid = (index: number): string =>
@@ -138,13 +138,41 @@ function seededCart(): Record<string, unknown> {
 }
 
 /**
+ * **Which public-contract shape the catalog half of this fixture answers**, because the two shapes of
+ * the category facet are a *pair* and modelling one half of each would be a gateway that does not
+ * exist:
+ *
+ * - `'3.8.0'` (the default, and the platform this theme targets) — the facet's category terms carry
+ *   `parentId`, their counts are **rolled up** over each subtree, and a `categoryId` filter matches
+ *   the **whole subtree**. The filter panel nests the family and offers parent rows.
+ * - `'3.7.0'` — flat facet terms (no `parentId`), counts over **assigned** categories only, and a
+ *   `categoryId` filter matching **direct membership** only. The panel keeps the family flat and
+ *   offers no parent row, which is the only honest answer: a `Tableware` row here would be a filter
+ *   this gateway cannot honour.
+ *
+ * The earlier version of this fixture answered flat facets *and* an expanding filter — no real
+ * gateway is in that state, and the combination hid exactly the defect the flat fallback exists to
+ * prevent.
+ */
+export type MockCatalogContract = '3.7.0' | '3.8.0';
+
+let catalogContract: MockCatalogContract = '3.8.0';
+
+/** Switches the contract the catalog endpoints answer. Per-process, so a spec that changes it puts it
+ *  back; `startMockGateway` resets it for the server it starts. */
+export function setMockCatalogContract(contract: MockCatalogContract): void {
+  catalogContract = contract;
+}
+
+/**
  * The store's categories — what `GET /catalog/v1/categories` answers, which is how a `?category=`
  * slug becomes the `categoryId` the list takes **and** where a product's breadcrumb trail comes from.
+ * Answered the same way under both contracts: the category *list* has always carried `parentId`, and
+ * it is the trail's only source.
  *
  * Two levels, because one level cannot prove a trail: `Tableware` holds `Cups`, every product sits in
  * `Cups`, and a prerendered product page therefore has to render `Tableware / Cups` from this read
- * alone. The platform's facets here carry no `parentId` (this fixture answers the contract the
- * storefront was written against), so the grid's category tree is the one completed from this list.
+ * alone.
  */
 interface MockCategory {
   id: string;
@@ -637,10 +665,11 @@ function matchesProductQuery(
     if (query.maxPrice !== undefined && row.minPrice > query.maxPrice) return false;
   }
   if (ignore !== 'category' && query.categoryIds.length > 0) {
-    // A `categoryId` matches the product's own category **or any ancestor of it**: the filter panel
-    // offers parent rows, and the platform expands a parent to its descendants. A fixture that only
-    // matched the leaf would answer nothing for a shopper ticking `Tableware`.
-    if (!query.categoryIds.some((id) => categoryChainOf(row).includes(id))) return false;
+    // On 3.8.0 a `categoryId` matches the product's own category **or any ancestor of it** — the
+    // subtree match that makes a parent row a filter worth offering. On 3.7.0 it matches direct
+    // membership only, which is why the panel offers no parent row there at all.
+    const reachable = catalogContract === '3.8.0' ? categoryChainOf(row) : [row.categoryId];
+    if (!query.categoryIds.some((id) => reachable.includes(id))) return false;
   }
   if (ignore !== 'collection' && query.collectionIds.length > 0) {
     if (!collectionsOf(row).some((id) => query.collectionIds.includes(id))) return false;
@@ -674,15 +703,11 @@ function facetsOf(rows: MockProduct[], query: ProductQuery): Record<string, unkn
       min: prices.length === 0 ? 0 : Math.min(...prices),
       max: prices.length === 0 ? 0 : Math.max(...prices),
     },
-    // Counted over the categories products are **assigned** to, which is the leaf: `Tableware` is
-    // never named here, and the grid's parent row is the one the storefront completes from the
-    // category list. No `parentId`, deliberately — see `CATEGORIES`.
-    categories: categoryIds.map((id) => ({
-      id,
-      slug: CATEGORY_BY_ID.get(id)?.slug ?? id,
-      title: CATEGORY_BY_ID.get(id)?.title ?? id,
-      count: categoryScope.filter((row) => row.categoryId === id).length,
-    })),
+    // 3.8.0: every reported category *and its ancestors*, depth-first, `parentId` present (omitted
+    // for a root, as the contract omits it) and each count the whole subtree's — a product counted
+    // once per term however many of its categories lead there. 3.7.0: the assigned categories only,
+    // flat, counted directly. See `MockCatalogContract`.
+    categories: categoryFacet(categoryIds, categoryScope),
     collections: COLLECTIONS.map((collection) => ({
       id: collection.id,
       slug: collection.slug,
@@ -698,6 +723,45 @@ function facetsOf(rows: MockProduct[], query: ProductQuery): Record<string, unkn
 }
 
 /** `field:op:value` tokens, as much of the grammar as the storefront actually sends. */
+/** The `categories` facet in whichever shape the active contract answers (`MockCatalogContract`). */
+function categoryFacet(
+  assigned: readonly string[],
+  scope: readonly MockProduct[]
+): Array<Record<string, unknown>> {
+  const term = (id: string, count: number): Record<string, unknown> => {
+    const row = CATEGORY_BY_ID.get(id);
+    return {
+      id,
+      slug: row?.slug ?? id,
+      title: row?.title ?? id,
+      count,
+      // The contract omits the key for a root rather than sending `null`.
+      ...(catalogContract === '3.8.0' && row?.parentId != null ? { parentId: row.parentId } : {}),
+    };
+  };
+  if (catalogContract === '3.7.0') {
+    return assigned.map((id) => term(id, scope.filter((row) => row.categoryId === id).length));
+  }
+  // Depth-first by title over the reported set: every assigned category plus every ancestor above it.
+  const reported = new Set<string>();
+  for (const id of assigned)
+    for (const step of categoryChainOf({ categoryId: id })) reported.add(step);
+  const childrenOf = (parentId: string | null): MockCategory[] =>
+    CATEGORIES.filter((row) => reported.has(row.id) && row.parentId === parentId).sort((a, b) =>
+      a.title.localeCompare(b.title)
+    );
+  const out: Array<Record<string, unknown>> = [];
+  const walk = (parentId: string | null): void => {
+    for (const row of childrenOf(parentId)) {
+      // Rolled up: a product in the subtree counts once towards this term.
+      out.push(term(row.id, scope.filter((p) => categoryChainOf(p).includes(row.id)).length));
+      walk(row.id);
+    }
+  };
+  walk(null);
+  return out;
+}
+
 function matchesFilters(row: MockProduct, filters: string[]): boolean {
   for (const token of filters) {
     const [field, op, ...rest] = token.split(':');
@@ -730,7 +794,10 @@ export interface MockGateway {
   close(): Promise<void>;
 }
 
-export function startMockGateway(): Promise<MockGateway> {
+export function startMockGateway(
+  options: { catalogContract?: MockCatalogContract } = {}
+): Promise<MockGateway> {
+  setMockCatalogContract(options.catalogContract ?? '3.8.0');
   return new Promise((resolve) => {
     const requests: string[] = [];
     const state = { catalogDelayMs: 0, cartDelayMs: 0 };

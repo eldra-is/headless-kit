@@ -1358,6 +1358,77 @@ describe('collection-grid block', () => {
     });
 
     /**
+     * **An option key that would take a query key something else already owns is refused**, with a
+     * dev warning naming it. The grid's own filters own `?category=`, `?collection=`, `?price=` and
+     * `?availability=`; the storefront route owns `?q=`, `?page=`, `?token=`, `?sort=` and
+     * `?columns=` before a block sees them at all (`app/plugins/eldra-storefront.ts`).
+     *
+     * Both collisions are silent and ugly. A key shadowing a filter source reads the *same* query key
+     * as that source, so one `?category=ceramics` would go out as a `categoryId` **and** an
+     * `option=category:ceramics`, AND-ed, emptying the grid — and ticking a category would then write
+     * that key twice in one patch, un-applying the filter on the next read. A key shadowing a route
+     * field (`sort` above all) is never readable from the URL at all, while every state write would
+     * clear the shopper's sort out of it.
+     *
+     * Namespacing the key was the alternative and was not taken: the query key is a shareable,
+     * shopper-visible part of the URL, and inventing `?opt_category=` for one store means a link no
+     * other spelling of this theme reads. One group fewer, every other filter exactly right.
+     */
+    it('refuses an option key that collides with a reserved query key', async () => {
+      const stub = createStub(PRODUCTS, {
+        facets: {
+          ...FACETS,
+          options: [
+            { key: 'category', name: 'Category', values: [{ value: 'x', label: 'X', count: 2 }] },
+            { key: 'sort', name: 'Sort', values: [{ value: 'y', label: 'Y', count: 2 }] },
+            {
+              key: 'fabric',
+              name: 'Fabric',
+              values: [{ value: 'linen', label: 'Linen', count: 7 }],
+            },
+          ],
+        },
+      });
+      const wrapper = mountGrid(WITH_OPTIONS, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      // `Fabric` is offered; the two colliding keys are not — and `Category` on screen is the grid's
+      // own category group, not the store's option of the same name.
+      expect(sidebarLabels(wrapper)).toEqual(['Category', 'Fabric']);
+      expect(panelFor(wrapper, enUS.grid.legendCategory).panel.findAll('label').length).toBe(
+        FACETS.categories.length
+      );
+    });
+
+    /**
+     * An **explicit** `option:<key>` row is refused by the same rule, wherever the author put it —
+     * and the store really does have that option here, so the row is dropped by the guard rather than
+     * by the ordinary "a group with no values is not a group" rule.
+     */
+    it('refuses a colliding key an author named explicitly', async () => {
+      const stub = createStub(PRODUCTS, {
+        facets: {
+          ...FACETS,
+          options: [
+            ...FACETS.options,
+            { key: 'sort', name: 'Sort', values: [{ value: 'y', label: 'Y', count: 2 }] },
+          ],
+        },
+      });
+      const wrapper = mountGrid(
+        {
+          ...mock,
+          filters: [
+            { source: 'option:sort', label: 'Sort by fabric' },
+            { source: 'category', label: 'Category' },
+          ],
+        },
+        { source: stub.source }
+      );
+      await wrapper.vm.$nextTick();
+      expect(sidebarLabels(wrapper)).toEqual(['Category']);
+    });
+
+    /**
      * A query key that is not a filter at all — a campaign tag, an analytics parameter — must not
      * become `option:ref`, draw a chip and go out in the request: a filter nobody set, promised to
      * the shopper in their own URL. Only a key the store actually has an option for is read.
@@ -1908,11 +1979,13 @@ describe('collection-grid block', () => {
     });
 
     /**
-     * **A shared `?category=<parent>` link**, end to end: the URL seeds the selection, the parent row
-     * is ticked, its children are drawn implied, the request carries the parent and the grid shows the
-     * products of its children — which is the whole promise of offering a parent row at all. The demo
-     * expands a ticked parent the way the platform's own `categoryId` filter does
-     * (`app/storefront/facets.ts`'s `matchesClause`).
+     * **A shared `?category=<parent>` link**, end to end, on a source answering public contract
+     * 3.8.0's shape: the URL seeds the selection, the parent row is ticked, its children are drawn
+     * implied, the request carries the parent and the grid shows the products of its children — which
+     * is the whole promise of offering a parent row at all. The demo storefront is that source: it
+     * places and rolls up its own category facet *and* expands a ticked parent the way the platform's
+     * `categoryId` does (`app/storefront/facets.ts`'s `categoryTermsOf` and `matchesClause`). The
+     * pre-3.8.0 shape, where the panel offers no parent row at all, is below.
      */
     it('restores a parent category from the URL and shows its children’s products', async () => {
       const source = createDemoStorefront({ filters: { category: ['home'] } });
@@ -1951,6 +2024,54 @@ describe('collection-grid block', () => {
       await boxes[home]!.setValue(false);
       await wrapper.vm.$nextTick();
       expect(source.route.filters.category).toBeUndefined();
+    });
+
+    /**
+     * **The same link against a pre-3.8.0 gateway**, where the family is flat — `categoryCounts` is
+     * absent, so the facets count assigned categories only and a `categoryId` matches direct
+     * membership only.
+     *
+     * The panel must then offer **no parent row at all**: not indented, not rolled up, nothing
+     * implied. A `Tableware` row there is a filter that gateway cannot honour, so ticking it would
+     * empty the grid under a chip claiming otherwise — the one defect this whole server-side filter
+     * path exists to remove. What the shopper gets instead is the flat family the grid always had,
+     * plus a chip for whatever the URL carried, which stays removable.
+     */
+    it('offers no parent row at all against a source that counts assignments', async () => {
+      const stub = createStub(PRODUCTS, {
+        filteredCount: 4,
+        facets: {
+          ...FACETS,
+          // Placed terms, but **no** `categoryCounts` — the shape a 3.7.0 gateway answers once the
+          // theme has a tree from anywhere. The placement alone must not buy a parent row.
+          categories: [
+            { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+            {
+              id: 'cat-tableware',
+              slug: 'tableware',
+              title: 'Tableware',
+              count: 0,
+              parentId: null,
+            },
+          ],
+        },
+      });
+      const wrapper = mountGrid(FILTERED, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
+      // No nested group, no indent, no implied child — and both values are ordinary checkboxes.
+      expect(panel.findAll('[role="group"]')).toHaveLength(0);
+      expect(panel.findAll('label').map((label) => label.text().replace(/\s+/g, ' '))).toEqual([
+        'Cup (6)',
+        'Tableware (0)',
+      ]);
+      expect(
+        panel
+          .findAll('input[type="checkbox"]')
+          .every((box) => !(box.element as HTMLInputElement).checked)
+      ).toBe(true);
     });
 
     /**

@@ -123,6 +123,62 @@ export function optionKeyOf(source: string): string | null {
   return key === '' ? null : key;
 }
 
+/**
+ * **The query keys an option key may not take**, because something else already owns them in the one
+ * namespace they share — the URL.
+ *
+ * Four are the fixed filter sources' own (`?category=`, `?collection=`, `?price=`, `?availability=`);
+ * five more are the keys the storefront route reads into typed fields of its own before a block ever
+ * sees them (`q`, `page`, `token`, `sort`, `columns` — `app/plugins/eldra-storefront.ts`'s
+ * `RESERVED_QUERY_KEYS`, which is where `route.filters` gets everything *else*).
+ *
+ * An option key is a merchant's own word, and `options` exists so any of them works — so a store
+ * whose variant option happens to be keyed `category` or `sort` is a real possibility, and both
+ * collisions are silent and ugly. A key colliding with a filter source reads the *same* query key as
+ * that source, so one `?category=ceramics` goes out as both a `categoryId` and an `option=…`, AND-ed,
+ * emptying the grid; ticking it then writes the key twice in one patch and the filter un-applies on
+ * the next read. A key colliding with a route field (`sort` above all) is never readable from the URL
+ * at all — it lands in `route.sort`, not in `route.filters` — while every state write would clear the
+ * shopper's sort out of the URL.
+ *
+ * So such a key is **dropped**, with a dev warning naming it (`usableOptionKey`). Namespacing it
+ * instead was the alternative and was not taken: the query key is a shopper-visible, shareable part
+ * of the URL, and inventing `?opt_category=` for one store means a link that no other spelling of
+ * this theme reads. Dropping offers one group fewer and keeps every other filter exactly right.
+ */
+const RESERVED_QUERY_KEYS: ReadonlySet<string> = new Set<string>([
+  ...FIXED_FILTER_SOURCES,
+  'q',
+  'page',
+  'token',
+  'sort',
+  'columns',
+]);
+
+const warnedKeys = new Set<string>();
+
+/**
+ * One option key, or `null` when the URL already belongs to something else (`RESERVED_QUERY_KEYS`).
+ *
+ * The warning is once per key per session and dev-only, read through the same cast
+ * `app/storefront/commerce.ts` uses — the starter does not depend on `vite` itself, and an
+ * environment defining neither `DEV` flag simply never warns, which is the safe direction.
+ */
+export function usableOptionKey(key: string | null): string | null {
+  if (key === null) return null;
+  if (!RESERVED_QUERY_KEYS.has(key)) return key;
+  const meta = import.meta as ImportMeta & { env?: { DEV?: boolean } };
+  if (meta.env?.DEV === true && !warnedKeys.has(key)) {
+    warnedKeys.add(key);
+    console.warn(
+      `[eldra] collection-grid: the variant option "${key}" cannot be filtered on, because ` +
+        `?${key}= already belongs to another filter or to the page's own route state. ` +
+        'Its group is not shown. Rename the option key in the store to offer it.'
+    );
+  }
+  return null;
+}
+
 /** `option:<key>` for one of the store's own option keys. */
 export function optionSourceFor(key: string): OptionFilterSource {
   return `${OPTION_SOURCE}${key}`;
@@ -246,7 +302,16 @@ function rawValuesFor(
 ): FilterGroupValue[] {
   if (facets === undefined || source === 'price') return [];
   if (source === 'category') {
-    return nestCategoryTerms(facets.categories, facets.categoryCounts === 'rolled-up');
+    // **A parent row is only offered by a source that can honour one.** `categoryCounts:
+    // 'rolled-up'` is the platform saying it counted the ancestors itself — and the contract that
+    // added those counts (3.8.0) added the `parentId` that places them *and* the `categoryId` that
+    // matches a whole subtree, together. A gateway answering anything else counts assignments and
+    // matches direct membership only, so a `Tableware` row there is a filter it cannot honour: the
+    // shopper would tick it and get an empty grid under a chip saying otherwise, which is the one
+    // thing this whole server-side filter path exists to remove. So that family stays exactly as
+    // flat as it always was.
+    if (facets.categoryCounts !== 'rolled-up') return facets.categories.map(flatTermValue);
+    return nestCategoryTerms(facets.categories);
   }
   if (source === 'collection') {
     // Flat, and not by omission: a collection is a curated list, not a level of anything.
@@ -287,33 +352,25 @@ const MAX_CATEGORY_DEPTH = 6;
  * **The category family as rows the panel can draw: each parent followed by its children, indented
  * one level.**
  *
- * The terms arrive as a tree (`CatalogFacetTerm.parentId`) with every ancestor present — the
- * storefront completes them, since a facet counted over the categories products are *assigned* to
- * names only the leaves (`app/storefront/categories.ts`'s `completeCategoryTerms`). A source that
- * places nothing answers no `parentId` at all, and the family then comes out exactly as flat as it
- * always was: the whole of this is skipped, not approximated.
+ * Only ever called for a family the platform has **placed and counted up itself** (public contract
+ * 3.8.0 — see `rawValuesFor`), so the terms arrive as a tree with every reported ancestor in the same
+ * list and every count already the subtree's. A term that still carries no `parentId` at all comes
+ * out flat: the whole of this is skipped, not approximated.
  *
  * **One level of indent, ever.** A category three deep is rendered under its top-most listed
  * ancestor, not at its own depth: a filter panel is not a tree view, every indent costs a 15rem
  * sidebar a column of label width, and a shopper ticking a grandchild gets the same filter either
  * way. Nothing is dropped — only flattened.
  *
- * **Order is the source's.** Public contract 3.8.0 answers depth-first by title, and this preserves
- * whatever order it was handed: the top rows keep their input order and each parent's children keep
- * theirs, which on an already depth-first list is no change at all. Nothing here sorts by count.
+ * **Order is the source's.** 3.8.0 answers depth-first by title, and this preserves whatever order it
+ * was handed: the top rows keep their input order and each parent's children keep theirs, which on an
+ * already depth-first list is no change at all. Nothing here sorts by count.
  *
- * **A parent's count is rolled up only when nobody else has done it.** Against a gateway that counts
- * assignments, the sum over the descendants on screen is the only honest number: a synthesised
- * `Tableware` row counts 0 of its own, and `Cups (6) · Bowls (4)` under a row reading `Tableware (0)`
- * is a row the shopper reads as empty and the panel disables. `rolledUp` — contract 3.8.0's own
- * ancestor counts — turns the sum off, because **a parent's count there is not the sum of its
- * children**: it is deduplicated, and a product in Cups and in Bowls is one product and two counts
- * (`CatalogFacets.categoryCounts`).
+ * **No count is derived.** A parent's number is the platform's own, deduplicated over its subtree,
+ * and a sum over the children on screen is not — a product in Cups and in Bowls is one product and
+ * two counts. So the numbers are used exactly as they came.
  */
-export function nestCategoryTerms(
-  terms: readonly CatalogFacetTerm[],
-  rolledUp: boolean
-): FilterGroupValue[] {
+export function nestCategoryTerms(terms: readonly CatalogFacetTerm[]): FilterGroupValue[] {
   if (!terms.some((term) => term.parentId !== undefined)) return terms.map(flatTermValue);
   const byId = new Map(terms.map((term) => [term.id, term] as const));
 
@@ -333,10 +390,7 @@ export function nestCategoryTerms(
   };
 
   // Input order decides the order of the top rows, and a child follows the row it sits under — so a
-  // depth-first list (contract 3.8.0's own order) comes out exactly as it went in. On the fallback
-  // path the storefront appends the ancestors it synthesised after the counted terms, so a parent the
-  // facets never named lands after the roots they did, which is the order a shopper reads as "the
-  // families the catalogue counted, then the one above them".
+  // depth-first list (contract 3.8.0's own order) comes out exactly as it went in.
   const topIdOf = new Map(terms.map((term) => [term.id, topOf(term).id] as const));
   // Which terms are top rows: the ones that are their own top. A `parentId` cycle has none — every
   // term in it stops one short of itself — and a term whose top row does not exist is promoted to one
@@ -357,10 +411,10 @@ export function nestCategoryTerms(
 
   const out: FilterGroupValue[] = [];
   for (const top of tops) {
-    const children = childrenOf.get(top.id) ?? [];
-    const rolled = children.reduce((sum, child) => sum + child.count, top.count);
-    out.push({ value: top.slug, label: top.title, count: rolledUp ? top.count : rolled });
-    for (const child of children) out.push({ ...flatTermValue(child), parent: top.slug });
+    out.push(flatTermValue(top));
+    for (const child of childrenOf.get(top.id) ?? []) {
+      out.push({ ...flatTermValue(child), parent: top.slug });
+    }
   }
   return out;
 }

@@ -103,6 +103,7 @@ import {
   optionKeyOf,
   optionSourceFor,
   parsePriceRange,
+  usableOptionKey,
   priceSpanOf,
   queryKeyFor,
   spanWithRange,
@@ -282,23 +283,26 @@ const sectionLabel = computed(() =>
  * is the one that is not a group but a stand-in for every option key the store has. Read in several
  * places (the groups, the chips, the query keys), and the only place the field's raw shape is
  * validated.
+ *
+ * An explicit `option:<key>` row whose key would take a query key something else already owns is
+ * dropped here, with the same dev warning a facet-sourced one gets (`usableOptionKey`), so the
+ * collision is refused wherever it enters rather than in one of the two paths.
  */
 const filterFields = computed(() =>
   ((data.value.filters ?? []) as FilterField[]).filter(
-    (row): row is FilterField & { source: FilterFieldSource } => isFilterFieldSource(row.source)
+    (row): row is FilterField & { source: FilterFieldSource } => {
+      if (!isFilterFieldSource(row.source)) return false;
+      const key = optionKeyOf(row.source);
+      return key === null || usableOptionKey(key) !== null;
+    }
   )
 );
 
 /** Whether the author asked for every option key the store has (`options`). */
 const wantsEveryOption = computed(() => filterFields.value.some((row) => row.source === 'options'));
 
-/**
- * The query keys the four fixed sources own, which no option key may shadow: a store whose option is
- * keyed `category` filters by its own `?category=` and not by two different things at once.
- */
-const FIXED_RESERVED_KEYS = new Set<string>(FIXED_FILTER_SOURCES);
-
-/** The option keys the author named themselves — final at setup time, unlike everything else. */
+/** The option keys the author named themselves — final at setup time, unlike everything else.
+ *  `filterFields` has already dropped any that collide with a reserved query key. */
 function explicitOptionKeys(): string[] {
   const keys: string[] = [];
   for (const row of filterFields.value) {
@@ -315,7 +319,8 @@ function explicitOptionKeys(): string[] {
  * A key is readable only when the store is known to have an option for it — an explicit
  * `option:<key>` row, or, under `options`, a key the storefront's facets actually answer. **Not any
  * unknown query key**: `?ref=newsletter` would otherwise become `option:ref`, draw a chip and go out
- * in the request, a filter nobody set and promised to the shopper in their own URL.
+ * in the request, a filter nobody set and promised to the shopper in their own URL. And never a key
+ * another filter or the page's own route state already owns (`usableOptionKey`).
  *
  * The facets are only known after a read has answered, which is exactly when a query string is read
  * anyway: the prerendered page is always the unfiltered one and `adoptRouteState()` is what picks the
@@ -326,7 +331,8 @@ function explicitOptionKeys(): string[] {
 function readableOptionKeys(selected: FilterSelection): string[] {
   const keys = explicitOptionKeys();
   const add = (key: string | null): void => {
-    if (key !== null && !keys.includes(key)) keys.push(key);
+    const usable = usableOptionKey(key);
+    if (usable !== null && !keys.includes(usable)) keys.push(usable);
   };
   if (wantsEveryOption.value) {
     for (const option of facets.value?.options ?? []) add(option.key);
@@ -728,10 +734,10 @@ const expandedFilterRows = computed<Array<FilterField & { source: FilterSource }
     // it was set in, and a group that vanished would leave the shopper no control to undo it.
     for (const key of [
       ...(facets.value?.options ?? []).map((option) => option.key),
-      ...Object.keys(selection.value)
-        .map(optionKeyOf)
-        .filter((key): key is string => key !== null),
-    ]) {
+      ...Object.keys(selection.value).map(optionKeyOf),
+    ]
+      .map(usableOptionKey)
+      .filter((key): key is string => key !== null)) {
       if (explicitKeys.has(key) || out.some((done) => done.source === optionSourceFor(key))) {
         continue;
       }

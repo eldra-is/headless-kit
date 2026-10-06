@@ -4,14 +4,14 @@ import {
   buildCategoryIndex,
   categoryHref,
   categoryTrailFor,
-  completeCategoryTerms,
   EMPTY_CATEGORY_INDEX,
   type CategoryRow,
 } from '../../app/storefront/categories';
 
 /**
  * `app/storefront/categories.ts` — the store's category tree, and the two things a theme does with
- * it: a product's breadcrumb trail and the parent rows the grid's category facet nests under.
+ * it: a product's breadcrumb trail, and the slug→id lookup a `category` filter and the demo's own
+ * parent expansion both go through.
  *
  * It is pure, so everything here is the real code with no client, no Vue and no mounting: the same
  * walk both storefront sources run.
@@ -150,80 +150,5 @@ describe('ancestorsOf', () => {
     expect(ancestorsOf(index, 'c-cup').map((node) => node.slug)).toEqual(['tableware']);
     expect(ancestorsOf(index, 'c-tableware')).toEqual([]);
     expect(ancestorsOf(index, 'c-unknown')).toEqual([]);
-  });
-});
-
-describe('completing a category facet into a tree', () => {
-  /**
-   * The platform counts the categories products are **assigned** to, which in a real store are the
-   * leaves: a catalogue of cups and bowls answers two terms and never names Tableware. The parent row
-   * a shopper wants to tick has to be synthesised, and the only place its slug and title exist is the
-   * category list.
-   */
-  it('places every term and appends the ancestors the facet never named', () => {
-    const completed = completeCategoryTerms(
-      [
-        { id: 'c-cup', slug: 'cup', title: 'Cup', count: 6 },
-        { id: 'c-bowl', slug: 'bowl', title: 'Bowl', count: 4 },
-      ],
-      index
-    );
-    expect(completed).toEqual([
-      { id: 'c-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'c-tableware' },
-      { id: 'c-bowl', slug: 'bowl', title: 'Bowl', count: 4, parentId: 'c-tableware' },
-      // Count 0 is not a claim: the panel rolls a parent's number up from its descendants
-      // (`nestCategoryTerms`), and until the platform counts ancestors that is the only number there
-      // is.
-      {
-        id: 'c-tableware',
-        slug: 'tableware',
-        title: 'Tableware',
-        count: 0,
-        parentId: null,
-      },
-    ]);
-  });
-
-  it('appends one ancestor once, however many of its children are listed', () => {
-    const completed = completeCategoryTerms(
-      [
-        { id: 'c-cup', slug: 'cup', title: 'Cup', count: 6 },
-        { id: 'c-bowl', slug: 'bowl', title: 'Bowl', count: 4 },
-      ],
-      index
-    );
-    expect(completed.filter((term) => term.id === 'c-tableware')).toHaveLength(1);
-  });
-
-  it('leaves an ancestor the facet already counted exactly as it came', () => {
-    const completed = completeCategoryTerms(
-      [
-        { id: 'c-tableware', slug: 'tableware', title: 'Tableware', count: 2 },
-        { id: 'c-cup', slug: 'cup', title: 'Cup', count: 6 },
-      ],
-      index
-    );
-    expect(completed).toHaveLength(2);
-    expect(completed[0]).toMatchObject({ id: 'c-tableware', count: 2, parentId: null });
-  });
-
-  /**
-   * **The platform's own placement wins.** A term that already carries a `parentId` is never
-   * re-parented from a category list that may be a request older — and a response that places its own
-   * terms is also one whose counts are rolled up (`CatalogFacets.categoryCounts`), which is why the
-   * gateway skips this pass, and the category read with it, as soon as it sees one.
-   */
-  it('never re-parents a term the source already placed', () => {
-    const completed = completeCategoryTerms(
-      [{ id: 'c-cup', slug: 'cup', title: 'Cup', count: 6, parentId: null }],
-      index
-    );
-    expect(completed[0]).toMatchObject({ parentId: null });
-  });
-
-  it('changes nothing without a tree to complete against', () => {
-    const terms = [{ id: 'c-cup', slug: 'cup', title: 'Cup', count: 6 }];
-    expect(completeCategoryTerms(terms, EMPTY_CATEGORY_INDEX)).toEqual(terms);
-    expect(completeCategoryTerms([], index)).toEqual([]);
   });
 });

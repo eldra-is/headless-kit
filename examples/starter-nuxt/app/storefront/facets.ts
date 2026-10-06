@@ -269,14 +269,14 @@ export interface DeriveFacetsOptions {
   /** The per-product attributes a card does not carry (`category`, `collections`, `options`). */
   attributesFor?: ProductFacetAttributesFor;
   /**
-   * The store's category tree, so the `categories` family comes out **placed**: every term carries
-   * its `parentId` and every missing ancestor is appended as a term of its own, which is what lets
-   * the filter panel draw the parent rows a count over *assigned* categories never names
-   * (`completeCategoryTerms`). Omitted — a source with no tree to declare — and the family is flat,
-   * exactly as it was.
+   * The store's category tree, so the `categories` family comes out **placed and counted up**: every
+   * term carries its `parentId`, every ancestor is a term of its own, and a product counts towards its
+   * own category and each ancestor above it (`categoryTermsOf`). That is what lets the filter panel
+   * draw parent rows — and it is only honest here because `matchesClause` expands a ticked parent to
+   * its descendants too, the way the platform's own `categoryId` does.
    *
-   * The counts stay **direct** either way (`CatalogFacets.categoryCounts`): rolling a parent's
-   * number up is the panel's job, since only it knows which descendants are on screen.
+   * Omitted — a source with no tree to declare — and the family is flat, its counts direct, exactly as
+   * it was: the panel then offers no parent row at all (`CatalogFacets.categoryCounts`).
    */
   categories?: CategoryIndex;
 }

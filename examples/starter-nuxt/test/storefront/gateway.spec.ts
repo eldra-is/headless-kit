@@ -1868,24 +1868,26 @@ describe('createGatewayStorefront', () => {
       expect(product?.categoryTrail).toEqual([]);
     });
 
-    it('completes the category facet with the parent the platform never named', async () => {
-      const { client } = treeClient();
+    /**
+     * **A family the platform did not place is passed through untouched, and costs no category read.**
+     *
+     * Completing it from the category list was the earlier behaviour and was wrong: the contract that
+     * adds the ancestor counts adds the `categoryId` subtree match with them, so a parent row
+     * synthesised here would be a filter *this* gateway answers by direct membership only — an empty
+     * grid under a chip saying otherwise. The panel keeps such a family flat instead
+     * (`parts/groups.ts`'s `rawValuesFor`), and nothing in the response pretends otherwise.
+     */
+    it('passes a flat category family through untouched, reading no category list', async () => {
+      const { client, categoryReads } = treeClient();
       const facets = (await readCollection(client))?.facets;
       expect(facets?.categories).toEqual([
-        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
-        { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4, parentId: 'cat-tableware' },
-        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 0, parentId: null },
+        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6 },
+        { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4 },
       ]);
-      // No claim about the counts: they are per assigned category, so the panel rolls a parent's own
-      // number up from its descendants.
-      expect(facets?.categoryCounts).toBeUndefined();
-    });
-
-    it('leaves the facet flat when the category read fails', async () => {
-      const { client } = treeClient({ categories: new Error('categories are down') });
-      const facets = (await readCollection(client))?.facets;
-      expect(facets?.categories.map((term) => term.slug)).toEqual(['cup', 'bowl']);
+      // No `parentId` anywhere and no claim about the counts: the panel reads both as "flat".
       expect(facets?.categories.every((term) => term.parentId === undefined)).toBe(true);
+      expect(facets?.categoryCounts).toBeUndefined();
+      expect(categoryReads()).toBe(0);
     });
 
     /**
@@ -1920,16 +1922,11 @@ describe('createGatewayStorefront', () => {
 
     /**
      * A 3.8.0 scope whose categories are **all roots** carries no `parentId` anywhere, so it reads as
-     * unplaced and pays for the category list. That costs one cached request and changes nothing else:
-     * a family with no parent/child pair has nothing to nest and nothing to roll up either way, which
-     * is what this pins — the counts come out exactly as the platform sent them.
+     * unplaced — and nothing is lost by that, which is what this pins: the counts come out exactly as
+     * the platform sent them, and a family with no parent/child pair has nothing to nest anyway.
      */
     it('is harmless on a 3.8.0 scope whose categories are all roots', async () => {
-      const { client } = treeClient({
-        categories: [
-          { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', parentId: null },
-          { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', parentId: null },
-        ],
+      const { client, categoryReads } = treeClient({
         facets: {
           ...BARE_FACETS,
           categories: [
@@ -1939,30 +1936,27 @@ describe('createGatewayStorefront', () => {
         },
       });
       expect((await readCollection(client))?.facets?.categories).toEqual([
-        { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', count: 3, parentId: null },
-        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
+        { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', count: 3 },
+        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9 },
       ]);
+      expect(categoryReads()).toBe(0);
     });
 
-    /** One read for the life of the storefront, however many readers want it. */
-    it('reads the category list once for a trail and a facet together', async () => {
+    /**
+     * One read for the life of the storefront, however many readers want it — and the readers are now
+     * exactly two: a product's trail, and a `category` filter's slug→id lookup. A *facet* never pays
+     * for it (the three tests above), so an unfiltered collection page costs the request it always did.
+     */
+    it('reads the category list once for a trail and a category filter together', async () => {
       const { client, categoryReads } = treeClient();
       const storefront = createGatewayStorefront(client, { route: fakeRoute() });
       storefront.catalog.product(ref('ash-glaze-mug'));
       storefront.catalog.collectionProducts(
         ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
-        ref({ page: 1, pageSize: 24 })
+        ref({ page: 1, pageSize: 24, filters: { category: ['cup'] } })
       );
       await settle();
       expect(categoryReads()).toBe(1);
-    });
-
-    it('reads no category list for a response with no category terms', async () => {
-      const { client, categoryReads } = treeClient({
-        facets: { ...BARE_FACETS, categories: [] },
-      });
-      await readCollection(client);
-      expect(categoryReads()).toBe(0);
     });
   });
 

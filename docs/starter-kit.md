@@ -853,41 +853,40 @@ resolves it to the parent's `categoryId`, and the platform matches the whole sub
 then drawn ticked and inoperable with a hidden note naming the parent, because the way back out is the
 one control that can still change.
 
-Where the tree and the counts come from depends on what the gateway answers, and the mapping always
-prefers the platform's own:
+**Whether a parent row is offered at all is the platform's answer, not a display choice.** The whole
+of the decision is one field, `facets.categoryCounts`:
 
 - **Public contract 3.8.0 and later** answers `parentId` on each category facet term (**absent** for a
   root, otherwise the nearest _reported_ ancestor, always an id in the same list), its counts **rolled
-  up** over each subtree, and the terms **depth-first by title**. The gateway carries all three
-  through untouched — normalising absent-means-root to the explicit `null` the view type uses — marks
-  the family `categoryCounts: 'rolled-up'`, and reads no category list at all. A rolled-up count is
-  **never derived**: it is deduplicated over the subtree, and a sum over the children on screen is
-  not, because a product in two sibling categories is one product and two counts.
-- **An older gateway** counts only the categories products are _assigned_ to, which in a real store
-  are the leaves: a catalogue of cups and bowls answers those two and never names Tableware. The
-  gateway then completes the family from the category list — every term placed, every missing ancestor
-  appended with a count of 0 — and the panel rolls a parent's number up from the descendants on
-  screen, because `Cups (6) · Bowls (4)` under a row reading `Tableware (0)` is a row a shopper reads
-  as empty and the panel disables.
+  up** over each subtree, and the terms **depth-first by title** — and its `categoryId` filter matches
+  a whole subtree. The gateway carries all three through untouched (normalising absent-means-root to
+  the explicit `null` the view type uses) and marks the family `categoryCounts: 'rolled-up'`; the panel
+  then nests it. A rolled-up count is **never derived**: it is deduplicated over the subtree, and a sum
+  over the children on screen is not, because a product in two sibling categories is one product and
+  two counts.
+- **Any other answer** — an older gateway, or a source that places nothing — counts the categories
+  products are _assigned_ to, which in a real store are the leaves, and matches a `categoryId` by
+  direct membership only. The family then stays **flat**: no parent row, no indent, nothing implied.
+  Those three changes shipped together, so "cannot roll up" is the same gateway as "cannot match a
+  subtree" — and a `Tableware` row there would be a filter it answers with nothing, emptying the grid
+  under a chip claiming otherwise. That is the defect this whole path exists to remove, so a catalogue
+  of cups and bowls simply offers Cups and Bowls, exactly as it did before any of this.
 
-A source that places nothing at all — no `parentId` anywhere — gets the flat group it always had: the
-whole pass is skipped rather than approximated. (A 3.8.0 scope whose categories happen to be all roots
-looks the same, which costs one cached request and changes nothing: a family with no parent/child pair
-has nothing to nest and nothing to roll up either way.)
+Nothing is ever synthesised from the category list to fill the gap. The list is read **once per
+storefront** and has exactly two readers: a `category` filter's slug→id lookup and a product's
+breadcrumb trail. Its failure is swallowed by the trail and not by the filter — a product page without
+a crumb is a page, while a _filter_ that quietly dropped the category the chips and the URL both say is
+applied is a lie, so that one fails the read and the grid shows its error over the last good page. An
+unfiltered collection page spends no extra request on any of it.
 
-The category list is read **once per storefront**, shared by the three readers that want different
-halves of it — the `category` filter's slug→id lookup, the trail, and the facet tree. Its failure is
-swallowed by the trail and by the facet tree and by neither of the other two: a product page without a
-crumb and a flat category group are both pages, while a _filter_ that quietly dropped the category the
-chips and the URL both say is applied is a lie, so that one fails the read and the grid shows its
-error over the last good page.
-
-The demo storefront models all of it from its own two-level fixture tree (`Home` over
+The demo storefront models the 3.8.0 side of that from its own two-level fixture tree (`Home` over
 `Ceramics`/`Kitchen`, `Knitwear` a root): it derives its trails from the tree, counts a product under
-its category _and every ancestor_ — deduplicated, so it declares `'rolled-up'` like 3.8.0 — and
-expands a ticked parent to its descendants when it filters. A demo whose category filter ignored the
-tree it had just drawn would show a shopper a parent row that empties the grid, which is the defect
-the whole server-side filter path exists to remove.
+its category _and every ancestor_ — deduplicated, so it declares `'rolled-up'` — **and** expands a
+ticked parent to its descendants when it filters. All three or none: a source that declared rolled-up
+counts and then filtered by direct membership would offer a parent row that empties the grid, which is
+the same lie as the fallback telling one. The mock gateway the generate tests run against answers one
+contract at a time for exactly that reason (`test/support/mockGateway.ts`'s `MockCatalogContract`),
+and `test/mockGatewayContract.spec.ts` pins both pairs.
 
 **The filter panel reads the facets and writes the query string.** `collection-grid`'s `filters[]`
 field names the groups and their order; everything in them — values, labels, swatches, counts — is
@@ -923,9 +922,9 @@ with the facets' own vocabulary (`options[].key`), and the one place the price g
   The URL is unchanged: `?colour=oat&size=m`, the bare option key, since the `option:` prefix is the
   field's vocabulary and never a shopper's. A query key the store has no option for is **not** read as
   one — `?ref=newsletter` would otherwise become a filter nobody set, in the shopper's own URL.
-- **The `category` group nests**, when the store's categories are a tree — parent rows with their
-  children one indent in, a ticked parent carrying its whole subtree. See "The category tree" above
-  for where the placement, the counts and the order come from.
+- **The `category` group nests** when, and only when, the platform rolled its own counts up — parent
+  rows with their children one indent in, a ticked parent carrying its whole subtree. Every other
+  answer draws the family flat. See "The category tree" above for why the two travel together.
 - **A value nothing is left for is disabled, not hidden** — see the counting rule above. A value
   the shopper has already selected is never disabled, and one the facets stop listing altogether is
   kept so the filter stays removable. A whole **group** with no values is dropped, which is how a
@@ -937,7 +936,11 @@ with the facets' own vocabulary (`options[].key`), and the one place the price g
   key, the price range as the single `<min>-<max>` string the request itself takes. An option key is
   read back only once the store has said it has that option, which is the first read answering — so
   a shared `?fabric=linen` is adopted after mount like every other filter (the prerendered page is
-  the unfiltered one either way). It goes out
+  the unfiltered one either way). An option key that would **take a query key something else already
+  owns** is refused with a dev warning and its group is not drawn: the four filter sources own
+  `?category=`, `?collection=`, `?price=` and `?availability=`, and the storefront route owns `?q=`,
+  `?page=`, `?token=`, `?sort=` and `?columns=` before a block sees them. Namespacing it instead would
+  mint a shareable URL no other spelling of this theme reads. It goes out
   through `route.setQuery()` and comes back through `route.filters` — no router and no Nuxt global
   inside `blocks/**` — so a filtered view is linkable and the back button works, while the
   prerendered page stays the unfiltered one (see "A query string is not in the route while a

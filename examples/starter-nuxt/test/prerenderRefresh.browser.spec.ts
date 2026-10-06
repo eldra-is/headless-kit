@@ -442,6 +442,14 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(catalogue).not.toContain('data-eldra-not-found');
     expect(catalogue).not.toContain('data-eldra-invalid-layout');
     expect(catalogue).toContain('All products');
+    // **The nested category group, server-rendered from the gateway's own 3.8.0 facets.** The fixture
+    // assigns every product to `Cups` under `Tableware` and answers `parentId` + subtree roll-ups
+    // (`MockCatalogContract`), so the panel offers the parent row with its child indented inside a
+    // group named after it. On the 3.7.0 shape the same page draws neither — that half is pinned in
+    // `test/mockGatewayContract.spec.ts` and in the grid's own specs, where it costs no generate.
+    expect(catalogue).toContain('aria-label="Under Tableware"');
+    expect(catalogue).toContain('Tableware');
+    expect(catalogue).toContain('Cups');
     expect(existsInOutput(join('/products', PRODUCT_HANDLE, 'index.html'))).toBe(true);
     expect(staticHtml(`/products/${PRODUCT_HANDLE}`)).not.toContain('data-eldra-not-found');
 

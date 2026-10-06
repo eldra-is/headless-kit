@@ -226,20 +226,26 @@ export interface CatalogFacets {
   /**
    * **Whether a category term's `count` already includes its descendants'.**
    *
+   * **It is also what decides whether the panel offers a parent row at all**, which is the whole
+   * reason it exists as a field rather than an implementation detail.
+   *
    * `'direct'` — what an absent field reads as, and what a gateway older than public contract 3.8.0
-   * answers — means each count is the products *assigned to that category*, so a parent row the panel
-   * synthesised counts 0 and a parent a merchant assigned nothing to directly counts 0 as well.
-   * `collection-grid` therefore rolls a parent's number up from its listed descendants before it
-   * draws or disables anything.
+   * answers — means each count is the products *assigned to that category*, which in a real store are
+   * the leaves. The panel then keeps the family **flat**: no parent row, no indent, no implication.
+   * Not a display choice but the only honest one, because the contract that added the ancestor counts
+   * added the `categoryId` subtree match with them — so on `'direct'` a `Tableware` row would be a
+   * filter the gateway answers by direct membership only: an empty grid under a chip claiming
+   * otherwise, which is the one thing this whole filter path exists to remove.
    *
    * `'rolled-up'` means the counts are the whole answer, descendants deduplicated — which a
    * client-side sum cannot be, since a product in two sibling categories is one product and two
-   * counts. **A parent's count is then never derived**: the panel uses the numbers as they came.
-   * The gateway source reads this off the response rather than a contract version: 3.8.0 adds
-   * `parentId` on its facet terms and the ancestor roll-ups together, so a term that can place itself
-   * is a term that has been counted up (`gateway.ts`'s `mapFacets`). The demo source declares it
-   * whenever it was given a tree, because its own ancestor counts are deduplicated the same way
-   * (`app/storefront/facets.ts`'s `categoryTermsOf`).
+   * counts. **No count is ever derived**: the panel uses the numbers as they came, and nests the rows
+   * the source placed. The gateway reads this off the response rather than off a contract version:
+   * 3.8.0 adds `parentId`, the roll-ups and the subtree match together, so a term that can place
+   * itself is a term that has been counted up *and* one a parent filter can reach (`gateway.ts`'s
+   * `mapFacets`). The demo source declares it whenever it was given a tree, because its own ancestor
+   * counts are deduplicated the same way **and** its filter expands a ticked parent
+   * (`app/storefront/facets.ts`'s `categoryTermsOf` and `matchesClause`).
    *
    * **Order is the source's, never this theme's.** 3.8.0 answers depth-first by title, and the panel
    * preserves whatever order it is handed — `parts/groups.ts`'s `nestCategoryTerms` only clusters each

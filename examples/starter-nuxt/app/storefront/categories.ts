@@ -11,6 +11,15 @@
  * (`gateway.ts` builds the index from the live read, `demo.ts` from its fixture) and
  * `test/storefront/categories.spec.ts` can pin every bound without mounting anything.
  *
+ * `ancestorsOf` is also the demo storefront's own expansion of a ticked **parent** category
+ * (`app/storefront/facets.ts`), which is what makes the demo behave like the platform it stands in
+ * for rather than like a flat list.
+ *
+ * Two things read it: a product's breadcrumb trail, and the `category` filter's slug→id lookup. The
+ * collection grid's category **facet** does not — a facet is the platform's own answer, and a parent
+ * row synthesised from this list is a filter only a platform that counts and matches subtrees can
+ * honour (`blocks/collection-grid/parts/groups.ts`'s `rawValuesFor`).
+ *
  * **Where a category crumb links to.** This theme has no `/categories/<slug>` route: the only
  * catalogue surfaces are `/collections/<slug>` (one authored collection) and `/products` (the whole
  * catalogue, seeded by `pages/products.page.json`), and a category is neither a collection nor a
@@ -141,62 +150,6 @@ export function ancestorsOf(index: CategoryIndex, categoryId: string): CategoryN
     if (node === undefined) break;
     out.unshift(node);
     id = node.parentId;
-  }
-  return out;
-}
-
-/** The shape `completeCategoryTerms` reads and writes — `CatalogFacetTerm`, structurally. */
-export interface CategoryTermLike {
-  id: string;
-  slug: string;
-  title: string;
-  count: number;
-  parentId?: string | null;
-}
-
-/**
- * The category facet's terms, **completed into a tree the panel can nest**: every term gains the
- * `parentId` the store's category list knows for it, and every missing ancestor is appended as a
- * term of its own with a count of 0.
- *
- * Both halves exist because of what a facet *is*. The platform counts the categories products are
- * **assigned** to, which in a real store are the leaves: a catalogue of cups, bowls and dishes
- * answers three terms and never names Tableware, so a flat list of the three is all the panel could
- * draw. The parent row the shopper actually wants to tick has to be synthesised, and the only place
- * its slug and title exist is the category list.
- *
- * A count of 0 on a synthesised parent is not a claim: `collection-grid` rolls a parent's count up
- * from its descendants before it decides anything (see `parts/groups.ts`), and until Core sends
- * ancestor counts that roll-up is the only number there is.
- *
- * **Core's own `parentId` wins when it sends one.** This runs only over terms that carry none
- * (`gateway.ts`'s `withCategoryTree` skips the whole pass, and the categories read with it, once the
- * platform's facets describe their own tree), so a term the platform has placed is never re-parented
- * from a list read that may be a request older.
- */
-export function completeCategoryTerms<T extends CategoryTermLike>(
-  terms: readonly T[],
-  index: CategoryIndex
-): Array<T | CategoryTermLike> {
-  if (terms.length === 0 || index.byId.size === 0) return [...terms];
-  const out: Array<T | CategoryTermLike> = terms.map((term) =>
-    term.parentId === undefined
-      ? { ...term, parentId: index.byId.get(term.id)?.parentId ?? null }
-      : term
-  );
-  const listed = new Set(out.map((term) => term.id));
-  for (const term of terms) {
-    for (const ancestor of ancestorsOf(index, term.id)) {
-      if (listed.has(ancestor.id)) continue;
-      listed.add(ancestor.id);
-      out.push({
-        id: ancestor.id,
-        slug: ancestor.slug,
-        title: ancestor.title,
-        count: 0,
-        parentId: ancestor.parentId,
-      });
-    }
   }
   return out;
 }

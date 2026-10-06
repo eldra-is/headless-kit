@@ -370,11 +370,13 @@ A trail from Home to the current page, built automatically from the page tree, w
 |---|---|---|---|---|
 | `showHome` | bool | no | on | First crumb links to `/`. |
 | `homeLabel` | string | no | "Home" | |
+| `trail` | list | no | — | The levels between Home and this page, root first, each `{label, href}`. A block cannot read the route, so these are filled per page. |
+| `fromProduct` | bool | no | off | On a product page, appends the store's own category trail (root category down to the product's) after the levels above, each level linking to the catalogue filtered by it. Turn off ProductDetail's `showCategory` so the trail never shows twice. |
 | `currentTitle` | string | no | page title | Overrides the last crumb's text. Use it for long product or article titles. |
 | `showCurrent` | bool | no | on | Off ends the trail at the parent. |
 | `container` | select | no | `wide` | `wide` · `content`. Match the block below: use `content` above ProductDetail and Article so the trail lines up with the gallery or title edge. |
 
-The trail itself is not editable: it comes from the page tree (collection → product, blog → article). There is no `variant`.
+The trail is not editable from the page tree: a block cannot read the route, so `trail` is filled per page and `fromProduct` is the one level the block can resolve itself — the routed product's own categories, which is what a seeded product *template* has instead of authored levels. There is no `variant`.
 
 **Variants**: none.
 
@@ -3072,7 +3074,8 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 
 | Field id | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `collection` | link | yes | bound on the collection template | The collection to list. Binds automatically on a collection template. |
+| `scope` | select | no | `collection` | `collection` · `catalogue`. What the grid lists: one collection, or every product in the store (the All products page). A block-level field rather than a meaning overloaded onto an empty `collection` — empty already means "take it from the route", which is what a collection template relies on. In `catalogue` scope the Collection filter group really filters; in `collection` scope the catalogue cannot intersect two collections, so that group is hidden. |
+| `collection` | link | yes | bound on the collection template | The collection to list. Binds automatically on a collection template. Ignored when `scope` is `catalogue`. |
 | `variant` | select | yes | `sidebar` | `sidebar` · `drawer-only` |
 | `columns` | select | yes | `3` | `2` · `3` · `4`. Default desktop column count. Shoppers can change it with the Columns select. |
 | `pageSize` | select | yes | `24` | `12` · `24` · `48` |
