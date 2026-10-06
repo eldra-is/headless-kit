@@ -11,10 +11,10 @@ import type {
 /**
  * The default pages and route templates this theme seeds a site with on its
  * first deploy, built from the sample pages in `pages/*.page.json` so there is
- * exactly one copy of the starter's product, collection, home, cart, wishlist
- * and search page — the one Storybook renders (`stories/pages/*.stories.ts`),
- * the one `test/pages/*.spec.ts` exercises, and the one a merchant lands in the
- * page builder with.
+ * exactly one copy of the starter's product, collection, category, home, cart,
+ * wishlist and search page — the one Storybook renders
+ * (`stories/pages/*.stories.ts`), the one `test/pages/*.spec.ts` exercises, and
+ * the one a merchant lands in the page builder with.
  *
  * Read at config time only: `nuxt.config.ts` passes the result to
  * `eldra.templates` / `eldra.templateRoles`, which
@@ -99,6 +99,13 @@ const ROLE_BLOCKS = { header: 'navigation', footer: 'footer' } as const;
  * description, which is the same value. `product-carousel`'s `viewAllHref`
  * points at the fixture product's category, and no projection path holds the
  * routed product's category URL.
+ *
+ * The **category** seed needs no shape of its own: it reuses the same three
+ * entries (`breadcrumbs`, `collection-header`, `collection-grid`), and every one
+ * of them says the same thing about a category as about a collection — drop the
+ * fixture's own object and bind the routed one's `{{ title }}`. The category's
+ * own ancestors, children and products are read from the route rather than
+ * bound, so there is nothing more for a seed to say.
  */
 const CATALOG_SEED_SHAPE: Readonly<
   Record<
@@ -165,6 +172,16 @@ const SEEDS: ReadonlyArray<{
     routePattern: '/collections/:slug',
     schemaApiId: 'catalog:collection',
     title: 'Collection',
+  },
+  // A category is addressed by its **canonical path** — the slugs of its ancestors, root first,
+  // then its own — so its pattern's trailing parameter is the catch-all `:path*` rather than
+  // `:slug`, and the route resolves `/categories/billinn/bilstolar` and nothing else for it
+  // (canonical only, no redirects).
+  {
+    fixture: 'category',
+    routePattern: '/categories/:path*',
+    schemaApiId: 'catalog:category',
+    title: 'Category',
   },
   { fixture: 'home', routePattern: '/', schemaApiId: 'home', title: 'Home' },
 ];

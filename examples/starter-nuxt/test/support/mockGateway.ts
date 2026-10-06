@@ -430,7 +430,11 @@ function routeTemplateEntries(): Array<{ id: string; data: Record<string, unknow
           title: seed.title,
           routePattern: seed.routePattern,
           schemaApiId: seed.schemaApiId,
-          slugField: 'slug',
+          // A category is addressed by its whole canonical path, so its template's parameter — and
+          // therefore its `slugField` — is `path` rather than `slug`. Core derives this from the
+          // target, and `resolveRoute` refuses a template whose field and parameter disagree, so
+          // getting it wrong here fails the generate rather than quietly serving nothing.
+          slugField: seed.schemaApiId === 'catalog:category' ? 'path' : 'slug',
           layout: {
             ...layout,
             root: {

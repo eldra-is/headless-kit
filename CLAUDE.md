@@ -160,7 +160,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   to just `UiImage` now (every other hand-rolled primitive was replaced, block by block, by the
   matching `@eldrajs/ui` component). **34 blocks** ship under `blocks/`, `block.json`'s `category`
   grouping them `structure`/`marketing`/`content`/`commerce` (see `docs/starter-kit.md` for the
-  full set); eight hand-authored sample pages, `pages/*.page.json`
+  full set); nine hand-authored sample pages, `pages/*.page.json`
   (`{template,title,blocks:[{apiId,id,data}]}`, the same shape a real CMS page document has, with
   `page: {slug}` in place of `template` on the four that seed a static Page — `/cart`,
   `/wishlist`, `/search` and `/products` (the catalogue; a page, not a template, which is also what

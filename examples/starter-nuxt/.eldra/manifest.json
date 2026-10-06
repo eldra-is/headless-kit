@@ -1129,6 +1129,13 @@
           "description": "On a product page, appends the store's own category trail (root category down to the product's) after the levels above. It does nothing on any other page. Product detail names the product's category as a single label rather than a trail, so the two do not repeat each other; turn this off if a page should name the category only once."
         },
         {
+          "fieldId": "fromCategory",
+          "name": "Add the category's own trail",
+          "type": "bool",
+          "default": true,
+          "description": "On a category page, appends the levels above this category (each linking to its own page) after the levels above, and names the category itself as the last crumb when no current page title is set. It does nothing on any other page."
+        },
+        {
           "fieldId": "currentTitle",
           "name": "Current page title",
           "type": "string",
@@ -1280,10 +1287,11 @@
           "metadata": {
             "options": [
               "collection",
-              "catalogue"
+              "catalogue",
+              "category"
             ]
           },
-          "helpText": "collection (the default) lists one collection — the one picked below, or the collection this page's route resolved. catalogue lists every product in the store, which is what the All products page uses; the Collection picker and the Collection filter group both still apply."
+          "helpText": "collection (the default) lists one collection — the one picked below, or the collection this page's route resolved. catalogue lists every product in the store, which is what the All products page uses. category lists the products of the category this page's route resolved, including every category under it, which is what the Category page uses; its Category filter group then offers that category's children. The Collection picker is ignored by both of the last two."
         },
         {
           "fieldId": "collection",
@@ -1543,13 +1551,25 @@
       "version": 2,
       "fields": [
         {
+          "fieldId": "scope",
+          "name": "What this opens",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "collection",
+              "category"
+            ]
+          },
+          "helpText": "collection (the default) opens a collection page — the one picked below, or the collection this page's route resolved. category opens a category page: the title and the strip of links under it come from the category this page's route resolved, so the strip is that category's own sub-categories and the Collection picker, Sub-collections list and count are all ignored."
+        },
+        {
           "fieldId": "collection",
           "name": "Collection",
           "type": "reference",
           "relation": {
             "allowCollections": true
           },
-          "helpText": "Leave empty on a collection page to use that collection."
+          "helpText": "Leave empty on a collection page to use that collection. Ignored when What this opens is category."
         },
         {
           "fieldId": "variant",
@@ -1605,7 +1625,7 @@
           "name": "Show count",
           "type": "bool",
           "default": true,
-          "helpText": "\"48 products\", live from the store."
+          "helpText": "\"48 products\", live from the store. Collection pages only — the catalogue's categories carry no count."
         },
         {
           "fieldId": "showBreadcrumb",
@@ -7398,6 +7418,136 @@
               "id": "collection-cta",
               "type": "block",
               "entryId": "collection-cta"
+            },
+            {
+              "id": "role-footer",
+              "type": "reusable",
+              "role": "footer"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "routePattern": "/categories/:path*",
+      "schemaApiId": "catalog:category",
+      "title": "Category",
+      "blocks": [
+        {
+          "id": "category-breadcrumbs",
+          "apiId": "breadcrumbs",
+          "data": {
+            "showHome": true,
+            "homeLabel": "Home",
+            "trail": [],
+            "fromProduct": false,
+            "fromCategory": true,
+            "showCurrent": true,
+            "container": "wide"
+          }
+        },
+        {
+          "id": "category-header",
+          "apiId": "collection-header",
+          "data": {
+            "scope": "category",
+            "variant": "text-only",
+            "showCount": false,
+            "showBreadcrumb": false,
+            "trail": [],
+            "subcollections": []
+          }
+        },
+        {
+          "id": "category-grid",
+          "apiId": "collection-grid",
+          "data": {
+            "scope": "category",
+            "variant": "sidebar",
+            "columns": "3",
+            "pageSize": "24",
+            "paginationStyle": "load-more",
+            "sortOptions": [
+              {
+                "option": "featured",
+                "label": "Featured"
+              },
+              {
+                "option": "price-asc",
+                "label": "Price low to high"
+              },
+              {
+                "option": "price-desc",
+                "label": "Price high to low"
+              },
+              {
+                "option": "newest",
+                "label": "Newest"
+              }
+            ],
+            "filters": [
+              {
+                "source": "category",
+                "label": "Category"
+              },
+              {
+                "source": "collection",
+                "label": "Collection"
+              },
+              {
+                "source": "options"
+              },
+              {
+                "source": "price",
+                "label": "Price"
+              },
+              {
+                "source": "availability",
+                "label": "Availability"
+              }
+            ],
+            "showColumnSelect": true,
+            "emptyTitle": "No products match these filters",
+            "emptyText": "Try removing a filter or widening the price range."
+          }
+        }
+      ],
+      "layout": {
+        "version": 1,
+        "root": {
+          "id": "root",
+          "type": "flex",
+          "layout": {
+            "direction": {
+              "normal": "column"
+            }
+          },
+          "children": [
+            {
+              "id": "role-header",
+              "type": "reusable",
+              "role": "header"
+            },
+            {
+              "id": "category-breadcrumbs",
+              "type": "block",
+              "entryId": "category-breadcrumbs",
+              "templates": {
+                "currentTitle": "{{ title }}"
+              }
+            },
+            {
+              "id": "category-header",
+              "type": "block",
+              "entryId": "category-header",
+              "templates": {
+                "title": "{{ title }}"
+              }
+            },
+            {
+              "id": "category-grid",
+              "type": "block",
+              "entryId": "category-grid"
             },
             {
               "id": "role-footer",

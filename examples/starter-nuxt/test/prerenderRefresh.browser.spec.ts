@@ -974,6 +974,11 @@ describe('prerendered commerce data on the generated static site', () => {
     // browser does not find in the payload fetches, and nothing here fetches.
     expect(payloadStorefrontKeys(productPage)).toEqual([
       'storefront:catalog.byHandles:[[]]',
+      // `breadcrumbs`' own category read, keyed `null` on a product page — the route resolved a
+      // product, so there is no category to place. Like the `collectionProducts:[null,…]` beside
+      // it, a null-sourced result makes no request and carries no data; it is in the payload
+      // because it exists, and the browser computes the same key for it.
+      'storefront:catalog.category:[null]',
       'storefront:catalog.collectionProducts:[null,{"page":1,"pageSize":8}]',
       'storefront:catalog.product:["ash-glaze-mug"]',
       'storefront:catalog.related:["ash-glaze-mug",8]',

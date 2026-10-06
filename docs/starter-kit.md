@@ -463,8 +463,8 @@ is gone, with whatever an entry held kept as `showAccount__v3`. Nothing in the t
 field, which is the point: a stale handle must not stand in for the collection an author picked, and
 a stale setting must not switch a control back on.
 
-**Sample pages (`pages/*.page.json`).** Four fixtures — `home.page.json`, `product.page.json`,
-`collection.page.json`, `article.page.json` — are this starter's channel for showing a realistic
+**Sample pages (`pages/*.page.json`).** Five fixtures — `home.page.json`, `product.page.json`,
+`collection.page.json`, `category.page.json`, `article.page.json` — are this starter's channel for showing a realistic
 page rather than one block in isolation. Each is `{ template, title, blocks: [{ apiId, id, data }] }`,
 the same shape a real CMS page document has, hand-authored with the same Northwind content
 convention as `mock.json`. They feed three things: `stories/pages/*.stories.ts` (a Storybook page
@@ -784,6 +784,14 @@ above, and a facet sent through it is a 400.
 | `availability`            | `availability=in_stock\|out_of_stock` | both boxes ticked is every product, so nothing is sent                                                                                                     |
 | `collection` (slugs)      | `collectionId` (repeatable, OR)       | only on the catalogue-wide list (`catalog.products`, the `/products` page); not expressible on a collection's own product list — see below                 |
 
+**A category page scopes that same catalogue-wide list.** `catalog.products` takes a `categoryPath`
+— the open category's canonical path — and sends that category's `categoryId`, which the platform
+matches over its whole subtree. The shopper's own `category` clause is **intersected** with the
+subtree rather than sent beside it: the parameter is an OR over a list, so a ticked value from
+outside would widen the page past its own category, and a ticked descendant replaces the scope's id
+instead (narrowing within it). A path no category occupies answers `null` — the grid's empty state —
+never the unscoped catalogue, which is the same answer an unknown collection handle gets.
+
 Four things worth knowing before a shop goes live:
 
 - **The price span and the counts come from the platform, in major units.** `facets.price` arrives in
@@ -865,17 +873,33 @@ both jobs to the platform and shares only the one thing that is not a backend's 
 parentId}` per row, so the categories are a **tree** — and a product read carries
 `primaryCategoryId` (plus `categoryIds`, the full set). `app/storefront/categories.ts` is the walk
 between them: pure, framework-free, shared by both storefront sources, and the one place a category's
-URL is decided. Two features read it.
+URL is decided. Three features read it.
+
+**A category's canonical path, and its page.** The theme ships a category **page**
+(`pages/category.page.json`, route template `/categories/:path*`), and a category is addressed by the
+slugs of its ancestors, root first, then its own, joined with `/` — `home/ceramics`. That is the only
+path the route answers: **canonical only, no redirects**, so a leaf on its own, a wrong parent and a
+trailing extra segment are each the theme's not-found shell. `buildCategoryIndex` indexes it both
+ways (`idByPath`, `pathById`), `pathOf` reads one out and `categoryHref` (`app/utils/links.ts`) turns
+it into a destination, each segment encoded and the separators kept. A category whose ancestor chain
+does not reach a root through rows the list holds — a parent since unpublished, a `parentId` cycle —
+has **no** path, which is also the honest answer: there is no page to link to, and a path built over
+that gap would address a different category.
+
+`catalog.category(path)` is the page's own read: the category placed in the tree — its title, its
+`ancestors` (root first, itself excluded) and its **direct** `children`. One level of children,
+because the strip under the title is one level and a grandchild belongs on its own parent's page. It
+is the whole category list walked, not a per-path endpoint, and the list is memoised per storefront,
+so the breadcrumb, the header's strip and the grid's own scope cost one request between them.
 
 **A product's breadcrumb trail.** `StorefrontProduct.categoryTrail` is the chain from the root
-ancestor down to the product's own category, each level a link. Every honest absence is `[]` — a
-product with no category, a `primaryCategoryId` the list no longer holds, a category read that failed
-— because a page without a category crumb is a page and a crumb labelled `undefined` is a bug. There
-is no `/categories/<slug>` route in this theme and a category is neither a collection nor a page, so a
-crumb points at **the catalogue filtered by that category**: `/products?category=<slug>`, which is the
-`collection-grid` query vocabulary that page's own grid reads back, so following a crumb lands on a
-grid with the category ticked and its chip drawn. A theme that grows a real category route changes
-`categoryHref` and nothing else.
+ancestor down to the product's own category, each level a link to **that level's own category page**
+(`/categories/home`, `/categories/home/ceramics`). Every honest absence is `[]` — a product with no
+category, a `primaryCategoryId` the list no longer holds, a category the list holds but cannot place,
+a category read that failed — because a page without a category crumb is a page and a crumb labelled
+`undefined` is a bug. The trail is walked **down** the leaf's own canonical path rather than up the
+tree, because every prefix of a canonical path is itself one, so the ancestors come out already
+placed and already in order.
 
 **Two blocks render it, and they render different things.** `breadcrumbs` owns the **trail**: its
 `fromProduct` appends the store's levels after the author's own, which are the page tree _above_ the
@@ -1107,8 +1131,8 @@ load-sensitive rather than broken.
 
 A site deployed from this theme is not empty: `nuxt.config.ts`'s `eldra.templates` and
 `eldra.templateRoles` declare what Core creates on the site's first deploy, so a merchant who
-installs the theme has working product, collection, home, cart, wishlist and search pages before
-touching the page builder — and can then edit them like any other page.
+installs the theme has working product, collection, category, home, cart, wishlist and search pages
+before touching the page builder — and can then edit them like any other page.
 
 `app/templates.ts` builds them, and there is nothing to hand-author: each seed is one of the sample
 page fixtures (§3) turned into the manifest's seed shape. Two kinds travel in the one
@@ -1120,12 +1144,16 @@ page fixtures (§3) turned into the manifest's seed shape. Two kinds travel in t
 | ---------- | -------------------- | -------------------- | ---------------------------- |
 | Product    | `/products/:slug`    | `catalog:product`    | `pages/product.page.json`    |
 | Collection | `/collections/:slug` | `catalog:collection` | `pages/collection.page.json` |
+| Category   | `/categories/:path*` | `catalog:category`   | `pages/category.page.json`   |
 | Home       | `/`                  | `home`               | `pages/home.page.json`       |
 
-`catalog:product` / `catalog:collection` are the two reserved schema ids for a **catalog-backed**
-template: it has no CMS schema behind it, and the theme resolves `:slug` against the public catalog
-at render time (`useEldraPage().catalog`, see
+`catalog:product` / `catalog:collection` / `catalog:category` are the three reserved schema ids for a
+**catalog-backed** template: it has no CMS schema behind it, and the theme resolves the pattern's
+trailing parameter against the public catalog at render time (`useEldraPage().catalog`, see
 [themes.md](themes.md#seeding-default-templates-and-pages)).
+The category one is the only pattern in the kit that carries a **catch-all** parameter: a category is
+addressed by its whole canonical path — the slugs of its ancestors, root first, then its own — so
+`:path*` matches one or more segments and its `slugField` is `path`. Canonical only, no redirects.
 `home` seeds the site's home page and applies only when the site has none.
 
 **Pages** — one static document each, at `/<slug>`:

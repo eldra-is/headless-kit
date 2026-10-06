@@ -239,11 +239,13 @@ describe('starter theme', () => {
         'homeLabel',
         'trail',
         'fromProduct',
+        'fromCategory',
         'currentTitle',
         'showCurrent',
         'container',
       ],
       'collection-header': [
+        'scope',
         'collection',
         'variant',
         'title',
@@ -510,6 +512,7 @@ describe('starter theme', () => {
     expect(built.templates?.map((template) => template.routePattern)).toEqual([
       '/products/:slug',
       '/collections/:slug',
+      '/categories/:path*',
       '/',
     ]);
     expect(built.pageSeeds?.map((seed) => seed.slug)).toEqual([
@@ -964,6 +967,9 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     ).toEqual([
       ['/products/:slug', 'catalog:product', 'Product'],
       ['/collections/:slug', 'catalog:collection', 'Collection'],
+      // A category is addressed by its whole canonical path, so its parameter is the catch-all
+      // `:path*` — the one pattern in the kit that carries a star.
+      ['/categories/:path*', 'catalog:category', 'Category'],
       ['/', 'home', 'Home'],
     ]);
   });
@@ -974,7 +980,8 @@ describe('seeded templates and pages (app/templates.ts)', () => {
       templates[index]!.blocks.map((block) => `${block.apiId}#${block.id}`);
     expect(seeded(0)).toEqual(fixtureBlocks('product'));
     expect(seeded(1)).toEqual(fixtureBlocks('collection'));
-    expect(seeded(2)).toEqual(fixtureBlocks('home'));
+    expect(seeded(2)).toEqual(fixtureBlocks('category'));
+    expect(seeded(3)).toEqual(fixtureBlocks('home'));
     // Guards the filter itself: the fixtures do carry a navigation and a footer block, so an
     // empty filter would still make the three assertions above pass.
     expect(seeded(0)).not.toContain('navigation#product-navigation');
@@ -999,7 +1006,7 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     // was resolved by.
     const templates = scanned.manifest!.templates!;
     const catalogSeeds = templates.filter((template) => template.schemaApiId !== 'home');
-    expect(catalogSeeds).toHaveLength(2);
+    expect(catalogSeeds).toHaveLength(3);
 
     const pinned: Record<string, readonly string[]> = {
       'product-detail': ['productHandle'],
