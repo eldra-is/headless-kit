@@ -1127,6 +1127,37 @@ second time — so 84 locale routes are roughly 168 resolutions, and a build fai
 cannot be answered. `nitro.prerender.concurrency` is the knob to lower if a gateway turns out to be
 load-sensitive rather than broken.
 
+### When the gateway rate-limits the build
+
+The reads above are also what meets the gateway's **rate limit**. It counts requests per minute per
+client, and a build is every page, every route template, every catalog document, times the site's
+locales, roughly twice over (the paragraph above), all from one address in a few minutes. The
+gateway answers `429` with `too many requests; slow down and try again`, the route cannot be
+resolved, and `failOnError` ends the build — the right outcome for a broken gateway, the wrong one
+for a gateway that was simply asking for a pause.
+
+**It is handled, and there is nothing to configure.** Both clients a build reads through retry an
+idempotent request that answered `429` or `503` — `@eldrajs/theme-core`'s, which resolves pages and
+route templates, and `@eldrajs/sdk`'s, which `app/plugins/eldra-storefront.ts` builds for the
+commerce blocks. They honour the gateway's `Retry-After` when it sends one and otherwise wait
+250 ms, doubled per attempt and capped at 5 s with jitter, for at most five attempts including the
+first. A `404`, a `401` or any other status is still reported on the first answer.
+
+So **a build that fails with `429` is a build to re-run**, and if it fails again the limit is
+genuinely narrower than the build. Then, in order:
+
+1. **Set `eldra.retry` in `nuxt.config.ts`** — `{ attempts: 8, maxDelayMs: 15000 }` waits out a
+   much narrower window. `attempts` counts the first request, and `{ attempts: 0 }` turns retrying
+   off, which is what you want if a build should fail fast rather than wait. The policy is carried
+   in the public runtime config, and the storefront plugin passes it to its own `@eldrajs/sdk`
+   client, so one setting covers both halves of the build.
+2. **Leave `nitro.prerender.concurrency` alone unless you have raised it.** Nitro's default is
+   already **1** — one route rendered at a time — so there is nothing to lower here, and this
+   theme's `nuxt.config.ts` deliberately does not set it. Raising it is what makes a rate limit
+   likelier, not a build faster.
+3. **Ask for a higher limit for the build's address** rather than reaching for
+   `failOnError: false`, which buys a green build by shipping an artifact with pages missing.
+
 ## Seeded templates and pages
 
 A site deployed from this theme is not empty: `nuxt.config.ts`'s `eldra.templates` and

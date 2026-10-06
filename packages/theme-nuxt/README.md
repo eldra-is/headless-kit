@@ -118,6 +118,39 @@ hands a page its own route through an injection private to Nuxt's app module, wh
 shipped in a package cannot reach; `useEldraPage()` therefore reads the router's committed route and
 pins it for the page's lifetime.
 
+## When the gateway rate-limits the build
+
+The gateway limits a client to a number of requests per minute. A `generate` of a real site is
+thousands of reads from one address — every page, every route template, every catalog document,
+times the site's locales, and roughly twice over because each page's `_payload.json` resolves its
+route again — so a large build meets that limit routinely. The gateway's answer is `429`; with
+`failOnError` set, one of them used to end the build.
+
+**Nothing has to be configured for this.** Every gateway read — this module's own prerender reads,
+the theme's reads at request time, and the platform read behind `commerce`/`locales` — retries an
+idempotent request that answered `429` or `503` (and a dropped connection), honouring `Retry-After`
+and otherwise backing off exponentially with jitter, five attempts including the first. A rate limit
+is waited out rather than fought.
+
+The knob exists for a gateway with an unusually narrow limit, or for a build that should fail fast:
+
+```ts
+// nuxt.config.ts
+eldra: {
+  // The defaults. `attempts` counts the first request; `{ attempts: 0 }` turns retrying off.
+  retry: { attempts: 5, baseDelayMs: 250, maxDelayMs: 5000 },
+}
+```
+
+It is carried in the public runtime config, so a storefront that builds its own `@eldrajs/sdk`
+client for commerce reads can hand it the same policy (`useRuntimeConfig().public.eldra.retry`) —
+the starter does.
+
+Two Nitro knobs sit beside it, and neither is this module's to set: `nitro.prerender.concurrency`
+(**1** by default, which is already the gentlest setting) and `nitro.prerender.retry`/`retryDelay`
+(3 × 500 ms by default), which re-render a route whose response was not 200. Lower
+`prerender.concurrency` only if you have raised it.
+
 ## Catalog-backed route templates
 
 A route template whose `schemaApiId` is `catalog:product`, `catalog:collection` or

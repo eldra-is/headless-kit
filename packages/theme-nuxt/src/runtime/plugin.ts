@@ -1,4 +1,8 @@
-import { createEldraClient, normalizeThemeDesignTokens } from '@eldrajs/theme-core';
+import {
+  createEldraClient,
+  normalizeThemeDesignTokens,
+  type EldraRetryOptions,
+} from '@eldrajs/theme-core';
 import {
   ELDRA_KEY,
   createEldraLinkState,
@@ -26,6 +30,8 @@ interface RuntimeEldraConfig {
   locale: string | null;
   /** `''` on a site whose organisation configures none — see `./locales.ts`. */
   locales: unknown;
+  /** `null` when the theme configures none: the client's own defaults apply. */
+  retry: EldraRetryOptions | null;
 }
 
 export default defineNuxtPlugin({
@@ -37,7 +43,12 @@ export default defineNuxtPlugin({
     // themselves — they can't, at their own package build time.
     registerBlockFields(blockFields);
     const cfg = useRuntimeConfig().public.eldra as RuntimeEldraConfig;
-    const client = createEldraClient({ gatewayUrl: cfg.gatewayUrl, orgId: cfg.orgId, stega: true });
+    const client = createEldraClient({
+      gatewayUrl: cfg.gatewayUrl,
+      orgId: cfg.orgId,
+      stega: true,
+      retry: cfg.retry ?? undefined,
+    });
     const preview = createEldraPreviewState();
     const routing = resolveLocaleRouting(resolveStoreLocales(cfg.locales), cfg.locale);
     // Lazily, every time: `$router` is installed by Nuxt's own router plugin and this one may be

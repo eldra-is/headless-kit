@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`eldra.retry` — how hard a build tries again when the gateway says "not now".**
+  `{ attempts, baseDelayMs, maxDelayMs }`, defaulting to five attempts with exponential backoff and
+  jitter while honouring `Retry-After`; `{ attempts: 0 }` turns it off. It reaches every gateway read
+  a site makes: this module's own `prerender:routes` reads and the platform read behind
+  `commerce`/`locales`, and the client the runtime plugin builds for the theme. It is also written to
+  the public runtime config (`useRuntimeConfig().public.eldra.retry`), so a storefront that builds
+  its own `@eldrajs/sdk` client for commerce reads can hand it the same policy. Nothing has to be set
+  for the default behaviour, which is what keeps a `nuxi generate` of a large site alive through the
+  gateway's per-minute rate limit — see the README's "When the gateway rate-limits the build".
+
 - **Category pages.** A route template whose `schemaApiId` is `catalog:category` is now resolved
   against the store's category tree. Its pattern ends in a catch-all parameter and its `slugField`
   is `path` (`/categories/:path*`), and a category is addressed by its **canonical path** — the

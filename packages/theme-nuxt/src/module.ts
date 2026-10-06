@@ -12,6 +12,7 @@ import {
   stripStega,
   type CatalogDoc,
   type EldraClient,
+  type EldraRetryOptions,
   type EntryDoc,
 } from '@eldrajs/theme-core';
 import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
@@ -64,6 +65,22 @@ export interface ModuleOptions {
    * manifest (`virtual:eldra/manifest`), the one resolved value every
    * consumer reads. */
   breakpoints?: LayoutBreakpoints;
+  /**
+   * How hard every gateway read tries again when the gateway says "not now" —
+   * a `429` from its rate limit, a `503` while it restarts, a dropped
+   * connection. Defaults to five attempts with exponential backoff and jitter,
+   * honouring `Retry-After`; `{ attempts: 0 }` turns it off.
+   *
+   * It is what keeps a static build of a large site alive: a `nuxi generate`
+   * is thousands of reads from one address, which is enough to meet a
+   * per-minute rate limit, and with `nitro.prerender.failOnError` set (as it
+   * should be) one refusal ends the build. Reaches **both** transports — this
+   * module's own prerender reads and the theme's at request time
+   * (`@eldrajs/theme-core`), and the platform read behind `commerce`/`locales`
+   * (`@eldrajs/sdk`) — and is carried in the public runtime config, so a
+   * storefront building its own commerce client reads the same policy.
+   */
+  retry?: EldraRetryOptions;
 }
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
@@ -132,6 +149,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // first for the same reason: the key has to exist before another module's `setup` can look
       // for it. See `./runtime/locales.ts`.
       locales: null as StoreLocales | null,
+      // `null`, not `undefined`: the key has to survive the payload so a
+      // storefront's own client (`examples/starter-nuxt`'s storefront plugin)
+      // reads the same policy the module's reads use.
+      retry: options.retry ?? null,
     };
 
     addPlugin(resolver.resolve('./runtime/plugin'));
@@ -165,7 +186,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         return;
       }
 
-      const client = createEldraClient({ gatewayUrl: options.gatewayUrl, orgId: options.orgId });
+      const client = createEldraClient({
+        gatewayUrl: options.gatewayUrl,
+        orgId: options.orgId,
+        retry: options.retry,
+      });
       // The *reading* locale, which is the override and nothing else: path segments are not
       // translated in v1, so one pass over the default locale's documents produces the path list
       // for every locale and `addRoute` below fans each path out. Reading the page list once per
@@ -310,7 +335,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const platformClient =
       options.gatewayUrl === '' || options.orgId === ''
         ? null
-        : createEldraCommerceClient({ apiBaseUrl: options.gatewayUrl, orgId: options.orgId });
+        : createEldraCommerceClient({
+            apiBaseUrl: options.gatewayUrl,
+            orgId: options.orgId,
+            retry: options.retry,
+          });
     const [commerce, locales] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),

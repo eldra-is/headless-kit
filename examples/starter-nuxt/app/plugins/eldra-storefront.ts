@@ -1,6 +1,6 @@
 import { defineNuxtPlugin, useAsyncData, useRouter, useRuntimeConfig } from 'nuxt/app';
 import { getCurrentInstance, nextTick, reactive, watchEffect } from 'vue';
-import { createEldraClient } from '@eldrajs/sdk';
+import { createEldraClient, type EldraRetryOptions } from '@eldrajs/sdk';
 import {
   STOREFRONT_KEY,
   type StorefrontRoute,
@@ -167,13 +167,24 @@ export default defineNuxtPlugin({
     });
 
     const publicConfig = useRuntimeConfig().public as unknown as {
-      eldra?: { gatewayUrl?: string; orgId?: string; commerce?: unknown };
+      eldra?: {
+        gatewayUrl?: string;
+        orgId?: string;
+        commerce?: unknown;
+        retry?: EldraRetryOptions | null;
+      };
       formsEndpoint?: string;
     };
 
     const client = createEldraClient({
       apiBaseUrl: publicConfig.eldra?.gatewayUrl || undefined,
       orgId: publicConfig.eldra?.orgId || undefined,
+      // The theme's own retry policy, set once in `nuxt.config.ts`'s `eldra`
+      // block and carried here in the runtime config: a prerender of this site
+      // reads the catalogue through this client and the pages through
+      // @eldrajs/theme-nuxt's, and a rate limit that only one of them waits
+      // out still fails the build.
+      retry: publicConfig.eldra?.retry ?? undefined,
     });
 
     let source: StorefrontSource | null = null;
