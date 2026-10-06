@@ -378,6 +378,37 @@ describe('eldra sdk inventory and catalog extras', () => {
     expect(requests[0].url).toContain('filter=status%3Aeq%3AACTIVE');
   });
 
+  /**
+   * The catalog product filters are declared `explode: true` as well, and every one of them is an
+   * OR over its values — so a comma-joined `categoryId=a,b` is one id nothing matches, and a
+   * shopper who ticked two categories would be shown an empty grid instead of both.
+   */
+  it('repeats every catalog filter parameter the gateway declares explode:true', async () => {
+    const { client, requests } = recording({ data: [], meta: {} });
+
+    await client.catalog.listCollectionProducts('the-winter-edit', {
+      categoryId: ['cat-ceramics', 'cat-textiles'],
+      option: ['colour:oat', 'size:m'],
+      minPrice: 5000,
+      maxPrice: 15000,
+      availability: 'in_stock',
+      facets: true,
+    });
+    await client.catalog.listProducts({ collectionId: ['col-winter', 'col-summer'] });
+
+    const collection = new URL(requests[0].url);
+    expect(collection.searchParams.getAll('categoryId')).toEqual(['cat-ceramics', 'cat-textiles']);
+    expect(collection.searchParams.getAll('option')).toEqual(['colour:oat', 'size:m']);
+    expect(collection.searchParams.get('minPrice')).toBe('5000');
+    expect(collection.searchParams.get('maxPrice')).toBe('15000');
+    expect(collection.searchParams.get('availability')).toBe('in_stock');
+    expect(collection.searchParams.get('facets')).toBe('true');
+    expect(new URL(requests[1].url).searchParams.getAll('collectionId')).toEqual([
+      'col-winter',
+      'col-summer',
+    ]);
+  });
+
   it('normalises a null category list and searches with q', async () => {
     const { client, requests } = recording(null);
 
