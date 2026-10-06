@@ -17,9 +17,10 @@
  * the block writes its state out through `route.setQuery()` — the one writer `StorefrontRoute`
  * exposes — and the page turns that into a URL. It reads back only what that interface can give
  * back: `route.page`, which is what makes the `pages` style's numbered links real navigation rather
- * than component state. Filters and sort have no reader on `StorefrontRoute` today, so they survive
- * as this component's own state for the life of the page; restoring them from a shared URL needs a
- * reader added to `StorefrontRoute`, not worked around here.
+ * than component state. Filters, the price range, the sort and the column count are read back the
+ * same way — `route.filters` is the generic bag every query key but the five typed ones lands in
+ * (`QUERY_KEY` below is this block's own spelling of them) — so a shared URL restores the whole
+ * grid state and the prerendered page stays the unfiltered one.
  *
  * **Two requests, not one.** The grid's request is driven by the *applied* selection. The drawer's
  * "Show N products" button needs the count for the *pending* one before it is applied — the spec is
@@ -90,10 +91,14 @@ import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue'
 import FilterGroups from './parts/FilterGroups.vue';
 import {
   defaultPriceStep,
+  FILTER_SOURCES,
+  formatPriceRange,
   GROUP_KIND,
   groupValuesFor,
   isFilterSource,
+  parsePriceRange,
   priceSpanOf,
+  spanWithRange,
   widenPriceSpan,
   type FilterGroup,
   type FilterSelection,
@@ -244,22 +249,44 @@ const sectionLabel = computed(() =>
  * `publishState()`; `adoptRouteState()` below is the other direction, for the moves the block does
  * not make itself.
  */
+/**
+ * **The query key each filter source is spelled with**, in both directions: what `publishState()`
+ * writes and what the block reads back out of `route.filters`.
+ *
+ * `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`
+ * — one key per group, the option sources by their bare option key (the `option:` prefix is the
+ * *field's* vocabulary, not a shopper's URL), and the price range as the single `<min>-<max>`
+ * string the storefront request already uses, so the URL, the request and the chip all read one
+ * value. A filtered view is therefore linkable, and the back button works.
+ */
+const QUERY_KEY: Record<FilterSource, string> = {
+  category: 'category',
+  collection: 'collection',
+  'option:size': 'size',
+  'option:colour': 'colour',
+  price: 'price',
+  availability: 'availability',
+};
+
 function initialFilterSelection(): FilterSelection {
   const out: FilterSelection = {};
-  const category = route.filters.category;
-  if (category && category.length > 0) out.category = category;
-  const size = route.filters.size;
-  if (size && size.length > 0) out['option:size'] = size;
-  const colour = route.filters.colour;
-  if (colour && colour.length > 0) out['option:colour'] = colour;
-  const availability = route.filters.availability;
-  if (availability && availability.length > 0) out.availability = availability;
+  for (const source of FILTER_SOURCES) {
+    if (source === 'price') continue;
+    const values = route.filters[QUERY_KEY[source]];
+    if (values !== undefined && values.length > 0) out[source] = [...values];
+  }
   return out;
 }
 
+/** The price range the URL carries, sanitised the way a typed one is. */
+function routePriceRange(): PriceRange {
+  return parsePriceRange(route.filters[QUERY_KEY.price]?.[0]);
+}
+
 const selection = ref<FilterSelection>(initialFilterSelection());
-const priceMin = ref(route.filters.minPrice?.[0] ?? '');
-const priceMax = ref(route.filters.maxPrice?.[0] ?? '');
+const initialPrice = routePriceRange();
+const priceMin = ref(initialPrice.min);
+const priceMax = ref(initialPrice.max);
 
 const sortOptions = computed<SelectOption[]>(() => {
   const SORT_LABEL: Record<string, string> = {
@@ -336,7 +363,8 @@ function requestFiltersFor(
   for (const [source, selected] of Object.entries(values)) {
     if (selected && selected.length > 0) out[source] = [...selected];
   }
-  if (min !== '' || max !== '') out.price = [`${min}-${max}`];
+  const price = formatPriceRange({ min, max });
+  if (price !== null) out.price = [price];
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -517,8 +545,11 @@ watch(selected, () => {
   loadedPriceSpan.value = null;
 });
 const EMPTY_SPAN: PriceSpan = { min: 0, max: 0 };
-const priceSpan = computed<PriceSpan>(
-  () => facetPriceSpan.value ?? loadedPriceSpan.value ?? EMPTY_SPAN
+const priceSpan = computed<PriceSpan>(() =>
+  spanWithRange(facetPriceSpan.value ?? loadedPriceSpan.value ?? EMPTY_SPAN, {
+    min: priceMin.value,
+    max: priceMax.value,
+  })
 );
 
 const groups = computed<FilterGroup[]>(() => {
@@ -653,7 +684,7 @@ const emptyText = computed(() => {
  * filters inert — **arriving with a query on a prerendered page**. Nuxt hydrates a prerendered
  * route under the *payload's* path, query and all stripped, and only restores the real URL once
  * the app's `<Suspense>` has resolved (`hasDeferredRoute` in its router plugin). So
- * `?minPrice=50&maxPrice=150` simply is not in the route while the block is being built: seeding
+ * `?price=50-150` simply is not in the route while the block is being built: seeding
  * once left the inputs blank, the request unfiltered and the grid showing everything, under chips
  * and a URL that said otherwise.
  *
@@ -667,10 +698,9 @@ const emptyText = computed(() => {
 function adoptRouteState(): void {
   const next = initialFilterSelection();
   if (!sameSelection(next, selection.value)) selection.value = next;
-  const min = route.filters.minPrice?.[0] ?? '';
-  if (min !== priceMin.value) priceMin.value = min;
-  const max = route.filters.maxPrice?.[0] ?? '';
-  if (max !== priceMax.value) priceMax.value = max;
+  const range = routePriceRange();
+  if (range.min !== priceMin.value) priceMin.value = range.min;
+  if (range.max !== priceMax.value) priceMax.value = range.max;
   if (
     route.sort !== null &&
     route.sort !== sort.value &&
@@ -706,17 +736,19 @@ onMounted(() => {
 
 function publishState(): void {
   pagesLoaded.value = 1;
-  route.setQuery({
+  const patch: Record<string, string | string[] | null> = {
     page: null,
     sort: sort.value === '' ? null : sort.value,
     columns: columnsChoice.value,
-    category: selection.value.category ?? null,
-    size: selection.value['option:size'] ?? null,
-    colour: selection.value['option:colour'] ?? null,
-    availability: selection.value.availability ?? null,
-    minPrice: priceMin.value === '' ? null : priceMin.value,
-    maxPrice: priceMax.value === '' ? null : priceMax.value,
-  });
+    [QUERY_KEY.price]: formatPriceRange({ min: priceMin.value, max: priceMax.value }),
+  };
+  // Every source, selected or not: a key the shopper has just emptied has to be cleared, which a
+  // patch built only from what is selected would leave in the URL for ever.
+  for (const source of FILTER_SOURCES) {
+    if (source === 'price') continue;
+    patch[QUERY_KEY[source]] = selection.value[source] ?? null;
+  }
+  route.setQuery(patch);
 }
 
 const countText = computed(() => {

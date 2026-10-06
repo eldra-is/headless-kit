@@ -1323,7 +1323,7 @@ describe('collection-grid block', () => {
   /**
    * The block over the *real* gateway storefront, not a stub of it.
    *
-   * `/collections/the-winter-edit?sort=featured&columns=3&minPrice=50&maxPrice=150` still showed the
+   * `/collections/the-winter-edit?sort=featured&columns=3&price=50-150` still showed the
    * $48 "Speckled stoneware bowl": the block read the range off the URL and sent it correctly, and
    * `createGatewayStorefront` dropped every facet before its list read, so the grid answered with the
    * unfiltered collection under a URL, chips and an active-filter row that all said otherwise. This
@@ -1387,7 +1387,7 @@ describe('collection-grid block', () => {
 
     it('drops the $48 card and counts only what the range keeps', async () => {
       const wrapper = mountGrid(mock, {
-        source: gatewaySource({ minPrice: ['50'], maxPrice: ['150'] }),
+        source: gatewaySource({ price: ['50-150'] }),
       });
       await flushPromises();
       await wrapper.vm.$nextTick();
@@ -1411,6 +1411,119 @@ describe('collection-grid block', () => {
   });
 
   /**
+   * **The query string a filtered view is linkable by** (contract §4):
+   * `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`.
+   *
+   * One key per group, written through the one writer a block may call (`route.setQuery`) — no
+   * router, no Nuxt global in `blocks/**` — and read back out of `route.filters` on the next page
+   * load. The prerendered page is always the unfiltered one, so this is the whole of how a
+   * filtered view survives being shared.
+   */
+  describe('the query string a filtered view is linkable by', () => {
+    const FILTERED = {
+      ...mock,
+      filters: [
+        { source: 'category', label: 'Category' },
+        { source: 'collection', label: 'Collection' },
+        { source: 'option:colour', label: 'Colour' },
+        { source: 'price', label: 'Price' },
+        { source: 'availability', label: 'Availability' },
+      ],
+    };
+
+    /** The demo route writes a `setQuery` patch straight back into `route.filters`, which is what
+     *  a real page does by way of the URL. */
+    function tick(wrapper: VueWrapper, legend: string, index = 0) {
+      const boxes = panelFor(wrapper, legend).panel.findAll('input[type="checkbox"]');
+      return boxes[index]!.setValue(true);
+    }
+
+    it('writes one key per group and the price as a single range', async () => {
+      const source = createDemoStorefront();
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+
+      // The price first: the facets' span narrows with every other filter applied (it is counted
+      // with every filter but price), so a floor typed after them would be clamped into whatever
+      // the remaining products cost.
+      const min = panelFor(wrapper, PRICE_LEGEND).panel.get('input[data-input="min"]');
+      await min.trigger('focus');
+      await min.setValue('50');
+      await min.trigger('keydown', { key: 'Enter' });
+      await wrapper.vm.$nextTick();
+      await tick(wrapper, enUS.grid.legendCategory);
+      await tick(wrapper, enUS.grid.legendCollection);
+      await tick(wrapper, enUS.grid.legendColour);
+      await tick(wrapper, enUS.grid.legendAvailability);
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters).toEqual({
+        category: ['knitwear'],
+        collection: ['the-winter-edit'],
+        colour: ['oat'],
+        availability: ['in_stock'],
+        price: ['50-'],
+      });
+    });
+
+    it('clears a key the shopper empties rather than leaving it in the URL', async () => {
+      const source = createDemoStorefront();
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+
+      await tick(wrapper, enUS.grid.legendCategory);
+      expect(source.route.filters.category).toEqual(['knitwear']);
+
+      const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
+      await list.get('[data-part="removeButton"]').trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(source.route.filters.category).toBeUndefined();
+      expect(source.route.filters).toEqual({});
+    });
+
+    /** The other half of the round trip: the same bag, on a fresh page load, restores the whole
+     *  panel — the ticked values, the thumbs and the chips — and filters the first request. */
+    it('restores the panel and the request from that query on the next load', async () => {
+      const source = createDemoStorefront({
+        filters: {
+          category: ['knitwear'],
+          collection: ['the-winter-edit'],
+          colour: ['oat'],
+          availability: ['in_stock'],
+          price: ['50-150'],
+        },
+      });
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const checked = (legend: string) =>
+        panelFor(wrapper, legend)
+          .panel.findAll('input[type="checkbox"]')
+          .filter((box) => (box.element as HTMLInputElement).checked).length;
+      expect(checked(enUS.grid.legendCategory)).toBe(1);
+      expect(checked(enUS.grid.legendCollection)).toBe(1);
+      expect(checked(enUS.grid.legendColour)).toBe(1);
+      expect(checked(enUS.grid.legendAvailability)).toBe(1);
+
+      const thumbs = panelFor(wrapper, PRICE_LEGEND).panel.findAll('[role="slider"]');
+      expect(thumbs[0]!.attributes('aria-valuenow')).toBe('50');
+      expect(thumbs[1]!.attributes('aria-valuenow')).toBe('150');
+
+      const chips = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text();
+      expect(chips).toContain('Category: Knitwear');
+      expect(chips).toContain('Collection: The winter edit');
+      expect(chips).toContain('Colour: Oat');
+      expect(chips).toContain('Price: $50 to $150');
+
+      // And the grid itself is filtered — the demo source applies the same pass the gateway does.
+      expect(countLine(wrapper).text()).toBe('4 products');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  /**
    * The other direction of the URL round-trip: a query the block did not write.
    *
    * Back/Forward, a shared link to the same collection with a different range, and — the one that
@@ -1427,7 +1540,7 @@ describe('collection-grid block', () => {
       expect(countLine(wrapper).text()).toBe('12 products');
       expect(stub.requests.at(-1)?.filters).toBeUndefined();
 
-      stub.source.route.filters = { minPrice: ['50'], maxPrice: ['150'] };
+      stub.source.route.filters = { price: ['50-150'] };
       await wrapper.vm.$nextTick();
       await flushPromises();
 

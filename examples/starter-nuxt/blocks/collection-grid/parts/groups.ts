@@ -237,6 +237,24 @@ export function widenPriceSpan(
 }
 
 /**
+ * The span widened to hold the shopper's own bounds.
+ *
+ * The facets' price span is counted with every filter *except* price applied, so it narrows as the
+ * other filters narrow — tick a colour and the span becomes that colour's own prices. A slider
+ * cannot show a value outside its bounds, so without this a range of 50–150 read back as 96–96 the
+ * moment another group was touched, and dragging either thumb would then write that back as the
+ * shopper's range. Including their own bounds keeps the thumbs where they put them and keeps the
+ * filter removable by dragging back out.
+ */
+export function spanWithRange(span: PriceSpan, range: PriceRange): PriceSpan {
+  const bounds: number[] = [];
+  if (range.min !== '') bounds.push(Number(range.min));
+  if (range.max !== '') bounds.push(Number(range.max));
+  if (bounds.length === 0) return span;
+  return widenPriceSpan(span, { min: Math.min(...bounds), max: Math.max(...bounds) }) ?? span;
+}
+
+/**
  * The pair the slider shows: the shopper's own bound where they set one, the span's where they did
  * not — so an untouched control spans the whole catalogue (spec Default content: "both thumbs at
  * an end"), which is also what makes "no filter" visible as a state.
