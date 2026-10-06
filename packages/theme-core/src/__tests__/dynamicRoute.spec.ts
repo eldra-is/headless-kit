@@ -44,6 +44,104 @@ describe('dynamic route grammar', () => {
   ])('rejects %s', (pattern) => {
     expect(parseDynamicRoutePattern(pattern)).toBeNull();
   });
+
+  it('reads a single-segment parameter as not a catch-all', () => {
+    expect(parseDynamicRoutePattern('/articles/:slug')).toEqual({
+      value: '/articles/:slug',
+      prefixSegments: ['articles'],
+      paramName: 'slug',
+      catchAll: false,
+    });
+  });
+
+  /**
+   * The trailing catch-all a category route is served by (`/categories/:path*`). The star is part of
+   * the parameter, never of its name, so `paramName` is what a template's own `slugField` is
+   * compared against — `path`, not `path*`.
+   */
+  it('accepts one trailing catch-all parameter and keeps the star out of its name', () => {
+    expect(parseDynamicRoutePattern('/categories/:path*')).toEqual({
+      value: '/categories/:path*',
+      prefixSegments: ['categories'],
+      paramName: 'path',
+      catchAll: true,
+    });
+  });
+
+  /**
+   * `*` stays forbidden everywhere else, which is what keeps the catch-all the one wildcard a route
+   * template can carry: one star, last, immediately after the parameter name.
+   */
+  it.each([
+    '/categories/:path**',
+    '/categories*/:path',
+    '/cat*egories/:path*',
+    '/categories/:*',
+    '/categories/:path*/leaf',
+    '/*',
+  ])('rejects the misplaced star in %s', (pattern) => {
+    expect(parseDynamicRoutePattern(pattern)).toBeNull();
+  });
+});
+
+describe('catch-all matching', () => {
+  const pattern = '/categories/:path*';
+
+  it('joins one or more segments into the parameter without a leading slash', () => {
+    expect(matchDynamicRoutePattern(pattern, '/categories/billinn')).toEqual({ path: 'billinn' });
+    expect(matchDynamicRoutePattern(pattern, '/categories/billinn/bilstolar')).toEqual({
+      path: 'billinn/bilstolar',
+    });
+    expect(matchDynamicRoutePattern(pattern, '/categories/a/b/c')).toEqual({ path: 'a/b/c' });
+  });
+
+  /** Zero segments is the prefix itself, which is not one of the paths the pattern serves. */
+  it('refuses the bare prefix and a path outside it', () => {
+    expect(matchDynamicRoutePattern(pattern, '/categories')).toBeNull();
+    expect(matchDynamicRoutePattern(pattern, '/collections/a/b')).toBeNull();
+  });
+
+  /**
+   * An encoded separator cannot smuggle a boundary into the joined value: `decodeRequestPath`
+   * refuses a segment that decodes to one, so every segment this joins was a segment in the
+   * request.
+   */
+  it('decodes each segment once and refuses an encoded separator', () => {
+    expect(matchDynamicRoutePattern(pattern, '/categories/b%C3%ADlinn/barnas%C3%A6ti')).toEqual({
+      path: 'bílinn/barnasæti',
+    });
+    expect(matchDynamicRoutePattern(pattern, '/categories/a%2Fb/c')).toBeNull();
+  });
+
+  it('resolves a catch-all template through resolveRoute when its slugField is the param', () => {
+    const site = {
+      pages: [],
+      templates: [
+        {
+          id: 'category-template',
+          data: {
+            routePattern: '/categories/:path*',
+            slugField: 'path',
+            schemaApiId: 'catalog:category',
+          },
+        },
+      ],
+    };
+    expect(resolveRoute('/categories/billinn/bilstolar', site)).toEqual({
+      kind: 'template',
+      template: site.templates[0],
+      params: { path: 'billinn/bilstolar' },
+    });
+    // The star is not the field name: a template whose `slugField` carries it matches nothing.
+    expect(
+      resolveRoute('/categories/billinn', {
+        pages: [],
+        templates: [
+          { id: 'bad', data: { routePattern: '/categories/:path*', slugField: 'path*' } },
+        ],
+      })
+    ).toBeNull();
+  });
 });
 
 describe('resolveRoute', () => {
@@ -126,9 +224,10 @@ describe('resolveRoute', () => {
 });
 
 describe('catalogRouteTarget', () => {
-  it('recognises catalog product and collection schema ids', () => {
+  it('recognises catalog product, collection and category schema ids', () => {
     expect(catalogRouteTarget('catalog:product')).toBe('product');
     expect(catalogRouteTarget('catalog:collection')).toBe('collection');
+    expect(catalogRouteTarget('catalog:category')).toBe('category');
   });
 
   it('returns null for unrelated or malformed schema ids', () => {
@@ -160,5 +259,27 @@ describe('buildDynamicRoutePath', () => {
   it('fails closed for missing and multi-segment slug values', () => {
     expect(buildDynamicRoutePath('/articles/:slug', '')).toBeNull();
     expect(buildDynamicRoutePath('/articles/:slug', 'a/b')).toBeNull();
+  });
+
+  /** The round trip the canonical category path relies on: every segment encoded, the separators
+   *  kept, so what this builds is what `matchDynamicRoutePattern` reads back. */
+  it('encodes each segment of a catch-all value and keeps the separators', () => {
+    expect(buildDynamicRoutePath('/categories/:path*', 'billinn/bílstólar')).toBe(
+      '/categories/billinn/b%C3%ADlst%C3%B3lar'
+    );
+    expect(buildDynamicRoutePath('/categories/:path*', 'billinn')).toBe('/categories/billinn');
+    expect(
+      matchDynamicRoutePattern(
+        '/categories/:path*',
+        buildDynamicRoutePath('/categories/:path*', 'a/b/c')!
+      )
+    ).toEqual({ path: 'a/b/c' });
+  });
+
+  it('refuses a catch-all value with an empty segment', () => {
+    expect(buildDynamicRoutePath('/categories/:path*', '/billinn')).toBeNull();
+    expect(buildDynamicRoutePath('/categories/:path*', 'billinn/')).toBeNull();
+    expect(buildDynamicRoutePath('/categories/:path*', 'a//b')).toBeNull();
+    expect(buildDynamicRoutePath('/categories/:path*', '')).toBeNull();
   });
 });

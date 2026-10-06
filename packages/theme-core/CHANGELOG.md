@@ -5,6 +5,25 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A route template's trailing parameter may be a catch-all: `/categories/:path*`.** It must be the
+  last segment, it matches **one or more** segments, and the parameter's value is the remainder
+  joined with `/` and no leading slash (`/categories/billinn/bilstolar` → `path:
+  "billinn/bilstolar"`). `parseDynamicRoutePattern` reports it as `catchAll: true` and keeps the star
+  out of `paramName`, so a template's own `slugField` is still compared against `path`;
+  `matchDynamicRoutePattern`/`resolveRoute` match it, and `buildDynamicRoutePath` encodes each
+  segment of such a value while keeping the separators (and refuses an empty one — a leading,
+  trailing or doubled slash is not a canonical path). Existing single-segment patterns are unchanged,
+  and `*` stays forbidden everywhere else: in a static prefix, doubled, or anywhere but immediately
+  after the final parameter's name.
+- `catalogRouteTarget` recognises `catalog:category` as the `category` kind, beside `catalog:product`
+  and `catalog:collection`.
+- `LinkTargetInfo` gains an optional `path` — a target's canonical path **inside** the route
+  template's prefix, without a leading slash. `resolveLink` reads it instead of `slug` when the
+  serving template's pattern is a catch-all, because such a route is canonical-only: a leaf slug on
+  its own would build a path the site answers with its not-found shell. A target under a catch-all
+  pattern that carries no `path` therefore resolves to **no href**, which a theme renders as plain
+  text rather than as a link that 404s.
+
 - A page layout's `block` node may carry `locked: true` — the platform sets it on a node created
   from a theme's `pageSeeds[].blocks[].required`, and it is stored on the node. The layout validator
   used to fail the whole document on it as an unknown key, which rendered every page holding one as

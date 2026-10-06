@@ -176,6 +176,48 @@ describe('resolveLink — one branch per kind', () => {
       )?.href
     ).toBe('/categories/tableware');
   });
+
+  /**
+   * **A catch-all template is addressed by the target's whole canonical path.** A category route is
+   * canonical-only (`/categories/<root>/<child>`), so a leaf slug on its own is a path the site
+   * answers with its not-found shell — a link that looks live and 404s. The target's `path` is what
+   * resolves it, and a target that carries none resolves to no href at all, which a theme renders
+   * as plain text.
+   */
+  it('builds a catch-all category href from the target path, and nothing without one', () => {
+    const catchAllTemplates = [
+      ...templates,
+      {
+        id: 't-category',
+        data: {
+          schemaApiId: 'catalog:category',
+          routePattern: '/categories/:path*',
+          slugField: 'path',
+        },
+      },
+    ];
+    const link = { kind: 'category', target: { _type: 'category', id: CATEGORY_ID } };
+
+    const placed = context({
+      templates: catchAllTemplates,
+      targets: new Map([
+        [
+          `category:${CATEGORY_ID}`,
+          { slug: 'bilstolar', title: 'Bílstólar', path: 'billinn/bilstolar' },
+        ],
+      ]),
+    });
+    expect(resolveLink(link, placed)?.href).toBe('/categories/billinn/bilstolar');
+
+    const unplaced = context({ templates: catchAllTemplates });
+    expect(resolveLink(link, unplaced)).toEqual({
+      href: null,
+      label: 'Tableware',
+      newTab: false,
+      group: null,
+      children: [],
+    });
+  });
 });
 
 describe('resolveLink — everything that does not resolve', () => {

@@ -35,13 +35,24 @@ export interface LinkValue {
 }
 
 /** What a site knows about one link target, keyed by `${_type}:${id}`. The
- * three keys are all a destination needs: the slug builds the path, the title
- * fills in a label the author left empty, and `schemaApiId` says which route
- * template serves an entry. */
+ * slug builds the path, the title fills in a label the author left empty,
+ * `schemaApiId` says which route template serves an entry, and `path` is the
+ * multi-segment destination a **catch-all** template needs (see below). */
 export interface LinkTargetInfo {
   slug?: string;
   title?: string;
   schemaApiId?: string;
+  /**
+   * The target's canonical path **inside** the route template's prefix, without
+   * a leading slash — `billinn/bilstolar` for a category under
+   * `/categories/:path*`.
+   *
+   * Only a catch-all template needs it, and only a filler that can see the
+   * whole tree can produce it, so it is optional: a target with no `path` under
+   * a catch-all pattern resolves to **no href** rather than to the single-slug
+   * path, which on a canonical-only route is a 404 dressed as a link.
+   */
+  path?: string;
 }
 
 export interface LinkRouteContext {
@@ -244,7 +255,14 @@ function resolveHref(
     kind === 'entry' ? plain(info.schemaApiId) : (CATALOG_ROUTE_TARGETS[kind] ?? '');
   if (schemaApiId === '') return null;
   const pattern = routePatternFor(schemaApiId, context.templates);
-  return pattern === null ? null : buildDynamicRoutePath(pattern, info.slug);
+  if (pattern === null) return null;
+  // A catch-all template (`/categories/:path*`) is addressed by the target's
+  // whole canonical path, and only by that: its route is canonical-only, so a
+  // leaf slug on its own resolves to a path the site answers with its not-found
+  // shell. Nothing addressable, therefore no href — the label renders as text,
+  // which is what every other unresolvable target already does.
+  const value = parseDynamicRoutePattern(pattern)?.catchAll === true ? info.path : info.slug;
+  return buildDynamicRoutePath(pattern, value);
 }
 
 /** The pattern of the published route template serving a schema, or null when
