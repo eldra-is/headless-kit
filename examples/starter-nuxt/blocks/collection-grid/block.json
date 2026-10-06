@@ -134,6 +134,7 @@
       "fieldId": "priceStep",
       "name": "Price step",
       "type": "int",
+      "validators": { "min": 1 },
       "helpText": "The price slider's step. Leave empty for one unit of the store currency (ISK 100, USD 1)."
     },
     {

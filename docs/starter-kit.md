@@ -797,6 +797,11 @@ grammar lives.
   `priceSlider` off keeps the two typed fields alone, for prices that sit in a few tight clusters
   a track cannot separate — a block-level field rather than one on the price `filters[]` row, see
   below.
+- **The option sources are mapped to two literal store keys**, `size` and `colour`
+  (`parts/groups.ts`'s `OPTION_KEY`). The values come from the row's own `option.key`, so a store
+  whose option is keyed `color` or `Size` gets a group with no values, which the block then drops
+  silently. Rename the key in `OPTION_KEY` (and in the `filters[].source` option list) for a store
+  that spells its options differently.
 - **A value nothing is left for is disabled, not hidden** — see the counting rule above. A value
   the shopper has already selected is never disabled, and one the facets stop listing altogether is
   kept so the filter stays removable.
@@ -807,7 +812,10 @@ grammar lives.
   through `route.setQuery()` and comes back through `route.filters` — no router and no Nuxt global
   inside `blocks/**` — so a filtered view is linkable and the back button works, while the
   prerendered page stays the unfiltered one (see "A query string is not in the route while a
-  prerendered page hydrates" above).
+  prerendered page hydrates" above). Two spellings are **retired**: the price pair
+  `?minPrice=…&maxPrice=…` is not read any more (a link carrying it renders the unfiltered
+  collection), while the pre-rename `?availability=in-stock` still is — it is folded into
+  `in_stock` on the way in, and a value from no vocabulary at all is dropped rather than guessed.
 
 `forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
 back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts

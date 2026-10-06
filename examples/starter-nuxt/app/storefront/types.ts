@@ -194,7 +194,11 @@ export interface CatalogFacetOption {
  * - **Price bounds are the scope's own**, with every filter applied *except* price — so dragging
  *   the price thumbs never moves the track under the shopper's hand.
  *
- * `price` is in **major units**, like every other money field in this file.
+ * `price` is in **major units**, like every other money field in this file — and **unlike the
+ * platform's own facets**, whose `price` is in the same minor units as the `minPrice`/`maxPrice`
+ * parameters it is counted over. The gateway implementation converts on the way in, the same way
+ * it converts the shopper's bounds on the way out; handing this type a minor-unit span would draw
+ * a slider a hundred times too wide on a two-decimal currency and a `?price=` nothing matches.
  */
 export interface CatalogFacets {
   price: { min: number; max: number };
