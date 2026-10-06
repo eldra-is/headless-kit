@@ -657,6 +657,18 @@ describe('collection-grid block', () => {
    * the list is about to move from the very first one.
    */
   describe('the sidebar’s own debounce', () => {
+    /** Twice the fixture, the copies given handles of their own — the cards are keyed by handle,
+     *  and `pageSize` only takes the schema's own 12/24/48, so putting a real Load more on screen
+     *  needs more rows rather than a smaller window. */
+    const TWO_PAGES: StorefrontProductListItem[] = [
+      ...PRODUCTS,
+      ...PRODUCTS.map((item) => ({
+        ...item,
+        handle: `${item.handle}-2`,
+        productId: `${item.productId}-2`,
+      })),
+    ];
+
     it('three quick toggles send one request, with the final selection, and read "Updating…" the whole time', async () => {
       useFilterTimers();
       // A filtered answer with cards in it, so the grid is still a grid at the end of this and the
@@ -780,18 +792,7 @@ describe('collection-grid block', () => {
      */
     it('sends one request for a filter ticked after Load more, carrying the reset page window', async () => {
       useFilterTimers();
-      // Twice the fixture, the copies given handles of their own — the cards are keyed by handle,
-      // and `pageSize` only takes the schema's own 12/24/48, so a second page needs more rows
-      // rather than a smaller window.
-      const many = [
-        ...PRODUCTS,
-        ...PRODUCTS.map((item) => ({
-          ...item,
-          handle: `${item.handle}-2`,
-          productId: `${item.productId}-2`,
-        })),
-      ];
-      const stub = createStub(many, { filteredCount: 4 });
+      const stub = createStub(TWO_PAGES, { filteredCount: 4 });
       const wrapper = mountGrid({ ...mock, pageSize: '12' }, { source: stub.source });
       await wrapper.vm.$nextTick();
       expect(cards(wrapper)).toHaveLength(12);
@@ -814,6 +815,79 @@ describe('collection-grid block', () => {
       expect(sent.pageSize).toBe(12);
       expect(sent.filters).toEqual({ category: ['knitwear'] });
       expect(cards(wrapper)).toHaveLength(4);
+    });
+
+    /**
+     * The same gesture pair the other way round, which is the half the ordering above gets wrong:
+     * a **Load more press inside an armed window**. The press widens the page window and resolves
+     * the wait in one go, so there is one read for it, carrying both — not one for the old window
+     * and a second for the new one in the same tick.
+     */
+    it('sends one request for a Load more pressed inside an armed window, carrying both', async () => {
+      useFilterTimers();
+      const stub = createStub(TWO_PAGES, { filteredCount: 4 });
+      const wrapper = mountGrid({ ...mock, pageSize: '12' }, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      expect(cards(wrapper)).toHaveLength(12);
+
+      const gridReads = (): Stub['requests'] => stub.requests.filter((sent) => sent.pageSize !== 1);
+      const before = gridReads().length;
+
+      await panelFor(wrapper, enUS.grid.legendCategory)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+      expect(gridReads().length).toBe(before);
+
+      // Pressed well inside the 350ms window — nothing has settled, so the filter is still waiting.
+      await wrapper.get('[data-part="button"]').trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(gridReads().length).toBe(before + 1);
+      const sent = gridReads().at(-1)!;
+      expect(sent.pageSize).toBe(24);
+      expect(sent.filters).toEqual({ category: ['knitwear'] });
+      await settleFilterDebounce(wrapper);
+      // And the window stays resolved: the expired timer has nothing left to send.
+      expect(gridReads().length).toBe(before + 1);
+    });
+
+    /**
+     * Columns is layout, but the state write behind it resets the page window, which *is* a request
+     * input — so a Columns change inside an armed window, after a Load more press that widened that
+     * window, is the same two-reads-for-one-gesture shape. One read, for the reset window, carrying
+     * the filter that was waiting.
+     */
+    it('sends one request for a Columns change inside an armed window, carrying both', async () => {
+      useFilterTimers();
+      const stub = createStub(TWO_PAGES, { filteredCount: 4 });
+      const wrapper = mountGrid(
+        { ...mock, pageSize: '12' },
+        { source: stub.source, attachTo: document.body }
+      );
+      await wrapper.vm.$nextTick();
+
+      const gridReads = (): Stub['requests'] => stub.requests.filter((sent) => sent.pageSize !== 1);
+      await wrapper.get('[data-part="button"]').trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(cards(wrapper)).toHaveLength(24);
+
+      await panelFor(wrapper, enUS.grid.legendCategory)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+      const before = gridReads().length;
+
+      // The Columns select is the third combobox — two sorts (top bar and toolbar), then this one.
+      const columns = comboboxes(wrapper)[2]!;
+      columns.element.focus();
+      await columns.trigger('keydown', { key: 'ArrowDown' });
+      await columns.trigger('keydown', { key: 'ArrowDown' });
+      await columns.trigger('keydown', { key: 'Enter' });
+      await wrapper.vm.$nextTick();
+
+      expect(gridReads().length).toBe(before + 1);
+      const sent = gridReads().at(-1)!;
+      expect(sent.pageSize).toBe(12);
+      expect(sent.filters).toEqual({ category: ['knitwear'] });
     });
 
     /**

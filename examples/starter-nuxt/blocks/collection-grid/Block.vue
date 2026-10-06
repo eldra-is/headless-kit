@@ -549,7 +549,13 @@ function armFilterDebounce(): void {
 /** Resolves an armed wait at once — what every immediate-apply change calls (sort, columns, Load
  *  more, the drawer's own apply, Clear all, a removed chip), so its own read carries a sidebar
  *  change that was still waiting rather than leaving it stranded for another `FILTER_DEBOUNCE_MS`.
- *  A no-op when nothing was armed and nothing has changed. */
+ *  A no-op when nothing was armed and nothing has changed.
+ *
+ *  **Call it after the handler's own change to a request input, never before.** The assignment is
+ *  synchronous, so it queues the result's watcher at that point; a request input moved afterwards
+ *  queues the mirror's watcher behind it, and the read goes out twice in the same tick — once on
+ *  the half-applied value and once on the final one. Every handler below mutates first for exactly
+ *  this reason. */
 function flushFilterDebounce(): void {
   if (filterDebounceTimer !== null) {
     clearTimeout(filterDebounceTimer);
@@ -1236,12 +1242,20 @@ function onSort(value: string): void {
   publishState();
 }
 /** Columns is layout, not a request parameter — flushed anyway, so a shopper who was mid-filter
- *  when they changed it is not left waiting on a debounce window they have moved past. Flushed
- *  before `publishState()` for the same reason `onSort` is. */
+ *  when they changed it is not left waiting on a debounce window they have moved past.
+ *
+ *  Flushed **last** here, unlike `onSort`: the flush assigns the mirror synchronously, so anything
+ *  that changes a request input *after* it queues the mirror's own watcher behind the result's and
+ *  the read goes out twice — once on the half-applied value, once on the final one. `onSort` is
+ *  safe because `sort.value` is itself a request input and moves first; this handler's own write is
+ *  layout only, and the request input it touches is `publishState()`'s page-window reset. It owes
+ *  nothing to `onSort`'s facets ordering either, because it changes no filter: `publishState()`
+ *  reads the facets to decide which filter query keys to clear, and there is nothing here to
+ *  clear. */
 function onColumns(value: string): void {
   columnsChoice.value = value;
-  flushFilterDebounce();
   publishState();
+  flushFilterDebounce();
 }
 
 function clearSelection(): void {
@@ -1286,10 +1300,14 @@ async function onRemoveChip(key: string): Promise<void> {
   if (activeFiltersEl.value?.focusChip(target) !== true) focusCount();
 }
 
+/** Widen the window first, resolve an armed sidebar wait second — the ordering `onColumns` explains
+ *  at length. Flushing first assigned the mirror on the old window, and the wider one that followed
+ *  queued the mirror behind the result's own watcher: two reads for one press, the first of them
+ *  for a window the press had already replaced. */
 function onLoadMore(): void {
-  flushFilterDebounce();
   loadingMore.value = true;
   pagesLoaded.value += 1;
+  flushFilterDebounce();
 }
 
 // ---------------------------------------------------------------------------------------------
