@@ -27,51 +27,56 @@ type ResolvedLike = {
 const EMPTY: ResolvedLike = { page: null, template: null, entry: null, catalog: null };
 const ORG_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
-const state = vi.hoisted(() => ({
-  resolved: { page: null, template: null, entry: null, catalog: null } as unknown,
-  path: '/products/merino-crew',
-  /** The key and `watch` sources the composable handed `useAsyncData`, last call. */
-  asyncData: { key: (): string => '', watch: [] as Array<() => unknown> },
-  /** How many times the composable reached the **gateway** resolver. */
-  resolverCalls: 0,
-  /** Studio's bridge, as `useEldra()` reports it. */
-  previewActive: false,
-  /** The build's prerendered route list, as `staticRoutes.ts` reports it — `null` for a build
-   *  that ships none (a dev server, an SSR deployment). */
-  prerendered: null as ReadonlySet<string> | null,
-  /** Every route payload the build wrote, keyed by path; what `loadPayload` answers with. */
-  payloads: {} as Record<string, { data: Record<string, unknown> }>,
-  /** Nuxt's own two data caches, as the payload plugin leaves them for a navigation. */
-  nuxtApp: {
-    isHydrating: false,
-    payload: { data: {} as Record<string, unknown> },
-    static: { data: {} as Record<string, unknown> },
-  },
-  /** Every `loadPayload` the composable asked for. */
-  payloadsLoaded: [] as string[],
-  /** When set, the gateway resolver rejects with this status instead of resolving. */
-  failWith: null as number | null,
-  /**
-   * Preview-token recovery: the two counters the composable *watches*, so they
-   * have to be reactive — a test drives a second resolve by bumping
-   * `refreshRevision` the way `editor:init`/`editor:content-update` do, and
-   * says "the editor handed a fresh token over" by bumping `tokenRevision`.
-   * Made reactive in `beforeEach` — `vi.hoisted` runs before `vue` is
-   * imported, so it cannot call `reactive` itself.
-   */
-  signals: { refreshRevision: 0, tokenRevision: 1 },
-  /**
-   * Nuxt's own one-entry-per-key async data, which is the whole point of the mock below: the
-   * **first** registration's handler is the only one that ever runs, and every later
-   * `useEldraPage()` for the same route is handed that entry's refs
-   * (`nuxt/dist/app/composables/asyncData.js` — a call whose key already has an `_init` entry
-   * reuses it rather than rebuilding it around its own handler).
-   */
-  asyncDataEntries: new Map<
-    string,
-    { handler: () => Promise<unknown>; data: Ref<unknown>; pending: Ref<boolean> }
-  >(),
-}));
+const state = vi.hoisted(() => {
+  const ORG_ID_VALUE = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+  return {
+    resolved: { page: null, template: null, entry: null, catalog: null } as unknown,
+    path: '/products/merino-crew',
+    /** The key and `watch` sources the composable handed `useAsyncData`, last call. */
+    asyncData: { key: (): string => '', watch: [] as Array<() => unknown> },
+    /** How many times the composable reached the **gateway** resolver. */
+    resolverCalls: 0,
+    /** Studio's bridge, as `useEldra()` reports it. */
+    previewActive: false,
+    /** The build's prerendered route list, as `staticRoutes.ts` reports it — `null` for a build
+     *  that ships none (a dev server, an SSR deployment). */
+    prerendered: null as ReadonlySet<string> | null,
+    /** Every route payload the build wrote, keyed by path; what `loadPayload` answers with. */
+    payloads: {} as Record<string, { data: Record<string, unknown> }>,
+    /** Nuxt's own two data caches, as the payload plugin leaves them for a navigation. */
+    nuxtApp: {
+      isHydrating: false,
+      payload: { data: {} as Record<string, unknown> },
+      static: { data: {} as Record<string, unknown> },
+    },
+    /** Every `loadPayload` the composable asked for. */
+    payloadsLoaded: [] as string[],
+    /** When set, the gateway resolver rejects with this status instead of resolving. */
+    failWith: null as number | null,
+    /** What `runtimeConfig.public.eldra` says the site can reach. Both blank is a scaffold build. */
+    credentials: { gatewayUrl: 'https://gateway.example/api', orgId: ORG_ID_VALUE },
+    /**
+     * Preview-token recovery: the two counters the composable *watches*, so they
+     * have to be reactive — a test drives a second resolve by bumping
+     * `refreshRevision` the way `editor:init`/`editor:content-update` do, and
+     * says "the editor handed a fresh token over" by bumping `tokenRevision`.
+     * Made reactive in `beforeEach` — `vi.hoisted` runs before `vue` is
+     * imported, so it cannot call `reactive` itself.
+     */
+    signals: { refreshRevision: 0, tokenRevision: 1 },
+    /**
+     * Nuxt's own one-entry-per-key async data, which is the whole point of the mock below: the
+     * **first** registration's handler is the only one that ever runs, and every later
+     * `useEldraPage()` for the same route is handed that entry's refs
+     * (`nuxt/dist/app/composables/asyncData.js` — a call whose key already has an `_init` entry
+     * reuses it rather than rebuilding it around its own handler).
+     */
+    asyncDataEntries: new Map<
+      string,
+      { handler: () => Promise<unknown>; data: Ref<unknown>; pending: Ref<boolean> }
+    >(),
+  };
+});
 
 vi.mock('nuxt/app', () => ({
   useRoute: () => ({
@@ -92,8 +97,8 @@ vi.mock('nuxt/app', () => ({
         pageSchema: 'page',
         routeTemplateSchema: 'route-template',
         locale: null,
-        gatewayUrl: 'https://gateway.example/api',
-        orgId: ORG_ID,
+        gatewayUrl: state.credentials.gatewayUrl,
+        orgId: state.credentials.orgId,
       },
     },
   }),
@@ -622,6 +627,7 @@ describe('useEldraPage shared resolution', () => {
     state.nuxtApp.static.data = {};
     state.signals = reactive({ refreshRevision: 0, tokenRevision: 1 });
     state.failWith = null;
+    state.credentials = { gatewayUrl: 'https://gateway.example/api', orgId: ORG_ID };
   });
 
   const flush = async (): Promise<void> => {
@@ -644,6 +650,30 @@ describe('useEldraPage shared resolution', () => {
     expect(plugin.error.value).toContain('500');
     expect(pageCall.error.value).toContain('500');
     // And it is still not a page: an error must not be rendered as content either.
+    expect(pageCall.page.value).toBeNull();
+    expect(pageCall.template.value).toBeNull();
+  });
+
+  /**
+   * **A scaffold build is the shell, not an error.** `eldra-theme init` && `pnpm generate` with no
+   * environment set reaches every read's failure as a certainty, not as news: the whole purpose of
+   * that build is to render the theme before an organisation exists. Once a failure had somewhere
+   * to be reported, the first page a developer ever generated came out as a raw
+   * `<p role="alert">` instead of the styled not-found shell it had always been — the exemption
+   * suppressed the response status and left the message on the resolution.
+   */
+  it('reports nothing at all when the site has no gateway credentials', async () => {
+    state.credentials = { gatewayUrl: '', orgId: '' };
+    state.failWith = 500;
+    const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');
+
+    const plugin = useEldraPage();
+    const pageCall = useEldraPage();
+    await flush();
+
+    expect(state.resolverCalls).toBeGreaterThan(0);
+    expect(plugin.error.value).toBeNull();
+    expect(pageCall.error.value).toBeNull();
     expect(pageCall.page.value).toBeNull();
     expect(pageCall.template.value).toBeNull();
   });

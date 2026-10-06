@@ -1064,12 +1064,26 @@ Two things close it, and both are the module's and the theme's, not a block's:
   `nitro.prerender.failOnError` (on, in `nuxt.config.ts`) turns the other half — an artifact that is
   simply missing a product or collection page — into a failed build rather than a deployable one. A
   transient gateway failure is a build to re-run, not a dead link a shopper finds.
-  A build with **no credentials at all** is exempt, because there every route fails by definition and
-  producing the static shell is the whole point of that build (`test/starter.spec.ts` pins it:
-  `/` and `/404` and nothing else).
 
-`test/prerenderFailure.spec.ts` is the guard — a real `nuxi generate` against a mock gateway that
-fails exactly one read.
+A build with **no gateway credentials at all** is exempt from both halves — not from the response
+status alone. `eldra-theme init` && `pnpm generate` with nothing in the environment is a scaffold:
+every read fails there by definition, which is a certainty rather than news, so such a route
+resolves to the empty route with **no `error` on it** and the page draws its styled not-found shell,
+exactly as it did before a failure had anywhere to be reported. Exempting only the status left the
+message on the shared resolution, which put a raw `<p role="alert">Invalid URL</p>` on `/` — the
+first page a developer ever generates. `test/starter.spec.ts` pins both halves now: that build
+prerenders `/` and `/404` and nothing else, and `/`'s own HTML carries `data-eldra-not-found` and no
+`role="alert"`.
+
+`test/prerenderFailure.spec.ts` is the guard for the credentialed case — a real `nuxi generate`
+against a mock gateway that fails exactly one read.
+
+**What `failOnError` is actually exposed to is about twice the route count.** With
+`crawlLinks: false` Nitro still queues each rendered page's own `_payload.json` from the
+`x-nitro-prerender` header, and rendering that payload resolves the route against the gateway a
+second time — so 84 locale routes are roughly 168 resolutions, and a build fails if any one of them
+cannot be answered. `nitro.prerender.concurrency` is the knob to lower if a gateway turns out to be
+load-sensitive rather than broken.
 
 ## Seeded templates and pages
 

@@ -45,7 +45,15 @@ export default defineNuxtConfig({
     // collection that exists. Failing the build as well is what stops the *other* half: an
     // artifact that is simply missing a product or a collection page, deployed because the
     // generate still exited 0. A transient gateway failure is then a build to re-run, not a dead
-    // link a shopper finds.
+    // link a shopper finds. A build with no gateway credentials at all is exempt from the 500 *and*
+    // from the error — such a route resolves to the empty route and renders the static shell, which
+    // is the whole point of a scaffold build (`@eldrajs/theme-nuxt`'s `hasCredentials`).
+    //
+    // What this is exposed to is about **twice** the route count: with `crawlLinks: false` Nitro
+    // still queues each rendered page's own `_payload.json` from the `x-nitro-prerender` header,
+    // and rendering that resolves the route against the gateway a second time. Lower
+    // `prerender.concurrency` before reaching for `failOnError: false` if a gateway turns out to be
+    // load-sensitive rather than broken.
     prerender: {
       crawlLinks: false,
       failOnError: true,

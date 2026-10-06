@@ -110,6 +110,18 @@ Dynamic resolution stays exactly as it was wherever the build cannot be the auth
 Studio preview frame (the route may be a draft), on `nuxi dev`, and on an SSR deployment, all of
 which prerender nothing.
 
+**A read the gateway could not answer is not a route that is missing**, and `useEldraPage()` keeps
+them apart: a failed resolution sets `error` while `page` and `template` stay null, so a theme draws
+its error branch rather than its not-found shell. On the **server** such a route is answered `500`,
+and Nitro writes no file for a non-200 route — so a page the gateway could not be asked about is
+absent from the artifact and named in the prerender log, instead of being baked in as a convincing
+"Page not found" under a path a visitor can reach. Add `nitro.prerender.failOnError` if a build must
+not ship without every page; the status alone turns a wrong page into a missing one, and that flag
+turns a missing one into a failed build. Its real exposure is about twice the route count, because
+each page's `_payload.json` is prerendered too and resolves the route again. A build with no
+`ELDRA_GATEWAY_URL` / `ELDRA_ORG_ID` is exempt from both and still renders the static shell, which
+is what a scaffold build exists to produce.
+
 ## Links
 
 A `link` field stores a destination the platform understands — a product, collection, category,

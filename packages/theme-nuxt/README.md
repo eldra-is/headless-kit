@@ -88,6 +88,30 @@ rather than assumed:
   build, so an empty prerendered list means "this build prerendered nothing", never "this route does
   not exist".
 
+### A resolution that **failed** is not a route that is missing
+
+The empty route above is an answer: there is no such page. A read the gateway could not answer is
+not, and `useEldraPage()` keeps the two apart — a failed resolution carries `error` on the resolution
+itself (`ResolvedEldraRoute.error`), so `error` is non-null while `page`/`template` are null and a
+theme can draw its error branch instead of its not-found shell. The error lives on the resolution
+rather than inside the composable because `useAsyncData` keeps **one** entry per route key and runs
+only the first caller's handler: a theme that calls `useEldraPage()` twice on a page (a plugin for
+the catalog route beside the page component) would otherwise see the failure in one call and an
+ordinary empty route in the other.
+
+**On the server such a route is answered `500`.** Nitro's prerenderer marks a non-200 route failed
+before it writes anything, so a page the gateway could not be asked about is absent from the
+artifact and named in the prerender log, instead of being written as the theme's not-found shell
+under a path a visitor can reach. Pair it with `nitro.prerender.failOnError` if a build must not ship
+without every page — the status alone turns a wrong page into a missing one, and that flag turns a
+missing one into a failed build. Note the real exposure is about twice the route count: with
+`crawlLinks: false` Nitro still prerenders each page's own `_payload.json`, which resolves the route
+again.
+
+A build with **no `ELDRA_GATEWAY_URL` / `ELDRA_ORG_ID`** is exempt from both: there every read fails
+by definition, so such a route resolves to the plain empty route with no `error` and the theme
+renders its static shell, which is the whole point of a scaffold build.
+
 This is also why `eldraRouteKey` above is required rather than advisory: one page component per
 canonical route is what lets the composable resolve the route its page is being created for. Nuxt
 hands a page its own route through an injection private to Nuxt's app module, which a composable

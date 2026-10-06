@@ -534,6 +534,18 @@ describe('starter theme', () => {
     expect(readFileSync(output('index.html'), 'utf8')).toContain('commerce:""');
     expect(result.stderr + result.stdout).toContain('the store publishes no currency');
 
+    // **And what that page renders**, which is the half this used to leave unsaid. A scaffold build
+    // reaches every gateway read's failure as a certainty, not as news — `eldra-theme init` &&
+    // `pnpm generate` exists to render the theme before an organisation does — so the composable
+    // resolves such a route to the empty route with no error and the page draws the styled
+    // not-found shell. Once a failed resolution had somewhere to be reported
+    // (`@eldrajs/theme-nuxt`'s `ResolvedEldraRoute.error`) and the credential exemption suppressed
+    // only the response status, `/` came out as a raw `<p role="alert">Invalid URL</p>` — the first
+    // page a developer ever generates, and nothing here could see it.
+    const home = readFileSync(output('index.html'), 'utf8');
+    expect(home).toContain('data-eldra-not-found');
+    expect(home).not.toContain('role="alert"');
+
     // Nitro's own `/404.html` is normally a generic SPA-fallback shell
     // (identical to `200.html`) used by static hosts for unmatched routes —
     // it never goes through the app's catch-all page on its own. Adding

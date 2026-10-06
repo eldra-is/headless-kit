@@ -14,10 +14,14 @@ Release-please writes the generated notes from commit messages and does not repl
   no such page", so a transient gateway failure drew the theme's not-found shell, and `nuxi
   generate` wrote it to disk under a path a visitor can reach, with exit code 0. On the server such
   a route is now answered `500` as well, so Nitro writes no file for it and names it in the
-  prerender list (pair it with `nitro.prerender.failOnError` to stop the build); a build with no
-  `ELDRA_GATEWAY_URL` / `ELDRA_ORG_ID` is exempt and still produces its static shell. The resolved
-  route's new optional `error` field is set only for a failure — a genuine not-found (no match, or a
-  404 from the gateway) carries none, exactly as before.
+  prerender list (pair it with `nitro.prerender.failOnError` to stop the build — its real exposure is
+  about twice the route count, because each page's `_payload.json` is prerendered too and resolves
+  the route again). A build with no `ELDRA_GATEWAY_URL` / `ELDRA_ORG_ID` is exempt from **both** the
+  status and the error: there every read fails by definition, so such a route resolves to the plain
+  empty route and the theme renders its static shell, exactly as it did before. The resolved route's
+  new optional `error` field is set only for a failure — a genuine not-found (no match, or a 404 from
+  the gateway) carries none, exactly as before — and `useEldraPage()`'s `error` is now typed
+  `ComputedRef<string | null>`, which is what it has always been at runtime.
 
 - **Locale-prefixed routing.** `runtimeConfig.public.eldra` now carries `locales` — the
   organisation's own `{ default, supported }` record, read once during the build, or `null` — and

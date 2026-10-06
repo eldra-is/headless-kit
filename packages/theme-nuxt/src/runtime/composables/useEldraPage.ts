@@ -46,7 +46,8 @@ export function useEldraPage(): {
   reusableComponentProjection: ComputedRef<unknown | undefined>;
   links: ComputedRef<ResolvedEldraRoute['links']>;
   pending: Ref<boolean>;
-  error: Ref<string | null>;
+  /** Readonly: it is derived from the resolution (`ResolvedEldraRoute.error`), not held here. */
+  error: ComputedRef<string | null>;
 } {
   const route = useRoute();
   const activePath = createActivePath(route, useRouter());
@@ -189,6 +190,20 @@ export function useEldraPage(): {
   };
 
   /**
+   * Whether this site has a gateway to ask at all — the same pair the module tests before it says
+   * it is prerendering `/` only.
+   *
+   * A build with neither is a **scaffold**: `eldra-theme init` && `pnpm generate` with no
+   * environment set, whose whole purpose is to produce the static shell so a developer can see the
+   * theme render before they have an organisation. Every read fails there by definition, and a
+   * failure that is a certainty is not news — so such a route resolves to the empty route with no
+   * `error` at all, which is the theme's own not-found shell, exactly as it did before a failure
+   * had anywhere to be reported. Reporting it instead replaced the shell with a raw error alert on
+   * the first page a developer ever generates.
+   */
+  const hasCredentials = cfg.gatewayUrl !== '' && cfg.orgId !== '';
+
+  /**
    * A route the server could not resolve must not be answered `200`.
    *
    * `nuxi generate` writes **nothing** for a route whose response is not 200 and names it in the
@@ -197,14 +212,11 @@ export function useEldraPage(): {
    * than baked into it as the theme's not-found shell under a path a visitor can reach. Set
    * `nitro.prerender.failOnError` to stop the build on it as well.
    *
-   * It is deliberately silent for a build with **no credentials at all** (`ELDRA_GATEWAY_URL` /
-   * `ELDRA_ORG_ID` unset, the same pair the module tests before it says it is prerendering `/`
-   * only): there every route fails by definition, and producing the static shell — the not-found
-   * page included — is the whole point of that build.
+   * Never reached without credentials: that case has already returned the empty route by the time
+   * anything gets here (`hasCredentials`).
    */
   const reportServerFailure = (): void => {
-    if (!import.meta.server || cfg.gatewayUrl === '' || cfg.orgId === '') return;
-    if (requestEvent === undefined) return;
+    if (!import.meta.server || requestEvent === undefined) return;
     setResponseStatus(requestEvent, 500, 'Eldra route resolution failed');
   };
 
@@ -238,6 +250,8 @@ export function useEldraPage(): {
       return { route, holdPrevious: false };
     } catch (cause) {
       if (holdPreviewAuthFailure(cause)) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: true };
+      // A site with no credentials: the shell, not an error — see `hasCredentials`.
+      if (!hasCredentials) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: false };
       reportServerFailure();
       // The failure is part of the **resolution**, not of this call: see
       // `ResolvedEldraRoute.error`. Returning it here is what lets every other `useEldraPage()`
@@ -374,7 +388,7 @@ export function useEldraPage(): {
     reusableComponentProjection,
     links: linkState,
     pending,
-    error: error as Ref<string | null>,
+    error,
   };
 }
 
