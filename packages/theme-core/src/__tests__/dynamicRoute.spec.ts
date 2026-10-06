@@ -54,6 +54,39 @@ describe('resolveRoute', () => {
     });
   });
 
+  /**
+   * **A catalogue page beside a product template.** A storefront seeds `/products` as a static page
+   * *and* `/products/:slug` as a route template, and both have to work: the page is where every
+   * category crumb points (`/products?category=<slug>`) and the template is every product. They
+   * coexist because an exact page is matched before any pattern is tried — nothing about the pattern
+   * is excluded, so `/products/ash-glaze-mug` still resolves to the template, and only the bare path
+   * is the page's.
+   */
+  it('lets a static page and a template share a path prefix', () => {
+    const storefront = {
+      pages: [{ id: 'catalogue', data: { slug: 'products' } }],
+      templates: [
+        {
+          id: 'product-template',
+          data: {
+            routePattern: '/products/:slug',
+            slugField: 'slug',
+            schemaApiId: 'catalog:product',
+          },
+        },
+      ],
+    };
+    expect(resolveRoute('/products', storefront)).toEqual({
+      kind: 'static',
+      entry: storefront.pages[0],
+    });
+    expect(resolveRoute('/products/ash-glaze-mug', storefront)).toEqual({
+      kind: 'template',
+      template: storefront.templates[0],
+      params: { slug: 'ash-glaze-mug' },
+    });
+  });
+
   it('uses stable template declaration order and extracts the trailing value', () => {
     expect(resolveRoute('/articles/new-story', { pages, templates })).toEqual({
       kind: 'template',

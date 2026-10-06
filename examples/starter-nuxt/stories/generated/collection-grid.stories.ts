@@ -26,6 +26,18 @@ export const Inserted: Story = {
   args: { entry: { id: "collection-grid", data: mock } },
 };
 
+export const ScopeCollection: Story = {
+  args: {
+    entry: { id: "collection-grid", data: { ...base, "scope": "collection" } },
+  },
+};
+
+export const ScopeCatalogue: Story = {
+  args: {
+    entry: { id: "collection-grid", data: { ...base, "scope": "catalogue" } },
+  },
+};
+
 export const VariantSidebar: Story = {
   args: {
     entry: { id: "collection-grid", data: { ...base, "variant": "sidebar" } },

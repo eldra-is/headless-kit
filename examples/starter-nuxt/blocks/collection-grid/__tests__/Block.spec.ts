@@ -1371,6 +1371,84 @@ describe('collection-grid block', () => {
     });
   });
 
+  /**
+   * **The catalogue scope** (`scope: "catalogue"`) — the `/products` page. The same block, reading
+   * `catalog.products` instead of `catalog.collectionProducts`: no collection to bind, no
+   * "pick a collection" hint, paging links at `/products`, and the Collection group offered because
+   * that scope really can narrow by one.
+   */
+  describe('the catalogue scope', () => {
+    const CATALOGUE = {
+      ...mock,
+      scope: 'catalogue',
+      paginationStyle: 'pages',
+      pageSize: '12',
+      filters: [
+        { source: 'category', label: 'Category' },
+        { source: 'collection', label: 'Collection' },
+      ],
+    };
+
+    it('lists the catalogue with no collection bound, axe-clean', async () => {
+      const wrapper = mountGrid(CATALOGUE);
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+      expect(cards(wrapper).length).toBeGreaterThan(0);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /** The landmark names the plain noun rather than a collection it is not showing. */
+    it('names its section Products rather than a collection', async () => {
+      const wrapper = mountGrid(CATALOGUE);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.get('section[aria-label]').attributes('aria-label')).toBe(enUS.grid.products);
+    });
+
+    /** Nothing to bind, so nothing to hint about — the editor hint is for a *collection* grid whose
+     *  collection the author has not picked. */
+    it('shows no "pick a collection" hint in the editor', async () => {
+      const wrapper = mountGrid(CATALOGUE, { editing: true });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.text()).not.toContain(enUS.grid.noCollectionLabel);
+    });
+
+    it('pages at /products rather than at a collection path', async () => {
+      const wrapper = mountGrid(CATALOGUE);
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+      const hrefs = wrapper
+        .get('nav[aria-label]')
+        .findAll('a')
+        .map((anchor) => anchor.attributes('href'));
+      expect(hrefs).toContain('/products?page=2');
+      expect(hrefs.every((href) => href === undefined || !href.startsWith('/collections'))).toBe(
+        true
+      );
+    });
+
+    /**
+     * The Collection group is the one that differs between the two scopes: a collection's own product
+     * list cannot intersect two collections and declares the source `unfilterable`, while the
+     * catalogue-wide list takes a `collectionId` — so here the group is drawn and the filter applies.
+     */
+    it('offers the Collection group, which really narrows the catalogue', async () => {
+      const source = createDemoStorefront();
+      const wrapper = mountGrid(CATALOGUE, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const { panel } = panelFor(wrapper, enUS.grid.legendCollection);
+      const before = Number(/^\d+/.exec(countLine(wrapper).text())?.[0] ?? '0');
+      await panel.findAll('input[type="checkbox"]').at(-1)!.setValue(true);
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+      const after = Number(/^\d+/.exec(countLine(wrapper).text())?.[0] ?? '0');
+      expect(before).toBeGreaterThan(0);
+      expect(after).toBeGreaterThan(0);
+      expect(after).toBeLessThan(before);
+    });
+  });
+
   describe('a selected value the facets stop listing', () => {
     /**
      * Facets are normally computed over the current result set, so ticking one value can remove

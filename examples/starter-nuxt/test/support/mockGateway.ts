@@ -533,8 +533,10 @@ function pageEntries(): Array<{ id: string; data: Record<string, unknown> }> {
 }
 
 /**
- * The theme's own page seeds as the CMS page entries a deployed site holds — `/cart`, `/wishlist`
- * and `/search`, which were code routes under `app/pages/` until the theme started seeding them.
+ * The theme's own page seeds as the CMS page entries a deployed site holds — `/cart`, `/wishlist`,
+ * `/search` and `/products`. The first three were code routes under `app/pages/` until the theme
+ * started seeding them; `/products` never was, and is the one that also proves a static page and a
+ * route template can share a path prefix (`/products` beside `/products/:slug`).
  *
  * Core behaviour **4** of the four this file hand-encodes (module header): a `@header`/`@footer`
  * placement resolves to the site's own role component (a mock has none, so the role's block data is

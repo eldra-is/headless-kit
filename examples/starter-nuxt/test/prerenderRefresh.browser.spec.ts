@@ -428,10 +428,22 @@ describe('prerendered commerce data on the generated static site', () => {
    * block the page exists for.
    */
   it('prerenders every seeded page from the gateway\u2019s own page list', () => {
-    expect(SEEDED_PAGE_PATHS).toEqual(['/cart', '/wishlist', '/search']);
+    expect(SEEDED_PAGE_PATHS).toEqual(['/cart', '/wishlist', '/search', '/products']);
     for (const path of SEEDED_PAGE_PATHS) {
       expect(existsInOutput(join(path, 'index.html')), `${path}/index.html`).toBe(true);
     }
+
+    // `/products` and `/products/<slug>` are different routes and both have to exist: the page is a
+    // static CMS page and the product is a route template, and `resolveRoute` matches an exact page
+    // before any pattern (`@eldrajs/theme-core`'s `dynamicRoute.ts`). A static host serves them from
+    // `products/index.html` and `products/<slug>/index.html`, so nothing shadows anything — and the
+    // catalogue page is the one every category crumb links to, so losing it would 404 every crumb.
+    const catalogue = staticHtml('/products');
+    expect(catalogue).not.toContain('data-eldra-not-found');
+    expect(catalogue).not.toContain('data-eldra-invalid-layout');
+    expect(catalogue).toContain('All products');
+    expect(existsInOutput(join('/products', PRODUCT_HANDLE, 'index.html'))).toBe(true);
+    expect(staticHtml(`/products/${PRODUCT_HANDLE}`)).not.toContain('data-eldra-not-found');
 
     const cart = staticHtml('/cart');
     expect(cart).not.toContain('data-eldra-not-found');

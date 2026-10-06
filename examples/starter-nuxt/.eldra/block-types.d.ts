@@ -85,6 +85,7 @@ declare global {
       showHome?: boolean;
       homeLabel?: string;
       trail?: Array<{ label: string; href: string }>;
+      fromProduct?: boolean;
       currentTitle?: string;
       showCurrent?: boolean;
       container?: 'wide' | 'content';
@@ -101,13 +102,14 @@ declare global {
       emptyLinkHref?: string;
     };
     'collection-grid': {
+      scope?: 'collection' | 'catalogue';
       collection?: EldraCollectionReference | null;
       variant: 'sidebar' | 'drawer-only';
       columns: '2' | '3' | '4';
       pageSize: '12' | '24' | '48';
       paginationStyle: 'load-more' | 'pages';
       sortOptions?: Array<{ option: 'featured' | 'best-selling' | 'price-asc' | 'price-desc' | 'newest'; label?: string }>;
-      filters?: Array<{ source: 'category' | 'collection' | 'option:size' | 'option:colour' | 'price' | 'availability'; label?: string; collapsed?: boolean }>;
+      filters?: Array<{ source: 'category' | 'collection' | 'options' | 'option:size' | 'option:colour' | 'price' | 'availability'; label?: string; collapsed?: boolean }>;
       priceSlider?: boolean;
       priceStep?: number;
       showColumnSelect?: boolean;

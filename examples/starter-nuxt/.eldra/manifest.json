@@ -1122,6 +1122,13 @@
           }
         },
         {
+          "fieldId": "fromProduct",
+          "name": "Add the product's category trail",
+          "type": "bool",
+          "default": false,
+          "description": "On a product page, appends the store's own category trail (root category down to the product's) after the levels above. Turn off Product detail's own \"Show category trail\" so it never shows twice."
+        },
+        {
           "fieldId": "currentTitle",
           "name": "Current page title",
           "type": "string",
@@ -1267,13 +1274,25 @@
       "version": 3,
       "fields": [
         {
+          "fieldId": "scope",
+          "name": "What to list",
+          "type": "select",
+          "metadata": {
+            "options": [
+              "collection",
+              "catalogue"
+            ]
+          },
+          "helpText": "collection (the default) lists one collection — the one picked below, or the collection this page's route resolved. catalogue lists every product in the store, which is what the All products page uses; the Collection picker and the Collection filter group both still apply."
+        },
+        {
           "fieldId": "collection",
           "name": "Collection",
           "type": "reference",
           "relation": {
             "allowCollections": true
           },
-          "helpText": "Leave empty on a collection page to use that collection."
+          "helpText": "Leave empty on a collection page to use that collection. Ignored when What to list is catalogue."
         },
         {
           "fieldId": "variant",
@@ -1393,11 +1412,12 @@
                     "fieldId": "source",
                     "name": "Source",
                     "type": "select",
-                    "helpText": "What the group filters on. A group the storefront cannot narrow by in this grid's scope is not shown to shoppers: \"collection\" is one such group on a grid that already shows a collection, since the catalogue has no way to ask for products in both.",
+                    "helpText": "What the group filters on. \"options\" is one group per variant option the store has (Size, Colour, Fabric…), labelled and ordered by the store itself — pick a single \"option:…\" instead only to rename one or pin where it sits. A group the storefront cannot narrow by in this grid's scope is not shown to shoppers: \"collection\" is one such group on a grid that already shows a collection, since the catalogue has no way to ask for products in both.",
                     "metadata": {
                       "options": [
                         "category",
                         "collection",
+                        "options",
                         "option:size",
                         "option:colour",
                         "price",
@@ -1497,12 +1517,7 @@
             "label": "Category"
           },
           {
-            "source": "option:size",
-            "label": "Size"
-          },
-          {
-            "source": "option:colour",
-            "label": "Colour"
+            "source": "options"
           },
           {
             "source": "price",
@@ -6998,6 +7013,7 @@
             "showHome": true,
             "homeLabel": "Home",
             "trail": [],
+            "fromProduct": true,
             "showCurrent": true,
             "container": "content"
           }
@@ -7313,12 +7329,7 @@
                 "label": "Category"
               },
               {
-                "source": "option:size",
-                "label": "Size"
-              },
-              {
-                "source": "option:colour",
-                "label": "Colour"
+                "source": "options"
               },
               {
                 "source": "price",
@@ -7867,6 +7878,117 @@
           "data": {
             "variant": "results-page",
             "heading": "Results for “{query}”"
+          },
+          "required": true
+        },
+        {
+          "type": "product-carousel",
+          "data": {
+            "heading": "Recently viewed",
+            "variant": "recently-viewed",
+            "limit": "8",
+            "showSwatches": true,
+            "background": "none"
+          }
+        },
+        {
+          "type": "@footer"
+        }
+      ]
+    },
+    {
+      "slug": "products",
+      "title": "All products",
+      "blocks": [
+        {
+          "type": "announcement-bar",
+          "data": {
+            "variant": "primary",
+            "message": "Free shipping on orders over $80",
+            "linkLabel": "Details",
+            "linkHref": "/pages/shipping",
+            "dismissable": true
+          }
+        },
+        {
+          "type": "@header"
+        },
+        {
+          "type": "breadcrumbs",
+          "data": {
+            "showHome": true,
+            "homeLabel": "Home",
+            "trail": [],
+            "currentTitle": "All products",
+            "showCurrent": true,
+            "container": "wide"
+          }
+        },
+        {
+          "type": "collection-header",
+          "data": {
+            "variant": "text-only",
+            "title": "All products",
+            "showCount": false,
+            "showBreadcrumb": false,
+            "trail": [],
+            "subcollections": []
+          }
+        },
+        {
+          "type": "collection-grid",
+          "data": {
+            "scope": "catalogue",
+            "variant": "sidebar",
+            "columns": "3",
+            "pageSize": "24",
+            "paginationStyle": "load-more",
+            "sortOptions": [
+              {
+                "option": "featured",
+                "label": "Featured"
+              },
+              {
+                "option": "best-selling",
+                "label": "Best selling"
+              },
+              {
+                "option": "price-asc",
+                "label": "Price low to high"
+              },
+              {
+                "option": "price-desc",
+                "label": "Price high to low"
+              },
+              {
+                "option": "newest",
+                "label": "Newest"
+              }
+            ],
+            "filters": [
+              {
+                "source": "category",
+                "label": "Category"
+              },
+              {
+                "source": "collection",
+                "label": "Collection"
+              },
+              {
+                "source": "options"
+              },
+              {
+                "source": "price",
+                "label": "Price"
+              },
+              {
+                "source": "availability",
+                "label": "Availability"
+              }
+            ],
+            "showColumnSelect": true,
+            "emptyTitle": "No products match these filters",
+            "emptyText": "Try removing a filter or widening the price range."
           },
           "required": true
         },

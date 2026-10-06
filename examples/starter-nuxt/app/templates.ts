@@ -182,6 +182,12 @@ const PAGE_SEEDS: ReadonlyArray<{ fixture: string; required: string }> = [
   { fixture: 'cart', required: 'cart' },
   { fixture: 'wishlist', required: 'wishlist' },
   { fixture: 'search', required: 'search' },
+  // `/products` — the catalogue. A **page**, not a route template, which is also what keeps it from
+  // colliding with the product template's `/products/:slug`: `resolveRoute` matches an exact static
+  // page before it tries any pattern (`@eldrajs/theme-core`'s `dynamicRoute.ts`), so the two coexist
+  // and the page wins its own path. Its grid is the required block: a catalogue page without the
+  // catalogue is not a page a merchant should be able to empty by accident.
+  { fixture: 'products', required: 'collection-grid' },
 ];
 
 /** Every seed `eldra.templates` carries: the route templates, then the pages. */

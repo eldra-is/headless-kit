@@ -1,0 +1,144 @@
+{
+  "page": {
+    "slug": "products"
+  },
+  "title": "All products",
+  "blocks": [
+    {
+      "apiId": "announcement-bar",
+      "id": "products-announcement",
+      "data": {
+        "variant": "primary",
+        "message": "Free shipping on orders over $80",
+        "linkLabel": "Details",
+        "linkHref": "/pages/shipping",
+        "dismissable": true
+      }
+    },
+    {
+      "apiId": "navigation",
+      "id": "products-navigation",
+      "data": {
+        "variant": "default",
+        "brandText": "Northwind Goods",
+        "links": [],
+        "showSearch": true,
+        "searchStyle": "icon",
+        "sticky": true,
+        "transparentOverHero": false
+      }
+    },
+    {
+      "apiId": "breadcrumbs",
+      "id": "products-breadcrumbs",
+      "data": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [],
+        "currentTitle": "All products",
+        "showCurrent": true,
+        "container": "wide"
+      }
+    },
+    {
+      "apiId": "collection-header",
+      "id": "products-header",
+      "data": {
+        "variant": "text-only",
+        "title": "All products",
+        "showCount": false,
+        "showBreadcrumb": false,
+        "trail": [],
+        "subcollections": []
+      }
+    },
+    {
+      "apiId": "collection-grid",
+      "id": "products-grid",
+      "data": {
+        "scope": "catalogue",
+        "variant": "sidebar",
+        "columns": "3",
+        "pageSize": "24",
+        "paginationStyle": "load-more",
+        "sortOptions": [
+          {
+            "option": "featured",
+            "label": "Featured"
+          },
+          {
+            "option": "best-selling",
+            "label": "Best selling"
+          },
+          {
+            "option": "price-asc",
+            "label": "Price low to high"
+          },
+          {
+            "option": "price-desc",
+            "label": "Price high to low"
+          },
+          {
+            "option": "newest",
+            "label": "Newest"
+          }
+        ],
+        "filters": [
+          {
+            "source": "category",
+            "label": "Category"
+          },
+          {
+            "source": "collection",
+            "label": "Collection"
+          },
+          {
+            "source": "options"
+          },
+          {
+            "source": "price",
+            "label": "Price"
+          },
+          {
+            "source": "availability",
+            "label": "Availability"
+          }
+        ],
+        "showColumnSelect": true,
+        "emptyTitle": "No products match these filters",
+        "emptyText": "Try removing a filter or widening the price range."
+      }
+    },
+    {
+      "apiId": "product-carousel",
+      "id": "products-carousel",
+      "data": {
+        "heading": "Recently viewed",
+        "variant": "recently-viewed",
+        "limit": "8",
+        "showSwatches": true,
+        "background": "none"
+      }
+    },
+    {
+      "apiId": "footer",
+      "id": "products-footer",
+      "data": {
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "groups": [],
+        "links": [],
+        "showNewsletter": false,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [],
+        "showLocale": true,
+        "showCurrency": true
+      }
+    }
+  ]
+}

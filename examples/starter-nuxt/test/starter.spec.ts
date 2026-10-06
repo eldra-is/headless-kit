@@ -234,7 +234,15 @@ describe('starter theme', () => {
         'sectionBackground',
       ],
       'logo-cloud': ['variant', 'heading', 'logos', 'sectionBackground'],
-      breadcrumbs: ['showHome', 'homeLabel', 'trail', 'currentTitle', 'showCurrent', 'container'],
+      breadcrumbs: [
+        'showHome',
+        'homeLabel',
+        'trail',
+        'fromProduct',
+        'currentTitle',
+        'showCurrent',
+        'container',
+      ],
       'collection-header': [
         'collection',
         'variant',
@@ -353,6 +361,7 @@ describe('starter theme', () => {
         'background',
       ],
       'collection-grid': [
+        'scope',
         'collection',
         'variant',
         'columns',
@@ -503,7 +512,12 @@ describe('starter theme', () => {
       '/collections/:slug',
       '/',
     ]);
-    expect(built.pageSeeds?.map((seed) => seed.slug)).toEqual(['cart', 'wishlist', 'search']);
+    expect(built.pageSeeds?.map((seed) => seed.slug)).toEqual([
+      'cart',
+      'wishlist',
+      'search',
+      'products',
+    ]);
     expect([built.templateRoles?.header?.apiId, built.templateRoles?.footer?.apiId]).toEqual([
       'navigation',
       'footer',
@@ -533,7 +547,8 @@ describe('starter theme', () => {
     expect(notFound).toContain('data-eldra-not-found');
     expect(notFound).toContain('href="/"');
 
-    // **No page path is prerendered by name any more.** `/cart`, `/search` and `/wishlist` were
+    // **No page path is prerendered by name any more.** `/cart`, `/search`, `/wishlist` and
+    // `/products` were
     // listed in `nitro.prerender.routes` while they were code routes under `app/pages/`; they are
     // CMS pages now, so the only thing that writes a file for them is `@eldrajs/theme-nuxt`'s
     // `prerender:routes` hook listing every published page's own path — which needs a gateway, and
@@ -548,7 +563,7 @@ describe('starter theme', () => {
       prerendered: string[];
     };
     expect(buildMeta.prerendered.sort()).toEqual(['/', '/404']);
-    for (const path of ['cart', 'search', 'wishlist']) {
+    for (const path of ['cart', 'search', 'wishlist', 'products']) {
       expect(existsSync(output(join(path, 'index.html'))), `${path}/index.html`).toBe(false);
     }
     expect(result.stderr + result.stdout).toContain('prerendering "/" only');
@@ -869,6 +884,7 @@ describe('seeded templates and pages (app/templates.ts)', () => {
       ['cart', 'Your cart'],
       ['wishlist', 'Your wishlist'],
       ['search', 'Search'],
+      ['products', 'All products'],
     ]);
     for (const seed of pageSeeds) {
       expect(Object.keys(seed)).toEqual(['slug', 'title', 'blocks']);
@@ -890,6 +906,9 @@ describe('seeded templates and pages (app/templates.ts)', () => {
       ['cart'],
       ['wishlist'],
       ['search'],
+      // `/products`' own fixed block is the grid: a catalogue page without the catalogue is not a
+      // page a merchant should be able to empty by accident.
+      ['collection-grid'],
     ]);
     // A region placement is the reserved type and nothing else; a block always carries data.
     for (const seed of pageSeeds) {

@@ -751,7 +751,7 @@ above, and a facet sent through it is a 400.
 | `category` (slugs)        | `categoryId` (repeatable, OR)         | the slug is resolved to a catalog id through `GET /catalog/v1/categories`, read once per storefront; a **parent** id matches its whole subtree server-side |
 | `option:<key>`            | `option=<key>:<value>` (repeatable)   | OR within a key, AND across keys — the panel's own semantics                                                                                               |
 | `availability`            | `availability=in_stock\|out_of_stock` | both boxes ticked is every product, so nothing is sent                                                                                                     |
-| `collection` (slugs)      | —                                     | not expressible on a collection's own product list; see below                                                                                              |
+| `collection` (slugs)      | `collectionId` (repeatable, OR)       | only on the catalogue-wide list (`catalog.products`, the `/products` page); not expressible on a collection's own product list — see below                 |
 
 Four things worth knowing before a shop goes live:
 
@@ -785,14 +785,17 @@ Four things worth knowing before a shop goes live:
   A storefront that can honour everything says nothing, which is also how one that has never heard of
   the field reads.
 
-  Today that is exactly one source, `collection`, on a collection-scoped grid: there is no
+  Today that is exactly one source, `collection`, and only on a **collection-scoped** grid: there is no
   `collectionId` parameter on `GET /catalog/v1/collections/{slug}/products` — the scope already _is_
   one collection, and the parameter is an OR, so a second id would widen rather than intersect — while
   the `collections` facet there is still answered and still honest, naming the other collections these
-  products are in. A read scoped to the whole catalogue (`GET /catalog/v1/products/list`, which does
-  take `collectionId`) would declare nothing; this theme has no faceted grid over it yet. The demo
-  storefront filters its own fixture by collection, so a Storybook story or a sample page keeps the
-  group.
+  products are in. The catalogue-scoped grid (`catalog.products` over
+  `GET /catalog/v1/products/list`, which does take `collectionId` — the `/products` page) declares
+  nothing, so the group is offered there and really narrows; its slugs are resolved to collection ids
+  through the collection list's own `slug:in:` filter, asked for only the slugs a shopper ticked and
+  memoised per storefront (unlike the categories, which are read whole: a store's collections are a
+  merchandising list that grows without bound). The demo storefront filters its own fixture by
+  collection in both scopes, so a Storybook story or a sample page keeps the group.
 
 A clause the mapping cannot express is left out rather than guessed at — a price bound that is not a
 number, a `collection` clause, or **a category slug this store has no category for** (a stale shared

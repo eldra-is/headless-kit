@@ -21,6 +21,7 @@ import type {
   StorefrontCartTotals,
   StorefrontCatalog,
   StorefrontCollectionInfo,
+  StorefrontCollectionProducts,
   StorefrontCollectionSelector,
   StorefrontCommerce,
   StorefrontForms,
@@ -1197,6 +1198,7 @@ interface CatalogFilterQuery {
   minPrice?: number;
   maxPrice?: number;
   categoryId?: string[];
+  collectionId?: string[];
   availability?: string;
   option?: string[];
 }
@@ -1259,6 +1261,33 @@ async function readCategories(client: EldraClient): Promise<CategoryIndex> {
 }
 
 /**
+ * The catalog ids of some collection slugs, asked for by slug in one `slug:in:a,b` token.
+ *
+ * Unlike the categories, this is **not** read whole: a store's collections are a merchandising list
+ * that grows without bound, while its categories are a handful of rows, and only the slugs a shopper
+ * actually ticked are needed. A slug nothing matches is simply absent from the answer, which the
+ * caller then leaves out of the request — the standing "unknown, not unmatched" rule.
+ */
+async function readCollectionIds(
+  client: EldraClient,
+  slugs: readonly string[]
+): Promise<ReadonlyMap<string, string>> {
+  const filter = inFilter('slug', [...slugs]);
+  const out = new Map<string, string>();
+  if (filter.length === 0) return out;
+  const raw = (await client.catalog.listCollections({
+    pageSize: slugs.length,
+    filter,
+  })) as unknown as { data?: RawCollectionItem[] | null };
+  for (const row of raw.data ?? []) {
+    if (typeof row.slug === 'string' && row.slug !== '' && typeof row.id === 'string') {
+      out.set(row.slug, row.id);
+    }
+  }
+  return out;
+}
+
+/**
  * `filters` as the catalog list takes it. `categoriesOnce` is only awaited when there is a
  * category clause to resolve, so an unfiltered read — and every filtered read that touches no
  * category — makes exactly the one request it always made.
@@ -1266,7 +1295,14 @@ async function readCategories(client: EldraClient): Promise<CategoryIndex> {
 async function catalogFilterQuery(
   filters: Record<string, string[]> | undefined,
   currency: string | undefined,
-  categoriesOnce: () => Promise<CategoryIndex>
+  categoriesOnce: () => Promise<CategoryIndex>,
+  /**
+   * Collection slugs → catalog ids, for a scope whose read **takes** a `collectionId`: the
+   * catalogue-wide product list does, a collection's own product list does not (see
+   * `COLLECTION_SCOPE_UNFILTERABLE`). Omitted, a `collection` clause is left out of the request
+   * exactly as it always was.
+   */
+  collectionIdsFor?: (slugs: readonly string[]) => Promise<ReadonlyMap<string, string>>
 ): Promise<CatalogFilterQuery> {
   const query: CatalogFilterQuery = {};
   if (filters === undefined) return query;
@@ -1305,8 +1341,19 @@ async function catalogFilterQuery(
       }
       continue;
     }
-    // `collection` lands here, and so does a source some other theme invented: see
-    // `collectionProducts` for why a collection cannot narrow a collection's own products.
+    if (source === 'collection') {
+      // Only where the scope's own read takes the parameter. A collection cannot narrow a
+      // collection's own products (see `collectionProducts`), and that scope passes no resolver, so
+      // the clause is dropped there rather than sent as something that would widen the scope.
+      if (collectionIdsFor === undefined) continue;
+      const ids = await collectionIdsFor(selected);
+      const matched = selected
+        .map((slug) => ids.get(slug))
+        .filter((id): id is string => id !== undefined);
+      if (matched.length > 0) query.collectionId = matched;
+      continue;
+    }
+    // A source some other theme invented lands here.
   }
   if (option.length > 0) query.option = option;
   return query;
@@ -1798,6 +1845,105 @@ export function createGatewayStorefront(
     return categories;
   };
 
+  /**
+   * Collection slugs → catalog ids, memoised for the life of this storefront, asked for only the
+   * slugs it does not already know (`readCollectionIds`). The catalogue-wide read is the only scope
+   * whose `collection` clause goes out as a parameter, and a shopper ticking a third collection
+   * should not re-ask about the two already resolved.
+   */
+  const collectionIds = new Map<string, string>();
+  const collectionIdsFor = async (
+    slugs: readonly string[]
+  ): Promise<ReadonlyMap<string, string>> => {
+    const missing = slugs.filter((slug) => slug !== '' && !collectionIds.has(slug));
+    if (missing.length > 0) {
+      for (const [slug, id] of await readCollectionIds(client, missing)) {
+        collectionIds.set(slug, id);
+      }
+    }
+    return collectionIds;
+  };
+
+  /**
+   * One read, two scopes. `collectionProducts` asks a collection's own product list and
+   * `products` asks the catalogue-wide one; what differs is the endpoint, the `collection`
+   * clause (a parameter on one, nothing to send on the other) and therefore `unfilterable`.
+   * Everything a shopper can see — the filtered page, the filtered `total`, the facets the panel
+   * draws from, the category tree completed into them — is the same code on purpose, because the
+   * same block renders both.
+   */
+  const productListResult = (
+    /**
+     * **Every source this result is keyed by**, which is the whole of why it is a parameter: the key
+     * is how the hydrating browser finds the value the build left for it, so a collection-scoped read
+     * is keyed by its selector as well as its options and the catalogue-wide one by its options
+     * alone. Dropping the selector made two different collections on one page share a key.
+     */
+    sources: Array<Ref<unknown>>,
+    opts: Ref<{
+      page: number;
+      pageSize: number;
+      sort?: string;
+      filters?: Record<string, string[]>;
+    }>,
+    scope: {
+      method: string;
+      /** `null` for the catalogue-wide read; a slug resolver for a collection-scoped one. */
+      slug: (signal: AbortSignal) => Promise<string | null | false>;
+      unfilterable?: readonly string[];
+      collectionIdsFor?: (slugs: readonly string[]) => Promise<ReadonlyMap<string, string>>;
+    }
+  ): StorefrontResult<StorefrontCollectionProducts> =>
+    createGatewayResult(
+      sources,
+      async (signal) => {
+        const slug = await scope.slug(signal);
+        if (slug === null) return null;
+        const { page, pageSize, sort, filters } = opts.value;
+        const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
+        // The shopper's facets are the endpoint's own query parameters (contract 3.7.0, see
+        // `CatalogFilterQuery`), so one request answers the filtered page, the filtered `total`
+        // and — with `facets=true` — the counts the panel draws its groups from, over the whole
+        // scope rather than the rows this read could reach.
+        const filterQuery = await catalogFilterQuery(
+          filters,
+          currency,
+          categoriesOnce,
+          scope.collectionIdsFor
+        );
+        const query = {
+          page,
+          pageSize,
+          sort: gatewaySort === undefined ? undefined : [gatewaySort],
+          ...filterQuery,
+          facets: true,
+        };
+        const raw = (slug === false
+          ? await client.catalog.listProducts(
+              // The catalogue-wide list answers every product the merchant has, drafts included,
+              // unless it is told otherwise — the collection route filters by status itself.
+              { ...query, filter: [STATUS_ACTIVE] },
+              { signal }
+            )
+          : await client.catalog.listCollectionProducts(slug, query, {
+              signal,
+            })) as unknown as RawProductList;
+        const mapped = mapFacets(raw.facets, currency);
+        // The category family is completed into a tree the panel can nest — parent rows included,
+        // which a facet counted over *assigned* categories never names. Free once the platform
+        // places its own terms; see `withCategoryTree`.
+        const facets =
+          mapped === undefined ? undefined : await withCategoryTree(mapped, categoriesOnce);
+        return {
+          items: (raw.data ?? []).map(mapProductListItem),
+          total: raw.meta.total,
+          ...(scope.unfilterable === undefined ? {} : { unfilterable: scope.unfilterable }),
+          ...(facets === undefined ? {} : { facets }),
+        };
+      },
+      { method: scope.method, runtime, locale, volatile: 'batch' }
+    );
+
   const catalog: StorefrontCatalog = {
     product: (handle) =>
       createGatewayResult(
@@ -1841,46 +1987,28 @@ export function createGatewayStorefront(
         },
         { method: 'catalog.collection', runtime, locale }
       ),
-    collectionProducts: (collection, opts) =>
-      createGatewayResult(
-        [collection, opts],
-        async (signal) => {
-          const slug = await resolveCollectionSlug(client, collection.value, signal);
-          if (slug === null) return null;
-          const { page, pageSize, sort, filters } = opts.value;
-          const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
-          // The shopper's facets are the endpoint's own query parameters (contract 3.7.0, see
-          // `CatalogFilterQuery`), so one request answers the filtered page, the filtered `total`
-          // and — with `facets=true` — the counts the panel draws its groups from, over the whole
-          // collection rather than the rows this read could reach. The one source it cannot narrow
-          // by is declared rather than dropped: see `COLLECTION_SCOPE_UNFILTERABLE`.
-          const filterQuery = await catalogFilterQuery(filters, currency, categoriesOnce);
-          const raw = (await client.catalog.listCollectionProducts(
-            slug,
-            {
-              page,
-              pageSize,
-              sort: gatewaySort === undefined ? undefined : [gatewaySort],
-              ...filterQuery,
-              facets: true,
-            },
-            { signal }
-          )) as unknown as RawProductList;
-          const mapped = mapFacets(raw.facets, currency);
-          // The category family is completed into a tree the panel can nest — parent rows included,
-          // which a facet counted over *assigned* categories never names. Free once the platform
-          // places its own terms; see `withCategoryTree`.
-          const facets =
-            mapped === undefined ? undefined : await withCategoryTree(mapped, categoriesOnce);
-          return {
-            items: (raw.data ?? []).map(mapProductListItem),
-            total: raw.meta.total,
-            unfilterable: COLLECTION_SCOPE_UNFILTERABLE,
-            ...(facets === undefined ? {} : { facets }),
-          };
-        },
-        { method: 'catalog.collectionProducts', runtime, locale, volatile: 'batch' }
-      ),
+    collectionProducts: (collection, opts) => {
+      // `collection` is a source of this result as well as of its key, so a block that re-points the
+      // grid at another collection re-reads under a key of its own — which is why the selector is
+      // read off `collection.value` inside the fetcher rather than resolved once here.
+      const result = productListResult([collection, opts], opts, {
+        method: 'catalog.collectionProducts',
+        slug: (signal) => resolveCollectionSlug(client, collection.value, signal),
+        // The one source this scope cannot narrow by is declared rather than dropped: see
+        // `COLLECTION_SCOPE_UNFILTERABLE`.
+        unfilterable: COLLECTION_SCOPE_UNFILTERABLE,
+      });
+      return result;
+    },
+    // `false` for the slug: not "no scope" (which is `null`, and answers nothing) but "the whole
+    // catalogue", which is a different endpoint. Nothing is `unfilterable` here — that list does take
+    // a `collectionId`, so the `collection` group filters for real (`StorefrontCatalog.products`).
+    products: (opts) =>
+      productListResult([opts], opts, {
+        method: 'catalog.products',
+        slug: () => Promise.resolve(false as const),
+        collectionIdsFor,
+      }),
     related: (handle, limit) =>
       createGatewayResult(
         [handle],

@@ -7,11 +7,18 @@
   "version": 3,
   "fields": [
     {
+      "fieldId": "scope",
+      "name": "What to list",
+      "type": "select",
+      "metadata": { "options": ["collection", "catalogue"] },
+      "helpText": "collection (the default) lists one collection — the one picked below, or the collection this page's route resolved. catalogue lists every product in the store, which is what the All products page uses; the Collection picker and the Collection filter group both still apply."
+    },
+    {
       "fieldId": "collection",
       "name": "Collection",
       "type": "reference",
       "relation": { "allowCollections": true },
-      "helpText": "Leave empty on a collection page to use that collection."
+      "helpText": "Leave empty on a collection page to use that collection. Ignored when What to list is catalogue."
     },
     {
       "fieldId": "variant",

@@ -9,6 +9,7 @@ import {
 import { createGatewayStorefront } from '../../app/storefront/gateway';
 import type {
   CatalogFacets,
+  StorefrontCollectionProducts,
   StorefrontCollectionSelector,
   StorefrontRoute,
 } from '../../app/storefront/types';
@@ -1962,6 +1963,125 @@ describe('createGatewayStorefront', () => {
       });
       await readCollection(client);
       expect(categoryReads()).toBe(0);
+    });
+  });
+
+  /**
+   * **The catalogue scope** — `catalog.products`, the read behind the `/products` page. Same answer
+   * shape as a collection's own products, same filters, same `facets=true`, over
+   * `GET /catalog/v1/products/list` instead. Two differences, and both are the point: the
+   * `collection` clause goes out as a `collectionId` here (that list takes one; a collection's own
+   * does not), so nothing is `unfilterable`.
+   */
+  describe('the catalogue-wide product list', () => {
+    function catalogueClient(collections: Array<{ id: string; slug: string }> = []): {
+      client: EldraClient;
+      queries: Array<Record<string, unknown>>;
+      collectionQueries: number;
+    } {
+      const queries: Array<Record<string, unknown>> = [];
+      const state = { collectionQueries: 0 };
+      const client = {
+        catalog: {
+          listCategories: async () => [{ id: 'cat-ceramics', slug: 'ceramics', title: 'Ceramics' }],
+          listCollections: async (query: Record<string, unknown>) => {
+            state.collectionQueries += 1;
+            void query;
+            return {
+              data: collections.map((row) => ({ ...row, title: row.slug, productCount: 0 })),
+            };
+          },
+          listProducts: async (query: Record<string, unknown>) => {
+            queries.push(query);
+            return {
+              data: [listRow('merino-crew-sweater')],
+              meta: { page: 1, pageSize: 24, total: 1, totalPages: 1, rows: 1 },
+              facets: {
+                price: { min: 1000, max: 1000 },
+                categories: [],
+                collections: [],
+                availability: { in_stock: 1, out_of_stock: 0 },
+                options: [],
+              },
+            };
+          },
+        },
+      } as unknown as EldraClient;
+      return {
+        client,
+        queries,
+        get collectionQueries() {
+          return state.collectionQueries;
+        },
+      };
+    }
+
+    async function read(
+      client: EldraClient,
+      filters?: Record<string, string[]>
+    ): Promise<StorefrontCollectionProducts | null> {
+      const storefront = createGatewayStorefront(client, {
+        route: fakeRoute(),
+        commerce: ISK_COMMERCE,
+      });
+      const result = storefront.catalog.products(
+        ref({ page: 1, pageSize: 24, ...(filters === undefined ? {} : { filters }) })
+      );
+      await settle();
+      return result.data.value;
+    }
+
+    it('asks the catalogue list for active products, with facets', async () => {
+      const calls = catalogueClient();
+      const answer = await read(calls.client);
+      expect(answer?.items.map((item) => item.handle)).toEqual(['merino-crew-sweater']);
+      expect(answer?.total).toBe(1);
+      expect(calls.queries[0]).toMatchObject({
+        page: 1,
+        pageSize: 24,
+        facets: true,
+        filter: ['status:eq:ACTIVE'],
+      });
+    });
+
+    /** The whole reason this scope exists as a separate one: nothing is declared unfilterable, so the
+     *  Collection group is offered and really filters. */
+    it('declares nothing unfilterable', async () => {
+      const calls = catalogueClient();
+      expect((await read(calls.client))?.unfilterable).toBeUndefined();
+    });
+
+    it('sends a collection clause as a collectionId, resolved by slug', async () => {
+      const calls = catalogueClient([{ id: 'col-winter', slug: 'the-winter-edit' }]);
+      await read(calls.client, { collection: ['the-winter-edit'] });
+      expect(calls.queries.at(-1)?.collectionId).toEqual(['col-winter']);
+      expect(calls.collectionQueries).toBe(1);
+    });
+
+    /** "Unknown, not unmatched": a slug nothing matches is left out rather than sent as something
+     *  that would empty the grid. */
+    it('drops a collection slug the store has no collection for', async () => {
+      const calls = catalogueClient();
+      await read(calls.client, { collection: ['gone'] });
+      expect(calls.queries.at(-1)).not.toHaveProperty('collectionId');
+    });
+
+    it('still sends every other filter the collection scope sends', async () => {
+      const calls = catalogueClient();
+      await read(calls.client, {
+        category: ['ceramics'],
+        availability: ['in_stock'],
+        'option:colour': ['oat'],
+        price: ['50-150'],
+      });
+      expect(calls.queries.at(-1)).toMatchObject({
+        categoryId: ['cat-ceramics'],
+        availability: 'in_stock',
+        option: ['colour:oat'],
+        // ISK has no minor unit, so the shopper's whole units pass straight through.
+        minPrice: 50,
+        maxPrice: 150,
+      });
     });
   });
 

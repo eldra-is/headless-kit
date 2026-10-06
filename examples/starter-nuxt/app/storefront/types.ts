@@ -489,6 +489,21 @@ export type StorefrontCollectionSelector = { slug: string } | { id: string };
 
 export interface StorefrontCatalog {
   product(handle: Ref<string | null>): StorefrontResult<StorefrontProduct>;
+  /**
+   * **The whole catalogue**, filtered, sorted, paged and counted the same way one collection's
+   * products are — the read behind the `/products` page, where the scope is the store rather than a
+   * curated list.
+   *
+   * Deliberately the same `StorefrontCollectionProducts` answer as `collectionProducts`, so
+   * `collection-grid` renders one shape and the filter panel reads one `facets` object whichever scope
+   * it is in. One difference, and it is the interesting one: **nothing is `unfilterable` here**. A
+   * collection's own product list has no `collectionId` parameter — the scope already *is* one
+   * collection and the parameter is an OR, so a second id would widen rather than intersect — while
+   * the catalogue-wide list does take it, so the `collection` group filters for real.
+   */
+  products(
+    opts: Ref<{ page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }>
+  ): StorefrontResult<StorefrontCollectionProducts>;
   collection(handle: Ref<string | null>): StorefrontResult<StorefrontCollectionInfo>;
   collectionProducts(
     collection: Ref<StorefrontCollectionSelector | null>,

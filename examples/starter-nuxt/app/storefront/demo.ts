@@ -477,6 +477,13 @@ const COLLECTION_ITEMS: Record<string, StorefrontProductListItem[]> = {
   'best-sellers': BEST_SELLER_ITEMS,
 };
 
+/**
+ * **The whole catalogue**, as `catalog.products` answers it: every fixture product, padded with the
+ * same suffixed clones a collection is padded with, so the `/products` page has a realistic number of
+ * rows to page and count over rather than the fixture's twelve.
+ */
+const CATALOGUE_ITEMS: StorefrontProductListItem[] = buildCollectionItems(48);
+
 function buildCollectionItems(total: number): StorefrontProductListItem[] {
   return Array.from({ length: total }, (_, i) => {
     const base = PRODUCTS[i % PRODUCTS.length]!;
@@ -1166,6 +1173,29 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
           // than over one fetched page: the vocabulary is every value the collection holds, and
           // each family's counts leave that family's own filter out (`deriveFacets`), so ticking
           // one colour narrows the sizes and leaves the other colours countable.
+          facets: deriveFacets(all, { filters, attributesFor, categories: CATEGORY_INDEX }),
+        };
+      }),
+    /**
+     * The whole catalogue, under exactly the same rules as one collection's products — the read behind
+     * the `/products` page. The one difference is the scope, and therefore the one group a collection
+     * scope cannot narrow by: nothing is `unfilterable` here, so ticking a collection really does
+     * intersect (`filterItems` reads each product's own collections from `attributesFor`).
+     *
+     * The scope is every product the fixture has, clones included (`buildCollectionItems` is how the
+     * demo gets past twelve), so the counts and the paging read like a real store's rather than like a
+     * one-page list.
+     */
+    products: (opts) =>
+      createDemoResult([opts], () => {
+        const all = CATALOGUE_ITEMS;
+        const { page, pageSize, sort, filters } = opts.value;
+        const matching = filterItems(all, filters, attributesFor, CATEGORY_INDEX);
+        const ordered = sortCollectionItems(matching, sort);
+        const start = (page - 1) * pageSize;
+        return {
+          items: ordered.slice(start, start + pageSize),
+          total: ordered.length,
           facets: deriveFacets(all, { filters, attributesFor, categories: CATEGORY_INDEX }),
         };
       }),

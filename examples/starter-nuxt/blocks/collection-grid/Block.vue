@@ -87,6 +87,7 @@ import {
 } from '../../app/storefront/collectionSelector';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { canonicalAvailabilityValues } from '../../app/storefront/facets';
+import { CATALOGUE_PATH } from '../../app/storefront/categories';
 import { safeHref } from '../../app/utils/links';
 import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
 import FilterGroups from './parts/FilterGroups.vue';
@@ -206,6 +207,18 @@ function normaliseChoice(value: unknown, allowed: string[], fallback: string): s
 // ---------------------------------------------------------------------------------------------
 
 /**
+ * **What the grid lists**: one collection (the default, and every grid this theme shipped before) or
+ * the whole catalogue — the `/products` page, where the scope is the store rather than a curated list.
+ *
+ * A block-level `select` rather than a meaning overloaded onto an empty `collection`, for the same
+ * reason `priceSlider` is one: an empty reference already means "take it from the route", which is
+ * exactly what a collection *template* relies on, so reading it as "all products" instead would turn
+ * every seeded collection page into the catalogue the moment its route stopped resolving. It is
+ * additive, so the block stays version 3 and no author's configured filter list is retired.
+ */
+const catalogueScope = computed(() => data.value.scope === 'catalogue');
+
+/**
  * Which collection this grid shows. `collection` is the `reference` field an
  * author picks in Studio; it stores the collection's id, so a renamed collection
  * cannot silently empty the block. It replaced a `collectionHandle` string field
@@ -228,10 +241,20 @@ const selected = computed<StorefrontCollectionSelector | null>(() =>
  *  `/collections/<slug>` paging links have no other key to work from; the grid
  *  itself goes through `selected`, so an id-only collection still loads. */
 const collectionHandle = computed<string | null>(() => selectorSlug(selected.value));
-const hasCollection = computed(() => selected.value !== null);
-const showNoCollectionHint = computed(() => editing.value && !hasCollection.value);
+const hasCollection = computed(() => catalogueScope.value || selected.value !== null);
+/** The catalogue needs nothing bound, so there is nothing to hint about. */
+const showNoCollectionHint = computed(
+  () => editing.value && !catalogueScope.value && !hasCollection.value
+);
 
-const collection = storefront.catalog.collection(collectionHandle);
+/**
+ * The collection's own record, for the section label and the paging links. Never asked for in the
+ * catalogue scope — an **empty source**, not a live one, because a result's sources are part of its
+ * cache key and a key that resolves differently after hydration misses the payload the build left
+ * (`StorefrontResult`'s own rule).
+ */
+const collectionInfoHandle = computed(() => (catalogueScope.value ? null : collectionHandle.value));
+const collection = storefront.catalog.collection(collectionInfoHandle);
 const collectionTitle = computed(
   () => collection.data.value?.title ?? collectionHandle.value ?? ''
 );
@@ -239,7 +262,7 @@ const collectionTitle = computed(
  *  id-only reference has no title and no handle to borrow one from, and an empty
  *  `{collection}` would leave the landmark named " products". */
 const sectionLabel = computed(() =>
-  collectionTitle.value === ''
+  catalogueScope.value || collectionTitle.value === ''
     ? t('grid.products')
     : t('grid.sectionLabel', { collection: collectionTitle.value })
 );
@@ -445,7 +468,17 @@ const requestOptions = computed(() => ({
   sort: sort.value === '' ? undefined : sort.value,
   filters: appliedFilters.value,
 }));
-const products = storefront.catalog.collectionProducts(selected, requestOptions);
+/**
+ * The grid's own read, from whichever scope the block is in. Both answer the same
+ * `StorefrontCollectionProducts`, so everything below this line — the cards, the count, the facets, the
+ * chips, the paging — is written once (`StorefrontCatalog.products`).
+ *
+ * Which one is **decided at setup and never changes**: `scope` is a field, so a result created under
+ * one scope is never re-pointed at the other, and the unused scope's read is never created at all.
+ */
+const products = catalogueScope.value
+  ? storefront.catalog.products(requestOptions)
+  : storefront.catalog.collectionProducts(selected, requestOptions);
 
 const items = computed(() => products.data.value?.items ?? []);
 const money = useMoney();
@@ -1039,7 +1072,9 @@ const pendingOptions = computed(() => ({
   sort: sort.value === '' ? undefined : sort.value,
   filters: requestFiltersFor(pendingSelection.value, pendingMin.value, pendingMax.value),
 }));
-const pendingProducts = storefront.catalog.collectionProducts(pendingSelected, pendingOptions);
+const pendingProducts = catalogueScope.value
+  ? storefront.catalog.products(pendingOptions)
+  : storefront.catalog.collectionProducts(pendingSelected, pendingOptions);
 const pendingTotal = computed(() => pendingProducts.data.value?.total ?? total.value);
 
 function openDrawer(): void {
@@ -1130,7 +1165,9 @@ const TOP_BAR_SORT = '@content:hidden';
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 const showPaging = computed(() => !showSkeletons.value && cards.value.length > 0);
 function hrefForPage(page: number): string {
-  const base = `/collections/${collectionHandle.value ?? ''}`;
+  const base = catalogueScope.value
+    ? CATALOGUE_PATH
+    : `/collections/${collectionHandle.value ?? ''}`;
   return safeHref(page > 1 ? `${base}?page=${page}` : base) ?? base;
 }
 </script>

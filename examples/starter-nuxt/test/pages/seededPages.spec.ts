@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The three seeded **pages** — `/cart`, `/wishlist` and `/search` — which used to be code routes
-// under `app/pages/` and are now page documents Core seeds and a merchant composes
-// (`pages/{cart,wishlist,search}.page.json`, `app/templates.ts`'s `starterPages()`).
+// The seeded **pages** — `/cart`, `/wishlist`, `/search` and `/products` — three of which used to be
+// code routes under `app/pages/` and are now page documents Core seeds and a merchant composes
+// (`pages/{cart,wishlist,search,products}.page.json`, `app/templates.ts`'s `starterPages()`).
 //
 // One spec for all three rather than three near-identical files: they are the same page by design —
 // announcement bar, the shared header, breadcrumbs, the one block the page exists for, a
@@ -27,6 +27,7 @@ import {
 import cartPage from '../../pages/cart.page.json';
 import wishlistPage from '../../pages/wishlist.page.json';
 import searchPage from '../../pages/search.page.json';
+import productsPage from '../../pages/products.page.json';
 import { starterPages } from '../../app/templates';
 
 interface SeededPage {
@@ -35,8 +36,17 @@ interface SeededPage {
   slug: string;
   title: string;
   fixed: string;
-  /** The `h1` the fixed block renders. */
+  /** The `h1` the page renders, and which block renders it (`fixed` unless `headingBlock` says). */
   heading: string;
+  /**
+   * The block between breadcrumbs and the fixed one, for a page that needs it. `/products` is the one
+   * such page: its fixed block is `collection-grid`, whose own heading is a visually hidden `h2`
+   * naming the list of cards, so the page's `h1` has to come from a `collection-header` above it —
+   * exactly as the collection sample page's does.
+   */
+  above?: string;
+  /** Which `apiId` renders the `h1`. Defaults to `fixed`. */
+  headingBlock?: string;
 }
 
 const PAGES: SeededPage[] = [
@@ -63,22 +73,32 @@ const PAGES: SeededPage[] = [
     // title until the query is read out of the URL after hydration.
     heading: 'What are you looking for?',
   },
+  {
+    fixture: productsPage as unknown as PageFixture,
+    slug: 'products',
+    title: 'All products',
+    fixed: 'collection-grid',
+    above: 'collection-header',
+    headingBlock: 'collection-header',
+    heading: 'All products',
+  },
 ];
 
-const EXPECTED_APIID_ORDER = (fixed: string): string[] => [
-  'announcement-bar',
-  'navigation',
-  'breadcrumbs',
-  fixed,
-  'product-carousel',
-  'footer',
-];
+function expectedApiIds(page: SeededPage): string[] {
+  return [
+    'announcement-bar',
+    'navigation',
+    'breadcrumbs',
+    ...(page.above === undefined ? [] : [page.above]),
+    page.fixed,
+    'product-carousel',
+    'footer',
+  ];
+}
 
 describe.each(PAGES)('the seeded $slug page', (page) => {
-  it('lists its six blocks in order, with the shared header and footer around them', () => {
-    expect(page.fixture.blocks.map((block) => block.apiId)).toEqual(
-      EXPECTED_APIID_ORDER(page.fixed)
-    );
+  it('lists its blocks in order, with the shared header and footer around them', () => {
+    expect(page.fixture.blocks.map((block) => block.apiId)).toEqual(expectedApiIds(page));
     // The fixture declares a page target rather than a template name — which is what makes
     // `starterPages()` pick it up (`app/templates.ts`).
     expect(page.fixture.page).toEqual({ slug: page.slug });
@@ -90,20 +110,21 @@ describe.each(PAGES)('the seeded $slug page', (page) => {
     expectPageLandmarks(wrapper);
 
     const roots = pageBlockRoots(wrapper);
-    expect(roots).toHaveLength(6);
+    expect(roots).toHaveLength(expectedApiIds(page).length);
     expect(roots[1]!.tagName).toBe('HEADER');
-    expect(roots[5]!.tagName).toBe('FOOTER');
+    expect(roots.at(-1)!.tagName).toBe('FOOTER');
     // Breadcrumbs stays inside `<main>`: it renders a `<nav>`, a landmark wherever it sits.
     expect(roots[2]!.querySelector('nav[aria-label]')).not.toBeNull();
   });
 
-  it('has exactly one h1, and it is the block the page exists for', async () => {
+  it('has exactly one h1, and it is the block that owns the page’s title', async () => {
     const wrapper = await mountPage(page.fixture);
     const headings = wrapper.findAll('h1');
 
     expect(headings).toHaveLength(1);
     expect(headings[0]!.text()).toContain(page.heading);
-    expect(pageBlockRoots(wrapper)[3]!.contains(headings[0]!.element)).toBe(true);
+    const index = expectedApiIds(page).indexOf(page.headingBlock ?? page.fixed);
+    expect(pageBlockRoots(wrapper)[index]!.contains(headings[0]!.element)).toBe(true);
   });
 
   it('puts the skip link first, landing the visitor after the header', async () => {
@@ -128,7 +149,7 @@ describe('the page seeds built from those fixtures', () => {
   it('seeds one page per fixture, in order, with the regions where the fixture has them', () => {
     const seeds = starterPages();
 
-    expect(seeds.map((seed) => seed.page.slug)).toEqual(['cart', 'wishlist', 'search']);
+    expect(seeds.map((seed) => seed.page.slug)).toEqual(['cart', 'wishlist', 'search', 'products']);
     for (const [index, seed] of seeds.entries()) {
       const page = PAGES[index]!;
       expect(seed.title).toBe(page.title);
@@ -136,14 +157,11 @@ describe('the page seeds built from those fixtures', () => {
       // placement in the page's own order, not a frame around it.
       expect(
         seed.blocks.map((entry) => ('role' in entry ? `@${entry.role}` : entry.apiId))
-      ).toEqual([
-        'announcement-bar',
-        '@header',
-        'breadcrumbs',
-        page.fixed,
-        'product-carousel',
-        '@footer',
-      ]);
+      ).toEqual(
+        expectedApiIds(page).map((apiId) =>
+          apiId === 'navigation' ? '@header' : apiId === 'footer' ? '@footer' : apiId
+        )
+      );
     }
   });
 
