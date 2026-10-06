@@ -555,9 +555,11 @@ describe('product-detail block', () => {
     );
     const categoryLinks = wrapper
       .findAll('a')
-      .filter((link) => link.attributes('href')?.startsWith('/products?category=') === true);
+      .filter((link) => link.attributes('href')?.startsWith('/categories/') === true);
+    // The leaf's own **canonical** path, which is the only path its page answers: the ancestors are
+    // in it, and it is still one link rather than a trail.
     expect(categoryLinks.map((link) => link.attributes('href'))).toEqual([
-      '/products?category=ceramics',
+      '/categories/home/ceramics',
     ]);
     expect(categoryLinks[0]!.text()).toBe('Ceramics');
     expect(wrapper.find('nav[aria-label="Breadcrumb"]').exists()).toBe(false);

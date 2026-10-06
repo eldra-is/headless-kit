@@ -107,9 +107,9 @@ describe('product sample page', () => {
     const text = trails[0]!.text();
     expect(text).toContain('Home');
     // The demo catalogue puts the merino sweater under `Knitwear`, a root category — so one level,
-    // linking into the catalogue filtered by it.
+    // linking to that category's own page.
     expect(text).toContain('Knitwear');
-    expect(trails[0]!.get('a[href="/products?category=knitwear"]').text()).toBe('Knitwear');
+    expect(trails[0]!.get('a[href="/categories/knitwear"]').text()).toBe('Knitwear');
     expect(text).toContain('Merino crew sweater');
     wrapper.unmount();
   });
@@ -376,19 +376,19 @@ describe('product sample page', () => {
     expect(trails).toHaveLength(1);
     expect(trails[0]!.findAll('a').map((link) => link.attributes('href'))).toEqual([
       '/',
-      '/products?category=home',
-      '/products?category=ceramics',
+      '/categories/home',
+      '/categories/home/ceramics',
     ]);
 
     // And exactly one category link outside it: `product-detail`'s leaf label, never a second trail.
     const categoryLinks = wrapper
       .findAll('a')
-      .filter((link) => link.attributes('href')?.startsWith('/products?category=') === true);
+      .filter((link) => link.attributes('href')?.startsWith('/categories/') === true);
     const outsideTheTrail = categoryLinks.filter(
       (link) => trails[0]!.element.contains(link.element) === false
     );
     expect(outsideTheTrail.map((link) => link.attributes('href'))).toEqual([
-      '/products?category=ceramics',
+      '/categories/home/ceramics',
     ]);
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();

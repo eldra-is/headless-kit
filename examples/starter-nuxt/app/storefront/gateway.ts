@@ -6,7 +6,13 @@ import { createHistoryStore, createWishlistStore } from './history';
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
-import { buildCategoryIndex, categoryTrailFor, type CategoryIndex } from './categories';
+import {
+  buildCategoryIndex,
+  categoryTrailFor,
+  isInSubtree,
+  placeCategory,
+  type CategoryIndex,
+} from './categories';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
   CatalogFacets,
@@ -1225,6 +1231,29 @@ interface CatalogFilterQuery {
  */
 const COLLECTION_SCOPE_UNFILTERABLE: readonly string[] = ['collection'];
 
+/**
+ * **A category page's `categoryId` parameter**: the ids the read should be scoped to, or `null` when
+ * the path names no category this store has (which the caller answers as "no such page" rather than
+ * as the unscoped catalogue).
+ *
+ * The platform's `categoryId` matches a whole **subtree**, so the page's own id is the scope and a
+ * shopper ticking a child narrows within it. The parameter is an OR over a list, though, so the
+ * shopper's clause cannot simply be sent beside the scope: it is **intersected** with the subtree,
+ * and a value outside it is dropped rather than allowed to widen the page past its own category. An
+ * intersection that comes out empty falls back to the scope's own id — the page unfiltered, which is
+ * the honest answer when nothing the shopper asked for is in it.
+ */
+function scopeCategoryIds(
+  index: CategoryIndex,
+  categoryPath: string,
+  filterQuery: CatalogFilterQuery
+): string[] | null {
+  const scopeId = index.idByPath.get(categoryPath);
+  if (scopeId === undefined) return null;
+  const inside = (filterQuery.categoryId ?? []).filter((id) => isInSubtree(index, id, scopeId));
+  return inside.length > 0 ? inside : [scopeId];
+}
+
 /** `"<min>-<max>"` in whole major units → one bound in minor units, or nothing to send. */
 function priceParam(raw: string | undefined, currency: string | undefined): number | undefined {
   if (raw === undefined || raw === '') return undefined;
@@ -1870,6 +1899,9 @@ export function createGatewayStorefront(
       pageSize: number;
       sort?: string;
       filters?: Record<string, string[]>;
+      /** A category page's own scope — the catalogue-wide read only; see
+       *  `StorefrontCatalog.products`. */
+      categoryPath?: string;
     }>,
     scope: {
       method: string;
@@ -1885,7 +1917,7 @@ export function createGatewayStorefront(
       async (signal) => {
         const slug = await scope.slug(signal);
         if (slug === null) return null;
-        const { page, pageSize, sort, filters } = opts.value;
+        const { page, pageSize, sort, filters, categoryPath } = opts.value;
         const gatewaySort = sort === undefined ? undefined : GATEWAY_SORT[sort];
         // The shopper's facets are the endpoint's own query parameters (contract 3.7.0, see
         // `CatalogFilterQuery`), so one request answers the filtered page, the filtered `total`
@@ -1897,6 +1929,15 @@ export function createGatewayStorefront(
           categoriesOnce,
           scope.collectionIdsFor
         );
+        if (categoryPath !== undefined && categoryPath !== '') {
+          // **A category page's own scope**, resolved after the shopper's filters so the two can be
+          // intersected rather than OR-ed: `categoryId` is an OR over a list, so a ticked value
+          // outside this subtree would widen the page past its own category. A path no category
+          // occupies answers `null` — the grid's empty state — never the unscoped catalogue.
+          const scoped = scopeCategoryIds(await categoriesOnce(), categoryPath, filterQuery);
+          if (scoped === null) return null;
+          filterQuery.categoryId = scoped;
+        }
         const query = {
           page,
           pageSize,
@@ -1973,6 +2014,25 @@ export function createGatewayStorefront(
           return mapCollectionItem(raw);
         },
         { method: 'catalog.collection', runtime, locale }
+      ),
+    /**
+     * The category page's own read. There is no endpoint that takes a path — the catalog answers
+     * `{id, slug, title, parentId}` rows and no trail — so this is the **whole category list**
+     * (already memoised for the trail and the `category` filter, so a category page pays for it
+     * once however many blocks ask) walked into a placed category.
+     *
+     * The failure is **not** swallowed, unlike the trail's: a category page with no category is not
+     * a page, so the block's error branch is the honest surface rather than an empty grid under a
+     * blank heading.
+     */
+    category: (path) =>
+      createGatewayResult(
+        [path],
+        async () => {
+          if (!path.value) return null;
+          return placeCategory(await categoriesOnce(), path.value);
+        },
+        { method: 'catalog.category', runtime, locale }
       ),
     collectionProducts: (collection, opts) => {
       // `collection` is a source of this result as well as of its key, so a block that re-points the

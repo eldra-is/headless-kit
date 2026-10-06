@@ -8,7 +8,13 @@ import {
   type ProductFacetAttributes,
   type ProductFacetTerm,
 } from './facets';
-import { buildCategoryIndex, categoryTrailFor, type CategoryRow } from './categories';
+import {
+  buildCategoryIndex,
+  categoryTrailFor,
+  isInSubtree,
+  placeCategory,
+  type CategoryRow,
+} from './categories';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -223,11 +229,16 @@ const PRODUCT_DEFS: DemoProductDef[] = [
  * category, a tree by `parentId`.
  *
  * Two levels and one shallow branch on purpose, because that is the shape a real store has and the
- * shape both features need to be exercised at all: `Home` holds `Ceramics` and `Kitchen`, while
+ * shape both features need to be exercised at all: `Homeware` holds `Ceramics` and `Kitchen`, while
  * `Knitwear` is a root with nothing under it. So a product page's trail is two crumbs for a mug
- * (`Home / Ceramics`) and one for a sweater (`Knitwear`), and the collection grid's category group
- * draws one parent row with two indented children beside one plain row — with `Home` itself counting
- * nothing directly, which is exactly the parent a flat facet never names.
+ * (`Homeware / Ceramics`) and one for a sweater (`Knitwear`), and the collection grid's category
+ * group draws one parent row with two indented children beside one plain row — with `Homeware`
+ * itself counting nothing directly, which is exactly the parent a flat facet never names.
+ *
+ * The root is titled **Homeware** rather than "Home", which it was until the category page existed:
+ * its own page's breadcrumb starts at the site's `Home` crumb, and a trail reading "Home › Home ›
+ * Ceramics" is a fixture that teaches the wrong thing. The slug is untouched, so every path and
+ * every `?category=` value in the fixtures is the same.
  *
  * Ids are the slugs here. The demo keeps product ids and variant ids deliberately distinct (see
  * `DemoProductDef.variantId`) because a *request* sends both and they must not pass by accident; a
@@ -235,7 +246,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
  * uuid — and every lookup that matters (`categoryTrailFor`, `ancestorsOf`) keys on ids either way.
  */
 const DEMO_CATEGORIES: readonly CategoryRow[] = [
-  { id: 'home', slug: 'home', title: 'Home', parentId: null },
+  { id: 'home', slug: 'home', title: 'Homeware', parentId: null },
   { id: 'knitwear', slug: 'knitwear', title: 'Knitwear', parentId: null },
   { id: 'ceramics', slug: 'ceramics', title: 'Ceramics', parentId: 'home' },
   { id: 'kitchen', slug: 'kitchen', title: 'Kitchen', parentId: 'home' },
@@ -514,6 +525,24 @@ function buildCollectionItems(total: number): StorefrontProductListItem[] {
  * the active-filter row while the grid and the count stayed exactly as they were, which is worse
  * than not offering filters at all.
  */
+/**
+ * The products a **category page** lists: the catalogue narrowed to one category's whole subtree,
+ * which is what the platform's `categoryId` parameter matches. `CATALOGUE_ITEMS` for no path at all
+ * (every other page), and `null` for a path no category occupies — the fixture's own version of
+ * "no such page".
+ */
+function categoryScopeOf(
+  categoryPath: string | undefined
+): StorefrontProductListItem[] | readonly StorefrontProductListItem[] | null {
+  if (categoryPath === undefined || categoryPath === '') return CATALOGUE_ITEMS;
+  const scopeId = CATEGORY_INDEX.idByPath.get(categoryPath);
+  if (scopeId === undefined) return null;
+  return CATALOGUE_ITEMS.filter((item) => {
+    const id = attributesFor(item).category?.id;
+    return id !== undefined && isInSubtree(CATEGORY_INDEX, id, scopeId);
+  });
+}
+
 function attributesFor(item: StorefrontProductListItem): ProductFacetAttributes {
   return {
     ...(PRODUCT_ATTRIBUTES.get(item.handle) ?? NO_ATTRIBUTES),
@@ -1089,6 +1118,13 @@ export interface DemoStorefrontOptions {
   columns?: string;
   /** Seeds `route.filters` — restores `collection-grid`'s filter selection and price range. */
   filters?: Record<string, string[]>;
+  /**
+   * Seeds the **category page**'s route context: a category's canonical path (`home/ceramics`), the
+   * ancestors' slugs root first then its own. Absent — the default — is a route that is not a
+   * category page at all, so `collection-grid` in `category` scope, `collection-header`'s category
+   * mode and `breadcrumbs`' `fromCategory` each draw nothing, exactly as they do on a product page.
+   */
+  categoryPath?: string;
 }
 
 /** Northwind fixtures in the theme's own view types — the "knobs" are exactly what a block spec
@@ -1096,9 +1132,12 @@ export interface DemoStorefrontOptions {
 export function createDemoStorefront(options: DemoStorefrontOptions = {}): StorefrontSource {
   const order = buildOrder(options.orderStatus ?? 'shipped');
 
+  const categoryPath = options.categoryPath ?? null;
   const route: StorefrontRoute = reactive({
     productHandle: options.productHandle ?? 'merino-crew-sweater',
     collectionHandle: options.collectionHandle ?? 'winter-knitwear',
+    categorySlug: categoryPath === null ? null : (categoryPath.split('/').at(-1) ?? null) || null,
+    categoryPath,
     orderToken: 'demo-order-token',
     query: options.query ?? null,
     page: 1,
@@ -1144,6 +1183,12 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
       ),
     collection: (handle) =>
       createDemoResult([handle], () => (handle.value ? (COLLECTIONS[handle.value] ?? null) : null)),
+    /** The category page's own read, over the fixture's tree — the same `placeCategory` walk the
+     *  gateway source runs, so a Storybook story and a spec see exactly what the live site does. */
+    category: (path) =>
+      createDemoResult([path], () =>
+        path.value ? placeCategory(CATEGORY_INDEX, path.value) : null
+      ),
     /**
      * Honours `sort` and `filters`, not just `page`/`pageSize`. It used to destructure only the
      * paging pair, so in the scaffolded site and the collection sample page — both demo-backed —
@@ -1188,15 +1233,22 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
      */
     products: (opts) =>
       createDemoResult([opts], () => {
-        const all = CATALOGUE_ITEMS;
-        const { page, pageSize, sort, filters } = opts.value;
-        const matching = filterItems(all, filters, attributesFor, CATEGORY_INDEX);
+        const { page, pageSize, sort, filters, categoryPath } = opts.value;
+        // **A category page narrows the scope itself**, before a single filter is applied — the
+        // platform's `categoryId` matches a whole subtree, so this is the fixture's own version of
+        // that. A path no category occupies is `null` (the grid's empty state), never the unscoped
+        // catalogue, which is the same answer an unknown collection handle gets.
+        const scope = categoryScopeOf(categoryPath);
+        if (scope === null) return null;
+        const matching = filterItems(scope, filters, attributesFor, CATEGORY_INDEX);
         const ordered = sortCollectionItems(matching, sort);
         const start = (page - 1) * pageSize;
         return {
           items: ordered.slice(start, start + pageSize),
           total: ordered.length,
-          facets: deriveFacets(all, { filters, attributesFor, categories: CATEGORY_INDEX }),
+          // Counted over the **scope**, not the whole catalogue: on a category page the `category`
+          // group lists that category's children with the counts they have inside it.
+          facets: deriveFacets(scope, { filters, attributesFor, categories: CATEGORY_INDEX }),
         };
       }),
     related: (handle, limit) =>

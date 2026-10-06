@@ -137,6 +137,33 @@ export interface StorefrontCollectionInfo {
   productCount: number;
 }
 
+/** One level of a category trail or child strip: what a shopper reads, and the canonical path its
+ *  own page sits at (the ancestors' slugs, root first, then its own). */
+export interface StorefrontCategoryRef {
+  slug: string;
+  title: string;
+  path: string;
+}
+
+/**
+ * **One category, placed in the store's tree** — what a category page is drawn from.
+ *
+ * The catalog's own read answers `{id, slug, title, parentId}` rows and no trail at all, so every
+ * field below the first three is the storefront's walk up and down that tree: `ancestors` root
+ * first and excluding the category itself (the page's breadcrumb trail), `children` the **direct**
+ * children only, in the list's own order (the header's strip of chips — one level, because a
+ * grandchild belongs on its own parent's page).
+ *
+ * A category the tree cannot place — a parent since unpublished, a `parentId` cycle — is not a
+ * category this answers at all: it has no canonical path, so it has no page.
+ */
+export interface StorefrontCategory extends StorefrontCategoryRef {
+  /** The catalog id, which is what a subtree filter is sent as. */
+  id: string;
+  ancestors: StorefrontCategoryRef[];
+  children: StorefrontCategoryRef[];
+}
+
 /**
  * One term of a `categories` / `collections` facet.
  *
@@ -478,6 +505,17 @@ export interface StorefrontResult<T> {
 export interface StorefrontRoute {
   productHandle: string | null;
   collectionHandle: string | null;
+  /**
+   * The **category page**'s own category, when this route is one: the leaf's slug, and the
+   * canonical path it is addressed by (`billinn/bilstolar` — the ancestors' slugs, root first, then
+   * its own). `null` on every other route, and always both or neither.
+   *
+   * Two fields because the page needs both halves and neither derives the other cheaply: a surface
+   * naming one category wants the slug, and a link back to this page — or a scope sent to the
+   * storefront — wants the path, which is the only thing the route resolves.
+   */
+  categorySlug: string | null;
+  categoryPath: string | null;
   orderToken: string | null;
   query: string | null;
   page: number;
@@ -529,9 +567,37 @@ export interface StorefrontCatalog {
    * the catalogue-wide list does take it, so the `collection` group filters for real.
    */
   products(
-    opts: Ref<{ page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }>
+    opts: Ref<{
+      page: number;
+      pageSize: number;
+      sort?: string;
+      filters?: Record<string, string[]>;
+      /**
+       * **A category page's scope**: the current category's canonical path, which narrows the read
+       * to that category's whole **subtree** — what the platform's own `categoryId` parameter
+       * matches. Absent is the whole catalogue, which is what `/products` sends.
+       *
+       * The shopper's own `category` filter still applies and is intersected with the subtree
+       * rather than OR-ed beside it (`categoryId` is an OR over a list, so a value outside the
+       * subtree would widen the page past its own category); with nothing ticked the scope's own id
+       * is the filter. A path **no category occupies** is answered `null` — the same answer
+       * `collectionProducts` gives an unknown collection, which the grid draws as its empty state —
+       * never the unscoped catalogue.
+       */
+      categoryPath?: string;
+    }>
   ): StorefrontResult<StorefrontCollectionProducts>;
   collection(handle: Ref<string | null>): StorefrontResult<StorefrontCollectionInfo>;
+  /**
+   * One category by its **canonical path** — the category page's own read: its title, its ancestors
+   * and its direct children, all of them the storefront's walk over the store's category tree
+   * rather than anything one catalog response carries.
+   *
+   * `null` for a path no category occupies, exactly as `collection` answers an unknown handle, and
+   * for a `null` source — which makes no request at all, so a page that is not a category page pays
+   * nothing.
+   */
+  category(path: Ref<string | null>): StorefrontResult<StorefrontCategory>;
   collectionProducts(
     collection: Ref<StorefrontCollectionSelector | null>,
     opts: Ref<{ page: number; pageSize: number; sort?: string; filters?: Record<string, string[]> }>

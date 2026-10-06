@@ -26,6 +26,8 @@ function fakeRoute(): StorefrontRoute {
   return {
     productHandle: null,
     collectionHandle: null,
+    categorySlug: null,
+    categoryPath: null,
     orderToken: null,
     query: null,
     page: 1,
@@ -1822,8 +1824,8 @@ describe('createGatewayStorefront', () => {
     it('walks a product’s primaryCategoryId up to its root', async () => {
       const { client } = treeClient();
       expect((await readProduct(client))?.categoryTrail).toEqual([
-        { label: 'Tableware', href: '/products?category=tableware' },
-        { label: 'Cup', href: '/products?category=cup' },
+        { label: 'Tableware', href: '/categories/tableware' },
+        { label: 'Cup', href: '/categories/tableware/cup' },
       ]);
     });
 
@@ -2092,6 +2094,135 @@ describe('createGatewayStorefront', () => {
         minPrice: 50,
         maxPrice: 150,
       });
+    });
+  });
+
+  /**
+   * **A category page**: the same catalogue-wide list, scoped by one category's canonical path.
+   *
+   * The platform's `categoryId` matches a whole **subtree**, so the page's own id is the scope — and
+   * because the parameter is an OR over a list, the shopper's own `category` clause has to be
+   * *intersected* with that subtree rather than sent beside it: a value outside it would widen the
+   * page past its own category, which is the one thing a category page cannot do.
+   */
+  describe('a category page’s own scope', () => {
+    const TREE = [
+      { id: 'cat-home', slug: 'home', title: 'Homeware', parentId: null },
+      { id: 'cat-ceramics', slug: 'ceramics', title: 'Ceramics', parentId: 'cat-home' },
+      { id: 'cat-cups', slug: 'cups', title: 'Cups', parentId: 'cat-ceramics' },
+      { id: 'cat-knitwear', slug: 'knitwear', title: 'Knitwear', parentId: null },
+    ];
+
+    function categoryClient(): {
+      client: EldraClient;
+      queries: Array<Record<string, unknown>>;
+      categoryReads: () => number;
+    } {
+      const queries: Array<Record<string, unknown>> = [];
+      let reads = 0;
+      const client = {
+        catalog: {
+          listCategories: async () => {
+            reads += 1;
+            return TREE;
+          },
+          listProducts: async (query: Record<string, unknown>) => {
+            queries.push(query);
+            return {
+              data: [listRow('ash-glaze-mug')],
+              meta: { page: 1, pageSize: 24, total: 1, totalPages: 1, rows: 1 },
+            };
+          },
+        },
+      } as unknown as EldraClient;
+      return { client, queries, categoryReads: () => reads };
+    }
+
+    async function read(
+      client: EldraClient,
+      categoryPath: string,
+      filters?: Record<string, string[]>
+    ): Promise<StorefrontCollectionProducts | null> {
+      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+      const result = storefront.catalog.products(
+        ref({
+          page: 1,
+          pageSize: 24,
+          categoryPath,
+          ...(filters === undefined ? {} : { filters }),
+        })
+      );
+      await settle();
+      return result.data.value;
+    }
+
+    it('sends the category’s own id, which the platform matches over its whole subtree', async () => {
+      const calls = categoryClient();
+      expect((await read(calls.client, 'home/ceramics'))?.total).toBe(1);
+      expect(calls.queries.at(-1)?.categoryId).toEqual(['cat-ceramics']);
+    });
+
+    /** A child the shopper ticked narrows **within** the subtree, so the scope's own id gives way to
+     *  it rather than being OR-ed beside it — which would put the whole subtree back. */
+    it('replaces the scope with a ticked descendant rather than widening past it', async () => {
+      const calls = categoryClient();
+      await read(calls.client, 'home/ceramics', { category: ['cups'] });
+      expect(calls.queries.at(-1)?.categoryId).toEqual(['cat-cups']);
+    });
+
+    /** A value from outside the subtree — a shared link, an author's own URL — is dropped, and the
+     *  page falls back to its own category rather than listing something it does not contain. */
+    it('drops a ticked category that is not in the subtree', async () => {
+      const calls = categoryClient();
+      await read(calls.client, 'home/ceramics', { category: ['knitwear'] });
+      expect(calls.queries.at(-1)?.categoryId).toEqual(['cat-ceramics']);
+      await read(calls.client, 'home/ceramics', { category: ['knitwear', 'cups'] });
+      expect(calls.queries.at(-1)?.categoryId).toEqual(['cat-cups']);
+    });
+
+    /**
+     * **Canonical only**: a path that is not a root→descendant chain is no category, and the read
+     * answers `null` — the grid's own empty state — rather than the unscoped catalogue, which would
+     * answer a 404 page with every product in the store.
+     */
+    it('answers nothing for a path no category occupies, and asks the list for nothing', async () => {
+      for (const path of ['ceramics', 'knitwear/ceramics', 'home/ceramics/nope']) {
+        const calls = categoryClient();
+        expect(await read(calls.client, path)).toBeNull();
+        expect(calls.queries).toEqual([]);
+      }
+    });
+
+    /** `catalog.category` is the page's other read, over the same memoised list: one request serves
+     *  the header's title and strip, the breadcrumb's ancestors and the grid's scope. */
+    it('places the category for the page, from the same one category read', async () => {
+      const calls = categoryClient();
+      const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+      const placed = storefront.catalog.category(ref('home/ceramics'));
+      const products = storefront.catalog.products(
+        ref({ page: 1, pageSize: 24, categoryPath: 'home/ceramics' })
+      );
+      await settle();
+      expect(placed.data.value).toEqual({
+        id: 'cat-ceramics',
+        slug: 'ceramics',
+        title: 'Ceramics',
+        path: 'home/ceramics',
+        ancestors: [{ slug: 'home', title: 'Homeware', path: 'home' }],
+        children: [{ slug: 'cups', title: 'Cups', path: 'home/ceramics/cups' }],
+      });
+      expect(products.data.value?.total).toBe(1);
+      expect(calls.categoryReads()).toBe(1);
+    });
+
+    it('answers no category for a path that is not one, and none for a null source', async () => {
+      const calls = categoryClient();
+      const storefront = createGatewayStorefront(calls.client, { route: fakeRoute() });
+      const missing = storefront.catalog.category(ref('ceramics'));
+      const none = storefront.catalog.category(ref<string | null>(null));
+      await settle();
+      expect(missing.data.value).toBeNull();
+      expect(none.data.value).toBeNull();
     });
   });
 

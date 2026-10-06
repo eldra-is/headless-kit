@@ -312,7 +312,7 @@ describe('the product’s own category trail', () => {
     const destinations = wrapper
       .findAllComponents({ name: 'NuxtLink' })
       .map((link) => link.props('to'));
-    expect(destinations).toEqual(['/', '/products?category=home', '/products?category=ceramics']);
+    expect(destinations).toEqual(['/', '/categories/home', '/categories/home/ceramics']);
     expect(wrapper.text()).toContain('Speckled latte mug');
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
@@ -331,8 +331,8 @@ describe('the product’s own category trail', () => {
     expect(destinations).toEqual([
       '/',
       '/products',
-      '/products?category=home',
-      '/products?category=ceramics',
+      '/categories/home',
+      '/categories/home/ceramics',
     ]);
   });
 
@@ -343,7 +343,7 @@ describe('the product’s own category trail', () => {
     const destinations = wrapper
       .findAllComponents({ name: 'NuxtLink' })
       .map((link) => link.props('to'));
-    expect(destinations).toEqual(['/', '/products?category=knitwear']);
+    expect(destinations).toEqual(['/', '/categories/knitwear']);
   });
 
   /**
@@ -372,7 +372,7 @@ describe('the product’s own category trail', () => {
     const wrapper = mountOnProduct(asDeployed, 'speckled-latte-mug');
     await flushPromises();
     expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((link) => link.props('to'))).toEqual(
-      ['/', '/products?category=home', '/products?category=ceramics']
+      ['/', '/categories/home', '/categories/home/ceramics']
     );
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });

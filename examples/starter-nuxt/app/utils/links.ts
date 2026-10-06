@@ -39,3 +39,32 @@ export const SEARCH_PATH = '/search';
 export function searchQueryHref(query: string): string {
   return `${SEARCH_PATH}?q=${encodeURIComponent(query)}`;
 }
+
+/**
+ * The site's own **category page** — the route template `pages/category.page.json` seeds,
+ * `/categories/:path*`.
+ *
+ * Named here beside `SEARCH_PATH` rather than in each caller because four surfaces point at it: a
+ * product's breadcrumb trail and `product-detail`'s category label (both through the trail the
+ * storefront builds), the category page's own breadcrumbs, and `collection-header`'s strip of
+ * child-category chips. They have to agree about the path, and — since each is prefixed for the
+ * page's own locale — about the fact that there is exactly one path to prefix.
+ */
+export const CATEGORIES_PATH = '/categories';
+
+/**
+ * One category's page, from its **canonical path**: the slugs of its ancestors, root first, then its
+ * own, joined with `/` and with no leading slash (`billinn/bilstolar`). That is the only path the
+ * route answers — canonical only, no redirects — so a caller must hand this a whole path and never a
+ * leaf slug; `app/storefront/categories.ts`'s `pathOf` is where one comes from.
+ *
+ * Each segment is encoded separately, so the separators survive and a slug carrying a space or a
+ * non-ASCII letter still addresses its own segment. Locale-aware the same way `searchQueryHref` is:
+ * it returns the site-relative path, and the active locale's prefix is added where it is used —
+ * `EldraRouterLink` does it for every same-site link this theme renders.
+ */
+export function categoryHref(path: string): string {
+  const segments = path.split('/').filter((segment) => segment !== '');
+  if (segments.length === 0) return CATEGORIES_PATH;
+  return `${CATEGORIES_PATH}/${segments.map((segment) => encodeURIComponent(segment)).join('/')}`;
+}

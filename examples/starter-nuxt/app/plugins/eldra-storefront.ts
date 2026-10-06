@@ -78,7 +78,8 @@ export default defineNuxtPlugin({
     // is before any of that happens.
     const activeRoute = router.currentRoute;
     // The catalog object a route template matched, when this path is served by one
-    // (`schemaApiId: 'catalog:product' | 'catalog:collection'`); `null` on every other route.
+    // (`schemaApiId: 'catalog:product' | 'catalog:collection' | 'catalog:category'`); `null` on
+    // every other route.
     const { catalog } = useEldraPage();
     // Which content locale this page is — the locale its path prefix names, or the one a Studio
     // preview is driving (`@eldrajs/theme-nuxt`, auto-imported like `useEldraPage`).
@@ -92,6 +93,8 @@ export default defineNuxtPlugin({
     const route: StorefrontRoute = reactive({
       productHandle: null,
       collectionHandle: null,
+      categorySlug: null,
+      categoryPath: null,
       orderToken: null,
       query: null,
       page: 1,
@@ -135,9 +138,18 @@ export default defineNuxtPlugin({
       if (match === null) {
         route.productHandle = activeRoute.value.path.startsWith('/products/') ? handle : null;
         route.collectionHandle = activeRoute.value.path.startsWith('/collections/') ? handle : null;
+        // A **category** has no path-prefix fallback, deliberately: unlike a product or a
+        // collection its route is addressed by a whole canonical path, and only the resolution that
+        // walked the tree knows which prefix of the URL was the category and whether it was
+        // canonical at all. A path this theme serves without a category template behind it is
+        // therefore not a category page.
+        route.categorySlug = null;
+        route.categoryPath = null;
       } else {
         route.productHandle = match.kind === 'product' ? match.slug : null;
         route.collectionHandle = match.kind === 'collection' ? match.slug : null;
+        route.categorySlug = match.kind === 'category' ? match.slug : null;
+        route.categoryPath = match.kind === 'category' ? (match.path ?? null) : null;
       }
       route.orderToken = firstOf(activeRoute.value.query.token as string | string[] | undefined);
       route.query = firstOf(activeRoute.value.query.q as string | string[] | undefined);
