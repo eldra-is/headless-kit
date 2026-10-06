@@ -4,7 +4,7 @@ The design system for the Eldra starter storefront (demo store: Northwind Goods)
 
 | File | What it is |
 | --- | --- |
-| `01-core-components.md` | **Spec 1.** Non-negotiables, foundations (colour roles, type, spacing, layout, radius, shadow, motion, the focus ring, icons, imagery, voice), the WCAG 2.2 AA requirements and testing protocol, then 37 core components: actions and forms, display and commerce, overlays and navigation. |
+| `01-core-components.md` | **Spec 1.** Non-negotiables, foundations (colour roles, type, spacing, layout, radius, shadow, motion, the focus ring, icons, imagery, voice), the WCAG 2.2 AA requirements and testing protocol, then 38 core components: actions and forms, display and commerce, overlays and navigation. |
 | `02-blocks.md` | **Spec 2.** How CMS blocks work (fields, containers, backgrounds, spacing, block-width breakpoints, required states, page-level accessibility), then 33 blocks and 4 sample pages. |
 | `tokens.json` | Every design token with its default value and usage note, in the W3C design-tokens format. |
 | `images/core/` | One reference image per core component, showing its variants and states. |

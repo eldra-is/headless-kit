@@ -114,6 +114,21 @@ export const enUS = {
   quantity: 'Quantity',
   /** A `QuantityStepper`'s polite live-region announcement after a settled change. */
   quantityUpdated: (n: number) => `Quantity: ${n}`,
+  /** A `RangeSlider` thumb's and field's name with no visible group label to join it to. */
+  minimum: 'Minimum',
+  /** The same, for the other end of the range. */
+  maximum: 'Maximum',
+  /**
+   * A `RangeSlider` thumb's and field's name built from the visible group label, so a price
+   * filter's two ends read "Minimum price" and "Maximum price" (spec "Range slider" →
+   * Accessibility). `name` is the control's own `label`; the same shape as `closeDrawer` above.
+   */
+  minimumOf: (name: string) => `Minimum ${name}`,
+  /** The same, for the other end of the range. */
+  maximumOf: (name: string) => `Maximum ${name}`,
+  /** The word between a `RangeSlider`'s two typed fields (spec "Range slider" → Anatomy item 6).
+   *  Decorative: both fields are already named, so it is `aria-hidden`. */
+  to: 'to',
   /** Appended to a link that opens a new browsing context. */
   opensInNewTab: '(opens in a new tab)',
   /** A position-in-a-set counter, e.g. a carousel's slide count. */
