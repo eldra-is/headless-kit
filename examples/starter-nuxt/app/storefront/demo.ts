@@ -2,7 +2,12 @@ import { nextTick, reactive, ref, watch, type Ref } from 'vue';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
-import { filterItems, matchesFilters, type ProductFacetAttributes } from './facets';
+import {
+  deriveFacets,
+  filterItems,
+  type ProductFacetAttributes,
+  type ProductFacetTerm,
+} from './facets';
 import type {
   StorefrontAck,
   StorefrontCartLine,
@@ -11,7 +16,6 @@ import type {
   StorefrontCollectionInfo,
   StorefrontCollectionSelector,
   StorefrontCommerce,
-  StorefrontFacet,
   StorefrontForms,
   StorefrontMedia,
   StorefrontOrder,
@@ -54,7 +58,7 @@ function demoImage(index: number, alt: string): StorefrontMedia {
 // Catalogue
 // ---------------------------------------------------------------------------------------------
 
-/** The `category` facet's own values (`WINTER_KNITWEAR_FACETS`). */
+/** The `category` facet's own values (`CATEGORY_TITLES`). */
 type DemoCategory = 'knitwear' | 'ceramics' | 'kitchen';
 
 interface DemoProductDef {
@@ -213,21 +217,37 @@ const PRODUCT_DEFS: DemoProductDef[] = [
  * number). Populated as items are built, which is why every item is created through
  * `buildListItem`/`buildCollectionItems` and never by hand.
  */
-interface DemoProductAttributes {
-  category: DemoCategory;
-  /** The `size` facet values, or `[]` for a product with no sizes (everything but apparel). */
-  sizes: readonly string[];
-  /** The `colour` facet values (lower-cased colour names), or `[]`. */
-  colours: readonly string[];
-}
-const NO_ATTRIBUTES: DemoProductAttributes = { category: 'knitwear', sizes: [], colours: [] };
-const PRODUCT_ATTRIBUTES = new Map<string, DemoProductAttributes>();
+/** What a `category` facet value is called where a shopper reads it. */
+const CATEGORY_TITLES: Record<DemoCategory, string> = {
+  knitwear: 'Knitwear',
+  ceramics: 'Ceramics',
+  kitchen: 'Kitchen',
+};
 
+const NO_ATTRIBUTES: ProductFacetAttributes = { options: {} };
+const PRODUCT_ATTRIBUTES = new Map<string, ProductFacetAttributes>();
+
+/**
+ * The attributes in `app/storefront/facets.ts`'s own shape — the same one `createGatewayStorefront`
+ * builds from a product list row — so the demo and the live site filter *and* count by exactly the
+ * same rules. Labels and swatches ride along with the values, which is what lets `deriveFacets`
+ * answer a facet a shopper can read ("Oat", "M") rather than a raw key.
+ *
+ * `collections` is deliberately absent here and filled in by `attributesFor` instead: which
+ * collections hold a product is a fact about the fixture's collections, which are declared below
+ * this line.
+ */
 function registerAttributes(handle: string, def: DemoProductDef): void {
   PRODUCT_ATTRIBUTES.set(handle, {
-    category: def.category,
-    sizes: def.sizes ?? [],
-    colours: (def.colours ?? []).map((colour) => colour.name.toLowerCase()),
+    category: { slug: def.category, title: CATEGORY_TITLES[def.category] },
+    options: {
+      size: (def.sizes ?? []).map((size) => ({ value: size, label: size.toUpperCase() })),
+      colour: (def.colours ?? []).map((colour) => ({
+        value: colour.name.toLowerCase(),
+        label: colour.name,
+        swatch: colour.swatch,
+      })),
+    },
   });
 }
 
@@ -428,54 +448,6 @@ export function demoCollectionId(handle: string): string | null {
 const COLLECTION_ITEMS: Record<string, StorefrontProductListItem[]> = {
   'best-sellers': BEST_SELLER_ITEMS,
 };
-/** `best-sellers` has no facets — it is surfaced only by `search`'s no-results state, never
- *  browsed through `collection-grid`'s filter UI in this demo, so there is nothing to facet by. */
-const COLLECTION_FACETS: Record<string, StorefrontFacet[]> = {
-  'best-sellers': [],
-};
-
-const WINTER_KNITWEAR_FACETS: StorefrontFacet[] = [
-  {
-    source: 'category',
-    label: 'Category',
-    values: [
-      { value: 'knitwear', label: 'Knitwear', count: 18 },
-      { value: 'ceramics', label: 'Ceramics', count: 14 },
-      { value: 'kitchen', label: 'Kitchen', count: 16 },
-    ],
-  },
-  {
-    source: 'size',
-    label: 'Size',
-    values: [
-      { value: 'xs', label: 'XS', count: 6 },
-      { value: 's', label: 'S', count: 10 },
-      { value: 'm', label: 'M', count: 14 },
-      { value: 'l', label: 'L', count: 10 },
-      { value: 'xl', label: 'XL', count: 8 },
-    ],
-  },
-  {
-    source: 'colour',
-    label: 'Colour',
-    values: [
-      { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
-      { value: 'charcoal', label: 'Charcoal', count: 8, swatch: '#3a3a3a' },
-      { value: 'clay', label: 'Clay', count: 7, swatch: '#b5651d' },
-      { value: 'moss', label: 'Moss', count: 6, swatch: '#6b7a4f' },
-      { value: 'stone', label: 'Stone', count: 9, swatch: '#a8a196' },
-      { value: 'natural', label: 'Natural', count: 9, swatch: '#e7ddc9' },
-    ],
-  },
-  {
-    source: 'availability',
-    label: 'Availability',
-    values: [
-      { value: 'in-stock', label: 'In stock', count: 41 },
-      { value: 'backorder', label: 'Include back-order', count: 7 },
-    ],
-  },
-];
 
 function buildCollectionItems(total: number): StorefrontProductListItem[] {
   return Array.from({ length: total }, (_, i) => {
@@ -508,7 +480,31 @@ function buildCollectionItems(total: number): StorefrontProductListItem[] {
  * than not offering filters at all.
  */
 function attributesFor(item: StorefrontProductListItem): ProductFacetAttributes {
-  return PRODUCT_ATTRIBUTES.get(item.handle) ?? NO_ATTRIBUTES;
+  return {
+    ...(PRODUCT_ATTRIBUTES.get(item.handle) ?? NO_ATTRIBUTES),
+    collections: collectionsOf(item),
+  };
+}
+
+/**
+ * Which of the fixture's collections hold a product — the `collection` filter group's own data,
+ * and the one attribute a real backend answers from a join table rather than from the product.
+ *
+ * Declared as a rule rather than a list so a clone (`merino-crew-sweater-2`) belongs wherever the
+ * product it copies does: the winter edit is the demo's catch-all, `winter-knitwear` is its
+ * knitwear, and `best-sellers` is the curated list `BEST_SELLER_HANDLES` names.
+ */
+function collectionsOf(item: StorefrontProductListItem): ProductFacetTerm[] {
+  const handles = ['the-winter-edit'];
+  if (PRODUCT_ATTRIBUTES.get(item.handle)?.category?.slug === 'knitwear') {
+    handles.push('winter-knitwear');
+  }
+  if (BEST_SELLER_HANDLES.includes(baseHandleOf(item))) handles.push('best-sellers');
+  return handles.map((handle) => ({
+    slug: handle,
+    title: COLLECTIONS[handle]?.title ?? handle,
+    id: demoCollectionId(handle) ?? handle,
+  }));
 }
 
 /**
@@ -544,42 +540,6 @@ function baseHandleOf(item: StorefrontProductListItem): string {
   return PRODUCTS.some((product) => product.handle === item.handle)
     ? item.handle
     : item.handle.replace(/-\d+$/, '');
-}
-
-/**
- * The facet counts, recomputed over the collection's own items rather than hand-written.
- *
- * `WINTER_KNITWEAR_FACETS` supplies the vocabulary — which sources exist, in which order, with
- * which labels and swatches — and this supplies the numbers, so a count the filter UI shows is
- * always the number of products that value actually returns. It matters because the block hides a
- * value it counts zero of (`blocks/collection-grid/parts/groups.ts`): a hand-written count offers
- * the shopper a filter that empties the grid, which is precisely the mismatch this demo exists to
- * avoid showing. Counts are per single value (what a facet count means), so they are computed
- * against the *unfiltered* collection, like a backend that facets the whole collection.
- */
-function countedFacets(
-  facets: readonly StorefrontFacet[],
-  items: readonly StorefrontProductListItem[]
-): StorefrontFacet[] {
-  const FACET_TO_FILTER_SOURCE: Record<string, string> = {
-    category: 'category',
-    size: 'option:size',
-    colour: 'option:colour',
-    availability: 'availability',
-  };
-  return facets.map((facet) => {
-    const source = FACET_TO_FILTER_SOURCE[facet.source];
-    if (source === undefined) return facet;
-    return {
-      ...facet,
-      values: facet.values.map((value) => ({
-        ...value,
-        count: items.filter((item) =>
-          matchesFilters(item, { [source]: [value.value] }, attributesFor(item))
-        ).length,
-      })),
-    };
-  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1171,7 +1131,11 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
         return {
           items: ordered.slice(start, start + pageSize),
           total: ordered.length,
-          facets: countedFacets(COLLECTION_FACETS[handle] ?? WINTER_KNITWEAR_FACETS, all),
+          // The same derivation `createGatewayStorefront` runs, over the whole collection rather
+          // than over one fetched page: the vocabulary is every value the collection holds, and
+          // each family's counts leave that family's own filter out (`deriveFacets`), so ticking
+          // one colour narrows the sizes and leaves the other colours countable.
+          facets: deriveFacets(all, { filters, attributesFor }),
         };
       }),
     related: (handle, limit) =>

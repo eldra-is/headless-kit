@@ -6,6 +6,7 @@ import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { deriveFacets, filterItems, hasActiveFilters } from './facets';
+import type { ProductFacetAttributes } from './facets';
 import type { VolatileRefreshEntry } from './refresh';
 import type {
   StorefrontAck,
@@ -278,6 +279,50 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
     available: raw.status === 'ACTIVE',
     productId: raw.id,
   };
+}
+
+/**
+ * The facet attributes a **product list row** carries, for the client-side facet pass
+ * (`app/storefront/facets.ts`) that stands in until the gateway filters and counts facets itself.
+ *
+ * One family and one only: the row's `options` (`dto_ProductListItem.options` —
+ * `[{key, values: [{key, name}]}]`), which is every variant option the product is made in. That is
+ * enough for the `option:*` groups to list real values with real counts *and* for the pass to
+ * filter on them, which has to be true together — a value the panel offers that the pass cannot
+ * match is a filter that changes the chips and the URL and nothing else.
+ *
+ * A row carries no category and no collection membership, so those stay unknown (`undefined`,
+ * which the pass reads as "ignore this filter", never as "matches nothing"): the category and
+ * collection groups list nothing on the live site until Core answers a `facets` object. A row
+ * whose `options` field is absent altogether leaves even the option bag unknown.
+ */
+function listRowAttributes(raw: RawProductListItem): ProductFacetAttributes {
+  const options = raw.options;
+  if (options === undefined || options === null) return {};
+  const bag: Record<string, ProductFacetOptionValueInput[]> = {};
+  for (const option of options) {
+    bag[option.key] = (option.values ?? []).map((value) => ({
+      value: value.key,
+      label: value.name,
+    }));
+  }
+  return { options: bag };
+}
+
+/** The shape `listRowAttributes` writes into its bag — `facets.ts`'s own option value. */
+type ProductFacetOptionValueInput = { value: string; label: string };
+
+/**
+ * The per-product attributes for a set of rows, by the handle a `StorefrontProductListItem`
+ * carries — the lookup `filterItems` and `deriveFacets` both take, built once per read so the two
+ * see exactly the same answer.
+ */
+function attributesByHandle(
+  rows: readonly RawProductListItem[]
+): (item: StorefrontProductListItem) => ProductFacetAttributes | undefined {
+  const byHandle = new Map<string, ProductFacetAttributes>();
+  for (const row of rows) byHandle.set(row.slug, listRowAttributes(row));
+  return (item) => byHandle.get(item.handle);
 }
 
 /**
@@ -1487,15 +1532,21 @@ export function createGatewayStorefront(
 
           if (!hasActiveFilters(filters)) {
             const raw = await read(page);
-            const items = (raw.data ?? []).map(mapProductListItem);
+            const rows = raw.data ?? [];
+            const items = rows.map(mapProductListItem);
             // `dto_ProductListResult` — the contract type behind `GET
             // /catalog/v1/collections/{slug}/products` (checked against
             // `packages/sdk/src/__tests__/fixtures/{web-gateway.json,contract.ts}`, 2026-09-27) —
-            // declares only `data`/`meta`: no facets/aggregations field exists on this response
-            // today, so the facet values are counted off the rows themselves rather than read from
-            // a field that is not there (`deriveFacets`), and a vocabulary a product row cannot
-            // carry (`category`, `size`, `availability`) simply has no group.
-            return { items, total: raw.meta.total, facets: deriveFacets(items) };
+            // declares only `data`/`meta` and takes no `facets=true`: no facets/aggregations field
+            // exists on this response today, so the facets are **derived** off the rows themselves
+            // (`deriveFacets`, the fallback the server replaces) rather than read from a field that
+            // is not there, and a family a product row cannot carry (`category`, `collection`)
+            // simply has no values.
+            return {
+              items,
+              total: raw.meta.total,
+              facets: deriveFacets(items, { attributesFor: attributesByHandle(rows) }),
+            };
           }
 
           // Filtered: the pass has to see more than the page the shopper is on, or a filter would
@@ -1503,24 +1554,27 @@ export function createGatewayStorefront(
           // scan cap is reached or the collection runs out — `sort` is the gateway's, so the
           // scanned window is in the right order and the filtered set can be paged from it.
           const maxPages = Math.max(1, Math.ceil(FACET_SCAN_CAP / Math.max(pageSize, 1)));
-          const scanned: StorefrontProductListItem[] = [];
+          const scannedRows: RawProductListItem[] = [];
           for (let which = 1; which <= maxPages; which += 1) {
             const raw = await read(which);
             const rows = raw.data ?? [];
-            scanned.push(...rows.map(mapProductListItem));
+            scannedRows.push(...rows);
             if (rows.length < pageSize) break;
-            if (scanned.length >= FACET_SCAN_CAP) break;
-            if (scanned.length >= raw.meta.total) break;
+            if (scannedRows.length >= FACET_SCAN_CAP) break;
+            if (scannedRows.length >= raw.meta.total) break;
           }
-          const scanWindow = scanned.slice(0, FACET_SCAN_CAP);
-          const matching = filterItems(scanWindow, filters);
+          const scanRows = scannedRows.slice(0, FACET_SCAN_CAP);
+          const scanWindow = scanRows.map(mapProductListItem);
+          const attributesFor = attributesByHandle(scanRows);
+          const matching = filterItems(scanWindow, filters, attributesFor);
           const start = (page - 1) * pageSize;
           return {
             items: matching.slice(start, start + pageSize),
             total: matching.length,
             // Counted over the scanned window rather than the filtered set, the way a facet count
-            // is meant to read: how many products *that value* would return.
-            facets: deriveFacets(scanWindow),
+            // is meant to read: how many products *that value* would return — which is also why
+            // `filters` goes in, so each family's own filter is left out of its own counts.
+            facets: deriveFacets(scanWindow, { filters, attributesFor }),
           };
         },
         { method: 'catalog.collectionProducts', runtime, locale, volatile: 'batch' }

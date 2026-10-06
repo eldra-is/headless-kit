@@ -160,7 +160,16 @@ describe('createGatewayStorefront', () => {
         }),
       ],
       total: 1,
-      facets: [],
+      // Derived off the row: one product, so the price span is its own and the `in_stock` count is
+      // 1. `categories`/`collections` stay empty — a product list row carries neither (see
+      // `listRowAttributes`) — and `options` is empty because this row declares none.
+      facets: {
+        price: { min: 9600, max: 9600 },
+        categories: [],
+        collections: [],
+        availability: { in_stock: 1, out_of_stock: 0 },
+        options: [],
+      },
     });
   });
 
@@ -573,7 +582,17 @@ describe('createGatewayStorefront', () => {
     expect(calls.collectionQueries).toEqual([{ limit: 1, filter: [`id:eq:${id}`] }]);
     expect(calls.productSlugs).toEqual(['winter-knitwear']);
     expect(result.error.value).toBeNull();
-    expect(result.data.value).toEqual({ items: [], total: 0, facets: [] });
+    expect(result.data.value).toEqual({
+      items: [],
+      total: 0,
+      facets: {
+        price: { min: 0, max: 0 },
+        categories: [],
+        collections: [],
+        availability: { in_stock: 0, out_of_stock: 0 },
+        options: [],
+      },
+    });
   });
 
   /**
@@ -987,6 +1006,86 @@ describe('createGatewayStorefront', () => {
 
       expect(data.items).toHaveLength(3);
       expect(data.total).toBe(3);
+    });
+
+    /**
+     * `dto_ProductListItem.options` is the one facet family a product list row *can* answer, so the
+     * option groups are real on the live site: the pass filters on them and `deriveFacets` counts
+     * them off the same rows. Both halves have to be true together — a value the panel offers that
+     * the pass cannot match is a filter that moves the chips and the URL and nothing else.
+     */
+    it('filters and counts the option facets a product list row carries', async () => {
+      const rows = [
+        { slug: 'oat-sweater', colour: 'oat', size: 'm' },
+        { slug: 'moss-sweater', colour: 'moss', size: 'm' },
+        { slug: 'moss-beanie', colour: 'moss', size: 's' },
+      ];
+      const client = {
+        catalog: {
+          listCollectionProducts: async () => ({
+            data: rows.map((row, index) => ({
+              id: `p${index}`,
+              slug: row.slug,
+              title: row.slug,
+              status: 'ACTIVE',
+              minPrice: 100,
+              maxPrice: 100,
+              totalVariants: 1,
+              options: [
+                { key: 'colour', values: [{ key: row.colour, name: row.colour.toUpperCase() }] },
+                { key: 'size', values: [{ key: row.size, name: row.size.toUpperCase() }] },
+              ],
+            })),
+            meta: {
+              page: 1,
+              pageSize: 24,
+              total: rows.length,
+              totalPages: 1,
+              rows: rows.length,
+              hasNext: false,
+              hasPrev: false,
+            },
+          }),
+        },
+      } as unknown as EldraClient;
+
+      const data = await load(client, {
+        page: 1,
+        pageSize: 24,
+        filters: { 'option:colour': ['moss'] },
+      });
+
+      expect(data.items.map((item) => item.handle)).toEqual(['moss-sweater', 'moss-beanie']);
+      expect(data.total).toBe(2);
+      const facets = data.facets!;
+      const valuesOf = (key: string) => facets.options.find((option) => option.key === key)!.values;
+      // The colour counts ignore the colour filter (contract §1), so Oat is still pickable and
+      // Moss still counts both its products…
+      expect(valuesOf('colour')).toEqual([
+        { value: 'oat', label: 'OAT', count: 1 },
+        { value: 'moss', label: 'MOSS', count: 2 },
+      ]);
+      // …while the size counts *are* narrowed by it: both sizes still exist, counted over Moss.
+      expect(valuesOf('size')).toEqual([
+        { value: 'm', label: 'M', count: 1 },
+        { value: 's', label: 'S', count: 1 },
+      ]);
+      expect(facets.availability).toEqual({ in_stock: 2, out_of_stock: 0 });
+      // A row carries no category and no collection membership — those wait for Core.
+      expect(facets.categories).toEqual([]);
+      expect(facets.collections).toEqual([]);
+
+      // A value another family's filter excludes keeps its place with a count of 0, which is what
+      // the panel disables rather than hides: nothing in size S is Oat.
+      const narrowed = await load(client, {
+        page: 1,
+        pageSize: 24,
+        filters: { 'option:size': ['s'] },
+      });
+      expect(narrowed.facets!.options.find((option) => option.key === 'colour')!.values).toEqual([
+        { value: 'oat', label: 'OAT', count: 0 },
+        { value: 'moss', label: 'MOSS', count: 1 },
+      ]);
     });
 
     it('keeps the sort the gateway applied across the pages it scanned', async () => {

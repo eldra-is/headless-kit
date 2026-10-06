@@ -388,25 +388,67 @@ describe('createDemoStorefront', () => {
       expect(prices).toEqual([...prices].sort((a, b) => a - b));
     });
 
+    /**
+     * Every count a filter group shows has to be the number of products that value returns, or the
+     * shopper is offered a filter that empties the grid. The demo derives its facets with
+     * `deriveFacets` over the whole collection, so this walks every value of every family and
+     * re-reads the collection filtered by it alone.
+     */
     it('counts every facet value over the collection, so the grid never offers an empty filter', async () => {
       const response = await collection({});
-      for (const facet of response.facets) {
-        for (const value of facet.values) {
-          const filtered = await collection({
-            filters: {
-              [facet.source === 'size'
-                ? 'option:size'
-                : facet.source === 'colour'
-                  ? 'option:colour'
-                  : facet.source]: [value.value],
-            },
-          });
-          expect(
-            value.count,
-            `facet ${facet.source}=${value.value} claims ${value.count} but returns ${filtered.total}`
-          ).toBe(filtered.total);
-        }
+      const facets = response.facets!;
+      const clauses: Array<{ source: string; value: string; count: number }> = [
+        ...facets.categories.map((term) => ({
+          source: 'category',
+          value: term.slug,
+          count: term.count,
+        })),
+        ...facets.collections.map((term) => ({
+          source: 'collection',
+          value: term.slug,
+          count: term.count,
+        })),
+        ...facets.options.flatMap((option) =>
+          option.values.map((value) => ({
+            source: `option:${option.key}`,
+            value: value.value,
+            count: value.count,
+          }))
+        ),
+        { source: 'availability', value: 'in_stock', count: facets.availability.in_stock },
+        { source: 'availability', value: 'out_of_stock', count: facets.availability.out_of_stock },
+      ];
+      expect(clauses.length).toBeGreaterThan(10);
+      for (const clause of clauses) {
+        const filtered = await collection({ filters: { [clause.source]: [clause.value] } });
+        expect(
+          clause.count,
+          `facet ${clause.source}=${clause.value} claims ${clause.count} but returns ${filtered.total}`
+        ).toBe(filtered.total);
       }
+    });
+
+    /** The collection group's own values: the winter edit holds all 48, and the curated
+     *  `best-sellers` list a subset — which is what makes the group worth showing at all. */
+    it('derives the collection facet from the fixture’s own membership', async () => {
+      const facets = (await collection({})).facets!;
+      const bySlug = new Map(facets.collections.map((term) => [term.slug, term]));
+      expect(bySlug.get('the-winter-edit')?.count).toBe(48);
+      expect(bySlug.get('best-sellers')?.count).toBe(24);
+      expect(bySlug.get('the-winter-edit')?.title).toBe('The winter edit');
+      // The id is the one a `reference` field carries, so a filter value and a picked collection
+      // describe the same object.
+      expect(bySlug.get('best-sellers')?.id).toBe(demoCollectionId('best-sellers'));
+    });
+
+    /** The price bounds the `collection-grid`'s range slider is drawn from: the collection's own
+     *  cheapest and dearest, and they do not move when the shopper drags a thumb. */
+    it('spans the collection’s own prices, and keeps the span under a price filter', async () => {
+      expect((await collection({})).facets!.price).toEqual({ min: 24, max: 164 });
+      expect((await collection({ filters: { price: ['50-100'] } })).facets!.price).toEqual({
+        min: 24,
+        max: 164,
+      });
     });
   });
 
