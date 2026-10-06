@@ -424,7 +424,19 @@ const RANGE_DISABLED = 'bg-border';
 const THUMB_BASE =
   'eldra-range-thumb absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ' +
   'border-border-strong bg-background shadow-sm eldra-focus';
-const THUMB_ENABLED = 'cursor-grab';
+/**
+ * Spec → States, "Thumb hover" row: "a 0.25rem halo of `text` at 8%, edge `text`". The halo is the
+ * `eldra-range-thumb` utility's `::before`; the edge is this colour change. A plain
+ * `hover:border-*` with no `transition-*`/`duration-*` beside it, so `eldra-focus` keeps owning the
+ * element's transition list (`src/__tests__/focus-transition.spec.ts`) and the border colour
+ * changes over the `border-color` entry that list already carries.
+ *
+ * On `THUMB_ENABLED` rather than `THUMB_BASE`: `THUMB_DISABLED` replaces the rest colour
+ * (`border-border-strong` → `border-border`), but `hover:border-text` is a different
+ * `tailwind-merge` group, so on the base it would survive into the disabled state and a dead thumb
+ * would still light up under the pointer.
+ */
+const THUMB_ENABLED = 'cursor-grab hover:border-text';
 const THUMB_DISABLED = 'cursor-not-allowed border-border bg-surface-strong shadow-none';
 /** Spec → Anatomy item 6: `1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned, 0.75rem below the rail. */
 const INPUTS_BASE = 'mt-3 grid grid-cols-[1fr_auto_1fr] items-end gap-2';

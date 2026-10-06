@@ -652,6 +652,21 @@ describe('RangeSlider — classes', () => {
     wrapper.unmount();
   });
 
+  it('changes a live thumb edge on hover, and never a disabled one', () => {
+    const live = mountWith(RangeSlider, { props: { label: 'Price' } });
+    // Spec → States, "Thumb hover": "a 0.25rem halo of `text` at 8%, edge `text`".
+    expect(thumb(live, 'min').classList.contains('hover:border-text')).toBe(true);
+    expect(thumb(live, 'min').classList.contains('border-border-strong')).toBe(true);
+    live.unmount();
+
+    const dead = mountWith(RangeSlider, { props: { label: 'Price', disabled: true } });
+    // A dead thumb must not light up under the pointer: the hover variant is a different
+    // tailwind-merge group from the rest colour, so it has to be absent rather than overridden.
+    expect(thumb(dead, 'min').classList.contains('hover:border-text')).toBe(false);
+    expect(thumb(dead, 'min').classList.contains('border-border')).toBe(true);
+    dead.unmount();
+  });
+
   it('is a width container, so its own touch rules measure the control, not the viewport', () => {
     const wrapper = mountWith(RangeSlider);
     expect(wrapper.find('[data-part="root"]').classes()).toContain('@container');
