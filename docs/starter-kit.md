@@ -916,7 +916,16 @@ with the facets' own vocabulary (`options[].key`), and the one place the price g
   Every write goes through the slot's own `commit`, which snaps to the step grid and clamps to the
   span and against the other thumb, so the fields and the thumbs are one value; the fields
   deliberately take no `min`/`max` of their own, since a field that _refused_ the keystroke would
-  stop a shopper typing "1250" at the "1". They commit on **blur or `Enter`**, never per keystroke.
+  stop a shopper typing "1250" at the "1". They commit on **blur or `Enter`**, never per keystroke,
+  and the handler assigns `commit`'s return straight back into the field's own model — the clamped
+  figure the control actually applied, not the keystroke that was typed, which matters whenever a
+  typed value snaps onto the thumb's unchanged position and nothing is written at all.
+  **With no published currency** (`currency: undefined`, the same `undefined` every bare `<Price>`
+  on the page gets), neither shape hands that `undefined` to a `CurrencyInput` — its own `currency`
+  prop defaults to `'USD'`, so it would print a dollar sign nobody chose. The slider shape leaves
+  `inputs`' slot unfilled, so `RangeSlider`'s own built-in generic fields render instead, and the
+  `priceSlider: false` fallback draws a plain `Input` pair, the same one it drew before a currency
+  ever existed.
   `priceSlider` off keeps those two fields alone, for prices that sit in a few tight clusters a
   track cannot separate — a block-level field rather than one on the price `filters[]` row, see
   below.

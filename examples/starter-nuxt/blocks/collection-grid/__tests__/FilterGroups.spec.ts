@@ -113,6 +113,10 @@ function mountGroups(
   // the one the money fields parse and format against — `CurrencyInput` reads it off the ambient
   // provide, so a spec about a zero-decimal currency sets it here rather than on the control.
   const base = mountOptions({ entry: { id: 'e1', data: {} } }, { locale: mountExtras.locale });
+  // What the store sells in, for the two `CurrencyInput`s the price group's fields are. `in`
+  // rather than `??`, so a spec can force `currency: undefined` — a store with no published
+  // currency — rather than always falling back to the default.
+  const currency = 'currency' in overrides ? overrides.currency : 'USD';
   // Each group trigger's chevron is an `EldraIcon`, which resolves through `useEldraIcon` — outside
   // Nuxt that needs an injected fetcher (the same synchronous, network-free stub every other spec
   // that renders an icon by name uses).
@@ -124,9 +128,12 @@ function mountGroups(
       max: overrides.max ?? '',
       priceSpan: SPAN,
       priceStep: overrides.priceStep ?? 1,
-      formatPrice: (amount: number) => `$${amount}`,
-      // What the store sells in, for the two `CurrencyInput`s the price group's fields are.
-      currency: overrides.currency ?? 'USD',
+      // The real `money.format` this stands in for prints a plain decimal with no sign at all
+      // once a store has no currency (`app/storefront/money.ts`'s "never guessed" rule) — never a
+      // hard-coded symbol regardless of currency, which is what made a thumb announce "$1,200" on
+      // a store that sells in nothing yet.
+      formatPrice: (amount: number) => (currency === undefined ? `${amount}` : `$${amount}`),
+      currency,
       idPrefix: 'grid-test',
       dense: overrides.dense ?? false,
     },
@@ -295,6 +302,29 @@ describe('collection-grid filter groups', () => {
       expect(thumbs(wrapper)[1]!.attributes('aria-valuenow')).toBe('24');
     });
 
+    /**
+     * **A typed figure that snaps onto the thumb it started from.** `commit` returns the number it
+     * actually applied — snapped to the step grid, clamped to the span — and that return is what a
+     * controlled field must show, because `setThumb` writes nothing (and `change` never fires) when
+     * the clamped result equals the thumb's current value. With a step the typed figure does not
+     * land on, discarding that return left the field showing the untouched keystroke forever, with
+     * no `update:range` to show for it.
+     */
+    it('shows the commit’s own clamped figure, not the typed one, when it snaps onto the unchanged thumb', async () => {
+      const wrapper = mountGroups([PRICE], { priceStep: 10 });
+      const field = wrapper.get('input[data-input="min"]');
+      expect((field.element as HTMLInputElement).value).toBe('$24');
+
+      await field.setValue('26');
+      await field.trigger('keydown', { key: 'Enter' });
+
+      // 26 snaps onto the grid's nearest stop, 24 — the thumb's own value already — so nothing
+      // moved and nothing was written.
+      expect(wrapper.emitted('update:range')).toBeUndefined();
+      expect(thumbs(wrapper)[0]!.attributes('aria-valuenow')).toBe('24');
+      expect((field.element as HTMLInputElement).value).toBe('$24');
+    });
+
     it('moves a thumb by the step from the keyboard, and reports it once the run ends', async () => {
       const wrapper = mountGroups([PRICE], { priceStep: 10 });
       const min = thumbs(wrapper)[0]!;
@@ -399,6 +429,33 @@ describe('collection-grid filter groups', () => {
 
     it('is axe-clean with the two money fields', async () => {
       expect(await axe(mountGroups([PRICE_FIELDS]).element)).toHaveNoViolations();
+    });
+  });
+
+  /**
+   * A store that has published no currency at all (`currency: undefined`, the same `undefined`
+   * every bare `<Price>` on the page gets). `CurrencyInput`'s own `currency` prop defaults to
+   * `'USD'`, so handing it `undefined` would print a dollar sign nobody chose — this group must
+   * never do that, in either shape of the price group.
+   */
+  describe('a store with no published currency', () => {
+    it('falls back to the slider’s own generic fields rather than a CurrencyInput guessing $', () => {
+      const wrapper = mountGroups([PRICE], { currency: undefined });
+      const fields = wrapper.findAll('input[data-input]');
+      expect(fields).toHaveLength(2);
+      for (const field of fields) {
+        expect((field.element as HTMLInputElement).value).not.toContain('$');
+      }
+      // The built-in field, not a replacement: plain digits, the collection's own bound.
+      expect((fields[0]!.element as HTMLInputElement).value).toBe('24');
+    });
+
+    it('falls back to a plain Input rather than a CurrencyInput guessing $', () => {
+      const wrapper = mountGroups([PRICE_FIELDS], { currency: undefined, min: '50', max: '150' });
+      const fields = wrapper.findAll('input[data-input]');
+      expect(fields).toHaveLength(2);
+      expect((fields[0]!.element as HTMLInputElement).value).toBe('50');
+      expect((fields[1]!.element as HTMLInputElement).value).toBe('150');
     });
   });
 

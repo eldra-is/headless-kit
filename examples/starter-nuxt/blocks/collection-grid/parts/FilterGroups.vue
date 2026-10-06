@@ -48,6 +48,7 @@ import {
   Checkbox,
   CurrencyInput,
   FieldWrapper,
+  Input,
   RangeSlider,
   VisuallyHidden,
 } from '@eldrajs/ui';
@@ -91,8 +92,13 @@ const props = withDefaults(
     /**
      * What the store sells in, ISO 4217 — the one thing `CurrencyInput` does not read from an
      * ambient provide (its locale it does). `undefined` on a store that published no currency, which
-     * is the same `undefined` every `<Price>` on the page gets and which the control renders as a
-     * plain number rather than guessing a sign.
+     * is the same `undefined` every `<Price>` on the page gets. `CurrencyInput` itself cannot render
+     * that honestly — its own `currency` prop defaults to `'USD'`, so an `undefined` here would print
+     * a dollar sign on a store with no published currency at all. So this component never hands an
+     * `undefined` currency to a `CurrencyInput`: with no currency, the price group falls back to the
+     * generic numeric fields instead (`hasCurrency`) — `RangeSlider`'s own built-in fields for the
+     * slider shape, a plain `Input` for the `priceSlider: false` fallback — the same plain-number
+     * rendering every bare `<Price>` on the page gives a currency-less store.
      */
     currency?: string;
     /** Namespaces every `id` this component mints, so the sidebar and the drawer never collide. */
@@ -224,10 +230,17 @@ function amountOf(text: string): number | null {
 }
 
 /**
- * The two **typed** fields' own numbers, for the `priceSlider: false` shape. Local, because a money
- * field reformats as it is typed and a commit per keystroke would both snap the figure under the
- * caret and fire a request per character; the committed range re-seeds them, so Clear all and a
- * removed chip still reach the fields.
+ * Whether the store has a published currency to hand `CurrencyInput` — see the `currency` prop's
+ * own doc above. `false` on a store with no commerce currency, which is the branch that keeps a
+ * dollar sign off every price field on that store.
+ */
+const hasCurrency = computed(() => props.currency !== undefined);
+
+/**
+ * The two **typed** fields' own numbers, for the `priceSlider: false` shape's `CurrencyInput`
+ * branch. Local, because a money field reformats as it is typed and a commit per keystroke would
+ * both snap the figure under the caret and fire a request per character; the committed range
+ * re-seeds them, so Clear all and a removed chip still reach the fields.
  */
 const minAmount = ref<number | null>(amountOf(props.min));
 const maxAmount = ref<number | null>(amountOf(props.max));
@@ -242,6 +255,35 @@ watch(
 /** Spec → Behaviour & motion: a typed value commits on **blur or `Enter`**, never on a keystroke. */
 function commitAmounts(): void {
   emit('update:range', { min: amountText(minAmount.value), max: amountText(maxAmount.value) });
+}
+
+/**
+ * The `priceSlider: false` shape's **no-currency** fallback: the plain `Input` pair this group drew
+ * before a `CurrencyInput` ever reached it. Text, not a parsed number — there is no money field here
+ * to do the parsing, so the sanitizing is the same digits-only filter the committed range itself
+ * uses (`sanitizeAmount`).
+ */
+const minValue = ref(props.min);
+const maxValue = ref(props.max);
+watch(
+  () => props.min,
+  (value) => {
+    minValue.value = value;
+  }
+);
+watch(
+  () => props.max,
+  (value) => {
+    maxValue.value = value;
+  }
+);
+function onMin(raw: string): void {
+  minValue.value = sanitizeAmount(raw);
+  emit('update:range', { min: minValue.value, max: maxValue.value });
+}
+function onMax(raw: string): void {
+  maxValue.value = sanitizeAmount(raw);
+  emit('update:range', { min: minValue.value, max: maxValue.value });
 }
 
 /**
@@ -561,8 +603,12 @@ const PRICE_FIELD = { control: 'text-center tabular-nums' } as const;
                it does so on commit. A field that refused the keystroke instead would stop a shopper
                typing "1250" at the "1", and would then disagree with a thumb a drag can park
                anywhere. The fields keep `step`, so an arrow key in a field moves by the store's own
-               price step. -->
-          <template #inputs="{ labels, step, disabled, commit }">
+               price step.
+
+               Only filled when the store has a currency (`hasCurrency`): with none, this `template`
+               is not rendered at all, so `RangeSlider` falls back to its own built-in generic
+               fields rather than a `CurrencyInput` guessing `$`. -->
+          <template v-if="hasCurrency" #inputs="{ labels, step, disabled, commit }">
             <CurrencyInput
               v-model="typedPair[0]"
               data-input="min"
@@ -572,8 +618,8 @@ const PRICE_FIELD = { control: 'text-center tabular-nums' } as const;
               :disabled="disabled"
               :aria-label="labels.min"
               :classes="PRICE_FIELD"
-              @blur="commit(0, typedPair[0])"
-              @keydown.enter.prevent="commit(0, typedPair[0])"
+              @blur="typedPair[0] = commit(0, typedPair[0])"
+              @keydown.enter.prevent="typedPair[0] = commit(0, typedPair[0])"
             />
             <span class="text-muted text-body-sm self-center text-center" aria-hidden="true">
               {{ labels.separator }}
@@ -587,19 +633,25 @@ const PRICE_FIELD = { control: 'text-center tabular-nums' } as const;
               :disabled="disabled"
               :aria-label="labels.max"
               :classes="PRICE_FIELD"
-              @blur="commit(1, typedPair[1])"
-              @keydown.enter.prevent="commit(1, typedPair[1])"
+              @blur="typedPair[1] = commit(1, typedPair[1])"
+              @keydown.enter.prevent="typedPair[1] = commit(1, typedPair[1])"
             />
           </template>
         </RangeSlider>
 
         <!-- Price, without one (the block's `priceSlider` off): Min, the word "to", Max — the same
-             money fields, each named by a visible label its `FieldWrapper` owns. They commit on blur
-             or Enter like the slider's, rather than on every keystroke: a request per character is
-             one per character, and a money field reformats as it is typed. -->
+             money fields, each named by a visible label its `FieldWrapper` owns, when the store has
+             a currency to show. They commit on blur or Enter like the slider's, rather than on every
+             keystroke: a request per character is one per character, and a money field reformats as
+             it is typed.
+
+             With no currency (`hasCurrency`), these are the generic `Input` pair the group drew
+             before `CurrencyInput` ever reached it — a `CurrencyInput` left on its own default would
+             print a dollar sign on a store that published none at all. -->
         <div v-else class="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <FieldWrapper :id="fieldId(group.source, 'min')" :label="t('grid.minLabel')">
             <CurrencyInput
+              v-if="hasCurrency"
               v-model="minAmount"
               data-input="min"
               :currency="currency"
@@ -609,10 +661,19 @@ const PRICE_FIELD = { control: 'text-center tabular-nums' } as const;
               @blur="commitAmounts"
               @keydown.enter.prevent="commitAmounts"
             />
+            <Input
+              v-else
+              :model-value="minValue"
+              data-input="min"
+              inputmode="numeric"
+              autocomplete="off"
+              @update:model-value="onMin"
+            />
           </FieldWrapper>
           <span class="text-muted text-body-sm pb-2 text-center">{{ t('grid.to') }}</span>
           <FieldWrapper :id="fieldId(group.source, 'max')" :label="t('grid.maxLabel')">
             <CurrencyInput
+              v-if="hasCurrency"
               v-model="maxAmount"
               data-input="max"
               :currency="currency"
@@ -621,6 +682,14 @@ const PRICE_FIELD = { control: 'text-center tabular-nums' } as const;
               autocomplete="off"
               @blur="commitAmounts"
               @keydown.enter.prevent="commitAmounts"
+            />
+            <Input
+              v-else
+              :model-value="maxValue"
+              data-input="max"
+              inputmode="numeric"
+              autocomplete="off"
+              @update:model-value="onMax"
             />
           </FieldWrapper>
         </div>
