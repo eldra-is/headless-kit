@@ -47,7 +47,28 @@ const storefront = useStorefront();
 const t = useT();
 
 const showHome = computed(() => data.value.showHome !== false);
-const fromProduct = computed(() => data.value.fromProduct === true);
+/**
+ * **On unless the author turned it off**, which is what `!== false` means here and nowhere else in
+ * this block (`showHome` and `showCurrent` read the same way, and for the same reason).
+ *
+ * It matters because of what "absent" is. A `fromProduct` the page document does not carry is not
+ * an author's "no" — it is a product template written before the field existed, which is every
+ * site deployed up to now: Core stores the block data a seed wrote and does not backfill a field
+ * added later. Reading an absent value as `false` therefore left the trail switched off on exactly
+ * the pages it exists for, with nothing in the inspector to explain it, while the seeded template
+ * beside it also turns Product detail's own `showCategory` off — so a live product page had no
+ * category trail in either place.
+ *
+ * Nothing is duplicated by the flip: the option can only add crumbs on a **product route**, which
+ * is served by the product route template, and that template's seed is the one that carries
+ * `showCategory: false` (`pages/product.page.json`).
+ *
+ * `preview.json` turns it off for the generated story and the preview tile alone, because the demo
+ * storefront's route *is* a product by default (`app/storefront/demo.ts`) — so without the overlay
+ * this block's own tile would draw the demo product's category on top of `mock.json`'s authored
+ * levels, which is a picture of two trails rather than of this block.
+ */
+const fromProduct = computed(() => data.value.fromProduct !== false);
 const homeLabel = computed(() => data.value.homeLabel || 'Home');
 const showCurrent = computed(() => data.value.showCurrent !== false);
 const currentTitle = computed(() => data.value.currentTitle?.trim() ?? '');
@@ -67,13 +88,22 @@ const trailItems = computed<BreadcrumbItem[]>(() =>
 );
 
 /**
- * The product the route resolved, or `null` — `null` whenever `fromProduct` is off, so a page that
- * does not want the store's trail makes no read at all. **A source that is final at setup time**
- * (`StorefrontResult`'s own rule): `route.productHandle` is the committed route's, settled before any
- * block is created, so this result's key is the one the prerender left a payload under.
+ * The product **this page** resolved, read once rather than watched — `null` whenever `fromProduct`
+ * is off, so a page that does not want the store's trail makes no read at all.
+ *
+ * `route.productHandle` is the committed route's and is settled before any block on the page is
+ * created, which is what makes this result's key the one the prerender left a payload under
+ * (`StorefrontResult`'s "sources final at setup time" rule). Reading it *inside* the computed made
+ * it a live source instead, and this block sits on pages that are not product pages: a click on a
+ * product card commits the destination route while the collection page is still mounted, so the
+ * collection page's own breadcrumbs re-keyed onto the clicked product and fetched it — a second
+ * read of a product the destination page already has in its payload. Capturing the value here keeps
+ * a block on a non-product page at `null` for its whole life, and the destination page's own blocks
+ * are created fresh against the committed route.
  */
+const routeProductHandle = storefront.route.productHandle;
 const productHandle = computed<string | null>(() =>
-  fromProduct.value ? storefront.route.productHandle : null
+  fromProduct.value ? routeProductHandle : null
 );
 const productResult = storefront.catalog.product(productHandle);
 

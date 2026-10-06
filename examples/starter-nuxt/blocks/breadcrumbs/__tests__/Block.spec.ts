@@ -40,8 +40,18 @@ const topLevelPageData = {
   container: 'wide',
 };
 
+/**
+ * A page that is **not** a product route, which is what every authored-trail test below is about.
+ *
+ * The demo storefront's route is a product by default (`app/storefront/demo.ts` — it is what lets
+ * the commerce blocks' own stories show something), and `fromProduct` is on unless an author turns
+ * it off, so leaving the handle alone would add the demo product's category trail to a block that
+ * is being tested for the levels its author typed.
+ */
 function mountBlock(data: Record<string, unknown>) {
-  return mount(Block, mountOptions({ entry: { id: 'e1', data } }));
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  (base.global.provide[STOREFRONT_KEY] as StorefrontSource).route.productHandle = null;
+  return mount(Block, base);
 }
 
 /**
@@ -62,6 +72,7 @@ function mountOnProduct(data: Record<string, unknown>, handle: string | null) {
  *  `mountOptions` already built is enough — no need to reassemble the whole context by hand. */
 function mountEditing(data: Record<string, unknown>) {
   const options = mountOptions({ entry: { id: 'e1', data } });
+  (options.global.provide[STOREFRONT_KEY] as StorefrontSource).route.productHandle = null;
   const context = options.global.provide[ELDRA_KEY] as {
     preview: { active: boolean; mode: string };
   };
@@ -185,10 +196,11 @@ describe('breadcrumbs block', () => {
     });
 
     it('activating "…" reveals every level and moves focus to the first revealed link', async () => {
-      const wrapper = mount(Block, {
-        ...mountOptions({ entry: { id: 'e1', data: deepTrailData } }),
-        attachTo: document.body,
-      });
+      const options = mountOptions({ entry: { id: 'e1', data: deepTrailData } });
+      // Not a product route — the same reason `mountBlock` says so, and this one needs
+      // `attachTo` so it cannot use that helper.
+      (options.global.provide[STOREFRONT_KEY] as StorefrontSource).route.productHandle = null;
+      const wrapper = mount(Block, { ...options, attachTo: document.body });
       const ellipsis = wrapper.get('[data-part="ellipsis"]');
 
       // A native `<button type="button">` guarantees Enter/Space activation dispatches `click` on
@@ -311,6 +323,37 @@ describe('the product’s own category trail', () => {
     expect(destinations).toEqual(['/', '/products?category=knitwear']);
   });
 
+  /**
+   * **The shape a deployed site actually stores.** `fromProduct` is newer than every product
+   * template Core has already seeded, and Core does not backfill a field added after the fact — so
+   * the live block document carries these five keys and no `fromProduct` at all. Read as `false`,
+   * that left the live product page with "Home › Ash glaze mug" while the storefront was resolving
+   * the trail correctly and putting it in the page payload, and the seeded template had also
+   * turned Product detail's own `showCategory` off: no category trail anywhere, nothing to see in
+   * the inspector, and a field whose whole purpose was that page.
+   */
+  it('fills the trail on a product page whose stored data predates the field', async () => {
+    const asDeployed = {
+      container: 'content',
+      homeLabel: 'Home',
+      showCurrent: true,
+      showHome: true,
+      trail: [],
+      // Not in the stored document either: the seeded template's own text template
+      // (`currentTitle: '{{ title }}'` in `app/templates.ts`) fills it from the routed product, so
+      // the rendered data has it and the stored data does not.
+      currentTitle: 'Speckled latte mug',
+    };
+    expect('fromProduct' in asDeployed).toBe(false);
+
+    const wrapper = mountOnProduct(asDeployed, 'speckled-latte-mug');
+    await flushPromises();
+    expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((link) => link.props('to'))).toEqual(
+      ['/', '/products?category=home', '/products?category=ceramics']
+    );
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
   /** Off is off: the authored trail is the whole trail, and nothing is read. */
   it('adds nothing when the option is off', async () => {
     const wrapper = mountOnProduct({ ...FROM_PRODUCT, fromProduct: false }, 'speckled-latte-mug');
@@ -320,10 +363,50 @@ describe('the product’s own category trail', () => {
     );
   });
 
-  /** A page that is not a product route — the option left on by an author who moved the block. */
+  /** A page that is not a product route: the option is on by default, and on anything but a
+   *  product it still reads nothing and adds nothing — which is what makes the default safe. */
   it('adds nothing on a route with no product', async () => {
     const wrapper = mountOnProduct(FROM_PRODUCT, null);
     await flushPromises();
+    expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((link) => link.props('to'))).toEqual(
+      ['/']
+    );
+  });
+
+  /**
+   * **A click on a product card must not make this block fetch that product.**
+   *
+   * The option is on by default, and this block sits on pages that are not product pages. The
+   * router commits the destination route while the departing page is still mounted, so a
+   * `route.productHandle` read *inside* the computed turned the collection page's own breadcrumbs
+   * into a second reader of the clicked product — a live request for a product the destination
+   * page already carries in its payload (caught by `test/prerenderRefresh.browser.spec.ts`,
+   * "shows no loading state and asks nothing about the route when a card is clicked"). The handle
+   * is captured once at setup instead.
+   */
+  it('never re-keys onto a product the route moves to after it was created', async () => {
+    const storefront = createDemoStorefront();
+    storefront.route.productHandle = null;
+    const base = mountOptions({ entry: { id: 'e1', data: FROM_PRODUCT } });
+    const asked: Array<string | null> = [];
+    const product = storefront.catalog.product;
+    storefront.catalog.product = (handle) => {
+      asked.push(handle.value);
+      return product(handle);
+    };
+    const wrapper = mount(Block, {
+      ...base,
+      global: { ...base.global, provide: { ...base.global.provide, [STOREFRONT_KEY]: storefront } },
+    });
+    await flushPromises();
+
+    // The navigation commits: the plugin writes the destination's handle onto the shared route
+    // context before the destination page's own blocks exist.
+    storefront.route.productHandle = 'speckled-latte-mug';
+    await flushPromises();
+    await nextTick();
+
+    expect(asked).toEqual([null]);
     expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((link) => link.props('to'))).toEqual(
       ['/']
     );

@@ -880,6 +880,19 @@ so `app/templates.ts` empties the list, and a merchant's first product page had 
 — one item, which is fewer than two, which is nothing. The two are alternatives, not a pair: the
 seeded product page turns `product-detail`'s own trail off so it never shows twice.
 
+`fromProduct` is **on unless the author turns it off** (`default: true`, read as `!== false`), and
+that is about the one case where the two readings differ: a value the page document does not carry
+at all. That is not an author's "no" — it is a product template seeded before the field existed,
+which is every site deployed up to the day it landed, because Core stores what a seed wrote and does
+not backfill a field added later. Read as "off", the trail was switched off on exactly the pages it
+exists for while the seeded template beside it also had `product-detail`'s `showCategory` off: a live
+product page with no category trail in either place and nothing in the inspector to explain it.
+Nothing can double up from the default, because the option only ever adds crumbs on a product route
+and that route is the template whose seed turns `showCategory` off. The block's own
+`preview.json` turns it off for the generated story and the preview tile alone — the demo
+storefront's route is a product by default, so the tile would otherwise draw the demo product's
+category on top of `mock.json`'s authored levels.
+
 It is **prerender-safe without any wiring of its own**. The categories are read on the server inside
 the same `useAsyncData` the product read already runs under, so a generated product page carries its
 trail in the page payload and the hydrating browser fetches nothing to draw the crumb. `breadcrumbs`

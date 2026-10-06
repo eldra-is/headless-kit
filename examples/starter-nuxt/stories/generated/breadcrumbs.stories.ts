@@ -6,6 +6,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/breadcrumbs/Block.vue';
 import mock from '../../blocks/breadcrumbs/mock.json';
+import preview from '../../blocks/breadcrumbs/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/breadcrumbs",
@@ -15,7 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = mock;
+const base = { ...mock, ...preview };
 
 export const Default: Story = {
   args: { entry: { id: "breadcrumbs", data: base } },
