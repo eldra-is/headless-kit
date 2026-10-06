@@ -729,14 +729,14 @@ the field or operator set, so treat this list as what the gateway accepted when 
 check a 400 against it). A token the gateway does not accept is a 400, not an empty list, so the
 tokens this theme builds live in one place in `app/storefront/gateway.ts`. `byHandles` asks for its
 whole set in one `slug:in:a,b` token (bare tokens are AND'd, so one `eq` per handle would match
-nothing). `filter` is one of the query parameters the gateway declares repeatable
-(`explode: true`), along with the catalog's `categoryId`, `collectionId` and `option` — `@eldrajs/sdk`
-sends one entry per value for those four and keeps `sort`/`fields` comma-separated. `related` has no relatedness endpoint to call, so it reads the current product and
-lists the same `categoryId` (the documented query parameter on `GET /catalog/v1/products/list`), the
-product itself excluded, falling back to the newest active products when it has no category or the
-category holds nothing else. Its sort ids map to the sort fields the endpoint knows (`featured` and
-`best-selling` to none: `featured` _is_ the collection's own order, and the contract exposes no sales
-figures).
+nothing). `filter` is one of the query parameters the gateway declares repeatable (`explode: true`),
+along with the catalog's `categoryId`, `collectionId` and `option` — `@eldrajs/sdk` sends one entry
+per value for those four and keeps `sort`/`fields` comma-separated. `related` has no relatedness
+endpoint to call, so it reads the current product and lists the same `categoryId` (the documented
+query parameter on `GET /catalog/v1/products/list`), the product itself excluded, falling back to
+the newest active products when it has no category or the category holds nothing else. Its sort ids
+map to the sort fields the endpoint knows (`featured` and `best-selling` to none: `featured` _is_
+the collection's own order, and the contract exposes no sales figures).
 
 **The collection grid's facets are the catalog list's own query parameters** (public contract
 3.7.0). `catalog.collectionProducts` sends them and asks for `facets=true`, so one request answers
@@ -759,7 +759,10 @@ Four things worth knowing before a shop goes live:
   the same minor units as the parameters it is counted over, and the gateway source converts it to
   the major units every money field in `app/storefront/types.ts` carries. Everything else passes
   through: the terms keep their catalog ids (which is what a `categoryId` filter needs), the option
-  values keep their labels and swatches.
+  values keep their labels and swatches. The span itself is **absent** when the scope minus the price
+  filter held nothing to span — a different answer from 0 to 0, which would be a dead track labelled
+  in the store's currency — and the price control then falls back to the widest span it has seen for
+  this collection.
 - **Counts leave their own family's filter out** and the price bounds leave only price out — the
   platform's rules, stated on `CatalogFacets` and relied on by the panel. That is what makes a
   multi-select panel usable: ticking "Oat" must not zero every other colour, and dragging a price

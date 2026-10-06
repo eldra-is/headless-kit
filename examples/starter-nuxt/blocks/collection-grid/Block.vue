@@ -542,13 +542,21 @@ const availabilityLabels = computed(() => ({
  */
 const facetPriceSpan = computed<PriceSpan | null>(() => facets.value?.price ?? null);
 const loadedPriceSpan = ref<PriceSpan | null>(null);
-watch([facetPriceSpan, items], ([facet, loaded]) => {
-  if (facet !== null) {
-    loadedPriceSpan.value = null;
-    return;
-  }
-  loadedPriceSpan.value = widenPriceSpan(loadedPriceSpan.value, priceSpanOf(loaded));
-});
+// `immediate`, because the facets can arrive *with* the products and already have no span of their
+// own: the platform omits `price` when the scope minus the price filter holds nothing, and a
+// prerendered page hands this block its answer before the first render. Waiting for a change left
+// the fallback unset and the control spanning 0 to 0.
+watch(
+  [facetPriceSpan, items],
+  ([facet, loaded]) => {
+    if (facet !== null) {
+      loadedPriceSpan.value = null;
+      return;
+    }
+    loadedPriceSpan.value = widenPriceSpan(loadedPriceSpan.value, priceSpanOf(loaded));
+  },
+  { immediate: true }
+);
 watch(selected, () => {
   loadedPriceSpan.value = null;
 });
@@ -641,7 +649,9 @@ const activeSources = computed<FilterSource[]>(() => {
   for (const source of Object.keys(selection.value) as FilterSource[]) {
     if (isFilterSource(source) && offered(source) && !out.includes(source)) out.push(source);
   }
-  if (!out.includes('price')) out.push('price');
+  // Price last, and through the same guard: a storefront that declared it unfilterable would
+  // otherwise keep a price chip and an active count for a group that is not on screen.
+  if (!out.includes('price') && offered('price')) out.push('price');
   return out;
 });
 

@@ -177,15 +177,13 @@ export interface CatalogFacetOption {
  *
  * The shape is the platform's own (`facets` on `GET /catalog/v1/collections/{slug}/products` and
  * `GET /catalog/v1/products/list`, requested with `facets=true`), carried here as a view type so a
- * block reads one shape whichever storefront filled it in. **Nothing in the kit asks the gateway
- * for it yet**: both sources derive it themselves for now — `createGatewayStorefront` over the rows
- * it fetched and `createDemoStorefront` over its fixture, both through `deriveFacets`
- * (`app/storefront/facets.ts`) — and the gateway implementation replaces that derivation with the
- * response's own `facets` the moment the platform answers one. What a consumer sees does not
- * change on that day; the numbers simply start describing the whole catalogue rather than the rows
- * one read could reach.
+ * block reads one shape whichever storefront filled it in. `createGatewayStorefront` reads the
+ * response's own object, so its numbers describe the **whole collection** rather than the rows one
+ * read could reach; `createDemoStorefront` counts its own fixture by the same rules
+ * (`app/storefront/facets.ts`). A source that cannot describe its scope at all answers no facets,
+ * and the panel then draws only the groups it can fill without values.
  *
- * Two rules the derivation and the server agree on, because the filter UI is built on them:
+ * Two rules every source agrees on, because the filter UI is built on them:
  *
  * - **Counts ignore the facet's own filter.** A count says how many products *that value* would
  *   return, so it is computed over the scope with every other filter applied and this family's
@@ -201,7 +199,16 @@ export interface CatalogFacetOption {
  * a slider a hundred times too wide on a two-decimal currency and a `?price=` nothing matches.
  */
 export interface CatalogFacets {
-  price: { min: number; max: number };
+  /**
+   * The scope's own lowest and highest price, in **major** units, counted with every filter except
+   * price applied.
+   *
+   * **Absent when the source could not span the scope at all** — the platform omits the key when the
+   * scope minus the price filter holds nothing — which is not the same answer as a span of 0 to 0. A
+   * price control handed a 0–0 span is a dead track labelled with the store's currency; absent, the
+   * panel falls back to the widest span it has seen for this collection instead.
+   */
+  price?: { min: number; max: number };
   categories: CatalogFacetTerm[];
   collections: CatalogFacetTerm[];
   /**

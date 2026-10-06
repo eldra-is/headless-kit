@@ -1188,8 +1188,28 @@ describe('createGatewayStorefront', () => {
       expect(await facetsFor(null)).toBeUndefined();
     });
 
+    /**
+     * The live shape when the scope minus the price filter holds nothing: the platform omits `price`
+     * entirely (its own contract note says to read an absent key as absent, never as a zero), and so
+     * does this mapping — a 0–0 span is a dead track labelled in the store's currency, and writing
+     * one would also wipe the panel's "widest span seen for this collection" fallback, which exists
+     * for exactly this answer.
+     */
+    it('leaves the price span out when the platform could not span the scope', async () => {
+      const facets = await facetsFor({ availability: { in_stock: 0, out_of_stock: 0 } });
+
+      expect(facets).not.toHaveProperty('price');
+      expect(facets?.price).toBeUndefined();
+      expect(facets?.availability).toEqual({ in_stock: 0, out_of_stock: 0 });
+      // The arrays the platform also omits read as empty, which is what its contract says to do.
+      expect(facets?.categories).toEqual([]);
+      expect(facets?.collections).toEqual([]);
+      expect(facets?.options).toEqual([]);
+    });
+
     it('falls back to the stable key or slug for a field the response leaves out', async () => {
       const facets = await facetsFor({
+        price: {},
         categories: [{ slug: 'ceramics', count: 2 }],
         options: [{ key: 'size', values: [{ value: 'm' }] }],
       });

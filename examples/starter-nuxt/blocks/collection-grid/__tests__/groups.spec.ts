@@ -79,7 +79,11 @@ describe('groupValuesFor', () => {
 
   it('keeps a selected value the facets no longer list at all', () => {
     const values = groupValuesFor('option:colour', FACETS, ['moss'], AVAILABILITY);
+    // The store's own word for it is gone with the value, so the raw one is all there is to show —
+    // which is true of every family but `availability`, whose two words are the theme's own.
     expect(values.at(-1)).toEqual({ value: 'moss', label: 'moss', count: 0 });
+    const categories = groupValuesFor('category', FACETS, ['linens'], AVAILABILITY);
+    expect(categories.at(-1)).toEqual({ value: 'linens', label: 'linens', count: 0 });
   });
 
   /**
@@ -91,8 +95,14 @@ describe('groupValuesFor', () => {
   it('offers nothing for availability when the facets omit it, bar a value already ticked', () => {
     const { availability: _omitted, ...noStock } = FACETS;
     expect(groupValuesFor('availability', noStock, [], AVAILABILITY)).toEqual([]);
+    // A kept value is named by the **theme's** own strings, not the platform's spelling: this is
+    // what a shopper arriving on a shared `?availability=in_stock` link sees while stock cannot be
+    // read, and `in_stock` on a checkbox and a chip is untranslated in every locale.
     expect(groupValuesFor('availability', noStock, ['in_stock'], AVAILABILITY)).toEqual([
-      { value: 'in_stock', label: 'in_stock', count: 0 },
+      { value: 'in_stock', label: 'In stock', count: 0 },
+    ]);
+    expect(groupValuesFor('availability', noStock, ['out_of_stock'], AVAILABILITY)).toEqual([
+      { value: 'out_of_stock', label: 'Out of stock', count: 0 },
     ]);
     // Every other group still draws: only the one family the store cannot count goes.
     expect(groupValuesFor('category', noStock, [], AVAILABILITY)).toHaveLength(2);

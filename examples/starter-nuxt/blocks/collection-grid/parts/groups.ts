@@ -11,6 +11,7 @@
  * Everything here is pure, so the price arithmetic a slider and a URL share
  * (`parsePriceRange`/`rangeFromSlider`) is provable without mounting anything.
  */
+import { IN_STOCK, OUT_OF_STOCK } from '../../../app/storefront/facets';
 import type { CatalogFacets } from '../../../app/storefront/types';
 
 /** The six `filters[].source` options `block.json` declares. */
@@ -122,9 +123,31 @@ export function groupValuesFor(
   }));
   const listed = new Set(out.map((value) => value.value));
   for (const value of selected) {
-    if (!listed.has(value)) out.push({ value, label: value, count: 0 });
+    if (!listed.has(value)) {
+      out.push({ value, label: unlistedLabel(source, value, availability), count: 0 });
+    }
   }
   return out;
+}
+
+/**
+ * What a kept-but-unlisted value is called. The store's own words are gone with the value, so a
+ * category or an option value can only be labelled by its raw slug — but **`availability` is the
+ * one family the theme names itself**, so it is never shown the platform's spelling.
+ *
+ * That case is reachable: a store whose stock cannot be read answers no `availability` facet at all,
+ * and a shopper arriving on a shared `?availability=in_stock` link still has the value selected. The
+ * generic fallback drew them a checkbox and a chip reading literally `in_stock`, in both locales.
+ */
+function unlistedLabel(
+  source: FilterSource,
+  value: string,
+  availability: AvailabilityLabels
+): string {
+  if (source !== 'availability') return value;
+  if (value === IN_STOCK) return availability.inStock;
+  if (value === OUT_OF_STOCK) return availability.outOfStock;
+  return value;
 }
 
 function rawValuesFor(
@@ -145,8 +168,8 @@ function rawValuesFor(
     const counts = facets.availability;
     if (counts === undefined) return [];
     return [
-      { value: 'in_stock', label: availability.inStock, count: counts.in_stock },
-      { value: 'out_of_stock', label: availability.outOfStock, count: counts.out_of_stock },
+      { value: IN_STOCK, label: availability.inStock, count: counts.in_stock },
+      { value: OUT_OF_STOCK, label: availability.outOfStock, count: counts.out_of_stock },
     ];
   }
   const option = facets.options.find((candidate) => candidate.key === OPTION_KEY[source]);

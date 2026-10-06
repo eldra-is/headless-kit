@@ -1266,22 +1266,33 @@ async function catalogFilterQuery(
  * without values, never as a scope with nothing in it.
  *
  * Only two things happen here. `price` is converted from the platform's minor units to the major
- * units every money field in `types.ts` carries (`fromMinorUnits`), and `availability` is carried
- * over **only when the platform sent it**: an absent one means stock could not be read at all,
- * which is not the same answer as two zeroes, and the panel hides that group rather than offering a
- * filter whose counts are unknown.
+ * units every money field in `types.ts` carries (`fromMinorUnits`), and the two objects the platform
+ * may **omit** are carried over only when it sent them, because in both cases an absence is a
+ * different answer from a zero:
+ *
+ * - no `availability` means stock could not be read at all, not that nothing is in stock, and the
+ *   panel hides that group rather than offering a filter whose counts are unknown;
+ * - no `price` means the scope minus the price filter held nothing to span, not that everything in it
+ *   is free. A 0–0 span is a dead track labelled in the store's currency, and writing one would also
+ *   suppress the panel's own fallback — the widest span it has seen for this collection — which is
+ *   written for exactly this case.
  */
 function mapFacets(
   raw: RawProductFacets | null | undefined,
   currency: string | undefined
 ): CatalogFacets | undefined {
   if (raw === null || raw === undefined) return undefined;
+  const price = raw.price;
   const availability = raw.availability;
   return {
-    price: {
-      min: fromMinorUnits(raw.price?.min ?? 0, currency),
-      max: fromMinorUnits(raw.price?.max ?? 0, currency),
-    },
+    ...(price === null || price === undefined
+      ? {}
+      : {
+          price: {
+            min: fromMinorUnits(price.min ?? 0, currency),
+            max: fromMinorUnits(price.max ?? 0, currency),
+          },
+        }),
     categories: mapFacetTerms(raw.categories),
     collections: mapFacetTerms(raw.collections),
     ...(availability === null || availability === undefined

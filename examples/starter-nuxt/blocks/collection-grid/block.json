@@ -93,6 +93,7 @@
                 "fieldId": "source",
                 "name": "Source",
                 "type": "select",
+                "helpText": "What the group filters on. A group the storefront cannot narrow by in this grid's scope is not shown to shoppers: \"collection\" is one such group on a grid that already shows a collection, since the catalogue has no way to ask for products in both.",
                 "metadata": {
                   "options": [
                     "category",

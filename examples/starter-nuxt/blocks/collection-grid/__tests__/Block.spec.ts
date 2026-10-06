@@ -9,6 +9,7 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
+import { formatMoney } from '../../../app/storefront/money';
 import { createGatewayStorefront } from '../../../app/storefront/gateway';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
@@ -1104,6 +1105,39 @@ describe('collection-grid block', () => {
    * drops those groups — the author's `filters[]` row included, because an author cannot know which
    * scope their grid will be read in. A scope that honours the source keeps it.
    */
+  /**
+   * **A scope the platform could not span leaves `price` out of its facets**, which is a different
+   * answer from a span of 0 to 0: the control then falls back to the widest span this block has seen
+   * for the collection (`loadedPriceSpan`). Written as a 0–0 span instead, the track is dead and both
+   * fields read `$0.00` — and the fallback is wiped at the same time, because it only runs while the
+   * facets have no span of their own.
+   */
+  describe('facets with no price span', () => {
+    const noPrice: CatalogFacets = { ...FACETS };
+    delete noPrice.price;
+
+    /** The loaded products' own span, which is what the control falls back to. */
+    const amounts = PRODUCTS.map((item) => item.price.amount);
+    const loadedSpan = [
+      formatMoney(Math.min(...amounts), 'USD'),
+      formatMoney(Math.max(...amounts), 'USD'),
+    ];
+
+    it('spans the loaded products rather than nothing at all', async () => {
+      const stub = createStub(PRODUCTS, { facets: noPrice });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      const fields = wrapper
+        .findAll('input[data-input]')
+        .map((input) => (input.element as HTMLInputElement).value);
+      // The sidebar's pair, then the drawer's copy of it.
+      expect(fields).toEqual([...loadedSpan, ...loadedSpan]);
+      expect(fields).not.toContain(formatMoney(0, 'USD'));
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
   describe('a filter source the scope cannot narrow by', () => {
     const WITH_COLLECTION = {
       ...mock,
