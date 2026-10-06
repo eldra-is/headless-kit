@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
-import { computed, ref, watch, type Ref } from 'vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { computed, nextTick, ref, watch, type Ref } from 'vue';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { LOCALE_KEY, MESSAGES_KEY, ProductCard, type UiMessages } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { hydrateBlock, hydrationWarnings, renderBlockHtml } from '../../../test/support/hydrate';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
@@ -91,7 +92,7 @@ interface Stub {
   /** Set by a test to fail the read *after* it has already answered once. */
   error: Ref<string | null>;
   /** Every `collectionProducts` request, newest last — the grid's and the drawer's pending count. */
-  requests: Array<{ pageSize: number; filters?: Record<string, string[]> }>;
+  requests: Array<{ pageSize: number; sort?: string; filters?: Record<string, string[]> }>;
 }
 
 /**
@@ -189,6 +190,55 @@ const wrappers: VueWrapper[] = [];
 afterEach(() => {
   while (wrappers.length > 0) wrappers.pop()!.unmount();
 });
+/** Idempotent on a test that never faked timers in the first place — the one global cleanup for
+ *  every test below that opts into `useFilterTimers()` to get past the sidebar's own
+ *  `FILTER_DEBOUNCE_MS` (Block.vue), so a failure mid-test never leaks fake timers into the next
+ *  one. */
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/**
+ * The sidebar's own filter-request debounce (`FILTER_DEBOUNCE_MS` in Block.vue — 350ms, repeated
+ * here rather than imported, since a `<script setup>` constant is not an export). A test that
+ * ticks a checkbox or drags a price bound and then reads the *request* this drives (`countLine`,
+ * `cards`, `stub.requests`, a chip's facet-matched label) calls `useFilterTimers()` before the
+ * interaction and `settleFilterDebounce()` after it; a test that only reads the *visible* state
+ * the same interaction writes at once (the checkbox itself, the chip's bare existence, the URL
+ * write) needs neither.
+ */
+const FILTER_DEBOUNCE_MS = 350;
+
+/**
+ * **Only `setTimeout`/`clearTimeout` are faked, never the clock.** Vitest's default
+ * `useFakeTimers()` takes `Date` and `performance` with it, so `advanceTimersByTime(350)` leaves
+ * the faked clock 350ms *ahead* of real time — and Vue's own event invoker stamps every listener
+ * with the time it was attached and silently drops an event whose timestamp is older than that
+ * (`_vts <= invoker.attached`, the guard that stops a handler bound mid-propagation from firing on
+ * the event that bound it). Any element the block renders *after* an advance therefore carries a
+ * future `attached`, and the next `trigger('click')` on it — dispatched once the clock is real
+ * again — does nothing at all: no error, no handler, no state change. That cost a long hunt
+ * through the empty state's own Clear-filters button, which looked for all the world like a
+ * product bug. The debounce only needs the two timer functions, so fake only those and the clock
+ * stays honest.
+ */
+function useFilterTimers(): void {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+}
+
+/**
+ * Runs the armed window out and hands the test real timers back — not only in the global
+ * `afterEach` above: `axe()` schedules its own work with real timers in mind, and a run started
+ * while fake ones were still active left every *later* test's own `axe()` call failing with "Axe
+ * is already running" — a stuck module-level flag inside the library, not a timer leak this file's
+ * own cleanup could reach. Settle, then call `axe()` (or anything else timer-sensitive) only after.
+ */
+async function settleFilterDebounce(wrapper: VueWrapper): Promise<void> {
+  await wrapper.vm.$nextTick();
+  vi.advanceTimersByTime(FILTER_DEBOUNCE_MS);
+  await wrapper.vm.$nextTick();
+  vi.useRealTimers();
+}
 
 function mountGrid(
   data: Record<string, unknown>,
@@ -284,11 +334,13 @@ describe('collection-grid block', () => {
     });
 
     it('is axe-clean with zero results', async () => {
+      useFilterTimers();
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
       await panel.get('input[type="checkbox"]').setValue(true);
+      await settleFilterDebounce(wrapper);
       expect(cards(wrapper)).toHaveLength(0);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
@@ -461,6 +513,7 @@ describe('collection-grid block', () => {
 
   describe('the result count', () => {
     it('is a polite status that reads "12 products" and "0 products" after a filter change', async () => {
+      useFilterTimers();
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
@@ -468,6 +521,7 @@ describe('collection-grid block', () => {
 
       const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
       await panel.get('input[type="checkbox"]').setValue(true);
+      await settleFilterDebounce(wrapper);
 
       expect(countLine(wrapper).text()).toBe('0 products');
       expect(countLine(wrapper).attributes('tabindex')).toBe('-1');
@@ -476,10 +530,10 @@ describe('collection-grid block', () => {
     /**
      * The prerender contract (`app/storefront/types.ts`): a grid the visitor can already see never
      * goes back to skeletons. Filtering, sorting and paging all read over results that are on
-     * screen, so those results stay on screen — dimmed, each card's price and stock line carrying
-     * its own spinner — and the grid is marked busy while the count says so.
+     * screen, so those results stay on screen — under the results overlay (scrim, spinner,
+     * "Updating…"), never replaced — and the grid is marked busy while the count says so.
      */
-    it('keeps the cards, dimmed and busy, while a filter loads over results already on screen', async () => {
+    it('keeps the cards under a results overlay, busy, while a filter loads over results already on screen', async () => {
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
@@ -496,9 +550,101 @@ describe('collection-grid block', () => {
       expect(cards(wrapper)).toHaveLength(shown);
       expect(wrapper.find('ul[aria-hidden="true"]').exists()).toBe(false);
       expect(gridList(wrapper).attributes('aria-busy')).toBe('true');
+      // `inert` on the grid, not a `pointer-events` class, is what stops a card being clicked
+      // mid-update. jsdom has no native `inert` IDL property (a real browser sets the property and
+      // reflects the attribute), so Vue's own patch falls back to writing the attribute here —
+      // which is why the binding is `updating || undefined` rather than the bare flag: `false`
+      // would be written as the *string* `"false"` on the browser's first paint and omitted
+      // entirely by the server render, which is a hydration mismatch over nothing at all.
+      expect(gridList(wrapper).attributes('inert')).toBe('true');
+      // The overlay is the one visible "this is stale" treatment now — a card's own
+      // dimmed-value-and-spinner treatment (`revalidating`) is reserved for the volatile price/stock
+      // refresh, a different state this is not, so it stays off here.
       expect(
-        wrapper.findAllComponents(ProductCard).every((card) => card.props('revalidating') === true)
+        wrapper.findAllComponents(ProductCard).every((card) => card.props('revalidating') === false)
       ).toBe(true);
+      // `[data-eldra-grid-updating]`, not the bare `[aria-hidden="true"]` every card's own
+      // decorative icons already carry — a generic attribute selector found one of those instead
+      // of the overlay the first time this was written.
+      const overlay = gridList(wrapper).element.parentElement!.querySelector(
+        '[data-eldra-grid-updating]'
+      )!;
+      expect(overlay).toBeTruthy();
+      expect(overlay.getAttribute('aria-hidden')).toBe('true');
+      expect(overlay.textContent).toContain(enUS.grid.updating);
+      expect(overlay.querySelector('svg')).toBeTruthy();
+      // Chaining is the point: the filter panel is never covered or disabled by the overlay above.
+      const aside = wrapper.get('aside');
+      expect(aside.attributes('inert')).toBeUndefined();
+      expect(aside.classes().join(' ')).not.toContain('pointer-events-none');
+      expect(aside.find('[data-eldra-grid-updating]').exists()).toBe(false);
+    });
+
+    /** The scrim appears and clears with `updating` outright — no `transition`/`duration` class of
+     *  its own — so there is nothing beyond the spinner's own already-reduced-motion-aware spin
+     *  for `prefers-reduced-motion` to need to turn off. */
+    it('the overlay carries no transition of its own, reduced motion or not', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      stub.pending.value = true;
+      stub.loading.value = true;
+      await wrapper.vm.$nextTick();
+
+      const overlay = gridList(wrapper).element.parentElement!.querySelector(
+        '[data-eldra-grid-updating]'
+      )!;
+      expect(overlay.className).not.toMatch(/\btransition|\bduration-|\banimate-/);
+      const spinner = overlay.querySelector('svg')!;
+      expect(spinner.getAttribute('class')).toContain('animate-eldra-spin');
+      expect(spinner.getAttribute('class')).toContain('motion-reduce:animate-eldra-pulse');
+    });
+
+    it('offers no overlay, and no `inert` grid, while nothing is updating', async () => {
+      const wrapper = mountGrid(mock);
+      await wrapper.vm.$nextTick();
+
+      expect(gridList(wrapper).attributes('inert')).toBeUndefined();
+      expect(
+        gridList(wrapper).element.parentElement!.querySelector('[data-eldra-grid-updating]')
+      ).toBe(null);
+    });
+
+    /**
+     * The overlay is gated behind `useRevalidating`'s mount flag like every other refresh
+     * treatment (`app/composables/useRevalidating.ts`), so the server never writes it and the
+     * browser's first render is the server's. A hydrating page is precisely the state that would
+     * paint it otherwise: `createGatewayResult` raises `loading` synchronously and fills `data`
+     * from the payload in the same turn, so `loading && data !== null` — the overlay's own
+     * condition — is true during the first client render and was false during the render it has to
+     * match. Both halves are asserted: absent before the tick, there after it, with the read still
+     * in flight.
+     */
+    it('draws no overlay in the server render or the browser’s first paint', async () => {
+      const entry = { id: 'ssr-grid', data: mock as unknown as Record<string, unknown> };
+      const html = await renderBlockHtml(Block, entry, {
+        [STOREFRONT_KEY]: createStub().source,
+      });
+      expect(html).toContain('data-part="stars"'); // the cards really are in the server's markup
+      expect(html).not.toContain('data-eldra-grid-updating');
+      expect(html).not.toContain(enUS.grid.updating);
+
+      const client = createStub();
+      client.loading.value = true;
+      const run = hydrateBlock(Block, entry, html, { [STOREFRONT_KEY]: client.source });
+      try {
+        expect(hydrationWarnings(run)).toEqual([]);
+        expect(run.firstPaint).not.toContain('data-eldra-grid-updating');
+        expect(run.firstPaint).not.toContain(enUS.grid.updating);
+
+        await nextTick();
+
+        expect(client.loading.value).toBe(true);
+        expect(run.container.innerHTML).toContain('data-eldra-grid-updating');
+        expect(run.container.innerHTML).toContain(enUS.grid.updating);
+      } finally {
+        run.unmount();
+      }
     });
 
     it('reads "Updating…" over skeleton cards only while there is nothing to show at all', async () => {
@@ -509,6 +655,161 @@ describe('collection-grid block', () => {
       const skeletons = wrapper.get('ul[aria-hidden="true"]');
       expect(skeletons.findAll(':scope > li').length).toBeGreaterThan(0);
       expect(cards(wrapper)).toHaveLength(0);
+    });
+  });
+
+  /**
+   * Chaining a run of sidebar changes sends one request, not one per tick, and the shopper sees
+   * the list is about to move from the very first one.
+   */
+  describe('the sidebar’s own debounce', () => {
+    it('three quick toggles send one request, with the final selection, and read "Updating…" the whole time', async () => {
+      useFilterTimers();
+      // A filtered answer with cards in it, so the grid is still a grid at the end of this and the
+      // overlay's own state can be read off it rather than off an empty state.
+      const stub = createStub(PRODUCTS, { filteredCount: 4 });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      const before = stub.requests.length;
+
+      await panelFor(wrapper, enUS.grid.legendCategory)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+      // Armed from the very first tick — the shopper sees the list is about to move before any
+      // of the three changes has actually asked for anything.
+      expect(countLine(wrapper).text()).toBe(enUS.grid.updating);
+      expect(gridList(wrapper).attributes('aria-busy')).toBe('true');
+      expect(
+        gridList(wrapper).element.parentElement!.querySelector('[data-eldra-grid-updating]')
+      ).toBeTruthy();
+
+      await panelFor(wrapper, enUS.grid.legendSize)
+        .panel.findAll('input[type="checkbox"]')[0]!
+        .setValue(true);
+      await panelFor(wrapper, enUS.grid.legendColour)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+      // Still nothing sent: each tick restarted the same window (a trailing debounce).
+      expect(stub.requests.length).toBe(before);
+      expect(countLine(wrapper).text()).toBe(enUS.grid.updating);
+
+      await settleFilterDebounce(wrapper);
+
+      expect(stub.requests.length).toBe(before + 1);
+      const sent = stub.requests.at(-1)!.filters!;
+      expect(Object.keys(sent).sort()).toEqual(['category', 'option:colour', 'option:size']);
+      expect(countLine(wrapper).text()).toBe('4 products');
+      expect(gridList(wrapper).attributes('aria-busy')).toBeUndefined();
+      expect(gridList(wrapper).attributes('inert')).toBeUndefined();
+      expect(
+        gridList(wrapper).element.parentElement!.querySelector('[data-eldra-grid-updating]')
+      ).toBe(null);
+    });
+
+    /**
+     * The three ticks above, read from the sidebar's side: every one of them is operable while the
+     * overlay is up, which is the whole reason the debounce exists. The assertion is the
+     * checkboxes' own state rather than a class, because "the panel stays interactive" is about
+     * what a shopper can still change, not about what the aside is styled with.
+     */
+    it('leaves the filter panel fully interactive while the overlay is up', async () => {
+      useFilterTimers();
+      const stub = createStub(PRODUCTS, { filteredCount: 4 });
+      const wrapper = mountGrid(mock, { source: stub.source });
+      await wrapper.vm.$nextTick();
+
+      const category = panelFor(wrapper, enUS.grid.legendCategory).panel.get(
+        'input[type="checkbox"]'
+      );
+      await category.setValue(true);
+      const overlay = gridList(wrapper).element.parentElement!.querySelector(
+        '[data-eldra-grid-updating]'
+      );
+      expect(overlay).toBeTruthy();
+
+      const aside = wrapper.get('aside');
+      expect(aside.attributes('inert')).toBeUndefined();
+      expect(aside.classes().join(' ')).not.toContain('pointer-events-none');
+      expect(aside.element.contains(overlay)).toBe(false);
+      // Still operable, and the second change really lands: unticking the first one puts the
+      // checkbox back and leaves the sidebar's selection empty.
+      const colour = panelFor(wrapper, enUS.grid.legendColour).panel.get('input[type="checkbox"]');
+      expect((colour.element as HTMLInputElement).disabled).toBe(false);
+      await category.setValue(false);
+      expect((category.element as HTMLInputElement).checked).toBe(false);
+
+      await settleFilterDebounce(wrapper);
+      expect(stub.requests.at(-1)?.filters).toBeUndefined();
+    });
+
+    /** Sort, Columns, Load more and the drawer's own apply all flush the wait immediately — see
+     *  each handler's own comment in `Block.vue`. Sort is the one chosen here because it is the
+     *  only one of the four that is also itself a request parameter the flushed read has to
+     *  carry alongside the filter. */
+    it('a sort change during an armed window sends one immediate request carrying both', async () => {
+      const stub = createStub();
+      const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
+      await wrapper.vm.$nextTick();
+      // The grid's own reads, told apart from the drawer's pending count by its `pageSize: 1` —
+      // that one asks for no items at all, and it follows the sort too (only the filters and the
+      // price are debounced), so counting every request would count it as a second grid read.
+      const gridReads = (): number => stub.requests.filter((sent) => sent.pageSize !== 1).length;
+      const before = gridReads();
+
+      await panelFor(wrapper, enUS.grid.legendCategory)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+      expect(gridReads()).toBe(before);
+
+      // The first ArrowDown opens the listbox on the current value (Featured); the second moves to
+      // Best selling, which Enter commits — the same three presses the Select's own keyboard test
+      // above uses, and the reason two are needed rather than one.
+      const trigger = comboboxes(wrapper)[0]!;
+      trigger.element.focus();
+      await trigger.trigger('keydown', { key: 'ArrowDown' });
+      await trigger.trigger('keydown', { key: 'ArrowDown' });
+      await trigger.trigger('keydown', { key: 'Enter' });
+
+      // No fake timers at all here: the sort change applies — and the armed filter flushes with
+      // it — synchronously, with nothing to wait out.
+      expect(gridReads()).toBe(before + 1);
+      const sent = stub.requests.filter((request) => request.pageSize !== 1).at(-1)!;
+      expect(sent.sort).toBe('best-selling');
+      expect(sent.filters).toEqual({ category: ['knitwear'] });
+    });
+
+    /**
+     * The drawer's live "Show N products" count is its own read off `pendingOptions`, and it gets
+     * the same window: ticking two boxes inside the drawer asks the store once, not twice. It is
+     * the `pageSize: 1` request in the log — the count read asks for no items at all, which is
+     * what separates it from the grid's own.
+     */
+    it('debounces the drawer’s pending-count read the same way', async () => {
+      useFilterTimers();
+      const stub = createStub(PRODUCTS, { filteredCount: 4 });
+      const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
+      await wrapper.vm.$nextTick();
+
+      await filterButton(wrapper).trigger('click');
+      await wrapper.vm.$nextTick();
+      const drawer = wrapper.get('dialog');
+      const countReads = (): number => stub.requests.filter((sent) => sent.pageSize === 1).length;
+      const before = countReads();
+
+      const boxes = drawer.findAll('input[type="checkbox"]');
+      expect(boxes.length).toBeGreaterThan(1);
+      await boxes[0]!.setValue(true);
+      await boxes[1]!.setValue(true);
+      // Both ticks are visible in the drawer at once, and neither has asked the store anything.
+      expect((boxes[0]!.element as HTMLInputElement).checked).toBe(true);
+      expect((boxes[1]!.element as HTMLInputElement).checked).toBe(true);
+      expect(countReads()).toBe(before);
+
+      await settleFilterDebounce(wrapper);
+
+      expect(countReads()).toBe(before + 1);
+      // And the page itself is untouched until "Show N products" is pressed.
+      expect(countLine(wrapper).text()).toBe('12 products');
     });
   });
 
@@ -632,11 +933,13 @@ describe('collection-grid block', () => {
 
   describe('the empty state', () => {
     it('keeps the chips, names the active filters and clears them from its own button', async () => {
+      useFilterTimers();
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, enUS.grid.legendColour);
       await panel.get('input[type="checkbox"]').setValue(true);
+      await settleFilterDebounce(wrapper);
 
       expect(cards(wrapper)).toHaveLength(0);
       expect(countLine(wrapper).text()).toBe('0 products');
@@ -1087,6 +1390,7 @@ describe('collection-grid block', () => {
      * subtree at the mount-time locale while the block's own `useT()` strings kept switching.
      */
     it('follows a locale switch for both package strings and the block’s own', async () => {
+      useFilterTimers();
       const context = {
         client: {},
         designTokens: { colors: {} },
@@ -1122,6 +1426,11 @@ describe('collection-grid block', () => {
 
       const sizes = panelFor(wrapper, enUS.grid.legendSize).panel;
       await sizes.findAll('input[type="checkbox"]')[2]!.setValue(true);
+      await settleFilterDebounce(wrapper);
+      // The demo source answers through its own `async load()`, so the window expiring is only
+      // half of it: the read it releases still has to resolve before the line below is the
+      // filtered one.
+      await flushPromises();
 
       const removeLabel = () =>
         wrapper.get('[data-part="removeButton"]').attributes('aria-label') ?? '';
@@ -1256,6 +1565,7 @@ describe('collection-grid block', () => {
     ];
 
     it('keeps the group in a scope that honours it', async () => {
+      useFilterTimers();
       const stub = createStub();
       const wrapper = mountGrid(WITH_COLLECTION, { source: stub.source });
       await wrapper.vm.$nextTick();
@@ -1265,9 +1575,10 @@ describe('collection-grid block', () => {
         enUS.grid.legendCollection,
         PRICE_LEGEND,
       ]);
-      // And it filters: ticking a value reaches the request.
+      // And it filters: ticking a value reaches the request, once its own debounce settles.
       const { panel } = panelFor(wrapper, enUS.grid.legendCollection);
       await panel.get('input[type="checkbox"]').setValue(true);
+      await settleFilterDebounce(wrapper);
       expect(stub.requests.at(-1)?.filters?.collection).toEqual(['the-winter-edit']);
     });
 
@@ -1645,6 +1956,7 @@ describe('collection-grid block', () => {
      * catalogue-wide list takes a `collectionId` — so here the group is drawn and the filter applies.
      */
     it('offers the Collection group, which really narrows the catalogue', async () => {
+      useFilterTimers();
       const source = createDemoStorefront();
       const wrapper = mountGrid(CATALOGUE, { source });
       await wrapper.vm.$nextTick();
@@ -1653,7 +1965,7 @@ describe('collection-grid block', () => {
       const { panel } = panelFor(wrapper, enUS.grid.legendCollection);
       const before = Number(/^\d+/.exec(countLine(wrapper).text())?.[0] ?? '0');
       await panel.findAll('input[type="checkbox"]').at(-1)!.setValue(true);
-      await wrapper.vm.$nextTick();
+      await settleFilterDebounce(wrapper);
       await flushPromises();
       const after = Number(/^\d+/.exec(countLine(wrapper).text())?.[0] ?? '0');
       expect(before).toBeGreaterThan(0);
@@ -1676,12 +1988,14 @@ describe('collection-grid block', () => {
     };
 
     it('still renders its chip, and the chip removes it', async () => {
+      useFilterTimers();
       const stub = createStub(PRODUCTS, { filteredCount: 4, filteredFacets: withoutColour });
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
 
       const { panel } = panelFor(wrapper, enUS.grid.legendColour);
       await panel.get('input[type="checkbox"]').setValue(true);
+      await settleFilterDebounce(wrapper);
 
       // Results are non-empty, so there is no empty state to escape through.
       expect(cards(wrapper)).toHaveLength(4);
@@ -1705,12 +2019,14 @@ describe('collection-grid block', () => {
     });
 
     it('Clear all clears it too', async () => {
+      useFilterTimers();
       const stub = createStub(PRODUCTS, { filteredCount: 4, filteredFacets: withoutColour });
       const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
       await wrapper.vm.$nextTick();
 
       const { panel } = panelFor(wrapper, enUS.grid.legendColour);
       await panel.get('input[type="checkbox"]').setValue(true);
+      await settleFilterDebounce(wrapper);
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
         'Colour: oat'
       );
@@ -2414,6 +2730,7 @@ describe('collection-grid block', () => {
 
     /** The block's own writes go out through `setQuery`, come back as a route change, and stop. */
     it('does not re-request when the change is the block’s own round-trip', async () => {
+      useFilterTimers();
       const stub = createStub(PRODUCTS, { filteredCount: 4 });
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
@@ -2421,7 +2738,10 @@ describe('collection-grid block', () => {
       const before = stub.requests.length;
       const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
       await panel.get('input[type="checkbox"]').setValue(true);
-      await wrapper.vm.$nextTick();
+      // The tick's own write comes back as a route change *before* the debounced read goes out, so
+      // this is also where `adoptRouteState` gets the chance to flush the window it did not arm —
+      // which would send the request early and, worse, a second one once the window expired.
+      await settleFilterDebounce(wrapper);
       await flushPromises();
       await wrapper.vm.$nextTick();
       await flushPromises();

@@ -263,6 +263,15 @@ describe('hydrating a prerendered commerce block', () => {
    * the first paint, and all of it arrives on the tick after mount while the read is still in
    * flight. Both halves matter — the first is the hydration contract, the second is that gating the
    * flag did not simply turn the treatment off.
+   *
+   * **What the grid draws for a whole read is its own results overlay, not the per-card
+   * treatment.** `collection-grid` covers the cards with one scrim (a spinner and "Updating…",
+   * `[data-eldra-grid-updating]`) and keeps the dimmed-value-and-spinner treatment for the
+   * volatile price/stock refresh alone — two indicators for one state read as the page
+   * stuttering, and the overlay is the one the shopper can actually see from across a 24-card
+   * grid. So `eldra-revalidating` and the block's own "Updating prices and stock" region belong to
+   * the *other* state here, and the test that proves they still work for it is the volatile one
+   * below.
    */
   it('shows no refresh treatment until after mount, then shows it while the read is in flight', async () => {
     const subject = SUBJECTS[2]!; // collection-grid: cards, a busy grid and a count line in one
@@ -274,6 +283,7 @@ describe('hydrating a prerendered commerce block', () => {
     });
     expect(html).not.toContain('aria-busy');
     expect(html).not.toContain('eldra-revalidating');
+    expect(html).not.toContain('data-eldra-grid-updating');
     expect(html).not.toContain(enUS.grid.updating);
 
     const client = gatewayShaped(value, { loading: true });
@@ -284,6 +294,7 @@ describe('hydrating a prerendered commerce block', () => {
 
     expect(run.firstPaint).not.toContain('aria-busy');
     expect(run.firstPaint).not.toContain('eldra-revalidating');
+    expect(run.firstPaint).not.toContain('data-eldra-grid-updating');
     expect(run.firstPaint).not.toContain('data-part="spinner"');
     expect(run.firstPaint).not.toContain(enUS.grid.updating);
     expect(run.firstPaint).not.toContain(enUS.storefront.updatingValues);
@@ -294,15 +305,50 @@ describe('hydrating a prerendered commerce block', () => {
     // storefront's.
     expect(client.loading.value).toBe(true);
     expect(run.container.innerHTML).toContain('aria-busy="true"');
-    expect(run.container.innerHTML).toContain('eldra-revalidating');
+    expect(run.container.innerHTML).toContain('data-eldra-grid-updating');
     expect(run.container.innerHTML).toContain(enUS.grid.updating);
-    expect(run.container.innerHTML).toContain(enUS.storefront.updatingValues);
+    // The cards underneath are left alone: one indicator, not two (see the note above).
+    expect(run.container.innerHTML).not.toContain('eldra-revalidating');
+    expect(run.container.innerHTML).not.toContain(enUS.storefront.updatingValues);
 
     // And it clears when the prerendered read finally settles.
     client.loading.value = false;
     await nextTick();
     expect(run.container.innerHTML).not.toContain('aria-busy="true"');
+    expect(run.container.innerHTML).not.toContain('data-eldra-grid-updating');
     expect(run.container.innerHTML).not.toContain('eldra-revalidating');
+  });
+
+  /**
+   * The grid's *other* refresh state, on the same block: the volatile price/stock re-read, which
+   * is not a whole read over the list and therefore keeps the per-card treatment and the block's
+   * one polite region. This is the half the overlay must not have taken with it.
+   */
+  it('keeps the grid’s per-card treatment for the volatile refresh', async () => {
+    const subject = SUBJECTS[2]!;
+    const value = await subject.value();
+
+    const server = gatewayShaped(value);
+    const html = await renderBlockHtml(subject.component, subject.entry, {
+      [STOREFRONT_KEY]: subject.storefront(server.result as StorefrontResult<never>),
+    });
+
+    const client = gatewayShaped(value);
+    client.revalidating.value = new Set<VolatileKey>(['price', 'stock']);
+    const run = hydrateBlock(subject.component, subject.entry, html, {
+      [STOREFRONT_KEY]: subject.storefront(client.result as StorefrontResult<never>),
+    });
+    runs.push(run);
+
+    expect(run.firstPaint).not.toContain('eldra-revalidating');
+
+    await nextTick();
+
+    expect(run.container.innerHTML).toContain('eldra-revalidating');
+    expect(run.container.innerHTML).toContain(enUS.storefront.updatingValues);
+    // No whole read is in flight, so the overlay stays away and the count still reads a number.
+    expect(run.container.innerHTML).not.toContain('data-eldra-grid-updating');
+    expect(run.container.innerHTML).not.toContain(enUS.grid.updating);
   });
 
   /** The volatile refresh itself is gated by the same flag, on the same first paint. */
