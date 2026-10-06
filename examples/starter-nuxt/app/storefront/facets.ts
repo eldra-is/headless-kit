@@ -33,11 +33,42 @@ export const OPTION_SOURCE_PREFIX = 'option:';
 /** The one option key whose values a product *card* already carries (`item.colours`). */
 export const COLOUR_OPTION_KEY = 'colour';
 
-/** The two `availability` values the platform's facets count, and the filter vocabulary with
- *  them. `in-stock` is read as well, so a link shared before the rename still filters. */
+/**
+ * The two `availability` values the platform's facets count, and the whole filter vocabulary: the
+ * hyphenated spellings are read as well, so a link shared before the rename still filters.
+ *
+ * Anything else — `backorder` from a theme that offered it, a value some other storefront invented
+ * — is **unknown**, and an unknown clause is ignored rather than treated as unmatched, exactly as
+ * every other source in this file is. Reading it as "not in stock" showed a shopper following an
+ * old link nothing but the sold-out products, under a chip quoting the word they clicked.
+ */
 export const IN_STOCK = 'in_stock';
 export const OUT_OF_STOCK = 'out_of_stock';
 const IN_STOCK_VALUES = new Set([IN_STOCK, 'in-stock']);
+const OUT_OF_STOCK_VALUES = new Set([OUT_OF_STOCK, 'out-of-stock']);
+
+/**
+ * The current spelling of one `availability` value, or `null` for a value this pass does not know.
+ *
+ * The block normalises its own state through this, so a legacy spelling out of a URL ticks the box
+ * it means instead of appearing beside it as an untranslated third row.
+ */
+export function canonicalAvailability(value: string): string | null {
+  if (IN_STOCK_VALUES.has(value)) return IN_STOCK;
+  if (OUT_OF_STOCK_VALUES.has(value)) return OUT_OF_STOCK;
+  return null;
+}
+
+/** Every value of an `availability` clause in its current spelling, de-duplicated, unknowns
+ *  dropped. `[]` when nothing in it is a value this vocabulary has. */
+export function canonicalAvailabilityValues(values: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const value of values) {
+    const canonical = canonicalAvailability(value);
+    if (canonical !== null && !out.includes(canonical)) out.push(canonical);
+  }
+  return out;
+}
 
 /** A category or collection a product belongs to: the `slug` is the filter value, the `title` is
  *  what the shopper reads, and `id` is the catalog id when the source knows one. */
@@ -137,7 +168,9 @@ function matchesClause(
 ): boolean {
   if (source === 'price') return matchesPrice(item, selected[0]);
   if (source === 'availability') {
-    return selected.some((value) => (IN_STOCK_VALUES.has(value) ? inStock(item) : !inStock(item)));
+    const known = canonicalAvailabilityValues(selected);
+    if (known.length === 0) return true;
+    return known.some((value) => (value === IN_STOCK ? inStock(item) : !inStock(item)));
   }
   if (source === 'category') {
     const slug = attributes.category?.slug;

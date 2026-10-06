@@ -1483,6 +1483,34 @@ describe('collection-grid block', () => {
       expect(source.route.filters).toEqual({});
     });
 
+    /**
+     * A link shared before the platform's `in_stock`/`out_of_stock` vocabulary landed. The pass
+     * still reads the old spelling, so the grid filters — but the block has to fold it into the
+     * current one, or the panel grows an untranslated third checkbox beside the two real ones with
+     * neither of them ticked, and the chip quotes the raw word.
+     */
+    it('folds a legacy availability spelling into the vocabulary the panel offers', async () => {
+      const source = createDemoStorefront({ filters: { availability: ['in-stock'] } });
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      const boxes = panelFor(wrapper, enUS.grid.legendAvailability).panel.findAll(
+        'input[type="checkbox"]'
+      );
+      expect(boxes).toHaveLength(2);
+      expect((boxes[0]!.element as HTMLInputElement).checked).toBe(true);
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
+        `Availability: ${enUS.grid.availabilityInStock}`
+      );
+      expect(wrapper.text()).not.toContain('in-stock');
+      // And the request carries the current spelling, so the next write leaves a current URL.
+      expect(source.route.filters.availability).toEqual(['in-stock']);
+      await boxes[1]!.setValue(true);
+      await wrapper.vm.$nextTick();
+      expect(source.route.filters.availability).toEqual(['in_stock', 'out_of_stock']);
+    });
+
     /** The other half of the round trip: the same bag, on a fresh page load, restores the whole
      *  panel — the ticked values, the thumbs and the chips — and filters the first request. */
     it('restores the panel and the request from that query on the next load', async () => {

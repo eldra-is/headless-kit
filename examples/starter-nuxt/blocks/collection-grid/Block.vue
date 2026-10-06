@@ -86,6 +86,7 @@ import {
   selectorSlug,
 } from '../../app/storefront/collectionSelector';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
+import { canonicalAvailabilityValues } from '../../app/storefront/facets';
 import { safeHref } from '../../app/utils/links';
 import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
 import FilterGroups from './parts/FilterGroups.vue';
@@ -272,7 +273,15 @@ function initialFilterSelection(): FilterSelection {
   for (const source of FILTER_SOURCES) {
     if (source === 'price') continue;
     const values = route.filters[QUERY_KEY[source]];
-    if (values !== undefined && values.length > 0) out[source] = [...values];
+    if (values === undefined || values.length === 0) continue;
+    // `availability` is the one source with a vocabulary of its own rather than the store's, so a
+    // spelling from a link shared before the platform's `in_stock`/`out_of_stock` landed is folded
+    // into the current one here. The block's own state then only ever holds values the panel
+    // offers: an unfolded `in-stock` ticked nothing and rendered an untranslated third checkbox
+    // (and chip) beside the two real ones. A value from no vocabulary at all is dropped — the pass
+    // ignores it too (`facets.ts`), so a chip for it would promise a filter nothing applies.
+    const next = source === 'availability' ? canonicalAvailabilityValues(values) : [...values];
+    if (next.length > 0) out[source] = next;
   }
   return out;
 }

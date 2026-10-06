@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canonicalAvailability,
+  canonicalAvailabilityValues,
   deriveFacets,
   filterItems,
   matchesFilters,
@@ -115,9 +117,37 @@ describe('matchesFilters', () => {
     expect(matchesFilters(inStock, { availability: ['in_stock', 'out_of_stock'] })).toBe(true);
     expect(matchesFilters(soldOut, { availability: ['in_stock', 'out_of_stock'] })).toBe(true);
 
-    // The spelling shared links were written with before the platform's own vocabulary landed.
+    // The spellings shared links were written with before the platform's own vocabulary landed.
     expect(matchesFilters(inStock, { availability: ['in-stock'] })).toBe(true);
     expect(matchesFilters(soldOut, { availability: ['in-stock'] })).toBe(false);
+    expect(matchesFilters(soldOut, { availability: ['out-of-stock'] })).toBe(true);
+    expect(matchesFilters(inStock, { availability: ['out-of-stock'] })).toBe(false);
+  });
+
+  /**
+   * A value from no vocabulary at all — `backorder`, which this theme offered before the platform
+   * counted only two — is **unknown**, so the clause is ignored like every other unknown one here.
+   * Falling through to "not in stock" showed a shopper following an old link nothing but the
+   * sold-out products, under a chip quoting the word they had clicked.
+   */
+  it('ignores an availability value it does not know rather than reading it as out of stock', () => {
+    const inStock = item({ handle: 'a' });
+    const soldOut = item({ handle: 'b', stock: 'out', available: false });
+    expect(matchesFilters(inStock, { availability: ['backorder'] })).toBe(true);
+    expect(matchesFilters(soldOut, { availability: ['backorder'] })).toBe(true);
+    // One known value beside it still decides the clause.
+    expect(matchesFilters(inStock, { availability: ['backorder', 'out_of_stock'] })).toBe(false);
+    expect(matchesFilters(soldOut, { availability: ['backorder', 'out_of_stock'] })).toBe(true);
+  });
+
+  it('canonicalises the availability vocabulary, dropping what it does not know', () => {
+    expect(canonicalAvailability('in-stock')).toBe('in_stock');
+    expect(canonicalAvailability('out_of_stock')).toBe('out_of_stock');
+    expect(canonicalAvailability('backorder')).toBeNull();
+    expect(canonicalAvailabilityValues(['in-stock', 'in_stock', 'backorder'])).toEqual([
+      'in_stock',
+    ]);
+    expect(canonicalAvailabilityValues(['backorder'])).toEqual([]);
   });
 
   it('filters on price with no attributes, which is the whole gateway path', () => {
