@@ -58,6 +58,13 @@
       "description": "On a product page, appends the store's own category trail (root category down to the product's) after the levels above. It does nothing on any other page. Product detail names the product's category as a single label rather than a trail, so the two do not repeat each other; turn this off if a page should name the category only once."
     },
     {
+      "fieldId": "fromCategory",
+      "name": "Add the category's own trail",
+      "type": "bool",
+      "default": true,
+      "description": "On a category page, appends the levels above this category (each linking to its own page) after the levels above, and names the category itself as the last crumb when no current page title is set. It does nothing on any other page."
+    },
+    {
       "fieldId": "currentTitle",
       "name": "Current page title",
       "type": "string",

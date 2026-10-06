@@ -630,7 +630,10 @@ export interface Messages {
    * follow the same pluralisation shape as `header.cartOne`/`cartMany` for the store's live
    * product count ("1 product" / "{count} products" — the count itself always comes from
    * `useStorefront().catalog.collection()`, never a field); `subcollections` is the accessible
-   * name of the sub-collection pill list. `titleHintLabel`/`titleHintHelp` are the one editor-only
+   * name of the sub-collection pill list, and `subcategories` the same for the strip of child
+   * **categories** this block draws on a category page (a different list with a different meaning:
+   * those are levels of the catalogue's own tree, not curated collections, which is why they do not
+   * share one name). `titleHintLabel`/`titleHintHelp` are the one editor-only
    * hint this block needs (`EditorPlaceholder`, gated by `useEditing()`): the title otherwise
    * always resolves from the field or the store, so this only shows when neither has anything at
    * all (e.g. a block with no bound collection and no title of its own).
@@ -641,6 +644,7 @@ export interface Messages {
     countOne: string;
     countMany: string;
     subcollections: string;
+    subcategories: string;
     titleHintLabel: string;
     titleHintHelp: string;
   };
@@ -747,6 +751,10 @@ export interface Messages {
     columns: string;
     noCollectionLabel: string;
     noCollectionHelp: string;
+    /** The `category` scope's own editor hint: nothing to pick, so it says where the category comes
+     *  from (the page's own route) rather than asking the author for one. */
+    noCategoryLabel: string;
+    noCategoryHelp: string;
   };
   /**
    * The product-detail block's own strings (spec `02-blocks.md` "Product detail"). Everything the

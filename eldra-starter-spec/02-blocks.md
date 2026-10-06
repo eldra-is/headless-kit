@@ -371,12 +371,13 @@ A trail from Home to the current page, built automatically from the page tree, w
 | `showHome` | bool | no | on | First crumb links to `/`. |
 | `homeLabel` | string | no | "Home" | |
 | `trail` | list | no | — | The levels between Home and this page, root first, each `{label, href}`. A block cannot read the route, so these are filled per page. |
-| `fromProduct` | bool | no | off | On a product page, appends the store's own category trail (root category down to the product's) after the levels above, each level linking to the catalogue filtered by it. Turn off ProductDetail's `showCategory` so the trail never shows twice. |
+| `fromProduct` | bool | no | on | On a product page, appends the store's own category trail (root category down to the product's) after the levels above, each level linking to that category's own page. Turn off ProductDetail's `showCategory` so the leaf never shows twice. |
+| `fromCategory` | bool | no | on | On a category page, appends the levels **above** the routed category (each linking to its own page), and names the category itself as the last crumb when no `currentTitle` is set. Inert on every other page; it and `fromProduct` never both fire, since a route resolves a product or a category and never both. |
 | `currentTitle` | string | no | page title | Overrides the last crumb's text. Use it for long product or article titles. |
 | `showCurrent` | bool | no | on | Off ends the trail at the parent. |
 | `container` | select | no | `wide` | `wide` · `content`. Match the block below: use `content` above ProductDetail and Article so the trail lines up with the gallery or title edge. |
 
-The trail is not editable from the page tree: a block cannot read the route, so `trail` is filled per page and `fromProduct` is the one level the block can resolve itself — the routed product's own categories, which is what a seeded product *template* has instead of authored levels. There is no `variant`.
+The trail is not editable from the page tree: a block cannot read the route, so `trail` is filled per page and `fromProduct`/`fromCategory` are the two levels the block can resolve itself — the routed product's own categories, or the routed category's own ancestors, which is what a seeded product or category *template* has instead of authored levels. There is no `variant`.
 
 **Variants**: none.
 
@@ -3074,8 +3075,8 @@ Uses: Product card (with Badge, Price and swatch summary), Button (outline for F
 
 | Field id | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `scope` | select | no | `collection` | `collection` · `catalogue`. What the grid lists: one collection, or every product in the store (the All products page). A block-level field rather than a meaning overloaded onto an empty `collection` — empty already means "take it from the route", which is what a collection template relies on. In `catalogue` scope the Collection filter group really filters; in `collection` scope the catalogue cannot intersect two collections, so that group is hidden. |
-| `collection` | link | yes | bound on the collection template | The collection to list. Binds automatically on a collection template. Ignored when `scope` is `catalogue`. |
+| `scope` | select | no | `collection` | `collection` · `catalogue` · `category`. What the grid lists: one collection, every product in the store (the All products page), or the routed category and everything under it (the Category page). A block-level field rather than a meaning overloaded onto an empty `collection` — empty already means "take it from the route", which is what a collection template relies on. In `catalogue` and `category` scope the Collection filter group really filters; in `collection` scope the catalogue cannot intersect two collections, so that group is hidden. In `category` scope the **Category** group lists only the routed category's own children — the only values that divide a page everything on which is already in that category — and each of them filters within its subtree. A `category` grid on a page that resolves no category lists nothing, and says so in the editor: there is no category to fall back to, and falling back to the catalogue would answer a category page with the whole store. |
+| `collection` | link | yes | bound on the collection template | The collection to list. Binds automatically on a collection template. Ignored when `scope` is `catalogue` or `category`. |
 | `variant` | select | yes | `sidebar` | `sidebar` · `drawer-only` |
 | `columns` | select | yes | `3` | `2` · `3` · `4`. Default desktop column count. Shoppers can change it with the Columns select. |
 | `pageSize` | select | yes | `24` | `12` · `24` · `48` |
@@ -3433,12 +3434,13 @@ Uses: Breadcrumb, Image (3:2, `radius-xl`), Button (link style with chevron, as 
 
 | Field id | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `collection` | link | yes | bound on the collection template | |
+| `scope` | select | no | `collection` | `collection` · `category`. What this header opens. In `category` scope the title, the breadcrumb's upper levels and the strip of links under the text all come from the routed category: the strip is that category's own **children**, each linking to its page, rendered only when it has any. The collection reference, the `subcollections` list and the count are ignored there — the catalogue's categories carry no count, and a curated collection chip beside a category chip would be two different things in one strip. |
+| `collection` | link | yes | bound on the collection template | Ignored when `scope` is `category`. |
 | `variant` | select | yes | `image` | `image` · `text-only` |
 | `title` | string | no | the collection title | Overrides the collection title. |
 | `description` | rich-text | no | the collection description | The first sentence or two show; the rest sits behind Read more. |
 | `image` | media | no | the collection image | `image` variant only. Needs alt text, or is marked decorative. |
-| `showCount` | bool | no | on | "48 products", live count. |
+| `showCount` | bool | no | on | "48 products", live count. Collection pages only. |
 | `showBreadcrumb` | bool | no | on | Turn off when the page has a Breadcrumbs block. |
 | `subcollections` | list | no | — | Pill links under the text, e.g. Sweaters, Cardigans. |
 | `subcollections[].label` | string | yes | — | |
@@ -4110,6 +4112,44 @@ The Northwind Goods collection page for "The winter edit", assembled from six bl
 - [ ] Tab order: header → breadcrumbs → Read more → filters (sidebar) or Filter / sort (mobile) → chips → cards → Load more / pagination → call to action → footer (2.4.3); the standard focus ring shows everywhere (2.4.7).
 - [ ] At 320px and 200% zoom there is no horizontal page scroll (1.4.10).
 - [ ] Only one promotion (the gift card) appears between the grid and the footer.
+
+---
+
+### Category page · template `category`
+
+The Northwind Goods category page, assembled from five blocks. One `h1`: the Collection header's title, which is the routed category's own name.
+
+A category is addressed by its **canonical path** — the slugs of its ancestors, root first, then its own — so the template's pattern is `/categories/:path*` and `/categories/home/ceramics` is a page while `/categories/ceramics` is not. Canonical only, no redirects: a leaf on its own, a wrong parent and a trailing extra segment are each the not-found page.
+
+It deliberately reuses the collection page's visual language (same containers, same grounds, same tight header-to-grid pair), because a shopper narrowing the catalogue should not be told they have crossed into a different kind of page. The three things that differ are all content, not layout: the trail is the store's own tree rather than authored levels, the strip under the title is the category's children rather than curated sub-collections, and the live count is absent because the catalogue's categories carry none.
+
+**Block order**
+
+| # | Block | Variant / settings | Container | Section background | Spacing to the next block |
+|---|---|---|---|---|---|
+| 1 | Header `header` | `default`, sticky | `wide` | `background` | Flush on the breadcrumbs. |
+| 2 | Breadcrumbs `breadcrumbs` | `fromCategory` on, no authored levels | `wide` | none (not a section) | Its own 0.75rem (`space-3`) padding. |
+| 3 | Collection header `collection-header` | `scope: category`, `text-only`, `showBreadcrumb` **off**, count off | `wide` | none | Its own padding. The grid's short 1.5rem top padding follows, so the two read as one unit. |
+| 4 | Collection grid `collection-grid` | `scope: category`, `sidebar`, 3 columns; Category / Collection / options / Price / Availability filters | `wide` | none | Its own `section-md` bottom padding. |
+| 5 | Footer `footer` | `default`, newsletter on | `wide` | `surface-strong` | Last block. |
+
+**Why this order**
+
+- **Where am I, and where can I go from here?** The trail answers the first and the strip of child categories the second, both above the grid: a shopper who landed one level too high narrows without touching a filter.
+- **Grid immediately.** As on the collection page, nothing sits between the header and the products.
+- **No promotion.** The collection page earns a soft call to action because it is a curated edit with an end; a category is a slice of the catalogue a shopper is mid-search in, so the page ends at the footer.
+
+**Content notes**: the sample is `Homeware › Ceramics` — a nested path, so the trail has an ancestor crumb to draw and the parent's own page has a strip to show. `text-only` rather than `image`, because a category has no image of its own in the catalogue and the `image` variant falls back to `text-only` anyway. The Category filter group lists the open category's children; on a leaf it has none and the group is simply not drawn.
+
+**Acceptance criteria**
+
+- [ ] Blocks render in the order above; exactly one `h1` (the category title); the breadcrumb trail is shown once (1.3.1).
+- [ ] The trail reads Home › the category's ancestors › the category, and every ancestor links to that ancestor's own page.
+- [ ] The strip of child categories renders only when the category has children, and no chip in it is marked as the current page.
+- [ ] The grid lists the category **and everything under it**, and its Category group offers that category's children and nothing else.
+- [ ] A non-canonical path (a leaf alone, a wrong parent, a trailing extra segment) renders the not-found page rather than redirecting.
+- [ ] Tab order: header → breadcrumbs → child-category chips → filters (sidebar) or Filter / sort (mobile) → chips → cards → Load more / pagination → footer (2.4.3); the standard focus ring shows everywhere (2.4.7).
+- [ ] At 320px and 200% zoom there is no horizontal page scroll (1.4.10).
 
 ---
 

@@ -318,6 +318,7 @@ export const isIS = {
     countOne: '1 vara',
     countMany: '{count} vörur',
     subcollections: 'Undirflokkar',
+    subcategories: 'Vöruflokkar undir þessum',
     titleHintLabel: 'Bættu við titli',
     titleHintHelp: 'Fellur sjálfgefið til baka í titil safnsins',
   },
@@ -375,6 +376,9 @@ export const isIS = {
     noCollectionLabel: 'Veldu vörulista',
     noCollectionHelp:
       'Vörur, síur og fjöldi koma úr vefbúðinni. Veldu vörulista og hvaða síur eiga að birtast.',
+    noCategoryLabel: 'Þessi tafla sýnir vöruflokk',
+    noCategoryHelp:
+      'Hún tekur vöruflokkinn af síðunni sem hún er á, svo hún fyllist aðeins út á vöruflokkssíðu. Breyttu „Hvað á að sýna“ til að nota hana annars staðar.',
   },
   product: {
     images: 'Myndir af vörunni',

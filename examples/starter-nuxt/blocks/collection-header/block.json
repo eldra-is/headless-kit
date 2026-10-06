@@ -7,11 +7,18 @@
   "version": 2,
   "fields": [
     {
+      "fieldId": "scope",
+      "name": "What this opens",
+      "type": "select",
+      "metadata": { "options": ["collection", "category"] },
+      "helpText": "collection (the default) opens a collection page — the one picked below, or the collection this page's route resolved. category opens a category page: the title and the strip of links under it come from the category this page's route resolved, so the strip is that category's own sub-categories and the Collection picker, Sub-collections list and count are all ignored."
+    },
+    {
       "fieldId": "collection",
       "name": "Collection",
       "type": "reference",
       "relation": { "allowCollections": true },
-      "helpText": "Leave empty on a collection page to use that collection."
+      "helpText": "Leave empty on a collection page to use that collection. Ignored when What this opens is category."
     },
     {
       "fieldId": "variant",
@@ -53,7 +60,7 @@
       "name": "Show count",
       "type": "bool",
       "default": true,
-      "helpText": "\"48 products\", live from the store."
+      "helpText": "\"48 products\", live from the store. Collection pages only — the catalogue's categories carry no count."
     },
     {
       "fieldId": "showBreadcrumb",

@@ -317,6 +317,7 @@ export const enUS = {
     countOne: '1 product',
     countMany: '{count} products',
     subcollections: 'Sub-collections',
+    subcategories: 'Categories in this one',
     titleHintLabel: 'Add a title',
     titleHintHelp: 'Falls back to the collection title from the store',
   },
@@ -374,6 +375,9 @@ export const enUS = {
     noCollectionLabel: 'Choose a collection',
     noCollectionHelp:
       'Products, filters and counts come from the store. Pick a collection and the filters to show.',
+    noCategoryLabel: 'This grid lists a category',
+    noCategoryHelp:
+      'It takes the category from the page it is on, so it only fills in on a category page. Switch "What to list" to use it elsewhere.',
   },
   product: {
     images: 'Product images',

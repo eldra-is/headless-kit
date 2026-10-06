@@ -23,8 +23,14 @@
  * to the browser in the page payload with the rest of the product. Nothing is fetched when the
  * option is off or the route names no product (the source is `null`, which makes no request).
  *
+ * **`fromCategory` is the other one**, on a *category* page: the levels above the category the route
+ * resolved, each linking to its own page, and the category's own name as the last crumb when the
+ * page set no `currentTitle` of its own. The two never both fire — a route resolves a product or a
+ * category, never both.
+ *
  * Resolved item order: `homeLabel` (when `showHome`) → `trail`, in order → the product's category
- * trail (when `fromProduct`) → `currentTitle` (when `showCurrent` and non-empty). The authored levels
+ * trail (when `fromProduct`) → the category's own ancestors (when `fromCategory`) → `currentTitle`,
+ * or the category's name (when `showCurrent` and either is non-empty). The authored levels
  * come first because they are the page-tree levels *above* the catalogue, while a category is the
  * level nearest the product. Spec "Empty (freshly inserted)" row: on a top-level page (empty
  * `trail`, no `currentTitle`) there is nothing to show a trail *between*, so with fewer than two
@@ -38,7 +44,7 @@ import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useT } from '../../app/composables/useT';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { isInternalHref, safeHref } from '../../app/utils/links';
+import { categoryHref, isInternalHref, safeHref } from '../../app/utils/links';
 
 const props = defineProps<{ entry: EldraBlockEntry<'breadcrumbs'> }>();
 const { data } = useBlockData(props, 'breadcrumbs');
@@ -73,6 +79,18 @@ const showHome = computed(() => data.value.showHome !== false);
  * levels, which is a picture of two trails rather than of this block.
  */
 const fromProduct = computed(() => data.value.fromProduct !== false);
+/**
+ * **The second level this block can fill by itself**: on a *category* page, the levels above the
+ * category the route resolved — each linking to its own page — plus the category's own name as the
+ * last crumb when the page set no `currentTitle`.
+ *
+ * On unless the author turned it off, for exactly the reason `fromProduct` reads that way: an
+ * absent value is a template written before the field existed, not an author's "no".
+ *
+ * It and `fromProduct` never both fire: a route resolves a product or a category, never both, so
+ * each is inert on the other's page and neither needs to know about the other.
+ */
+const fromCategory = computed(() => data.value.fromCategory !== false);
 const homeLabel = computed(() => data.value.homeLabel || 'Home');
 const showCurrent = computed(() => data.value.showCurrent !== false);
 const currentTitle = computed(() => data.value.currentTitle?.trim() ?? '');
@@ -112,6 +130,19 @@ const productHandle = computed<string | null>(() =>
 const productResult = storefront.catalog.product(productHandle);
 
 /**
+ * The category **this page** resolved, captured at setup for the same reason the product handle is
+ * (see above) and `null` whenever `fromCategory` is off — so a page that does not want the
+ * category's trail makes no read at all.
+ *
+ * It is the **same result** `collection-header` in category mode creates on the same page:
+ * identical method, identical source, therefore an identical prerender key, so Nuxt's
+ * `useAsyncData` answers both from one read.
+ */
+const routeCategoryPath = storefront.route.categoryPath;
+const categoryPath = computed<string | null>(() => (fromCategory.value ? routeCategoryPath : null));
+const categoryResult = storefront.catalog.category(categoryPath);
+
+/**
  * The store's category trail for that product, through the same `safeHref` gate the authored levels
  * pass. Empty for every honest absence — no product, a product with no category, a category read
  * that failed — and an empty one simply leaves the trail as the author's own.
@@ -124,13 +155,40 @@ const productTrailItems = computed<BreadcrumbItem[]>(() =>
   })
 );
 
+/**
+ * The levels **above** the current category, root first, each a link to its own page. The category
+ * itself is not one of them: it is the current page, and `currentLabel` below names it.
+ *
+ * Through the same `safeHref` gate every other level passes, even though `categoryHref` builds the
+ * path itself — one gate for every destination this block renders, so there is no second rule to
+ * keep in step.
+ */
+const categoryTrailItems = computed<BreadcrumbItem[]>(() =>
+  (categoryResult.data.value?.ancestors ?? []).flatMap((ancestor) => {
+    const href = safeHref(categoryHref(ancestor.path));
+    return href === null || ancestor.title === '' ? [] : [{ label: ancestor.title, href }];
+  })
+);
+
+/**
+ * The last crumb's text: the author's `currentTitle`, else — on a category page — the category's
+ * own name.
+ *
+ * The fallback exists because a seeded *template* has no authored title to carry: the category page
+ * binds `currentTitle` to the routed category's `{{ title }}`, and a merchant who clears that
+ * binding would otherwise be left with a trail that stops at the parent. It is the category's name
+ * either way, so the two can never disagree.
+ */
+const currentLabel = computed(() => currentTitle.value || (categoryResult.data.value?.title ?? ''));
+
 const items = computed<BreadcrumbItem[]>(() => {
   const resolved: BreadcrumbItem[] = [];
   if (showHome.value) resolved.push({ label: homeLabel.value, href: '/' });
   resolved.push(...trailItems.value);
   resolved.push(...productTrailItems.value);
-  if (showCurrent.value && currentTitle.value !== '') {
-    resolved.push({ label: currentTitle.value });
+  resolved.push(...categoryTrailItems.value);
+  if (showCurrent.value && currentLabel.value !== '') {
+    resolved.push({ label: currentLabel.value });
   }
   return resolved;
 });

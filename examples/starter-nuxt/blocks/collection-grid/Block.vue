@@ -90,7 +90,7 @@ import {
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { canonicalAvailabilityValues } from '../../app/storefront/facets';
 import { CATALOGUE_PATH } from '../../app/storefront/categories';
-import { safeHref } from '../../app/utils/links';
+import { categoryHref, safeHref } from '../../app/utils/links';
 import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
 import FilterGroups from './parts/FilterGroups.vue';
 import {
@@ -210,16 +210,46 @@ function normaliseChoice(value: unknown, allowed: string[], fallback: string): s
 // ---------------------------------------------------------------------------------------------
 
 /**
- * **What the grid lists**: one collection (the default, and every grid this theme shipped before) or
- * the whole catalogue — the `/products` page, where the scope is the store rather than a curated list.
+ * **What the grid lists**: one collection (the default, and every grid this theme shipped before),
+ * the whole catalogue — the `/products` page, where the scope is the store rather than a curated
+ * list — or one **category** and everything under it, which is the `/categories/:path*` page.
  *
  * A block-level `select` rather than a meaning overloaded onto an empty `collection`, for the same
  * reason `priceSlider` is one: an empty reference already means "take it from the route", which is
  * exactly what a collection *template* relies on, so reading it as "all products" instead would turn
- * every seeded collection page into the catalogue the moment its route stopped resolving. It is
- * additive, so the block stays version 3 and no author's configured filter list is retired.
+ * every seeded collection page into the catalogue the moment its route stopped resolving. Adding a
+ * value to an existing `select` costs nothing either — the scanner compares type, localization and
+ * cardinality, never an enum's members — so the block stays version 3 and no author's configured
+ * filter list is retired.
+ *
+ * The two route-scoped values read the committed route and are **captured at setup**, never watched:
+ * a result is keyed by its sources' values at creation, and this block sits on pages that are not
+ * category pages, so a live source would re-key the grid onto whatever the shopper clicked towards
+ * (`StorefrontResult`'s own "sources final at setup time" rule — `breadcrumbs` captures
+ * `route.productHandle` for exactly the same reason).
  */
 const catalogueScope = computed(() => data.value.scope === 'catalogue');
+const categoryScope = computed(() => data.value.scope === 'category');
+/** The category page's own category: the canonical path the read is scoped by, and the leaf slug
+ *  the `category` filter group lists the children of. */
+const routeCategoryPath = route.categoryPath;
+const routeCategorySlug = route.categorySlug;
+/** Which category the filter panel should offer the children of — `null` in every other scope, so
+ *  `groupValuesFor` keeps the whole-tree family it always drew. */
+const categoryScopeSlug = computed(() => (categoryScope.value ? routeCategorySlug : null));
+/** Both scopes that come from the route rather than from a picked collection read the *catalogue*
+ *  endpoint; only the category one narrows it. */
+const storeWideScope = computed(() => catalogueScope.value || categoryScope.value);
+/**
+ * The one request option a category page adds, spread into both read option objects so neither can
+ * drift: the scope's own canonical path, which narrows the catalogue read to that category's whole
+ * subtree (`StorefrontCatalog.products`). Spread rather than written as `categoryPath: … ??
+ * undefined`, so a grid in any other scope sends an options object byte-identical to the one it
+ * always sent — and therefore keys the same result the build prerendered.
+ */
+const categoryScopeOption = computed<{ categoryPath?: string }>(() =>
+  categoryScope.value && routeCategoryPath !== null ? { categoryPath: routeCategoryPath } : {}
+);
 
 /**
  * Which collection this grid shows. `collection` is the `reference` field an
@@ -244,10 +274,25 @@ const selected = computed<StorefrontCollectionSelector | null>(() =>
  *  `/collections/<slug>` paging links have no other key to work from; the grid
  *  itself goes through `selected`, so an id-only collection still loads. */
 const collectionHandle = computed<string | null>(() => selectorSlug(selected.value));
-const hasCollection = computed(() => catalogueScope.value || selected.value !== null);
-/** The catalogue needs nothing bound, so there is nothing to hint about. */
+/**
+ * **Whether this grid has a scope to read at all.** The catalogue always has one; a collection has
+ * one once a reference is picked or the route resolved a collection; a **category** has one only on
+ * a page whose route resolved a category — there is nothing to fall back to, and falling back to
+ * the catalogue would answer a category page with the whole store.
+ */
+const hasCollection = computed(() => {
+  if (categoryScope.value) return routeCategoryPath !== null;
+  return catalogueScope.value || selected.value !== null;
+});
+/** The catalogue needs nothing bound, so there is nothing to hint about; the other two each have
+ *  their own thing missing, and their own sentence for it. */
 const showNoCollectionHint = computed(
-  () => editing.value && !catalogueScope.value && !hasCollection.value
+  () => editing.value && !storeWideScope.value && !hasCollection.value
+);
+/** A `category` grid on a page that resolves no category: nothing to pick, so the hint says where
+ *  the category comes from rather than asking for one. */
+const showNoCategoryHint = computed(
+  () => editing.value && categoryScope.value && !hasCollection.value
 );
 
 /**
@@ -256,7 +301,7 @@ const showNoCollectionHint = computed(
  * cache key and a key that resolves differently after hydration misses the payload the build left
  * (`StorefrontResult`'s own rule).
  */
-const collectionInfoHandle = computed(() => (catalogueScope.value ? null : collectionHandle.value));
+const collectionInfoHandle = computed(() => (storeWideScope.value ? null : collectionHandle.value));
 const collection = storefront.catalog.collection(collectionInfoHandle);
 const collectionTitle = computed(
   () => collection.data.value?.title ?? collectionHandle.value ?? ''
@@ -265,7 +310,7 @@ const collectionTitle = computed(
  *  id-only reference has no title and no handle to borrow one from, and an empty
  *  `{collection}` would leave the landmark named " products". */
 const sectionLabel = computed(() =>
-  catalogueScope.value || collectionTitle.value === ''
+  storeWideScope.value || collectionTitle.value === ''
     ? t('grid.products')
     : t('grid.sectionLabel', { collection: collectionTitle.value })
 );
@@ -502,6 +547,7 @@ const liveRequestOptions = computed(() => ({
   pageSize: isLoadMore.value ? pageSize.value * pagesLoaded.value : pageSize.value,
   sort: sort.value === '' ? undefined : sort.value,
   filters: appliedFilters.value,
+  ...categoryScopeOption.value,
 }));
 
 /**
@@ -572,7 +618,7 @@ function flushFilterDebounce(): void {
  * Which one is **decided at setup and never changes**: `scope` is a field, so a result created under
  * one scope is never re-pointed at the other, and the unused scope's read is never created at all.
  */
-const products = catalogueScope.value
+const products = storeWideScope.value
   ? storefront.catalog.products(requestOptions)
   : storefront.catalog.collectionProducts(selected, requestOptions);
 
@@ -934,7 +980,8 @@ const groups = computed<FilterGroup[]>(() => {
       source,
       facets.value,
       selection.value[source] ?? [],
-      availabilityLabels.value
+      availabilityLabels.value,
+      categoryScopeSlug.value
     );
     // A group whose store has nothing to offer is not a group. Price is the exception: its control
     // exists whether or not the store reports a range. A group that still carries a selection
@@ -1355,8 +1402,9 @@ const pendingOptions = computed(() => ({
   pageSize: 1,
   sort: sort.value === '' ? undefined : sort.value,
   filters: debouncedPendingFilters.value,
+  ...categoryScopeOption.value,
 }));
-const pendingProducts = catalogueScope.value
+const pendingProducts = storeWideScope.value
   ? storefront.catalog.products(pendingOptions)
   : storefront.catalog.collectionProducts(pendingSelected, pendingOptions);
 const pendingTotal = computed(() => pendingProducts.data.value?.total ?? total.value);
@@ -1464,16 +1512,18 @@ const TOP_BAR_SORT = '@content:hidden';
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 const showPaging = computed(() => !showSkeletons.value && cards.value.length > 0);
 function hrefForPage(page: number): string {
-  const base = catalogueScope.value
-    ? CATALOGUE_PATH
-    : `/collections/${collectionHandle.value ?? ''}`;
+  const base = categoryScope.value
+    ? categoryHref(routeCategoryPath ?? '')
+    : catalogueScope.value
+      ? CATALOGUE_PATH
+      : `/collections/${collectionHandle.value ?? ''}`;
   return safeHref(page > 1 ? `${base}?page=${page}` : base) ?? base;
 }
 </script>
 
 <template>
   <Section
-    v-if="hasCollection || showNoCollectionHint"
+    v-if="hasCollection || showNoCollectionHint || showNoCategoryHint"
     spacing="none"
     :aria-label="sectionLabel"
     :classes="{ root: 'pt-6 pb-[var(--eldra-section-md)]' }"
@@ -1484,6 +1534,13 @@ function hrefForPage(page: number): string {
         :icon="BoxIcon"
         :label="t('grid.noCollectionLabel')"
         :help="t('grid.noCollectionHelp')"
+      />
+
+      <EditorPlaceholder
+        v-else-if="showNoCategoryHint"
+        :icon="BoxIcon"
+        :label="t('grid.noCategoryLabel')"
+        :help="t('grid.noCategoryHelp')"
       />
 
       <EditorPlaceholder

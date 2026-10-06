@@ -250,22 +250,34 @@ export function groupValuesFor(
   source: FilterSource,
   facets: CatalogFacets | undefined,
   selected: readonly string[],
-  availability: AvailabilityLabels
+  availability: AvailabilityLabels,
+  /**
+   * **The slug of the category this grid's scope already is**, on a category page — and `null`
+   * everywhere else.
+   *
+   * It changes exactly one family: the `category` group then lists that category's **children**
+   * rather than the whole tree the facets name. Everything in the scope is already in the category,
+   * so a row for the category itself filters nothing and a row for a sibling filters it away
+   * entirely; one level down is the only choice that narrows. See `childCategoryTerms`.
+   */
+  categoryScopeSlug: string | null = null
 ): FilterGroupValue[] {
-  const out: FilterGroupValue[] = rawValuesFor(source, facets, availability).map((value) => {
-    // A row its ticked parent already covers is neither operable nor countable on its own: the
-    // request carries the parent's id and the platform expands it, so this row's own count describes
-    // a filter nobody sent. It is drawn ticked and inoperable instead (`FilterGroupValue.implied`),
-    // which is also why the `disabled` rule below does not get a say — an implied row is disabled
-    // whatever it counts.
-    if (value.parent !== undefined && selected.includes(value.parent)) {
-      return { ...value, implied: true, disabled: true };
+  const out: FilterGroupValue[] = rawValuesFor(source, facets, availability, categoryScopeSlug).map(
+    (value) => {
+      // A row its ticked parent already covers is neither operable nor countable on its own: the
+      // request carries the parent's id and the platform expands it, so this row's own count describes
+      // a filter nobody sent. It is drawn ticked and inoperable instead (`FilterGroupValue.implied`),
+      // which is also why the `disabled` rule below does not get a say — an implied row is disabled
+      // whatever it counts.
+      if (value.parent !== undefined && selected.includes(value.parent)) {
+        return { ...value, implied: true, disabled: true };
+      }
+      return {
+        ...value,
+        ...(value.count === 0 && !selected.includes(value.value) ? { disabled: true } : {}),
+      };
     }
-    return {
-      ...value,
-      ...(value.count === 0 && !selected.includes(value.value) ? { disabled: true } : {}),
-    };
-  });
+  );
   const listed = new Set(out.map((value) => value.value));
   for (const value of selected) {
     if (!listed.has(value)) {
@@ -298,10 +310,16 @@ function unlistedLabel(
 function rawValuesFor(
   source: FilterSource,
   facets: CatalogFacets | undefined,
-  availability: AvailabilityLabels
+  availability: AvailabilityLabels,
+  categoryScopeSlug: string | null
 ): FilterGroupValue[] {
   if (facets === undefined || source === 'price') return [];
   if (source === 'category') {
+    // On a category page the group is that category's children and nothing else — flat, because
+    // one level down is all there is to offer (see `childCategoryTerms`).
+    if (categoryScopeSlug !== null) {
+      return childCategoryTerms(facets.categories, categoryScopeSlug);
+    }
     // **A parent row is only offered by a source that can honour one.** `categoryCounts:
     // 'rolled-up'` is the platform saying it counted the ancestors itself — and the contract that
     // added those counts (3.8.0) added the `parentId` that places them *and* the `categoryId` that
@@ -336,6 +354,34 @@ function rawValuesFor(
     count: value.count,
     ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
   }));
+}
+
+/**
+ * **The children of one category, as rows the panel can draw** — the `category` group on a category
+ * page.
+ *
+ * The scope already *is* that category, so the whole tree is the wrong vocabulary: a row for the
+ * category itself would narrow nothing, and a row for a sibling or a cousin would narrow to nothing
+ * at all. Its children are the only values that divide the page, and each of them filters within
+ * the subtree the page is scoped to, which is what the platform's `categoryId` already matches.
+ *
+ * The current category is found by **slug**, because that is what the route carries and what the
+ * facets spell their terms with; its children are the terms whose `parentId` is its id. Flat, and
+ * with the counts exactly as the source gave them — one level needs no indent, and no number here
+ * is derived.
+ *
+ * `[]` whenever the family cannot be read that way: a source that places no term (`parentId`
+ * absent, so no row can be known to be a child), or a scope whose own category the facets do not
+ * name — an empty category, say. The block drops a group with no values, which is the honest answer:
+ * there is nothing here to divide.
+ */
+export function childCategoryTerms(
+  terms: readonly CatalogFacetTerm[],
+  categoryScopeSlug: string
+): FilterGroupValue[] {
+  const current = terms.find((term) => term.slug === categoryScopeSlug);
+  if (current === undefined || current.id === '') return [];
+  return terms.filter((term) => term.parentId === current.id).map(flatTermValue);
 }
 
 function flatTermValue(term: CatalogFacetTerm): FilterGroupValue {

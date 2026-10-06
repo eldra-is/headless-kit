@@ -86,6 +86,7 @@ declare global {
       homeLabel?: string;
       trail?: Array<{ label: string; href: string }>;
       fromProduct?: boolean;
+      fromCategory?: boolean;
       currentTitle?: string;
       showCurrent?: boolean;
       container?: 'wide' | 'content';
@@ -102,7 +103,7 @@ declare global {
       emptyLinkHref?: string;
     };
     'collection-grid': {
-      scope?: 'collection' | 'catalogue';
+      scope?: 'collection' | 'catalogue' | 'category';
       collection?: EldraCollectionReference | null;
       variant: 'sidebar' | 'drawer-only';
       columns: '2' | '3' | '4';
@@ -117,6 +118,7 @@ declare global {
       emptyText?: string;
     };
     'collection-header': {
+      scope?: 'collection' | 'category';
       collection?: EldraCollectionReference | null;
       variant: 'image' | 'text-only';
       title?: string;

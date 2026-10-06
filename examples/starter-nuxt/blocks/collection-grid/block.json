@@ -10,8 +10,8 @@
       "fieldId": "scope",
       "name": "What to list",
       "type": "select",
-      "metadata": { "options": ["collection", "catalogue"] },
-      "helpText": "collection (the default) lists one collection — the one picked below, or the collection this page's route resolved. catalogue lists every product in the store, which is what the All products page uses; the Collection picker and the Collection filter group both still apply."
+      "metadata": { "options": ["collection", "catalogue", "category"] },
+      "helpText": "collection (the default) lists one collection — the one picked below, or the collection this page's route resolved. catalogue lists every product in the store, which is what the All products page uses. category lists the products of the category this page's route resolved, including every category under it, which is what the Category page uses; its Category filter group then offers that category's children. The Collection picker is ignored by both of the last two."
     },
     {
       "fieldId": "collection",

@@ -38,6 +38,12 @@ export const ScopeCatalogue: Story = {
   },
 };
 
+export const ScopeCategory: Story = {
+  args: {
+    entry: { id: "collection-grid", data: { ...base, "scope": "category" } },
+  },
+};
+
 export const VariantSidebar: Story = {
   args: {
     entry: { id: "collection-grid", data: { ...base, "variant": "sidebar" } },

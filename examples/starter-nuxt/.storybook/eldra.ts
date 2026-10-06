@@ -39,6 +39,25 @@ import { STOREFRONT_KEY } from '../app/storefront/types';
  * nowhere else.
  */
 const CART_STORY_TITLE = 'Blocks/cart';
+/**
+ * The category sample page's own story, and the one place the demo route is a **category** page.
+ *
+ * Scoped by title for the same reason the cart seed is: a route that resolves a category is not
+ * inert anywhere near a commerce block — `breadcrumbs` would append the category's ancestors to
+ * every one of its own stories, and `collection-grid`/`collection-header` would read it the moment
+ * an author's scope said so. The path is the demo tree's own nested one (`Homeware › Ceramics`), so
+ * the page shows a real trail and a real strip of sibling categories.
+ */
+const CATEGORY_PAGE_STORY_TITLE = 'Pages/Category';
+/**
+ * The generated `scope: "category"` story of any block that declares that option — the story id is
+ * the kebab-cased export name, which `scripts/generate-stories.mjs` takes from the option itself
+ * (`collection-grid`'s and `collection-header`'s `ScopeCategory`). Without the route those two
+ * stories would draw nothing at all: both blocks read the page's category and neither has anything
+ * to fall back to.
+ */
+const CATEGORY_SCOPE_STORY_SUFFIX = '--scope-category';
+const DEMO_CATEGORY_PATH = 'home/ceramics';
 
 export const withEldraContext: Decorator = (story, storyContext) => ({
   components: { story },
@@ -62,9 +81,13 @@ export const withEldraContext: Decorator = (story, storyContext) => ({
     // thing; every other story keeps the empty cart it had before, badge and all. The demo search
     // query is global by contrast — see the comment above.
     const isCartStory = storyContext.title === CART_STORY_TITLE;
+    const isCategoryPageStory =
+      storyContext.title === CATEGORY_PAGE_STORY_TITLE ||
+      storyContext.id.endsWith(CATEGORY_SCOPE_STORY_SUFFIX);
     const storefront = createDemoStorefront({
       query: 'linen',
       cartLines: isCartStory ? DEMO_CART_LINES : undefined,
+      categoryPath: isCategoryPageStory ? DEMO_CATEGORY_PATH : undefined,
     });
     if (isCartStory) storefront.cart.drawerOpen.value = true;
     provideEldraUiCurrency(storefront.commerce?.currency);

@@ -15,6 +15,15 @@
  * filled in at all. The reference replaced a `collectionHandle` string field in version 2, and a
  * retired handle an entry still carries (`collectionHandle__v1`) is not read here.
  *
+ * **`scope: 'category'` opens a category page instead.** The source is then the category the route
+ * resolved (`useStorefront().catalog.category(route.categoryPath)`): its title fills in behind the
+ * `title` field exactly as a collection's does, its ancestors extend the breadcrumb, and the strip
+ * under the text is its own **children**, each linking to that child's page — rendered only when
+ * there are any, so a leaf category shows no strip rather than an empty row. The collection
+ * reference, the authored `subcollections` list and the count are all ignored there: the catalogue's
+ * categories carry no count, and a curated collection chip beside a category chip would be two
+ * different things in one strip.
+ *
  * `variant: 'image'` renders two columns from `@tablet` (48rem: text left, a 3:2 image right,
  * vertically centred) and stacks image-first below it; `variant: 'text-only'` is a single column
  * capped at 48rem with a bottom rule. Neither field nor collection image resolves the `image`
@@ -50,7 +59,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
-import { isInternalHref, safeHref } from '../../app/utils/links';
+import { categoryHref, isInternalHref, safeHref } from '../../app/utils/links';
 import { collectionSelector, selectorSlug } from '../../app/storefront/collectionSelector';
 
 interface TrailLevel {
@@ -84,18 +93,62 @@ const readMoreId = `collection-header-readmore-${uid}`;
  *  `app/storefront/collectionSelector.ts`) resolves to nothing and the block
  *  falls back to its own `title`/`description`/`image` fields until the page is
  *  published, exactly as it does with no collection at all. */
+/**
+ * **Which page this header opens**: a collection page (the default, and every header this theme
+ * shipped before) or a **category** page, where the title and the strip of links under it come from
+ * the category the route resolved rather than from a collection.
+ *
+ * A `select` rather than an inference off the route, for the same reason `collection-grid`'s `scope`
+ * is one: an author must be able to put a collection header on a page whose route happens to resolve
+ * a category and have it stay a collection header. Adding a value to a `select` — or, as here, the
+ * whole field — costs no version bump, so no author's configured `trail` or `subcollections` is
+ * retired.
+ */
+const categoryMode = computed(() => data.value.scope === 'category');
+
+/** `catalog.collection()` has no key but the handle, so a collection known only
+ *  by id (a page builder draft overlay, or a depth-0 read — see
+ *  `app/storefront/collectionSelector.ts`) resolves to nothing and the block
+ *  falls back to its own `title`/`description`/`image` fields until the page is
+ *  published, exactly as it does with no collection at all.
+ *
+ *  `null` in category mode, so a category page makes no collection read at all — an **empty
+ *  source**, not a live one, because a result's sources are part of its cache key and a key that
+ *  resolves differently after hydration misses the payload the build left. */
 const handle = computed(() =>
-  selectorSlug(collectionSelector(data.value.collection, storefront.route.collectionHandle))
+  categoryMode.value
+    ? null
+    : selectorSlug(collectionSelector(data.value.collection, storefront.route.collectionHandle))
 );
 const collectionResult = storefront.catalog.collection(handle);
 const collectionInfo = computed(() => collectionResult.data.value);
+
+/**
+ * The category this page resolved, read **only** in category mode.
+ *
+ * `route.categoryPath` is the committed route's and is settled before any block on the page is
+ * created, so it is captured here rather than read inside a computed: a result is keyed by its
+ * sources' values at creation, and a live source would re-key the header onto whatever the shopper
+ * clicked towards (`StorefrontResult`'s "sources final at setup time" rule). It is the **same
+ * result** `breadcrumbs` on the same page creates — identical method, identical source, therefore
+ * an identical prerender key — so one read serves both and the children ride to the browser in the
+ * page payload.
+ */
+const routeCategoryPath = storefront.route.categoryPath;
+const categoryPath = computed(() => (categoryMode.value ? routeCategoryPath : null));
+const categoryResult = storefront.catalog.category(categoryPath);
+const categoryInfo = computed(() => categoryResult.data.value);
 
 // ---------------------------------------------------------------------------------------------
 // Title — field, then the store, then nothing.
 // ---------------------------------------------------------------------------------------------
 
 const resolvedTitle = computed(
-  () => (data.value.title ?? '').trim() || (collectionInfo.value?.title ?? '').trim()
+  () =>
+    (data.value.title ?? '').trim() ||
+    (categoryMode.value
+      ? (categoryInfo.value?.title ?? '').trim()
+      : (collectionInfo.value?.title ?? '').trim())
 );
 const hasTitle = computed(() => resolvedTitle.value !== '');
 const showTitleHint = computed(() => editing.value && !hasTitle.value);
@@ -188,7 +241,10 @@ const descriptionClass = computed(() => [
 // Count — always the store's own number, never a field.
 // ---------------------------------------------------------------------------------------------
 
-const showCount = computed(() => data.value.showCount !== false);
+/** Collection pages only: the catalogue's categories carry no count of their own, and the grid's
+ *  own total is the filtered set rather than the category's size — so there is nothing honest to
+ *  show here on a category page. */
+const showCount = computed(() => !categoryMode.value && data.value.showCount !== false);
 const productCount = computed(() => collectionInfo.value?.productCount ?? null);
 const hasCount = computed(() => showCount.value && productCount.value !== null);
 const countText = computed(() =>
@@ -246,9 +302,20 @@ const trailItems = computed<BreadcrumbItem[]>(() =>
   })
 );
 
+/**
+ * The category's own ancestors as crumbs, root first, each a link to its own page — the levels
+ * between the authored `trail` and this category. Empty in collection mode and for a root category.
+ */
+const categoryAncestorItems = computed<BreadcrumbItem[]>(() =>
+  (categoryInfo.value?.ancestors ?? []).flatMap((ancestor) => {
+    const href = safeHref(categoryHref(ancestor.path));
+    return href === null ? [] : [{ label: ancestor.title, href }];
+  })
+);
+
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   if (!hasTitle.value) return [];
-  return [...trailItems.value, { label: resolvedTitle.value }];
+  return [...trailItems.value, ...categoryAncestorItems.value, { label: resolvedTitle.value }];
 });
 
 const breadcrumbLinkAs = computed(() =>
@@ -268,8 +335,36 @@ interface ResolvedPill {
   as: typeof EldraRouterLink | undefined;
 }
 
-const pills = computed<ResolvedPill[]>(() =>
-  (data.value.subcollections ?? []).flatMap((item: Subcollection) => {
+/**
+ * **The strip under the text**: the author's own `subcollections` on a collection page, and on a
+ * **category** page the current category's own **children**, each linking to its page
+ * (`categoryHref`).
+ *
+ * The two are different lists with different meanings — curated collections against levels of the
+ * catalogue's own tree — so the category strip is the tree's and the authored list is ignored there
+ * rather than merged into it: a merged strip would put a collection chip beside a category chip with
+ * nothing to tell them apart. None of the category chips is ever `current`: the current category is
+ * the page's own `h1`, and its children are all somewhere else.
+ *
+ * It renders only when there are children, which is the whole of the rule: a leaf category shows no
+ * strip at all rather than an empty row (the `v-if="hasPills"` the authored list already had).
+ */
+const pills = computed<ResolvedPill[]>(() => {
+  if (categoryMode.value) {
+    return (categoryInfo.value?.children ?? []).flatMap((child) => {
+      const href = safeHref(categoryHref(child.path));
+      if (href === null) return [];
+      return [
+        {
+          label: child.title,
+          href,
+          current: false,
+          as: isInternalHref(href) ? EldraRouterLink : undefined,
+        },
+      ];
+    });
+  }
+  return (data.value.subcollections ?? []).flatMap((item: Subcollection) => {
     const href = safeHref(item.href);
     if (href === null || !item.label) return [];
     return [
@@ -280,9 +375,14 @@ const pills = computed<ResolvedPill[]>(() =>
         as: isInternalHref(href) ? EldraRouterLink : undefined,
       },
     ];
-  })
-);
+  });
+});
 const hasPills = computed(() => pills.value.length > 0);
+/** The strip's accessible name: the two lists are different things, so they are named differently
+ *  (`collection.subcategories` against `collection.subcollections`). */
+const pillsLabel = computed(() =>
+  categoryMode.value ? t('collection.subcategories') : t('collection.subcollections')
+);
 
 function pillClass(pill: ResolvedPill): string {
   const base =
@@ -412,11 +512,7 @@ const textColumnClass = computed(() =>
 
           <div v-if="hasCount || hasPills" class="flex flex-wrap items-center gap-x-5 gap-y-3">
             <p v-if="hasCount" class="text-muted text-[0.875rem] tabular-nums">{{ countText }}</p>
-            <ul
-              v-if="hasPills"
-              :aria-label="t('collection.subcollections')"
-              class="flex flex-wrap gap-2"
-            >
+            <ul v-if="hasPills" :aria-label="pillsLabel" class="flex flex-wrap gap-2">
               <li v-for="pill in pills" :key="pill.href">
                 <Link
                   :href="pill.href"

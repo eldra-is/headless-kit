@@ -26,6 +26,18 @@ export const Inserted: Story = {
   args: { entry: { id: "collection-header", data: mock } },
 };
 
+export const ScopeCollection: Story = {
+  args: {
+    entry: { id: "collection-header", data: { ...base, "scope": "collection" } },
+  },
+};
+
+export const ScopeCategory: Story = {
+  args: {
+    entry: { id: "collection-header", data: { ...base, "scope": "category" } },
+  },
+};
+
 export const VariantImage: Story = {
   args: {
     entry: { id: "collection-header", data: { ...base, "variant": "image" } },
