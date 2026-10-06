@@ -530,10 +530,10 @@ describe('collection-grid block', () => {
     /**
      * The prerender contract (`app/storefront/types.ts`): a grid the visitor can already see never
      * goes back to skeletons. Filtering, sorting and paging all read over results that are on
-     * screen, so those results stay on screen — under the results overlay (scrim, spinner,
-     * "Updating…"), never replaced — and the grid is marked busy while the count says so.
+     * screen, so those results stay on screen — pulsing, never replaced and never covered — and
+     * the grid is marked busy while the count says so.
      */
-    it('keeps the cards under a results overlay, busy, while a filter loads over results already on screen', async () => {
+    it('keeps the cards, pulsing and busy, while a filter loads over results already on screen', async () => {
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
@@ -557,33 +557,32 @@ describe('collection-grid block', () => {
       // would be written as the *string* `"false"` on the browser's first paint and omitted
       // entirely by the server render, which is a hydration mismatch over nothing at all.
       expect(gridList(wrapper).attributes('inert')).toBe('true');
-      // The overlay is the one visible "this is stale" treatment now — a card's own
+      // The pulse is the one visible "this is stale" treatment now — a card's own
       // dimmed-value-and-spinner treatment (`revalidating`) is reserved for the volatile price/stock
       // refresh, a different state this is not, so it stays off here.
       expect(
         wrapper.findAllComponents(ProductCard).every((card) => card.props('revalidating') === false)
       ).toBe(true);
-      // `[data-eldra-grid-updating]`, not the bare `[aria-hidden="true"]` every card's own
-      // decorative icons already carry — a generic attribute selector found one of those instead
-      // of the overlay the first time this was written.
-      const overlay = gridList(wrapper).element.parentElement!.querySelector(
-        '[data-eldra-grid-updating]'
-      )!;
-      expect(overlay).toBeTruthy();
-      expect(overlay.getAttribute('aria-hidden')).toBe('true');
-      expect(overlay.textContent).toContain(enUS.grid.updating);
-      expect(overlay.querySelector('svg')).toBeTruthy();
-      // Chaining is the point: the filter panel is never covered or disabled by the overlay above.
+      expect(gridList(wrapper).classes()).toContain('animate-eldra-pulse-soft');
+      // Nothing is drawn over the cards and nothing is added to the DOM: the treatment is the
+      // list's own opacity, so there is no extra element to find and none to hide from assistive
+      // technology.
+      expect(gridList(wrapper).element.querySelectorAll(':scope > li')).toHaveLength(shown);
+      // Chaining is the point: the filter panel is never dimmed or disabled with the grid.
       const aside = wrapper.get('aside');
       expect(aside.attributes('inert')).toBeUndefined();
       expect(aside.classes().join(' ')).not.toContain('pointer-events-none');
-      expect(aside.find('[data-eldra-grid-updating]').exists()).toBe(false);
+      expect(aside.classes().join(' ')).not.toContain('animate-eldra-pulse-soft');
     });
 
-    /** The scrim appears and clears with `updating` outright — no `transition`/`duration` class of
-     *  its own — so there is nothing beyond the spinner's own already-reduced-motion-aware spin
-     *  for `prefers-reduced-motion` to need to turn off. */
-    it('the overlay carries no transition of its own, reduced motion or not', async () => {
+    /**
+     * The motion half, asserted as the class pair rather than a computed style — jsdom parses no
+     * stylesheet, so `getComputedStyle` would answer nothing either way. `animate-eldra-pulse-soft`
+     * is the theme's own utility (`app/assets/main.css`: 0.7 ↔ 0.9, 1.4s, ease-in-out, alternate,
+     * infinite); under `prefers-reduced-motion: reduce` the animation is off and the list holds a
+     * steady 0.8 instead, which is the `motion-reduce:` pair beside it.
+     */
+    it('pulses with a reduced-motion fallback that is a steady opacity, not a stopped animation', async () => {
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
@@ -591,42 +590,37 @@ describe('collection-grid block', () => {
       stub.loading.value = true;
       await wrapper.vm.$nextTick();
 
-      const overlay = gridList(wrapper).element.parentElement!.querySelector(
-        '[data-eldra-grid-updating]'
-      )!;
-      expect(overlay.className).not.toMatch(/\btransition|\bduration-|\banimate-/);
-      const spinner = overlay.querySelector('svg')!;
-      expect(spinner.getAttribute('class')).toContain('animate-eldra-spin');
-      expect(spinner.getAttribute('class')).toContain('motion-reduce:animate-eldra-pulse');
+      const classes = gridList(wrapper).classes();
+      expect(classes).toContain('animate-eldra-pulse-soft');
+      expect(classes).toContain('motion-reduce:animate-none');
+      expect(classes).toContain('motion-reduce:opacity-80');
     });
 
-    it('offers no overlay, and no `inert` grid, while nothing is updating', async () => {
+    it('does not pulse, and leaves the grid operable, while nothing is updating', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();
 
       expect(gridList(wrapper).attributes('inert')).toBeUndefined();
-      expect(
-        gridList(wrapper).element.parentElement!.querySelector('[data-eldra-grid-updating]')
-      ).toBe(null);
+      expect(gridList(wrapper).classes()).not.toContain('animate-eldra-pulse-soft');
+      expect(gridList(wrapper).classes().join(' ')).not.toContain('motion-reduce:');
     });
 
     /**
-     * The overlay is gated behind `useRevalidating`'s mount flag like every other refresh
-     * treatment (`app/composables/useRevalidating.ts`), so the server never writes it and the
-     * browser's first render is the server's. A hydrating page is precisely the state that would
-     * paint it otherwise: `createGatewayResult` raises `loading` synchronously and fills `data`
-     * from the payload in the same turn, so `loading && data !== null` — the overlay's own
-     * condition — is true during the first client render and was false during the render it has to
-     * match. Both halves are asserted: absent before the tick, there after it, with the read still
-     * in flight.
+     * The pulse is gated behind `useRevalidating`'s mount flag like every other refresh treatment
+     * (`app/composables/useRevalidating.ts`), so the server never writes it and the browser's first
+     * render is the server's. A hydrating page is precisely the state that would paint it
+     * otherwise: `createGatewayResult` raises `loading` synchronously and fills `data` from the
+     * payload in the same turn, so `loading && data !== null` — the pulse's own condition — is true
+     * during the first client render and was false during the render it has to match. Both halves
+     * are asserted: absent before the tick, there after it, with the read still in flight.
      */
-    it('draws no overlay in the server render or the browser’s first paint', async () => {
+    it('draws no pulse in the server render or the browser’s first paint', async () => {
       const entry = { id: 'ssr-grid', data: mock as unknown as Record<string, unknown> };
       const html = await renderBlockHtml(Block, entry, {
         [STOREFRONT_KEY]: createStub().source,
       });
       expect(html).toContain('data-part="stars"'); // the cards really are in the server's markup
-      expect(html).not.toContain('data-eldra-grid-updating');
+      expect(html).not.toContain('animate-eldra-pulse-soft');
       expect(html).not.toContain(enUS.grid.updating);
 
       const client = createStub();
@@ -634,13 +628,13 @@ describe('collection-grid block', () => {
       const run = hydrateBlock(Block, entry, html, { [STOREFRONT_KEY]: client.source });
       try {
         expect(hydrationWarnings(run)).toEqual([]);
-        expect(run.firstPaint).not.toContain('data-eldra-grid-updating');
+        expect(run.firstPaint).not.toContain('animate-eldra-pulse-soft');
         expect(run.firstPaint).not.toContain(enUS.grid.updating);
 
         await nextTick();
 
         expect(client.loading.value).toBe(true);
-        expect(run.container.innerHTML).toContain('data-eldra-grid-updating');
+        expect(run.container.innerHTML).toContain('animate-eldra-pulse-soft');
         expect(run.container.innerHTML).toContain(enUS.grid.updating);
       } finally {
         run.unmount();
@@ -666,7 +660,7 @@ describe('collection-grid block', () => {
     it('three quick toggles send one request, with the final selection, and read "Updating…" the whole time', async () => {
       useFilterTimers();
       // A filtered answer with cards in it, so the grid is still a grid at the end of this and the
-      // overlay's own state can be read off it rather than off an empty state.
+      // pulse's own state can be read off it rather than off an empty state.
       const stub = createStub(PRODUCTS, { filteredCount: 4 });
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
@@ -679,9 +673,7 @@ describe('collection-grid block', () => {
       // of the three changes has actually asked for anything.
       expect(countLine(wrapper).text()).toBe(enUS.grid.updating);
       expect(gridList(wrapper).attributes('aria-busy')).toBe('true');
-      expect(
-        gridList(wrapper).element.parentElement!.querySelector('[data-eldra-grid-updating]')
-      ).toBeTruthy();
+      expect(gridList(wrapper).classes()).toContain('animate-eldra-pulse-soft');
 
       await panelFor(wrapper, enUS.grid.legendSize)
         .panel.findAll('input[type="checkbox"]')[0]!
@@ -701,18 +693,16 @@ describe('collection-grid block', () => {
       expect(countLine(wrapper).text()).toBe('4 products');
       expect(gridList(wrapper).attributes('aria-busy')).toBeUndefined();
       expect(gridList(wrapper).attributes('inert')).toBeUndefined();
-      expect(
-        gridList(wrapper).element.parentElement!.querySelector('[data-eldra-grid-updating]')
-      ).toBe(null);
+      expect(gridList(wrapper).classes()).not.toContain('animate-eldra-pulse-soft');
     });
 
     /**
      * The three ticks above, read from the sidebar's side: every one of them is operable while the
-     * overlay is up, which is the whole reason the debounce exists. The assertion is the
+     * grid is pulsing, which is the whole reason the debounce exists. The assertion is the
      * checkboxes' own state rather than a class, because "the panel stays interactive" is about
      * what a shopper can still change, not about what the aside is styled with.
      */
-    it('leaves the filter panel fully interactive while the overlay is up', async () => {
+    it('leaves the filter panel fully interactive while the grid is pulsing', async () => {
       useFilterTimers();
       const stub = createStub(PRODUCTS, { filteredCount: 4 });
       const wrapper = mountGrid(mock, { source: stub.source });
@@ -722,15 +712,12 @@ describe('collection-grid block', () => {
         'input[type="checkbox"]'
       );
       await category.setValue(true);
-      const overlay = gridList(wrapper).element.parentElement!.querySelector(
-        '[data-eldra-grid-updating]'
-      );
-      expect(overlay).toBeTruthy();
+      expect(gridList(wrapper).classes()).toContain('animate-eldra-pulse-soft');
 
       const aside = wrapper.get('aside');
       expect(aside.attributes('inert')).toBeUndefined();
       expect(aside.classes().join(' ')).not.toContain('pointer-events-none');
-      expect(aside.element.contains(overlay)).toBe(false);
+      expect(aside.classes().join(' ')).not.toContain('animate-eldra-pulse-soft');
       // Still operable, and the second change really lands: unticking the first one puts the
       // checkbox back and leaves the sidebar's selection empty.
       const colour = panelFor(wrapper, enUS.grid.legendColour).panel.get('input[type="checkbox"]');
@@ -776,6 +763,57 @@ describe('collection-grid block', () => {
       const sent = stub.requests.filter((request) => request.pageSize !== 1).at(-1)!;
       expect(sent.sort).toBe('best-selling');
       expect(sent.filters).toEqual({ category: ['knitwear'] });
+    });
+
+    /**
+     * **Every input of the read is held, not just `filters`.** A sidebar handler's own
+     * `publishState()` resets the page window (`pagesLoaded`) in the same turn it changes the
+     * selection, and that window is part of what the read asks for. Holding the filters alone let
+     * the reset through on its own: after a Load more press, one tick fired an immediate read for
+     * the narrowed window carrying the *old* filters — visibly replacing the cards the shopper had
+     * loaded — and the debounced one followed 350 ms later. Two requests for one tick, the first
+     * thrown away.
+     *
+     * Twenty-four products at `pageSize: '12'` is what puts a real Load more on screen; the press
+     * doubles the window to 24, and the tick after it has to come back as exactly one request, for
+     * the reset window of 12, carrying the new filter.
+     */
+    it('sends one request for a filter ticked after Load more, carrying the reset page window', async () => {
+      useFilterTimers();
+      // Twice the fixture, the copies given handles of their own — the cards are keyed by handle,
+      // and `pageSize` only takes the schema's own 12/24/48, so a second page needs more rows
+      // rather than a smaller window.
+      const many = [
+        ...PRODUCTS,
+        ...PRODUCTS.map((item) => ({
+          ...item,
+          handle: `${item.handle}-2`,
+          productId: `${item.productId}-2`,
+        })),
+      ];
+      const stub = createStub(many, { filteredCount: 4 });
+      const wrapper = mountGrid({ ...mock, pageSize: '12' }, { source: stub.source });
+      await wrapper.vm.$nextTick();
+      expect(cards(wrapper)).toHaveLength(12);
+
+      const gridReads = (): Stub['requests'] => stub.requests.filter((sent) => sent.pageSize !== 1);
+      await wrapper.get('[data-part="button"]').trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(cards(wrapper)).toHaveLength(24);
+      const before = gridReads().length;
+
+      await panelFor(wrapper, enUS.grid.legendCategory)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+      expect(gridReads().length).toBe(before);
+
+      await settleFilterDebounce(wrapper);
+
+      expect(gridReads().length).toBe(before + 1);
+      const sent = gridReads().at(-1)!;
+      expect(sent.pageSize).toBe(12);
+      expect(sent.filters).toEqual({ category: ['knitwear'] });
+      expect(cards(wrapper)).toHaveLength(4);
     });
 
     /**
@@ -1673,6 +1711,33 @@ describe('collection-grid block', () => {
 
       expect(comboboxes(wrapper)[1]!.text()).toContain('Featured');
       expect(stub.requests.some((request) => request.sort === 'best-selling')).toBe(false);
+    });
+
+    /**
+     * The end of that same fallback: an author whose only configured row is an id this scope
+     * declares unsortable leaves nothing to fall back *to*. The control is hidden either way, so
+     * the only thing left to get right is the request — it must stop carrying the id the same
+     * answer just said cannot be honoured, exactly as the configured-list settling does for an id
+     * this block never configured at all.
+     */
+    it('sends no sort at all when the scope can honour none of the configured options', async () => {
+      const stub = createStub(PRODUCTS, { unsortable: ['best-selling'] });
+      const wrapper = mountGrid(
+        { ...mock, sortOptions: [{ option: 'best-selling', label: 'Best selling' }] },
+        { source: stub.source }
+      );
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+
+      // No Sort control is drawn — only the Columns select is left.
+      expect(comboboxes(wrapper)).toHaveLength(1);
+      // The scope's answer really did reach the request: the read was re-issued *because* the id
+      // was dropped, and the re-issued one carries no sort at all. `requests` records changes, not
+      // the first value, so an id left in place would leave it empty rather than wrong — which is
+      // why the length is asserted beside the value.
+      expect(stub.requests.length).toBeGreaterThan(0);
+      expect(stub.requests.at(-1)!.sort).toBeUndefined();
+      expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
 

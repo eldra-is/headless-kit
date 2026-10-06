@@ -46,6 +46,7 @@ import {
   onMounted,
   onUnmounted,
   ref,
+  shallowRef,
   watch,
   type Component,
   type ComputedRef,
@@ -71,7 +72,6 @@ import {
   type SelectOption,
   type UiMessages,
 } from '@eldrajs/ui';
-import EldraIcon from '../../app/components/EldraIcon.vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
@@ -493,48 +493,71 @@ const appliedFilters = computed(() =>
 const FILTER_DEBOUNCE_MS = 350;
 
 /**
- * `appliedFilters`' own debounced echo — what `requestOptions.filters` actually reads below.
- * The visible state (`selection`, the chips, the price fields, the URL) still writes at once, so
- * nothing the shopper sees waits; only the request this feeds is held back, and only for the
- * sidebar's own live checkbox/price path (`onToggle`/`onRange`) — `armFilterDebounce` is what
- * arms the wait, `flushFilterDebounce` is what every other write (sort, columns, Load more, the
- * drawer's own apply, Clear all, a removed chip) resolves it with immediately, carrying whatever
- * the sidebar had already queued along with its own change. A trailing debounce: each further arm
- * restarts the window rather than queuing a second timer.
+ * Everything the read takes, live — the page window, the sort and the filters, recomputed the
+ * instant any of them moves. Nothing reads this directly: `requestOptions` below is the copy the
+ * storefront actually sees, and the gap between the two is the debounce.
  */
-const debouncedFilters = ref(appliedFilters.value);
-/** Whether a sidebar change is waiting out the window above — the first half of `updating`. */
+const liveRequestOptions = computed(() => ({
+  page: isLoadMore.value ? 1 : currentPage.value,
+  pageSize: isLoadMore.value ? pageSize.value * pagesLoaded.value : pageSize.value,
+  sort: sort.value === '' ? undefined : sort.value,
+  filters: appliedFilters.value,
+}));
+
+/**
+ * What the storefront read is actually given: `liveRequestOptions`, mirrored the moment it changes
+ * — **unless** the sidebar has armed the window below, in which case the whole object is held back
+ * until it expires. The visible state (`selection`, the chips, the price fields, the URL) still
+ * writes at once, so nothing the shopper sees waits; only the request is held.
+ *
+ * **The whole object, not just `filters`.** A sidebar handler's own `publishState()` resets
+ * `pagesLoaded` to 1 in the same turn it changes the selection, and that is one of this object's
+ * inputs: holding `filters` alone meant a filter ticked after a Load more press fired an immediate
+ * read for the reset page window carrying the *old* filters — 24 unfiltered cards replacing the 48
+ * the shopper had loaded — and then the debounced one 350 ms later. Two requests, the first thrown
+ * away. Mirroring the whole object closes that for every input at once, including the ones that
+ * move with no handler of this block's at all (a `pages`-style page link, Back/Forward), which
+ * keep reaching the read immediately because nothing is armed when they do.
+ *
+ * `liveRequestOptions` is a computed, so its value is reference-stable until an input really
+ * changes: assigning it when nothing moved is a no-op and asks the storefront nothing.
+ */
+/** Whether a sidebar change is waiting out the window — the first half of `updating`. */
 const debounceArmed = ref(false);
 let filterDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+const requestOptions = shallowRef(liveRequestOptions.value);
+watch(liveRequestOptions, (value) => {
+  if (!debounceArmed.value) requestOptions.value = value;
+});
+
+/**
+ * Arms the wait. Called by the sidebar's own live checkbox/price path (`onToggle`/`onRange`)
+ * **before** it changes anything, so the mirror above never sees a half-applied change: a trailing
+ * debounce, where each further arm restarts the window rather than queuing a second timer.
+ */
 function armFilterDebounce(): void {
   debounceArmed.value = true;
   if (filterDebounceTimer !== null) clearTimeout(filterDebounceTimer);
   filterDebounceTimer = setTimeout(() => {
     filterDebounceTimer = null;
     debounceArmed.value = false;
-    debouncedFilters.value = appliedFilters.value;
+    requestOptions.value = liveRequestOptions.value;
   }, FILTER_DEBOUNCE_MS);
 }
 
-/** Resolves an armed wait at once — what every immediate-apply change calls, so its own read
- *  carries a sidebar change that was still waiting rather than leaving it stranded for another
- *  `FILTER_DEBOUNCE_MS`. A no-op when nothing was armed. */
+/** Resolves an armed wait at once — what every immediate-apply change calls (sort, columns, Load
+ *  more, the drawer's own apply, Clear all, a removed chip), so its own read carries a sidebar
+ *  change that was still waiting rather than leaving it stranded for another `FILTER_DEBOUNCE_MS`.
+ *  A no-op when nothing was armed and nothing has changed. */
 function flushFilterDebounce(): void {
   if (filterDebounceTimer !== null) {
     clearTimeout(filterDebounceTimer);
     filterDebounceTimer = null;
   }
   debounceArmed.value = false;
-  debouncedFilters.value = appliedFilters.value;
+  requestOptions.value = liveRequestOptions.value;
 }
-
-const requestOptions = computed(() => ({
-  page: isLoadMore.value ? 1 : currentPage.value,
-  pageSize: isLoadMore.value ? pageSize.value * pagesLoaded.value : pageSize.value,
-  sort: sort.value === '' ? undefined : sort.value,
-  filters: debouncedFilters.value,
-}));
 /**
  * The grid's own read, from whichever scope the block is in. Both answer the same
  * `StorefrontCollectionProducts`, so everything below this line — the cards, the count, the facets, the
@@ -593,9 +616,12 @@ const sortOptions = computed<SelectOption[]>(() => {
 watch(
   sortOptions,
   (options) => {
-    if (options.length > 0 && !options.some((option) => option.value === sort.value)) {
-      sort.value = options[0]!.value;
-    }
+    if (options.some((option) => option.value === sort.value)) return;
+    // Nothing left to offer — an author who configured only ids this scope declares unsortable.
+    // The control is already hidden (`hasSort`), so the only thing left to get right is the
+    // request: clear it rather than keep sending an id the same answer just said cannot be
+    // honoured. The configured-list watch above settles its own empty case exactly this way.
+    sort.value = options.length > 0 ? options[0]!.value : '';
   },
   { immediate: true }
 );
@@ -623,9 +649,9 @@ const showUnresolvedCollectionHint = computed(
  *   drawn over results the visitor can already see is precisely the flash this work removed.
  * - `updating` — a sidebar change waiting out its debounce, or the read it drives already in
  *   flight (`refreshing`) — over results that *are* on screen: a filter, a sort, a page. The old
- *   cards stay exactly where they are, under the results overlay below (scrim, spinner, "Updating…"),
- *   the grid is marked `aria-busy`, and the count reads "Updating…" too. This is what used to
- *   replace the whole grid with skeletons.
+ *   cards stay exactly where they are and the list pulses between 0.7 and 0.9 opacity, the grid is
+ *   marked `aria-busy`, and the count reads "Updating…". This is what used to replace the whole
+ *   grid with skeletons.
  * - `loadingMore` — Load more, where "focus stays on the button" (spec Accessibility): every card
  *   stays put, undimmed, the count stays real, and only the button is busy (`LoadMore`'s own
  *   `pending`). It latches on the press and clears when the read answers — off `loading`, not
@@ -653,36 +679,48 @@ const { any: cardsRevalidating, refreshing } = useRevalidating({
   refreshing: () => loading.value && hasData.value && !loadingMore.value,
 });
 /**
- * The results overlay's own trigger: armed the moment a sidebar change is typed or ticked, not
- * only once the debounced read actually goes out — the shopper sees the list is about to move as
- * soon as they touch a control, which is the whole point of showing *something* before the request
- * exists at all. `debounceArmed` is written only by sidebar handlers and is therefore never true
+ * The grid's own "this is about to change" flag: armed the moment a sidebar change is typed or
+ * ticked, not only once the debounced read actually goes out — the shopper sees the list is about
+ * to move as soon as they touch a control, which is the whole point of showing *something* before
+ * the request exists at all. `debounceArmed` is written only by sidebar handlers and is therefore never true
  * during a server render or a hydrating client's first paint, the same way `refreshing` never is.
  *
- * What it draws, and the rules the template's scrim follows from it:
+ * What it draws, and the rules that follow from it:
  *
- * - The scrim covers the **cards only** — never the sidebar, the chips, the toolbar or the count.
- *   Chaining filter changes is the entire point of the debounce, so the panel has to stay
- *   operable while the list is on its way.
- * - It is `aria-hidden`. The count line is a `role="status"` that already says the same thing in
- *   words, and the list itself is already marked busy, so a second announcement would say it
- *   twice. The one thing the scrim does for the keyboard is nothing: the list below it takes
- *   `inert` instead, so no card can be reached or clicked mid-update.
- * - It carries no transition. It appears and clears with this flag, instantly, in both
- *   directions, so there is no fade for `prefers-reduced-motion` to have to turn off; the
- *   spinner's own motion is the only animation, and it swaps itself for a pulse under that query.
+ * - The card list itself pulses (`UPDATING_PULSE` below) — nothing is drawn **over** it, nothing
+ *   is added to the DOM, and nothing moves. The sidebar, the chips, the toolbar and the count are
+ *   outside it and stay at full strength: chaining filter changes is the entire point of the
+ *   debounce, so the panel has to stay operable and legible while the list is on its way.
+ * - The list is marked busy and takes `inert`, so no card can be reached or clicked mid-update,
+ *   and the count line — a `role="status"` — is what says "Updating…" in words. There is nothing
+ *   to hide from assistive technology, because there is no extra element at all.
  */
 const updating = computed(() => debounceArmed.value || refreshing.value);
+
+/**
+ * The grid's own "a fresher result is on its way" treatment: its opacity eases between 0.7 and
+ * 0.9 and back, continuously, for as long as `updating` holds. Declared in
+ * `app/assets/main.css` (`eldra-pulse-soft`) beside the theme's other custom utilities rather
+ * than inline, so a customer restyles or removes it in one place.
+ *
+ * Under `prefers-reduced-motion: reduce` the animation is off and the list holds a steady 0.8
+ * instead — still visibly waiting, with nothing moving. The pair is written as one constant
+ * because Tailwind scans source text for class names: every class here has to appear literally
+ * somewhere in this file for the build to emit it.
+ */
+const UPDATING_PULSE =
+  'animate-eldra-pulse-soft motion-reduce:animate-none motion-reduce:opacity-80';
 
 /**
  * **One visible "this is stale" treatment at a time, never two.** `cardsRevalidating` folds the
  * whole-read `refreshing` *into* its own per-card signal (see `useRevalidating`'s own doc), which
  * is exactly what used to put the dimmed-value-and-spinner treatment on every card during a
- * filter/sort/page read. The grid's own results overlay (`updating`, below the template) is the
- * one indicator for that now — dimming every card underneath it too would double up the same
- * message — so this masks `cardsRevalidating` back down to the volatile refresh alone (money and
- * the stock line, re-read a moment after mount) whenever `updating` is already showing something.
- * The volatile refresh has nothing to do with `updating` and keeps its own treatment either way.
+ * filter/sort/page read. The grid's own pulse (`updating`, `UPDATING_PULSE`) is the one indicator
+ * for that now — dimming every card's two values underneath a pulsing list would double up the
+ * same message, and the two dims would multiply — so this masks `cardsRevalidating` back down to
+ * the volatile refresh alone (money and the stock line, re-read a moment after mount) whenever
+ * `updating` is already showing something. The volatile refresh has nothing to do with `updating`
+ * and keeps its own treatment either way.
  */
 const showCardRefresh = computed(() => !updating.value && cardsRevalidating.value);
 /**
@@ -1168,20 +1206,23 @@ function toggleIn(values: FilterSelection, source: FilterSource, value: string, 
 
 /** The sidebar's own live path: the visible selection, the chips and the URL all move at once,
  *  but the read this drives waits out `FILTER_DEBOUNCE_MS` so a run of ticks reaches the
- *  storefront as the one request the shopper's last tick deserves. */
+ *  storefront as the one request the shopper's last tick deserves. **Armed first**, before
+ *  anything moves: `publishState()` resets the page window in the same turn, and that is one of
+ *  the read's own inputs — arming afterwards would let it through on its own. */
 function onToggle(source: FilterSource, value: string, checked: boolean): void {
+  armFilterDebounce();
   selection.value = toggleIn(selection.value, source, value, checked);
   publishState();
-  armFilterDebounce();
 }
 /** Both bounds at once, from whichever price control set them — one state change, so one URL
- *  write and (after the same debounce as `onToggle`) one request per gesture. */
+ *  write and (after the same debounce as `onToggle`, armed the same way first) one request per
+ *  gesture. */
 function onRange(range: PriceRange): void {
   if (range.min === priceMin.value && range.max === priceMax.value) return;
+  armFilterDebounce();
   priceMin.value = range.min;
   priceMax.value = range.max;
   publishState();
-  armFilterDebounce();
 }
 /** Sort applies at once and flushes any sidebar change still waiting out its debounce, so the one
  *  request this triggers carries both. Flushed *before* `publishState()`, not after: that call
@@ -1580,58 +1621,28 @@ function hrefForPage(page: number): string {
                 </li>
               </ul>
 
-              <!-- The results overlay covers only this box — the cards, never the sidebar, the
-                   chips, the toolbar or the count above. `relative` is this box's only job so the
-                   overlay's `absolute inset-0` lands on exactly the cards' own footprint, with no
-                   height change of its own: the cards stay in place beneath it. -->
-              <div v-else-if="cards.length > 0" class="relative">
-                <ul
-                  role="list"
-                  :aria-labelledby="productsHeadingId"
-                  :aria-busy="updating ? 'true' : undefined"
-                  :class="gridClass"
-                  :inert="updating || undefined"
-                >
-                  <li v-for="entry in cards" :key="entry.item.handle">
-                    <!-- No quick add: the spec's tab order for this block runs straight from the
-                         cards to Load more, and a cart action is `product-detail`'s own. -->
-                    <ProductCard
-                      :product="entry.product"
-                      ratio="4x5"
-                      :heading-level="3"
-                      :quick-add="false"
-                      :revalidating="entry.revalidating"
-                      :announce="false"
-                      :link-as="entry.internal ? EldraRouterLink : undefined"
-                    />
-                  </li>
-                </ul>
-
-                <!-- The scrim. Hidden from assistive technology (the count line and the list
-                     above already carry this state); see `updating` in the script for why, and
-                     for why it carries no transition of its own. -->
-                <div
-                  v-if="updating"
-                  data-eldra-grid-updating
-                  aria-hidden="true"
-                  class="bg-background/65 absolute inset-0 flex items-center justify-center gap-2"
-                >
-                  <!-- Tabler's own `loader-2` (a three-quarter arc) through `EldraIcon`, turned by
-                       `@eldrajs/ui`'s own shipped utilities (`./tailwind.css`), so the
-                       reduced-motion swap is the same pulse every spinner the package draws
-                       itself falls back to. `@eldrajs/ui`'s `Spinner` is internal — used inside
-                       `Button`, `LoadMore`, `Price` and `StockBadge`, never exported for a theme
-                       to mount — and a hand-written `<svg>` with a copied path is exactly what
-                       `test/starter.spec.ts` refuses, so this is the icon route every other block
-                       takes. -->
-                  <EldraIcon
-                    name="loader-2"
-                    size="lg"
-                    class="text-text animate-eldra-spin motion-reduce:animate-eldra-pulse"
+              <ul
+                v-else-if="cards.length > 0"
+                role="list"
+                :aria-labelledby="productsHeadingId"
+                :aria-busy="updating ? 'true' : undefined"
+                :class="[gridClass, updating ? UPDATING_PULSE : '']"
+                :inert="updating || undefined"
+              >
+                <li v-for="entry in cards" :key="entry.item.handle">
+                  <!-- No quick add: the spec's tab order for this block runs straight from the
+                       cards to Load more, and a cart action is `product-detail`'s own. -->
+                  <ProductCard
+                    :product="entry.product"
+                    ratio="4x5"
+                    :heading-level="3"
+                    :quick-add="false"
+                    :revalidating="entry.revalidating"
+                    :announce="false"
+                    :link-as="entry.internal ? EldraRouterLink : undefined"
                   />
-                  <span class="text-text text-body-sm font-medium">{{ t('grid.updating') }}</span>
-                </div>
-              </div>
+                </li>
+              </ul>
 
               <EmptyState
                 v-else

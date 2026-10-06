@@ -649,23 +649,28 @@ product the catalogue no longer has — says so (`storefront.notFound`) instead 
 
 **A list of cards says it once, over the list.** `collection-grid` is the one block where the
 per-card treatment was too quiet to read: two dimmed values per card, twenty-four cards, and a
-shopper who has just ticked a filter cannot tell whether anything happened. So for a whole read
-over cards already on screen it covers **the results area alone** with one scrim — the page
-background at 65%, a centred spinner, the same "Updating…" the count line reads
-(`[data-eldra-grid-updating]`) — and keeps the dimmed-value + spinner treatment for the volatile
-price/stock refresh, which is a different state and still the right size for it. Two indicators for
-one state read as the page stuttering, so the block masks the per-card flag while the scrim is up
-(`showCardRefresh` in its `Block.vue`). The cards do not move, the list takes `inert` so none of
-them can be clicked mid-update, the scrim is `aria-hidden` (the count's `role="status"` and the
-list's `aria-busy` already carry the state), and it carries no transition, so
-`prefers-reduced-motion` only ever changes the spinner. The sidebar and the drawer are deliberately
-outside it: filter changes are **coalesced** — the control, the chips and the URL move at once, the
-read they drive waits `FILTER_DEBOUNCE_MS` (350 ms), and a run of ticks therefore reaches the
-storefront as one request, with "Updating…" showing from the first one. Sort, Columns, Load more,
-Clear all, a removed chip and the drawer's own apply flush that window instead of waiting it out, so
-each of those is one request carrying everything pending; the drawer's live "Show N products" count
-has the same window. A block with its own live filters should follow the same shape; nothing in
-`app/storefront/**` is involved, it is the block's own state.
+shopper who has just ticked a filter cannot tell whether anything happened. So for a whole read over
+cards already on screen **the card grid itself breathes** — its opacity eases between 0.7 and 0.9
+and back, continuously, until the result lands (`animate-eldra-pulse-soft`, declared in
+`app/assets/main.css` beside the theme's other custom utilities). Nothing is drawn over the cards
+and nothing enters the DOM, so there is no layout shift and nothing for assistive technology to have
+to ignore. Under `prefers-reduced-motion: reduce` the animation is off and the grid holds a steady
+0.8 instead (`motion-reduce:animate-none motion-reduce:opacity-80`) — still visibly waiting, with
+nothing moving. The dimmed-value + spinner treatment stays for the volatile price/stock refresh,
+which is a different state and still the right size for it; two indicators for one state read as the
+page stuttering, so the block masks the per-card flag while the grid pulses (`showCardRefresh` in its
+`Block.vue`). The list takes `inert` so no card can be clicked mid-update, and the count's
+`role="status"` is what says "Updating…" in words. The sidebar, the chips, the toolbar and the count
+are deliberately outside the pulsing element and stay at full strength: filter changes are
+**coalesced** — the control, the chips and the URL move at once, the read they drive waits
+`FILTER_DEBOUNCE_MS` (350 ms), and a run of ticks therefore reaches the storefront as one request,
+with "Updating…" showing from the first one. Sort, Columns, Load more, Clear all, a removed chip and
+the drawer's own apply flush that window instead of waiting it out, so each of those is one request
+carrying everything pending; the drawer's live "Show N products" count has the same window. What is
+held back is the **whole** request-options object, not just its filters: a sidebar change resets the
+page window in the same turn, and holding one input while another moves is how one tick after a Load
+more press became two requests. A block with its own live filters should follow the same shape;
+nothing in `app/storefront/**` is involved, it is the block's own state.
 
 **You do not rebuild the site to make a price correct.** Two mechanisms cover the gap from opposite
 ends. The refresh above covers the minutes after a visitor loads a page. Underneath it, a change to

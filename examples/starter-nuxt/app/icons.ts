@@ -60,7 +60,6 @@ import layoutNavbarIcon from '@tabler/icons/outline/layout-navbar.svg?raw';
 import layoutNavbarCollapseIcon from '@tabler/icons/outline/layout-navbar-collapse.svg?raw';
 import leafIcon from '@tabler/icons/outline/leaf.svg?raw';
 import linkIcon from '@tabler/icons/outline/link.svg?raw';
-import loader2Icon from '@tabler/icons/outline/loader-2.svg?raw';
 import lockIcon from '@tabler/icons/outline/lock.svg?raw';
 import mailIcon from '@tabler/icons/outline/mail.svg?raw';
 import mapPinIcon from '@tabler/icons/outline/map-pin.svg?raw';
@@ -146,7 +145,6 @@ const RAW = {
   'layout-navbar-collapse': layoutNavbarCollapseIcon,
   leaf: leafIcon,
   link: linkIcon,
-  'loader-2': loader2Icon,
   lock: lockIcon,
   mail: mailIcon,
   'map-pin': mapPinIcon,

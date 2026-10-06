@@ -42,6 +42,34 @@
   }
 }
 
+/* "A fresher result is on its way, the one you are looking at is already stale." A slow breath
+   between 0.7 and 0.9 opacity, `alternate` so it eases both ways with no seam, applied to a
+   commerce block's own results container while a read is in flight — `collection-grid` is the
+   first consumer (its `UPDATING_PULSE`). Nothing is drawn over the results and nothing enters the
+   DOM, so there is no layout shift and nothing for assistive technology to have to ignore: the
+   block's own `aria-busy` and its "Updating…" status line carry the state in words.
+
+   Deliberately *not* `@eldrajs/ui`'s `animate-eldra-pulse`, which is the 0.6↔1 flash a spinner
+   falls back to under reduced motion — far too loud across a whole grid of cards. The duration and
+   easing are written out for the same reason the package writes its own animation timings out:
+   the `--eldra-duration-*` tokens are interaction timings (120–240ms) and the reduced-motion rule
+   in `tokens.css` zeroes them, which would stop this as well.
+
+   Reduced motion is the caller's to add — `motion-reduce:animate-none` beside a steady
+   `motion-reduce:opacity-80` — rather than a media query here, so the still opacity is visible at
+   the call site next to the moving one. */
+@keyframes eldra-pulse-soft {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+@utility animate-eldra-pulse-soft {
+  animation: eldra-pulse-soft 1.4s ease-in-out infinite alternate;
+}
+
 @layer base {
   body {
     @apply bg-background text-text text-body;
