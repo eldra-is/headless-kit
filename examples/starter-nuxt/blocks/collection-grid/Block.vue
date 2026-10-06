@@ -89,13 +89,17 @@ import { safeHref } from '../../app/utils/links';
 import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
 import FilterGroups from './parts/FilterGroups.vue';
 import {
-  FACET_SOURCE,
+  defaultPriceStep,
   GROUP_KIND,
+  groupValuesFor,
   isFilterSource,
-  visibleFacetValues,
+  priceSpanOf,
+  widenPriceSpan,
   type FilterGroup,
   type FilterSelection,
   type FilterSource,
+  type PriceRange,
+  type PriceSpan,
 } from './parts/groups';
 
 /**
@@ -118,6 +122,8 @@ interface FilterField {
   source?: string;
   label?: string;
   collapsed?: boolean;
+  /** `price` only: off falls the group back to the two typed fields alone. */
+  slider?: boolean;
 }
 
 const props = defineProps<{ entry: EldraBlockEntry<'collection-grid'> }>();
@@ -349,7 +355,9 @@ const products = storefront.catalog.collectionProducts(selected, requestOptions)
 const items = computed(() => products.data.value?.items ?? []);
 const money = useMoney();
 const total = computed(() => products.data.value?.total ?? 0);
-const facets = computed(() => products.data.value?.facets ?? []);
+/** The storefront's own description of the scope it answered from — values, labels, swatches and
+ *  counts for every group (`CatalogFacets`). `undefined` from a source that cannot describe it. */
+const facets = computed(() => products.data.value?.facets);
 const pending = products.pending;
 
 /** A collection the storefront could only have found by id, and did not — a
@@ -443,19 +451,75 @@ const skeletonCount = computed(() =>
 // Filter groups
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * The price group's hidden legend names the store's currency — which is what lets its two fields
+ * drop the "$" prefix the two-field fallback still draws (spec Layout → Price). A store that
+ * publishes no currency gets the plain noun rather than a sentence with a hole in it.
+ */
+const priceLegend = computed(() =>
+  money.currency.value === undefined
+    ? t('grid.legendPriceAny')
+    : t('grid.legendPrice', { currency: money.currency.value })
+);
+
 const legends = computed<Record<FilterSource, string>>(() => ({
   category: t('grid.legendCategory'),
+  collection: t('grid.legendCollection'),
   'option:size': t('grid.legendSize'),
   'option:colour': t('grid.legendColour'),
-  price: t('grid.legendPrice'),
+  price: priceLegend.value,
   availability: t('grid.legendAvailability'),
 }));
 
-/** A group's title when the author set none and the store offers no facet label of its own — the
- *  legend, which is already the source's own name (`price`'s legend is a sentence, so not that). */
+/** A group's title when the author set none — the legend, which is already the source's own name
+ *  (`price`'s legend names the currency, so not that). */
 function defaultGroupLabel(source: FilterSource): string {
   return source === 'price' ? t('grid.price') : legends.value[source];
 }
+
+/** The two `availability` values' own names: the facets carry counts, never labels. */
+const availabilityLabels = computed(() => ({
+  inStock: t('grid.availabilityInStock'),
+  outOfStock: t('grid.availabilityOutOfStock'),
+}));
+
+/**
+ * The price slider's step: the author's `priceStep`, else one unit of the store currency (ISK 100,
+ * USD 1 — `defaultPriceStep`). A non-positive or non-integer field value is no step at all, so it
+ * falls back rather than handing the slider a grid it cannot land on.
+ */
+const priceStep = computed(() => {
+  const own = data.value.priceStep;
+  if (typeof own === 'number' && Number.isFinite(own) && own > 0) return own;
+  return defaultPriceStep(money.currency.value);
+});
+
+/**
+ * The span the price control works across: **the catalogue's own bounds**, from the facets (spec:
+ * "not 0 and a round number"), which are counted with every filter *except* price applied and so
+ * stay still while the shopper drags.
+ *
+ * The fallback, for a storefront that answers no facets, is the span of the loaded products — and
+ * that one does move, because narrowing the price narrows the products. `widenPriceSpan` keeps the
+ * widest span seen for this collection, so the track cannot ratchet shut around the thumbs; it is
+ * dropped when the collection changes, since the next one's prices are its own.
+ */
+const facetPriceSpan = computed<PriceSpan | null>(() => facets.value?.price ?? null);
+const loadedPriceSpan = ref<PriceSpan | null>(null);
+watch([facetPriceSpan, items], ([facet, loaded]) => {
+  if (facet !== null) {
+    loadedPriceSpan.value = null;
+    return;
+  }
+  loadedPriceSpan.value = widenPriceSpan(loadedPriceSpan.value, priceSpanOf(loaded));
+});
+watch(selected, () => {
+  loadedPriceSpan.value = null;
+});
+const EMPTY_SPAN: PriceSpan = { min: 0, max: 0 };
+const priceSpan = computed<PriceSpan>(
+  () => facetPriceSpan.value ?? loadedPriceSpan.value ?? EMPTY_SPAN
+);
 
 const groups = computed<FilterGroup[]>(() => {
   const rows = (data.value.filters ?? []) as FilterField[];
@@ -463,23 +527,25 @@ const groups = computed<FilterGroup[]>(() => {
   for (const row of rows) {
     if (!isFilterSource(row.source)) continue;
     const source = row.source;
-    const facetKey = FACET_SOURCE[source];
-    const facet =
-      facetKey === undefined ? undefined : facets.value.find((f) => f.source === facetKey);
-    const values =
-      source === 'price' ? [] : visibleFacetValues(facet, selection.value[source] ?? []);
-    // A group whose store has nothing to offer is not a group. Price is the exception: its two
-    // inputs exist whether or not the store reports a range. A group that still carries a selection
-    // always has values — `visibleFacetValues` keeps them — so it can never be dropped out from
-    // under an applied filter.
+    const values = groupValuesFor(
+      source,
+      facets.value,
+      selection.value[source] ?? [],
+      availabilityLabels.value
+    );
+    // A group whose store has nothing to offer is not a group. Price is the exception: its control
+    // exists whether or not the store reports a range. A group that still carries a selection
+    // always has values — `groupValuesFor` keeps them — so it can never be dropped out from under
+    // an applied filter.
     if (source !== 'price' && values.length === 0) continue;
     out.push({
       source,
-      label: (row.label ?? '').trim() || facet?.label || defaultGroupLabel(source),
+      label: (row.label ?? '').trim() || defaultGroupLabel(source),
       kind: GROUP_KIND[source],
       collapsed: row.collapsed === true,
       legend: legends.value[source],
       values,
+      ...(source === 'price' ? { slider: row.slider !== false } : {}),
     });
   }
   return out;
@@ -686,12 +752,12 @@ function onToggle(source: FilterSource, value: string, checked: boolean): void {
   selection.value = toggleIn(selection.value, source, value, checked);
   publishState();
 }
-function onMin(value: string): void {
-  priceMin.value = value;
-  publishState();
-}
-function onMax(value: string): void {
-  priceMax.value = value;
+/** Both bounds at once, from whichever price control set them — one state change, so one URL
+ *  write and one request per gesture. */
+function onRange(range: PriceRange): void {
+  if (range.min === priceMin.value && range.max === priceMax.value) return;
+  priceMin.value = range.min;
+  priceMax.value = range.max;
   publishState();
 }
 function onSort(value: string): void {
@@ -775,6 +841,10 @@ function openDrawer(): void {
 }
 function onPendingToggle(source: FilterSource, value: string, checked: boolean): void {
   pendingSelection.value = toggleIn(pendingSelection.value, source, value, checked);
+}
+function onPendingRange(range: PriceRange): void {
+  pendingMin.value = range.min;
+  pendingMax.value = range.max;
 }
 function clearPending(): void {
   pendingSelection.value = {};
@@ -894,10 +964,12 @@ function hrefForPage(page: number): string {
               :selection="selection"
               :min="priceMin"
               :max="priceMax"
+              :price-span="priceSpan"
+              :price-step="priceStep"
+              :format-price="money.format"
               :id-prefix="`collection-grid-sidebar-${uid}`"
               @toggle="onToggle"
-              @update:min="onMin"
-              @update:max="onMax"
+              @update:range="onRange"
             />
           </aside>
 
@@ -1096,10 +1168,12 @@ function hrefForPage(page: number): string {
             :selection="pendingSelection"
             :min="pendingMin"
             :max="pendingMax"
+            :price-span="priceSpan"
+            :price-step="priceStep"
+            :format-price="money.format"
             :id-prefix="`collection-grid-drawer-${uid}`"
             @toggle="onPendingToggle"
-            @update:min="pendingMin = $event"
-            @update:max="pendingMax = $event"
+            @update:range="onPendingRange"
           />
           <template #footer>
             <div class="grid grid-cols-[auto_1fr] items-center gap-3">

@@ -690,14 +690,27 @@ export interface Messages {
     products: string;
     nSelected: string;
     legendCategory: string;
+    legendCollection: string;
     legendSize: string;
     legendColour: string;
+    /** "Price range in {currency}" — the price group's hidden legend, which is what lets the
+     *  slider's own fields drop a currency prefix. */
     legendPrice: string;
+    /** The same legend for a store that publishes no currency to name. */
+    legendPriceAny: string;
     legendAvailability: string;
+    /** The two `availability` values' own names: the storefront's facets carry counts, not
+     *  labels. */
+    availabilityInStock: string;
+    availabilityOutOfStock: string;
     price: string;
     to: string;
+    /** The two-field fallback's own short labels (`filters[].slider` off). */
     minLabel: string;
     maxLabel: string;
+    /** The range slider's two thumbs and its two typed fields ("Minimum price"). */
+    minPriceLabel: string;
+    maxPriceLabel: string;
     pricePrefix: string;
     showAllValues: string;
     filter: string;

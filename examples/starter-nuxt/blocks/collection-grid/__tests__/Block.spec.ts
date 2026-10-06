@@ -13,9 +13,10 @@ import { createGatewayStorefront } from '../../../app/storefront/gateway';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
+  CatalogFacets,
   StorefrontCatalog,
+  StorefrontCollectionProducts,
   StorefrontCollectionSelector,
-  StorefrontFacet,
   StorefrontProductListItem,
   StorefrontResult,
   StorefrontSource,
@@ -35,43 +36,48 @@ const bare = {
   paginationStyle: 'load-more',
 };
 
-const FACETS: StorefrontFacet[] = [
-  {
-    source: 'category',
-    label: 'Category',
-    values: [
-      { value: 'knitwear', label: 'Knitwear', count: 18 },
-      { value: 'ceramics', label: 'Ceramics', count: 14 },
-      { value: 'kitchen', label: 'Kitchen', count: 16 },
-      { value: 'discontinued', label: 'Discontinued', count: 0 },
-    ],
-  },
-  {
-    source: 'size',
-    label: 'Size',
-    values: [
-      { value: 'xs', label: 'XS', count: 6 },
-      { value: 's', label: 'S', count: 10 },
-      { value: 'm', label: 'M', count: 14 },
-    ],
-  },
-  {
-    source: 'colour',
-    label: 'Colour',
-    values: [
-      { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
-      { value: 'charcoal', label: 'Charcoal', count: 8, swatch: '#3a3a3a' },
-    ],
-  },
-  {
-    source: 'availability',
-    label: 'Availability',
-    values: [
-      { value: 'in-stock', label: 'In stock', count: 41 },
-      { value: 'backorder', label: 'Include back-order', count: 7 },
-    ],
-  },
-];
+/**
+ * How a store describes the scope the grid is showing (`CatalogFacets`): the price span the slider
+ * works across, the category and collection terms, the availability counts and every variant
+ * option value with its own count. `discontinued` counts zero on purpose — the panel offers it
+ * disabled rather than hiding it, which is what keeps controls from moving under the pointer.
+ */
+const FACETS: CatalogFacets = {
+  price: { min: 24, max: 180 },
+  categories: [
+    { id: 'cat-knitwear', slug: 'knitwear', title: 'Knitwear', count: 18 },
+    { id: 'cat-ceramics', slug: 'ceramics', title: 'Ceramics', count: 14 },
+    { id: 'cat-kitchen', slug: 'kitchen', title: 'Kitchen', count: 16 },
+    { id: 'cat-discontinued', slug: 'discontinued', title: 'Discontinued', count: 0 },
+  ],
+  collections: [
+    { id: 'col-the-winter-edit', slug: 'the-winter-edit', title: 'The winter edit', count: 48 },
+    { id: 'col-best-sellers', slug: 'best-sellers', title: 'Best sellers', count: 24 },
+  ],
+  availability: { in_stock: 41, out_of_stock: 7 },
+  options: [
+    {
+      key: 'size',
+      name: 'size',
+      values: [
+        { value: 'xs', label: 'XS', count: 6 },
+        { value: 's', label: 'S', count: 10 },
+        { value: 'm', label: 'M', count: 14 },
+      ],
+    },
+    {
+      key: 'colour',
+      name: 'colour',
+      values: [
+        { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
+        { value: 'charcoal', label: 'Charcoal', count: 8, swatch: '#3a3a3a' },
+      ],
+    },
+  ],
+};
+
+/** The price group's hidden legend, which names the store's currency (the demo store's USD). */
+const PRICE_LEGEND = enUS.grid.legendPrice.replace('{currency}', 'USD');
 
 interface Stub {
   source: StorefrontSource;
@@ -102,7 +108,7 @@ function createStub(
     filteredCount?: number;
     /** The facets a *filtered* request answers with — most backends compute them over the result
      *  set, so a value the shopper has ticked can stop being listed. */
-    filteredFacets?: StorefrontFacet[];
+    filteredFacets?: CatalogFacets;
   } = {}
 ): Stub {
   const base = createDemoStorefront();
@@ -132,11 +138,7 @@ function createStub(
         revalidating,
         error,
         refresh: async () => {},
-      } as unknown as StorefrontResult<{
-        items: StorefrontProductListItem[];
-        total: number;
-        facets: StorefrontFacet[];
-      }>;
+      } as unknown as StorefrontResult<StorefrontCollectionProducts>;
     },
   };
   return { source: { ...base, catalog }, pending, loading, revalidating, error, requests };
@@ -323,7 +325,7 @@ describe('collection-grid block', () => {
         enUS.grid.legendCategory,
         enUS.grid.legendSize,
         enUS.grid.legendColour,
-        enUS.grid.legendPrice,
+        PRICE_LEGEND,
         enUS.grid.legendAvailability,
       ]) {
         const { trigger, panel } = panelFor(wrapper, legend);
@@ -351,12 +353,20 @@ describe('collection-grid block', () => {
       }
     });
 
-    it('hides a filter value the store counts zero of', async () => {
+    /**
+     * Facet counts leave their own family's filter out, so a zero means "another filter rules this
+     * out" — and a control that disappears the moment a neighbour is ticked moves every control
+     * after it under the shopper's pointer. So it stays, disabled (contract §4).
+     */
+    it('offers a filter value the store counts zero of disabled, not hidden', async () => {
       const wrapper = mountGrid(mock, { source: createStub().source });
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
       expect(panel.text()).toContain('Knitwear (18)');
-      expect(panel.text()).not.toContain('Discontinued');
+      expect(panel.text()).toContain('Discontinued (0)');
+      const boxes = panel.findAll('input[type="checkbox"]');
+      expect(boxes[0]!.attributes('disabled')).toBeUndefined();
+      expect(boxes.at(-1)!.attributes('disabled')).toBeDefined();
     });
 
     it('drawer-only renders no sidebar at any width', async () => {
@@ -529,16 +539,64 @@ describe('collection-grid block', () => {
       expect(document.activeElement).toBe(countLine(wrapper).element);
     });
 
+    /** The slider's own typed fields commit on `Enter`, and a committed range is one chip reading
+     *  both bounds (a bound left at the catalogue's own end is no bound at all). */
     it('the price range is one removable chip reading both bounds', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();
-      const { panel } = panelFor(wrapper, enUS.grid.legendPrice);
-      const inputs = panel.findAll('input');
-      await inputs[0]!.setValue('0');
-      await inputs[1]!.setValue('180');
+      const { panel } = panelFor(wrapper, PRICE_LEGEND);
+
+      const min = panel.get('input[data-input="min"]');
+      await min.trigger('focus');
+      await min.setValue('50');
+      await min.trigger('keydown', { key: 'Enter' });
+      const max = panel.get('input[data-input="max"]');
+      await max.trigger('focus');
+      await max.setValue('150');
+      await max.trigger('keydown', { key: 'Enter' });
+      await wrapper.vm.$nextTick();
 
       const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
-      expect(list.text()).toContain('Price: $0 to $180');
+      expect(list.text()).toContain('Price: $50 to $150');
+
+      await list.get('[data-part="removeButton"]').trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+    });
+
+    /** Both thumbs span the collection's own prices, from the storefront's facets — never 0 and a
+     *  round number (spec Layout → Price). */
+    it('spans the collection’s own price bounds', async () => {
+      const wrapper = mountGrid(mock, { source: createStub().source });
+      await wrapper.vm.$nextTick();
+      const { panel } = panelFor(wrapper, PRICE_LEGEND);
+      const thumbs = panel.findAll('[role="slider"]');
+      expect(thumbs).toHaveLength(2);
+      expect(thumbs[0]!.attributes('aria-valuenow')).toBe('24');
+      expect(thumbs[1]!.attributes('aria-valuenow')).toBe('180');
+      // Spoken as money, in the store's own currency.
+      expect(thumbs[0]!.attributes('aria-valuetext')).toBe('$24.00');
+      expect(thumbs[0]!.attributes('aria-label')).toBe(enUS.grid.minPriceLabel);
+    });
+
+    /** `filters[].slider` off: the two typed fields alone, which is what a store whose prices sit
+     *  in a few tight clusters sets (spec Fields). */
+    it('falls back to the two fields when the author turns the slider off', async () => {
+      const wrapper = mountGrid({
+        ...mock,
+        filters: [{ source: 'price', label: 'Price', slider: false }],
+      });
+      await wrapper.vm.$nextTick();
+      const { panel } = panelFor(wrapper, PRICE_LEGEND);
+      expect(panel.findAll('[role="slider"]')).toHaveLength(0);
+      const inputs = panel.findAll('input');
+      expect(inputs).toHaveLength(2);
+
+      await inputs[0]!.setValue('50');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
+        'Price: $50'
+      );
     });
   });
 
@@ -998,7 +1056,10 @@ describe('collection-grid block', () => {
      * narrowing every request with no control left to undo it (and with results still non-empty
      * there is no empty-state "Clear filters" button to fall back on either).
      */
-    const withoutColour = FACETS.filter((facet) => facet.source !== 'colour');
+    const withoutColour: CatalogFacets = {
+      ...FACETS,
+      options: FACETS.options.filter((option) => option.key !== 'colour'),
+    };
 
     it('still renders its chip, and the chip removes it', async () => {
       const stub = createStub(PRODUCTS, { filteredCount: 4, filteredFacets: withoutColour });
@@ -1372,12 +1433,13 @@ describe('collection-grid block', () => {
 
       expect(stub.requests.at(-1)?.filters).toEqual({ price: ['50-150'] });
       expect(countLine(wrapper).text()).toBe('4 products');
-      // The sidebar's inputs are the applied state and show the range; the drawer's are its pending
-      // copy, which is seeded from the applied state when it opens, so they stay empty until then.
+      // The sidebar's slider fields are the applied state and read the range as money; the
+      // drawer's are its pending copy, seeded from the applied state only when it opens, so until
+      // then they read the catalogue's own span — which is what "no bound" looks like.
       const priceInputs = wrapper
-        .findAll('input[inputmode="numeric"]')
+        .findAll('input[data-input]')
         .map((input) => (input.element as HTMLInputElement).value);
-      expect(priceInputs).toEqual(['50', '150', '', '']);
+      expect(priceInputs).toEqual(['$50.00', '$150.00', '$24.00', '$180.00']);
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('$50');
     });
 
