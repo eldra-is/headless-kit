@@ -226,17 +226,24 @@ export interface CatalogFacets {
   /**
    * **Whether a category term's `count` already includes its descendants'.**
    *
-   * `'direct'` — the answer today, and what an absent field reads as — means each count is the
-   * products *assigned to that category*, so a parent row the panel synthesised counts 0 and a
-   * parent a merchant assigned nothing to directly counts 0 as well. `collection-grid` therefore
-   * rolls a parent's number up from its listed descendants before it draws or disables anything.
+   * `'direct'` — what an absent field reads as, and what a gateway older than public contract 3.8.0
+   * answers — means each count is the products *assigned to that category*, so a parent row the panel
+   * synthesised counts 0 and a parent a merchant assigned nothing to directly counts 0 as well.
+   * `collection-grid` therefore rolls a parent's number up from its listed descendants before it
+   * draws or disables anything.
    *
-   * `'rolled-up'` means the platform has counted the ancestors itself and its numbers are the whole
-   * answer, descendants deduplicated — which a client-side sum cannot be, since a product in two
-   * sibling categories is one product and two counts. The panel then uses the counts as they came.
-   * The gateway source reads this off the response rather than a contract version: the platform adds
-   * `parentId` on its facet terms and the ancestor counts together, so a term that can place itself
-   * is a term that has been counted up (`gateway.ts`'s `mapFacets`).
+   * `'rolled-up'` means the counts are the whole answer, descendants deduplicated — which a
+   * client-side sum cannot be, since a product in two sibling categories is one product and two
+   * counts. **A parent's count is then never derived**: the panel uses the numbers as they came.
+   * The gateway source reads this off the response rather than a contract version: 3.8.0 adds
+   * `parentId` on its facet terms and the ancestor roll-ups together, so a term that can place itself
+   * is a term that has been counted up (`gateway.ts`'s `mapFacets`). The demo source declares it
+   * whenever it was given a tree, because its own ancestor counts are deduplicated the same way
+   * (`app/storefront/facets.ts`'s `categoryTermsOf`).
+   *
+   * **Order is the source's, never this theme's.** 3.8.0 answers depth-first by title, and the panel
+   * preserves whatever order it is handed — `parts/groups.ts`'s `nestCategoryTerms` only clusters each
+   * parent's children beneath it, which is a no-op on a list that is already depth-first.
    */
   categoryCounts?: 'direct' | 'rolled-up';
   collections: CatalogFacetTerm[];

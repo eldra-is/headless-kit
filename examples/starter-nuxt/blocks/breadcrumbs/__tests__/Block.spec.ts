@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { describe, expect, it } from 'vitest';
 import { ELDRA_KEY } from '@eldrajs/theme-vue';
@@ -8,6 +8,8 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { createDemoStorefront } from '../../../app/storefront/demo';
+import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
 
 /**
  * Spec "Breadcrumbs" → "Default content (Northwind Goods)": "Deep trail: Home › Kitchen › Table &
@@ -40,6 +42,18 @@ const topLevelPageData = {
 
 function mountBlock(data: Record<string, unknown>) {
   return mount(Block, mountOptions({ entry: { id: 'e1', data } }));
+}
+
+/**
+ * The same mount on a **product route**: the storefront's `route.productHandle` is what `fromProduct`
+ * reads, exactly as `product-detail` does, and the demo catalogue answers the trail from its own
+ * category tree (`app/storefront/demo.ts`).
+ */
+function mountOnProduct(data: Record<string, unknown>, handle: string | null) {
+  const base = mountOptions({ entry: { id: 'e1', data } });
+  const storefront = base.global.provide[STOREFRONT_KEY] as StorefrontSource;
+  storefront.route.productHandle = handle;
+  return mount(Block, base);
 }
 
 /** Same as `mountBlock`, but with the Studio page-builder's edit mode active — the only state
@@ -232,5 +246,110 @@ describe('breadcrumbs block', () => {
     });
     expect(wrapper.text()).not.toContain('Bad');
     expect(wrapper.text()).toContain('Knitwear');
+  });
+});
+
+/**
+ * **`fromProduct`** — the one level this block can fill by itself: the store's own category trail for
+ * the product the route resolved. It exists because the seeded product *template* cannot carry an
+ * authored `trail` (a template renders whatever product its `:slug` matched, so `app/templates.ts`
+ * empties the list), which left a merchant's first product page with the Home crumb alone — one
+ * item, which is fewer than two, which is nothing at all.
+ */
+describe('the product’s own category trail', () => {
+  const FROM_PRODUCT = {
+    showHome: true,
+    homeLabel: 'Home',
+    trail: [],
+    fromProduct: true,
+    currentTitle: 'Speckled latte mug',
+    showCurrent: true,
+    container: 'content',
+  };
+
+  it('renders the store’s trail between Home and the current page, axe-clean', async () => {
+    const wrapper = mountOnProduct(FROM_PRODUCT, 'speckled-latte-mug');
+    await flushPromises();
+    expect(wrapper.text()).toContain('Home');
+    // The demo's tree: `Ceramics` under `Home`, so the crumb reads the parent then the leaf. The
+    // first "Home" is the home crumb and the second the root category — different destinations,
+    // which is what the hrefs below pin.
+    const destinations = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    expect(destinations).toEqual(['/', '/products?category=home', '/products?category=ceramics']);
+    expect(wrapper.text()).toContain('Speckled latte mug');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  /** The authored levels are the page tree above the catalogue; a category is the level nearest the
+   *  product. So the store's trail goes last, and both are rendered. */
+  it('appends the store’s trail after the author’s own levels', async () => {
+    const wrapper = mountOnProduct(
+      { ...FROM_PRODUCT, trail: [{ label: 'Shop', href: '/products' }] },
+      'speckled-latte-mug'
+    );
+    await flushPromises();
+    const destinations = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    expect(destinations).toEqual([
+      '/',
+      '/products',
+      '/products?category=home',
+      '/products?category=ceramics',
+    ]);
+  });
+
+  /** A product whose category is its own root: one crumb, not two. */
+  it('renders a single level for a root category', async () => {
+    const wrapper = mountOnProduct(FROM_PRODUCT, 'merino-crew-sweater');
+    await flushPromises();
+    const destinations = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to'));
+    expect(destinations).toEqual(['/', '/products?category=knitwear']);
+  });
+
+  /** Off is off: the authored trail is the whole trail, and nothing is read. */
+  it('adds nothing when the option is off', async () => {
+    const wrapper = mountOnProduct({ ...FROM_PRODUCT, fromProduct: false }, 'speckled-latte-mug');
+    await flushPromises();
+    expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((link) => link.props('to'))).toEqual(
+      ['/']
+    );
+  });
+
+  /** A page that is not a product route — the option left on by an author who moved the block. */
+  it('adds nothing on a route with no product', async () => {
+    const wrapper = mountOnProduct(FROM_PRODUCT, null);
+    await flushPromises();
+    expect(wrapper.findAllComponents({ name: 'NuxtLink' }).map((link) => link.props('to'))).toEqual(
+      ['/']
+    );
+  });
+
+  /**
+   * One read for the page, not two: this result and `product-detail`'s are the same method over the
+   * same sources, so they share a prerender key and Nuxt's `useAsyncData` answers both from one read.
+   * The demo source has no such cache, so this pins the thing that is actually load-bearing — the
+   * block asks for the route's handle and nothing else, which is what makes the keys equal.
+   */
+  it('reads the route’s own handle, which is what makes its key the product block’s', async () => {
+    const storefront = createDemoStorefront();
+    storefront.route.productHandle = 'speckled-latte-mug';
+    const base = mountOptions({ entry: { id: 'e1', data: FROM_PRODUCT } });
+    const asked: Array<string | null> = [];
+    const product = storefront.catalog.product;
+    storefront.catalog.product = (handle) => {
+      asked.push(handle.value);
+      return product(handle);
+    };
+    mount(Block, {
+      ...base,
+      global: { ...base.global, provide: { ...base.global.provide, [STOREFRONT_KEY]: storefront } },
+    });
+    await flushPromises();
+    expect(asked).toEqual(['speckled-latte-mug']);
   });
 });

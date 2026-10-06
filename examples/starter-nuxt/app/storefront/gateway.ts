@@ -107,10 +107,12 @@ interface RawFacetTerm {
   title?: string;
   count?: number;
   /**
-   * The platform's own placement of a `categories` term in the tree — `null` for a root. Absent on
-   * the contract this file was written against, which is why the tree is otherwise completed from
-   * the category list; a response that carries it is also one whose counts are rolled up, and both
-   * halves are then the platform's (see `mapFacets` and `CatalogFacets.categoryCounts`).
+   * The platform's own placement of a `categories` term in the tree (public contract 3.8.0):
+   * **absent for a root**, otherwise the nearest *reported* ancestor — an id always present in the
+   * same list, never a dangling one. Absent on every term of a pre-3.8.0 response too, which is why
+   * the tree is otherwise completed from the category list; a response that places a term is also one
+   * whose counts are rolled up, and both halves are then the platform's (see `mapFacets` and
+   * `CatalogFacets.categoryCounts`).
    */
   parentId?: string | null;
 }
@@ -1334,12 +1336,17 @@ function mapFacets(
   if (raw === null || raw === undefined) return undefined;
   const price = raw.price;
   const availability = raw.availability;
-  // **The one signal that says whose tree and whose counts these are.** The platform adds `parentId`
-  // on its category terms and the ancestor roll-ups together, so a term that can place itself is a
-  // term that has already been counted up — and a client-side sum over listed children would then
-  // double-count a product that sits in two sibling categories. A response with no placement at all
-  // is the contract this file was written against: the counts are per *assigned* category, and the
-  // panel rolls them up itself (`CatalogFacets.categoryCounts`).
+  // **The one signal that says whose tree and whose counts these are.** Contract 3.8.0 adds
+  // `parentId` on a category term and the ancestor roll-ups together, so a term that can place itself
+  // is a term that has already been counted up — and the panel must not sum on top of that, since the
+  // platform's number is deduplicated and a sum over siblings is not (a product in Cups and in Bowls
+  // is one product and two counts).
+  //
+  // 3.8.0 omits `parentId` for a **root**, so a scope whose categories are all roots carries none and
+  // reads here as unplaced — which costs the category read below and changes nothing else: a family
+  // with no parent/child pair has nothing to place and nothing to roll up either way. Every tree with
+  // an actual child carries that child's `parentId`, and a reported child's parent is always in the
+  // same list, so there is no partial placement to get wrong.
   const placed = (raw.categories ?? []).some((term) => term.parentId !== undefined);
   return {
     ...(price === null || price === undefined
@@ -1379,9 +1386,11 @@ function mapFacets(
 }
 
 /**
- * `placed` carries the platform's own `parentId` through (categories only). It is deliberately *not*
- * defaulted to `null`: an absent `parentId` means "this source cannot place the term", which the
- * panel renders flat, while `null` means "it is a root" — see `CatalogFacetTerm.parentId`.
+ * `placed` carries the platform's own `parentId` through (categories only), **normalising 3.8.0's
+ * absent-means-root into the explicit `null`** this theme's view type uses: once any term in the
+ * family is placed, every term in it is, so a root has to say so rather than look unplaced. Outside a
+ * placed family the key is deliberately left off — an absent `parentId` means "this source cannot
+ * place the term", which the panel renders flat (see `CatalogFacetTerm.parentId`).
  */
 function mapFacetTerms(
   raw: RawFacetTerm[] | null | undefined,
@@ -1403,11 +1412,10 @@ function mapFacetTerms(
  * under, which a facet counted over *assigned* categories never names (`completeCategoryTerms`).
  *
  * **It spends a request only while the platform cannot place its own terms.** A response that already
- * carries `parentId` (`categoryCounts: 'rolled-up'`) is left exactly as it came and the category list
- * is not read at all, so this costs nothing the day Core ships the tree on its facets. Until then it
- * is the one cached read per storefront the `category` *filter* already pays for, and a failure is
- * swallowed: a flat category group is a page, and the group's own counts and labels are the
- * platform's either way.
+ * carries `parentId` (contract 3.8.0 — `categoryCounts: 'rolled-up'`) is left exactly as it came,
+ * order included, and the category list is not read at all. Against an older gateway it is the one
+ * cached read per storefront the `category` *filter* already pays for, and a failure is swallowed: a
+ * flat category group is a page, and the group's own counts and labels are the platform's either way.
  */
 async function withCategoryTree(
   facets: CatalogFacets,

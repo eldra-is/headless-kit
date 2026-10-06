@@ -5,6 +5,7 @@ import {
   formatPriceRange,
   groupValuesFor,
   hasPriceRange,
+  nestCategoryTerms,
   parsePriceRange,
   priceSpanOf,
   rangeFromSlider,
@@ -111,6 +112,221 @@ describe('groupValuesFor', () => {
   it('offers nothing at all without facets, and nothing for price either way', () => {
     expect(groupValuesFor('category', undefined, [], AVAILABILITY)).toEqual([]);
     expect(groupValuesFor('price', FACETS, [], AVAILABILITY)).toEqual([]);
+  });
+});
+
+/**
+ * **The category family as rows the panel can nest.** A facet counted over the categories products are
+ * *assigned* to names only the leaves, so the storefront completes the tree (every term placed, every
+ * missing ancestor appended with a count of 0) and this turns that into parent rows with their
+ * children one indent in.
+ *
+ * `TREE_TERMS` is exactly what `completeCategoryTerms` hands over for a catalogue of cups and bowls
+ * under Tableware, beside a root with nothing under it — the ancestors appended last, which is where
+ * the storefront puts them.
+ */
+describe('nesting the category facet', () => {
+  const TREE_TERMS = [
+    { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+    { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4, parentId: 'cat-tableware' },
+    { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', count: 3, parentId: null },
+    { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 0, parentId: null },
+  ];
+
+  /** Parent first, then its children; a root with no children is simply a row. */
+  it('puts a parent above its children and marks them as children', () => {
+    expect(nestCategoryTerms(TREE_TERMS, false)).toEqual([
+      { value: 'blankets', label: 'Blankets', count: 3 },
+      { value: 'tableware', label: 'Tableware', count: 10 },
+      { value: 'cup', label: 'Cup', count: 6, parent: 'tableware' },
+      { value: 'bowl', label: 'Bowl', count: 4, parent: 'tableware' },
+    ]);
+  });
+
+  /**
+   * The roll-up is the whole reason a parent row is worth drawing: `Tableware` is assigned nothing
+   * directly, so its own count is 0, and `Cup (6) · Bowl (4)` under a row reading `Tableware (0)` is
+   * a row the shopper reads as empty and `groupValuesFor` disables.
+   */
+  it('rolls a parent’s count up from its descendants, its own included', () => {
+    const [, tableware] = nestCategoryTerms(
+      [
+        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 2, parentId: null },
+      ],
+      false
+    );
+    expect(tableware).toMatchObject({ value: 'cup', count: 6 });
+    const [parent] = nestCategoryTerms(
+      [
+        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 2, parentId: null },
+        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+      ],
+      false
+    );
+    expect(parent).toEqual({ value: 'tableware', label: 'Tableware', count: 8 });
+  });
+
+  /**
+   * **A rolled-up answer is taken as it comes.** Contract 3.8.0's parent count is the subtree's,
+   * deduplicated, and explicitly *not* the sum of its children — a product in Cups and in Bowls is one
+   * product and two counts — so deriving one on top of it would over-report.
+   */
+  it('never derives a count the platform already rolled up', () => {
+    expect(
+      nestCategoryTerms(
+        [
+          { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
+          { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+          { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4, parentId: 'cat-tableware' },
+        ],
+        true
+      )[0]
+    ).toEqual({ value: 'tableware', label: 'Tableware', count: 9 });
+  });
+
+  /**
+   * **Order is the source's.** 3.8.0 answers depth-first by title, so a list that arrives clustered
+   * comes out untouched — no re-sorting by count, by title or by anything else.
+   */
+  it('preserves a depth-first list exactly as it arrived', () => {
+    const depthFirst = [
+      { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', count: 3 },
+      { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
+      { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4, parentId: 'cat-tableware' },
+      { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+    ];
+    expect(nestCategoryTerms(depthFirst, true).map((value) => value.value)).toEqual([
+      'blankets',
+      'tableware',
+      'bowl',
+      'cup',
+    ]);
+  });
+
+  it('does not sum on top of counts the platform already rolled up', () => {
+    expect(nestCategoryTerms(TREE_TERMS, true)).toEqual([
+      { value: 'blankets', label: 'Blankets', count: 3 },
+      { value: 'tableware', label: 'Tableware', count: 0 },
+      { value: 'cup', label: 'Cup', count: 6, parent: 'tableware' },
+      { value: 'bowl', label: 'Bowl', count: 4, parent: 'tableware' },
+    ]);
+  });
+
+  /**
+   * A source that places nothing — no `parentId` on any term — leaves the family exactly as flat as it
+   * always was. The pass is skipped, not approximated: nothing is invented from slugs or titles.
+   */
+  it('leaves an unplaced family flat', () => {
+    expect(
+      nestCategoryTerms(
+        [
+          { id: 'c1', slug: 'knitwear', title: 'Knitwear', count: 18 },
+          { id: 'c2', slug: 'ceramics', title: 'Ceramics', count: 14 },
+        ],
+        false
+      )
+    ).toEqual([
+      { value: 'knitwear', label: 'Knitwear', count: 18 },
+      { value: 'ceramics', label: 'Ceramics', count: 14 },
+    ]);
+  });
+
+  /**
+   * One indent, ever. A category three deep is drawn under its top-most listed ancestor rather than at
+   * its own depth — a filter panel is not a tree view and a 15rem sidebar has no third indent — and
+   * the roll-up still reaches it, because the grandchild is in that ancestor's own group.
+   */
+  it('flattens a third level under its top ancestor, counting it in the roll-up', () => {
+    expect(
+      nestCategoryTerms(
+        [
+          { id: 'c-espresso', slug: 'espresso', title: 'Espresso', count: 2, parentId: 'c-cup' },
+          { id: 'c-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'c-tableware' },
+          { id: 'c-tableware', slug: 'tableware', title: 'Tableware', count: 0, parentId: null },
+        ],
+        false
+      )
+    ).toEqual([
+      { value: 'tableware', label: 'Tableware', count: 8 },
+      { value: 'espresso', label: 'Espresso', count: 2, parent: 'tableware' },
+      { value: 'cup', label: 'Cup', count: 6, parent: 'tableware' },
+    ]);
+  });
+
+  /** A child whose parent the facets never listed is a top row, not a lost one. */
+  it('keeps a child whose parent is not listed as a row of its own', () => {
+    expect(
+      nestCategoryTerms(
+        [{ id: 'c-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'c-gone' }],
+        false
+      )
+    ).toEqual([{ value: 'cup', label: 'Cup', count: 6 }]);
+  });
+
+  /** This runs inside a `computed`, where a hang is the whole block. */
+  it('does not hang on a parentId cycle', () => {
+    const rows = nestCategoryTerms(
+      [
+        { id: 'a', slug: 'a', title: 'A', count: 1, parentId: 'b' },
+        { id: 'b', slug: 'b', title: 'B', count: 1, parentId: 'a' },
+      ],
+      false
+    );
+    expect(rows).toHaveLength(2);
+  });
+});
+
+/**
+ * A ticked parent carries the whole branch: the request sends the parent's category id and the
+ * platform expands it over the descendants, so a child's own checkbox is not a filter the shopper can
+ * set or unset from there.
+ */
+describe('a ticked parent category', () => {
+  const TREE_FACETS: CatalogFacets = {
+    ...FACETS,
+    categories: [
+      { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+      { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 0, parentId: 'cat-tableware' },
+      { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 0, parentId: null },
+    ],
+  };
+
+  it('implies every child, whatever that child counts', () => {
+    expect(groupValuesFor('category', TREE_FACETS, ['tableware'], AVAILABILITY)).toEqual([
+      { value: 'tableware', label: 'Tableware', count: 6 },
+      { value: 'cup', label: 'Cup', count: 6, parent: 'tableware', implied: true, disabled: true },
+      {
+        value: 'bowl',
+        label: 'Bowl',
+        count: 0,
+        parent: 'tableware',
+        implied: true,
+        disabled: true,
+      },
+    ]);
+  });
+
+  /** Untouched, the children are ordinary values again — and a zero-count one is disabled by the
+   *  ordinary rule, not by implication. */
+  it('leaves the children operable when the parent is not ticked', () => {
+    expect(groupValuesFor('category', TREE_FACETS, [], AVAILABILITY)).toEqual([
+      { value: 'tableware', label: 'Tableware', count: 6 },
+      { value: 'cup', label: 'Cup', count: 6, parent: 'tableware' },
+      { value: 'bowl', label: 'Bowl', count: 0, parent: 'tableware', disabled: true },
+    ]);
+  });
+
+  /** A child ticked on its own stays ticked on its own: nothing implies it, so it stays removable. */
+  it('does not imply a sibling of a ticked child', () => {
+    const values = groupValuesFor('category', TREE_FACETS, ['cup'], AVAILABILITY);
+    expect(values.find((value) => value.value === 'cup')).toEqual({
+      value: 'cup',
+      label: 'Cup',
+      count: 6,
+      parent: 'tableware',
+    });
+    expect(values.find((value) => value.value === 'bowl')?.implied).toBeUndefined();
   });
 });
 

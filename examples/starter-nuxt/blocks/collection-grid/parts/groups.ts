@@ -236,12 +236,17 @@ const MAX_CATEGORY_DEPTH = 6;
  * sidebar a column of label width, and a shopper ticking a grandchild gets the same filter either
  * way. Nothing is dropped — only flattened.
  *
- * **A parent's count is rolled up** from the descendants on screen, which is the only honest number
- * while the platform counts assignments: a synthesised `Tableware` row counts 0 of its own, and
- * `Cups (6) · Bowls (4)` under a row reading `Tableware (0)` is a row the shopper reads as empty and
- * the panel disables. `rolledUp` turns the sum off, for the day the platform counts ancestors
- * itself — its number is deduplicated and a sum over siblings cannot be, since a product in Cups and
- * in Bowls is one product and two counts (`CatalogFacets.categoryCounts`).
+ * **Order is the source's.** Public contract 3.8.0 answers depth-first by title, and this preserves
+ * whatever order it was handed: the top rows keep their input order and each parent's children keep
+ * theirs, which on an already depth-first list is no change at all. Nothing here sorts by count.
+ *
+ * **A parent's count is rolled up only when nobody else has done it.** Against a gateway that counts
+ * assignments, the sum over the descendants on screen is the only honest number: a synthesised
+ * `Tableware` row counts 0 of its own, and `Cups (6) · Bowls (4)` under a row reading `Tableware (0)`
+ * is a row the shopper reads as empty and the panel disables. `rolledUp` — contract 3.8.0's own
+ * ancestor counts — turns the sum off, because **a parent's count there is not the sum of its
+ * children**: it is deduplicated, and a product in Cups and in Bowls is one product and two counts
+ * (`CatalogFacets.categoryCounts`).
  */
 export function nestCategoryTerms(
   terms: readonly CatalogFacetTerm[],
@@ -265,20 +270,26 @@ export function nestCategoryTerms(
     return top;
   };
 
-  // Input order decides the order of the top rows, and a child follows the row it sits under. The
-  // storefront appends the ancestors it synthesised after the counted terms, so a parent the facets
-  // never named lands after the roots they did — which is the order a shopper reads as "the families
-  // the catalogue counted, then the one above them".
+  // Input order decides the order of the top rows, and a child follows the row it sits under — so a
+  // depth-first list (contract 3.8.0's own order) comes out exactly as it went in. On the fallback
+  // path the storefront appends the ancestors it synthesised after the counted terms, so a parent the
+  // facets never named lands after the roots they did, which is the order a shopper reads as "the
+  // families the catalogue counted, then the one above them".
+  const topIdOf = new Map(terms.map((term) => [term.id, topOf(term).id] as const));
+  // Which terms are top rows: the ones that are their own top. A `parentId` cycle has none — every
+  // term in it stops one short of itself — and a term whose top row does not exist is promoted to one
+  // rather than nested under nothing, which is what keeps every row on screen and tickable.
+  const topIds = new Set(terms.filter((term) => topIdOf.get(term.id) === term.id).map((t) => t.id));
   const tops: CatalogFacetTerm[] = [];
   const childrenOf = new Map<string, CatalogFacetTerm[]>();
   for (const term of terms) {
-    const top = topOf(term);
-    if (top.id === term.id) {
+    const top = topIdOf.get(term.id);
+    if (top === undefined || top === term.id || !topIds.has(top)) {
       tops.push(term);
       continue;
     }
-    const siblings = childrenOf.get(top.id);
-    if (siblings === undefined) childrenOf.set(top.id, [term]);
+    const siblings = childrenOf.get(top);
+    if (siblings === undefined) childrenOf.set(top, [term]);
     else siblings.push(term);
   }
 

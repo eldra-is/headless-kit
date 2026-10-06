@@ -20,7 +20,7 @@
  * Everything here is pure: no Vue, no client, no module state — which is what lets
  * `test/storefront/facets.spec.ts` pin every bound on its own.
  */
-import { completeCategoryTerms, EMPTY_CATEGORY_INDEX, type CategoryIndex } from './categories';
+import { ancestorsOf, EMPTY_CATEGORY_INDEX, type CategoryIndex } from './categories';
 import type {
   CatalogFacetOption,
   CatalogFacetOptionValue,
@@ -72,11 +72,15 @@ export function canonicalAvailabilityValues(values: readonly string[]): string[]
 }
 
 /** A category or collection a product belongs to: the `slug` is the filter value, the `title` is
- *  what the shopper reads, and `id` is the catalog id when the source knows one. */
+ *  what the shopper reads, and `id` is the catalog id when the source knows one — which is also what
+ *  a `category` clause resolves a parent through (see `matchesClause`). */
 export interface ProductFacetTerm {
   slug: string;
   title?: string;
   id?: string;
+  /** Where the term sits in the category tree — carried through to `CatalogFacetTerm.parentId`, which
+   *  is what lets the filter panel nest it. Absent on a flat family, and on every collection. */
+  parentId?: string | null;
 }
 
 /** One value of one variant option, as the source knows it. */
@@ -165,7 +169,8 @@ function matchesClause(
   item: StorefrontProductListItem,
   source: string,
   selected: readonly string[],
-  attributes: ProductFacetAttributes
+  attributes: ProductFacetAttributes,
+  categories: CategoryIndex
 ): boolean {
   if (source === 'price') return matchesPrice(item, selected[0]);
   if (source === 'availability') {
@@ -174,9 +179,15 @@ function matchesClause(
     return known.some((value) => (value === IN_STOCK ? inStock(item) : !inStock(item)));
   }
   if (source === 'category') {
-    const slug = attributes.category?.slug;
-    if (slug === undefined) return true;
-    return selected.includes(slug);
+    const term = attributes.category;
+    if (term?.slug === undefined) return true;
+    if (selected.includes(term.slug)) return true;
+    // **A ticked parent carries its whole branch.** The filter panel offers parent rows, and the
+    // platform's own `categoryId` filter expands a category to its descendants — so a product in
+    // `Cups` matches a shopper's `tableware`. Without the tree there is nothing to expand through
+    // and this is the direct match it always was.
+    if (term.id === undefined) return false;
+    return ancestorsOf(categories, term.id).some((ancestor) => selected.includes(ancestor.slug));
   }
   if (source === 'collection') {
     const terms = attributes.collections;
@@ -205,9 +216,12 @@ function matchesClause(
 export function matchesFilters(
   item: StorefrontProductListItem,
   filters: Record<string, string[]> | undefined,
-  attributes: ProductFacetAttributes = NOTHING_KNOWN
+  attributes: ProductFacetAttributes = NOTHING_KNOWN,
+  /** The store's category tree, so a ticked **parent** category matches a product in a child of it.
+   *  Omitted — a source with no tree — and a `category` clause is the direct match it always was. */
+  categories: CategoryIndex = EMPTY_CATEGORY_INDEX
 ): boolean {
-  return matchesFiltersExcept(item, filters, null, attributes);
+  return matchesFiltersExcept(item, filters, null, attributes, categories);
 }
 
 /**
@@ -221,12 +235,13 @@ export function matchesFiltersExcept(
   item: StorefrontProductListItem,
   filters: Record<string, string[]> | undefined,
   ignore: string | null,
-  attributes: ProductFacetAttributes = NOTHING_KNOWN
+  attributes: ProductFacetAttributes = NOTHING_KNOWN,
+  categories: CategoryIndex = EMPTY_CATEGORY_INDEX
 ): boolean {
   if (filters === undefined) return true;
   for (const [source, selected] of Object.entries(filters)) {
     if (selected.length === 0 || source === ignore) continue;
-    if (!matchesClause(item, source, selected, attributes)) return false;
+    if (!matchesClause(item, source, selected, attributes, categories)) return false;
   }
   return true;
 }
@@ -235,10 +250,11 @@ export function matchesFiltersExcept(
 export function filterItems(
   items: readonly StorefrontProductListItem[],
   filters: Record<string, string[]> | undefined,
-  attributesFor?: ProductFacetAttributesFor
+  attributesFor?: ProductFacetAttributesFor,
+  categories: CategoryIndex = EMPTY_CATEGORY_INDEX
 ): StorefrontProductListItem[] {
   if (!hasActiveFilters(filters)) return [...items];
-  return items.filter((item) => matchesFilters(item, filters, attributesFor?.(item)));
+  return items.filter((item) => matchesFilters(item, filters, attributesFor?.(item), categories));
 }
 
 /** Whether a request carries anything to filter on at all — `{}` and `{colour: []}` do not. */
@@ -289,17 +305,21 @@ export function deriveFacets(
     attributesFor?.(item) ?? NOTHING_KNOWN;
   /** The scope one family counts against: every filter but its own. */
   const scopeWithout = (ignore: string): StorefrontProductListItem[] =>
-    items.filter((item) => matchesFiltersExcept(item, filters, ignore, attributesOf(item)));
+    items.filter((item) =>
+      matchesFiltersExcept(item, filters, ignore, attributesOf(item), categories)
+    );
 
   return {
     price: priceBounds(scopeWithout('price')),
-    categories: completeCategoryTerms(
-      termFacet(items, scopeWithout('category'), (item) => {
-        const term = attributesOf(item).category;
-        return term === undefined ? [] : [term];
-      }),
-      categories
+    categories: termFacet(items, scopeWithout('category'), (item) =>
+      categoryTermsOf(attributesOf(item).category, categories)
     ),
+    // The ancestor counts above are this derivation's own and are **deduplicated**, because a product
+    // is counted once per term however many of its categories lead there. So the panel must not sum
+    // them again (`CatalogFacets.categoryCounts`) — unlike the platform's counts today, which are per
+    // assigned category and which the panel does roll up. A source with no tree declares nothing,
+    // which reads as `'direct'`, which is what a flat family is.
+    ...(categories.byId.size > 0 ? { categoryCounts: 'rolled-up' as const } : {}),
     collections: termFacet(
       items,
       scopeWithout('collection'),
@@ -308,6 +328,31 @@ export function deriveFacets(
     availability: availabilityCounts(scopeWithout('availability')),
     options: optionFacets(items, scopeWithout, attributesOf),
   };
+}
+
+/**
+ * **The category terms one product counts towards: its own, and every ancestor above it.**
+ *
+ * Both halves of why. A product assigned to `Cups` is a product in `Tableware`, and a filter on
+ * `tableware` returns it (`matchesClause` expands a ticked parent the same way the platform's own
+ * `categoryId` does) — so a facet that counted only the leaf would offer a parent row claiming 0 and
+ * then return 28, which is the one thing a count may never do. And the ancestors have to be in the
+ * *vocabulary* at all, or the parent row the shopper wants to tick is not there to tick: a catalogue
+ * of cups and bowls names those two and never names what they are.
+ *
+ * Counted **once per term**, because the vocabulary is a set: a product in two sibling categories is
+ * one product under their parent, not two.
+ *
+ * Without a tree there is nothing above anything, and this is the single direct term it always was.
+ */
+function categoryTermsOf(
+  term: ProductFacetTerm | undefined,
+  categories: CategoryIndex
+): readonly ProductFacetTerm[] {
+  if (term === undefined) return [];
+  if (term.id === undefined || categories.byId.size === 0) return [term];
+  const placed = { ...term, parentId: categories.byId.get(term.id)?.parentId ?? null };
+  return [...ancestorsOf(categories, term.id), placed];
 }
 
 /** The span of the loaded items, or a zero span when there is nothing to span. */
@@ -353,6 +398,7 @@ function termFacet(
     slug: term.slug,
     title: term.title ?? term.slug,
     count: counts.get(term.slug) ?? 0,
+    ...(term.parentId === undefined ? {} : { parentId: term.parentId }),
   }));
 }
 

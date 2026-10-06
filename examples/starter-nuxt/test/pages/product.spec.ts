@@ -93,13 +93,22 @@ describe('product sample page', () => {
     wrapper.unmount();
   });
 
-  it('renders the breadcrumb trail exactly once (product-detail keeps showCategory off)', async () => {
+  /**
+   * One trail, and it is **the store's**: the seed authors no `trail` levels at all (a route template
+   * cannot — it renders whatever product its `:slug` matched) and turns `breadcrumbs`' `fromProduct`
+   * on instead, so the levels between Home and the product are the product's own categories.
+   * `product-detail`'s own `showCategory` stays off, which is what keeps it to one trail.
+   */
+  it('renders the store’s category trail exactly once (product-detail keeps showCategory off)', async () => {
     const wrapper = await mountProductPage();
     const trails = wrapper.findAll('nav[aria-label="Breadcrumb"]');
     expect(trails).toHaveLength(1);
     const text = trails[0]!.text();
+    expect(text).toContain('Home');
+    // The demo catalogue puts the merino sweater under `Knitwear`, a root category — so one level,
+    // linking into the catalogue filtered by it.
     expect(text).toContain('Knitwear');
-    expect(text).toContain('Sweaters');
+    expect(trails[0]!.get('a[href="/products?category=knitwear"]').text()).toBe('Knitwear');
     expect(text).toContain('Merino crew sweater');
     wrapper.unmount();
   });

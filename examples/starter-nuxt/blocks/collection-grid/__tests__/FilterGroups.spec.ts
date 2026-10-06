@@ -60,6 +60,38 @@ const COLLECTION: FilterGroup = {
   ],
 };
 
+/**
+ * A `category` group the store answers as a **tree**: `Tableware` over `Cup` and `Bowl` (one of them
+ * with nothing left under the other filters), beside `Blankets` — a root with no children at all.
+ * `Tableware`'s count is the roll-up `nestCategoryTerms` computed; the parent is assigned nothing
+ * directly.
+ */
+const NESTED_CATEGORY: FilterGroup = {
+  source: 'category',
+  label: 'Category',
+  kind: 'checkbox',
+  collapsed: false,
+  legend: 'Category',
+  values: [
+    { value: 'blankets', label: 'Blankets', count: 3 },
+    { value: 'tableware', label: 'Tableware', count: 10 },
+    { value: 'cup', label: 'Cup', count: 6, parent: 'tableware' },
+    { value: 'bowl', label: 'Bowl', count: 0, parent: 'tableware', disabled: true },
+  ],
+};
+
+/** The same tree with `Tableware` ticked: the request carries the parent and the platform expands it,
+ *  so both children are implied rather than filters of their own (`groupValuesFor`). */
+const NESTED_CATEGORY_PARENT_TICKED: FilterGroup = {
+  ...NESTED_CATEGORY,
+  values: [
+    { value: 'blankets', label: 'Blankets', count: 3 },
+    { value: 'tableware', label: 'Tableware', count: 10 },
+    { value: 'cup', label: 'Cup', count: 6, parent: 'tableware', implied: true, disabled: true },
+    { value: 'bowl', label: 'Bowl', count: 0, parent: 'tableware', implied: true, disabled: true },
+  ],
+};
+
 /** The collection's own bounds, which is what the slider spans (spec: "not 0 and a round
  *  number"). */
 const SPAN = { min: 24, max: 180 };
@@ -355,6 +387,93 @@ describe('collection-grid filter groups', () => {
       expect(trigger.attributes('aria-expanded')).toBe('false');
       expect(document.activeElement).toBe(trigger.element);
       wrapper.unmount();
+    });
+  });
+  /**
+   * A `category` family the store answers as a tree. The nesting is a `role="group"` named after the
+   * parent around the children's own checkboxes — **not** a tree widget: every row stays an ordinary
+   * checkbox in source order, so there is no new tab stop and nothing about `Tab`, `Esc` or "Show
+   * all 14" changes.
+   */
+  describe('a nested category group', () => {
+    it('is axe-clean, nested group and implied children alike', async () => {
+      expect(await axe(mountGroups([NESTED_CATEGORY]).element)).toHaveNoViolations();
+      expect(await axe(mountGroups([NESTED_CATEGORY_PARENT_TICKED]).element)).toHaveNoViolations();
+    });
+
+    it('wraps a parent’s children in a group named after the parent', () => {
+      const wrapper = mountGroups([NESTED_CATEGORY]);
+      const groups = wrapper.findAll('[role="group"]');
+      expect(groups).toHaveLength(1);
+      expect(groups[0]!.attributes('aria-label')).toBe('Under Tableware');
+      expect(groups[0]!.findAll('label').map((label) => label.text().replace(/\s+/g, ' '))).toEqual(
+        ['Cup (6)', 'Bowl (0)']
+      );
+    });
+
+    /** A root with no children draws no group at all — a flat family is one with nothing nested. */
+    it('draws no group for a row with no children', () => {
+      const wrapper = mountGroups([CATEGORY]);
+      expect(wrapper.findAll('[role="group"]')).toHaveLength(0);
+    });
+
+    /** Every row is still one checkbox, in the order it was handed over: a parent, then its children,
+     *  then the next row. Nothing is added to the tab order by the nesting. */
+    it('keeps every row an ordinary checkbox in source order', () => {
+      const wrapper = mountGroups([NESTED_CATEGORY]);
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      expect(boxes).toHaveLength(4);
+      expect(boxes.every((box) => box.attributes('tabindex') === undefined)).toBe(true);
+      expect(wrapper.findAll('label').map((label) => label.text().replace(/\s+/g, ' '))).toEqual([
+        'Blankets (3)',
+        'Tableware (10)',
+        'Cup (6)',
+        'Bowl (0)',
+      ]);
+    });
+
+    it('ticks a parent’s own value, not its children’s', async () => {
+      const wrapper = mountGroups([NESTED_CATEGORY]);
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      await boxes[1]!.setValue(true);
+      expect(wrapper.emitted('toggle')).toEqual([['category', 'tableware', true]]);
+    });
+
+    it('leaves a child tickable on its own while the parent is not ticked', async () => {
+      const wrapper = mountGroups([NESTED_CATEGORY]);
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      expect(boxes[2]!.attributes('disabled')).toBeUndefined();
+      await boxes[2]!.setValue(true);
+      expect(wrapper.emitted('toggle')).toEqual([['category', 'cup', true]]);
+    });
+
+    /**
+     * A ticked parent draws its children ticked and inoperable: the request carries the parent's id
+     * and the platform expands it, so the child is not a filter the shopper can remove from there —
+     * the way out is the parent, which is the one control that can still change. Said out loud, so a
+     * ticked-and-disabled box is not a dead end with no explanation.
+     */
+    it('draws a ticked parent’s children ticked, inoperable and explained', () => {
+      const wrapper = mountGroups([NESTED_CATEGORY_PARENT_TICKED], {
+        selection: { category: ['tableware'] },
+      });
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      expect((boxes[1]!.element as HTMLInputElement).checked).toBe(true);
+      for (const index of [2, 3]) {
+        expect((boxes[index]!.element as HTMLInputElement).checked).toBe(true);
+        expect(boxes[index]!.attributes('disabled')).toBeDefined();
+      }
+      const labels = wrapper.findAll('label').map((label) => label.text().replace(/\s+/g, ' '));
+      expect(labels[2]).toBe('Cup (6) included in Tableware');
+      expect(labels[3]).toBe('Bowl (0) included in Tableware');
+    });
+
+    /** The count badge counts the shopper's own filters: an implied child is the parent's filter. */
+    it('counts one selected filter for a ticked parent, not three', () => {
+      const wrapper = mountGroups([NESTED_CATEGORY_PARENT_TICKED], {
+        selection: { category: ['tableware'] },
+      });
+      expect(wrapper.get('h3 button').text()).toContain('1');
     });
   });
 });

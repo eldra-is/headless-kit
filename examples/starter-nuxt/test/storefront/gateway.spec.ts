@@ -1732,6 +1732,239 @@ describe('createGatewayStorefront', () => {
     for (const query of collectionProductQueries) expect(query).not.toHaveProperty('locale');
   });
 
+  /**
+   * **The category tree**: one read of `GET /catalog/v1/categories` answers a product's breadcrumb
+   * trail and completes the collection grid's category facet into something the panel can nest.
+   *
+   * The trail used to be `[]` on every product the gateway ever mapped — the only field it had to
+   * fill it from was `result.breadcrumb`, which belongs to the *search* response and no product read
+   * has ever carried.
+   */
+  describe('the category tree', () => {
+    const TREE = [
+      { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', parentId: null },
+      { id: 'cat-cup', slug: 'cup', title: 'Cup', parentId: 'cat-tableware' },
+      { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', parentId: 'cat-tableware' },
+    ];
+
+    function treeClient(
+      options: {
+        product?: Record<string, unknown>;
+        categories?: unknown;
+        facets?: Record<string, unknown> | null;
+      } = {}
+    ): { client: EldraClient; categoryReads: () => number } {
+      let reads = 0;
+      const client = {
+        catalog: {
+          listCategories: async () => {
+            reads += 1;
+            if (options.categories instanceof Error) throw options.categories;
+            return options.categories ?? TREE;
+          },
+          getProduct: async () =>
+            options.product ?? {
+              id: 'prod-mug',
+              slug: 'ash-glaze-mug',
+              title: 'Ash glaze mug',
+              status: 'ACTIVE',
+              primaryCategoryId: 'cat-cup',
+              variants: [{ id: 'var-mug', status: 'ACTIVE', price: 4200 }],
+            },
+          listCollectionProducts: async () => ({
+            data: [],
+            meta: { page: 1, pageSize: 24, total: 0, totalPages: 0, rows: 0 },
+            ...(options.facets === null ? {} : { facets: options.facets ?? BARE_FACETS }),
+          }),
+        },
+      } as unknown as EldraClient;
+      return { client, categoryReads: () => reads };
+    }
+
+    /** What a platform that counts **assigned** categories answers: the leaves, and nothing above. */
+    const BARE_FACETS = {
+      price: { min: 4200, max: 4200 },
+      categories: [
+        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6 },
+        { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4 },
+      ],
+      collections: [],
+      availability: { in_stock: 10, out_of_stock: 0 },
+      options: [],
+    };
+
+    async function readProduct(client: EldraClient) {
+      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+      const result = storefront.catalog.product(ref('ash-glaze-mug'));
+      await settle();
+      return result.data.value;
+    }
+
+    async function readCollection(client: EldraClient) {
+      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+      const result = storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        ref({ page: 1, pageSize: 24 })
+      );
+      await settle();
+      return result.data.value;
+    }
+
+    it('walks a product’s primaryCategoryId up to its root', async () => {
+      const { client } = treeClient();
+      expect((await readProduct(client))?.categoryTrail).toEqual([
+        { label: 'Tableware', href: '/products?category=tableware' },
+        { label: 'Cup', href: '/products?category=cup' },
+      ]);
+    });
+
+    /** `categoryId` is the field `related` has always read; `primaryCategoryId` is the one the public
+     *  contract names for this. A response carrying only the older one still gets a trail. */
+    it('falls back to categoryId when the response carries no primaryCategoryId', async () => {
+      const { client } = treeClient({
+        product: {
+          id: 'prod-mug',
+          slug: 'ash-glaze-mug',
+          title: 'Ash glaze mug',
+          status: 'ACTIVE',
+          categoryId: 'cat-bowl',
+          variants: [],
+        },
+      });
+      expect((await readProduct(client))?.categoryTrail.map((level) => level.label)).toEqual([
+        'Tableware',
+        'Bowl',
+      ]);
+    });
+
+    it('leaves the trail empty for a product with no category', async () => {
+      const { client } = treeClient({
+        product: {
+          id: 'prod-mug',
+          slug: 'ash-glaze-mug',
+          title: 'Ash glaze mug',
+          status: 'ACTIVE',
+          variants: [],
+        },
+      });
+      expect((await readProduct(client))?.categoryTrail).toEqual([]);
+    });
+
+    it('leaves the trail empty for a category the store’s list no longer holds', async () => {
+      const { client } = treeClient({ categories: [] });
+      expect((await readProduct(client))?.categoryTrail).toEqual([]);
+    });
+
+    /**
+     * A product page without a category crumb is a product page. One that fails because the category
+     * list was unreachable is not — which is the opposite of what the `category` *filter* does with
+     * the same read, and deliberately so: a dropped filter is a lie about what is on screen.
+     */
+    it('serves the product with no trail when the category read fails', async () => {
+      const { client } = treeClient({ categories: new Error('categories are down') });
+      const product = await readProduct(client);
+      expect(product?.title).toBe('Ash glaze mug');
+      expect(product?.categoryTrail).toEqual([]);
+    });
+
+    it('completes the category facet with the parent the platform never named', async () => {
+      const { client } = treeClient();
+      const facets = (await readCollection(client))?.facets;
+      expect(facets?.categories).toEqual([
+        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+        { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4, parentId: 'cat-tableware' },
+        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 0, parentId: null },
+      ]);
+      // No claim about the counts: they are per assigned category, so the panel rolls a parent's own
+      // number up from its descendants.
+      expect(facets?.categoryCounts).toBeUndefined();
+    });
+
+    it('leaves the facet flat when the category read fails', async () => {
+      const { client } = treeClient({ categories: new Error('categories are down') });
+      const facets = (await readCollection(client))?.facets;
+      expect(facets?.categories.map((term) => term.slug)).toEqual(['cup', 'bowl']);
+      expect(facets?.categories.every((term) => term.parentId === undefined)).toBe(true);
+    });
+
+    /**
+     * **The platform's own tree wins, and buys back the request.** `parentId` on a facet term and the
+     * ancestor roll-ups land together, so a response that places its own terms is left exactly as it
+     * came — counts included, because the platform's number is deduplicated and a client-side sum over
+     * siblings cannot be — and the category list is not read at all.
+     */
+    it('keeps the platform’s own placement and counts, and reads no categories for them', async () => {
+      const { client, categoryReads } = treeClient({
+        // Contract 3.8.0's own shape, verbatim: depth-first by title, `parentId` **absent** on the
+        // root, and a parent's count already the subtree's (9, which is deliberately not 6 — a
+        // rolled-up count is not the sum of the children on screen).
+        facets: {
+          ...BARE_FACETS,
+          categories: [
+            { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9 },
+            { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+          ],
+        },
+      });
+      const facets = (await readCollection(client))?.facets;
+      expect(facets?.categoryCounts).toBe('rolled-up');
+      // An absent `parentId` on a placed family is normalised to the explicit `null` this theme's
+      // view type uses, so a root never looks like a term the source could not place.
+      expect(facets?.categories).toEqual([
+        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
+        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+      ]);
+      expect(categoryReads()).toBe(0);
+    });
+
+    /**
+     * A 3.8.0 scope whose categories are **all roots** carries no `parentId` anywhere, so it reads as
+     * unplaced and pays for the category list. That costs one cached request and changes nothing else:
+     * a family with no parent/child pair has nothing to nest and nothing to roll up either way, which
+     * is what this pins — the counts come out exactly as the platform sent them.
+     */
+    it('is harmless on a 3.8.0 scope whose categories are all roots', async () => {
+      const { client } = treeClient({
+        categories: [
+          { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', parentId: null },
+          { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', parentId: null },
+        ],
+        facets: {
+          ...BARE_FACETS,
+          categories: [
+            { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', count: 3 },
+            { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9 },
+          ],
+        },
+      });
+      expect((await readCollection(client))?.facets?.categories).toEqual([
+        { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', count: 3, parentId: null },
+        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
+      ]);
+    });
+
+    /** One read for the life of the storefront, however many readers want it. */
+    it('reads the category list once for a trail and a facet together', async () => {
+      const { client, categoryReads } = treeClient();
+      const storefront = createGatewayStorefront(client, { route: fakeRoute() });
+      storefront.catalog.product(ref('ash-glaze-mug'));
+      storefront.catalog.collectionProducts(
+        ref<StorefrontCollectionSelector | null>({ slug: 'the-winter-edit' }),
+        ref({ page: 1, pageSize: 24 })
+      );
+      await settle();
+      expect(categoryReads()).toBe(1);
+    });
+
+    it('reads no category list for a response with no category terms', async () => {
+      const { client, categoryReads } = treeClient({
+        facets: { ...BARE_FACETS, categories: [] },
+      });
+      await readCollection(client);
+      expect(categoryReads()).toBe(0);
+    });
+  });
+
   it('every result carries an empty `revalidating` set — the prerender contract’s resting state', async () => {
     const storefront = createGatewayStorefront(fakeClient(), { route: fakeRoute() });
     const result = storefront.catalog.collectionProducts(

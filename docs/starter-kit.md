@@ -745,13 +745,13 @@ and the counts the panel draws its groups from — over the **whole collection**
 could reach. They are not `filter` tokens and never were: `filter` is the `field:op:value` vocabulary
 above, and a facet sent through it is a 400.
 
-| the block's filter        | the parameter                         | the conversion that matters                                                                                                                     |
-| ------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `price` (`"<min>-<max>"`) | `minPrice`, `maxPrice`                | whole **major** units in the URL, **minor** in the request — the store's own fraction digits, so ISK 50 is `50` and USD 50 is `5000`            |
-| `category` (slugs)        | `categoryId` (repeatable, OR)         | the slug is resolved to a catalog id through `GET /catalog/v1/categories`, read once per storefront and only when a category is actually ticked |
-| `option:<key>`            | `option=<key>:<value>` (repeatable)   | OR within a key, AND across keys — the panel's own semantics                                                                                    |
-| `availability`            | `availability=in_stock\|out_of_stock` | both boxes ticked is every product, so nothing is sent                                                                                          |
-| `collection` (slugs)      | —                                     | not expressible on a collection's own product list; see below                                                                                   |
+| the block's filter        | the parameter                         | the conversion that matters                                                                                                                                |
+| ------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `price` (`"<min>-<max>"`) | `minPrice`, `maxPrice`                | whole **major** units in the URL, **minor** in the request — the store's own fraction digits, so ISK 50 is `50` and USD 50 is `5000`                       |
+| `category` (slugs)        | `categoryId` (repeatable, OR)         | the slug is resolved to a catalog id through `GET /catalog/v1/categories`, read once per storefront; a **parent** id matches its whole subtree server-side |
+| `option:<key>`            | `option=<key>:<value>` (repeatable)   | OR within a key, AND across keys — the panel's own semantics                                                                                               |
+| `availability`            | `availability=in_stock\|out_of_stock` | both boxes ticked is every product, so nothing is sent                                                                                                     |
+| `collection` (slugs)      | —                                     | not expressible on a collection's own product list; see below                                                                                              |
 
 Four things worth knowing before a shop goes live:
 
@@ -807,6 +807,85 @@ Storybook, the sample pages and the specs filter for real without a gateway. The
 both jobs to the platform and shares only the one thing that is not a backend's to decide — the
 `in_stock`/`out_of_stock` vocabulary, which the panel reads a shared URL through as well.
 
+### The category tree
+
+`GET /catalog/v1/categories` answers the organisation's whole category list — `{id, slug, title,
+parentId}` per row, so the categories are a **tree** — and a product read carries
+`primaryCategoryId` (plus `categoryIds`, the full set). `app/storefront/categories.ts` is the walk
+between them: pure, framework-free, shared by both storefront sources, and the one place a category's
+URL is decided. Two features read it.
+
+**A product's breadcrumb trail.** `StorefrontProduct.categoryTrail` is the chain from the root
+ancestor down to the product's own category, each level a link. Every honest absence is `[]` — a
+product with no category, a `primaryCategoryId` the list no longer holds, a category read that failed
+— because a page without a category crumb is a page and a crumb labelled `undefined` is a bug. There
+is no `/categories/<slug>` route in this theme and a category is neither a collection nor a page, so a
+crumb points at **the catalogue filtered by that category**: `/products?category=<slug>`, which is the
+`collection-grid` query vocabulary that page's own grid reads back, so following a crumb lands on a
+grid with the category ticked and its chip drawn. A theme that grows a real category route changes
+`categoryHref` and nothing else.
+
+Two blocks render it. `product-detail`'s `showCategory` draws the trail above the title (it always
+did; it just never had anything to draw). `breadcrumbs` has `fromProduct`, which appends the same
+trail after the author's own levels — the authored levels are the page tree _above_ the catalogue, a
+category is the level nearest the product. `fromProduct` exists because the seeded product
+**template** cannot carry an authored trail: a template renders whatever product its `:slug` matched,
+so `app/templates.ts` empties the list, and a merchant's first product page had the Home crumb alone
+— one item, which is fewer than two, which is nothing. The two are alternatives, not a pair: the
+seeded product page turns `product-detail`'s own trail off so it never shows twice.
+
+It is **prerender-safe without any wiring of its own**. The categories are read on the server inside
+the same `useAsyncData` the product read already runs under, so a generated product page carries its
+trail in the page payload and the hydrating browser fetches nothing to draw the crumb. `breadcrumbs`
+asks `catalog.product()` for the route's own handle, which is the same method over the same sources
+`product-detail` asks with — identical prerender key, so one read answers both blocks.
+
+**The collection grid's category facet.** `CatalogFacetTerm.parentId` makes the `categories` family a
+tree, and the panel draws parents with their children indented one level inside a nested
+`role="group"` named after the parent ("Under Tableware"): a real grouping for a screen reader and no
+extra tab stop, because every row stays an ordinary checkbox in source order. One indent, ever —
+anything deeper is drawn under its top-most listed ancestor, since a filter panel is not a tree view
+and a 15rem sidebar has no third indent. Ticking a parent sends the parent's slug, the request
+resolves it to the parent's `categoryId`, and the platform matches the whole subtree; the children are
+then drawn ticked and inoperable with a hidden note naming the parent, because the way back out is the
+one control that can still change.
+
+Where the tree and the counts come from depends on what the gateway answers, and the mapping always
+prefers the platform's own:
+
+- **Public contract 3.8.0 and later** answers `parentId` on each category facet term (**absent** for a
+  root, otherwise the nearest _reported_ ancestor, always an id in the same list), its counts **rolled
+  up** over each subtree, and the terms **depth-first by title**. The gateway carries all three
+  through untouched — normalising absent-means-root to the explicit `null` the view type uses — marks
+  the family `categoryCounts: 'rolled-up'`, and reads no category list at all. A rolled-up count is
+  **never derived**: it is deduplicated over the subtree, and a sum over the children on screen is
+  not, because a product in two sibling categories is one product and two counts.
+- **An older gateway** counts only the categories products are _assigned_ to, which in a real store
+  are the leaves: a catalogue of cups and bowls answers those two and never names Tableware. The
+  gateway then completes the family from the category list — every term placed, every missing ancestor
+  appended with a count of 0 — and the panel rolls a parent's number up from the descendants on
+  screen, because `Cups (6) · Bowls (4)` under a row reading `Tableware (0)` is a row a shopper reads
+  as empty and the panel disables.
+
+A source that places nothing at all — no `parentId` anywhere — gets the flat group it always had: the
+whole pass is skipped rather than approximated. (A 3.8.0 scope whose categories happen to be all roots
+looks the same, which costs one cached request and changes nothing: a family with no parent/child pair
+has nothing to nest and nothing to roll up either way.)
+
+The category list is read **once per storefront**, shared by the three readers that want different
+halves of it — the `category` filter's slug→id lookup, the trail, and the facet tree. Its failure is
+swallowed by the trail and by the facet tree and by neither of the other two: a product page without a
+crumb and a flat category group are both pages, while a _filter_ that quietly dropped the category the
+chips and the URL both say is applied is a lie, so that one fails the read and the grid shows its
+error over the last good page.
+
+The demo storefront models all of it from its own two-level fixture tree (`Home` over
+`Ceramics`/`Kitchen`, `Knitwear` a root): it derives its trails from the tree, counts a product under
+its category _and every ancestor_ — deduplicated, so it declares `'rolled-up'` like 3.8.0 — and
+expands a ticked parent to its descendants when it filters. A demo whose category filter ignored the
+tree it had just drawn would show a shopper a parent row that empties the grid, which is the defect
+the whole server-side filter path exists to remove.
+
 **The filter panel reads the facets and writes the query string.** `collection-grid`'s `filters[]`
 field names the groups and their order; everything in them — values, labels, swatches, counts — is
 the storefront's `facets`, never CMS content. The six sources are `category`, `collection`,
@@ -831,6 +910,9 @@ grammar lives.
   whose option is keyed `color` or `Size` gets a group with no values, which the block then drops
   silently. Rename the key in `OPTION_KEY` (and in the `filters[].source` option list) for a store
   that spells its options differently.
+- **The `category` group nests**, when the store's categories are a tree — parent rows with their
+  children one indent in, a ticked parent carrying its whole subtree. See "The category tree" above
+  for where the placement, the counts and the order come from.
 - **A value nothing is left for is disabled, not hidden** — see the counting rule above. A value
   the shopper has already selected is never disabled, and one the facets stop listing altogether is
   kept so the filter stays removable. A whole **group** with no values is dropped, which is how a
@@ -965,7 +1047,8 @@ Seven rules the file exists to keep:
   `collection-grid`'s `collection`; `product-carousel`'s `viewAllHref` (a link into the fixture
   product's category); the fixture's own levels and
   links in `breadcrumbs`' `trail` and `collection-header`'s `subcollections` (emptied, a shape both
-  blocks render — `breadcrumbs` still shows the Home crumb from `showHome`); and
+  blocks render — and the product seed turns `breadcrumbs`' `fromProduct` on, so the trail it cannot
+  author comes from the routed product's own categories instead; see "The category tree"); and
   `product-detail`'s "Details" tab, which is the fixture product's own description, leaving the
   store-wide Shipping and Returns tabs. Bound on the seed's layout node: `breadcrumbs`'
   `currentTitle` and `collection-header`'s `title`, both `{{ title }}` against the catalog

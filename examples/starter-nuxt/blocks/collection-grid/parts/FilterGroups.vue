@@ -409,9 +409,13 @@ const COUNT = 'text-muted tabular-nums';
                 <!-- Ticked because the parent is, not because this row is a filter of its own: the
                      request carries the parent's id and the platform expands it. Said out loud,
                      because a ticked-and-disabled box with no explanation reads as a dead end. -->
-                <VisuallyHidden v-if="child.implied === true">
-                  {{ t('grid.impliedByValue', { value: row.value.label }) }}
-                </VisuallyHidden>
+                <!-- The leading space is inside the string on purpose: Vue's `condense`
+                     whitespace handling drops a whitespace-only text node that spans a newline, and
+                     an accessible name is the concatenation of its parts — so without it the box
+                     announces "Cup (6)included in Tableware". -->
+                <VisuallyHidden v-if="child.implied === true">{{
+                  ` ${t('grid.impliedByValue', { value: row.value.label })}`
+                }}</VisuallyHidden>
               </Checkbox>
             </div>
           </template>

@@ -160,6 +160,18 @@ const CATEGORIES: MockCategory[] = [
 
 const CATEGORY_BY_ID = new Map(CATEGORIES.map((row) => [row.id, row]));
 
+/** A product's own category and every ancestor above it, which is what a `categoryId` filter matches
+ *  against and what the facet counts a product under. */
+function categoryChainOf(row: { categoryId: string }): string[] {
+  const chain: string[] = [];
+  let id: string | null = row.categoryId;
+  while (id !== null && !chain.includes(id)) {
+    chain.push(id);
+    id = CATEGORY_BY_ID.get(id)?.parentId ?? null;
+  }
+  return chain;
+}
+
 const COLLECTIONS = [
   {
     id: 'col-winter',
@@ -623,7 +635,10 @@ function matchesProductQuery(
     if (query.maxPrice !== undefined && row.minPrice > query.maxPrice) return false;
   }
   if (ignore !== 'category' && query.categoryIds.length > 0) {
-    if (!query.categoryIds.includes(row.categoryId)) return false;
+    // A `categoryId` matches the product's own category **or any ancestor of it**: the filter panel
+    // offers parent rows, and the platform expands a parent to its descendants. A fixture that only
+    // matched the leaf would answer nothing for a shopper ticking `Tableware`.
+    if (!query.categoryIds.some((id) => categoryChainOf(row).includes(id))) return false;
   }
   if (ignore !== 'collection' && query.collectionIds.length > 0) {
     if (!collectionsOf(row).some((id) => query.collectionIds.includes(id))) return false;

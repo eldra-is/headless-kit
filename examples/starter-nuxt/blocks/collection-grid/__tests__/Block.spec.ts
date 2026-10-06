@@ -1667,6 +1667,52 @@ describe('collection-grid block', () => {
     });
 
     /**
+     * **A shared `?category=<parent>` link**, end to end: the URL seeds the selection, the parent row
+     * is ticked, its children are drawn implied, the request carries the parent and the grid shows the
+     * products of its children — which is the whole promise of offering a parent row at all. The demo
+     * expands a ticked parent the way the platform's own `categoryId` filter does
+     * (`app/storefront/facets.ts`'s `matchesClause`).
+     */
+    it('restores a parent category from the URL and shows its children’s products', async () => {
+      const source = createDemoStorefront({ filters: { category: ['home'] } });
+      const wrapper = mountGrid(FILTERED, { source });
+      await wrapper.vm.$nextTick();
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+
+      const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
+      const boxes = panel.findAll('input[type="checkbox"]');
+      const labelOf = (index: number) => panel.findAll('label')[index]!.text().replace(/\s+/g, ' ');
+
+      // `Home` ticked, and the two categories under it ticked-and-inoperable: the request names the
+      // parent, so a child is not a filter the shopper can remove from there.
+      const home = boxes.findIndex((_, index) => labelOf(index).startsWith('Home'));
+      expect(home).toBeGreaterThanOrEqual(0);
+      expect((boxes[home]!.element as HTMLInputElement).checked).toBe(true);
+      const implied = panel.findAll('[role="group"] input[type="checkbox"]');
+      expect(implied.length).toBeGreaterThan(0);
+      for (const box of implied) {
+        expect((box.element as HTMLInputElement).checked).toBe(true);
+        expect(box.attributes('disabled')).toBeDefined();
+      }
+
+      // And the grid is really filtered: the count is the children's products, not the whole
+      // collection, which is what a parent row nothing could expand would have shown.
+      const unfiltered = mountGrid(FILTERED, { source: createDemoStorefront() });
+      await unfiltered.vm.$nextTick();
+      await flushPromises();
+      const totalOf = (view: VueWrapper) => Number(/^\d+/.exec(countLine(view).text())?.[0] ?? '0');
+      expect(totalOf(wrapper)).toBeGreaterThan(0);
+      expect(totalOf(wrapper)).toBeLessThan(totalOf(unfiltered));
+      expect(cards(wrapper).length).toBeGreaterThan(0);
+
+      // Untick the parent and the URL loses the key altogether — the round trip in both directions.
+      await boxes[home]!.setValue(false);
+      await wrapper.vm.$nextTick();
+      expect(source.route.filters.category).toBeUndefined();
+    });
+
+    /**
      * A link shared before the platform's `in_stock`/`out_of_stock` vocabulary landed. The pass
      * still reads the old spelling, so the grid filters — but the block has to fold it into the
      * current one, or the panel grows an untranslated third checkbox beside the two real ones with

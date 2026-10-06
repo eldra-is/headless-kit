@@ -266,7 +266,9 @@ const PRODUCT_ATTRIBUTES = new Map<string, ProductFacetAttributes>();
  */
 function registerAttributes(handle: string, def: DemoProductDef): void {
   PRODUCT_ATTRIBUTES.set(handle, {
-    category: { slug: def.category, title: CATEGORY_TITLES[def.category] },
+    // The `id` is what a parent clause is resolved through — `matchesClause` walks a product's own
+    // category up the tree — and what `completeCategoryTerms` places the facet's terms by.
+    category: { id: def.category, slug: def.category, title: CATEGORY_TITLES[def.category] },
     options: {
       size: (def.sizes ?? []).map((size) => ({ value: size, label: size.toUpperCase() })),
       colour: (def.colours ?? []).map((colour) => ({
@@ -1151,7 +1153,10 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
         if (!info) return null;
         const all = COLLECTION_ITEMS[handle] ?? buildCollectionItems(info.productCount);
         const { page, pageSize, sort, filters } = opts.value;
-        const matching = filterItems(all, filters, attributesFor);
+        // The tree goes in, so a shopper ticking a **parent** category gets the products in its
+        // children — what the platform's own `categoryId` filter does, and what the nested category
+        // group the panel draws from these same facets promises.
+        const matching = filterItems(all, filters, attributesFor, CATEGORY_INDEX);
         const ordered = sortCollectionItems(matching, sort);
         const start = (page - 1) * pageSize;
         return {
