@@ -17,6 +17,13 @@ Release-please writes the generated notes from commit messages and does not repl
   after the final parameter's name.
 - `catalogRouteTarget` recognises `catalog:category` as the `category` kind, beside `catalog:product`
   and `catalog:collection`.
+- **`catalog.listCategories` answers the categories again.** `GET /catalog/v1/categories` serves the
+  whole tree as a top-level **array** rather than a `{data, meta}` page — it takes no paging — and
+  the list normaliser read that as "an object with no `data`", so every category read came back
+  empty: a `link` field pointing at a category resolved to nothing, and a build generated no
+  category routes, with no error anywhere to say so. A bare array is now read as the list itself,
+  reported as one whole final page. The two paged endpoints are unchanged: they answer an object,
+  and an object must still carry an array under `data` or the read throws.
 - `LinkTargetInfo` gains an optional `path` — a target's canonical path **inside** the route
   template's prefix, without a leading slash. `resolveLink` reads it instead of `slug` when the
   serving template's pattern is a catch-all, because such a route is canonical-only: a leaf slug on

@@ -135,6 +135,26 @@ describe('createEldraClient', () => {
     expect(list.data).toEqual([{ id: 'c1', slug: 'tableware' }]);
   });
 
+  /**
+   * **`GET /catalog/v1/categories` answers the whole tree as a top-level array** — the categories
+   * are a handful of rows and the endpoint takes no paging — so a bare array is a list. Reading it
+   * as "an object with no `data`" made every category read answer nothing at all: no category
+   * target for a `link` field to resolve, and no category route for a build to generate, with
+   * nothing anywhere to say so.
+   */
+  it('reads a bare array response as the list itself', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse([
+        { id: 'c1', slug: 'tableware', title: 'Tableware' },
+        { id: 'c2', slug: 'cups', title: 'Cups', parentId: 'c1' },
+      ])
+    );
+    const list = await client().catalog.listCategories!({});
+    expect(list.data.map((row) => row.slug)).toEqual(['tableware', 'cups']);
+    // An array is one whole page, so a pager stops after it rather than asking again for ever.
+    expect(list.meta).toMatchObject({ hasNext: false, page: 1, rows: 2, total: 2, totalPages: 1 });
+  });
+
   it('normalizes an omitted empty-list data field to an empty array', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({

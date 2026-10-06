@@ -185,8 +185,18 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
  * `"data": null`, and a caller that pages through the list must not have to
  * guess whether a missing `meta` means "one page" or "keep asking" — an absent
  * meta is reported as a single, final page.
+ *
+ * **A bare array is a list too.** `GET /catalog/v1/categories` answers the whole
+ * tree as a top-level array rather than a `{data, meta}` page — the categories
+ * are a handful of rows and the endpoint takes no paging — and reading that as
+ * "an object with no `data`" made every category read answer *nothing*: no
+ * category target for a `link` field to resolve, and no category route for a
+ * build to generate, with no error anywhere to say so. The two paged endpoints
+ * are unaffected: they answer an object, and an object still has to carry an
+ * array under `data` or this throws.
  */
 function toCatalogList(value: unknown): CatalogList {
+  if (Array.isArray(value)) return toCatalogList({ data: value });
   const raw = (value ?? {}) as { data?: unknown; meta?: unknown };
   if (raw.data !== undefined && raw.data !== null && !Array.isArray(raw.data)) {
     throw new TypeError('[eldra] gateway catalog list data must be an array');
