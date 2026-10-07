@@ -17,6 +17,7 @@
     { "source": "availability", "label": "Availability" }
   ],
   "showColumnSelect": true,
+  "colourLayout": "list",
   "emptyTitle": "No products match these filters",
   "emptyText": "Try removing a filter or widening the price range."
 }

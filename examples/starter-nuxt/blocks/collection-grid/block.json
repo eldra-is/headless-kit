@@ -140,6 +140,22 @@
       "helpText": "Off shows the price group's two typed fields alone, for prices that sit in a few tight clusters."
     },
     {
+      "fieldId": "colourLayout",
+      "name": "Colour layout",
+      "type": "select",
+      "metadata": { "options": ["list", "grid"] },
+      "helpText": "list (the default) shows swatch rows with the name and count; grid shows a grid of swatch tiles. Colour filter groups only."
+    },
+    {
+      "fieldId": "sizeGuideHref",
+      "name": "Size guide link",
+      "type": "link",
+      "helpText": "Shown under the Size filter group's tiles. Leave empty to show no link.",
+      "metadata": {
+        "kinds": ["page", "entry", "url"]
+      }
+    },
+    {
       "fieldId": "priceStep",
       "name": "Price step",
       "type": "int",
