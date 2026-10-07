@@ -16,6 +16,46 @@ import {
 // — never depend on whatever a previous local `pnpm --filter starter-nuxt previews`, Storybook
 // build, coverage run or Playwright run happened to leave sitting in the real starter directory.
 describe('shouldCopyTemplatePath', () => {
+  // Every other test in this file derives its expected set from `EXCLUDE_DIR_NAMES` /
+  // `EXCLUDE_NESTED_DIRS` themselves, which only proves the function is internally consistent
+  // with whatever the module currently exports — shrinking those arrays shrinks what the loops
+  // check in lockstep, so a regression that silently drops a name (the exact defect this fix
+  // exists for) would pass unnoticed. These two tests name the real set literally, independent
+  // of the module's own arrays, so dropping one of them here fails.
+  it('excludes these exact directories, named literally', () => {
+    const excludedPaths = [
+      '/theme/node_modules/some-dep/index.js',
+      '/theme/.git/HEAD',
+      '/theme/.nuxt/dist/client.js',
+      '/theme/.output/public/index.html',
+      '/theme/storybook-static/iframe.html',
+      '/theme/coverage/index.html',
+      '/theme/test-results/results.json',
+      '/theme/playwright-report/index.html',
+      '/theme/.cache/tmp.bin',
+      '/theme/.eldra/previews/hero.png',
+    ];
+    for (const path of excludedPaths) {
+      expect(shouldCopyTemplatePath(path)).toBe(false);
+    }
+  });
+
+  it('keeps these exact starter directories and files, named literally', () => {
+    const keptPaths = [
+      '/theme/app/app.vue',
+      '/theme/blocks/hero/block.json',
+      '/theme/pages/home.page.json',
+      '/theme/public/favicon.ico',
+      '/theme/.eldra/manifest.json',
+      // Substring/segment-boundary guard: a real block named like an excluded directory is not
+      // caught by a substring match on "coverage".
+      '/theme/blocks/coverage-chart/block.json',
+    ];
+    for (const path of keptPaths) {
+      expect(shouldCopyTemplatePath(path)).toBe(true);
+    }
+  });
+
   it('excludes every listed directory name at any depth', () => {
     for (const name of EXCLUDE_DIR_NAMES) {
       expect(shouldCopyTemplatePath(`/theme/${name}`)).toBe(false);
