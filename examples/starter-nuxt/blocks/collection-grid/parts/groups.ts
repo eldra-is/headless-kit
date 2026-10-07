@@ -202,6 +202,12 @@ export function queryKeyFor(source: FilterSource): string {
  * option key render correctly without this file knowing the key at all — the two hard-coded `size`/
  * `colour` keys it used to carry meant a store spelling its option `color` got a group with no values
  * and no group.
+ *
+ * The product page's picker reaches the same answer from the same evidence
+ * (`app/storefront/options.ts`'s `optionDisplayType`, which also wants one real swatch before it
+ * draws discs), so one option is never dots in this panel and pills on the product, or the reverse.
+ * The option's own `kind` is carried on the facet (`CatalogFacetOption.kind`) and deliberately not
+ * consulted here: it is the merchant's permission to show colours, not evidence that any exist.
  */
 export function groupKindFor(
   source: FilterSource,

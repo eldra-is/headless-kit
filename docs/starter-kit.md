@@ -867,6 +867,85 @@ Storybook, the sample pages and the specs filter for real without a gateway. The
 both jobs to the platform and shares only the one thing that is not a backend's to decide — the
 `in_stock`/`out_of_stock` vocabulary, which the panel reads a shared URL through as well.
 
+### How a variant option is displayed
+
+**The merchant decides, and the theme reads it.** A variant option carries a **display kind** the
+merchant sets in Studio ("Display as") — `none`, `color` or `custom` — and a `color` option carries a
+hex colour on each of its values. `StorefrontProductOption` therefore has three fields where it used
+to have one:
+
+| field      | what it is                                                                                                                 |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `kind`     | `'none' \| 'color' \| 'custom'` — the merchant's choice, as the platform stores it. `none` for a source that does not say. |
+| `metadata` | the merchant's own name for a `custom` option (`[A-Za-z0-9_.-]`, ≤ 64 chars). Absent on every other kind.                  |
+| `type`     | `'swatches' \| 'pills'`, **derived** by `app/storefront/options.ts`'s `optionDisplayType` — what `VariantPicker` takes.    |
+
+Each value's `swatch` is a CSS colour from the store — content, never a design token — and
+`@eldrajs/ui`'s `VariantPicker` paints it as the disc's background with the value's label as
+visually hidden text, so the colour is never the only thing carrying the meaning.
+
+**Nothing is guessed from the option's name.** An option a merchant called "Colour" and left on
+`none` is pills; one called "Litur" and set to `color` draws swatches. That is the whole point of the
+field: before it existed the only way a theme could draw colour circles was to match the option's
+label — a merchant's word, translated per locale and theirs to rename — and a store that spelled it
+"Color" or sold by "Finish" got pills no matter what the photography needed.
+
+**The kind is permission to show colours, not a promise that there are any.** `optionDisplayType`
+answers `swatches` only for a `color` option with **at least one** `swatch` on its values, and
+`pills` otherwise — including for a `color` option whose colours a merchant has not picked yet or has
+cleared again, both of which the platform allows (a value's colour is nullable) and Studio's own
+clearable picker produces. The reason is the hidden label: a swatch picker with nothing to paint
+draws one identical empty circle per value with every name in visually hidden text, so a sighted
+shopper cannot tell M from XL, where the pills it replaced read their names out loud. The option
+keeps its `kind` — the merchant's intent is still the merchant's — and only the control falls back.
+
+A **filter group** decides the same way from the same evidence (`groupKindFor` in
+`blocks/collection-grid/parts/groups.ts`: dots when the group's values carry swatches, pills
+otherwise), so the two surfaces can never disagree about one option. One function and one rule; the
+facets carry `kind` too, for a theme that wants to read the intent even where there is nothing yet to
+paint (`CatalogFacetOption.kind`).
+
+**A single value without a colour, inside an option whose other values have one, keeps its place** —
+uncoloured, exactly as such a row survives in a filter panel's colour group rather than being
+dropped. Dropping it would hide a variant a shopper can buy. In the picker's swatch mode that one
+disc is also unlabelled (the label is visually hidden there), so the fix is to fill the colour in, or
+to clear the rest and get pills for the whole option.
+
+**Branching on a `custom` option.** `blocks/product-detail` stamps `data-option-kind` (and
+`data-option-metadata` for a `custom` option) on each picker row, which is the hook to use if your
+fork wants to render one named option its own way:
+
+```css
+/* The merchant's `custom` option named `fabric-chip`, drawn wider than the other pills. */
+[data-option-metadata='fabric-chip'] [data-part='radio'] {
+  min-width: 6rem;
+}
+```
+
+`custom` is deliberately not a third control. A theme that wants one reads `option.metadata` (or the
+attribute above) and renders that option itself; everything else keeps working, because a `custom`
+option is a list of values like any other. The block's "Size guide" link goes beside the **first**
+option drawn as pills — the size option on any ordinary product — rather than beside every pills
+option, so a product with Size and a `custom` option does not render the link twice.
+
+**A product card's dots** (`StorefrontProductListItem.colours`) are the `color`-kind option's values:
+`undefined` when the source cannot say (the platform's product _list_ read answers no options today,
+so that is the live site's answer), `[]` when it can and there are none — two different answers to
+`app/storefront/facets.ts` — and a value with no colour left out rather than drawn as a blank dot.
+
+A gateway answering a contract older than the field sends no `kind` at all, and a kind this theme has
+never heard of is one it cannot draw: both read as `none`, never as a failure — the mapping runs on
+the product read's own path, where a refusal replaces the whole page with an error alert over a
+presentational field. A value's `swatch` is passed through whatever the kind says (and a `null` or
+empty one is dropped on both the product and the facet read), so a gateway that populates the colour
+before it populates the kind loses nothing.
+
+**If you have forked a storefront source**, note that `kind` is **required** on
+`StorefrontProductOption` and on `CatalogFacetOption`, not optional: a read always includes it, and a
+third "the source did not say" state would be one more thing for every reader to branch on. Your own
+source has to set it — `'none'` is the honest answer for a backend that has no such field — and
+`optionDisplayType` is there so you never decide the control yourself.
+
 ### The category tree
 
 `GET /catalog/v1/categories` answers the organisation's whole category list — `{id, slug, title,

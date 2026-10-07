@@ -314,6 +314,9 @@ describe('deriveFacets', () => {
         {
           key: 'size',
           name: 'size',
+          // No swatch anywhere in the family, so the derivation calls it `none` — exactly what a
+          // merchant's "Display as: None" answers on the live site.
+          kind: 'none',
           values: [
             { value: 's', label: 'S', count: 1 },
             { value: 'm', label: 'M', count: 2 },
@@ -322,6 +325,8 @@ describe('deriveFacets', () => {
         {
           key: 'colour',
           name: 'colour',
+          // Read off the values, never the key: these carry swatches, so the group is a colour one.
+          kind: 'color',
           values: [
             { value: 'oat', label: 'oat', swatch: '#000', count: 1 },
             { value: 'moss', label: 'moss', swatch: '#000', count: 1 },
@@ -397,6 +402,7 @@ describe('deriveFacets', () => {
         {
           key: 'colour',
           name: 'colour',
+          kind: 'color',
           values: [
             { value: 'oat', label: 'Oat', swatch: '#d8cbb0', count: 2 },
             { value: 'moss', label: 'Moss', swatch: '#6b7a4f', count: 1 },

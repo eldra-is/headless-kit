@@ -278,6 +278,26 @@ const onSale = computed(() => saving.value !== null);
 
 const options = computed(() => product.value?.options ?? []);
 
+/**
+ * **Which option's legend row the "Size guide" link sits beside — one row, ever.**
+ *
+ * Spec Layout, Pickers places the link "at the far end" of *the* legend row, singular. The gate used
+ * to be `option.type === 'pills'`, which is a property of the **control** rather than of the option,
+ * so every pills option got a link of its own: a product with Size and a `custom` "Fabric" option
+ * rendered two identical "Size guide" links. Naming the option is not available — a size option is
+ * whatever the merchant called it, in whatever language, which is the guess this whole feature
+ * removes — so the link goes to the **first** option drawn as pills, which is the size option on
+ * every ordinary product and a harmless single link on any other. A product whose options are all
+ * swatches gets none, exactly as before.
+ *
+ * A **position**, not a name: two options can share one (the module comment above says why that is a
+ * shape this block already tolerates), and matching on the name would put the link back on both.
+ * `-1` when nothing is drawn as pills, which no index equals.
+ */
+const sizeGuideOptionIndex = computed(() =>
+  options.value.findIndex((option) => option.type === 'pills')
+);
+
 /** One selected value per option, keyed by the option's own `name`. */
 const selection = ref<Record<string, string>>({});
 
@@ -666,10 +686,21 @@ function tabValue(index: number): string {
               fieldset a first baseline, so baseline alignment drops the link down to the options
               row instead of the legend's.
             -->
+            <!--
+              `data-option-kind` (and `data-option-metadata` for a `custom` option) is how a theme
+              branches on the merchant's display choice without forking this block: the kind decides
+              the control through `option.type` already (`color` → swatches, everything else →
+              pills), and a customer who wants their one named option rendered its own way has a
+              stable hook for it that is not the option's label — see `docs/starter-kit.md`. The
+              attributes are on the row rather than the picker so a replacement control inside it is
+              covered too.
+            -->
             <div
-              v-for="option in options"
+              v-for="(option, optionIndex) in options"
               :key="option.name"
               class="grid grid-cols-[1fr_auto] items-start gap-x-4"
+              :data-option-kind="option.kind"
+              :data-option-metadata="option.metadata"
             >
               <VariantPicker
                 v-model="selection[option.name]"
@@ -679,7 +710,7 @@ function tabValue(index: number): string {
                 :options="option.values"
               />
               <Link
-                v-if="option.type === 'pills' && sizeGuideHref"
+                v-if="optionIndex === sizeGuideOptionIndex && sizeGuideHref"
                 :href="sizeGuideHref"
                 :as="sizeGuideAs"
                 tone="muted"

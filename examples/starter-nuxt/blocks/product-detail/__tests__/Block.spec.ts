@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront } from '../../../app/storefront/demo';
+import { optionDisplayType } from '../../../app/storefront/options';
 import { createCartStore, type CartOps, type CartSnapshot } from '../../../app/storefront/cart';
 import {
   STOREFRONT_KEY,
@@ -122,6 +123,18 @@ function statusLine(wrapper: Wrapper) {
 function addToCart(wrapper: Wrapper) {
   return wrapper.get('button[type="submit"]');
 }
+/**
+ * One option as a storefront would hand it over: the merchant's facts, with `type` **derived** by the
+ * same function both storefront sources use. Writing `type` by hand here would make every render
+ * assertion below blind to a regression in that derivation — which is exactly the defect that let a
+ * `color` option with no colours reach the swatch picker.
+ */
+function option(
+  fixture: Omit<StorefrontProduct['options'][number], 'type'>
+): StorefrontProduct['options'][number] {
+  return { ...fixture, type: optionDisplayType(fixture.kind, fixture.values) };
+}
+
 function optionByLabel(wrapper: Wrapper, label: string) {
   return wrapper
     .findAll('label')
@@ -728,6 +741,229 @@ describe('product-detail block', () => {
       // exercises that default.
       const noHref = await mountReady(mock);
       expect(noHref.find('a[href="/pages/size-guide"]').exists()).toBe(false);
+    });
+
+    /**
+     * **The merchant's "Display as" choice is what picks the control.** The storefront maps the
+     * option's own `kind` to `type` (`app/storefront/options.ts`) and the picker draws from that, so
+     * these three cases are the whole rule a theme has to honour: `color` is circles, `none` and
+     * `custom` are pills, and the option's *name* is never consulted — the guess that used to be the
+     * only way to get colour circles out of this block.
+     *
+     * The row carries the kind (and a `custom` option's name) as data attributes, which is the hook a
+     * customer's own fork branches on instead of matching a translated label.
+     */
+    it('draws the colour option as swatches and the size option as pills', async () => {
+      const wrapper = await mountReady(mock);
+      const rows = wrapper.findAll('[data-option-kind]');
+
+      expect(rows.map((row) => row.attributes('data-option-kind'))).toEqual(['color', 'none']);
+      // The colour disc is the swatch part, and its one per-item colour is an inline style from the
+      // store's own data.
+      const swatches = rows[0]!.findAll('[data-part="swatch"]');
+      expect(swatches).toHaveLength(4);
+      expect(swatches[0]!.attributes('style')).toContain('rgb(216, 203, 176)');
+      // Its accessible name is the colour's own name, visually hidden inside the label.
+      expect(rows[0]!.findAll('label')[0]!.text()).toBe('Oat');
+      // Pills have no disc at all, and their label is the visible text.
+      expect(rows[1]!.findAll('[data-part="swatch"]')).toHaveLength(0);
+      expect(rows[1]!.findAll('label')[0]!.text()).toBe('XS');
+      expect(rows.every((row) => row.attributes('data-option-metadata') === undefined)).toBe(true);
+    });
+
+    /**
+     * The defect the `kind` field exists to remove, at the rendering layer: an option a merchant
+     * named "Colour" and left on None is a list of words. The values even carry colours here — a
+     * store that set them and then switched the option back — and the picker still draws pills,
+     * because what is shown follows the merchant's choice and nothing else.
+     */
+    it('draws pills for an option named for a colour whose kind is none', async () => {
+      const wrapper = await mountReady(mock, {
+        storefront: storefrontWith({
+          options: [
+            option({
+              name: 'colour',
+              label: 'Colour',
+              kind: 'none',
+              values: [
+                { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
+                { value: 'moss', label: 'Moss', swatch: '#6b7a4f', available: true },
+              ],
+            }),
+          ],
+        }),
+      });
+
+      const row = wrapper.get('[data-option-kind="none"]');
+      expect(row.findAll('[data-part="swatch"]')).toHaveLength(0);
+      expect(row.findAll('label').map((label) => label.text())).toEqual(['Oat', 'Moss']);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('draws a custom option as pills and exposes the merchant’s own name for it', async () => {
+      const wrapper = await mountReady(mock, {
+        storefront: storefrontWith({
+          options: [
+            option({
+              name: 'fabric',
+              label: 'Fabric',
+              kind: 'custom',
+              metadata: 'fabric-chip',
+              values: [
+                { value: 'merino', label: 'Merino', available: true },
+                { value: 'lambswool', label: 'Lambswool', available: true },
+              ],
+            }),
+          ],
+        }),
+      });
+
+      const row = wrapper.get('[data-option-kind="custom"]');
+      expect(row.attributes('data-option-metadata')).toBe('fabric-chip');
+      expect(row.findAll('[data-part="swatch"]')).toHaveLength(0);
+      expect(row.findAll('label').map((label) => label.text())).toEqual(['Merino', 'Lambswool']);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /**
+     * **A Color option whose colours are not set reads its values out loud.** The swatch control
+     * hides every value's name in `sr-only` text (`VariantPicker`'s own spec rule — the disc *is*
+     * the name), so a picker with nothing to paint would be a row of identical empty circles a
+     * sighted shopper cannot choose between. Studio's colour control is clearable and the platform
+     * leaves the colour nullable, so this is an ordinary state, not a corrupt one: the option keeps
+     * `kind: 'color'` and draws pills with visible labels.
+     */
+    it('draws a colour option with no colours set as labelled pills, not blank discs', async () => {
+      const wrapper = await mountReady(mock, {
+        storefront: storefrontWith({
+          options: [
+            option({
+              name: 'colour',
+              label: 'Colour',
+              kind: 'color',
+              values: [
+                { value: 'oat', label: 'Oat', available: true },
+                { value: 'moss', label: 'Moss', available: true },
+              ],
+            }),
+          ],
+        }),
+      });
+
+      const row = wrapper.get('[data-option-kind="color"]');
+      expect(row.findAll('[data-part="swatch"]')).toHaveLength(0);
+      expect(row.findAll('label').map((label) => label.text())).toEqual(['Oat', 'Moss']);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /**
+     * One colour is enough, and the value without one keeps its place rather than disappearing — a
+     * variant a shopper can buy must stay buyable. Its disc simply carries no background, the way an
+     * uncoloured row survives in a filter panel's colour group.
+     */
+    it('keeps a colourless value inside a swatch group, uncoloured', async () => {
+      const wrapper = await mountReady(mock, {
+        storefront: storefrontWith({
+          options: [
+            option({
+              name: 'colour',
+              label: 'Colour',
+              kind: 'color',
+              values: [
+                { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
+                { value: 'unset', label: 'Unset', available: true },
+              ],
+            }),
+          ],
+        }),
+      });
+
+      const swatches = wrapper.get('[data-option-kind="color"]').findAll('[data-part="swatch"]');
+      expect(swatches).toHaveLength(2);
+      expect(swatches[0]!.attributes('style')).toContain('rgb(216, 203, 176)');
+      expect(swatches[1]!.attributes('style')).toBeUndefined();
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    /**
+     * Spec Layout, Pickers places the link "at the far end" of *the* legend row, singular. Gating it
+     * on the control (`type === 'pills'`) gave every pills option one, so Size plus a `custom`
+     * "Fabric" option rendered the link twice. `findAll`, not `get`: `get` returns the first match
+     * and cannot see a duplicate, which is why the existing assertion missed this.
+     */
+    it('shows the size guide link once, even with two pills options', async () => {
+      const wrapper = await mountReady(
+        { ...mock, sizeGuideHref: '/pages/size-guide' },
+        {
+          storefront: storefrontWith({
+            options: [
+              option({
+                name: 'size',
+                label: 'Size',
+                kind: 'none',
+                values: [{ value: 'm', label: 'M', available: true }],
+              }),
+              option({
+                name: 'fabric',
+                label: 'Fabric',
+                kind: 'custom',
+                metadata: 'fabric-chip',
+                values: [{ value: 'merino', label: 'Merino', available: true }],
+              }),
+            ],
+          }),
+        }
+      );
+
+      expect(wrapper.findAll('a[href="/pages/size-guide"]')).toHaveLength(1);
+      // And it sits beside the first pills option — the size option on any ordinary product.
+      expect(
+        wrapper.get('[data-option-kind="none"]').find('a[href="/pages/size-guide"]').exists()
+      ).toBe(true);
+    });
+
+    /**
+     * Two options can carry the same `name` — the block's own module comment says so, which is why
+     * each picker's native radio `name` is suffixed with the block instance id. The link is gated on
+     * the option's **position** for exactly that reason; matching on the name would put it back on
+     * both rows.
+     */
+    it('shows the size guide link once even when two options share a name', async () => {
+      const values = [{ value: 'm', label: 'M', available: true }];
+      const wrapper = await mountReady(
+        { ...mock, sizeGuideHref: '/pages/size-guide' },
+        {
+          storefront: storefrontWith({
+            options: [
+              option({ name: 'size', label: 'Size', kind: 'none', values }),
+              option({ name: 'size', label: 'Inseam', kind: 'none', values }),
+            ],
+          }),
+        }
+      );
+
+      expect(wrapper.findAll('a[href="/pages/size-guide"]')).toHaveLength(1);
+    });
+
+    /** A product whose every option is swatches gets no link at all, as before. */
+    it('shows no size guide link when no option is drawn as pills', async () => {
+      const wrapper = await mountReady(
+        { ...mock, sizeGuideHref: '/pages/size-guide' },
+        {
+          storefront: storefrontWith({
+            options: [
+              option({
+                name: 'colour',
+                label: 'Colour',
+                kind: 'color',
+                values: [{ value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true }],
+              }),
+            ],
+          }),
+        }
+      );
+
+      expect(wrapper.find('a[href="/pages/size-guide"]').exists()).toBe(false);
     });
   });
 

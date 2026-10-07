@@ -2,6 +2,7 @@ import { nextTick, reactive, ref, watch, type Ref } from 'vue';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
+import { optionDisplayType } from './options';
 import {
   deriveFacets,
   filterItems,
@@ -310,22 +311,41 @@ function buildListItem(def: DemoProductDef, index: number): StorefrontProductLis
 /** The Northwind catalogue — exactly the twelve products the block specs name. */
 export const PRODUCTS: StorefrontProductListItem[] = PRODUCT_DEFS.map(buildListItem);
 
+/**
+ * One option as the fixture declares it: the merchant's facts — the key, the label, the display kind
+ * and the values — with `type` derived from the kind *and the values* by the same function the
+ * gateway source uses (`optionDisplayType`). Going through it rather than writing `'swatches'` is
+ * what keeps Storybook honest: the demo's swatches are there for the reason the live site's are, and
+ * a fixture that declared `kind: 'color'` and forgot the colours would draw pills here exactly as it
+ * would on a real store.
+ */
+function demoOption(
+  option: Omit<StorefrontProduct['options'][number], 'type'>
+): StorefrontProduct['options'][number] {
+  return { ...option, type: optionDisplayType(option.kind, option.values) };
+}
+
+/**
+ * The fixture's own option set, and the one place in the demo that declares a display kind. Colour is
+ * `color` with a colour on every value, so it draws swatches; size is `none` — a plain list of
+ * values, and what every option looked like before the field existed.
+ */
 const MERINO_OPTIONS: StorefrontProduct['options'] = [
-  {
+  demoOption({
     name: 'colour',
     label: 'Colour',
-    type: 'swatches',
+    kind: 'color',
     values: [
       { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
       { value: 'charcoal', label: 'Charcoal', swatch: '#3a3a3a', available: true },
       { value: 'clay', label: 'Clay', swatch: '#b5651d', available: true },
       { value: 'moss', label: 'Moss', swatch: '#6b7a4f', available: false },
     ],
-  },
-  {
+  }),
+  demoOption({
     name: 'size',
     label: 'Size',
-    type: 'pills',
+    kind: 'none',
     values: [
       { value: 'xs', label: 'XS', available: true },
       { value: 's', label: 'S', available: true },
@@ -333,7 +353,7 @@ const MERINO_OPTIONS: StorefrontProduct['options'] = [
       { value: 'l', label: 'L', available: true },
       { value: 'xl', label: 'XL', available: false },
     ],
-  },
+  }),
 ];
 
 function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct {

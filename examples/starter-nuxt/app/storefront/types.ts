@@ -65,6 +65,16 @@ export interface StorefrontProductListItem {
   featuredImage?: StorefrontMedia | null;
   price: StorefrontPrice;
   rating?: { value: number; count: number } | null;
+  /**
+   * The dots a card shows under its image, in the store's own order.
+   *
+   * **A source fills it from the product's `color`-kind option** — its values' `swatch` colours,
+   * named by their labels (`gateway.ts`'s `mapProductListItem`, `demo.ts`'s own fixture) — so a
+   * merchant who left the option on `none` gets no dots, whatever the option is called. **Absent**
+   * when the source cannot say: the platform's product *list* read carries no options at all today,
+   * which is a different answer from a product with no colours (`[]`), and
+   * `app/storefront/facets.ts` reads the two apart (`optionValuesOf`).
+   */
   colours?: Array<{ name: string; swatch: string }>;
   stock: 'in' | 'low' | 'out' | 'preorder';
   available: boolean;
@@ -99,10 +109,52 @@ export interface StorefrontSearchProduct extends Omit<StorefrontProductListItem,
   price: StorefrontPrice | null;
 }
 
+/**
+ * **How the merchant chose to display a variant option**, stored on the option itself by the
+ * platform and set in Studio's "Display as" select.
+ *
+ * `none` is every option that came before the field existed and every option a merchant left alone —
+ * a plain list of values. `color` means the values carry a `swatch` each and the picker draws
+ * circles. `custom` is a value-list option the merchant has given a **name** to
+ * (`StorefrontProductOption.metadata`): it draws as pills like `none`, and the name is there for a
+ * theme that wants to render that one option its own way.
+ *
+ * Read it from a platform that sends it, and **never from the option's key**. The whole point of the
+ * field is that `"Colour"`, `"Color"` and `"Litur"` are a merchant's words for an option, not an
+ * instruction to the theme, which is what every storefront used to guess from. (A source with no
+ * platform to ask derives it from what it does have — `app/storefront/facets.ts` reads the demo's
+ * own facets off its values' swatches — but never from the key either.)
+ */
+export type StorefrontOptionKind = 'none' | 'color' | 'custom';
+
 export interface StorefrontProductOption {
   name: string;
   label: string;
+  /** The merchant's own display choice, as the platform stores it. `none` for a source that does not
+   *  say — a gateway older than the contract that added it, or a kind this theme cannot draw. */
+  kind: StorefrontOptionKind;
+  /**
+   * **The merchant's name for a `custom` option** — their own vocabulary (`fabric`, `fit`), limited
+   * to `[A-Za-z0-9_.-]` by the platform so it is safe to switch on. Absent on every other kind, and
+   * absent on a `custom` option a source could not name.
+   *
+   * Nothing in this theme branches on it: `custom` renders as pills, exactly as `none` does. It is
+   * carried so a customer's own fork can render one named option differently without having to match
+   * on a label a merchant may translate — see `docs/starter-kit.md`.
+   */
+  metadata?: string;
+  /**
+   * **Derived from `kind` and the values' own colours, never from the option's name**: swatches for a
+   * `color` option that has at least one `swatch` to show, pills for everything else — including a
+   * `color` option whose colours the merchant has not picked or has cleared, because a swatch picker
+   * with nothing to paint hides every value's name in visually hidden text. One place makes that
+   * decision, `app/storefront/options.ts`'s `optionDisplayType`, and a filter group makes the same
+   * one from the same evidence. Kept as its own field because it is what `@eldrajs/ui`'s
+   * `VariantPicker` takes.
+   */
   type: 'swatches' | 'pills';
+  /** `swatch` is a CSS colour from the store — content, never a design token — and the platform
+   *  allows one only on a `color`-kind option. */
   values: Array<{ value: string; label: string; swatch?: string; available: boolean }>;
 }
 
@@ -211,6 +263,22 @@ export interface CatalogFacetOptionValue {
 export interface CatalogFacetOption {
   key: string;
   name: string;
+  /**
+   * The merchant's display choice for this option (`StorefrontOptionKind`), carried through from the
+   * platform's own facets so a panel reads the same fact the product page does. `none` for a source
+   * that does not say.
+   *
+   * **It is not what decides the group's control** — that is the values' own swatches
+   * (`blocks/collection-grid/parts/groups.ts`'s `groupKindFor`), the same evidence the product page's
+   * picker goes by (`StorefrontProductOption.type`), because a dot with no colour is worse than a
+   * pill: a `color`-kind option whose colours the store has not set has nothing to draw. The kind is
+   * what makes the platform send those swatches in the first place, and it is carried so a theme can
+   * read the merchant's intent even where there is nothing yet to paint.
+   */
+  kind: StorefrontOptionKind;
+  /** The merchant's name for a `custom` option, as on `StorefrontProductOption.metadata`. Absent on
+   *  every other kind. */
+  metadata?: string;
   values: CatalogFacetOptionValue[];
 }
 
