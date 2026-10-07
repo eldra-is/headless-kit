@@ -112,6 +112,8 @@ declare global {
       sortOptions?: Array<{ option: 'featured' | 'best-selling' | 'price-asc' | 'price-desc' | 'newest'; label?: string }>;
       filters?: Array<{ source: 'category' | 'collection' | 'options' | 'option:size' | 'option:colour' | 'price' | 'availability'; label?: string; collapsed?: boolean }>;
       priceSlider?: boolean;
+      colourLayout?: 'list' | 'grid';
+      sizeGuideHref?: EldraLink;
       priceStep?: number;
       showColumnSelect?: boolean;
       emptyTitle?: string;

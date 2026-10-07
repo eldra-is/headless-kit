@@ -103,3 +103,15 @@ export const PaginationStylePages: Story = {
     entry: { id: "collection-grid", data: { ...base, "paginationStyle": "pages" } },
   },
 };
+
+export const ColourLayoutList: Story = {
+  args: {
+    entry: { id: "collection-grid", data: { ...base, "colourLayout": "list" } },
+  },
+};
+
+export const ColourLayoutGrid: Story = {
+  args: {
+    entry: { id: "collection-grid", data: { ...base, "colourLayout": "grid" } },
+  },
+};
