@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
-import { ref } from 'vue';
+import { getCurrentInstance, nextTick, onMounted, ref } from 'vue';
 import FilterPanel from './FilterPanel.vue';
 import {
   ALL_FACETS,
@@ -180,6 +180,31 @@ function panel(width = '16rem', selection: FilterSelection = {}) {
   };
 }
 
+/**
+ * Clicks the named groups' own triggers once the panel has mounted — the same real click
+ * `Popover.stories.ts`'s `openOnMount` uses on its own trigger, for the same reason: a group whose
+ * facet carries `collapsed: true` **and** a selection starts open regardless
+ * (`useFilterPanel.ts`'s `facetStartsOpen`, spec → Facet shape, `collapsed`: "a group with a
+ * selected value always starts open"), so a story wanting the *collapsed*-with-summary state the
+ * reference image shows has to close it the way a shopper would — a click on the trigger — rather
+ * than ask the panel to render a state its own rule forbids on mount.
+ */
+function collapseGroupsOnMount(facetIds: readonly string[]): void {
+  const instance = getCurrentInstance();
+  onMounted(() => {
+    void nextTick(() => {
+      const root = instance?.proxy?.$el as Element | null | undefined;
+      for (const facetId of facetIds) {
+        root
+          ?.querySelector<HTMLElement>(
+            `[data-part="group"][data-facet="${facetId}"] [data-part="trigger"]`
+          )
+          ?.click();
+      }
+    });
+  });
+}
+
 /** The sidebar as a collection page draws it: every facet type, nothing selected yet. */
 export const Sidebar: Story = { ...panel() };
 
@@ -198,13 +223,29 @@ export const Selected: Story = {
 };
 
 /**
- * Collapsed groups with their summaries. A group with a selection would open itself, so these
- * start closed with the selection applied and the summary is what the trigger shows — "Sweaters",
- * "Brown, Natural" — truncated with an ellipsis when it does not fit.
+ * Collapsed groups with their summaries. A group with a selection would open itself
+ * (`facetStartsOpen`), so Category and Colour are closed **after** mount, by the same real click a
+ * shopper would make (`collapseGroupsOnMount`) — the summary is what the trigger shows once closed,
+ * "Sweaters", "Brown, Natural", truncated with an ellipsis when it does not fit. Every other group
+ * stays open, exactly as `collapsed: true` with no selection of its own already draws it.
  */
 export const CollapsedSummaries: Story = {
   args: { facets: FACET_SETS['Every facet type, collapsed'] },
-  ...panel('16rem', { category: ['sweaters'], colour: ['brown', 'natural'] }),
+  render: (args: Record<string, unknown>) => ({
+    components: { FilterPanel },
+    setup: () => {
+      collapseGroupsOnMount(['category', 'colour']);
+      return {
+        args,
+        selection: ref<FilterSelection>({ category: ['sweaters'], colour: ['brown', 'natural'] }),
+      };
+    },
+    template: `
+      <div style="width: 16rem">
+        <FilterPanel v-bind="args" v-model="selection" />
+      </div>
+    `,
+  }),
 };
 
 /**
