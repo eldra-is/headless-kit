@@ -1124,8 +1124,8 @@ against a mock gateway that fails exactly one read.
 `crawlLinks: false` Nitro still queues each rendered page's own `_payload.json` from the
 `x-nitro-prerender` header, and rendering that payload resolves the route against the gateway a
 second time — so 84 locale routes are roughly 168 resolutions, and a build fails if any one of them
-cannot be answered. `nitro.prerender.concurrency` is the knob to lower if a gateway turns out to be
-load-sensitive rather than broken.
+cannot be answered. A gateway that is merely under load is handled by the clients' own retry, below;
+`nitro.prerender.concurrency` is **not** the knob for it, because Nitro's default is already 1.
 
 ### When the gateway rate-limits the build
 
@@ -1157,6 +1157,17 @@ genuinely narrower than the build. Then, in order:
    likelier, not a build faster.
 3. **Ask for a higher limit for the build's address** rather than reaching for
    `failOnError: false`, which buys a green build by shipping an artifact with pages missing.
+
+**The new failure mode is a build that crawls, not one that fails.** That is the point, but it is
+also the one thing nobody can see from the outside, so it is worth knowing the arithmetic. A
+`Retry-After` is honoured up to a minute — `maxDelayMs` caps the _computed_ backoff and **not** a
+wait the gateway asked for — so four waits on a rate limit that keeps asking for a minute is about
+four minutes on **one** read. Nitro then re-renders a route whose response was not 200 up to
+`prerender.retry` (3) more times, and with `concurrency: 1` nothing else is rendered meanwhile, so a
+sustained rate limit can hold a single route for something like a quarter of an hour with no output
+and no error. If a build has gone quiet and the gateway is the suspect, `{ attempts: 0 }` is the
+fail-fast lever: it restores the old behaviour — one request, and the `429` surfaces — so the build
+fails in seconds and names the route.
 
 ## Seeded templates and pages
 

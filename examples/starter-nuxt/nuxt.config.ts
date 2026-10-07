@@ -51,9 +51,14 @@ export default defineNuxtConfig({
     //
     // What this is exposed to is about **twice** the route count: with `crawlLinks: false` Nitro
     // still queues each rendered page's own `_payload.json` from the `x-nitro-prerender` header,
-    // and rendering that resolves the route against the gateway a second time. Lower
-    // `prerender.concurrency` before reaching for `failOnError: false` if a gateway turns out to be
-    // load-sensitive rather than broken.
+    // and rendering that resolves the route against the gateway a second time.
+    //
+    // A gateway that is under load rather than broken — its per-minute rate limit, a restart —
+    // needs no knob here: both clients a build reads through retry a `429`/`503` on an idempotent
+    // read, honouring `Retry-After` (`@eldrajs/theme-nuxt`'s `eldra.retry` configures all of them,
+    // and `{ attempts: 0 }` turns it off so a build fails fast instead of waiting). Do **not**
+    // reach for `prerender.concurrency`: Nitro's default is already 1, so there is nothing to
+    // lower. See `docs/starter-kit.md`, "When the gateway rate-limits the build".
     prerender: {
       crawlLinks: false,
       failOnError: true,

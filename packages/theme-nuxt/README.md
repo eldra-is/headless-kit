@@ -147,9 +147,25 @@ client for commerce reads can hand it the same policy (`useRuntimeConfig().publi
 the starter does.
 
 Two Nitro knobs sit beside it, and neither is this module's to set: `nitro.prerender.concurrency`
-(**1** by default, which is already the gentlest setting) and `nitro.prerender.retry`/`retryDelay`
-(3 × 500 ms by default), which re-render a route whose response was not 200. Lower
-`prerender.concurrency` only if you have raised it.
+(**1** by default, which is already the gentlest setting — there is nothing to lower unless you have
+raised it) and `nitro.prerender.retry`/`retryDelay` (3 × 500 ms by default), which re-render a route
+whose response was one of ofetch's retryable statuses — 408, 409, 425, 429, 500, 502, 503, 504, and
+so the 500 this module answers a failed resolution with, but not a 404.
+
+**The new failure mode is a build that crawls, not one that fails.** A `Retry-After` is honoured up
+to a minute, and `maxDelayMs` caps the _computed_ backoff rather than a wait the gateway asked for,
+so four waits on a limit that keeps asking for a minute is about four minutes on **one** read —
+times Nitro's own re-renders, at `concurrency: 1`, with no output and no error meanwhile. That is
+the intent (a build that waits beats a build that fails), but it is the one thing nobody can
+diagnose from the outside, so `retry: { attempts: 0 }` is the fail-fast lever: one request, and the
+`429` surfaces the way it used to.
+
+**The same policy governs reads a shopper triggers**, not only a build: the runtime plugin's client
+serves SSR, a client-side route change and the Studio preview. A visitor who meets the rate limit on
+a client-side navigation therefore waits — up to a minute on one `Retry-After` — where before they
+were shown an error, which for a transient limit is the better of the two. A site that would rather
+fail fast in the browser than wait can set a smaller `attempts`; the prerender reads use the same
+value, so it is one trade-off, not two.
 
 ## Catalog-backed route templates
 

@@ -1,5 +1,45 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { overlayPreviewDrafts } from '../src/runtime/drafts';
+
+const source = (path: string): string => readFileSync(new URL(path, import.meta.url), 'utf8');
+
+function block(text: string, open: string, close: string): string {
+  const start = text.indexOf(open);
+  expect(start).toBeGreaterThan(-1);
+  const end = text.indexOf(close, start);
+  expect(end).toBeGreaterThan(start);
+  return text.slice(start + open.length, end);
+}
+
+/**
+ * The public runtime config is a string contract between two files that never
+ * import each other: the module writes `runtimeConfig.public.eldra` at build
+ * time and the runtime plugin reads it in the browser. Nothing in the type
+ * system joins them — the plugin declares its own `RuntimeEldraConfig` and
+ * casts — and both readers coalesce a missing key (`cfg.retry ?? undefined`),
+ * so a key renamed on one side only is silent: a configured `eldra.retry`
+ * would simply stop reaching the client and the library defaults would apply.
+ */
+describe('the public runtime config the plugin reads is the one the module writes', () => {
+  it('writes every key the runtime plugin declares', () => {
+    const declared = [
+      ...block(
+        source('../src/runtime/plugin.ts'),
+        'interface RuntimeEldraConfig {',
+        '\n}'
+      ).matchAll(/^ {2}(\w+):/gm),
+    ].map((match) => match[1]);
+    const written = block(
+      source('../src/module.ts'),
+      'nuxt.options.runtimeConfig.public.eldra = {',
+      '\n    };'
+    );
+
+    expect(declared).toContain('retry');
+    for (const key of declared) expect(written).toContain(`${key}:`);
+  });
+});
 
 describe('theme-nuxt runtime', () => {
   it('keeps the preview empty while Nuxt async page data is unresolved', () => {
