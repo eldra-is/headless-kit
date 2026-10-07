@@ -674,71 +674,49 @@ export interface Messages {
   /**
    * The collection-grid block's own strings (spec `02-blocks.md` "Collection grid", 3047-3170).
    * Everything the block writes itself: the `<section>` label naming the collection
-   * (`sectionLabel`), the grid's visually hidden `h2` (`products`), the filter groups' hidden
-   * `<legend>`s (`legend*`) and their count badge (`nSelected`), the price range's own labels
-   * (`minLabel`/`maxLabel` and the word `to` between the two inputs; the amounts themselves are
-   * formatted by the store's own money field — `@eldrajs/ui`'s `CurrencyInput` — and by its own
-   * currency formatter for the thumbs, never by a string here) and
-   * the "Show all 14" link for a group with 12 or more values (`showAllValues`), the nested category
-   * group's own name and its implied children's hidden note (`underValue`/`impliedByValue`); the Filter button
-   * (`filter`) with its count badge (`nActive`), the sidebar landmark (`filters`), the active-filter
-   * list (`activeFilters`, `removeFilter`, `clearAll`); the polite result count, pluralised the way
+   * (`sectionLabel`), the grid's visually hidden `h2` (`products`), a facet's default title when
+   * the author set none (`legend*`, `price`); the Filter button (`filter`) with its count badge
+   * (`nActive`), the sidebar landmark (`filters`); the polite result count, pluralised the way
    * `header.cartOne`/`cartMany` are (`oneProduct`/`nProducts`) and its filtering state
    * (`updating`); `productsNoun` for `LoadMore`'s own "Showing 6 of 48 products" line and
-   * `pagination` for the `Pagination` landmark; the drawer's apply button (`showNProducts`); the
-   * empty-results sentence naming the active filters (`nothingIn`) and its button
-   * (`clearFilters`); the Sort by / Columns select labels and the five sort option names used when
-   * a `sortOptions[].label` is empty; `price` as the price group's own title (every other group
-   * falls back to the store's own facet label); and the editor-only hint shown when no collection
-   * is bound (spec States, "Empty (freshly inserted)").
+   * `pagination` for the `Pagination` landmark; the empty-results sentence naming the active
+   * filters (`nothingIn`) and its button (`clearFilters`); the Sort by / Columns select labels and
+   * the five sort option names used when a `sortOptions[].label` is empty; and the editor-only
+   * hint shown when no collection is bound (spec States, "Empty (freshly inserted)").
+   *
+   * The filter panel itself — groups, chips, Clear all, the price fields and thumbs, the Size
+   * guide link — is `@eldrajs/ui`'s `FilterPanel`, drawn from its own message catalogue
+   * (`filterPanel*`, `messages/en-US.ts` / `messages/is-IS.ts` in that package); nothing here names
+   * any of it any more. `activeFilters` and `clearAll` below are kept only so a block spec can
+   * assert against one shared constant that happens to read the same English text as the panel's
+   * own `filterPanelApplied`/`filterPanelClearAll` — the block itself never calls `t()` on either.
    */
   grid: {
     sectionLabel: string;
     products: string;
-    nSelected: string;
     legendCategory: string;
     legendCollection: string;
     legendSize: string;
     legendColour: string;
-    /** "Price range in {currency}" — the price group's hidden legend, which is what lets the
-     *  slider's own fields drop a currency prefix. */
-    legendPrice: string;
-    /** The same legend for a store that publishes no currency to name. */
-    legendPriceAny: string;
     legendAvailability: string;
-    /** The two `availability` values' own names: the storefront's facets carry counts, not
-     *  labels. */
+    /** The combined `toggle` facet's own values' names: the storefront's facets carry counts, not
+     *  labels. "In stock only" is the one switch row the theme names itself. */
     availabilityInStock: string;
     availabilityOutOfStock: string;
+    /** The price facet's own title when the author set none (every other facet falls back to the
+     *  store's own facet label). */
     price: string;
-    to: string;
-    /** The two-field fallback's own short labels (the block's `priceSlider` off). */
-    minLabel: string;
-    maxLabel: string;
-    /** The range slider's two thumbs and its two typed fields ("Minimum price"). */
-    minPriceLabel: string;
-    maxPriceLabel: string;
-    showAllValues: string;
-    /**
-     * The nested `role="group"` a category's children sit in, named after the parent ("Under
-     * Tableware"), and the hidden note on a child row a ticked parent already covers ("included in
-     * Tableware"). Both exist only for a store whose categories are a tree; a flat group draws
-     * neither.
-     */
-    underValue: string;
-    impliedByValue: string;
     filter: string;
     nActive: string;
     filters: string;
+    /** Test-only constants — see this type's own doc comment. */
     activeFilters: string;
-    removeFilter: string;
     clearAll: string;
     updating: string;
     oneProduct: string;
     nProducts: string;
     productsNoun: string;
     pagination: string;
-    showNProducts: string;
     nothingIn: string;
     noResultsTitle: string;
     clearFilters: string;

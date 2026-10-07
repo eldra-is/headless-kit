@@ -1537,7 +1537,7 @@ function mapFacets(
           key: option.key!,
           name: option.name ?? option.key!,
           // Carried so a panel reads the same fact the product page does. What a group *draws* is
-          // decided by its values (`parts/groups.ts`'s `groupKindFor`) — the same evidence
+          // decided by its values (`parts/groups.ts`'s `facetTypeFor`) — the same evidence
           // `optionDisplayType` goes by on the product page, so one option cannot be dots here and
           // pills there: a `color` option the store set no colours for has nothing to put in a dot.
           kind,

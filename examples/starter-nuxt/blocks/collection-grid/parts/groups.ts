@@ -1,18 +1,25 @@
 /**
- * The filter groups' own vocabulary, shared by `Block.vue` (which builds the groups out of the
- * `filters[]` field and the storefront's facets) and `parts/FilterGroups.vue` (which renders them
- * in both the sidebar and the drawer).
+ * The `CatalogFacets → FilterFacet[]` adapter: turns the storefront's own description of a scope
+ * into the shape `@eldrajs/ui`'s `FilterPanel` draws (`Block.vue`'s own `facets` computed calls
+ * `buildFilterFacets`). The package never sees a catalogue shape or a router — this file, and
+ * `Block.vue`'s own state around it, are the only place that translation happens.
  *
  * `filters[].source` is the *field's* vocabulary (`options`, `option:size`) while the storefront's
- * `CatalogFacets` is the *store's* (`options[].key` = `size`, `colour`) — `groupValuesFor` is the one
- * place those two are reconciled, together with the rule that decides which values a group offers at
- * all.
- *
- * Everything here is pure, so the price arithmetic a slider and a URL share
- * (`parsePriceRange`/`rangeFromSlider`) is provable without mounting anything.
+ * `CatalogFacets` is the *store's* (`options[].key` = `size`, `colour`) — `facetValuesFor` is the
+ * one place those two are reconciled, together with the rule that decides which values a facet
+ * offers at all. Everything here is pure, so the price arithmetic a slider and a URL share
+ * (`parsePriceRange`/`rangeFromSlider`) and the panel-selection bridge (`applyPanelSelection`) are
+ * provable without mounting anything.
  */
 import { IN_STOCK, OUT_OF_STOCK } from '../../../app/storefront/facets';
 import type { CatalogFacetTerm, CatalogFacets } from '../../../app/storefront/types';
+import type {
+  FilterFacet,
+  FilterFacetLayout,
+  FilterFacetType,
+  FilterFacetValue,
+  FilterSelection as UiFilterSelection,
+} from '@eldrajs/ui';
 
 /**
  * One variant option, by the key the store names it with: `option:size`, `option:colour`,
@@ -23,98 +30,41 @@ import type { CatalogFacetTerm, CatalogFacets } from '../../../app/storefront/ty
 export type OptionFilterSource = `option:${string}`;
 
 /**
- * **What a rendered group filters on.** `options` is deliberately not here: it is a *field* value
- * that stands for "one group per option key the store has" (`FilterFieldSource`), and the block
- * expands it into the `option:<key>` sources below before a group exists.
+ * One yes/no facet beyond availability (`facets.toggles[]`), by the platform's own key. Folded as
+ * more switch rows into the same combined `availability` facet — see `availabilityFacetValues`.
+ */
+export type ToggleFilterSource = `toggle:${string}`;
+
+/**
+ * **What a rendered facet filters on.** `options` is deliberately not here: it is a *field* value
+ * that stands for "one facet per option key the store has" (`FilterFieldSource`), and the block
+ * expands it into the `option:<key>` sources below before a facet exists.
  */
 export type FilterSource =
   | 'category'
   | 'collection'
   | 'price'
   | 'availability'
-  | OptionFilterSource;
+  | OptionFilterSource
+  | ToggleFilterSource;
 
 /**
  * What an author may put in `filters[].source` — every rendered source, plus `options`.
  *
- * **`options` is a meta source**: one group per option key the storefront's facets answer, labelled by
- * the facet's own `name`, in the facets' order. It exists because a merchant's option keys are theirs,
- * not the theme's — an author cannot list `option:size` and `option:colour` by hand without knowing
- * what the store sells by, and a store that adds `fabric` next season would need the page edited to
- * offer it. An explicit `option:<key>` row still works and **wins** for that key: that is how an
- * author pins one option's position in the panel or renames its group.
+ * **`options` is a meta source**: one facet per option key the storefront's facets answer, labelled
+ * by the facet's own `name`, in the facets' order. It exists because a merchant's option keys are
+ * theirs, not the theme's — an author cannot list `option:size` and `option:colour` by hand without
+ * knowing what the store sells by, and a store that adds `fabric` next season would need the page
+ * edited to offer it. An explicit `option:<key>` row still works and **wins** for that key: that is
+ * how an author pins one option's position in the panel or renames its facet.
  */
 export type FilterFieldSource = FilterSource | 'options';
 
-/** How a group draws its values (spec `02-blocks.md` "Collection grid" → Layout, Filter groups). */
-export type FilterGroupKind = 'checkbox' | 'size' | 'colour' | 'price';
-
-export interface FilterGroupValue {
-  value: string;
-  label: string;
-  count: number;
-  /** A CSS colour from the store, for a `colour` group's dot. Content, never a design token. */
-  swatch?: string;
-  /**
-   * Nothing the current filters leave for this value (`count === 0`). The control stays in place
-   * and stops being operable rather than disappearing: a value that vanishes as the shopper ticks
-   * its neighbour moves every control under their pointer. A value they have *already* ticked is
-   * never disabled, whatever it counts, or the filter could not be removed again.
-   */
-  disabled?: boolean;
-  /**
-   * **The value of the row this one sits under**, for a `category` group the store answers as a tree
-   * (`CatalogFacetTerm.parentId`). Absent on every other family and on every top row, which is what
-   * a flat group is: nothing carries a parent, so nothing indents.
-   *
-   * One level, ever. A category three deep is rendered under its top-most listed ancestor rather
-   * than at its own depth — a filter panel is not a tree view, and a 15rem sidebar has no third
-   * indent to give (see `nestCategoryTerms`).
-   */
-  parent?: string;
-  /**
-   * This row is covered by its ticked parent rather than by a filter of its own: the parent's id is
-   * what the request carries, and the platform expands it to the descendants. Drawn ticked and
-   * inoperable, with a hidden note naming the parent, because the shopper's way back out is the
-   * parent they ticked — the one control that can still change.
-   */
-  implied?: boolean;
-}
-
-export interface FilterGroup {
-  source: FilterSource;
-  /** The group title: the editor's own `filters[].label`, else the source's own name. */
-  label: string;
-  kind: FilterGroupKind;
-  collapsed: boolean;
-  /** The hidden `<legend>` — longer than the title for `price` ("Price range in USD"). */
-  legend: string;
-  values: FilterGroupValue[];
-  /**
-   * `price` only (the block's `priceSlider` field, default on): the range slider, or the two typed
-   * fields alone for a store whose prices sit in a few tight clusters a track cannot separate.
-   */
-  slider?: boolean;
-}
-
-/** Selected values per `filters[].source`. The price range lives in its own two strings. */
-export type FilterSelection = Partial<Record<FilterSource, string[]>>;
-
 /** The `filters[].source` prefix one variant option is named with. */
 export const OPTION_SOURCE = 'option:';
-
-/**
- * The four sources that are **one group each, always** — everything a URL and a request can carry
- * besides the open-ended option keys. The block enumerates these when it reads the query string and
- * when it clears it; the option keys it enumerates from the facets and from its own selection, since
- * there is no closed list of them.
- */
-export const FIXED_FILTER_SOURCES = [
-  'category',
-  'collection',
-  'price',
-  'availability',
-] as const satisfies readonly FilterSource[];
+/** The internal source prefix a `facets.toggles[]` entry is named with — never an author-facing
+ *  vocabulary; these rows are always folded into the `availability` facet (see below). */
+export const TOGGLE_SOURCE = 'toggle:';
 
 /** The option key a source names, or `null` for a source that is not an option. */
 export function optionKeyOf(source: string): string | null {
@@ -123,9 +73,49 @@ export function optionKeyOf(source: string): string | null {
   return key === '' ? null : key;
 }
 
+/** The toggle key a source names, or `null` for a source that is not one. */
+export function toggleKeyOf(source: string): string | null {
+  if (!source.startsWith(TOGGLE_SOURCE)) return null;
+  const key = source.slice(TOGGLE_SOURCE.length);
+  return key === '' ? null : key;
+}
+
+/** `option:<key>` for one of the store's own option keys. */
+export function optionSourceFor(key: string): OptionFilterSource {
+  return `${OPTION_SOURCE}${key}`;
+}
+
+/** `toggle:<key>` for one of the store's own toggle keys. */
+export function toggleSourceFor(key: string): ToggleFilterSource {
+  return `${TOGGLE_SOURCE}${key}`;
+}
+
 /**
- * **The query keys an option key may not take**, because something else already owns them in the one
- * namespace they share — the URL.
+ * A toggle's own `on_sale`-style key, camelCased for the one query key it reads and writes
+ * (`onSale`) — the URL's own convention for everything else in this file is the bare option/source
+ * key, but a toggle is a single yes/no flag rather than a value list, so it reads best as the
+ * camelCase query parameters the rest of the app already uses for boolean state.
+ */
+export function toggleQueryKey(key: string): string {
+  return key.replace(/_([a-z0-9])/g, (_match, letter: string) => letter.toUpperCase());
+}
+
+/**
+ * The four sources that are **one facet each, always** — everything a URL and a request can carry
+ * besides the open-ended option/toggle keys. The block enumerates these when it reads the query
+ * string and when it clears it; the option and toggle keys it enumerates from the facets and from
+ * its own selection, since there is no closed list of them.
+ */
+export const FIXED_FILTER_SOURCES = [
+  'category',
+  'collection',
+  'price',
+  'availability',
+] as const satisfies readonly FilterSource[];
+
+/**
+ * **The query keys an option or toggle key may not take**, because something else already owns them
+ * in the one namespace they share — the URL.
  *
  * Four are the fixed filter sources' own (`?category=`, `?collection=`, `?price=`, `?availability=`);
  * five more are the keys the storefront route reads into typed fields of its own before a block ever
@@ -144,7 +134,7 @@ export function optionKeyOf(source: string): string | null {
  * So such a key is **dropped**, with a dev warning naming it (`usableOptionKey`). Namespacing it
  * instead was the alternative and was not taken: the query key is a shopper-visible, shareable part
  * of the URL, and inventing `?opt_category=` for one store means a link that no other spelling of
- * this theme reads. Dropping offers one group fewer and keeps every other filter exactly right.
+ * this theme reads. Dropping offers one facet fewer and keeps every other filter exactly right.
  */
 const RESERVED_QUERY_KEYS: ReadonlySet<string> = new Set<string>([
   ...FIXED_FILTER_SOURCES,
@@ -158,7 +148,8 @@ const RESERVED_QUERY_KEYS: ReadonlySet<string> = new Set<string>([
 const warnedKeys = new Set<string>();
 
 /**
- * One option key, or `null` when the URL already belongs to something else (`RESERVED_QUERY_KEYS`).
+ * One option (or toggle) key, or `null` when the URL already belongs to something else
+ * (`RESERVED_QUERY_KEYS`).
  *
  * The warning is once per key per session and dev-only, read through the same cast
  * `app/storefront/commerce.ts` uses — the starter does not depend on `vite` itself, and an
@@ -173,67 +164,32 @@ export function usableOptionKey(key: string | null): string | null {
     console.warn(
       `[eldra] collection-grid: the variant option "${key}" cannot be filtered on, because ` +
         `?${key}= already belongs to another filter or to the page's own route state. ` +
-        'Its group is not shown. Rename the option key in the store to offer it.'
+        'Its facet is not shown. Rename the option key in the store to offer it.'
     );
   }
   return null;
 }
 
-/** `option:<key>` for one of the store's own option keys. */
-export function optionSourceFor(key: string): OptionFilterSource {
-  return `${OPTION_SOURCE}${key}`;
-}
-
-/**
- * **The query key a source is spelled with**, in both directions: what the block writes and what it
- * reads back. An option is its bare key (`?colour=oat`) — the `option:` prefix is the *field's*
- * vocabulary, never a shopper's URL.
- */
-export function queryKeyFor(source: FilterSource): string {
-  return optionKeyOf(source) ?? source;
-}
-
-/**
- * How a group draws its values — **decided by the values, for an option.**
- *
- * A swatch is a colour the store sent as data, and the only control that can show one is the dot
- * (`FilterGroups.vue` draws it itself for exactly that reason), so an option whose values carry one is
- * a colour group whatever it is keyed; every other option is pills. That is what lets an arbitrary
- * option key render correctly without this file knowing the key at all — the two hard-coded `size`/
- * `colour` keys it used to carry meant a store spelling its option `color` got a group with no values
- * and no group.
- *
- * The product page's picker reaches the same answer from the same evidence
- * (`app/storefront/options.ts`'s `optionDisplayType`, which also wants one real swatch before it
- * draws discs), so one option is never dots in this panel and pills on the product, or the reverse.
- * The option's own `kind` is carried on the facet (`CatalogFacetOption.kind`) and deliberately not
- * consulted here: it is the merchant's permission to show colours, not evidence that any exist.
- */
-export function groupKindFor(
-  source: FilterSource,
-  values: readonly FilterGroupValue[]
-): FilterGroupKind {
-  if (source === 'price') return 'price';
-  if (optionKeyOf(source) === null) return 'checkbox';
-  return values.some((value) => value.swatch !== undefined) ? 'colour' : 'size';
-}
-
-/**
- * Spec States → "Many items": "a group with 12 or more values shows the first 8, then a 'Show all
- * 14' link button."
- */
-export const COLLAPSE_FROM = 12;
-export const COLLAPSED_COUNT = 8;
-
 export function isFilterSource(value: unknown): value is FilterSource {
   if (typeof value !== 'string') return false;
   if ((FIXED_FILTER_SOURCES as readonly string[]).includes(value)) return true;
-  return optionKeyOf(value) !== null;
+  return optionKeyOf(value) !== null || toggleKeyOf(value) !== null;
 }
 
 /** Whether a `filters[].source` is one this block understands — `isFilterSource`, plus `options`. */
 export function isFilterFieldSource(value: unknown): value is FilterFieldSource {
   return value === 'options' || isFilterSource(value);
+}
+
+/**
+ * **The query key a source is spelled with**, in both directions: what the block writes and what it
+ * reads back. An option is its bare key (`?colour=oat`) — the `option:` prefix is the *field's*
+ * vocabulary, never a shopper's URL. A toggle is its own camelCase key (`?onSale=1`).
+ */
+export function queryKeyFor(source: FilterSource): string {
+  const toggleKey = toggleKeyOf(source);
+  if (toggleKey !== null) return toggleQueryKey(toggleKey);
+  return optionKeyOf(source) ?? source;
 }
 
 /** The two `availability` values, as this theme's own strings name them. */
@@ -242,52 +198,57 @@ export interface AvailabilityLabels {
   outOfStock: string;
 }
 
+/** Selected values per `filters[].source`, the block's own internal state — the price range lives
+ *  in its own two strings (`priceMin`/`priceMax`), and a toggle's is `[]` or `['1']`. */
+export type FilterSelection = Partial<Record<FilterSource, string[]>>;
+
+/** One `filters[]` row, expanded (`options` already resolved to real sources) and ready to build. */
+export interface FacetBuildRow {
+  source: FilterSource;
+  label?: string;
+  collapsed?: boolean;
+}
+
+/** What a request to build a facet's values needs to know, besides the source itself. */
+interface ValueBuildContext {
+  facets: CatalogFacets | undefined;
+  availability: AvailabilityLabels;
+  categoryScopeSlug: string | null;
+}
+
 /**
- * The values a group offers: the store's own, each with the count the facets report.
+ * The values a facet offers: the store's own, each with the count the facets report.
  *
- * **A value the store counts zero of is offered disabled, not dropped** (contract §4): facet counts
- * leave their own family's filter out, so a zero means "another filter rules this out", and a
+ * **A value the store counts zero of is offered disabled, not dropped** (spec → Do / Don't): facet
+ * counts leave their own family's filter out, so a zero means "another filter rules this out", and a
  * control that disappears the moment a neighbour is ticked moves every control after it. The one
  * exception is a value the shopper has already selected — never disabled, so the filter stays
  * removable — and a selected value the facets no longer *list at all* is appended rather than lost,
  * labelled by its raw value since nothing describes it any more.
  */
-export function groupValuesFor(
+export function facetValuesFor(
   source: FilterSource,
-  facets: CatalogFacets | undefined,
-  selected: readonly string[],
-  availability: AvailabilityLabels,
-  /**
-   * **The slug of the category this grid's scope already is**, on a category page — and `null`
-   * everywhere else.
-   *
-   * It changes exactly one family: the `category` group then lists that category's **children**
-   * rather than the whole tree the facets name. Everything in the scope is already in the category,
-   * so a row for the category itself filters nothing and a row for a sibling filters it away
-   * entirely; one level down is the only choice that narrows. See `childCategoryTerms`.
-   */
-  categoryScopeSlug: string | null = null
-): FilterGroupValue[] {
-  const out: FilterGroupValue[] = rawValuesFor(source, facets, availability, categoryScopeSlug).map(
-    (value) => {
-      // A row its ticked parent already covers is neither operable nor countable on its own: the
-      // request carries the parent's id and the platform expands it, so this row's own count describes
-      // a filter nobody sent. It is drawn ticked and inoperable instead (`FilterGroupValue.implied`),
-      // which is also why the `disabled` rule below does not get a say — an implied row is disabled
-      // whatever it counts.
-      if (value.parent !== undefined && selected.includes(value.parent)) {
-        return { ...value, implied: true, disabled: true };
-      }
-      return {
-        ...value,
-        ...(value.count === 0 && !selected.includes(value.value) ? { disabled: true } : {}),
-      };
+  context: ValueBuildContext,
+  selected: readonly string[]
+): FilterFacetValue[] {
+  const out: FilterFacetValue[] = rawFacetValuesFor(source, context).map((value) => {
+    // A row its ticked parent already covers is neither operable nor countable on its own: the
+    // request carries the parent's id and the platform expands it, so this row's own count
+    // describes a filter nobody sent. It is drawn ticked and inoperable instead
+    // (`FilterFacetValue.implied`), which is also why the `disabled` rule below does not get a say
+    // — an implied row is disabled whatever it counts.
+    if (value.parent !== undefined && selected.includes(value.parent)) {
+      return { ...value, implied: true, disabled: true };
     }
-  );
+    return {
+      ...value,
+      ...(value.count === 0 && !selected.includes(value.value) ? { disabled: true } : {}),
+    };
+  });
   const listed = new Set(out.map((value) => value.value));
   for (const value of selected) {
     if (!listed.has(value)) {
-      out.push({ value, label: unlistedLabel(source, value, availability), count: 0 });
+      out.push({ value, label: unlistedLabel(source, value, context.availability), count: 0 });
     }
   }
   return out;
@@ -298,9 +259,10 @@ export function groupValuesFor(
  * category or an option value can only be labelled by its raw slug — but **`availability` is the
  * one family the theme names itself**, so it is never shown the platform's spelling.
  *
- * That case is reachable: a store whose stock cannot be read answers no `availability` facet at all,
- * and a shopper arriving on a shared `?availability=in_stock` link still has the value selected. The
- * generic fallback drew them a checkbox and a chip reading literally `in_stock`, in both locales.
+ * That case is reachable: a store whose stock cannot be read answers no `availability` facet at
+ * all, and a shopper arriving on a shared `?availability=in_stock` link still has the value
+ * selected. The generic fallback drew them a checkbox and a chip reading literally `in_stock`, in
+ * both locales.
  */
 function unlistedLabel(
   source: FilterSource,
@@ -313,15 +275,13 @@ function unlistedLabel(
   return value;
 }
 
-function rawValuesFor(
+function rawFacetValuesFor(
   source: FilterSource,
-  facets: CatalogFacets | undefined,
-  availability: AvailabilityLabels,
-  categoryScopeSlug: string | null
-): FilterGroupValue[] {
-  if (facets === undefined || source === 'price') return [];
+  { facets, categoryScopeSlug }: ValueBuildContext
+): FilterFacetValue[] {
+  if (facets === undefined) return [];
   if (source === 'category') {
-    // On a category page the group is that category's children and nothing else — flat, because
+    // On a category page the facet is that category's children and nothing else — flat, because
     // one level down is all there is to offer (see `childCategoryTerms`).
     if (categoryScopeSlug !== null) {
       return childCategoryTerms(facets.categories, categoryScopeSlug);
@@ -331,7 +291,7 @@ function rawValuesFor(
     // added those counts (3.8.0) added the `parentId` that places them *and* the `categoryId` that
     // matches a whole subtree, together. A gateway answering anything else counts assignments and
     // matches direct membership only, so a `Tableware` row there is a filter it cannot honour: the
-    // shopper would tick it and get an empty grid under a chip saying otherwise, which is the one
+    // shopper would tick it and get an empty grid under a URL saying otherwise, which is the one
     // thing this whole server-side filter path exists to remove. So that family stays exactly as
     // flat as it always was.
     if (facets.categoryCounts !== 'rolled-up') return facets.categories.map(flatTermValue);
@@ -341,30 +301,21 @@ function rawValuesFor(
     // Flat, and not by omission: a collection is a curated list, not a level of anything.
     return facets.collections.map(flatTermValue);
   }
-  if (source === 'availability') {
-    // No `availability` facet at all means the store could not read stock, not that nothing is in
-    // stock (`CatalogFacets.availability`). With no values the group is dropped altogether by the
-    // block, which is the only honest answer: two zeroes would offer a shopper a filter whose
-    // counts are unknown, and a request carrying it is an error rather than an empty page.
-    const counts = facets.availability;
-    if (counts === undefined) return [];
-    return [
-      { value: IN_STOCK, label: availability.inStock, count: counts.in_stock },
-      { value: OUT_OF_STOCK, label: availability.outOfStock, count: counts.out_of_stock },
-    ];
-  }
-  const option = facets.options.find((candidate) => candidate.key === optionKeyOf(source));
+  const optionKey = optionKeyOf(source);
+  if (optionKey === null) return [];
+  const option = facets.options.find((candidate) => candidate.key === optionKey);
   return (option?.values ?? []).map((value) => ({
     value: value.value,
     label: value.label,
     count: value.count,
     ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
+    ...(value.group === undefined ? {} : { group: value.group }),
   }));
 }
 
 /**
- * **The children of one category, as rows the panel can draw** — the `category` group on a category
- * page.
+ * **The children of one category, as rows the panel can draw** — the `category` facet on a
+ * category page.
  *
  * The scope already *is* that category, so the whole tree is the wrong vocabulary: a row for the
  * category itself would narrow nothing, and a row for a sibling or a cousin would narrow to nothing
@@ -378,26 +329,25 @@ function rawValuesFor(
  *
  * `[]` whenever the family cannot be read that way: a source that places no term (`parentId`
  * absent, so no row can be known to be a child), or a scope whose own category the facets do not
- * name — an empty category, say. The block drops a group with no values, which is the honest answer:
- * there is nothing here to divide.
+ * name — an empty category, say. The block drops a facet with no values, which is the honest
+ * answer: there is nothing here to divide.
  */
 export function childCategoryTerms(
   terms: readonly CatalogFacetTerm[],
   categoryScopeSlug: string
-): FilterGroupValue[] {
+): FilterFacetValue[] {
   const current = terms.find((term) => term.slug === categoryScopeSlug);
   if (current === undefined || current.id === '') return [];
   return terms.filter((term) => term.parentId === current.id).map(flatTermValue);
 }
 
-function flatTermValue(term: CatalogFacetTerm): FilterGroupValue {
+function flatTermValue(term: CatalogFacetTerm): FilterFacetValue {
   return { value: term.slug, label: term.title, count: term.count };
 }
 
-/**
- * How deep the walk up a term's ancestors may go before it stops. A guard against a `parentId` cycle
- * in the data, not a product decision — this runs inside a `computed`, where a hang is the block.
- */
+/** How deep the walk up a term's ancestors may go before it stops. A guard against a `parentId`
+ *  cycle in the data, not a product decision — this runs inside a `computed`, where a hang is the
+ *  block. */
 const MAX_CATEGORY_DEPTH = 6;
 
 /**
@@ -405,24 +355,24 @@ const MAX_CATEGORY_DEPTH = 6;
  * one level.**
  *
  * Only ever called for a family the platform has **placed and counted up itself** (public contract
- * 3.8.0 — see `rawValuesFor`), so the terms arrive as a tree with every reported ancestor in the same
- * list and every count already the subtree's. A term that still carries no `parentId` at all comes
- * out flat: the whole of this is skipped, not approximated.
+ * 3.8.0 — see `rawFacetValuesFor`), so the terms arrive as a tree with every reported ancestor in
+ * the same list and every count already the subtree's. A term that still carries no `parentId` at
+ * all comes out flat: the whole of this is skipped, not approximated.
  *
  * **One level of indent, ever.** A category three deep is rendered under its top-most listed
  * ancestor, not at its own depth: a filter panel is not a tree view, every indent costs a 15rem
  * sidebar a column of label width, and a shopper ticking a grandchild gets the same filter either
  * way. Nothing is dropped — only flattened.
  *
- * **Order is the source's.** 3.8.0 answers depth-first by title, and this preserves whatever order it
- * was handed: the top rows keep their input order and each parent's children keep theirs, which on an
- * already depth-first list is no change at all. Nothing here sorts by count.
+ * **Order is the source's.** 3.8.0 answers depth-first by title, and this preserves whatever order
+ * it was handed: the top rows keep their input order and each parent's children keep theirs, which
+ * on an already depth-first list is no change at all. Nothing here sorts by count.
  *
  * **No count is derived.** A parent's number is the platform's own, deduplicated over its subtree,
  * and a sum over the children on screen is not — a product in Cups and in Bowls is one product and
  * two counts. So the numbers are used exactly as they came.
  */
-export function nestCategoryTerms(terms: readonly CatalogFacetTerm[]): FilterGroupValue[] {
+export function nestCategoryTerms(terms: readonly CatalogFacetTerm[]): FilterFacetValue[] {
   if (!terms.some((term) => term.parentId !== undefined)) return terms.map(flatTermValue);
   const byId = new Map(terms.map((term) => [term.id, term] as const));
 
@@ -445,8 +395,8 @@ export function nestCategoryTerms(terms: readonly CatalogFacetTerm[]): FilterGro
   // depth-first list (contract 3.8.0's own order) comes out exactly as it went in.
   const topIdOf = new Map(terms.map((term) => [term.id, topOf(term).id] as const));
   // Which terms are top rows: the ones that are their own top. A `parentId` cycle has none — every
-  // term in it stops one short of itself — and a term whose top row does not exist is promoted to one
-  // rather than nested under nothing, which is what keeps every row on screen and tickable.
+  // term in it stops one short of itself — and a term whose top row does not exist is promoted to
+  // one rather than nested under nothing, which is what keeps every row on screen and tickable.
   const topIds = new Set(terms.filter((term) => topIdOf.get(term.id) === term.id).map((t) => t.id));
   const tops: CatalogFacetTerm[] = [];
   const childrenOf = new Map<string, CatalogFacetTerm[]>();
@@ -461,7 +411,7 @@ export function nestCategoryTerms(terms: readonly CatalogFacetTerm[]): FilterGro
     else siblings.push(term);
   }
 
-  const out: FilterGroupValue[] = [];
+  const out: FilterFacetValue[] = [];
   for (const top of tops) {
     out.push(flatTermValue(top));
     for (const child of childrenOf.get(top.id) ?? []) {
@@ -469,6 +419,262 @@ export function nestCategoryTerms(terms: readonly CatalogFacetTerm[]): FilterGro
     }
   }
   return out;
+}
+
+/**
+ * The combined `availability` facet's own values: "In stock only" (when the store can read stock)
+ * followed by one switch row per `facets.toggles[]` entry (`on_sale`, …) — see `queryKeyFor` for
+ * the one query key each toggle reads and writes. A selected value nothing lists any more (a stale
+ * `?availability=out_of_stock` link, a toggle the store has stopped sending) is kept, unlabelled
+ * where this theme has no name for it, the same rule every other family follows.
+ */
+export function availabilityFacetValues(
+  facets: CatalogFacets | undefined,
+  selection: FilterSelection,
+  availability: AvailabilityLabels
+): FilterFacetValue[] {
+  if (facets === undefined) return [];
+  const out: FilterFacetValue[] = [];
+  if (facets.availability !== undefined) {
+    const selected = (selection.availability ?? []).includes(IN_STOCK);
+    out.push({
+      value: IN_STOCK,
+      label: availability.inStock,
+      count: facets.availability.in_stock,
+      ...(facets.availability.in_stock === 0 && !selected ? { disabled: true } : {}),
+    });
+  }
+  for (const toggle of facets.toggles ?? []) {
+    const selected = (selection[toggleSourceFor(toggle.key)] ?? []).length > 0;
+    out.push({
+      value: toggle.key,
+      label: toggle.label,
+      count: toggle.count,
+      ...(toggle.count === 0 && !selected ? { disabled: true } : {}),
+    });
+  }
+  const listed = new Set(out.map((value) => value.value));
+  for (const value of selection.availability ?? []) {
+    if (!listed.has(value)) {
+      out.push({ value, label: unlistedLabel('availability', value, availability), count: 0 });
+      listed.add(value);
+    }
+  }
+  for (const source of Object.keys(selection)) {
+    const key = toggleKeyOf(source);
+    if (key === null || listed.has(key) || (selection[source as FilterSource]?.length ?? 0) === 0) {
+      continue;
+    }
+    out.push({ value: key, label: key, count: 0 });
+    listed.add(key);
+  }
+  return out;
+}
+
+/**
+ * How a facet draws its values — **decided by the values, for an option.**
+ *
+ * A swatch is a colour the store sent as data, and the only control that can show one is
+ * `ColourFacet`'s own dot, so an option whose values carry one is a colour facet whatever it is
+ * keyed; a `group` (a size system — "Knitwear", "Socks (EU)") makes it a `size` facet; every other
+ * option is a plain `list`. That is what lets an arbitrary option key render correctly without this
+ * file knowing the key at all — the two hard-coded `size`/`colour` keys it used to carry meant a
+ * store spelling its option `color` got a facet with no values and no group.
+ *
+ * `category` and `collection` are always `list` — neither is ever a colour or a size.
+ */
+export function facetTypeFor(
+  source: FilterSource,
+  values: readonly FilterFacetValue[]
+): FilterFacetType {
+  if (optionKeyOf(source) === null) return 'list';
+  if (values.some((value) => value.swatch !== undefined)) return 'colour';
+  if (values.some((value) => value.group !== undefined)) return 'size';
+  return 'list';
+}
+
+/** Everything `buildFilterFacets` needs besides the rows themselves. */
+export interface FacetBuildOptions {
+  facets: CatalogFacets | undefined;
+  /** The block's own internal selection (per `FilterSource`, price excluded). */
+  selection: FilterSelection;
+  availability: AvailabilityLabels;
+  categoryScopeSlug: string | null;
+  /** Sources this scope cannot narrow by (`StorefrontCollectionProducts.unfilterable`). */
+  unfilterable: ReadonlySet<string>;
+  /** A facet's title when the author set none. */
+  labelFor: (source: FilterSource) => string;
+  /** The block's `colourLayout` field: swatch rows (`list`, the default) or swatch tiles (`grid`). */
+  colourLayout: FilterFacetLayout;
+  /** The block's `sizeGuideHref` field, already resolved to a plain URL. */
+  sizeGuideHref?: string;
+  price: {
+    min: number;
+    max: number;
+    step: number;
+    /** The block's `priceSlider` field. */
+    slider: boolean;
+    /** Whether this range is money the store can actually name (`money.currency` is known). */
+    currency: boolean;
+    histogram?: number[];
+  };
+}
+
+/**
+ * **The adapter's one entry point.** Builds the ordered `FilterFacet[]` `FilterPanel` draws, from
+ * the author's own `filters[]` rows (already expanded — `options` resolved to real sources) and the
+ * storefront's facets. A renderable-but-empty range is still included: `FilterPanel`'s own
+ * `renderableFacets` drops a range with fewer than two distinct values, so this file does not
+ * duplicate that rule. Every other facet with no values to offer (no store data, an empty
+ * `availability`) is dropped here, same as it always was.
+ */
+export function buildFilterFacets(
+  rows: readonly FacetBuildRow[],
+  options: FacetBuildOptions
+): FilterFacet[] {
+  const out: FilterFacet[] = [];
+  const seen = new Set<FilterSource>();
+  for (const row of rows) {
+    const { source } = row;
+    if (options.unfilterable.has(source) || seen.has(source)) continue;
+    seen.add(source);
+    const label = (row.label ?? '').trim() || options.labelFor(source);
+    const collapsed = row.collapsed === true;
+
+    if (source === 'price') {
+      out.push({
+        id: 'price',
+        label,
+        type: 'range',
+        collapsed,
+        min: options.price.min,
+        max: options.price.max,
+        step: options.price.step,
+        currency: options.price.currency,
+        slider: options.price.slider,
+        ...(options.price.histogram ? { histogram: options.price.histogram } : {}),
+      });
+      continue;
+    }
+
+    if (source === 'availability') {
+      const values = availabilityFacetValues(
+        options.facets,
+        options.selection,
+        options.availability
+      );
+      if (values.length === 0) continue;
+      out.push({ id: 'availability', label, type: 'toggle', collapsed, values });
+      continue;
+    }
+
+    const values = facetValuesFor(source, options, options.selection[source] ?? []);
+    if (values.length === 0) continue;
+    const type = facetTypeFor(source, values);
+    out.push({
+      id: queryKeyFor(source),
+      label,
+      type,
+      collapsed,
+      values,
+      ...(type === 'colour' ? { layout: options.colourLayout } : {}),
+      ...(type === 'size' && options.sizeGuideHref ? { sizeGuideHref: options.sizeGuideHref } : {}),
+    });
+  }
+  return out;
+}
+
+/**
+ * Every rendered source's own `FilterSource`, keyed by the `FilterFacet.id` (the query key) the
+ * panel uses — the reverse of `queryKeyFor`, for translating the panel's own selection back into
+ * the block's internal one (`applyPanelSelection`). `availability` and `price` are deliberately not
+ * here: both are translated by hand, the first because one ui facet id can span several internal
+ * sources (availability plus every toggle), the second because it is never a value list.
+ */
+export function facetSourceMap(rows: readonly FacetBuildRow[]): ReadonlyMap<string, FilterSource> {
+  const out = new Map<string, FilterSource>();
+  for (const row of rows) {
+    if (row.source === 'price' || row.source === 'availability') continue;
+    out.set(queryKeyFor(row.source), row.source);
+  }
+  return out;
+}
+
+/**
+ * The panel's own view of the selection (`FilterSelection` keyed by facet id), derived from the
+ * block's internal one. One-way: the panel is controlled from this, and every change it reports
+ * comes back through `applyPanelSelection`.
+ */
+export function panelSelectionFor(
+  selection: FilterSelection,
+  priceRange: { min: string; max: string },
+  priceSpan: { min: number; max: number }
+): UiFilterSelection {
+  const out: UiFilterSelection = {};
+  for (const [source, values] of Object.entries(selection)) {
+    if (!values || values.length === 0) continue;
+    if (toggleKeyOf(source) !== null) continue; // folded into `availability` below
+    out[queryKeyFor(source as FilterSource)] = values;
+  }
+  const toggleKeys = Object.keys(selection)
+    .filter((source) => (selection[source as FilterSource]?.length ?? 0) > 0)
+    .map((source) => toggleKeyOf(source))
+    .filter((key): key is string => key !== null);
+  if (toggleKeys.length > 0) {
+    out.availability = [...(out.availability ?? []), ...toggleKeys];
+  }
+  if (priceRange.min !== '' || priceRange.max !== '') {
+    out.price = sliderValueFor(priceRange, priceSpan);
+  }
+  return out;
+}
+
+/**
+ * The reverse of `panelSelectionFor`: what the panel's own `change` event reports, translated back
+ * into the block's internal selection plus the price range it writes to the URL.
+ *
+ * Every non-price, non-`availability` key is resolved through `sources` (an unknown key — a stale
+ * one from a facet the author has since removed — is simply dropped, the honest answer for a
+ * selection nothing can act on). `availability`'s own array is split back into the canonical
+ * `in_stock`/`out_of_stock` tokens and whichever toggle keys ride along with it, by key:
+ * `toggleKeys` is this scope's current `facets.toggles[]` keys, so a value that is neither a known
+ * availability token nor a current toggle key is dropped the same way an unknown source is.
+ *
+ * The price pair is run through `rangeFromSlider`, which is idempotent when nothing moved — safe to
+ * call on every change, not only a price one.
+ */
+export function applyPanelSelection(
+  next: UiFilterSelection,
+  context: {
+    sources: ReadonlyMap<string, FilterSource>;
+    toggleKeys: ReadonlySet<string>;
+    priceSpan: PriceSpan;
+    appliedPrice: PriceRange;
+  }
+): { selection: FilterSelection; price: PriceRange } {
+  const selection: FilterSelection = {};
+  for (const [facetId, raw] of Object.entries(next)) {
+    if (facetId === 'price') continue;
+    const values = Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : [];
+    if (facetId === 'availability') {
+      const avail = values.filter((value) => value === IN_STOCK || value === OUT_OF_STOCK);
+      if (avail.length > 0) selection.availability = avail;
+      for (const value of values) {
+        if (avail.includes(value)) continue;
+        if (context.toggleKeys.has(value)) selection[toggleSourceFor(value)] = ['1'];
+      }
+      continue;
+    }
+    const source = context.sources.get(facetId);
+    if (source !== undefined && values.length > 0) selection[source] = values;
+  }
+  const priceVal = next.price;
+  const pair: [number, number] =
+    Array.isArray(priceVal) && typeof priceVal[0] === 'number' && typeof priceVal[1] === 'number'
+      ? (priceVal as [number, number])
+      : [context.priceSpan.min, context.priceSpan.max];
+  const price = rangeFromSlider(pair, context.priceSpan, context.appliedPrice);
+  return { selection, price };
 }
 
 /**
@@ -557,7 +763,7 @@ export function widenPriceSpan(
  * The facets' price span is counted with every filter *except* price applied, so it narrows as the
  * other filters narrow — tick a colour and the span becomes that colour's own prices. A slider
  * cannot show a value outside its bounds, so without this a range of 50–150 read back as 96–96 the
- * moment another group was touched, and dragging either thumb would then write that back as the
+ * moment another facet was touched, and dragging either thumb would then write that back as the
  * shopper's range. Including their own bounds keeps the thumbs where they put them and keeps the
  * filter removable by dragging back out.
  */
@@ -584,7 +790,7 @@ export function sliderValueFor(range: PriceRange, span: PriceSpan): [number, num
  * The range written back out of the slider, once a move is over.
  *
  * **The applied range is the source of truth, and only the end that moved is rewritten.** One
- * gesture moves one thumb — a drag, an arrow-key run, a typed field — so the other end keeps the
+ * gesture moves one thumb — a drag, an arrow-key run, a typed value — so the other end keeps the
  * string the shopper already applied, character for character. Deriving *both* ends from the pair
  * is what made a nudge of one thumb erase the other bound: the span the thumbs are drawn across is
  * widened to hold the shopper's own bounds (`spanWithRange`, because the facets' span is counted
@@ -596,6 +802,10 @@ export function sliderValueFor(range: PriceRange, span: PriceSpan): [number, num
  * that happens to equal it. That is what lets a shopper drag a filter back off, keeps the URL free
  * of a range nobody asked for, and keeps the request identical to one made before any filter
  * existed.
+ *
+ * Idempotent when the pair did not move at all (the panel reports the whole selection on every
+ * change, price included): both ends still equal `wasMin`/`wasMax`, so the same `applied` comes
+ * back out.
  */
 export function rangeFromSlider(
   value: readonly [number, number],

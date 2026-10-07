@@ -257,6 +257,14 @@ export interface CatalogFacetOptionValue {
   label: string;
   swatch?: string;
   count: number;
+  /**
+   * The size system this value belongs to ("Knitwear", "Socks (EU)"), so sizes are grouped under
+   * one sub-heading per system rather than mixed in one grid. Not sent by any storefront today —
+   * a Core follow-up, scheduled separately — so `blocks/collection-grid/parts/groups.ts` draws a
+   * `size` option as a plain `list` facet until a value here arrives, at which point the same
+   * option becomes a `size` facet with its tiles grouped by this field.
+   */
+  group?: string;
 }
 
 /** One variant option, by the key a filter names it with (`colour`, `size`). */
@@ -269,7 +277,7 @@ export interface CatalogFacetOption {
    * that does not say.
    *
    * **It is not what decides the group's control** — that is the values' own swatches
-   * (`blocks/collection-grid/parts/groups.ts`'s `groupKindFor`), the same evidence the product page's
+   * (`blocks/collection-grid/parts/groups.ts`'s `facetTypeFor`), the same evidence the product page's
    * picker goes by (`StorefrontProductOption.type`), because a dot with no colour is worse than a
    * pill: a `color`-kind option whose colours the store has not set has nothing to draw. The kind is
    * what makes the platform send those swatches in the first place, and it is carried so a theme can
@@ -321,7 +329,17 @@ export interface CatalogFacets {
    * price control handed a 0–0 span is a dead track labelled with the store's currency; absent, the
    * panel falls back to the widest span it has seen for this collection instead.
    */
-  price?: { min: number; max: number };
+  price?: {
+    min: number;
+    max: number;
+    /**
+     * Product counts over 24 equal buckets spanning `[min, max]`, drawn as the filter panel's
+     * decorative histogram above the price track. Not sent by any storefront today — a Core
+     * follow-up, scheduled separately — so the panel draws no histogram at all until this arrives,
+     * exactly as it does for any other source that leaves it out.
+     */
+    histogram?: number[];
+  };
   categories: CatalogFacetTerm[];
   /**
    * **Whether a category term's `count` already includes its descendants'.**
@@ -363,6 +381,21 @@ export interface CatalogFacets {
    */
   availability?: { in_stock: number; out_of_stock: number };
   options: CatalogFacetOption[];
+  /**
+   * Yes/no facets beyond availability (pre-order, on sale, …), each drawn as one more switch row
+   * beside "In stock only" in the same `toggle` facet. Not sent by any storefront today — a Core
+   * follow-up, scheduled separately — so the panel offers only availability until this arrives.
+   */
+  toggles?: CatalogFacetToggle[];
+}
+
+/** One yes/no facet beyond availability — see `CatalogFacets.toggles`. */
+export interface CatalogFacetToggle {
+  /** The platform's own key (`on_sale`, `pre_order`), snake_case. `parts/groups.ts` camelCases it
+   *  for the one query key this toggle reads and writes (`onSale`, `preOrder`). */
+  key: string;
+  label: string;
+  count: number;
 }
 
 /**

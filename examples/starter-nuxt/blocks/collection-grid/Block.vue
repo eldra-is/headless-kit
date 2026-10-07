@@ -41,7 +41,6 @@ import {
   computed,
   defineComponent,
   h,
-  inject,
   nextTick,
   onMounted,
   onUnmounted,
@@ -59,19 +58,21 @@ import {
   EditorPlaceholder,
   EmptyState,
   FieldWrapper,
+  FilterPanel,
   LoadMore,
-  MESSAGES_KEY,
   Pagination,
   ProductCard,
   Section,
   Select,
   Skeleton,
   VisuallyHidden,
-  enUS as uiEnUS,
-  provideEldraUiMessages,
+  appliedFilters,
+  type FilterFacet,
+  type FilterFacetLayout,
+  type FilterSelection as UiFilterSelection,
   type SelectOption,
-  type UiMessages,
 } from '@eldrajs/ui';
+import { useEldraLink } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
@@ -91,27 +92,28 @@ import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { canonicalAvailabilityValues } from '../../app/storefront/facets';
 import { CATALOGUE_PATH } from '../../app/storefront/categories';
 import { categoryHref, safeHref } from '../../app/utils/links';
-import ActiveFilters, { type ActiveFilterChip } from './parts/ActiveFilters.vue';
-import FilterGroups from './parts/FilterGroups.vue';
 import {
+  applyPanelSelection,
+  buildFilterFacets,
   defaultPriceStep,
+  facetSourceMap,
   FIXED_FILTER_SOURCES,
   fitPriceStep,
   formatPriceRange,
-  groupKindFor,
-  groupValuesFor,
   isFilterFieldSource,
   isFilterSource,
   optionKeyOf,
   optionSourceFor,
+  panelSelectionFor,
   parsePriceRange,
   usableOptionKey,
   priceSpanOf,
   queryKeyFor,
   spanWithRange,
+  toggleKeyOf,
+  toggleSourceFor,
   widenPriceSpan,
   type FilterFieldSource,
-  type FilterGroup,
   type FilterSelection,
   type FilterSource,
   type PriceRange,
@@ -146,34 +148,6 @@ const editing = useEditing();
 const t = useT();
 const storefront = useStorefront();
 const route = storefront.route;
-
-/**
- * A chip's remove button is named by the package's own `removeTag` message ("Remove Size: M") — it
- * has no `messages` prop of its own to override, and `aria-label` on a `Chip` lands on its root. The
- * spec names it "Remove filter Size: M", so the block re-provides the message set for its own
- * subtree with that one entry replaced, delegating every other key to whatever the app provided
- * (`app/plugins/eldra-ui-messages.ts`).
- *
- * **Getters, not a spread.** That plugin deliberately provides an object of getters over
- * `preview.locale` rather than a snapshot, because `useMessages` spreads the injected object
- * *inside a `computed`* — reading a key through a getter there is what makes a Studio locale switch
- * reach the package's own strings. A spread here would invoke every one of those getters once, at
- * setup, and freeze every package string in this block's subtree (ProductCard, Drawer, Pagination,
- * Select, LoadMore, Chip) at the mount-time locale while the block's own `useT()` strings kept
- * switching. So this mirrors the plugin's own `Object.defineProperty` loop and reads through.
- */
-const inheritedMessages = inject(MESSAGES_KEY, undefined);
-const blockMessages = {} as Partial<UiMessages>;
-for (const key of Object.keys(uiEnUS) as Array<keyof UiMessages>) {
-  Object.defineProperty(blockMessages, key, {
-    enumerable: true,
-    get: () =>
-      key === 'removeTag'
-        ? (label: string) => t('grid.removeFilter', { label })
-        : inheritedMessages?.[key],
-  });
-}
-provideEldraUiMessages(blockMessages);
 
 const uid = useUiId();
 const drawerId = `collection-grid-drawer-${uid}`;
@@ -235,7 +209,7 @@ const categoryScope = computed(() => data.value.scope === 'category');
 const routeCategoryPath = route.categoryPath;
 const routeCategorySlug = route.categorySlug;
 /** Which category the filter panel should offer the children of — `null` in every other scope, so
- *  `groupValuesFor` keeps the whole-tree family it always drew. */
+ *  `facetValuesFor` keeps the whole-tree family it always drew. */
 const categoryScopeSlug = computed(() => (categoryScope.value ? routeCategorySlug : null));
 /** Both scopes that come from the route rather than from a picked collection read the *catalogue*
  *  endpoint; only the category one narrows it. */
@@ -388,16 +362,25 @@ function readableOptionKeys(selected: FilterSelection): string[] {
   return keys;
 }
 
-/** Every filter source a query key is read into, price excluded (it has its own two bounds). */
-function managedSources(optionKeys: readonly string[]): FilterSource[] {
+/** Every filter source a query key is read into, price excluded (it has its own two bounds). Every
+ *  toggle key the store currently answers (`facets.toggles[]`) is managed the same way an option
+ *  key is — there is no author-facing row for one, so there is no "explicit" half to this list. */
+function managedSources(
+  optionKeys: readonly string[],
+  toggleKeys: readonly string[]
+): FilterSource[] {
   const out: FilterSource[] = FIXED_FILTER_SOURCES.filter((source) => source !== 'price');
   for (const key of optionKeys) out.push(optionSourceFor(key));
+  for (const key of toggleKeys) out.push(toggleSourceFor(key));
   return out;
 }
 
-function filterSelectionFromRoute(optionKeys: readonly string[]): FilterSelection {
+function filterSelectionFromRoute(
+  optionKeys: readonly string[],
+  toggleKeys: readonly string[]
+): FilterSelection {
   const out: FilterSelection = {};
-  for (const source of managedSources(optionKeys)) {
+  for (const source of managedSources(optionKeys, toggleKeys)) {
     const values = route.filters[queryKeyFor(source)];
     if (values === undefined || values.length === 0) continue;
     // `availability` is the one source with a vocabulary of its own rather than the store's, so a
@@ -406,7 +389,14 @@ function filterSelectionFromRoute(optionKeys: readonly string[]): FilterSelectio
     // offers: an unfolded `in-stock` ticked nothing and rendered an untranslated third checkbox
     // (and chip) beside the two real ones. A value from no vocabulary at all is dropped — the pass
     // ignores it too (`facets.ts`), so a chip for it would promise a filter nothing applies.
-    const next = source === 'availability' ? canonicalAvailabilityValues(values) : [...values];
+    // A toggle is a single yes/no flag rather than a value list: any non-empty query value means
+    // on, normalised to the one marker the block's own selection holds for it (`['1']`).
+    const next =
+      source === 'availability'
+        ? canonicalAvailabilityValues(values)
+        : toggleKeyOf(source) !== null
+          ? ['1']
+          : [...values];
     if (next.length > 0) out[source] = next;
   }
   return out;
@@ -414,11 +404,12 @@ function filterSelectionFromRoute(optionKeys: readonly string[]): FilterSelectio
 
 /**
  * The selection a page is **created** with: the author's own option rows and nothing else, because
- * no read has answered yet. Everything else arrives through `adoptRouteState()` after mount — which
- * is the same reason the first paint is the unfiltered collection either way.
+ * no read has answered yet — a toggle key is never explicit, so there is none to read at creation
+ * either. Everything else arrives through `adoptRouteState()` after mount — which is the same
+ * reason the first paint is the unfiltered collection either way.
  */
 function initialFilterSelection(): FilterSelection {
-  return filterSelectionFromRoute(explicitOptionKeys());
+  return filterSelectionFromRoute(explicitOptionKeys(), []);
 }
 
 /** The price range the URL carries, sanitised the way a typed one is. */
@@ -524,7 +515,7 @@ function requestFiltersFor(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-const appliedFilters = computed(() =>
+const requestFilters = computed(() =>
   requestFiltersFor(selection.value, priceMin.value, priceMax.value)
 );
 
@@ -546,7 +537,7 @@ const liveRequestOptions = computed(() => ({
   page: isLoadMore.value ? 1 : currentPage.value,
   pageSize: isLoadMore.value ? pageSize.value * pagesLoaded.value : pageSize.value,
   sort: sort.value === '' ? undefined : sort.value,
-  filters: appliedFilters.value,
+  filters: requestFilters.value,
   ...categoryScopeOption.value,
 }));
 
@@ -578,7 +569,7 @@ watch(liveRequestOptions, (value) => {
 });
 
 /**
- * Arms the wait. Called by the sidebar's own live checkbox/price path (`onToggle`/`onRange`)
+ * Arms the wait. Called by the sidebar's own live path (`onPanelChange`)
  * **before** it changes anything, so the mirror above never sees a half-applied change: a trailing
  * debounce, where each further arm restarts the window rather than queuing a second timer.
  */
@@ -818,28 +809,19 @@ const skeletonCount = computed(() =>
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The price group's hidden legend names the store's currency — which is what lets its two fields
- * drop the "$" prefix the two-field fallback still draws (spec Layout → Price). A store that
- * publishes no currency gets the plain noun rather than a sentence with a hole in it.
- */
-const priceLegend = computed(() =>
-  money.currency.value === undefined
-    ? t('grid.legendPriceAny')
-    : t('grid.legendPrice', { currency: money.currency.value })
-);
-
-/**
- * A group's hidden `<legend>`.
+ * A facet's title and hidden `<legend>` — one string, now that `FilterFacet.label` is both (the
+ * package draws no separate hidden legend any more).
  *
  * The four fixed sources are the theme's own words. An option's is **the store's**: the facet's own
  * `name` for that key, which is the only place a merchant's "Fabric" exists — with the two keys this
  * theme does have strings for (`size`, `colour`) still preferred, so a store using the ordinary keys
- * reads a translated group title rather than a raw store string, and so the Icelandic site says
+ * reads a translated facet title rather than a raw store string, and so the Icelandic site says
  * "Stærð". A key with no facet name and no string of this theme's falls back to the key itself, which
- * is at least the merchant's own word.
+ * is at least the merchant's own word. A toggle source never reaches here — it is folded into the
+ * `availability` facet, which keeps its own label.
  */
-function legendFor(source: FilterSource): string {
-  if (source === 'price') return priceLegend.value;
+function defaultFacetLabel(source: FilterSource): string {
+  if (source === 'price') return t('grid.price');
   if (source === 'category') return t('grid.legendCategory');
   if (source === 'collection') return t('grid.legendCollection');
   if (source === 'availability') return t('grid.legendAvailability');
@@ -854,17 +836,25 @@ const optionNames = computed(
   () => new Map((facets.value?.options ?? []).map((option) => [option.key, option.name] as const))
 );
 
-/** A group's title when the author set none — the legend, which is already the source's own name
- *  (`price`'s legend names the currency, so not that). */
-function defaultGroupLabel(source: FilterSource): string {
-  return source === 'price' ? t('grid.price') : legendFor(source);
-}
-
-/** The two `availability` values' own names: the facets carry counts, never labels. */
+/** The combined `availability` facet's own values' names: the facets carry counts, never labels —
+ *  "In stock only" is the one switch row the theme names itself (spec → Variants, `toggle` facet). */
 const availabilityLabels = computed(() => ({
   inStock: t('grid.availabilityInStock'),
   outOfStock: t('grid.availabilityOutOfStock'),
 }));
+
+/** The destination of the Size facet's "Size guide" link, resolved from the block's own `link`
+ *  field through the theme's link resolver — a plain URL, or `undefined` with nothing to link to. */
+const resolveLink = useEldraLink();
+const sizeGuideLink = computed(() => resolveLink(data.value.sizeGuideHref));
+const sizeGuideHref = computed(() => safeHref(sizeGuideLink.value?.href) ?? undefined);
+
+/** The Colour facet's own layout: swatch rows (the default) or a swatch grid — the block's
+ *  `colourLayout` field, top-level per the component's own storage rule (a child under an existing
+ *  `filters[]` item would force a version bump that retires every author's configured list). */
+const colourLayout = computed<FilterFacetLayout>(() =>
+  data.value.colourLayout === 'grid' ? 'grid' : 'list'
+);
 
 /**
  * The span the price control works across: **the catalogue's own bounds**, from the facets (spec:
@@ -968,129 +958,84 @@ const expandedFilterRows = computed<Array<FilterField & { source: FilterSource }
   return out;
 });
 
-const groups = computed<FilterGroup[]>(() => {
-  const out: FilterGroup[] = [];
-  for (const row of expandedFilterRows.value) {
-    const source = row.source;
-    // A source this scope cannot narrow by is not offered, however the author configured it: see
-    // `unfilterableSources`.
-    if (unfilterableSources.value.has(source)) continue;
-    if (out.some((group) => group.source === source)) continue;
-    const values = groupValuesFor(
-      source,
-      facets.value,
-      selection.value[source] ?? [],
-      availabilityLabels.value,
-      categoryScopeSlug.value
-    );
-    // A group whose store has nothing to offer is not a group. Price is the exception: its control
-    // exists whether or not the store reports a range. A group that still carries a selection
-    // always has values — `groupValuesFor` keeps them — so it can never be dropped out from under
-    // an applied filter.
-    if (source !== 'price' && values.length === 0) continue;
-    out.push({
-      source,
-      label: (row.label ?? '').trim() || defaultGroupLabel(source),
-      // Decided by the values for an option — a swatch is a colour only the dot can show — so an
-      // arbitrary option key draws the right control without this block knowing the key.
-      kind: groupKindFor(source, values),
-      collapsed: row.collapsed === true,
-      legend: legendFor(source),
-      values,
-      ...(source === 'price' ? { slider: priceSlider.value } : {}),
-    });
-  }
-  return out;
-});
+/**
+ * **The one call into the adapter.** `buildFilterFacets` (`parts/groups.ts`) turns the author's
+ * expanded rows and the storefront's facets into the `FilterFacet[]` `FilterPanel` draws — a source
+ * this scope cannot narrow by, or one with nothing to offer, is dropped there, same as it always
+ * was. A range with fewer than two distinct values is still included: the package's own
+ * `renderableFacets` (inside `FilterPanel`) drops it, so this file does not duplicate that rule.
+ */
+const filterFacets = computed<FilterFacet[]>(() =>
+  buildFilterFacets(expandedFilterRows.value, {
+    facets: facets.value,
+    selection: selection.value,
+    availability: availabilityLabels.value,
+    categoryScopeSlug: categoryScopeSlug.value,
+    unfilterable: unfilterableSources.value,
+    labelFor: defaultFacetLabel,
+    colourLayout: colourLayout.value,
+    sizeGuideHref: sizeGuideHref.value,
+    price: {
+      min: priceSpan.value.min,
+      max: priceSpan.value.max,
+      step: priceStep.value,
+      slider: priceSlider.value,
+      currency: money.currency.value !== undefined,
+      ...(facets.value?.price?.histogram ? { histogram: facets.value.price.histogram } : {}),
+    },
+  })
+);
 
-/** The groups by source, for labelling a chip whose group is rendered. */
-const groupBySource = computed(
-  () => new Map(groups.value.map((group) => [group.source, group] as const))
+/** Every rendered source's own `FilterSource`, by the `FilterFacet.id` the panel uses — the reverse
+ *  of `queryKeyFor`, for translating the panel's own selection back into the block's internal one
+ *  (`applyPanelSelection`, called from `onPanelChange`/`onPendingPanelChange`). */
+const sourceMap = computed(() => facetSourceMap(expandedFilterRows.value));
+
+/** This scope's current toggle keys (`facets.toggles[]`), so `applyPanelSelection` can tell a known
+ *  toggle apart from an unknown `availability` array member (a stale value nothing lists any more). */
+const toggleKeySet = computed(
+  () => new Set((facets.value?.toggles ?? []).map((toggle) => toggle.key))
+);
+
+/** The sidebar panel's own live (applied) selection, keyed by facet id. One-way: the panel is
+ *  controlled from this, and every change it reports comes back through `onPanelChange`. */
+const panelSelection = computed<UiFilterSelection>(() =>
+  panelSelectionFor(selection.value, { min: priceMin.value, max: priceMax.value }, priceSpan.value)
+);
+
+/** The drawer panel's own pending copy of the same view. */
+const pendingPanelSelection = computed<UiFilterSelection>(() =>
+  panelSelectionFor(
+    pendingSelection.value,
+    { min: pendingMin.value, max: pendingMax.value },
+    priceSpan.value
+  )
 );
 
 /**
- * The order active filters are listed in: the author's own `filters[]` order first, then any source
- * that carries a selection without a group of its own — a filter seeded from the URL, or one whose
- * group the author has since removed. Nothing selected is ever left out of this list.
+ * The Filter button's own badge count: every applied value (`@eldrajs/ui`'s own `appliedFilters`,
+ * which already excludes a range — a span has no one value a chip could take off) plus one more if
+ * the price range is set, which the button's own count has always included.
  */
-const activeSources = computed<FilterSource[]>(() => {
-  const out: FilterSource[] = [];
-  // A source this scope cannot narrow by is left out of the chips as well as the panel: a chip for
-  // a filter nothing applies is the same false claim with less to click (`unfilterableSources`).
-  const offered = (source: FilterSource): boolean => !unfilterableSources.value.has(source);
-  for (const row of expandedFilterRows.value) {
-    if (offered(row.source) && !out.includes(row.source)) out.push(row.source);
-  }
-  for (const source of Object.keys(selection.value) as FilterSource[]) {
-    if (isFilterSource(source) && offered(source) && !out.includes(source)) out.push(source);
-  }
-  // Price last, and through the same guard: a storefront that declared it unfilterable would
-  // otherwise keep a price chip and an active count for a group that is not on screen.
-  if (!out.includes('price') && offered('price')) out.push('price');
-  return out;
-});
-
-// ---------------------------------------------------------------------------------------------
-// Active filters
-// ---------------------------------------------------------------------------------------------
-
-/**
- * The active filters, derived from **the selection**, never from the response's facets. A facet is
- * computed over the current result set on most backends, so a value can stop being listed the
- * moment a narrowing filter is applied — and a chip derived from the facets would then vanish while
- * the filter stayed in every request, leaving the shopper no way to remove it. The facets are used
- * only to *label* a value; an unlabelled one falls back to its raw value, which is still removable.
- */
-const chips = computed<ActiveFilterChip[]>(() => {
-  const out: ActiveFilterChip[] = [];
-  for (const source of activeSources.value) {
-    const group = groupBySource.value.get(source);
-    const label = group?.label ?? defaultGroupLabel(source);
-    if (source === 'price') {
-      if (priceMin.value === '' && priceMax.value === '') continue;
-      // The store's own currency formatter, the same one the slider's thumbs and fields speak
-      // with — never a hard-coded sign, which read "$50" beside a legend saying ISK.
-      const from = priceMin.value === '' ? '' : money.format(Number(priceMin.value));
-      const to = priceMax.value === '' ? '' : money.format(Number(priceMax.value));
-      out.push({
-        key: 'price',
-        label: `${label}: ${from} ${t('grid.to')} ${to}`.replace(/\s+/g, ' ').trim(),
-      });
-      continue;
-    }
-    for (const value of selection.value[source] ?? []) {
-      const match = group?.values.find((candidate) => candidate.value === value);
-      out.push({ key: `${source}:${value}`, label: `${label}: ${match?.label ?? value}` });
-    }
-  }
-  return out;
-});
-const activeCount = computed(() => chips.value.length);
+const activeCount = computed(
+  () =>
+    appliedFilters(filterFacets.value, panelSelection.value).length +
+    (priceMin.value !== '' || priceMax.value !== '' ? 1 : 0)
+);
 
 /**
  * The empty-results advice: the author's own `emptyText`, then a sentence naming what is actually
  * filtered ("Nothing in Oat, size M is in stock right now.", spec States → Empty results). The
- * value labels, not the chip labels — the sentence reads as prose, not as a list of group titles.
+ * value labels, not the chip labels — the sentence reads as prose, not as a list of facet titles.
+ * `appliedFilters` already excludes the price range, same as this sentence always has.
  */
-const activeValueLabels = computed(() => {
-  const out: string[] = [];
-  for (const source of activeSources.value) {
-    if (source === 'price') continue;
-    const group = groupBySource.value.get(source);
-    for (const value of selection.value[source] ?? []) {
-      const match = group?.values.find((candidate) => candidate.value === value);
-      out.push(match?.label ?? value);
-    }
-  }
-  return out;
-});
 const emptyTitle = computed(() => (data.value.emptyTitle ?? '').trim() || t('grid.noResultsTitle'));
 const emptyText = computed(() => {
   const own = (data.value.emptyText ?? '').trim();
-  const named =
-    activeValueLabels.value.length > 0
-      ? t('grid.nothingIn', { filters: activeValueLabels.value.join(', ') })
-      : '';
+  const labels = appliedFilters(filterFacets.value, panelSelection.value).map(
+    (filter) => filter.label
+  );
+  const named = labels.length > 0 ? t('grid.nothingIn', { filters: labels.join(', ') }) : '';
   return [own, named].filter((part) => part !== '').join(' ');
 });
 
@@ -1125,11 +1070,13 @@ const emptyText = computed(() => {
 function adoptRouteState(): void {
   // Tracked explicitly rather than inferred from `appliedFilters`' own reference stability: by the
   // time this watcher runs, `selection`/price may already carry a *sidebar* change this same tick
-  // (`onToggle`/`onRange` write them before `publishState()` echoes them into the route that wakes
+  // (`onPanelChange` writes them before `publishState()` echoes them into the route that wakes
   // this up) — and `flushFilterDebounce()` below must not fire for that round-trip, or it undoes
   // the arm that very same change just made for a reason this function had nothing to do with.
   let changed = false;
-  const next = filterSelectionFromRoute(readableOptionKeys(selection.value));
+  const next = filterSelectionFromRoute(readableOptionKeys(selection.value), [
+    ...toggleKeySet.value,
+  ]);
   if (!sameSelection(next, selection.value)) {
     selection.value = next;
     changed = true;
@@ -1214,8 +1161,13 @@ function publishState(): void {
     if (key !== null && usableOptionKey(key) === null) return;
     sources.add(source);
   };
-  for (const source of managedSources(readableOptionKeys(selection.value))) add(source);
+  for (const source of managedSources(readableOptionKeys(selection.value), [
+    ...toggleKeySet.value,
+  ])) {
+    add(source);
+  }
   for (const option of facets.value?.options ?? []) add(optionSourceFor(option.key));
+  for (const toggle of facets.value?.toggles ?? []) add(toggleSourceFor(toggle.key));
   for (const source of Object.keys(selection.value)) {
     if (isFilterSource(source)) add(source);
   }
@@ -1235,46 +1187,71 @@ const countText = computed(() => {
 });
 
 const countEl = ref<HTMLElement | null>(null);
-const activeFiltersEl = ref<InstanceType<typeof ActiveFilters> | null>(null);
+/** The sidebar and drawer `FilterPanel` instances, for `focusChip`/`focusTitle` after a chip is
+ *  removed from inside either one (`onPanelRemove`/`onPendingPanelRemove`). */
+const sidebarPanelEl = ref<InstanceType<typeof FilterPanel> | null>(null);
+const drawerPanelEl = ref<InstanceType<typeof FilterPanel> | null>(null);
 function focusCount(): void {
   countEl.value?.focus();
 }
+
+/**
+ * The applied filters just before the panel's own `change` handler ran — read at the top of
+ * `onPanelChange`/`onPendingPanelChange`, before either mutates `selection`/`pendingSelection`, so
+ * `onPanelRemove`/`onPendingPanelRemove` can still find the removed chip's own index a moment
+ * later: the panel reports `change` and then `remove` synchronously in that order (`FilterPanel`'s
+ * own `onRemoveChip`), so by the time `remove` arrives the state is already the *post*-removal one
+ * and the chip is gone from it. Mirrors the pre-panel code's own `chips.value.findIndex(...)` — an
+ * index taken before the mutation, clamped into the list that remains after it.
+ */
+let lastSidebarChips: ReturnType<typeof appliedFilters> = [];
+let lastPendingChips: ReturnType<typeof appliedFilters> = [];
 
 // ---------------------------------------------------------------------------------------------
 // Applying a change
 // ---------------------------------------------------------------------------------------------
 
-function toggleIn(values: FilterSelection, source: FilterSource, value: string, checked: boolean) {
-  const current = values[source] ?? [];
-  const next = checked
-    ? current.includes(value)
-      ? current
-      : [...current, value]
-    : current.filter((candidate) => candidate !== value);
-  const out: FilterSelection = { ...values };
-  if (next.length === 0) delete out[source];
-  else out[source] = next;
-  return out;
-}
-
-/** The sidebar's own live path: the visible selection, the chips and the URL all move at once,
- *  but the read this drives waits out `FILTER_DEBOUNCE_MS` so a run of ticks reaches the
- *  storefront as the one request the shopper's last tick deserves. **Armed first**, before
- *  anything moves: `publishState()` resets the page window in the same turn, and that is one of
- *  the read's own inputs — arming afterwards would let it through on its own. */
-function onToggle(source: FilterSource, value: string, checked: boolean): void {
+/**
+ * The sidebar's own live path: the visible selection, the applied chips and the URL all move at
+ * once, but the read this drives waits out `FILTER_DEBOUNCE_MS` so a run of ticks reaches the
+ * storefront as the one request the shopper's last tick deserves. **Armed first**, before anything
+ * moves: `publishState()` resets the page window in the same turn, and that is one of the read's
+ * own inputs — arming afterwards would let it through on its own.
+ *
+ * One handler for every kind of change the panel reports (a checkbox, a switch, a committed range,
+ * a typed field, **Clear all**, a removed chip) — unlike the pre-panel code's separate
+ * `onToggle`/`onRange`, because the panel always reports the *whole* resulting selection rather
+ * than one value at a time, so there is nothing left to apply incrementally.
+ */
+function onPanelChange(next: UiFilterSelection): void {
+  lastSidebarChips = appliedFilters(filterFacets.value, panelSelection.value);
   armFilterDebounce();
-  selection.value = toggleIn(selection.value, source, value, checked);
+  const applied = applyPanelSelection(next, {
+    sources: sourceMap.value,
+    toggleKeys: toggleKeySet.value,
+    priceSpan: priceSpan.value,
+    appliedPrice: { min: priceMin.value, max: priceMax.value },
+  });
+  selection.value = applied.selection;
+  priceMin.value = applied.price.min;
+  priceMax.value = applied.price.max;
   publishState();
 }
-/** Both bounds at once, from whichever price control set them — one state change, so one URL
- *  write and (after the same debounce as `onToggle`, armed the same way first) one request per
- *  gesture. */
-function onRange(range: PriceRange): void {
-  if (range.min === priceMin.value && range.max === priceMax.value) return;
-  armFilterDebounce();
-  priceMin.value = range.min;
-  priceMax.value = range.max;
+
+/**
+ * **Clear all**, fired right after `onPanelChange` already ran for the same click (the panel
+ * always emits `change` before `clear`). That first `publishState()` call can still read stale
+ * facets: `requestOptions` is the sidebar's own debounced mirror, so a family a filter had just
+ * narrowed away (no `colour` option, say) has not come back into the unfiltered facets yet, which
+ * means `readableOptionKeys` cannot yet call it readable — so `publishState()`'s own patch never
+ * clears that query key, leaving the old selection to round-trip straight back in through
+ * `adoptRouteState()`. Flushing the debounce brings `facets.value` back in step *before*
+ * publishing again, which is what actually clears every query key — the same ordering `onSort`'s
+ * own comment explains at length, needed here because Clear all is the one path that both empties
+ * the selection and needs that fresher read to publish correctly.
+ */
+function onPanelClear(): void {
+  flushFilterDebounce();
   publishState();
 }
 /** Sort applies at once and flushes any sidebar change still waiting out its debounce, so the one
@@ -1305,46 +1282,54 @@ function onColumns(value: string): void {
   flushFilterDebounce();
 }
 
-function clearSelection(): void {
+/** Spec Acceptance: "after Clear all, [focus lands] on the count." The sidebar panel's own head
+ *  draws **Clear all** and moves focus to its own title itself (spec → Behaviour), which is a
+ *  sensible place to land right beside the button that was pressed — this is only the empty
+ *  state's own **Clear filters** button, a block-drawn control the panel knows nothing about, so
+ *  it still has to clear and focus by hand. */
+async function onClearAll(): Promise<void> {
   selection.value = {};
   priceMin.value = '';
   priceMax.value = '';
-}
-
-/** Spec Acceptance: "after Clear all, [focus lands] on the count." A deliberate, one-shot action —
- *  applied at once like sort and columns, not held for a window nobody is chaining into. Flushed
- *  before `publishState()` for the same reason `onSort` is. */
-async function onClearAll(): Promise<void> {
-  clearSelection();
   flushFilterDebounce();
   publishState();
   await nextTick();
   focusCount();
 }
 
-/** Spec Acceptance: "After removing a chip, focus lands on the next chip or on the count." Applies
- *  at once, the same as Clear all — flushed before `publishState()` for the same reason `onSort`
- *  is. */
-async function onRemoveChip(key: string): Promise<void> {
-  const index = chips.value.findIndex((chip) => chip.key === key);
-  if (key === 'price') {
-    priceMin.value = '';
-    priceMax.value = '';
-  } else {
-    const separator = key.lastIndexOf(':');
-    const source = key.slice(0, separator);
-    const value = key.slice(separator + 1);
-    if (isFilterSource(source)) selection.value = toggleIn(selection.value, source, value, false);
-  }
+/**
+ * `FilterPanel.focusChip(index)` reads its own `chipEls` ref array, which a shrinking `v-for` does
+ * not always re-populate at the chip's *new* index in time for the same tick this fires in (the
+ * surviving chip's remove button keeps its DOM node across the removal, but the ref callback that
+ * records it under the new index is not guaranteed to have run yet). Querying the panel's own root
+ * for the Nth remove button in document order is exactly what a shopper's or a screen reader's own
+ * next stop would be, and does not depend on that internal bookkeeping.
+ */
+function focusNthRemoveButton(panel: InstanceType<typeof FilterPanel> | null, index: number): void {
+  const root = (panel as { $el?: Element } | null)?.$el;
+  const button = root?.querySelectorAll('[data-part="removeButton"]')[index];
+  (button as HTMLElement | undefined)?.focus();
+}
+
+/**
+ * Spec Acceptance: "After removing a chip, focus lands on the next chip or on the count." Applies
+ * at once, the same as Clear all (`onPanelClear`) and for the same reason: `onPanelChange` has
+ * already run for this same click and may have published over stale facets, so this flushes and
+ * republishes before working out where focus goes — the one thing the panel cannot do itself.
+ */
+async function onPanelRemove(removal: { facetId: string; value: string }): Promise<void> {
+  const index = lastSidebarChips.findIndex(
+    (chip) => chip.facetId === removal.facetId && chip.value === removal.value
+  );
   flushFilterDebounce();
   publishState();
   await nextTick();
-  if (chips.value.length === 0 || index < 0) {
+  const remaining = appliedFilters(filterFacets.value, panelSelection.value);
+  if (remaining.length === 0 || index < 0) {
     focusCount();
     return;
   }
-  const target = Math.min(index, chips.value.length - 1);
-  if (activeFiltersEl.value?.focusChip(target) !== true) focusCount();
+  focusNthRemoveButton(sidebarPanelEl.value, Math.min(index, remaining.length - 1));
 }
 
 /** Widen the window first, resolve an armed sidebar wait second — the ordering `onColumns` explains
@@ -1417,21 +1402,38 @@ function openDrawer(): void {
   drawerOpen.value = true;
   flushPendingDebounce();
 }
-function onPendingToggle(source: FilterSource, value: string, checked: boolean): void {
-  pendingSelection.value = toggleIn(pendingSelection.value, source, value, checked);
+/** The drawer's own path: every kind of change the panel reports, applied to the *pending* copy —
+ *  nothing here reaches the page until `applyPending()`. */
+function onPendingPanelChange(next: UiFilterSelection): void {
+  lastPendingChips = appliedFilters(filterFacets.value, pendingPanelSelection.value);
+  const applied = applyPanelSelection(next, {
+    sources: sourceMap.value,
+    toggleKeys: toggleKeySet.value,
+    priceSpan: priceSpan.value,
+    appliedPrice: { min: pendingMin.value, max: pendingMax.value },
+  });
+  pendingSelection.value = applied.selection;
+  pendingMin.value = applied.price.min;
+  pendingMax.value = applied.price.max;
   armPendingDebounce();
 }
-function onPendingRange(range: PriceRange): void {
-  pendingMin.value = range.min;
-  pendingMax.value = range.max;
-  armPendingDebounce();
-}
-function clearPending(): void {
-  pendingSelection.value = {};
-  pendingMin.value = '';
-  pendingMax.value = '';
+
+/**
+ * The same focus contract as `onPanelRemove`, for a chip removed from inside the drawer — with
+ * nothing left, there is no count to fall back to inside a dialog, so focus is left where the
+ * browser already puts it (the dialog itself, never outside it, because `Drawer` is a true modal).
+ */
+async function onPendingPanelRemove(removal: { facetId: string; value: string }): Promise<void> {
+  const index = lastPendingChips.findIndex(
+    (chip) => chip.facetId === removal.facetId && chip.value === removal.value
+  );
   flushPendingDebounce();
+  await nextTick();
+  const remaining = appliedFilters(filterFacets.value, pendingPanelSelection.value);
+  if (remaining.length === 0 || index < 0) return;
+  focusNthRemoveButton(drawerPanelEl.value, Math.min(index, remaining.length - 1));
 }
+
 /** Spec: "Filtering in the drawer changes nothing on the page until **Show N products** is
  *  pressed." This is the only path out of the pending copy into the applied one — applied, like
  *  every other immediate-apply control, so it flushes the main debounce too rather than leaving a
@@ -1475,8 +1477,8 @@ const gridClass: ComputedRef<string> = computed(
 /** A block whose `filters[]` is empty has nothing to put in a sidebar, a drawer or behind the
  *  Filter button — the "empty optional parts render nothing" rule, so the grid simply gets the
  *  whole width. */
-const showSidebar = computed(() => hasSidebar.value && groups.value.length > 0);
-const hasFilters = computed(() => groups.value.length > 0);
+const showSidebar = computed(() => hasSidebar.value && filterFacets.value.length > 0);
+const hasFilters = computed(() => filterFacets.value.length > 0);
 const hasSort = computed(() => sortOptions.value.length > 0);
 const showTopBar = computed(() => hasFilters.value || hasSort.value);
 
@@ -1557,23 +1559,22 @@ function hrefForPage(page: number): string {
             :aria-label="t('grid.filters')"
             class="@content:block @content:sticky @content:top-[calc(1.5rem_+_var(--eldra-header-height,0px))] hidden"
           >
-            <!-- A whole-page axe run sees this aside's `h3` group triggers right after the page's
-                 own `h1` (`heading-order`): this hidden `h2` (the aside's own accessible name) gives
-                 them a level to nest under without changing anything sighted users see. -->
-            <VisuallyHidden as="h2">{{ t('grid.filters') }}</VisuallyHidden>
-            <FilterGroups
+            <!-- The panel's own head (`show-head`, the default) draws a visible "Filters" `h2`
+                 right before its `h3` group triggers, which is what keeps a whole-page axe run's
+                 `heading-order` rule happy under the page's own `h1` — no hidden heading to add
+                 beside it any more. -->
+            <FilterPanel
+              ref="sidebarPanelEl"
               dense
-              :groups="groups"
-              :selection="selection"
-              :min="priceMin"
-              :max="priceMax"
-              :price-span="priceSpan"
-              :price-step="priceStep"
-              :format-price="money.format"
+              mode="sidebar"
+              show-applied
+              :facets="filterFacets"
+              :model-value="panelSelection"
               :currency="money.currency.value"
               :id-prefix="`collection-grid-sidebar-${uid}`"
-              @toggle="onToggle"
-              @update:range="onRange"
+              @change="onPanelChange"
+              @clear="onPanelClear"
+              @remove="onPanelRemove"
             />
           </aside>
 
@@ -1661,15 +1662,6 @@ function hrefForPage(page: number): string {
                 </FieldWrapper>
               </div>
             </div>
-
-            <ActiveFilters
-              v-if="chips.length > 0"
-              ref="activeFiltersEl"
-              class="mt-4"
-              :chips="chips"
-              @remove="onRemoveChip"
-              @clear="onClearAll"
-            />
 
             <!-- Results. -->
             <div class="mt-6">
@@ -1765,39 +1757,25 @@ function hrefForPage(page: number): string {
           :title="t('grid.filter')"
           width="min(24rem, 100%)"
         >
-          <!-- Same reasoning as the sidebar's own hidden `h2` above — a heading for the group
-               triggers to nest under, independent of the Drawer's own visible title. -->
-          <VisuallyHidden as="h2">{{ t('grid.filters') }}</VisuallyHidden>
-          <FilterGroups
-            :groups="groups"
-            :selection="pendingSelection"
-            :min="pendingMin"
-            :max="pendingMax"
-            :price-span="priceSpan"
-            :price-step="priceStep"
-            :format-price="money.format"
+          <!-- `show-head false`: the Drawer's own title above is already this panel's heading, so
+               it draws no second one of its own. Its foot — Clear all and Show N products, wired
+               to the grid's existing pending-count probe — is the panel's own default content,
+               from `result-count`. -->
+          <FilterPanel
+            ref="drawerPanelEl"
+            mode="drawer"
+            :show-head="false"
+            show-applied
+            :facets="filterFacets"
+            :model-value="pendingPanelSelection"
             :currency="money.currency.value"
+            :result-count="pendingTotal"
             :id-prefix="`collection-grid-drawer-${uid}`"
-            @toggle="onPendingToggle"
-            @update:range="onPendingRange"
+            @change="onPendingPanelChange"
+            @clear="flushPendingDebounce"
+            @apply="applyPending"
+            @remove="onPendingPanelRemove"
           />
-          <template #footer>
-            <div class="grid grid-cols-[auto_1fr] items-center gap-3">
-              <Button
-                variant="outline"
-                :classes="{ container: 'min-h-11' }"
-                @click="clearPending"
-                >{{ t('grid.clearAll') }}</Button
-              >
-              <Button
-                variant="primary"
-                block
-                :classes="{ container: 'min-h-11' }"
-                @click="applyPending"
-                >{{ t('grid.showNProducts', { count: pendingTotal }) }}</Button
-              >
-            </div>
-          </template>
         </Drawer>
       </template>
     </Container>

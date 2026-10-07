@@ -51,7 +51,7 @@ export function storefrontOptionKind(raw: unknown): StorefrontOptionKind {
  * draws one blank disc per value with the value's name in visually hidden text — a shopper sees a row
  * of identical empty circles and cannot tell M from XL — where the pills it replaced read their names
  * out loud. So the swatch control is earned by the data, exactly as a filter group's colour dots are
- * (`blocks/collection-grid/parts/groups.ts`'s `groupKindFor`, the same rule for the same reason), and
+ * (`blocks/collection-grid/parts/groups.ts`'s `facetTypeFor`, the same rule for the same reason), and
  * the two surfaces cannot disagree about one option.
  *
  * **One value without a colour inside an option that has them is kept, uncoloured** — the filter
