@@ -13,7 +13,7 @@ It is framework-neutral. Build the components in whatever stack the project uses
 3. [Accessibility requirements (WCAG 2.2 AA)](#accessibility-requirements-wcag-22-aa)
 4. [Component conventions](#component-conventions)
 5. [Actions and forms](#actions-and-forms): Button, Link, Input, Textarea, Field wrapper, Form layout, Checkbox, Radio group, Switch, Select, Multi-select, Quantity stepper, Range slider, Variant picker, Search bar
-6. [Display, commerce and layout](#display-commerce-and-layout): Badge, Price, Rating, Avatar, Logo item, Product card, Content card, Feature card, Container and section, Image, Skeleton, Empty and error states
+6. [Display, commerce and layout](#display-commerce-and-layout): Badge, Price, Rating, Filter panel, Avatar, Logo item, Product card, Content card, Feature card, Container and section, Image, Skeleton, Empty and error states
 7. [Overlays, navigation and feedback](#overlays-navigation-and-feedback): Dialog, Drawer, Lightbox, Search modal, Accordion, Tabs, Tooltip, Toast, Breadcrumb, Pagination, Carousel
 8. [Definition of done](#definition-of-done)
 
@@ -2636,6 +2636,244 @@ Gap stars → value → count: 0.5rem (`space-2`). Value weight 600. Inside comm
 - Do hide the rating on cards when the store has no reviews at all.
 - Don't colour stars yellow or brand colour; they stay `text` so the component works with any `primary`.
 - Don't make each star a separate tab stop in a read-only rating.
+
+---
+
+### Filter panel
+
+The faceted product filter for collection and search pages. It has collapsible groups of checkbox lists with counts, real colour swatches, size tiles, a price range with a histogram, and availability switches. It sits in a sidebar from 64rem block width and inside the filter Drawer below that. For a single choice inside a form, use Checkbox, Radio group or Select. To choose a product's own variant, use Variant picker.
+
+![Filter panel — sidebar with all facet types; collapsed groups with summaries and a long searchable list; colour swatch grid, is-IS price and focus; in the filter drawer at 360 (part 1)](images/core/filter-panel--part1.png)
+![Filter panel — the filter drawer at 360 continued: colour rows, size tiles and the sticky foot with Clear all and Show 24 products (part 2)](images/core/filter-panel--part2.png)
+
+*Two consecutive slices of one tall capture. Top row, left to right: the sidebar with every facet type (Category list, Colour swatch rows, Size tiles in two size systems, Price range with histogram and Min/Max fields, Availability switches); groups collapsed with summaries ("Sweaters", "Brown, Natural") and a Material list with a search field and "Show all 12"; the colour swatch grid with Brown keyboard-focused and an is-IS price range ("3500 kr." to "14000 kr."). Bottom: the panel in the 360 filter drawer with active-filter chips and the foot **Clear all** / **Show 24 products**, and notes on how it reads.*
+
+**Anatomy**
+
+```
+Filters                                   Clear all      ← 1 head
+[Sweaters ×] [Brown ×] [Natural ×] [M ×]                 ← 2 active filters (optional)
+──────────────────────────────────────────────────────
+Category  ①                       Sweaters   ˅          ← 3 group trigger
+  ☑ Sweaters                                   18        ← 4 option row
+  ☐ Cardigans                                   9
+  Show all 12 ˅                                          ← 5 Show all N
+──────────────────────────────────────────────────────
+Colour  ②                                      ˄
+  (●) Black                                    14        ← 6 swatch row
+  (✓) Brown                                     9
+  (⊘) Navy                                      0        ← no products: struck swatch, disabled
+──────────────────────────────────────────────────────
+Size  ①                                        ˄
+  KNITWEAR                                               ← 7 size-system sub-heading
+  [XS] [S] [▮M▮] [L] [XL] [X̶X̶L̶]                       ← 8 size tiles
+  Size guide                                             ← 9 size guide link
+──────────────────────────────────────────────────────
+Price                                          ˄
+  ▁▂▄▇█▇▅▃▂▁▁                                            ← 10 histogram (decorative)
+  ○━━━━━━━━━━━━○                                         ← 11 two-thumb range
+  Min [$ 40]   –   Max [$ 160]                           ← 12 Min / Max fields
+──────────────────────────────────────────────────────
+Availability  ①                                ˄
+  (●━) In stock only                           41        ← 13 switch row
+```
+
+1. **Head** (optional): the title "Filters" (an `h2`) and a **Clear all** Button (link, sm). Shown in the sidebar; the drawer leaves it out because the drawer title is the heading.
+2. **Active filters** (optional): a list of removable chips (sm), one per selected value, labelled "Active filters".
+3. **Group trigger**: the facet name, a selected-count badge, a summary of the selected labels (only while collapsed), and a chevron. One per group; the groups are separated by `border` rules.
+4. **Option row** (list facet): a checkbox, the value label, and the product count.
+5. **Search field and Show all N** (long list facets): a search field above lists of more than 12 values; a **Show all N** / **Show fewer** button below lists of more than 6.
+6. **Swatch row or swatch tile** (colour facet): the real product colour in a circle with a check mark when selected, the colour name and the count.
+7. **Size-system sub-heading**: "Knitwear", "Socks (EU)", "Shoes".
+8. **Size tile**: an equal-width tile per size.
+9. **Size guide** link under the tiles.
+10. **Histogram** (optional, decorative): 24 bars showing where the products sit on the range.
+11. **Range**: a track with a `primary` fill between two thumbs.
+12. **Min and Max fields**: two small number inputs with the currency unit, joined by an en dash.
+13. **Switch row** (toggle facet): a Switch (sm) with its label, and the count right-aligned.
+14. **Drawer foot** (drawer mode, supplied by the Drawer): **Clear all** and **Show N products**.
+
+**Properties**
+
+| Name | Type | Default | Description |
+|---|---|---|---|
+| value | object (two-way) | `{}` | The selection, keyed by facet id: list, colour and size facets hold an array of values; a range facet holds `[min, max]`; a toggle facet holds an array of the switched-on values. Mirror it in the URL (see Behaviour). |
+| facets | list of facets | `[]` | The groups, in order. Shape below. |
+| mode | `sidebar` \| `drawer` | `sidebar` | `sidebar` applies every change at once. `drawer` batches changes until the shopper presses **Show N products**. |
+| title | string | "Filters" | Head title. |
+| showHead | boolean | `true` | Shows the head (title + Clear all). Set to `false` inside the drawer. |
+| showApplied | boolean | `false` | Shows the active-filter chips above the groups. |
+| label | string | "Product filters" | Accessible name of the form. |
+| locale | string | the store's locale (`en-US`) | Number and currency formatting. |
+| currency | string | the store's currency (`USD`) | Currency for range facets that hold prices. |
+| resultCount | integer | — | Live product count for the current (pending) selection. Drawer mode shows it in **Show N products**. |
+
+Facet shape:
+
+| Name | Type | Default | Description |
+|---|---|---|---|
+| id | string | — | Stable key, also used in the URL (`colour`, `size`, `price`). |
+| label | string | — | Group name ("Colour"). Also the hidden legend of its fieldset. |
+| type | `list` \| `colour` \| `size` \| `range` \| `toggle` | — | See Variants. |
+| collapsed | boolean | `false` | Start closed. A group with a selected value always starts open. |
+| layout | `list` \| `grid` | `list` | Colour facets only: swatch rows or swatch tiles. |
+| values[] | list | `[]` | `{ value, label, count, swatch?, group? }`. `swatch` is a colour (hex) or a gradient for "Multi" and patterned items; `group` is the size system for size facets. |
+| min, max, step | number | — | Range facets: limits and step. Values snap to `step`. |
+| histogram | list of numbers | none | Range facets: product counts for 24 equal buckets. Leave it out to hide the histogram. |
+| sizeGuideHref | link | none | Size facets: target of the **Size guide** link. |
+
+**Events**
+
+- `change`: fires with the new value after every check, switch, range move or committed Min/Max field. In sidebar mode the owning block re-queries the results. In drawer mode it is the pending selection, and the block only updates `resultCount`.
+- `apply`: drawer mode only, fires with the value when **Show N products** is pressed. The block applies the filters and closes the drawer.
+- `clear`: fires when **Clear all** is pressed, after every facet (including ranges) is reset.
+- `remove`: fires with `{ facetId, value }` when an active-filter chip is removed.
+
+**Sizes**
+
+| Part | Measure |
+|---|---|
+| Panel | Fills its column: sidebar 15–17rem, drawer full width. Base text 0.9375rem `text`. The panel measures its own width: colour rows switch to 2 columns (gaps 0.125rem × 1.5rem) once the panel is 26rem or wider. |
+| Head | Flex row, space-between, 0.75rem gap, 0.75rem below. Title 1.125rem heading font, weight 600, line height 1.35. **Clear all** Button link sm, 0.875rem, weight 500. |
+| Active filters | Wrapping row, 0.375rem gaps, 0.75rem below. Chip sm. |
+| Group | 1px `border` rule above every group and below the last. A group that comes first in the panel (no head) has no top rule. |
+| Trigger | Full width, min 3rem tall, padding 0.75rem 0, gap 0.5rem, `radius-sm`, 0.9375rem weight 600, left-aligned. Chevron 1.125rem `muted`, pushed to the end. Selected badge: 1.25rem tall, min 1.25rem wide, 0 0.3125rem padding, `radius-full`, 0.75rem weight 700, tabular figures. Summary: 0.8125rem weight 400 `muted`, pushed to the end before the chevron, one line, truncated with an ellipsis. |
+| Body | 1.25rem bottom padding. |
+| Size-system sub-heading | 0.75rem weight 600, uppercase, 0.06em letter spacing, `muted`; 0.75rem above (none for the first) and 0.5rem below. |
+| Option row | Min 2.25rem tall, padding 0.25rem 0.5rem with a −0.5rem side margin (the hover tint bleeds into the gutter), gap 0.625rem, `radius-sm`, line height 1.35. Rows 0.125rem apart. Checkbox 1.125rem. Label wraps (breaks long words). Count 0.8125rem `muted`, tabular figures, pushed to the end. |
+| Show all N | Button link sm, 0.875rem weight 500, 0.375rem above, 0.25rem gap, chevron 1rem. |
+| Facet search | Input sm (2rem) of type search, 0.5rem above the list; a 1rem `muted` search icon 0.625rem from the start, text starting 2rem in. "No matches" line: 0.875rem `muted`, 0.5rem vertical padding. |
+| Swatch row (`list`) | Min 2.25rem tall, padding 0.25rem 0.375rem with a −0.375rem side margin, gap 0.625rem, `radius-sm`, line height 1.3. Swatch 1.5rem circle with a 1px inner edge of `text` at 22%. Check mark 0.875rem, stroke weight 3. |
+| Swatch tile (`grid`) | Grid of `repeat(auto-fill, minmax(4.25rem, 1fr))`, gaps 0.75rem (rows) × 0.5rem. Each tile is a centred column: padding 0.375rem 0.25rem, gap 0.375rem, swatch 2.25rem, check mark 1.125rem, name 0.8125rem, count 0.75rem. |
+| Selected swatch ring | A 2px `background` gap, then a 1.5px `text` ring around the swatch. |
+| Size tile | Grid of `repeat(auto-fill, minmax(3.25rem, 1fr))`, gap 0.375rem. Tile min height `control-height` (2.5rem), 0 0.375rem padding, 1px `border-strong` border, `radius-md`, `background` fill, 0.875rem weight 500, tabular figures, centred, never wraps. |
+| Size guide | Link, 0.8125rem, 0.5rem below the tiles. |
+| Histogram | 2.5rem tall, 24 bars with 2px gaps, inset 0.625rem on each side so it lines up with the track. Bar min height 2px, top corners 1px. |
+| Range | Hit area 1.75rem tall. Track 0.25rem tall, `radius-full`, `surface-strong`, inset 0.625rem on each side; fill `primary`. Thumbs 1.25rem circles, `background` fill, 2px `text` border, `shadow-sm`. |
+| Min / Max fields | 3-column grid (`1fr | auto | 1fr`), bottom-aligned, 0.5rem gaps, 0.75rem above. Label "Min" / "Max" 0.75rem weight 500 `muted`, 0.125rem above its Input sm (2rem). The unit sits 0.625rem inside the input in 0.875rem `muted`: as a prefix ("$", text starts 1.5rem in) or a suffix ("kr.", text ends 2rem in), whichever the currency format uses. Tabular figures. En dash between the fields in `muted`. |
+| Switch row | Min 2.25rem tall, space-between, 0.75rem gap; consecutive rows 0.25rem apart. Switch sm (track 2.25 × 1.25rem), label 0.9375rem. Count as in option rows. |
+| Drawer foot | 2 columns (`auto | 1fr`), 0.75rem gap: **Clear all** (Button outline, auto width) and **Show N products** (Button primary, fills the rest). |
+
+**Variants**
+
+| Variant | Use for | Control | Notes |
+|---|---|---|---|
+| `list` facet | Category, collection, material, brand | Checkbox rows with counts | More than 6 values: the first 6, then **Show all N**. More than 12: a search field above the list as well. |
+| `colour` facet, `list` layout | Colour option (default) | Swatch rows: swatch, name, count | 1 column; 2 columns when the panel is 26rem or wider. |
+| `colour` facet, `grid` layout | Colour option when there is room for tiles | Swatch tiles: swatch above, name and count centred below | Name and count stay visible. |
+| `size` facet | Size options | Equal tiles, grouped by size system under sub-headings | A **Size guide** link sits under the tiles. Never mix systems ("M" and "42") in one grid. |
+| `range` facet | Price, also width or capacity | Two-thumb range, Min and Max fields, optional histogram | Values snap to `step`. Prices use the store's locale and currency: en-US "$40", is-IS "3.500 kr.". |
+| `toggle` facet | Availability, on sale, pre-order | Switch rows | One switch per yes/no facet, never a checkbox pair such as "In stock / Out of stock". |
+| `sidebar` mode | From 64rem block width, beside the results | Head shown | Every change applies at once. |
+| `drawer` mode | Below 64rem, inside the filter Drawer | No head; optional active chips; foot with **Clear all** and **Show N products** | Changes are batched until **Show N products**. |
+
+Swatch colour comes from product data, never from theme tokens. The check mark inside a swatch picks its ink automatically: work out the swatch colour's relative luminance (sRGB channels linearised, `0.2126 R + 0.7152 G + 0.0722 B`); above 0.35 the check is `text`, otherwise `focus-inner` (white). Gradients and patterns count as dark and get the `focus-inner` check. Northwind colours: Black `#1f1d1b`, Brown `#7a5236`, Natural `#dccfb8`, White `#f7f5f0`, Charcoal `#3d3c3b`, Clay `#b0603f`, Moss `#5f6b47`, Navy `#27324a`, Multi a four-quarter conic gradient of Clay, Moss, Navy and Natural. Natural and White take the `text` check; the rest take `focus-inner`.
+
+**States**
+
+| State | Background | Border | Text | Icon / mark |
+|---|---|---|---|---|
+| Trigger, rest | none | `border` rule above the group | `text` 600; summary `muted` | chevron `muted`, pointing down when collapsed |
+| Trigger, hover | none | — | name underlined 1px, 0.2em offset | — |
+| Trigger, expanded | none | — | summary hidden (it keeps its space) | chevron turned 180° |
+| Trigger, focus-visible | none | standard focus ring (follows `radius-sm`) | — | — |
+| Group with selections | badge `primary` | — | badge `primary-contrast`; collapsed: the selected labels as a `muted` summary ("Brown, Natural") | — |
+| Option row, hover | `text` at 6% | — | — | — |
+| Option row, checked | none | — | label weight 600 | checkbox `primary` with a `primary-contrast` tick |
+| Option row, focus-visible | none | standard focus ring on the checkbox | — | — |
+| Swatch row/tile, hover | `text` at 6% | — | — | — |
+| Swatch, checked | — | 2px `background` gap + 1.5px `text` ring around the swatch | name weight 600 | check mark in the auto ink (three cues, never colour alone) |
+| Swatch row/tile, focus-visible | — | standard focus ring around the whole row or tile (the checkbox inside is visually hidden) | — | — |
+| Size tile, hover | `background` | `text` | — | — |
+| Size tile, checked | `primary` | `primary` | `primary-contrast`, weight 600 | — |
+| Size tile, focus-visible | — | standard focus ring around the tile | — | — |
+| Value with 0 products (disabled) | no hover tint; size tile `surface` | size tile dashed `border-strong` | `muted`; size label struck through (1px) | checkbox disabled; swatch at 45% opacity with a 1.5px `text` diagonal strike at 45°. A selected value is never disabled. |
+| Range, rest | track `surface-strong`, fill `primary` between the thumbs | thumbs 2px `text` | — | histogram bars between the thumbs `border-strong`, outside `surface-strong` |
+| Range, moved | fill and in-range bars follow the thumbs live | — | Min/Max fields update | — |
+| Range thumb, pressed | — | — | — | thumb scales to 1.1 |
+| Range thumb, focus-visible | — | 2px `focus-inner` + 2px `focus` ring drawn on the thumb | — | — |
+| Min/Max field | Input sm states (hover, focus, disabled) | `border-strong` | `text`; unit `muted` | — |
+| Switch row | Switch sm states (off, on, focus, disabled) | — | label `text` | — |
+| Searching a long list | — | — | only matching values show; the list shows all its values (not just 6) while a query is active; none: "No matches for “x”" in `muted` | — |
+| Clear all (head) | — | — | hidden while nothing is selected and every range is at its limits | — |
+| Updating results | — | — | The owning block's result count reads "Updating…". The panel never blocks input. | — |
+
+**Behaviour & motion**
+
+- **Sidebar mode**: every change applies immediately. The owning block updates its grid, and its result count (a polite live region) announces "24 products".
+- **Drawer mode**: changes are batched. The foot shows **Clear all** and **Show N products**, with N updated live from `resultCount` as the pending selection changes. Nothing changes behind the dialog until the shopper presses **Show N products**, which applies the selection and closes the drawer. Closing the drawer any other way (`Esc`, close button, scrim) discards the pending changes.
+- **Clear all** (head) unchecks every checkbox, switches every switch off, returns every range to its limits, and moves focus to the panel title (focusable programmatically). In the drawer foot, **Clear all** resets the pending selection and focus stays on it.
+- **Group triggers** are disclosures: activating one shows or hides its body. The badge shows the number of checked values and switched-on switches in the group and is hidden at 0 (a moved range does not count). The summary lists the selected labels, comma-separated, and is visible only while the group is collapsed.
+- **Show all N** reveals the remaining values and changes to **Show fewer**; focus stays on the button.
+- **Facet search** filters the list as the shopper types, ignoring case and accents. While a query is active the whole list is searchable (not only the first 6). With no matches the line "No matches for “x”" appears.
+- **Range**: the two thumbs can't cross. If the shopper drags one past the other, the dragged thumb stops one `step` from the other. The fill, the in-range histogram bars (a bar is "in" when its bucket centre lies between the thumbs) and the Min/Max fields follow on every move. Each thumb's value text uses the store's currency with no decimals ("$40"; "3.500 kr."); the top thumb at the maximum adds " or more" ("$240 or more").
+- **Min and Max fields** commit on change (`Enter` or leaving the field): the value rounds to the nearest `step`, clamps to `min`–`max`, and the thumb moves to it. If a committed value would cross the other value, the other one moves to stay one `step` away.
+- **Disabled values** stay in place (a value with 0 products is disabled, not hidden), so the list does not jump while filtering.
+- **URL state**: keep the selection in the URL (`?colour=brown,natural&size=m&price=40-160`) so results can be shared and Back restores them.
+- **Motion**: the chevrons (group and Show all) turn over `duration-base` `ease-out`. Hover tints, size-tile border and fill, the swatch ring, the check mark (fades in from 60% scale), histogram bars and the thumb press scale use `duration-fast` `ease-out`. With reduced motion all of these are instant.
+
+**Keyboard**
+
+| Key | Action |
+|---|---|
+| `Tab` / `Shift+Tab` | Moves group by group: head **Clear all**, active chips' remove buttons, then each group trigger followed by its open body's controls in reading order (search field, checkboxes, **Show all N**, swatch rows, size tiles, **Size guide**, minimum thumb, maximum thumb, Min field, Max field, switches). Disabled values are skipped. Collapsed bodies are skipped. |
+| `Enter` / `Space` | On a group trigger: open or close the group. On **Show all N**, **Clear all**, a chip remove button or a drawer foot button: activate it. |
+| `Space` | Check or uncheck a checkbox, swatch row/tile or size tile. Toggle a switch (`Enter` also toggles a switch). |
+| `←` / `↓`, `→` / `↑` | On a range thumb: one `step` down or up. |
+| `PageDown` / `PageUp` | On a range thumb: a larger jump down or up. |
+| `Home` / `End` | On a range thumb: go to the lowest or highest value it can reach (it stops one step short of the other thumb). |
+| `Enter` | In the Min or Max field: commit the value. It never submits the form or reloads the page. |
+| `Esc` | Sidebar: on an expanded trigger, or anywhere inside its body, collapse the group and return focus to the trigger. Drawer: closes the drawer (the dialog's own behaviour) and discards pending changes. |
+
+**Accessibility**
+
+- The panel is a `<form>` labelled "Product filters" that never submits. In the sidebar it sits inside an `<aside>` labelled by the "Filters" heading (`h2`). In the drawer, the drawer's title ("Filter", `h2`) is the heading and the drawer is a native `<dialog>` opened as a modal (see Drawer).
+- Each group is a disclosure: an `h3` containing a `<button type="button">` with `aria-expanded` (updated on every toggle) and `aria-controls` pointing at the body. The body is a `<fieldset>` with a visually hidden `<legend>` naming the facet ("Colour"). The badge has the accessible name "2 selected" (the visible digit alone is not enough). The collapsed summary is part of the trigger's name ("Colour, 2 selected, Brown, Natural").
+- **Lists**: real `<input type="checkbox">` inside a `<label>`. The count is read as ", 18 products" (visually hidden words around the visible number).
+- **Long lists**: the search field is `<input type="search">` labelled "Search material values" (placeholder "Search material"), with `aria-controls` pointing at the list. The "No matches" line is `role="status"`. **Show all N** is a `<button>` with `aria-expanded` and `aria-controls` pointing at the list.
+- **Colours**: a real checkbox stretched invisibly over the whole row or tile, so the whole row is the click target and carries the focus ring. The accessible name is the colour name plus the count ("Brown, 9 products"). The swatch is `aria-hidden="true"`.
+- **Sizes**: a real checkbox laid over each tile, with `aria-label` naming the size system and count ("Knitwear M, 14 products"); unavailable sizes are `disabled` and add ", none available" ("Socks (EU) 42–44, 0 products, none available"). The visible tile text is `aria-hidden`.
+- **Range**: two native `<input type="range">` sharing one track, labelled "Minimum price" and "Maximum price", each with `aria-valuetext` in the store's currency ("$40", "$160", "$240 or more"; is-IS "3.500 kr."). The histogram is `aria-hidden="true"`. The Min and Max fields are `<input type="number" inputmode="numeric">` with visible labels "Min" and "Max"; the unit is `aria-hidden`.
+- **Switches**: `<button type="button" role="switch" aria-checked>` with the visible label as its name; `aria-checked` updates on every toggle. The count is plain text beside it.
+- **Active chips**: a list labelled "Active filters"; each remove button is labelled "Remove filter Colour: Brown".
+- **Announcements**: the panel has no live region of its own. In sidebar mode the owning block's result count (polite) announces "24 products" after results update. In drawer mode nothing is announced while the shopper edits; the **Show N products** button text carries the live number.
+- **Contrast** (on `background`): labels `text` 16.9:1; counts, summary, sub-headings, Min/Max labels, units and the no-match line `muted` 7.4:1 (6.8:1 on `surface`); badge and checked size tile `primary-contrast` on `primary` 15.6:1. Non-text: checkbox, Input, Switch track and size-tile boundaries `border-strong` 4.5:1; thumb border and the swatch ring `text` 16.9:1; checkbox fill and range fill `primary` against `background` well above 3:1. The swatch colour itself is not required to contrast, because the name always sits beside it. The histogram is decorative. Disabled values are exempt but still use `muted`.
+- **Never colour alone** (1.4.1): a selected swatch has a ring, a check mark and a bold name; a selected list value has a tick and a bold label; a selected size tile is filled and bold; an unavailable swatch is struck through and an unavailable tile is dashed and struck through, besides being disabled.
+- **Targets** (2.5.8): rows and switch rows 2.25rem, size tiles 2.5rem, triggers 3rem, Min/Max fields 2rem. The thumbs are 1.25rem inside a 1.75rem tall track; they pass through the equivalent Min and Max fields, which also give a single-pointer alternative to dragging (2.5.7).
+
+**Acceptance criteria**
+
+- [ ] The panel is a `<form>` labelled "Product filters"; each group is an `h3` > `<button>` with `aria-expanded` and `aria-controls`, and its body a `<fieldset>` with a legend naming the facet (1.3.1, 4.1.2).
+- [ ] Every checkbox, swatch and size tile is a real checkbox; screen readers hear "Sweaters, 18 products", "Brown, 9 products, checkbox, checked" and "Knitwear M, 14 products"; switches expose `role="switch"` and `aria-checked` (4.1.2).
+- [ ] The badge is hidden at 0, shows the number of checked values and switched-on switches, and is named "N selected"; a collapsed group shows the selected labels as a `muted` summary that hides when the group opens.
+- [ ] A list with more than 6 values shows 6 plus **Show all N**, which toggles to **Show fewer** with `aria-expanded` updated and focus kept on the button; a list with more than 12 values also has a search field, the list shows only matches, and no match shows "No matches for “x”" in a status region (4.1.3).
+- [ ] Swatches use the product's real colour or gradient; the check mark is `text` on swatches with relative luminance above 0.35 (Natural, White) and `focus-inner` otherwise (Black, Brown, Multi), and is visible on every swatch.
+- [ ] Colour facets render as rows (`list`, 1 column, 2 columns from 26rem panel width) or tiles (`grid`), with the name and count always visible.
+- [ ] Size tiles are grouped under one sub-heading per size system and never mix systems; a **Size guide** link sits below.
+- [ ] Values with 0 products are disabled, stay in place and show a muted label, a struck 45% swatch or a dashed, struck tile; a selected value is never disabled.
+- [ ] The two range thumbs never cross; arrows step, `PageUp`/`PageDown` jump and `Home`/`End` go to the limits; the fill, histogram bars and Min/Max fields follow every move (2.1.1).
+- [ ] Each thumb's `aria-valuetext` is the formatted price ("$40", "$240 or more"); with locale is-IS and currency ISK, prices read "3.500 kr." and the field unit "kr." sits after the number.
+- [ ] Min/Max commit on `Enter` or blur, round to `step`, clamp to the range, move the thumb, and never submit the form or reload the page.
+- [ ] Sidebar mode applies each change at once and the block's count announces the new total; drawer mode changes nothing on the page until **Show N products** is pressed, N updates as the selection changes, and closing the drawer without it discards the changes (3.2.2, 4.1.3).
+- [ ] **Clear all** resets every facet, including ranges, fires `clear`, and moves focus to the panel title; it is hidden when nothing is selected and every range is at its limits (2.4.3).
+- [ ] The selection is reflected in the URL and Back restores it.
+- [ ] The standard focus ring shows on every trigger, checkbox, switch, Input, button and link; on the whole swatch row, swatch tile and size tile; and as a 2px `focus-inner` + 2px `focus` ring on a focused thumb (2.4.7, 2.4.11, 2.4.13).
+- [ ] Every part works with the keys in the table, in the order listed; there is no keyboard trap in the sidebar; in the drawer `Esc` closes the dialog (2.1.1, 2.1.2).
+- [ ] Contrast: `text` labels 16.9:1, `muted` counts and summaries 7.4:1, `primary-contrast` on `primary` 15.6:1 (1.4.3); `border-strong` control boundaries 4.5:1 and `text` thumb borders and swatch rings 16.9:1 (1.4.11).
+- [ ] No selection is shown by colour alone: ring + check + bold for swatches, tick + bold for list rows, fill + bold for size tiles (1.4.1).
+- [ ] Targets: rows 2.25rem, tiles 2.5rem, triggers 3rem; thumbs have the Min/Max fields as an equivalent and a non-dragging alternative (2.5.7, 2.5.8). Drawer foot buttons are 2.75rem on narrow screens (Drawer).
+- [ ] With reduced motion, chevron turns, tints, the check-mark fade and thumb scale are instant.
+- [ ] At 200% zoom and in a 320px column the panel fits with no horizontal scroll; long labels wrap, summaries truncate with an ellipsis, size tiles reflow into more rows, and text-spacing overrides clip nothing (1.4.4, 1.4.10, 1.4.12).
+
+**Do / Don't**
+
+- Do show real counts, and disable values with no products rather than hiding them, so the list doesn't jump while filtering.
+- Do use real product colours for swatches, and a gradient for multi-colour or patterned items.
+- Do group sizes by system; don't mix "M" and "42" in one grid.
+- Do keep the selection in the URL.
+- Don't use checkbox pairs for yes/no facets; use one switch.
+- Don't apply drawer filters on every tap; batch them behind **Show N products**.
+- Don't rely on the swatch alone: the colour name is always visible.
 
 ---
 
