@@ -70,16 +70,27 @@ module.exports = [
   // Carousel, Tabs/Tab/TabPanel, Breadcrumb, Pagination, LoadMore) behind the one root entry this
   // budget measures. At bb95c35 the real, tree-shaken cost of "import everything" is 67.97 kB —
   // healthy per-component shaking (a `Button`-only import stays ~3 kB, see the row above) means
-  // this number is the honest size of the overlay set, not a regression to chase back down. 80 kB
-  // leaves headroom for the remaining catalogue growth without another red-gate fire drill; a
-  // future jump close to it should prompt the same per-component shaking check the final review
-  // ran (`pnpm --filter @eldrajs/ui build`, then measure a single-component import), not another
-  // reflexive raise.
+  // this number is the honest size of the overlay set, not a regression to chase back down.
+  //
+  // Raised 80 kB -> 88 kB for `FilterPanel`, and only after the per-component shaking check this
+  // comment has always prescribed. Measured against the same `dist/` (2026-10-07):
+  //
+  //   { FilterPanel }               26.21 kB   composes Checkbox, Switch, Chip, Badge, Input,
+  //                                            Button, CurrencyInput/UnitInput, RangeSlider, Link
+  //   { RangeSlider }                7.25 kB
+  //   { Checkbox }                   3.06 kB
+  //   { swatchInk, toggleValue }     1.13 kB   the panel's pure modules, with no component at all
+  //
+  // A consumer importing one leaf still gets a leaf, and a consumer importing the panel pays for
+  // the panel rather than for the library — so the 13 kB the "everything" total gained is the
+  // honest size of a component that composes a third of the catalogue, not a shaking regression.
+  // The same check is what the next jump close to this ceiling should start with, before any
+  // further raise.
   {
     name: '@eldrajs/ui — everything, without vue',
     path: 'packages/ui/dist/index.js',
     ignore: ['vue'],
-    limit: '80 kB',
+    limit: '88 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still
@@ -91,10 +102,14 @@ module.exports = [
     ignore: ['vue', 'tailwind-merge'],
     limit: '12 kB',
   },
+  // Raised 13.5 kB -> 14.5 kB for `FilterPanel`, which is mostly new CSS: a disclosure, five facet
+  // shapes, a swatch and its ring, a size tile in four states, a histogram bar and the
+  // container-query switch to two colour columns. Measured at 13.63 kB with it, so this keeps a
+  // little under a kilobyte of headroom rather than sitting on the number.
   {
     name: '@eldrajs/ui — style.css',
     path: 'packages/ui/dist/style.css',
-    limit: '13.5 kB',
+    limit: '14.5 kB',
   },
   {
     name: '@eldrajs/theme-vue — everything, without vue',
