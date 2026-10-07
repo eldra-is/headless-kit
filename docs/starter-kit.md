@@ -899,8 +899,8 @@ draws one identical empty circle per value with every name in visually hidden te
 shopper cannot tell M from XL, where the pills it replaced read their names out loud. The option
 keeps its `kind` — the merchant's intent is still the merchant's — and only the control falls back.
 
-A **filter group** decides the same way from the same evidence (`groupKindFor` in
-`blocks/collection-grid/parts/groups.ts`: dots when the group's values carry swatches, pills
+A **filter facet** decides the same way from the same evidence (`facetTypeFor` in
+`blocks/collection-grid/parts/groups.ts`: swatches when the facet's values carry them, pills
 otherwise), so the two surfaces can never disagree about one option. One function and one rule; the
 facets carry `kind` too, for a theme that wants to read the intent even where there is nothing yet to
 paint (`CatalogFacetOption.kind`).
@@ -1065,79 +1065,82 @@ the same lie as the fallback telling one. The mock gateway the generate tests ru
 contract at a time for exactly that reason (`test/support/mockGateway.ts`'s `MockCatalogContract`),
 and `test/mockGatewayContract.spec.ts` pins both pairs.
 
-**The filter panel reads the facets and writes the query string.** `collection-grid`'s `filters[]`
-field names the groups and their order; everything in them — values, labels, swatches, counts — is
-the storefront's `facets`, never CMS content. The sources are `category`, `collection`, `options`,
-`option:<key>`, `price` and `availability`; `parts/groups.ts` is the one place a source is reconciled
-with the facets' own vocabulary (`options[].key`), and the one place the price grammar lives.
+**`@eldrajs/ui`'s `FilterPanel` draws the filters; `collection-grid` only adapts and routes.**
+`filters[]` names the facets and their order; everything inside them — values, labels, swatches,
+counts — is the storefront's `facets`, never CMS content. The sources are `category`, `collection`,
+`options`, `option:<key>`, `price` and `availability`; `blocks/collection-grid/parts/groups.ts`'s
+`buildFilterFacets` is the one place a source is reconciled with the facets' own vocabulary
+(`options[].key`) and turned into the package's own `FilterFacet[]` shape, and the one place the
+price grammar lives. The package never sees a catalogue shape or a router: the panel is controlled
+(`modelValue` + `change`/`clear`/`remove`), and the block is what turns that into a request, a URL
+write and (in the drawer) a batched apply.
 
-- **Price is `@eldrajs/ui`'s `RangeSlider`** with its typed row on: `min`/`max` are the
-  collection's own bounds from the facets, `step` is the `priceStep` field (default: one unit of
-  the store currency, ISK 100 — narrowed to a step the catalogue's span can hold ten of, so a
-  50-króna collection does not get a two-stop track), and `formatValue` is the store's own currency
-  formatter, so both thumbs announce "kr 2.800" rather than "2800". A thumb parked on the
-  catalogue's own end is **no bound**, so a filter can be dragged back off, and the move applies
-  once it is over (pointer release, the key release that ends an arrow-key run, a typed field
-  committing) — one request and one URL write per gesture.
-- **The two price fields are the store's own money fields** — `@eldrajs/ui`'s `CurrencyInput`,
-  filled into `RangeSlider`'s `inputs` slot — not the generic number fields the control ships with.
-  A shopper filtering by price is typing money, and a money field is the one that already knows how:
-  the currency sign where the locale puts it, that locale's grouping and decimal marks (a typed
-  `2.800` is two thousand eight hundred krónur, not 2.8), a caret that stays put while the text
-  reformats, and an empty field that reads as empty rather than as zero. The currency is handed in
-  from `useMoney()`; the **locale is ambient** (`provideEldraUiLocale`, set once by
-  `app/plugins/eldra-ui-messages.ts`), so a Studio locale switch reaches the fields with nothing
-  passed. `maxFraction` is **0** in both shapes, because the theme's price grammar is whole major
-  units end to end — `?price=50-150`, `sanitizeAmount`'s digits-only filter, the `minPrice`/`maxPrice`
-  parameters — so a field offering cents would offer a precision the URL cannot carry.
-  Every write goes through the slot's own `commit`, which snaps to the step grid and clamps to the
-  span and against the other thumb, so the fields and the thumbs are one value; the fields
-  deliberately take no `min`/`max` of their own, since a field that _refused_ the keystroke would
-  stop a shopper typing "1250" at the "1". They commit on **blur or `Enter`**, never per keystroke,
-  and the handler assigns `commit`'s return straight back into the field's own model — the clamped
-  figure the control actually applied, not the keystroke that was typed, which matters whenever a
-  typed value snaps onto the thumb's unchanged position and nothing is written at all.
-  **With no published currency** (`currency: undefined`, the same `undefined` every bare `<Price>`
-  on the page gets), neither shape hands that `undefined` to a `CurrencyInput` — its own `currency`
-  prop defaults to `'USD'`, so it would print a dollar sign nobody chose. The slider shape leaves
-  `inputs`' slot unfilled, so `RangeSlider`'s own built-in generic fields render instead, and the
-  `priceSlider: false` fallback draws a plain `Input` pair, the same one it drew before a currency
-  ever existed.
-  `priceSlider` off keeps those two fields alone, for prices that sit in a few tight clusters a
-  track cannot separate — a block-level field rather than one on the price `filters[]` row, see
-  below.
+- **Price is the panel's own `range` facet** (`RangeFacet`, over `@eldrajs/ui`'s `RangeSlider`):
+  `min`/`max` are the collection's own bounds from the facets, `step` is the `priceStep` field
+  (default: one unit of the store currency, ISK 100 — narrowed to a step the catalogue's span can
+  hold ten of), and both thumbs announce the amount in the store's own currency with no decimals
+  ("kr 2.800", never "2800"). A thumb parked on the catalogue's own end is **no bound**, so a filter
+  can be dragged back off, and the move applies once it is over (pointer release, the key release
+  that ends an arrow-key run, a typed field committing) — one request and one URL write per
+  gesture. The two **Min**/**Max** fields are the store's own money fields when a currency is
+  published (the panel's own `CurrencyInput` wiring), generic number fields otherwise. `priceSlider`
+  off maps to the facet's own `slider: false` (additive on `@eldrajs/ui`'s `FilterFacet`): the
+  thumbs, the track and the histogram are not drawn, only the labelled fields — for prices that sit
+  in a few tight clusters a track cannot separate — and the fields keep the exact same
+  clamping/snapping/commit rules either way, because it is the same `RangeSlider` under both shapes
+  (its own `trackVisible` prop). A span with fewer than two distinct prices (one product, or every
+  product priced the same) is not drawn at all — no group, no single thumb that cannot move — which
+  is the package's own `FilterPanel` rule (`renderableFacets`), not something this block repeats.
+  A distribution (`facets.price.histogram`, 24 equal buckets) draws the panel's own decorative
+  histogram above the track when a storefront sends one; none does yet, so no histogram shows today.
 - **`options` is one row for every variant option the store has** — the shipped seed, and what a
   merchant should leave alone. The storefront's facets answer one family per option key with its own
-  name and values (`facets.options[]`), so the block draws a group per key, in the facets' order,
-  labelled by the facet's `name`; a key with no values draws no group. That is what makes a store
+  name and values (`facets.options[]`), so the block builds a facet per key, in the facets' order,
+  labelled by the facet's `name`; a key with no values draws no facet. That is what makes a store
   selling by `fabric`, or spelling its colour option `color`, filterable with no page edit and no code
   change: the keys are the merchant's own. An explicit `option:<key>` row still works and **wins** for
-  that key — the way to rename one group or pin where it sits — so "Size first, then whatever else
+  that key — the way to rename one facet or pin where it sits — so "Size first, then whatever else
   this store sells by" is two rows. The two keys this theme has its own strings for (`size`, `colour`)
   keep them, so an Icelandic store reads "Stærð" rather than a raw store key; every other key reads
-  the store's own name. The control is chosen by the **values**: an option whose values carry a
-  `swatch` draws the colour dots (a swatch is a colour only the dot can show), everything else draws
-  pills. A key the facets stop naming while a shopper has it ticked keeps its group, so the filter
-  stays removable from the panel as well as from the chip.
+  the store's own name. The facet type is chosen by the **values**: one whose values carry a `swatch`
+  is a `colour` facet (swatch rows by default, a swatch grid when the block's own `colourLayout`
+  field is `grid`); one whose values carry a size-system `group` is a `size` facet (tiles under a
+  sub-heading per system, with a **Size guide** link under them when the block's own `sizeGuideHref`
+  field names one); everything else is a plain `list`. `group` is not sent by any storefront
+  today — a Core follow-up — so every option is a `list` until it arrives. A key the facets stop
+  naming while a shopper has it ticked keeps its facet, so the filter stays removable.
   The URL is unchanged: `?colour=oat&size=m`, the bare option key, since the `option:` prefix is the
   field's vocabulary and never a shopper's. A query key the store has no option for is **not** read as
   one — `?ref=newsletter` would otherwise become a filter nobody set, in the shopper's own URL.
-- **The `category` group nests** when, and only when, the platform rolled its own counts up — parent
+- **`availability` is one `toggle` facet, not a checkbox pair.** "In stock only" is its one switch
+  row when the store can read stock; yes/no facets beyond it (`facets.toggles[]` — pre-order, on
+  sale — another Core follow-up, not sent today) would fold in as more switch rows beside it, each
+  under its own camelCase query key (`on_sale` reads and writes `?onSale=1`). A value nothing is
+  left for is disabled, not hidden, same as every other facet; a selected value the facets stop
+  listing altogether is kept, labelled by its raw value since nothing describes it any more.
+- **The `category` facet nests** when, and only when, the platform rolled its own counts up — parent
   rows with their children one indent in, a ticked parent carrying its whole subtree. Every other
   answer draws the family flat. See "The category tree" above for why the two travel together.
 - **A value nothing is left for is disabled, not hidden** — see the counting rule above. A value
   the shopper has already selected is never disabled, and one the facets stop listing altogether is
-  kept so the filter stays removable. A whole **group** with no values is dropped, which is how a
+  kept so the filter stays removable. A whole **facet** with no values is dropped, which is how a
   store the facets cannot describe a family of (no availability counts, an option key it does not
   have) stops offering it.
+- **The panel owns the applied chips and Clear all; the grid's own toolbar carries only what the
+  panel cannot** — the live count, the mobile Filter button and Sort by/Columns, in one slim row.
+  `showApplied` draws the chips in both the sidebar and the drawer; the sidebar's own head also
+  draws **Clear all** and moves focus to its own title when pressed. A range contributes no chip of
+  its own (a span has no one value a chip could take off) — its own thumbs and fields are what show
+  the applied price. Removing a chip or pressing the empty state's own **Clear filters** button
+  still moves focus to the grid's live count, the one thing the panel cannot do for either.
 - **The query string is the state**:
   `?price=1200-4800&category=ceramics&collection=the-winter-edit&colour=oat&availability=in_stock`
-  (plus `sort`, `columns` and `page`). One key per group, the option sources under their bare option
+  (plus `sort`, `columns` and `page`). One key per facet, the option sources under their bare option
   key, the price range as the single `<min>-<max>` string the request itself takes. An option key is
   read back only once the store has said it has that option, which is the first read answering — so
   a shared `?fabric=linen` is adopted after mount like every other filter (the prerendered page is
   the unfiltered one either way). An option key that would **take a query key something else already
-  owns** is refused with a dev warning and its group is not drawn: the four filter sources own
+  owns** is refused with a dev warning and its facet is not drawn: the four filter sources own
   `?category=`, `?collection=`, `?price=` and `?availability=`, and the storefront route owns `?q=`,
   `?page=`, `?token=`, `?sort=` and `?columns=` before a block sees them. Namespacing it instead would
   mint a shareable URL no other spelling of this theme reads. It goes out
