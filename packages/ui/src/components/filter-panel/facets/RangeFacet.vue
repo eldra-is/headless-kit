@@ -79,6 +79,14 @@ const step = computed(() => props.facet.step ?? 1);
 const applied = computed(() => rangeOf(props.selection, props.facet));
 
 /**
+ * The block's `priceSlider: false` draws the labelled Min / Max fields alone — no track, no
+ * thumbs, no histogram. `RangeSlider`'s own `trackVisible` prop hides the rail and the `track`
+ * slot; the fields keep every clamping/snapping/commit rule because they are the same `commit`
+ * function and the same model either way.
+ */
+const showTrack = computed(() => props.facet.slider !== false);
+
+/**
  * Whether this range is money the store can actually name. `facet.currency` says the numbers *are*
  * money; a currency code says we know which. Without a code the fields fall back to plain numeric
  * ones rather than to a `CurrencyInput` guessing a sign — a dollar sign in front of krónur is a
@@ -207,12 +215,17 @@ function onPlainInput(end: 0 | 1, raw: string): void {
       :max-label="m.maximumOf(facet.label)"
       :format-value="formatValue"
       inputs
+      :track-visible="showTrack"
       @update:model-value="onMove"
       @change="onCommit"
     >
-      <!-- Spec → Anatomy item 10: only when the store supplied a distribution. The panel never
-           invents one from the page it can see — one page is not the range. -->
-      <template v-if="facet.histogram && facet.histogram.length > 0" #track="{ value }">
+      <!-- Spec → Anatomy item 10: only when the store supplied a distribution, and only with the
+           track itself — `slider: false` omits both together. The panel never invents
+           a distribution it cannot see either way — one page is not the range. -->
+      <template
+        v-if="showTrack && facet.histogram && facet.histogram.length > 0"
+        #track="{ value }"
+      >
         <Histogram :bars="facet.histogram" :range="value" :limits="limits" :classes="classes" />
       </template>
 

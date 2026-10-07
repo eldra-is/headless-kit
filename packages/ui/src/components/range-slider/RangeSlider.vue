@@ -69,6 +69,7 @@ const props = withDefaults(defineProps<RangeSliderProps>(), {
   maxLabel: undefined,
   formatValue: undefined,
   inputs: false,
+  trackVisible: true,
   classes: undefined,
   messages: undefined,
 });
@@ -641,45 +642,49 @@ const inputClass = computed(() =>
       :aria-labelledby="label ? labelId : undefined"
     >
       <!-- A decoration over the track's own span (the spec's price histogram), inside the gutter
-           box and before the rail, so it lines up with the track and takes no press from it. -->
-      <slot name="track" v-bind="trackSlotProps" />
+           box and before the rail, so it lines up with the track and takes no press from it.
+           `trackVisible` is this whole element's own switch: with no rail there is nothing for a
+           histogram to line up with, so the slot goes with it rather than floating on its own. -->
+      <template v-if="trackVisible">
+        <slot name="track" v-bind="trackSlotProps" />
 
-      <div
-        ref="railEl"
-        data-part="rail"
-        :class="railClass"
-        @pointerdown="onPointerDown"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointercancel="onPointerUp"
-        @lostpointercapture="onPointerUp"
-      >
-        <div data-part="track" :class="trackClass">
-          <div data-part="range" :class="rangeClass" :style="rangeStyle" />
-        </div>
-
-        <!-- `role="slider"` on a `div`, not a `button`: see this file's own doc comment. -->
         <div
-          v-for="thumb in thumbs"
-          :key="thumb.thumb"
-          role="slider"
-          tabindex="0"
-          data-part="thumb"
-          :data-thumb="thumb.thumb"
-          :data-dragging="dragging === thumb.thumb ? 'true' : undefined"
-          :class="thumbClass"
-          :style="{ left: `${thumb.percent}%` }"
-          :aria-label="thumb.name"
-          :aria-valuenow="thumb.value"
-          :aria-valuemin="thumb.limits.lo"
-          :aria-valuemax="thumb.limits.hi"
-          :aria-valuetext="thumb.text"
-          :aria-disabled="disabled ? 'true' : undefined"
-          @keydown="onThumbKeydown($event, thumb.thumb)"
-          @keyup="onThumbKeyup"
-          @blur="onThumbBlur"
-        />
-      </div>
+          ref="railEl"
+          data-part="rail"
+          :class="railClass"
+          @pointerdown="onPointerDown"
+          @pointermove="onPointerMove"
+          @pointerup="onPointerUp"
+          @pointercancel="onPointerUp"
+          @lostpointercapture="onPointerUp"
+        >
+          <div data-part="track" :class="trackClass">
+            <div data-part="range" :class="rangeClass" :style="rangeStyle" />
+          </div>
+
+          <!-- `role="slider"` on a `div`, not a `button`: see this file's own doc comment. -->
+          <div
+            v-for="thumb in thumbs"
+            :key="thumb.thumb"
+            role="slider"
+            tabindex="0"
+            data-part="thumb"
+            :data-thumb="thumb.thumb"
+            :data-dragging="dragging === thumb.thumb ? 'true' : undefined"
+            :class="thumbClass"
+            :style="{ left: `${thumb.percent}%` }"
+            :aria-label="thumb.name"
+            :aria-valuenow="thumb.value"
+            :aria-valuemin="thumb.limits.lo"
+            :aria-valuemax="thumb.limits.hi"
+            :aria-valuetext="thumb.text"
+            :aria-disabled="disabled ? 'true' : undefined"
+            @keydown="onThumbKeydown($event, thumb.thumb)"
+            @keyup="onThumbKeyup"
+            @blur="onThumbBlur"
+          />
+        </div>
+      </template>
     </div>
 
     <!-- The typed row (spec → Anatomy item 6). Each field takes the name of the thumb it mirrors;

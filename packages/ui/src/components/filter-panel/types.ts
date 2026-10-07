@@ -89,6 +89,14 @@ export interface FilterFacet {
    * currency fields rather than generic number fields. A `price` facet sets it.
    */
   currency?: boolean;
+  /**
+   * Range facets: draw the two-thumb track (and the histogram, when one arrives), or omit it and
+   * show the labelled Min and Max fields alone. Default `true`. `false` is for a catalogue whose
+   * prices sit in a few tight clusters a track cannot separate — the fields keep the same
+   * clamping, snapping and commit rules either way, because they are the one `RangeSlider` under
+   * both shapes (`RangeSlider`'s own `trackVisible` prop).
+   */
+  slider?: boolean;
 }
 
 /**

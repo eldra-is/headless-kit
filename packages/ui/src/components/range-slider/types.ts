@@ -148,6 +148,15 @@ export interface RangeSliderProps {
    * this prop still decides whether the row exists at all — see `RangeSliderInputsSlotProps`.
    */
   inputs?: boolean;
+  /**
+   * Draw the rail, the track, the `track` slot and both thumbs. Default `true`. `false` is for a
+   * consumer whose span is better read than dragged — a catalogue whose prices sit in a few tight
+   * clusters a track cannot separate — and keeps only the `inputs` row: every clamping, snapping
+   * and commit rule is exactly the one the thumbs use, because it is the same `commit` function and
+   * the same model either way. Nothing is unmounted twice over: with `inputs` also `false` there is
+   * nothing left to render at all, which is this prop's business to allow, not to guard against.
+   */
+  trackVisible?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<RangeSliderPart, string>>;
   /** Overrides for the strings this component renders itself (the thumb names, the word "to"). */

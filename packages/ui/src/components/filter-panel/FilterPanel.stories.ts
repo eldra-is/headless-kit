@@ -42,6 +42,7 @@ const FACET_SETS = {
   'Size only': [SIZE_FACET],
   'Price only': [PRICE_FACET],
   'Price with no histogram': [{ ...PRICE_FACET, histogram: undefined }],
+  'Price with no slider': [{ ...PRICE_FACET, slider: false }],
   'Availability only': [AVAILABILITY_FACET],
   'Every facet type, collapsed': ALL_FACETS.map((facet) => ({ ...facet, collapsed: true })),
   'Every facet type, plus a long list': [...ALL_FACETS, MATERIAL_FACET],
@@ -299,6 +300,16 @@ export const PriceHistogram: Story = {
 export const PriceWithoutHistogram: Story = {
   args: { facets: FACET_SETS['Price with no histogram'] },
   ...panel('18rem'),
+};
+
+/**
+ * The block's `priceSlider: false`: the labelled Min / Max fields alone, no track and no
+ * histogram — for a catalogue whose prices sit in a few tight clusters a track cannot separate.
+ * The fields keep every clamping/snapping/commit rule the slider shape has.
+ */
+export const PriceWithoutSlider: Story = {
+  args: { facets: FACET_SETS['Price with no slider'] },
+  ...panel('18rem', { price: [80, 160] }),
 };
 
 /**

@@ -707,6 +707,54 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
   });
 });
 
+describe('RangeFacet — slider: false', () => {
+  /** No track, no thumbs, no histogram — the fields alone. */
+  it('draws the fields with no rail, no thumbs and no histogram', () => {
+    const wrapper = mount([{ ...PRICE_FACET, slider: false }], {
+      modelValue: { price: [80, 160] },
+    });
+    expect(wrapper.findAll('[role="slider"]')).toHaveLength(0);
+    expect(wrapper.find('[data-part="rail"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="histogram"]').exists()).toBe(false);
+    const fields = wrapper.find('[data-part="fields"]');
+    expect(fields.exists()).toBe(true);
+    expect((fields.find('[data-input="min"]').element as HTMLInputElement).value).toBe('$80');
+    expect((fields.find('[data-input="max"]').element as HTMLInputElement).value).toBe('$160');
+    wrapper.unmount();
+  });
+
+  /** A store with no distribution at all still draws no histogram — the `slider: false` branch
+   *  does not change that rule, it only removes a track there would otherwise be one on. */
+  it('still draws no histogram with slider: false and no distribution', () => {
+    const wrapper = mount([{ ...PRICE_FACET, slider: false, histogram: undefined }]);
+    expect(wrapper.find('[data-part="histogram"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * The fields keep the slider shape's own clamping, snapping and commit rules — proven by
+   * mutation: this is the same `commit` function a dragged thumb calls, not a hand-rolled copy of
+   * its arithmetic, so a value past the bounds or off the step grid is corrected exactly as it
+   * would be with the slider drawn.
+   */
+  it('clamps to the bounds and snaps to the step grid on commit, exactly as the slider shape does', async () => {
+    const wrapper = mountModel([{ ...PRICE_FACET, slider: false, step: 10 }]);
+    const min = wrapper.find('[data-input="min"]');
+    await min.setValue('999');
+    await min.trigger('blur');
+    expect(wrapper.emitted('change')?.at(-1)).toEqual([{ price: [240, 240] }]);
+    wrapper.unmount();
+  });
+
+  /** Default (unset) `slider` is unaffected — every existing facet keeps its track. */
+  it('draws the track when slider is unset, same as slider: true', () => {
+    const wrapper = mount([PRICE_FACET]);
+    expect(wrapper.findAll('[role="slider"]')).toHaveLength(2);
+    expect(wrapper.find('[data-part="rail"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+});
+
 describe('RangeFacet — a range with nothing to narrow', () => {
   const COLLAPSED: FilterFacet = {
     id: 'price',

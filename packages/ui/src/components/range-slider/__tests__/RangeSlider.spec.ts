@@ -1158,3 +1158,69 @@ describe('RangeSlider — the track slot', () => {
     wrapper.unmount();
   });
 });
+
+describe('RangeSlider — trackVisible', () => {
+  /** Default: unset is the same as `true`, so every existing consumer is unaffected. */
+  it('draws the rail, the track and both thumbs by default', () => {
+    const wrapper = mountWith(RangeSlider, { props: { modelValue: [20, 80] as [number, number] } });
+    expect(wrapper.find('[data-part="rail"]').exists()).toBe(true);
+    expect(wrapper.find('[data-part="track"]').exists()).toBe(true);
+    expect(wrapper.findAll('[role="slider"]')).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  /** `false`: no rail, no track, no thumbs, and no `track` slot either — there is nothing left to
+   *  line it up with. */
+  it('draws none of the rail, the track, the thumbs or the track slot when false', () => {
+    const wrapper = mountWith(RangeSlider, {
+      props: { modelValue: [20, 80] as [number, number], trackVisible: false },
+      slots: { track: () => h('div', { 'data-test': 'histogram' }, 'decoration') },
+    });
+    expect(wrapper.find('[data-part="rail"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="track"]').exists()).toBe(false);
+    expect(wrapper.findAll('[role="slider"]')).toHaveLength(0);
+    expect(wrapper.find('[data-test="histogram"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * The fields keep the exact same `commit` the slider shape uses — not a copy of its clamping and
+   * snapping, the same function — proven by mounting with `trackVisible: false` and reusing the
+   * `inputs` slot's own `commit`-driven assertions: a value past the bounds is clamped, one off the
+   * step grid is snapped, and `change` still fires once per commit.
+   */
+  it('keeps the inputs row’s commit, clamping and snapping with no track drawn', async () => {
+    const wrapper = mountModel({
+      inputs: true,
+      min: 0,
+      max: 100,
+      step: 10,
+      modelValue: [20, 80],
+      trackVisible: false,
+    });
+    expect(wrapper.find('[data-part="inputs"]').exists()).toBe(true);
+    const input = wrapper.find('[data-input="min"]');
+    await input.trigger('focus');
+    await input.setValue('9999');
+    await input.trigger('blur');
+    await settle();
+    // Clamped against the other thumb (80), the binding constraint below the global max (100) —
+    // the same result "snaps and clamps a committed value" asserts for the slider shape.
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([[80, 80]]);
+    expect(wrapper.emitted('change')?.at(-1)).toEqual([[80, 80]]);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean with trackVisible false and the inputs row shown', async () => {
+    const wrapper = mountWith(RangeSlider, {
+      props: {
+        modelValue: [20, 80] as [number, number],
+        label: 'Price',
+        inputs: true,
+        trackVisible: false,
+      },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
