@@ -2,6 +2,7 @@ import { nextTick, reactive, ref, watch, type Ref } from 'vue';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
+import { optionDisplayType } from './options';
 import {
   deriveFacets,
   filterItems,
@@ -310,11 +311,21 @@ function buildListItem(def: DemoProductDef, index: number): StorefrontProductLis
 /** The Northwind catalogue — exactly the twelve products the block specs name. */
 export const PRODUCTS: StorefrontProductListItem[] = PRODUCT_DEFS.map(buildListItem);
 
+/**
+ * The fixture's own option set, and the one place in the demo that declares a display kind.
+ *
+ * The colour option says `kind: 'color'` — the fact a real merchant sets in Studio's "Display as"
+ * select — and its `type` is derived from that by the same function the gateway source uses
+ * (`optionDisplayType`), so Storybook keeps its swatches for the reason the live site has them
+ * rather than because this file hard-coded the control. Size is `none`: a plain list of values, and
+ * what every option looked like before the field existed.
+ */
 const MERINO_OPTIONS: StorefrontProduct['options'] = [
   {
     name: 'colour',
     label: 'Colour',
-    type: 'swatches',
+    kind: 'color',
+    type: optionDisplayType('color'),
     values: [
       { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
       { value: 'charcoal', label: 'Charcoal', swatch: '#3a3a3a', available: true },
@@ -325,7 +336,8 @@ const MERINO_OPTIONS: StorefrontProduct['options'] = [
   {
     name: 'size',
     label: 'Size',
-    type: 'pills',
+    kind: 'none',
+    type: optionDisplayType('none'),
     values: [
       { value: 'xs', label: 'XS', available: true },
       { value: 's', label: 'S', available: true },

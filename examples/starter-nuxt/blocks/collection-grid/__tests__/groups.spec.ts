@@ -3,6 +3,7 @@ import {
   defaultPriceStep,
   fitPriceStep,
   formatPriceRange,
+  groupKindFor,
   groupValuesFor,
   hasPriceRange,
   nestCategoryTerms,
@@ -36,6 +37,7 @@ const FACETS: CatalogFacets = {
     {
       key: 'colour',
       name: 'colour',
+      kind: 'color',
       values: [
         { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
         { value: 'clay', label: 'Clay', count: 0 },
@@ -69,6 +71,35 @@ describe('groupValuesFor', () => {
     ]);
     // No `size` option in these facets: no values, never invented ones.
     expect(groupValuesFor('option:size', FACETS, [], AVAILABILITY)).toEqual([]);
+  });
+
+  /**
+   * **A colour group is one whose values carry colours, and the option's `kind` is not a second
+   * vote.** The platform sends a `swatch` per value only under a `color`-kind option, so the two
+   * normally agree — but a merchant who switched the option to Color and has not picked the colours
+   * yet leaves this group with nothing to put in a dot, and a row of empty circles labelled "Oat"
+   * and "Clay" is worse than the pills it replaced. The decision therefore stays on the values, and
+   * the kind is carried for a theme that wants it (`CatalogFacetOption.kind`).
+   */
+  it('draws a colour group from the values’ own swatches, not from the option’s kind', () => {
+    expect(
+      groupKindFor('option:colour', groupValuesFor('option:colour', FACETS, [], AVAILABILITY))
+    ).toBe('colour');
+
+    const unpainted: CatalogFacets = {
+      ...FACETS,
+      options: [
+        {
+          key: 'colour',
+          name: 'colour',
+          kind: 'color',
+          values: [{ value: 'oat', label: 'Oat', count: 9 }],
+        },
+      ],
+    };
+    expect(
+      groupKindFor('option:colour', groupValuesFor('option:colour', unpainted, [], AVAILABILITY))
+    ).toBe('size');
   });
 
   it('never disables a value the shopper has selected, whatever it counts', () => {

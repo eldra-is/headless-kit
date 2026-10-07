@@ -867,6 +867,60 @@ Storybook, the sample pages and the specs filter for real without a gateway. The
 both jobs to the platform and shares only the one thing that is not a backend's to decide — the
 `in_stock`/`out_of_stock` vocabulary, which the panel reads a shared URL through as well.
 
+### How a variant option is displayed
+
+**The merchant decides, and the theme reads it.** A variant option carries a **display kind** the
+merchant sets in Studio ("Display as") — `none`, `color` or `custom` — and a `color` option carries a
+hex colour on each of its values. `StorefrontProductOption` therefore has three fields where it used to
+have one:
+
+| field      | what it is                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`     | `'none' \| 'color' \| 'custom'` — the merchant's choice, as the platform stores it. `none` for a source that does not say.          |
+| `metadata` | the merchant's own name for a `custom` option (`[A-Za-z0-9_.-]`, ≤ 64 chars). Absent on every other kind.                           |
+| `type`     | `'swatches' \| 'pills'`, **derived** from `kind` by `app/storefront/options.ts`'s `optionDisplayType` — what `VariantPicker` takes. |
+
+`color` is swatches; `none` and `custom` are both pills. Each value's `swatch` is a CSS colour from
+the store — content, never a design token — and `@eldrajs/ui`'s `VariantPicker` paints it as the disc's
+background with the value's label as visually hidden text, so the colour is never the only thing
+carrying the meaning.
+
+**Nothing is guessed from the option's name.** An option a merchant called "Colour" and left on `none`
+is pills; one called "Litur" and set to `color` is swatches. That is the whole point of the field:
+before it existed the only way a theme could draw colour circles was to match the option's label —
+a merchant's word, translated per locale and theirs to rename — and a store that spelled it "Color"
+or sold by "Finish" got pills no matter what the photography needed. `blocks/product-detail` stamps
+`data-option-kind` (and `data-option-metadata` for a `custom` option) on each picker row, which is
+the hook to branch on if your fork wants to render one named option its own way:
+
+```css
+/* The merchant's `custom` option named `fabric-chip`, drawn wider than the other pills. */
+[data-option-metadata='fabric-chip'] [data-part='radio'] {
+  min-width: 6rem;
+}
+```
+
+`custom` is deliberately not a third control. A theme that wants one reads `option.metadata` (or the
+attribute above) and renders that option itself; everything else keeps working, because a `custom`
+option is a list of values like any other.
+
+**On a card and in the filter panel the colours come from the same fact, by a different route.** A
+product card's dots (`StorefrontProductListItem.colours`) are the `color`-kind option's values —
+`undefined` when the source cannot say (the platform's product _list_ read answers no options today,
+so that is the live site's answer), `[]` when it can and there are none, and the two are different
+answers to `app/storefront/facets.ts`. A filter group draws dots when **its values carry swatches**
+(`blocks/collection-grid/parts/groups.ts`'s `groupKindFor`) rather than when the option says `color`:
+an option a merchant has switched to Color but not yet picked colours for has nothing to put in a
+dot, and a row of empty circles says less than the pills it replaced. The facets still carry the
+option's `kind` for a theme that wants it (`CatalogFacetOption.kind`).
+
+A gateway answering a contract older than the field sends no `kind` at all, and a kind this theme has
+never heard of is one it cannot draw: both read as `none`, never as a failure — the mapping runs on
+the product read's own path, where a refusal replaces the whole page with an error alert over a
+presentational field. A value's
+`swatch` is passed through whatever the kind says, so a gateway that populates the colour before it
+populates the kind loses nothing.
+
 ### The category tree
 
 `GET /catalog/v1/categories` answers the organisation's whole category list — `{id, slug, title,

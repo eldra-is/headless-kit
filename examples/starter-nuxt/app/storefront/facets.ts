@@ -451,7 +451,14 @@ function optionFacets(
       ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
       count: counts.get(value.value) ?? 0,
     }));
-    if (values.length > 0) out.push({ key, name: key, values });
+    // **The kind comes from the values, because this source has no merchant to ask.** A real store's
+    // facets carry the option's own `kind` (`gateway.ts`'s `mapFacets`); a derivation over product
+    // *cards* has only what those cards carry, and a swatch is the one thing only a `color` option
+    // ever has (`StorefrontProductListItem.colours`, `ProductFacetOptionValue.swatch`). Nothing is
+    // read off the key: an option named `colour` whose values carry no swatch is `none` here, the
+    // same answer the live site would give for an option a merchant left on None.
+    const kind = values.some((value) => value.swatch !== undefined) ? 'color' : 'none';
+    if (values.length > 0) out.push({ key, name: key, kind, values });
   }
   return out;
 }

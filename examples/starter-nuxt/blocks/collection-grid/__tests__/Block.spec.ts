@@ -60,6 +60,7 @@ const FACETS: CatalogFacets = {
     {
       key: 'size',
       name: 'size',
+      kind: 'none',
       values: [
         { value: 'xs', label: 'XS', count: 6 },
         { value: 's', label: 'S', count: 10 },
@@ -69,6 +70,7 @@ const FACETS: CatalogFacets = {
     {
       key: 'colour',
       name: 'colour',
+      kind: 'color',
       values: [
         { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
         { value: 'charcoal', label: 'Charcoal', count: 8, swatch: '#3a3a3a' },
@@ -1397,8 +1399,18 @@ describe('collection-grid block', () => {
               facets: {
                 ...answer.facets,
                 options: [
-                  { key: 'sort', name: 'Sort', values: [{ value: 'y', label: 'Y', count: 2 }] },
-                  { key: 'category', name: 'Kind', values: [{ value: 'z', label: 'Z', count: 2 }] },
+                  {
+                    key: 'sort',
+                    name: 'Sort',
+                    kind: 'none',
+                    values: [{ value: 'y', label: 'Y', count: 2 }],
+                  },
+                  {
+                    key: 'category',
+                    name: 'Kind',
+                    kind: 'none',
+                    values: [{ value: 'z', label: 'Z', count: 2 }],
+                  },
                   ...answer.facets.options,
                 ],
               },
@@ -1830,11 +1842,14 @@ describe('collection-grid block', () => {
         {
           key: 'size',
           name: 'size',
+          kind: 'none',
           values: [{ value: 'm', label: 'M', count: 4 }],
         },
         {
           key: 'fabric',
           name: 'Fabric',
+          kind: 'custom',
+          metadata: 'fabric',
           values: [
             { value: 'linen', label: 'Linen', count: 7 },
             { value: 'wool', label: 'Wool', count: 2 },
@@ -1971,11 +1986,22 @@ describe('collection-grid block', () => {
         facets: {
           ...FACETS,
           options: [
-            { key: 'category', name: 'Category', values: [{ value: 'x', label: 'X', count: 2 }] },
-            { key: 'sort', name: 'Sort', values: [{ value: 'y', label: 'Y', count: 2 }] },
+            {
+              key: 'category',
+              name: 'Category',
+              kind: 'none',
+              values: [{ value: 'x', label: 'X', count: 2 }],
+            },
+            {
+              key: 'sort',
+              name: 'Sort',
+              kind: 'none',
+              values: [{ value: 'y', label: 'Y', count: 2 }],
+            },
             {
               key: 'fabric',
               name: 'Fabric',
+              kind: 'none',
               values: [{ value: 'linen', label: 'Linen', count: 7 }],
             },
           ],
@@ -2002,7 +2028,12 @@ describe('collection-grid block', () => {
           ...FACETS,
           options: [
             ...FACETS.options,
-            { key: 'sort', name: 'Sort', values: [{ value: 'y', label: 'Y', count: 2 }] },
+            {
+              key: 'sort',
+              name: 'Sort',
+              kind: 'none',
+              values: [{ value: 'y', label: 'Y', count: 2 }],
+            },
           ],
         },
       });

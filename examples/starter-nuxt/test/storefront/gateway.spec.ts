@@ -136,6 +136,7 @@ function fakeClient(): EldraClient {
             {
               key: 'colour',
               name: 'Colour',
+              kind: 'color',
               values: [{ value: 'oat', label: 'Oat', count: 1, swatch: '#d8cbb0' }],
             },
           ],
@@ -221,6 +222,7 @@ describe('createGatewayStorefront', () => {
           {
             key: 'colour',
             name: 'Colour',
+            kind: 'color',
             values: [{ value: 'oat', label: 'Oat', count: 1, swatch: '#d8cbb0' }],
           },
         ],
@@ -1121,6 +1123,7 @@ describe('createGatewayStorefront', () => {
         {
           key: 'colour',
           name: 'Colour',
+          kind: 'color',
           values: [
             { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
             { value: 'clay', label: 'Clay', count: 0 },
@@ -1171,6 +1174,7 @@ describe('createGatewayStorefront', () => {
           {
             key: 'colour',
             name: 'Colour',
+            kind: 'color',
             values: [
               { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
               { value: 'clay', label: 'Clay', count: 0 },
@@ -1230,8 +1234,15 @@ describe('createGatewayStorefront', () => {
         { id: 'ceramics', slug: 'ceramics', title: 'ceramics', count: 2 },
       ]);
       expect(facets?.collections).toEqual([]);
+      // `kind` absent on the wire is `none`, the display every option had before the field
+      // existed — not a guess from the key, and not a refusal.
       expect(facets?.options).toEqual([
-        { key: 'size', name: 'size', values: [{ value: 'm', label: 'm', count: 0 }] },
+        {
+          key: 'size',
+          name: 'size',
+          kind: 'none',
+          values: [{ value: 'm', label: 'm', count: 0 }],
+        },
       ]);
     });
   });
@@ -1593,6 +1604,295 @@ describe('createGatewayStorefront', () => {
       });
       const product = await read(client);
       expect(product?.stock).toBe('out');
+    });
+  });
+
+  /**
+   * **How a variant option is drawn is the merchant's choice, carried on the option itself.**
+   *
+   * Every option used to map to `pills`, so the only way a theme could draw the colour circles a
+   * clothing store needs was to match the option's *name* against "Colour"/"Color" — a merchant's
+   * word, theirs to translate and theirs to change, which is exactly the guess this field replaces.
+   * The platform now stores `kind` (`none` | `color` | `custom`) on the option and a hex `swatch` on
+   * each value, and `app/storefront/options.ts` is the one place a kind becomes a control.
+   */
+  describe('variant options are drawn by their display kind', () => {
+    function optionsClient(options: unknown): EldraClient {
+      return {
+        catalog: {
+          getProduct: async () => ({
+            id: 'prod-merino',
+            slug: 'merino-crew-sweater',
+            title: 'Merino crew sweater',
+            status: 'ACTIVE',
+            options,
+            variants: [{ id: 'var-1', status: 'ACTIVE', price: 96 }],
+          }),
+        },
+      } as unknown as EldraClient;
+    }
+
+    async function optionsOf(options: unknown) {
+      const storefront = createGatewayStorefront(optionsClient(options), { route: fakeRoute() });
+      const result = storefront.catalog.product(ref('merino-crew-sweater'));
+      await settle();
+      expect(result.error.value).toBeNull();
+      return result.data.value?.options ?? [];
+    }
+
+    it('draws a color option as swatches and keeps every value’s colour', async () => {
+      const mapped = await optionsOf([
+        {
+          id: 'opt-1',
+          key: 'colour',
+          name: 'Colour',
+          kind: 'color',
+          values: [
+            { id: 'ov-oat', key: 'oat', name: 'Oat', swatch: '#d8cbb0' },
+            { id: 'ov-moss', key: 'moss', name: 'Moss', swatch: '#6b7a4f' },
+          ],
+        },
+      ]);
+
+      expect(mapped[0]).toMatchObject({ name: 'colour', label: 'Colour', kind: 'color' });
+      expect(mapped[0]?.type).toBe('swatches');
+      expect(mapped[0]?.values.map((value) => [value.value, value.swatch])).toEqual([
+        ['oat', '#d8cbb0'],
+        ['moss', '#6b7a4f'],
+      ]);
+    });
+
+    /**
+     * The defect this whole field exists to remove, stated as a test: an option a merchant named
+     * "Colour" and left on None is a list of words, and nothing in the mapping may decide otherwise.
+     * Both spellings and both cases are here because every one of them was a key a storefront used
+     * to match on.
+     */
+    it('never reads the control off the option’s name', async () => {
+      for (const key of ['colour', 'color', 'Colour', 'Color']) {
+        const mapped = await optionsOf([
+          {
+            id: 'opt-1',
+            key,
+            name: key,
+            kind: 'none',
+            values: [{ id: 'ov-oat', key: 'oat', name: 'Oat' }],
+          },
+        ]);
+        expect(mapped[0]?.kind).toBe('none');
+        expect(mapped[0]?.type).toBe('pills');
+      }
+    });
+
+    /**
+     * Two absences that read the same way, and must: a gateway answering a contract older than the
+     * field sends no `kind` at all, and a kind this theme cannot draw is one it must not try to. Both
+     * are `none` — the display every option had before any of this existed — rather than a throw
+     * inside the product mapping, which would take a whole page down over a presentational field.
+     */
+    it('reads an absent or unknown kind as none rather than failing the page', async () => {
+      for (const kind of [undefined, null, '', 'swatches', 'image', 42]) {
+        const mapped = await optionsOf([
+          {
+            id: 'opt-1',
+            key: 'colour',
+            name: 'Colour',
+            ...(kind === undefined ? {} : { kind }),
+            values: [{ id: 'ov-oat', key: 'oat', name: 'Oat', swatch: '#d8cbb0' }],
+          },
+        ]);
+        expect(mapped[0]?.kind).toBe('none');
+        expect(mapped[0]?.type).toBe('pills');
+        // The colour still rides along — only what is *shown* depends on the kind, so a gateway
+        // that populates the swatch before it populates the kind loses nothing.
+        expect(mapped[0]?.values[0]?.swatch).toBe('#d8cbb0');
+      }
+    });
+
+    it('draws a custom option as pills and carries the merchant’s own name for it', async () => {
+      const mapped = await optionsOf([
+        {
+          id: 'opt-1',
+          key: 'fabric',
+          name: 'Fabric',
+          kind: 'custom',
+          metadata: 'fabric-chip',
+          values: [{ id: 'ov-merino', key: 'merino', name: 'Merino' }],
+        },
+      ]);
+
+      expect(mapped[0]).toMatchObject({ kind: 'custom', metadata: 'fabric-chip' });
+      expect(mapped[0]?.type).toBe('pills');
+    });
+
+    /**
+     * `metadata` is the name a merchant gives a `custom` option, and Studio offers the field under no
+     * other kind. One arriving under `none` or `color` is therefore a name nobody can see or change,
+     * so a theme branching on it would be branching on a ghost: the key is dropped rather than
+     * carried.
+     */
+    it('drops a metadata name sent under a kind that cannot have one', async () => {
+      for (const kind of ['none', 'color']) {
+        const mapped = await optionsOf([
+          {
+            id: 'opt-1',
+            key: 'colour',
+            name: 'Colour',
+            kind,
+            metadata: 'left-over',
+            values: [{ id: 'ov-oat', key: 'oat', name: 'Oat' }],
+          },
+        ]);
+        expect(mapped[0]).not.toHaveProperty('metadata');
+      }
+      // An empty name is not a name either: a `custom` option the platform could not name is a
+      // custom option with nothing to switch on, not one named "".
+      const empty = await optionsOf([
+        {
+          id: 'opt-1',
+          key: 'fabric',
+          name: 'Fabric',
+          kind: 'custom',
+          metadata: '',
+          values: [{ id: 'ov-merino', key: 'merino', name: 'Merino' }],
+        },
+      ]);
+      expect(empty[0]).not.toHaveProperty('metadata');
+      expect(empty[0]?.kind).toBe('custom');
+    });
+  });
+
+  /**
+   * **A product card's colour dots, from the same fact the product page's picker reads.**
+   *
+   * The catalogue's *list* read answers no options at all today, which is why the live site's cards
+   * carry none; the mapping is written against the shape a list read would carry so a gateway that
+   * grows the field needs no second change here. The distinction that matters is absent vs empty:
+   * `undefined` is "this source cannot say what colours this product comes in" and `[]` is "none",
+   * and `app/storefront/facets.ts` filters on the two differently (`optionValuesOf`).
+   */
+  describe('a product card’s colour dots come from the colour-kind option', () => {
+    function listClient(row: Record<string, unknown>): EldraClient {
+      return {
+        catalog: {
+          listProducts: async () => ({
+            data: [
+              {
+                id: 'prod-merino',
+                slug: 'merino-crew-sweater',
+                title: 'Merino crew sweater',
+                status: 'ACTIVE',
+                minPrice: 96,
+                maxPrice: 96,
+                totalVariants: 4,
+                ...row,
+              },
+            ],
+            meta: { page: 1, pageSize: 24, total: 1, totalPages: 1, rows: 1 },
+          }),
+        },
+      } as unknown as EldraClient;
+    }
+
+    async function cardFor(row: Record<string, unknown>) {
+      const storefront = createGatewayStorefront(listClient(row), { route: fakeRoute() });
+      const result = storefront.catalog.products(ref({ page: 1, pageSize: 24 }));
+      await settle();
+      expect(result.error.value).toBeNull();
+      return result.data.value?.items[0];
+    }
+
+    it('names each dot after the value it belongs to', async () => {
+      const card = await cardFor({
+        options: [
+          {
+            id: 'opt-1',
+            key: 'colour',
+            name: 'Colour',
+            kind: 'color',
+            values: [
+              { id: 'ov-oat', key: 'oat', name: 'Oat', swatch: '#d8cbb0' },
+              { id: 'ov-moss', key: 'moss', name: 'Moss', swatch: '#6b7a4f' },
+            ],
+          },
+        ],
+      });
+
+      expect(card?.colours).toEqual([
+        { name: 'Oat', swatch: '#d8cbb0' },
+        { name: 'Moss', swatch: '#6b7a4f' },
+      ]);
+    });
+
+    it('says nothing at all for a list read that carries no options', async () => {
+      const card = await cardFor({});
+      expect(card).not.toHaveProperty('colours');
+      expect(card?.colours).toBeUndefined();
+    });
+
+    /**
+     * Known, and none — the answer that makes a colour filter exclude this product rather than
+     * ignore it. The read carried options, so the source *can* say; it says there are no colours.
+     */
+    it('answers an empty list for a product the read says has no colour option', async () => {
+      const card = await cardFor({
+        options: [
+          {
+            id: 'opt-1',
+            key: 'size',
+            name: 'Size',
+            kind: 'none',
+            values: [{ id: 'ov-m', key: 'm', name: 'M' }],
+          },
+        ],
+      });
+      expect(card?.colours).toEqual([]);
+    });
+
+    it('ignores an option named for a colour that the merchant left on none', async () => {
+      const card = await cardFor({
+        options: [
+          {
+            id: 'opt-1',
+            key: 'colour',
+            name: 'Colour',
+            kind: 'none',
+            values: [{ id: 'ov-oat', key: 'oat', name: 'Oat', swatch: '#d8cbb0' }],
+          },
+        ],
+      });
+      expect(card?.colours).toEqual([]);
+    });
+
+    /**
+     * A dot's whole content is its colour, so a value without one is left out rather than drawn as a
+     * blank circle beside the colours that do have one. The first colour option is the only one read:
+     * a card has one row of dots, and concatenating two colour options would invent a list the store
+     * never declared.
+     */
+    it('leaves out a value with no colour, and reads the first colour option only', async () => {
+      const card = await cardFor({
+        options: [
+          {
+            id: 'opt-1',
+            key: 'colour',
+            name: 'Colour',
+            kind: 'color',
+            values: [
+              { id: 'ov-oat', key: 'oat', name: 'Oat', swatch: '#d8cbb0' },
+              { id: 'ov-unset', key: 'unset', name: 'Unset' },
+            ],
+          },
+          {
+            id: 'opt-2',
+            key: 'trim',
+            name: 'Trim',
+            kind: 'color',
+            values: [{ id: 'ov-navy', key: 'navy', name: 'Navy', swatch: '#1f2a44' }],
+          },
+        ],
+      });
+      expect(card?.colours).toEqual([{ name: 'Oat', swatch: '#d8cbb0' }]);
     });
   });
 

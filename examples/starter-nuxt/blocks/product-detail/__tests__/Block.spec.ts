@@ -729,6 +729,90 @@ describe('product-detail block', () => {
       const noHref = await mountReady(mock);
       expect(noHref.find('a[href="/pages/size-guide"]').exists()).toBe(false);
     });
+
+    /**
+     * **The merchant's "Display as" choice is what picks the control.** The storefront maps the
+     * option's own `kind` to `type` (`app/storefront/options.ts`) and the picker draws from that, so
+     * these three cases are the whole rule a theme has to honour: `color` is circles, `none` and
+     * `custom` are pills, and the option's *name* is never consulted — the guess that used to be the
+     * only way to get colour circles out of this block.
+     *
+     * The row carries the kind (and a `custom` option's name) as data attributes, which is the hook a
+     * customer's own fork branches on instead of matching a translated label.
+     */
+    it('draws the colour option as swatches and the size option as pills', async () => {
+      const wrapper = await mountReady(mock);
+      const rows = wrapper.findAll('[data-option-kind]');
+
+      expect(rows.map((row) => row.attributes('data-option-kind'))).toEqual(['color', 'none']);
+      // The colour disc is the swatch part, and its one per-item colour is an inline style from the
+      // store's own data.
+      const swatches = rows[0]!.findAll('[data-part="swatch"]');
+      expect(swatches).toHaveLength(4);
+      expect(swatches[0]!.attributes('style')).toContain('rgb(216, 203, 176)');
+      // Its accessible name is the colour's own name, visually hidden inside the label.
+      expect(rows[0]!.findAll('label')[0]!.text()).toBe('Oat');
+      // Pills have no disc at all, and their label is the visible text.
+      expect(rows[1]!.findAll('[data-part="swatch"]')).toHaveLength(0);
+      expect(rows[1]!.findAll('label')[0]!.text()).toBe('XS');
+      expect(rows.every((row) => row.attributes('data-option-metadata') === undefined)).toBe(true);
+    });
+
+    /**
+     * The defect the `kind` field exists to remove, at the rendering layer: an option a merchant
+     * named "Colour" and left on None is a list of words. The values even carry colours here — a
+     * store that set them and then switched the option back — and the picker still draws pills,
+     * because what is shown follows the merchant's choice and nothing else.
+     */
+    it('draws pills for an option named for a colour whose kind is none', async () => {
+      const wrapper = await mountReady(mock, {
+        storefront: storefrontWith({
+          options: [
+            {
+              name: 'colour',
+              label: 'Colour',
+              kind: 'none',
+              type: 'pills',
+              values: [
+                { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
+                { value: 'moss', label: 'Moss', swatch: '#6b7a4f', available: true },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const row = wrapper.get('[data-option-kind="none"]');
+      expect(row.findAll('[data-part="swatch"]')).toHaveLength(0);
+      expect(row.findAll('label').map((label) => label.text())).toEqual(['Oat', 'Moss']);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('draws a custom option as pills and exposes the merchant’s own name for it', async () => {
+      const wrapper = await mountReady(mock, {
+        storefront: storefrontWith({
+          options: [
+            {
+              name: 'fabric',
+              label: 'Fabric',
+              kind: 'custom',
+              metadata: 'fabric-chip',
+              type: 'pills',
+              values: [
+                { value: 'merino', label: 'Merino', available: true },
+                { value: 'lambswool', label: 'Lambswool', available: true },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const row = wrapper.get('[data-option-kind="custom"]');
+      expect(row.attributes('data-option-metadata')).toBe('fabric-chip');
+      expect(row.findAll('[data-part="swatch"]')).toHaveLength(0);
+      expect(row.findAll('label').map((label) => label.text())).toEqual(['Merino', 'Lambswool']);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
   });
 
   describe('stock states', () => {

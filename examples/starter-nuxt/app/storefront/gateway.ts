@@ -6,6 +6,7 @@ import { createHistoryStore, createWishlistStore } from './history';
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
+import { optionDisplayType, storefrontOptionKind } from './options';
 import {
   buildCategoryIndex,
   categoryTrailFor,
@@ -75,6 +76,15 @@ interface RawProductListItem {
   compareAtPrice?: number;
   thumbnail?: RawThumbnail;
   totalVariants: number;
+  /**
+   * **Declared, and read when it is there.** The catalogue's product *list* answers no options
+   * today — a row carries `totalVariants` and nothing about what the variants differ by — so the
+   * colour dots on a card come from the demo source's own fixture and from nothing on the live
+   * site. A list read that does carry them (a gateway that grows the field, a customer's own
+   * source shaped like this one) feeds `mapProductListItem`'s `colours` without another change
+   * here; see its own comment for why the dots are gated on the option's `kind`.
+   */
+  options?: RawProductOption[] | null;
 }
 
 /**
@@ -128,6 +138,11 @@ interface RawFacetOptionValue {
 interface RawFacetOption {
   key?: string;
   name?: string;
+  /** `none` | `color` | `custom`, read through `storefrontOptionKind` — absent on a gateway older
+   *  than the contract that added it, which reads as `none`. */
+  kind?: string;
+  /** The merchant's name for a `custom` option; `null`/absent on every other kind. */
+  metadata?: string | null;
   values?: RawFacetOptionValue[] | null;
 }
 
@@ -150,12 +165,20 @@ interface RawProductOptionValue {
   id: string;
   key: string;
   name: string;
+  /** A hex colour (`#RRGGBB` / `#RRGGBBAA`) the merchant picked for this value. The platform allows
+   *  one only under a `color`-kind option and omits the key otherwise. */
+  swatch?: string | null;
 }
 
 interface RawProductOption {
   id: string;
   key: string;
   name: string;
+  /** The merchant's "Display as" choice — `none` | `color` | `custom`. Absent on a gateway older
+   *  than the contract that added it; `storefrontOptionKind` reads that as `none`. */
+  kind?: string;
+  /** The merchant's name for a `custom` option; `null`/absent on every other kind. */
+  metadata?: string | null;
   values?: RawProductOptionValue[] | null;
 }
 
@@ -334,7 +357,37 @@ function toMedia(
   return { src: item.url, alt: item.altText ?? fallbackAlt };
 }
 
+/**
+ * **The colour dots a card draws, from the product's `color`-kind option.**
+ *
+ * `undefined` — not `[]` — when the read carries no options at all, because the two are different
+ * answers and `app/storefront/facets.ts` reads them apart: absent means "this source cannot say
+ * what colours this product comes in", while an empty list would mean "none", which would exclude
+ * the product from every colour filter. The catalogue's list read answers no options today, so that
+ * is the live site's answer; see `RawProductListItem.options`.
+ *
+ * The **first** `color`-kind option only. `colours` is one row of dots under one image: a product
+ * with two colour options has no single list of colours to draw, and concatenating them would
+ * invent one.
+ *
+ * A value with no swatch is left out rather than drawn as a blank circle. An option whose kind is
+ * `none` contributes nothing, whatever it is called — the same "never guess from the key" rule the
+ * product page's picker follows.
+ */
+function listItemColours(
+  raw: RawProductListItem
+): StorefrontProductListItem['colours'] | undefined {
+  const options = raw.options;
+  if (options === undefined || options === null) return undefined;
+  const colour = options.find((option) => storefrontOptionKind(option.kind) === 'color');
+  if (colour === undefined) return [];
+  return (colour.values ?? [])
+    .filter((value) => typeof value.swatch === 'string' && value.swatch !== '')
+    .map((value) => ({ name: value.name, swatch: value.swatch! }));
+}
+
 function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem {
+  const colours = listItemColours(raw);
   return {
     handle: raw.slug,
     title: raw.title,
@@ -345,6 +398,7 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
       compareAt: raw.compareAtPrice ?? null,
       from: raw.minPrice !== raw.maxPrice,
     },
+    ...(colours === undefined ? {} : { colours }),
     // A card stays on the product's published status, not on inventory: the availability read is
     // per *variant*, and a list row carries no variant at all (see `StorefrontProductListItem`), so
     // answering a grid from inventory would mean one product detail read per card. The product page
@@ -462,20 +516,39 @@ function mapProductDetails(
       amount: firstAvailable?.price ?? minPrice,
       compareAt: firstAvailable?.compareAtPrice ?? null,
     },
-    options: (raw.options ?? []).map((option) => ({
-      name: option.key,
-      label: option.name,
-      type: 'pills' as const,
-      values: (option.values ?? []).map((value) => ({
-        value: value.key,
-        label: value.name,
-        available: variants.some(
-          (variant) =>
-            variantBuyable(variant, stock) &&
-            (variant.optionValues ?? []).some((ov) => ov.optionValueId === value.id)
-        ),
-      })),
-    })),
+    // **The merchant's "Display as" choice is what decides the control**, never the option's name.
+    // Every option used to map to `pills`, and the only way a theme could have drawn the colour
+    // circles a store's photography needs was to match on the word "Colour" — which is a merchant's
+    // label, translated per locale and theirs to change. Now the platform carries `kind` on the
+    // option and the swatch hex on each value, and `optionDisplayType` is the single place the kind
+    // becomes a control (`app/storefront/options.ts`).
+    options: (raw.options ?? []).map((option) => {
+      const kind = storefrontOptionKind(option.kind);
+      return {
+        name: option.key,
+        label: option.name,
+        kind,
+        // Only a `custom` option has a name of its own, and only a non-empty one is a name. A
+        // `metadata` the platform sent under another kind is dropped rather than carried: a theme
+        // branching on it would be branching on a field the merchant cannot see or set there.
+        ...(kind === 'custom' && option.metadata ? { metadata: option.metadata } : {}),
+        type: optionDisplayType(kind),
+        values: (option.values ?? []).map((value) => ({
+          value: value.key,
+          label: value.name,
+          // Passed through whatever the option's kind says — the platform allows a swatch only under
+          // `color`, and a picker drawing pills never reads one, so the kind alone decides what is
+          // *shown*. Gating the colour on the kind as well would mean a gateway that populates the
+          // swatch before it populates the kind silently loses the store's colours.
+          ...(value.swatch ? { swatch: value.swatch } : {}),
+          available: variants.some(
+            (variant) =>
+              variantBuyable(variant, stock) &&
+              (variant.optionValues ?? []).some((ov) => ov.optionValueId === value.id)
+          ),
+        })),
+      };
+    }),
     // Root ancestor down to the product's own category, each level a link into the catalogue
     // filtered by it (`app/storefront/categories.ts`). `[]` for a product with no category, a
     // category the list does not hold, and a category read that failed — three honest absences, one
@@ -1451,18 +1524,26 @@ function mapFacets(
         }),
     options: (raw.options ?? [])
       .filter((option) => typeof option.key === 'string' && option.key !== '')
-      .map((option) => ({
-        key: option.key!,
-        name: option.name ?? option.key!,
-        values: (option.values ?? [])
-          .filter((value) => typeof value.value === 'string' && value.value !== '')
-          .map((value) => ({
-            value: value.value!,
-            label: value.label ?? value.value!,
-            ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
-            count: value.count ?? 0,
-          })),
-      })),
+      .map((option) => {
+        const kind = storefrontOptionKind(option.kind);
+        return {
+          key: option.key!,
+          name: option.name ?? option.key!,
+          // Carried so a panel reads the same fact the product page does. What a group *draws* is
+          // still decided by its values (`parts/groups.ts`'s `groupKindFor`): a `color` option the
+          // store set no colours for has nothing to put in a dot.
+          kind,
+          ...(kind === 'custom' && option.metadata ? { metadata: option.metadata } : {}),
+          values: (option.values ?? [])
+            .filter((value) => typeof value.value === 'string' && value.value !== '')
+            .map((value) => ({
+              value: value.value!,
+              label: value.label ?? value.value!,
+              ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
+              count: value.count ?? 0,
+            })),
+        };
+      }),
   };
 }
 

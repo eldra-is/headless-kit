@@ -73,11 +73,20 @@ describe('createDemoStorefront', () => {
     const product = result.data.value;
     expect(product).not.toBeNull();
     const colour = product!.options.find((option) => option.label === 'Colour');
+    // The fixture declares the merchant's own display choice, and `type` is derived from it by the
+    // same function the gateway source uses — so Storybook keeps its swatches for the reason the
+    // live site has them rather than because this fixture hard-coded the control.
+    expect(colour?.kind).toBe('color');
+    expect(colour?.type).toBe('swatches');
+    expect(colour?.values.every((value) => typeof value.swatch === 'string')).toBe(true);
     expect(colour?.values.map((value) => value.label)).toEqual(['Oat', 'Charcoal', 'Clay', 'Moss']);
     expect(colour?.values.find((value) => value.label === 'Moss')?.available).toBe(false);
     expect(colour?.values.filter((value) => value.available)).toHaveLength(3);
 
     const size = product!.options.find((option) => option.label === 'Size');
+    // `none` — a plain list of values, and what every option looked like before the kind existed.
+    expect(size?.kind).toBe('none');
+    expect(size?.type).toBe('pills');
     expect(size?.values.map((value) => value.label)).toEqual(['XS', 'S', 'M', 'L', 'XL']);
     expect(size?.values.find((value) => value.label === 'XL')?.available).toBe(false);
     expect(size?.values.filter((value) => value.available)).toHaveLength(4);

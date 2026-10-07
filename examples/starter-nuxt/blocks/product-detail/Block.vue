@@ -666,10 +666,21 @@ function tabValue(index: number): string {
               fieldset a first baseline, so baseline alignment drops the link down to the options
               row instead of the legend's.
             -->
+            <!--
+              `data-option-kind` (and `data-option-metadata` for a `custom` option) is how a theme
+              branches on the merchant's display choice without forking this block: the kind decides
+              the control through `option.type` already (`color` → swatches, everything else →
+              pills), and a customer who wants their one named option rendered its own way has a
+              stable hook for it that is not the option's label — see `docs/starter-kit.md`. The
+              attributes are on the row rather than the picker so a replacement control inside it is
+              covered too.
+            -->
             <div
               v-for="option in options"
               :key="option.name"
               class="grid grid-cols-[1fr_auto] items-start gap-x-4"
+              :data-option-kind="option.kind"
+              :data-option-metadata="option.metadata"
             >
               <VariantPicker
                 v-model="selection[option.name]"
