@@ -91,7 +91,8 @@ const GROUP_BASE = 'border-border border-b';
  * chevron, a child, carries its own.
  */
 const TRIGGER_BASE =
-  'flex min-h-12 w-full cursor-pointer items-center gap-2 rounded-sm py-3 text-start eldra-focus';
+  'flex min-h-12 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-3 text-start ' +
+  'eldra-focus';
 
 /** Spec → Sizes, Trigger row: "0.9375rem weight 600"; → States, hover: "name underlined 1px". */
 const LABEL_BASE =
@@ -117,7 +118,7 @@ const CHEVRON_BASE =
   'motion-reduce:transition-none';
 
 /** Spec → Body: "1.25rem bottom padding." `min-w-0` so a long label wraps rather than widening. */
-const BODY_BASE = 'min-w-0 border-0 p-0 pb-5';
+const BODY_BASE = 'min-w-0 border-0 px-2 pt-0 pb-5';
 
 const groupClass = computed(() =>
   partClass(cx(GROUP_BASE, props.topRule && 'border-t'), props.classes, 'group')

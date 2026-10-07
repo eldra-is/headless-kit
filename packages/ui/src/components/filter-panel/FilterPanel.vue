@@ -213,16 +213,34 @@ function chipMessages(chip: AppliedFilter): Partial<UiMessages> {
  * The root is a width **container**, which is what the colour facet's own two-column rule measures
  * against: the spec's breakpoint is the width of the panel, not of the viewport, so a 15rem
  * sidebar keeps one column and the same panel in a 26rem drawer takes two.
+ *
+ * It carries **no padding of its own**, deliberately: `container-type: inline-size` queries the
+ * *content* box, so a gutter here would shift the 26rem edge by its own width and the panel would
+ * take two columns a gutter later than the spec says. The gutter the rows' bleed needs
+ * (`FILTER_GUTTER`) is on every direct child instead — the head, the chips, each group's trigger
+ * and body, the foot — which also lets a group's rule span the panel edge to edge the way the
+ * spec draws it.
  */
 const ROOT_BASE = '@container min-w-0 text-control text-text';
+
+/**
+ * The gutter the rows' own bleed needs, and it is load-bearing. The spec gives every option and
+ * swatch row a negative side margin so its hover tint "bleeds into the gutter" — which is wider
+ * than the panel's text column by design, and therefore wider than the panel itself unless
+ * something reserves it. Without this, a panel dropped into a 320px drawer with no padding of its
+ * own scrolls sideways by the width of that bleed, against the spec's own 320px reflow line
+ * (`filterPanelRing.browser.spec.ts` measures exactly that). With it, a row's text and the head's
+ * text align on the same 0.5rem, because the row's negative margin is the same 0.5rem back out.
+ */
+const FILTER_GUTTER = 'px-2';
 /** Spec → Sizes, Head row: "Flex row, space-between, 0.75rem gap, 0.75rem below." */
-const HEAD_BASE = 'mb-3 flex min-w-0 items-center justify-between gap-3';
+const HEAD_BASE = `mb-3 flex min-w-0 items-center justify-between gap-3 ${FILTER_GUTTER}`;
 /** Spec → Sizes, Head row: "Title 1.125rem heading font, weight 600, line height 1.35." */
 const TITLE_BASE = 'm-0 min-w-0 text-h4 text-text';
 /** Spec → Sizes, Active filters row: "Wrapping row, 0.375rem gaps, 0.75rem below." */
-const APPLIED_BASE = 'mb-3 flex list-none flex-wrap gap-1.5 p-0';
+const APPLIED_BASE = `mb-3 flex list-none flex-wrap gap-1.5 py-0 ${FILTER_GUTTER}`;
 /** Spec → Sizes, Drawer foot: "2 columns (`auto | 1fr`), 0.75rem gap." */
-const FOOT_BASE = 'mt-4 grid grid-cols-[auto_1fr] gap-3';
+const FOOT_BASE = `mt-4 grid grid-cols-[auto_1fr] gap-3 ${FILTER_GUTTER}`;
 
 const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'root'));
 const headClass = computed(() => partClass(HEAD_BASE, props.classes, 'head'));
