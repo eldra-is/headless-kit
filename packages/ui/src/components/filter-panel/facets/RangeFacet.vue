@@ -139,9 +139,16 @@ watch(pair, (next) => {
 
 /* ------------------------------------------------------------------ classes */
 
-/** Spec → Sizes, Min / Max fields row: "3-column grid (`1fr | auto | 1fr`), bottom-aligned,
- *  0.5rem gaps, 0.75rem above." */
-const FIELDS_BASE = 'mt-3 grid grid-cols-[1fr_auto_1fr] items-end gap-2';
+/**
+ * Spec → Sizes, Min / Max fields row: "3-column grid (`1fr | auto | 1fr`), bottom-aligned, 0.5rem
+ * gaps, 0.75rem above."
+ *
+ * `col-span-full` is load-bearing. This row is rendered **inside** `RangeSlider`'s own `inputs`
+ * element, which is already a `1fr | auto | 1fr` grid — so without it this whole row is one child
+ * of that grid and sits in its first column, a third of the width, with both fields clipped. The
+ * 0.75rem above is that element's, not this one's, which is why there is no margin here.
+ */
+const FIELDS_BASE = 'col-span-full grid grid-cols-[1fr_auto_1fr] items-end gap-2';
 /** Spec → Sizes: 'Label "Min" / "Max" 0.75rem weight 500 `muted`, 0.125rem above its Input sm.' */
 const FIELD_LABEL = 'mb-0.5 block text-filter-tile-count font-medium text-muted';
 /** A `FieldWrapper` draws its own gap between label and control; the label recipe owns it here. */

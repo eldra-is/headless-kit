@@ -4,13 +4,14 @@ import { mountWith } from '../../../test/mount';
 import FilterPanel from '../FilterPanel.vue';
 import type { FilterFacet, FilterSelection } from '../types';
 import {
+  AVAILABILITY_FACET,
   CATEGORY_TREE_FACET,
   COLOUR_FACET,
   MATERIAL_FACET,
   NORTHWIND_COLOURS,
   PRICE_FACET,
   SIZE_FACET,
-} from './fixtures';
+} from '../northwind';
 
 type Wrapper = ReturnType<typeof mountWith<typeof FilterPanel>>;
 
@@ -627,6 +628,154 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
     await min().trigger('keyup', { key: 'ArrowRight' });
     expect(wrapper.emitted('change')).toHaveLength(1);
     expect(wrapper.emitted('change')?.at(-1)).toEqual([{ price: [70, 240] }]);
+    wrapper.unmount();
+  });
+});
+
+describe('RangeFacet — a range with nothing to narrow', () => {
+  const COLLAPSED: FilterFacet = {
+    id: 'price',
+    label: 'Price',
+    type: 'range',
+    min: 3500,
+    max: 3500,
+    currency: true,
+  };
+
+  /**
+   * No group at all — not a disabled one, and certainly not a single thumb that cannot move beside
+   * two fields reading "3,500" to "3,500". A control that answers every gesture with nothing is
+   * worse than no control: it says there is something to narrow when there is not.
+   */
+  it('draws no group, no slider and no fields', () => {
+    const wrapper = mount([CATEGORY_TREE_FACET, COLLAPSED]);
+    expect(
+      wrapper.findAll('[data-part="group"][data-facet]').map((g) => g.attributes('data-facet'))
+    ).toEqual(['category']);
+    expect(wrapper.find('[data-facet="price"]').exists()).toBe(false);
+    expect(wrapper.findAll('[role="slider"]')).toHaveLength(0);
+    expect(wrapper.find('[data-part="fields"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('draws the group again as soon as there is a span to narrow', async () => {
+    const wrapper = mount([COLLAPSED]);
+    expect(wrapper.find('[data-facet="price"]').exists()).toBe(false);
+    await wrapper.setProps({ facets: [{ ...COLLAPSED, max: 14_000 }] });
+    expect(wrapper.find('[data-facet="price"]').exists()).toBe(true);
+    expect(wrapper.findAll('[role="slider"]')).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  /** An inverted span collapses to one value, which is the same nothing. */
+  it('draws nothing for an inverted span either', () => {
+    const wrapper = mount([{ ...COLLAPSED, min: 240, max: 40 }]);
+    expect(wrapper.find('[data-facet="price"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * A span inherited from a URL would otherwise keep narrowing the results with no control on
+   * screen that could widen them again — so it goes on the next change. Not on mount: a panel that
+   * emitted a change nobody asked for would surprise a store that handed it a collapsed range and
+   * never touched the panel.
+   */
+  it('clears its leftover selection on the next change, and not before', async () => {
+    const wrapper = mountModel([CATEGORY_TREE_FACET, COLLAPSED], {
+      modelValue: { price: [3500, 3500], category: ['knitwear'] },
+    });
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    expect(wrapper.emitted('change')).toBeUndefined();
+
+    input(wrapper, 'tableware').click();
+    await nextTick();
+    expect(wrapper.emitted('change')?.at(-1)).toEqual([{ category: ['knitwear', 'tableware'] }]);
+    wrapper.unmount();
+  });
+
+  /** And it never counts towards **Clear all**, which would otherwise have nothing to clear. */
+  it('does not keep Clear all on screen on its own', () => {
+    const wrapper = mount([COLLAPSED], { modelValue: { price: [3500, 3500] } });
+    expect(wrapper.find('[data-part="clear"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+/**
+ * The spec's own pictures, asserted as a contract rather than left to the screenshot baselines:
+ * each of these is a default somebody could reasonably "simplify" into the other branch, and a
+ * changed baseline says only that a picture moved, not which rule broke.
+ */
+describe('the shapes the spec draws by default', () => {
+  it('draws a colour facet as rows unless it asks for a grid', () => {
+    const rows = mount([COLOUR_FACET]);
+    expect(rows.findAll('[data-part="row"]').length).toBeGreaterThan(0);
+    expect(rows.findAll('[data-part="tile"]')).toHaveLength(0);
+    rows.unmount();
+
+    const explicitList = mount([{ ...COLOUR_FACET, layout: 'list' }]);
+    expect(explicitList.findAll('[data-part="row"]').length).toBeGreaterThan(0);
+    explicitList.unmount();
+
+    const grid = mount([{ ...COLOUR_FACET, layout: 'grid' }]);
+    expect(grid.findAll('[data-part="row"]')).toHaveLength(0);
+    expect(grid.findAll('[data-part="tile"]').length).toBeGreaterThan(0);
+    grid.unmount();
+  });
+
+  /** Spec → Sizes: "Count ... pushed to the end", on every shape that has one. */
+  it('pushes every count to the end of its row', () => {
+    const wrapper = mount([CATEGORY_TREE_FACET, COLOUR_FACET, AVAILABILITY_FACET]);
+    const counts = wrapper.findAll('[data-part="count"]');
+    expect(counts.length).toBeGreaterThan(5);
+    for (const count of counts) {
+      expect(count.classes()).toContain('ms-auto');
+      expect(count.classes()).toContain('tabular-nums');
+    }
+    wrapper.unmount();
+  });
+
+  /**
+   * Spec → Sizes, Min / Max fields: "The unit sits 0.625rem inside the input ... as a prefix ("$")
+   * or a suffix ("kr."), whichever the currency format uses." The field is the store's own money
+   * field, so the locale decides which side — asserted on both, because a hard-coded prefix is the
+   * easy way to get this wrong and it is only wrong outside en-US.
+   */
+  it('puts the currency unit inside the field, on the side the locale puts it', () => {
+    const dollars = mount([PRICE_FACET], { modelValue: { price: [80, 160] } });
+    expect((dollars.find('[data-input="min"]').element as HTMLInputElement).value).toMatch(/^\$/);
+    dollars.unmount();
+
+    const kronur = mountWith(FilterPanel, {
+      props: {
+        facets: [{ ...PRICE_FACET, min: 3500, max: 14_000, step: 100 }],
+        locale: 'is-IS',
+        currency: 'ISK',
+        modelValue: { price: [5000, 11_000] },
+      },
+    });
+    const value = (kronur.find('[data-input="min"]').element as HTMLInputElement).value;
+    expect(value).toMatch(/kr/);
+    expect(value.trimEnd().endsWith('.') || /kr\.?$/.test(value.trim())).toBe(true);
+    kronur.unmount();
+  });
+
+  /**
+   * The Min/Max row sits inside `RangeSlider`'s own three-column `inputs` grid and has to span it:
+   * without that it is one child of that grid, a third of the width, with both figures clipped.
+   */
+  it('spans the slider’s own inputs grid rather than sitting in its first column', () => {
+    const wrapper = mount([PRICE_FACET]);
+    expect(wrapper.find('[data-part="fields"]').classes()).toContain('col-span-full');
+    wrapper.unmount();
+  });
+
+  /** Spec → Anatomy item 10: the histogram sits above the range, not below or beside it. */
+  it('draws the histogram above the track', () => {
+    const wrapper = mount([PRICE_FACET]);
+    const histogram = wrapper.find('[data-part="histogram"]').element;
+    const rail = wrapper.find('[data-part="rail"]').element;
+    expect(histogram.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     wrapper.unmount();
   });
 });

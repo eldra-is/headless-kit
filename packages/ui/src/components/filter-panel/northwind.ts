@@ -1,9 +1,13 @@
-import type { FilterFacet, FilterFacetValue } from '../types';
+import type { FilterFacet, FilterFacetValue } from './types';
 
 /**
- * The design spec's own Northwind facets, shared by the specs and the stories so the two are
- * reviewed against the same panel. The colours are the palette the spec publishes by name, which
- * is also what makes the check-mark ink assertions meaningful.
+ * The design spec's own Northwind facets, shared by this component's specs, its stories and its
+ * browser spec, so all three are reviewed against the same panel. The colours are the palette the
+ * spec publishes by name, which is also what makes the check-mark ink assertions meaningful.
+ *
+ * It sits beside the component rather than under `__tests__/` because the stories read it too, and
+ * nothing in `src/index.ts` imports it — so it is sample content for this package's own review
+ * surfaces and never reaches a consumer's bundle.
  */
 
 export const NORTHWIND_COLOURS = {

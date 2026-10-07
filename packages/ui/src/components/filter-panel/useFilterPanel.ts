@@ -159,6 +159,53 @@ export function isRangeAtLimits(selection: FilterSelection, facet: FilterFacet):
 }
 
 /**
+ * Whether a facet can be drawn at all.
+ *
+ * A **range with fewer than two distinct values** cannot: a catalogue whose cheapest and dearest
+ * product are the same price has no span to narrow, and drawing one anyway gives the shopper a
+ * single thumb that cannot move and a pair of fields reading "3,500" to "3,500" — a control that
+ * looks operable, answers every gesture with nothing, and excludes nothing however it is set. The
+ * honest rendering of "there is nothing to filter here" is no group at all.
+ *
+ * Every other facet type is drawn whatever it holds: an empty `list` is a group that says, truly,
+ * that the catalogue offers no values for it, and that is information a shopper can act on (it is
+ * also what a facet looks like for one tick while its counts are refreshing).
+ */
+export function facetIsRenderable(facet: FilterFacet): boolean {
+  if (facet.type !== 'range') return true;
+  const [min, max] = rangeLimits(facet);
+  return max > min;
+}
+
+/** The facets a panel draws — and the only ones its selection should go on mentioning. */
+export function renderableFacets(facets: FilterFacet[]): FilterFacet[] {
+  return facets.filter((facet) => facetIsRenderable(facet));
+}
+
+/**
+ * The selection with any key belonging to a facet the panel is **not** drawing taken out.
+ *
+ * It is deliberately narrow: only a facet that was supplied and then omitted loses its key. A key
+ * for a facet the panel was never given is left alone, because a page may well keep a filter of
+ * its own in the same object that this panel has no business clearing.
+ *
+ * This is what "cleared on the next change" means for a collapsed range: a span inherited from a
+ * URL, or from a catalogue whose price span has since collapsed, would otherwise keep narrowing
+ * the results with no control on screen that could widen them again.
+ */
+export function dropOmittedFacets(
+  selection: FilterSelection,
+  facets: FilterFacet[]
+): FilterSelection {
+  const omitted = facets.filter((facet) => !facetIsRenderable(facet));
+  if (omitted.length === 0) return selection;
+  if (!omitted.some((facet) => facet.id in selection)) return selection;
+  const next: FilterSelection = { ...selection };
+  for (const facet of omitted) delete next[facet.id];
+  return next;
+}
+
+/**
  * The facet's selected-count badge (spec → Behaviour: "the number of checked values and
  * switched-on switches in the group ... a moved range does not count").
  *

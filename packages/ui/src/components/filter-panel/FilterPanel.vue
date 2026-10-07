@@ -42,11 +42,13 @@ import FilterGroup from './FilterGroup.vue';
 import {
   appliedFilters,
   clearedSelection,
+  dropOmittedFacets,
   facetSelectedCount,
   facetStartsOpen,
   facetSummaryLabels,
   hasSelection,
   removeValue,
+  renderableFacets,
   setRange,
   toggleValue,
 } from './useFilterPanel';
@@ -117,11 +119,28 @@ function collapseGroup(facet: FilterFacet): void {
   openOverride.value = { ...openOverride.value, [facet.id]: false };
 }
 
-const chips = computed<AppliedFilter[]>(() => appliedFilters(props.facets, model.value));
-const anySelected = computed(() => hasSelection(props.facets, model.value));
+/**
+ * The facets that are actually drawn. A range with fewer than two distinct values is dropped
+ * here — see `facetIsRenderable` — and everything downstream reads this list rather than the prop,
+ * so an omitted facet has no group, no chip, and no say in whether **Clear all** is on screen.
+ */
+const drawn = computed<FilterFacet[]>(() => renderableFacets(props.facets));
 
-/** One write, one pair of events: the model and `change` never disagree about what happened. */
-function write(next: FilterSelection): void {
+const chips = computed<AppliedFilter[]>(() => appliedFilters(drawn.value, model.value));
+const anySelected = computed(() => hasSelection(drawn.value, model.value));
+
+/**
+ * One write, one pair of events: the model and `change` never disagree about what happened.
+ *
+ * Every write also drops any key belonging to a facet the panel is not drawing, which is what
+ * "cleared on the next change" means for a range whose span has collapsed: a `?price=80-160`
+ * inherited from a URL would otherwise keep narrowing the results with no control on screen that
+ * could widen them again. It is done on write rather than on mount so the panel never emits a
+ * change nobody asked for — a store that hands it a collapsed range and never touches the panel
+ * again sees exactly the selection it passed in.
+ */
+function write(selection: FilterSelection): void {
+  const next = dropOmittedFacets(selection, props.facets);
   if (next === model.value) return;
   model.value = next;
   emit('change', next);
@@ -322,7 +341,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
     </ul>
 
     <FilterGroup
-      v-for="(facet, index) in facets"
+      v-for="(facet, index) in drawn"
       :key="facet.id"
       :facet="facet"
       :open="isOpen(facet)"

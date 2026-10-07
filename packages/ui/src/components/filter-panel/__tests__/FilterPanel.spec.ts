@@ -13,7 +13,7 @@ import {
   MATERIAL_FACET,
   PRICE_FACET,
   SIZE_FACET,
-} from './fixtures';
+} from '../northwind';
 
 type Wrapper = ReturnType<typeof mountWith<typeof FilterPanel>>;
 

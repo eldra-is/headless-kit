@@ -5,8 +5,10 @@ import {
   FILTER_VALUES_SHOWN,
   appliedFilters,
   clearedSelection,
+  dropOmittedFacets,
   facetCanShowAll,
   facetHasHiddenValues,
+  facetIsRenderable,
   facetIsSearchable,
   facetRows,
   facetSelectedCount,
@@ -24,6 +26,7 @@ import {
   rangeLimits,
   rangeOf,
   removeValue,
+  renderableFacets,
   selectedValues,
   setRange,
   sizeSystemGroups,
@@ -552,5 +555,77 @@ describe('which values are disabled', () => {
     expect(isValueDisabled(value('navy', 'Navy', 0, { disabled: true }), selection, 'colour')).toBe(
       false
     );
+  });
+});
+
+describe('a range with nothing to narrow is not drawn at all', () => {
+  /**
+   * A catalogue whose cheapest and dearest product cost the same has no span. Drawing one anyway
+   * gives a single thumb that cannot move and two fields reading "3,500" to "3,500" — a control
+   * that looks operable, answers every gesture with nothing, and excludes nothing however it is
+   * set. The honest rendering of "there is nothing to filter here" is no group.
+   */
+  it.each([
+    ['a collapsed span', { min: 3500, max: 3500 }],
+    ['an inverted span, which collapses to one value', { min: 240, max: 40 }],
+    ['no bounds at all beyond a single value', { min: 0, max: 0 }],
+  ])('%s is not renderable', (_name, bounds) => {
+    expect(facetIsRenderable({ id: 'price', label: 'Price', type: 'range', ...bounds })).toBe(
+      false
+    );
+  });
+
+  it('a real span is renderable, and so is a range that gives no bounds', () => {
+    expect(facetIsRenderable(PRICE)).toBe(true);
+    expect(facetIsRenderable({ id: 'price', label: 'Price', type: 'range' })).toBe(true);
+    // One step of span is still a span: two distinct values is the bar, not "enough" of them.
+    expect(
+      facetIsRenderable({ id: 'price', label: 'Price', type: 'range', min: 40, max: 41 })
+    ).toBe(true);
+  });
+
+  /** Every other facet type is drawn whatever it holds — an empty list is information too. */
+  it.each(['list', 'colour', 'size', 'toggle'] as const)(
+    'an empty %s facet is still drawn',
+    (type) => {
+      expect(facetIsRenderable({ id: 'f', label: 'F', type, values: [] })).toBe(true);
+    }
+  );
+
+  it('drops only the facets that cannot be drawn', () => {
+    const collapsed: FilterFacet = { id: 'price', label: 'Price', type: 'range', min: 40, max: 40 };
+    expect(renderableFacets([CATEGORY, collapsed, COLOUR]).map((facet) => facet.id)).toEqual([
+      'category',
+      'colour',
+    ]);
+    expect(renderableFacets([CATEGORY, PRICE]).map((facet) => facet.id)).toEqual([
+      'category',
+      'price',
+    ]);
+  });
+
+  describe('and its selection goes with it', () => {
+    const collapsed: FilterFacet = { id: 'price', label: 'Price', type: 'range', min: 40, max: 40 };
+
+    it('takes the omitted facet’s key out of a selection', () => {
+      expect(dropOmittedFacets({ price: [40, 40], size: ['m'] }, [collapsed, CATEGORY])).toEqual({
+        size: ['m'],
+      });
+    });
+
+    /**
+     * Narrow on purpose: a key for a facet the panel was never given is left alone, because a page
+     * may keep a filter of its own in the same object that this panel has no business clearing.
+     */
+    it('leaves a key for a facet it was never given alone', () => {
+      const selection: FilterSelection = { material: ['linen'] };
+      expect(dropOmittedFacets(selection, [collapsed, CATEGORY])).toBe(selection);
+    });
+
+    it('is a no-op when every facet is drawn, or when the omitted one holds nothing', () => {
+      const selection: FilterSelection = { category: ['sweaters'] };
+      expect(dropOmittedFacets(selection, [CATEGORY, PRICE])).toBe(selection);
+      expect(dropOmittedFacets(selection, [CATEGORY, collapsed])).toBe(selection);
+    });
   });
 });

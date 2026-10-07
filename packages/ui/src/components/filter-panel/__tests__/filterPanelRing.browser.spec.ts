@@ -8,7 +8,7 @@ import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import FilterPanel from '../FilterPanel.vue';
 import type { FilterFacet } from '../types';
-import { COLOUR_FACET, PRICE_FACET, SIZE_FACET } from './fixtures';
+import { COLOUR_FACET, PRICE_FACET, SIZE_FACET } from '../northwind';
 
 /**
  * **Is the ring really painted around the whole row, the whole tile and the thumb — and does the

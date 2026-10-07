@@ -10,7 +10,7 @@ import {
   MATERIAL_FACET,
   PRICE_FACET,
   SIZE_FACET,
-} from './fixtures';
+} from '../northwind';
 
 /**
  * One suite per row of the design spec's "Filter panel" → **Keyboard** table.
