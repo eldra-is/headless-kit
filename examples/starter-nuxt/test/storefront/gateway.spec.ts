@@ -1245,6 +1245,41 @@ describe('createGatewayStorefront', () => {
         },
       ]);
     });
+
+    /**
+     * **A cleared colour is an absent one on the facet path too.** `swatch` is nullable on the wire
+     * and `CatalogFacetOptionValue.swatch` is `string | undefined`, so a `!== undefined` test would
+     * write `swatch: null` into it and the panel would bind `backgroundColor: null` on a dot. The
+     * mapping uses the same truthiness test the product read does, on the same field — and with no
+     * swatch left in the family the group draws pills rather than blank dots, which is
+     * `groupKindFor`'s own rule.
+     */
+    it('drops a null or empty facet swatch rather than writing it through', async () => {
+      const facets = await facetsFor({
+        options: [
+          {
+            key: 'colour',
+            name: 'Colour',
+            kind: 'color',
+            values: [
+              { value: 'oat', label: 'Oat', count: 3, swatch: null },
+              { value: 'clay', label: 'Clay', count: 1, swatch: '' },
+              { value: 'moss', label: 'Moss', count: 2, swatch: '#6b7a4f' },
+            ],
+          },
+        ],
+      });
+
+      expect(facets?.options[0]?.kind).toBe('color');
+      expect(facets?.options[0]?.values).toEqual([
+        { value: 'oat', label: 'Oat', count: 3 },
+        { value: 'clay', label: 'Clay', count: 1 },
+        { value: 'moss', label: 'Moss', count: 2, swatch: '#6b7a4f' },
+      ]);
+      for (const value of facets?.options[0]?.values ?? []) {
+        expect(value.swatch).not.toBeNull();
+      }
+    });
   });
 
   /**
@@ -1660,6 +1695,80 @@ describe('createGatewayStorefront', () => {
         ['oat', '#d8cbb0'],
         ['moss', '#6b7a4f'],
       ]);
+    });
+
+    /**
+     * **The kind is permission to show colours, not a promise that there are any.** A merchant can
+     * set "Display as: Color" and not pick the colours, or pick them and clear them again — the
+     * platform leaves a value's swatch nullable and Studio's own control is clearable, so both are
+     * ordinary states. A swatch picker handed no colours draws one blank disc per value with every
+     * name in visually hidden text, so a sighted shopper is choosing between identical empty
+     * circles; pills read their names out loud. The option therefore stays `kind: 'color'` — the
+     * merchant's intent is still the merchant's — while `type` falls back to pills, which is the
+     * same decision a filter group makes from the same evidence (`groups.ts`'s `groupKindFor`).
+     */
+    it('draws a color option whose colours are unset or cleared as pills, keeping the kind', async () => {
+      for (const values of [
+        [{ id: 'ov-oat', key: 'oat', name: 'Oat' }],
+        // Cleared: the platform omits the key rather than writing an empty value, but a `null` or an
+        // empty string from a source mid-migration is the same absence and must read the same way.
+        [
+          { id: 'ov-oat', key: 'oat', name: 'Oat', swatch: null },
+          { id: 'ov-moss', key: 'moss', name: 'Moss', swatch: '' },
+        ],
+      ]) {
+        const mapped = await optionsOf([
+          { id: 'opt-1', key: 'colour', name: 'Colour', kind: 'color', values },
+        ]);
+        expect(mapped[0]?.kind).toBe('color');
+        expect(mapped[0]?.type).toBe('pills');
+        // No swatch written either, so nothing downstream can read one that is not a colour.
+        expect(mapped[0]?.values.every((value) => value.swatch === undefined)).toBe(true);
+      }
+    });
+
+    /**
+     * One colour is enough to earn the swatch control, and **the value that has none keeps its
+     * place** — uncoloured, exactly as such a row survives in a filter panel's colour group rather
+     * than being dropped. Dropping it would hide a variant the shopper can buy; the merchant's fix
+     * is to fill the colour in, or to clear the rest and get pills.
+     */
+    it('draws swatches when any value has a colour, and keeps a colourless value in place', async () => {
+      const mapped = await optionsOf([
+        {
+          id: 'opt-1',
+          key: 'colour',
+          name: 'Colour',
+          kind: 'color',
+          values: [
+            { id: 'ov-oat', key: 'oat', name: 'Oat', swatch: '#d8cbb0' },
+            { id: 'ov-unset', key: 'unset', name: 'Unset' },
+          ],
+        },
+      ]);
+
+      expect(mapped[0]?.type).toBe('swatches');
+      expect(mapped[0]?.values.map((value) => [value.value, value.swatch])).toEqual([
+        ['oat', '#d8cbb0'],
+        ['unset', undefined],
+      ]);
+    });
+
+    /** A kind with no colours to its name is still pills, whichever kind it is. */
+    it('never draws swatches for a kind other than color, swatches or not', async () => {
+      for (const kind of ['none', 'custom']) {
+        const mapped = await optionsOf([
+          {
+            id: 'opt-1',
+            key: 'colour',
+            name: 'Colour',
+            kind,
+            ...(kind === 'custom' ? { metadata: 'chip' } : {}),
+            values: [{ id: 'ov-oat', key: 'oat', name: 'Oat', swatch: '#d8cbb0' }],
+          },
+        ]);
+        expect(mapped[0]?.type).toBe('pills');
+      }
     });
 
     /**

@@ -119,9 +119,11 @@ export interface StorefrontSearchProduct extends Omit<StorefrontProductListItem,
  * (`StorefrontProductOption.metadata`): it draws as pills like `none`, and the name is there for a
  * theme that wants to render that one option its own way.
  *
- * Read it, never derive it. The whole point of the field is that `"Colour"`, `"Color"` and `"Litur"`
- * are a merchant's words for an option, not an instruction to the theme, which is what every
- * storefront used to guess from.
+ * Read it from a platform that sends it, and **never from the option's key**. The whole point of the
+ * field is that `"Colour"`, `"Color"` and `"Litur"` are a merchant's words for an option, not an
+ * instruction to the theme, which is what every storefront used to guess from. (A source with no
+ * platform to ask derives it from what it does have — `app/storefront/facets.ts` reads the demo's
+ * own facets off its values' swatches — but never from the key either.)
  */
 export type StorefrontOptionKind = 'none' | 'color' | 'custom';
 
@@ -141,9 +143,15 @@ export interface StorefrontProductOption {
    * on a label a merchant may translate — see `docs/starter-kit.md`.
    */
   metadata?: string;
-  /** **Derived from `kind`, never from the option's name**: `color` draws swatches, everything else
-   *  draws pills (`app/storefront/options.ts`'s `optionDisplayType`, the one place that decision is
-   *  made). Kept as its own field because it is what `@eldrajs/ui`'s `VariantPicker` takes. */
+  /**
+   * **Derived from `kind` and the values' own colours, never from the option's name**: swatches for a
+   * `color` option that has at least one `swatch` to show, pills for everything else — including a
+   * `color` option whose colours the merchant has not picked or has cleared, because a swatch picker
+   * with nothing to paint hides every value's name in visually hidden text. One place makes that
+   * decision, `app/storefront/options.ts`'s `optionDisplayType`, and a filter group makes the same
+   * one from the same evidence. Kept as its own field because it is what `@eldrajs/ui`'s
+   * `VariantPicker` takes.
+   */
   type: 'swatches' | 'pills';
   /** `swatch` is a CSS colour from the store — content, never a design token — and the platform
    *  allows one only on a `color`-kind option. */
@@ -260,11 +268,12 @@ export interface CatalogFacetOption {
    * platform's own facets so a panel reads the same fact the product page does. `none` for a source
    * that does not say.
    *
-   * **The filter panel still decides its control from the values, not from this** — a group draws
-   * colour dots when its values carry a `swatch` (`blocks/collection-grid/parts/groups.ts`'s
-   * `groupKindFor`), because a dot with no colour is worse than a pill: a `color`-kind option whose
-   * values the store has set no colours for has nothing to draw. The kind is what makes the platform
-   * send those swatches in the first place.
+   * **It is not what decides the group's control** — that is the values' own swatches
+   * (`blocks/collection-grid/parts/groups.ts`'s `groupKindFor`), the same evidence the product page's
+   * picker goes by (`StorefrontProductOption.type`), because a dot with no colour is worse than a
+   * pill: a `color`-kind option whose colours the store has not set has nothing to draw. The kind is
+   * what makes the platform send those swatches in the first place, and it is carried so a theme can
+   * read the merchant's intent even where there is nothing yet to paint.
    */
   kind: StorefrontOptionKind;
   /** The merchant's name for a `custom` option, as on `StorefrontProductOption.metadata`. Absent on

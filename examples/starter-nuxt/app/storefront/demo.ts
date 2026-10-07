@@ -312,32 +312,40 @@ function buildListItem(def: DemoProductDef, index: number): StorefrontProductLis
 export const PRODUCTS: StorefrontProductListItem[] = PRODUCT_DEFS.map(buildListItem);
 
 /**
- * The fixture's own option set, and the one place in the demo that declares a display kind.
- *
- * The colour option says `kind: 'color'` — the fact a real merchant sets in Studio's "Display as"
- * select — and its `type` is derived from that by the same function the gateway source uses
- * (`optionDisplayType`), so Storybook keeps its swatches for the reason the live site has them
- * rather than because this file hard-coded the control. Size is `none`: a plain list of values, and
- * what every option looked like before the field existed.
+ * One option as the fixture declares it: the merchant's facts — the key, the label, the display kind
+ * and the values — with `type` derived from the kind *and the values* by the same function the
+ * gateway source uses (`optionDisplayType`). Going through it rather than writing `'swatches'` is
+ * what keeps Storybook honest: the demo's swatches are there for the reason the live site's are, and
+ * a fixture that declared `kind: 'color'` and forgot the colours would draw pills here exactly as it
+ * would on a real store.
+ */
+function demoOption(
+  option: Omit<StorefrontProduct['options'][number], 'type'>
+): StorefrontProduct['options'][number] {
+  return { ...option, type: optionDisplayType(option.kind, option.values) };
+}
+
+/**
+ * The fixture's own option set, and the one place in the demo that declares a display kind. Colour is
+ * `color` with a colour on every value, so it draws swatches; size is `none` — a plain list of
+ * values, and what every option looked like before the field existed.
  */
 const MERINO_OPTIONS: StorefrontProduct['options'] = [
-  {
+  demoOption({
     name: 'colour',
     label: 'Colour',
     kind: 'color',
-    type: optionDisplayType('color'),
     values: [
       { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
       { value: 'charcoal', label: 'Charcoal', swatch: '#3a3a3a', available: true },
       { value: 'clay', label: 'Clay', swatch: '#b5651d', available: true },
       { value: 'moss', label: 'Moss', swatch: '#6b7a4f', available: false },
     ],
-  },
-  {
+  }),
+  demoOption({
     name: 'size',
     label: 'Size',
     kind: 'none',
-    type: optionDisplayType('none'),
     values: [
       { value: 'xs', label: 'XS', available: true },
       { value: 's', label: 'S', available: true },
@@ -345,7 +353,7 @@ const MERINO_OPTIONS: StorefrontProduct['options'] = [
       { value: 'l', label: 'L', available: true },
       { value: 'xl', label: 'XL', available: false },
     ],
-  },
+  }),
 ];
 
 function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct {

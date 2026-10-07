@@ -131,7 +131,10 @@ interface RawFacetTerm {
 interface RawFacetOptionValue {
   value?: string;
   label?: string;
-  swatch?: string;
+  /** The same nullable colour `RawProductOptionValue.swatch` carries — one field of the platform's,
+   *  described the same way on both reads so the two mappings cannot disagree about what `null`
+   *  means. */
+  swatch?: string | null;
   count?: number;
 }
 
@@ -374,9 +377,7 @@ function toMedia(
  * `none` contributes nothing, whatever it is called — the same "never guess from the key" rule the
  * product page's picker follows.
  */
-function listItemColours(
-  raw: RawProductListItem
-): StorefrontProductListItem['colours'] | undefined {
+function listItemColours(raw: RawProductListItem): StorefrontProductListItem['colours'] {
   const options = raw.options;
   if (options === undefined || options === null) return undefined;
   const colour = options.find((option) => storefrontOptionKind(option.kind) === 'color');
@@ -520,10 +521,24 @@ function mapProductDetails(
     // Every option used to map to `pills`, and the only way a theme could have drawn the colour
     // circles a store's photography needs was to match on the word "Colour" — which is a merchant's
     // label, translated per locale and theirs to change. Now the platform carries `kind` on the
-    // option and the swatch hex on each value, and `optionDisplayType` is the single place the kind
-    // becomes a control (`app/storefront/options.ts`).
+    // option and the swatch hex on each value, and `optionDisplayType` is the single place a kind
+    // and its colours become a control (`app/storefront/options.ts`).
     options: (raw.options ?? []).map((option) => {
       const kind = storefrontOptionKind(option.kind);
+      const values = (option.values ?? []).map((value) => ({
+        value: value.key,
+        label: value.name,
+        // Passed through whatever the option's kind says — the platform allows a swatch only under
+        // `color`, and a picker drawing pills never reads one. Gating the colour on the kind as well
+        // would mean a gateway that populates the swatch before it populates the kind silently loses
+        // the store's colours.
+        ...(value.swatch ? { swatch: value.swatch } : {}),
+        available: variants.some(
+          (variant) =>
+            variantBuyable(variant, stock) &&
+            (variant.optionValues ?? []).some((ov) => ov.optionValueId === value.id)
+        ),
+      }));
       return {
         name: option.key,
         label: option.name,
@@ -532,21 +547,13 @@ function mapProductDetails(
         // `metadata` the platform sent under another kind is dropped rather than carried: a theme
         // branching on it would be branching on a field the merchant cannot see or set there.
         ...(kind === 'custom' && option.metadata ? { metadata: option.metadata } : {}),
-        type: optionDisplayType(kind),
-        values: (option.values ?? []).map((value) => ({
-          value: value.key,
-          label: value.name,
-          // Passed through whatever the option's kind says — the platform allows a swatch only under
-          // `color`, and a picker drawing pills never reads one, so the kind alone decides what is
-          // *shown*. Gating the colour on the kind as well would mean a gateway that populates the
-          // swatch before it populates the kind silently loses the store's colours.
-          ...(value.swatch ? { swatch: value.swatch } : {}),
-          available: variants.some(
-            (variant) =>
-              variantBuyable(variant, stock) &&
-              (variant.optionValues ?? []).some((ov) => ov.optionValueId === value.id)
-          ),
-        })),
+        // The mapped values, not the raw ones: `kind` is permission to draw swatches and these are
+        // whether there is anything to draw. A `color` option whose colours a merchant never picked —
+        // or cleared again, which Studio's own control allows — is pills, because a swatch picker
+        // with no colours hides every value's name in `sr-only` text and the shopper is left picking
+        // between identical empty circles.
+        type: optionDisplayType(kind, values),
+        values,
       };
     }),
     // Root ancestor down to the product's own category, each level a link into the catalogue
@@ -1530,8 +1537,9 @@ function mapFacets(
           key: option.key!,
           name: option.name ?? option.key!,
           // Carried so a panel reads the same fact the product page does. What a group *draws* is
-          // still decided by its values (`parts/groups.ts`'s `groupKindFor`): a `color` option the
-          // store set no colours for has nothing to put in a dot.
+          // decided by its values (`parts/groups.ts`'s `groupKindFor`) — the same evidence
+          // `optionDisplayType` goes by on the product page, so one option cannot be dots here and
+          // pills there: a `color` option the store set no colours for has nothing to put in a dot.
           kind,
           ...(kind === 'custom' && option.metadata ? { metadata: option.metadata } : {}),
           values: (option.values ?? [])
@@ -1539,7 +1547,11 @@ function mapFacets(
             .map((value) => ({
               value: value.value!,
               label: value.label ?? value.value!,
-              ...(value.swatch === undefined ? {} : { swatch: value.swatch }),
+              // Truthiness, not `!== undefined`: the field is nullable on the wire, and
+              // `CatalogFacetOptionValue.swatch` is `string | undefined`, so an explicit `null`
+              // would otherwise be written into it and reach a dot as `backgroundColor: null`. The
+              // same test the product mapping uses, on the same field.
+              ...(value.swatch ? { swatch: value.swatch } : {}),
               count: value.count ?? 0,
             })),
         };
