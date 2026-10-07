@@ -1,29 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyPanelSelection,
+  availabilityFacetValues,
+  buildFilterFacets,
   defaultPriceStep,
+  facetSourceMap,
+  facetTypeFor,
+  facetValuesFor,
   fitPriceStep,
   formatPriceRange,
-  groupKindFor,
-  groupValuesFor,
   hasPriceRange,
   nestCategoryTerms,
+  optionKeyOf,
+  optionSourceFor,
+  panelSelectionFor,
   parsePriceRange,
   priceSpanOf,
+  queryKeyFor,
   rangeFromSlider,
   sliderValueFor,
   spanWithRange,
+  toggleKeyOf,
+  toggleQueryKey,
+  toggleSourceFor,
+  usableOptionKey,
   widenPriceSpan,
+  type FilterSelection,
+  type FilterSource,
 } from '../parts/groups';
 import type { CatalogFacets } from '../../../app/storefront/types';
 
 /**
- * The filter groups' pure rules: the price grammar the URL, the request and the slider all share,
- * and the one function that turns a storefront's facets into the values a group offers. Tested
- * without Vue, so each rule can be pinned on its own — `FilterGroups.spec.ts` proves the controls
- * drawn from them and `Block.spec.ts` the round trip through the route.
+ * The adapter's pure rules: the `CatalogFacets → FilterFacet[]` mapping, the price grammar the
+ * URL, the request and the slider all share, and the bridge between the panel's own selection shape
+ * and the block's internal one. Tested without Vue — `Block.spec.ts` proves the round trip through
+ * the route and the mounted `FilterPanel`.
  */
 
-const AVAILABILITY = { inStock: 'In stock', outOfStock: 'Out of stock' };
+const AVAILABILITY = { inStock: 'In stock only', outOfStock: 'Out of stock' };
 
 const FACETS: CatalogFacets = {
   price: { min: 24, max: 180 },
@@ -46,45 +60,101 @@ const FACETS: CatalogFacets = {
   ],
 };
 
-describe('groupValuesFor', () => {
+function values(
+  source: FilterSource,
+  facets: CatalogFacets | undefined,
+  selected: readonly string[] = [],
+  categoryScopeSlug: string | null = null
+) {
+  return facetValuesFor(
+    source,
+    { facets, availability: AVAILABILITY, categoryScopeSlug },
+    selected
+  );
+}
+
+describe('facetValuesFor', () => {
   it('reads category and collection terms by their slug, labelled by their title', () => {
-    expect(groupValuesFor('category', FACETS, [], AVAILABILITY)).toEqual([
+    expect(values('category', FACETS)).toEqual([
       { value: 'knitwear', label: 'Knitwear', count: 18 },
       { value: 'discontinued', label: 'Discontinued', count: 0, disabled: true },
     ]);
-    expect(groupValuesFor('collection', FACETS, [], AVAILABILITY)).toEqual([
+    expect(values('collection', FACETS)).toEqual([
       { value: 'the-winter-edit', label: 'The winter edit', count: 48 },
     ]);
   });
 
-  it('names the two availability counts from the theme’s own strings', () => {
-    expect(groupValuesFor('availability', FACETS, [], AVAILABILITY)).toEqual([
-      { value: 'in_stock', label: 'In stock', count: 41 },
-      { value: 'out_of_stock', label: 'Out of stock', count: 7 },
-    ]);
-  });
-
   it('maps an option source to the store’s own option key, swatches and all', () => {
-    expect(groupValuesFor('option:colour', FACETS, [], AVAILABILITY)).toEqual([
+    expect(values('option:colour', FACETS)).toEqual([
       { value: 'oat', label: 'Oat', count: 9, swatch: '#d8cbb0' },
       { value: 'clay', label: 'Clay', count: 0, disabled: true },
     ]);
     // No `size` option in these facets: no values, never invented ones.
-    expect(groupValuesFor('option:size', FACETS, [], AVAILABILITY)).toEqual([]);
+    expect(values('option:size', FACETS)).toEqual([]);
   });
 
+  it('carries a value’s size-system group through untouched', () => {
+    const sized: CatalogFacets = {
+      ...FACETS,
+      options: [
+        {
+          key: 'size',
+          name: 'size',
+          kind: 'none',
+          values: [{ value: 'm', label: 'M', count: 14, group: 'Knitwear' }],
+        },
+      ],
+    };
+    expect(values('option:size', sized)).toEqual([
+      { value: 'm', label: 'M', count: 14, group: 'Knitwear' },
+    ]);
+  });
+
+  it('never disables a value the shopper has selected, whatever it counts', () => {
+    expect(values('category', FACETS, ['discontinued'])).toEqual([
+      { value: 'knitwear', label: 'Knitwear', count: 18 },
+      { value: 'discontinued', label: 'Discontinued', count: 0 },
+    ]);
+  });
+
+  it('keeps a selected value the facets no longer list at all', () => {
+    const colour = values('option:colour', FACETS, ['moss']);
+    expect(colour.at(-1)).toEqual({ value: 'moss', label: 'moss', count: 0 });
+    const categories = values('category', FACETS, ['linens']);
+    expect(categories.at(-1)).toEqual({ value: 'linens', label: 'linens', count: 0 });
+  });
+
+  it('offers nothing at all without facets', () => {
+    expect(values('category', undefined)).toEqual([]);
+  });
+
+  it('scopes category values to one category’s children on a category page', () => {
+    const scoped: CatalogFacets = {
+      ...FACETS,
+      categoryCounts: 'rolled-up',
+      categories: [
+        { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
+        { id: 'cat-bowl', slug: 'bowl', title: 'Bowl', count: 4, parentId: 'cat-tableware' },
+        { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
+      ],
+    };
+    expect(values('category', scoped, [], 'tableware')).toEqual([
+      { value: 'bowl', label: 'Bowl', count: 4 },
+      { value: 'cup', label: 'Cup', count: 6 },
+    ]);
+  });
+});
+
+describe('facetTypeFor', () => {
   /**
-   * **A colour group is one whose values carry colours, and the option's `kind` is not a second
+   * **A colour facet is one whose values carry colours, and the option's `kind` is not a second
    * vote.** The platform sends a `swatch` per value only under a `color`-kind option, so the two
-   * normally agree — but a merchant who switched the option to Color and has not picked the colours
-   * yet leaves this group with nothing to put in a dot, and a row of empty circles labelled "Oat"
-   * and "Clay" is worse than the pills it replaced. The decision therefore stays on the values, and
-   * the kind is carried for a theme that wants it (`CatalogFacetOption.kind`).
+   * normally agree — but a merchant who switched the option to Color and has not picked the
+   * colours yet leaves this facet with nothing to put in a dot, and a row of empty circles is worse
+   * than the plain list it replaced. The decision stays on the values.
    */
-  it('draws a colour group from the values’ own swatches, not from the option’s kind', () => {
-    expect(
-      groupKindFor('option:colour', groupValuesFor('option:colour', FACETS, [], AVAILABILITY))
-    ).toBe('colour');
+  it('draws a colour facet from the values’ own swatches, not from the option’s kind', () => {
+    expect(facetTypeFor('option:colour', values('option:colour', FACETS))).toBe('colour');
 
     const unpainted: CatalogFacets = {
       ...FACETS,
@@ -97,52 +167,20 @@ describe('groupValuesFor', () => {
         },
       ],
     };
-    expect(
-      groupKindFor('option:colour', groupValuesFor('option:colour', unpainted, [], AVAILABILITY))
-    ).toBe('size');
+    expect(facetTypeFor('option:colour', values('option:colour', unpainted))).toBe('list');
   });
 
-  it('never disables a value the shopper has selected, whatever it counts', () => {
-    expect(groupValuesFor('category', FACETS, ['discontinued'], AVAILABILITY)).toEqual([
-      { value: 'knitwear', label: 'Knitwear', count: 18 },
-      { value: 'discontinued', label: 'Discontinued', count: 0 },
-    ]);
+  it('draws a size facet once a value arrives with a size-system group', () => {
+    const grouped = [{ value: 'm', label: 'M', count: 14, group: 'Knitwear' }];
+    expect(facetTypeFor('option:size', grouped)).toBe('size');
+    const ungrouped = [{ value: 'm', label: 'M', count: 14 }];
+    expect(facetTypeFor('option:size', ungrouped)).toBe('list');
   });
 
-  it('keeps a selected value the facets no longer list at all', () => {
-    const values = groupValuesFor('option:colour', FACETS, ['moss'], AVAILABILITY);
-    // The store's own word for it is gone with the value, so the raw one is all there is to show —
-    // which is true of every family but `availability`, whose two words are the theme's own.
-    expect(values.at(-1)).toEqual({ value: 'moss', label: 'moss', count: 0 });
-    const categories = groupValuesFor('category', FACETS, ['linens'], AVAILABILITY);
-    expect(categories.at(-1)).toEqual({ value: 'linens', label: 'linens', count: 0 });
-  });
-
-  /**
-   * A store whose stock cannot be read answers **no** `availability` facet rather than two zeroes
-   * (`CatalogFacets.availability`), and a group with no values is one the block does not render —
-   * so the shopper is never offered a filter whose counts are unknown and whose request is an
-   * error. A value they have already ticked is still kept, or the filter could not be removed.
-   */
-  it('offers nothing for availability when the facets omit it, bar a value already ticked', () => {
-    const { availability: _omitted, ...noStock } = FACETS;
-    expect(groupValuesFor('availability', noStock, [], AVAILABILITY)).toEqual([]);
-    // A kept value is named by the **theme's** own strings, not the platform's spelling: this is
-    // what a shopper arriving on a shared `?availability=in_stock` link sees while stock cannot be
-    // read, and `in_stock` on a checkbox and a chip is untranslated in every locale.
-    expect(groupValuesFor('availability', noStock, ['in_stock'], AVAILABILITY)).toEqual([
-      { value: 'in_stock', label: 'In stock', count: 0 },
-    ]);
-    expect(groupValuesFor('availability', noStock, ['out_of_stock'], AVAILABILITY)).toEqual([
-      { value: 'out_of_stock', label: 'Out of stock', count: 0 },
-    ]);
-    // Every other group still draws: only the one family the store cannot count goes.
-    expect(groupValuesFor('category', noStock, [], AVAILABILITY)).toHaveLength(2);
-  });
-
-  it('offers nothing at all without facets, and nothing for price either way', () => {
-    expect(groupValuesFor('category', undefined, [], AVAILABILITY)).toEqual([]);
-    expect(groupValuesFor('price', FACETS, [], AVAILABILITY)).toEqual([]);
+  it('is always list for category and collection', () => {
+    const swatched = [{ value: 'a', label: 'A', count: 1, swatch: '#fff' }];
+    expect(facetTypeFor('category', swatched)).toBe('list');
+    expect(facetTypeFor('collection', swatched)).toBe('list');
   });
 });
 
@@ -154,9 +192,7 @@ describe('groupValuesFor', () => {
  * matches a whole subtree together. So it is also the signal that a parent row is a filter the
  * gateway can honour, which is the only condition under which the panel offers one.
  */
-describe('the category group', () => {
-  /** Contract 3.8.0's own shape: depth-first by title, each count already the subtree's, `parentId`
-   *  normalised to `null` on a root by the gateway. */
+describe('the category facet', () => {
   const TREE_TERMS: CatalogFacets['categories'] = [
     { id: 'cat-blankets', slug: 'blankets', title: 'Blankets', count: 3, parentId: null },
     { id: 'cat-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
@@ -170,12 +206,6 @@ describe('the category group', () => {
     categoryCounts: 'rolled-up',
   });
 
-  /**
-   * **The whole point of the discriminator.** A gateway that counts assignments matches a
-   * `categoryId` by direct membership only, so a `Tableware` row there is a filter it cannot honour:
-   * the shopper ticks it and gets an empty grid under a chip saying otherwise. Flat is not a
-   * degradation, it is the honest answer — no parent row, no indent, no implication.
-   */
   it('stays flat for a source that did not roll its counts up', () => {
     const terms: CatalogFacets['categories'] = [
       { id: 'cat-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'cat-tableware' },
@@ -185,18 +215,15 @@ describe('the category group', () => {
       { ...FACETS, categories: terms },
       { ...FACETS, categories: terms, categoryCounts: 'direct' as const },
     ]) {
-      expect(groupValuesFor('category', facets, [], AVAILABILITY)).toEqual([
+      expect(values('category', facets)).toEqual([
         { value: 'cup', label: 'Cup', count: 6 },
-        // Offered disabled rather than dropped, by the ordinary zero-count rule — and with no
-        // `parent`, so nothing indents and nothing is implied.
         { value: 'tableware', label: 'Tableware', count: 0, disabled: true },
       ]);
     }
   });
 
-  /** Parent first, then its children; a root with no children is simply a row. */
   it('puts a parent above its children and marks them as children', () => {
-    expect(groupValuesFor('category', rolledUp(TREE_TERMS), [], AVAILABILITY)).toEqual([
+    expect(values('category', rolledUp(TREE_TERMS))).toEqual([
       { value: 'blankets', label: 'Blankets', count: 3 },
       { value: 'tableware', label: 'Tableware', count: 9 },
       { value: 'bowl', label: 'Bowl', count: 4, parent: 'tableware' },
@@ -204,11 +231,6 @@ describe('the category group', () => {
     ]);
   });
 
-  /**
-   * **No count is derived.** 3.8.0's parent count is the subtree's, deduplicated, and explicitly not
-   * the sum of its children — a product in Cups and in Bowls is one product and two counts — so
-   * `Tableware` reads 9 and not 4 + 6.
-   */
   it('never derives a count the platform already rolled up', () => {
     expect(nestCategoryTerms(TREE_TERMS)[1]).toEqual({
       value: 'tableware',
@@ -217,62 +239,6 @@ describe('the category group', () => {
     });
   });
 
-  /**
-   * **Order is the source's.** 3.8.0 answers depth-first by title, so a list that arrives clustered
-   * comes out untouched — no re-sorting by count, by title or by anything else.
-   */
-  it('preserves a depth-first list exactly as it arrived', () => {
-    expect(nestCategoryTerms(TREE_TERMS).map((value) => value.value)).toEqual([
-      'blankets',
-      'tableware',
-      'bowl',
-      'cup',
-    ]);
-  });
-
-  /**
-   * A source that places nothing — no `parentId` on any term — comes out flat even when it says its
-   * counts are rolled up. The pass is skipped, not approximated: nothing is invented from slugs.
-   */
-  it('leaves an unplaced family flat', () => {
-    expect(
-      nestCategoryTerms([
-        { id: 'c1', slug: 'knitwear', title: 'Knitwear', count: 18 },
-        { id: 'c2', slug: 'ceramics', title: 'Ceramics', count: 14 },
-      ])
-    ).toEqual([
-      { value: 'knitwear', label: 'Knitwear', count: 18 },
-      { value: 'ceramics', label: 'Ceramics', count: 14 },
-    ]);
-  });
-
-  /**
-   * One indent, ever. A category three deep is drawn under its top-most listed ancestor rather than at
-   * its own depth — a filter panel is not a tree view and a 15rem sidebar has no third indent — and
-   * every count is still the platform's own.
-   */
-  it('flattens a third level under its top ancestor', () => {
-    expect(
-      nestCategoryTerms([
-        { id: 'c-tableware', slug: 'tableware', title: 'Tableware', count: 9, parentId: null },
-        { id: 'c-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'c-tableware' },
-        { id: 'c-espresso', slug: 'espresso', title: 'Espresso', count: 2, parentId: 'c-cup' },
-      ])
-    ).toEqual([
-      { value: 'tableware', label: 'Tableware', count: 9 },
-      { value: 'cup', label: 'Cup', count: 6, parent: 'tableware' },
-      { value: 'espresso', label: 'Espresso', count: 2, parent: 'tableware' },
-    ]);
-  });
-
-  /** A child whose parent the facets never listed is a top row, not a lost one. */
-  it('keeps a child whose parent is not listed as a row of its own', () => {
-    expect(
-      nestCategoryTerms([{ id: 'c-cup', slug: 'cup', title: 'Cup', count: 6, parentId: 'c-gone' }])
-    ).toEqual([{ value: 'cup', label: 'Cup', count: 6 }]);
-  });
-
-  /** This runs inside a `computed`, where a hang is the whole block. */
   it('does not hang on a parentId cycle', () => {
     expect(
       nestCategoryTerms([
@@ -283,11 +249,6 @@ describe('the category group', () => {
   });
 });
 
-/**
- * A ticked parent carries the whole branch: the request sends the parent's category id and the
- * platform expands it over the descendants, so a child's own checkbox is not a filter the shopper can
- * set or unset from there. Only ever reachable on a rolled-up family — the flat one has no parent row.
- */
 describe('a ticked parent category', () => {
   const TREE_FACETS: CatalogFacets = {
     ...FACETS,
@@ -300,7 +261,7 @@ describe('a ticked parent category', () => {
   };
 
   it('implies every child, whatever that child counts', () => {
-    expect(groupValuesFor('category', TREE_FACETS, ['tableware'], AVAILABILITY)).toEqual([
+    expect(values('category', TREE_FACETS, ['tableware'])).toEqual([
       { value: 'tableware', label: 'Tableware', count: 6 },
       {
         value: 'bowl',
@@ -314,34 +275,313 @@ describe('a ticked parent category', () => {
     ]);
   });
 
-  /** Untouched, the children are ordinary values again — and a zero-count one is disabled by the
-   *  ordinary rule, not by implication. */
   it('leaves the children operable when the parent is not ticked', () => {
-    expect(groupValuesFor('category', TREE_FACETS, [], AVAILABILITY)).toEqual([
+    expect(values('category', TREE_FACETS, [])).toEqual([
       { value: 'tableware', label: 'Tableware', count: 6 },
       { value: 'bowl', label: 'Bowl', count: 0, parent: 'tableware', disabled: true },
       { value: 'cup', label: 'Cup', count: 6, parent: 'tableware' },
     ]);
   });
+});
 
-  /** A child ticked on its own stays ticked on its own: nothing implies it, so it stays removable. */
-  it('does not imply a sibling of a ticked child', () => {
-    const values = groupValuesFor('category', TREE_FACETS, ['cup'], AVAILABILITY);
-    expect(values.find((value) => value.value === 'cup')).toEqual({
-      value: 'cup',
-      label: 'Cup',
-      count: 6,
-      parent: 'tableware',
-    });
-    expect(values.find((value) => value.value === 'bowl')?.implied).toBeUndefined();
+describe('availabilityFacetValues', () => {
+  it('offers "In stock only" when the store can read stock', () => {
+    expect(availabilityFacetValues(FACETS, {}, AVAILABILITY)).toEqual([
+      { value: 'in_stock', label: 'In stock only', count: 41 },
+    ]);
+  });
+
+  it('offers nothing when the facets omit availability, bar a value already ticked', () => {
+    const { availability: _omitted, ...noStock } = FACETS;
+    expect(availabilityFacetValues(noStock, {}, AVAILABILITY)).toEqual([]);
+    expect(availabilityFacetValues(noStock, { availability: ['in_stock'] }, AVAILABILITY)).toEqual([
+      { value: 'in_stock', label: 'In stock only', count: 0 },
+    ]);
+    expect(
+      availabilityFacetValues(noStock, { availability: ['out_of_stock'] }, AVAILABILITY)
+    ).toEqual([{ value: 'out_of_stock', label: 'Out of stock', count: 0 }]);
+  });
+
+  /** `facets.toggles[]` folds in as more switch rows beside "In stock only", each under its own
+   *  `toggle:<key>` selection rather than `availability`'s. */
+  it('folds facets.toggles[] in as more switch rows', () => {
+    const withToggles: CatalogFacets = {
+      ...FACETS,
+      toggles: [{ key: 'on_sale', label: 'On sale', count: 12 }],
+    };
+    expect(availabilityFacetValues(withToggles, {}, AVAILABILITY)).toEqual([
+      { value: 'in_stock', label: 'In stock only', count: 41 },
+      { value: 'on_sale', label: 'On sale', count: 12 },
+    ]);
+    expect(
+      availabilityFacetValues(withToggles, { [toggleSourceFor('on_sale')]: ['1'] }, AVAILABILITY)
+    ).toEqual([
+      { value: 'in_stock', label: 'In stock only', count: 41 },
+      { value: 'on_sale', label: 'On sale', count: 12 },
+    ]);
+  });
+
+  it('disables a toggle nothing is left for, unless it is already on', () => {
+    const withToggles: CatalogFacets = {
+      ...FACETS,
+      toggles: [{ key: 'on_sale', label: 'On sale', count: 0 }],
+    };
+    expect(availabilityFacetValues(withToggles, {}, AVAILABILITY)).toEqual([
+      { value: 'in_stock', label: 'In stock only', count: 41 },
+      { value: 'on_sale', label: 'On sale', count: 0, disabled: true },
+    ]);
+    expect(
+      availabilityFacetValues(withToggles, { [toggleSourceFor('on_sale')]: ['1'] }, AVAILABILITY)
+    ).toEqual([
+      { value: 'in_stock', label: 'In stock only', count: 41 },
+      { value: 'on_sale', label: 'On sale', count: 0 },
+    ]);
+  });
+
+  it('keeps a selected toggle the store has stopped sending, unlabelled', () => {
+    expect(
+      availabilityFacetValues(FACETS, { [toggleSourceFor('on_sale')]: ['1'] }, AVAILABILITY)
+    ).toEqual([
+      { value: 'in_stock', label: 'In stock only', count: 41 },
+      { value: 'on_sale', label: 'on_sale', count: 0 },
+    ]);
   });
 });
 
-/**
- * `?price=1200-4800`: one query key, one request value, both ends optional. The round trip has to
- * be exact — the block seeds its state from this string and writes the same string back — or a
- * shared URL and the grid disagree, which is the defect the whole filter state lives to avoid.
- */
+describe('queryKeyFor and the toggle vocabulary', () => {
+  it('camelCases a toggle source’s own key for the one query parameter it reads and writes', () => {
+    expect(toggleQueryKey('on_sale')).toBe('onSale');
+    expect(toggleQueryKey('pre_order')).toBe('preOrder');
+    expect(toggleQueryKey('onsale')).toBe('onsale');
+    expect(queryKeyFor(toggleSourceFor('on_sale'))).toBe('onSale');
+  });
+
+  it('round-trips toggleSourceFor/toggleKeyOf', () => {
+    expect(toggleKeyOf(toggleSourceFor('on_sale'))).toBe('on_sale');
+    expect(toggleKeyOf('option:colour')).toBeNull();
+    expect(toggleKeyOf('toggle:')).toBeNull();
+  });
+
+  it('leaves an option source’s own bare key as its query key', () => {
+    expect(queryKeyFor(optionSourceFor('colour'))).toBe('colour');
+    expect(queryKeyFor('category')).toBe('category');
+  });
+});
+
+describe('usableOptionKey', () => {
+  it('refuses a key that collides with a fixed source or a route field', () => {
+    for (const key of [
+      'category',
+      'collection',
+      'price',
+      'availability',
+      'sort',
+      'page',
+      'columns',
+    ]) {
+      expect(usableOptionKey(key)).toBeNull();
+    }
+    expect(usableOptionKey('fabric')).toBe('fabric');
+    expect(usableOptionKey(null)).toBeNull();
+  });
+});
+
+describe('buildFilterFacets', () => {
+  const baseOptions = {
+    facets: FACETS,
+    selection: {} as FilterSelection,
+    availability: AVAILABILITY,
+    categoryScopeSlug: null,
+    unfilterable: new Set<string>(),
+    labelFor: (source: FilterSource) => `Label:${source}`,
+    colourLayout: 'list' as const,
+    price: { min: 24, max: 180, step: 1, slider: true, currency: true },
+  };
+
+  it('builds one facet per row, in order, dropping a source with nothing to offer', () => {
+    const out = buildFilterFacets(
+      [{ source: 'category' }, { source: 'option:size' }, { source: 'price' }],
+      baseOptions
+    );
+    // `option:size` has no store data in `FACETS`, so it is dropped — price always stays.
+    expect(out.map((facet) => facet.id)).toEqual(['category', 'price']);
+    expect(out[0]).toMatchObject({ id: 'category', type: 'list', label: 'Label:category' });
+    expect(out[1]).toMatchObject({ id: 'price', type: 'range', min: 24, max: 180 });
+  });
+
+  it('drops a source this scope cannot narrow by, and a repeated row', () => {
+    const out = buildFilterFacets(
+      [{ source: 'category' }, { source: 'category' }, { source: 'collection' }],
+      { ...baseOptions, unfilterable: new Set(['collection']) }
+    );
+    expect(out.map((facet) => facet.id)).toEqual(['category']);
+  });
+
+  it('carries the price step, currency and slider flags through', () => {
+    const out = buildFilterFacets([{ source: 'price' }], {
+      ...baseOptions,
+      price: { min: 24, max: 180, step: 10, slider: false, currency: false },
+    });
+    expect(out[0]).toMatchObject({ step: 10, slider: false, currency: false });
+    expect(out[0]).not.toHaveProperty('histogram');
+  });
+
+  it('carries a histogram through only when the facets supplied one', () => {
+    const withHistogram = buildFilterFacets([{ source: 'price' }], {
+      ...baseOptions,
+      price: { ...baseOptions.price, histogram: [1, 2, 3] },
+    });
+    expect(withHistogram[0]?.histogram).toEqual([1, 2, 3]);
+
+    const without = buildFilterFacets([{ source: 'price' }], baseOptions);
+    expect(without[0]).not.toHaveProperty('histogram');
+  });
+
+  it('gives a colour facet its layout, and a size facet its Size guide link', () => {
+    const coloured = buildFilterFacets([{ source: 'option:colour' }], {
+      ...baseOptions,
+      colourLayout: 'grid',
+    });
+    expect(coloured[0]).toMatchObject({ type: 'colour', layout: 'grid' });
+
+    const sizedFacets: CatalogFacets = {
+      ...FACETS,
+      options: [
+        {
+          key: 'size',
+          name: 'size',
+          kind: 'none',
+          values: [{ value: 'm', label: 'M', count: 14, group: 'Knitwear' }],
+        },
+      ],
+    };
+    const sized = buildFilterFacets([{ source: 'option:size' }], {
+      ...baseOptions,
+      facets: sizedFacets,
+      sizeGuideHref: '/pages/size-guide',
+    });
+    expect(sized[0]).toMatchObject({ type: 'size', sizeGuideHref: '/pages/size-guide' });
+    // Never on a facet that is not a size facet.
+    expect(coloured[0]).not.toHaveProperty('sizeGuideHref');
+  });
+
+  it('folds availability and facets.toggles[] into one toggle facet', () => {
+    const withToggles: CatalogFacets = {
+      ...FACETS,
+      toggles: [{ key: 'on_sale', label: 'On sale', count: 12 }],
+    };
+    const out = buildFilterFacets([{ source: 'availability' }], {
+      ...baseOptions,
+      facets: withToggles,
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ id: 'availability', type: 'toggle' });
+    expect(out[0]?.values?.map((value) => value.value)).toEqual(['in_stock', 'on_sale']);
+  });
+
+  it('passes a row’s own label and collapsed flag through, else the default label', () => {
+    const out = buildFilterFacets([{ source: 'category', label: 'Shop by', collapsed: true }], {
+      ...baseOptions,
+      labelFor: () => 'Category',
+    });
+    expect(out[0]).toMatchObject({ label: 'Shop by', collapsed: true });
+  });
+});
+
+describe('facetSourceMap', () => {
+  it('maps every rendered source’s own query key back to itself, price and availability excluded', () => {
+    const map = facetSourceMap([
+      { source: 'category' },
+      { source: 'option:colour' },
+      { source: 'price' },
+      { source: 'availability' },
+    ]);
+    expect(map.get('category')).toBe('category');
+    expect(map.get('colour')).toBe('option:colour');
+    expect(map.has('price')).toBe(false);
+    expect(map.has('availability')).toBe(false);
+  });
+});
+
+describe('panelSelectionFor and applyPanelSelection', () => {
+  const span = { min: 24, max: 180 };
+  const sources = facetSourceMap([{ source: 'category' }, { source: 'option:colour' }]);
+
+  it('carries every non-empty source through under its own query key, and folds toggles into availability', () => {
+    const selection: FilterSelection = {
+      category: ['knitwear'],
+      'option:colour': ['oat'],
+      availability: ['in_stock'],
+      [toggleSourceFor('on_sale')]: ['1'],
+    };
+    expect(panelSelectionFor(selection, { min: '', max: '' }, span)).toEqual({
+      category: ['knitwear'],
+      colour: ['oat'],
+      availability: ['in_stock', 'on_sale'],
+    });
+  });
+
+  it('adds the price pair only when a bound is set, else leaves the key out', () => {
+    expect(panelSelectionFor({}, { min: '', max: '' }, span)).toEqual({});
+    expect(panelSelectionFor({}, { min: '50', max: '' }, span)).toEqual({ price: [50, 180] });
+  });
+
+  it('is the exact reverse of applyPanelSelection for a selection round trip', () => {
+    const selection: FilterSelection = { category: ['knitwear'], availability: ['in_stock'] };
+    const panel = panelSelectionFor(selection, { min: '50', max: '150' }, span);
+    const back = applyPanelSelection(panel, {
+      sources,
+      toggleKeys: new Set(),
+      priceSpan: span,
+      appliedPrice: { min: '50', max: '150' },
+    });
+    expect(back.selection).toEqual(selection);
+    expect(back.price).toEqual({ min: '50', max: '150' });
+  });
+
+  it('splits availability’s array back into canonical tokens and known toggle keys, dropping the rest', () => {
+    const back = applyPanelSelection(
+      { availability: ['in_stock', 'on_sale', 'unknown_toggle'] },
+      {
+        sources,
+        toggleKeys: new Set(['on_sale']),
+        priceSpan: span,
+        appliedPrice: { min: '', max: '' },
+      }
+    );
+    expect(back.selection).toEqual({
+      availability: ['in_stock'],
+      [toggleSourceFor('on_sale')]: ['1'],
+    });
+  });
+
+  it('drops a facet id nothing maps to — a stale key from a facet since removed', () => {
+    const back = applyPanelSelection(
+      { category: ['knitwear'], gone: ['x'] },
+      { sources, toggleKeys: new Set(), priceSpan: span, appliedPrice: { min: '', max: '' } }
+    );
+    expect(back.selection).toEqual({ category: ['knitwear'] });
+  });
+
+  /** `rangeFromSlider` is idempotent when nothing moved — safe to call on every `change`, not only
+   *  a price one. */
+  it('leaves the price range untouched when the reported pair has not moved', () => {
+    const back = applyPanelSelection(
+      { category: ['knitwear'], price: [50, 150] },
+      { sources, toggleKeys: new Set(), priceSpan: span, appliedPrice: { min: '50', max: '150' } }
+    );
+    expect(back.price).toEqual({ min: '50', max: '150' });
+  });
+
+  it('reads no price key as the span’s own ends — no bound', () => {
+    const back = applyPanelSelection(
+      {},
+      { sources, toggleKeys: new Set(), priceSpan: span, appliedPrice: { min: '50', max: '150' } }
+    );
+    expect(back.price).toEqual({ min: '', max: '' });
+  });
+});
+
 describe('the price range’s query grammar', () => {
   it('round-trips a range, either end open', () => {
     for (const raw of ['1200-4800', '1200-', '-4800']) {
@@ -372,8 +612,6 @@ describe('the slider’s own pair', () => {
     expect(sliderValueFor({ min: '', max: '150' }, span)).toEqual([24, 150]);
   });
 
-  /** A thumb the shopper moved to the span's own end is "no bound", which is what lets a filter be
-   *  dragged off again — and what keeps an untouched control out of the URL entirely. */
   it('reads a thumb moved to either end back as no bound', () => {
     expect(rangeFromSlider([24, 180], span, { min: '50', max: '150' })).toEqual({
       min: '',
@@ -388,26 +626,14 @@ describe('the slider’s own pair', () => {
       max: '150',
     });
     expect(rangeFromSlider([50, 150], span)).toEqual({ min: '50', max: '150' });
-    // Outside the span (a stale pair, a span that moved) is still no bound, never a bound beyond it.
     expect(rangeFromSlider([10, 400], span)).toEqual({ min: '', max: '' });
   });
 
-  /**
-   * **The end that did not move keeps the bound the shopper applied**, whatever the track's extent
-   * says about it.
-   *
-   * The track is widened to hold their own bounds (`spanWithRange`), because the facets' price span
-   * is counted with every filter *but* price and can narrow inside their range. So on
-   * `?price=50-150&colour=oat` both thumbs sit on "an end", and deriving both ends from the pair
-   * read the untouched one as "no bound": one ArrowRight on the minimum wrote `51-` and the $150
-   * ceiling was gone — from the URL, the chip and the request — with the track still ending at 150.
-   */
   it('never rewrites the end a gesture did not touch', () => {
     const narrowed = { min: 50, max: 150 };
     const applied = { min: '50', max: '150' };
     expect(rangeFromSlider([51, 150], narrowed, applied)).toEqual({ min: '51', max: '150' });
     expect(rangeFromSlider([50, 149], narrowed, applied)).toEqual({ min: '50', max: '149' });
-    // Half a range is the same story: the open end stays open.
     expect(rangeFromSlider([60, 180], span, { min: '50', max: '' })).toEqual({
       min: '60',
       max: '',
@@ -428,8 +654,6 @@ describe('the price span', () => {
     expect(priceSpanOf([])).toBeNull();
   });
 
-  /** The fallback span (no facets) shrinks as the shopper narrows the range, and a track that
-   *  shrinks under the thumb can only ever be narrowed — so the widest seen is kept. */
   it('only ever widens', () => {
     expect(widenPriceSpan({ min: 50, max: 150 }, { min: 24, max: 96 })).toEqual({
       min: 24,
@@ -441,12 +665,6 @@ describe('the price span', () => {
   });
 });
 
-/**
- * The facets' price span is counted with every filter *but* price, so it narrows as the other
- * groups narrow. A slider cannot show a value outside its bounds, so the shopper's own bounds are
- * folded in — otherwise a 50–150 range read back as 96–96 as soon as a colour was ticked, and the
- * next drag would write that back as their range.
- */
 describe('spanWithRange', () => {
   it('widens the span to hold the shopper’s own bounds', () => {
     expect(spanWithRange({ min: 96, max: 96 }, { min: '50', max: '150' })).toEqual({
@@ -476,14 +694,11 @@ describe('defaultPriceStep', () => {
     expect(defaultPriceStep('USD')).toBe(1);
     expect(defaultPriceStep('EUR')).toBe(1);
     expect(defaultPriceStep('ISK')).toBe(100);
-    // A store that publishes no currency still gets a usable grid.
     expect(defaultPriceStep(undefined)).toBe(1);
   });
 });
 
 describe('fitPriceStep', () => {
-  /** A step the span cannot hold ten of leaves a two-stop track, where every value between the
-   *  ends — a typed figure, a bound out of a shared URL — snaps to one end or the other. */
   it('falls back to one unit when the catalogue’s span is smaller than ten steps', () => {
     expect(fitPriceStep(100, { min: 18, max: 68 })).toBe(1);
     expect(fitPriceStep(100, { min: 1200, max: 48000 })).toBe(100);
@@ -495,5 +710,14 @@ describe('fitPriceStep', () => {
     expect(fitPriceStep(1, { min: 24, max: 180 })).toBe(1);
     expect(fitPriceStep(1, { min: 5, max: 5 })).toBe(1);
     expect(fitPriceStep(100, { min: 5, max: 5 })).toBe(100);
+  });
+});
+
+describe('optionKeyOf', () => {
+  it('reads the key off an option source, and nothing off any other', () => {
+    expect(optionKeyOf('option:colour')).toBe('colour');
+    expect(optionKeyOf('option:')).toBeNull();
+    expect(optionKeyOf('category')).toBeNull();
+    expect(optionKeyOf(toggleSourceFor('on_sale'))).toBeNull();
   });
 });

@@ -1252,7 +1252,7 @@ describe('createGatewayStorefront', () => {
      * write `swatch: null` into it and the panel would bind `backgroundColor: null` on a dot. The
      * mapping uses the same truthiness test the product read does, on the same field — and with no
      * swatch left in the family the group draws pills rather than blank dots, which is
-     * `groupKindFor`'s own rule.
+     * `facetTypeFor`'s own rule.
      */
     it('drops a null or empty facet swatch rather than writing it through', async () => {
       const facets = await facetsFor({
@@ -1705,7 +1705,7 @@ describe('createGatewayStorefront', () => {
      * name in visually hidden text, so a sighted shopper is choosing between identical empty
      * circles; pills read their names out loud. The option therefore stays `kind: 'color'` — the
      * merchant's intent is still the merchant's — while `type` falls back to pills, which is the
-     * same decision a filter group makes from the same evidence (`groups.ts`'s `groupKindFor`).
+     * same decision a filter group makes from the same evidence (`groups.ts`'s `facetTypeFor`).
      */
     it('draws a color option whose colours are unset or cleared as pills, keeping the kind', async () => {
       for (const values of [

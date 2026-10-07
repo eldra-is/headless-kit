@@ -166,8 +166,11 @@ describe('collection sample page', () => {
     expect(headerCount!.textContent).toContain('48 products');
     expect(headerCount!.hasAttribute('aria-live')).toBe(false);
 
-    // The grid's own count is the block's polite status line.
-    const gridCount = gridEl!.querySelector('[role="status"]');
+    // The grid's own count is the block's polite status line — a `<p>` with `tabindex="-1"`, which
+    // is what tells it apart from a searchable list facet's own `role="status"` "No matches" line
+    // in the sidebar (also persistent, with no `aria-live` of its own — a native `role="status"`
+    // needs none).
+    const gridCount = gridEl!.querySelector('p[role="status"][tabindex="-1"]');
     expect(gridCount).not.toBeNull();
     expect(gridCount!.getAttribute('aria-live')).toBe('polite');
     expect(gridCount!.textContent).toContain('48 products');
@@ -175,7 +178,6 @@ describe('collection sample page', () => {
 
   it('opens the filter drawer as a dialog from the Filter button, returns focus on Esc, and applies nothing until "Show 48 products" is pressed', async () => {
     const wrapper = await mountAttached();
-    const main = wrapper.get('main#main');
     const gridEl = pageBlockRoots(wrapper)[3]!;
 
     const filterButton = gridEl.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!;
@@ -205,13 +207,25 @@ describe('collection sample page', () => {
       drawerColour.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!;
     checkBox(drawerOatCheckbox);
     await wrapper.vm.$nextTick();
-    expect(main.find(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`).exists()).toBe(false);
+    // Nothing live has moved — the drawer's own chip row shows its still-pending tick (its own
+    // preview of what applying would do), but the sidebar's own applied panel has none.
+    const sidebarForChips = Array.from(gridEl.querySelectorAll('aside')).find(
+      (el) => el.closest('dialog') === null
+    )!;
+    expect(sidebarForChips.querySelector(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)).toBeNull();
 
     applyButton.click();
     await wrapper.vm.$nextTick();
 
-    const chips = main.get(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`);
-    expect(chips.text()).toContain('Colour: Oat');
+    // The visible chip text is just the value's own label; the facet name rides in its remove
+    // button's own aria-label instead. Both panels now agree (the drawer's own pending copy
+    // matches the just-applied selection), so the sidebar's own row is found by element rather
+    // than by the (now ambiguous) aria-label alone.
+    const chipsEl = sidebarForChips.querySelector(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)!;
+    expect(chipsEl.textContent).toContain('Oat');
+    expect(chipsEl.querySelector('[data-part="removeButton"]')!.getAttribute('aria-label')).toBe(
+      'Remove filter Colour: Oat'
+    );
     expect(dialog.getAttribute('open')).toBeNull();
 
     // Reopen, then Esc closes it and returns focus to the Filter button. Waits out the same two
@@ -241,25 +255,50 @@ describe('collection sample page', () => {
       (el) => el.closest('dialog') === null
     )!;
 
+    // Each tick is awaited before the next: the panel is a *controlled* component now (its own
+    // `modelValue` prop is the parent's `selection`, round-tripped through a render), so a second
+    // change read back through a prop that has not re-rendered yet would overwrite the first
+    // rather than add to it — unlike the old uncontrolled `FilterGroups.vue`, which read the
+    // parent's own ref directly.
     const sizePanel = panelFor(sidebar, 'Size');
     // XS, S, M, L, XL — M is the third pill.
     checkBox(sizePanel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[2]!);
+    await wrapper.vm.$nextTick();
     const colourPanel = panelFor(sidebar, 'Colour');
     // Oat is the demo catalogue's first colour value.
     checkBox(colourPanel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!);
+    await wrapper.vm.$nextTick();
+    // Availability is a `toggle` facet now (a real `<button role="switch">`, not a checkbox).
     const availabilityPanel = panelFor(sidebar, 'Availability');
-    // In stock is the demo catalogue's first availability value.
-    checkBox(availabilityPanel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!);
+    const availabilitySwitch =
+      availabilityPanel.querySelector<HTMLButtonElement>('[role="switch"]')!;
+    availabilitySwitch.click();
     await wrapper.vm.$nextTick();
 
     const chips = main.get(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`).findAll('li');
     expect(chips).toHaveLength(3);
-    expect(chips[0]!.text()).toContain('Size: M');
-    expect(chips[1]!.text()).toContain('Colour: Oat');
-    expect(chips[2]!.text()).toContain('Availability: In stock');
+    // The visible chip text is just the value's own label; the facet rides in each remove
+    // button's own aria-label.
+    expect(chips[0]!.text()).toContain('M');
+    expect(chips[0]!.get('[data-part="removeButton"]').attributes('aria-label')).toBe(
+      'Remove filter Size: M'
+    );
+    expect(chips[1]!.text()).toContain('Oat');
+    expect(chips[1]!.get('[data-part="removeButton"]').attributes('aria-label')).toBe(
+      'Remove filter Colour: Oat'
+    );
+    expect(chips[2]!.text()).toContain('In stock only');
+    expect(chips[2]!.get('[data-part="removeButton"]').attributes('aria-label')).toBe(
+      'Remove filter Availability: In stock only'
+    );
   });
 
-  it('follows the tab order header → breadcrumbs → Read more → sidebar filters → chips → cards → Load more → call to action → footer', async () => {
+  /**
+   * The panel's own head — **Clear all** and the applied chips — comes before its group triggers
+   * now (ruling: the panel owns applied state), so a chip for an already-ticked filter sits before
+   * every facet control in the sidebar, including the one that produced it.
+   */
+  it('follows the tab order header → breadcrumbs → Read more → sidebar chips → filters → cards → Load more → call to action → footer', async () => {
     stubOverflow(200, 100);
     const wrapper = await mountPage(page);
     const main = wrapper.get('main#main');
@@ -272,11 +311,10 @@ describe('collection sample page', () => {
     // (`app/storefront/demo.ts`), and 44 of this collection's 48 items are in stock, so the grid
     // still has more than one page and a real Load more button in the tab order — Size → M leaves
     // 12, i.e. everything already shown, and no Load more at all.
-    const availabilityCheckbox = panelFor(
-      sidebar,
-      'Availability'
-    ).querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!;
-    checkBox(availabilityCheckbox);
+    const availabilitySwitch = panelFor(sidebar, 'Availability').querySelector<HTMLButtonElement>(
+      '[role="switch"]'
+    )!;
+    availabilitySwitch.click();
     // Ticking a sidebar filter starts a new (demo-async) `collectionProducts` request — the grid
     // shows skeletons (an `aria-hidden` list) until it resolves, so this waits for the real card
     // list to come back rather than a single `nextTick`.
@@ -314,8 +352,8 @@ describe('collection sample page', () => {
     expect(indexOf(navFirst)).toBeGreaterThanOrEqual(0);
     expect(indexOf(navFirst)).toBeLessThan(indexOf(breadcrumbShopLink));
     expect(indexOf(breadcrumbShopLink)).toBeLessThan(indexOf(readMore));
-    expect(indexOf(readMore)).toBeLessThan(indexOf(availabilityCheckbox));
-    expect(indexOf(availabilityCheckbox)).toBeLessThan(indexOf(chipRemove));
+    expect(indexOf(readMore)).toBeLessThan(indexOf(chipRemove));
+    expect(indexOf(chipRemove)).toBeLessThan(indexOf(availabilitySwitch));
     expect(indexOf(chipRemove)).toBeLessThan(indexOf(firstCardLink));
     expect(indexOf(firstCardLink)).toBeLessThan(indexOf(loadMoreButton));
     expect(indexOf(loadMoreButton)).toBeLessThan(indexOf(ctaButton));

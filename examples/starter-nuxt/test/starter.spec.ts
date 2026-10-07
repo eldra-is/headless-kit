@@ -372,6 +372,8 @@ describe('starter theme', () => {
         'sortOptions',
         'filters',
         'priceSlider',
+        'colourLayout',
+        'sizeGuideHref',
         'priceStep',
         'showColumnSelect',
         'emptyTitle',

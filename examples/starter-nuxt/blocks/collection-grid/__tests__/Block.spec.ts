@@ -79,8 +79,9 @@ const FACETS: CatalogFacets = {
   ],
 };
 
-/** The price group's hidden legend, which names the store's currency (the demo store's USD). */
-const PRICE_LEGEND = enUS.grid.legendPrice.replace('{currency}', 'USD');
+/** The price facet's title — one string now, used both visibly and as the fieldset's hidden
+ *  `<legend>` (`FilterFacet.label`). */
+const PRICE_LEGEND = enUS.grid.price;
 
 interface Stub {
   source: StorefrontSource;
@@ -410,22 +411,31 @@ describe('collection-grid block', () => {
       }
     });
 
+    /**
+     * The sidebar's own `FilterPanel` draws its own visible "Filters" `h2` (`show-head`, the
+     * default) right before its `h3` group triggers; the drawer's panel draws none
+     * (`show-head="false"`), because the `Drawer` itself already supplies one — its own title,
+     * "Filter" — immediately before its triggers. Either way, a whole-page axe run's
+     * `heading-order` rule sees no skipped level under the page's own `h1`.
+     */
     it('gives the sidebar and the drawer a heading before their filter-group triggers, so headings never skip a level', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();
 
-      const headings = wrapper.findAll('h2').filter((el) => el.text() === enUS.grid.filters);
-      // One in the sidebar `<aside>`, one in the drawer.
-      expect(headings).toHaveLength(2);
-
       const triggers = groupTriggers(wrapper);
-      for (const [heading, trigger] of [
-        [headings[0]!, triggers[0]!],
-        [headings[1]!, triggers[SEEDED_GROUPS]!], // the drawer's own first trigger
-      ] as const) {
-        const relation = heading.element.compareDocumentPosition(trigger.element);
-        expect(relation & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      }
+
+      const sidebarHeading = wrapper.findAll('h2').find((el) => el.text() === enUS.grid.filters)!;
+      expect(
+        sidebarHeading.element.compareDocumentPosition(triggers[0]!.element) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+
+      const drawerHeading = wrapper.get('dialog').find('h2');
+      expect(drawerHeading.text()).toBe(enUS.grid.filter);
+      expect(
+        drawerHeading.element.compareDocumentPosition(triggers[SEEDED_GROUPS]!.element) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
     });
 
     /**
@@ -437,9 +447,11 @@ describe('collection-grid block', () => {
       const wrapper = mountGrid(mock, { source: createStub().source });
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
-      expect(panel.text()).toContain('Knitwear (18)');
-      expect(panel.text()).toContain('Discontinued (0)');
       const boxes = panel.findAll('input[type="checkbox"]');
+      expect(boxes[0]!.attributes('aria-label')).toBe('Knitwear, 18 products');
+      expect(boxes.at(-1)!.attributes('aria-label')).toBe(
+        'Discontinued, 0 products, none available'
+      );
       expect(boxes[0]!.attributes('disabled')).toBeUndefined();
       expect(boxes.at(-1)!.attributes('disabled')).toBeDefined();
     });
@@ -453,37 +465,36 @@ describe('collection-grid block', () => {
   });
 
   describe('the filter controls', () => {
-    it('a checked colour carries the ring class and a bold, underlined name', async () => {
+    it('a checked colour carries the ring class and a bold name', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, enUS.grid.legendColour);
       const row = panel.get('label');
       const input = row.get('input[type="checkbox"]');
       const dot = row.get('span');
+      const name = row.get('[data-part="rowLabel"]');
 
       expect(dot.classes()).toContain('border-transparent');
+      expect(name.classes()).not.toContain('font-semibold');
       await input.setValue(true);
 
       expect(dot.classes()).toContain('border-text');
-      const name = row.findAll('span').at(-1)!;
       expect(name.classes()).toContain('font-semibold');
-      expect(name.classes()).toContain('underline');
     });
 
-    it('a checked size pill carries the fill class and weight 600', async () => {
+    /**
+     * The demo catalogue's size option carries no size-system `group` (a Core follow-up, not sent
+     * by any storefront yet — see `facetTypeFor`), so it renders as a plain `list` facet rather
+     * than `SizeFacet`'s tiles; the tile styling itself is `@eldrajs/ui`'s own, covered there.
+     */
+    it('renders Size as a plain list facet until the store sends a size-system group', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, enUS.grid.legendSize);
-      const pill = panel.get('label');
-      const box = pill.get('[data-part="box"]');
-      const label = pill.get('[data-part="label"]');
-
-      expect(box.classes()).not.toContain('bg-primary');
-      await pill.get('input[type="checkbox"]').setValue(true);
-
-      expect(box.classes()).toContain('bg-primary');
-      expect(label.classes()).toContain('text-primary-contrast');
-      expect(label.classes()).toContain('font-semibold');
+      const box = panel.get('input[type="checkbox"]');
+      expect((box.element as HTMLInputElement).checked).toBe(false);
+      await box.setValue(true);
+      expect((box.element as HTMLInputElement).checked).toBe(true);
     });
 
     it('a group with a selection shows a count badge named "1 selected"', async () => {
@@ -935,7 +946,7 @@ describe('collection-grid block', () => {
       await panel.findAll('input[type="checkbox"]')[2]!.setValue(true);
 
       const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
-      expect(list.text()).toContain('Size: M');
+      expect(list.text()).toContain('M');
       expect(list.get('[data-part="removeButton"]').attributes('aria-label')).toBe(
         'Remove filter Size: M'
       );
@@ -959,7 +970,13 @@ describe('collection-grid block', () => {
       expect(document.activeElement).toBe(remaining[0]!.element);
     });
 
-    it('Clear all empties the selection and focuses the count', async () => {
+    /**
+     * **Clear all** lives in the sidebar panel's own head now, and the panel moves focus to its
+     * own title itself (spec → Behaviour) — a sensible place to land right beside the button that
+     * was pressed. The count still gets its own focus contract from the empty state's own **Clear
+     * filters** button, a block-drawn control (see `onClearAll`).
+     */
+    it('Clear all empties the selection and focuses the panel’s own title', async () => {
       const wrapper = mountGrid(mock, { attachTo: document.body });
       await wrapper.vm.$nextTick();
       const sizes = panelFor(wrapper, enUS.grid.legendSize).panel;
@@ -972,13 +989,19 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
 
       expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
-      expect(document.activeElement).toBe(countLine(wrapper).element);
+      expect(document.activeElement).toBe(wrapper.get('aside [data-part="title"]').element);
     });
 
-    /** The slider's own typed fields commit on `Enter`, and a committed range is one chip reading
-     *  both bounds (a bound left at the catalogue's own end is no bound at all). */
-    it('the price range is one removable chip reading both bounds', async () => {
-      const wrapper = mountGrid(mock);
+    /**
+     * The slider's own typed fields commit on `Enter`. A range contributes no chip of its own
+     * (`@eldrajs/ui`'s own `appliedFilters`: "a span has no one value a chip could take off") —
+     * removing it is **Clear all**'s job, or the track's own — so a committed range moves the
+     * thumbs and the fields and narrows the grid, with nothing in the applied-chips row.
+     */
+    it('commits a typed price range to the thumbs and the request, with no chip of its own', async () => {
+      useFilterTimers();
+      const stub = createStub(PRODUCTS, { filteredCount: 4 });
+      const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
       const { panel } = panelFor(wrapper, PRICE_LEGEND);
 
@@ -990,14 +1013,12 @@ describe('collection-grid block', () => {
       await max.trigger('focus');
       await max.setValue('150');
       await max.trigger('keydown', { key: 'Enter' });
-      await wrapper.vm.$nextTick();
+      await settleFilterDebounce(wrapper);
 
-      const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
-      expect(list.text()).toContain('Price: $50.00 to $150.00');
-
-      await list.get('[data-part="removeButton"]').trigger('click');
-      await wrapper.vm.$nextTick();
       expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      const sent = stub.requests.filter((request) => request.pageSize !== 1).at(-1)!;
+      expect(sent.filters).toEqual({ price: ['50-150'] });
+      expect(countLine(wrapper).text()).toBe('4 products');
     });
 
     /** Both thumbs span the collection's own prices, from the storefront's facets — never 0 and a
@@ -1010,9 +1031,11 @@ describe('collection-grid block', () => {
       expect(thumbs).toHaveLength(2);
       expect(thumbs[0]!.attributes('aria-valuenow')).toBe('24');
       expect(thumbs[1]!.attributes('aria-valuenow')).toBe('180');
-      // Spoken as money, in the store's own currency.
-      expect(thumbs[0]!.attributes('aria-valuetext')).toBe('$24.00');
-      expect(thumbs[0]!.attributes('aria-label')).toBe(enUS.grid.minPriceLabel);
+      // Spoken as money, in the store's own currency, with no decimals (spec → Behaviour: "no
+      // decimals") — `@eldrajs/ui`'s own formatting, not the theme's `money.format`.
+      expect(thumbs[0]!.attributes('aria-valuetext')).toBe('$24');
+      // `@eldrajs/ui`'s own `minimumOf(facet.label)` — "Minimum " + the facet's own title.
+      expect(thumbs[0]!.attributes('aria-label')).toBe(`Minimum ${PRICE_LEGEND}`);
     });
 
     /** `priceSlider` off: the two typed fields alone, which is what a store whose prices sit in a
@@ -1030,17 +1053,14 @@ describe('collection-grid block', () => {
       expect(inputs).toHaveLength(2);
 
       // The two fields are the store's own money fields, so they commit on blur or `Enter` like the
-      // slider's — not per keystroke. The chip still reads the amount through the theme's own
-      // formatter, which keeps the currency's fraction digits where the field drops them.
+      // slider's — not per keystroke. No chip of its own either way (a range contributes none).
       await inputs[0]!.setValue('50');
       await wrapper.vm.$nextTick();
       expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
 
       await inputs[0]!.trigger('blur');
       await wrapper.vm.$nextTick();
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Price: $50.00'
-      );
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
       expect((inputs[0]!.element as HTMLInputElement).value).toBe('$50');
     });
   });
@@ -1057,8 +1077,10 @@ describe('collection-grid block', () => {
 
       expect(cards(wrapper)).toHaveLength(0);
       expect(countLine(wrapper).text()).toBe('0 products');
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Colour: Oat'
+      const chipList = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
+      expect(chipList.text()).toContain('Oat');
+      expect(chipList.get('[data-part="removeButton"]').attributes('aria-label')).toBe(
+        'Remove filter Colour: Oat'
       );
       expect(wrapper.text()).toContain(mock.emptyTitle);
       expect(wrapper.text()).toContain(mock.emptyText);
@@ -1220,10 +1242,15 @@ describe('collection-grid block', () => {
       await drawerColour.get('input[type="checkbox"]').setValue(true);
       await wrapper.vm.$nextTick();
 
-      // Nothing on the page has moved: same cards, same count, no chips.
+      // Nothing on the page has moved: same cards, same count, and the sidebar's own (applied)
+      // panel shows no chip — the drawer's own pending copy shows the tick it is still holding,
+      // which is exactly the "changes nothing until applied" contract for the page, not the drawer.
       expect(cards(wrapper)).toHaveLength(12);
       expect(countLine(wrapper).text()).toBe('12 products');
-      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      expect(
+        wrapper.get('aside').find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()
+      ).toBe(false);
+      expect(dialog.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('Oat');
 
       const apply = dialog
         .findAll('button')
@@ -1233,9 +1260,12 @@ describe('collection-grid block', () => {
 
       expect(cards(wrapper)).toHaveLength(0);
       expect(countLine(wrapper).text()).toBe('0 products');
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Colour: Oat'
-      );
+      // Both panels now show the same applied selection (the drawer's own pending copy matches it
+      // too, since nothing has changed it since), so the sidebar's own chip row is addressed by
+      // name rather than by the (now ambiguous) aria-label alone.
+      expect(
+        wrapper.get('aside').get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()
+      ).toContain('Oat');
       expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
     });
 
@@ -1244,9 +1274,7 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
       const sizes = panelFor(wrapper, enUS.grid.legendSize).panel;
       await sizes.findAll('input[type="checkbox"]')[2]!.setValue(true);
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Size: M'
-      );
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('M');
 
       await filterButton(wrapper).trigger('click');
       const dialog = wrapper.get('dialog');
@@ -1256,22 +1284,26 @@ describe('collection-grid block', () => {
       await drawerClear.trigger('click');
       await wrapper.vm.$nextTick();
 
-      // The live chip is untouched until the shopper applies the drawer.
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Size: M'
-      );
+      // The live chip is untouched until the shopper applies the drawer — only the sidebar's own
+      // panel has anything to show once the drawer's own pending copy is cleared.
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('M');
     });
   });
 
   describe('keyboard', () => {
-    it('follows the spec tab order: filters, sort, chips, Clear all, cards, Load more', async () => {
+    /**
+     * The panel now owns **Clear all** and the applied chips, both inside the sidebar's own head —
+     * before its own group triggers, and so before the Filter button and Sort by that follow the
+     * `<aside>` in document order. Cards and Load more still follow the toolbar, unchanged.
+     */
+    it('puts the panel’s own Clear all and chips before its group triggers, then the toolbar, then the cards', async () => {
       const wrapper = mountGrid(mock, { attachTo: document.body });
       await wrapper.vm.$nextTick();
       // Availability → In stock, not Size → M: the demo source honours `filters` now, and 44 of the
       // 48 demo items are in stock, so this leaves more than one page and keeps a real Load more
       // button in the tab order (Size → M leaves 12, i.e. everything already shown).
       const availability = panelFor(wrapper, enUS.grid.legendAvailability).panel;
-      await availability.findAll('input[type="checkbox"]')[0]!.setValue(true);
+      await availability.get('[role="switch"]').trigger('click');
       await flushPromises();
 
       const focusable = Array.from(
@@ -1284,14 +1316,16 @@ describe('collection-grid block', () => {
       const clearAll = wrapper
         .findAll('button')
         .find((b) => b.text() === enUS.grid.clearAll)!.element;
+      const availabilityBox = availability.get('[role="switch"]').element;
       const firstCardLink = cards(wrapper)[0]!.get('a').element;
       const loadMore = wrapper.get('[data-part="button"]').element;
 
-      expect(indexOf(filterButton(wrapper).element)).toBeGreaterThan(-1);
+      expect(indexOf(clearAll)).toBeGreaterThan(-1);
+      expect(indexOf(clearAll)).toBeLessThan(indexOf(chipRemove));
+      expect(indexOf(chipRemove)).toBeLessThan(indexOf(availabilityBox));
+      expect(indexOf(availabilityBox)).toBeLessThan(indexOf(filterButton(wrapper).element));
       expect(indexOf(filterButton(wrapper).element)).toBeLessThan(indexOf(sortTrigger));
-      expect(indexOf(sortTrigger)).toBeLessThan(indexOf(chipRemove));
-      expect(indexOf(chipRemove)).toBeLessThan(indexOf(clearAll));
-      expect(indexOf(clearAll)).toBeLessThan(indexOf(firstCardLink));
+      expect(indexOf(sortTrigger)).toBeLessThan(indexOf(firstCardLink));
       expect(indexOf(firstCardLink)).toBeLessThan(indexOf(loadMore));
     });
 
@@ -1455,8 +1489,8 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
 
       const chips = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
-      expect(chips.text()).toContain('Category: Knitwear');
-      expect(chips.text()).toContain('Size: M');
+      expect(chips.text()).toContain('Knitwear');
+      expect(chips.text()).toContain('M');
 
       const [topBarSort, toolbarSort, columnsSelect] = comboboxes(wrapper);
       expect(topBarSort!.text()).toContain('Price low to high');
@@ -1572,11 +1606,13 @@ describe('collection-grid block', () => {
       context.preview.locale = 'is-IS';
       await wrapper.vm.$nextTick();
 
-      // `mock.json`'s `options` row carries no label of its own, so the group's title is the theme's
-      // own string for that option key — which is exactly what has to follow the switch. (An author
-      // who types a label into an explicit `option:size` row gets that label in both locales, since a
-      // string a merchant wrote is not the theme's to translate.)
-      expect(removeLabel()).toBe(`Fjarlægja síuna ${isIS.grid.legendSize}: M`);
+      // `mock.json`'s `options` row carries no label of its own, so the facet's title is the
+      // theme's own string for that option key, fed into `@eldrajs/ui`'s own is-IS
+      // `filterPanelRemoveFilter` message (the remove button is the panel's own now, not the
+      // block's) — which is exactly what has to follow the switch. (An author who types a label
+      // into an explicit `option:size` row gets that label in both locales, since a string a
+      // merchant wrote is not the theme's to translate.)
+      expect(removeLabel()).toBe(`Fjarlægja síu ${isIS.grid.legendSize}: M`);
       expect(loadMoreLine()).toContain('Sýni 12 af 12');
       expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '12'));
     });
@@ -1906,9 +1942,9 @@ describe('collection-grid block', () => {
       const wrapper = mountGrid(WITH_OPTIONS, { source: stub.source });
       await wrapper.vm.$nextTick();
       const colour = panelFor(wrapper, enUS.grid.legendColour).panel;
-      expect(colour.find('[style*="background-color"]').exists()).toBe(true);
+      expect(colour.find('[data-part="swatch"]').exists()).toBe(true);
       const fabric = panelFor(wrapper, 'Fabric').panel;
-      expect(fabric.find('[style*="background-color"]').exists()).toBe(false);
+      expect(fabric.find('[data-part="swatch"]').exists()).toBe(false);
       expect(fabric.findAll('input[type="checkbox"]')).toHaveLength(2);
     });
 
@@ -2174,7 +2210,7 @@ describe('collection-grid block', () => {
       // The facets no longer describe the value, so it is labelled by its raw value — and it is
       // still a chip, still in the group, and still counted on the Filter button.
       const list = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
-      expect(list.text()).toContain('Colour: oat');
+      expect(list.text()).toContain('oat');
       expect(filterButton(wrapper).get('[data-part="hiddenSuffix"]').text()).toBe('1 active');
       expect(
         panelFor(wrapper, enUS.grid.legendColour).panel.findAll('input[type="checkbox"]')
@@ -2197,9 +2233,7 @@ describe('collection-grid block', () => {
       const { panel } = panelFor(wrapper, enUS.grid.legendColour);
       await panel.get('input[type="checkbox"]').setValue(true);
       await settleFilterDebounce(wrapper);
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Colour: oat'
-      );
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('oat');
 
       const clearAll = wrapper
         .findAll('button')
@@ -2209,7 +2243,8 @@ describe('collection-grid block', () => {
 
       expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
       expect(countLine(wrapper).text()).toBe('12 products');
-      expect(document.activeElement).toBe(countLine(wrapper).element);
+      // Clear all moves focus to the panel's own title (see "focuses the panel's own title" above).
+      expect(document.activeElement).toBe(wrapper.get('aside [data-part="title"]').element);
     });
   });
 
@@ -2555,11 +2590,17 @@ describe('collection-grid block', () => {
       ],
     };
 
-    /** The demo route writes a `setQuery` patch straight back into `route.filters`, which is what
-     *  a real page does by way of the URL. */
+    /**
+     * The demo route writes a `setQuery` patch straight back into `route.filters`, which is what
+     * a real page does by way of the URL. Availability is a `toggle` facet now — a real
+     * `<button role="switch">`, not a checkbox — so its own row is clicked rather than ticked; its
+     * decorative hidden `<input type="checkbox">` is never the interactive element.
+     */
     function tick(wrapper: VueWrapper, legend: string, index = 0) {
-      const boxes = panelFor(wrapper, legend).panel.findAll('input[type="checkbox"]');
-      return boxes[index]!.setValue(true);
+      const { panel } = panelFor(wrapper, legend);
+      const switches = panel.findAll('[role="switch"]');
+      if (switches.length > 0) return switches[index]!.trigger('click');
+      return panel.findAll('input[type="checkbox"]')[index]!.setValue(true);
     }
 
     it('writes one key per group and the price as a single range', async () => {
@@ -2692,8 +2733,8 @@ describe('collection-grid block', () => {
       // No nested group, no indent, no implied child — and both values are ordinary checkboxes.
       expect(panel.findAll('[role="group"]')).toHaveLength(0);
       expect(panel.findAll('label').map((label) => label.text().replace(/\s+/g, ' '))).toEqual([
-        'Cup (6)',
-        'Tableware (0)',
+        'Cup6',
+        'Tableware0',
       ]);
       expect(
         panel
@@ -2703,10 +2744,11 @@ describe('collection-grid block', () => {
     });
 
     /**
-     * A link shared before the platform's `in_stock`/`out_of_stock` vocabulary landed. The pass
-     * still reads the old spelling, so the grid filters — but the block has to fold it into the
-     * current one, or the panel grows an untranslated third checkbox beside the two real ones with
-     * neither of them ticked, and the chip quotes the raw word.
+     * A link shared before the platform's `in_stock` vocabulary landed. The pass still reads the
+     * old spelling, so the grid filters — but the block has to fold it into the current one, or
+     * the switch reads off (an untranslated, unmatched value) and the chip quotes the raw word.
+     * There is no separate "out of stock" control to offer any more (spec → Variants, `toggle`
+     * facet: one switch, never a checkbox pair) — "In stock only" is the whole family now.
      */
     it('folds a legacy availability spelling into the vocabulary the panel offers', async () => {
       const source = createDemoStorefront({ filters: { availability: ['in-stock'] } });
@@ -2714,20 +2756,17 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
       await flushPromises();
 
-      const boxes = panelFor(wrapper, enUS.grid.legendAvailability).panel.findAll(
-        'input[type="checkbox"]'
-      );
-      expect(boxes).toHaveLength(2);
-      expect((boxes[0]!.element as HTMLInputElement).checked).toBe(true);
+      const toggle = panelFor(wrapper, enUS.grid.legendAvailability).panel.get('[role="switch"]');
+      expect(toggle.attributes('aria-checked')).toBe('true');
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        `Availability: ${enUS.grid.availabilityInStock}`
+        enUS.grid.availabilityInStock
       );
       expect(wrapper.text()).not.toContain('in-stock');
       // And the request carries the current spelling, so the next write leaves a current URL.
       expect(source.route.filters.availability).toEqual(['in-stock']);
-      await boxes[1]!.setValue(true);
+      await toggle.trigger('click');
       await wrapper.vm.$nextTick();
-      expect(source.route.filters.availability).toEqual(['in_stock', 'out_of_stock']);
+      expect(source.route.filters.availability).toBeUndefined();
     });
 
     /** The other half of the round trip: the same bag, on a fresh page load, restores the whole
@@ -2759,11 +2798,15 @@ describe('collection-grid block', () => {
       expect(thumbs[0]!.attributes('aria-valuenow')).toBe('50');
       expect(thumbs[1]!.attributes('aria-valuenow')).toBe('150');
 
+      // The visible chip text is just the value's own label; the facet name rides in its remove
+      // button's aria-label instead (see the dedicated "names each remove button" coverage in
+      // `@eldrajs/ui`). A range contributes no chip of its own — the thumbs above are what show
+      // the applied price.
       const chips = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text();
-      expect(chips).toContain('Category: Knitwear');
-      expect(chips).toContain('Collection: The winter edit');
-      expect(chips).toContain('Colour: Oat');
-      expect(chips).toContain('Price: $50.00 to $150.00');
+      expect(chips).toContain('Knitwear');
+      expect(chips).toContain('The winter edit');
+      expect(chips).toContain('Oat');
+      expect(chips).not.toContain('$50');
 
       // And the grid itself is filtered — the demo source applies the same pass the gateway does.
       expect(countLine(wrapper).text()).toBe('4 products');
@@ -2801,9 +2844,8 @@ describe('collection-grid block', () => {
       const thumbs = priceThumbs(wrapper);
       expect(thumbs[0]!.attributes('aria-valuenow')).toBe('50');
       expect(thumbs[1]!.attributes('aria-valuenow')).toBe('150');
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain(
-        'Price: $50.00 to $150.00'
-      );
+      // A range contributes no chip of its own — the thumbs above are what show the applied price.
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).not.toContain('$');
     });
 
     it('keeps the ceiling when the minimum is nudged', async () => {
@@ -2881,7 +2923,8 @@ describe('collection-grid block', () => {
         .findAll('input[data-input]')
         .map((input) => (input.element as HTMLInputElement).value);
       expect(priceInputs).toEqual(['$50', '$150', '$24', '$180']);
-      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('$50');
+      // A range contributes no chip of its own — the fields above are what show the applied price.
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
     });
 
     it('follows a sort and a column count out of the URL too', async () => {
