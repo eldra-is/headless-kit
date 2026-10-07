@@ -35,6 +35,7 @@ import type {
   RangeSliderInputsSlotProps,
   RangeSliderProps,
   RangeSliderThumb,
+  RangeSliderTrackSlotProps,
   RangeSliderValue,
 } from './types';
 import {
@@ -181,9 +182,16 @@ watch(
   }
 );
 
-/** Spec → Properties, `formatValue`: used for every number the control speaks or prints. */
-function formatDisplay(amount: number): string {
-  if (props.formatValue) return props.formatValue(amount);
+/**
+ * Spec → Properties, `formatValue`: used for every number the control speaks or prints.
+ *
+ * `end` is passed on only where the control knows the number *is* one end's own — the two thumbs'
+ * `aria-valuetext` — and deliberately not for the typed fields; see `formatValue`'s own doc in
+ * `types.ts` for why. A one-argument formatter cannot tell the difference, which is what keeps the
+ * second argument additive.
+ */
+function formatDisplay(amount: number, end?: RangeSliderEnd): string {
+  if (props.formatValue) return props.formatValue(amount, end);
   return formatNumber(amount, {
     locale: locale.value,
     maxFraction: digits.value,
@@ -240,7 +248,7 @@ const thumbs = computed<ThumbView[]>(() =>
       thumb,
       name: thumb === 'min' ? minName.value : maxName.value,
       value: amount,
-      text: formatDisplay(amount),
+      text: formatDisplay(amount, thumb === 'min' ? 0 : 1),
       limits: rangeThumbLimits(thumb, value.value, math.value),
       percent: rangeValueToPercent(amount, math.value),
     };
@@ -485,7 +493,27 @@ defineSlots<{
    * default content, not a separate code path. Only drawn at all when `inputs` is set.
    */
   inputs?: (props: RangeSliderInputsSlotProps) => unknown;
+  /**
+   * A decoration spanning exactly the track's own width, above the rail — the design spec's price
+   * histogram is the one this exists for. It sits inside the gutter box, so it needs to know
+   * nothing about the reservation that keeps a thumb and its ring inside the control; see
+   * `RangeSliderTrackSlotProps`. It is drawn before the rail, so it never takes a pointer press
+   * away from the track: a decoration is not a second way to set the value.
+   */
+  track?: (props: RangeSliderTrackSlotProps) => unknown;
 }>();
+
+const trackSlotProps = computed<RangeSliderTrackSlotProps>(() => ({
+  value: value.value,
+  min: props.min,
+  max: props.max,
+  step: props.step,
+  disabled: props.disabled,
+  percent: [
+    rangeValueToPercent(value.value[0], math.value),
+    rangeValueToPercent(value.value[1], math.value),
+  ],
+}));
 
 const inputsSlotProps = computed<RangeSliderInputsSlotProps>(() => ({
   value: value.value,
@@ -612,6 +640,10 @@ const inputClass = computed(() =>
       :class="groupClass"
       :aria-labelledby="label ? labelId : undefined"
     >
+      <!-- A decoration over the track's own span (the spec's price histogram), inside the gutter
+           box and before the rail, so it lines up with the track and takes no press from it. -->
+      <slot name="track" v-bind="trackSlotProps" />
+
       <div
         ref="railEl"
         data-part="rail"

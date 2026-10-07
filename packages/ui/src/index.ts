@@ -202,6 +202,7 @@ export type {
   RangeSliderPart,
   RangeSliderProps,
   RangeSliderThumb,
+  RangeSliderTrackSlotProps,
   RangeSliderValue,
 } from './components/range-slider/types';
 export type { RatingPart, RatingProps, RatingSize } from './components/rating/types';

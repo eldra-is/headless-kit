@@ -21,7 +21,11 @@ export type RangeSliderPart =
 /** Which end of the range a value, a thumb or a field belongs to. */
 export type RangeSliderThumb = 'min' | 'max';
 
-/** Which end of the range a slot's `commit` is addressing: `0` the minimum, `1` the maximum. */
+/**
+ * Which end of the range a value belongs to: `0` the minimum, `1` the maximum. It is what a
+ * slot's `commit` addresses, and what `formatValue` is told when the number it is formatting is a
+ * thumb's own (see `RangeSliderProps.formatValue`).
+ */
 export type RangeSliderEnd = 0 | 1;
 
 /**
@@ -70,6 +74,34 @@ export interface RangeSliderInputsSlotProps {
 /** The selected span, lowest first. The two may meet but never cross. */
 export type RangeSliderValue = [number, number];
 
+/**
+ * What the `track` slot is handed — enough to draw something *over the same span the track
+ * covers* without re-deriving it.
+ *
+ * The slot exists for the one decoration the design spec puts above a range: a price histogram,
+ * 24 bars showing where the products sit, which has to line up with the track to the pixel or it
+ * says the wrong thing about the range. It renders inside the control's gutter box and above the
+ * rail, so its width is exactly the track's width — the gutter that keeps a thumb, its focus ring
+ * and its pointer target inside the control (`eldra-range-gutter`) is already applied to that box,
+ * and nothing in the slot has to know what that reservation currently is.
+ *
+ * `percent` is the filled part's own two edges as percentages of the track, which is what a
+ * decoration needs to tell "inside the range" from "outside" (a histogram bar is "in" when its
+ * bucket centre lies between the thumbs). It is derived from `value` and the bounds, so a slot can
+ * ignore it; it is handed over because every consumer of this slot would otherwise write the same
+ * two `((v - min) / (max - min)) * 100` lines.
+ */
+export interface RangeSliderTrackSlotProps {
+  /** The current span as the control holds it: snapped into the bounds, lowest first. */
+  value: RangeSliderValue;
+  min: number;
+  max: number;
+  step: number;
+  disabled: boolean;
+  /** The filled part's start and end as percentages of the track, `0`–`100`. */
+  percent: [number, number];
+}
+
 export interface RangeSliderProps {
   /** The selected span (two-way). Unset, the control starts at `[min, max]`. */
   modelValue?: RangeSliderValue;
@@ -101,8 +133,15 @@ export interface RangeSliderProps {
    * resting text. A store passes its currency formatter, so a thumb announces "$1,200" rather
    * than "1200". Unset, the numbers are formatted for the ambient locale with as many fraction
    * digits as `step` has.
+   *
+   * **`end` is given only for a thumb's own text**, as `0` (the minimum) or `1` (the maximum), so
+   * a formatter can say something about one end that is only true of that end — a price filter's
+   * maximum thumb sitting at `max` announces "$240 or more", because above the catalogue's highest
+   * price there is nothing to exclude. It is deliberately **not** passed for the typed fields: a
+   * field holds a number the shopper edits, and "$240 or more" is not one. A one-argument
+   * formatter is unaffected either way, which is what keeps this additive.
    */
-  formatValue?: (value: number) => string;
+  formatValue?: (value: number, end?: RangeSliderEnd) => string;
   /**
    * Render the typed min / "to" / max row under the track. The fields are generic number fields;
    * a consumer with its own (a currency field, say) replaces them through the `inputs` slot while

@@ -3,7 +3,13 @@ import { h, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import RangeSlider from '../RangeSlider.vue';
-import type { RangeSliderInputsSlotProps, RangeSliderThumb, RangeSliderValue } from '../types';
+import type {
+  RangeSliderEnd,
+  RangeSliderInputsSlotProps,
+  RangeSliderThumb,
+  RangeSliderTrackSlotProps,
+  RangeSliderValue,
+} from '../types';
 
 type Wrapper = ReturnType<typeof mountWith<typeof RangeSlider>>;
 
@@ -625,6 +631,79 @@ describe('RangeSlider — formatValue', () => {
   });
 });
 
+/**
+ * The second argument, which is what lets a formatter say something true of one end only — the
+ * design spec's "Filter panel" wants the maximum thumb at `max` to announce "$240 or more",
+ * because above the catalogue's highest price there is nothing left to exclude.
+ */
+describe('RangeSlider — formatValue is told which end it is formatting', () => {
+  /** A formatter that uses `end`, written the way the spec's own example is. */
+  const price = (amount: number, end?: RangeSliderEnd): string =>
+    `$${amount}${end === 1 && amount === 240 ? ' or more' : ''}`;
+
+  it('passes 0 for the minimum thumb and 1 for the maximum', () => {
+    const seen: Array<[number, RangeSliderEnd | undefined]> = [];
+    const wrapper = mountWith(RangeSlider, {
+      props: {
+        min: 0,
+        max: 240,
+        modelValue: [40, 160] as [number, number],
+        formatValue: (amount: number, end?: RangeSliderEnd) => {
+          seen.push([amount, end]);
+          return String(amount);
+        },
+      },
+    });
+    expect(seen).toContainEqual([40, 0]);
+    expect(seen).toContainEqual([160, 1]);
+    wrapper.unmount();
+  });
+
+  it('lets the maximum thumb at max announce "or more" while the minimum does not', () => {
+    const wrapper = mountWith(RangeSlider, {
+      props: { min: 0, max: 240, modelValue: [240, 240] as [number, number], formatValue: price },
+    });
+    // Both thumbs hold 240; only the one that is the *maximum* says so.
+    expect(thumb(wrapper, 'min').getAttribute('aria-valuetext')).toBe('$240');
+    expect(thumb(wrapper, 'max').getAttribute('aria-valuetext')).toBe('$240 or more');
+    wrapper.unmount();
+  });
+
+  /**
+   * The typed fields deliberately get **no** `end`: a field holds a number the shopper edits, and
+   * "$240 or more" is not one. Proven by mutation — passing the end through `inputText` turns this
+   * red while every assertion above stays green.
+   */
+  it('gives the typed fields no end, so a field never reads "or more"', () => {
+    const wrapper = mountWith(RangeSlider, {
+      props: {
+        inputs: true,
+        min: 0,
+        max: 240,
+        modelValue: [240, 240] as [number, number],
+        formatValue: price,
+      },
+    });
+    expect(field(wrapper, 'min').value).toBe('$240');
+    expect(field(wrapper, 'max').value).toBe('$240');
+    wrapper.unmount();
+  });
+
+  /** The whole reason the argument is optional: every existing caller passes a one-arg function. */
+  it('still works with a one-argument formatter', () => {
+    const wrapper = mountWith(RangeSlider, {
+      props: {
+        min: 0,
+        max: 240,
+        modelValue: [40, 240] as [number, number],
+        formatValue: (amount: number) => `$${amount}`,
+      },
+    });
+    expect(thumb(wrapper, 'max').getAttribute('aria-valuetext')).toBe('$240');
+    wrapper.unmount();
+  });
+});
+
 describe('RangeSlider — classes', () => {
   it('merges a per-part override over the part own classes', () => {
     const wrapper = mountWith(RangeSlider, {
@@ -970,6 +1049,112 @@ describe('RangeSlider — the inputs slot', () => {
       inputs: true,
     });
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('RangeSlider — the track slot', () => {
+  /**
+   * A decoration over the track's own span. Rendered with `h` for the same reason the `inputs`
+   * slot's own suite is: this is a scoped slot, and the runtime template compiler these mounts use
+   * accepts no TypeScript in its expressions.
+   */
+  const slotted = (props: Record<string, unknown>): Wrapper =>
+    mountWith(RangeSlider, {
+      props,
+      slots: {
+        track: (slot: RangeSliderTrackSlotProps) =>
+          h(
+            'div',
+            { 'data-test': 'histogram', 'aria-hidden': 'true' },
+            `${slot.value[0]}-${slot.value[1]}|${slot.min}|${slot.max}|${slot.step}|` +
+              `${String(slot.disabled)}|${slot.percent[0]}-${slot.percent[1]}`
+          ),
+      },
+    });
+
+  it('renders nothing when the slot is not filled', () => {
+    const wrapper = mountWith(RangeSlider, { props: { modelValue: [20, 80] as [number, number] } });
+    expect(wrapper.find('[data-test="histogram"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  /**
+   * Inside the gutter box (`data-part="group"`, which carries `eldra-range-gutter`) and **before**
+   * the rail: that is what makes the decoration exactly as wide as the track without knowing what
+   * the gutter currently reserves, and what keeps it out of the way of a press on the rail.
+   */
+  it('renders inside the gutter box, before the rail', () => {
+    const wrapper = slotted({ modelValue: [20, 80] as [number, number] });
+    const group = wrapper.find('[data-part="group"]').element;
+    const drawn = wrapper.find('[data-test="histogram"]').element;
+    expect(group.contains(drawn)).toBe(true);
+    expect(group.firstElementChild).toBe(drawn);
+    expect(
+      drawn.compareDocumentPosition(wrapper.find('[data-part="rail"]').element) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    wrapper.unmount();
+  });
+
+  it('hands the slot the control’s own numbers and the filled part’s two edges', () => {
+    const wrapper = slotted({
+      modelValue: [25, 75] as [number, number],
+      min: 0,
+      max: 100,
+      step: 5,
+      disabled: true,
+    });
+    expect(wrapper.find('[data-test="histogram"]').text()).toBe('25-75|0|100|5|true|25-75');
+    wrapper.unmount();
+  });
+
+  /** The percentages are of the *track*, not of the value — bounds that do not start at 0. */
+  it('reports the edges as percentages of the track', () => {
+    const wrapper = slotted({ modelValue: [60, 80] as [number, number], min: 40, max: 240 });
+    expect(wrapper.find('[data-test="histogram"]').text()).toBe('60-80|40|240|1|false|10-20');
+    wrapper.unmount();
+  });
+
+  it('follows the thumbs as they move', async () => {
+    const holder: { wrapper?: Wrapper } = {};
+    holder.wrapper = mountWith(RangeSlider, {
+      props: {
+        modelValue: [20, 80] as [number, number],
+        min: 0,
+        max: 100,
+        step: 10,
+        'onUpdate:modelValue': (value: RangeSliderValue) => {
+          void holder.wrapper?.setProps({ modelValue: value });
+        },
+      },
+      slots: {
+        track: (slot: RangeSliderTrackSlotProps) =>
+          h('div', { 'data-test': 'histogram' }, `${slot.percent[0]}-${slot.percent[1]}`),
+      },
+    });
+    expect(holder.wrapper.find('[data-test="histogram"]').text()).toBe('20-80');
+    press(thumb(holder.wrapper, 'min'), 'ArrowRight');
+    await settle();
+    expect(holder.wrapper.find('[data-test="histogram"]').text()).toBe('30-80');
+    holder.wrapper.unmount();
+  });
+
+  it('is axe-clean with a decoration in the slot', async () => {
+    const wrapper = slotted({ modelValue: [20, 80] as [number, number], label: 'Price' });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('renders in a narrow container', () => {
+    const wrapper = mountNarrow(RangeSlider, {
+      props: { modelValue: [20, 80] as [number, number], label: 'Price', inputs: true },
+      slots: {
+        track: (slot: RangeSliderTrackSlotProps) =>
+          h('div', { 'data-test': 'histogram' }, `${slot.percent[0]}-${slot.percent[1]}`),
+      },
+    });
+    expect(wrapper.find('[data-test="histogram"]').exists()).toBe(true);
     wrapper.unmount();
   });
 });
