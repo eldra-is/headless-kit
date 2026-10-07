@@ -48,8 +48,6 @@ export function shouldCopyTemplatePath(path) {
   const parts = path.split(/[\\/]/);
   if (parts.some((part) => EXCLUDE_DIR_NAMES.includes(part))) return false;
   return !parts.some((part, index) =>
-    EXCLUDE_NESTED_DIRS.some(
-      (nested) => part === nested.parent && parts[index + 1] === nested.name
-    )
+    EXCLUDE_NESTED_DIRS.some((nested) => part === nested.parent && parts[index + 1] === nested.name)
   );
 }

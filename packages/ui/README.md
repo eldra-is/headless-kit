@@ -700,7 +700,7 @@ back to the field's own model** (`typedMin = commit(0, typedMin)`), not just cal
 side effect: the parent has not written the new value back when `commit` returns, and an `Enter`
 commit leaves the field focused, so a field left showing its own stale `typedMin` can keep a figure
 the control never actually applied — most visibly when a typed value snaps onto the thumb's
-*current* value, which writes nothing and fires no `change` at all. `null` is an emptied field and
+_current_ value, which writes nothing and fires no `change` at all. `null` is an emptied field and
 falls back to that end of the range.
 
 Three more rules about the replacement field itself. Bind it to a **local** number and call
