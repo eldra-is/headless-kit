@@ -18,7 +18,11 @@ Release-please writes the generated notes from commit messages and does not repl
   unchanged — a `404` is still a `404` on the first answer, and a preview `401` still reaches
   `onRequestError` immediately, so the editor's preview-token recovery is untouched. A caller's
   `AbortSignal` ends a retry during the wait as well as during the request, rejecting with the
-  signal's own reason.
+  signal's own reason. A dropped connection is told apart from a **malformed** request by the shape
+  `fetch` reports (a known network message, or a retryable `code` on the error or its `cause`): an
+  unparseable URL, an invalid header name or a `GET` with a body fails on the first attempt, because
+  repeating it can only fail the same way. **This is a minor**: the behaviour is a repair, but
+  `retry` is a new public option and `EldraRetryOptions` a new exported type.
 
 - **A route template's trailing parameter may be a catch-all: `/categories/:path*`.** It must be the
   last segment, it matches **one or more** segments, and the parameter's value is the remainder

@@ -32,7 +32,9 @@ connection the network drops, so the client asks again: **idempotent requests on
 including the first, honouring `Retry-After` (seconds or HTTP-date, up to a minute) and otherwise
 waiting 250 ms doubled per attempt, capped at 5 s, with jitter. Every other status — a `404`, a
 `401` — is reported on the first answer, as before, so the preview's own token recovery is
-unaffected.
+unaffected. A dropped connection is told apart from a **malformed** request — an
+unparseable URL, an invalid header name, a `GET` with a body — which fails on the first attempt,
+because repeating it can only fail the same way.
 
 ```ts
 const client = createEldraClient({

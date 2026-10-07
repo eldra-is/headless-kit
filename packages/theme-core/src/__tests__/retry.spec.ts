@@ -5,6 +5,7 @@ import {
   backoffDelayMs,
   fetchWithRetry,
   isIdempotentMethod,
+  isRetryableFetchError,
   parseRetryAfter,
   resolveRetryPolicy,
 } from '../retry';
@@ -57,6 +58,25 @@ describe('retry policy', () => {
     expect([0, 1, 2, 3, 4, 5].map(upper)).toEqual([250, 500, 1000, 2000, 4000, 5000]);
     // Equal jitter: never less than half the window, never more than it.
     expect(backoffDelayMs(2, policy, () => 0)).toBe(500);
+  });
+
+  it('separates a network failure from a malformed request', () => {
+    expect(isRetryableFetchError(new TypeError('fetch failed'))).toBe(true);
+    expect(isRetryableFetchError(new TypeError('Failed to fetch'))).toBe(true);
+    expect(
+      isRetryableFetchError(Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }))
+    ).toBe(true);
+    // Malformed, not transient: every one of these fails the same way forever,
+    // so repeating it only spends a build's time on a bug that cannot succeed.
+    expect(isRetryableFetchError(new TypeError('Failed to parse URL from not a url'))).toBe(false);
+    expect(
+      isRetryableFetchError(
+        new TypeError('Headers.append: "bad header" is an invalid header name.')
+      )
+    ).toBe(false);
+    expect(isRetryableFetchError(Object.assign(new Error('aborted'), { name: 'AbortError' }))).toBe(
+      false
+    );
   });
 
   it('reads Retry-After as seconds or as an HTTP-date', () => {
@@ -159,6 +179,17 @@ describe('createEldraClient retrying', () => {
 
     const pending = client().getEntry('page', 'missing');
     const assertion = expect(pending).rejects.toMatchObject({ status: 404 });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await assertion;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('never retries a malformed request, which would fail identically every time', async () => {
+    const malformed = new TypeError('Failed to parse URL from not a url');
+    fetchMock.mockRejectedValue(malformed);
+
+    const pending = client().getEntry('page', 'entry-1');
+    const assertion = expect(pending).rejects.toBe(malformed);
     await vi.advanceTimersByTimeAsync(10_000);
     await assertion;
     expect(fetchMock).toHaveBeenCalledTimes(1);

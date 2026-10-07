@@ -19,7 +19,12 @@ platform repository.
   `createEldraClient` (`EldraRetryOptions`); `{ attempts: 0 }` is one request and no waiting. Every
   other status is unchanged, and a consumer-supplied `httpClient` is left alone — the retry belongs
   to the transport, and a replaced transport is the consumer's own. A caller's `AbortSignal` ends a
-  retry during the wait as well as during the request, rejecting with the signal's own reason.
+  retry during the wait as well as during the request, rejecting with the signal's own reason. A
+  dropped connection is told apart from a **malformed** request by the shape `fetch` reports (a known
+  network message, or a retryable `code` on the error or its `cause`): an unparseable URL, an invalid
+  header name or a `GET` with a body fails on the first attempt, because repeating it can only fail
+  the same way. **This is a minor**: the behaviour is a repair, but `retry` is a new public option
+  and `EldraRetryOptions` a new exported type.
 
 - `categoryId`, `collectionId` and `option` are sent as repeated query parameters, one entry per
   value, like `filter` — the gateway declares all four `explode: true` (contract 3.7.0). Each is an

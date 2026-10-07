@@ -51,8 +51,8 @@ const IDEMPOTENT_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS
 
 /**
  * Transport failures worth repeating. `fetch` reports a dropped connection as a
- * `TypeError` (undici's `fetch failed`, whose `cause` carries the real code),
- * and a raw socket error carries one of these codes directly.
+ * `TypeError` whose `cause` carries the real code, and a raw socket error
+ * carries one of these codes directly.
  */
 const RETRYABLE_ERROR_CODES: ReadonlySet<string> = new Set([
   'ECONNRESET',
@@ -63,7 +63,30 @@ const RETRYABLE_ERROR_CODES: ReadonlySet<string> = new Set([
   'UND_ERR_SOCKET',
   'UND_ERR_CONNECT_TIMEOUT',
   'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
 ]);
+
+/**
+ * What a runtime says when the *network* failed, lower-cased and matched as a
+ * prefix. `fetch` raises a bare `TypeError` for two unrelated things — a
+ * connection that failed, and a request that was malformed (an unparseable
+ * URL, an invalid header name, a `GET` with a body) — and only the first is
+ * worth repeating: a malformed request will fail identically every time, so
+ * retrying it spends four waits per read, multiplied by a build's route count,
+ * on a bug that cannot succeed. The message is the only thing that separates
+ * them when no `code` is attached, so these are the known spellings, and a
+ * runtime whose wording is not here simply fails on the first attempt the way
+ * it did before any of this existed.
+ */
+const NETWORK_ERROR_MESSAGES: readonly string[] = [
+  'fetch failed', // undici (Node, Bun)
+  'failed to fetch', // Chromium
+  'load failed', // Safari
+  'networkerror when attempting to fetch', // Firefox
+  'network error',
+  'error sending request', // Deno
+  'terminated', // undici, a connection cut mid-response
+];
 
 export interface ResolvedRetryPolicy {
   attempts: number;
@@ -108,9 +131,22 @@ export function isAbortError(cause: unknown): boolean {
 
 export function isRetryableFetchError(cause: unknown): boolean {
   if (isAbortError(cause)) return false;
-  if (cause instanceof TypeError) return true;
-  const code = (cause as { code?: unknown } | null | undefined)?.code;
-  return typeof code === 'string' && RETRYABLE_ERROR_CODES.has(code);
+  const code = errorCodeOf(cause);
+  if (code !== undefined) return RETRYABLE_ERROR_CODES.has(code);
+  if (!(cause instanceof TypeError)) return false;
+  const message = cause.message.toLowerCase();
+  return NETWORK_ERROR_MESSAGES.some((known) => message.startsWith(known));
+}
+
+/**
+ * The error's own `code`, or the one on its `cause` — `fetch` wraps a socket
+ * error in a `TypeError` and puts the code one level down.
+ */
+function errorCodeOf(cause: unknown): string | undefined {
+  const own = (cause as { code?: unknown } | null | undefined)?.code;
+  if (typeof own === 'string') return own;
+  const inner = (cause as { cause?: { code?: unknown } } | null | undefined)?.cause?.code;
+  return typeof inner === 'string' ? inner : undefined;
 }
 
 /**

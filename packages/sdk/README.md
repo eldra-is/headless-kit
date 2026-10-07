@@ -80,7 +80,9 @@ client asks again: **idempotent requests only** (`GET`/`HEAD`/`OPTIONS` — a `P
 well have been applied), at most five attempts including the first, honouring `Retry-After` (seconds
 or HTTP-date, up to a minute) and otherwise waiting 250 ms doubled per attempt, capped at 5 s, with
 jitter. Every other status — a `404`, a `422`, a `401` — is returned on the first answer, as before.
-The caller's `AbortSignal` ends it immediately, during a wait as much as during a request.
+The caller's `AbortSignal` ends it immediately, during a wait as much as during a request. A dropped connection is told apart from a **malformed** request — an
+unparseable URL, an invalid header name, a `GET` with a body — which fails on the first attempt,
+because repeating it can only fail the same way.
 
 ```ts
 const eldra = createEldraClient({
