@@ -1966,3 +1966,70 @@
     }
   }
 }
+
+/* --- Filter panel ----------------------------------------------------------------------------- */
+
+/* A size-system sub-heading (spec "Filter panel" → Sizes, Size-system sub-heading row: "0.75rem
+   weight 600, uppercase, 0.06em letter spacing, `muted`"). It is nearly `text-overline` — same
+   size, same weight, same transform — and differs only in tracking: the overline token's 0.12em is
+   a label over a section, and the same spacing inside a 15rem sidebar pushes "SOCKS (EU)" onto two
+   lines. So the size, line and weight read the existing tokens and the tracking is a
+   per-component variable with the spec's own 0.06em as its default. */
+@utility text-filter-subheading {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-text-overline-line);
+  font-weight: var(--eldra-text-label-weight);
+  letter-spacing: var(--eldra-filter-subheading-tracking, 0.06em);
+  text-transform: uppercase;
+}
+
+/* A swatch tile's count (spec → Sizes, Swatch tile row: "count 0.75rem"). The one 0.75rem number
+   in the panel, and the overline token is the only type style at that size — but an overline is
+   uppercase with 0.12em of tracking, which on a column of tabular digits reads as a gap between
+   them. So it borrows that token's size, the caption's line ratio and the body weight, and adds
+   neither transform nor tracking of its own. */
+@utility text-filter-tile-count {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-text-caption-line);
+  font-weight: var(--eldra-text-body-weight);
+}
+
+/* A colour swatch's own edge (spec → Sizes, Swatch row: "Swatch 1.5rem circle with a 1px inner
+   edge of `text` at 22%"). A real `border`, not a `box-shadow`, for the reason
+   `eldra-variant-swatch-edge` records: forced-colours mode drops a decorative shadow and keeps a
+   real border, and this boundary is the one WCAG 1.4.11 is about — a pale swatch has no other edge.
+
+   The width and the colour are bundled in one utility because they are one decision: the colour is
+   not a token role (it is `text` at a fraction) and nothing else in the package draws it, so a
+   consumer moves it through `--eldra-filter-swatch-edge-width` or replaces the whole rule through
+   `classes.swatch`. Deliberately not `border-strong`, which `VariantPicker`'s own disc uses: a
+   filter panel draws these at 1.5rem in a dense column where the stronger line reads as a second
+   ring beside the selected one. */
+@utility eldra-filter-swatch-edge {
+  border-width: var(--eldra-filter-swatch-edge-width, 1px);
+  border-color: color-mix(in oklab, var(--color-text), transparent 78%);
+}
+
+/* The ring a selected swatch gains (spec → Sizes, Selected swatch ring: "A 2px `background` gap,
+   then a 1.5px `text` ring around the swatch"). The gap is the shape's own padding and the ring is
+   a real border on it, kept at this one constant width in **every** state — transparent at rest —
+   so the swatch never resizes when it is picked and the column never shifts under the pointer. The
+   same shape `eldra-variant-swatch-ring` has, at this panel's own 1.5px rather than that
+   component's 2px. */
+@utility eldra-filter-swatch-ring {
+  border-width: var(--eldra-filter-swatch-ring-width, 1.5px);
+}
+
+/* One histogram bar (spec → Sizes, Histogram row: "Bar min height 2px, top corners 1px"). The
+   minimum height is what keeps an empty bucket visible as an empty bucket rather than as nothing
+   at all, which is the difference between "no products here" and "no data"; the 1px top corners
+   are the only rounding, because the bars sit on the histogram's own baseline. Two literals with
+   no token between them — a bar is thinner than any radius or spacing step the scale carries — so
+   each is a per-component variable with the spec's number as its default. */
+@utility eldra-filter-histogram-bar {
+  min-height: var(--eldra-filter-histogram-bar-min, 2px);
+  border-start-start-radius: var(--eldra-filter-histogram-bar-radius, 1px);
+  border-start-end-radius: var(--eldra-filter-histogram-bar-radius, 1px);
+}

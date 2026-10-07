@@ -441,6 +441,85 @@ export const enUS = {
   showingOf: (shown: number, total: number, noun: string) => `Showing ${shown} of ${total} ${noun}`,
   /** `LoadMore`'s button label (spec "Pagination" → Anatomy, part 9). */
   loadMore: 'Load more',
+
+  /* --------------------------------------------------------------- Filter panel */
+
+  /** The `FilterPanel` head's visible title (spec "Filter panel" → Properties, `title`). */
+  filterPanelTitle: 'Filters',
+  /** The `<form>`'s accessible name (spec → Properties, `label`). */
+  filterPanelLabel: 'Product filters',
+  /**
+   * The head's reset button, and the drawer foot's (spec → Anatomy item 1). Deliberately not the
+   * plain `clear` above, which is a field's own "Clear": this one empties every facet at once, and
+   * the spec gives it these two words.
+   */
+  filterPanelClearAll: 'Clear all',
+  /** The applied-chip list's accessible name (spec → Accessibility: 'a list labelled "Active
+   *  filters"'). */
+  filterPanelApplied: 'Active filters',
+  /**
+   * An applied chip's remove button (spec → Accessibility: 'each remove button is labelled "Remove
+   * filter Colour: Brown"'). Both halves are named, because a chip reads "Brown" and a shopper
+   * with four chips has to hear which facet each one belongs to.
+   */
+  filterPanelRemoveFilter: (facet: string, value: string) => `Remove filter ${facet}: ${value}`,
+  /** The button under a truncated list (spec → Anatomy item 5). `n` is the facet's *whole* count,
+   *  not the hidden remainder — the spec's own "Show all 12" on a list of twelve. */
+  filterPanelShowAll: (n: number) => `Show all ${n}`,
+  /** The same button once the list is open (spec → Behaviour: "changes to **Show fewer**"). */
+  filterPanelShowFewer: 'Show fewer',
+  /** A long list's search field, its accessible name (spec → Accessibility: 'labelled "Search
+   *  material values"'). */
+  filterPanelSearchLabel: (facet: string) => `Search ${facet} values`,
+  /** The same field's placeholder (spec → Accessibility: 'placeholder "Search material"'). */
+  filterPanelSearchPlaceholder: (facet: string) => `Search ${facet}`,
+  /**
+   * One value's whole accessible name: its label and what it would leave (spec → Accessibility:
+   * '"Sweaters, 18 products"', '"Brown, 9 products"'). One sentence rather than a visible number
+   * with hidden words around it, so a translation can put the count where its own grammar wants it.
+   */
+  filterPanelValueName: (label: string, count: number) =>
+    `${label}, ${count} ${count === 1 ? 'product' : 'products'}`,
+  /**
+   * A size tile's accessible name, which names its size system as well (spec → Accessibility:
+   * '"Knitwear M, 14 products"'). A size on its own is ambiguous the moment a store sells two
+   * systems — "42" is a shoe and a sock.
+   */
+  filterPanelSizeName: (system: string, label: string, count: number) =>
+    `${system} ${label}, ${count} ${count === 1 ? 'product' : 'products'}`,
+  /** Appended to a value nothing is left for (spec → Accessibility: '", none available"'). Include
+   *  the leading comma and space: the component renders it verbatim after the name above. */
+  filterPanelNoneAvailable: ', none available',
+  /**
+   * Said of a value ticked because its parent is, not because it is a filter of its own — the
+   * request carries the parent's value and the platform expands it. Said out loud because a
+   * ticked, disabled box with no explanation reads as a dead end. The leading space is the
+   * component's to add, not this string's.
+   */
+  filterPanelImpliedBy: (parent: string) => `included in ${parent}`,
+  /** Names the nested rows under one value (spec: a real grouping, and no extra tab stop). */
+  filterPanelUnder: (parent: string) => `Under ${parent}`,
+  /** The link under a size facet's tiles (spec → Anatomy item 9). */
+  filterPanelSizeGuide: 'Size guide',
+  /** The visible label of a range facet's lower field (spec → Anatomy item 12). */
+  filterPanelMin: 'Min',
+  /** The upper one. */
+  filterPanelMax: 'Max',
+  /**
+   * Appended to a range facet's **maximum** thumb while it sits at the facet's own limit (spec →
+   * Behaviour: 'the top thumb at the maximum adds " or more" ("$240 or more")'). Above the
+   * catalogue's highest value there is nothing left to exclude, and "$240" would claim otherwise.
+   * Include the leading space: the component appends it to the formatted number verbatim.
+   */
+  filterPanelOrMore: ' or more',
+  /** The drawer foot's apply button (spec → Anatomy item 14: "**Show N products**"). */
+  filterPanelShowResults: (n: number) => (n === 1 ? 'Show 1 product' : `Show ${n} products`),
+  /**
+   * The same button before any count has arrived. The drawer's number is the owning block's own
+   * pending-count read, which a panel mounted ahead of it does not have yet — and a button that
+   * said "Show 0 products" while the read was in flight would be a number nobody can trust.
+   */
+  filterPanelShowProducts: 'Show products',
 };
 
 /**

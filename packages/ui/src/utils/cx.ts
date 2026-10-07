@@ -62,6 +62,8 @@ const twMerge = extendTailwindMerge<
   | 'eldra-carousel-track'
   | 'eldra-carousel-dot'
   | 'eldra-range-thumb'
+  | 'eldra-filter-swatch-edge'
+  | 'eldra-filter-histogram-bar'
 >({
   extend: {
     classGroups: {
@@ -117,6 +119,8 @@ const twMerge = extendTailwindMerge<
             'avatar-initials-lg',
             'avatar-initials-xl',
             'empty-state-title',
+            'filter-subheading',
+            'filter-tile-count',
             'content-card-title',
             'content-card-excerpt',
             'dialog-title',
@@ -183,6 +187,7 @@ const twMerge = extendTailwindMerge<
         'eldra-variant-pill-border',
         'eldra-variant-swatch-ring',
         'eldra-variant-swatch-edge',
+        'eldra-filter-swatch-ring',
         'eldra-editor-placeholder-border',
       ],
       // The field error boundary (tailwind.css "The error boundary of a field"): a pseudo-element
@@ -313,6 +318,14 @@ const twMerge = extendTailwindMerge<
       // 1.5px edge, the hover/drag halo and the pointer target in one bundle with no stock
       // Tailwind equivalent, so it gets its own group, the same shape as `eldra-carousel-dot`.
       'eldra-range-thumb': ['eldra-range-thumb'],
+      // A Filter panel swatch's own edge (tailwind.css "Filter panel"): a border *width* and a
+      // `color-mix` border colour in one bundle — the colour is not a token role, so folding this
+      // into the `border-w` group would let a `border-2` beside it keep a colour nobody asked
+      // for. `eldra-filter-swatch-ring` is a pure width and does sit in `border-w` above.
+      'eldra-filter-swatch-edge': ['eldra-filter-swatch-edge'],
+      // A histogram bar's minimum height and its two top corners (tailwind.css "Filter panel"):
+      // a bundled rule with no stock Tailwind equivalent, so it gets its own group.
+      'eldra-filter-histogram-bar': ['eldra-filter-histogram-bar'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

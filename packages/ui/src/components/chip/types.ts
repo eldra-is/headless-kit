@@ -1,3 +1,4 @@
+import type { UiMessages } from '../../messages/en-US';
 import type { IconComponent } from '../icon/types';
 import type { ImageMedia } from '../image/types';
 
@@ -57,6 +58,16 @@ export interface ChipProps {
   value?: string;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<ChipPart, string>>;
+  /**
+   * Overrides for the one string this component renders itself: `removeTag`, the remove button's
+   * accessible name, which defaults to "Remove <label>".
+   *
+   * It is a prop rather than only the ambient provide because the override is often **per chip**
+   * rather than per app: a row of filter chips all read "Brown", "M", "Sweaters", and each one's
+   * remove button has to say which facet it belongs to ("Remove filter Colour: Brown") — one
+   * provided string cannot, because it cannot see the chip.
+   */
+  messages?: Partial<UiMessages>;
 }
 
 /** The one part a consumer can restyle through `ChipGroup`'s `classes`. */

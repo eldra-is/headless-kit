@@ -28,6 +28,7 @@ export { default as EditorPlaceholder } from './components/empty-state/EditorPla
 export { default as EmptyState } from './components/empty-state/EmptyState.vue';
 export { default as FeatureCard } from './components/card/FeatureCard.vue';
 export { default as FieldWrapper } from './components/field-wrapper/FieldWrapper.vue';
+export { default as FilterPanel } from './components/filter-panel/FilterPanel.vue';
 export { default as FormLayout } from './components/form-layout/FormLayout.vue';
 export { default as Icon } from './components/icon/Icon.vue';
 export { default as Image } from './components/image/Image.vue';
@@ -75,6 +76,19 @@ export type {
   AccordionPart,
   AccordionProps,
 } from './components/accordion/types';
+export type {
+  AppliedFilter,
+  FilterFacet,
+  FilterFacetLayout,
+  FilterFacetSelection,
+  FilterFacetType,
+  FilterFacetValue,
+  FilterPanelMode,
+  FilterPanelPart,
+  FilterPanelProps,
+  FilterRemoval,
+  FilterSelection,
+} from './components/filter-panel/types';
 export type {
   AvatarGroupPart,
   AvatarGroupPerson,
@@ -378,6 +392,55 @@ export {
   type UseCarouselOptions,
   type UseCarouselReturn,
 } from './components/carousel/useCarousel';
+// Every rule the Filter panel runs on, pure and with no DOM of its own: the selection model (a
+// facet's key is removed rather than emptied, and a range at its limits is no key at all), the
+// badge count, the collapsed summary, the accent-insensitive facet search, the 6-and-12
+// truncation thresholds, the size-system grouping, which values are disabled and which histogram
+// buckets fall inside the span. Exported so a store that draws its own filter UI can still agree
+// with this one about what a selection *is* — and so the adapter that turns a catalogue response
+// into `FilterFacet[]` can be written against the same reading.
+export {
+  FILTER_SEARCH_FROM,
+  FILTER_VALUES_SHOWN,
+  appliedFilters,
+  clearedSelection,
+  facetCanShowAll,
+  facetHasHiddenValues,
+  facetIsSearchable,
+  facetRows,
+  facetSelectedCount,
+  facetStartsOpen,
+  facetSummaryLabels,
+  facetValues,
+  foldForSearch,
+  hasSelection,
+  histogramBarInRange,
+  isRangeAtLimits,
+  isRangeSelection,
+  isValueDisabled,
+  isValueSelected,
+  matchesSearch,
+  rangeLimits,
+  rangeOf,
+  removeValue,
+  selectedValues,
+  setRange,
+  sizeSystemGroups,
+  toggleValue,
+  visibleFacetValues,
+  type FacetListState,
+  type FacetRow,
+  type SizeSystemGroup,
+} from './components/filter-panel/useFilterPanel';
+// Which ink a check mark takes inside a colour swatch, by the swatch's own relative luminance —
+// the one colour rule in this package that has to be computed rather than tokenised, because the
+// colour is product data. Exported for a consumer drawing a swatch of its own.
+export {
+  SWATCH_INK_LUMINANCE_THRESHOLD,
+  swatchInk,
+  swatchLuminance,
+  type SwatchInk,
+} from './components/filter-panel/swatchInk';
 
 // Form context. A `FormLayout` provides it; every Button below reads it, so a submitting form
 // shows its primary action loading and every other action disabled.

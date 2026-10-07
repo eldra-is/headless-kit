@@ -85,11 +85,6 @@ export interface FilterFacet {
   /** Size facets: the destination of the **Size guide** link under the tiles. */
   sizeGuideHref?: string;
   /**
-   * Range facets: whether to draw the two-thumb range at all. `false` leaves the Min and Max
-   * fields alone, for a store whose values sit in a few tight clusters a track cannot separate.
-   */
-  slider?: boolean;
-  /**
    * Range facets: whether this range is money, so the Min and Max fields are the store's own
    * currency fields rather than generic number fields. A `price` facet sets it.
    */
@@ -139,6 +134,13 @@ export interface AppliedFilter {
  * Several parts are drawn more than once (`group`, `row`, `swatch`, `tile`, `chip`, …) — one class
  * string styles every instance, and each element carries a `data-facet` or `data-value` attribute
  * for the rare rule that has to tell them apart.
+ *
+ * Two parts are composed children rather than elements of the panel's own, so they are *styled*
+ * through these keys but **addressed** by the child's own `data-part`, which is the convention the
+ * rest of the package follows (`CheckboxGroup` does the same with its options): a `list` facet's
+ * `row` is a `Checkbox`, so it is `[data-part="values"] [data-part="root"]` in the DOM, and `chip`
+ * marks the `<li>` around each `Chip` rather than the chip itself. A `colour` facet's rows and a
+ * `size` facet's tiles are drawn by this package and do carry `data-part="row"`/`"tile"`.
  */
 export type FilterPanelPart =
   | 'root'

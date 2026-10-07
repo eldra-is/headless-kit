@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<ChipProps>(), {
   avatar: undefined,
   value: undefined,
   classes: undefined,
+  messages: undefined,
 });
 
 const emit = defineEmits<{
@@ -34,7 +35,7 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
-const m = useMessages();
+const m = useMessages(() => props.messages);
 
 /**
  * See `context.ts`. Optional: a `Chip` outside any `ChipGroup` reads nothing from it and behaves

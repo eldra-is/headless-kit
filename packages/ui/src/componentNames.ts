@@ -38,6 +38,7 @@ export const componentNames = [
   'EmptyState',
   'FeatureCard',
   'FieldWrapper',
+  'FilterPanel',
   'FormLayout',
   'Icon',
   'Image',

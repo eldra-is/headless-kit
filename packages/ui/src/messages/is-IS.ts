@@ -16,6 +16,15 @@ function reviewsWord(n: number): string {
 }
 
 /**
+ * "vara" / "vörur" — the word the Filter panel's counts are spoken with, shared by the two
+ * messages that name a value and the drawer's own apply button, so the three cannot drift onto
+ * different declensions of one noun.
+ */
+function productsWord(n: number): string {
+  return singular(n) ? 'vara' : 'vörur';
+}
+
+/**
  * The Icelandic message set, shipped as its own entry point
  * (`@eldrajs/ui/messages/is-IS`) so an English-only store never bundles it.
  *
@@ -157,6 +166,31 @@ export const isIS: UiMessages = {
   pageOfTotal: (page: number, total: number) => `Síða ${page} af ${total}`,
   showingOf: (shown: number, total: number, noun: string) => `Sýni ${shown} af ${total} ${noun}`,
   loadMore: 'Hlaða meira',
+
+  filterPanelTitle: 'Síur',
+  filterPanelLabel: 'Vörusíur',
+  filterPanelClearAll: 'Hreinsa allt',
+  filterPanelApplied: 'Valdar síur',
+  filterPanelRemoveFilter: (facet: string, value: string) => `Fjarlægja síu ${facet}: ${value}`,
+  // "gildi" is neuter and does not change form between one and many, so the number alone carries
+  // the count here — no singular branch, the same reason `showMoreLevels` above has none.
+  filterPanelShowAll: (n: number) => `Sýna öll ${n} gildi`,
+  filterPanelShowFewer: 'Sýna færri',
+  filterPanelSearchLabel: (facet: string) => `Leita að gildum í ${facet}`,
+  filterPanelSearchPlaceholder: (facet: string) => `Leita í ${facet}`,
+  filterPanelValueName: (label: string, count: number) =>
+    `${label}, ${count} ${productsWord(count)}`,
+  filterPanelSizeName: (system: string, label: string, count: number) =>
+    `${system} ${label}, ${count} ${productsWord(count)}`,
+  filterPanelNoneAvailable: ', ekkert til',
+  filterPanelImpliedBy: (parent: string) => `fylgir ${parent}`,
+  filterPanelUnder: (parent: string) => `Undir ${parent}`,
+  filterPanelSizeGuide: 'Stærðartafla',
+  filterPanelMin: 'Lágm.',
+  filterPanelMax: 'Hám.',
+  filterPanelOrMore: ' eða meira',
+  filterPanelShowResults: (n: number) => `Sýna ${n} ${productsWord(n)}`,
+  filterPanelShowProducts: 'Sýna vörur',
 };
 
 export default isIS;
