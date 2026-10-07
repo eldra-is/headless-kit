@@ -33,6 +33,8 @@ table and Storybook for the full contract of each).
   one label and error.
 - `RadioGroup` — a `role="radiogroup"` of plain or card-styled radio options.
 - `Switch` — a labelled on/off toggle.
+- `RangeSlider` — two thumbs on one track for a span of numbers, with an optional row of typed
+  fields that set the same value by another route.
 - `Select` / `MultiSelect` — a single- or multi-value select with a popover listbox.
 - `SearchBar` — a typeahead search field with a popover results panel.
 - `VariantPicker` — a product's option groups, rendered as pills or colour swatches.
@@ -66,6 +68,13 @@ table and Storybook for the full contract of each).
   and an icon tile plus title and body, optionally linked.
 - `ProductCard` — the product tile used in grids, carousels and search results, composing `Image`,
   `Price`, `Rating`, `Badge`, `StockBadge` and `Button`.
+- `FilterPanel` — the faceted product filter a collection or search page is narrowed with:
+  collapsible facet groups with counts, real colour swatches, size tiles grouped by size system, a
+  price range with an optional histogram, and availability switches, in a sidebar or inside the
+  filter drawer. It is controlled and URL-free — the selection comes out as `v-model`/`change` and
+  the owning page keeps the query string, the debounce and the result count — and every rule it runs
+  on (the selection model, the badge count, the collapsed summary, the facet search, which values
+  are disabled, a swatch check mark's ink) is exported as a pure function beside it.
 
 **Navigation, overlays and feedback**
 
