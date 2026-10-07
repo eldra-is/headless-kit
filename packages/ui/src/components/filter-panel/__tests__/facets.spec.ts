@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
+import { withoutIcuDataFor } from '../../../test/intlStub';
 import { mountWith } from '../../../test/mount';
 import FilterPanel from '../FilterPanel.vue';
 import type { FilterFacet, FilterSelection } from '../types';
@@ -550,6 +551,80 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
     // The en dash between them is punctuation, so it is hidden.
     expect(fields.find('[data-part="separator"]').attributes('aria-hidden')).toBe('true');
     wrapper.unmount();
+  });
+
+  /**
+   * Spec → Sizes, Min / Max fields: the currency unit "as a prefix ... or a suffix ..., whichever
+   * the currency format uses"; Acceptance criteria, the is-IS/ISK row: "the field unit 'kr.' sits
+   * after the number." The thumb's `aria-valuetext` is checked above and is computed independently
+   * (`RangeFacet`'s own `formatValue`, via `formatCurrency`); this is the **field's own rendered
+   * text** — what `CurrencyInput`/`UnitInput` put in the box — which is the thing a prior round
+   * shipped wrong (`"kr 5,000"`, en-US grouping and a prefix sign) because a real browser's `Intl`
+   * silently falls back to `en-US` for the one locale this package ships messages for whose
+   * number-formatting CLDR data Chromium does not bundle; see `number-format.ts`'s
+   * `LOCALE_FALLBACKS`. Exact equality, not `toContain`, so a regression in grouping, sign
+   * placement or the narrow symbol itself fails this test.
+   */
+  it('renders the is-IS/ISK and en-US/USD field text exactly, not just the thumb', () => {
+    const isIS = mountWith(FilterPanel, {
+      props: {
+        facets: [{ ...PRICE_FACET, min: 3500, max: 14_000, step: 100 }],
+        locale: 'is-IS',
+        currency: 'ISK',
+        modelValue: { price: [5000, 11_000] },
+      },
+    });
+    // `\u00a0`, not a plain space: the literal between the grouped integer and the narrow
+    // sign is U+00A0 (non-breaking space) — see `number-format.spec.ts`'s own note on why
+    // every assertion in this package spells it out rather than typing the invisible character
+    // into source, where it reads indistinguishably from a plain space.
+    expect((isIS.find('[data-input="min"]').element as HTMLInputElement).value).toBe(
+      '5.000\u00a0kr.'
+    );
+    expect((isIS.find('[data-input="max"]').element as HTMLInputElement).value).toBe(
+      '11.000\u00a0kr.'
+    );
+    isIS.unmount();
+
+    const enUS = mount([PRICE_FACET], { modelValue: { price: [40, 160] } });
+    expect((enUS.find('[data-input="min"]').element as HTMLInputElement).value).toBe('$40');
+    enUS.unmount();
+  });
+
+  /**
+   * The same field text, proven again on a runtime with no `is-IS` ICU data at all —
+   * `withoutIcuDataFor` makes this process's own `Intl.NumberFormat` negotiate exactly the way a
+   * real `is-IS`-less Chromium does (see `src/test/intlStub.ts`, verified against a genuine
+   * `@playwright/test` browser), so this is the test that would have caught the original defect
+   * without needing an actual browser: the test above alone never exercises `number-format.ts`'s
+   * `LOCALE_FALLBACKS`, because this process's own ICU data already has `is-IS` and `Intl` never
+   * has to fall back to it.
+   */
+  it('renders the same is-IS/ISK field text on a runtime without is-IS ICU data', () => {
+    const restore = withoutIcuDataFor('is-IS');
+    try {
+      const isIS = mountWith(FilterPanel, {
+        props: {
+          facets: [{ ...PRICE_FACET, min: 3500, max: 14_000, step: 100 }],
+          locale: 'is-IS',
+          currency: 'ISK',
+          modelValue: { price: [5000, 11_000] },
+        },
+      });
+      expect((isIS.find('[data-input="min"]').element as HTMLInputElement).value).toBe(
+        '5.000\u00a0kr.'
+      );
+      expect((isIS.find('[data-input="max"]').element as HTMLInputElement).value).toBe(
+        '11.000\u00a0kr.'
+      );
+      isIS.unmount();
+
+      const enUS = mount([PRICE_FACET], { modelValue: { price: [40, 160] } });
+      expect((enUS.find('[data-input="min"]').element as HTMLInputElement).value).toBe('$40');
+      enUS.unmount();
+    } finally {
+      restore();
+    }
   });
 
   /**

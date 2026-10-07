@@ -13,6 +13,45 @@
  * back, so their caller already owns its lifetime.
  */
 
+/**
+ * A BCP 47 tag widened to a fallback chain for the one locale this package ships messages for whose
+ * number-formatting CLDR data a real, current Chrome does not bundle: `is-IS`.
+ * `Intl.NumberFormat.supportedLocalesOf(['is-IS'])` returns `[]` under Playwright's own bundled
+ * Chromium (checked directly, not inferred: `pnpm --filter @eldrajs/ui exec playwright …`, see the
+ * check recorded beside `LOCALE_FALLBACKS`' own test) because Chromium's bundled ICU data excludes
+ * CLDR locales below "modern" coverage, and Icelandic is one; the constructor does not throw for
+ * an unsupported tag, it silently negotiates down to its own default locale (`en-US`), which is
+ * what turned an `is-IS`/`ISK` field into `"kr 5,000"` (comma grouping, prefix sign) instead of the
+ * spec's `"5.000 kr."`. Node's `Intl` has full ICU and formats `is-IS` correctly on its own, which
+ * is what made this invisible to a plain `node -e` check — only a real browser shows it.
+ *
+ * `da-DK` is next in the chain: fully supported everywhere, and — proven in
+ * `__tests__/number-format.spec.ts` by comparing every formatted string against genuine `is-IS`
+ * output rather than asserting a hand-picked few — digit-for-digit identical to it for a **narrow**
+ * currency sign (`currencyDisplay: 'narrowSymbol'`, this package's own default everywhere it calls
+ * `Intl`) and for a plain decimal's grouping and separators, which is every shape this package's own
+ * components format a number in. It is **not** identical for a currency's **wide** sign
+ * (`currencyDisplay: 'symbol'`, `narrow: false` on `formatUnit`/`formatCurrency`/`currencySymbol`) —
+ * Danish spells it out (`"US$"`, `"€"`) where Icelandic falls back to the bare code (`"USD"`,
+ * `"EUR"`) — nor for a non-currency unit's own abbreviation (`"km/klst."` vs `"km/t."`), so a future
+ * caller reaching either of those two shapes under `is-IS` on a runtime without Icelandic data gets
+ * Danish-flavoured text rather than Icelandic- or English-flavoured text: closer to the spec than
+ * the pre-fix bug in every case measured, but still not genuine `is-IS`. `Intl.NumberFormat`'s own
+ * locale negotiation only reaches `da-DK` when `is-IS` truly is not available, so a runtime that
+ * does carry Icelandic data (Node; a future Chrome release) keeps using it and never touches the
+ * fallback — `src/test/intlStub.ts`'s `withoutIcuDataFor` is what lets a test simulate the runtime
+ * that does, without an actual browser.
+ */
+const LOCALE_FALLBACKS: Readonly<Record<string, readonly string[]>> = {
+  'is-IS': ['is-IS', 'da-DK'],
+};
+
+/** The locale argument to hand an `Intl` constructor: the fallback chain above for a locale that
+ * needs one, the bare tag for every other locale. */
+function intlLocales(locale: string): string | readonly string[] {
+  return LOCALE_FALLBACKS[locale] ?? locale;
+}
+
 /** What a formatted number needs: the locale plus the handful of `Intl.NumberFormat` options this
  * package's components actually use. */
 export interface NumberFormatOptions {
@@ -75,7 +114,7 @@ export function createNumberFormat(options: NumberFormatOptions): Intl.NumberFor
   if (maxFraction !== undefined) intlOptions.maximumFractionDigits = maxFraction;
   if (minFraction !== undefined) intlOptions.minimumFractionDigits = minFraction;
 
-  return new Intl.NumberFormat(locale, intlOptions);
+  return new Intl.NumberFormat(intlLocales(locale), intlOptions);
 }
 
 /** Formats one value. For formatting many values under the same options, use `createNumberFormat`
@@ -98,7 +137,7 @@ export function formatNumber(value: number, options: NumberFormatOptions): strin
  * separator" rather than as a separator that happens to be empty.
  */
 export function localeSeparators(locale: string): { group: string; decimal: string } {
-  const parts = new Intl.NumberFormat(locale).formatToParts(12345.6);
+  const parts = new Intl.NumberFormat(intlLocales(locale)).formatToParts(12345.6);
   const group = parts.find((part) => part.type === 'group')?.value ?? ',';
   const decimal = parts.find((part) => part.type === 'decimal')?.value ?? '.';
   return { group, decimal };
@@ -170,7 +209,7 @@ export function parseLocaleNumber(text: string, locale: string): number | null {
 export function currencyFractionDigits(currency: string, locale = 'en-US'): number {
   try {
     return (
-      new Intl.NumberFormat(locale, { style: 'currency', currency }).resolvedOptions()
+      new Intl.NumberFormat(intlLocales(locale), { style: 'currency', currency }).resolvedOptions()
         .maximumFractionDigits ?? 2
     );
   } catch {
@@ -325,7 +364,7 @@ export function defaultUnitFormat(
     );
   }
 
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(intlLocales(locale), {
     style: isCurrency ? 'currency' : 'unit',
     ...(isCurrency ? {} : { unit }),
     minimumFractionDigits: minFraction,

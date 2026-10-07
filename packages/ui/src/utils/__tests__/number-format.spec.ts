@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { withoutIcuDataFor } from '../../test/intlStub';
 import {
   createNumberFormat,
+  currencyFractionDigits,
   currencySymbol,
   defaultUnitFormat,
   formatCurrency,
   formatNumber,
   formatUnit,
+  localeSeparators,
   parseLocaleNumber,
   type UnitFormatOptions,
 } from '../number-format';
@@ -737,5 +740,128 @@ describe('parseLocaleNumber — a trailing separator', () => {
   it('leaves a leading separator alone, which was already a number', () => {
     expect(parseLocaleNumber('.5', 'en-US')).toBe(0.5);
     expect(parseLocaleNumber(',5', 'is-IS')).toBe(0.5);
+  });
+});
+
+/**
+ * What `LOCALE_FALLBACKS`'s own doc comment claims: `da-DK` is digit-for-digit identical to genuine
+ * `is-IS` for a narrow currency sign and for a plain decimal's grouping/separators — every shape
+ * this package's own components actually format a number in. Computed against *this* runtime's own
+ * `is-IS` output (not a hand-typed string), so the comparison stays true on whatever ICU data the
+ * machine running the suite has, the same reason `formatNumber`'s own `is-IS` tests above do it.
+ */
+describe('da-DK vs genuine is-IS — the fallback’s own claim of parity', () => {
+  it('is identical for a narrow currency sign, every currency and value this package forms', () => {
+    for (const currency of ['ISK', 'USD', 'EUR', 'GBP', 'BHD', 'JPY']) {
+      for (const value of [0, 28, 28.5, 28.567, 2800, 1_234_567.89]) {
+        const genuine = new Intl.NumberFormat('is-IS', {
+          style: 'currency',
+          currency,
+          currencyDisplay: 'narrowSymbol',
+        }).format(value);
+        const substitute = new Intl.NumberFormat('da-DK', {
+          style: 'currency',
+          currency,
+          currencyDisplay: 'narrowSymbol',
+        }).format(value);
+        expect(substitute, `${currency} ${value}`).toBe(genuine);
+      }
+    }
+  });
+
+  it('is identical for a plain decimal’s grouping and separators', () => {
+    for (const value of [0, 28, 28.5, 1_234_567.89, -12.3]) {
+      expect(new Intl.NumberFormat('da-DK').format(value)).toBe(
+        new Intl.NumberFormat('is-IS').format(value)
+      );
+    }
+    expect(localeSeparators('da-DK')).toEqual({ group: '.', decimal: ',' });
+  });
+
+  /**
+   * The one divergence this package knows about and accepts, written out so it is a documented
+   * boundary rather than a silent surprise: a currency's **wide** sign is not the same word in the
+   * two locales (Danish spells it out, Icelandic falls back to the bare ISO code), and neither is a
+   * non-currency unit's own abbreviation. Nothing in this package calls either shape under `is-IS`
+   * (`CurrencyInput`/`formatCurrency` always ask for the narrow sign), so the fallback never reaches
+   * this path today — this test exists so a future caller that does finds the boundary documented
+   * rather than discovering it as a field in a wrong currency code.
+   */
+  it('is NOT claimed identical for a wide currency sign or a unit’s own abbreviation', () => {
+    expect(
+      new Intl.NumberFormat('da-DK', { style: 'currency', currency: 'USD' }).format(28)
+    ).not.toBe(new Intl.NumberFormat('is-IS', { style: 'currency', currency: 'USD' }).format(28));
+    expect(
+      new Intl.NumberFormat('da-DK', { style: 'unit', unit: 'kilometer-per-hour' }).format(3.33)
+    ).not.toBe(
+      new Intl.NumberFormat('is-IS', { style: 'unit', unit: 'kilometer-per-hour' }).format(3.33)
+    );
+  });
+});
+
+/**
+ * The defect itself, reproduced and proven fixed without an actual browser:
+ * `withoutIcuDataFor('is-IS')` makes this runtime's own `Intl.NumberFormat` negotiate exactly the
+ * way Chromium's real one does for a tag it has no data for (see `src/test/intlStub.ts`), so these
+ * assertions are the same ones that fail against the pre-fix code and against a real
+ * `is-IS`-ICU-less Chromium.
+ */
+describe('number formatting on a runtime without is-IS ICU data', () => {
+  it('still renders the narrow ISK sign as a suffix with "." grouping, not en-US’s prefix/comma', () => {
+    const restore = withoutIcuDataFor('is-IS');
+    try {
+      expect(formatCurrency(5000, 'is-IS', 'ISK')).toBe('5.000 kr.');
+      expect(formatCurrency(11_000, 'is-IS', 'ISK')).toBe('11.000 kr.');
+      expect(
+        formatNumber(12_345, {
+          locale: 'is-IS',
+          style: 'currency',
+          currency: 'ISK',
+          narrow: true,
+        })
+      ).toBe('12.345 kr.');
+    } finally {
+      restore();
+    }
+  });
+
+  it('would otherwise regress to the original bug — proving the stub itself is faithful', () => {
+    // A locale with no fallback chain at all (anything but `is-IS`) is untouched by the stub, so
+    // `en-US` still works normally: the stub removes only the one tag it was asked to remove.
+    const restore = withoutIcuDataFor('is-IS');
+    try {
+      expect(formatCurrency(40, 'en-US', 'USD')).toBe('$40');
+      // And without `LOCALE_FALLBACKS` the fallback-less `new Intl.NumberFormat('is-IS', …)` this
+      // runtime now simulates reproduces the exact pre-fix string, confirming the stub is standing
+      // in for the real missing-ICU-data runtime and not merely for "a different locale".
+      expect(
+        new Intl.NumberFormat('is-IS', {
+          style: 'currency',
+          currency: 'ISK',
+          currencyDisplay: 'narrowSymbol',
+        }).format(5000)
+      ).toBe('kr 5,000');
+    } finally {
+      restore();
+    }
+  });
+
+  it('still derives the "." group / "," decimal pair parseLocaleNumber relies on', () => {
+    const restore = withoutIcuDataFor('is-IS');
+    try {
+      expect(localeSeparators('is-IS')).toEqual({ group: '.', decimal: ',' });
+      expect(parseLocaleNumber('1.234,56', 'is-IS')).toBe(1234.56);
+    } finally {
+      restore();
+    }
+  });
+
+  it('still resolves ISK to 0 fraction digits, which is a currency fact, not a locale one', () => {
+    const restore = withoutIcuDataFor('is-IS');
+    try {
+      expect(currencyFractionDigits('ISK', 'is-IS')).toBe(0);
+    } finally {
+      restore();
+    }
   });
 });
