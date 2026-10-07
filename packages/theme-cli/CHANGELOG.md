@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- Fixed: `eldra-theme init` no longer ships a previously built Storybook, coverage report,
+  Playwright output or tool cache. The starter copy (used both by the packaged `template/`
+  directory and, directly, by `init` itself) now excludes `storybook-static`, `coverage`,
+  `test-results`, `playwright-report` and `.cache` in addition to the directories it already
+  skipped, driven by one shared exclusion list so both copies always agree.
+
 - `eldra-theme deploy` prints what a deploy **converted** beside what it retired. A version bump
   that turns an existing field's values into a `link` field's rewrites those values rather than
   losing them, and each converted field now gets its own line naming which field was read, which was

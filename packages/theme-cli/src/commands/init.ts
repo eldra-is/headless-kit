@@ -1,6 +1,7 @@
 import { cpSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shouldCopyTemplatePath } from '../templateExclude.mjs';
 
 export function initTheme(targetDir: string): void {
   if (existsSync(targetDir) && readdirSync(targetDir).length > 0) {
@@ -9,17 +10,7 @@ export function initTheme(targetDir: string): void {
   const source = templateSource();
   cpSync(source, targetDir, {
     recursive: true,
-    filter: (path) => {
-      const parts = path.split(/[\\/]/);
-      if (
-        parts.some(
-          (part) =>
-            part === 'node_modules' || part === '.git' || part === '.nuxt' || part === '.output'
-        )
-      )
-        return false;
-      return !parts.some((part, index) => part === '.eldra' && parts[index + 1] === 'previews');
-    },
+    filter: shouldCopyTemplatePath,
   });
   rewriteWorkspaceVersions(join(targetDir, 'package.json'));
 }
