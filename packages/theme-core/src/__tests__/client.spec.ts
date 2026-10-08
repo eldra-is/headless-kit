@@ -105,6 +105,32 @@ describe('createEldraClient', () => {
     expect(new Headers((init as RequestInit).headers).get('X-Preview-Token')).toBeNull();
   });
 
+  it('strips a long run of trailing slashes off gatewayUrl in one pass, same as a single trailing slash', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        data: [],
+        meta: {
+          hasNext: false,
+          hasPrev: false,
+          page: 1,
+          pageSize: 25,
+          rows: 0,
+          total: 0,
+          totalPages: 0,
+        },
+      })
+    );
+    const longRun = GATEWAY + '/'.repeat(5000);
+    await createEldraClient({
+      gatewayUrl: longRun,
+      orgId: ORG,
+      fetch: fetchMock as unknown as typeof fetch,
+    }).getEntries('page', {});
+    const [url] = fetchMock.mock.calls[0]!;
+    const u = new URL(url as string);
+    expect(u.origin + u.pathname).toBe(`${GATEWAY}/cms/v1/schema/page/entry`);
+  });
+
   it('lists categories, with the same URL, header and query plumbing as collections', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({

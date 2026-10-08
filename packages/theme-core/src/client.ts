@@ -16,8 +16,21 @@ import { EldraClientError } from './clientTypes';
 
 export * from './clientTypes'; // the interface block from **Interfaces** lives in clientTypes.ts
 
+/**
+ * Strips every trailing `/` from a URL (`https://x///` → `https://x`). A regex
+ * equivalent (`/\/+$/`) backtracks polynomially on a long run of slashes
+ * because the engine re-tries every split of the repeated group before
+ * failing to match past the string's end; this walks the string once from
+ * the end instead, which is linear regardless of how many slashes it finds.
+ */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47 /* '/' */) end--;
+  return value.slice(0, end);
+}
+
 export function createEldraClient(opts: EldraClientOptions): EldraClient {
-  const gatewayUrl = opts.gatewayUrl.replace(/\/+$/, '');
+  const gatewayUrl = stripTrailingSlashes(opts.gatewayUrl);
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
   const retryPolicy = resolveRetryPolicy(opts.retry);
   const stegaEnabled = opts.stega === true;
