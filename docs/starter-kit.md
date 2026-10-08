@@ -1734,21 +1734,89 @@ first use.
 
 ## 5. Strings
 
-`app/i18n/en-US.ts` and `app/i18n/is-IS.ts` each export a `satisfies Messages` object with the
-identical key shape (`app/i18n/messages.ts` declares it, and a test asserts both locale files agree
-on their key set). `useT()` (`app/composables/useT.ts`) reads the **active content locale** off the
-Eldra context (`useEldraLocale().active` — the locale the page's URL prefix names, or the one a
-Studio preview is driving, with `preview.locale` as the fallback for a context assembled without the
-locale slice), and returns a `t(key, params)` function with plain `{param}` interpolation. There is
-no `vue-i18n` dependency.
+The starter speaks `vue-i18n` directly — no hand-rolled `useT()`, no wrapper composable of any kind
+around `useI18n()`. A block reads its own strings exactly the way an application built from
+scratch on `vue-i18n` would: `import { useI18n } from 'vue-i18n'; const { t } = useI18n();`, then
+`t('header.cartMany', { count })`.
 
-It falls back to `en-US` when there is no context at all — outside a themed page, in a unit test, in
-Storybook — **and for a configured locale the theme ships no message set for**. An organisation may
-configure any number of locales; this theme ships two. The content on such a page is still that
-locale's, and English chrome around real Icelandic (or Polish, or Portuguese) copy is the honest
-outcome of shipping two sets, where a key rendered as `nav.menu` would not be. Adding a locale means
-adding a file here and registering it in `useT()`'s own `LOCALES` map and in
-`app/i18n/uiMessages.ts`.
+**The two files.** `i18n/en-US.json` and `i18n/is-IS.json` sit at the theme root (siblings of
+`tokens.json` and `blocks/`, not under `app/`) — nested objects, vue-i18n's own on-disk shape, with
+the identical key tree in both (`test/i18n.spec.ts`'s canary fails otherwise). `en-US` is the
+default locale, declared in `package.json`'s own `eldra.defaultLocale` field; every other locale
+file's keys must be a subset of the default's (`@eldrajs/vite-plugin-theme`'s scanner enforces this
+at scan time, the same way it validates `blocks/*/block.json`). A key is a dotted path matching
+`^[a-z0-9]+([A-Z][a-z0-9]*)*(\.[a-z0-9]+([A-Z][a-z0-9]*)*)*$` (camelCase segments, ≤ 128 characters);
+a value is a string (≤ 2000 runes) that may carry `vue-i18n`'s own `{param}` placeholders, stored
+verbatim. A literal `@` inside a value has to be escaped `{'@'}` (vue-i18n's own linked-message
+syntax reads a bare `@` as the start of one) — `newsletter.emailPlaceholder`'s `"name{'@'}example.com"`
+is the shipped example; nothing else in vue-i18n's message syntax (`{`/`}` outside a placeholder,
+`|`, a leading `@`) survives unescaped either, so a new string that happens to need one follows the
+same pattern.
+
+**`@eldrajs/ui`'s own strings live in the same files**, under a top-level `ui.*` namespace — English
+from the package's own `enUS` export, Icelandic from `@eldrajs/ui/messages/is-IS` — but only the
+package's **plain-string** keys: a manifest key can only ever be a string (the scanner's own rule),
+so the package's ~40 **parameterized** keys (`closeDrawer(name)`, `reviewCount(n)`, and the rest,
+which embed real pluralization logic no flat template can carry) are not in `ui.*` at all and are
+not overridable — `app/plugins/eldra-ui-messages.ts` falls those back to the package's own function
+straight from `@eldrajs/ui`, and falls back to it for a plain-string key too whenever the active
+locale's catalogue has no entry for it. Every other `ui.*` key *is* overridable: it is exactly what
+reaches Studio's "Theme texts" page (the contract's `messages` manifest block), where an operator
+can translate a key the theme ships no file for, or override the theme's own default.
+
+**The merge, at build time.** `@eldrajs/vite-plugin-theme` scans `i18n/*.json` into the manifest,
+flattening each locale's nested JSON into dotted keys the same way `vue-i18n`'s own on-disk format
+flattens; `@eldrajs/theme-nuxt`'s module reads the platform's theme-message overrides at `nuxi
+generate` time and merges them over the manifest defaults (`virtual:eldra/messages` serves the
+result — merged over, resolved per organisation locale, a credential-less build serving the manifest
+defaults unchanged). `@eldrajs/theme-vue`'s `EldraContext['messages']` is this resolved catalogue,
+reactive, flat dotted keys per locale tag — the one source both the app's own i18n plugin and
+`@eldrajs/ui`'s message provide read from. See `docs/theme-design-tokens.md` for the full five-tier
+fallback (`override(locale) → theme(locale) → override(orgDefault) → theme(orgDefault) →
+theme(themeDefault)`) and the bridge message Studio pushes on a live edit.
+
+**The plugin.** `app/plugins/eldra-i18n.ts` installs `vue-i18n` on the Vue app once:
+`createI18n({ legacy: false, locale, fallbackLocale: [orgDefaultLocale, themeDefaultLocale],
+messages: unflatten(context.messages.locales) })` — `unflattenMessages` (`@eldrajs/theme-core/i18n`)
+is the same helper the bridge handler below uses, turning the flat catalogue back into vue-i18n's
+nested shape. `locale` follows `useEldraLocale().active` (the page's URL-prefix locale, or the one a
+Studio preview is driving) with `preview.locale` as the fallback for a context assembled without the
+locale slice — the same two-source order every other locale-aware plugin in this theme reads in
+(`eldra-ui-messages.ts` below). A Studio "Theme texts" edit arrives as the `editor:theme-messages`
+bridge message, which `@eldrajs/theme-vue` applies to `context.messages.locales` wholesale per
+locale; the plugin watches that and re-applies every locale through vue-i18n's own
+`setLocaleMessage`, so a live edit reaches every mounted block's `t(...)` with no re-render plumbing
+of its own.
+
+It falls back to the theme's own default locale (`en-US`, declared the way the paragraph above
+says) for a configured organisation locale the theme ships no message set for — vue-i18n's own
+`fallbackLocale` chain, not a hand-rolled one. An organisation may configure any number of locales;
+this theme ships two. The content on such a page is still that locale's, and English chrome around
+real Icelandic (or Polish, or Portuguese) copy is the honest outcome of shipping two sets, where a
+key rendered unresolved would not be.
+
+**One real difference from the old hand-rolled loader, worth knowing.** `vue-i18n`'s own
+interpolation renders a named placeholder with no matching param as **empty**, not as the literal
+`{param}` the theme's old `useT()` used to leave visible. That was a deliberate fail-safe this kit no
+longer has — adopting the library directly means its behaviour, not a reimplementation of the old
+one.
+
+**Typed keys.** `app/i18n.d.ts` augments `vue-i18n`'s own `DefineLocaleMessage` interface with
+`en-US.json`'s shape (`vue-i18n`'s documented "Global Resource Schema" mechanism), which is enough to
+give `useI18n()`'s composer autocomplete over every dotted key — but `vue-i18n`'s own `t(...)` type
+signature (`<Key extends string>(key: Key | ResourceKeys | number) => string`) infers `Key` from
+whatever literal a call site passes, so a bare `t('nav.menuTypo')` still type-checks; the schema
+augmentation alone does not reject it. The real gate is the global ambient `MessageKey` union
+`@eldrajs/vite-plugin-theme` generates into `.eldra/block-types.d.ts` from the same
+`i18n/en-US.json` — every helper that hands a key to some *other* call site to interpolate later
+(`blocks/product-detail/stock.ts`'s `lowStockKey`, `blocks/search/Block.vue`'s `pluralise`, and a few
+more) types its return as `MessageKey`, and an unknown string assigned there fails typecheck. Both
+type sources are generated from the one file, so they can never disagree about which keys exist.
+Nuxt's own typecheck (`nuxt.config.ts`'s `typescript.tsConfig.include`) deep-checks `app/**`, where
+every one of those helpers lives; `blocks/**`'s own template/script bodies are outside that
+project's `include` (a pre-existing fact of this starter's tsconfig, not something this change
+affects) and are only resolution-checked, not expression-checked, by `nuxi typecheck` — so a literal
+`t('typo')` written directly inside a block is not caught by any mechanism here.
 
 The same active locale is what every `Intl` format on the page runs in: `app/plugins/
 eldra-ui-messages.ts` provides it to `@eldrajs/ui` under `LOCALE_KEY`, which is where `<Price>`,
@@ -1759,19 +1827,31 @@ the locale — it is the store's, from the platform — so a page served under `
 No hard-coded UI copy in primitives, blocks, or pages — every visible string, `aria-label`, and
 `sr-only` label goes through `t(...)`. Content copy from a block's `mock.json` is data, not UI copy,
 and stays out of the locale files. Add a new key to **both** locale files in the same change; the
-Icelandic string should be a real translation, not a placeholder.
+Icelandic string should be a real translation, not a placeholder. `test/i18n.spec.ts` also runs a
+narrow "no literal UI copy" scan over every block's `<template>` — an `aria-label`/`title`/
+`placeholder`/`alt` written as a plain quoted literal rather than bound to `t(...)` fails it.
 
-**Namespaces.** `Messages` (`app/i18n/messages.ts`) is one object with one nested namespace per
-block, named for the block's own strings (`header` for `navigation`, `cta`, `grid` for
-`collection-grid`, `product` for `product-detail`, `trust` for `trust-strip`, and so on — most
-match the `apiId` directly, a few are shortened for readability) — a block's own spec only ever
-reads its own namespace, so two blocks can never collide on a key. Two namespaces are shared rather
-than per-block: `storefront` is vocabulary every commerce block needs in common — a
-`StorefrontResult.pending`/`error` state, an order's delivery step — so it lives once instead of
-once per commerce block namespace; `editor` holds the hint strings every block's empty-state
-`EditorPlaceholder` reads (shown only under `useEditing()`), also shared rather than duplicated.
-`nav`, `notFound`, `loading` and `error` are the page-chrome strings `app/app.vue` and the 404 page
-use directly.
+**Namespaces.** `i18n/en-US.json` is one object with one nested namespace per block, named for the
+block's own strings (`header` for `navigation`, `cta`, `grid` for `collection-grid`, `product` for
+`product-detail`, `trust` for `trust-strip`, and so on — most match the `apiId` directly, a few are
+shortened for readability) — a block's own spec only ever reads its own namespace, so two blocks can
+never collide on a key. Two namespaces are shared rather than per-block: `storefront` is vocabulary
+every commerce block needs in common — a `StorefrontResult.pending`/`error` state, an order's
+delivery step — so it lives once instead of once per commerce block namespace; `editor` holds the
+hint strings every block's empty-state `EditorPlaceholder` reads (shown only under `useEditing()`),
+also shared rather than duplicated. `nav`, `notFound`, `loading` and `error` are the page-chrome
+strings `app/app.vue` and the 404 page use directly. `ui` is the one namespace that is not the
+theme's own — see above.
+
+**Storybook and tests install `vue-i18n` straight from the two JSON files** — no gateway, no
+`virtual:eldra/messages` in either environment. `.storybook/i18n.ts` builds one `createI18n()`
+instance installed once on the Storybook Vue app (`.storybook/preview.ts`'s `setup(app)`);
+`test/support/mountBlock.ts`'s `mountOptions()` builds a fresh one per mount (`global.plugins`), the
+same fallback chain degenerated to the theme's own default locale (there is no organisation in
+either environment). A spec whose own locale has to switch live after mounting — `blocks/
+collection-grid/__tests__/Block.spec.ts`'s "follows a locale switch" — builds its own `createI18n()`
+and its own watcher rather than asking the shared harness to carry reactive plumbing every other
+caller would pay for.
 
 ## 6. Content locales
 

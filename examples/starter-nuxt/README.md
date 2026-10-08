@@ -194,14 +194,14 @@ What the theme does with it:
   language, and renders nothing at all when there is only one;
 - **every link keeps the language** — `app/components/EldraRouterLink.vue` adds the prefix once for
   the whole theme, since it is the component `@eldrajs/ui`'s `Link`/`Button` route through;
-- the **UI strings and all number formatting** follow the page's locale (`app/i18n/*`,
-  `useT()`), while the **currency stays the store's**;
+- the **UI strings and all number formatting** follow the page's locale (`i18n/*.json`, read through
+  `vue-i18n`'s own `useI18n()` — no wrapper), while the **currency stays the store's**;
 - the **storefront** reads the catalog, search and orders in that locale too.
 
 The theme ships `en-US` and `is-IS` message sets. A configured locale with no set of its own gets
-English chrome around its own content — add a file under `app/i18n/` and register it in
-`app/composables/useT.ts` and `app/i18n/uiMessages.ts` to change that. A store with one locale
-behaves exactly as it did before any of this: no prefixes, no switcher, no `locale` on any read.
+English chrome around its own content — add a file under `i18n/` (the theme root, beside
+`tokens.json`) with the same key set to change that. A store with one locale behaves exactly as it
+did before any of this: no prefixes, no switcher, no `locale` on any read.
 
 `ELDRA_LOCALE` still means what it meant — an override of which locale lives at `/`.
 `docs/starter-kit.md` section 6 has the rules a customer editing blocks needs; `docs/themes.md` has
