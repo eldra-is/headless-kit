@@ -14,8 +14,10 @@ Release-please writes the generated notes from commit messages and does not repl
   default locale's node exists and differs from the chosen one, each field the chosen node leaves
   untranslated (missing, `null`, an empty or whitespace-only string, an empty array or object, or a
   rich-text document with no text) is filled from the default node's value for that field, applied
-  recursively — a `children` array that is missing or empty takes the default's whole array, never
-  merged by index. `undefined`/omitted (the default) disables the fallback entirely: today's
+  recursively — a `children` array that is missing or empty takes the default's whole array, and two
+  arrays of the same length merge position by position (the platform's link control mirrors the
+  tree across locales, so position n is the same link in both); different lengths keep the active
+  locale's own list. `undefined`/omitted (the default) disables the fallback entirely: today's
   behaviour, unchanged. Exported `isTranslatedValue` mirrors the gateway's own rule for a
   localization row, so a theme that needs the same "is this field translated" check has one
   definition to call rather than a second copy that can drift. **This is a minor**: the fallback is

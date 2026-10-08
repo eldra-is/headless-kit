@@ -300,7 +300,7 @@ describe('createEldraClient', () => {
       expect(firstLink(entry.data).group).toBe('Söfn-hópur');
     });
 
-    it("takes the default locale's whole children array when the active locale's is missing/empty — never merged by index", async () => {
+    it("takes the default locale's whole children array when the active locale's is missing/empty", async () => {
       const defaultChildren = [{ label: 'Mugs' }, { label: 'Plates' }];
       const doc = linkDoc(
         { kind: 'none', label: 'Collections', group: 'Collections', children: defaultChildren },
@@ -315,6 +315,45 @@ describe('createEldraClient', () => {
       });
       const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
       expect(firstLink(entry.data).children).toEqual(defaultChildren);
+    });
+
+    it("merges same-length children position by position: a child without a group takes the default's, its own label stays", async () => {
+      const doc = linkDoc(
+        {
+          kind: 'none',
+          label: 'Knitwear',
+          children: [{ kind: 'collection', label: 'Shop all knitwear', group: 'Collections' }],
+        },
+        { kind: 'none', label: 'Prjóna vörur', children: [{ kind: 'collection', label: 'Versla vetrar settið' }] }
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
+      expect(firstLink(entry.data).children).toEqual([
+        { kind: 'collection', label: 'Versla vetrar settið', group: 'Collections' },
+      ]);
+    });
+
+    it("children lists of different lengths are not the same list: the active locale's stands as it is", async () => {
+      const own = [{ kind: 'collection', label: 'Bollar' }];
+      const doc = linkDoc(
+        { kind: 'none', label: 'Knitwear', children: [{ label: 'Mugs', group: 'A' }, { label: 'Plates', group: 'A' }] },
+        { kind: 'none', label: 'Prjóna vörur', children: own }
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
+      expect(firstLink(entry.data).children).toEqual(own);
     });
 
     it('a translated (non-empty) children array is kept, not replaced by the default', async () => {

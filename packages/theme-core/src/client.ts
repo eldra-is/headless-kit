@@ -354,9 +354,20 @@ function mergeLocalizedFallback(chosen: unknown, defaultValue: unknown): unknown
   if (isComposite(chosen) && isComposite(defaultValue)) {
     const merged: Record<string, unknown> = { ...chosen };
     for (const key of Object.keys(defaultValue)) {
-      if (!isTranslatedValue(merged[key])) merged[key] = defaultValue[key];
+      merged[key] = isTranslatedValue(merged[key])
+        ? mergeLocalizedFallback(merged[key], defaultValue[key])
+        : defaultValue[key];
     }
     return merged;
+  }
+  // Two lists of the same length are the same list in two languages: the platform's
+  // link control mirrors everything but the words across locales, so position n here
+  // is position n there, and each pair merges like the records above. Lists of
+  // different lengths are not that, and the active locale's own list stands.
+  if (Array.isArray(chosen) && Array.isArray(defaultValue)) {
+    if (chosen.length === 0) return defaultValue;
+    if (chosen.length !== defaultValue.length) return chosen;
+    return chosen.map((item, i) => mergeLocalizedFallback(item, defaultValue[i]));
   }
   return isTranslatedValue(chosen) ? chosen : defaultValue;
 }
