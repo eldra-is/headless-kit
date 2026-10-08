@@ -438,9 +438,9 @@ export interface EldraThemeOptions {
   breakpoints?: LayoutBreakpoints;
   /**
    * Transforms `virtual:eldra/messages`'s content before it is served — called with the
-   * manifest's own `messages` block (or the K1 fallback, `{ defaultLocale: 'en-US', locales: {} }`,
-   * when the theme ships no `i18n/` directory) and returning what the virtual module actually
-   * exports. Absent, the module keeps serving that input unchanged, exactly as K1 shipped it.
+   * manifest's own `messages` block (or the fallback catalogue, `{ defaultLocale: 'en-US',
+   * locales: {} }`, when the theme ships no `i18n/` directory) and returning what the virtual
+   * module actually exports. Absent, the module keeps serving that input unchanged.
    *
    * The one caller today is `@eldrajs/theme-nuxt`: it reads the public platform route once per
    * build (a read this package knows nothing about) and, once that read settles, sets this to a

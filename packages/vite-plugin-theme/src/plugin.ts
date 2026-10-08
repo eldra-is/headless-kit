@@ -132,8 +132,8 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
         // The manifest's own `messages` block — absent means the theme ships no `i18n/`
         // directory, so this falls back to an empty English catalogue rather than throwing, a
         // theme with no texts still gets a working vue-i18n. `options.resolveMessages`, when set
-        // (K2: `@eldrajs/theme-nuxt`'s module, once its own platform read has settled), transforms
-        // it — the build-time merge over the platform's theme-message overrides, resolved over the
+        // (`@eldrajs/theme-nuxt`'s module, once its own platform read has settled), transforms it
+        // — the build-time merge over the platform's theme-message overrides, resolved over the
         // organisation's locales; see `EldraThemeOptions['resolveMessages']`'s own doc comment.
         const manifestMessages = scan.manifest?.messages ?? EMPTY_MESSAGES;
         const messages = options.resolveMessages

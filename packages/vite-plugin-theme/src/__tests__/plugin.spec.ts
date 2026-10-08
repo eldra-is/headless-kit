@@ -175,7 +175,7 @@ describe('eldraTheme Vite plugin', () => {
     expect(plugin.load('\0virtual:eldra/messages')).toBe(
       'export default {"defaultLocale":"fr-FR","locales":{"fr-FR":{"header.menu":"Overridden","keys":["en-US","is-IS"]}}};'
     );
-    // Called with the manifest's own messages — the untransformed input K1 already serves.
+    // Called with the manifest's own messages — the untransformed input the module already serves.
     expect(resolveMessages).toHaveBeenCalledWith({
       defaultLocale: 'en-US',
       locales: expect.objectContaining({ 'en-US': expect.any(Object), 'is-IS': expect.any(Object) }),

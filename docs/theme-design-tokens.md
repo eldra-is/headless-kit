@@ -124,18 +124,22 @@ always the fallback when no override exists for an organization's locale.
 `mergeMessageCatalogues(themeDefaults, platform)` layers a platform's theme-message overrides over
 the manifest's own messages — the platform's value wins per key, and a locale the theme never
 shipped a file for is added **whole**, so Studio may translate into a locale nobody on the theme
-side ever wrote; `resolveMessageCatalogue(catalogue, orgLocales, orgDefaultLocale)` then fills in
-every organization locale's full key set from that merged catalogue, implementing the web
-contract's five-tier per-key fallback (`override(locale) → theme(locale) → override(orgDefault) →
-theme(orgDefault) → theme(themeDefault)` — already-merged, so it degenerates to three locale-level
-tiers that still cover all five).
+side ever wrote. `resolveMessageCatalogue(themeDefaults, platform, orgLocales, orgDefaultLocale)`
+implements the web contract's five-tier per-key fallback to the letter —
+`override(locale) → theme(locale) → override(orgDefault) → theme(orgDefault) → theme(themeDefault)`
+— filling in every organization locale's full key set. It takes `themeDefaults` and `platform`
+separately rather than only a merged catalogue because the **last** tier is explicitly
+`theme(themeDefault)` with no accompanying override tier: an override on the theme's own default
+locale must never leak into a key that, for some other locale, falls all the way through to that
+terminal safety net — it has to answer with the theme's own unmerged text there, same as a
+credential-less build would.
 
 `@eldrajs/theme-nuxt`'s module is the one caller: alongside the store's currency and locales reads,
 it adds a third fail-soft read of the public gateway route (`GET /site/v1/theme-messages`, same
 client, same retry policy) — absent gateway credentials or any error answers `null`, with one build
 warning, exactly like the other two reads. Once that read (and the locales read) settle, the module
-sets `resolveMessages` on the options it handed `eldraTheme()`, composing the two helpers above:
-merge the platform's response over the manifest, then resolve over the organization's locales
+sets `resolveMessages` on the options it handed `eldraTheme()` to call `resolveMessageCatalogue`
+with the manifest's messages, the platform's response (or `null`), and the organization's locales
 (falling back to the theme's own locales and its own default locale when the organization's are
 unknown — which is what lets a **credential-less build** still produce a full key set for every
 locale from the manifest alone). The result reaches a theme on `context.messages`
