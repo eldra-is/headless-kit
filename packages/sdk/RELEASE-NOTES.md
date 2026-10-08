@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.5...sdk-v0.2.6) (2026-10-08)
+
+
+### Features
+
+* **sdk,vue:** responsive images from Eldra media variants ([#41](https://github.com/eldra-is/headless-kit/issues/41)) ([cac06e7](https://github.com/eldra-is/headless-kit/commit/cac06e7cbdb68f20bcc34e6785f1ae462fcbd655))
+
 ## [0.2.5](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.4...sdk-v0.2.5) (2026-09-25)
 
 

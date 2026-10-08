@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/eldra-is/headless-kit/compare/rich-text-v0.1.0...rich-text-v0.1.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **rich-text:** let bundlers drop the HTML renderer when only a URL helper is imported ([#43](https://github.com/eldra-is/headless-kit/issues/43)) ([e293f73](https://github.com/eldra-is/headless-kit/commit/e293f731794faeb11eb9b53972803f7d49811d6f))
+
 ## 0.1.0 (2026-09-15)
 
 
