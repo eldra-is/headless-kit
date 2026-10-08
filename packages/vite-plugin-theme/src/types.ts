@@ -436,4 +436,20 @@ export interface EldraThemeOptions {
    * resolveLayoutBreakpoints; an invalid pair here falls back with a console
    * warning rather than failing the build. */
   breakpoints?: LayoutBreakpoints;
+  /**
+   * Transforms `virtual:eldra/messages`'s content before it is served — called with the
+   * manifest's own `messages` block (or the K1 fallback, `{ defaultLocale: 'en-US', locales: {} }`,
+   * when the theme ships no `i18n/` directory) and returning what the virtual module actually
+   * exports. Absent, the module keeps serving that input unchanged, exactly as K1 shipped it.
+   *
+   * The one caller today is `@eldrajs/theme-nuxt`: it reads the public platform route once per
+   * build (a read this package knows nothing about) and, once that read settles, sets this to a
+   * closure merging the platform's response over whatever manifest messages it is handed
+   * (`@eldrajs/theme-core/i18n`'s `mergeMessageCatalogues`/`resolveMessageCatalogue`) — set on the
+   * same options object this function closed over, after `eldraTheme(options)` was already called,
+   * which works because `load()` (like every other hook here) reads `options` through the closure,
+   * not a snapshot taken at construction time, and Nuxt's own module `setup()` always finishes —
+   * platform read included — before Vite's build hooks run.
+   */
+  resolveMessages?: (themeMessages: ThemeMessages) => ThemeMessages;
 }

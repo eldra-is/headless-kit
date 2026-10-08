@@ -129,12 +129,17 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
         return `export default ${JSON.stringify(scan.breakpoints)};`;
       }
       if (id === RESOLVED_MESSAGES_ID) {
-        // The manifest's own `messages` block today; K2 (theme-nuxt) merges
-        // the public web-gateway read over this at generate time. Absent on
-        // the manifest means the theme ships no `i18n/` directory, so the
-        // module falls back to an empty English catalogue rather than
-        // throwing — a theme with no texts still gets a working vue-i18n.
-        return `export default ${JSON.stringify(scan.manifest?.messages ?? EMPTY_MESSAGES)};`;
+        // The manifest's own `messages` block — absent means the theme ships no `i18n/`
+        // directory, so this falls back to an empty English catalogue rather than throwing, a
+        // theme with no texts still gets a working vue-i18n. `options.resolveMessages`, when set
+        // (K2: `@eldrajs/theme-nuxt`'s module, once its own platform read has settled), transforms
+        // it — the build-time merge over the platform's theme-message overrides, resolved over the
+        // organisation's locales; see `EldraThemeOptions['resolveMessages']`'s own doc comment.
+        const manifestMessages = scan.manifest?.messages ?? EMPTY_MESSAGES;
+        const messages = options.resolveMessages
+          ? options.resolveMessages(manifestMessages)
+          : manifestMessages;
+        return `export default ${JSON.stringify(messages)};`;
       }
       if (id === RESOLVED_TOKENS_ID) {
         if (scan.manifest === null) throw new Error('eldra theme manifest is unavailable');

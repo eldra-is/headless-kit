@@ -158,6 +158,30 @@ describe('eldraTheme Vite plugin', () => {
     });
   });
 
+  it('transforms virtual:eldra/messages through options.resolveMessages when the caller sets one', async () => {
+    const root = copyFixture('theme-with-messages');
+    const resolveMessages = vi.fn((themeMessages: ThemeManifest['messages']) => ({
+      defaultLocale: 'fr-FR',
+      locales: { 'fr-FR': { 'header.menu': 'Overridden', keys: Object.keys(themeMessages!.locales) } },
+    }));
+    const plugin = eldraTheme({
+      framework: 'nuxt',
+      themeDir: root,
+      resolveMessages: resolveMessages as never,
+    }) as unknown as CallablePlugin;
+    plugin.configResolved({ root, command: 'build', logger: { error: vi.fn() } });
+    plugin.buildStart();
+
+    expect(plugin.load('\0virtual:eldra/messages')).toBe(
+      'export default {"defaultLocale":"fr-FR","locales":{"fr-FR":{"header.menu":"Overridden","keys":["en-US","is-IS"]}}};'
+    );
+    // Called with the manifest's own messages — the untransformed input K1 already serves.
+    expect(resolveMessages).toHaveBeenCalledWith({
+      defaultLocale: 'en-US',
+      locales: expect.objectContaining({ 'en-US': expect.any(Object), 'is-IS': expect.any(Object) }),
+    });
+  });
+
   it('resolves virtual:eldra/breakpoints to the defaults, and never puts breakpoints on the persisted/emitted manifest', async () => {
     const root = copyFixture('valid-theme');
     const plugin = eldraTheme({ framework: 'nuxt', themeDir: root }) as unknown as CallablePlugin;

@@ -25,6 +25,13 @@ Release-please writes the generated notes from commit messages and does not repl
   without a hand-written `Messages` interface. See `docs/theme-design-tokens.md`'s new "Messages"
   section.
 
+- `eldraTheme()` takes a new option, `resolveMessages?: (themeMessages) => themeMessages` — when
+  set, `virtual:eldra/messages` serves its return value instead of the manifest's own `messages`
+  block unchanged. `@eldrajs/theme-nuxt`'s module is the one caller: it sets this once its own
+  build-time read of the public platform route has settled, merging that response over the
+  manifest defaults and resolving the result over the organisation's locales
+  (`@eldrajs/theme-core/i18n`). Absent, nothing changes from today's behaviour.
+
 - A route template seed may now target `catalog:category`, and its pattern's trailing parameter is
   the **catch-all** `:path*` (`/categories/:path*`) rather than `:slug`: a category is addressed by
   its canonical path — the slugs of its ancestors, root first, then its own. The pairing is checked
