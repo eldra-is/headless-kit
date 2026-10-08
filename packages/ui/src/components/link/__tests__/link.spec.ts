@@ -318,7 +318,11 @@ describe('Link — focus and motion', () => {
     // it and the ring would snap in instead of growing — see
     // `src/__tests__/focus-transition.spec.ts`, which enforces this across every component.
     expect(wrapper.classes()).toContain('eldra-focus');
-    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)(\S+:)*(transition|duration)-/);
+    // `[^\s:]+` (not `\S+`) keeps the colon out of the repeated group: since a
+    // variant token never contains one itself, this matches exactly the same
+    // class strings, but without the ambiguous ways to split a long run of
+    // `!:` that make `(\S+:)*` backtrack exponentially (CodeQL).
+    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)([^\s:]+:)*(transition|duration)-/);
     wrapper.unmount();
   });
 

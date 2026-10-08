@@ -760,7 +760,11 @@ describe('Button — states', () => {
     // ring would snap in rather than grow. `src/__tests__/focus-transition.spec.ts` enforces this
     // across every component; this keeps the reason next to the Button.
     expect(wrapper.classes()).toContain('eldra-focus');
-    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)(\S+:)*(transition|duration)-/);
+    // `[^\s:]+` (not `\S+`) keeps the colon out of the repeated group: since a
+    // variant token never contains one itself, this matches exactly the same
+    // class strings, but without the ambiguous ways to split a long run of
+    // `!:` that make `(\S+:)*` backtrack exponentially (CodeQL).
+    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)([^\s:]+:)*(transition|duration)-/);
     wrapper.unmount();
   });
 
