@@ -9,6 +9,12 @@ platform repository.
 
 ## Unreleased
 
+- Responsive images: `responsiveImage` returns `src`, `srcset`, `sizes`, `width` and `height` for
+  an `<img>` from any media URL or object the API returns; `imageSrcset`, `imageUrl`,
+  `imageVariantFor`, `isEldraImage` and `ELDRA_IMAGE_VARIANT_WIDTHS` are the parts. A bare media
+  URL serves 800 px, so a storefront rendering it as-is was soft on wide screens. External URLs
+  and formats the host does not resize come back unchanged. See `docs/images.md`.
+
 - `checkout.handoffUrl` defaults to the hosted checkout at `https://checkout.eldra.app` (exported
   as `DEFAULT_ELDRA_CHECKOUT_URL`) when the client uses the default API base URL, so a production
   storefront no longer needs a checkout URL setting. `checkoutUrl` and the `ELDRA_CHECKOUT_URL` env

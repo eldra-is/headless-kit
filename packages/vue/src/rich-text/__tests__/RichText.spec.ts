@@ -275,8 +275,27 @@ describe('RichText', () => {
       const iframe = wrapper.find('div[data-embed] iframe');
 
       expect(image.attributes('src')).toBe('https://example.com/image.jpg');
+      expect(image.attributes('srcset')).toBeUndefined();
+      expect(image.attributes('sizes')).toBeUndefined();
       expect(image.attributes('data-asset-id')).toBe('asset-123');
       expect(iframe.attributes('src')).toContain('player.vimeo.com/video/76979871');
+
+      wrapper.unmount();
+    });
+
+    it('gives an Eldra asset image a srcset over its variants', () => {
+      const asset =
+        'https://media.eldra.app/public/6ace9a70-fb78-43f3-87a8-c8adffadcf36/assets/52a99a52-50a2-4e0f-ba14-d0a769e7eede';
+      const wrapper = mountRichText({
+        content: { type: 'doc', content: [{ type: 'image', attrs: { src: asset, alt: 'Mat' } }] },
+      });
+
+      const image = wrapper.find('img');
+      expect(image.attributes('src')).toBe(asset);
+      expect(image.attributes('srcset')).toBe(
+        `${asset}/sm 400w, ${asset}/md 800w, ${asset}/lg 1200w, ${asset}/xl 1920w, ${asset}/full 2560w`
+      );
+      expect(image.attributes('sizes')).toBe('100vw');
 
       wrapper.unmount();
     });

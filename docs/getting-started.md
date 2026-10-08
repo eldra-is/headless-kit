@@ -188,6 +188,22 @@ CMS rich text fields hold a TipTap document. Render it with `RichText` from `@el
 to an HTML string with `toHtml` from `@eldrajs/rich-text` in any framework. See
 [rich-text.md](./rich-text.md).
 
+## Images
+
+A media URL from the API serves an 800 px copy, which is soft anywhere wider. Use
+`responsiveImage` from the SDK, or `EldraImage` from `@eldrajs/vue`, so the browser picks a size:
+
+```vue
+<EldraImage
+  :src="product.thumbnail"
+  :alt="product.thumbnail?.altText || product.title"
+  sizes="(min-width: 1024px) 25vw, 50vw"
+  :aspect-ratio="4 / 5"
+/>
+```
+
+[docs/images.md](images.md) has the variants, how to choose `sizes`, and the hero and banner cases.
+
 ## Persisting the cart
 
 `createCartSession()` keeps the cart id in `localStorage`, `createOrderAccessTokens()` keeps order
