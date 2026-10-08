@@ -130,6 +130,12 @@ import {
 /** The filter icon (Filter button and the no-results empty state) and the mobile sort trigger's. */
 const AdjustmentsIcon = iconComponent('adjustments');
 const SortIcon = iconComponent('arrows-sort');
+/**
+ * `ProductCard` carries its own `min-w-56` so a card alone never collapses, but a grid track is
+ * the width it is: two tracks of 14rem plus a gap do not fit a phone, and the card's minimum
+ * would push the second column off the edge. The track decides the width here, as in the carousel.
+ */
+const CARD_CLASSES = { root: 'min-w-0' } as const;
 /** The freshly-inserted editor hint's box icon (spec States, "Empty (freshly inserted)"). */
 const BoxIcon = iconComponent('box');
 
@@ -1722,6 +1728,7 @@ function hrefForPage(page: number): string {
                     :product="entry.product"
                     ratio="4x5"
                     :heading-level="3"
+                    :classes="CARD_CLASSES"
                     :quick-add="false"
                     :revalidating="entry.revalidating"
                     :announce="false"

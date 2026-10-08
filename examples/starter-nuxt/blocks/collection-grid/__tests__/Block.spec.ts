@@ -3004,3 +3004,15 @@ describe('collection-grid block', () => {
     });
   });
 });
+
+describe('collection-grid — card width on a phone', () => {
+  it('lets the grid track, not the card, decide a card width (two columns fit a phone)', async () => {
+    const wrapper = mountGrid(mock);
+    await wrapper.vm.$nextTick();
+    // The card's own root is the list item's first element; `cards()` answers the items.
+    const root = cards(wrapper)[0]!.element.firstElementChild as HTMLElement;
+    expect(root.className).toContain('min-w-0');
+    expect(root.className).not.toMatch(/\bmin-w-56\b/);
+    wrapper.unmount();
+  });
+});
