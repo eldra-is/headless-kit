@@ -148,6 +148,36 @@ describe('strings rule — no literal UI copy in blocks', () => {
     return out;
   }
 
+  /**
+   * Strips every HTML comment. A single `.replace(/<!--[\s\S]*?-->/g, '')` pass
+   * cannot be shown to leave a `<!--` behind for this delimiter pair — the
+   * lazy, global match always extends an open marker to *some* later close,
+   * so nothing untouched can still contain one — but that is a property of
+   * this one regex, not something the shape of a single, non-repeated
+   * `.replace` call carries on its face. Re-running the strip until nothing
+   * changes makes the "no `<!--` survives" guarantee explicit and keeps it
+   * true even if this gets generalised to a less forgiving delimiter later,
+   * without needing a real HTML/Vue parser just for this check.
+   */
+  function stripHtmlComments(template: string): string {
+    let previous: string;
+    let next = template;
+    do {
+      previous = next;
+      next = previous.replace(/<!--[\s\S]*?-->/g, '');
+    } while (next !== previous);
+    return next;
+  }
+
+  it('strips nested/adjacent comment markers completely, and is stable once nothing is left to strip', () => {
+    expect(stripHtmlComments('<!--<!----> aria-label="Oops"')).toBe(' aria-label="Oops"');
+    expect(stripHtmlComments('<!--a--><!--b--> aria-label="Oops"')).toBe(' aria-label="Oops"');
+    // Idempotent: running it again changes nothing, which is the fixed point
+    // the loop above stops at.
+    const once = stripHtmlComments('<!--<!--a--> aria-label="Oops"-->');
+    expect(stripHtmlComments(once)).toBe(once);
+  });
+
   it('every block template keeps aria-label/title/placeholder/alt bound to t(...), never literal', () => {
     const violations: string[] = [];
     for (const file of vueFiles(blocksDir)) {
@@ -155,7 +185,7 @@ describe('strings rule — no literal UI copy in blocks', () => {
       const start = source.indexOf('<template>');
       const end = source.lastIndexOf('</template>');
       if (start === -1 || end === -1) continue;
-      const template = source.slice(start, end).replace(/<!--[\s\S]*?-->/g, '');
+      const template = stripHtmlComments(source.slice(start, end));
       for (const match of template.matchAll(LITERAL_ATTR)) {
         const value = match[3]!;
         if (/[A-Za-z]/.test(value)) {
