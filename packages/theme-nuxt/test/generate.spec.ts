@@ -149,6 +149,34 @@ describe('theme-nuxt nuxi generate', () => {
     }
   });
 
+  /**
+   * K2: the theme's own `i18n/*.json` catalogue (`test/fixtures/basic/i18n/`, `en-US.json` +
+   * `is-IS.json`) merged with the mock gateway's `/site/v1/theme-messages` response
+   * (`test/mockGateway.ts`) and resolved over the organisation's locales (`is`/`en-US` —
+   * `test/mockGateway.ts`'s `/organization/v1/` fixture). `virtual:eldra/messages` carries the
+   * result into `@eldrajs/theme-nuxt`'s runtime plugin (`context.messages`), which is what bakes
+   * it into the client bundle under `.output/public/_nuxt/` — there is no prerendered page markup
+   * to read it off yet (nothing in the fixture theme consumes `context.messages`; the starter's own
+   * `vue-i18n` wiring is K3), so this reads the built JS directly, the same artifact a live site
+   * would ship to the browser.
+   */
+  it('serves the merged theme-message catalogue on context.messages via virtual:eldra/messages', () => {
+    const chunksDir = output('_nuxt');
+    const bundle = readdirSync(chunksDir)
+      .filter((name) => name.endsWith('.js') || name.endsWith('.mjs'))
+      .map((name) => readFileSync(join(chunksDir, name), 'utf8'))
+      .join('\n');
+
+    // The manifest's own, unmerged default ("Welcome") still rides along elsewhere in the bundle
+    // (the whole manifest object is imported for other reasons too), so the proof is the shape of
+    // the *resolved* catalogue specifically, not merely the presence of one overridden string:
+    // en-US's key is the platform's override, and "is" — the organisation's default locale, a tag
+    // the theme ships no i18n/ file for at all — was added whole by the merge, not left out.
+    expect(bundle).toMatch(
+      /defaultLocale:`is`,locales:\{"en-US":\{"banner\.welcome":`Welcome \(overridden\)`\},is:\{"banner\.welcome":`Pallborð velkomin \(override\)`\}\}/
+    );
+  });
+
   it('prerenders and renders a catalog-backed route template from the public catalog', () => {
     expect(existsSync(output('products/merino-crew/index.html'))).toBe(true);
     // Only active products get a route: the archived one the list endpoint

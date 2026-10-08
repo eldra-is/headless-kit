@@ -129,5 +129,16 @@
         "allowSiteOverride": true
       }
     }
+  },
+  "messages": {
+    "defaultLocale": "en-US",
+    "locales": {
+      "en-US": {
+        "banner.welcome": "Welcome"
+      },
+      "is-IS": {
+        "banner.welcome": "Velkomin"
+      }
+    }
   }
 }

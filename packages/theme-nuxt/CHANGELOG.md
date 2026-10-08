@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **The theme's message catalogue is now merged with the platform's overrides at build time.** A
+  third fail-soft read, alongside the store's currency and locales — `GET /site/v1/theme-messages`,
+  same client, same retry policy, absent gateway or any error answering `null` with one warning
+  (`readThemeMessages`, `./runtime/messages.ts`) — is merged over the manifest's own `messages`
+  block and resolved over the organisation's locales (falling back to the theme's own locales/
+  default locale when those are unknown) via `@eldrajs/theme-core/i18n`'s
+  `mergeMessageCatalogues`/`resolveMessageCatalogue`. The result is what `virtual:eldra/messages`
+  now serves — `@eldrajs/vite-plugin-theme`'s `eldraTheme()` gained a `resolveMessages` option for
+  exactly this, set once the module's own platform read settles — and what the runtime plugin
+  assigns to `context.messages`, so the starter's `vue-i18n` plugin (next) reads one source for
+  every organisation locale's full key set, gateway or none.
+
 - **Fix: a `link` field's mega-menu/footer column heading no longer vanishes on a locale that never
   got its own `group`.** The runtime plugin now resolves the organisation's content locales before
   building the gateway client, and hands it `defaultLocale` (the store's own `locales.default`,

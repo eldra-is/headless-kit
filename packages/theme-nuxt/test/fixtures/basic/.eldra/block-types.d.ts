@@ -39,6 +39,10 @@ declare global {
     id: string;
     data: EldraBlockData[K];
   };
+
+  /** The theme's own message keys (`i18n/<tag>.json`'s default locale),
+   *  flattened to dotted paths — vue-i18n's `t()` argument. */
+  type MessageKey = 'banner.welcome';
 }
 
 export {};

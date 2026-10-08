@@ -456,6 +456,21 @@ export function startMockGateway(options: { missingRouteTemplateSchema?: boolean
             locales: { default: 'is', supported: ['is', 'en-US'] },
           })
         );
+      } else if (url.pathname === '/site/v1/theme-messages') {
+        // K2: the public read `@eldrajs/theme-nuxt`'s module merges over the theme's own
+        // `i18n/*.json` catalogue (`test/fixtures/basic/i18n/`) at build time. `en-US` overrides a
+        // key the theme already ships; `is` (the organisation's default locale, a tag the theme
+        // never shipped a file for — the theme's own locale is `is-IS`) is added whole, so the
+        // generated output proves both halves of the merge in one build.
+        res.end(
+          JSON.stringify({
+            defaultLocale: 'is',
+            locales: {
+              'en-US': { 'banner.welcome': 'Welcome (overridden)' },
+              is: { 'banner.welcome': 'Pallborð velkomin (override)' },
+            },
+          })
+        );
       } else if (url.pathname === '/catalog/v1/products/list') {
         const active = url.searchParams.getAll('filter').includes('status:eq:ACTIVE');
         res.end(

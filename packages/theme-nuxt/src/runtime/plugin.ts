@@ -15,6 +15,7 @@ import { defineNuxtPlugin, useHead, useRuntimeConfig, useState } from 'nuxt/app'
 import { reactive } from 'vue';
 import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
+import messages from 'virtual:eldra/messages';
 import 'virtual:eldra/tokens.css';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
 import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
@@ -76,6 +77,9 @@ export default defineNuxtPlugin({
     const context: EldraContext = {
       client,
       designTokens: reactive(normalizeThemeDesignTokens(manifest.tokens)),
+      // Already the merged/resolved catalogue — @eldrajs/theme-nuxt's module (`resolveMessages`,
+      // over `@eldrajs/theme-core/i18n`) built this build's content; nothing left to normalize.
+      messages: reactive(messages),
       links: createEldraLinkState(),
       locales: createNuxtEldraLocaleState(routing, preview, router, localeNames.value),
       preview,

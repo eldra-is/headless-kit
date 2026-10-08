@@ -19,6 +19,7 @@ import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
 import eldraTheme, {
   type DeclaredSeed,
   type DeclaredThemeCodePage,
+  type EldraThemeOptions,
   type ManifestRoute,
   type ManifestTemplateRoles,
 } from '@eldrajs/vite-plugin-theme';
@@ -33,6 +34,7 @@ import {
   type EldraLocaleRouting,
   type StoreLocales,
 } from './runtime/locales';
+import { readThemeMessages, resolveSiteMessages } from './runtime/messages';
 import { listAllEntries } from './runtime/resolveRoute';
 
 export interface ModuleOptions {
@@ -110,18 +112,21 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url);
     const studioOrigins = validateStudioOrigins(options.studioOrigins);
 
-    addVitePlugin(
-      eldraTheme({
-        framework: 'nuxt',
-        routes: options.routes,
-        customPages: options.customPages,
-        templates: options.templates,
-        templateRoles: options.templateRoles,
-        themeDir: nuxt.options.rootDir,
-        tailwind: options.tailwind,
-        breakpoints: options.breakpoints,
-      })
-    );
+    // A named, mutable object — not an inline literal — because `resolveMessages` below is set
+    // only after this module's own platform read settles, near the end of `setup()`. `eldraTheme`
+    // closes over this exact object, so Vite's hooks (which all run after `setup()` resolves) see
+    // whatever is on it by the time they run, not a snapshot taken here.
+    const themeOptions: EldraThemeOptions = {
+      framework: 'nuxt',
+      routes: options.routes,
+      customPages: options.customPages,
+      templates: options.templates,
+      templateRoles: options.templateRoles,
+      themeDir: nuxt.options.rootDir,
+      tailwind: options.tailwind,
+      breakpoints: options.breakpoints,
+    };
+    addVitePlugin(eldraTheme(themeOptions));
     if (options.tailwind === true) {
       nuxt.options.css.push('virtual:eldra/tailwind-theme.css');
     }
@@ -328,10 +333,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // There is no client when the site has no gateway credentials — the same site the
     // `prerender:routes` hook above warns about and prerenders "/" for.
     //
-    // Two reads of one document, deliberately. Each is independently fail-soft — a currency the
-    // gateway will not give up must not cost the site its locales, nor the other way round — and
-    // one shared, memoised read would make either failure both. It is two requests at build time,
-    // once.
+    // Three reads of one document, deliberately. Each is independently fail-soft — a currency the
+    // gateway will not give up must not cost the site its locales, nor the other way round, nor
+    // either of them the theme's own texts — and one shared, memoised read would make any one
+    // failure all three. It is three requests at build time, once.
     const platformClient =
       options.gatewayUrl === '' || options.orgId === ''
         ? null
@@ -340,9 +345,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             orgId: options.orgId,
             retry: options.retry,
           });
-    const [commerce, locales] = await Promise.all([
+    const [commerce, locales, themeMessages] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
+      readThemeMessages(platformClient),
     ]);
     const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
       commerce: StoreCommerce | null;
@@ -351,6 +357,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     localeRouting = resolveLocaleRouting(locales, options.locale);
+    // Merge over the manifest's own messages (resolved over `locales` — the organisation's own
+    // locales, falling back to the theme's own when they are unknown) only now that both reads
+    // have settled; see `themeOptions`'s own declaration for why mutating it here still reaches
+    // the plugin's `virtual:eldra/messages` content.
+    themeOptions.resolveMessages = (manifestMessages) =>
+      resolveSiteMessages(manifestMessages, themeMessages, locales);
   },
 });
 
