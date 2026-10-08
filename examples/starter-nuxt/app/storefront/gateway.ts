@@ -150,11 +150,12 @@ interface RawFacetOption {
 }
 
 interface RawProductFacets {
-  price?: { min?: number; max?: number } | null;
+  price?: { min?: number; max?: number; histogram?: number[] | null } | null;
   categories?: RawFacetTerm[] | null;
   collections?: RawFacetTerm[] | null;
   availability?: { in_stock?: number; out_of_stock?: number } | null;
   options?: RawFacetOption[] | null;
+  toggles?: Array<{ key?: string; label?: string; count?: number }> | null;
 }
 
 interface RawMediaItem {
@@ -1516,6 +1517,11 @@ function mapFacets(
           price: {
             min: fromMinorUnits(price.min ?? 0, currency),
             max: fromMinorUnits(price.max ?? 0, currency),
+            // Counts, not amounts: the buckets are already on the platform's own span, so they
+            // pass through as they are; absent or empty on the wire means no histogram at all.
+            ...(Array.isArray(price.histogram) && price.histogram.length > 0
+              ? { histogram: price.histogram.map((count) => Math.max(0, Math.trunc(count ?? 0))) }
+              : {}),
           },
         }),
     categories: mapFacetTerms(raw.categories, placed),
@@ -1556,6 +1562,16 @@ function mapFacets(
             })),
         };
       }),
+    ...(() => {
+      const toggles = (raw.toggles ?? [])
+        .filter((toggle) => typeof toggle.key === 'string' && toggle.key !== '')
+        .map((toggle) => ({
+          key: toggle.key!,
+          label: toggle.label ?? toggle.key!,
+          count: toggle.count ?? 0,
+        }));
+      return toggles.length > 0 ? { toggles } : {};
+    })(),
   };
 }
 

@@ -334,9 +334,8 @@ export interface CatalogFacets {
     max: number;
     /**
      * Product counts over 24 equal buckets spanning `[min, max]`, drawn as the filter panel's
-     * decorative histogram above the price track. Not sent by any storefront today — a Core
-     * follow-up, scheduled separately — so the panel draws no histogram at all until this arrives,
-     * exactly as it does for any other source that leaves it out.
+     * decorative histogram above the price track. The platform gateway sends it from contract 3.12.0;
+     * a source that leaves it out gets no histogram at all.
      */
     histogram?: number[];
   };
@@ -383,8 +382,8 @@ export interface CatalogFacets {
   options: CatalogFacetOption[];
   /**
    * Yes/no facets beyond availability (pre-order, on sale, …), each drawn as one more switch row
-   * beside "In stock only" in the same `toggle` facet. Not sent by any storefront today — a Core
-   * follow-up, scheduled separately — so the panel offers only availability until this arrives.
+   * beside "In stock only" in the same `toggle` facet. The platform gateway sends them from contract
+   * 3.12.0 (`on_sale` today); a source that leaves them out offers only availability.
    */
   toggles?: CatalogFacetToggle[];
 }

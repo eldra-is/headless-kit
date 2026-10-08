@@ -1198,6 +1198,27 @@ describe('createGatewayStorefront', () => {
       expect(facets?.options[0]?.values).toHaveLength(2);
     });
 
+    it('carries the price histogram and the toggle facets through, counts untouched', async () => {
+      const histogram = Array.from({ length: 24 }, (_, i) => (i % 5 === 0 ? 2 : 0));
+      const facets = await facetsFor({
+        price: { min: 2800, max: 15000, histogram },
+        toggles: [{ key: 'on_sale', label: 'On sale', count: 3 }],
+      });
+
+      // Counts are counts: no unit conversion, no reordering, one entry per bucket.
+      expect(facets?.price?.histogram).toEqual(histogram);
+      expect(facets?.toggles).toEqual([{ key: 'on_sale', label: 'On sale', count: 3 }]);
+    });
+
+    it('offers no histogram and no toggles for a platform that sends none', async () => {
+      const facets = await facetsFor({ price: { min: 2800, max: 15000 }, toggles: [] });
+
+      // The span itself still converts to major units like any other read in this fixture.
+      expect(facets?.price).toEqual({ min: 28, max: 150 });
+      expect(facets?.price).not.toHaveProperty('histogram');
+      expect(facets).not.toHaveProperty('toggles');
+    });
+
     it('answers no facets at all for a gateway that sent none', async () => {
       expect(await facetsFor(undefined)).toBeUndefined();
       expect(await facetsFor(null)).toBeUndefined();
