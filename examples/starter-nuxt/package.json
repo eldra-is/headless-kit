@@ -3,9 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "eldra": {
-    "defaultLocale": "en-US"
-  },
   "scripts": {
     "dev": "nuxi dev",
     "generate": "nuxi generate",
@@ -51,5 +48,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "eldra": {
+    "defaultLocale": "en-US"
   }
 }

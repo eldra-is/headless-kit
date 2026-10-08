@@ -324,7 +324,11 @@ describe('createEldraClient', () => {
           label: 'Knitwear',
           children: [{ kind: 'collection', label: 'Shop all knitwear', group: 'Collections' }],
         },
-        { kind: 'none', label: 'Prjóna vörur', children: [{ kind: 'collection', label: 'Versla vetrar settið' }] }
+        {
+          kind: 'none',
+          label: 'Prjóna vörur',
+          children: [{ kind: 'collection', label: 'Versla vetrar settið' }],
+        }
       );
       fetchMock.mockResolvedValue(jsonResponse(doc));
       const c = createEldraClient({
@@ -342,7 +346,14 @@ describe('createEldraClient', () => {
     it("children lists of different lengths are not the same list: the active locale's stands as it is", async () => {
       const own = [{ kind: 'collection', label: 'Bollar' }];
       const doc = linkDoc(
-        { kind: 'none', label: 'Knitwear', children: [{ label: 'Mugs', group: 'A' }, { label: 'Plates', group: 'A' }] },
+        {
+          kind: 'none',
+          label: 'Knitwear',
+          children: [
+            { label: 'Mugs', group: 'A' },
+            { label: 'Plates', group: 'A' },
+          ],
+        },
         { kind: 'none', label: 'Prjóna vörur', children: own }
       );
       fetchMock.mockResolvedValue(jsonResponse(doc));

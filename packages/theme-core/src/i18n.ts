@@ -72,7 +72,11 @@ export function flattenMessages(nested: Record<string, unknown>): Record<string,
   return out;
 }
 
-function flattenInto(node: Record<string, unknown>, prefix: string, out: Record<string, string>): void {
+function flattenInto(
+  node: Record<string, unknown>,
+  prefix: string,
+  out: Record<string, string>
+): void {
   for (const key of Object.keys(node)) {
     if (FORBIDDEN_KEYS.has(key)) continue;
     const value = node[key];
@@ -133,7 +137,10 @@ export function mergeMessageCatalogues(
   platform: ThemeMessages | null
 ): ThemeMessages {
   if (platform === null) {
-    return { defaultLocale: themeDefaults.defaultLocale, locales: cloneLocales(themeDefaults.locales) };
+    return {
+      defaultLocale: themeDefaults.defaultLocale,
+      locales: cloneLocales(themeDefaults.locales),
+    };
   }
   const tags = new Set([...Object.keys(themeDefaults.locales), ...Object.keys(platform.locales)]);
   const locales: Record<string, Record<string, string>> = {};

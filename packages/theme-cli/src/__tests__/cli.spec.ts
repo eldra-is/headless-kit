@@ -250,10 +250,7 @@ describe('eldra-theme CLI', () => {
     writeThemePackage(dir);
     scaffoldBlock({ themeDir: dir, apiId: 'hero' });
     mkdirSync(join(dir, 'i18n'), { recursive: true });
-    writeFileSync(
-      join(dir, 'i18n', 'en-US.json'),
-      JSON.stringify({ Header: { menu: 'Menu' } })
-    );
+    writeFileSync(join(dir, 'i18n', 'en-US.json'), JSON.stringify({ Header: { menu: 'Menu' } }));
 
     const result = await run(['validate'], dir);
     expect(result.exitCode).toBe(1);

@@ -35,7 +35,9 @@ describe('locale key parity', () => {
  * (the theme's own default locale; a real page's chain also tries the organisation's default
  * locale first — `app/plugins/eldra-i18n.ts` — which there is none of here).
  */
-function mountWithLocale(locale: string): (key: string, params?: Record<string, unknown>) => string {
+function mountWithLocale(
+  locale: string
+): (key: string, params?: Record<string, unknown>) => string {
   let translate!: (key: string, params?: Record<string, unknown>) => string;
   const Harness = defineComponent({
     setup() {

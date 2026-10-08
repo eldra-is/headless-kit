@@ -51,7 +51,10 @@ describe('live theme-message catalogue', () => {
   it('adds a locale the catalogue did not carry yet', () => {
     const target = context();
     expect(
-      applyThemeMessages(target, { revision: 2, locales: { 'fr-FR': { 'header.menu': 'Menu FR' } } })
+      applyThemeMessages(target, {
+        revision: 2,
+        locales: { 'fr-FR': { 'header.menu': 'Menu FR' } },
+      })
     ).toBe(true);
     expect(target.messages.locales['fr-FR']).toEqual({ 'header.menu': 'Menu FR' });
   });

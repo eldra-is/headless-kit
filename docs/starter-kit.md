@@ -1760,7 +1760,7 @@ so the package's ~40 **parameterized** keys (`closeDrawer(name)`, `reviewCount(n
 which embed real pluralization logic no flat template can carry) are not in `ui.*` at all and are
 not overridable — `app/plugins/eldra-ui-messages.ts` falls those back to the package's own function
 straight from `@eldrajs/ui`, and falls back to it for a plain-string key too whenever the active
-locale's catalogue has no entry for it. Every other `ui.*` key *is* overridable: it is exactly what
+locale's catalogue has no entry for it. Every other `ui.*` key _is_ overridable: it is exactly what
 reaches Studio's "Theme texts" page (the contract's `messages` manifest block), where an operator
 can translate a key the theme ships no file for, or override the theme's own default.
 
@@ -1808,7 +1808,7 @@ signature (`<Key extends string>(key: Key | ResourceKeys | number) => string`) i
 whatever literal a call site passes, so a bare `t('nav.menuTypo')` still type-checks; the schema
 augmentation alone does not reject it. The real gate is the global ambient `MessageKey` union
 `@eldrajs/vite-plugin-theme` generates into `.eldra/block-types.d.ts` from the same
-`i18n/en-US.json` — every helper that hands a key to some *other* call site to interpolate later
+`i18n/en-US.json` — every helper that hands a key to some _other_ call site to interpolate later
 (`blocks/product-detail/stock.ts`'s `lowStockKey`, `blocks/search/Block.vue`'s `pluralise`, and a few
 more) types its return as `MessageKey`, and an unknown string assigned there fails typecheck. Both
 type sources are generated from the one file, so they can never disagree about which keys exist.

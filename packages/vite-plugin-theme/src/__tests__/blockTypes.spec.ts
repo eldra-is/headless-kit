@@ -383,9 +383,7 @@ describe('generateBlockTypes', () => {
           'is-IS': { 'header.menu': 'Valmynd' },
         },
       });
-      expect(output).toContain(
-        "type MessageKey = 'cart.empty.title' | 'header.menu';"
-      );
+      expect(output).toContain("type MessageKey = 'cart.empty.title' | 'header.menu';");
     });
 
     it('emits no MessageKey when the theme declares no messages', () => {

@@ -413,7 +413,8 @@ function projectLocalizedValue(
     const chosen = record[chosenKey];
     const defaultValue =
       defaultLocale != null && chosenKey !== defaultLocale ? record[defaultLocale] : undefined;
-    const resolved = defaultValue !== undefined ? mergeLocalizedFallback(chosen, defaultValue) : chosen;
+    const resolved =
+      defaultValue !== undefined ? mergeLocalizedFallback(chosen, defaultValue) : chosen;
     return projectLocalizedValue(resolved, locale, defaultLocale, apiId, path);
   }
 

@@ -57,8 +57,7 @@ const LINK_METADATA_KEYS = ['kinds', 'allowedEntrySchemaApiIds', 'tree'] as cons
 const SCHEMA_API_ID_PATTERN = /^[a-z][a-z0-9-]{1,48}$/;
 /** A message key: a dotted path of camelCase segments (`header.menu`,
  * `cart.empty.title`). Mirrors Core's own grammar for a theme message key. */
-const MESSAGE_KEY_PATTERN =
-  /^[a-z0-9]+([A-Z][a-z0-9]*)*(\.[a-z0-9]+([A-Z][a-z0-9]*)*)*$/;
+const MESSAGE_KEY_PATTERN = /^[a-z0-9]+([A-Z][a-z0-9]*)*(\.[a-z0-9]+([A-Z][a-z0-9]*)*)*$/;
 const MAX_MESSAGE_KEY_LENGTH = 128;
 const MAX_MESSAGE_VALUE_LENGTH = 2000;
 const MAX_MESSAGE_KEYS = 2000;
@@ -959,9 +958,7 @@ function readMessages(
     return undefined;
   }
   if (fileNames.length > MAX_MESSAGE_LOCALES) {
-    errors.push(
-      `i18n: contains ${fileNames.length} locale files — exceeds ${MAX_MESSAGE_LOCALES}`
-    );
+    errors.push(`i18n: contains ${fileNames.length} locale files — exceeds ${MAX_MESSAGE_LOCALES}`);
   }
 
   const locales: Record<string, Record<string, string>> = {};

@@ -1,6 +1,12 @@
 import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app';
 import { inject } from 'vue';
-import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, enUS as uiEnUS, type UiMessages } from '@eldrajs/ui';
+import {
+  CURRENCY_KEY,
+  LOCALE_KEY,
+  MESSAGES_KEY,
+  enUS as uiEnUS,
+  type UiMessages,
+} from '@eldrajs/ui';
 import { isIS as uiIsIS } from '@eldrajs/ui/messages/is-IS';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { toStorefrontCommerce } from '../storefront/commerce';

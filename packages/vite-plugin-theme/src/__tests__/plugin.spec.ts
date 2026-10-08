@@ -162,7 +162,9 @@ describe('eldraTheme Vite plugin', () => {
     const root = copyFixture('theme-with-messages');
     const resolveMessages = vi.fn((themeMessages: ThemeManifest['messages']) => ({
       defaultLocale: 'fr-FR',
-      locales: { 'fr-FR': { 'header.menu': 'Overridden', keys: Object.keys(themeMessages!.locales) } },
+      locales: {
+        'fr-FR': { 'header.menu': 'Overridden', keys: Object.keys(themeMessages!.locales) },
+      },
     }));
     const plugin = eldraTheme({
       framework: 'nuxt',
@@ -178,7 +180,10 @@ describe('eldraTheme Vite plugin', () => {
     // Called with the manifest's own messages — the untransformed input the module already serves.
     expect(resolveMessages).toHaveBeenCalledWith({
       defaultLocale: 'en-US',
-      locales: expect.objectContaining({ 'en-US': expect.any(Object), 'is-IS': expect.any(Object) }),
+      locales: expect.objectContaining({
+        'en-US': expect.any(Object),
+        'is-IS': expect.any(Object),
+      }),
     });
   });
 

@@ -1902,7 +1902,8 @@
    makes the inset 0.875rem rather than the spec's 0.625rem; the README's Deviations entry says so. */
 @utility eldra-range-gutter-thumb {
   padding-inline: calc(
-    var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) + var(--eldra-focus-width)
+    var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
+      var(--eldra-focus-width)
   );
 }
 

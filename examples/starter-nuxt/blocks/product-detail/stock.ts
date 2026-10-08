@@ -1,4 +1,3 @@
-
 /**
  * The buy box's stock line, derived — not stored. Spec `02-blocks.md` "Product detail" → States
  * gives four mutually exclusive states, each with its own tone, icon and words, and one of them

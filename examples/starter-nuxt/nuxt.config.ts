@@ -27,7 +27,9 @@ export default defineNuxtConfig({
     // actually bundles, never an external `require`. Forcing `vue-i18n` into the server bundle (where
     // `replace` reaches it) is the fix; `@intlify/*` are vue-i18n's own dependencies, inlined for the
     // same reason since the externals tracer resolves them independently.
-    externals: { inline: ['vue-i18n', '@intlify/core-base', '@intlify/message-compiler', '@intlify/shared'] },
+    externals: {
+      inline: ['vue-i18n', '@intlify/core-base', '@intlify/message-compiler', '@intlify/shared'],
+    },
     // `200.html` itself is Nitro's own built-in SPA-fallback output for the
     // static preset; it needs no config key here (nitro's PrerenderOptions
     // type has no `fallback` property — a prior `fallback: '200.html'` here

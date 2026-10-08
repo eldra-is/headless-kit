@@ -144,7 +144,7 @@ describe('resolveSiteDesignTokens', () => {
     expect(resolveSiteDesignTokens(RESOLVED)).toEqual(RESOLVED);
   });
 
-  it('treats an absent runtime-config key — `null`, `undefined` or `\'\'` — as no override', () => {
+  it("treats an absent runtime-config key — `null`, `undefined` or `''` — as no override", () => {
     expect(resolveSiteDesignTokens(null)).toBeNull();
     expect(resolveSiteDesignTokens(undefined)).toBeNull();
     expect(resolveSiteDesignTokens('')).toBeNull();

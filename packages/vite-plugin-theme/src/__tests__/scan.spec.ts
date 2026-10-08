@@ -1076,7 +1076,7 @@ describe('scanTheme theme messages', () => {
     expect(manifest).not.toHaveProperty('messages');
   });
 
-  it("honors a declared eldra.defaultLocale over the fallback rules", () => {
+  it('honors a declared eldra.defaultLocale over the fallback rules', () => {
     const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-messages-declared-'));
     cpSync(fixture('theme-with-messages'), dir, { recursive: true });
     writeFileSync(

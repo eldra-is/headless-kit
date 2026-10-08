@@ -63,7 +63,9 @@ export async function readThemeMessages(
 ): Promise<ThemeMessages | null> {
   const read = reader === null ? { messages: null, cause: null } : await readOrNull(reader);
   if (read.messages === null) {
-    warn(read.cause === null ? THEME_MESSAGES_WARNING : `${THEME_MESSAGES_WARNING} (${read.cause})`);
+    warn(
+      read.cause === null ? THEME_MESSAGES_WARNING : `${THEME_MESSAGES_WARNING} (${read.cause})`
+    );
     return null;
   }
   return read.messages;

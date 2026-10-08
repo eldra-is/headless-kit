@@ -169,7 +169,8 @@ const FIELD_CONTROL = 'tabular-nums';
  * the two fields, with the glyph centred in it — centring on the whole row would put it level
  * with the labels above the fields instead.
  */
-const SEPARATOR_BASE = 'self-end flex control-h-sm items-center justify-center text-body-sm text-muted';
+const SEPARATOR_BASE =
+  'self-end flex control-h-sm items-center justify-center text-body-sm text-muted';
 /**
  * Spec → Sizes, Histogram and Range rows: the track and the bars are inset by the thumb's radius,
  * not by half a touch target — the slider's own default keeps a 44px band inside its box, which
