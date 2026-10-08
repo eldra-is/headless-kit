@@ -31,6 +31,12 @@ module.exports = [
     limit: '3 kB',
   },
   {
+    name: '@eldrajs/rich-text — safeImageSrc',
+    path: 'packages/rich-text/dist/index.js',
+    import: '{ safeImageSrc }',
+    limit: '200 B',
+  },
+  {
     name: '@eldrajs/rich-text — everything',
     path: 'packages/rich-text/dist/index.js',
     limit: '6 kB',
@@ -47,7 +53,7 @@ module.exports = [
     path: 'packages/vue/dist/index.js',
     import: '{ EldraImage }',
     ignore: ['vue'],
-    limit: '2.5 kB',
+    limit: '1 kB',
   },
   {
     name: '@eldrajs/theme-core — everything',

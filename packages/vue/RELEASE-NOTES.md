@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.1](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.0...vue-v0.1.1) (2026-10-08)
+
+
+### Features
+
+* **sdk,vue:** responsive images from Eldra media variants ([#41](https://github.com/eldra-is/headless-kit/issues/41)) ([cac06e7](https://github.com/eldra-is/headless-kit/commit/cac06e7cbdb68f20bcc34e6785f1ae462fcbd655))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/rich-text bumped to 0.1.1
+    * @eldrajs/sdk bumped to 0.2.6
+
 ## 0.1.0 (2026-09-15)
 
 
