@@ -99,9 +99,9 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 @eldrajs/ui check:tokens` runs in the root `lint:check` and fails on drift — regenerate with
   `build-tokens`, never hand-edit). The Storybook screenshot harness
   (`pnpm --filter @eldrajs/ui screenshots`, baselines in `packages/ui/__screenshots__`) is
-  **outside `pnpm check` and outside CI**: the committed PNGs are macOS/Chromium renderings, and
-  font rasterisation differs enough per platform that a Linux run fails nearly every story.
-  Regenerate per platform, and do not commit a regeneration made on another one.
+  **outside `pnpm check` and outside CI**, and the baselines are **not tracked** (git-ignored):
+  font rasterisation differs enough per platform that one machine's PNGs fail nearly every story
+  on another. Create your own once with `screenshots --update`, then compare against them.
   Three CSS entries ship: `./tokens.css` (the variables),
   `./tailwind.css` (the `@theme` block and the `@utility` rules — type styles, control heights,
   the `eldra-focus` ring, motion and layer utilities — copied to `dist/` verbatim so a consumer's

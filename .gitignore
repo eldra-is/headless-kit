@@ -18,3 +18,6 @@ __screenshots__/__diff__
 eldra-starter-spec/*
 !eldra-starter-spec/tokens.json
 eldra-starter-spec 2/
+
+# Screenshot baselines are per-machine renderings; each developer keeps their own.
+packages/ui/__screenshots__/
