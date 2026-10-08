@@ -542,6 +542,8 @@ export function buildFilterFacets(
     const collapsed = row.collapsed === true;
 
     if (source === 'price') {
+      // Omit a range where min === max: nothing for the panel to filter.
+      if (options.price.min === options.price.max) continue;
       out.push({
         id: 'price',
         label,

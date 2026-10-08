@@ -426,6 +426,14 @@ describe('buildFilterFacets', () => {
     expect(out[0]).not.toHaveProperty('histogram');
   });
 
+  it('omits the price facet when a single-price scope has min === max', () => {
+    const out = buildFilterFacets([{ source: 'price' }], {
+      ...baseOptions,
+      price: { min: 3500, max: 3500, step: 1, slider: true, currency: true },
+    });
+    expect(out).toHaveLength(0);
+  });
+
   it('carries a histogram through only when the facets supplied one', () => {
     const withHistogram = buildFilterFacets([{ source: 'price' }], {
       ...baseOptions,
