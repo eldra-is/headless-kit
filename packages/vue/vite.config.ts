@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => 'index.js',
     },
     rolldownOptions: {
-      external: ['vue', '@eldrajs/rich-text'],
+      external: ['vue', '@eldrajs/rich-text', '@eldrajs/sdk'],
     },
   },
   test: {

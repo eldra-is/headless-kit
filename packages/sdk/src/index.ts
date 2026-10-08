@@ -95,3 +95,19 @@ export type {
   RuntimeEnv,
   RuntimeValue,
 } from './types';
+export {
+  ELDRA_IMAGE_VARIANT_WIDTHS,
+  imageSrcset,
+  imageUrl,
+  imageVariantFor,
+  isEldraImage,
+  responsiveImage,
+} from './image';
+export type {
+  EldraImageSource,
+  EldraImageSrcsetOptions,
+  EldraImageVariant,
+  EldraResponsiveImage,
+  EldraResponsiveImageOptions,
+  EldraSizedImageVariant,
+} from './image';
