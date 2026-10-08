@@ -1,6 +1,7 @@
 import { readPreviousManifest, scanTheme } from '@eldrajs/vite-plugin-theme/scan';
 import type { DeclaredThemeCodePage } from '@eldrajs/vite-plugin-theme';
 import { KNOWN_FIELD_TYPES } from '../knownFieldTypes';
+import { stripTrailingSlashes } from '../urls';
 
 const DEFAULT_CAPABLE_FIELD_TYPES: ReadonlySet<string> = new Set([
   'string',
@@ -72,7 +73,7 @@ async function fetchRemoteFieldTypes(opts: ValidateOptions): Promise<ReadonlySet
   if (opts.gatewayUrl === undefined || opts.orgId === undefined) return null;
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
   try {
-    const response = await doFetch(`${opts.gatewayUrl.replace(/\/+$/, '')}/cms/v1/field-types`, {
+    const response = await doFetch(`${stripTrailingSlashes(opts.gatewayUrl)}/cms/v1/field-types`, {
       headers: { 'X-Org-Id': opts.orgId },
     });
     if (!response.ok) return null;

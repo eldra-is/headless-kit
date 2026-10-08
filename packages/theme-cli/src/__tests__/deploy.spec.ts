@@ -86,6 +86,16 @@ describe('deployTheme', () => {
     expect(paths.every((path) => path !== '.' && !path.startsWith('./'))).toBe(true);
   });
 
+  it('strips a long run of trailing slashes off apiUrl before building the deploy request path', async () => {
+    makeBuild(root);
+    api = await startMockDeployApi({ previewUrl: 'https://test-theme.pages.dev' });
+
+    const result = await deployTheme(options({ apiUrl: api.url + '/'.repeat(5000) }));
+
+    expect(result).toMatchObject({ deploymentId: 'dep-1', status: 'SUCCESS' });
+    expect(api.posts).toHaveLength(1);
+  });
+
   it('propagates explicit trigger correlation and commit SHA using the frozen field names', async () => {
     makeBuild(root, 'dist');
     writeFileSync(

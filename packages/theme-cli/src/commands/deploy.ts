@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import * as tar from 'tar';
 import { fieldMigrationLines, type FieldMigrationReport } from '../deployReport';
+import { stripTrailingSlashes } from '../urls';
 
 const MAX_FILES = 20_000;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -64,7 +65,7 @@ export async function deployTheme(opts: DeployOptions): Promise<DeployResult> {
   const cwd = opts.cwd ?? process.cwd();
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
   const log = opts.log ?? console.log;
-  const apiUrl = opts.apiUrl.replace(/\/+$/, '');
+  const apiUrl = stripTrailingSlashes(opts.apiUrl);
   if (opts.token === '')
     throw new DeployError('deploy: empty token (--token or ELDRA_DEPLOY_TOKEN)');
   const dir = opts.dir !== undefined ? join(cwd, opts.dir) : detectBuildDir(cwd);
