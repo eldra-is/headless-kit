@@ -120,6 +120,34 @@ describe('eldraTheme Vite plugin', () => {
     expect(result.footer).toEqual([{ fieldId: 'copyright', type: 'string' }]);
   });
 
+  it('resolves virtual:eldra/blocks to one JSON.stringify([apiId, path]) slice per entry, byte-identical to the naive two-call construction', async () => {
+    const root = copyFixture('valid-theme');
+    const plugin = eldraTheme({ framework: 'nuxt', themeDir: root }) as unknown as CallablePlugin;
+    plugin.configResolved({ root, command: 'build', logger: { error: vi.fn() } });
+    plugin.buildStart();
+
+    const source = plugin.load('\0virtual:eldra/blocks') ?? '';
+
+    // Independent oracle: the pre-fix shape, built by interpolating two separate
+    // `JSON.stringify` calls per entry. `blockImportLine` changes *how* the string
+    // is assembled (one `JSON.stringify` of the whole `[apiId, path]` pair, sliced
+    // apart, rather than two calls glued together by hand) — never *what* it
+    // outputs, which this proves byte-for-byte.
+    const blocksDir = join(root, 'blocks');
+    const naive = ['footer', 'hero']
+      .map(
+        (apiId) =>
+          `  ${JSON.stringify(apiId)}: () => import(${JSON.stringify(join(blocksDir, apiId, 'Block.vue'))})`
+      )
+      .join(',\n');
+    expect(source).toBe(`export default {\n${naive}\n};`);
+
+    const module = (await import(
+      `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
+    )) as { default: Record<string, () => Promise<unknown>> };
+    expect(Object.keys(module.default)).toEqual(['footer', 'hero']);
+  });
+
   it('resolves virtual:eldra/messages to an empty English catalogue when the theme ships no i18n/ directory', () => {
     const root = copyFixture('valid-theme');
     const plugin = eldraTheme({ framework: 'nuxt', themeDir: root }) as unknown as CallablePlugin;
