@@ -351,6 +351,11 @@ export interface ThemeManifest {
    * empty when the theme seeds no pages, for the same reason `templates` is. */
   pageSeeds?: ManifestPageSeed[];
   tokens: ThemeDesignTokens | LegacyThemeTokens;
+  /** The theme's own message catalogue, read from `i18n/<tag>.json` and
+   *  flattened to dotted keys. Absent rather than empty when the theme ships
+   *  no `i18n/` directory, so a theme that declares no texts keeps emitting
+   *  the manifest shape an older Core already accepts. */
+  messages?: ThemeMessages;
   // No `breakpoints` field here: this type is exactly what is persisted to
   // disk and uploaded (`.eldra/manifest.json`), and Core's ingest validates
   // that file strictly — an unrecognized top-level key is rejected outright.
@@ -362,6 +367,15 @@ export interface LegacyThemeTokens {
   colors: Record<string, string>;
   fonts: Record<string, string>;
   spacing: Record<string, string>;
+}
+
+/** The theme's own message catalogue — `i18n/<tag>.json`, flattened to dotted
+ *  keys. `defaultLocale` is the locale whose key set every other locale's keys
+ *  must be a subset of; see `ThemeManifest['messages']` for why it is absent
+ *  rather than present-but-empty when the theme ships none. */
+export interface ThemeMessages {
+  defaultLocale: string;
+  locales: Record<string, Record<string, string>>;
 }
 
 export interface ScanResult {

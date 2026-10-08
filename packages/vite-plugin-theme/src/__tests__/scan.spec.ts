@@ -1021,3 +1021,185 @@ describe('scanTheme link field metadata', () => {
     ]);
   });
 });
+
+describe('scanTheme theme messages', () => {
+  /** A fresh theme with one block and whatever `i18n/*.json` files are
+   * passed — the validation-rule cases below each need their own locale
+   * content, so they build a theme directly rather than cloning the checked-
+   * in `theme-with-messages` fixture. */
+  function messagesTheme(
+    localeFiles: Record<string, string>,
+    packageJson: Record<string, unknown> = { name: 'messages-theme', version: '1.0.0' }
+  ): string {
+    const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-messages-'));
+    writeFileSync(join(dir, 'package.json'), JSON.stringify(packageJson));
+    mkdirSync(join(dir, 'blocks', 'footer'), { recursive: true });
+    cpSync(join(fixture('valid-theme'), 'blocks', 'footer'), join(dir, 'blocks', 'footer'), {
+      recursive: true,
+    });
+    mkdirSync(join(dir, 'i18n'), { recursive: true });
+    for (const [name, content] of Object.entries(localeFiles)) {
+      writeFileSync(join(dir, 'i18n', name), content);
+    }
+    return dir;
+  }
+
+  it('flattens nested i18n/<tag>.json files into manifest.messages, defaulting to en-US when undeclared', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-messages-happy-'));
+    cpSync(fixture('theme-with-messages'), dir, { recursive: true });
+
+    const { manifest, errors } = scanTheme({ themeDir: dir });
+    expect(errors).toEqual([]);
+    expect(manifest?.messages).toEqual({
+      defaultLocale: 'en-US',
+      locales: {
+        'en-US': {
+          'header.menu': 'Menu',
+          'cart.empty.title': 'Your cart is empty',
+          'items.count': '{count} items',
+        },
+        'is-IS': {
+          'header.menu': 'Valmynd',
+          'cart.empty.title': 'Karfan þín er tóm',
+          'items.count': '{count} hlutir',
+        },
+      },
+    });
+  });
+
+  it('omits manifest.messages entirely when the theme has no i18n/ directory, keeping the manifest byte-identical', () => {
+    // valid-theme ships no i18n/ directory; the snapshot test above ("builds
+    // the frozen manifest shape for a valid theme") already proves the whole
+    // manifest is unaffected by this feature — this asserts the specific key.
+    const { manifest, errors } = scanTheme({ themeDir: fixture('valid-theme'), framework: 'nuxt' });
+    expect(errors).toEqual([]);
+    expect(manifest).not.toHaveProperty('messages');
+  });
+
+  it("honors a declared eldra.defaultLocale over the fallback rules", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-messages-declared-'));
+    cpSync(fixture('theme-with-messages'), dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'messages-theme',
+        version: '1.0.0',
+        eldra: { defaultLocale: 'is-IS' },
+      })
+    );
+
+    const { manifest, errors } = scanTheme({ themeDir: dir });
+    expect(errors).toEqual([]);
+    expect(manifest?.messages?.defaultLocale).toBe('is-IS');
+  });
+
+  it('prefers en-US over an alphabetically earlier locale when no default is declared', () => {
+    // "da-DK" sorts before "en-US", so this is distinct from the plain
+    // alphabetical-fallback case below: en-US must win on its own rule, not
+    // by coincidence of sort order.
+    const dir = messagesTheme({
+      'da-DK.json': JSON.stringify({ header: { menu: 'Menu' } }),
+      'en-US.json': JSON.stringify({ header: { menu: 'Menu' } }),
+    });
+
+    const { manifest, errors } = scanTheme({ themeDir: dir });
+    expect(errors).toEqual([]);
+    expect(manifest?.messages?.defaultLocale).toBe('en-US');
+  });
+
+  it('falls back to the alphabetically first locale when en-US is absent and no default is declared', () => {
+    const dir = messagesTheme({
+      'fr-FR.json': JSON.stringify({ header: { menu: 'Menu' } }),
+      'is-IS.json': JSON.stringify({ header: { menu: 'Valmynd' } }),
+    });
+
+    const { manifest, errors } = scanTheme({ themeDir: dir });
+    expect(errors).toEqual([]);
+    expect(manifest?.messages?.defaultLocale).toBe('fr-FR');
+  });
+
+  it('rejects invalid message key grammar and an overlong key', () => {
+    const dir = messagesTheme({
+      'en-US.json': JSON.stringify({ Header: { menu: 'Menu' }, [`a${'b'.repeat(130)}`]: 'x' }),
+      'is-IS.json': '{}',
+    });
+
+    const joined = scanTheme({ themeDir: dir }).errors.join('\n');
+    expect(joined).toContain('i18n/en-US.json: "Header.menu" — key must match');
+    expect(joined).toContain(`i18n/en-US.json: "a${'b'.repeat(130)}" — key must match`);
+    expect(joined).toContain('at most 128 characters');
+  });
+
+  it('rejects a non-string message value and an overlong one', () => {
+    const dir = messagesTheme({
+      'en-US.json': JSON.stringify({ count: 5, long: 'x'.repeat(2001) }),
+      'is-IS.json': '{}',
+    });
+
+    const joined = scanTheme({ themeDir: dir }).errors.join('\n');
+    expect(joined).toContain('i18n/en-US.json: "count" — value must be a string (got number)');
+    expect(joined).toContain('i18n/en-US.json: "long" — value exceeds 2000 characters');
+  });
+
+  it('enforces the 2000-key bound on a locale file', () => {
+    const tooMany = Object.fromEntries(
+      Array.from({ length: 2001 }, (_, index) => [`key${index}`, 'x'])
+    );
+    const dir = messagesTheme({
+      'en-US.json': JSON.stringify(tooMany),
+      'is-IS.json': '{}',
+    });
+
+    const joined = scanTheme({ themeDir: dir }).errors.join('\n');
+    expect(joined).toContain('i18n/en-US.json: contains 2001 keys — exceeds 2000');
+  });
+
+  it('enforces the 20-locale bound', () => {
+    const localeFiles: Record<string, string> = {};
+    for (let index = 0; index < 21; index += 1) {
+      const letter = String.fromCharCode(97 + index);
+      localeFiles[`${letter}${letter}-${letter.toUpperCase()}${letter.toUpperCase()}.json`] = '{}';
+    }
+    const dir = messagesTheme(localeFiles);
+
+    const joined = scanTheme({ themeDir: dir }).errors.join('\n');
+    expect(joined).toContain('i18n: contains 21 locale files — exceeds 20');
+  });
+
+  it('rejects a locale file name that is not a canonical BCP-47 "ll-RR" tag', () => {
+    // A different-case spelling of a tag already present (e.g. "en-us.json"
+    // beside "en-US.json") would collide on a case-insensitive filesystem,
+    // so this uses an unrelated malformed tag instead.
+    const dir = messagesTheme({
+      'en-US.json': JSON.stringify({ header: { menu: 'Menu' } }),
+      'en_US.json': '{}',
+    });
+
+    const joined = scanTheme({ themeDir: dir }).errors.join('\n');
+    expect(joined).toContain(
+      'i18n/en_US.json: file name — must be a BCP-47 locale tag in canonical "ll-RR" form'
+    );
+  });
+
+  it("rejects a non-default locale whose keys are not a subset of the default locale's, naming the locale and the first offending key", () => {
+    const dir = messagesTheme({
+      'en-US.json': JSON.stringify({
+        header: { menu: 'Menu' },
+        cart: { empty: { title: 'Your cart is empty' } },
+      }),
+      'is-IS.json': JSON.stringify({
+        header: { menu: 'Valmynd' },
+        zzzBad: 'Nope',
+        cart: { empty: { title: 'Karfan þín er tóm' } },
+        aaaBad: 'Nope2',
+      }),
+    });
+
+    const joined = scanTheme({ themeDir: dir }).errors.join('\n');
+    expect(joined).toContain(
+      'i18n/is-IS.json: "zzzBad" is not a key of the default locale "en-US"'
+    );
+    // Only the first offending key (in file order) is named, not every one.
+    expect(joined).not.toContain('aaaBad');
+  });
+});

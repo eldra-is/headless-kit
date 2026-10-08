@@ -37,4 +37,5 @@ export type {
   TemplateSeedReusableNode,
   TemplateSeedSchemaApiId,
   ThemeManifest,
+  ThemeMessages,
 } from './types';

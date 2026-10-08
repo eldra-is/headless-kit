@@ -1,0 +1,13 @@
+{
+  "header": {
+    "menu": "Valmynd"
+  },
+  "cart": {
+    "empty": {
+      "title": "Karfan þín er tóm"
+    }
+  },
+  "items": {
+    "count": "{count} hlutir"
+  }
+}

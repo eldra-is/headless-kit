@@ -20,6 +20,7 @@ import type {
   ScanOptions,
   ScanResult,
   ThemeManifest,
+  ThemeMessages,
 } from './types';
 
 const MAX_BLOCKS = 100;
@@ -54,6 +55,17 @@ const LINK_KIND_SET = new Set<string>(LINK_KINDS);
  * the whole surface a block.json may carry on one. */
 const LINK_METADATA_KEYS = ['kinds', 'allowedEntrySchemaApiIds', 'tree'] as const;
 const SCHEMA_API_ID_PATTERN = /^[a-z][a-z0-9-]{1,48}$/;
+/** A message key: a dotted path of camelCase segments (`header.menu`,
+ * `cart.empty.title`). Mirrors Core's own grammar for a theme message key. */
+const MESSAGE_KEY_PATTERN =
+  /^[a-z0-9]+([A-Z][a-z0-9]*)*(\.[a-z0-9]+([A-Z][a-z0-9]*)*)*$/;
+const MAX_MESSAGE_KEY_LENGTH = 128;
+const MAX_MESSAGE_VALUE_LENGTH = 2000;
+const MAX_MESSAGE_KEYS = 2000;
+const MAX_MESSAGE_LOCALES = 20;
+/** The canonical `ll-RR` spelling the kit uses elsewhere (`en-US`, `is-IS`):
+ * two lowercase language letters, a hyphen, two uppercase region letters. */
+const LOCALE_TAG_PATTERN = /^[a-z]{2}-[A-Z]{2}$/;
 
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
 const validateBlockJson = ajv.compile(blockJsonSchema);
@@ -183,10 +195,16 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     templateRoles,
     errors
   );
+  // The theme's own i18n message catalogue, read beside tokens.json/blocks —
+  // see readMessages. Absent (not computed to {}) when the theme ships no
+  // i18n/ directory.
+  const messages = readMessages(themeDir, packageJson, errors);
 
   const manifest: ThemeManifest = {
     manifestVersion: 1,
     theme: {
+      // The theme's optional default message locale is declared beside name
+      // and version, under package.json's own `eldra` key — see readMessages.
       name: sanitizeThemeName(typeof packageJson?.name === 'string' ? packageJson.name : ''),
       version: typeof packageJson?.version === 'string' ? packageJson.version : '0.0.0',
       framework: opts.framework ?? 'vite',
@@ -213,6 +231,10 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     // site's root Page itself.
     ...(pageSeeds.length === 0 ? {} : { pageSeeds }),
     tokens: readTokens(themeDir, errors),
+    // Absent rather than empty when the theme ships no i18n/ directory, so a
+    // theme that declares no texts keeps emitting the manifest shape an
+    // older Core already accepts (and today's manifests stay byte-identical).
+    ...(messages === undefined ? {} : { messages }),
   };
   // Resolved independently of the manifest object above: it must never be
   // serialized into `.eldra/manifest.json` (Core's ingest rejects an
@@ -905,6 +927,143 @@ function sortedStringRecord(value: unknown): Record<string, string> {
       .sort()
       .map((key) => [key, value[key] as string])
   );
+}
+
+/**
+ * Reads the theme's `i18n/<tag>.json` message catalogue (siblings of
+ * `tokens.json`), flattens nested objects of strings into dotted keys, and
+ * validates key grammar/length, value type/length, the locale and key-count
+ * bounds, the locale file's name, and that every non-default locale's keys
+ * are a subset of the default locale's. Returns `undefined` — not an empty
+ * catalogue — when the theme has no `i18n/` directory, so a theme that ships
+ * no texts keeps emitting a manifest an older Core already accepts.
+ *
+ * The default locale is the one the theme declares under package.json's own
+ * `eldra.defaultLocale` key (beside `name`/`version`, read above); when the
+ * theme declares none, it falls back to `en-US` when that locale ships a
+ * file, else the alphabetically first locale file.
+ */
+function readMessages(
+  themeDir: string,
+  packageJson: Record<string, unknown> | null,
+  errors: string[]
+): ThemeMessages | undefined {
+  const i18nDir = join(themeDir, 'i18n');
+  if (!existsSync(i18nDir) || !statSync(i18nDir).isDirectory()) return undefined;
+
+  const fileNames = readdirSync(i18nDir)
+    .filter((name) => statSync(join(i18nDir, name)).isFile())
+    .sort((a, b) => a.localeCompare(b));
+  if (fileNames.length === 0) {
+    errors.push('i18n: directory contains no locale files');
+    return undefined;
+  }
+  if (fileNames.length > MAX_MESSAGE_LOCALES) {
+    errors.push(
+      `i18n: contains ${fileNames.length} locale files — exceeds ${MAX_MESSAGE_LOCALES}`
+    );
+  }
+
+  const locales: Record<string, Record<string, string>> = {};
+  const validTags: string[] = [];
+  for (const fileName of fileNames.slice(0, MAX_MESSAGE_LOCALES)) {
+    const relFile = `i18n/${fileName}`;
+    const tag = fileName.endsWith('.json') ? fileName.slice(0, -'.json'.length) : fileName;
+    if (!fileName.endsWith('.json') || !LOCALE_TAG_PATTERN.test(tag)) {
+      errors.push(
+        `${relFile}: file name — must be a BCP-47 locale tag in canonical "ll-RR" form with a .json extension (e.g. "en-US.json")`
+      );
+      continue;
+    }
+    const parsed = readJsonObject(join(i18nDir, fileName), themeDir, errors);
+    if (parsed === null) continue;
+    const flattened: Record<string, string> = {};
+    flattenMessages(relFile, parsed, '', flattened, errors);
+    const keyCount = Object.keys(flattened).length;
+    if (keyCount > MAX_MESSAGE_KEYS) {
+      errors.push(`${relFile}: contains ${keyCount} keys — exceeds ${MAX_MESSAGE_KEYS}`);
+    }
+    locales[tag] = flattened;
+    validTags.push(tag);
+  }
+  if (validTags.length === 0) return undefined;
+
+  const defaultLocale = resolveDefaultLocale(packageJson, validTags, errors);
+  const defaultKeys = new Set(Object.keys(locales[defaultLocale] ?? {}));
+  for (const tag of validTags) {
+    if (tag === defaultLocale) continue;
+    for (const key of Object.keys(locales[tag]!)) {
+      if (!defaultKeys.has(key)) {
+        errors.push(
+          `i18n/${tag}.json: "${key}" is not a key of the default locale "${defaultLocale}"`
+        );
+        break; // name only the first offending key, per the contract
+      }
+    }
+  }
+
+  return { defaultLocale, locales };
+}
+
+/** The theme's declared `eldra.defaultLocale`, validated against the locale
+ * files actually present; falls back to `en-US` (if shipped) else the
+ * alphabetically first locale tag when undeclared or invalid. */
+function resolveDefaultLocale(
+  packageJson: Record<string, unknown> | null,
+  validTags: string[],
+  errors: string[]
+): string {
+  const declared = isRecord(packageJson?.eldra) ? packageJson.eldra.defaultLocale : undefined;
+  if (declared !== undefined) {
+    if (typeof declared !== 'string' || !LOCALE_TAG_PATTERN.test(declared)) {
+      errors.push(
+        `package.json: eldra.defaultLocale — must be a BCP-47 locale tag in canonical "ll-RR" form (got ${JSON.stringify(declared)})`
+      );
+    } else if (!validTags.includes(declared)) {
+      errors.push(`package.json: eldra.defaultLocale — no i18n/${declared}.json file`);
+    } else {
+      return declared;
+    }
+  }
+  if (validTags.includes('en-US')) return 'en-US';
+  return [...validTags].sort((a, b) => a.localeCompare(b))[0]!;
+}
+
+/** Flattens one locale file's nested JSON object of strings into dotted keys,
+ * validating each key's grammar/length and each value's type/length along the
+ * way. A key or value that fails its own rule is skipped (not written), so
+ * one bad entry does not stop the rest of the file from being reported. */
+function flattenMessages(
+  file: string,
+  node: Record<string, unknown>,
+  prefix: string,
+  out: Record<string, string>,
+  errors: string[]
+): void {
+  for (const key of Object.keys(node)) {
+    const value = node[key];
+    const path = prefix === '' ? key : `${prefix}.${key}`;
+    if (isRecord(value)) {
+      flattenMessages(file, value, path, out, errors);
+      continue;
+    }
+    if (!MESSAGE_KEY_PATTERN.test(path) || path.length > MAX_MESSAGE_KEY_LENGTH) {
+      errors.push(
+        `${file}: "${path}" — key must match ${MESSAGE_KEY_PATTERN} and be at most ${MAX_MESSAGE_KEY_LENGTH} characters`
+      );
+      continue;
+    }
+    if (typeof value !== 'string') {
+      const got = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+      errors.push(`${file}: "${path}" — value must be a string (got ${got})`);
+      continue;
+    }
+    if (codePointLength(value) > MAX_MESSAGE_VALUE_LENGTH) {
+      errors.push(`${file}: "${path}" — value exceeds ${MAX_MESSAGE_VALUE_LENGTH} characters`);
+      continue;
+    }
+    out[path] = value;
+  }
 }
 
 function validateRoutes(routes: ManifestRoute[], errors: string[]): void {
