@@ -111,7 +111,43 @@ never changes its manifest shape.
 keys without a hand-written `Messages` interface.
 
 At build time the plugin also serves `virtual:eldra/messages`, typed
-`{ defaultLocale: string; locales: Record<string, Record<string, string>> }`: today this is the
-manifest's own block, or `{ defaultLocale: 'en-US', locales: {} }` when the theme declares none.
-Studio can override, or translate, every key the theme ships — the theme's own value is always
-the fallback when no override exists for an organization's locale.
+`{ defaultLocale: string; locales: Record<string, Record<string, string>> }`: on its own this is
+the manifest's own block, or `{ defaultLocale: 'en-US', locales: {} }` when the theme declares none
+(`EldraThemeOptions['resolveMessages']` lets a caller transform that content before it is served —
+see below). Studio can override, or translate, every key the theme ships — the theme's own value is
+always the fallback when no override exists for an organization's locale.
+
+### The build-time merge (`@eldrajs/theme-nuxt`)
+
+`@eldrajs/theme-core/i18n` (framework-free) is where the merge itself lives: `flattenMessages`/
+`unflattenMessages` convert between vue-i18n's nested JSON and the manifest's flat dotted keys;
+`mergeMessageCatalogues(themeDefaults, platform)` layers a platform's theme-message overrides over
+the manifest's own messages — the platform's value wins per key, and a locale the theme never
+shipped a file for is added **whole**, so Studio may translate into a locale nobody on the theme
+side ever wrote; `resolveMessageCatalogue(catalogue, orgLocales, orgDefaultLocale)` then fills in
+every organization locale's full key set from that merged catalogue, implementing the web
+contract's five-tier per-key fallback (`override(locale) → theme(locale) → override(orgDefault) →
+theme(orgDefault) → theme(themeDefault)` — already-merged, so it degenerates to three locale-level
+tiers that still cover all five).
+
+`@eldrajs/theme-nuxt`'s module is the one caller: alongside the store's currency and locales reads,
+it adds a third fail-soft read of the public gateway route (`GET /site/v1/theme-messages`, same
+client, same retry policy) — absent gateway credentials or any error answers `null`, with one build
+warning, exactly like the other two reads. Once that read (and the locales read) settle, the module
+sets `resolveMessages` on the options it handed `eldraTheme()`, composing the two helpers above:
+merge the platform's response over the manifest, then resolve over the organization's locales
+(falling back to the theme's own locales and its own default locale when the organization's are
+unknown — which is what lets a **credential-less build** still produce a full key set for every
+locale from the manifest alone). The result reaches a theme on `context.messages`
+(`@eldrajs/theme-vue`'s `EldraContext`, reactive `{ defaultLocale, locales }`), the one source the
+starter's `vue-i18n` plugin reads from.
+
+### The preview bridge
+
+Site settings → "Theme texts" pushes a live edit into an open builder preview as
+`editor:theme-messages` (`{ revision, locales: { "<tag>": { "<key>": "<value>" } } }`,
+`@eldrajs/theme-core/bridge`'s `ResolvedThemeMessagesPayload`). `@eldrajs/theme-vue`'s
+`useEldraPreview` handles it beside `editor:design-tokens`: for every locale tag the push names, it
+**replaces** `context.messages.locales[tag]` wholesale (never a per-key merge — Studio always sends
+a locale's full resolved set) and ignores a stale `revision` (not strictly greater than the last one
+applied), the same discipline `designTokensRevision` follows.
