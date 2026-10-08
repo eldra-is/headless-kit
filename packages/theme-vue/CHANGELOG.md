@@ -6,14 +6,17 @@ Release-please writes the generated notes from commit messages and does not repl
 ## Unreleased
 
 - `EldraContext` gains `messages` (reactive `{ defaultLocale, locales }`, flat dotted keys): the
-  theme's resolved message catalogue, defaulting to the K1 fallback
+  theme's resolved message catalogue, defaulting to the fallback catalogue
   (`{ defaultLocale: 'en-US', locales: {} }`) in `provideEldra()` (a new optional `messages` option
   there overrides it — a Storybook mount or a unit test that passes none renders exactly as a
   theme with no `i18n/` directory does), and to `virtual:eldra/messages`'s build-time-merged content
   in `@eldrajs/theme-nuxt`'s runtime plugin. `useEldraPreview` handles the new
   `editor:theme-messages` bridge message beside `editor:design-tokens`: `applyThemeMessages`
-  replaces `context.messages.locales[tag]` wholesale, per locale the push names, ignoring a stale
-  revision (`preview.messagesRevision`, mirroring `designTokensRevision`'s guard) the same way.
+  replaces `context.messages.locales[tag]` wholesale, per locale the push names (through
+  `@eldrajs/theme-core/i18n`'s `sanitizeLocaleMessages`, refusing a forbidden locale tag —
+  `__proto__`/`prototype`/`constructor` — that would otherwise reassign the live, reactive
+  object's own prototype instead of adding a property named for it), ignoring a stale revision
+  (`preview.messagesRevision`, mirroring `designTokensRevision`'s guard) the same way.
 
 - `useEldraLink()` now spells every resolved same-site href in the active content locale, children
   included — a navigation resolved on `/is-IS/...` points into `/is-IS/...` instead of dropping the

@@ -88,12 +88,12 @@ export interface EldraContext {
    */
   locales?: EldraLocaleState;
   /**
-   * The theme's resolved message catalogue — the manifest's own `messages` block (or the K1
-   * fallback, `{ defaultLocale: 'en-US', locales: {} }`, for a theme that ships no `i18n/`
+   * The theme's resolved message catalogue — the manifest's own `messages` block (or the fallback
+   * catalogue, `{ defaultLocale: 'en-US', locales: {} }`, for a theme that ships no `i18n/`
    * directory), merged with the platform's own overrides and resolved over the organisation's
    * locales at build time (`@eldrajs/theme-nuxt`'s module, `@eldrajs/theme-core/i18n`'s
-   * `mergeMessageCatalogues`/`resolveMessageCatalogue`). Flat dotted keys, one record per locale
-   * tag — the starter's `vue-i18n` plugin (K3) is the one consumer that unflattens it.
+   * `resolveMessageCatalogue`). Flat dotted keys, one record per locale tag — the starter's
+   * `vue-i18n` plugin is the one consumer that unflattens it.
    *
    * Reactive so a live `editor:theme-messages` push from Studio's preview (`useEldraPreview`)
    * updates every block reading a message through it with no re-render plumbing of its own.
@@ -228,7 +228,7 @@ export function createEldraLinkState(): EldraLinkState {
 export function provideEldra(opts: {
   client: EldraClient;
   designTokens?: unknown;
-  /** Defaults to the K1 fallback (`{ defaultLocale: 'en-US', locales: {} }`) — a Storybook mount
+  /** Defaults to the fallback catalogue (`{ defaultLocale: 'en-US', locales: {} }`) — a Storybook mount
    * or a unit test that does not pass one renders exactly as a theme with no `i18n/` directory
    * does. An adapter with a real build (`@eldrajs/theme-nuxt`'s runtime plugin) passes the
    * resolved `virtual:eldra/messages` content instead. */

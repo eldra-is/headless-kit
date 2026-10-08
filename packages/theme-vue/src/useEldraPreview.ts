@@ -12,6 +12,7 @@ import {
   projectEntryDataLocale,
   type LayoutBreakpoints,
 } from '@eldrajs/theme-core';
+import { sanitizeLocaleMessages } from '@eldrajs/theme-core/i18n';
 import { useEldra, type EldraContext, type SlotGeometry } from './context';
 import themeBreakpoints from 'virtual:eldra/breakpoints';
 
@@ -343,9 +344,13 @@ export function applyResolvedDesignTokens(
 /**
  * Applies an `editor:theme-messages` push from Studio's "Theme texts" page: for every locale tag
  * the payload names, **replaces** `context.messages.locales[tag]` wholesale with the payload's own
- * record (a sanitized copy — non-string values are dropped rather than let through) — never a
- * per-key merge, since Studio always sends a locale's full resolved set, the same shape
- * `virtual:eldra/messages` serves. A locale the payload does not mention is left untouched.
+ * record (sanitized through `@eldrajs/theme-core/i18n`'s `sanitizeLocaleMessages` — non-string
+ * values dropped, and a forbidden tag, `__proto__`/`prototype`/`constructor`, skipped entirely
+ * rather than written through: `context.messages` is `reactive(...)`, so an assignment to that
+ * literal key on its `locales` object would reassign the live, shared object's own prototype
+ * instead of adding a property named for it) — never a per-key merge, since Studio always sends a
+ * locale's full resolved set, the same shape `virtual:eldra/messages` serves. A locale the payload
+ * does not mention is left untouched.
  *
  * `revision` guards the same way `designTokensRevision` does: a push whose revision is not
  * strictly greater than the last one applied is ignored, so an out-of-order delivery (a Studio
@@ -366,11 +371,8 @@ export function applyThemeMessages(
   for (const tag of Object.keys(update.locales).sort((a, b) => a.localeCompare(b))) {
     const record: unknown = update.locales[tag];
     if (typeof record !== 'object' || record === null) continue;
-    const sanitized: Record<string, string> = {};
-    for (const key of Object.keys(record).sort((a, b) => a.localeCompare(b))) {
-      const value = (record as Record<string, unknown>)[key];
-      if (typeof value === 'string') sanitized[key] = value;
-    }
+    const sanitized = sanitizeLocaleMessages(tag, record as Record<string, unknown>);
+    if (sanitized === null) continue;
     context.messages.locales[tag] = sanitized;
   }
   context.preview.messagesRevision = update.revision;
