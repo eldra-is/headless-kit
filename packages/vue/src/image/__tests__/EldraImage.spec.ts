@@ -55,6 +55,17 @@ describe('EldraImage', () => {
     expect(img.attributes('sizes')).toBeUndefined();
   });
 
+  it('renders nothing for a source outside the rich-text image rule', () => {
+    for (const src of [
+      'javascript:alert(1)',
+      { url: ' JavaScript:alert(1)' },
+      'data:text/html,x',
+    ]) {
+      const wrapper = mount(EldraImage, { props: { src, alt: '', sizes: '100vw' } });
+      expect(wrapper.find('img').exists()).toBe(false);
+    }
+  });
+
   it('renders nothing without a url', () => {
     const wrapper = mount(EldraImage, { props: { src: null, alt: 'Missing', sizes: '100vw' } });
     expect(wrapper.find('img').exists()).toBe(false);

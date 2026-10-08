@@ -6,7 +6,8 @@ Release-please writes the generated notes from commit messages and does not repl
 ## Unreleased
 
 - `EldraImage`: an `<img>` with a `srcset` over the media host's variants, a required `sizes` and
-  `alt`, and `width`/`height` from `aspectRatio`. Lazy by default.
+  `alt`, and `width`/`height` from `aspectRatio`. Lazy by default. A source outside `http`, `https`,
+  `data:image/` and relative paths renders nothing, as in `RichText`.
 - Images inside `RichText` that are Eldra media assets get a `srcset` with `sizes="100vw"`; other
   images render as before.
 - Depends on `@eldrajs/sdk` for the image helpers.

@@ -69,7 +69,8 @@ import { EldraImage } from '@eldrajs/vue';
 | `loading`        | `lazy`   | `eager` for an image above the fold                                                           |
 
 Anything else — `class`, `style`, `fetchpriority` — goes onto the `<img>`. It renders nothing when
-there is no URL, and renders an external image (one not on Eldra's media host) as given, without
+there is no URL or the URL is not `http`, `https`, `data:image/` or relative (the rule `RichText`
+applies to images), and renders an external image (one not on Eldra's media host) as given, without
 `srcset`.
 
 ## In any framework

@@ -39,6 +39,6 @@
     "path": "packages/vue/dist/index.js",
     "import": "{ EldraImage }",
     "ignore": ["vue"],
-    "limit": "1.5 kB"
+    "limit": "2.5 kB"
   }
 ]

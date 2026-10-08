@@ -54,7 +54,7 @@ one it does nothing.
 It renders an `<img>` with a `srcset` over the sizes the media host serves, the `sizes` you give,
 and `width`/`height` from the aspect ratio so the page does not jump when it loads. Lazy by
 default; pass `loading="eager"` and `fetchpriority="high"` for the hero. An image from another host
-renders as given. Images inside `RichText` get the same `srcset`. See
+renders as given, under the same source rule as `RichText` below. Images inside `RichText` get the same `srcset`. See
 [docs/images.md](../../docs/images.md).
 
 ## What is refused
