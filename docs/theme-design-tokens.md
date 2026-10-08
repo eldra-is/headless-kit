@@ -79,6 +79,31 @@ Vue's `EldraLayout` accepts the resolved catalog through its `designTokens` prop
 
 Live Studio updates are accepted only through the versioned bridge after the theme advertises the `design-tokens` capability. The runtime validates the complete bounded resolved catalog before atomically replacing the prior catalog; stale or malformed updates are ignored.
 
+### The build-time merge (`@eldrajs/theme-nuxt`)
+
+A saved override reaches the open builder preview immediately over the bridge above, but a
+**deployed** site only ever rendered `manifest.tokens` — the theme's own `tokens.json`, with no
+override applied — because nothing in the build read the organisation's resolved catalog. The
+module now does, alongside the store's currency, its locales and its theme-message overrides: a
+fourth fail-soft read of the public gateway route (`GET /site/v1/design-tokens`, same client, same
+retry policy) answers the contract shape `{ revision, resolved }`, `resolved` being the theme's own
+`ThemeDesignTokens` — the theme's tokens with the site's overrides already applied — which
+`readDesignTokens` (`./runtime/designTokens.ts`) re-validates through the same
+`normalizeThemeDesignTokens` a `tokens.json` goes through; a response that does not pass answers
+`null`, with one build warning, exactly like the other three reads.
+
+When that read settles, the module sets `resolveTokens` on the options it handed `eldraTheme()`
+(`EldraThemeOptions['resolveTokens']`, the same mechanism `resolveMessages` uses) to answer the
+platform's resolved catalog outright when the read succeeded, falling back to
+`normalizeThemeDesignTokens(manifestTokens)` — what a credential-less build already renders — when
+it did not. Unlike messages there is nothing to merge key by key: the platform's `resolved` field
+already **is** the whole catalog, so the result simply replaces the theme's own tokens as the input
+to `generateDesignTokenCss`, which is what `virtual:eldra/tokens.css` now serves. The same resolved
+catalog also reaches `runtimeConfig.public.eldra.designTokens`, which is what seeds
+`context.designTokens` on the client (`./runtime/plugin.ts`, falling back to the manifest's own
+tokens the same way) — so a static artifact's generated CSS and its runtime context agree, and both
+carry the organisation's overrides into SSR, prerender and hydration, not only the open preview.
+
 ## Messages (`i18n/<tag>.json`)
 
 A theme that bakes user-facing text into its blocks — labels, empty-state copy, anything that is
