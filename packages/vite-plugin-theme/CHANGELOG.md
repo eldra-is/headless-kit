@@ -32,6 +32,15 @@ Release-please writes the generated notes from commit messages and does not repl
   manifest defaults and resolving the result over the organisation's locales
   (`@eldrajs/theme-core/i18n`). Absent, nothing changes from today's behaviour.
 
+- `eldraTheme()` takes a matching option for design tokens, `resolveTokens?: (manifestTokens) =>
+  ThemeDesignTokens` — when set, `virtual:eldra/tokens.css` generates its CSS from its return value
+  instead of `normalizeThemeDesignTokens(manifest.tokens)`. `@eldrajs/theme-nuxt`'s module is the one
+  caller: it sets this once its own build-time read of the organisation's resolved design-token
+  catalog has settled, answering that catalog outright — there is nothing to merge per key, unlike
+  messages — and falling back to the manifest's own tokens, normalized, when the read found nothing.
+  Absent, nothing changes from today's behaviour. See `docs/theme-design-tokens.md`'s new
+  "The build-time merge" section.
+
 - A route template seed may now target `catalog:category`, and its pattern's trailing parameter is
   the **catch-all** `:path*` (`/categories/:path*`) rather than `:slug`: a category is addressed by
   its canonical path — the slugs of its ancestors, root first, then its own. The pairing is checked

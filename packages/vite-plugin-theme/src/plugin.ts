@@ -143,7 +143,14 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
       }
       if (id === RESOLVED_TOKENS_ID) {
         if (scan.manifest === null) throw new Error('eldra theme manifest is unavailable');
-        return generateDesignTokenCss(normalizeThemeDesignTokens(scan.manifest.tokens));
+        // `options.resolveTokens`, when set (`@eldrajs/theme-nuxt`'s module, once its own platform
+        // read has settled), answers the organisation's resolved design-token catalog — the
+        // theme's own tokens with the site's overrides applied — in place of the theme's raw
+        // `tokens.json`; see `EldraThemeOptions['resolveTokens']`'s own doc comment.
+        const tokens = options.resolveTokens
+          ? options.resolveTokens(scan.manifest.tokens)
+          : normalizeThemeDesignTokens(scan.manifest.tokens);
+        return generateDesignTokenCss(tokens);
       }
       if (id === RESOLVED_TAILWIND_ID) {
         if (scan.manifest === null) throw new Error('eldra theme manifest is unavailable');

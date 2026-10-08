@@ -452,4 +452,21 @@ export interface EldraThemeOptions {
    * platform read included — before Vite's build hooks run.
    */
   resolveMessages?: (themeMessages: ThemeMessages) => ThemeMessages;
+  /**
+   * Transforms `virtual:eldra/tokens.css`'s content before it is served — called with the
+   * manifest's own `tokens` block (the theme's raw, as-authored `tokens.json`) and returning the
+   * `ThemeDesignTokens` the virtual module renders into generic `--eldra-color-*`/
+   * `--eldra-container-*` CSS. Absent, the module keeps rendering
+   * `normalizeThemeDesignTokens(manifest.tokens)` unchanged.
+   *
+   * The one caller today is `@eldrajs/theme-nuxt`: it reads the public platform route once per
+   * build (a read this package knows nothing about) and, once that read settles, sets this to a
+   * closure answering the platform's resolved catalog when the read succeeded, falling back to
+   * `normalizeThemeDesignTokens(manifestTokens)` otherwise — set on the same options object this
+   * function closed over, after `eldraTheme(options)` was already called, which works because
+   * `load()` (like every other hook here) reads `options` through the closure, not a snapshot taken
+   * at construction time, and Nuxt's own module `setup()` always finishes — platform read included
+   * — before Vite's build hooks run.
+   */
+  resolveTokens?: (manifestTokens: ThemeDesignTokens | LegacyThemeTokens) => ThemeDesignTokens;
 }

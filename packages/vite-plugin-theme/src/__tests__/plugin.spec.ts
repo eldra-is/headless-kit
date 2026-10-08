@@ -182,6 +182,39 @@ describe('eldraTheme Vite plugin', () => {
     });
   });
 
+  it('transforms virtual:eldra/tokens.css through options.resolveTokens when the caller sets one', async () => {
+    const root = copyFixture('valid-theme');
+    const resolveTokens = vi.fn(() => ({
+      colors: { primary: { label: 'Primary', value: '#ff6600', allowSiteOverride: true } },
+      containers: {
+        narrow: { label: 'Narrow', maxWidth: '32rem', gutter: { normal: '1rem' } },
+        content: { label: 'Content', maxWidth: '48rem', gutter: { normal: '1.5rem' } },
+        wide: { label: 'Wide', maxWidth: '80rem', gutter: { normal: '2rem' } },
+        full: { label: 'Full', maxWidth: 'none', gutter: { normal: '0px' } },
+      },
+    }));
+    const plugin = eldraTheme({
+      framework: 'nuxt',
+      themeDir: root,
+      resolveTokens: resolveTokens as never,
+    }) as unknown as CallablePlugin;
+    plugin.configResolved({ root, command: 'build', logger: { error: vi.fn() } });
+    plugin.buildStart();
+
+    const css = plugin.load('\0virtual:eldra/tokens.css') ?? '';
+    expect(css).toContain('--eldra-color-primary:#ff6600;');
+    expect(css).toContain('--eldra-container-content-max-width:48rem;');
+    // The theme's own unmerged tokens.json value must not leak through.
+    expect(css).not.toContain('#4f46e5');
+    // Called with the manifest's own tokens — the theme's raw, as-authored tokens.json.
+    expect(resolveTokens).toHaveBeenCalledWith(
+      expect.objectContaining({
+        colors: expect.objectContaining({ primary: expect.any(Object) }),
+        containers: expect.objectContaining({ narrow: expect.any(Object) }),
+      })
+    );
+  });
+
   it('resolves virtual:eldra/breakpoints to the defaults, and never puts breakpoints on the persisted/emitted manifest', async () => {
     const root = copyFixture('valid-theme');
     const plugin = eldraTheme({ framework: 'nuxt', themeDir: root }) as unknown as CallablePlugin;
