@@ -73,7 +73,11 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   serialises merchant-authored content to HTML, so every text and attribute value goes through
   `escapeHtml`, URLs through `safeHref` / `safeImageSrc`, colours through `safeCssColor`, and an
   embed renders only when `isTrustedEmbedSource` accepts its `src`. A change there needs a test
-  that tries to break out, proven by mutation. Built by tsdown.
+  that tries to break out, proven by mutation. No top-level statement may have a side effect a
+  bundler can see: each module-level `wrap(...)` / `wrapMark(...)` call in the default tables
+  carries `/* @__PURE__ */`, or importing `safeImageSrc` alone bundles the renderer. The
+  `rich-text — safeImageSrc` size budget catches a missing one.
+  Built by tsdown.
 - `packages/vue` — `@eldrajs/vue`. The `RichText` renderer; depends on `@eldrajs/rich-text` and
   peers on `vue`. Uses the same safety helpers in `Link.vue`, `Image.vue` and `Embed.vue`. Built by
   Vite in library mode with `vite-plugin-dts` bundling the declarations into one `index.d.ts` —
