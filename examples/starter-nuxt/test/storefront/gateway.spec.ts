@@ -7,6 +7,7 @@ import {
   type EldraHttpRequest,
 } from '@eldrajs/sdk';
 import { createGatewayStorefront } from '../../app/storefront/gateway';
+import { safeHref } from '../../app/utils/links';
 import type {
   CatalogFacets,
   StorefrontCollectionProducts,
@@ -284,7 +285,11 @@ describe('createGatewayStorefront', () => {
       ...response.pages.map((page) => page.href),
     ];
     expect(everyHref).not.toContain('#');
-    expect(everyHref.some((href) => href.startsWith('javascript:'))).toBe(false);
+    // `safeHref` (`@eldrajs/theme-core/links`'s `safeLinkHref`) is the same allowlist
+    // (http/https/mailto/tel/relative) `mapSearchResponse` itself gates every targetUrl
+    // through — checking only `javascript:` here would miss `data:`, `vbscript:` and any
+    // other scheme the allowlist was never meant to let through.
+    expect(everyHref.every((href) => safeHref(href) === href)).toBe(true);
   });
 
   /**
