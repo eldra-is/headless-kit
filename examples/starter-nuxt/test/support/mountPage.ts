@@ -3,7 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { expect } from 'vitest';
 import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { mountOptions } from './mountBlock';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../app/storefront/types';
 // The apiId → Block.vue map lives in `stories/support/pageBlocks.ts`, shared with
@@ -83,7 +83,7 @@ export async function mountPageWithSkipLink(
   const Page = defineComponent({
     name: 'MountPageWithSkipLinkHarness',
     setup() {
-      const t = useT();
+      const { t } = useI18n();
       return () => [
         h(
           Link,

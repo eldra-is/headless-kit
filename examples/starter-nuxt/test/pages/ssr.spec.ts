@@ -26,7 +26,7 @@ import searchMock from '../../blocks/search/mock.json';
 import Wishlist from '../../blocks/wishlist/Block.vue';
 import wishlistMock from '../../blocks/wishlist/mock.json';
 import { CURRENCY_KEY, LOCALE_KEY } from '@eldrajs/ui';
-import { enUS } from '../../app/i18n/en-US';
+import enUS from '../../i18n/en-US.json';
 import { formatMoney } from '../../app/storefront/money';
 import { STOREFRONT_KEY } from '../../app/storefront/types';
 import { createDemoStorefront } from '../../app/storefront/demo';

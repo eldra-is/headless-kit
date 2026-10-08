@@ -9,11 +9,25 @@
 // resolves for real here.
 import { mount } from '@vue/test-utils';
 import { reactive } from 'vue';
+import { createI18n } from 'vue-i18n';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { registerBlockFields } from '@eldrajs/theme-core';
 import blockManifest from '../blocks/article/block.json';
 import Article from '../blocks/article/Block.vue';
+import enUS from '../i18n/en-US.json';
+import isIS from '../i18n/is-IS.json';
+
+// The block calls `useI18n()` (its byline sentence, its rich-text table caption fallback, its
+// editor-only hints), so every mount needs `vue-i18n` installed — see `test/support/mountBlock.ts`'s
+// own doc comment. This spec builds its own narrow `global`/context by hand rather than
+// `mountOptions()`'s fuller one, so it installs the same catalogue directly.
+const i18n = createI18n({
+  legacy: false,
+  locale: 'en-US',
+  fallbackLocale: 'en-US',
+  messages: { 'en-US': enUS, 'is-IS': isIS },
+});
 
 const body = {
   type: 'doc',
@@ -62,7 +76,10 @@ function mountArticle(context?: unknown, doc: unknown = body) {
         data: { title: 'Announcing our new platform', body: doc },
       },
     },
-    ...(context === undefined ? {} : { global: { provide: { [ELDRA_KEY as symbol]: context } } }),
+    global: {
+      plugins: [i18n],
+      ...(context === undefined ? {} : { provide: { [ELDRA_KEY as symbol]: context } }),
+    },
   });
 }
 

@@ -10,6 +10,7 @@ import '../app/assets/main.css';
 // Studio edits) have to be the ones that win.
 import 'virtual:eldra/tokens.css';
 import { withEldraContext } from './eldra';
+import { storybookI18n } from './i18n';
 import { NuxtLinkStub } from './nuxt-link-stub';
 
 // Mirrors the runtime plugin: register block field metadata once so
@@ -18,6 +19,10 @@ import { NuxtLinkStub } from './nuxt-link-stub';
 registerBlockFields(blockFields);
 
 setup((app) => {
+  // No gateway, no `virtual:eldra/messages` — every block calls `useI18n()` directly, with no
+  // wrapper in front of it, so Storybook needs `vue-i18n` installed on the app the same way a real
+  // page's `app/plugins/eldra-i18n.ts` installs it. See `./i18n.ts`.
+  app.use(storybookI18n);
   // The only Nuxt global the theme reaches for, and only from
   // `app/components/EldraRouterLink.vue` (the component blocks hand
   // `@eldrajs/ui`'s `Link` as `as` for an internal destination) — Storybook has

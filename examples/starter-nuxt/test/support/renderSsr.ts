@@ -28,6 +28,10 @@ function applyProvides(
   overrides: Record<symbol, unknown> = {}
 ): void {
   const { global } = mountOptions({ entry: { id: '', data: {} } });
+  // `global.plugins` (`vue-i18n`) belongs to the `@vue/test-utils` mount this was copied from, not
+  // to this hand-built `App` — a block's own `useI18n()` throws "Need to install with `app.use`
+  // function" without it, since `createSSRApp` starts with none.
+  for (const plugin of global.plugins) app.use(plugin as Parameters<typeof app.use>[0]);
   const provide = { ...global.provide, ...overrides };
   for (const key of Reflect.ownKeys(provide) as symbol[]) {
     app.provide(key, provide[key]);

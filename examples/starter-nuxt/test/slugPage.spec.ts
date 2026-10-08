@@ -14,7 +14,10 @@
 // must remain visible and not be swallowed by the not-found branch.
 import { mount } from '@vue/test-utils';
 import { computed, ref } from 'vue';
+import { createI18n } from 'vue-i18n';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import enUS from '../i18n/en-US.json';
+import isIS from '../i18n/is-IS.json';
 
 // EldraLayout/EldraBlockZone (via @eldrajs/theme-vue) pull in a
 // `virtual:eldra/blocks` module supplied only by the Nuxt build's vite
@@ -51,6 +54,16 @@ const NuxtLinkStub = {
   template: '<a :href="to"><slot /></a>',
 };
 
+// `[...slug].vue` calls `useI18n()` directly now (the not-found shell's own copy), so every mount
+// needs `vue-i18n` installed.
+const i18n = createI18n({
+  legacy: false,
+  locale: 'en-US',
+  fallbackLocale: 'en-US',
+  messages: { 'en-US': enUS, 'is-IS': isIS },
+});
+const mountGlobal = { plugins: [i18n], stubs: { NuxtLink: NuxtLinkStub } };
+
 describe('[...slug].vue not-found vs. error branch priority', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -71,7 +84,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       error: ref('boom'),
     }));
 
-    const wrapper = mount(SlugPage, { global: { stubs: { NuxtLink: NuxtLinkStub } } });
+    const wrapper = mount(SlugPage, { global: mountGlobal });
 
     expect(wrapper.find('[data-eldra-not-found]').exists()).toBe(true);
     expect(wrapper.find('[role="alert"]').exists()).toBe(false);
@@ -93,7 +106,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       error: ref('boom'),
     }));
 
-    const wrapper = mount(SlugPage, { global: { stubs: { NuxtLink: NuxtLinkStub } } });
+    const wrapper = mount(SlugPage, { global: mountGlobal });
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(true);
     expect(wrapper.find('[role="alert"]').text()).toBe('boom');
@@ -127,7 +140,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       error: ref(null),
     }));
 
-    const wrapper = mount(SlugPage, { global: { stubs: { NuxtLink: NuxtLinkStub } } });
+    const wrapper = mount(SlugPage, { global: mountGlobal });
 
     // `wrapper.element.querySelectorAll` rather than `wrapper.findAll`: the template has three root
     // nodes now, and `findAll` walks the component's vnode tree (roots first, then into each), so
@@ -176,7 +189,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
       error: ref(null),
     }));
 
-    const wrapper = mount(SlugPage, { global: { stubs: { NuxtLink: NuxtLinkStub } } });
+    const wrapper = mount(SlugPage, { global: mountGlobal });
 
     expect(wrapper.element.querySelectorAll('.zone')).toHaveLength(0);
     expect(wrapper.find('[data-eldra-layout]').exists()).toBe(true);
@@ -208,7 +221,7 @@ describe('[...slug].vue document title', () => {
       error: ref(null),
       ...page,
     }));
-    mount(SlugPage, { global: { stubs: { NuxtLink: NuxtLinkStub } } });
+    mount(SlugPage, { global: mountGlobal });
     return head!().title;
   }
 

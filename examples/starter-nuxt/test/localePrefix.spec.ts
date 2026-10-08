@@ -7,7 +7,7 @@ import { localeHref, localePathFor, resolveLocaleRouting } from '@eldrajs/theme-
 import { Button, Link } from '@eldrajs/ui';
 import EldraRouterLink from '../app/components/EldraRouterLink.vue';
 import { mountOptions } from './support/mountBlock';
-import { isIS } from '../app/i18n/is-IS';
+import isIS from '../i18n/is-IS.json';
 import { STOREFRONT_KEY } from '../app/storefront/types';
 import type { StorefrontResult, StorefrontSearchResponse } from '../app/storefront/types';
 import { createDemoStorefront } from '../app/storefront/demo';

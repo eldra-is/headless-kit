@@ -26,7 +26,7 @@ import ProductDetail from '../blocks/product-detail/Block.vue';
 import productDetailMock from '../blocks/product-detail/mock.json';
 import { createDemoStorefront } from '../app/storefront/demo';
 import { STOREFRONT_KEY } from '../app/storefront/types';
-import { enUS } from '../app/i18n/en-US';
+import enUS from '../i18n/en-US.json';
 
 vi.stubGlobal('useHead', () => {});
 const route = reactive({ fullPath: '/products/merino-crew-sweater' });

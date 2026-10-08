@@ -32,6 +32,10 @@ function createBlockApp(
 ): App {
   const app = createSSRApp(defineComponent({ setup: () => () => h(component, { entry }) }));
   const { global } = mountOptions({ entry: { id: '', data: {} } });
+  // `global.plugins` (`vue-i18n`, see `mountOptions`) belongs to the `@vue/test-utils` mount this
+  // was copied from, not to this hand-built `App` — a block's own `useI18n()` throws "Need to
+  // install with `app.use` function" without it, since `createSSRApp` starts with none.
+  for (const plugin of global.plugins) app.use(plugin as Parameters<App['use']>[0]);
   const merged: Record<symbol, unknown> = { ...global.provide, ...provides };
   for (const key of Reflect.ownKeys(merged) as symbol[]) app.provide(key, merged[key]);
   // Blocks hand `app/components/EldraRouterLink.vue` to `@eldrajs/ui` for same-site destinations,

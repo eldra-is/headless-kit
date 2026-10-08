@@ -1,11 +1,19 @@
 import type { Decorator } from '@storybook/vue3-vite';
 import { provide } from 'vue';
 import { createEldraClient } from '@eldrajs/theme-core';
+import { flattenMessages } from '@eldrajs/theme-core/i18n';
 import { provideEldra } from '@eldrajs/theme-vue';
-import { provideEldraUiCurrency, provideEldraUiLocale, provideEldraUiMessages } from '@eldrajs/ui';
-import { uiMessagesFor } from '../app/i18n/uiMessages';
+import {
+  enUS as uiEnUS,
+  provideEldraUiCurrency,
+  provideEldraUiLocale,
+  provideEldraUiMessages,
+} from '@eldrajs/ui';
 import { createDemoStorefront, DEMO_CART_LINES } from '../app/storefront/demo';
 import { STOREFRONT_KEY } from '../app/storefront/types';
+import { storybookI18n } from './i18n';
+import enUSMessages from '../i18n/en-US.json';
+import isISMessages from '../i18n/is-IS.json';
 
 /**
  * Provides the same `EldraContext` a real page gets from
@@ -64,15 +72,32 @@ export const withEldraContext: Decorator = (story, storyContext) => ({
   setup() {
     const context = provideEldra({
       client: createEldraClient({ gatewayUrl: 'https://storybook.invalid', orgId: 'storybook' }),
+      // The same catalogue `storybookI18n` (`./i18n.ts`) installs — nothing in Storybook reads
+      // `context.messages` directly today, but the shape should match a real page's (the merged/
+      // resolved `virtual:eldra/messages`) rather than the empty fallback `provideEldra` otherwise
+      // defaults to.
+      messages: {
+        defaultLocale: 'en-US',
+        locales: {
+          'en-US': flattenMessages(enUSMessages),
+          'is-IS': flattenMessages(isISMessages),
+        },
+      },
     });
     context.preview.locale = 'en-US';
+    // No story here switches language (see the module doc comment on `storybookI18n`), so
+    // `storybookI18n.global.locale.value` only ever needs setting to confirm it, not to follow a
+    // switch — unlike `app/plugins/eldra-i18n.ts`'s real watcher. Cast: `context.preview.locale` is
+    // a plain `string | null` (`EldraContext`'s own shape), narrower than what this file actually
+    // ever assigns it (the literal above).
+    storybookI18n.global.locale.value = context.preview.locale as 'en-US' | 'is-IS';
     // The same wiring `app/plugins/eldra-ui-messages.ts` does on a real page:
     // `@eldrajs/ui`'s own strings and number locale follow the story's content
     // locale, and its store currency comes from the storefront rather than the
     // locale — on a real page the platform publishes it, here the demo source
     // declares it (`DEMO_COMMERCE`, US dollars, the currency every Northwind
-    // amount in the fixtures is quoted in).
-    provideEldraUiMessages(uiMessagesFor(context.preview.locale));
+    // amount in the fixtures is quoted in). `uiEnUS` directly: every story here renders `en-US`.
+    provideEldraUiMessages(uiEnUS);
     provideEldraUiLocale(context.preview.locale);
     // The demo cart starts empty (a real shopper's first visit), which would leave the `cart`
     // block's own stories showing only its empty state — and its `drawer` story showing nothing at

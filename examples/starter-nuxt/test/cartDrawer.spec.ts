@@ -26,7 +26,7 @@ import navigationMock from '../blocks/navigation/mock.json';
 import cartPageFixture from '../pages/cart.page.json';
 import { createDemoStorefront, DEMO_CART_LINES } from '../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontSource } from '../app/storefront/types';
-import { enUS } from '../app/i18n/en-US';
+import enUS from '../i18n/en-US.json';
 
 vi.stubGlobal('useHead', () => {});
 
