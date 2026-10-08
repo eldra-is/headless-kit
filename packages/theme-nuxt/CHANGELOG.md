@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Fix: a `link` field's mega-menu/footer column heading no longer vanishes on a locale that never
+  got its own `group`.** The runtime plugin now resolves the organisation's content locales before
+  building the gateway client, and hands it `defaultLocale` (the store's own `locales.default`,
+  falling back to the resolved routing default for a single-locale site) — `@eldrajs/theme-core`'s
+  per-field link fallback (see its changelog) then fills an untranslated field of a `link` node from
+  the default locale's node instead of leaving it empty.
+
 - **`eldra.retry` — how hard a build tries again when the gateway says "not now".**
   `{ attempts, baseDelayMs, maxDelayMs }`, defaulting to five attempts with exponential backoff and
   jitter while honouring `Retry-After`; `{ attempts: 0 }` turns it off. It reaches every gateway read

@@ -24,6 +24,17 @@ export interface EldraClientOptions {
   stega?: boolean; // default false; encoding also requires enablePreview()
   fetch?: typeof globalThis.fetch; // injectable for tests/SSR
   retry?: EldraRetryOptions; // see EldraRetryOptions; defaults documented there
+  /**
+   * The organisation's default content locale (e.g. `"en-US"`). A `link`
+   * field's value is a per-locale record, and this drives a per-field
+   * fallback inside it: when the active locale's node leaves a field
+   * untranslated (missing, empty, or whitespace-only — see
+   * `isTranslatedValue`), that field's value is taken from the default
+   * locale's node instead, recursively. `null` or omitted (the default)
+   * disables the fallback entirely — today's behaviour, picking one node
+   * whole (exact locale, then language, then the first key).
+   */
+  defaultLocale?: string | null;
 }
 
 export class EldraClientError extends Error {

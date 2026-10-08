@@ -22,6 +22,23 @@ const page = await client.getEntry('page', 'home');
 const title = stripStega(page.data.title);
 ```
 
+## Locale fallback inside a `link` field
+
+A `link` field's value is a per-locale record, projected client-side to the active locale's node
+(exact locale, then language, then the first key). Pass `defaultLocale` — the organisation's
+default content locale — to fill, per field, anything the chosen node leaves untranslated (missing,
+empty, or whitespace-only) from the default locale's node instead, recursively:
+
+```ts
+const client = createEldraClient({
+  gatewayUrl: 'https://api.example.com',
+  orgId: 'org_123',
+  defaultLocale: 'en-US',
+});
+```
+
+`null` or omitted disables the fallback: the chosen node is used whole, as before.
+
 ## Retrying what the gateway refused for now
 
 The gateway rate-limits a client by requests per minute, so a static build of a real site — a

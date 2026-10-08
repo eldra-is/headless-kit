@@ -5,6 +5,22 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A `link` field's untranslated sub-fields fall back to the default locale's node, field by
+  field.** A `link` field's value is a per-locale record (`{ "en-US": {kind,label,group,children…},
+  "is-IS": {…} }`), and `createEldraClient` used to take the active locale's node whole (exact
+  locale, then language, then the first key) — a column heading set only on the English node
+  rendered as no heading at all on every other locale. `createEldraClient` now takes
+  `defaultLocale?: string | null` (the organisation's default content locale); when set and the
+  default locale's node exists and differs from the chosen one, each field the chosen node leaves
+  untranslated (missing, `null`, an empty or whitespace-only string, an empty array or object, or a
+  rich-text document with no text) is filled from the default node's value for that field, applied
+  recursively — a `children` array that is missing or empty takes the default's whole array, never
+  merged by index. `undefined`/omitted (the default) disables the fallback entirely: today's
+  behaviour, unchanged. Exported `isTranslatedValue` mirrors the gateway's own rule for a
+  localization row, so a theme that needs the same "is this field translated" check has one
+  definition to call rather than a second copy that can drift. **This is a minor**: the fallback is
+  a repair, but `defaultLocale` is a new public option.
+
 - **A gateway read that answered `429` or `503` is retried instead of failing.** The gateway
   rate-limits a client by requests per minute, which a static build of a real site meets routinely:
   `429 too many requests; slow down and try again` used to surface as a failed route resolution and,

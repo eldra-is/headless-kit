@@ -41,6 +41,36 @@ describe('the public runtime config the plugin reads is the one the module write
   });
 });
 
+/**
+ * `defaultLocale` drives the kit's per-field link fallback
+ * (`@eldrajs/theme-core`'s `createEldraClient`), and it has to reach the
+ * client the plugin builds — there is no runtime-config key for it the way
+ * there is for `retry` above, because it is derived from `cfg.locales` /
+ * `cfg.locale` the plugin already reads, not written by the module. A
+ * regression here is silent at every layer this source check is not: the
+ * client still builds, every other read still works, and only a link field
+ * with a partially-translated node renders wrong — exactly the live bug this
+ * change fixes.
+ */
+describe('the client the runtime plugin builds carries the resolved default locale', () => {
+  it('passes defaultLocale, resolved before the client so it is available at construction', () => {
+    const plugin = source('../src/runtime/plugin.ts');
+    const call = block(plugin, 'const client = createEldraClient({', '\n    });');
+    expect(call).toContain('defaultLocale: storeLocales?.default ?? routing.default ?? null');
+
+    // Resolved before, not after: `storeLocales`/`routing` must already be
+    // declared by the time this call appears, or the option could only ever
+    // be undefined.
+    const clientCallIndex = plugin.indexOf('const client = createEldraClient({');
+    const storeLocalesIndex = plugin.indexOf('const storeLocales = resolveStoreLocales(');
+    const routingIndex = plugin.indexOf('const routing = resolveLocaleRouting(');
+    expect(storeLocalesIndex).toBeGreaterThan(-1);
+    expect(routingIndex).toBeGreaterThan(-1);
+    expect(storeLocalesIndex).toBeLessThan(clientCallIndex);
+    expect(routingIndex).toBeLessThan(clientCallIndex);
+  });
+});
+
 describe('theme-nuxt runtime', () => {
   it('keeps the preview empty while Nuxt async page data is unresolved', () => {
     expect(overlayPreviewDrafts(undefined, { 'block-1': { heading: 'Draft' } })).toBeNull();

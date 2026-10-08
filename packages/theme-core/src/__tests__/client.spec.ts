@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerBlockFields } from '../blockFields';
-import { createEldraClient } from '../client';
+import { createEldraClient, isTranslatedValue } from '../client';
 import { EldraClientError } from '../clientTypes';
 import { decodeStega } from '../stega';
 
@@ -247,6 +247,171 @@ describe('createEldraClient', () => {
     expect(item.quote).toBe('Íslensk tilvitnun');
     expect(item.author).toEqual({ name: 'Anna', role: 'CTO' });
     expect(entry.data.media).toEqual(doc.data.media);
+  });
+
+  describe('link field locale fallback (defaultLocale)', () => {
+    // A `link` field's value is a per-locale record: one node per locale,
+    // each carrying its own kind/label/group/children. This is the operator
+    // header scenario the fallback fixes — the English child has
+    // `group: "Collections"`, the Icelandic child has none — reduced to the
+    // smallest doc that reproduces it.
+    function linkDoc(enNode: Record<string, unknown>, isNode: Record<string, unknown>) {
+      return {
+        id: 'e1',
+        data: { links: [{ 'en-US': enNode, 'is-IS': isNode }] },
+      };
+    }
+
+    function firstLink(data: Record<string, unknown>): Record<string, unknown> {
+      return (data.links as Array<Record<string, unknown>>)[0]!;
+    }
+
+    it("fills an untranslated field (missing group) from the default locale's node, field by field — the own translated field (label) is kept", async () => {
+      const doc = linkDoc(
+        { kind: 'none', label: 'Collections', group: 'Collections', children: [] },
+        { kind: 'none', label: 'Söfn', children: [] } // no group at all
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
+      const link = firstLink(entry.data);
+      expect(link.group).toBe('Collections'); // filled from the default locale
+      expect(link.label).toBe('Söfn'); // the locale's own translation is untouched
+    });
+
+    it('keeps a field the active locale already set, rather than overwriting it with the default', async () => {
+      const doc = linkDoc(
+        { kind: 'none', label: 'Collections', group: 'Collections', children: [] },
+        { kind: 'none', label: 'Söfn', group: 'Söfn-hópur', children: [] }
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
+      expect(firstLink(entry.data).group).toBe('Söfn-hópur');
+    });
+
+    it("takes the default locale's whole children array when the active locale's is missing/empty — never merged by index", async () => {
+      const defaultChildren = [{ label: 'Mugs' }, { label: 'Plates' }];
+      const doc = linkDoc(
+        { kind: 'none', label: 'Collections', group: 'Collections', children: defaultChildren },
+        { kind: 'none', label: 'Söfn', children: [] }
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
+      expect(firstLink(entry.data).children).toEqual(defaultChildren);
+    });
+
+    it('a translated (non-empty) children array is kept, not replaced by the default', async () => {
+      const ownChildren = [{ label: 'Bollar' }];
+      const doc = linkDoc(
+        { kind: 'none', label: 'Collections', group: 'Collections', children: [{ label: 'Mugs' }] },
+        { kind: 'none', label: 'Söfn', children: ownChildren }
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
+      expect(firstLink(entry.data).children).toEqual(ownChildren);
+    });
+
+    it('a whitespace-only field counts as untranslated and is filled from the default', async () => {
+      const doc = linkDoc(
+        { kind: 'none', label: 'Collections', group: 'Collections', children: [] },
+        { kind: 'none', label: '   ', group: 'Söfn', children: [] }
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'is-IS' });
+      expect(firstLink(entry.data).label).toBe('Collections');
+    });
+
+    it('requesting the default locale itself changes nothing — byte-identical to the stored node', async () => {
+      const enNode = { kind: 'none', label: 'Collections', group: 'Collections', children: [] };
+      const doc = linkDoc(enNode, { kind: 'none', label: 'Söfn', children: [] });
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      const c = createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        defaultLocale: 'en-US',
+      });
+      const entry = await c.getEntry('page', 'e1', { locale: 'en-US' });
+      expect(firstLink(entry.data)).toEqual(enNode);
+    });
+
+    it('with no defaultLocale option, output is byte-identical to today — the whole node, untouched', async () => {
+      const doc = linkDoc(
+        { kind: 'none', label: 'Collections', group: 'Collections', children: [] },
+        { kind: 'none', label: 'Söfn', children: [] }
+      );
+      fetchMock.mockResolvedValue(jsonResponse(doc));
+      // The bare `client()` helper never sets defaultLocale.
+      const entry = await client().getEntry('page', 'e1', { locale: 'is-IS' });
+      expect(firstLink(entry.data)).toEqual(doc.data.links[0]!['is-IS']);
+    });
+  });
+
+  describe('isTranslatedValue', () => {
+    it('treats missing, empty and whitespace-only values as untranslated', () => {
+      expect(isTranslatedValue(undefined)).toBe(false);
+      expect(isTranslatedValue(null)).toBe(false);
+      expect(isTranslatedValue('')).toBe(false);
+      expect(isTranslatedValue('   ')).toBe(false);
+      expect(isTranslatedValue([])).toBe(false);
+      expect(isTranslatedValue({})).toBe(false);
+    });
+
+    it('treats an empty rich-text document (no text leaves) as untranslated', () => {
+      expect(isTranslatedValue({ type: 'doc', content: [] })).toBe(false);
+      expect(
+        isTranslatedValue({
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: '   ' }] }],
+        })
+      ).toBe(false);
+    });
+
+    it('treats a rich-text document carrying real text as translated', () => {
+      expect(
+        isTranslatedValue({
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }],
+        })
+      ).toBe(true);
+    });
+
+    it('treats every other value as translated, including falsy scalars', () => {
+      expect(isTranslatedValue('x')).toBe(true);
+      expect(isTranslatedValue(0)).toBe(true);
+      expect(isTranslatedValue(false)).toBe(true);
+      expect(isTranslatedValue([1])).toBe(true);
+      expect(isTranslatedValue({ a: 1 })).toBe(true);
+    });
   });
 
   it('unwraps a resolved select field ({value,label}) into its plain value, top-level and nested in a list item', async () => {

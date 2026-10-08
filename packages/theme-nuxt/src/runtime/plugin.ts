@@ -43,14 +43,20 @@ export default defineNuxtPlugin({
     // themselves — they can't, at their own package build time.
     registerBlockFields(blockFields);
     const cfg = useRuntimeConfig().public.eldra as RuntimeEldraConfig;
+    // Resolved before the client so its organisation default locale — the
+    // store's own `locales.default`, falling back to the routing default for
+    // a single-locale site that only ever set `eldra.locale` — can be handed
+    // to `createEldraClient` below rather than threaded in after the fact.
+    const storeLocales = resolveStoreLocales(cfg.locales);
+    const routing = resolveLocaleRouting(storeLocales, cfg.locale);
     const client = createEldraClient({
       gatewayUrl: cfg.gatewayUrl,
       orgId: cfg.orgId,
       stega: true,
       retry: cfg.retry ?? undefined,
+      defaultLocale: storeLocales?.default ?? routing.default ?? null,
     });
     const preview = createEldraPreviewState();
-    const routing = resolveLocaleRouting(resolveStoreLocales(cfg.locales), cfg.locale);
     // Lazily, every time: `$router` is installed by Nuxt's own router plugin and this one may be
     // ordered before it. Nothing reads the locale state during plugin setup, so a getter is enough
     // — and it keeps the state honest after a client navigation, which is the whole point of it.

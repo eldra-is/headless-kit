@@ -21,6 +21,7 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
   const retryPolicy = resolveRetryPolicy(opts.retry);
   const stegaEnabled = opts.stega === true;
+  const defaultLocale = opts.defaultLocale ?? null;
   let previewToken: string | null = null;
   const requestErrorListeners = new Set<(error: EldraClientError) => void>();
 
@@ -75,7 +76,10 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
 
   function maybeStega(entry: EntryDoc, locale: string | null): EntryDoc {
     const apiId = typeof entry.schemaApiId === 'string' ? entry.schemaApiId : undefined;
-    const projected = { ...entry, data: projectLocalizedLeaves(entry.data, locale, apiId) };
+    const projected = {
+      ...entry,
+      data: projectLocalizedLeaves(entry.data, locale, defaultLocale, apiId),
+    };
     if (!stegaEnabled || previewToken === null) return projected;
     return { ...projected, data: encodeEntryDataStega(entry.id, projected.data, locale, apiId) };
   }
@@ -290,15 +294,89 @@ function looksLikeEntryDoc(
   );
 }
 
+/**
+ * Whether a localized field's value counts as "translated", mirroring the
+ * gateway's own server-side rule for a localization row
+ * (`entry_read.go`'s `isTranslatedValue`): present and not null, not an empty
+ * string after trimming whitespace, not an empty array or object, and a
+ * rich-text document only when it carries actual text content. Every other
+ * value (including `0`/`false`) counts as translated.
+ *
+ * Exported so the per-field link fallback below (and a theme, if it ever
+ * needs the same call) has one definition of "untranslated" rather than a
+ * second copy that can drift from it.
+ */
+export function isTranslatedValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if (Object.keys(record).length === 0) return false;
+    if (record.type === 'doc') return richTextDocHasText(record);
+    return true;
+  }
+  return true;
+}
+
+/** Whether a TipTap-shaped rich-text node carries any non-whitespace text in
+ * one of its `text` leaves. Used only to decide whether a whole rich-text
+ * document counts as "translated" — never a renderer. */
+function richTextDocHasText(node: unknown): boolean {
+  if (node === null || typeof node !== 'object') return false;
+  const { type, text, content } = node as { type?: unknown; text?: unknown; content?: unknown };
+  if (type === 'text') return typeof text === 'string' && text.trim() !== '';
+  if (!Array.isArray(content)) return false;
+  return content.some(richTextDocHasText);
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Per-field fallback for one locale's chosen node against the default
+ * locale's node, for the record-shaped sub-fields of a `link` field (and any
+ * other locale-keyed composite). Composite records (not a rich-text
+ * document) are merged **per field**: a key `chosen` leaves untranslated is
+ * copied from `defaultValue`, and every other key of `chosen` (including one
+ * `defaultValue` does not have) is kept. A leaf value — a string, an array,
+ * a rich-text document — is replaced only as a whole when `chosen` itself is
+ * untranslated.
+ *
+ * `children` needs no special case: an untranslated (missing/empty) array
+ * already falls back to the default's whole array under the same per-field
+ * rule, and a translated one is kept outright — never merged by index.
+ */
+function mergeLocalizedFallback(chosen: unknown, defaultValue: unknown): unknown {
+  const isComposite = (value: unknown): value is Record<string, unknown> =>
+    isPlainRecord(value) && value.type !== 'doc';
+  if (isComposite(chosen) && isComposite(defaultValue)) {
+    const merged: Record<string, unknown> = { ...chosen };
+    for (const key of Object.keys(defaultValue)) {
+      if (!isTranslatedValue(merged[key])) merged[key] = defaultValue[key];
+    }
+    return merged;
+  }
+  return isTranslatedValue(chosen) ? chosen : defaultValue;
+}
+
 function projectLocalizedValue(
   value: unknown,
   locale: string | null,
+  defaultLocale: string | null,
   apiId: string | undefined,
   path: string
 ): unknown {
   if (Array.isArray(value)) {
     return value.map((item, i) =>
-      projectLocalizedValue(item, locale, apiId, path === '' ? String(i) : `${path}.${i}`)
+      projectLocalizedValue(
+        item,
+        locale,
+        defaultLocale,
+        apiId,
+        path === '' ? String(i) : `${path}.${i}`
+      )
     );
   }
   if (value === null || typeof value !== 'object') return value;
@@ -306,29 +384,38 @@ function projectLocalizedValue(
 
   if (looksLikeEntryDoc(value)) {
     const nestedApiId = typeof value.schemaApiId === 'string' ? value.schemaApiId : undefined;
-    return { ...value, data: projectLocalizedValue(value.data, locale, nestedApiId, '') };
+    return {
+      ...value,
+      data: projectLocalizedValue(value.data, locale, defaultLocale, nestedApiId, ''),
+    };
   }
 
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record);
   if (keys.length > 0 && keys.every((key) => localeKey.test(key))) {
-    const exact = locale ? record[locale] : undefined;
+    const exactKey = locale && record[locale] !== undefined ? locale : undefined;
     const language = locale?.split('-')[0]?.toLowerCase();
     const languageKey = language
       ? keys.find((key) => key.split('-')[0]?.toLowerCase() === language)
       : undefined;
-    return projectLocalizedValue(
-      exact !== undefined ? exact : record[languageKey ?? keys[0]!],
-      locale,
-      apiId,
-      path
-    );
+    const chosenKey = exactKey ?? languageKey ?? keys[0]!;
+    const chosen = record[chosenKey];
+    const defaultValue =
+      defaultLocale != null && chosenKey !== defaultLocale ? record[defaultLocale] : undefined;
+    const resolved = defaultValue !== undefined ? mergeLocalizedFallback(chosen, defaultValue) : chosen;
+    return projectLocalizedValue(resolved, locale, defaultLocale, apiId, path);
   }
 
   return Object.fromEntries(
     Object.entries(record).map(([key, item]) => [
       key,
-      projectLocalizedValue(item, locale, apiId, path === '' ? key : `${path}.${key}`),
+      projectLocalizedValue(
+        item,
+        locale,
+        defaultLocale,
+        apiId,
+        path === '' ? key : `${path}.${key}`
+      ),
     ])
   );
 }
@@ -336,7 +423,8 @@ function projectLocalizedValue(
 function projectLocalizedLeaves(
   data: Record<string, unknown>,
   locale: string | null,
+  defaultLocale: string | null,
   apiId: string | undefined
 ): Record<string, unknown> {
-  return projectLocalizedValue(data, locale, apiId, '') as Record<string, unknown>;
+  return projectLocalizedValue(data, locale, defaultLocale, apiId, '') as Record<string, unknown>;
 }
