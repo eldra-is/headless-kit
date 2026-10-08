@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "eldra": {
+    "defaultLocale": "en-US"
+  },
   "scripts": {
     "dev": "nuxi dev",
     "generate": "nuxi generate",
@@ -22,7 +25,8 @@
     "@eldrajs/theme-vue": "workspace:*",
     "@eldrajs/ui": "workspace:*",
     "@tabler/icons": "^3.34.0",
-    "nuxt": "^4.0.0"
+    "nuxt": "^4.0.0",
+    "vue-i18n": "11.4.13"
   },
   "devDependencies": {
     "@eldrajs/theme-cli": "workspace:*",
