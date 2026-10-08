@@ -5,6 +5,26 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The scanner now reads a theme's own message catalogue: `i18n/<tag>.json`, siblings of
+  `tokens.json`, one file per locale, each a nested JSON object of strings that gets flattened to
+  dotted keys (`header.menu`, `cart.empty.title`). It validates key grammar/length, value
+  type/length, the 2000-key and 20-locale bounds, that every file name is a canonical `ll-RR` BCP-47
+  tag, and that every non-default locale's keys are a subset of the default locale's (naming the
+  locale and the first offending key otherwise). The default locale is declared under
+  `package.json`'s own `eldra.defaultLocale` key, beside the `name`/`version` the scanner already
+  reads from the same file; when undeclared it falls back to `en-US` when shipped, else the
+  alphabetically first locale file. `manifest.messages = { defaultLocale, locales }` is **absent**
+  — not an empty object — when the theme has no `i18n/` directory, so a theme shipping no texts
+  never changes its manifest shape. A new virtual module, `virtual:eldra/messages`
+  (`{ defaultLocale: string; locales: Record<string, Record<string, string>> }`), serves the
+  manifest's own block today, or `{ defaultLocale: 'en-US', locales: {} }` when the theme declares
+  none; the Nuxt wrapper will later merge a live organization read over it. `generateBlockTypes`
+  (and therefore every `.eldra/block-types.d.ts` write, from the plugin on every scan and from
+  `eldra-theme types --blocks`) now also emits a `type MessageKey = '…' | '…';` union from the
+  default locale's keys when the theme ships any, so a theme's own code gets typed message keys
+  without a hand-written `Messages` interface. See `docs/theme-design-tokens.md`'s new "Messages"
+  section.
+
 - A route template seed may now target `catalog:category`, and its pattern's trailing parameter is
   the **catch-all** `:path*` (`/categories/:path*`) rather than `:slug`: a category is addressed by
   its canonical path — the slugs of its ancestors, root first, then its own. The pairing is checked

@@ -1,4 +1,4 @@
-import type { BlockDefinition, BlockField } from './types';
+import type { BlockDefinition, BlockField, ThemeMessages } from './types';
 
 /**
  * Generates `.eldra/block-types.d.ts`: a global ambient contract for every
@@ -44,7 +44,7 @@ const LINK_INTERFACE = `  /** A destination a \`link\` field points at: a catalo
 
 `;
 
-export function generateBlockTypes(blocks: BlockDefinition[]): string {
+export function generateBlockTypes(blocks: BlockDefinition[], messages?: ThemeMessages): string {
   const sorted = [...blocks].sort((a, b) => a.apiId.localeCompare(b.apiId));
   const usesRichText = sorted.some((block) => fieldsUseTypeDeep(block.fields ?? [], 'rich-text'));
   const usesLink = sorted.some((block) => fieldsUseTypeDeep(block.fields ?? [], 'link'));
@@ -88,9 +88,28 @@ ${usesLink ? LINK_INTERFACE : ''}  interface EldraBlockData {${blockDataBody}}
     id: string;
     data: EldraBlockData[K];
   };
-}
+${messageKeyDeclaration(messages)}}
 
 export {};
+`;
+}
+
+/**
+ * `MessageKey`, a union of the theme's own message keys (its default
+ * locale's flattened `i18n/<tag>.json` keys) for a typed `t()` argument — so
+ * a theme keeps typed keys without a hand-written `Messages` interface.
+ * Emitted only when the theme ships at least one key; absent when it
+ * declares no `i18n/` directory, the same way `EldraLink` is only emitted
+ * when some block declares a `link` field.
+ */
+function messageKeyDeclaration(messages: ThemeMessages | undefined): string {
+  if (messages === undefined) return '';
+  const keys = Object.keys(messages.locales[messages.defaultLocale] ?? {}).sort();
+  if (keys.length === 0) return '';
+  return `
+  /** The theme's own message keys (\`i18n/<tag>.json\`'s default locale),
+   *  flattened to dotted paths — vue-i18n's \`t()\` argument. */
+  type MessageKey = ${keys.map(singleQuoted).join(' | ')};
 `;
 }
 

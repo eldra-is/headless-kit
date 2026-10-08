@@ -120,6 +120,44 @@ describe('eldraTheme Vite plugin', () => {
     expect(result.footer).toEqual([{ fieldId: 'copyright', type: 'string' }]);
   });
 
+  it('resolves virtual:eldra/messages to an empty English catalogue when the theme ships no i18n/ directory', () => {
+    const root = copyFixture('valid-theme');
+    const plugin = eldraTheme({ framework: 'nuxt', themeDir: root }) as unknown as CallablePlugin;
+    plugin.configResolved({ root, command: 'build', logger: { error: vi.fn() } });
+    plugin.buildStart();
+
+    expect(plugin.load('\0virtual:eldra/messages')).toBe(
+      'export default {"defaultLocale":"en-US","locales":{}};'
+    );
+  });
+
+  it("resolves virtual:eldra/messages to the manifest's own message catalogue", async () => {
+    const root = copyFixture('theme-with-messages');
+    const plugin = eldraTheme({ framework: 'nuxt', themeDir: root }) as unknown as CallablePlugin;
+    plugin.configResolved({ root, command: 'build', logger: { error: vi.fn() } });
+    plugin.buildStart();
+
+    const source = plugin.load('\0virtual:eldra/messages') ?? '';
+    const loaded = (await import(
+      `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
+    )) as { default: { defaultLocale: string; locales: Record<string, Record<string, string>> } };
+    expect(loaded.default).toEqual({
+      defaultLocale: 'en-US',
+      locales: {
+        'en-US': {
+          'header.menu': 'Menu',
+          'cart.empty.title': 'Your cart is empty',
+          'items.count': '{count} items',
+        },
+        'is-IS': {
+          'header.menu': 'Valmynd',
+          'cart.empty.title': 'Karfan þín er tóm',
+          'items.count': '{count} hlutir',
+        },
+      },
+    });
+  });
+
   it('resolves virtual:eldra/breakpoints to the defaults, and never puts breakpoints on the persisted/emitted manifest', async () => {
     const root = copyFixture('valid-theme');
     const plugin = eldraTheme({ framework: 'nuxt', themeDir: root }) as unknown as CallablePlugin;
@@ -274,6 +312,7 @@ describe('eldraTheme Vite plugin', () => {
       '\0virtual:eldra/breakpoints',
       '\0virtual:eldra/tokens.css',
       '\0virtual:eldra/tailwind-theme.css',
+      '\0virtual:eldra/messages',
     ]);
     expect(reload).toHaveBeenCalledWith({ type: 'full-reload' });
     const generic = plugin.load('\0virtual:eldra/tokens.css') ?? '';

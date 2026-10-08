@@ -22,5 +22,10 @@ declare module 'virtual:eldra/block-fields' {
   export default blockFields;
 }
 
+declare module 'virtual:eldra/messages' {
+  const messages: { defaultLocale: string; locales: Record<string, Record<string, string>> };
+  export default messages;
+}
+
 declare module 'virtual:eldra/tokens.css' {}
 declare module 'virtual:eldra/tailwind-theme.css' {}

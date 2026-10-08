@@ -373,4 +373,29 @@ describe('generateBlockTypes', () => {
       expect(output).toContain('interface EldraLink {');
     });
   });
+
+  describe('MessageKey', () => {
+    it('emits a sorted MessageKey union from the default locale keys, ignoring other locales', () => {
+      const output = generateBlockTypes([], {
+        defaultLocale: 'en-US',
+        locales: {
+          'en-US': { 'header.menu': 'Menu', 'cart.empty.title': 'Your cart is empty' },
+          'is-IS': { 'header.menu': 'Valmynd' },
+        },
+      });
+      expect(output).toContain(
+        "type MessageKey = 'cart.empty.title' | 'header.menu';"
+      );
+    });
+
+    it('emits no MessageKey when the theme declares no messages', () => {
+      const output = generateBlockTypes([]);
+      expect(output).not.toContain('MessageKey');
+    });
+
+    it('emits no MessageKey when the default locale has no keys', () => {
+      const output = generateBlockTypes([], { defaultLocale: 'en-US', locales: { 'en-US': {} } });
+      expect(output).not.toContain('MessageKey');
+    });
+  });
 });

@@ -17,12 +17,18 @@ const BLOCK_FIELDS_ID = 'virtual:eldra/block-fields';
 const BREAKPOINTS_ID = 'virtual:eldra/breakpoints';
 const TOKENS_ID = 'virtual:eldra/tokens.css';
 const TAILWIND_ID = 'virtual:eldra/tailwind-theme.css';
+const MESSAGES_ID = 'virtual:eldra/messages';
 const RESOLVED_MANIFEST_ID = `\0${MANIFEST_ID}`;
 const RESOLVED_BLOCKS_ID = `\0${BLOCKS_ID}`;
 const RESOLVED_BLOCK_FIELDS_ID = `\0${BLOCK_FIELDS_ID}`;
 const RESOLVED_BREAKPOINTS_ID = `\0${BREAKPOINTS_ID}`;
 const RESOLVED_TOKENS_ID = `\0${TOKENS_ID}`;
 const RESOLVED_TAILWIND_ID = `\0${TAILWIND_ID}`;
+const RESOLVED_MESSAGES_ID = `\0${MESSAGES_ID}`;
+/** `virtual:eldra/messages`'s shape when the theme ships no `i18n/`
+ * directory — `manifest.messages` is absent, not an empty catalogue, so the
+ * module needs its own fallback rather than reading one off the manifest. */
+const EMPTY_MESSAGES = { defaultLocale: 'en-US', locales: {} };
 
 export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
   let config: ResolvedConfig | null = null;
@@ -56,7 +62,11 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
       return;
     }
     writeManifest(join(themeDir, '.eldra', 'manifest.json'), scan.manifest);
-    writeBlockTypes(join(themeDir, '.eldra', 'block-types.d.ts'), scan.manifest.blocks);
+    writeBlockTypes(
+      join(themeDir, '.eldra', 'block-types.d.ts'),
+      scan.manifest.blocks,
+      scan.manifest.messages
+    );
   }
 
   return {
@@ -82,6 +92,7 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
       if (id === BLOCKS_ID) return RESOLVED_BLOCKS_ID;
       if (id === BLOCK_FIELDS_ID) return RESOLVED_BLOCK_FIELDS_ID;
       if (id === BREAKPOINTS_ID) return RESOLVED_BREAKPOINTS_ID;
+      if (id === MESSAGES_ID) return RESOLVED_MESSAGES_ID;
       if (id === TOKENS_ID) return RESOLVED_TOKENS_ID;
       if (id === TAILWIND_ID) {
         if (options.tailwind !== true) {
@@ -117,6 +128,14 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
         // `.eldra/manifest.json`, which Core's ingest validates strictly.
         return `export default ${JSON.stringify(scan.breakpoints)};`;
       }
+      if (id === RESOLVED_MESSAGES_ID) {
+        // The manifest's own `messages` block today; K2 (theme-nuxt) merges
+        // the public web-gateway read over this at generate time. Absent on
+        // the manifest means the theme ships no `i18n/` directory, so the
+        // module falls back to an empty English catalogue rather than
+        // throwing — a theme with no texts still gets a working vue-i18n.
+        return `export default ${JSON.stringify(scan.manifest?.messages ?? EMPTY_MESSAGES)};`;
+      }
       if (id === RESOLVED_TOKENS_ID) {
         if (scan.manifest === null) throw new Error('eldra theme manifest is unavailable');
         return generateDesignTokenCss(normalizeThemeDesignTokens(scan.manifest.tokens));
@@ -132,6 +151,7 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
       const file = relative(themeDir, context.file).split('\\').join('/');
       if (
         !/^blocks\/[^/]+\/(block\.json|mock\.json|preview\.png)$/.test(file) &&
+        !/^i18n\/[^/]+\.json$/.test(file) &&
         file !== 'tokens.json' &&
         file !== 'package.json'
       )
@@ -144,6 +164,7 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
         RESOLVED_BREAKPOINTS_ID,
         RESOLVED_TOKENS_ID,
         RESOLVED_TAILWIND_ID,
+        RESOLVED_MESSAGES_ID,
       ]) {
         const module = context.server.moduleGraph.getModuleById(virtualId);
         if (module !== undefined) context.server.moduleGraph.invalidateModule(module);
@@ -207,8 +228,12 @@ function writeManifest(path: string, manifest: ThemeManifest): void {
  * Tracked like `manifest.json`, but only rewritten when content actually
  * changed, so an unrelated rescan does not touch its mtime.
  */
-function writeBlockTypes(path: string, blocks: ThemeManifest['blocks']): void {
-  const content = generateBlockTypes(blocks as unknown as BlockDefinition[]);
+function writeBlockTypes(
+  path: string,
+  blocks: ThemeManifest['blocks'],
+  messages: ThemeManifest['messages']
+): void {
+  const content = generateBlockTypes(blocks as unknown as BlockDefinition[], messages);
   if (existsSync(path) && readFileSync(path, 'utf8') === content) return;
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content);
