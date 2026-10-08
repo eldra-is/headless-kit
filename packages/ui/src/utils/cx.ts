@@ -119,6 +119,7 @@ const twMerge = extendTailwindMerge<
             'avatar-initials-lg',
             'avatar-initials-xl',
             'empty-state-title',
+            'filter-trigger',
             'filter-subheading',
             'filter-tile-count',
             'content-card-title',

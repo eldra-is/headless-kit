@@ -91,6 +91,21 @@ describe('FilterPanel — structure, roles and names', () => {
     wrapper.unmount();
   });
 
+  /**
+   * Spec → Sizes, Trigger row: "0.9375rem weight 600, left-aligned." `text-control` alone would
+   * render the facet name at the body weight (400) — `font`'s shorthand bakes that in — so the
+   * label carries the dedicated `text-filter-trigger` utility instead; see its comment in
+   * `tailwind.css`.
+   */
+  it('renders the facet name at weight 600, not the body weight', () => {
+    const wrapper = mountWith(FilterPanel, { props: { facets: ALL_FACETS, currency: 'USD' } });
+    const label = group(wrapper, 'category').find('[data-part="groupLabel"]');
+    expect(label.classes()).toContain('text-filter-trigger');
+    expect(label.classes()).not.toContain('font-semibold');
+    expect(label.classes()).not.toContain('text-control');
+    wrapper.unmount();
+  });
+
   it('points every trigger at its own body, which is a fieldset with a hidden legend', () => {
     const wrapper = mountWith(FilterPanel, { props: { facets: ALL_FACETS, currency: 'USD' } });
     for (const facet of ALL_FACETS) {

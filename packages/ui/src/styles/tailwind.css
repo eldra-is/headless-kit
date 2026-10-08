@@ -396,6 +396,16 @@
     var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
 }
 
+/* `FilterGroup`'s trigger label (spec "Filter panel" → Sizes, "Trigger" row): "0.9375rem weight
+   600, left-aligned" — the same size and line as `text-control`, but that utility's shorthand
+   bakes in `--eldra-text-body-weight` (400) the same way `text-stepper-value`'s comment above
+   explains, so a trailing `font-semibold` is order-dependent rather than reliable. Its own
+   utility, reusing `--eldra-text-label-weight` (600), the same shape as `text-stepper-value`. */
+@utility text-filter-trigger {
+  font: var(--eldra-text-label-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
 /* `EmptyState`'s title (spec "Empty and error states" → Sizes, "Title" row): "heading family,
    1.25rem, line-height 1.3, weight 600" — between `text-h4` (1.125rem) and `text-h3` (1.5rem), so
    it is its own utility rather than either. The weight is a literal spec number with no token of

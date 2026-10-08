@@ -94,9 +94,16 @@ const TRIGGER_BASE =
   'flex min-h-12 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-3 text-start ' +
   'eldra-focus';
 
-/** Spec → Sizes, Trigger row: "0.9375rem weight 600"; → States, hover: "name underlined 1px". */
+/**
+ * Spec → Sizes, Trigger row: "0.9375rem weight 600"; → States, hover: "name underlined 1px".
+ *
+ * `text-filter-trigger`, not `text-control font-semibold`: `text-control`'s `font` shorthand bakes
+ * in `--eldra-text-body-weight` (400), so a trailing `font-semibold` is order-dependent rather than
+ * reliable (`tailwind.css`'s comment on `text-stepper-value` explains the same bug on a different
+ * component) — it rendered the facet name at weight 400 live and in every committed baseline.
+ */
 const LABEL_BASE =
-  'min-w-0 shrink-0 text-control font-semibold text-text ' +
+  'min-w-0 shrink-0 text-filter-trigger text-text ' +
   'group-hover/trigger:underline group-hover/trigger:decoration-1 ' +
   'group-hover/trigger:underline-offset-[0.2em]';
 
