@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   EMPTY_THEME_MESSAGES,
   flattenMessages,
+  isForbiddenLocaleTag,
   mergeMessageCatalogues,
   resolveMessageCatalogue,
+  sanitizeLocaleMessages,
   unflattenMessages,
   type ThemeMessages,
 } from '../i18n';
@@ -139,7 +141,7 @@ describe('mergeMessageCatalogues', () => {
 });
 
 describe('resolveMessageCatalogue', () => {
-  const merged: ThemeMessages = {
+  const theme: ThemeMessages = {
     defaultLocale: 'en-US',
     locales: {
       'en-US': { 'header.menu': 'Menu', 'cart.empty.title': 'Your cart is empty' },
@@ -148,7 +150,7 @@ describe('resolveMessageCatalogue', () => {
   };
 
   it('produces a full key set for every org locale from the manifest alone (no platform)', () => {
-    const resolved = resolveMessageCatalogue(merged, ['en-US', 'is-IS'], 'en-US');
+    const resolved = resolveMessageCatalogue(theme, null, ['en-US', 'is-IS'], 'en-US');
     expect(resolved.defaultLocale).toBe('en-US');
     expect(resolved.locales['en-US']).toEqual({
       'header.menu': 'Menu',
@@ -162,7 +164,7 @@ describe('resolveMessageCatalogue', () => {
   });
 
   it('falls all the way back to the theme default locale for an org locale the theme never shipped', () => {
-    const resolved = resolveMessageCatalogue(merged, ['fr-FR'], 'fr-FR');
+    const resolved = resolveMessageCatalogue(theme, null, ['fr-FR'], 'fr-FR');
     expect(resolved.locales['fr-FR']).toEqual({
       'header.menu': 'Menu',
       'cart.empty.title': 'Your cart is empty',
@@ -170,7 +172,7 @@ describe('resolveMessageCatalogue', () => {
   });
 
   it('prefers the org default locale over the theme default locale when they differ', () => {
-    const resolved = resolveMessageCatalogue(merged, ['fr-FR'], 'is-IS');
+    const resolved = resolveMessageCatalogue(theme, null, ['fr-FR'], 'is-IS');
     // fr-FR has nothing of its own; org default (is-IS) answers header.menu, theme default
     // (en-US) answers cart.empty.title, which is-IS does not have.
     expect(resolved.locales['fr-FR']).toEqual({
@@ -180,7 +182,7 @@ describe('resolveMessageCatalogue', () => {
   });
 
   it('always includes the org default locale, even when the caller’s list omits it', () => {
-    const resolved = resolveMessageCatalogue(merged, [], 'en-US');
+    const resolved = resolveMessageCatalogue(theme, null, [], 'en-US');
     expect(resolved.locales['en-US']).toEqual({
       'header.menu': 'Menu',
       'cart.empty.title': 'Your cart is empty',
@@ -188,13 +190,56 @@ describe('resolveMessageCatalogue', () => {
   });
 
   it('handles the empty theme catalogue (no i18n/ directory) gracefully', () => {
-    const resolved = resolveMessageCatalogue(EMPTY_THEME_MESSAGES, [], 'en-US');
+    const resolved = resolveMessageCatalogue(EMPTY_THEME_MESSAGES, null, [], 'en-US');
     expect(resolved).toEqual({ defaultLocale: 'en-US', locales: { 'en-US': {} } });
+  });
+
+  /**
+   * The contract's tier 5 is `theme(themeDefault)` — **no** accompanying override tier, unlike
+   * every other link in the chain. An override on the theme's own default locale must never leak
+   * into a key that falls all the way through to tier 5 for an unrelated locale: `fr-FR` has
+   * nothing of its own, and the org default (`is-IS`) has nothing either, so resolution falls all
+   * the way to the theme default locale (`en-US`) — and must land on the theme's own shipped
+   * text, not Studio's override of that same locale.
+   */
+  it('tier 5 reads the theme’s own unmerged default locale, never an override of it', () => {
+    // A theme that ships only its own default locale (en-US) — so neither fr-FR (the locale being
+    // resolved) nor is-IS (the org default) has anything of its own, theme or override, and
+    // resolution falls all the way through to tier 5.
+    const onlyDefault: ThemeMessages = {
+      defaultLocale: 'en-US',
+      locales: { 'en-US': { 'header.menu': 'Menu' } },
+    };
+    const platform: ThemeMessages = {
+      defaultLocale: 'en-US',
+      locales: { 'en-US': { 'header.menu': 'Overridden EN' } },
+    };
+    const resolved = resolveMessageCatalogue(onlyDefault, platform, ['fr-FR'], 'is-IS');
+    expect(resolved.locales['fr-FR']).toEqual({ 'header.menu': 'Menu' });
+  });
+});
+
+describe('isForbiddenLocaleTag / sanitizeLocaleMessages', () => {
+  it('names the three prototype-chain keys as forbidden, and nothing else', () => {
+    expect(isForbiddenLocaleTag('__proto__')).toBe(true);
+    expect(isForbiddenLocaleTag('prototype')).toBe(true);
+    expect(isForbiddenLocaleTag('constructor')).toBe(true);
+    expect(isForbiddenLocaleTag('en-US')).toBe(false);
+  });
+
+  it('refuses a forbidden tag outright, dropping the whole locale', () => {
+    expect(sanitizeLocaleMessages('__proto__', { a: 'b' })).toBeNull();
+  });
+
+  it('sanitizes a permitted tag’s record: string values only, sorted', () => {
+    expect(
+      sanitizeLocaleMessages('en-US', { b: '2', a: '1', bad: 3 } as Record<string, unknown>)
+    ).toEqual({ a: '1', b: '2' });
   });
 });
 
 describe('EMPTY_THEME_MESSAGES', () => {
-  it('matches the K1 fallback', () => {
+  it('is the fallback catalogue an empty theme (no i18n/ directory) serves', () => {
     expect(EMPTY_THEME_MESSAGES).toEqual({ defaultLocale: 'en-US', locales: {} });
   });
 });

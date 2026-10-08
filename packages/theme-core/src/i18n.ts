@@ -1,7 +1,7 @@
 /**
  * Framework-free message-catalogue helpers shared by `@eldrajs/vite-plugin-theme` (the manifest
- * scanner), `@eldrajs/theme-nuxt` (the build-time merge over the public platform read) and, once
- * K3 lands, the starter's `vue-i18n` wiring.
+ * scanner), `@eldrajs/theme-nuxt` (the build-time merge over the public platform read) and the
+ * starter's `vue-i18n` wiring.
  *
  * `ThemeMessages` mirrors `@eldrajs/vite-plugin-theme`'s own type of the same name byte for byte —
  * `{ defaultLocale, locales: Record<tag, Record<key, string>> }`, flat dotted keys — but this
@@ -18,14 +18,43 @@ export interface ThemeMessages {
   locales: Record<string, Record<string, string>>;
 }
 
-/** The K1 fallback: what a theme with no `i18n/` directory (or no messages at all) serves on
- * `virtual:eldra/messages`. Matches `@eldrajs/vite-plugin-theme`'s own `EMPTY_MESSAGES` literal. */
+/** The fallback catalogue: what a theme with no `i18n/` directory (or no messages at all) serves
+ * on `virtual:eldra/messages`. Matches `@eldrajs/vite-plugin-theme`'s own `EMPTY_MESSAGES`
+ * literal. */
 export const EMPTY_THEME_MESSAGES: ThemeMessages = { defaultLocale: 'en-US', locales: {} };
 
-// Never let a flattened/unflattened key touch the prototype chain — the same concern
-// `designTokens.ts`'s own `FORBIDDEN_KEYS` guards against, for the same reason: these records
-// originate in theme/platform data this package does not control the validation of.
+// Never let a flattened/unflattened key, or a locale tag, touch the prototype chain — the same
+// concern `designTokens.ts`'s own `FORBIDDEN_KEYS` guards against, for the same reason: these
+// records originate in theme/platform data this package does not control the validation of.
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+/**
+ * Whether `tag` is one of the three names (`__proto__`, `prototype`, `constructor`) that, used as
+ * an object key, reassigns something other than an own property — a locale tag's own obvious risk,
+ * since it is written straight through to a record keyed by it. Exported so every consumer of an
+ * untrusted locale tag (a platform's JSON response, a Studio `postMessage` payload) shares the one
+ * definition instead of hand-rolling the same three-name set again.
+ */
+export function isForbiddenLocaleTag(tag: string): boolean {
+  return FORBIDDEN_KEYS.has(tag);
+}
+
+/**
+ * Sanitizes one locale's raw message record from an untrusted source: `null` when `tag` itself is
+ * forbidden (`isForbiddenLocaleTag`) — the caller drops the whole locale rather than let a write
+ * through it corrupt an object's prototype — otherwise a copy holding only `value`'s own
+ * string-valued keys, sorted, with any of the same forbidden names dropped at that level too.
+ * Shared by `@eldrajs/theme-vue` (`applyThemeMessages`, a live bridge payload) and
+ * `@eldrajs/theme-nuxt` (`toThemeMessages`, a platform response) instead of each re-implementing
+ * the same guard with its own, possibly drifting, level of protection.
+ */
+export function sanitizeLocaleMessages(
+  tag: string,
+  value: Record<string, unknown>
+): Record<string, string> | null {
+  if (isForbiddenLocaleTag(tag)) return null;
+  return sortedStringRecord(value);
+}
 
 /**
  * Flattens a nested object of strings (vue-i18n's own on-disk shape) into dotted keys
@@ -59,7 +88,7 @@ function flattenInto(node: Record<string, unknown>, prefix: string, out: Record<
 
 /**
  * The inverse of `flattenMessages`: dotted keys back into vue-i18n's nested shape, so a consumer
- * (the starter's `vue-i18n` plugin, K3) can hand `setLocaleMessage` an object it understands rather
+ * (the starter's `vue-i18n` plugin) can hand `setLocaleMessage` an object it understands rather
  * than a flat `virtual:eldra/messages` record.
  *
  * Keys are applied in sorted order, so a would-be conflict between a shallower and a deeper key
@@ -109,7 +138,7 @@ export function mergeMessageCatalogues(
   const tags = new Set([...Object.keys(themeDefaults.locales), ...Object.keys(platform.locales)]);
   const locales: Record<string, Record<string, string>> = {};
   for (const tag of [...tags].sort((a, b) => a.localeCompare(b))) {
-    if (FORBIDDEN_KEYS.has(tag)) continue;
+    if (isForbiddenLocaleTag(tag)) continue;
     const theme = themeDefaults.locales[tag];
     const override = platform.locales[tag];
     // One expression covers both cases: a locale the theme never shipped has no `theme` object to
@@ -121,38 +150,46 @@ export function mergeMessageCatalogues(
 }
 
 /**
- * Implements the contract's five-tier per-key fallback —
- * `override(locale) → theme(locale) → override(orgDefault) → theme(orgDefault) → theme(themeDefault)`
- * — over an **already-merged** catalogue (`mergeMessageCatalogues`'s output, where "override" and
- * "theme" are already combined per locale), so it degenerates to three locale-level tiers that
- * still cover all five:
+ * Implements the contract's five-tier per-key fallback, to the letter:
+ * `override(locale) → theme(locale) → override(orgDefault) → theme(orgDefault) → theme(themeDefault)`.
  *
- *  1. `catalogue.locales[orgLocale]` — tiers 1+2 combined (the organisation's own locale, platform
- *     override or theme default, whichever the merge kept);
- *  2. `catalogue.locales[orgDefaultLocale]` — tiers 3+4;
- *  3. `catalogue.locales[catalogue.defaultLocale]` — tier 5, the theme's own default locale.
+ * Takes `themeDefaults` and `platform` **separately** — not only a pre-merged catalogue — because
+ * tier 5 is explicitly `theme(themeDefault)` with **no** accompanying override tier: every other
+ * locale gets both an override and a theme tier, but the terminal safety net deliberately does
+ * not, so an override on the theme's own default locale must never leak into a key that falls all
+ * the way through to tier 5 for an unrelated locale. Tiers 1–4 *do* collapse into two
+ * locale-level lookups, since `mergeMessageCatalogues(themeDefaults, platform)` already fuses
+ * override and theme per locale:
  *
- * The full key set is `catalogue.locales[catalogue.defaultLocale]`'s own keys: every override is
- * validated (Core's `UNKNOWN_KEY`) against the theme's default-locale key set before it can reach
- * this catalogue, so no key anywhere in it ever falls outside that set. Every `orgLocale` — plus
- * `orgDefaultLocale` itself, added even if the caller's list omitted it — comes back with that
- * full key set, which is what lets a **credential-less build** (`platform: null` going in) still
- * produce a complete catalogue for every locale from the manifest alone.
+ *  1. `merged.locales[orgLocale]` — tiers 1+2 (the organisation's own locale, platform override or
+ *     theme default, whichever the merge kept);
+ *  2. `merged.locales[orgDefaultLocale]` — tiers 3+4;
+ *  3. `themeDefaults.locales[themeDefaults.defaultLocale]` — tier 5, the theme's own shipped
+ *     default-locale value, read from the **unmerged** input, never the platform's override of it.
+ *
+ * The full key set is the theme's own default-locale keys: every override is validated (Core's
+ * `UNKNOWN_KEY`) against that set before it can reach this function, so no key anywhere in the
+ * merged catalogue ever falls outside it. Every `orgLocale` — plus `orgDefaultLocale` itself, added
+ * even if the caller's list omitted it — comes back with that full key set, which is what lets a
+ * **credential-less build** (`platform: null` going in) still produce a complete catalogue for
+ * every locale from the manifest alone.
  */
 export function resolveMessageCatalogue(
-  catalogue: ThemeMessages,
+  themeDefaults: ThemeMessages,
+  platform: ThemeMessages | null,
   orgLocales: readonly string[],
   orgDefaultLocale: string
 ): ThemeMessages {
-  const themeDefault = catalogue.locales[catalogue.defaultLocale] ?? {};
+  const merged = mergeMessageCatalogues(themeDefaults, platform);
+  const themeDefault = sortedStringRecord(themeDefaults.locales[themeDefaults.defaultLocale] ?? {});
   const keys = Object.keys(themeDefault).sort((a, b) => a.localeCompare(b));
-  const orgDefault = catalogue.locales[orgDefaultLocale];
+  const orgDefault = merged.locales[orgDefaultLocale];
   const tags = new Set(orgLocales);
   tags.add(orgDefaultLocale); // every organisation carries at least its own default locale
   const locales: Record<string, Record<string, string>> = {};
   for (const tag of [...tags].sort((a, b) => a.localeCompare(b))) {
-    if (FORBIDDEN_KEYS.has(tag)) continue;
-    const own = catalogue.locales[tag];
+    if (isForbiddenLocaleTag(tag)) continue;
+    const own = merged.locales[tag];
     const resolved: Record<string, string> = {};
     for (const key of keys) {
       const value = own?.[key] ?? orgDefault?.[key] ?? themeDefault[key];
@@ -168,7 +205,7 @@ function cloneLocales(
 ): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
   for (const tag of Object.keys(locales).sort((a, b) => a.localeCompare(b))) {
-    if (FORBIDDEN_KEYS.has(tag)) continue;
+    if (isForbiddenLocaleTag(tag)) continue;
     out[tag] = sortedStringRecord(locales[tag] ?? {});
   }
   return out;

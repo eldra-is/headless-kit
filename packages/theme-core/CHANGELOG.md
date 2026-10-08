@@ -8,12 +8,16 @@ Release-please writes the generated notes from commit messages and does not repl
 - New subpath, `@eldrajs/theme-core/i18n`, framework-free: `flattenMessages`/`unflattenMessages`
   (nested vue-i18n JSON ↔ the manifest's own flat dotted keys), `mergeMessageCatalogues(themeDefaults,
   platform)` (the platform's theme-message overrides win per key; a locale the theme never shipped
-  is added whole), and `resolveMessageCatalogue(catalogue, orgLocales, orgDefaultLocale)`,
-  implementing the contract's five-tier per-key fallback over an already-merged catalogue so a
-  build with **no** gateway still produces a full key set for every organisation locale from the
-  manifest alone. `ThemeMessages` and the K1 fallback constant `EMPTY_THEME_MESSAGES` are exported
-  types/values. `@eldrajs/theme-nuxt`'s module is the one caller today; the starter's `vue-i18n`
-  wiring will be the next.
+  is added whole), and `resolveMessageCatalogue(themeDefaults, platform, orgLocales,
+  orgDefaultLocale)`, implementing the contract's five-tier per-key fallback to the letter — tier 5
+  (`theme(themeDefault)`) always reads the theme's own unmerged default-locale text, never an
+  override of it, which is why `themeDefaults` and `platform` are taken separately rather than only
+  a pre-merged catalogue — so a build with **no** gateway still produces a full key set for every
+  organisation locale from the manifest alone. `isForbiddenLocaleTag`/`sanitizeLocaleMessages` guard
+  an untrusted locale tag (`__proto__`/`prototype`/`constructor`) against corrupting an object's
+  prototype, shared by every caller instead of each re-implementing the check. `ThemeMessages` and
+  the fallback constant `EMPTY_THEME_MESSAGES` are exported types/values. `@eldrajs/theme-nuxt`'s
+  module is the one caller today; the starter's `vue-i18n` wiring is next.
 
 - `@eldrajs/theme-core/bridge`'s `BridgePayloads` gains `editor:theme-messages`
   (`{ revision, locales }`, `ResolvedThemeMessagesPayload`): a theme-message override save from

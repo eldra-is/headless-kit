@@ -43,7 +43,7 @@ export interface ResolvedDesignTokensPayload {
 }
 
 /**
- * K2: the theme-message catalogue, after Studio's "Theme texts" page saves an override — the same
+ * The theme-message catalogue, after Studio's "Theme texts" page saves an override — the same
  * shape `virtual:eldra/messages` serves, so `useEldraPreview` can apply it onto `context.messages`
  * with no translation step. `revision` lets a theme ignore a stale push (the editor may post one
  * after an operator leaves the settings page, or on a reconnect); `locales` carries only the
@@ -225,7 +225,7 @@ export interface BridgePayloads {
   'editor:init': { mode: EditorMode; previewToken: string; locale: string; path: string };
   'editor:content-update': { entries: DraftEntryPayload[] };
   'editor:design-tokens': ResolvedDesignTokensPayload;
-  /** K2: a theme-message override save — see `ResolvedThemeMessagesPayload`. */
+  /** A theme-message override save — see `ResolvedThemeMessagesPayload`. */
   'editor:theme-messages': ResolvedThemeMessagesPayload;
   'editor:select-block': { entryId: string; layoutNodeId?: string; reusablePlacementId?: string };
   'editor:navigate': { path: string };
