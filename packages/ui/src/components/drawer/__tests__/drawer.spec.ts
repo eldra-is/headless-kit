@@ -68,6 +68,13 @@ describe('Drawer — element and parts', () => {
     wrapper.unmount();
   });
 
+  it('sizes the open dialog to the dynamic viewport, so a pinned foot clears a mobile toolbar', () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Filters', modelValue: true } });
+    expect(root(wrapper).className).toContain('h-dvh');
+    expect(root(wrapper).className).not.toMatch(/\bh-full\b/);
+    wrapper.unmount();
+  });
+
   it('renders no footer part without a footer slot', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     expect(wrapper.find('[data-part="footer"]').exists()).toBe(false);

@@ -141,7 +141,10 @@ const closeLabel = computed(() => {
 const rootClass = computed(() =>
   partClass(
     cx(
-      'fixed inset-0 m-0 hidden open:flex h-full max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
+      // `h-dvh`, not `h-full`: a mobile browser's toolbar shrinks the *visual* viewport while the
+      // layout viewport (what `100%` of a fixed element measures) keeps the toolbar's height, so
+      // a foot pinned to the panel's bottom edge would sit under the toolbar.
+      'fixed inset-0 m-0 hidden open:flex h-dvh max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
       props.side === 'left' ? 'justify-start' : 'justify-end',
       'backdrop:bg-overlay',
       props.side === 'left'
