@@ -295,7 +295,7 @@ describe('collection sample page', () => {
 
   /**
    * The panel's own head — **Clear all** and the applied chips — comes before its group triggers
-   * now (ruling: the panel owns applied state), so a chip for an already-ticked filter sits before
+   * now (the panel owns applied state), so a chip for an already-ticked filter sits before
    * every facet control in the sidebar, including the one that produced it.
    */
   it('follows the tab order header → breadcrumbs → Read more → sidebar chips → filters → cards → Load more → call to action → footer', async () => {
