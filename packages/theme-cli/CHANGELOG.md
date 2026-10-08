@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `eldra-theme validate` surfaces the scanner's new message-catalogue errors (an invalid
+  `i18n/<tag>.json` key, value, locale file name, or a non-default locale's keys that are not a
+  subset of the default locale's) exactly as `@eldrajs/vite-plugin-theme/scan` reports them.
+  `eldra-theme types --blocks` (and the Vite plugin's own `.eldra/block-types.d.ts` write) now also
+  emits a `type MessageKey = '…' | '…';` union from the theme's default-locale message keys, when it
+  ships any — see `@eldrajs/vite-plugin-theme`'s changelog and `docs/theme-design-tokens.md`.
+
 - Fixed: `eldra-theme init` no longer ships a previously built Storybook, coverage report,
   Playwright output or tool cache. The starter copy (used both by the packaged `template/`
   directory and, directly, by `init` itself) now excludes `storybook-static`, `coverage`,

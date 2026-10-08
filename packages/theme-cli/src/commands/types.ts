@@ -40,7 +40,10 @@ export function generateBlockTypesFile(opts: { themeDir: string }): string {
     throw new Error(`types --blocks: theme validation failed:\n  ${scan.errors.join('\n  ')}`);
   }
   const target = join(opts.themeDir, '.eldra', 'block-types.d.ts');
-  const content = generateBlockTypes(scan.manifest.blocks as unknown as BlockDefinition[]);
+  const content = generateBlockTypes(
+    scan.manifest.blocks as unknown as BlockDefinition[],
+    scan.manifest.messages
+  );
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, content);
   return target;
