@@ -14,6 +14,7 @@ export default defineConfig({
     reusable: 'src/reusable.ts',
     'design-tokens': 'src/designTokens.ts',
     'image-framing': 'src/imageFraming.ts',
+    i18n: 'src/i18n.ts',
   },
   format: 'esm',
   platform: 'neutral',

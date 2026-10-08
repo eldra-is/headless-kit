@@ -42,6 +42,19 @@ export interface ResolvedDesignTokensPayload {
   };
 }
 
+/**
+ * K2: the theme-message catalogue, after Studio's "Theme texts" page saves an override — the same
+ * shape `virtual:eldra/messages` serves, so `useEldraPreview` can apply it onto `context.messages`
+ * with no translation step. `revision` lets a theme ignore a stale push (the editor may post one
+ * after an operator leaves the settings page, or on a reconnect); `locales` carries only the
+ * locales Studio is pushing an update for — a flat `{ "<key>": "<value>" }` record per locale tag,
+ * each one a **full replacement** of that locale's messages, not a per-key patch.
+ */
+export interface ResolvedThemeMessagesPayload {
+  revision: number;
+  locales: Record<string, Record<string, string>>;
+}
+
 export type StructuralDragPayload =
   | { kind: 'layout-node'; nodeId: string; parentId: string; index: number }
   | { id: string; kind: 'palette-block'; apiId: string }
@@ -212,6 +225,8 @@ export interface BridgePayloads {
   'editor:init': { mode: EditorMode; previewToken: string; locale: string; path: string };
   'editor:content-update': { entries: DraftEntryPayload[] };
   'editor:design-tokens': ResolvedDesignTokensPayload;
+  /** K2: a theme-message override save — see `ResolvedThemeMessagesPayload`. */
+  'editor:theme-messages': ResolvedThemeMessagesPayload;
   'editor:select-block': { entryId: string; layoutNodeId?: string; reusablePlacementId?: string };
   'editor:navigate': { path: string };
   'editor:set-mode': { mode: EditorMode };
@@ -410,6 +425,7 @@ export const KNOWN_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'editor:init',
   'editor:content-update',
   'editor:design-tokens',
+  'editor:theme-messages',
   'editor:select-block',
   'editor:navigate',
   'editor:set-mode',

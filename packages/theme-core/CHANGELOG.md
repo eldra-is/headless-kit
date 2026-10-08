@@ -5,6 +5,20 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- New subpath, `@eldrajs/theme-core/i18n`, framework-free: `flattenMessages`/`unflattenMessages`
+  (nested vue-i18n JSON ↔ the manifest's own flat dotted keys), `mergeMessageCatalogues(themeDefaults,
+  platform)` (the platform's theme-message overrides win per key; a locale the theme never shipped
+  is added whole), and `resolveMessageCatalogue(catalogue, orgLocales, orgDefaultLocale)`,
+  implementing the contract's five-tier per-key fallback over an already-merged catalogue so a
+  build with **no** gateway still produces a full key set for every organisation locale from the
+  manifest alone. `ThemeMessages` and the K1 fallback constant `EMPTY_THEME_MESSAGES` are exported
+  types/values. `@eldrajs/theme-nuxt`'s module is the one caller today; the starter's `vue-i18n`
+  wiring will be the next.
+
+- `@eldrajs/theme-core/bridge`'s `BridgePayloads` gains `editor:theme-messages`
+  (`{ revision, locales }`, `ResolvedThemeMessagesPayload`): a theme-message override save from
+  Studio's "Theme texts" page, handled the same way `editor:design-tokens` is.
+
 - **A `link` field's untranslated sub-fields fall back to the default locale's node, field by
   field.** A `link` field's value is a per-locale record (`{ "en-US": {kind,label,group,children…},
   "is-IS": {…} }`), and `createEldraClient` used to take the active locale's node whole (exact

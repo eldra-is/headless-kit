@@ -74,6 +74,10 @@
       "types": "./dist/image-framing.d.ts",
       "import": "./dist/image-framing.js"
     },
+    "./i18n": {
+      "types": "./dist/i18n.d.ts",
+      "import": "./dist/i18n.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

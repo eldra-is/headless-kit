@@ -134,6 +134,20 @@ describe('@eldrajs/bridge', () => {
     });
   });
 
+  it('forwards a theme-messages override only after the exact-origin handshake', () => {
+    const { editor, themeEvents } = boot();
+    h.iframe.dispatchLoad();
+    editor.post('editor:theme-messages', {
+      revision: 3,
+      locales: { 'en-US': { 'header.menu': 'Overridden menu' } },
+    });
+    expect(themeEvents).toContainEqual({
+      type: 'editor:theme-messages',
+      payload: { revision: 3, locales: { 'en-US': { 'header.menu': 'Overridden menu' } } },
+    });
+    expect(KNOWN_MESSAGE_TYPES.has('editor:theme-messages')).toBe(true);
+  });
+
   it('host posts editor:init from onConnected; theme.connected flips true', () => {
     const initPayload = {
       mode: 'edit',

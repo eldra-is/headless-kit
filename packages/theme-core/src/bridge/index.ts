@@ -11,6 +11,7 @@ export type {
   DOMRectLike,
   DraftEntryPayload,
   ResolvedDesignTokensPayload,
+  ResolvedThemeMessagesPayload,
   StructuralDragPayload,
   RichTextDoc,
   RichTextIdentity,
