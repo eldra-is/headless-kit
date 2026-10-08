@@ -1,9 +1,10 @@
 # @eldrajs/vue
 
-Vue 3 components for an Eldra storefront. Today: the `RichText` renderer for CMS rich text.
+Vue 3 components for an Eldra storefront: the `RichText` renderer for CMS rich text, and
+`EldraImage` for responsive images from Eldra media.
 
 ```bash
-pnpm add @eldrajs/vue @eldrajs/rich-text
+pnpm add @eldrajs/vue @eldrajs/rich-text @eldrajs/sdk
 ```
 
 ```vue
@@ -38,6 +39,23 @@ a given tag, `null` renders children only, and a component replaces the renderer
 
 `scrollTransitions` forwards its value to a `reveal` directive if your app registered one; without
 one it does nothing.
+
+## Images
+
+```vue
+<EldraImage
+  :src="product.thumbnail"
+  :alt="product.thumbnail?.altText || product.title"
+  sizes="(min-width: 1024px) 25vw, 50vw"
+  :aspect-ratio="4 / 5"
+/>
+```
+
+It renders an `<img>` with a `srcset` over the sizes the media host serves, the `sizes` you give,
+and `width`/`height` from the aspect ratio so the page does not jump when it loads. Lazy by
+default; pass `loading="eager"` and `fetchpriority="high"` for the hero. An image from another host
+renders as given. Images inside `RichText` get the same `srcset`. See
+[docs/images.md](../../docs/images.md).
 
 ## What is refused
 

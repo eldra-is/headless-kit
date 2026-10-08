@@ -3,6 +3,14 @@
 Hand-maintained: every change a consumer can see gets a line under Unreleased in the same change.
 Release-please writes the generated notes from commit messages and does not replace this.
 
+## Unreleased
+
+- `EldraImage`: an `<img>` with a `srcset` over the media host's variants, a required `sizes` and
+  `alt`, and `width`/`height` from `aspectRatio`. Lazy by default.
+- Images inside `RichText` that are Eldra media assets get a `srcset` with `sizes="100vw"`; other
+  images render as before.
+- Depends on `@eldrajs/sdk` for the image helpers.
+
 ## 0.1.0 — 2026-09-15
 
 - First release, moved out of `@eldra-is/vue-ui-components` (`RichText`, `TextRenderer`,

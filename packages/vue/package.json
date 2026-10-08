@@ -1,7 +1,7 @@
 {
   "name": "@eldrajs/vue",
   "version": "0.1.0",
-  "description": "Vue 3 components for Eldra storefronts: the RichText renderer for CMS content, with per-node and per-mark overrides.",
+  "description": "Vue 3 components for Eldra storefronts: the RichText renderer for CMS content, with per-node and per-mark overrides, and EldraImage for responsive media.",
   "keywords": [
     "eldra",
     "headless",
@@ -42,7 +42,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@eldrajs/rich-text": "workspace:^"
+    "@eldrajs/rich-text": "workspace:^",
+    "@eldrajs/sdk": "workspace:^"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",

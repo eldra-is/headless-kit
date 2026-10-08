@@ -1,3 +1,4 @@
+export { default as EldraImage } from './image/EldraImage.vue';
 export { default as RichText } from './rich-text/RichText.vue';
 export { default as TextRenderer } from './rich-text/TextRenderer.vue';
 export { default as RenderNode } from './rich-text/RenderNode.vue';
