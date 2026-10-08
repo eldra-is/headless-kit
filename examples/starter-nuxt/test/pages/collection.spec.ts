@@ -135,7 +135,7 @@ describe('collection sample page', () => {
 
   it('has exactly one h1 (the collection title) and one breadcrumb nav on the page', async () => {
     const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
+    wrapper.get('main#main'); // throws when the landmark is missing
 
     const h1s = wrapper.findAll('h1');
     expect(h1s).toHaveLength(1);

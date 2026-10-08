@@ -17,10 +17,12 @@ module.exports = [
     import: '{ responsiveImage }',
     limit: '1 kB',
   },
+  // Raised from 4 kB when `responsiveImage` and the media-variant helpers joined the
+  // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport.
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    limit: '4 kB',
+    limit: '4.5 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',
