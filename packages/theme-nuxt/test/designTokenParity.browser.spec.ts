@@ -473,11 +473,17 @@ async function startArtifactServer(root: string): Promise<ArtifactServer> {
 }
 
 async function startStudioServer(): Promise<ArtifactServer> {
-  const server = createServer((request, response) => {
-    const theme = new URL(request.url ?? '/', 'http://127.0.0.1').searchParams.get('theme') ?? '';
+  // The document below never interpolates the request — every navigation gets
+  // the exact same bytes, and the `?theme=` the test puts on the URL is read
+  // back by the page's own script, client-side, off `location.search`. A
+  // request value earlier went straight into the HTML response text (even
+  // escaped) and still read as a server reflecting attacker input into a
+  // page, which is what this sidesteps entirely rather than escaping harder.
+  const server = createServer((_request, response) => {
     response.setHeader('content-type', 'text/html; charset=utf-8');
-    response.end(`<!doctype html><iframe id="theme" src="${escapeHtml(theme)}"></iframe><script>
+    response.end(`<!doctype html><iframe id="theme"></iframe><script>
 const frame = document.querySelector('#theme');
+frame.src = new URLSearchParams(location.search).get('theme') ?? '';
 const targetOrigin = new URL(frame.src).origin;
 let sequence = 0;
 const envelope = (type, payload) => ({ protocol: 'eldra-bridge', version: 1, id: 'browser-' + (++sequence), type, payload });
@@ -515,8 +521,4 @@ function closeServer(server: Server | undefined): Promise<void> {
   return new Promise((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve()))
   );
-}
-
-function escapeHtml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 }
