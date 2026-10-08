@@ -67,6 +67,7 @@ import {
   Skeleton,
   VisuallyHidden,
   appliedFilters,
+  useMessages,
   type FilterFacet,
   type FilterFacetLayout,
   type FilterSelection as UiFilterSelection,
@@ -151,6 +152,11 @@ const route = storefront.route;
 
 const uid = useUiId();
 const drawerId = `collection-grid-drawer-${uid}`;
+/** The drawer foot's own two strings ("Clear all", "Show N products") — the panel's own copy of
+ *  them is hidden now (see the drawer template below), so this block draws them itself, from the
+ *  same `@eldrajs/ui` default messages `FilterPanel` would have read, rather than a second copy of
+ *  the English text in this file's own locale. */
+const filterPanelMessages = useMessages();
 /** The grid's own visually hidden `h2` names the list of cards (spec Accessibility: "The grid has a
  *  visually hidden `h2` 'Products'"). */
 const productsHeadingId = `collection-grid-products-${uid}`;
@@ -1448,6 +1454,19 @@ function applyPending(): void {
   drawerOpen.value = false;
 }
 
+/**
+ * **Clear all**, from the drawer's own foot (drawn by the Drawer's footer slot now, not the
+ * panel's own hidden copy — see the drawer template below). Reproduces exactly what `FilterPanel`'s
+ * internal Clear all does: `clearedSelection()` is `{}`, and `onPendingPanelChange` is the very
+ * handler the panel's own `change` event already calls, so the pending copy, the price fields and
+ * the pending-count debounce all land exactly where they would have. Focus is left alone, same as
+ * the panel's own drawer-mode Clear all (`onClear(false)`): the browser keeps it on the button.
+ */
+function onDrawerClearAll(): void {
+  onPendingPanelChange({});
+  flushPendingDebounce();
+}
+
 /** Neither debounce outlives the component — a filter ticked right before navigating away must
  *  not fire a request into a storefront read nothing is listening to any more. */
 onUnmounted(() => {
@@ -1756,11 +1775,20 @@ function hrefForPage(page: number): string {
           side="right"
           :title="t('grid.filter')"
           width="min(24rem, 100%)"
+          :classes="{ footer: 'grid grid-cols-[auto_1fr]' }"
         >
           <!-- `show-head false`: the Drawer's own title above is already this panel's heading, so
-               it draws no second one of its own. Its foot — Clear all and Show N products, wired
-               to the grid's existing pending-count probe — is the panel's own default content,
-               from `result-count`. -->
+               it draws no second one of its own. The panel's own foot is hidden
+               (`classes.foot: 'hidden'`): at 360 it used to sit `static` at the end of the
+               scrolling groups, bottom off-screen in a short viewport, so a shopper had to scroll
+               the whole filter list to find Clear all / Show N products. The Drawer's own `footer`
+               slot below draws the foot instead — a true sibling of the scrolling `body`, outside
+               its `overflow-y-auto`, so it stays pinned at the bottom of the dialog while the
+               groups scroll under it (spec "Filter panel" → Anatomy item 14: "Drawer foot (drawer
+               mode, supplied by the Drawer)"). `classes.footer` turns the Drawer's own flex foot
+               into the spec's 2-column grid (`auto | 1fr`); its `border-t`/`bg-background` are the
+               Drawer's own foot chrome already, which is exactly the top rule and background fill
+               the spec asks for. -->
           <FilterPanel
             ref="drawerPanelEl"
             mode="drawer"
@@ -1771,11 +1799,25 @@ function hrefForPage(page: number): string {
             :currency="money.currency.value"
             :result-count="pendingTotal"
             :id-prefix="`collection-grid-drawer-${uid}`"
+            :classes="{ foot: 'hidden' }"
             @change="onPendingPanelChange"
             @clear="flushPendingDebounce"
             @apply="applyPending"
             @remove="onPendingPanelRemove"
           />
+
+          <template #footer>
+            <Button variant="outline" type="button" @click="onDrawerClearAll">
+              {{ filterPanelMessages.filterPanelClearAll }}
+            </Button>
+            <Button variant="primary" type="button" block @click="applyPending">
+              {{
+                pendingTotal === null
+                  ? filterPanelMessages.filterPanelShowProducts
+                  : filterPanelMessages.filterPanelShowResults(pendingTotal)
+              }}
+            </Button>
+          </template>
         </Drawer>
       </template>
     </Container>

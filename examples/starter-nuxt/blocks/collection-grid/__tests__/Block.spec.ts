@@ -1288,6 +1288,44 @@ describe('collection-grid block', () => {
       // panel has anything to show once the drawer's own pending copy is cleared.
       expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('M');
     });
+
+    /**
+     * Regression for the foot sitting `position: static` at the end of the scrolling groups (a
+     * shopper had to scroll the whole filter list to reach Clear all / Show N products). The foot
+     * now lives in the Drawer's own `footer` part — a sibling of the scrolling `body`, not a
+     * descendant of it — so it stays on screen while the groups scroll underneath, and the
+     * panel's own copy of it is hidden rather than drawn twice.
+     */
+    it('pins the foot outside the scrolling body, in the Drawer’s own footer', async () => {
+      const wrapper = mountGrid(mock, { attachTo: document.body });
+      await wrapper.vm.$nextTick();
+
+      await filterButton(wrapper).trigger('click');
+      const dialog = wrapper.get('dialog');
+      const body = dialog.get('[data-part="body"]');
+      const footer = dialog.get('[data-part="footer"]');
+
+      // The foot is not inside the scrolling body…
+      expect(body.element.contains(footer.element)).toBe(false);
+      // …and the panel's own copy of it is hidden rather than removed outright, so no dead code
+      // path is needed to suppress it — just not shown or reachable by Tab.
+      const panelFoot = dialog.get('[data-part="foot"]');
+      expect(panelFoot.classes()).toContain('hidden');
+
+      // The visible foot is the spec's 2-column grid (`auto | 1fr`) with a top rule and a
+      // background fill, supplied by the Drawer's own chrome.
+      expect(footer.classes()).toContain('grid');
+      expect(footer.classes()).toContain('grid-cols-[auto_1fr]');
+      expect(footer.classes()).not.toContain('flex');
+      expect(footer.classes()).toContain('border-t');
+      expect(footer.classes()).toContain('bg-background');
+
+      const footerButtons = footer.findAll('button');
+      expect(footerButtons.map((button) => button.text())).toEqual([
+        enUS.grid.clearAll,
+        expect.stringMatching(/^Show /),
+      ]);
+    });
   });
 
   describe('keyboard', () => {
