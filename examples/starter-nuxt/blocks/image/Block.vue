@@ -50,7 +50,7 @@ import type { ImagePart } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { focusRingInset } from '../../app/utils/classes';
@@ -61,7 +61,7 @@ type ImageWidth = 'narrow' | 'content' | 'wide' | 'full';
 const props = defineProps<{ entry: EldraBlockEntry<'image'> }>();
 const { data, entryId } = useBlockData(props, 'image');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 
 /** The freshly-inserted editor hint's photo icon (spec States, "Empty (freshly inserted)").
  *  `EditorPlaceholder.icon` takes a bare, already-bound icon component, not a name, so this goes

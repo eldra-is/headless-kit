@@ -48,18 +48,17 @@ import { Button, Container, EditorPlaceholder, Link, Section } from '@eldrajs/ui
 import type { SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import type { ThemeIconName } from '../../app/icons';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import type { MessageKey } from '../../app/i18n/messages';
 
 const props = defineProps<{ entry: EldraBlockEntry<'team'> }>();
 const { data } = useBlockData(props, 'team');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `team-heading-${useUiId()}`;
 

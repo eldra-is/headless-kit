@@ -8,7 +8,8 @@ import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type { StorefrontAck, StorefrontForms } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
-import { enUS } from '../../../app/i18n/en-US';
+import enUS from '../../../i18n/en-US.json';
+import { renderedMessage } from '../../../test/support/i18nText';
 
 /** Only the fields the block requires (`variant`, `heading`, `consent`, `list`) — the "genuinely
  *  minimal" fixture every rebuilt block spec covers alongside the full `mock.json` (see
@@ -89,7 +90,7 @@ describe('newsletter block', () => {
       expect(wrapper.text()).toContain(enUS.newsletter.emailLabel);
       expect(wrapper.text()).toContain(enUS.newsletter.subscribe);
       expect(wrapper.find('input[type="email"]').attributes('placeholder')).toBe(
-        enUS.newsletter.emailPlaceholder
+        renderedMessage(enUS.newsletter.emailPlaceholder)
       );
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
@@ -154,11 +155,11 @@ describe('newsletter block', () => {
       await flushPromises();
 
       expect(input.attributes('aria-invalid')).toBe('true');
-      expect(wrapper.text()).toContain(enUS.newsletter.invalidEmail);
+      expect(wrapper.text()).toContain(renderedMessage(enUS.newsletter.invalidEmail));
       const describedBy = input.attributes('aria-describedby');
       expect(describedBy).toBeTruthy();
       const errorEl = wrapper.find(`#${describedBy}`);
-      expect(errorEl.text()).toContain(enUS.newsletter.invalidEmail);
+      expect(errorEl.text()).toContain(renderedMessage(enUS.newsletter.invalidEmail));
       expect(errorEl.find('svg').exists()).toBe(true);
       expect(document.activeElement).toBe(input.element);
     });
@@ -171,7 +172,7 @@ describe('newsletter block', () => {
       await flushPromises();
 
       expect(input.attributes('aria-invalid')).toBe('true');
-      expect(wrapper.text()).toContain(enUS.newsletter.invalidEmail);
+      expect(wrapper.text()).toContain(renderedMessage(enUS.newsletter.invalidEmail));
       expect(document.activeElement).toBe(input.element);
     });
 
@@ -183,7 +184,7 @@ describe('newsletter block', () => {
 
       const input = wrapper.find('input[type="email"]');
       expect(input.attributes('aria-invalid')).toBe('true');
-      expect(wrapper.text()).toContain(enUS.newsletter.invalidEmail);
+      expect(wrapper.text()).toContain(renderedMessage(enUS.newsletter.invalidEmail));
       expect(document.activeElement).toBe(input.element);
       expect(wrapper.find('form').exists()).toBe(true);
     });

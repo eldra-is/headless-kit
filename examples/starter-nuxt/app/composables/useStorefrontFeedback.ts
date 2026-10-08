@@ -1,6 +1,6 @@
 import { useToast } from '@eldrajs/ui';
 import { failureMessageKey, type StorefrontFailure } from '../storefront/feedback';
-import { useT } from './useT';
+import { useI18n } from 'vue-i18n';
 
 /**
  * The one way a block tells a shopper that a storefront *mutation* failed, and the only place the
@@ -35,7 +35,7 @@ export interface StorefrontFeedback {
 }
 
 export function useStorefrontFeedback(): StorefrontFeedback {
-  const t = useT();
+  const { t } = useI18n();
   const toast = useToast();
   return {
     report(failure, options = {}) {

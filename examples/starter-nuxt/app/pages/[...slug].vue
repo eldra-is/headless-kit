@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { EldraBlockZone, EldraLayout, getBlockSchemaApiId } from '@eldrajs/theme-vue';
 import { Button, Container, Section } from '@eldrajs/ui';
 import EldraRouterLink from '../components/EldraRouterLink.vue';
-import { useT } from '../composables/useT';
+import { useI18n } from 'vue-i18n';
 import { partitionPageBlocks } from '../utils/pageStructure';
 import { pageTitle } from '../utils/pageTitle';
 
@@ -18,7 +18,7 @@ const {
   pending,
   error,
 } = useEldraPage();
-const t = useT();
+const { t } = useI18n();
 
 // `/404` is prerendered (see nitro.prerender.routes) so a styled not-found
 // shell exists for static hosts. Without gateway credentials the page-lookup

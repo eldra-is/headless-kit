@@ -11,8 +11,8 @@ import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type { StorefrontCommerce, StorefrontForms } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { currencyLabel } from '../../../app/storefront/money';
-import { enUS } from '../../../app/i18n/en-US';
-import { isIS } from '../../../app/i18n/is-IS';
+import enUS from '../../../i18n/en-US.json';
+import isIS from '../../../i18n/is-IS.json';
 
 /**
  * `mock.json` names a collection or product by handle, because a theme cannot know an

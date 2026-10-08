@@ -55,7 +55,7 @@ import type { ContainerWidth, SectionBackground, SectionSpacing } from '@eldrajs
 import { DEFAULT_IMAGE_FRAMING } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
@@ -63,7 +63,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 
 const props = defineProps<{ entry: EldraBlockEntry<'cta'> }>();
 const { data, entryId } = useBlockData(props, 'cta');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `cta-heading-${useUiId()}`;
 

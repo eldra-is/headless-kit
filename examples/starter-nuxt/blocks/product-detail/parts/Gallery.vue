@@ -25,7 +25,7 @@ import { Badge, Button, Lightbox } from '@eldrajs/ui';
 import type { LightboxImage } from '@eldrajs/ui';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 import UiImage from '../../../app/components/ui/UiImage.vue';
-import { useT } from '../../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { focusRing } from '../../../app/utils/classes';
 
 export interface GalleryImage {
@@ -43,7 +43,7 @@ const props = defineProps<{
   onSale: boolean;
 }>();
 
-const t = useT();
+const { t } = useI18n();
 
 /** `Lightbox` needs real intrinsic pixel sizes; a storefront image may not carry them, and these
  *  are the same 4:5 fallbacks the stage reserves. */

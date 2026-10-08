@@ -3,7 +3,7 @@ import { mount, type DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
 import { Badge } from '@eldrajs/ui';
-import { uiEnUS } from '../../../app/i18n/uiMessages';
+import { enUS as uiEnUS } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';

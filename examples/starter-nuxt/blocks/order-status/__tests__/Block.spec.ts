@@ -15,7 +15,7 @@ import type {
   StorefrontOrderStatus,
   StorefrontSource,
 } from '../../../app/storefront/types';
-import { enUS } from '../../../app/i18n/en-US';
+import enUS from '../../../i18n/en-US.json';
 
 /** Only the required fields (the freshly-inserted seed): every optional part (text, links,
  *  help links) is absent, exercising every "optional part renders nothing" branch at once. */

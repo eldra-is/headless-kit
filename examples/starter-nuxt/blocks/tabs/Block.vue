@@ -47,7 +47,7 @@ import { DEFAULT_IMAGE_FRAMING, EldraRichText, type ImageFraming } from '@eldraj
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
@@ -65,7 +65,7 @@ interface TabItem {
 const props = defineProps<{ entry: EldraBlockEntry<'tabs'> }>();
 const { data, entryId } = useBlockData(props, 'tabs');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 
 const uiId = useUiId();
 const headingId = `tabs-heading-${uiId}`;

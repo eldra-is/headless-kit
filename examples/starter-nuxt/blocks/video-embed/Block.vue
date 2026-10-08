@@ -53,7 +53,7 @@ import { DEFAULT_IMAGE_FRAMING } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -65,7 +65,7 @@ import { resolveVideoEmbed, type VideoEmbed } from './embed';
 const props = defineProps<{ entry: EldraBlockEntry<'video-embed'> }>();
 const { data, entryId } = useBlockData(props, 'video-embed');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const headingId = `video-embed-heading-${useUiId()}`;
 
 type Variant = 'contained' | 'split';

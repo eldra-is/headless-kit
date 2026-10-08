@@ -19,7 +19,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@eldrajs/ui';
 import UiImage from '../../../app/components/ui/UiImage.vue';
-import { useT } from '../../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{
   /** The main Add to cart button. The bar shows only while this is off screen. */
@@ -35,7 +35,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ add: [] }>();
 
-const t = useT();
+const { t } = useI18n();
 
 /** Whether the main button is on screen. Starts `true`: see the module comment. */
 const targetVisible = ref(true);

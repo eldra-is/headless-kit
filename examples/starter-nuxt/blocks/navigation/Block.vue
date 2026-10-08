@@ -55,7 +55,7 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useWishlist } from '../../app/composables/useWishlist';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -68,7 +68,7 @@ import { useMegaMenuKeys } from './useMegaMenuKeys';
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
 
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const storefront = useStorefront();
 

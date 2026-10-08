@@ -47,7 +47,7 @@ import { Button, Link, Price, QuantityStepper, VisuallyHidden, useToast } from '
 import type { StorefrontCartLine } from '../../../app/storefront/types';
 import { useStorefront } from '../../../app/composables/useStorefront';
 import { useStorefrontFeedback } from '../../../app/composables/useStorefrontFeedback';
-import { useT } from '../../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
 import UiImage from '../../../app/components/ui/UiImage.vue';
@@ -67,7 +67,7 @@ const emit = defineEmits<{
   removing: [];
 }>();
 
-const t = useT();
+const { t } = useI18n();
 /** Line money is major units (`app/storefront/types.ts`); `<Price>` reads minor. */
 const money = useMoney();
 const cart = useStorefront().cart;

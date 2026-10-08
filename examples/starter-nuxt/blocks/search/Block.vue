@@ -74,14 +74,13 @@ import { useEldraLocale } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { stripStega } from '@eldrajs/theme-core/stega';
 import { isInternalHref, searchQueryHref, SEARCH_PATH } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
-import type { MessageKey } from '../../app/i18n/messages';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { toSearchBarResults } from './results';
 import PopularChips from './PopularChips.vue';
@@ -96,7 +95,7 @@ interface TypeConfig {
 const props = defineProps<{ entry: EldraBlockEntry<'search'> }>();
 const { data } = useBlockData(props, 'search');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const storefront = useStorefront();
 const headingId = `search-heading-${useUiId()}`;
 

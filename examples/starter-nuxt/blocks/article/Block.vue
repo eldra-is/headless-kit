@@ -38,7 +38,7 @@ import { DEFAULT_IMAGE_FRAMING, EldraRichText, useEldra } from '@eldrajs/theme-v
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
@@ -47,7 +47,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 const props = defineProps<{ entry: EldraBlockEntry<'article'> }>();
 const { data, entryId } = useBlockData(props, 'article');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const titleId = `article-title-${useUiId()}`;
 
 /** Same "no provider, fall back" shape as `useT.ts`/`useEditing.ts`'s own local helpers — a plain

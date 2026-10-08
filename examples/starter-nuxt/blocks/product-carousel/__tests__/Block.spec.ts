@@ -21,7 +21,7 @@ import type {
 } from '../../../app/storefront/types';
 import { createDemoStorefront, demoCollectionId, PRODUCTS } from '../../../app/storefront/demo';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
-import { enUS } from '../../../app/i18n/en-US';
+import enUS from '../../../i18n/en-US.json';
 
 /** The genuinely minimal fixture: only the fields the block requires. */
 const bare = { heading: mock.heading, variant: 'related' };

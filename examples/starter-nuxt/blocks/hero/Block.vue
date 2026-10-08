@@ -30,7 +30,7 @@ import type { SectionBackground, SectionSpacing } from '@eldrajs/ui';
 import { DEFAULT_IMAGE_FRAMING } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -39,7 +39,7 @@ import UiImage from '../../app/components/ui/UiImage.vue';
 const props = defineProps<{ entry: EldraBlockEntry<'hero'> }>();
 const { data, entryId } = useBlockData(props, 'hero');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const headingId = `hero-heading-${useUiId()}`;
 
 const variant = computed(() => data.value.variant ?? 'image-right');

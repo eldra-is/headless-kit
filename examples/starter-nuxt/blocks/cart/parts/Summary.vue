@@ -41,7 +41,7 @@ import {
 } from '@eldrajs/ui';
 import { useStorefront } from '../../../app/composables/useStorefront';
 import { useStorefrontFeedback } from '../../../app/composables/useStorefrontFeedback';
-import { useT } from '../../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../../app/composables/useUiId';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
@@ -60,7 +60,7 @@ const props = withDefaults(
   { showDiscount: true, showPaymentIcons: true, note: '' }
 );
 
-const t = useT();
+const { t } = useI18n();
 /** Totals are major units (`app/storefront/types.ts`); `<Price>` reads minor. */
 const money = useMoney();
 const cart = useStorefront().cart;

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { defineComponent, h } from 'vue';
 import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import fixture from '../../pages/collection.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
 
@@ -20,7 +20,7 @@ const page = fixture as unknown as PageFixture;
 const CollectionPage = defineComponent({
   name: 'CollectionPageStory',
   setup() {
-    const t = useT();
+    const { t } = useI18n();
     return () =>
       h('div', [
         h(

@@ -11,7 +11,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { defineComponent, h } from 'vue';
 import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import productPage from '../../pages/product.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
 
@@ -24,7 +24,7 @@ const SKIP_LINK_CLASSES = {
 const ProductPage = defineComponent({
   name: 'ProductPageStory',
   setup() {
-    const t = useT();
+    const { t } = useI18n();
     return () => [
       h(
         Link,

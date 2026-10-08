@@ -20,7 +20,7 @@
  */
 import { computed } from 'vue';
 import { Price } from '@eldrajs/ui';
-import { useT } from '../../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { roundMoney, useMoney } from '../../../app/storefront/money';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 
@@ -36,7 +36,7 @@ const props = withDefaults(
   { threshold: undefined, panel: 'card' }
 );
 
-const t = useT();
+const { t } = useI18n();
 const money = useMoney();
 
 const thresholdAmount = computed<number | null>(() => {

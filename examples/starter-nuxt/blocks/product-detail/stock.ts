@@ -1,4 +1,3 @@
-import type { MessageKey } from '../../app/i18n/messages';
 
 /**
  * The buy box's stock line, derived — not stored. Spec `02-blocks.md` "Product detail" → States

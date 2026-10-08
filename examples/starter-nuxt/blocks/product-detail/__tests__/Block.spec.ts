@@ -17,8 +17,8 @@ import {
   type StorefrontResult,
   type VolatileKey,
 } from '../../../app/storefront/types';
-import { enUS } from '../../../app/i18n/en-US';
-import { isIS } from '../../../app/i18n/is-IS';
+import enUS from '../../../i18n/en-US.json';
+import isIS from '../../../i18n/is-IS.json';
 import { formatMoney } from '../../../app/storefront/money';
 import Block from '../Block.vue';
 import mock from '../mock.json';

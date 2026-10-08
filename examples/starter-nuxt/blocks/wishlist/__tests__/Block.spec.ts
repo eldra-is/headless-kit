@@ -23,7 +23,7 @@ import type {
   StorefrontSource,
   VolatileKey,
 } from '../../../app/storefront/types';
-import { enUS } from '../../../app/i18n/en-US';
+import enUS from '../../../i18n/en-US.json';
 
 const WISHLIST_KEY = 'eldra.storefront.wishlist';
 

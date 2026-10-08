@@ -7,7 +7,7 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
-import { enUS } from '../../../app/i18n/en-US';
+import enUS from '../../../i18n/en-US.json';
 import { createDemoStorefront, demoCollectionId } from '../../../app/storefront/demo';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {

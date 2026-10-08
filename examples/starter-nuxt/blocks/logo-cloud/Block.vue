@@ -34,14 +34,14 @@ import { Container, EditorPlaceholder, LogoItem, Section } from '@eldrajs/ui';
 import type { ContainerWidth, ImageMedia, SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'logo-cloud'> }>();
 const { data } = useBlockData(props, 'logo-cloud');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `logo-cloud-heading-${useUiId()}`;
 

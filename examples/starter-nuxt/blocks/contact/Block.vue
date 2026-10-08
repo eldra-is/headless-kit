@@ -65,7 +65,7 @@ import {
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -76,7 +76,7 @@ type Variant = 'split' | 'details-only' | 'form-only';
 
 const props = defineProps<{ entry: EldraBlockEntry<'contact'> }>();
 const { data } = useBlockData(props, 'contact');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const storefront = useStorefront();
 

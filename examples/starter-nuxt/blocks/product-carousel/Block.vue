@@ -54,7 +54,7 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -72,7 +72,7 @@ import { useMoney } from '../../app/storefront/money';
 
 const props = defineProps<{ entry: EldraBlockEntry<'product-carousel'> }>();
 const { data } = useBlockData(props, 'product-carousel');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `product-carousel-heading-${useUiId()}`;
 /** The h2 recipe, also applied to the heading's own link so `Link`'s standalone size and weight do
@@ -288,7 +288,8 @@ const CARD_CLASSES = { root: 'min-w-0' } as const;
 /**
  * While pending, `Carousel`'s own accessible name announces the loading state instead of
  * claiming to be the (not yet populated) product row — `storefront.loading` is the shared
- * commerce-block vocabulary (`app/i18n/messages.ts`), not a string this block owns itself.
+ * commerce-block vocabulary (`i18n/en-US.json`'s `storefront` namespace), not a string this block
+ * owns itself.
  *
  * Otherwise it describes what the carousel holds ("New this season products") rather than repeating
  * the heading verbatim: the block's own `<section>` takes its name from the `<h2>` through

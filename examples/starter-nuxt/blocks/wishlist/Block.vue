@@ -49,7 +49,7 @@ import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import { useWishlist } from '../../app/composables/useWishlist';
 import EldraIcon from '../../app/components/EldraIcon.vue';
@@ -62,7 +62,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 const props = defineProps<{ entry: EldraBlockEntry<'wishlist'> }>();
 const { data } = useBlockData(props, 'wishlist');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const storefront = useStorefront();
 /** Hydrated in `onMounted`, never before — see the module comment. */
 const wishlist = useWishlist();

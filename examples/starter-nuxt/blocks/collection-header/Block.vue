@@ -54,7 +54,7 @@ import { EldraRichText, type ImageFraming } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -76,7 +76,7 @@ interface Subcollection {
 const props = defineProps<{ entry: EldraBlockEntry<'collection-header'> }>();
 const { data, entryId } = useBlockData(props, 'collection-header');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const storefront = useStorefront();
 
 const uid = useUiId();

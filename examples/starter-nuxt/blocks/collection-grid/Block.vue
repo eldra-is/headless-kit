@@ -79,7 +79,7 @@ import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
@@ -152,7 +152,7 @@ interface FilterField {
 const props = defineProps<{ entry: EldraBlockEntry<'collection-grid'> }>();
 const { data } = useBlockData(props, 'collection-grid');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const storefront = useStorefront();
 const route = storefront.route;
 

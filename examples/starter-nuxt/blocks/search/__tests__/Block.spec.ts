@@ -13,8 +13,8 @@ import type {
   StorefrontSource,
 } from '../../../app/storefront/types';
 import { createDemoStorefront, PRODUCTS } from '../../../app/storefront/demo';
-import { enUS } from '../../../app/i18n/en-US';
-import { uiEnUS } from '../../../app/i18n/uiMessages';
+import enUS from '../../../i18n/en-US.json';
+import { enUS as uiEnUS } from '@eldrajs/ui';
 
 /** The genuinely minimal fixture: only the one required field. Exercises every fallback default
  *  (placeholder, the default products/journal/pages types, `suggestionsPerGroup`, no popular

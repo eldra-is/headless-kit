@@ -24,9 +24,11 @@ import type {
   VolatileKey,
 } from '../../../app/storefront/types';
 import type { EldraClient } from '@eldrajs/sdk';
-import { enUS } from '../../../app/i18n/en-US';
-import { isIS } from '../../../app/i18n/is-IS';
-import { uiEnUS, uiMessagesFor } from '../../../app/i18n/uiMessages';
+import enUS from '../../../i18n/en-US.json';
+import isIS from '../../../i18n/is-IS.json';
+import { enUS as uiEnUS } from '@eldrajs/ui';
+import { isIS as uiIsIS } from '@eldrajs/ui/messages/is-IS';
+import { createI18n } from 'vue-i18n';
 
 /** Only the four required fields: the freshly-inserted seed, exercising every fallback default
  *  (no collection of its own — the route supplies one — no filters, no sort, no empty copy). */
@@ -1583,7 +1585,7 @@ describe('collection-grid block', () => {
      * (`app/plugins/eldra-ui-messages.ts`), which is what makes a Studio locale switch reach the
      * package's own strings. The block re-provides that set with `removeTag` replaced, so it has to
      * read through rather than snapshot — a spread would freeze every package string in the block's
-     * subtree at the mount-time locale while the block's own `useT()` strings kept switching.
+     * subtree at the mount-time locale while the block's own `useI18n()` strings kept switching.
      */
     it('follows a locale switch for both package strings and the block’s own', async () => {
       useFilterTimers();
@@ -1597,15 +1599,32 @@ describe('collection-grid block', () => {
       for (const key of Object.keys(uiEnUS) as Array<keyof UiMessages>) {
         Object.defineProperty(messages, key, {
           enumerable: true,
-          get: () => uiMessagesFor(context.preview.locale)[key],
+          get: () => (context.preview.locale === 'is-IS' ? uiIsIS : uiEnUS)[key],
         });
       }
+
+      // The block's own strings follow the same `context.preview.locale` the hand-built package
+      // `messages` getters above read — `app/plugins/eldra-i18n.ts`'s own wiring, reproduced here
+      // since this spec provides its own `EldraContext` rather than `mountOptions`' default one.
+      const i18n = createI18n({
+        legacy: false,
+        locale: context.preview.locale,
+        fallbackLocale: 'en-US',
+        messages: { 'en-US': enUS, 'is-IS': isIS },
+      });
+      watch(
+        () => context.preview.locale,
+        (locale) => {
+          i18n.global.locale.value = locale ?? 'en-US';
+        }
+      );
 
       const base = mountOptions({ entry: { id: 'e1', data: mock } });
       const wrapper = mount(Block, {
         ...base,
         global: {
           ...base.global,
+          plugins: [i18n],
           provide: {
             ...base.global.provide,
             [ELDRA_KEY]: context,

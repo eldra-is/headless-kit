@@ -72,7 +72,7 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -81,7 +81,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 const props = defineProps<{ entry: EldraBlockEntry<'article-list'> }>();
 const { data } = useBlockData(props, 'article-list');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const storefront = useStorefront();
 const headingId = `article-list-heading-${useUiId()}`;
 

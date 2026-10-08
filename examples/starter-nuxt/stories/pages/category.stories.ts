@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { defineComponent, h } from 'vue';
 import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import fixture from '../../pages/category.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
 
@@ -25,7 +25,7 @@ const page = fixture as unknown as PageFixture;
 const CategoryPage = defineComponent({
   name: 'CategoryPageStory',
   setup() {
-    const t = useT();
+    const { t } = useI18n();
     return () =>
       h('div', [
         h(

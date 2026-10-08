@@ -58,7 +58,7 @@ import { EldraRichText } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -79,7 +79,7 @@ interface FaqItem {
 const props = defineProps<{ entry: EldraBlockEntry<'faq'> }>();
 const { data, entryId } = useBlockData(props, 'faq');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 
 const uiId = useUiId();
 const headingId = `faq-heading-${uiId}`;

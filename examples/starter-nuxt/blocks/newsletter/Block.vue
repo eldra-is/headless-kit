@@ -66,13 +66,13 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'newsletter'> }>();
 const { data, entryId } = useBlockData(props, 'newsletter');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const storefront = useStorefront();
 

@@ -57,7 +57,7 @@ import { Container, EditorPlaceholder, Link, Section, VisuallyHidden } from '@el
 import type { SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -70,7 +70,7 @@ interface TimelineItem {
 
 const props = defineProps<{ entry: EldraBlockEntry<'timeline'> }>();
 const { data } = useBlockData(props, 'timeline');
-const t = useT();
+const { t } = useI18n();
 const editing = useEditing();
 
 const headingId = `timeline-heading-${useUiId()}`;

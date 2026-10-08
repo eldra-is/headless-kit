@@ -8,7 +8,8 @@ import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
-import { enUS } from '../../../app/i18n/en-US';
+import enUS from '../../../i18n/en-US.json';
+import { renderedMessage } from '../../../test/support/i18nText';
 
 const merged = { ...mock, ...preview };
 
@@ -142,7 +143,7 @@ describe('contact block', () => {
     const describedBy = emailInput.attributes('aria-describedby');
     expect(describedBy).toBeTruthy();
     expect(wrapper.find(`#${describedBy?.split(' ')[0]}`).text()).toContain(
-      enUS.contact.emailInvalidError
+      renderedMessage(enUS.contact.emailInvalidError)
     );
 
     const messageField = wrapper.find('textarea');

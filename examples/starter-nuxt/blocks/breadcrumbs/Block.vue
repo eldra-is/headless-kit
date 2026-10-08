@@ -42,7 +42,7 @@ import type { BreadcrumbItem } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { categoryHref, isInternalHref, safeHref } from '../../app/utils/links';
 
@@ -50,7 +50,7 @@ const props = defineProps<{ entry: EldraBlockEntry<'breadcrumbs'> }>();
 const { data } = useBlockData(props, 'breadcrumbs');
 const editing = useEditing();
 const storefront = useStorefront();
-const t = useT();
+const { t } = useI18n();
 
 const showHome = computed(() => data.value.showHome !== false);
 /**

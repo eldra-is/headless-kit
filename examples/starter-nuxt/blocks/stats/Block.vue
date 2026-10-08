@@ -41,12 +41,12 @@ import { Container, EditorPlaceholder, Section } from '@eldrajs/ui';
 import type { SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 
 const props = defineProps<{ entry: EldraBlockEntry<'stats'> }>();
 const { data } = useBlockData(props, 'stats');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `stats-heading-${useUiId()}`;
 

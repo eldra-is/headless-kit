@@ -41,7 +41,7 @@ import { DEFAULT_IMAGE_FRAMING, type ImageFraming } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -60,7 +60,7 @@ interface SplitContentRow {
 const props = defineProps<{ entry: EldraBlockEntry<'split-content'> }>();
 const { data, entryId } = useBlockData(props, 'split-content');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 
 const startWith = computed<Side>(() => data.value.startWith ?? 'image-left');
 const rows = computed<SplitContentRow[]>(() => data.value.rows ?? []);

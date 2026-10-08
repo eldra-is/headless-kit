@@ -31,10 +31,10 @@ import { Link, Toaster, useToast } from '@eldrajs/ui';
 import CartBlock from '../blocks/cart/Block.vue';
 import EldraRouterLink from './components/EldraRouterLink.vue';
 import { useStorefront } from './composables/useStorefront';
-import { useT } from './composables/useT';
+import { useI18n } from 'vue-i18n';
 import { CART_ADD_TOAST_ID } from './storefront/feedback';
 
-const t = useT();
+const { t } = useI18n();
 
 const cart = useStorefront().cart;
 /** Claimed in `setup()`, not from a mount hook: every block on the page is created after this line

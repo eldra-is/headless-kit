@@ -1,5 +1,4 @@
 import { EldraHttpError } from '@eldrajs/sdk';
-import type { MessageKey } from '../i18n/messages';
 
 /**
  * The one toast id for an add-to-cart attempt — success ("Added to cart", `cart.added`) and

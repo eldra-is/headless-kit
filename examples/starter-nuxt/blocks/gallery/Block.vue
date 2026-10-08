@@ -48,7 +48,7 @@ import { Carousel, Container, EditorPlaceholder, Lightbox, Section } from '@eldr
 import type { LightboxImage } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
@@ -91,7 +91,7 @@ interface GalleryEntry {
 
 const props = defineProps<{ entry: EldraBlockEntry<'gallery'> }>();
 const { data } = useBlockData(props, 'gallery');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `gallery-heading-${useUiId()}`;
 

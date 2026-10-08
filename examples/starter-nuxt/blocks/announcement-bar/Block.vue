@@ -42,7 +42,7 @@ import { Button, Container, EditorPlaceholder, Link, Section } from '@eldrajs/ui
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { stripStega } from '@eldrajs/theme-core/stega';
@@ -50,7 +50,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 
 const props = defineProps<{ entry: EldraBlockEntry<'announcement-bar'> }>();
 const { data } = useBlockData(props, 'announcement-bar');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const storefront = useStorefront();
 

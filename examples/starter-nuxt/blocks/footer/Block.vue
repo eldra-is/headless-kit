@@ -94,7 +94,7 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import { useStorefront } from '../../app/composables/useStorefront';
 import EldraIcon from '../../app/components/EldraIcon.vue';
@@ -102,7 +102,6 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import type { ThemeIconName } from '../../app/icons';
 import { currencyLabel, useMoney } from '../../app/storefront/money';
 import { isInternalHref, safeHref } from '../../app/utils/links';
-import type { MessageKey } from '../../app/i18n/messages';
 
 type FooterLink = {
   label: string;
@@ -112,7 +111,7 @@ type FooterLink = {
 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
-const t = useT();
+const { t } = useI18n();
 /**
  * The spec's three Footer "States" hints (`eldra-starter-spec/02-blocks.md`): a freshly inserted
  * footer has no description, no link groups and — on a page that already carries a Newsletter

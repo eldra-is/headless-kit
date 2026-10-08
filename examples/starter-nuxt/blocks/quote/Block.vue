@@ -52,7 +52,7 @@ import {
 import { DEFAULT_IMAGE_FRAMING, type ImageFraming } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -61,7 +61,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 
 const props = defineProps<{ entry: EldraBlockEntry<'quote'> }>();
 const { data, entryId } = useBlockData(props, 'quote');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `quote-heading-${useUiId()}`;
 

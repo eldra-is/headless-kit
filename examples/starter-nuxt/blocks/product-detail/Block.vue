@@ -67,7 +67,7 @@ import { useWishlist } from '../../app/composables/useWishlist';
 import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
 import { CART_ADD_TOAST_ID, isOutOfStock, WISHLIST_TOAST_ID } from '../../app/storefront/feedback';
 import { roundMoney, useMoney } from '../../app/storefront/money';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -88,7 +88,7 @@ interface TabItem {
 
 const props = defineProps<{ entry: EldraBlockEntry<'product-detail'> }>();
 const { data, entryId } = useBlockData(props, 'product-detail');
-const t = useT();
+const { t } = useI18n();
 const editing = useEditing();
 const storefront = useStorefront();
 /** The saved-for-later list, hydrated after mount — see `useWishlist()` for why the heart is

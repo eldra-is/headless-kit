@@ -102,7 +102,7 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -110,7 +110,6 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 import { buildOrder } from '../../app/storefront/demo';
 import { useMoney } from '../../app/storefront/money';
 import type { ThemeIconName } from '../../app/icons';
-import type { MessageKey } from '../../app/i18n/messages';
 import type {
   StorefrontCartLine,
   StorefrontOrder,
@@ -121,7 +120,7 @@ type StepKey = StorefrontOrder['steps'][number]['key'];
 
 const props = defineProps<{ entry: EldraBlockEntry<'order-status'> }>();
 const { data } = useBlockData(props, 'order-status');
-const t = useT();
+const { t } = useI18n();
 const editing = useEditing();
 const storefront = useStorefront();
 const titleId = `order-status-title-${useUiId()}`;

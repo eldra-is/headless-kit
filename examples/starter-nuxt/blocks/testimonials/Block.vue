@@ -58,14 +58,14 @@ import { Avatar, Carousel, Container, EditorPlaceholder, Link, Rating, Section }
 import type { ContainerWidth, SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 
 const props = defineProps<{ entry: EldraBlockEntry<'testimonials'> }>();
 const { data } = useBlockData(props, 'testimonials');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `testimonials-heading-${useUiId()}`;
 

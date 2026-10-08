@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { defineComponent, h } from 'vue';
 import { Link } from '@eldrajs/ui';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import homePage from '../../pages/home.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
 
@@ -21,7 +21,7 @@ const fixture = homePage as unknown as PageFixture;
 const HomePage = defineComponent({
   name: 'HomePageStory',
   setup() {
-    const t = useT();
+    const { t } = useI18n();
     return () => [
       h(
         Link,

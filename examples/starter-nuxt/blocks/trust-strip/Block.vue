@@ -56,7 +56,7 @@ import { Container, EditorPlaceholder, Link, Section, VisuallyHidden } from '@el
 import type { SectionBackground } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -77,7 +77,7 @@ interface PaymentItem {
 
 const props = defineProps<{ entry: EldraBlockEntry<'trust-strip'> }>();
 const { data } = useBlockData(props, 'trust-strip');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `trust-strip-heading-${useUiId()}`;
 

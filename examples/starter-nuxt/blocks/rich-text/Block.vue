@@ -40,7 +40,7 @@ import { EldraRichText } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 
 type Alignment = 'left' | 'center';
@@ -49,7 +49,7 @@ type ContainerOption = 'narrow' | 'content';
 const props = defineProps<{ entry: EldraBlockEntry<'rich-text'> }>();
 const { data, entryId } = useBlockData(props, 'rich-text');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 const headingId = `rich-text-heading-${useUiId()}`;
 
 const headingText = computed(() => (data.value.heading ?? '').trim());

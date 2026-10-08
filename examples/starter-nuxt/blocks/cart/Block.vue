@@ -67,7 +67,7 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -88,7 +88,7 @@ const props = defineProps<{
 }>();
 const { data } = useBlockData(props, 'cart');
 const editing = useEditing();
-const t = useT();
+const { t } = useI18n();
 /** The cart subtotal is major units (`app/storefront/types.ts`); `<Price>` reads minor. */
 const money = useMoney();
 const cart = useStorefront().cart;

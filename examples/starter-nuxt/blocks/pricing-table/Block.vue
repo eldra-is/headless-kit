@@ -62,7 +62,7 @@ import {
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
-import { useT } from '../../app/composables/useT';
+import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
@@ -70,7 +70,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 
 const props = defineProps<{ entry: EldraBlockEntry<'pricing-table'> }>();
 const { data } = useBlockData(props, 'pricing-table');
-const t = useT();
+const { t } = useI18n();
 const isEditing = useEditing();
 const uid = useUiId();
 const headingId = `pricing-table-heading-${uid}`;
