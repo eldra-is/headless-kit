@@ -386,8 +386,10 @@ describe('FieldWrapper — the fieldset group variant', () => {
     expect(fieldset.getAttribute('aria-labelledby')).toBeNull();
     const legend = [...fieldset.children].find((child) => child.tagName === 'LEGEND');
     expect(legend).toBe(fieldset.firstElementChild);
-    // The `*` is aria-hidden, so it is not part of the name.
-    expect(legend?.textContent?.replace('*', '').trim()).toBe('What are you shopping for?');
+    // The `*` is aria-hidden, so it is not part of the name. `replaceAll` (not
+    // `replace`), since a label the component itself never produces more than
+    // one of today could still carry more than one `*` character of its own.
+    expect(legend?.textContent?.replaceAll('*', '').trim()).toBe('What are you shopping for?');
     wrapper.unmount();
   });
 
