@@ -63,6 +63,13 @@ describe('readThemeMessages', () => {
       { defaultLocale: '', locales: {} },
       { defaultLocale: 'en-US', locales: { 'en-US': { key: 1 } } },
       { defaultLocale: 'en-US' },
+      // A forbidden locale tag — a genuine own property named "__proto__", not the object-literal
+      // syntax (which sets the prototype at creation time and never becomes an own key at all,
+      // so `JSON.parse` is what actually exercises the guard). A plain `locales[tag] = …` write
+      // would reassign the prototype of the record being built rather than add an own property.
+      JSON.parse(
+        '{"defaultLocale":"en-US","locales":{"__proto__":{"header.menu":"x"}}}'
+      ) as unknown,
       null,
       'not an object',
     ];

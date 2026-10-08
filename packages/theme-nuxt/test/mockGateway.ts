@@ -457,7 +457,7 @@ export function startMockGateway(options: { missingRouteTemplateSchema?: boolean
           })
         );
       } else if (url.pathname === '/site/v1/theme-messages') {
-        // K2: the public read `@eldrajs/theme-nuxt`'s module merges over the theme's own
+        // The public read `@eldrajs/theme-nuxt`'s module merges over the theme's own
         // `i18n/*.json` catalogue (`test/fixtures/basic/i18n/`) at build time. `en-US` overrides a
         // key the theme already ships; `is` (the organisation's default locale, a tag the theme
         // never shipped a file for — the theme's own locale is `is-IS`) is added whole, so the

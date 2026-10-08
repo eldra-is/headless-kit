@@ -1,12 +1,16 @@
 import type { EldraClient } from '@eldrajs/sdk';
-import { mergeMessageCatalogues, resolveMessageCatalogue, type ThemeMessages } from '@eldrajs/theme-core/i18n';
+import {
+  isForbiddenLocaleTag,
+  resolveMessageCatalogue,
+  type ThemeMessages,
+} from '@eldrajs/theme-core/i18n';
 import type { StoreLocales } from './locales';
 
 /**
  * What `virtual:eldra/messages` reaches a theme as, on `context.messages`: the manifest's own
- * message catalogue (or the K1 fallback, for a theme with no `i18n/` directory), merged with the
- * platform's theme-message overrides and resolved over the organisation's locales — see
- * `resolveSiteMessages` below, the one place this module composes the two theme-core helpers.
+ * message catalogue (or the fallback catalogue, for a theme with no `i18n/` directory), merged
+ * with the platform's theme-message overrides and resolved over the organisation's locales — see
+ * `resolveSiteMessages` below, the one place this module calls the theme-core helper.
  *
  * Re-exported from `@eldrajs/theme-core/i18n` under the name this package's own reads use, the
  * same way `./commerce.ts`/`./locales.ts` alias the SDK's organisation types.
@@ -92,9 +96,11 @@ async function readOrNull(
 
 /**
  * Accepts only a whole answer: a non-empty `defaultLocale` string and a `locales` record of
- * records of strings. A partial or malformed response is treated as no answer at all, exactly like
- * `toStoreCommerce`/`toStoreLocales` — half of an untrusted network response must never reach the
- * merge as if it were real theme content.
+ * records of strings, none of them keyed by a forbidden locale tag (`isForbiddenLocaleTag` —
+ * `__proto__`/`prototype`/`constructor`, which a plain `locales[tag] = …` write would turn into a
+ * prototype reassignment instead of an own property). A partial or malformed response is treated
+ * as no answer at all, exactly like `toStoreCommerce`/`toStoreLocales` — half of an untrusted
+ * network response must never reach the merge as if it were real theme content.
  */
 function toThemeMessages(value: unknown): ThemeMessages | null {
   if (typeof value !== 'object' || value === null) return null;
@@ -103,6 +109,7 @@ function toThemeMessages(value: unknown): ThemeMessages | null {
   if (typeof record.locales !== 'object' || record.locales === null) return null;
   const locales: Record<string, Record<string, string>> = {};
   for (const tag of Object.keys(record.locales)) {
+    if (isForbiddenLocaleTag(tag)) return null;
     const entry = (record.locales as Record<string, unknown>)[tag];
     if (typeof entry !== 'object' || entry === null) return null;
     const flat: Record<string, string> = {};
@@ -117,22 +124,21 @@ function toThemeMessages(value: unknown): ThemeMessages | null {
 }
 
 /**
- * Composes the two `@eldrajs/theme-core/i18n` helpers into the one build-time transform this
- * module's `resolveMessages` option needs: merge the platform's overrides over the theme's own
- * manifest messages, then resolve the result over the organisation's locales — falling back to the
- * theme's own locales/default locale when the organisation's are unknown (no gateway, or the
- * locales read itself failed), which is what lets a **credential-less build** still produce a full
- * key set for every locale from the manifest alone.
+ * Calls `@eldrajs/theme-core/i18n`'s `resolveMessageCatalogue` with the build-time inputs this
+ * module's `resolveMessages` option needs: the theme's own manifest messages, the platform's
+ * overrides (or `null`), and the organisation's locales — falling back to the theme's own
+ * locales/default locale when the organisation's are unknown (no gateway, or the locales read
+ * itself failed), which is what lets a **credential-less build** still produce a full key set for
+ * every locale from the manifest alone.
  */
 export function resolveSiteMessages(
   themeMessages: ThemeMessages,
   platform: ThemeMessages | null,
   locales: StoreLocales | null
 ): ThemeMessages {
-  const merged = mergeMessageCatalogues(themeMessages, platform);
   const orgLocales = locales?.supported ?? Object.keys(themeMessages.locales);
   const orgDefaultLocale = locales?.default ?? themeMessages.defaultLocale;
-  return resolveMessageCatalogue(merged, orgLocales, orgDefaultLocale);
+  return resolveMessageCatalogue(themeMessages, platform, orgLocales, orgDefaultLocale);
 }
 
 function describe(error: unknown): string {

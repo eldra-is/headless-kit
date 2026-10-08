@@ -345,7 +345,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             orgId: options.orgId,
             retry: options.retry,
           });
-    const [commerce, locales, themeMessages] = await Promise.all([
+    // Named `platformMessages`, not `themeMessages`: `resolveSiteMessages`'s own first parameter
+    // (one file over, in `./runtime/messages.ts`) is named `themeMessages` for the theme's own
+    // manifest catalogue — a different thing from what this read answers (the platform's
+    // overrides), and the two must not share a name across the call below.
+    const [commerce, locales, platformMessages] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
       readThemeMessages(platformClient),
@@ -362,7 +366,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // have settled; see `themeOptions`'s own declaration for why mutating it here still reaches
     // the plugin's `virtual:eldra/messages` content.
     themeOptions.resolveMessages = (manifestMessages) =>
-      resolveSiteMessages(manifestMessages, themeMessages, locales);
+      resolveSiteMessages(manifestMessages, platformMessages, locales);
   },
 });
 
