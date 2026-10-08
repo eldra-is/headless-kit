@@ -162,14 +162,14 @@ const renderEmbed: DefaultNodeRenderer = (node, _children, _context, extra) => {
 };
 
 const defaultNodes: Record<string, DefaultNodeRenderer> = {
-  paragraph: wrap('p'),
+  paragraph: /* @__PURE__ */ wrap('p'),
   heading: (node, children, _context, extra) => {
     const raw = Number(node.attrs?.level);
     const level = Number.isInteger(raw) && raw >= 1 && raw <= 6 ? raw : 2;
     return element(`h${level}`, {}, children, extra);
   },
-  blockquote: wrap('blockquote'),
-  bulletList: wrap('ul'),
+  blockquote: /* @__PURE__ */ wrap('blockquote'),
+  bulletList: /* @__PURE__ */ wrap('ul'),
   orderedList: (node, children, _context, extra) =>
     element(
       'ol',
@@ -177,7 +177,7 @@ const defaultNodes: Record<string, DefaultNodeRenderer> = {
       children,
       extra
     ),
-  listItem: wrap('li'),
+  listItem: /* @__PURE__ */ wrap('li'),
   horizontalRule: (_node, _children, _context, extra) => element('hr', {}, '', extra),
   hardBreak: () => '<br>',
   codeBlock: (node, children, _context, extra) => {
@@ -202,9 +202,9 @@ const defaultNodes: Record<string, DefaultNodeRenderer> = {
       (head ? element('thead', {}, head) : '') + (body ? element('tbody', {}, body) : '');
     return element('table', {}, sections, extra);
   },
-  tableRow: wrap('tr'),
-  tableHeader: wrap('th'),
-  tableCell: wrap('td'),
+  tableRow: /* @__PURE__ */ wrap('tr'),
+  tableHeader: /* @__PURE__ */ wrap('th'),
+  tableCell: /* @__PURE__ */ wrap('td'),
   image: (node, _children, _context, extra) => {
     const attrs = node.attrs ?? {};
     const src = safeImageSrc(attrs.src);
@@ -227,12 +227,12 @@ const defaultNodes: Record<string, DefaultNodeRenderer> = {
 };
 
 const defaultMarks: Record<string, DefaultMarkRenderer> = {
-  bold: wrapMark('strong'),
-  italic: wrapMark('em'),
-  strike: wrapMark('s'),
-  underline: wrapMark('u'),
-  code: wrapMark('code'),
-  highlight: wrapMark('mark'),
+  bold: /* @__PURE__ */ wrapMark('strong'),
+  italic: /* @__PURE__ */ wrapMark('em'),
+  strike: /* @__PURE__ */ wrapMark('s'),
+  underline: /* @__PURE__ */ wrapMark('u'),
+  code: /* @__PURE__ */ wrapMark('code'),
+  highlight: /* @__PURE__ */ wrapMark('mark'),
   textStyle: (mark, children, _context, extra) => {
     const color = safeCssColor(mark.attrs?.color);
     if (!color && !extra.class && !extra.style) return children;

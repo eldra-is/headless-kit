@@ -3,6 +3,11 @@
 Hand-maintained: every change a consumer can see gets a line under Unreleased in the same change.
 Release-please writes the generated notes from commit messages and does not replace this.
 
+## Unreleased
+
+- Tree-shakes: importing only `safeImageSrc` (or another URL helper) no longer bundles the HTML
+  renderer and the embed host list, 4.3 kB down to 235 B minified. No behaviour change.
+
 ## 0.1.0 — 2026-09-15
 
 - First release, moved out of `@eldra-is/vue-ui-components`. The document types are declared here
