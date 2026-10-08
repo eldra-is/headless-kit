@@ -17,6 +17,7 @@ import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import messages from 'virtual:eldra/messages';
 import 'virtual:eldra/tokens.css';
+import { resolveSiteDesignTokens } from './designTokens';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
 import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
 import { resolveBridgeOrigins } from './origins';
@@ -31,6 +32,8 @@ interface RuntimeEldraConfig {
   locale: string | null;
   /** `''` on a site whose organisation configures none — see `./locales.ts`. */
   locales: unknown;
+  /** `''` when the platform read failed or found no override — see `./designTokens.ts`. */
+  designTokens: unknown;
   /** `null` when the theme configures none: the client's own defaults apply. */
   retry: EldraRetryOptions | null;
 }
@@ -76,7 +79,13 @@ export default defineNuxtPlugin({
     );
     const context: EldraContext = {
       client,
-      designTokens: reactive(normalizeThemeDesignTokens(manifest.tokens)),
+      // The platform's resolved design-token catalog, when the build's own platform read settled
+      // with one (`@eldrajs/theme-nuxt`'s module, `readDesignTokens`/`resolveTokens` over
+      // `@eldrajs/theme-core`'s `normalizeThemeDesignTokens`) — falling back to the manifest's own
+      // `tokens.json`, normalized exactly as a credential-less build already does, when it did not.
+      designTokens: reactive(
+        resolveSiteDesignTokens(cfg.designTokens) ?? normalizeThemeDesignTokens(manifest.tokens)
+      ),
       // Already the merged/resolved catalogue — @eldrajs/theme-nuxt's module (`resolveMessages`,
       // over `@eldrajs/theme-core/i18n`) built this build's content; nothing left to normalize.
       messages: reactive(messages),

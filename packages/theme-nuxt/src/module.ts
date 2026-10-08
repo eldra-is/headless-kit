@@ -7,6 +7,7 @@ import {
   catalogRouteTarget,
   createEldraClient,
   EldraClientError,
+  normalizeThemeDesignTokens,
   parseDynamicRoutePattern,
   resolvePagePath,
   stripStega,
@@ -14,6 +15,7 @@ import {
   type EldraClient,
   type EldraRetryOptions,
   type EntryDoc,
+  type ThemeDesignTokens,
 } from '@eldrajs/theme-core';
 import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
 import eldraTheme, {
@@ -26,6 +28,7 @@ import eldraTheme, {
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
+import { readDesignTokens } from './runtime/designTokens';
 import { normalizeLocale } from './runtime/locale';
 import {
   localePathFor,
@@ -154,6 +157,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // first for the same reason: the key has to exist before another module's `setup` can look
       // for it. See `./runtime/locales.ts`.
       locales: null as StoreLocales | null,
+      // The organisation's resolved design-token catalog (the theme's own tokens with the site's
+      // overrides already applied), filled in below from the same platform read settling. Written
+      // here first for the same reason `commerce`/`locales` are: the key has to exist before
+      // another module's own `setup` looks for it. See `./runtime/designTokens.ts`.
+      designTokens: null as ThemeDesignTokens | null,
       // `null`, not `undefined`: the key has to survive the payload so a
       // storefront's own client (`examples/starter-nuxt`'s storefront plugin)
       // reads the same policy the module's reads use.
@@ -333,10 +341,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // There is no client when the site has no gateway credentials — the same site the
     // `prerender:routes` hook above warns about and prerenders "/" for.
     //
-    // Three reads of one document, deliberately. Each is independently fail-soft — a currency the
+    // Four reads of one document, deliberately. Each is independently fail-soft — a currency the
     // gateway will not give up must not cost the site its locales, nor the other way round, nor
-    // either of them the theme's own texts — and one shared, memoised read would make any one
-    // failure all three. It is three requests at build time, once.
+    // either of them the theme's own texts or its own design tokens — and one shared, memoised read
+    // would make any one failure all four. It is four requests at build time, once.
     const platformClient =
       options.gatewayUrl === '' || options.orgId === ''
         ? null
@@ -349,17 +357,20 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // (one file over, in `./runtime/messages.ts`) is named `themeMessages` for the theme's own
     // manifest catalogue — a different thing from what this read answers (the platform's
     // overrides), and the two must not share a name across the call below.
-    const [commerce, locales, platformMessages] = await Promise.all([
+    const [commerce, locales, platformMessages, platformDesignTokens] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
       readThemeMessages(platformClient),
+      readDesignTokens(platformClient),
     ]);
     const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
+      designTokens: ThemeDesignTokens | null;
     };
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
+    runtimeEldra.designTokens = platformDesignTokens;
     localeRouting = resolveLocaleRouting(locales, options.locale);
     // Merge over the manifest's own messages (resolved over `locales` — the organisation's own
     // locales, falling back to the theme's own when they are unknown) only now that both reads
@@ -367,6 +378,13 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // the plugin's `virtual:eldra/messages` content.
     themeOptions.resolveMessages = (manifestMessages) =>
       resolveSiteMessages(manifestMessages, platformMessages, locales);
+    // Same idea for `virtual:eldra/tokens.css`: the platform's resolved catalog (the theme's own
+    // tokens with the site's overrides already applied) wins outright when the read succeeded —
+    // unlike messages, there is nothing to merge per key, the platform's `resolved` field already
+    // **is** the whole catalog — falling back to the manifest's own tokens, normalized exactly as a
+    // credential-less build already does, when it did not.
+    themeOptions.resolveTokens = (manifestTokens) =>
+      platformDesignTokens ?? normalizeThemeDesignTokens(manifestTokens);
   },
 });
 

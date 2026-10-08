@@ -377,6 +377,12 @@ describe('theme-nuxt nuxi generate', () => {
     const html = readFileSync(output('index.html'), 'utf8');
     expect(html).toContain('name="eldra-theme-version" content="1.2.3"');
     expect(html).toContain(`name="eldra-sdk-version" content="${moduleVersion}"`);
+    // The build attempted the platform's design-token read (`readDesignTokens`,
+    // `./runtime/designTokens.ts`) — this fixture's gateway 404s it, like a site with no
+    // published overrides — and fell back to the theme's own `tokens.json`, fail-soft, with one
+    // warning (proven at the unit level, `test/designTokens.spec.ts`); the generated CSS is the
+    // theme's own unmerged value.
+    expect(gateway.requests).toContain('/site/v1/design-tokens');
     expect(html).toContain('--eldra-color-primary:#4f46e5;');
     expect(html).toContain('--eldra-container-content-max-width:64rem;');
     expect(html).toContain(
@@ -428,6 +434,78 @@ describe('theme-nuxt nuxi generate', () => {
     } finally {
       await new Promise<void>((resolve, reject) =>
         upgradeGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }, 360_000);
+
+  /**
+   * The build-time merge's other half: a platform that *does* publish a resolved design-token
+   * catalog. `test/mockGateway.ts`'s `/site/v1/design-tokens` answers the public contract shape
+   * (`{ revision, resolved }`) with a catalog that overrides the theme's own primary colour and
+   * content container width; `@eldrajs/theme-nuxt`'s module (`readDesignTokens`/`resolveTokens`,
+   * same as the no-override build above) must bake the override into the generated
+   * `virtual:eldra/tokens.css` CSS *and* the prerendered runtime config's `designTokens` key, which
+   * is what seeds `context.designTokens` in the browser (`./runtime/plugin.ts`) — this reads the
+   * static artifact directly, so it is the same evidence a live site would carry.
+   */
+  it('merges the platform’s design-token overrides into the generated CSS and the runtime context', async () => {
+    const overrideGateway = await startMockGateway({
+      designTokens: {
+        colors: { primary: { label: 'Primary', value: '#ff6600', allowSiteOverride: true } },
+        containers: {
+          narrow: {
+            label: 'Narrow',
+            maxWidth: '40rem',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+          content: {
+            label: 'Content',
+            maxWidth: '70rem',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+          wide: {
+            label: 'Wide',
+            maxWidth: '80rem',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+          full: {
+            label: 'Full',
+            maxWidth: 'none',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+        },
+      },
+    });
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: overrideGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        },
+        timeout: 300_000,
+      });
+
+      const html = readFileSync(output('index.html'), 'utf8');
+      // The generated CSS carries the platform's resolved values, not the theme's own.
+      expect(html).toContain('--eldra-color-primary:#ff6600;');
+      expect(html).toContain('--eldra-container-content-max-width:70rem;');
+      expect(html).not.toContain('--eldra-color-primary:#4f46e5;');
+      expect(html).not.toContain('--eldra-container-content-max-width:64rem;');
+      // The same resolved catalog rides along in the prerendered runtime config, which is what
+      // seeds `context.designTokens` on the client — the override, not the manifest's own tokens.
+      expect(html).toContain('value:"#ff6600"');
+      expect(html).toContain('maxWidth:"70rem"');
+      expect(html).not.toContain('value:"#4f46e5"');
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        overrideGateway.server.close((error) => (error ? reject(error) : resolve()))
       );
     }
   }, 360_000);

@@ -387,7 +387,15 @@ const listResponse = (data: unknown[]) => ({
  * resolution delivered the slot-descendant entry, which the layout-driven
  * draft projection (normalizeLayoutDocument().blockEntryIds) then keeps.
  */
-export function startMockGateway(options: { missingRouteTemplateSchema?: boolean } = {}): Promise<{
+export function startMockGateway(
+  options: {
+    missingRouteTemplateSchema?: boolean;
+    /** The resolved design-token catalog `/site/v1/design-tokens` answers with — the public
+     *  contract shape's `resolved` field — or absent, which 404s the route exactly like a site
+     *  with no published overrides, proving the build-time read's fail-soft fallback. */
+    designTokens?: Record<string, unknown>;
+  } = {}
+): Promise<{
   server: Server;
   url: string;
   requests: string[];
@@ -471,6 +479,18 @@ export function startMockGateway(options: { missingRouteTemplateSchema?: boolean
             },
           })
         );
+      } else if (url.pathname === '/site/v1/design-tokens') {
+        // Absent `options.designTokens` 404s, exactly like a site with no published overrides —
+        // the build's own fail-soft fallback to the theme's own `tokens.json` is what every other
+        // test in this file exercises. Passing it answers the public contract shape
+        // (`{ revision, resolved }`) so a dedicated test can prove the override reaches both the
+        // generated CSS and `context.designTokens`.
+        if (options.designTokens === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify({ revision: 7, resolved: options.designTokens }));
+        }
       } else if (url.pathname === '/catalog/v1/products/list') {
         const active = url.searchParams.getAll('filter').includes('status:eq:ACTIVE');
         res.end(

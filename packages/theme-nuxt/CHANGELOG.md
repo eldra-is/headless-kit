@@ -5,6 +5,19 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **The deployed site now carries Studio's design-token overrides, not only the open preview.** A
+  fourth fail-soft read, alongside the store's currency, its locales and the theme-message overrides
+  — `GET /site/v1/design-tokens`, same client, same retry policy, absent gateway or any error
+  answering `null` with one warning (`readDesignTokens`, `./runtime/designTokens.ts`) — answers the
+  organisation's resolved catalog (the theme's own tokens with the site's overrides already
+  applied, re-validated through `@eldrajs/theme-core`'s `normalizeThemeDesignTokens`). The result is
+  what `virtual:eldra/tokens.css` now generates its CSS from — `@eldrajs/vite-plugin-theme`'s
+  `eldraTheme()` gained a `resolveTokens` option for exactly this, set once the module's own
+  platform read settles — and what the runtime plugin seeds `context.designTokens` from
+  (`runtimeConfig.public.eldra.designTokens`, carried the same way `commerce`/`locales` are), so a
+  generated static artifact's CSS and its runtime context both reflect the override through SSR,
+  prerender and hydration. The preview bridge path (`applyResolvedDesignTokens`) is unchanged.
+
 - **The theme's message catalogue is now merged with the platform's overrides at build time.** A
   third fail-soft read, alongside the store's currency and locales — `GET /site/v1/theme-messages`,
   same client, same retry policy, absent gateway or any error answering `null` with one warning
