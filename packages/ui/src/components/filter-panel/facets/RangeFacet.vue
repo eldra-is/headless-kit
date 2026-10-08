@@ -163,8 +163,20 @@ const FIELD_LABEL = 'mb-0.5 block text-filter-tile-count font-medium text-muted'
 const FIELD_WRAPPER = 'gap-0';
 /** Spec → Sizes: "Tabular figures." The unit inside the box is the field's own. */
 const FIELD_CONTROL = 'tabular-nums';
-/** Spec → Sizes: "En dash between the fields in `muted`." Punctuation, so it is hidden. */
-const SEPARATOR_BASE = 'self-center pb-1.5 text-center text-body-sm text-muted';
+/**
+ * Spec → Sizes: "En dash between the fields in `muted`." Punctuation, so it is hidden. The row is
+ * bottom-aligned, so the dash is a box as tall as the sm control sitting on the same baseline as
+ * the two fields, with the glyph centred in it — centring on the whole row would put it level
+ * with the labels above the fields instead.
+ */
+const SEPARATOR_BASE = 'self-end flex control-h-sm items-center justify-center text-body-sm text-muted';
+/**
+ * Spec → Sizes, Histogram and Range rows: the track and the bars are inset by the thumb's radius,
+ * not by half a touch target — the slider's own default keeps a 44px band inside its box, which
+ * leaves a 15rem sidebar's track at two thirds of the width. The rail keeps its height, so the
+ * press band is unchanged; only the ends move out to the panel's edges.
+ */
+const SLIDER_CLASSES = { group: 'eldra-range-gutter-thumb' } as const;
 
 const fieldsClass = computed(() => partClass(FIELDS_BASE, props.classes, 'fields'));
 const separatorClass = computed(() => partClass(SEPARATOR_BASE, props.classes, 'separator'));
@@ -216,6 +228,7 @@ function onPlainInput(end: 0 | 1, raw: string): void {
       :format-value="formatValue"
       inputs
       :track-visible="showTrack"
+      :classes="SLIDER_CLASSES"
       @update:model-value="onMove"
       @change="onCommit"
     >

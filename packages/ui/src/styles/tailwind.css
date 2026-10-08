@@ -1895,6 +1895,17 @@
   }
 }
 
+/* The gutter a filter panel's price range uses instead (spec "Filter panel" → Sizes, Histogram
+   and Range rows: "inset 0.625rem on each side"): the thumb's own radius plus the focus ring's
+   reach — never the target half, which is what pushed the track to two thirds of a 15rem sidebar.
+   The ring reach stays so a focused end thumb is not clipped by a scrolling drawer body, which
+   makes the inset 0.875rem rather than the spec's 0.625rem; the README's Deviations entry says so. */
+@utility eldra-range-gutter-thumb {
+  padding-inline: calc(
+    var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) + var(--eldra-focus-width)
+  );
+}
+
 /* The rail: the band a pointer press lands in (spec "Range slider" → Sizes, Rail row: "`target-
    touch` (2.75rem) below the tablet breakpoint, `target-min` (1.5rem) from it"). The touch size is
    on the *band*, not on the thumb alone, so there is a 44px-tall target across the whole control

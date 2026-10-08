@@ -68,10 +68,12 @@ describe('Drawer — element and parts', () => {
     wrapper.unmount();
   });
 
-  it('sizes the open dialog to the dynamic viewport, so a pinned foot clears a mobile toolbar', () => {
+  it('stretches the open dialog between the pinned top and bottom, with no viewport-unit height', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Filters', modelValue: true } });
-    expect(root(wrapper).className).toContain('h-dvh');
-    expect(root(wrapper).className).not.toMatch(/\bh-full\b/);
+    const classes = root(wrapper).className;
+    expect(classes).toContain('inset-0');
+    expect(classes).toContain('h-auto');
+    expect(classes).not.toMatch(/\bh-(full|dvh|svh|lvh|screen)\b/);
     wrapper.unmount();
   });
 

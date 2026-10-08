@@ -245,3 +245,11 @@ describe('cx — array argument', () => {
     expect(cx(['rounded-md', ['px-4', false], undefined] as never)).toBe('rounded-md px-4');
   });
 });
+
+describe('cx — the two range gutters are one group', () => {
+  it('lets a consumer swap the slider default gutter for the thumb-radius one', () => {
+    expect(cx('eldra-range-gutter relative w-full', 'eldra-range-gutter-thumb')).toBe(
+      'relative w-full eldra-range-gutter-thumb'
+    );
+  });
+});

@@ -144,7 +144,7 @@ const twMerge = extendTailwindMerge<
       'min-h': ['eldra-range-rail'],
       // The gutter that keeps a thumb inside the control (tailwind.css "Range slider"): a
       // `padding-inline` in Tailwind's own `px` group, so `classes.group: 'px-0'` replaces it.
-      px: ['eldra-range-gutter'],
+      px: ['eldra-range-gutter', 'eldra-range-gutter-thumb'],
       // The Dialog panel's own width (tailwind.css "Dialog"): whole class names rather than a
       // `w-*` suffix, but Tailwind's own "w" group, so a consumer's `classes.panel: 'w-full'`
       // replaces the clamp instead of landing beside it. The two are mutually exclusive (`size`

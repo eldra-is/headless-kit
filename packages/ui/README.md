@@ -1326,6 +1326,8 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
 
 ## Deviations
 
+- **`FilterPanel`'s price range is inset by the thumb's radius plus the focus ring's reach (0.875rem), not the spec's bare 0.625rem.** The spec's Filter panel rows inset the track and the histogram by 0.625rem so the thumbs' centres reach the panel's edges; the extra ring reach keeps a focused end thumb from being clipped by a scrolling drawer body, which would otherwise show a horizontal scrollbar. It is still the thumb's own inset rather than `RangeSlider`'s default half-a-touch-target gutter (`eldra-range-gutter-thumb` versus `eldra-range-gutter`), which is what put a sidebar's track at two thirds of its width.
+
 Additions and departures from the design spec, and why.
 
 - **A `FilterPanel`'s applied chips put one more stop in the tab order than the spec's own table

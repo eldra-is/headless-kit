@@ -141,10 +141,12 @@ const closeLabel = computed(() => {
 const rootClass = computed(() =>
   partClass(
     cx(
-      // `h-dvh`, not `h-full`: a mobile browser's toolbar shrinks the *visual* viewport while the
-      // layout viewport (what `100%` of a fixed element measures) keeps the toolbar's height, so
-      // a foot pinned to the panel's bottom edge would sit under the toolbar.
-      'fixed inset-0 m-0 hidden open:flex h-dvh max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
+      // No explicit height: `inset-0` pins the top and the bottom and the dialog stretches between
+      // them (`h-auto` overrides the user agent's `fit-content`), which on a phone is the visible
+      // area whether or not the browser's toolbar is showing. `100%` measured the layout viewport,
+      // which keeps a collapsed toolbar's height, so a pinned foot sat under the toolbar; `100dvh`
+      // undershoots in a desktop browser's device emulation and left a strip of page below the foot.
+      'fixed inset-0 m-0 hidden open:flex h-auto max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
       props.side === 'left' ? 'justify-start' : 'justify-end',
       'backdrop:bg-overlay',
       props.side === 'left'

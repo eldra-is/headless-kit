@@ -554,6 +554,22 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
   });
 
   /**
+   * Spec → Sizes: the fields row is bottom-aligned and the en dash sits between the two *fields*,
+   * so the dash is a control-height box on the fields' baseline with the glyph centred in it;
+   * and the track and histogram are inset by the thumb's radius, not by half a touch target.
+   */
+  it('centres the en dash on the fields and lets the track reach the panel edges', () => {
+    const wrapper = mount([PRICE_FACET], { modelValue: { price: [80, 160] } });
+    const separator = wrapper.find('[data-part="separator"]').classes();
+    expect(separator).toEqual(expect.arrayContaining(['self-end', 'control-h-sm', 'items-center']));
+    expect(separator).not.toContain('self-center');
+    const group = wrapper.find('[data-part="range"] [role="group"][data-part="group"]').classes();
+    expect(group).toContain('eldra-range-gutter-thumb');
+    expect(group).not.toContain('eldra-range-gutter');
+    wrapper.unmount();
+  });
+
+  /**
    * Spec → Sizes, Min / Max fields: the currency unit "as a prefix ... or a suffix ..., whichever
    * the currency format uses"; Acceptance criteria, the is-IS/ISK row: "the field unit 'kr.' sits
    * after the number." The thumb's `aria-valuetext` is checked above and is computed independently
