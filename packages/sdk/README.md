@@ -42,6 +42,25 @@ it as `X-Preview-Token`. Configure each separately; the generator never embeds t
 output. See [preview mode](../../docs/getting-started.md#preview-mode) for examples and header
 precedence.
 
+## Images
+
+A media URL from the API serves an 800 px copy. Build a `srcset` over the sizes the media host
+serves (400 to 2560 px) so the browser picks one that is sharp on the screen in front of it:
+
+```ts
+import { responsiveImage } from '@eldrajs/sdk';
+
+const image = responsiveImage(product.thumbnail, {
+  sizes: '(min-width: 1024px) 25vw, 50vw', // how wide the image is drawn
+  aspectRatio: 4 / 5, // reserves the space: width="800" height="1000"
+});
+// spread onto <img>: { src, srcset, sizes, width, height }
+```
+
+`imageSrcset`, `imageUrl(source, 'xl')` and `imageVariantFor(width, density)` are there for the
+parts on their own. Anything that is not an Eldra media asset comes back unchanged. The variants,
+choosing `sizes`, and avoiding layout shift are in [docs/images.md](../../docs/images.md).
+
 ## What is in the client
 
 | Group       | Methods                                                                                                                |

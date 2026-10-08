@@ -13,3 +13,8 @@ coverage
 packages/theme-cli/template/
 storybook-static
 __screenshots__/__diff__
+
+# Design spec drops: local reference material, not shipped. Only the token source stays tracked.
+eldra-starter-spec/*
+!eldra-starter-spec/tokens.json
+eldra-starter-spec 2/

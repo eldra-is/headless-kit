@@ -74,15 +74,17 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `package.json` above Vite's root, because Nuxt's root is `app/`; and a Nuxt consumer's tsconfig
   include must be `../.eldra/**/*.ts` (Nuxt copies the entry into `.nuxt/` verbatim). Type checking runs twice: `tsconfig.json`
   proves the un-generated state (`unknown`), `tsconfig.generated.json` proves the generated state
-  against the fixture. Built by tsdown.
+  against the fixture. Built by tsdown. `src/image.ts` encodes the media host's contract — variant
+  names and widths, the asset URL shape, which content types it resizes — copied from
+  `eldra-is/studio-media-worker` `src/index.ts`; change both together.
 - `packages/rich-text` — `@eldrajs/rich-text`. Framework-free, imports nothing. The document types
   are declared here, not imported from TipTap. `src/html.ts` is the kit's XSS surface: it
   serialises merchant-authored content to HTML, so every text and attribute value goes through
   `escapeHtml`, URLs through `safeHref` / `safeImageSrc`, colours through `safeCssColor`, and an
   embed renders only when `isTrustedEmbedSource` accepts its `src`. A change there needs a test
   that tries to break out, proven by mutation. Built by tsdown.
-- `packages/vue` — `@eldrajs/vue`. The `RichText` renderer; depends on `@eldrajs/rich-text` and
-  peers on `vue`. Uses the same safety helpers in `Link.vue`, `Image.vue` and `Embed.vue`. Built by
+- `packages/vue` — `@eldrajs/vue`. The `RichText` renderer and `EldraImage`; depends on
+  `@eldrajs/rich-text` and `@eldrajs/sdk`, peers on `vue`. Uses the same safety helpers in `Link.vue`, `Image.vue` and `Embed.vue`. Built by
   Vite in library mode with `vite-plugin-dts` bundling the declarations into one `index.d.ts` —
   per-file `.vue.d.ts` output fails Node16 resolution, which `attw` catches.
 - `packages/ui` — `@eldrajs/ui`. The public Vue 3 core component library, built to
@@ -212,7 +214,7 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   any block, `main.css` or package change and commit the regenerated files. See `docs/starter-kit.md` for
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in
   consumer terms.
-- `docs/` — plain markdown: `getting-started.md`, `rich-text.md`, `frameworks.md` (the contract a
+- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `frameworks.md` (the contract a
   wrapper for another framework must satisfy), `ui.md` (short: what `@eldrajs/ui` is, install, the
   three CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
   map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the

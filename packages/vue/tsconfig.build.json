@@ -8,6 +8,11 @@
     "rootDir": "./src",
     "types": ["vite/client"]
   },
-  "include": ["src/index.ts", "src/rich-text/**/*.ts", "src/rich-text/**/*.vue"],
+  "include": [
+    "src/index.ts",
+    "src/rich-text/**/*.ts",
+    "src/rich-text/**/*.vue",
+    "src/image/**/*.vue"
+  ],
   "exclude": ["src/**/__tests__/**", "src/test-setup.ts"]
 }

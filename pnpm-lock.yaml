@@ -326,6 +326,9 @@ importers:
       '@eldrajs/rich-text':
         specifier: workspace:^
         version: link:../rich-text
+      '@eldrajs/sdk':
+        specifier: workspace:^
+        version: link:../sdk
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.5

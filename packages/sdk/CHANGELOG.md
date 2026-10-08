@@ -26,6 +26,12 @@ platform repository.
   the same way. **This is a minor**: the behaviour is a repair, but `retry` is a new public option
   and `EldraRetryOptions` a new exported type.
 
+- Responsive images: `responsiveImage` returns `src`, `srcset`, `sizes`, `width` and `height` for
+  an `<img>` from any media URL or object the API returns; `imageSrcset`, `imageUrl`,
+  `imageVariantFor`, `isEldraImage` and `ELDRA_IMAGE_VARIANT_WIDTHS` are the parts. A bare media
+  URL serves 800 px, so a storefront rendering it as-is was soft on wide screens. External URLs
+  and formats the host does not resize come back unchanged. See `docs/images.md`.
+
 - `categoryId`, `collectionId` and `option` are sent as repeated query parameters, one entry per
   value, like `filter` — the gateway declares all four `explode: true` (contract 3.7.0). Each is an
   OR over its values, so the comma-joined form was one value nothing matched: a storefront filtering

@@ -128,7 +128,10 @@ const files = [
   ...otherPackageSources(),
   // The design spec the whole kit is built to, which ships in the repository and is linked from
   // `CLAUDE.md` and both READMEs.
-  ...collectFiles(join(monorepoRoot, 'eldra-starter-spec'), []),
+  // The design spec is a local-only folder (git-ignored apart from `tokens.json`); scan it when present.
+  ...(existsSync(join(monorepoRoot, 'eldra-starter-spec'))
+    ? collectFiles(join(monorepoRoot, 'eldra-starter-spec'), [])
+    : []),
 ];
 
 const privateNpmScope = ['@eldra', 'is/'].join('-'); // never write this contiguously above

@@ -12,6 +12,12 @@ module.exports = [
     limit: '3.5 kB',
   },
   {
+    name: '@eldrajs/sdk — responsiveImage',
+    path: 'packages/sdk/dist/index.js',
+    import: '{ responsiveImage }',
+    limit: '1 kB',
+  },
+  {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
     limit: '4 kB',
@@ -33,6 +39,13 @@ module.exports = [
     import: '{ RichText }',
     ignore: ['vue'],
     limit: '6 kB',
+  },
+  {
+    name: '@eldrajs/vue — EldraImage, without vue',
+    path: 'packages/vue/dist/index.js',
+    import: '{ EldraImage }',
+    ignore: ['vue'],
+    limit: '2.5 kB',
   },
   {
     name: '@eldrajs/theme-core — everything',
