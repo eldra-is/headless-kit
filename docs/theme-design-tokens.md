@@ -78,3 +78,40 @@ an actionable error.
 Vue's `EldraLayout` accepts the resolved catalog through its `designTokens` prop or the provided Eldra context. It emits nonce-compatible generic token CSS and validates every referenced container id before rendering. Explicit responsive width, maximum width, margin, and padding values override the corresponding preset declarations at each breakpoint.
 
 Live Studio updates are accepted only through the versioned bridge after the theme advertises the `design-tokens` capability. The runtime validates the complete bounded resolved catalog before atomically replacing the prior catalog; stale or malformed updates are ignored.
+
+## Messages (`i18n/<tag>.json`)
+
+A theme that bakes user-facing text into its blocks — labels, empty-state copy, anything that is
+not CMS or commerce content — declares it as a vue-i18n message catalogue: one file per locale,
+`i18n/<tag>.json`, siblings of `tokens.json` at the theme root. Each file is a nested JSON object
+of strings (vue-i18n's own shape, placeholders like `{count}` included); the plugin flattens it
+into dotted keys (`header.menu`, `cart.empty.title`) for the manifest and for Studio.
+
+One locale's file defines the key set: the **default locale**. Declare it under `package.json`'s
+own `eldra` key, beside the `name`/`version` the scanner already reads from the same file:
+
+```json
+{
+  "name": "my-theme",
+  "eldra": { "defaultLocale": "en-US" }
+}
+```
+
+When undeclared, the default locale is `en-US` when the theme ships that file, else the
+alphabetically first locale file. Every other locale's keys must be a subset of the default
+locale's — a key outside that set fails validation at build time (and in `eldra-theme validate`),
+naming the locale and the offending key.
+
+`manifest.messages = { defaultLocale, locales: { "<tag>": { "<key>": "<value>" } } }` is **absent**
+— not an empty object — when the theme has no `i18n/` directory, so a theme shipping no texts
+never changes its manifest shape.
+
+`eldra-theme types` (and the Vite plugin, on every scan) generates a `MessageKey` union into
+`.eldra/block-types.d.ts` from the default locale's keys, so a theme's own code gets typed message
+keys without a hand-written `Messages` interface.
+
+At build time the plugin also serves `virtual:eldra/messages`, typed
+`{ defaultLocale: string; locales: Record<string, Record<string, string>> }`: today this is the
+manifest's own block, or `{ defaultLocale: 'en-US', locales: {} }` when the theme declares none.
+Studio can override, or translate, every key the theme ships — the theme's own value is always
+the fallback when no override exists for an organization's locale.
