@@ -18,6 +18,16 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
   },
   nitro: {
+    // `vue-i18n` ships a dedicated Node build (`exports['.'].node`) but Node's own conditional-exports
+    // algorithm returns the *first* matching key in declaration order, and the package lists a plain
+    // `import` condition before `node` — so Nitro's default "leave node_modules as an external
+    // `require`" treatment resolves the browser/bundler build, which references Vue's build-time
+    // feature flags (`__VUE_PROD_DEVTOOLS__`) directly and throws `ReferenceError` the moment it is
+    // `require()`'d raw: Nuxt's own `nitro.replace` (which sets that flag) only rewrites code Nitro
+    // actually bundles, never an external `require`. Forcing `vue-i18n` into the server bundle (where
+    // `replace` reaches it) is the fix; `@intlify/*` are vue-i18n's own dependencies, inlined for the
+    // same reason since the externals tracer resolves them independently.
+    externals: { inline: ['vue-i18n', '@intlify/core-base', '@intlify/message-compiler', '@intlify/shared'] },
     // `200.html` itself is Nitro's own built-in SPA-fallback output for the
     // static preset; it needs no config key here (nitro's PrerenderOptions
     // type has no `fallback` property — a prior `fallback: '200.html'` here

@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": [".storybook/**/*.ts", "stories/**/*.ts"]
+  "include": [".storybook/**/*.ts", "stories/**/*.ts", ".eldra/**/*.d.ts"]
 }
