@@ -3,6 +3,7 @@ import type {
   DraftEntryPayload,
   EditorMode,
   ResolvedDesignTokensPayload,
+  ResolvedThemeMessagesPayload,
 } from '@eldrajs/theme-core/bridge';
 import {
   DEFAULT_LAYOUT_BREAKPOINTS,
@@ -187,6 +188,9 @@ export function startEldraPreview(
         } else if (type === 'editor:design-tokens') {
           const update = payload as ResolvedDesignTokensPayload;
           applyResolvedDesignTokens(context, update);
+        } else if (type === 'editor:theme-messages') {
+          const update = payload as ResolvedThemeMessagesPayload;
+          applyThemeMessages(context, update);
         } else if (type === 'editor:set-mode') {
           // Not routed: the mode is Vue-side reactive state too (components
           // read `preview.mode`), so the binding owns it and hands the
@@ -334,6 +338,43 @@ export function applyResolvedDesignTokens(
   } catch {
     return false;
   }
+}
+
+/**
+ * Applies an `editor:theme-messages` push from Studio's "Theme texts" page: for every locale tag
+ * the payload names, **replaces** `context.messages.locales[tag]` wholesale with the payload's own
+ * record (a sanitized copy — non-string values are dropped rather than let through) — never a
+ * per-key merge, since Studio always sends a locale's full resolved set, the same shape
+ * `virtual:eldra/messages` serves. A locale the payload does not mention is left untouched.
+ *
+ * `revision` guards the same way `designTokensRevision` does: a push whose revision is not
+ * strictly greater than the last one applied is ignored, so an out-of-order delivery (a Studio
+ * reconnect replaying its last push, say) cannot roll a live edit backwards.
+ */
+export function applyThemeMessages(
+  context: EldraContext,
+  update: ResolvedThemeMessagesPayload
+): boolean {
+  if (!boundedPayload(update)) return false;
+  if (
+    !Number.isSafeInteger(update.revision) ||
+    update.revision <= context.preview.messagesRevision
+  ) {
+    return false;
+  }
+  if (typeof update.locales !== 'object' || update.locales === null) return false;
+  for (const tag of Object.keys(update.locales).sort((a, b) => a.localeCompare(b))) {
+    const record: unknown = update.locales[tag];
+    if (typeof record !== 'object' || record === null) continue;
+    const sanitized: Record<string, string> = {};
+    for (const key of Object.keys(record).sort((a, b) => a.localeCompare(b))) {
+      const value = (record as Record<string, unknown>)[key];
+      if (typeof value === 'string') sanitized[key] = value;
+    }
+    context.messages.locales[tag] = sanitized;
+  }
+  context.preview.messagesRevision = update.revision;
+  return true;
 }
 
 function syncDesignTokenStyle(

@@ -1,6 +1,7 @@
 import { inject, provide, reactive, type InjectionKey } from 'vue';
 import type { BridgePayloads } from '@eldrajs/theme-core/bridge';
 import type { LinkTargetInfo } from '@eldrajs/theme-core/links';
+import { EMPTY_THEME_MESSAGES, type ThemeMessages } from '@eldrajs/theme-core/i18n';
 import {
   normalizeThemeDesignTokens,
   type EldraClient,
@@ -86,6 +87,18 @@ export interface EldraContext {
    * site is.
    */
   locales?: EldraLocaleState;
+  /**
+   * The theme's resolved message catalogue — the manifest's own `messages` block (or the K1
+   * fallback, `{ defaultLocale: 'en-US', locales: {} }`, for a theme that ships no `i18n/`
+   * directory), merged with the platform's own overrides and resolved over the organisation's
+   * locales at build time (`@eldrajs/theme-nuxt`'s module, `@eldrajs/theme-core/i18n`'s
+   * `mergeMessageCatalogues`/`resolveMessageCatalogue`). Flat dotted keys, one record per locale
+   * tag — the starter's `vue-i18n` plugin (K3) is the one consumer that unflattens it.
+   *
+   * Reactive so a live `editor:theme-messages` push from Studio's preview (`useEldraPreview`)
+   * updates every block reading a message through it with no re-render plumbing of its own.
+   */
+  messages: ThemeMessages;
   preview: {
     active: boolean;
     mode: 'preview' | 'edit';
@@ -96,6 +109,13 @@ export interface EldraContext {
     refreshRevision: number;
     revision: number;
     designTokensRevision: number;
+    /**
+     * The revision of the last `editor:theme-messages` push applied to `context.messages`.
+     * Mirrors `designTokensRevision`'s role: a push whose `revision` is not strictly greater than
+     * this is stale (an out-of-order delivery, a reconnect replay) and is ignored rather than
+     * rolling a live edit backwards.
+     */
+    messagesRevision: number;
     /**
      * Bumped every time `editor:init` carries a preview token that differs
      * from the one before it — so a consumer can tell "the editor handed me a
@@ -165,6 +185,7 @@ export function createEldraPreviewState(): EldraContext['preview'] {
     refreshRevision: 0,
     revision: 0,
     designTokensRevision: 0,
+    messagesRevision: 0,
     tokenRevision: 0,
     editorSupportsSlots: false,
     richTextRenderRevision: 0,
@@ -204,10 +225,19 @@ export function createEldraLinkState(): EldraLinkState {
   return reactive({ pages: [], templates: [], targets: new Map<string, LinkTargetInfo>() });
 }
 
-export function provideEldra(opts: { client: EldraClient; designTokens?: unknown }): EldraContext {
+export function provideEldra(opts: {
+  client: EldraClient;
+  designTokens?: unknown;
+  /** Defaults to the K1 fallback (`{ defaultLocale: 'en-US', locales: {} }`) — a Storybook mount
+   * or a unit test that does not pass one renders exactly as a theme with no `i18n/` directory
+   * does. An adapter with a real build (`@eldrajs/theme-nuxt`'s runtime plugin) passes the
+   * resolved `virtual:eldra/messages` content instead. */
+  messages?: ThemeMessages;
+}): EldraContext {
   const context: EldraContext = {
     client: opts.client,
     designTokens: reactive(normalizeThemeDesignTokens(opts.designTokens ?? { colors: {} })),
+    messages: reactive(opts.messages ?? EMPTY_THEME_MESSAGES) as ThemeMessages,
     links: createEldraLinkState(),
     // The one-unprefixed-site state. A provider with real routing behind it (an adapter's own
     // plugin) replaces it; a story or a test keeps it, and every block then renders the same

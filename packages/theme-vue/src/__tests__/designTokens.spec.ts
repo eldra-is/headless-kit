@@ -14,6 +14,7 @@ function context(): EldraContext {
   return {
     client: {} as EldraContext['client'],
     designTokens: reactive({ colors: {}, containers: {} }),
+    messages: reactive({ defaultLocale: 'en-US', locales: {} }),
     links: createEldraLinkState(),
     preview: reactive({
       active: true,
@@ -25,6 +26,7 @@ function context(): EldraContext {
       refreshRevision: 0,
       revision: 0,
       designTokensRevision: 1,
+      messagesRevision: 0,
       tokenRevision: 0,
       richTextRenderRevision: 0,
       editorSupportsSlots: false,
