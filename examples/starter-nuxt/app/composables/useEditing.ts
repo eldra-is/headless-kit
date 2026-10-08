@@ -10,7 +10,7 @@ import { useEldra } from '@eldrajs/theme-vue';
  * parts don't render at all"). Blocks gate `@eldrajs/ui`'s
  * `EditorPlaceholder` on this, never on `preview.active` alone.
  *
- * Follows `useT()`'s own pattern (`app/composables/useT.ts`): `useEldra()`
+ * Follows the i18n plugin's own pattern (`app/plugins/eldra-i18n.ts`): `useEldra()`
  * throws with no `provideEldra()` ancestor (a plain `mount()` outside a
  * themed page, a composable used in a context this starter doesn't
  * control), and a live page always renders correctly with no editor hints

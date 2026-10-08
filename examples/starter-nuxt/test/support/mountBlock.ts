@@ -12,7 +12,7 @@ import { flattenMessages } from '@eldrajs/theme-core/i18n';
 // normally supplied only by `@eldrajs/vite-plugin-theme`'s Vite plugin
 // during a real theme build. `vitest.config.ts` aliases all three to mocks
 // under `test/mocks/`, so importing the package by name here works the same
-// as it does in real app code (`app/composables/useT.ts`,
+// as it does in real app code (`app/composables/useEditing.ts`,
 // `app/composables/useBlockData.ts`) — no relative reach into the theme-vue
 // package's own source and no per-spec `vi.mock('@eldrajs/theme-vue', …)`
 // needed. This matters beyond tidiness: `eldra-theme init` copies this
@@ -94,7 +94,7 @@ export function mountOptions(
 } {
   const locale = options.locale ?? STARTER_DEFAULT_LOCALE;
   const context = createTestEldraContext(locale, options.links, options.locales);
-  // The same priority `app/plugins/eldra-i18n.ts` (and the old `useT()` before it) reads: a page's
+  // The same priority `app/plugins/eldra-i18n.ts` reads: a page's
   // own `locales.active` — the locale its URL prefix names, or the one Studio is driving — wins
   // over the plain `locale` this mount was given, so a spec that overrides `options.locales.active`
   // (rather than `options.locale`) still gets translated output in that locale.
