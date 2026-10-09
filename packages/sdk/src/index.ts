@@ -17,6 +17,27 @@ export type {
   EldraContractQuery,
   EldraContractResponse,
 } from './contract';
+export {
+  ELDRA_SHOP_CLIENT_ID,
+  EldraOidcError,
+  bearer,
+  buildAuthorizeUrl,
+  buildLogoutUrl,
+  createPkcePair,
+  exchangeAuthorizationCode,
+  pkceChallenge,
+  refreshTokens,
+  shopIssuer,
+} from './oidc';
+export type {
+  EldraAuthorizeUrlOptions,
+  EldraExchangeCodeOptions,
+  EldraLogoutUrlOptions,
+  EldraOidcTokens,
+  EldraPkcePair,
+  EldraRefreshTokensOptions,
+  EldraTokenClientOptions,
+} from './oidc';
 export { createCartSession, createOrderAccessTokens } from './storage';
 export { analyticsTrackerScript } from './tracker';
 export type { EldraTrackerScript, EldraTrackerScriptOptions } from './tracker';
@@ -39,6 +60,10 @@ export type {
   EldraCollection,
   EldraCollectionList,
   EldraCollectionListOptions,
+  EldraCustomerClient,
+  EldraCustomerMe,
+  EldraCustomerMembership,
+  EldraShopUser,
   EldraCollectionProductsOptions,
   EldraDiscountResult,
   EldraInventoryClient,

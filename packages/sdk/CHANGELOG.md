@@ -9,6 +9,12 @@ platform repository.
 
 ## Unreleased
 
+- Business login: `shopIssuer`, `createPkcePair`, `buildAuthorizeUrl`, `exchangeAuthorizationCode`,
+  `refreshTokens` and `buildLogoutUrl` (OIDC authorization code with PKCE against the shop realm,
+  `EldraOidcError` on failure), `bearer(accessToken)`, and `customer.me(context)` for the signed-in
+  business customer and their company memberships. The token is passed per call in
+  `context.headers`. See `docs/business-login.md`.
+
 - Responsive images: `responsiveImage` returns `src`, `srcset`, `sizes`, `width` and `height` for
   an `<img>` from any media URL or object the API returns; `imageSrcset`, `imageUrl`,
   `imageVariantFor`, `isEldraImage` and `ELDRA_IMAGE_VARIANT_WIDTHS` are the parts. A bare media

@@ -272,6 +272,7 @@ export interface EldraClient {
   orders: EldraOrdersClient;
   checkout: EldraCheckoutClient;
   inventory: EldraInventoryClient;
+  customer: EldraCustomerClient;
 }
 
 export interface EldraLocaleOptions {
@@ -365,6 +366,35 @@ export interface EldraOrdersClient {
 export interface EldraCheckoutClient {
   /** Where a storefront sends the customer: `{checkoutUrl}/checkout/{orgId}/{cartId}`. */
   handoffUrl(options: EldraCheckoutHandoffOptions): string;
+}
+
+export interface EldraShopUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface EldraCustomerMembership {
+  customerId: string;
+  customerName: string;
+  number: string;
+  role: 'BUYER' | 'ADMIN';
+  status: 'INVITED' | 'ACTIVE';
+}
+
+export interface EldraCustomerMe {
+  shopUser: EldraShopUser;
+  memberships: EldraCustomerMembership[];
+}
+
+export interface EldraCustomerClient {
+  /**
+   * The signed-in business customer and their company memberships. Pass the access token in
+   * `context.headers`, for example `bearer(accessToken)`. Rejects with `SHOP_TOKEN_INVALID` (401)
+   * or `SHOP_NO_MEMBERSHIP` (403).
+   */
+  me(context?: EldraRequestContext): Promise<EldraCustomerMe>;
 }
 
 export interface EldraInventoryClient {

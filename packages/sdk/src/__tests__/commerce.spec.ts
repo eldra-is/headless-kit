@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { createEldraClient, EldraHttpError } from '../index';
+import { bearer, createEldraClient, EldraHttpError } from '../index';
 import type { EldraCart, EldraHttpRequest, EldraOrder } from '../index';
 import { stubHttpClient } from './support';
 
@@ -227,5 +227,49 @@ describe('eldra sdk errors', () => {
     expect(error.errorId).toBe('CART_NOT_FOUND');
     expect(plain.code).toBeUndefined();
     expect(plain.errorId).toBeUndefined();
+  });
+});
+
+describe('eldra sdk customer', () => {
+  it('reads the signed-in shop user with the caller token', async () => {
+    const me = {
+      shopUser: { id: 'u1', email: 'a@b.test', firstName: 'A', lastName: 'B' },
+      memberships: [
+        {
+          customerId: 'c1',
+          customerName: 'Acme',
+          number: '1001',
+          role: 'ADMIN' as const,
+          status: 'ACTIVE' as const,
+        },
+      ],
+    };
+    const { client, requests } = recording(me);
+
+    const result = await client.customer.me({ headers: bearer('tok') });
+
+    expect(requests[0].method).toBe('GET');
+    expect(requests[0].url).toBe('https://api.example.test/api/customer/v1/me');
+    expect(requests[0].headers.get('Authorization')).toBe('Bearer tok');
+    expect(requests[0].headers.get('X-Org-Id')).toBe('org-123');
+    expect(result.memberships[0].role).toBe('ADMIN');
+    expectTypeOf(result.shopUser.email).toBeString();
+  });
+
+  it('surfaces SHOP_TOKEN_INVALID as an EldraHttpError', async () => {
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      fetch: (async () =>
+        new Response(JSON.stringify({ code: 'UNAUTHORIZED', errorId: 'SHOP_TOKEN_INVALID' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })) as typeof globalThis.fetch,
+    });
+
+    const error = await client.customer.me({ headers: bearer('bad') }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(EldraHttpError);
+    expect(error).toMatchObject({ status: 401, errorId: 'SHOP_TOKEN_INVALID' });
   });
 });

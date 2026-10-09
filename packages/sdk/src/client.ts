@@ -26,6 +26,7 @@ import type {
   EldraCollectionListOptions,
   EldraCollectionProductsOptions,
   EldraCategory,
+  EldraCustomerMe,
   EldraDiscountResult,
   EldraLocaleOptions,
   EldraOrder,
@@ -385,6 +386,10 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         if (handoff.locale) url.searchParams.set('lang', handoff.locale);
         return url.toString();
       },
+    },
+    customer: {
+      me: (context?: EldraRequestContext) =>
+        request<EldraCustomerMe>({ ...context, path: '/customer/v1/me' }),
     },
     inventory: {
       availability: (items: EldraStockAvailabilityInput[], context?: EldraRequestContext) =>
