@@ -20,8 +20,9 @@ export interface EldraTrackerScript {
 
 /**
  * Builds the tracker `<script>` attributes from the same configuration the client uses, so the
- * tracker always reports to the gateway the site reads from. Returns `undefined` when no
- * organisation id is configured, which is the case in builds that should not report at all.
+ * script comes from the gateway the site reads from and reports there, unless `eventOrigin` names a
+ * first-party proxy. Returns `undefined` when no organisation id is configured, which is the case
+ * in builds that should not report at all.
  */
 export function analyticsTrackerScript(
   options: EldraTrackerScriptOptions = {}

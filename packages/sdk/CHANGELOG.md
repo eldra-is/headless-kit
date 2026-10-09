@@ -9,7 +9,8 @@ platform repository.
 
 ## Unreleased
 
-- No changes.
+- `analyticsTrackerScript`'s documentation no longer says events always reach the gateway; with
+  `eventOrigin` set they go to that first-party proxy.
 
 ## 0.2.6 — 2026-10-08
 

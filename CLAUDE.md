@@ -50,7 +50,9 @@ all packages. The `node-workspace` plugin bumps `vue` when `rich-text` releases 
 `workspace:^` range on publish; do not add `linked-versions` — it opens its own group PR and that
 candidate is dropped under `separate-pull-requests: false`, so only `sdk` gets released. **It reads commit
 types.** The pull request title is the squash-merge commit: `feat` or `fix` makes a release, `chore`
-does not, and the manual workflow cannot force one.
+does not, and the manual workflow cannot force one. Nor can a `chore` commit carrying `Release-As`:
+release-please only lets `Release-As` pick the version, and skips a package whose release notes
+would be empty, which they are when every commit is a hidden type (`chore`, `docs`).
 Publishing happens on the GitHub release event, one package per release, by packing that package and
 `npm publish --provenance`.
 
