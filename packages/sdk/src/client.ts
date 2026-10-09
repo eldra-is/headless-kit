@@ -342,9 +342,8 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           body: input,
         }),
       /**
-       * Removes a line. A signed-in token in `context.headers` binds the cart to that customer and
-       * prices its lines for them. Errors: 409 CART_CUSTOMER_MISMATCH, CART_SIGN_IN_REQUIRED;
-       * 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       * Removes a line. A guest may remove a line from a bound cart; a signed-in token binds the
+       * cart to that customer. Errors: 409 CART_CUSTOMER_MISMATCH; 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
        */
       removeItem: (cartId: string, itemId: string, context?: EldraRequestContext) =>
         request<EldraCart>({

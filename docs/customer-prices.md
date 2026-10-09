@@ -3,7 +3,7 @@
 A signed-in business customer (see [business-login.md](business-login.md)) can get their own
 prices from the same catalog and cart calls. The types come from the generated contract (2.17.0):
 priced variants add an optional `listPrice`, and list items carry the customer's `minPrice` and
-`maxPrice`.
+`maxPrice` plus `listPrice`, the list price of the variant `minPrice` came from.
 
 ## Calls
 
@@ -23,6 +23,8 @@ A type-checked version is [examples/node-script/customer-prices.ts](../examples/
 
 `customerHeaders(token)` is `bearer(token)`; with a company id it adds `X-Customer-Id`. Without
 `X-Customer-Id` the gateway uses the person's only company, or answers 409 `SHOP_CUSTOMER_REQUIRED`.
+`X-Org-Id` must be the organization's UUID, never an alias: the gateway refuses an alias with a shop
+token as `SHOP_TOKEN_INVALID`, on priced reads and cart writes alike (build the client with `orgId`).
 Never send the token from the browser, and never send an `Authorization` header without a token:
 leave `headers` out for a guest.
 
@@ -40,12 +42,24 @@ prerender them; render signed-in pages dynamically with `no-store` too.
 
 ## Cart binding
 
-A write with a signed-in token binds an unbound cart to that customer and reprices every line.
+A write with a signed-in token binds an unbound cart to that customer, reprices every line and
+drops the cart's discount code. A cart a signed-in buyer creates is bound from the start. Every
+cart answer, a guest's too, is `Cache-Control: private, no-store`.
 
-- Signed-in write to a cart bound to another customer: 409 `CART_CUSTOMER_MISMATCH`.
-- Guest write to a bound cart: 409 `CART_SIGN_IN_REQUIRED`. Reads by cart id stay open.
+**Remember the binding yourself.** The web cart never says which customer it is bound to. Store
+the customer id beside the cart id. When the buyer changes company, signs out, or loses business
+login (session ended, B2B off), move the cart: create a new cart under the new identity and replay
+the old cart's lines through `addItem`, then keep the new cart id. The starter's cart code is the
+reference implementation.
+
+- Signed-in write, or read, of a cart bound to another customer: 409 `CART_CUSTOMER_MISMATCH`.
+- Guest write to a bound cart: 409 `CART_SIGN_IN_REQUIRED`, except `removeItem`, which a guest may
+  do. Adding, changing a quantity and the discount routes need the signed-in buyer. A guest read by
+  cart id stays open.
 - Discount codes do not combine with customer prices: 409 `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`.
-- Price service down: 503 `CART_PRICES_UNAVAILABLE`.
+- Price service down: 503 `CART_PRICES_UNAVAILABLE` (nothing was saved; retry).
+- B2B switched off: cart writes on a bound cart are 409 `CART_CUSTOMER_PRICES_OFF`, and order
+  create and preview are 409 `ORDER_CUSTOMER_PRICES_OFF`. Move the basket to a guest cart.
 
 ## Errors on priced reads
 

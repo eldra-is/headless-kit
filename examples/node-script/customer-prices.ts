@@ -18,7 +18,7 @@ export async function pricedProducts(
     // Render the result dynamically and never cache it: it differs per customer.
     return await eldra.catalog.listProducts({ limit: 20 }, { headers });
   } catch (error) {
-    // B2B switched off: drop the session and continue as a guest.
+    // B2B switched off: continue as a guest here; your session store must also end the session.
     if (error instanceof EldraHttpError && error.errorId === 'FEATURE_DISABLED') {
       return eldra.catalog.listProducts({ limit: 20 });
     }

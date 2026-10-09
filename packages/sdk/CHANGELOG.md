@@ -22,6 +22,11 @@ platform repository.
   variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced
   responses have no `compareAtPrice`. `customerHeaders(accessToken, customerId?)` builds the
   headers. Priced responses are `Cache-Control: private, no-store`. See `docs/customer-prices.md`.
+- Customer carts (contract 2.17.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
+  signed-in read), `CART_SIGN_IN_REQUIRED` (a guest may still remove a line),
+  `CART_CUSTOMER_PRICES_OFF`, `ORDER_CUSTOMER_PRICES_OFF`, `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`,
+  `CART_PRICES_UNAVAILABLE`. Every cart answer is `private, no-store`; binding drops the discount
+  code; list items carry `listPrice`. The docs explain tracking the binding and moving the cart.
 
 ## 0.2.7 — 2026-10-09
 
