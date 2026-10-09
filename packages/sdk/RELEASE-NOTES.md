@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.6...sdk-v0.2.7) (2026-10-09)
+
+
+### Bug Fixes
+
+* **sdk:** don't claim tracker events always reach the gateway ([#45](https://github.com/eldra-is/headless-kit/issues/45)) ([ec789bb](https://github.com/eldra-is/headless-kit/commit/ec789bbfab8162af0b20f0f9889e1f33badc86d5))
+
 ## [0.2.6](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.5...sdk-v0.2.6) (2026-10-08)
 
 
