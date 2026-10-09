@@ -9,8 +9,7 @@ platform repository.
 
 ## Unreleased
 
-- No changes. Released so this package's npm trusted-publishing connection is bound by a first
-  publish.
+- No changes.
 
 ## 0.2.6 — 2026-10-08
 
@@ -23,7 +22,8 @@ platform repository.
 ## 0.2.5 — 2026-09-25
 
 - `analyticsTrackerScript` builds the analytics tracker `<script>` attributes from the same
-  configuration as the client, so the tracker always reports to the gateway the site reads from.
+  configuration as the client, so the script comes from the gateway the site reads from. Events go
+  there too, unless `eventOrigin` names a first-party proxy to send them through.
 
 ## 0.2.4 — 2026-09-23
 
