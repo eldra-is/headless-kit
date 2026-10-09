@@ -358,6 +358,47 @@ that was picked (`/collections/<slug>`, from `app/storefront/collectionSelector.
 is known only by id. `collection-grid` and `collection-header` declare none: each has a single
 collection field with no variant to condition it on.
 
+**Slots.** A block may declare bounded, semantic insertion regions for _other_ blocks — not a field
+an author fills in, but a zone the layout can place a block into — with a top-level `slots` array in
+`block.json` (`BlockSlotDefinition`): `hero`'s is the worked example.
+
+```json
+"slots": [
+  {
+    "id": "actions",
+    "label": "Action buttons",
+    "description": "Buttons rendered under the hero copy. Falls back to the built-in calls to action.",
+    "maxItems": 2,
+    "allowedBlockApiIds": ["cta"]
+  }
+]
+```
+
+Each slot declares a unique lowercase-kebab `id` (what `Block.vue` names its `<slot>` after), a
+`label` Studio shows the author, an optional `description`, a required `maxItems` capacity from 1 to
+20, and an optional `allowedBlockApiIds` allowlist — every id in it must be a block the theme ships,
+or `eldra-theme validate` rejects it. An omitted allowlist admits any block type except the host
+block itself. `Block.vue` renders a slot as an ordinary named Vue `<slot>` with fallback content —
+`hero`'s `actions` slot falls back to its own built-in call-to-action buttons when nothing has been
+placed into it:
+
+```vue
+<slot name="actions">
+  <a v-if="d.ctaLabel && ctaHref" class="button" :href="ctaHref">{{ d.ctaLabel }}</a>
+</slot>
+```
+
+`EldraLayout` (`@eldrajs/theme-vue`) is what fills a slot: a layout document may place at most
+`maxItems` blocks per slot, each one of the slot's own child layout nodes, and a layout that
+overflows one fails closed (`SLOT_FULL`) rather than silently dropping the extra block — the
+allowlist is enforced per placement the same way. An empty slot renders identically on a static page
+and in Studio's preview; there is no hidden persistence, and a slot carries no CMS data of its own
+beyond the child blocks placed into it. In Studio's **preview only**, a rendered slot additionally
+carries an editor-only marker (`data-eldra-slot-marker`, `data-eldra-slot-id`) naming
+`<label> · <n>/<maxItems>`, and its geometry is reported over the `theme:slots-rendered` bridge
+message — static generation includes neither. See [How a theme meets the page
+builder](../CLAUDE.md#the-preview-bridge) for where that message sits among the rest of the bridge.
+
 **`mock.json`** is the seed Studio writes into a block's CMS entry when an author inserts it from the
 palette, so it must be a write-valid shape for every field type — most importantly, **media fields
 are absent** (never `null`, never a fixture object): Core's write-side media validator only accepts
