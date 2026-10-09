@@ -6,7 +6,10 @@ import type {
   EldraCart,
   EldraCartTotals,
   EldraContractResponse,
+  EldraCustomerMe,
+  EldraCustomerMembership,
   EldraProductListItem,
+  EldraShopUser,
 } from '../index';
 
 // Without the generated contract (see ./generated for the other half) nothing is typed and
@@ -29,6 +32,9 @@ describe('eldra sdk without generated contract types', () => {
     expectTypeOf<EldraCartTotals>().toBeUnknown();
     expectTypeOf<EldraProductListItem>().toBeUnknown();
     expectTypeOf<EldraContractResponse<'/order/v1/{orderId}', 'get'>>().toBeUnknown();
+    expectTypeOf<EldraCustomerMe>().toBeUnknown();
+    expectTypeOf<EldraShopUser>().toBeUnknown();
+    expectTypeOf<EldraCustomerMembership>().toBeUnknown();
     expectTypeOf<EldraAddCartItemInput>().toEqualTypeOf<Record<string, unknown>>();
   });
 

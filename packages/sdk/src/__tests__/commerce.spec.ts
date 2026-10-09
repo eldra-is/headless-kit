@@ -246,14 +246,13 @@ describe('eldra sdk customer', () => {
     };
     const { client, requests } = recording(me);
 
-    const result = await client.customer.me({ headers: bearer('tok') });
+    const result = (await client.customer.me({ headers: bearer('tok') })) as typeof me;
 
     expect(requests[0].method).toBe('GET');
     expect(requests[0].url).toBe('https://api.example.test/api/customer/v1/me');
     expect(requests[0].headers.get('Authorization')).toBe('Bearer tok');
     expect(requests[0].headers.get('X-Org-Id')).toBe('org-123');
     expect(result.memberships[0].role).toBe('ADMIN');
-    expectTypeOf(result.shopUser.email).toBeString();
   });
 
   it('surfaces SHOP_TOKEN_INVALID as an EldraHttpError', async () => {

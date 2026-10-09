@@ -368,31 +368,20 @@ export interface EldraCheckoutClient {
   handoffUrl(options: EldraCheckoutHandoffOptions): string;
 }
 
-export interface EldraShopUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
-export interface EldraCustomerMembership {
-  customerId: string;
-  customerName: string;
-  number: string;
-  role: 'BUYER' | 'ADMIN';
-  status: 'INVITED' | 'ACTIVE';
-}
-
-export interface EldraCustomerMe {
-  shopUser: EldraShopUser;
-  memberships: EldraCustomerMembership[];
-}
+export type EldraCustomerMe = EldraContractResponse<'/customer/v1/me', 'get'>;
+export type EldraShopUser = Prop<EldraCustomerMe, 'shopUser'>;
+export type EldraCustomerMembership = Item<Prop<EldraCustomerMe, 'memberships'>>;
 
 export interface EldraCustomerClient {
   /**
-   * The signed-in business customer and their company memberships. Pass the access token in
-   * `context.headers`, for example `bearer(accessToken)`. Rejects with `SHOP_TOKEN_INVALID` (401)
-   * or `SHOP_NO_MEMBERSHIP` (403).
+   * The signed-in business customer and their company memberships. Pass the shop-realm access
+   * token in `context.headers`, for example `bearer(accessToken)`. Rejects with `EldraHttpError`,
+   * branch on `errorId`:
+   * - 401 `SHOP_TOKEN_INVALID`: the token is missing, expired or not from this shop realm; refresh
+   *   or sign in again.
+   * - 403 `SHOP_NO_MEMBERSHIP`: the login buys for no customer company.
+   * - 403 `FEATURE_DISABLED`: the organisation has business sales turned off.
+   * - 503 `SHOP_LOGIN_UNAVAILABLE`: the login service is unreachable; try again.
    */
   me(context?: EldraRequestContext): Promise<EldraCustomerMe>;
 }

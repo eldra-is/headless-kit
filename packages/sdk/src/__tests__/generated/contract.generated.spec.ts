@@ -6,7 +6,10 @@ import type {
   EldraCart,
   EldraCartTotals,
   EldraContractResponse,
+  EldraCustomerMe,
+  EldraCustomerMembership,
   EldraProductListItem,
+  EldraShopUser,
 } from '../../index';
 import type { paths } from '../fixtures/contract';
 
@@ -48,5 +51,21 @@ describe('eldra sdk with generated contract types', () => {
   it('exposes request and response shapes for any path', () => {
     type Order = EldraContractResponse<'/order/v1/{orderId}', 'get'>;
     expectTypeOf<Order['id']>().toEqualTypeOf<string>();
+  });
+
+  it('types the business customer from the contract', async () => {
+    const client = createEldraClient({
+      orgId: 'org-123',
+      httpClient: stubHttpClient(() => ({ shopUser: {}, memberships: [] })),
+    });
+
+    const me = await client.customer.me();
+
+    expectTypeOf(me).toEqualTypeOf<EldraCustomerMe>();
+    expectTypeOf(me.memberships).toEqualTypeOf<EldraCustomerMembership[]>();
+    expectTypeOf<EldraShopUser['email']>().toEqualTypeOf<string>();
+    expectTypeOf<EldraCustomerMembership['role']>().toEqualTypeOf<'BUYER' | 'ADMIN'>();
+    expectTypeOf<EldraCustomerMembership['status']>().toEqualTypeOf<'INVITED' | 'ACTIVE'>();
+    expect(me.memberships).toEqual([]);
   });
 });
