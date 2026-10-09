@@ -1,5 +1,5 @@
 {
-  "packages/sdk": "0.2.6",
+  "packages/sdk": "0.2.7",
   "packages/rich-text": "0.1.1",
-  "packages/vue": "0.1.1"
+  "packages/vue": "0.1.2"
 }
