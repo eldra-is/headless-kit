@@ -228,6 +228,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
       },
     },
     catalog: {
+      /**
+       * Lists products. Pass a signed-in business customer's `headers: customerHeaders(token, customerId)` in
+       * `context` to get their prices (`listPrice` is the list price); server-side only, never
+       * cache the result. See docs/customer-prices.md.
+       */
       listProducts: <Response = EldraProductList>(
         listOptions?: EldraCatalogListProductsOptions,
         context?: EldraRequestContext
@@ -237,6 +242,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: '/catalog/v1/products/list',
           query: listOptions,
         }),
+      /**
+       * Reads one product. Pass a signed-in business customer's `headers: customerHeaders(token, customerId)` in
+       * `context` to get their prices (`listPrice` is the list price); server-side only, never
+       * cache the result. See docs/customer-prices.md.
+       */
       getProduct: <Response = EldraProductDetails>(
         productId: string,
         getOptions?: EldraCatalogGetProductOptions,
@@ -269,6 +279,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/catalog/v1/collections/${encodeURIComponent(slug)}`,
           query: localeOptions,
         }),
+      /**
+       * Lists a collection's products. Pass a signed-in business customer's `headers: customerHeaders(token, customerId)` in
+       * `context` to get their prices (`listPrice` is the list price); server-side only, never
+       * cache the result. See docs/customer-prices.md.
+       */
       listCollectionProducts: (
         slug: string,
         listOptions?: EldraCollectionProductsOptions,
@@ -279,6 +294,7 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/catalog/v1/collections/${encodeURIComponent(slug)}/products`,
           query: listOptions,
         }),
+      /** Search results carry list prices, never customer prices. */
       search: (query: string, searchOptions?: EldraSearchOptions, context?: EldraRequestContext) =>
         request<EldraSearchResponse>({
           ...context,
@@ -287,6 +303,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         }),
     },
     cart: {
+      /**
+       * Adds a line. With a signed-in token in `context.headers` the cart binds to that customer and lines
+       * use their prices; errors 409 CART_CUSTOMER_MISMATCH / CART_SIGN_IN_REQUIRED, 503
+       * CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       */
       addItem: (input: EldraAddCartItemInput, context?: EldraRequestContext) =>
         request<EldraCart>({
           ...context,
@@ -300,6 +321,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}`,
           query: localeOptions,
         }),
+      /**
+       * Changes a line's quantity. With a signed-in token in `context.headers` the cart binds to that customer and lines
+       * use their prices; errors 409 CART_CUSTOMER_MISMATCH / CART_SIGN_IN_REQUIRED, 503
+       * CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       */
       updateItem: (
         cartId: string,
         itemId: string,
@@ -312,6 +338,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/items/${encodeURIComponent(itemId)}`,
           body: input,
         }),
+      /**
+       * Removes a line. With a signed-in token in `context.headers` the cart binds to that customer and lines
+       * use their prices; errors 409 CART_CUSTOMER_MISMATCH / CART_SIGN_IN_REQUIRED, 503
+       * CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       */
       removeItem: (cartId: string, itemId: string, context?: EldraRequestContext) =>
         request<EldraCart>({
           ...context,

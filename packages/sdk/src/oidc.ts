@@ -91,6 +91,17 @@ export function bearer(accessToken: string): { Authorization: string } {
   return { Authorization: `Bearer ${accessToken}` };
 }
 
+/**
+ * Headers for a priced catalog read or a cart write: the access token plus, when the person
+ * belongs to more than one company, the active company as `X-Customer-Id`. Server-side only.
+ */
+export function customerHeaders(
+  accessToken: string,
+  customerId?: string
+): { Authorization: string; 'X-Customer-Id'?: string } {
+  return customerId ? { ...bearer(accessToken), 'X-Customer-Id': customerId } : bearer(accessToken);
+}
+
 function base64Url(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);

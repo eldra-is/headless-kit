@@ -21,6 +21,7 @@ export {
   ELDRA_SHOP_CLIENT_ID,
   EldraOidcError,
   bearer,
+  customerHeaders,
   buildAuthorizeUrl,
   buildLogoutUrl,
   createPkcePair,

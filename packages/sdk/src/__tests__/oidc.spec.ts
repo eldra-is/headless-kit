@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   EldraOidcError,
   bearer,
+  customerHeaders,
   buildAuthorizeUrl,
   buildLogoutUrl,
   createPkcePair,
@@ -268,5 +269,15 @@ describe('buildLogoutUrl', () => {
 describe('bearer', () => {
   it('returns an Authorization header', () => {
     expect(bearer('tok')).toEqual({ Authorization: 'Bearer tok' });
+  });
+});
+
+describe('customerHeaders', () => {
+  it('adds the active company only when given', () => {
+    expect(customerHeaders('tok')).toEqual({ Authorization: 'Bearer tok' });
+    expect(customerHeaders('tok', 'c1')).toEqual({
+      Authorization: 'Bearer tok',
+      'X-Customer-Id': 'c1',
+    });
   });
 });
