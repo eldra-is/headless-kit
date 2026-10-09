@@ -134,7 +134,9 @@ describe('useI18n over the starter catalogue', () => {
  * value; reverting makes it pass again.
  */
 describe('strings rule — no literal UI copy in blocks', () => {
-  const blocksDir = join(process.cwd(), 'blocks');
+  // Relative to this file, not the working directory: the root `pnpm test` runs every
+  // project's suite from the repository root.
+  const blocksDir = join(__dirname, '..', 'blocks');
   const LITERAL_ATTR = /(^|[^:@\w-])(aria-label|title|placeholder|alt)="([^"]*)"/g;
 
   function vueFiles(dir: string): string[] {

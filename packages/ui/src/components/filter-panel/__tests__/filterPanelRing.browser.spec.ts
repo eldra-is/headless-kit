@@ -408,9 +408,19 @@ describe('the panel at a 320px drawer width', () => {
           const root = document.querySelector('[data-part="root"]') as HTMLElement;
           return root.scrollWidth - root.clientWidth;
         })(),
+        // Which boxes reach past the viewport's right edge — the failure message names them,
+        // because the culprit depends on the fonts the platform renders with.
+        culprits: Array.from(document.body.querySelectorAll<HTMLElement>('*'))
+          .filter((el) => el.getBoundingClientRect().right > document.documentElement.clientWidth)
+          .slice(0, 8)
+          .map((el) => {
+            const rect = el.getBoundingClientRect();
+            const part = el.getAttribute('data-part');
+            return `${el.tagName.toLowerCase()}${part ? `[data-part=${part}]` : ''} right=${Math.round(rect.right)} width=${Math.round(rect.width)} "${(el.textContent ?? '').trim().slice(0, 30)}"`;
+          }),
       }));
-      expect(overflow.document).toBeLessThanOrEqual(0);
-      expect(overflow.panel).toBeLessThanOrEqual(0);
+      expect(overflow.document, overflow.culprits.join('\n')).toBeLessThanOrEqual(0);
+      expect(overflow.panel, overflow.culprits.join('\n')).toBeLessThanOrEqual(0);
     } finally {
       await page.close();
     }
