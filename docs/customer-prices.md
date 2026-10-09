@@ -2,7 +2,8 @@
 
 A signed-in business customer (see [business-login.md](business-login.md)) can get their own
 prices from the same catalog and cart calls. The types come from the generated contract (2.17.0):
-priced variants add an optional `listPrice`, and list items carry the customer's min and max.
+priced variants add an optional `listPrice`, and list items carry the customer's `minPrice` and
+`maxPrice`.
 
 ## Calls
 
@@ -18,9 +19,12 @@ const product = await eldra.catalog.getProduct(id, undefined, { headers });
 const cart = await eldra.cart.addItem(input, { headers });
 ```
 
+A type-checked version is [examples/node-script/customer-prices.ts](../examples/node-script/customer-prices.ts).
+
 `customerHeaders(token)` is `bearer(token)`; with a company id it adds `X-Customer-Id`. Without
 `X-Customer-Id` the gateway uses the person's only company, or answers 409 `SHOP_CUSTOMER_REQUIRED`.
-Never send the token from the browser.
+Never send the token from the browser, and never send an `Authorization` header without a token:
+leave `headers` out for a guest.
 
 ## Showing prices
 

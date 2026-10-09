@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   EldraOidcError,
   bearer,
-  customerHeaders,
   buildAuthorizeUrl,
   buildLogoutUrl,
   createPkcePair,
+  customerHeaders,
   exchangeAuthorizationCode,
   pkceChallenge,
   refreshTokens,

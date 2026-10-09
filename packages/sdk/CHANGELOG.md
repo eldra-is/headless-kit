@@ -18,10 +18,10 @@ platform repository.
   are derived from the generated contract like every other response type. `refreshExpiresAt` is
   `undefined` when the server sends no `refresh_expires_in`. See `docs/business-login.md`.
 - Customer prices (contract 2.17.0): catalog product, list and collection-product reads and cart
-  writes accept a signed-in token (and `X-Customer-Id`) per call in `context.headers`; priced
-  variants carry `listPrice`, and priced responses have no `compareAtPrice`. `customerHeaders(
-  accessToken, customerId?)` builds the headers. Priced responses are `Cache-Control: private,
-  no-store`. See `docs/customer-prices.md`.
+  writes accept a signed-in token and `X-Customer-Id` per call in `context.headers`. Priced
+  variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced
+  responses have no `compareAtPrice`. `customerHeaders(accessToken, customerId?)` builds the
+  headers. Priced responses are `Cache-Control: private, no-store`. See `docs/customer-prices.md`.
 
 ## 0.2.7 — 2026-10-09
 

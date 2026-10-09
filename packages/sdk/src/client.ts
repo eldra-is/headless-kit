@@ -229,9 +229,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
     },
     catalog: {
       /**
-       * Lists products. Pass a signed-in business customer's `headers: customerHeaders(token, customerId)` in
-       * `context` to get their prices (`listPrice` is the list price); server-side only, never
-       * cache the result. See docs/customer-prices.md.
+       * Lists products. Pass `customerHeaders(token, customerId)` as `context.headers` to get a
+       * signed-in business customer's prices (`listPrice` is the list price). Server-side only;
+       * never cache the result. See docs/customer-prices.md.
        */
       listProducts: <Response = EldraProductList>(
         listOptions?: EldraCatalogListProductsOptions,
@@ -243,9 +243,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           query: listOptions,
         }),
       /**
-       * Reads one product. Pass a signed-in business customer's `headers: customerHeaders(token, customerId)` in
-       * `context` to get their prices (`listPrice` is the list price); server-side only, never
-       * cache the result. See docs/customer-prices.md.
+       * Reads one product. Pass `customerHeaders(token, customerId)` as `context.headers` to get a
+       * signed-in business customer's prices (`listPrice` is the list price). Server-side only;
+       * never cache the result. See docs/customer-prices.md.
        */
       getProduct: <Response = EldraProductDetails>(
         productId: string,
@@ -280,9 +280,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           query: localeOptions,
         }),
       /**
-       * Lists a collection's products. Pass a signed-in business customer's `headers: customerHeaders(token, customerId)` in
-       * `context` to get their prices (`listPrice` is the list price); server-side only, never
-       * cache the result. See docs/customer-prices.md.
+       * Lists a collection's products. Pass `customerHeaders(token, customerId)` as `context.headers` to get a
+       * signed-in business customer's prices (`listPrice` is the list price). Server-side only;
+       * never cache the result. See docs/customer-prices.md.
        */
       listCollectionProducts: (
         slug: string,
@@ -304,9 +304,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
     },
     cart: {
       /**
-       * Adds a line. With a signed-in token in `context.headers` the cart binds to that customer and lines
-       * use their prices; errors 409 CART_CUSTOMER_MISMATCH / CART_SIGN_IN_REQUIRED, 503
-       * CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       * Adds a line. A signed-in token in `context.headers` binds the cart to that customer and
+       * prices its lines for them. Errors: 409 CART_CUSTOMER_MISMATCH, CART_SIGN_IN_REQUIRED;
+       * 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
        */
       addItem: (input: EldraAddCartItemInput, context?: EldraRequestContext) =>
         request<EldraCart>({
@@ -315,6 +315,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: '/shopping-cart/v1/cart/items',
           body: input,
         }),
+      /**
+       * Reads a cart by id. Reads stay open for a cart bound to a customer (hosted checkout).
+       */
       get: (cartId: string, localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
         request<EldraCart>({
           ...context,
@@ -322,9 +325,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           query: localeOptions,
         }),
       /**
-       * Changes a line's quantity. With a signed-in token in `context.headers` the cart binds to that customer and lines
-       * use their prices; errors 409 CART_CUSTOMER_MISMATCH / CART_SIGN_IN_REQUIRED, 503
-       * CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       * Changes a line's quantity. A signed-in token in `context.headers` binds the cart to that customer and
+       * prices its lines for them. Errors: 409 CART_CUSTOMER_MISMATCH, CART_SIGN_IN_REQUIRED;
+       * 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
        */
       updateItem: (
         cartId: string,
@@ -339,9 +342,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           body: input,
         }),
       /**
-       * Removes a line. With a signed-in token in `context.headers` the cart binds to that customer and lines
-       * use their prices; errors 409 CART_CUSTOMER_MISMATCH / CART_SIGN_IN_REQUIRED, 503
-       * CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       * Removes a line. A signed-in token in `context.headers` binds the cart to that customer and
+       * prices its lines for them. Errors: 409 CART_CUSTOMER_MISMATCH, CART_SIGN_IN_REQUIRED;
+       * 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
        */
       removeItem: (cartId: string, itemId: string, context?: EldraRequestContext) =>
         request<EldraCart>({
@@ -349,6 +352,10 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           method: 'DELETE',
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/items/${encodeURIComponent(itemId)}`,
         }),
+      /**
+       * Applies a discount code. On a cart bound to a customer this is 409
+       * CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES: codes do not combine with customer prices.
+       */
       applyDiscount: async (
         cartId: string,
         code: string,
@@ -369,6 +376,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           discountCode.trim().toUpperCase() === trimmed.toUpperCase();
         return { cart, applied };
       },
+      /**
+       * Removes the discount code. A guest write to a bound cart is 409 CART_SIGN_IN_REQUIRED.
+       */
       removeDiscount: (
         cartId: string,
         localeOptions?: EldraLocaleOptions,
