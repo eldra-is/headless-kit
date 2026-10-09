@@ -106,6 +106,10 @@ carry the organisation's overrides into SSR, prerender and hydration, not only t
 
 ## Messages (`i18n/<tag>.json`)
 
+This section is the build-time merge's own reference. [Theme texts](theme-texts.md) is the
+developer-facing guide — what to ship, what Studio can override, the fallback chain in plain terms,
+and exporting an override back into the theme's own source.
+
 A theme that bakes user-facing text into its blocks — labels, empty-state copy, anything that is
 not CMS or commerce content — declares it as a vue-i18n message catalogue: one file per locale,
 `i18n/<tag>.json`, siblings of `tokens.json` at the theme root. Each file is a nested JSON object
@@ -180,3 +184,9 @@ Site settings → "Theme texts" pushes a live edit into an open builder preview 
 **replaces** `context.messages.locales[tag]` wholesale (never a per-key merge — Studio always sends
 a locale's full resolved set) and ignores a stale `revision` (not strictly greater than the last one
 applied), the same discipline `designTokensRevision` follows.
+
+## More
+
+- [Theme texts](theme-texts.md) — the developer-facing guide to the message catalogue above.
+- [The deploy loop](theme-deploy-loop.md) — how a saved design-token or theme-text override reaches
+  a deployed site, in the context of the whole build/deploy cycle.

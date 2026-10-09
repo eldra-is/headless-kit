@@ -437,15 +437,26 @@ may change in a minor release.
 
 ## More
 
+- [The deploy loop](theme-deploy-loop.md) — `eldra-theme init` → run locally → `validate` →
+  `generate` → `deploy`, what the deploy report's lines mean, and publish-triggered rebuilds.
 - [Starter kit conventions](starter-kit.md) — the primitive layer (`app/components/ui/`), the block
-  contract, strings, Storybook and generated previews, testing and accessibility gates.
+  contract (fields, mock vs. preview, variants, slots, migrations), strings, Storybook and generated
+  previews, testing and accessibility gates.
 - [Design tokens](theme-design-tokens.md) — `tokens.json`, the generated CSS variables, the
   optional Tailwind v4 layer (and why a CSS-level `@import` of
   `virtual:eldra/tailwind-theme.css` doesn't work — the starter's fallback route is documented
-  there).
+  there), and how a Studio design-token override reaches a deployed site.
+- [Theme texts](theme-texts.md) — `i18n/<tag>.json`, what Studio can override, the fallback chain,
+  and exporting an override back into the theme.
 - [Block field migrations](theme-field-migrations.md) — renaming fields across block versions.
 - [Reusable page components](theme-reusable-components.md) — the reusable-component projection and
   how `EldraLayout` resolves placements.
 
+The repository's own [`CLAUDE.md`](../CLAUDE.md#how-a-theme-meets-the-page-builder) has the
+agent-context version of all of this in one place: the manifest keys and what each becomes on the
+platform, the preview bridge's full message list, the build-time platform reads, the virtual
+modules, and the kit's own invariants.
+
 Deploying: `eldra-theme deploy` pushes a static build to Eldra with a site deploy token
-(`ELDRA_DEPLOY_TOKEN`); see `packages/theme-cli/README.md`.
+(`ELDRA_DEPLOY_TOKEN`); see [The deploy loop](theme-deploy-loop.md) and
+`packages/theme-cli/README.md`.
