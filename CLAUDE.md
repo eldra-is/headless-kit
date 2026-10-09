@@ -225,6 +225,128 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   starter's own conventions — see the `examples/starter-nuxt` entry above) plus the four
   `theme-*.md` docs `themes.md` links to.
 
+## How a theme meets the page builder
+
+A theme is the platform's content model, in files. `@eldrajs/vite-plugin-theme` scans the theme
+directory into `ThemeManifest` (`packages/vite-plugin-theme/src/types.ts`); `eldra-theme deploy`
+uploads it with the built static site, and the platform's ingest turns each top-level key into
+platform state. A theme never talks to that platform directly to make this happen — it is all
+manifest in, generated artifact out.
+
+- **`blocks`** — one entry per `blocks/<apiId>/block.json`, each becoming a `block`-tagged CMS
+  schema (fields, groups, slots, migrations). A block's CMS entry is what the page builder's
+  inspector edits; `Block.vue` is what renders it, in the preview and on the deployed site alike.
+- **`templates` / `pageSeeds` / `templateRoles`** — what a site starts with on its first deploy, at
+  most 8 of each. A `templates` entry seeds a route template (`catalog:product`,
+  `catalog:collection`, `catalog:category` or `home`); a `pageSeeds` entry seeds a static Page at
+  `/<slug>` instead, with no node ids — its `blocks[]` **is** the page, in document order
+  (`ManifestPageSeed`, `types.ts:89`). Either kind may place the `@header`/`@footer` regions, which
+  resolve to the site's own reusable components, built once from `templateRoles` on first deploy and
+  shared by every seed that places them (`types.ts:162`) — this is the mechanism behind a theme's
+  header and footer being ordinary reusable components, editable from any page that hosts one. A
+  seed is skipped once the site already has a template for its pattern or a page with its slug, so a
+  merchant's own edits are never overwritten. See [Seeding default templates and
+  pages](docs/themes.md#seeding-default-templates-and-pages) and
+  [Reusable page components](docs/theme-reusable-components.md).
+- **`tokens`** — the theme's own `tokens.json`, normalized into `--eldra-color-*` /
+  `--eldra-container-*` CSS variables. Studio's site settings can override any token marked
+  `allowSiteOverride`, live, with no redeploy of the theme's code — but a **deployed** (prerendered)
+  site only picks up an override because `@eldrajs/theme-nuxt` reads the organisation's resolved
+  catalog at build time and feeds it back through `tokens`' own transform hook (below). See [Design
+  tokens](docs/theme-design-tokens.md).
+- **`messages`** — the theme's `i18n/<tag>.json` catalogues, flattened to dotted keys. Studio's
+  "Theme texts" page can override or translate any plain-string key (not the UI package's
+  parameterized ones) for any organisation locale; the deployed site picks that up the same way
+  tokens do, through `messages`' transform hook. See [Theme texts](docs/theme-texts.md).
+
+### The preview bridge
+
+`@eldrajs/theme-core/bridge` (`packages/theme-core/src/bridge/protocol.ts`) is the postMessage
+protocol between a theme running in Studio's builder preview iframe and the Studio editor host.
+Every message is one of `BridgePayloads` (`protocol.ts:222`), wrapped in a versioned envelope a
+theme on an older protocol version ignores rather than misreads. Two owners, two prefixes:
+
+- **`editor:*` — Studio sends, the theme receives.** `editor:hello`/`editor:init` (mode, preview
+  token, locale, path), `editor:content-update` (draft entry data), `editor:design-tokens` /
+  `editor:theme-messages` (live overrides), `editor:select-block`, `editor:navigate`,
+  `editor:set-mode`, `editor:set-viewport`, `editor:refresh`/`editor:ping`, `editor:drag-start`/
+  `editor:drag-end`, `editor:framing-mode` (image framing), and the §18 rich-text trio
+  `editor:rich-text-editing` / `editor:rich-text-applied` / `editor:rich-text-locate`.
+- **`theme:*` — the theme sends, Studio receives.** `theme:ready` (capabilities, manifest/theme/SDK
+  versions, resolved breakpoints), `theme:pong`, `theme:route-changed`, `theme:block-clicked` /
+  `theme:field-clicked` / `theme:text-edited`, `theme:blocks-rendered` / `theme:block-hovered` /
+  `theme:slots-rendered` (editor-only geometry, gated by capability negotiation), `theme:height-changed`,
+  `theme:error`, `theme:request-failed` (a gateway read's HTTP status — how a theme signals a revoked
+  preview token without Studio polling for it), `theme:drop-candidate` / `theme:node-dropped`
+  (structural drag), `theme:framing-target` / `theme:framing-changed`, and the rich-text trio
+  `theme:rich-text-selection` / `theme:rich-text-input` / `theme:rich-text-command`.
+
+Each side advertises what it supports in its first message — `EDITOR_CAPABILITIES` /
+`THEME_CAPABILITIES` (`protocol.ts:466`) — so a capability like `block-slots` or `rich-text-inline`
+is only ever used once both sides have named it. `@eldrajs/theme-core/overlay` is the runtime that
+turns these messages into DOM selection, rich-text classification and drag handling inside the
+iframe; `@eldrajs/theme-vue`'s `useEldraPreview`/`startEldraPreview` wire a Vue theme up to it. See
+[The Studio bridge](docs/themes.md#the-studio-bridge).
+
+### Build-time platform reads
+
+`@eldrajs/theme-nuxt`'s module makes four reads of the organisation's platform state, once, at
+`nuxi generate` time, in parallel (`packages/theme-nuxt/src/module.ts:360`): commerce settings
+(currency), content locales, theme-message overrides (`GET /site/v1/theme-messages`) and resolved
+design tokens (`GET /site/v1/design-tokens`). **Each is independently fail-soft** — a gateway that
+cannot be reached, a response that fails its own shape check, or a credential-less build all answer
+`null` with one `console.warn` line, never a failed build, and never let one read's failure take
+another down (a currency the gateway will not give up must not cost the site its locales). A theme
+with no `ELDRA_GATEWAY_URL`/`ELDRA_ORG_ID` configured still produces the static shell a scaffold
+build is for. See `readStoreCommerce`/`readStoreLocales`/`readThemeMessages`/`readDesignTokens` and
+their own `*_WARNING` constants for the exact wording each prints.
+
+### Virtual modules
+
+`@eldrajs/vite-plugin-theme` resolves seven `virtual:eldra/*` ids
+(`packages/vite-plugin-theme/src/plugin.ts`): `manifest` (the whole `ThemeManifest`), `blocks` (an
+apiId → lazy `Block.vue` import map), `block-fields` (per-block `{fieldId, type, localized?,
+metadata?}`, for runtime field lookups with no manifest import), `breakpoints` (resolved
+tablet/normal px, deliberately **not** part of `manifest` — it must never reach
+`.eldra/manifest.json`, which ingest validates strictly), `messages` (the theme's message
+catalogue), `tokens.css` and `tailwind-theme.css` (opt-in). `handleHotUpdate` rescans and
+invalidates these on a change to `blocks/*/{block.json,mock.json,preview.png}`, `i18n/*.json`,
+`tokens.json` or `package.json`.
+
+Two of these — `messages` and `tokens.css` — are the mechanism behind "a Studio override reaches
+the deployed site": `EldraThemeOptions.resolveMessages` / `resolveTokens`
+(`vite-plugin-theme/src/types.ts:440`) are transform hooks the `load()` handler calls on the raw
+manifest content before serving the module (`plugin.ts:128` / `:141`). Unset, each virtual module
+serves the manifest's own content unchanged — a credential-less build's behaviour. `theme-nuxt` is
+the one caller that sets them, and only after its own platform reads (above) have settled: closures
+assigned onto the same options object `eldraTheme()` was already called with, which works because
+Nuxt's module `setup()` (platform reads included) always finishes before Vite's build hooks run.
+
+### Invariants
+
+- **Framework-free packages import no framework.** `theme-core`, `vite-plugin-theme` and
+  `theme-cli` never import `vue`, `nuxt`, `#app`/`#imports` or `@vue/*`/`nuxt/*`;
+  `scripts/check-framework-free.mjs` enforces it in `lint:check` and CI. `theme-vue` imports only
+  `vue` and `theme-core`; `theme-nuxt` imports only Nuxt, `vue`, and the three `theme-*`/
+  `vite-plugin-theme` packages.
+- **`@eldrajs/*` never imports `@eldra-is/*`.** The public packages (on npmjs) and Eldra's private
+  UI library (on GitHub Packages) are different scopes for a reason — this kit must build and run
+  with no access to the private registry at all.
+- **Blocks never call Nuxt globals.** `blocks/**` and `app/components/ui/**` never call `useRoute`,
+  `useHead`, `NuxtLink`, `$fetch`, `useAsyncData`, or rely on Nuxt auto-imports — every `vue`/
+  `@eldrajs/*` import is explicit. This is what lets a block render in Storybook, which has no Nuxt
+  build step to auto-import from.
+- **Previews hash every file that can change what they show.** A block's `preview.png` is keyed by a
+  content hash of every file under `blocks/<id>/` (except `__tests__/` and `preview.png` itself)
+  plus `main.css` plus the resolved `@eldrajs/ui` version — not a named file list, which goes stale
+  the moment a block grows a part file. `test/previewsFresh.spec.ts` fails a stale hash with "run
+  pnpm previews".
+- **The CSS variable rule in `@eldrajs/ui`.** No value is written literally: every colour, radius,
+  height, spacing step, font, duration, easing and z-index resolves to a `--eldra-*` variable, so a
+  consumer restyles the package by setting variables, never by overriding a class. `tokens.css` is
+  generated from `eldra-starter-spec/tokens.json` and regenerated with `build-tokens`, never
+  hand-edited.
+
 ## Testing
 
 Vitest, `environment: node` for the framework-free packages. A test that guards a specific defect is
