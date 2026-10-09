@@ -258,8 +258,15 @@ const HEAD_BASE = `mb-3 flex min-w-0 items-center justify-between gap-3 ${FILTER
 const TITLE_BASE = 'm-0 min-w-0 text-h4 text-text';
 /** Spec → Sizes, Active filters row: "Wrapping row, 0.375rem gaps, 0.75rem below." */
 const APPLIED_BASE = `mb-3 flex list-none flex-wrap gap-1.5 py-0 ${FILTER_GUTTER}`;
-/** Spec → Sizes, Drawer foot: "2 columns (`auto | 1fr`), 0.75rem gap." */
-const FOOT_BASE = `mt-4 grid grid-cols-[auto_1fr] gap-3 ${FILTER_GUTTER}`;
+/**
+ * Spec → Sizes, Drawer foot: "2 columns (`auto | 1fr`), 0.75rem gap." The `1fr` track is
+ * `minmax(0, 1fr)`: a `1fr` track is never narrower than its content, and the primary button's
+ * one-line label is content, so with a wide-rendering font the foot ran past a 320px drawer
+ * rather than letting that label wrap.
+ */
+const FOOT_BASE = `mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-3 ${FILTER_GUTTER}`;
+/** The default foot's primary label may wrap: the drawer is narrow and the count is live. */
+const FOOT_APPLY_CLASSES = { label: 'whitespace-normal' } as const;
 
 const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'root'));
 const headClass = computed(() => partClass(HEAD_BASE, props.classes, 'head'));
@@ -431,7 +438,13 @@ const groupId = (facet: FilterFacet, part: string): string =>
         <Button variant="outline" type="button" @click="onClear(false)">
           {{ m.filterPanelClearAll }}
         </Button>
-        <Button variant="primary" type="button" block @click="onApply">
+        <Button
+          variant="primary"
+          type="button"
+          block
+          :classes="FOOT_APPLY_CLASSES"
+          @click="onApply"
+        >
           {{
             resultCount === null ? m.filterPanelShowProducts : m.filterPanelShowResults(resultCount)
           }}
