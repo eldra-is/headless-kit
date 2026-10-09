@@ -13,7 +13,7 @@ platform repository.
   `refreshTokens` and `buildLogoutUrl` (OIDC authorization code with PKCE against the shop realm,
   `EldraOidcError` on failure), `bearer(accessToken)`, and `customer.me(context)` for the signed-in
   business customer and their company memberships. The token is passed per call in
-  `context.headers`. See `docs/business-login.md`.
+  `context.headers`. See `docs/business-login.md`. `refreshExpiresAt` is `undefined` when the server sends no `refresh_expires_in`.
 
 - Responsive images: `responsiveImage` returns `src`, `srcset`, `sizes`, `width` and `height` for
   an `<img>` from any media URL or object the API returns; `imageSrcset`, `imageUrl`,

@@ -12,8 +12,8 @@ export interface EldraOidcTokens {
   idToken: string;
   /** Epoch milliseconds when the access token expires. */
   expiresAt: number;
-  /** Epoch milliseconds when the refresh token expires. */
-  refreshExpiresAt: number;
+  /** Epoch milliseconds when the refresh token expires; undefined when the server sent no `refresh_expires_in`. */
+  refreshExpiresAt: number | undefined;
 }
 
 export class EldraOidcError extends Error {
@@ -74,6 +74,10 @@ export interface EldraLogoutUrlOptions {
   idTokenHint?: string;
 }
 
+function oidcUrl(issuer: string, endpoint: string): URL {
+  return new URL(`${issuer.replace(/\/+$/, '')}/protocol/openid-connect/${endpoint}`);
+}
+
 /** The default client id of the storefront client in every shop realm. */
 export const ELDRA_SHOP_CLIENT_ID = 'storefront';
 
@@ -113,7 +117,7 @@ export async function createPkcePair(): Promise<EldraPkcePair> {
 }
 
 export function buildAuthorizeUrl(options: EldraAuthorizeUrlOptions): string {
-  const url = new URL(`${options.issuer}/protocol/openid-connect/auth`);
+  const url = oidcUrl(options.issuer, 'auth');
   url.searchParams.set('client_id', options.clientId);
   url.searchParams.set('redirect_uri', options.redirectUri);
   url.searchParams.set('response_type', 'code');
@@ -126,7 +130,7 @@ export function buildAuthorizeUrl(options: EldraAuthorizeUrlOptions): string {
 }
 
 export function buildLogoutUrl(options: EldraLogoutUrlOptions): string {
-  const url = new URL(`${options.issuer}/protocol/openid-connect/logout`);
+  const url = oidcUrl(options.issuer, 'logout');
   url.searchParams.set('client_id', options.clientId);
   url.searchParams.set('post_logout_redirect_uri', options.postLogoutRedirectUri);
   if (options.idTokenHint) url.searchParams.set('id_token_hint', options.idTokenHint);
@@ -141,7 +145,7 @@ async function tokenRequest(
   if (options.clientSecret) form.set('client_secret', options.clientSecret);
   const requestedAt = Date.now();
   const response = await (options.fetch ?? globalThis.fetch)(
-    `${options.issuer}/protocol/openid-connect/token`,
+    oidcUrl(options.issuer, 'token').toString(),
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
@@ -157,6 +161,13 @@ async function tokenRequest(
       typeof body?.error_description === 'string' ? body.error_description : undefined;
     throw new EldraOidcError(response.status, error, description);
   }
+  if (typeof body?.access_token !== 'string' || !body.access_token) {
+    throw new EldraOidcError(
+      response.status,
+      'invalid_response',
+      'Token response has no access_token'
+    );
+  }
   const text = (key: string) => (typeof body?.[key] === 'string' ? (body[key] as string) : '');
   const seconds = (key: string) => (typeof body?.[key] === 'number' ? (body[key] as number) : 0);
   return {
@@ -164,7 +175,10 @@ async function tokenRequest(
     refreshToken: text('refresh_token'),
     idToken: text('id_token'),
     expiresAt: requestedAt + seconds('expires_in') * 1000,
-    refreshExpiresAt: requestedAt + seconds('refresh_expires_in') * 1000,
+    refreshExpiresAt:
+      typeof body.refresh_expires_in === 'number'
+        ? requestedAt + body.refresh_expires_in * 1000
+        : undefined,
   };
 }
 

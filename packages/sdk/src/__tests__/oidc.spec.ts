@@ -180,6 +180,44 @@ describe('exchangeAuthorizationCode', () => {
   });
 });
 
+describe('token response validation', () => {
+  it('rejects a 200 without access_token', async () => {
+    const { fetch } = fetchStub(200, { id_token: 'x' });
+    const error = await refreshTokens({ issuer, clientId: 'c', refreshToken: 'r', fetch }).catch(
+      (e: unknown) => e
+    );
+    expect(error).toBeInstanceOf(EldraOidcError);
+    expect(error).toMatchObject({ status: 200, error: 'invalid_response' });
+  });
+
+  it('leaves refreshExpiresAt undefined when refresh_expires_in is absent', async () => {
+    const { fetch } = fetchStub(200, { access_token: 'at', expires_in: 60 });
+    const tokens = await refreshTokens({ issuer, clientId: 'c', refreshToken: 'r', fetch });
+    expect(tokens.refreshExpiresAt).toBeUndefined();
+  });
+});
+
+describe('issuer normalisation', () => {
+  it('ignores a trailing slash in every builder and the token call', async () => {
+    const slashed = `${issuer}/`;
+    expect(
+      buildAuthorizeUrl({
+        issuer: slashed,
+        clientId: 'c',
+        redirectUri: 'r',
+        state: 's',
+        codeChallenge: 'x',
+      })
+    ).toContain(`${issuer}/protocol/openid-connect/auth?`);
+    expect(
+      buildLogoutUrl({ issuer: slashed, clientId: 'c', postLogoutRedirectUri: 'https://s.test/' })
+    ).toContain(`${issuer}/protocol/openid-connect/logout?`);
+    const { fetch, calls } = fetchStub(200, tokenBody);
+    await refreshTokens({ issuer: slashed, clientId: 'c', refreshToken: 'r', fetch });
+    expect(calls[0].url).toBe(`${issuer}/protocol/openid-connect/token`);
+  });
+});
+
 describe('refreshTokens', () => {
   it('posts a refresh_token grant', async () => {
     const { fetch, calls } = fetchStub(200, tokenBody);
