@@ -1760,7 +1760,7 @@ serves the static output, and screenshots each block's `Default` story at 1280×
 Chromium into `blocks/<id>/preview.png` (the theme plugin copies these into `.eldra/previews/` for
 Studio's block picker). `.eldra/previews.json` records a content hash per block — the hash of
 **every file under `blocks/<id>/`** except `__tests__/` and `preview.png` itself, **plus
-`main.css`**, **plus the resolved `@eldrajs/ui` version**. The whole block directory rather than a
+`main.css`**, **plus the `@eldrajs/ui` package** (its source files when it resolves to this workspace, its version in a scaffolded theme — so a release bump alone does not invalidate every preview). The whole block directory rather than a
 named file list, because a block's rendered output is more than `Block.vue`: `parts/*.vue`, a helper
 module, `block.json`'s own `variant` options and `preview.json` all change what the screenshot shows,
 and a named list silently goes stale the first time a block grows a new file. `main.css` and the
