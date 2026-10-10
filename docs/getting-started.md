@@ -105,7 +105,7 @@ the script and the event endpoint are proxied through the storefront's own domai
 | Group       | Methods                                                                                                                |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search` |
-| `cms`       | `list`, `get`, `getByUniqueField`, `resolveEntryList` — typed by the generator below                                   |
+| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList` — typed by the generator below                              |
 | `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`  |
 | `checkout`  | `handoffUrl({ cartId, locale })` — the hosted checkout takes it from there                                             |
 | `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                      |

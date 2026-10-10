@@ -90,7 +90,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   documented snippet lives here first and is referenced by path, so it cannot stop compiling
   silently.
 - `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `frameworks.md` (the
-  contract a wrapper for another framework must satisfy).
+  contract a wrapper for another framework must satisfy), `roadmap.md` (planned work; remove a line
+  in the change that builds it).
 
 ## Testing
 
