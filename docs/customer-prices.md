@@ -60,6 +60,15 @@ reference implementation.
 - Price service down: 503 `CART_PRICES_UNAVAILABLE` (nothing was saved; retry).
 - B2B switched off: cart writes on a bound cart are 409 `CART_CUSTOMER_PRICES_OFF`, and order
   create and preview are 409 `ORDER_CUSTOMER_PRICES_OFF`. Move the basket to a guest cart.
+- Company archived or unknown: cart writes on a bound cart are 409 `CART_CUSTOMER_UNAVAILABLE`,
+  and order create and preview are 409 `ORDER_CUSTOMER_UNAVAILABLE` (before contract 2.17.0 settled
+  this was 503 `*_PRICES_UNAVAILABLE`, which is now only a real price-service outage). Handle both
+  like `*_CUSTOMER_PRICES_OFF`: end the business session for that company, or move the basket to a
+  guest cart.
+- **The order can differ from the cart page.** A bound cart shows the prices stored when each line
+  was added. The order re-prices from the customer's current terms, and DK-synced terms change
+  routinely, so the order total can differ from the cart total. Show the order preview total
+  before payment rather than the cart total.
 
 ## Errors on priced reads
 

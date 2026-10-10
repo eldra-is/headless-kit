@@ -27,6 +27,11 @@ platform repository.
   `CART_CUSTOMER_PRICES_OFF`, `ORDER_CUSTOMER_PRICES_OFF`, `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`,
   `CART_PRICES_UNAVAILABLE`. Every cart answer is `private, no-store`; binding drops the discount
   code; list items carry `listPrice`. The docs explain tracking the binding and moving the cart.
+- Customer carts (contract 2.17.0): an archived or unknown company now answers 409
+  `CART_CUSTOMER_UNAVAILABLE` on cart writes and 409 `ORDER_CUSTOMER_UNAVAILABLE` on order create and
+  preview (before: 503 `*_PRICES_UNAVAILABLE`); treat them like `*_CUSTOMER_PRICES_OFF`. A bound
+  cart shows the prices stored when lines were added, and the order re-prices, so show the order
+  preview total before payment. No change to the generated contract.
 
 ## 0.2.7 — 2026-10-09
 
