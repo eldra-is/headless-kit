@@ -20,7 +20,7 @@ const eldra = createEldraClient({ orgId: 'your-organisation-id' });
 const { data: products } = await eldra.catalog.listProducts();
 ```
 
-Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md). Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).
+Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md). Planned work: [docs/roadmap.md](docs/roadmap.md). Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).
 Security reports: [SECURITY.md](SECURITY.md).
 
 MIT licensed — see [LICENSE](LICENSE).
