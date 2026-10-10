@@ -160,7 +160,6 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 - `examples/` — real projects on the workspace packages, type-checked by `pnpm typecheck`. A
   documented snippet lives here first and is referenced by path, so it cannot stop compiling
   silently.
-<<<<<<< HEAD
 - `examples/starter-nuxt` — the theme starter: what `eldra-theme init` copies. `theme-cli`'s
   `prepack` script copies this directory into `packages/theme-cli/template/` (git-ignored, rebuilt
   on every pack/publish) rather than the CLI depending on it at runtime. Buttons, links and form
@@ -226,7 +225,8 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   three CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
   map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the
   starter's own conventions — see the `examples/starter-nuxt` entry above) plus the four
-  `theme-*.md` docs `themes.md` links to.
+  `theme-*.md` docs `themes.md` links to, and `roadmap.md` (planned work; remove a line in the
+  change that builds it).
 
 ## How a theme meets the page builder
 
@@ -349,11 +349,6 @@ Nuxt's module `setup()` (platform reads included) always finishes before Vite's 
   consumer restyles the package by setting variables, never by overriding a class. `tokens.css` is
   generated from `eldra-starter-spec/tokens.json` and regenerated with `build-tokens`, never
   hand-edited.
-=======
-- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `frameworks.md` (the
-  contract a wrapper for another framework must satisfy), `roadmap.md` (planned work; remove a line
-  in the change that builds it).
->>>>>>> origin/main
 
 ## Testing
 

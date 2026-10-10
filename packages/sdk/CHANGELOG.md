@@ -9,7 +9,6 @@ platform repository.
 
 ## Unreleased
 
-<<<<<<< HEAD
 - **A request that answered `429` or `503` is retried instead of failing.** The gateway rate-limits a
   client by requests per minute, which a static build of a real catalogue meets routinely. The
   default `fetch` transport now repeats an **idempotent** request (`GET`/`HEAD`/`OPTIONS` — never a
@@ -26,12 +25,11 @@ platform repository.
   header name or a `GET` with a body fails on the first attempt, because repeating it can only fail
   the same way. **This is a minor**: the behaviour is a repair, but `retry` is a new public option
   and `EldraRetryOptions` a new exported type.
-=======
+
 - `analyticsTrackerScript`'s documentation no longer says events always reach the gateway; with
   `eventOrigin` set they go to that first-party proxy.
 
 ## 0.2.6 — 2026-10-08
->>>>>>> origin/main
 
 - Responsive images: `responsiveImage` returns `src`, `srcset`, `sizes`, `width` and `height` for
   an `<img>` from any media URL or object the API returns; `imageSrcset`, `imageUrl`,
@@ -39,76 +37,6 @@ platform repository.
   URL serves 800 px, so a storefront rendering it as-is was soft on wide screens. External URLs
   and formats the host does not resize come back unchanged. See `docs/images.md`.
 
-<<<<<<< HEAD
-- `categoryId`, `collectionId` and `option` are sent as repeated query parameters, one entry per
-  value, like `filter` — the gateway declares all four `explode: true` (contract 3.7.0). Each is an
-  OR over its values, so the comma-joined form was one value nothing matched: a storefront filtering
-  on two categories, two collections or two option values saw an empty list instead of all of them.
-
-- `analyticsTrackerScript({ orgId, apiBaseUrl, env })` returns the attributes of the tracker
-  `<script>` tag — `src`, `defer`, `crossorigin`, `data-org`, and `data-api` when `eventOrigin`
-  names a first-party proxy — built from the same configuration the client reads from, so the
-  tracker can never report to a different environment than the one the site renders. It answers
-  `undefined` when no organisation id resolves, which is how a preview or development build opts
-  out of reporting.
-
-- `client.features.getLocales()` answers which content locales the organisation publishes: its own
-  `{ default, supported }` record (exported as `EldraOrganizationLocales`, `supported` default-first
-  and duplicate-free), or `null` when it has configured none. `EldraOrganizationDetails` grows the
-  same `locales` field, so a caller holding an organisation can read it there instead. The answer is
-  validated, not passed through — a record missing a usable `default`, or whose `supported` is not an
-  array of non-empty strings, reads the same as "none configured": whoever reads this decides which
-  locale lives at which URL, and half an answer would route real visitors to paths no content
-  exists at. The type is hand-written, like `EldraOrganizationCommerce` beside it, because the
-  organisation read has to resolve without the generated contract.
-
-- `client.features.getCommerce()` answers what the store sells in: the organisation's own
-  `commerce` settings (`{ currency, taxInclusivePricing, defaultTaxRate }`, exported as
-  `EldraOrganizationCommerce`), or `null` when it publishes none. `EldraOrganizationDetails` grows
-  the same `commerce` field, so a caller that already holds an organisation can read it there
-  instead. A store that has not configured commerce publishes nothing, and that is reported as
-  `null` rather than filled in with a default: a storefront can then render a price as a number
-  with its code instead of showing one currency's amounts under another's symbol. The type is
-  hand-written, like `EldraOrganizationDetails` around it, because the organisation read has to
-  resolve without the generated contract.
-
-- **Breaking:** checkout is the platform's. `client.checkout.handoffUrl({ cartId, checkoutUrl })`
-  and the `checkoutUrl` client option are gone, replaced by `await client.checkout.url({ cartId,
-locale })`: the base URL comes from `client.platform.config()` — a new read of
-  `GET /platform/v1/config` (`{ checkoutUrl: string | null }`, cached for the life of the client, a
-  failed read retried by the next call) — and the result is the same
-  `{checkoutUrl}/checkout/{orgId}/{cartId}?lang=…` as before. A storefront no longer configures, or
-  can accidentally point somewhere else, the checkout it hands the cart to; it awaits the URL and
-  shows its Check out control once it resolves.
-
-  Three details of the read are deliberate. It sends **no `X-Org-Id`**: the gateway made the route
-  organisation-independent, and the header would put a public read behind the
-  origin-to-organisation binding, refusing a browser origin the route answers today. The shared
-  in-flight request carries **no caller's signal**, so one caller abandoning its wait cannot cancel
-  the read the others are sharing — `platform.config()` and `checkout.url()` take
-  `EldraPlatformReadOptions` (`{ signal }`), which aborts your own wait and nothing else. And the
-  published value is **checked, not trusted**: it has to parse as an absolute `http(s)` URL before
-  it can become a link.
-
-  `url()` has one refusal per cause, each saying which it was: `The platform did not publish a
-checkout URL`, `Could not read the platform checkout URL … : <why>` (with the read failure as the
-  error's `cause`), and `The platform published an unusable checkout URL …`.
-  `EldraCheckoutHandoffOptions` is now `EldraCheckoutUrlOptions` (same `cartId`/`locale`/`orgId`,
-  no `checkoutUrl`), and `EldraPlatformClient`/`EldraPlatformConfig`/`EldraPlatformReadOptions` are
-  exported. The config response type is hand-written until the gateway contract carries the path.
-
-- `EldraHttpError` now carries the problem body's `errorId` alongside `code`. `code` names the class
-  of failure (`CONFLICT`, `VALIDATION`), which several unrelated refusals share; `errorId` names
-  which one it was (`CART_INSUFFICIENT_STOCK`), so a storefront can say "out of stock" for a refused
-  cart add instead of a generic failure.
-
-- Fix: the `filter` query parameter is now sent as one `filter=` entry per token instead of a
-  single comma-joined one. It is the one list parameter the gateway declares repeatable
-  (`explode: true`), and a filter token's own value may contain commas (`slug:in:a,b`), so joining
-  several tokens ran them together and every token after the first was lost — a request that
-  filtered on less than it was asked to, with no error. `sort`, `fields` and every other array
-  parameter are declared `explode: false` and stay comma-separated.
-=======
 ## 0.2.5 — 2026-09-25
 
 - `analyticsTrackerScript` builds the analytics tracker `<script>` attributes from the same
@@ -127,7 +55,6 @@ checkout URL`, `Could not read the platform checkout URL … : <why>` (with the 
 - `EldraHttpError.errorId` carries the problem's specific reason, such as `CART_NOT_FOUND` or
   `CART_INSUFFICIENT_STOCK`. The docs told you to branch on `code` for these, but the gateway puts
   them in `errorId`; `code` is only the category (`NOT_FOUND`, `CONFLICT`) and is unchanged.
->>>>>>> origin/main
 
 ## 0.2.2 — 2026-09-20
 
