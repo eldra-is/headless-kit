@@ -273,6 +273,7 @@ export interface EldraClient {
   checkout: EldraCheckoutClient;
   inventory: EldraInventoryClient;
   customer: EldraCustomerClient;
+  salesOrders: EldraSalesOrdersClient;
 }
 
 export interface EldraLocaleOptions {
@@ -384,6 +385,119 @@ export interface EldraCustomerClient {
    * - 503 `SHOP_LOGIN_UNAVAILABLE`: the login service is unreachable; try again.
    */
   me(context?: EldraRequestContext): Promise<EldraCustomerMe>;
+  /**
+   * The active company's delivery locations, the default first; `[]` for a company with none.
+   * Pass `customerHeaders(accessToken, customerId)` as `context.headers`. Server-side only. Refusals
+   * are the sign-in's: 401 `SHOP_TOKEN_INVALID`, 403 `SHOP_NO_MEMBERSHIP`, `FEATURE_DISABLED`,
+   * `SHOP_CUSTOMER_NOT_MEMBER`, 409 `SHOP_CUSTOMER_REQUIRED`, 503 `SHOP_LOGIN_UNAVAILABLE`.
+   */
+  locations(context?: EldraRequestContext): Promise<EldraCustomerLocation[]>;
+}
+
+export type EldraCustomerLocationList = EldraContractResponse<'/customer/v1/locations', 'get'>;
+export type EldraCustomerLocation = Item<Prop<EldraCustomerLocationList, 'data'>>;
+
+export type EldraSalesOrderPreviewInput = EldraContractBody<'/sales-order/v1/preview', 'post'>;
+export type EldraSalesOrderPreview = EldraContractResponse<'/sales-order/v1/preview', 'post'>;
+export type EldraSalesOrderPreviewLine = Item<Prop<EldraSalesOrderPreview, 'lines'>>;
+export type EldraSalesOrderCredit = Prop<EldraSalesOrderPreview, 'credit'>;
+export type EldraCreateSalesOrderInput = EldraContractBody<'/sales-order/v1', 'post'>;
+export type EldraSalesOrder = EldraContractResponse<'/sales-order/v1/{salesOrderId}', 'get'>;
+export type EldraSalesOrderLine = Item<Prop<EldraSalesOrder, 'lines'>>;
+export type EldraSalesOrderWarning = Item<Prop<EldraSalesOrder, 'warnings'>>;
+export type EldraSalesOrderDelivery = Prop<EldraSalesOrder, 'delivery'>;
+export type EldraSalesOrderStatus = Prop<EldraSalesOrder, 'salesStatus'>;
+export type EldraSalesOrderList = EldraContractResponse<'/sales-order/v1', 'get'>;
+export type EldraSalesOrderListItem = Item<Prop<EldraSalesOrderList, 'data'>>;
+export type EldraSalesOrderListOptions = EldraContractQuery<'/sales-order/v1', 'get'>;
+
+export interface EldraCreateSalesOrderOptions {
+  /**
+   * Required. Mint one per attempt to place the order (a random UUID), keep it across retries of
+   * that attempt, and mint a new one when the cart or the form changes. The same key replays the
+   * first order rather than placing a second; a different body under it is 409
+   * `ORDER_IDEMPOTENCY_CONFLICT`.
+   */
+  idempotencyKey: string;
+}
+
+/** Error ids of the business sign-in, on every route that takes a shop token. */
+export type EldraShopErrorId =
+  | 'SHOP_TOKEN_INVALID'
+  | 'SHOP_NO_MEMBERSHIP'
+  | 'SHOP_CUSTOMER_NOT_MEMBER'
+  | 'SHOP_CUSTOMER_REQUIRED'
+  | 'SHOP_LOGIN_UNAVAILABLE'
+  | 'FEATURE_DISABLED';
+
+/**
+ * Error ids of the sales-order routes (contract 2.18.0). `SALES_ORDER_CART_ALREADY_ORDERED`
+ * carries `errors.salesOrderId`, `SALES_ORDER_LINE_INVALID` `errors.variantId` and
+ * `ORDER_PRODUCT_UNAVAILABLE` `errors.variantIds` on `EldraHttpError.errors`.
+ */
+export type EldraSalesOrderErrorId =
+  | 'SALES_ORDER_IDEMPOTENCY_KEY_REQUIRED'
+  | 'SALES_ORDER_CART_EMPTY'
+  | 'SALES_ORDER_TOO_MANY_LINES'
+  | 'SALES_ORDER_LINE_INVALID'
+  | 'SALES_ORDER_CART_NOT_BOUND'
+  | 'SALES_ORDER_CART_ALREADY_ORDERED'
+  | 'SALES_ORDER_LOCATION_UNKNOWN'
+  | 'SALES_ORDER_CREDIT_LIMIT_EXCEEDED'
+  | 'SALES_ORDER_CREDIT_CHECK_UNAVAILABLE'
+  | 'SALES_ORDER_TERMS_UNAVAILABLE'
+  | 'SALES_ORDER_CART_UNAVAILABLE'
+  | 'SALES_ORDER_UPSTREAM_REFUSED'
+  | 'SALES_ORDER_NOT_FOUND'
+  | 'CUSTOMER_BLOCKED'
+  | 'CART_NOT_FOUND'
+  | 'ORDER_CUSTOMER_UNAVAILABLE'
+  | 'ORDER_CUSTOMER_PRICES_OFF'
+  | 'ORDER_PRODUCT_UNAVAILABLE'
+  | 'ORDER_PRICES_UNAVAILABLE'
+  | 'ORDER_IDEMPOTENCY_CONFLICT'
+  | 'ORIGIN_NOT_REGISTERED';
+
+/** A problem's `errorId`: the ids above, or any other the gateway answers. */
+export type EldraErrorId = EldraShopErrorId | EldraSalesOrderErrorId | (string & {});
+
+/**
+ * Orders on account for a signed-in business customer's active company (contract 2.18.0).
+ * Server-side only: pass `customerHeaders(accessToken, customerId)` as `context.headers` on every
+ * call. Every answer is `Cache-Control: private, no-store`; never cache one. See
+ * docs/sales-orders.md.
+ *
+ * Only 401 `SHOP_TOKEN_INVALID` means sign in again. 502 `SALES_ORDER_UPSTREAM_REFUSED` is the
+ * supplier's order service refusing the platform, not the person: try again later and never sign
+ * the person out over it.
+ */
+export interface EldraSalesOrdersClient {
+  /**
+   * Prices the company's bound cart exactly as placing it would, and writes nothing. No credit
+   * limit or balance is answered: `credit.wouldBlock` says placing would be refused for credit.
+   */
+  preview(
+    input: EldraSalesOrderPreviewInput,
+    context?: EldraRequestContext
+  ): Promise<EldraSalesOrderPreview>;
+  /**
+   * Places the order from the cart (201) and the cart is removed. `options.idempotencyKey` is
+   * required: the call rejects without one and sends nothing. **A 502, a 503 or a timeout may
+   * follow an order that was placed**: retry with the same key, which replays that order rather
+   * than placing a second. `warnings` name steps the supplier finishes later; the order stands.
+   */
+  create(
+    input: EldraCreateSalesOrderInput,
+    options: EldraCreateSalesOrderOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraSalesOrder>;
+  /** The company's sales orders, newest first; `pageSize` 1–50 (default 50). */
+  list(
+    options?: EldraSalesOrderListOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraSalesOrderList>;
+  /** One sales order; another company's is 404 `SALES_ORDER_NOT_FOUND`. `warnings` is `[]`. */
+  get(salesOrderId: string, context?: EldraRequestContext): Promise<EldraSalesOrder>;
 }
 
 export interface EldraInventoryClient {

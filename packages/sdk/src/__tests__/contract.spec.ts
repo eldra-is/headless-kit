@@ -6,9 +6,15 @@ import type {
   EldraCart,
   EldraCartTotals,
   EldraContractResponse,
+  EldraCreateSalesOrderInput,
+  EldraCustomerLocation,
   EldraCustomerMe,
   EldraCustomerMembership,
   EldraProductListItem,
+  EldraSalesOrder,
+  EldraSalesOrderLine,
+  EldraSalesOrderListOptions,
+  EldraSalesOrderPreview,
   EldraShopUser,
 } from '../index';
 
@@ -36,6 +42,12 @@ describe('eldra sdk without generated contract types', () => {
     expectTypeOf<EldraShopUser>().toBeUnknown();
     expectTypeOf<EldraCustomerMembership>().toBeUnknown();
     expectTypeOf<EldraAddCartItemInput>().toEqualTypeOf<Record<string, unknown>>();
+    expectTypeOf<EldraCustomerLocation>().toBeUnknown();
+    expectTypeOf<EldraSalesOrder>().toBeUnknown();
+    expectTypeOf<EldraSalesOrderLine>().toBeUnknown();
+    expectTypeOf<EldraSalesOrderPreview>().toBeUnknown();
+    expectTypeOf<EldraCreateSalesOrderInput>().toEqualTypeOf<Record<string, unknown>>();
+    expectTypeOf<EldraSalesOrderListOptions>().toEqualTypeOf<Record<string, unknown>>();
   });
 
   it('still lets a caller name a response type explicitly', async () => {

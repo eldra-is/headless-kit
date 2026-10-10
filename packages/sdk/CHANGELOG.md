@@ -32,6 +32,31 @@ platform repository.
   preview (before: 503 `*_PRICES_UNAVAILABLE`); treat them like `*_CUSTOMER_PRICES_OFF`. A bound
   cart shows the prices stored when lines were added, and the order re-prices, so show the order
   preview total before payment. No change to the generated contract.
+- Sales orders and delivery locations (contract 2.18.0) for a signed-in business customer's active
+  company: `customer.locations(context)` (`GET /customer/v1/locations`, the default first, `[]` for
+  none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
+  context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
+  requires the idempotency key and rejects without one, sending nothing; keep the key across
+  retries (a 502, a 503 or a timeout may follow a placed order, and the same key replays it) and
+  mint a new one when the cart or the form changes. Types derived from the contract:
+  `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrderPreviewLine`,
+  `EldraSalesOrderCredit`, `EldraSalesOrder`, `EldraSalesOrderLine`, `EldraSalesOrderWarning`,
+  `EldraSalesOrderDelivery`, `EldraSalesOrderStatus`, `EldraSalesOrderList`,
+  `EldraSalesOrderListItem`, `EldraSalesOrderListOptions`, `EldraSalesOrderPreviewInput`,
+  `EldraCreateSalesOrderInput`. Warnings on create: `SALES_ORDER_STOCK_NOT_SET_ASIDE`,
+  `SALES_ORDER_PAYMENT_NOT_RECORDED` (the order stands). See `docs/sales-orders.md`.
+- Error ids are typed: `EldraHttpError.errorId` is `EldraErrorId`, the known `EldraShopErrorId` and
+  `EldraSalesOrderErrorId` values or any other string. New with sales orders: `CUSTOMER_BLOCKED`,
+  `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`, `SALES_ORDER_CREDIT_CHECK_UNAVAILABLE`,
+  `SALES_ORDER_CART_NOT_BOUND`, `SALES_ORDER_CART_EMPTY`, `SALES_ORDER_TOO_MANY_LINES`,
+  `SALES_ORDER_LINE_INVALID`, `SALES_ORDER_CART_ALREADY_ORDERED`, `SALES_ORDER_LOCATION_UNKNOWN`,
+  `SALES_ORDER_TERMS_UNAVAILABLE`, `SALES_ORDER_CART_UNAVAILABLE`,
+  `SALES_ORDER_IDEMPOTENCY_KEY_REQUIRED`, `SALES_ORDER_NOT_FOUND`, `SALES_ORDER_UPSTREAM_REFUSED`
+  (502: the supplier's order service refused the platform; never sign the person out over it), and
+  the reused `ORDER_CUSTOMER_UNAVAILABLE`, `ORDER_CUSTOMER_PRICES_OFF`, `ORDER_PRODUCT_UNAVAILABLE`,
+  `ORDER_PRICES_UNAVAILABLE`, `ORDER_IDEMPOTENCY_CONFLICT`. `EldraHttpError.errors` carries the
+  problem's details, such as `salesOrderId` on `SALES_ORDER_CART_ALREADY_ORDERED` and `variantId`
+  on `SALES_ORDER_LINE_INVALID`.
 
 ## 0.2.7 — 2026-10-09
 

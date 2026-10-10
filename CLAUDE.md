@@ -89,9 +89,10 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 - `examples/` — real projects on the workspace packages, type-checked by `pnpm typecheck`. A
   documented snippet lives here first and is referenced by path, so it cannot stop compiling
   silently.
-- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `business-login.md`, `customer-prices.md`
+- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `business-login.md`
   (a public security sketch; its code is `examples/node-script/business-login.ts`, and the
-  storefront starter is the reference implementation), `frameworks.md` (the contract a wrapper for
+  storefront starter is the reference implementation), `customer-prices.md`, `sales-orders.md` (its
+  code is `examples/node-script/sales-orders.ts`), `frameworks.md` (the contract a wrapper for
   another framework must satisfy).
 
 ## Testing

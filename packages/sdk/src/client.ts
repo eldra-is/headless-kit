@@ -26,8 +26,13 @@ import type {
   EldraCollectionListOptions,
   EldraCollectionProductsOptions,
   EldraCategory,
+  EldraCreateSalesOrderInput,
+  EldraCreateSalesOrderOptions,
+  EldraCustomerLocation,
+  EldraCustomerLocationList,
   EldraCustomerMe,
   EldraDiscountResult,
+  EldraErrorId,
   EldraLocaleOptions,
   EldraOrder,
   EldraOrderReadOptions,
@@ -38,6 +43,11 @@ import type {
   EldraStockAvailabilityInput,
   EldraRequestContext,
   EldraRequestOptions,
+  EldraSalesOrder,
+  EldraSalesOrderList,
+  EldraSalesOrderListOptions,
+  EldraSalesOrderPreview,
+  EldraSalesOrderPreviewInput,
   RuntimeEnv,
   RuntimeValue,
 } from './types';
@@ -79,7 +89,12 @@ export class EldraHttpError extends Error {
   /** The problem's category, such as `NOT_FOUND` or `CONFLICT`, when the body carried one. */
   readonly code: string | undefined;
   /** The problem's specific reason, such as `CART_NOT_FOUND`, when the body carried one. */
-  readonly errorId: string | undefined;
+  readonly errorId: EldraErrorId | undefined;
+  /**
+   * The problem's `errors` object, when the body carried one: for example `salesOrderId` on
+   * `SALES_ORDER_CART_ALREADY_ORDERED` or `variantId` on `SALES_ORDER_LINE_INVALID`.
+   */
+  readonly errors: Readonly<Record<string, unknown>> | undefined;
 
   constructor(response: Response, body: unknown) {
     super(`Web Studio request failed with ${response.status} ${response.statusText}`);
@@ -89,7 +104,18 @@ export class EldraHttpError extends Error {
     this.body = body;
     this.code = problemField(body, 'code');
     this.errorId = problemField(body, 'errorId');
+    this.errors = problemErrors(body);
   }
+}
+
+function problemErrors(body: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (body && typeof body === 'object' && 'errors' in body) {
+    const value = (body as Record<string, unknown>).errors;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  }
+  return undefined;
 }
 
 function problemField(body: unknown, field: 'code' | 'errorId'): string | undefined {
@@ -430,6 +456,52 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
     customer: {
       me: (context?: EldraRequestContext) =>
         request<EldraCustomerMe>({ ...context, path: '/customer/v1/me' }),
+      locations: async (context?: EldraRequestContext): Promise<EldraCustomerLocation[]> => {
+        const list = await request<EldraCustomerLocationList | null>({
+          ...context,
+          path: '/customer/v1/locations',
+        });
+        return (list as { data?: EldraCustomerLocation[] | null } | null)?.data ?? [];
+      },
+    },
+    salesOrders: {
+      preview: (input: EldraSalesOrderPreviewInput, context?: EldraRequestContext) =>
+        request<EldraSalesOrderPreview>({
+          ...context,
+          method: 'POST',
+          path: '/sales-order/v1/preview',
+          body: input,
+        }),
+      create: async (
+        input: EldraCreateSalesOrderInput,
+        createOptions: EldraCreateSalesOrderOptions,
+        context?: EldraRequestContext
+      ) => {
+        const idempotencyKey = createOptions?.idempotencyKey;
+        if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
+          throw new Error(
+            'salesOrders.create needs an idempotency key: mint one per attempt and keep it across retries.'
+          );
+        }
+        return request<EldraSalesOrder>({
+          ...context,
+          method: 'POST',
+          path: '/sales-order/v1',
+          headers: mergeHeaders(context?.headers, { 'Idempotency-Key': idempotencyKey }),
+          body: input,
+        });
+      },
+      list: (listOptions?: EldraSalesOrderListOptions, context?: EldraRequestContext) =>
+        request<EldraSalesOrderList>({
+          ...context,
+          path: '/sales-order/v1',
+          query: listOptions,
+        }),
+      get: (salesOrderId: string, context?: EldraRequestContext) =>
+        request<EldraSalesOrder>({
+          ...context,
+          path: `/sales-order/v1/${encodeURIComponent(salesOrderId)}`,
+        }),
     },
     inventory: {
       availability: (items: EldraStockAvailabilityInput[], context?: EldraRequestContext) =>
