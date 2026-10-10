@@ -386,12 +386,13 @@ export interface EldraCustomerClient {
    */
   me(context?: EldraRequestContext): Promise<EldraCustomerMe>;
   /**
-   * The active company's delivery locations, the default first; `[]` for a company with none.
+   * The active company's delivery locations as `{ data }`, the default first; `data` is `[]` for a
+   * company with none.
    * Pass `customerHeaders(accessToken, customerId)` as `context.headers`. Server-side only. Refusals
    * are the sign-in's: 401 `SHOP_TOKEN_INVALID`, 403 `SHOP_NO_MEMBERSHIP`, `FEATURE_DISABLED`,
    * `SHOP_CUSTOMER_NOT_MEMBER`, 409 `SHOP_CUSTOMER_REQUIRED`, 503 `SHOP_LOGIN_UNAVAILABLE`.
    */
-  locations(context?: EldraRequestContext): Promise<EldraCustomerLocation[]>;
+  locations(context?: EldraRequestContext): Promise<EldraCustomerLocationList>;
 }
 
 export type EldraCustomerLocationList = EldraContractResponse<'/customer/v1/locations', 'get'>;
@@ -458,8 +459,24 @@ export type EldraSalesOrderErrorId =
   | 'ORDER_IDEMPOTENCY_CONFLICT'
   | 'ORIGIN_NOT_REGISTERED';
 
+/**
+ * The `errors` object each refusal carries, by `errorId`, as the gateway documents it. Read it through
+ * `isEldraError(error, id)`. `ORDER_PRODUCT_UNAVAILABLE` names `variantIds` on a sales order and the
+ * cart's `itemIds` on a web order.
+ */
+export interface EldraProblemErrors {
+  SALES_ORDER_CART_ALREADY_ORDERED: { salesOrderId: string };
+  SALES_ORDER_LINE_INVALID: { variantId: string };
+  ORDER_PRODUCT_UNAVAILABLE: { variantIds: string[]; itemIds: string[] };
+  SHIPPING_CART_NOT_EXPORTABLE: { itemIds: string[] };
+}
+
 /** A problem's `errorId`: the ids above, or any other the gateway answers. */
-export type EldraErrorId = EldraShopErrorId | EldraSalesOrderErrorId | (string & {});
+export type EldraErrorId =
+  | EldraShopErrorId
+  | EldraSalesOrderErrorId
+  | keyof EldraProblemErrors
+  | (string & {});
 
 /**
  * Orders on account for a signed-in business customer's active company (contract 2.18.0).
@@ -482,7 +499,8 @@ export interface EldraSalesOrdersClient {
   ): Promise<EldraSalesOrderPreview>;
   /**
    * Places the order from the cart (201) and the cart is removed. `options.idempotencyKey` is
-   * required: the call rejects without one and sends nothing. **A 502, a 503 or a timeout may
+   * required (at most 255 characters): without a usable one the call rejects with a `TypeError`, a
+   * programming error, and sends nothing. **A 502, a 503 or a timeout may
    * follow an order that was placed**: retry with the same key, which replays that order rather
    * than placing a second. `warnings` name steps the supplier finishes later; the order stands.
    */

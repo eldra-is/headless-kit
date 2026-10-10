@@ -33,13 +33,14 @@ platform repository.
   cart shows the prices stored when lines were added, and the order re-prices, so show the order
   preview total before payment. No change to the generated contract.
 - Sales orders and delivery locations (contract 2.18.0) for a signed-in business customer's active
-  company: `customer.locations(context)` (`GET /customer/v1/locations`, the default first, `[]` for
-  none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
+  company: `customer.locations(context)` (`GET /customer/v1/locations`, answered as the `{ data }`
+  envelope like every other list, the default first, `data` `[]` for none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
   context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
-  requires the idempotency key and rejects without one, sending nothing; keep the key across
+  requires the idempotency key (at most 255 characters) and rejects with a `TypeError` without a
+  usable one, sending nothing; keep the key across
   retries (a 502, a 503 or a timeout may follow a placed order, and the same key replays it) and
   mint a new one when the cart or the form changes. Types derived from the contract:
-  `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrderPreviewLine`,
+  `EldraCustomerLocationList`, `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrderPreviewLine`,
   `EldraSalesOrderCredit`, `EldraSalesOrder`, `EldraSalesOrderLine`, `EldraSalesOrderWarning`,
   `EldraSalesOrderDelivery`, `EldraSalesOrderStatus`, `EldraSalesOrderList`,
   `EldraSalesOrderListItem`, `EldraSalesOrderListOptions`, `EldraSalesOrderPreviewInput`,
@@ -56,7 +57,12 @@ platform repository.
   the reused `ORDER_CUSTOMER_UNAVAILABLE`, `ORDER_CUSTOMER_PRICES_OFF`, `ORDER_PRODUCT_UNAVAILABLE`,
   `ORDER_PRICES_UNAVAILABLE`, `ORDER_IDEMPOTENCY_CONFLICT`. `EldraHttpError.errors` carries the
   problem's details, such as `salesOrderId` on `SALES_ORDER_CART_ALREADY_ORDERED` and `variantId`
-  on `SALES_ORDER_LINE_INVALID`.
+  on `SALES_ORDER_LINE_INVALID`. `isEldraError(error, id)` narrows an unknown error to one refusal
+  and types its `errors` from `EldraProblemErrors` (`SALES_ORDER_CART_ALREADY_ORDERED`,
+  `SALES_ORDER_LINE_INVALID`, `ORDER_PRODUCT_UNAVAILABLE`, `SHIPPING_CART_NOT_EXPORTABLE`).
+- New required interface members: `EldraClient.salesOrders` and `EldraCustomerClient.locations`. Code
+  that only calls the client is unaffected; code that implements these interfaces itself (a mock or a
+  wrapper) must add them.
 
 ## 0.2.7 — 2026-10-09
 

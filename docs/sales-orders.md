@@ -21,7 +21,7 @@ import { customerHeaders } from '@eldrajs/sdk';
 
 const headers = customerHeaders(session.accessToken, session.customerId);
 
-const locations = await eldra.customer.locations({ headers }); // default first, [] for none
+const { data: locations } = await eldra.customer.locations({ headers }); // default first, [] for none
 const preview = await eldra.salesOrders.preview({ cartId, locationId }, { headers });
 const order = await eldra.salesOrders.create(
   { cartId, locationId, purchaseOrderNumber, customerOrderDate, note },
@@ -60,7 +60,9 @@ already. Otherwise the answer is 409 `SALES_ORDER_CART_NOT_BOUND`: add to the ca
 
 ## The idempotency key
 
-`salesOrders.create` requires `{ idempotencyKey }`. Without one it rejects and sends nothing.
+`salesOrders.create` requires `{ idempotencyKey }`, at most 255 characters. Without a usable one it
+rejects with a `TypeError` and sends nothing: that is a bug in the calling code, never a reason to
+retry.
 
 - Mint a key (a random UUID) when the person starts placing the order, and store it with that
   checkout attempt, for example in the server session.
@@ -93,7 +95,18 @@ the preview again. The cart prices the lines at today's terms.
 ## Errors
 
 Every refusal is an `EldraHttpError`. Branch on `errorId`, which is typed as `EldraErrorId`.
-`errors` carries the problem's details.
+`errors` carries the problem's details. `isEldraError(error, id)` narrows an unknown error to
+that refusal and types its `errors` for the ids in `EldraProblemErrors`
+(`SALES_ORDER_CART_ALREADY_ORDERED` `{salesOrderId}`, `SALES_ORDER_LINE_INVALID` `{variantId}`,
+`ORDER_PRODUCT_UNAVAILABLE` `{variantIds}` here and the cart's `{itemIds}` on a web order,
+`SHIPPING_CART_NOT_EXPORTABLE` `{itemIds}`). Each field is as the gateway sent it, so check it before
+use:
+
+```ts
+if (isEldraError(error, 'SALES_ORDER_CART_ALREADY_ORDERED')) {
+  const id = error.errors?.salesOrderId; // string | undefined
+}
+```
 
 | Status | `errorId`                                                                                   | What to do                                                                       |
 | ------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |

@@ -8,6 +8,7 @@ import type {
   EldraContractResponse,
   EldraCreateSalesOrderInput,
   EldraCustomerLocation,
+  EldraCustomerLocationList,
   EldraCustomerMe,
   EldraCustomerMembership,
   EldraProductListItem,
@@ -92,7 +93,8 @@ describe('eldra sdk with generated contract types', () => {
     const list = await client.salesOrders.list({ status: 'OPEN' });
     const one = await client.salesOrders.get('so-1');
 
-    expectTypeOf(locations).toEqualTypeOf<EldraCustomerLocation[]>();
+    expectTypeOf(locations).toEqualTypeOf<EldraCustomerLocationList>();
+    expectTypeOf(locations.data).toEqualTypeOf<EldraCustomerLocation[]>();
     expectTypeOf<EldraCustomerLocation['isDefault']>().toEqualTypeOf<boolean>();
     expectTypeOf(preview).toEqualTypeOf<EldraSalesOrderPreview>();
     expectTypeOf<EldraSalesOrderCredit>().toEqualTypeOf<{
@@ -123,6 +125,6 @@ describe('eldra sdk with generated contract types', () => {
     expectTypeOf(list).toEqualTypeOf<EldraSalesOrderList>();
     expectTypeOf<EldraSalesOrderList['data'][number]['lineCount']>().toEqualTypeOf<number>();
     expectTypeOf<EldraSalesOrderListOptions['pageSize']>().toEqualTypeOf<number | undefined>();
-    expect(locations).toEqual([]);
+    expect(locations).toEqual({ data: [] });
   });
 });

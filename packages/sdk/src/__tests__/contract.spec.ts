@@ -8,6 +8,7 @@ import type {
   EldraContractResponse,
   EldraCreateSalesOrderInput,
   EldraCustomerLocation,
+  EldraCustomerLocationList,
   EldraCustomerMe,
   EldraCustomerMembership,
   EldraProductListItem,
@@ -43,6 +44,7 @@ describe('eldra sdk without generated contract types', () => {
     expectTypeOf<EldraCustomerMembership>().toBeUnknown();
     expectTypeOf<EldraAddCartItemInput>().toEqualTypeOf<Record<string, unknown>>();
     expectTypeOf<EldraCustomerLocation>().toBeUnknown();
+    expectTypeOf<EldraCustomerLocationList>().toBeUnknown();
     expectTypeOf<EldraSalesOrder>().toBeUnknown();
     expectTypeOf<EldraSalesOrderLine>().toBeUnknown();
     expectTypeOf<EldraSalesOrderPreview>().toBeUnknown();

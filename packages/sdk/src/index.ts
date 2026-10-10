@@ -5,7 +5,9 @@ export {
   EldraHttpError,
   getEldraClient,
   initEldraClient,
+  isEldraError,
 } from './client';
+export type { EldraHttpErrorWith } from './client';
 export type {
   EldraContract,
   EldraContractBody,
@@ -69,6 +71,7 @@ export type {
   EldraCustomerMe,
   EldraCustomerMembership,
   EldraErrorId,
+  EldraProblemErrors,
   EldraSalesOrder,
   EldraSalesOrderCredit,
   EldraSalesOrderDelivery,

@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { createEldraClient, customerHeaders, EldraHttpError } from '../index';
+import { createEldraClient, customerHeaders, EldraHttpError, isEldraError } from '../index';
 import type { EldraErrorId, EldraHttpRequest } from '../index';
 import { stubHttpClient } from './support';
 
@@ -75,13 +75,7 @@ describe('eldra sdk customer locations', () => {
     expect(requests[0].headers.get('X-Customer-Id')).toBe('cust-1');
     expect(requests[0].headers.get('X-Org-Id')).toBe('org-123');
     expect(requests[0].body).toBeUndefined();
-    expect(locations).toEqual([location]);
-  });
-
-  it('answers an empty list when the gateway sends no data', async () => {
-    const { client } = recording({});
-
-    expect(await client.customer.locations(signedIn)).toEqual([]);
+    expect(locations).toEqual({ data: [location] });
   });
 });
 
@@ -138,6 +132,38 @@ describe('eldra sdk sales orders', () => {
     expect(requests[0].headers.get('Idempotency-Key')).toBe('key-2');
   });
 
+  it('keeps the key when the client is built with an Idempotency-Key header', async () => {
+    const requests: EldraHttpRequest[] = [];
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      headers: { 'Idempotency-Key': 'client-wide' },
+      httpClient: stubHttpClient((request) => {
+        requests.push(request);
+        return order;
+      }),
+    });
+
+    await client.salesOrders.create({ cartId: 'cart-1' }, { idempotencyKey: 'key-3' }, signedIn);
+
+    expect(requests[0].headers.get('Idempotency-Key')).toBe('key-3');
+  });
+
+  it('refuses a key longer than 255 characters with a TypeError and sends nothing', async () => {
+    const { client, requests } = recording(order);
+
+    await expect(
+      client.salesOrders.create({ cartId: 'cart-1' }, { idempotencyKey: 'k'.repeat(256) }, signedIn)
+    ).rejects.toThrow(TypeError);
+    await client.salesOrders.create(
+      { cartId: 'cart-1' },
+      { idempotencyKey: 'k'.repeat(255) },
+      signedIn
+    );
+
+    expect(requests).toHaveLength(1);
+  });
+
   it.each([undefined, '', '   '])(
     'refuses to place an order without an idempotency key (%j)',
     async (idempotencyKey) => {
@@ -149,7 +175,7 @@ describe('eldra sdk sales orders', () => {
           { idempotencyKey } as { idempotencyKey: string },
           signedIn
         )
-      ).rejects.toThrow(/idempotency key/i);
+      ).rejects.toThrow(TypeError);
       await expect(
         client.salesOrders.create(
           { cartId: 'cart-1' },
@@ -273,6 +299,41 @@ describe('eldra sdk sales order refusals', () => {
     expect(calls()).toBe(1);
     expect(error.status).toBe(502);
     expect(error.errorId).toBe('SALES_ORDER_UPSTREAM_REFUSED');
+  });
+
+  it('narrows a refusal by id with its errors typed', async () => {
+    const { client } = failing(409, {
+      errorId: 'SALES_ORDER_CART_ALREADY_ORDERED',
+      errors: { salesOrderId: 'so-9' },
+    });
+
+    const error: unknown = await client.salesOrders
+      .create({ cartId: 'cart-1' }, { idempotencyKey: 'k' }, signedIn)
+      .catch((e: unknown) => e);
+
+    expect(isEldraError(error, 'SALES_ORDER_LINE_INVALID')).toBe(false);
+    expect(isEldraError(new Error('x'), 'SALES_ORDER_CART_ALREADY_ORDERED')).toBe(false);
+    if (!isEldraError(error, 'SALES_ORDER_CART_ALREADY_ORDERED')) {
+      throw new Error('expected SALES_ORDER_CART_ALREADY_ORDERED');
+    }
+    expectTypeOf(error.errors?.salesOrderId).toEqualTypeOf<string | undefined>();
+    expect(error.errors?.salesOrderId).toBe('so-9');
+  });
+
+  it('types the errors of every documented refusal', () => {
+    const e = {} as unknown;
+    if (isEldraError(e, 'SALES_ORDER_LINE_INVALID')) {
+      expectTypeOf(e.errors?.variantId).toEqualTypeOf<string | undefined>();
+    }
+    if (isEldraError(e, 'ORDER_PRODUCT_UNAVAILABLE')) {
+      expectTypeOf(e.errors?.variantIds).toEqualTypeOf<string[] | undefined>();
+    }
+    if (isEldraError(e, 'SHIPPING_CART_NOT_EXPORTABLE')) {
+      expectTypeOf(e.errors?.itemIds).toEqualTypeOf<string[] | undefined>();
+    }
+    if (isEldraError(e, 'CUSTOMER_BLOCKED')) {
+      expectTypeOf(e.errors).toEqualTypeOf<Readonly<Record<string, unknown>> | undefined>();
+    }
   });
 
   it('types the known error ids and still accepts any string', () => {

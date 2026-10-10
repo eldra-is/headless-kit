@@ -28,11 +28,11 @@ import type {
   EldraCategory,
   EldraCreateSalesOrderInput,
   EldraCreateSalesOrderOptions,
-  EldraCustomerLocation,
   EldraCustomerLocationList,
   EldraCustomerMe,
   EldraDiscountResult,
   EldraErrorId,
+  EldraProblemErrors,
   EldraLocaleOptions,
   EldraOrder,
   EldraOrderReadOptions,
@@ -106,6 +106,37 @@ export class EldraHttpError extends Error {
     this.errorId = problemField(body, 'errorId');
     this.errors = problemErrors(body);
   }
+}
+
+const maxIdempotencyKeyLength = 255;
+
+// A missing or malformed key is the caller's bug, not a refusal: it throws before anything is sent.
+function checkIdempotencyKey(key: unknown): string {
+  if (typeof key !== 'string' || !key.trim() || key.length > maxIdempotencyKeyLength) {
+    throw new TypeError('salesOrders.create needs an idempotency key of 1 to 255 characters');
+  }
+  return key;
+}
+
+/** An `EldraHttpError` whose `errorId` is `Id`, with that refusal's `errors` typed. */
+export type EldraHttpErrorWith<Id extends EldraErrorId> = EldraHttpError & {
+  readonly errorId: Id;
+  readonly errors:
+    | (Id extends keyof EldraProblemErrors
+        ? Readonly<Partial<EldraProblemErrors[Id]>>
+        : Readonly<Record<string, unknown>>)
+    | undefined;
+};
+
+/**
+ * Narrows an unknown error to an `EldraHttpError` with the given `errorId`. For an id in
+ * `EldraProblemErrors` its `errors` is typed (each field optional: it is as the gateway sent it).
+ */
+export function isEldraError<Id extends EldraErrorId>(
+  error: unknown,
+  errorId: Id
+): error is EldraHttpErrorWith<Id> {
+  return error instanceof EldraHttpError && error.errorId === errorId;
 }
 
 function problemErrors(body: unknown): Readonly<Record<string, unknown>> | undefined {
@@ -456,13 +487,8 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
     customer: {
       me: (context?: EldraRequestContext) =>
         request<EldraCustomerMe>({ ...context, path: '/customer/v1/me' }),
-      locations: async (context?: EldraRequestContext): Promise<EldraCustomerLocation[]> => {
-        const list = await request<EldraCustomerLocationList | null>({
-          ...context,
-          path: '/customer/v1/locations',
-        });
-        return (list as { data?: EldraCustomerLocation[] | null } | null)?.data ?? [];
-      },
+      locations: (context?: EldraRequestContext) =>
+        request<EldraCustomerLocationList>({ ...context, path: '/customer/v1/locations' }),
     },
     salesOrders: {
       preview: (input: EldraSalesOrderPreviewInput, context?: EldraRequestContext) =>
@@ -477,12 +503,7 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         createOptions: EldraCreateSalesOrderOptions,
         context?: EldraRequestContext
       ) => {
-        const idempotencyKey = createOptions?.idempotencyKey;
-        if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
-          throw new Error(
-            'salesOrders.create needs an idempotency key: mint one per attempt and keep it across retries.'
-          );
-        }
+        const idempotencyKey = checkIdempotencyKey(createOptions?.idempotencyKey);
         return request<EldraSalesOrder>({
           ...context,
           method: 'POST',
